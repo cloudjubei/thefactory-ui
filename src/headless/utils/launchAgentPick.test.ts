@@ -6,6 +6,7 @@ import {
   launchAgentPickRunner,
   pickLaunchApi,
   pickLaunchCli,
+  pickLaunchEffort,
   pickLaunchModel,
 } from './launchAgentPick'
 import { NO_LAUNCH_AGENT_PICK } from './launchAgentPickConstants'
@@ -54,6 +55,48 @@ describe('launch agent picks', () => {
     expect(launchAgentPickMetadata(pickLaunchModel(pickLaunchApi(), 'opus'))).toEqual({
       cliModel: 'opus',
     })
+  })
+})
+
+describe('launch effort picks', () => {
+  it('sends an effort picked alone, for the chat’s own agent', () => {
+    expect(launchAgentPickMetadata(pickLaunchEffort(NO_LAUNCH_AGENT_PICK, 'high'))).toEqual({
+      effort: 'high',
+    })
+  })
+
+  it('sends the effort with the side picked', () => {
+    expect(launchAgentPickMetadata(pickLaunchEffort(pickLaunchApi(), 'xhigh'))).toEqual({
+      runner: 'api',
+      effort: 'xhigh',
+    })
+    expect(
+      launchAgentPickMetadata(pickLaunchEffort(pickLaunchCli('claude-code', 'c1', 'opus'), 'max')),
+    ).toEqual({
+      runner: 'cli',
+      cliTool: 'claude-code',
+      cliModel: 'opus',
+      cliCredentialId: 'c1',
+      effort: 'max',
+    })
+  })
+
+  it('keeps the effort across a model picked after it, and drops it for another side', () => {
+    const opusMax = pickLaunchEffort(pickLaunchCli('claude-code', undefined, 'opus'), 'max')
+    expect(pickLaunchModel(opusMax, 'sonnet')).toEqual({
+      api: false,
+      cli: 'claude-code',
+      model: 'sonnet',
+      effort: 'max',
+    })
+    expect(pickLaunchCli('codex', undefined, undefined)).not.toHaveProperty('effort')
+    expect(pickLaunchApi()).toEqual({ api: true })
+  })
+
+  it('clears the effort with undefined, leaving the rest', () => {
+    const picked = pickLaunchEffort(pickLaunchApi('low'), undefined)
+    expect(picked).toEqual({ api: true })
+    expect(launchAgentPickMetadata(picked)).toEqual({ runner: 'api' })
   })
 })
 

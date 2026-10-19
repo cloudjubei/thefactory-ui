@@ -42,6 +42,8 @@ import AnsweredQuestionBubble from './AnsweredQuestionBubble'
 import { answeredQuestionOf } from '../../../headless/utils/agentQuestions'
 import { isOpenChangesCardOnlyMessage } from '../../../headless/utils/openChangesNotice'
 import OpenQuestionsCard from './OpenQuestionsCard'
+import ChatStopCard from './ChatStopCard'
+import { chatStopRestart } from '../../../headless/utils/chatStopNotice'
 
 function formatFriendlyTimestamp(iso: string): string {
   const d = new Date(iso)
@@ -180,6 +182,8 @@ export interface MessageRowProps {
   /** Render the tool-call card. RN's `ToolCallCard` peer isn't shipped yet —
    * pass a host renderer here to surface tool calls until it lands. */
   renderToolCall?: (args: NativeToolCallRenderArgs) => ReactNode
+  /** The proposed result of a call waiting on an approval, once its preview has loaded. */
+  toolPreview?: unknown
   /** When true, the tool card shows a toggle in a batch awaiting approval. */
   toolSelectable?: boolean
   /** Whether the toggle is on. */
@@ -304,6 +308,7 @@ function MessageRow({
   isLast,
   isThinking,
   renderToolCall,
+  toolPreview,
   toolSelectable,
   toolSelected,
   onToggleToolSelect,
@@ -390,6 +395,33 @@ function MessageRow({
   const handoffLabel = handoffFrom
     ? `${handoffFrom.charAt(0).toUpperCase()}${handoffFrom.slice(1)}`
     : ''
+
+  // One card for a stop, drawn from its notice — never also the error box or the message's text.
+  if (msg.stopNotice) {
+    const restart = chatStopRestart({
+      ...(onRestartTurn && restartControl ? { restart: restartControl } : {}),
+      hasRetry: !!onRetry,
+      isLast,
+      isThinking,
+    })
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: nativeSpace[3] }}>
+        <Avatar kind="ai" />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <ChatStopCard
+            notice={msg.stopNotice}
+            {...(restart
+              ? {
+                  restart,
+                  onRestart: () => (restart.via === 'restart' ? onRestartTurn?.() : onRetry?.()),
+                }
+              : {})}
+            {...(msg.cliRunId ? { runId: msg.cliRunId } : {})}
+          />
+        </View>
+      </View>
+    )
+  }
 
   if (msg.error) {
     return (
@@ -754,6 +786,7 @@ function MessageRow({
                 resultType: msg.toolResult?.type ?? (msg.error ? 'errored' : undefined),
                 durationMs: msg.toolResult?.durationMs ?? msg.durationMs,
                 ...(msg.startedAt !== undefined ? { startedAt: msg.startedAt } : {}),
+                ...(toolPreview !== undefined ? { previewResult: toolPreview } : {}),
                 ...(toolSelectable
                   ? {
                       selectable: true,

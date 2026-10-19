@@ -2,10 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { visibleCliModelsForAuth } from 'thefactory-tools/utils'
 
-import type { ModelInfo } from '../api'
+import type { CliReasoningEffort, ModelInfo } from '../api'
 import { useCliConfigs } from '../contexts/CliConfigsContext'
-import type { ActivityCliModel } from '../contexts/LLMConfigsContext'
+import { useLLMConfigs, type ActivityCliModel } from '../contexts/LLMConfigsContext'
+import type { ModelEffortSwitch } from '../utils/modelEffortTypes'
 import { deriveCliAuthWarning, type CliAuthWarning } from '../utils/cliRunner'
+import { useModelEffort } from './useModelEffort'
 
 /** The `ModelChip` CLI props derived from the persisted activity CLI selection. */
 export type ActivityChipCliWiring = {
@@ -23,6 +25,8 @@ export type ActivityChipCliWiring = {
   onPickCliModel: (modelId: string) => void
   /** Apply a recents entry as the activity CLI selection. */
   onPickRecentCli: (model: ActivityCliModel) => void
+  /** The effort switch for the side activities run on: the CLI model, or the API config. */
+  effort: ModelEffortSwitch
 }
 
 /**
@@ -38,6 +42,7 @@ export function useActivityChipCli(
   cliModel: ActivityCliModel | null,
   setCliModel: (model: ActivityCliModel | null) => void,
   recentCliModels: ActivityCliModel[] = [],
+  options: { apiOnly?: boolean } = {},
 ): ActivityChipCliWiring {
   const {
     enabledClis,
@@ -47,9 +52,16 @@ export function useActivityChipCli(
     cachesByCli,
     defaultModel,
     effort,
+    modelEffort,
     probeModels,
     cachedLiveModels,
   } = useCliConfigs()
+  const {
+    activeActivityConfig,
+    activeAgentRunConfig,
+    activeActivityApiEffort,
+    setActiveActivityApiEffort,
+  } = useLLMConfigs()
 
   const credentialForCli = useCallback(
     (cli: string): string | undefined => {
@@ -60,6 +72,7 @@ export function useActivityChipCli(
   )
 
   const [cliModels, setCliModels] = useState<ModelInfo[]>([])
+  const [cliLevels, setCliLevels] = useState<string[]>([])
 
   const useCli = !!cliModel
   const selectedCli = cliModel?.cli ?? activeCli ?? null
@@ -76,15 +89,20 @@ export function useActivityChipCli(
   useEffect(() => {
     if (!useCli || !selectedCli) {
       setCliModels([])
+      setCliLevels([])
       return
     }
     let cancelled = false
     void probeModels(selectedCli as Parameters<typeof probeModels>[0])
-      .then(({ models }) => {
-        if (!cancelled) setCliModels(models)
+      .then(({ models, efforts }) => {
+        if (cancelled) return
+        setCliModels(models)
+        setCliLevels(efforts)
       })
       .catch(() => {
-        if (!cancelled) setCliModels([])
+        if (cancelled) return
+        setCliModels([])
+        setCliLevels([])
       })
     return () => {
       cancelled = true
@@ -95,10 +113,9 @@ export function useActivityChipCli(
     (cli: string): ActivityCliModel => ({
       cli: cli as ActivityCliModel['cli'],
       modelId: defaultModel[cli],
-      effort: effort[cli] as ActivityCliModel['effort'],
       credentialId: credentialForCli(cli),
     }),
-    [defaultModel, effort, credentialForCli],
+    [defaultModel, credentialForCli],
   )
 
   // Follow the active CLI agent: when it CHANGES during the session while the chip
@@ -152,11 +169,11 @@ export function useActivityChipCli(
       setCliModel({
         cli: selectedCli as ActivityCliModel['cli'],
         modelId,
-        effort: (cliModel?.effort ?? effort[selectedCli]) as ActivityCliModel['effort'],
+        ...(cliModel?.effort ? { effort: cliModel.effort } : {}),
         credentialId: cliModel?.credentialId ?? credentialForCli(selectedCli),
       })
     },
-    [selectedCli, cliModel, effort, credentialForCli, setCliModel],
+    [selectedCli, cliModel, credentialForCli, setCliModel],
   )
 
   const onPickRecentCli = useCallback(
@@ -166,7 +183,43 @@ export function useActivityChipCli(
     [credentialForCli, setCliModel],
   )
 
+  const onCli = useCli && !options.apiOnly
+  const apiConfig = activeActivityConfig ?? activeAgentRunConfig
+  const onPickEffort = useCallback(
+    (next: CliReasoningEffort | undefined) => {
+      if (onCli && cliModel) {
+        const { effort: _kept, ...rest } = cliModel
+        setCliModel(next ? { ...rest, effort: next } : rest)
+        return
+      }
+      setActiveActivityApiEffort(next ?? null)
+    },
+    [onCli, cliModel, setCliModel, setActiveActivityApiEffort],
+  )
+  const effortSwitch = useModelEffort(
+    onCli
+      ? {
+          runner: 'cli',
+          ...(selectedCliModelId ? { modelId: selectedCliModelId } : {}),
+          models: effectiveCliModels,
+          cliLevels,
+          ...(cliModel?.effort ? { choice: cliModel.effort } : {}),
+          ...(selectedCli && selectedCliModelId
+            ? { modelDefault: modelEffort[selectedCli]?.[selectedCliModelId] }
+            : {}),
+          ...(selectedCli ? { cliDefault: effort[selectedCli] } : {}),
+        }
+      : {
+          runner: 'api',
+          ...(apiConfig ? { provider: apiConfig.provider, model: apiConfig.model } : {}),
+          ...(activeActivityApiEffort ? { choice: activeActivityApiEffort } : {}),
+          ...(apiConfig?.defaultEffort ? { configDefault: apiConfig.defaultEffort } : {}),
+        },
+    onPickEffort,
+  )
+
   return {
+    effort: effortSwitch,
     useCli,
     selectedCli,
     selectedCliModelId,

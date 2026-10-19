@@ -17,7 +17,7 @@ export type ProcessCheckRow = {
   status: VerificationCheckStatus
   /** ✓ ✗ ! – — the same marks the developer's own line uses; an advisory failure is flagged `!`. */
   mark: string
-  /** "passed", "failed", "errored", "skipped" — or "flagged" for an advisory command that failed. */
+  /** "passed", "failed", "didn’t finish", "skipped" — or "flagged" for an advisory command that failed. */
   word: string
   tone: ProcessStatusTone
   /** Reported, but its failure does not fail the step — lint and format. */

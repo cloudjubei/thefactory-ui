@@ -33,18 +33,15 @@ function ToastView({ item, onClose }: { item: ToastItem; onClose: (id: string) =
   const translateY = useRef(new Animated.Value(ENTER_OFFSET)).current
 
   useEffect(() => {
+    const shown = !item.isClosing
     Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration: ANIMATION_MS, useNativeDriver: true }),
-      Animated.timing(translateY, { toValue: 0, duration: ANIMATION_MS, useNativeDriver: true }),
-    ]).start()
-  }, [opacity, translateY])
-
-  useEffect(() => {
-    if (!item.isClosing) return
-    Animated.parallel([
-      Animated.timing(opacity, { toValue: 0, duration: ANIMATION_MS, useNativeDriver: true }),
+      Animated.timing(opacity, {
+        toValue: shown ? 1 : 0,
+        duration: ANIMATION_MS,
+        useNativeDriver: true,
+      }),
       Animated.timing(translateY, {
-        toValue: ENTER_OFFSET,
+        toValue: shown ? 0 : ENTER_OFFSET,
         duration: ANIMATION_MS,
         useNativeDriver: true,
       }),

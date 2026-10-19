@@ -1,6 +1,6 @@
 import type { ReferenceTarget } from 'thefactory-tools/types'
 import type { ToolPreviewResult } from '../../../headless/api/sdkTypes'
-import { useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import type { LaunchModelChipSlot } from '../../../headless/utils/launchAgentPickTypes'
 import Alert from '../../primitives/Alert'
 import AgentQuestionCard from './AgentQuestionCard'
@@ -28,6 +28,7 @@ import { useClaimedAsks } from '../../../headless/hooks/useInlineApprovals'
 import { useHeldAgentMessages } from '../../../headless/hooks/useHeldAgentMessages'
 import { useShownLiveRun } from '../../../headless/hooks/useShownLiveRun'
 import { useChatDecidedAsks } from '../../../headless/hooks/useChatDecidedAsks'
+import { commitReceiptShas } from '../../../headless/utils/gitChangeApproval'
 import { toolAskDecidedLinesAwaitingRows } from '../../../headless/utils/toolAskCard'
 import { blockedOnFromGrants } from '../../../headless/utils/cliRunActivity'
 import { capturesBlockedOn } from '../../../headless/utils/credentialCaptures'
@@ -35,6 +36,17 @@ import { isAgentRunChatKey } from '../../../headless/utils/agentRunTranscript'
 import type { UikitFileMeta } from '../files/FileDisplay'
 import type { ResourceLink } from 'thefactory-tools/types'
 import type { ToolCall, ToolResultType } from './ToolCall'
+import {
+  ChatActionsProvider,
+  type ChatActions,
+} from '../../../headless/contexts/ChatActionsContext'
+import { useChatOpenChanges } from '../../../headless/hooks/useChatOpenChanges'
+import { chatReviewLayout } from '../../../headless/utils/chatChangesDock'
+import type { ChatReviewActions } from '../../../headless/utils/chatChangesDockTypes'
+import { ChatChangesBarConnected } from './ChatChangesBarConnected'
+import { ChatChangesMarkerConnected } from './ChatChangesMarkerConnected'
+import { ChatReviewPanelConnected } from './ChatReviewPanelConnected'
+import { useElementSize } from './signoff/useElementSize'
 import type {
   ChatLiveStateLike,
   ChatMessageLike,
@@ -107,8 +119,13 @@ export type ChatBodyProps = {
   renderReference?: (target: ReferenceTarget) => ReactNode | undefined
   /** Route an in-app `overseer://…` resource link the assistant emitted. Forwarded to MessageList (F.2). */
   onResourceLink?: (link: ResourceLink) => void
-  /** Render the workspace-diff panel for a CLI-agent reply. Forwarded to MessageList. */
-  renderCliRunArtifact?: (runId: string) => ReactNode
+  /**
+   * The full review of a CLI turn's changes. Given it (and a project), each turn
+   * that changed files leaves a one-line marker in the conversation, the chat's
+   * open changes wait in a bar above the message box, and the review opens in a
+   * panel beside the chat — or over it, on a narrow one.
+   */
+  renderCliRunReview?: (runId: string, review: ChatReviewActions) => ReactNode
   /** Forwarded to the message list: the live process run an announcement message launched. */
   renderProcessRun?: (processRunId: string) => ReactNode
   /** Forwarded to the message list: the live group run an announcement launched. */
@@ -230,7 +247,7 @@ export default function ChatBody({
   onResolveFile,
   renderReference,
   onResourceLink,
-  renderCliRunArtifact,
+  renderCliRunReview,
   renderProcessRun,
   renderProcessGroupRun,
   projectId,
@@ -365,177 +382,255 @@ export default function ChatBody({
     [cliRunId, pendingAssistant],
   )
 
+  // A turn's changes leave a marker where they happened; the decision on the
+  // chat's open ones waits in the bar above the message box; a review opens
+  // beside the chat, or over it when the chat is too narrow to share.
+  const [rootEl, setRootEl] = useState<HTMLDivElement | null>(null)
+  const chatWidth = useElementSize(rootEl)?.w
+  const reviewLayout = chatReviewLayout(chatWidth)
+  const reviewProjectId = renderCliRunReview ? projectId : undefined
+  const openChanges = useChatOpenChanges(
+    reviewProjectId && chatId && !isAgentRunChatKey(chatId)
+      ? { projectId: reviewProjectId, chatContextId: chatId }
+      : undefined,
+  )
+  const openRunId = openChanges.openChanges?.runId
+  const [review, setReview] = useState<{ chatId?: string; runId: string }>()
+  const reviewRunId = review && review.chatId === chatId ? review.runId : undefined
+  const openReview = useCallback(
+    (runId?: string) => {
+      const target = runId ?? openRunId
+      if (target && reviewProjectId) setReview({ ...(chatId ? { chatId } : {}), runId: target })
+    },
+    [openRunId, reviewProjectId, chatId],
+  )
+  const closeReview = useCallback(() => setReview(undefined), [])
+  const draftMessage = useCallback(
+    (text: string) => {
+      onInputChange(text)
+      if (reviewLayout === 'sheet') setReview(undefined)
+    },
+    [onInputChange, reviewLayout],
+  )
+  const chatActions = useMemo<ChatActions>(
+    () => ({ openReview, draftMessage, ...(projectId ? { projectId } : {}) }),
+    [openReview, draftMessage, projectId],
+  )
+  const receiptShas = useMemo(() => commitReceiptShas(decidedAsks), [decidedAsks])
+  const renderChanges = useMemo(
+    () =>
+      reviewProjectId
+        ? (runId: string) => (
+            <ChatChangesMarkerConnected
+              runId={runId}
+              projectId={reviewProjectId}
+              {...(openRunId ? { openRunId } : {})}
+              receiptShas={receiptShas}
+              onOpenReview={openReview}
+            />
+          )
+        : undefined,
+    [reviewProjectId, openRunId, openReview, receiptShas],
+  )
+
   const askPager = (
     <ChatPager ids={openAsks.map((a) => a.id)} index={shownIndex} onChoose={setChosenAskId} />
   )
 
   return (
-    <div
-      data-chat-panel=""
-      className="flex flex-col w-full h-full overflow-hidden bg-(--surface-base)"
-    >
-      {header}
+    <ChatActionsProvider value={chatActions}>
+      <div
+        ref={setRootEl}
+        data-chat-panel=""
+        className="relative flex w-full h-full overflow-hidden bg-(--surface-base)"
+      >
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          {header}
 
-      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-        <MessageList
-          isBusy={isBusy}
-          chatId={chatId}
-          messages={messages}
-          isThinking={isSending && !pendingAssistant && !cliRunId}
-          pending={pendingForList}
-          pendingCliRunId={cliRunId}
-          pendingCliModel={liveState.cliModel ?? undefined}
-          pendingCliStartedAt={liveState.cliStartedAt ?? undefined}
-          cliBlockedOn={cliBlockedOn}
-          cliAsks={grants}
-          decidedAsks={decidedAsks}
-          onClaimAsks={onClaimAsks}
-          renderToolResult={renderToolResult}
-          getToolHeaderPath={getToolHeaderPath}
-          onResolveFile={onResolveFile}
-          renderReference={renderReference}
-          onResourceLink={onResourceLink}
-          renderCliRunArtifact={renderCliRunArtifact}
-          renderProcessRun={renderProcessRun}
-          renderProcessGroupRun={renderProcessGroupRun}
-          numberMessagesToSend={numberMessagesToSend}
-          lastReadIso={lastReadIso}
-          onAtBottomChange={onAtBottomChange}
-          onReadLatest={onReadLatest}
-          scrollToBottomSignal={scrollToBottomSignal}
-          historyLocked={historyLocked}
-          onDeleteLastMessage={onDeleteLastMessage ? () => void onDeleteLastMessage() : undefined}
-          onRetry={onRetry ? () => void onRetry() : undefined}
-          onRestartTurn={onRestartTurn ? () => void onRestartTurn() : undefined}
-          previewTool={previewTool}
-          getAttachmentPreviewUrl={inputProps?.getAttachmentPreviewUrl}
-          isSending={isSending}
-          isDeleting={liveState.isDeleting === true}
-          emptyStateContent={emptyStateContent}
-          transcript={isAgentRunChatKey(chatId)}
-          leadingContent={leadingContent}
-          tailContent={
-            shownDecidedLines.length > 0 || parkedAsks.length > 0 ? (
-              // Settled and set-aside asks no longer hold the agent up on the
-              // person, so they read in the conversation rather than in the way.
-              <div className="flex flex-col gap-2">
-                {shownDecidedLines.map(({ id, line }) => (
-                  <ToolAskDecidedRow key={id} line={line} />
-                ))}
-                {parkedAsks.map((ask) =>
-                  ask.kind === 'question' ? (
-                    <StillWaitingRow
-                      key={ask.id}
-                      question={ask.grant.question.question}
-                      onReopen={() => {
-                        setAskParked(ask.id, false)
-                        setChosenAskId(ask.id)
-                      }}
-                    />
-                  ) : null,
-                )}
-              </div>
-            ) : null
-          }
-        />
-      </div>
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+            <MessageList
+              isBusy={isBusy}
+              chatId={chatId}
+              messages={messages}
+              isThinking={isSending && !pendingAssistant && !cliRunId}
+              pending={pendingForList}
+              pendingCliRunId={cliRunId}
+              pendingCliModel={liveState.cliModel ?? undefined}
+              pendingCliStartedAt={liveState.cliStartedAt ?? undefined}
+              cliBlockedOn={cliBlockedOn}
+              cliAsks={grants}
+              decidedAsks={decidedAsks}
+              onClaimAsks={onClaimAsks}
+              renderToolResult={renderToolResult}
+              getToolHeaderPath={getToolHeaderPath}
+              onResolveFile={onResolveFile}
+              renderReference={renderReference}
+              onResourceLink={onResourceLink}
+              renderCliRunArtifact={renderChanges}
+              renderProcessRun={renderProcessRun}
+              renderProcessGroupRun={renderProcessGroupRun}
+              numberMessagesToSend={numberMessagesToSend}
+              lastReadIso={lastReadIso}
+              onAtBottomChange={onAtBottomChange}
+              onReadLatest={onReadLatest}
+              scrollToBottomSignal={scrollToBottomSignal}
+              historyLocked={historyLocked}
+              onDeleteLastMessage={
+                onDeleteLastMessage ? () => void onDeleteLastMessage() : undefined
+              }
+              onRetry={onRetry ? () => void onRetry() : undefined}
+              onRestartTurn={onRestartTurn ? () => void onRestartTurn() : undefined}
+              previewTool={previewTool}
+              getAttachmentPreviewUrl={inputProps?.getAttachmentPreviewUrl}
+              isSending={isSending}
+              isDeleting={liveState.isDeleting === true}
+              emptyStateContent={emptyStateContent}
+              transcript={isAgentRunChatKey(chatId)}
+              leadingContent={leadingContent}
+              tailContent={
+                shownDecidedLines.length > 0 || parkedAsks.length > 0 ? (
+                  // Settled and set-aside asks no longer hold the agent up on the
+                  // person, so they read in the conversation rather than in the way.
+                  <div className="flex flex-col gap-2">
+                    {shownDecidedLines.map(({ id, line }) => (
+                      <ToolAskDecidedRow key={id} line={line} />
+                    ))}
+                    {parkedAsks.map((ask) =>
+                      ask.kind === 'question' ? (
+                        <StillWaitingRow
+                          key={ask.id}
+                          question={ask.grant.question.question}
+                          onReopen={() => {
+                            setAskParked(ask.id, false)
+                            setChosenAskId(ask.id)
+                          }}
+                        />
+                      ) : null,
+                    )}
+                  </div>
+                ) : null
+              }
+            />
+          </div>
 
-      {sendError ? (
-        <div className="px-4 py-2 shrink-0">
-          <Alert>{sendError.message}</Alert>
-        </div>
-      ) : null}
+          {sendError ? (
+            <div className="px-4 py-2 shrink-0">
+              <Alert>{sendError.message}</Alert>
+            </div>
+          ) : null}
 
-      {remedyGrants.length > 0 ? (
-        <div className="px-4 py-2 shrink-0 flex flex-col gap-2">
-          {remedyGrants.map((grant) => (
-            <RemedyCard key={grant.id} grant={grant} />
-          ))}
-        </div>
-      ) : null}
+          {remedyGrants.length > 0 ? (
+            <div className="px-4 py-2 shrink-0 flex flex-col gap-2">
+              {remedyGrants.map((grant) => (
+                <RemedyCard key={grant.id} grant={grant} />
+              ))}
+            </div>
+          ) : null}
 
-      <HeldAgentMessagesStack held={held} />
-      {/* A question or a credential form TAKES the composer rather than sitting
+          <HeldAgentMessagesStack held={held} />
+          {reviewProjectId ? (
+            <ChatChangesBarConnected
+              projectId={reviewProjectId}
+              openChanges={openChanges}
+              compact={!!shownAsk || showApprovalPanel}
+              narrow={reviewLayout === 'sheet'}
+              onReview={openReview}
+            />
+          ) : null}
+          {/* A question or a credential form TAKES the composer rather than sitting
           above a live one: the agent's next step depends on the answer, so a
           free-text message sent past it would be typed into a conversation that
           is not listening. Answering, cancelling or "Not now" is the way back to
           typing. One ask at a time, paged, so several never read as the same
           question asked twice. Capped and scrollable, so a tall card never
           pushes its own decision off-screen. */}
-      {shownAsk ? (
-        <div className="flex max-h-[65%] min-h-0 shrink flex-col gap-2 overflow-y-auto border-t border-(--border-default) bg-(--surface-raised) px-3 py-3">
-          {shownAsk.kind === 'question' ? (
-            <AgentQuestionCard
-              key={shownAsk.id}
-              grant={shownAsk.grant}
-              onPark={() => setAskParked(shownAsk.id, true)}
-              {...(openAsks.length > 1 ? { pager: askPager } : {})}
+          {shownAsk ? (
+            <div className="flex max-h-[65%] min-h-0 shrink flex-col gap-2 overflow-y-auto border-t border-(--border-default) bg-(--surface-raised) px-3 py-3">
+              {shownAsk.kind === 'question' ? (
+                <AgentQuestionCard
+                  key={shownAsk.id}
+                  grant={shownAsk.grant}
+                  onPark={() => setAskParked(shownAsk.id, true)}
+                  {...(openAsks.length > 1 ? { pager: askPager } : {})}
+                />
+              ) : (
+                <>
+                  {openAsks.length > 1 ? (
+                    <div className="flex justify-end text-(--text-secondary)">{askPager}</div>
+                  ) : null}
+                  <CredentialCaptureCard
+                    key={shownAsk.id}
+                    capture={shownAsk.capture}
+                    onSubmit={(fields) => onSubmitCredentialCapture!(shownAsk.id, fields)}
+                    onCancel={() => onCancelCredentialCapture!(shownAsk.id)}
+                  />
+                </>
+              )}
+            </div>
+          ) : showApprovalPanel ? (
+            // Shrinkable and capped, so a tall card scrolls inside itself and the
+            // messages above stay in reach — never pushes its own decision off-screen.
+            <ApprovalStack
+              grants={approvalGrants}
+              {...(projectId ? { projectId } : {})}
+              {...(groupId ? { groupId } : {})}
+              onDecideLater={() => setApprovalDismissedKey(approvalKey)}
+              onDecided={addDecidedLine}
+              {...(renderApprovalModelChip ? { renderModelChip: renderApprovalModelChip } : {})}
+              {...(renderProcessRun ? { renderProcessRun } : {})}
             />
+          ) : historyLocked ? (
+            // A closed chat keeps its history and takes no new work. Archiving is
+            // one-way by design — reopening would contradict the very locking that
+            // preserves the record — so the composer is replaced with the reason
+            // rather than left to fail on send.
+            <div className="px-3 py-2 text-[12px] text-(--text-secondary) border-t border-(--border-subtle)">
+              <span aria-hidden>🔒 </span>
+              This chat is closed. Its history is kept as the record of how the work was done —
+              start a new chat to carry on from here.
+            </div>
+          ) : inputOverride ? (
+            inputOverride
           ) : (
             <>
-              {openAsks.length > 1 ? (
-                <div className="flex justify-end text-(--text-secondary)">{askPager}</div>
-              ) : null}
-              <CredentialCaptureCard
-                key={shownAsk.id}
-                capture={shownAsk.capture}
-                onSubmit={(fields) => onSubmitCredentialCapture!(shownAsk.id, fields)}
-                onCancel={() => onCancelCredentialCapture!(shownAsk.id)}
+              {pendingQueue ? <PendingMessagesStack queue={pendingQueue} busy={busy} /> : null}
+              <ChatInput
+                value={inputValue}
+                onChange={onInputChange}
+                onSend={(content, attachments) =>
+                  busy && pendingQueue
+                    ? pendingQueue.enqueue({ text: content, attachments })
+                    : onSend(content, attachments)
+                }
+                onAbort={
+                  onAbort
+                    ? () => {
+                        pendingQueue?.pause()
+                        void onAbort()
+                      }
+                    : undefined
+                }
+                isThinking={busy}
+                isConfigured={canSend}
+                queueWhileThinking={!!pendingQueue}
+                clearOnSend
+                {...inputProps}
               />
             </>
           )}
         </div>
-      ) : showApprovalPanel ? (
-        // Shrinkable and capped, so a tall card scrolls inside itself and the
-        // messages above stay in reach — never pushes its own decision off-screen.
-        <ApprovalStack
-          grants={approvalGrants}
-          {...(projectId ? { projectId } : {})}
-          {...(groupId ? { groupId } : {})}
-          onDecideLater={() => setApprovalDismissedKey(approvalKey)}
-          onDecided={addDecidedLine}
-          {...(renderApprovalModelChip ? { renderModelChip: renderApprovalModelChip } : {})}
-          {...(renderProcessRun ? { renderProcessRun } : {})}
-        />
-      ) : historyLocked ? (
-        // A closed chat keeps its history and takes no new work. Archiving is
-        // one-way by design — reopening would contradict the very locking that
-        // preserves the record — so the composer is replaced with the reason
-        // rather than left to fail on send.
-        <div className="px-3 py-2 text-[12px] text-(--text-secondary) border-t border-(--border-subtle)">
-          <span aria-hidden>🔒 </span>
-          This chat is closed. Its history is kept as the record of how the work was done — start a
-          new chat to carry on from here.
-        </div>
-      ) : inputOverride ? (
-        inputOverride
-      ) : (
-        <>
-          {pendingQueue ? <PendingMessagesStack queue={pendingQueue} busy={busy} /> : null}
-          <ChatInput
-            value={inputValue}
-            onChange={onInputChange}
-            onSend={(content, attachments) =>
-              busy && pendingQueue
-                ? pendingQueue.enqueue({ text: content, attachments })
-                : onSend(content, attachments)
-            }
-            onAbort={
-              onAbort
-                ? () => {
-                    pendingQueue?.pause()
-                    void onAbort()
-                  }
-                : undefined
-            }
-            isThinking={busy}
-            isConfigured={canSend}
-            queueWhileThinking={!!pendingQueue}
-            clearOnSend
-            {...inputProps}
-          />
-        </>
-      )}
-    </div>
+        {reviewRunId && reviewProjectId && renderCliRunReview ? (
+          <ChatReviewPanelConnected
+            runId={reviewRunId}
+            projectId={reviewProjectId}
+            layout={reviewLayout}
+            {...(chatWidth !== undefined ? { chatWidth } : {})}
+            onClose={closeReview}
+          >
+            {renderCliRunReview(reviewRunId, { draftMessage, close: closeReview })}
+          </ChatReviewPanelConnected>
+        ) : null}
+      </div>
+    </ChatActionsProvider>
   )
 }

@@ -14,7 +14,8 @@ import type {
   FilesEmittedArtifact,
   StartCliAgentRunData,
 } from '../api/generated'
-import type { ChatMessageLike, MessageUsageLike, ToolOrigin } from './chatTypes'
+import type { ChatMessageLike, MessageUsageLike, ToolCallLike, ToolOrigin } from './chatTypes'
+import type { ChatStopNotice } from './chatStopNoticeTypes'
 import {
   CLI_HOST_ERRORED_OUTCOME,
   CLI_HOST_UNRUN_OUTCOMES,
@@ -1048,6 +1049,7 @@ export function cliTranscriptToMessages(
           ...(approvalId !== undefined ? { approvalId } : {}),
           ...(asking && !ask.decidedOnRow ? { awaitingDecision: true } : {}),
           ...(decisionNote !== undefined ? { decisionNote } : {}),
+          ...(settledBy ? settledAskFacts(settledBy) : {}),
         },
         toolResult: {
           result: decided
@@ -1084,6 +1086,14 @@ export function cliTranscriptToMessages(
     if (firstAssistant) firstAssistant.usage = usage
   }
   return shown
+}
+
+/**
+ * What a settled ask leaves on its call's row: the run whose turn asked it, and
+ * the files its git change card listed — what a commit's receipt is drawn from.
+ */
+function settledAskFacts(ask: CliDecidedAsk): Pick<ToolCallLike, 'changeFiles' | 'runId'> {
+  return { runId: ask.runId, ...(ask.changeFiles ? { changeFiles: ask.changeFiles } : {}) }
 }
 
 /** The asks a chat's stored rows stand for — what a CLI turn's rows leave to them. Pure. */
@@ -1142,7 +1152,11 @@ export function storedChatAskRows(
     const shown = unsettled ? decidedRowResult(decided, undefined) : undefined
     return {
       ...m,
-      toolCall: { ...m.toolCall, ...(decisionNote !== undefined ? { decisionNote } : {}) },
+      toolCall: {
+        ...m.toolCall,
+        ...(decisionNote !== undefined ? { decisionNote } : {}),
+        ...settledAskFacts(decided),
+      },
       ...(shown ? { toolResult: { ...m.toolResult, type: shown.type, result: shown.result } } : {}),
     }
   })
@@ -1481,6 +1495,25 @@ export function withStoredCliReply<M extends ChatMessageLike>(
       ...(stored.model ? { model: stored.model } : {}),
     },
   ]
+}
+
+/**
+ * A CLI turn's rows with the stop the chat stored for it on its last reply —
+ * the reply the stop card stands in place of. A turn that wrote no reply gets
+ * one, carrying the text the chat stored. Unchanged when the turn did not stop.
+ */
+export function withCliStopNotice<M extends ChatMessageLike>(
+  rows: M[],
+  stopNotice: ChatStopNotice | undefined,
+  storedReply: string | undefined,
+): (M | ChatMessageLike)[] {
+  if (!stopNotice) return rows
+  let last = -1
+  rows.forEach((row, i) => {
+    if (row.role === 'assistant') last = i
+  })
+  if (last < 0) return [...rows, { role: 'assistant', content: storedReply ?? '', stopNotice }]
+  return rows.map((row, i) => (i === last ? { ...row, stopNotice } : row))
 }
 
 /**

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   aggregateTestCounts,
   checkTestCounts,
+  finishedTestFileCount,
   parseTestCounts,
   testCountLabel,
   testTotalsHeadline,
@@ -125,22 +126,116 @@ describe('testCountLabel', () => {
 
 describe('testTotalsHeadline', () => {
   const counts = (total: number) => ({ passed: total, failed: 0, skipped: 0, total })
+  const stoppedFile = {
+    path: 'a.test.ts',
+    reason: 'stopped after 30 s',
+    stopped: true,
+    outputTail: undefined,
+  }
+  const unfinished = (
+    files: (typeof stoppedFile)[],
+    finished?: { files: number; passed: number },
+  ) => ({
+    status: 'error' as const,
+    testResults: {
+      unfinished: {
+        files,
+        finished: finished
+          ? { ...finished, label: 'x', countLabel: 'y', listed: false }
+          : undefined,
+      },
+    },
+  })
 
   it('fails when a layer failed', () => {
-    expect(testTotalsHeadline(counts(14), true)).toEqual({
+    expect(testTotalsHeadline(counts(14), [{ status: 'failed' }, { status: 'passed' }])).toEqual({
       outcome: 'failed',
       title: TEST_TOTALS_TITLES.failed,
     })
   })
 
   it('says no test ran rather than that they passed', () => {
-    expect(testTotalsHeadline(counts(0), false)).toEqual({
+    expect(testTotalsHeadline(counts(0), [{ status: 'passed' }])).toEqual({
       outcome: 'none',
       title: TEST_COUNT_NONE_RAN,
     })
   })
 
   it('passes a run that counted tests and failed none', () => {
-    expect(testTotalsHeadline(counts(14), false).outcome).toBe('passed')
+    expect(testTotalsHeadline(counts(14), [{ status: 'passed' }]).outcome).toBe('passed')
+  })
+
+  it('says a run with a stopped file did not finish, and counts what passed around it', () => {
+    expect(
+      testTotalsHeadline(counts(132), [unfinished([stoppedFile], { files: 2, passed: 132 })]),
+    ).toEqual({
+      outcome: 'unfinished',
+      title: 'Test run didn’t finish — one file was stopped',
+      countsLabel: '✓ 132 in 2 files · 1 file stopped',
+    })
+  })
+
+  it('counts several stopped files, and a file that crashed as not finished', () => {
+    const crashed = { ...stoppedFile, path: 'b.test.ts', reason: 'crashed: boom', stopped: false }
+    expect(
+      testTotalsHeadline(counts(5), [
+        unfinished([stoppedFile, stoppedFile], { files: 1, passed: 5 }),
+      ]),
+    ).toEqual({
+      outcome: 'unfinished',
+      title: 'Test run didn’t finish — 2 files were stopped',
+      countsLabel: '✓ 5 in 1 file · 2 files stopped',
+    })
+    expect(testTotalsHeadline(counts(0), [unfinished([crashed])])).toEqual({
+      outcome: 'unfinished',
+      title: 'Test run didn’t finish — one file ended early',
+      countsLabel: '1 file ended early',
+    })
+  })
+
+  it('says an older record that named no file did not finish, with no counts of its own', () => {
+    expect(testTotalsHeadline(counts(132), [{ status: 'error' }])).toEqual({
+      outcome: 'unfinished',
+      title: TEST_TOTALS_TITLES.unfinished,
+    })
+  })
+
+  it('lets a failure outrank a layer that did not finish', () => {
+    expect(
+      testTotalsHeadline(counts(14), [{ status: 'failed' }, unfinished([stoppedFile])]).outcome,
+    ).toBe('failed')
+  })
+})
+
+describe('finishedTestFileCount', () => {
+  it('counts the suites the record kept', () => {
+    expect(
+      finishedTestFileCount({
+        summary: 'x',
+        testSuites: [
+          { name: 'a', tests: 1, passed: 1, failed: 0, skipped: 0 },
+          { name: 'b', tests: 1, passed: 1, failed: 0, skipped: 0 },
+        ],
+      }),
+    ).toBe(2)
+  })
+
+  it('reads the other files from the summary the runner wrote', () => {
+    expect(
+      finishedTestFileCount({
+        summary: "1 file didn't finish (stopped after 30 s) — 132/132 passed in the other 2",
+      }),
+    ).toBe(2)
+    expect(
+      finishedTestFileCount({
+        summary: "1 file didn't finish (stopped after 30 s) — 4/4 passed in the other file",
+      }),
+    ).toBe(1)
+  })
+
+  it('is undefined when nothing says', () => {
+    expect(finishedTestFileCount({ summary: "1 file didn't finish (stopped after 30 s)" })).toBe(
+      undefined,
+    )
   })
 })

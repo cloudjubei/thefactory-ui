@@ -2,8 +2,10 @@ import { useCallback } from 'react'
 import {
   attachChatCliRunner,
   detachChatCliRunner,
+  updateChat,
   type ChatCliRunner,
   type ChatContext,
+  type CliReasoningEffort,
 } from '../api/generated'
 import { useChats } from '../contexts/createChatsContext'
 
@@ -14,16 +16,22 @@ export type UseChatCliRunner = {
   attach: (input: ChatCliRunner) => Promise<void>
   /** Clear the binding (reverts the chat to API-backed). */
   detach: () => Promise<void>
+  /** The chat's own effort for its API turns, or `undefined` for its config's default. */
+  effort: CliReasoningEffort | undefined
+  /** Set (or clear, with `undefined`) the chat's API effort. */
+  setEffort: (effort: CliReasoningEffort | undefined) => Promise<void>
 }
 
 /**
- * Per-chat CLI-runner binding. Reads the persisted `cliRunner` off the chat and
- * exposes attach/detach that delegate to the backend and refresh the chats list
- * so the binding re-reads. Platform-agnostic — shared by all three clients.
+ * Per-chat model binding. Reads the persisted `cliRunner` and API `effort` off
+ * the chat and exposes attach/detach and the effort setter, which delegate to
+ * the backend and refresh the chats list so the binding re-reads. Platform-agnostic — shared by all three clients.
  */
 export function useChatCliRunner(ctx: ChatContext): UseChatCliRunner {
   const { getChat, refresh } = useChats()
-  const cliRunner = getChat(ctx)?.cliRunner ?? undefined
+  const chat = getChat(ctx)
+  const cliRunner = chat?.cliRunner ?? undefined
+  const effort = chat?.effort ?? undefined
 
   const attach = useCallback(
     async (input: ChatCliRunner) => {
@@ -38,5 +46,16 @@ export function useChatCliRunner(ctx: ChatContext): UseChatCliRunner {
     await refresh()
   }, [ctx, refresh])
 
-  return { cliRunner, attach, detach }
+  const setEffort = useCallback(
+    async (next: CliReasoningEffort | undefined) => {
+      await updateChat({
+        body: { context: ctx, patch: { effort: next ?? null } },
+        throwOnError: true,
+      })
+      await refresh()
+    },
+    [ctx, refresh],
+  )
+
+  return { cliRunner, attach, detach, effort, setEffort }
 }

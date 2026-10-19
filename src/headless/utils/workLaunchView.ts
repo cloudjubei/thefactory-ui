@@ -7,6 +7,8 @@ import {
 } from 'thefactory-tools/constants'
 import type { LaunchSetupSuggestion, ProcessProposal, ProofKind } from 'thefactory-tools/types'
 import { projectWorkLaunchMode } from 'thefactory-tools/utils'
+import type { CliReasoningEffort } from '../api'
+import type { ActivityCliModel } from '../contexts/LLMConfigsContext'
 import type { LaunchProofPlanEdits } from './proofPlanViewTypes'
 import { FEATURE_PROCESS_WORDS, LAUNCH_SUGGESTION_LABELS } from './workLaunchViewConstants'
 import type {
@@ -122,4 +124,26 @@ export function launchSuggestionBody(
     ...(input.models?.length ? { models: [...input.models] } : {}),
     ...(input.turnLimit ? { turnLimit: input.turnLimit } : {}),
   }
+}
+
+/**
+ * The agent work started in a chat runs on, as a launch carries it: the
+ * person's active CLI pick with its model, login and effort, else the API at
+ * the agent-run effort. Pure.
+ */
+export function workLaunchChatAgent(
+  runnerKind: 'api' | 'cli',
+  cli: ActivityCliModel | null,
+  apiEffort: CliReasoningEffort | null,
+): Record<string, unknown> {
+  if (runnerKind === 'cli' && cli) {
+    return {
+      runner: 'cli',
+      cliTool: cli.cli,
+      ...(cli.modelId ? { cliModel: cli.modelId } : {}),
+      ...(cli.credentialId ? { cliCredentialId: cli.credentialId } : {}),
+      ...(cli.effort ? { effort: cli.effort } : {}),
+    }
+  }
+  return { runner: 'api', ...(apiEffort ? { effort: apiEffort } : {}) }
 }

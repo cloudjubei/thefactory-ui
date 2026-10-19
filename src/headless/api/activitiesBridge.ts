@@ -16,13 +16,15 @@ import { bridgeMessageName, type BridgeRequest } from '../utils/appBridge'
  * `activityId` immediately, so the app survives navigating away; the app observes
  * progress + results by re-reading project records via `data.*`. `cliModel` and
  * `llmConfigId` are mutually exclusive on the wire — when a CLI selection is
- * given it wins and the config id is omitted.
+ * given it wins and the config id is omitted; `effort` goes only with the
+ * config id, a CLI selection carrying its own.
  */
 export async function dispatchActivitiesBridge(
   projectId: string | undefined,
   req: BridgeRequest,
   llmConfigId?: string,
   cliModel?: RunActivityData['body']['cliModel'],
+  effort?: RunActivityData['body']['effort'],
 ): Promise<unknown> {
   const name = bridgeMessageName(req.type)
   if (!name.startsWith('activities.')) return undefined
@@ -44,7 +46,12 @@ export async function dispatchActivitiesBridge(
           path: { projectId },
           body: cliModel
             ? { activityType: payload.activityType, cliModel, params: payload.params }
-            : { activityType: payload.activityType, llmConfigId, params: payload.params },
+            : {
+                activityType: payload.activityType,
+                llmConfigId,
+                ...(effort ? { effort } : {}),
+                params: payload.params,
+              },
           throwOnError: true,
         })
         return res.data

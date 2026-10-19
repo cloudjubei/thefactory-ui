@@ -203,6 +203,34 @@ describe('aggregateStoryVerdict', () => {
       })
     })
 
+    it('says a story-wide check did not finish, never that it failed', () => {
+      const overall = {
+        rows: [
+          { id: 'tests', label: 'Tests', state: 'unfinished', detail: '1 file didn’t finish' },
+        ],
+        steps: [],
+      } as unknown as Pick<OverallSignoff, 'rows' | 'steps'>
+      expect(aggregateStoryVerdict([], undefined, overall)).toMatchObject({
+        key: 'failed',
+        title: 'Tests didn’t finish',
+        detail: '1 file didn’t finish',
+      })
+    })
+
+    it('counts story-wide checks that failed and that did not finish apart', () => {
+      const overall = {
+        rows: [
+          { id: 'build', label: 'Build', state: 'failed', detail: 'tsc exited 2' },
+          { id: 'tests', label: 'Tests', state: 'unfinished', detail: '1 file didn’t finish' },
+        ],
+        steps: [],
+      } as unknown as Pick<OverallSignoff, 'rows' | 'steps'>
+      expect(aggregateStoryVerdict([], undefined, overall)).toMatchObject({
+        title: '1 check failed, 1 didn’t finish',
+        detail: 'tsc exited 2 · 1 file didn’t finish',
+      })
+    })
+
     it('lets the code review turning the change back outrank proven features', () => {
       expect(aggregateStoryVerdict([fs('proven')], undefined, turnedBack)).toMatchObject({
         key: 'failed',

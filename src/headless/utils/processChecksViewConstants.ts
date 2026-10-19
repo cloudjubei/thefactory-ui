@@ -16,14 +16,15 @@ export const PROCESS_CHECK_MARKS: Record<VerificationCheckStatus, string> = {
 export const PROCESS_CHECK_WORDS: Record<VerificationCheckStatus, string> = {
   passed: 'passed',
   failed: 'failed',
-  error: 'errored',
+  error: 'didn’t finish',
   skipped: 'skipped',
 }
 
+/** A command that did not finish did not fail: amber, as its sign-off chip is. */
 export const PROCESS_CHECK_TONES: Record<VerificationCheckStatus, ProcessStatusTone> = {
   passed: 'done',
   failed: 'stuck',
-  error: 'stuck',
+  error: 'working',
   skipped: 'empty',
 }
 

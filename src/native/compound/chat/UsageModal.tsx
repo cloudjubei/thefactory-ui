@@ -216,17 +216,22 @@ function DataRow({ row }: { row: UsageTableRow }) {
       }}
     >
       {USAGE_TABLE_COLUMNS.map((c) =>
-        c.cell === 'label' && row.notReportedBy ? (
+        c.cell === 'label' && (row.notReportedBy || row.incomplete) ? (
           <View key={c.cell} style={cellBase}>
             <Text style={num} numberOfLines={CELL_LINES}>
               {row.label}
             </Text>
-            <Text
-              style={[num, { fontSize: 11, fontWeight: '400', color: theme.text.secondary }]}
-              numberOfLines={CELL_LINES}
-            >
-              {row.notReportedBy}
-            </Text>
+            {[row.notReportedBy, row.incomplete]
+              .filter((note) => note !== '')
+              .map((note) => (
+                <Text
+                  key={note}
+                  style={[num, { fontSize: 11, fontWeight: '400', color: theme.text.secondary }]}
+                  numberOfLines={CELL_LINES}
+                >
+                  {note}
+                </Text>
+              ))}
           </View>
         ) : c.cell === 'cachedRead' ? (
           <View key={c.cell} style={cellBase}>

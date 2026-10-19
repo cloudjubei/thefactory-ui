@@ -60,15 +60,72 @@ describe('handoffRequest — fix', () => {
   })
 
   // A tests check that errored with every counted test passing read "tests failed: 132/132 passed".
-  it('tells the agent a check that errored could not finish, not that it failed', () => {
+  it('tells the agent an older check that did not finish says so, not that it failed — with the END of its output', () => {
     const tests = {
       ...lint,
-      noun: 'the tests',
+      noun: 'tests',
       detail: '132/132 passed — errored: src/b.test.ts — SyntaxError: x',
-      errored: true,
+      state: 'unfinished' as const,
+      output: `${'h'.repeat(900)}LAST LINE`,
     }
-    expect(handoffRequest(tests, 'fix', { branch: 'agent/abc' }).message).toContain(
-      'On the review branch agent/abc, the tests could not finish: 132/132 passed — errored: src/b.test.ts — SyntaxError: x.',
+    const message = handoffRequest(tests, 'fix', { branch: 'agent/abc' }).message
+    expect(message).toContain(
+      'On the review branch agent/abc, tests didn’t finish: 132/132 passed — errored: src/b.test.ts — SyntaxError: x. ' +
+        'Find why it doesn’t finish — do not remove or skip the check — then run it again on that branch and file the result as evidence on this run.',
+    )
+    expect(message).toContain('Output (last lines):\n…')
+    expect(message.endsWith('LAST LINE')).toBe(true)
+    expect(message).not.toContain('h'.repeat(800))
+  })
+
+  it('tells the agent which file stopped, how the others went, and the last it printed', () => {
+    const tests = {
+      ...lint,
+      id: 'tests' as const,
+      label: 'Tests',
+      noun: 'tests',
+      state: 'unfinished' as const,
+      detail: "1 file didn't finish (stopped after 30 s) — 132/132 passed in the other 2",
+      output: 'head of the whole output',
+      unfinished: {
+        checkLabel: 'Unit tests',
+        files: [
+          {
+            path: 'src/completion/CompletionTools.test.ts',
+            reason: 'stopped after 30 s',
+            timedOutAfterMs: 30_000,
+            outputTail: '✓ builds the prompt\n  waiting on the stream…',
+          },
+        ],
+        finished: { files: 2, passed: 132 },
+      },
+    }
+    expect(handoffRequest(tests, 'fix', { branch: 'agent/5e65f9b0ef0f' }).message).toBe(
+      'On the review branch agent/5e65f9b0ef0f, the unit tests didn’t finish: ' +
+        'src/completion/CompletionTools.test.ts was stopped after 30 s (the other 2 files passed 132 tests). ' +
+        'Its last output:\n\n✓ builds the prompt\n  waiting on the stream…\n\n' +
+        'Find why it stops — do not remove or skip the check — then run it again on that branch and file the result as evidence on this run.',
+    )
+  })
+
+  it('names every file that did not finish, each in its own words', () => {
+    const tests = {
+      ...lint,
+      noun: 'tests',
+      state: 'unfinished' as const,
+      unfinished: {
+        checkLabel: 'Tests',
+        files: [
+          { path: 'a.test.ts', reason: 'crashed: SyntaxError: x', outputTail: 'SyntaxError: x' },
+          { path: 'b.test.ts', reason: 'exited with code 1 after its tests passed' },
+        ],
+      },
+    }
+    expect(handoffRequest(tests, 'fix', { branch: 'b' }).message).toBe(
+      'On the review branch b, the tests didn’t finish: a.test.ts crashed: SyntaxError: x; ' +
+        'b.test.ts exited with code 1 after its tests passed. ' +
+        'Last output of a.test.ts:\n\nSyntaxError: x\n\n' +
+        'Find why they don’t finish — do not remove or skip the check — then run it again on that branch and file the result as evidence on this run.',
     )
   })
 

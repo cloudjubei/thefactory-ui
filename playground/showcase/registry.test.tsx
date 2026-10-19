@@ -48,6 +48,11 @@ describe('showcase registry', () => {
       expect(ids).toContain(id)
   })
 
+  it('shows the stash dialog leaving untracked files out and taking them', () => {
+    const stash = SCENES.find((s) => s.id === 'git-stash')
+    expect(stash?.states.map((s) => s.id)).toEqual(['tracked-only', 'include-untracked'])
+  })
+
   it('reports a duplicate or badly formed id', () => {
     const scene: Scene = {
       id: 'Bad Id',

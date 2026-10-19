@@ -14,6 +14,7 @@ import {
   REPORT_SUMMARY_MAX,
   REPORT_TAB_LABEL,
   REPORT_TILE_LABELS,
+  REPORT_CHECKS_UNFINISHED,
 } from './signoffReportConstants'
 import type {
   ReportPreviewTile,
@@ -152,6 +153,14 @@ function checksLine(input: SignoffProofInput) {
       source: 'checks' as const,
     }
   }
+  const unfinished = ran.filter((r) => r.state === 'unfinished')
+  if (unfinished.length > 0) {
+    return {
+      text: `${listed(unfinished.map((r) => r.label))} ${REPORT_CHECKS_UNFINISHED} — ${unfinished[0].detail}`,
+      status: 'unproven' as const,
+      source: 'checks' as const,
+    }
+  }
   const flagged = ran.filter((r) => r.state === 'flagged')
   const passed = ran.filter((r) => r.state === 'passed')
   return {
@@ -173,6 +182,13 @@ function count(n: number): string {
 function testsLine(input: SignoffProofInput) {
   const row = input.checks.find((r) => r.id === 'tests')
   const totals = input.testTotals
+  if (row?.state === 'unfinished') {
+    return {
+      text: `${row.label}: ${row.detail}`,
+      status: 'unproven' as const,
+      source: 'tests' as const,
+    }
+  }
   if (totals && totals.total > 0) {
     if (totals.failed > 0) {
       return {

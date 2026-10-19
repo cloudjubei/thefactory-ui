@@ -23,7 +23,7 @@ export function OpenChangesNotice({ view, onDiscard, onRebuild }: OpenChangesNot
     <div className="flex flex-col gap-2 rounded-md border border-(--status-on_hold-bg) bg-(--status-on_hold-soft-bg) px-2.5 py-2 text-(--status-on_hold-soft-fg)">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <IconWarningTriangle className="h-4 w-4 shrink-0" />
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <div className="flex min-w-48 flex-1 basis-56 flex-col gap-0.5">
           {view.waiting ? (
             <span className="text-[12.5px] font-semibold">{view.waiting}</span>
           ) : null}

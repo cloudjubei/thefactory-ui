@@ -11,6 +11,8 @@ export type LaunchAgentPick = {
   model?: string
   /** The login for {@link cli}. */
   credentialId?: string
+  /** The reasoning effort picked for the run, on either side. */
+  effort?: string
 }
 
 /** What a launch's decision carries about its agent. */
@@ -19,6 +21,7 @@ export type LaunchAgentPickMetadata = {
   cliTool?: string
   cliModel?: string
   cliCredentialId?: string
+  effort?: string
 }
 
 /** What a launch card hands the host's model chip: the run's picks, and how to change them. */
@@ -32,6 +35,10 @@ export type LaunchModelChipSlot = {
   /** The API was chosen for the run, over the chat's CLI. */
   api: boolean
   onPickApi: () => void
+  /** The effort chosen for the run, or `undefined` while it is the chat's. */
+  effort: string | undefined
+  /** Pick the run's effort; `undefined` leaves it to the model's default. */
+  onPickEffort: (effort: string | undefined) => void
 }
 
 /** The CLI, model and sign-in an agent's launch asked for. */

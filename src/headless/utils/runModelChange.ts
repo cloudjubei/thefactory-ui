@@ -6,6 +6,7 @@ import {
   launchAgentPickMetadata,
   pickLaunchApi,
   pickLaunchCli,
+  pickLaunchEffort,
   pickLaunchModel,
 } from './launchAgentPick'
 import type { LaunchAgentPick, LaunchModelChipSlot } from './launchAgentPickTypes'
@@ -35,14 +36,14 @@ export function processRunModelPick(
   run: Pick<ProcessRun, 'input' | 'modelOverride'>,
 ): LaunchAgentPick {
   const model = processRunModel(run)
-  if (!model || model.runner !== 'cli' || !model.cli) return pickLaunchApi()
+  if (!model || model.runner !== 'cli' || !model.cli) return pickLaunchApi(model?.effort)
   const launched = (run.input?.cliRunner ?? {}) as { authCredentialId?: unknown }
   const credentialId = run.modelOverride
     ? run.modelOverride.authCredentialId
     : typeof launched.authCredentialId === 'string'
       ? launched.authCredentialId
       : undefined
-  return pickLaunchCli(model.cli, credentialId, model.model)
+  return pickLaunchCli(model.cli, credentialId, model.model, model.effort)
 }
 
 /**
@@ -74,16 +75,15 @@ export function processRunModelChipView(
   }
 }
 
-/** What a pick on the run's model chip sends: the API, or a CLI with what was picked of it. Pure. */
+/** What a pick on the run's model chip sends: the API, or a CLI with what was picked of it, at the effort picked. Pure. */
 export function runModelChangeBody(pick: LaunchAgentPick): RunModelChangeBody {
-  if (pick.api) return { runner: 'api' }
-  const { runner: _runner, ...cli } = launchAgentPickMetadata(pick)
-  return { runner: 'cli', ...cli }
+  const { runner: _runner, ...picked } = launchAgentPickMetadata(pick)
+  return { runner: pick.api ? 'api' : 'cli', ...picked }
 }
 
 /**
  * The slot the run's model chip is handed: what the run runs on, and each pick
- * as the run's new model — a model alone keeps the run's CLI and login. Pure.
+ * as the run's new model — a model or an effort alone keeps the rest. Pure.
  */
 export function runModelChipSlot(
   pick: LaunchAgentPick,
@@ -96,5 +96,7 @@ export function runModelChipSlot(
     onPick: (model) => onChange(pickLaunchModel(pick, model)),
     onPickCli: (cli, credentialId, model) => onChange(pickLaunchCli(cli, credentialId, model)),
     onPickApi: () => onChange(pickLaunchApi()),
+    effort: pick.effort,
+    onPickEffort: (effort) => onChange(pickLaunchEffort(pick, effort)),
   }
 }

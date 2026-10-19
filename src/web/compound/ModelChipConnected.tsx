@@ -52,6 +52,10 @@ export type ModelChipConnectedProps = {
    * through to the chat binding and detached the CONVERSATION's agent.
    */
   onOverrideApi?: () => void
+  /** The effort picked for that run, over the chat's. */
+  overrideEffort?: string | undefined
+  /** Picking an effort in chooser mode reports here, never changing the chat's. */
+  onOverrideEffort?: (effort: string | undefined) => void
   /** A line the picker opens with — when a pick takes effect, say. */
   note?: string
 }
@@ -128,6 +132,7 @@ function ModelChipWithCli({
       onPickCliModel={cli.onPickCliModel}
       authWarning={cli.authWarning}
       cliSwitchError={cli.cliSwitchError}
+      {...(cli.effort ? { effort: cli.effort } : {})}
       {...(note ? { note } : {})}
     />
   )
@@ -156,7 +161,7 @@ function ModelChipActivityCli({
   apiOnly?: boolean
   apiOnlyReason?: string
 }) {
-  const cli = useActivityChipCli(cliModel, setCliModel, recentCliModels)
+  const cli = useActivityChipCli(cliModel, setCliModel, recentCliModels, { apiOnly })
   // For an API-only app, ignore any (global) CLI selection: the chip shows + uses the API config,
   // matching useProjectDataBridge, which omits the CLI model for these apps.
   const useCli = apiOnly ? false : cli.useCli
@@ -184,6 +189,7 @@ function ModelChipActivityCli({
       recentCliModels={cli.recentCliModels}
       onPickRecentCli={cli.onPickRecentCli}
       authWarning={useCli ? cli.authWarning : undefined}
+      effort={cli.effort}
       cliDisabled={apiOnly}
       cliDisabledReason={apiOnly ? (apiOnlyReason ?? ACTIVITY_API_ONLY_REASON) : undefined}
     />
@@ -228,6 +234,7 @@ function ModelChipAgentRunCli({
       recentCliModels={cli.recentCliModels}
       onPickRecentCli={cli.onPickRecentCli}
       authWarning={cli.authWarning}
+      effort={cli.effort}
     />
   )
 }
@@ -255,6 +262,8 @@ export default function ModelChipConnected({
   onOverrideCli,
   overrideApi,
   onOverrideApi,
+  overrideEffort,
+  onOverrideEffort,
   note,
 }: ModelChipConnectedProps) {
   const navigate = useNavigate()
@@ -391,6 +400,8 @@ export default function ModelChipConnected({
         {...(onOverrideCli ? { onOverrideCli } : {})}
         {...(overrideApi ? { overrideApi } : {})}
         {...(onOverrideApi ? { onOverrideApi } : {})}
+        overrideEffort={overrideEffort}
+        {...(onOverrideEffort ? { onOverrideEffort } : {})}
         {...(note ? { note } : {})}
       />
     )

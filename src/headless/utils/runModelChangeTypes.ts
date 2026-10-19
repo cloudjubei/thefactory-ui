@@ -30,6 +30,7 @@ export type RunModelChangeBody = {
   cliTool?: string
   cliModel?: string
   cliCredentialId?: string
+  effort?: string
 }
 
 /** What a run's page hands the host's chooser chip: the run's picks and how to change them. */

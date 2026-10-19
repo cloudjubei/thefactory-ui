@@ -6,8 +6,6 @@ export interface ProcessCirclingView {
   headline: string
   /** The evidence, a line each. */
   evidence: string[]
-  /** What a retry needs, in a line. */
-  hint: string
-  /** It went in circles again after the manager's own retry — the person has it now. */
-  afterManager: boolean
+  /** What the manager recommends the person do, once it handed the stop on — shown beside the stop's choices. */
+  recommendation?: { heading: string; text: string }
 }

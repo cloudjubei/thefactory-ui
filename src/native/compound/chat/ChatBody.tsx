@@ -1,5 +1,5 @@
 import type { ReferenceTarget } from 'thefactory-tools/types'
-import { useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import type { LaunchModelChipSlot } from '../../../headless/utils/launchAgentPickTypes'
 import { Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native'
 import Alert from '../../primitives/Alert'
@@ -31,6 +31,7 @@ import { useClaimedAsks } from '../../../headless/hooks/useInlineApprovals'
 import { useHeldAgentMessages } from '../../../headless/hooks/useHeldAgentMessages'
 import { useShownLiveRun } from '../../../headless/hooks/useShownLiveRun'
 import { useChatDecidedAsks } from '../../../headless/hooks/useChatDecidedAsks'
+import { commitReceiptShas } from '../../../headless/utils/gitChangeApproval'
 import { toolAskDecidedLinesAwaitingRows } from '../../../headless/utils/toolAskCard'
 import { blockedOnFromGrants } from '../../../headless/utils/cliRunActivity'
 import { capturesBlockedOn } from '../../../headless/utils/credentialCaptures'
@@ -47,6 +48,14 @@ import type {
 import { nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import type { NativeToolCallRenderArgs } from './chatNativeTypes'
+import type { ToolApprovalPreviewFetcher } from '../../../headless/hooks/useToolApprovalPreviews'
+import {
+  ChatActionsProvider,
+  type ChatActions,
+} from '../../../headless/contexts/ChatActionsContext'
+import { useChatOpenChanges } from '../../../headless/hooks/useChatOpenChanges'
+import { ChatChangesBarConnected } from './ChatChangesBarConnected'
+import { ChatChangesMarkerConnected } from './ChatChangesMarkerConnected'
 
 export interface ChatBodyProps {
   /**
@@ -106,13 +115,20 @@ export interface ChatBodyProps {
 
   /** Host renderer for a tool call until `ToolCallCard`'s native peer lands. */
   renderToolCall?: (args: NativeToolCallRenderArgs) => ReactNode
+  /** Host-supplied tool-preview fetcher — see `MessageList.previewTool`. */
+  previewTool?: ToolApprovalPreviewFetcher
 
   onResolveFile?: (token: string) => UikitFileMeta | null
   renderReference?: (target: ReferenceTarget) => ReactNode | undefined
   /** Route an in-app `overseer://…` resource link. Forwarded to MessageList (F.2). */
   onResourceLink?: (link: ResourceLink) => void
-  /** Render the workspace-diff panel for a CLI-agent reply. Forwarded to MessageList. */
-  renderCliRunArtifact?: (runId: string) => ReactNode
+  /**
+   * Opens the full review of a CLI turn's changes — on a phone, a screen pushed
+   * over the chat. Given it (and a project), each turn that changed files leaves
+   * a one-line marker in the conversation and the chat's open changes wait in a
+   * bar above the message box. Web's peer is `renderCliRunReview`.
+   */
+  onOpenReview?: (runId: string) => void
   /** Forwarded to the message list: the live process run an announcement message launched. */
   renderProcessRun?: (processRunId: string) => ReactNode
   /** Forwarded to the message list: the live group run an announcement launched. */
@@ -215,10 +231,11 @@ export default function ChatBody({
   numberMessagesToSend,
   lastReadIso,
   renderToolCall,
+  previewTool,
   onResolveFile,
   renderReference,
   onResourceLink,
-  renderCliRunArtifact,
+  onOpenReview,
   renderProcessRun,
   renderProcessGroupRun,
   projectId,
@@ -366,6 +383,44 @@ export default function ChatBody({
       }
     : undefined
 
+  // A turn's changes leave a marker where they happened; the decision on the
+  // chat's open ones waits in the bar above the message box; the review opens
+  // as a screen of its own.
+  const reviewProjectId = onOpenReview ? projectId : undefined
+  const openChanges = useChatOpenChanges(
+    reviewProjectId && chatId && !isAgentRunChatKey(chatId)
+      ? { projectId: reviewProjectId, chatContextId: chatId }
+      : undefined,
+  )
+  const openRunId = openChanges.openChanges?.runId
+  const openReview = useCallback(
+    (runId?: string) => {
+      const target = runId ?? openRunId
+      if (target && onOpenReview) onOpenReview(target)
+    },
+    [openRunId, onOpenReview],
+  )
+  const chatActions = useMemo<ChatActions>(
+    () => ({ openReview, draftMessage: onInputChange, ...(projectId ? { projectId } : {}) }),
+    [openReview, onInputChange, projectId],
+  )
+  const receiptShas = useMemo(() => commitReceiptShas(decidedAsks), [decidedAsks])
+  const renderChanges = useMemo(
+    () =>
+      reviewProjectId
+        ? (runId: string) => (
+            <ChatChangesMarkerConnected
+              runId={runId}
+              projectId={reviewProjectId}
+              {...(openRunId ? { openRunId } : {})}
+              receiptShas={receiptShas}
+              onOpenReview={openReview}
+            />
+          )
+        : undefined,
+    [reviewProjectId, openRunId, openReview, receiptShas],
+  )
+
   const pager = (ids: readonly string[], index: number, choose: (id?: string) => void) => (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
       <Pressable
@@ -399,177 +454,188 @@ export default function ChatBody({
   const approvalPager = pager(approvalIds, shownApprovalIndex, setChosenApprovalId)
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.surface.base }}>
-      {header}
-      <View style={{ flex: 1 }}>
-        <MessageList
-          isBusy={isBusy}
-          chatId={chatId}
-          messages={messages}
-          isThinking={liveState.isSending && !cliRunId}
-          isSending={liveState.isSending}
-          isDeleting={liveState.isDeleting === true}
-          pending={pending}
-          pendingCliRunId={cliRunId}
-          pendingCliModel={liveState.cliModel ?? undefined}
-          pendingCliStartedAt={liveState.cliStartedAt ?? undefined}
-          cliBlockedOn={cliBlockedOn}
-          cliAsks={grants}
-          decidedAsks={decidedAsks}
-          onClaimAsks={onClaimAsks}
-          systemPrompt={systemPrompt}
-          systemPromptTimestamp={systemPromptTimestamp}
-          numberMessagesToSend={numberMessagesToSend}
-          lastReadIso={lastReadIso}
-          renderToolCall={renderToolCall}
-          onResolveFile={onResolveFile}
-          renderReference={renderReference}
-          onResourceLink={onResourceLink}
-          attachmentImages={inputProps?.attachmentImages}
-          renderCliRunArtifact={renderCliRunArtifact}
-          renderProcessRun={renderProcessRun}
-          renderProcessGroupRun={renderProcessGroupRun}
-          onShowUsage={onShowUsage}
-          emptyStateContent={emptyStateContent}
-          transcript={isAgentRunChatKey(chatId)}
-          leadingContent={leadingContent}
-          tailContent={
-            shownDecidedLines.length > 0 || parkedAsks.length > 0 ? (
-              <>
-                {shownDecidedLines.map(({ id, line }) => (
-                  <ToolAskDecidedRow key={id} line={line} />
-                ))}
-                {parkedAsks.map((ask) =>
-                  ask.kind === 'question' ? (
-                    <StillWaitingRow
-                      key={ask.id}
-                      question={ask.grant.question.question}
-                      onReopen={() => {
-                        setAskParked(ask.id, false)
-                        setChosenAskId(ask.id)
-                      }}
-                    />
-                  ) : null,
-                )}
-              </>
-            ) : null
-          }
-          historyLocked={historyLocked}
-          onDeleteLastMessage={onDeleteLastMessage ? () => void onDeleteLastMessage() : undefined}
-          onRetry={onRetry ? () => void onRetry() : undefined}
-          onRestartTurn={onRestartTurn ? () => void onRestartTurn() : undefined}
-          onAtBottomChange={onAtBottomChange}
-          onReadLatest={onReadLatest}
-          scrollToBottomSignal={scrollToBottomSignal}
-        />
-      </View>
-      {sendError && (
-        <View style={{ paddingHorizontal: nativeSpace[5], paddingTop: nativeSpace[3] }}>
-          <Alert variant="error">{sendError.message}</Alert>
+    <ChatActionsProvider value={chatActions}>
+      <View style={{ flex: 1, backgroundColor: theme.surface.base }}>
+        {header}
+        <View style={{ flex: 1 }}>
+          <MessageList
+            isBusy={isBusy}
+            chatId={chatId}
+            messages={messages}
+            isThinking={liveState.isSending && !cliRunId}
+            isSending={liveState.isSending}
+            isDeleting={liveState.isDeleting === true}
+            pending={pending}
+            pendingCliRunId={cliRunId}
+            pendingCliModel={liveState.cliModel ?? undefined}
+            pendingCliStartedAt={liveState.cliStartedAt ?? undefined}
+            cliBlockedOn={cliBlockedOn}
+            cliAsks={grants}
+            decidedAsks={decidedAsks}
+            onClaimAsks={onClaimAsks}
+            systemPrompt={systemPrompt}
+            systemPromptTimestamp={systemPromptTimestamp}
+            numberMessagesToSend={numberMessagesToSend}
+            lastReadIso={lastReadIso}
+            renderToolCall={renderToolCall}
+            previewTool={previewTool}
+            onResolveFile={onResolveFile}
+            renderReference={renderReference}
+            onResourceLink={onResourceLink}
+            attachmentImages={inputProps?.attachmentImages}
+            renderCliRunArtifact={renderChanges}
+            renderProcessRun={renderProcessRun}
+            renderProcessGroupRun={renderProcessGroupRun}
+            onShowUsage={onShowUsage}
+            emptyStateContent={emptyStateContent}
+            transcript={isAgentRunChatKey(chatId)}
+            leadingContent={leadingContent}
+            tailContent={
+              shownDecidedLines.length > 0 || parkedAsks.length > 0 ? (
+                <>
+                  {shownDecidedLines.map(({ id, line }) => (
+                    <ToolAskDecidedRow key={id} line={line} />
+                  ))}
+                  {parkedAsks.map((ask) =>
+                    ask.kind === 'question' ? (
+                      <StillWaitingRow
+                        key={ask.id}
+                        question={ask.grant.question.question}
+                        onReopen={() => {
+                          setAskParked(ask.id, false)
+                          setChosenAskId(ask.id)
+                        }}
+                      />
+                    ) : null,
+                  )}
+                </>
+              ) : null
+            }
+            historyLocked={historyLocked}
+            onDeleteLastMessage={onDeleteLastMessage ? () => void onDeleteLastMessage() : undefined}
+            onRetry={onRetry ? () => void onRetry() : undefined}
+            onRestartTurn={onRestartTurn ? () => void onRestartTurn() : undefined}
+            onAtBottomChange={onAtBottomChange}
+            onReadLatest={onReadLatest}
+            scrollToBottomSignal={scrollToBottomSignal}
+          />
         </View>
-      )}
-      {remedyGrants.length > 0 && (
-        <View
-          style={{
-            paddingHorizontal: nativeSpace[5],
-            paddingTop: nativeSpace[3],
-            gap: nativeSpace[2],
-          }}
-        >
-          {remedyGrants.map((grant) => (
-            <RemedyCard key={grant.id} grant={grant} />
-          ))}
-        </View>
-      )}
-      <HeldAgentMessagesStack held={held} />
-      {/* A question or a credential form TAKES the composer rather than sitting
+        {sendError && (
+          <View style={{ paddingHorizontal: nativeSpace[5], paddingTop: nativeSpace[3] }}>
+            <Alert variant="error">{sendError.message}</Alert>
+          </View>
+        )}
+        {remedyGrants.length > 0 && (
+          <View
+            style={{
+              paddingHorizontal: nativeSpace[5],
+              paddingTop: nativeSpace[3],
+              gap: nativeSpace[2],
+            }}
+          >
+            {remedyGrants.map((grant) => (
+              <RemedyCard key={grant.id} grant={grant} />
+            ))}
+          </View>
+        )}
+        <HeldAgentMessagesStack held={held} />
+        {reviewProjectId ? (
+          <ChatChangesBarConnected
+            projectId={reviewProjectId}
+            openChanges={openChanges}
+            compact={!!shownAsk || showApprovalPanel}
+            onReview={openReview}
+          />
+        ) : null}
+        {/* A question or a credential form TAKES the composer rather than sitting
           above a live one: the agent's next step depends on the answer, so a
           free-text message sent past it would be typed into a conversation that
           is not listening. Answering, cancelling or "Not now" is the way back to
           typing. One ask at a time, paged — mirrors web. */}
-      {shownAsk ? (
-        <ScrollView
-          style={{
-            maxHeight: windowHeight * 0.66,
-            flexGrow: 0,
-            borderTopWidth: 1,
-            borderTopColor: theme.border.default,
-            backgroundColor: theme.surface.raised,
-          }}
-          contentContainerStyle={{
-            paddingHorizontal: nativeSpace[3],
-            paddingVertical: nativeSpace[3],
-            gap: nativeSpace[2],
-          }}
-          keyboardShouldPersistTaps="handled"
-        >
-          {shownAsk.kind === 'question' ? (
-            <AgentQuestionCard
-              key={shownAsk.id}
-              grant={shownAsk.grant}
-              onPark={() => setAskParked(shownAsk.id, true)}
-              {...(openAsks.length > 1 ? { pager: askPager } : {})}
-            />
-          ) : (
-            <>
-              {openAsks.length > 1 ? (
-                <View style={{ alignItems: 'flex-end' }}>{askPager}</View>
-              ) : null}
-              <CredentialCaptureCard
+        {shownAsk ? (
+          <ScrollView
+            style={{
+              maxHeight: windowHeight * 0.66,
+              flexGrow: 0,
+              borderTopWidth: 1,
+              borderTopColor: theme.border.default,
+              backgroundColor: theme.surface.raised,
+            }}
+            contentContainerStyle={{
+              paddingHorizontal: nativeSpace[3],
+              paddingVertical: nativeSpace[3],
+              gap: nativeSpace[2],
+            }}
+            keyboardShouldPersistTaps="handled"
+          >
+            {shownAsk.kind === 'question' ? (
+              <AgentQuestionCard
                 key={shownAsk.id}
-                capture={shownAsk.capture}
-                onSubmit={(fields) => onSubmitCredentialCapture!(shownAsk.id, fields)}
-                onCancel={() => onCancelCredentialCapture!(shownAsk.id)}
+                grant={shownAsk.grant}
+                onPark={() => setAskParked(shownAsk.id, true)}
+                {...(openAsks.length > 1 ? { pager: askPager } : {})}
+              />
+            ) : (
+              <>
+                {openAsks.length > 1 ? (
+                  <View style={{ alignItems: 'flex-end' }}>{askPager}</View>
+                ) : null}
+                <CredentialCaptureCard
+                  key={shownAsk.id}
+                  capture={shownAsk.capture}
+                  onSubmit={(fields) => onSubmitCredentialCapture!(shownAsk.id, fields)}
+                  onCancel={() => onCancelCredentialCapture!(shownAsk.id)}
+                />
+              </>
+            )}
+          </ScrollView>
+        ) : showApprovalPanel ? (
+          <View>
+            {approvalGrants.length > 1 ? (
+              <View style={{ alignItems: 'flex-end', paddingHorizontal: 16, paddingTop: 8 }}>
+                {approvalPager}
+              </View>
+            ) : null}
+            {shownApproval ? (
+              <ApprovalPanel
+                key={shownApproval.id}
+                grant={shownApproval}
+                {...(projectId ? { projectId } : {})}
+                {...(groupId ? { groupId } : {})}
+                onDecideLater={() => setApprovalDismissedKey(approvalKey)}
+                onDecided={(line) => addDecidedLine(shownApproval.id, line)}
+                {...(renderApprovalModelChip ? { renderModelChip: renderApprovalModelChip } : {})}
+                {...(renderProcessRun ? { renderProcessRun } : {})}
+              />
+            ) : null}
+          </View>
+        ) : historyLocked ? (
+          // Parity with web: a closed chat keeps its history and takes no new work.
+          <View style={{ paddingHorizontal: 12, paddingVertical: 8 }}>
+            <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+              {
+                '🔒 This chat is closed. Its history is kept as the record of how the work was done — start a new chat to carry on from here.'
+              }
+            </Text>
+          </View>
+        ) : (
+          (inputOverride ?? (
+            <>
+              {pendingQueue ? <PendingMessagesStack queue={pendingQueue} busy={busy} /> : null}
+              <ChatInput
+                {...(inputProps ?? {})}
+                value={inputValue}
+                onChange={onInputChange}
+                onSend={handleSend}
+                onAbort={handleAbort}
+                isThinking={busy}
+                isConfigured={canSend}
+                queueWhileThinking={!!pendingQueue}
               />
             </>
-          )}
-        </ScrollView>
-      ) : showApprovalPanel ? (
-        <View>
-          {approvalGrants.length > 1 ? (
-            <View style={{ alignItems: 'flex-end', paddingHorizontal: 16, paddingTop: 8 }}>
-              {approvalPager}
-            </View>
-          ) : null}
-          {shownApproval ? (
-            <ApprovalPanel
-              key={shownApproval.id}
-              grant={shownApproval}
-              {...(projectId ? { projectId } : {})}
-              {...(groupId ? { groupId } : {})}
-              onDecideLater={() => setApprovalDismissedKey(approvalKey)}
-              onDecided={(line) => addDecidedLine(shownApproval.id, line)}
-              {...(renderApprovalModelChip ? { renderModelChip: renderApprovalModelChip } : {})}
-              {...(renderProcessRun ? { renderProcessRun } : {})}
-            />
-          ) : null}
-        </View>
-      ) : historyLocked ? (
-        // Parity with web: a closed chat keeps its history and takes no new work.
-        <View style={{ paddingHorizontal: 12, paddingVertical: 8 }}>
-          <Text style={{ fontSize: 12, color: theme.text.secondary }}>
-            {
-              '🔒 This chat is closed. Its history is kept as the record of how the work was done — start a new chat to carry on from here.'
-            }
-          </Text>
-        </View>
-      ) : (
-        (inputOverride ?? (
-          <>
-            {pendingQueue ? <PendingMessagesStack queue={pendingQueue} busy={busy} /> : null}
-            <ChatInput
-              {...(inputProps ?? {})}
-              value={inputValue}
-              onChange={onInputChange}
-              onSend={handleSend}
-              onAbort={handleAbort}
-              isThinking={busy}
-              isConfigured={canSend}
-              queueWhileThinking={!!pendingQueue}
-            />
-          </>
-        ))
-      )}
-    </View>
+          ))
+        )}
+      </View>
+    </ChatActionsProvider>
   )
 }

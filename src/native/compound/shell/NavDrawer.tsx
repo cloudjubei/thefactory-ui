@@ -40,6 +40,8 @@ export interface NavDrawerItem {
   active?: boolean
   /** Trailing indicator, resolved by the headless `navRowIndicator` family. */
   indicator?: NavRowIndicator
+  /** The project's stories and chats are kept in its own git repository. */
+  storedInProject?: boolean
   /** Stable handle for UI-test tooling (Android resource-id / iOS accessibilityIdentifier). */
   testID?: string
   onPress: () => void
@@ -392,6 +394,14 @@ function Row({
       >
         {item.label}
       </Text>
+      {item.storedInProject ? (
+        <Text
+          accessibilityLabel="Stored in this project’s repository"
+          style={{ fontSize: 10, opacity: 0.7, color: theme.text.primary }}
+        >
+          ◉
+        </Text>
+      ) : null}
       {item.indicator ? (
         <NavIndicator indicator={item.indicator} badgeColors={badgeColors} look={look} />
       ) : null}

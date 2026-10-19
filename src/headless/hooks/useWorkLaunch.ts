@@ -5,7 +5,7 @@ import { useLLMConfigs } from '../contexts/LLMConfigsContext'
 import { useProjects } from '../contexts/ProjectsContext'
 import { startStoryWork, suggestLaunchSetup } from '../api/generated'
 import { extractErrorMessage } from '../api/errorMessage'
-import { launchSuggestionBody } from '../utils/workLaunchView'
+import { launchSuggestionBody, workLaunchChatAgent } from '../utils/workLaunchView'
 import type { LaunchSuggestionInput, WorkLaunchChoice } from '../utils/workLaunchViewTypes'
 
 /** Where a story's work went once started from its page. */
@@ -109,21 +109,17 @@ export function useProjectWorkLaunch(projectId: string | undefined): {
   chatAgent: Record<string, unknown>
 } {
   const { projects } = useProjects()
-  const { activeRunnerKind, activeAgentRunCliModel } = useLLMConfigs()
+  const { activeRunnerKind, activeAgentRunCliModel, activeAgentRunApiEffort } = useLLMConfigs()
   const project = projectId ? projects.find((p) => p.id === projectId) : undefined
-  const cli = activeRunnerKind === 'cli' ? activeAgentRunCliModel : null
   return {
     defaultMode: projectWorkLaunchMode(
       project?.metadata as { workLaunchMode?: unknown } | undefined,
     ),
     chatRunner: activeRunnerKind,
-    chatAgent: cli
-      ? {
-          runner: 'cli',
-          cliTool: cli.cli,
-          ...(cli.modelId ? { cliModel: cli.modelId } : {}),
-          ...(cli.credentialId ? { cliCredentialId: cli.credentialId } : {}),
-        }
-      : { runner: 'api' },
+    chatAgent: workLaunchChatAgent(
+      activeRunnerKind,
+      activeAgentRunCliModel,
+      activeAgentRunApiEffort,
+    ),
   }
 }

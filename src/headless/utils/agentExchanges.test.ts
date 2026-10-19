@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { agentExchangeLayout, agentExchangeLine, agentExchangeStartOf } from './agentExchanges'
+import {
+  agentExchangeLayout,
+  agentExchangeLine,
+  agentExchangeStartOf,
+  agentExchangeWindowStart,
+} from './agentExchanges'
 import type { ChatMessageLike } from './chatTypes'
 
 const person = (n: number): ChatMessageLike => ({ role: 'user', content: `ask ${n}` })
@@ -216,5 +221,38 @@ describe('agentExchangeStartOf', () => {
   it('keeps a message drawn on its own, and nothing as nothing', () => {
     expect(agentExchangeStartOf(layout, 4)).toBe(4)
     expect(agentExchangeStartOf(layout, null)).toBeNull()
+  })
+})
+
+describe('agentExchangeWindowStart', () => {
+  const managerTurns = (n: number): ChatMessageLike[] =>
+    Array.from({ length: n }, () => [brief, managerReply, handled]).flat()
+
+  it('shows the last rows of a conversation the agents never spoke in', () => {
+    const messages = Array.from({ length: 10 }, (_, i) => (i % 2 ? reply(i) : person(i)))
+    const layout = agentExchangeLayout(messages, 'collapsed')
+    expect(agentExchangeWindowStart(layout, messages.length, 4)).toBe(6)
+    expect(agentExchangeWindowStart(layout, messages.length, 50)).toBe(0)
+  })
+
+  it('opens at an exchange that began above the window, not inside it with nothing drawn', () => {
+    const messages = [person(0), reply(1), ...managerTurns(20)]
+    const layout = agentExchangeLayout(messages, 'collapsed')
+    expect(agentExchangeWindowStart(layout, messages.length, 1)).toBe(2)
+    expect(agentExchangeWindowStart(layout, messages.length, 2)).toBe(1)
+  })
+
+  it('reaches back past messages that are not drawn until enough rows show', () => {
+    const messages = [person(0), ...managerTurns(10), escalation, person(1)]
+    const layout = agentExchangeLayout(messages, 'hidden')
+    expect(agentExchangeWindowStart(layout, messages.length, 2)).toBe(31)
+    expect(agentExchangeWindowStart(layout, messages.length, 3)).toBe(0)
+  })
+
+  it('shows everything when it asks for more rows than there are', () => {
+    const messages = [person(0), ...managerTurns(3)]
+    const layout = agentExchangeLayout(messages, 'full')
+    expect(agentExchangeWindowStart(layout, messages.length, 50)).toBe(0)
+    expect(agentExchangeWindowStart(layout, 0, 50)).toBe(0)
   })
 })

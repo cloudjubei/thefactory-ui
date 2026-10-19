@@ -1,4 +1,4 @@
-import type { BillingBasis } from 'thefactory-tools/types'
+import type { BillingBasis, UsageTokenField } from 'thefactory-tools/types'
 
 import type { MessageUsageLike } from './chatTypes'
 
@@ -43,6 +43,8 @@ export type UsageModalCostBreakdown = {
   outputTokensNotReported?: boolean
   /** Some call here reported no counts at all: it is in `count`, in none of the token figures. */
   tokensNotReported?: boolean
+  /** The counts some call here left unavailable, so those figures fall short. */
+  tokenFieldsNotReported?: UsageTokenField[]
 }
 
 /** The durable cost ledger for one chat key, as the costs endpoint returns it. */
@@ -82,6 +84,8 @@ export type UsageModalUsage = Pick<
   | 'provider'
   | 'model'
   | 'byModel'
+  | 'tokenFields'
+  | 'incompleteReasons'
 >
 
 export type UsageModalMessage = {
@@ -104,6 +108,10 @@ export interface UsageTableRow {
   notReportedBy: string
   /** What was charged; `≈`-prefixed when part of it is estimated from current prices. */
   charged: string
+  /** How sure that charge is: `Confirmed`, `In plan`, `Unknown`, `Part unknown`, or `—` with no calls. */
+  charge: string
+  /** What the row's counts lack, in words — `Cache not reported · Estimated` — shown under its label; empty when nothing. */
+  incomplete: string
   /** Each count cell is marked when a CLI left part of it out: `14,701 + not reported`, or `Not reported`. */
   tokens: string
   prompt: string

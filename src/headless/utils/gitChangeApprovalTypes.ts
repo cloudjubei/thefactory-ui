@@ -50,3 +50,19 @@ export type GitChangeCardView = {
   danger?: boolean
   run?: { id: string; title: string }
 }
+
+/** A file a commit holds, as its receipt lists it: its status as one letter. */
+export type CommitReceiptFile = GitChangeFileView & { letter: string }
+
+/** The one line a successful commit leaves in the chat, and what it opens to. */
+export type CommitReceiptView = {
+  /** The commit, short. */
+  sha: string
+  /** The commit as the repository names it. */
+  fullSha: string
+  branch: string | undefined
+  /** "1 file" — absent when the ask kept no list of its files. */
+  filesLabel?: string
+  files: CommitReceiptFile[]
+  message: string | undefined
+}

@@ -12,6 +12,7 @@ import { nativeFontFamilies, nativeRadii, nativeSpace } from '../../../tokens/na
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { IconCommit } from '../../icons'
 import BottomSheet from '../../primitives/BottomSheet'
+import { Button } from '../../primitives/Button'
 
 export type CommitCardProps = {
   /** The commit's full sha. */
@@ -29,6 +30,8 @@ export type CommitChipBaseProps = CommitCardProps & {
   onOpen?: () => void
   /** Replaces the details sheet's body — a host that reads the commit when it opens passes its own. */
   renderDetails?: () => ReactNode
+  /** Gives the details sheet an "Open in Git" button. */
+  onOpenInGit?: () => void
 }
 
 /**
@@ -99,6 +102,7 @@ export default function CommitChipBase({
   error,
   onOpen,
   renderDetails,
+  onOpenInGit,
 }: CommitChipBaseProps) {
   const { theme } = useNativeTheme()
   const [open, setOpen] = useState(false)
@@ -139,7 +143,28 @@ export default function CommitChipBase({
           {shortSha(sha)}
         </Text>
       </Pressable>
-      <BottomSheet isOpen={open} onClose={() => setOpen(false)} title={`Commit ${shortSha(sha)}`}>
+      <BottomSheet
+        isOpen={open}
+        onClose={() => setOpen(false)}
+        title={`Commit ${shortSha(sha)}`}
+        {...(onOpenInGit && !missing
+          ? {
+              footer: (
+                <View style={{ flexDirection: 'row' }}>
+                  <Button
+                    variant="primary"
+                    onPress={() => {
+                      setOpen(false)
+                      onOpenInGit()
+                    }}
+                  >
+                    {COMMIT_DETAILS_TEXT.open}
+                  </Button>
+                </View>
+              ),
+            }
+          : {})}
+      >
         <View style={{ paddingHorizontal: nativeSpace[4], paddingBottom: nativeSpace[5] }}>
           {open ? (
             renderDetails ? (

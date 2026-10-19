@@ -1,3 +1,5 @@
+import type { GitChangeFileView } from './gitChangeApprovalTypes'
+
 /** The host's tools that change a project's repository — each asks on a card, every time. */
 export const GIT_CHANGE_TOOL_NAMES: readonly string[] = [
   'commitGitChanges',
@@ -76,4 +78,23 @@ export const GIT_CHANGE_DONE: Record<string, string> = {
   'merge-plan': 'Merged — branch at',
   'recover-text': 'Recovered as text — HEAD at',
   'pull-request': 'Pushed for a pull request —',
+}
+
+/** The tool whose successful call leaves a commit receipt in place of its row. */
+export const COMMIT_TOOL_NAME = 'commitGitChanges'
+
+/** What a commit receipt says. */
+export const COMMIT_RECEIPT_COPY = {
+  committed: 'Committed',
+  to: 'to',
+  files: (n: number): string => `${n} ${n === 1 ? 'file' : 'files'}`,
+  view: 'View the change',
+  hide: 'Hide the change',
+} as const
+
+/** A file's status in a commit, as one letter. */
+export const CHANGE_STATUS_LETTERS: Record<GitChangeFileView['status'], string> = {
+  added: 'A',
+  modified: 'M',
+  deleted: 'D',
 }

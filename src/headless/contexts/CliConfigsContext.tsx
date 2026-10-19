@@ -16,6 +16,7 @@ import {
   setActiveCli as apiSetActiveCli,
   setCliDefaultModel as apiSetCliDefaultModel,
   setCliEffort as apiSetCliEffort,
+  setCliModelEffort as apiSetCliModelEffort,
   setCliEnabled as apiSetCliEnabled,
   startCliAuthLogin,
   submitCliAuthLoginInput,
@@ -93,6 +94,8 @@ export type CliConfigsContextValue = {
   defaultModel: Record<string, string>
   /** Per-CLI default reasoning effort the user picked in settings (keyed by CLI tool). */
   effort: Record<string, string>
+  /** Per-model default reasoning effort, keyed by CLI tool then model id; over the CLI's. */
+  modelEffort: Record<string, Record<string, string>>
   createCache: (input: CliAuthCacheCreateInput) => Promise<RedactedCliAuthCacheEntry>
   updateCache: (
     id: string,
@@ -105,6 +108,8 @@ export type CliConfigsContextValue = {
   setCliDefaultModel: (cli: string, model: string | undefined) => Promise<void>
   /** Set (or clear, with `undefined`) the default reasoning effort for `cli`. */
   setCliEffort: (cli: string, effort: string | undefined) => Promise<void>
+  /** Set (or clear, with `undefined`) one model's default reasoning effort for `cli`. */
+  setCliModelEffort: (cli: string, model: string, effort: string | undefined) => Promise<void>
   probeModels: (cli: CliTool) => Promise<CliProbeResult>
   /**
    * Fetch the live, account-aware model list (Cursor sandbox / Codex cache).
@@ -320,6 +325,17 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
     async (cli: string, effort: string | undefined) => {
       await apiSetCliEffort({
         body: { cli: cli as CliTool, effort: effort ?? null },
+        throwOnError: true,
+      })
+      await refresh()
+    },
+    [refresh],
+  )
+
+  const setCliModelEffort = useCallback(
+    async (cli: string, model: string, effort: string | undefined) => {
+      await apiSetCliModelEffort({
+        body: { cli: cli as CliTool, model, effort: effort ?? null },
         throwOnError: true,
       })
       await refresh()
@@ -566,6 +582,7 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
       enabledClis,
       defaultModel: activeState.defaultModel ?? {},
       effort: activeState.effort ?? {},
+      modelEffort: activeState.modelEffort ?? {},
       createCache,
       updateCache,
       deleteCache,
@@ -573,6 +590,7 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
       setCliEnabled,
       setCliDefaultModel,
       setCliEffort,
+      setCliModelEffort,
       probeModels,
       probeModelsLive,
       cachedLiveModels,
@@ -607,6 +625,7 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
       setCliEnabled,
       setCliDefaultModel,
       setCliEffort,
+      setCliModelEffort,
       probeModels,
       probeModelsLive,
       cachedLiveModels,

@@ -16,6 +16,7 @@ import {
   cliRunFailureNotice,
   withCliRunFailure,
   withStoredCliReply,
+  withCliStopNotice,
   cliToolNameFromEntry,
   cleanCliToolName,
   classifyToolOrigin,
@@ -1078,6 +1079,24 @@ describe('normalizeCliTranscript', () => {
     toolName: 'addStory',
     args: { title: 'T' },
     ...over,
+  })
+
+  it('carries the files an approved commit’s card listed, and the run it was asked in, to its row', () => {
+    const files = [{ path: 'design/drafts/10.html', status: 'modified' as const }]
+    const [row] = cliTranscriptToMessages(askedThen('commitGitChanges', 'a1'), {
+      decidedAsks: [
+        decided({
+          toolName: 'commitGitChanges',
+          changeFiles: files,
+          execution: { ok: true, result: '{"operation":"commit","ok":true,"sha":"0956f8c"}' },
+        }),
+      ],
+    })
+    expect(row.toolCall).toMatchObject({ changeFiles: files, runId: 'run-1' })
+    const [plain] = cliTranscriptToMessages(askedThen('addStory', 'a1'), {
+      decidedAsks: [decided({ execution: { ok: true, result: '{}' } })],
+    })
+    expect(plain.toolCall).not.toHaveProperty('changeFiles')
   })
 
   it('shows an approved ask the agent then carried out as done, with what it returned', () => {
@@ -2283,6 +2302,39 @@ describe('withStoredCliReply', () => {
   })
 })
 
+describe('withCliStopNotice', () => {
+  const notice = { cause: 'provider' as const, reason: 'The model provider stopped answering.' }
+
+  it('puts the stop on the turn’s last reply', () => {
+    const rows: ChatMessageLike[] = [
+      { role: 'assistant', content: 'Starting.' },
+      { role: 'tool', content: '' },
+      { role: 'assistant', content: 'Stopped here.' },
+      { role: 'tool', content: '' },
+    ]
+    const out = withCliStopNotice(rows, notice, 'Error: 529')
+    expect(out[2]).toEqual({ role: 'assistant', content: 'Stopped here.', stopNotice: notice })
+    expect(out[0]).toBe(rows[0])
+    expect(out).toHaveLength(4)
+  })
+
+  it('adds a reply carrying the stop when the turn wrote none', () => {
+    const rows: ChatMessageLike[] = [{ role: 'tool', content: '' }]
+    expect(withCliStopNotice(rows, notice, 'Error: 529')).toEqual([
+      { role: 'tool', content: '' },
+      { role: 'assistant', content: 'Error: 529', stopNotice: notice },
+    ])
+    expect(withCliStopNotice([], notice, undefined)).toEqual([
+      { role: 'assistant', content: '', stopNotice: notice },
+    ])
+  })
+
+  it('leaves the rows as they are when the turn did not stop', () => {
+    const rows: ChatMessageLike[] = [{ role: 'assistant', content: 'Done.' }]
+    expect(withCliStopNotice(rows, undefined, 'Done.')).toBe(rows)
+  })
+})
+
 describe('subagent steps', () => {
   const under = (parent: string | undefined, e: CliRunTranscriptEntry): CliRunTranscriptEntry => ({
     ...e,
@@ -2609,6 +2661,16 @@ describe('storedChatAskRows — an API chat’s rows show its asks as a CLI turn
     expect(m!.toolCall?.decisionNote).toBe(
       DECIDED_BY_RULE_NOTE('always allow editProject in this chat'),
     )
+  })
+
+  it('carries the files an approved commit’s card listed, and its turn, to its settled row', () => {
+    const files = [{ path: 'a.ts', status: 'added' as const }]
+    const [m] = storedChatAskRows(
+      [row('a1', 'success', 'commitGitChanges')],
+      [],
+      [decided('a1', { toolName: 'commitGitChanges', changeFiles: files })],
+    )
+    expect(m!.toolCall).toMatchObject({ changeFiles: files, runId: 'api-chat-turn:t' })
   })
 
   it('leaves rows with no ask, and every other message, as they are', () => {

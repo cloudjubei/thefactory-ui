@@ -9,7 +9,7 @@ import type { ReviewTone } from './runReviewTypes'
 export const CHECK_STATUS_TONES: Record<VerificationCheckStatus, ReviewTone> = {
   passed: 'positive',
   failed: 'danger',
-  error: 'danger',
+  error: 'warning',
   skipped: 'neutral',
 }
 
@@ -52,6 +52,15 @@ export const ALREADY_ON_BASE_TITLE = (baseRef: string | undefined): string =>
   `Already on ${baseRef ?? 'the base branch'}`
 
 export const ALREADY_ON_BASE_MESSAGE = 'Nothing new to review — it’s already there.'
+
+/** The one line a change its base already holds shows: "Already on dev as 0956f8c — nothing left to review". */
+export const ALREADY_ON_BASE_LINE = (
+  baseRef: string | undefined,
+  sha: string | undefined,
+): string => `${ALREADY_ON_BASE_TITLE(baseRef)}${sha ? ` as ${sha}` : ''} — nothing left to review`
+
+/** How many characters of a commit's sha a line shows. */
+export const SHORT_SHA_LENGTH = 7
 
 /**
  * A run whose only output was ignored build files did not FAIL — there is

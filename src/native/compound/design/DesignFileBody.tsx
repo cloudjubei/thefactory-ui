@@ -10,7 +10,7 @@ import {
 } from '../../../headless'
 import { nativeFontFamilies, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
-import { IconExternalLink } from '../../icons'
+import { IconDownload, IconExternalLink } from '../../icons'
 import { Button } from '../../primitives/Button'
 import Spinner from '../../primitives/Spinner'
 import FileTypeIcon from '../files/FileTypeIcon'
@@ -96,6 +96,7 @@ function TextBody({ src }: { src: string }) {
 
 function FilePanel({ shown, src }: { shown: DesignShown; src: string }) {
   const { theme } = useNativeTheme()
+  const { downloadFile } = useDesignHost()
   const { source } = shown
   const fileName = designSourceFileName(source)
   const size = source.type === 'blob' ? formatBytes(source.bytes) : null
@@ -113,7 +114,15 @@ function FilePanel({ shown, src }: { shown: DesignShown; src: string }) {
       <Text style={{ fontSize: 12, color: theme.text.muted, textAlign: 'center' }}>
         {DESIGN_TEXT.notPreviewable}
       </Text>
-      <OpenButton url={src} />
+      <View style={{ flexDirection: 'row', gap: nativeSpace[2] }}>
+        {downloadFile ? (
+          <Button variant="secondary" onPress={() => void downloadFile(src, fileName)}>
+            <IconDownload size={16} color={theme.text.primary} />
+            {DESIGN_TEXT.download}
+          </Button>
+        ) : null}
+        <OpenButton url={src} />
+      </View>
     </Centered>
   )
 }

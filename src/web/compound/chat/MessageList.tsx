@@ -17,14 +17,18 @@ import CliRunMessages from './CliRunMessages'
 import ToolApprovalFooter from './ToolApprovalFooter'
 import AgentExchangeBlock from './AgentExchangeBlock'
 import { useAppSettings } from '../../../headless/contexts/AppSettingsContext'
-import { agentExchangeLayout, agentExchangeStartOf } from '../../../headless/utils/agentExchanges'
+import {
+  agentExchangeLayout,
+  agentExchangeStartOf,
+  agentExchangeWindowStart,
+} from '../../../headless/utils/agentExchanges'
 import type { UikitFileMeta } from '../files/FileDisplay'
 import type { ResourceLink } from 'thefactory-tools/types'
 import type { ToolCall, ToolResultType } from './ToolCall'
 import type { ChatMessageLike, PendingToolGrant } from '../../../headless/utils/chatTypes'
 import { describeLastMessageDelete } from '../../../headless/utils/chatMessageDelete'
 import { firstUnreadMessageIndex } from '../../../headless/utils/chatUnread'
-import { chatToolPreviewOf } from '../../../headless/utils/toolPreview'
+import { useToolApprovalPreviews } from '../../../headless/hooks/useToolApprovalPreviews'
 import type { ToolPreviewResult } from '../../../headless/api/sdkTypes'
 import { AGENT_RUN_TRANSCRIPT_EMPTY } from '../../../headless/utils/agentRunTranscriptConstants'
 import type { CliDecidedAsk, CliPendingAsk } from '../../../headless/utils/cliRunActivityTypes'
@@ -140,7 +144,7 @@ export type MessageListProps = {
   renderReference?: (target: ReferenceTarget) => ReactNode | undefined
   /** Route an in-app `overseer://…` resource link. Forwarded to MessageRow's Markdown (F.2). */
   onResourceLink?: (link: ResourceLink) => void
-  /** Render the workspace-diff panel for a CLI-agent reply. Forwarded to MessageRow. */
+  /** Renders what a CLI-agent reply changed — `ChatBody` passes the turn's changes marker. Forwarded to MessageRow. */
   renderCliRunArtifact?: (runId: string) => ReactNode
   /** Forwarded to each row: the live process run an announcement message launched. */
   renderProcessRun?: (processRunId: string) => ReactNode
@@ -302,12 +306,6 @@ export default function MessageList({
     () => lastMessageDeleteFromIndex(messagesToDisplay),
     [messagesToDisplay],
   )
-  const startIndex = Math.max(0, totalMessages - visibleCount)
-  const visibleMessages = useMemo(
-    () => messagesToDisplay.slice(startIndex),
-    [messagesToDisplay, startIndex],
-  )
-  const hiddenCountAbove = startIndex
 
   // User-bubble pop animation tracker. Tracked in display-space (the pinned
   // leading system bubble is excluded) so it stays aligned with `globalIndex`.
@@ -399,6 +397,14 @@ export default function MessageList({
     () => agentExchangeLayout(messagesToDisplay, agentMessages, { openTail: exchangeOpenTail }),
     [messagesToDisplay, agentMessages, exchangeOpenTail],
   )
+  // The window counts rows that are drawn: an exchange folds its messages into
+  // one row at its first, so a window opened inside it would draw nothing.
+  const startIndex = agentExchangeWindowStart(exchanges, totalMessages, visibleCount)
+  const visibleMessages = useMemo(
+    () => messagesToDisplay.slice(startIndex),
+    [messagesToDisplay, startIndex],
+  )
+  const hiddenCountAbove = startIndex
 
   // ---- Opening a chat where reading resumes ------------------------------
   // The last-read mark as it stood when the chat opened. It moves as soon as
@@ -604,44 +610,7 @@ export default function MessageList({
   )
 
   // Pre-applied preview cache for calls waiting on an ask decided on their row.
-  const [toolPreviewById, setToolPreviewById] = useState<Record<string, unknown>>({})
-  const toolPreviewByIdRef = useRef<Record<string, unknown>>({})
-  useEffect(() => {
-    toolPreviewByIdRef.current = toolPreviewById
-  }, [toolPreviewById])
-  useEffect(() => {
-    setToolPreviewById({})
-    toolPreviewByIdRef.current = {}
-  }, [chatId])
-  useEffect(() => {
-    if (!previewTool) return
-    for (const m of messagesToDisplay) {
-      if (m.role !== 'tool' || !m.toolCall?.approvalId) continue
-      const toolCallId = String(m.toolCall.toolCallId ?? '')
-      const toolName = String(m.toolCall.name ?? '')
-      if (!toolCallId || !toolName) continue
-      if (toolPreviewByIdRef.current[toolCallId] !== undefined) continue
-      toolPreviewByIdRef.current = {
-        ...toolPreviewByIdRef.current,
-        [toolCallId]: { status: 'pending' },
-      }
-      setToolPreviewById((prev) => ({ ...prev, [toolCallId]: { status: 'pending' } }))
-      ;(async () => {
-        try {
-          const ready = chatToolPreviewOf(
-            await previewTool(toolCallId, toolName, m.toolCall?.arguments),
-          )
-          if (!ready) return
-          toolPreviewByIdRef.current = { ...toolPreviewByIdRef.current, [toolCallId]: ready }
-          setToolPreviewById((prev) => ({ ...prev, [toolCallId]: ready }))
-        } catch (e) {
-          const err = { status: 'error' as const, error: String((e as Error)?.message || e) }
-          toolPreviewByIdRef.current = { ...toolPreviewByIdRef.current, [toolCallId]: err }
-          setToolPreviewById((prev) => ({ ...prev, [toolCallId]: err }))
-        }
-      })()
-    }
-  }, [previewTool, messagesToDisplay])
+  const toolPreviewById = useToolApprovalPreviews(chatId, messagesToDisplay, previewTool)
 
   return (
     <div
@@ -785,6 +754,7 @@ export default function MessageList({
                   renderProcessGroupRun={renderProcessGroupRun}
                   coldStart={msg.cliRunId === firstCliRunId}
                   storedReply={msg.content}
+                  {...(msg.stopNotice ? { stopNotice: msg.stopNotice } : {})}
                   {...(cliBlockedOn && msg.cliRunId === pendingCliRunId
                     ? { blockedOn: cliBlockedOn }
                     : {})}

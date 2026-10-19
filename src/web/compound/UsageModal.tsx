@@ -64,6 +64,11 @@ function UsageTable({ rows }: { rows: UsageTableRow[] }) {
                         {r.notReportedBy}
                       </div>
                     ) : null}
+                    {c.cell === 'label' && r.incomplete ? (
+                      <div className="text-[11px] font-normal text-[var(--text-secondary)]">
+                        {r.incomplete}
+                      </div>
+                    ) : null}
                     {c.cell === 'cachedRead' && r.cacheRatio ? <div>{r.cacheRatio}</div> : null}
                   </td>
                 ))}
@@ -80,8 +85,9 @@ function UsageTable({ rows }: { rows: UsageTableRow[] }) {
  * What a chat, story or project has spent: the durable cost ledger per model
  * and per executor, and the messages on screen. Every table keeps charged,
  * included (a plan covered them) and unpriced (no known price) tokens apart,
- * with their value at list price — marked when it covers only part — and names
- * the tool behind any count a CLI never reported instead of showing it as 0.
+ * with their value at list price — marked when it covers only part — says how
+ * sure each charge is, names the tool behind any count a CLI never reported
+ * instead of showing it as 0, and says what each row's counts lack.
  * The rows come from the headless `useUsageBreakdown`, shared with the native peer.
  */
 export function UsageModal({

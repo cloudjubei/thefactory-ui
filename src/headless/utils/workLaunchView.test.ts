@@ -6,6 +6,7 @@ import {
   launchSuggestionPicks,
   launchSuggestionProofEdits,
   launchSuggestionRows,
+  workLaunchChatAgent,
   workLaunchOptions,
 } from './workLaunchView'
 
@@ -200,5 +201,36 @@ describe('launchSuggestionProofEdits', () => {
     expect(
       launchSuggestionProofEdits(undefined, { proofKinds: { value: ['checks'], reason: 'x' } }),
     ).toEqual({})
+  })
+})
+
+describe('workLaunchChatAgent', () => {
+  it('carries the active CLI pick with its model, login and effort', () => {
+    expect(
+      workLaunchChatAgent(
+        'cli',
+        { cli: 'claude-code', modelId: 'opus', credentialId: 'c1', effort: 'max' },
+        'low',
+      ),
+    ).toEqual({
+      runner: 'cli',
+      cliTool: 'claude-code',
+      cliModel: 'opus',
+      cliCredentialId: 'c1',
+      effort: 'max',
+    })
+    expect(workLaunchChatAgent('cli', { cli: 'codex' }, null)).toEqual({
+      runner: 'cli',
+      cliTool: 'codex',
+    })
+  })
+
+  it('is the API at the agent-run effort, whatever CLI pick is kept', () => {
+    expect(workLaunchChatAgent('api', { cli: 'codex', effort: 'high' }, 'xhigh')).toEqual({
+      runner: 'api',
+      effort: 'xhigh',
+    })
+    expect(workLaunchChatAgent('api', null, null)).toEqual({ runner: 'api' })
+    expect(workLaunchChatAgent('cli', null, 'medium')).toEqual({ runner: 'api', effort: 'medium' })
   })
 })

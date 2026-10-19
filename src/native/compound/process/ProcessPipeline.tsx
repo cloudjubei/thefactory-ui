@@ -14,8 +14,6 @@ import {
 
 import {
   choiceTakesNote,
-  circlingRetryTakesNote,
-  PROCESS_CIRCLING_NOTE_COPY,
   processParkCirclingView,
   processStepCirclingView,
   computeChatRowStatus,
@@ -531,6 +529,7 @@ export default function ProcessPipeline({
             <PipelineNode
               key={state.step.id}
               run={run}
+              root={stopRoot}
               state={state}
               isLast={index === states.length - 1}
               now={now}
@@ -1052,6 +1051,7 @@ function Marker({ look }: { look: ProcessNodeLook }) {
  */
 function PipelineNode({
   run,
+  root,
   state,
   isLast,
   now,
@@ -1070,6 +1070,8 @@ function PipelineNode({
   onOpenTranscript,
 }: {
   run: ProcessRun
+  /** The top-level run that keeps the agent manager's record. */
+  root: ProcessRun | undefined
   state: ReturnType<typeof processStepStates>[number]
   isLast: boolean
   now: number
@@ -1259,6 +1261,7 @@ function PipelineNode({
         <View style={{ paddingHorizontal: 12, paddingBottom: 12 }}>
           <ParkBlock
             run={run}
+            root={root}
             managerLine={managerLine}
             {...(alreadyMerged ? { alreadyMerged } : {})}
             onChoose={onChoose}
@@ -1278,6 +1281,7 @@ function PipelineNode({
 
 function ParkBlock({
   run,
+  root,
   managerLine,
   alreadyMerged,
   onChoose,
@@ -1290,6 +1294,8 @@ function ParkBlock({
   onDrill,
 }: {
   run: ProcessRun
+  /** The top-level run that keeps the agent manager's record — `run` itself when omitted. */
+  root?: ProcessRun | undefined
   /** What the agent manager is doing on the stop, while it has it — said in place of what waits on the person. */
   managerLine: string | undefined
   /** Finishing the run as already merged, when its base already holds the work. */
@@ -1362,7 +1368,7 @@ function ParkBlock({
   const reflected = isReflectedPark(park)
   const choices = processRunParkChoices(run)
   const proofChange = choices.find((c) => c.choice === 'change-proof')?.proofChange
-  const circling = processParkCirclingView(run)
+  const circling = processParkCirclingView(run, root ?? run)
   const variant = managerLine
     ? status[PROCESS_LIVE_TONE]
     : park.reason === 'gate'
@@ -1387,12 +1393,7 @@ function ParkBlock({
         fontSize={13}
         fontWeight="600"
       />
-      {circling ? (
-        <CirclingNotice
-          view={circling}
-          showHint={circling.afterManager && !reflected && !managerLine}
-        />
-      ) : null}
+      {circling ? <CirclingNotice view={circling} /> : null}
       {reflected && park.childRunId ? (
         <Pressable onPress={() => onDrill(park.childRunId as string)} accessibilityRole="button">
           <Text style={{ fontSize: 11, color: theme.text.secondary }}>
@@ -1400,22 +1401,7 @@ function ParkBlock({
           </Text>
         </Pressable>
       ) : null}
-      {noteFor === 'retry' ? (
-        <ParkNoteComposer
-          copy={PROCESS_CIRCLING_NOTE_COPY}
-          required
-          onSend={(note) =>
-            onChoose(
-              'retry',
-              note,
-              undefined,
-              undefined,
-              retryChoice ? (retryPick ?? processRetryPickStart(retryChoice)) : undefined,
-            )
-          }
-          onCancel={() => setNoteFor(undefined)}
-        />
-      ) : noteFor ? (
+      {noteFor ? (
         <ParkNoteComposer
           copy={parkNoteCopy(noteFor)}
           {...(noteFor === 'request-changes'
@@ -1459,7 +1445,7 @@ function ParkBlock({
                 onPress={() =>
                   choice.choice === 'change-proof'
                     ? setChangingProof(true)
-                    : choiceTakesNote(choice.choice) || circlingRetryTakesNote(choice)
+                    : choiceTakesNote(choice.choice)
                       ? setNoteFor(choice.choice)
                       : choice.choice === 'retry' && retryChoice
                         ? onChoose(

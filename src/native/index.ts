@@ -193,6 +193,8 @@ export {
   type CommitCardProps,
   type CommitChipBaseProps,
 } from './compound/chips/CommitChipBase'
+export { CommitOpenerProvider, useCommitOpener } from './compound/chips/CommitOpenerContext'
+export type { CommitOpener } from './compound/chips/commitOpenerTypes'
 export { default as ReferenceChip, type ReferenceChipProps } from './compound/chips/ReferenceChip'
 export {
   default as ReferencePreviewSheet,
@@ -293,6 +295,21 @@ export {
   default as CliRunArtifactPanel,
   type CliRunArtifactPanelProps,
 } from './compound/chat/CliRunArtifactPanel'
+export { ChatChangesBar, type ChatChangesBarProps } from './compound/chat/ChatChangesBar'
+export {
+  ChatChangesBarConnected,
+  type ChatChangesBarConnectedProps,
+} from './compound/chat/ChatChangesBarConnected'
+export { ChatChangesMarker, type ChatChangesMarkerProps } from './compound/chat/ChatChangesMarker'
+export {
+  ChatChangesMarkerConnected,
+  type ChatChangesMarkerConnectedProps,
+} from './compound/chat/ChatChangesMarkerConnected'
+export { ChatReviewScreen, type ChatReviewScreenProps } from './compound/chat/ChatReviewScreen'
+export {
+  ChatReviewScreenConnected,
+  type ChatReviewScreenConnectedProps,
+} from './compound/chat/ChatReviewScreenConnected'
 export {
   default as EvidenceImageOverlay,
   type EvidenceImageOverlayProps,
@@ -368,6 +385,7 @@ export {
 } from './compound/chat/ChatInput'
 export { default as MessageList, type MessageListProps } from './compound/chat/MessageList'
 export { default as MessageRow, type MessageRowProps } from './compound/chat/MessageRow'
+export { default as ChatStopCard, type ChatStopCardProps } from './compound/chat/ChatStopCard'
 export {
   default as ToolCallCard,
   type ToolCallCardProps,
@@ -632,6 +650,11 @@ export {
   default as NotesSettings,
   type NotesSettingsProps,
 } from './compound/settings/NotesSettings'
+export { default as UsageSettings } from './compound/settings/UsageSettings'
+export {
+  default as UsageSettingsView,
+  type UsageSettingsViewProps,
+} from './compound/settings/UsageSettingsView'
 export {
   default as BadgeSettings,
   type BadgeSettingsProps,

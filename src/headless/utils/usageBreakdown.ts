@@ -9,8 +9,17 @@
  * the ledger aggregate, the messages on screen and their models' prices.
  */
 
-import type { BillingBasis } from 'thefactory-tools/types'
-import { estimateCostFromUsage, roundMoneyUSD } from 'thefactory-tools/utils'
+import type {
+  BillingBasis,
+  ChargeStatus,
+  UsageCompletenessReason,
+  UsageTokenFields,
+} from 'thefactory-tools/types'
+import {
+  estimateCostFromUsage,
+  roundMoneyUSD,
+  usageCompletenessReasons,
+} from 'thefactory-tools/utils'
 
 import {
   isListPartial,
@@ -18,16 +27,24 @@ import {
   messageUsageCost,
   notReportedBy,
   reportingToolOf,
+  sentenceCase,
   spendTokens,
 } from './costDetails'
 import {
+  COST_CHARGE_SUBSCRIPTION,
   COST_MODEL_UNRECORDED,
   COST_PROVIDER_NAMES,
   COST_TOKENS_NOT_REPORTED,
 } from './costDetailsConstants'
 import type { CostSpend } from './costDetailsTypes'
 import {
+  USAGE_CHARGE_CONFIRMED,
+  USAGE_CHARGE_IN_PLAN,
+  USAGE_CHARGE_PART_UNKNOWN,
+  USAGE_CHARGE_UNKNOWN,
   USAGE_COUNT_PARTIAL,
+  USAGE_INCOMPLETE_REASON_LABELS,
+  USAGE_INCOMPLETE_SEPARATOR,
   USAGE_LEDGER_UNAVAILABLE,
   USAGE_LIST_PARTIAL,
 } from './usageBreakdownConstants'
@@ -66,6 +83,14 @@ type UsageSums = {
   includedUnreportedBy: Set<string>
   /** … and the ones whose unreported turns were metered: an unknown charge, never $0. */
   unpricedUnreportedBy: Set<string>
+  /** The tools that left one count of a turn here unavailable, per count. */
+  fieldUnreportedBy: Record<'input' | 'cacheRead' | 'cacheWrite', Set<string>>
+  /** How sure each call's charge here is. */
+  charges: Set<ChargeStatus>
+  /** Why the counts here fall short. */
+  reasons: Set<UsageCompletenessReason>
+  /** Some tokens here were a plan's, whose charge is unknown — a plan can bill overage. */
+  subscription: boolean
 }
 
 const emptySums = (): UsageSums => ({
@@ -83,6 +108,10 @@ const emptySums = (): UsageSums => ({
   outputUnreportedBy: new Set(),
   includedUnreportedBy: new Set(),
   unpricedUnreportedBy: new Set(),
+  fieldUnreportedBy: { input: new Set(), cacheRead: new Set(), cacheWrite: new Set() },
+  charges: new Set(),
+  reasons: new Set(),
+  subscription: false,
 })
 
 const totalTokens = (s: UsageSums) => s.prompt + s.completion + s.cachedRead + s.cacheWrite
@@ -97,9 +126,16 @@ const isIncluded = (billing: UsageModalUsage['billing']) =>
  * reads `—` rather than a `$0` it never was.
  */
 function chargedCell(s: UsageSums): string {
+  const amount = s.estimated ? `≈ ${usd(s.charged)}` : usd(s.charged)
+  if (s.subscription) {
+    const known = s.charges.has('confirmed-amount') || s.charges.has('included-in-plan-confirmed')
+    return known
+      ? `${amount} + ${COST_CHARGE_SUBSCRIPTION}`
+      : sentenceCase(COST_CHARGE_SUBSCRIPTION)
+  }
   const unknown = s.unpriced > 0 || s.unpricedUnreportedBy.size > 0
   if (s.charged === 0 && unknown && s.included === 0) return NONE
-  return s.estimated ? `≈ ${usd(s.charged)}` : usd(s.charged)
+  return amount
 }
 
 /**
@@ -116,6 +152,20 @@ function countCell(n: number, unreportedBy: ReadonlySet<string>): string {
 const union = (...sets: ReadonlySet<string>[]): Set<string> =>
   new Set(sets.flatMap((set) => [...set]))
 
+/** How sure a group's charge is, from its calls' charge statuses. */
+function chargeCell(charges: ReadonlySet<ChargeStatus>): string {
+  if (charges.size === 0) return NONE
+  if (charges.has('unknown'))
+    return charges.size > 1 ? USAGE_CHARGE_PART_UNKNOWN : USAGE_CHARGE_UNKNOWN
+  return charges.has('confirmed-amount') ? USAGE_CHARGE_CONFIRMED : USAGE_CHARGE_IN_PLAN
+}
+
+/** Why a group's counts fall short, in words, each once, in the tools' order. */
+function incompleteCell(reasons: ReadonlySet<UsageCompletenessReason>): string {
+  const words = [...reasons].sort().map((reason) => USAGE_INCOMPLETE_REASON_LABELS[reason])
+  return [...new Set(words)].join(USAGE_INCOMPLETE_SEPARATOR)
+}
+
 function listValueCell(s: UsageSums): string {
   if (s.list === undefined) return NONE
   return s.listPartial ? `${usd(s.list)} ${USAGE_LIST_PARTIAL}` : usd(s.list)
@@ -124,18 +174,22 @@ function listValueCell(s: UsageSums): string {
 function tableRow(key: string, label: string, s: UsageSums, total = false): UsageTableRow {
   const input = s.prompt + s.cachedRead
   const withOutput = union(s.unreportedBy, s.outputUnreportedBy)
+  const field = s.fieldUnreportedBy
+  const anyGap = union(withOutput, field.input, field.cacheRead, field.cacheWrite)
   return {
-    notReportedBy: withOutput.size > 0 ? notReportedBy([...withOutput]) : '',
+    notReportedBy: anyGap.size > 0 ? notReportedBy([...anyGap]) : '',
+    incomplete: incompleteCell(s.reasons),
     key,
     label,
     total,
     charged: chargedCell(s),
-    tokens: countCell(totalTokens(s), withOutput),
-    prompt: countCell(s.prompt, s.unreportedBy),
+    charge: chargeCell(s.charges),
+    tokens: countCell(totalTokens(s), anyGap),
+    prompt: countCell(s.prompt, union(s.unreportedBy, field.input)),
     completion: countCell(s.completion, withOutput),
-    cachedRead: countCell(s.cachedRead, s.unreportedBy),
+    cachedRead: countCell(s.cachedRead, union(s.unreportedBy, field.cacheRead)),
     cacheRatio: input > 0 ? `(${Math.round((s.cachedRead / input) * 100)}%)` : '',
-    cacheWrite: countCell(s.cacheWrite, s.unreportedBy),
+    cacheWrite: countCell(s.cacheWrite, union(s.unreportedBy, field.cacheWrite)),
     included: countCell(s.included, s.includedUnreportedBy),
     unpriced: countCell(s.unpriced, s.unpricedUnreportedBy),
     listValue: listValueCell(s),
@@ -164,6 +218,63 @@ function addUnreportedCalls(s: UsageSums, b: UsageModalCostBreakdown) {
   }
 }
 
+/** Every count reported, but those `unavailable` says were not. */
+function fieldsOf(unavailable: Iterable<keyof UsageTokenFields>): UsageTokenFields {
+  const fields: UsageTokenFields = {
+    input: 'reported',
+    output: 'reported',
+    cacheRead: 'reported',
+    cacheWrite: 'reported',
+  }
+  for (const field of unavailable) fields[field] = 'unavailable'
+  return fields
+}
+
+/** Note the tool behind each count a call left unavailable, and why the counts fall short. */
+function addFieldGaps(s: UsageSums, tool: string, fields: UsageTokenFields) {
+  if (fields.output === 'unavailable') s.outputUnreportedBy.add(tool)
+  for (const field of ['input', 'cacheRead', 'cacheWrite'] as const) {
+    if (fields[field] === 'unavailable') s.fieldUnreportedBy[field].add(tool)
+  }
+  for (const reason of usageCompletenessReasons(fields)) s.reasons.add(reason)
+}
+
+/**
+ * How sure a ledger row's charges are. A plan's are unknown — it can bill
+ * overage — and a free model's a confirmed nothing; a metered row's are
+ * confirmed where it was charged and unknown where tokens had no price or a
+ * call's counts fall short. An executor's row sums every basis, so what it
+ * includes may be a plan's.
+ */
+function addLedgerCharges(s: UsageSums, b: UsageModalCostBreakdown) {
+  if (b.billing === 'subscription') s.subscription = true
+  if (b.billing === 'free') {
+    s.charges.add('included-in-plan-confirmed')
+    return
+  }
+  if (b.billing === 'subscription' || (b.billing === undefined && (b.includedTokens ?? 0) > 0)) {
+    s.charges.add('unknown')
+    if (b.billing === 'subscription') return
+  }
+  const short =
+    (b.unpricedTokens ?? 0) > 0 ||
+    b.tokensNotReported === true ||
+    b.outputTokensNotReported === true ||
+    (b.tokenFieldsNotReported?.length ?? 0) > 0
+  if (short) s.charges.add('unknown')
+  if (b.costUSD > 0 || !short) s.charges.add('confirmed-amount')
+}
+
+/** A ledger row's charges, and the counts its calls left unavailable. */
+function addLedgerProvenance(s: UsageSums, b: UsageModalCostBreakdown) {
+  addLedgerCharges(s, b)
+  const unavailable = new Set(b.tokenFieldsNotReported ?? [])
+  if (b.tokensNotReported === true) s.reasons.add('usage-not-reported')
+  if (b.outputTokensNotReported === true) unavailable.add('output')
+  if (unavailable.size > 0)
+    addFieldGaps(s, reportingToolOf(b.provider ?? ''), fieldsOf(unavailable))
+}
+
 /**
  * A ledger row's sums. Its list value covers only part of it when some of its
  * tokens have none — unlisted (the ledger counts a call's unreported output
@@ -184,6 +295,7 @@ function breakdownSums(b: UsageModalCostBreakdown): UsageSums {
       (b.unlistedTokens ?? 0) > 0 || (b.unpricedTokens ?? 0) > 0 || b.tokensNotReported === true,
   }
   addUnreportedCalls(s, b)
+  addLedgerProvenance(s, b)
   return s
 }
 
@@ -230,7 +342,10 @@ export function ledgerUsageRows(agg: UsageModalCostAggregate): UsageTableRow[] {
     list: agg.totalListCostUSD,
     listPartial: (agg.totalUnlistedTokens ?? 0) > 0 || (agg.totalUnpricedTokens ?? 0) > 0,
   }
-  for (const b of Object.values(agg.breakdown)) addUnreportedCalls(totals, b)
+  for (const b of Object.values(agg.breakdown)) {
+    addUnreportedCalls(totals, b)
+    addLedgerProvenance(totals, b)
+  }
   const rows = Object.entries(agg.breakdown)
     .map(([key, b]): [string, UsageSums] => [key, breakdownSums(b)])
     .sort(byChargedThenTokens)
@@ -328,6 +443,41 @@ function addUnreported(s: UsageSums, row: CostSpend) {
   ;(isIncluded(row.billing) ? s.includedUnreportedBy : s.unpricedUnreportedBy).add(tool)
 }
 
+/** A CLI row's counts as reported, derived or unavailable — its not-reported marks included. */
+function spendFields(row: CostSpend): UsageTokenFields {
+  if (isUnreported(row)) return fieldsOf(['input', 'output', 'cacheRead', 'cacheWrite'])
+  return {
+    input: row.tokenFields?.input ?? 'reported',
+    output: row.outputTokensNotReported ? 'unavailable' : (row.tokenFields?.output ?? 'reported'),
+    cacheRead: row.tokenFields?.cacheRead ?? 'reported',
+    cacheWrite: row.tokenFields?.cacheWrite ?? 'reported',
+  }
+}
+
+/**
+ * A CLI row's charge status and the reasons its counts fall short, as the
+ * ledger records them: a plan's charge unknown, a free model's a confirmed
+ * nothing, a metered one confirmed only when stated over counts that were all
+ * reported. A row whose turn is still going adds nothing yet — its counts and
+ * charge are still to come.
+ */
+function addSpendProvenance(s: UsageSums, row: CostSpend) {
+  if (row.countsPending === true || row.chargePending === true) return
+  const fields = spendFields(row)
+  const tool = reportingToolOf(row.provider)
+  for (const field of ['input', 'cacheRead', 'cacheWrite'] as const) {
+    if (fields[field] === 'unavailable' && !isUnreported(row)) s.fieldUnreportedBy[field].add(tool)
+  }
+  const reasons = [...usageCompletenessReasons(fields), ...(row.incompleteReasons ?? [])]
+  for (const reason of reasons) s.reasons.add(reason)
+  if (row.billing === 'subscription') s.subscription = true
+  if (row.billing === 'free') s.charges.add('included-in-plan-confirmed')
+  else if (row.billing === 'subscription') s.charges.add('unknown')
+  else if (reasons.length === 0 && typeof row.costUsd === 'number')
+    s.charges.add('confirmed-amount')
+  else s.charges.add('unknown')
+}
+
 /**
  * Fold one of a CLI turn's per-model rows into its model's sums: the counts it
  * holds, the tool that left some out — so a count reads as only part, never as
@@ -345,6 +495,7 @@ function addSpend(s: UsageSums, row: CostSpend) {
   s.cachedRead += row.cacheReadTokens
   s.cacheWrite += row.cacheWriteTokens
   addUnreported(s, row)
+  addSpendProvenance(s, row)
   const cost = messageUsageCost({ byModel: [row] }, undefined)
   if (!cost) return
   s.charged = roundMoneyUSD(s.charged + (cost.costUsd ?? 0))
@@ -355,12 +506,41 @@ function addSpend(s: UsageSums, row: CostSpend) {
 }
 
 /**
+ * How sure an API turn's charge is: a stored metered charge over counts all
+ * reported is confirmed; an estimate, none, or one over short counts is unknown.
+ */
+function apiTurnCharge(usage: UsageModalUsage, short: boolean): ChargeStatus {
+  if (usage.billing === 'free') return 'included-in-plan-confirmed'
+  if (usage.billing === 'subscription') return 'unknown'
+  return typeof usage.cost === 'number' && !short ? 'confirmed-amount' : 'unknown'
+}
+
+/** An API turn's counts left out and why it is short, as its ledger entry records them. */
+function addApiProvenance(s: UsageSums, usage: UsageModalUsage, tool: string): boolean {
+  const fields: UsageTokenFields = {
+    input: usage.tokenFields?.input ?? 'reported',
+    output: usage.tokenFields?.output ?? 'reported',
+    cacheRead: usage.tokenFields?.cacheRead ?? 'reported',
+    cacheWrite: usage.tokenFields?.cacheWrite ?? 'reported',
+  }
+  const reasons = [...usageCompletenessReasons(fields), ...(usage.incompleteReasons ?? [])]
+  addFieldGaps(s, tool, fields)
+  for (const reason of reasons) s.reasons.add(reason)
+  return reasons.length > 0
+}
+
+/**
  * Fold an API turn into its model's sums. A stored charge is what was charged.
  * Without one, a subscription or free turn was charged nothing; a metered turn
  * is estimated from its model's current price, and with no price its tokens are
  * unpriced — never an estimated $0.
  */
-function addMessage(s: UsageSums, usage: UsageModalUsage, price: UsageModalModelPrice | undefined) {
+function addMessage(
+  s: UsageSums,
+  usage: UsageModalUsage,
+  price: UsageModalModelPrice | undefined,
+  provider: string,
+) {
   const tokens = {
     promptTokens: usage.promptTokens ?? 0,
     completionTokens: usage.completionTokens ?? 0,
@@ -378,6 +558,9 @@ function addMessage(s: UsageSums, usage: UsageModalUsage, price: UsageModalModel
     tokens.cacheWriteInputTokens
   const estimate = price ? estimateCostFromUsage(price, tokens) : undefined
   const included = isIncluded(usage.billing)
+  const short = addApiProvenance(s, usage, providerName(provider))
+  s.charges.add(apiTurnCharge(usage, short))
+  if (usage.billing === 'subscription') s.subscription = true
   if (included) s.included += count
   if (typeof usage.cost === 'number') {
     s.charged = roundMoneyUSD(s.charged + usage.cost)
@@ -409,14 +592,20 @@ function addSums(into: UsageSums, s: UsageSums) {
   into.unpriced += s.unpriced
   if (s.list !== undefined) into.list = roundMoneyUSD((into.list ?? 0) + s.list)
   into.listPartial ||= s.listPartial
+  into.subscription ||= s.subscription
   for (const [to, from] of [
     [into.unreportedBy, s.unreportedBy],
     [into.outputUnreportedBy, s.outputUnreportedBy],
     [into.includedUnreportedBy, s.includedUnreportedBy],
     [into.unpricedUnreportedBy, s.unpricedUnreportedBy],
+    [into.fieldUnreportedBy.input, s.fieldUnreportedBy.input],
+    [into.fieldUnreportedBy.cacheRead, s.fieldUnreportedBy.cacheRead],
+    [into.fieldUnreportedBy.cacheWrite, s.fieldUnreportedBy.cacheWrite],
   ] as const) {
     for (const tool of from) to.add(tool)
   }
+  for (const charge of s.charges) into.charges.add(charge)
+  for (const reason of s.reasons) into.reasons.add(reason)
 }
 
 /**
@@ -457,6 +646,7 @@ export function currentUsageRows(
       sumsOf(label),
       m.usage,
       model ? prices[priceKey(model.provider, model.model)] : undefined,
+      model?.provider ?? '',
     )
   }
   if (byModel.size === 0) return []

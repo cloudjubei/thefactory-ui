@@ -55,4 +55,4 @@ export type Scene = {
   wide?: boolean
 }
 
-export type SceneGroup = 'Chat' | 'Process' | 'Design' | 'Primitives'
+export type SceneGroup = 'Chat' | 'Process' | 'Design' | 'Settings' | 'Primitives'

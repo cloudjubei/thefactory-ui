@@ -11,6 +11,8 @@ export type DesignHost = {
   renderPage?: (uri: string, options: { interactive: boolean }) => ReactNode
   renderPdf?: (uri: string) => ReactNode
   renderVideo?: (uri: string) => ReactNode
+  /** Save a file that cannot be previewed to a place the person picks. */
+  downloadFile?: (uri: string, fileName: string) => Promise<void>
   topInset?: number
   bottomInset?: number
 }

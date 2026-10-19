@@ -9,6 +9,9 @@ import {
   type CliAuthWarning,
 } from '../../headless/utils/cliRunner'
 import { modelChipLabel, modelChipProviderLabel } from '../../headless/utils/modelChip'
+import { effortDefaultLabel, effortLevelLabel } from '../../headless/utils/modelEffort'
+import { EFFORT_SWITCH_LABEL } from '../../headless/utils/modelEffortConstants'
+import type { ModelEffortSwitch } from '../../headless/utils/modelEffortTypes'
 import { nativePalette, nativeRadii, nativeSpace } from '../../tokens/native'
 import { useNativeTheme } from '../hooks/useNativeTheme'
 import BottomSheet from '../primitives/BottomSheet'
@@ -69,6 +72,8 @@ export interface ModelChipProps {
   authWarning?: CliAuthWarning
   /** A line the picker opens with — when a pick takes effect, say. */
   note?: string
+  /** The selected model's effort switch; hidden when the model offers no levels. */
+  effort?: ModelEffortSwitch
 }
 
 const PROVIDER_DOTS: Record<string, string> = {
@@ -156,6 +161,66 @@ function PickerItem({
   )
 }
 
+function EffortRow({ effort }: { effort: ModelEffortSwitch }) {
+  const { theme } = useNativeTheme()
+  const options = [undefined, ...effort.levels]
+  return (
+    <View
+      accessibilityRole="radiogroup"
+      accessibilityLabel={EFFORT_SWITCH_LABEL}
+      style={{ paddingHorizontal: nativeSpace[3], paddingTop: nativeSpace[2] }}
+    >
+      <Text
+        style={{
+          fontSize: 10,
+          textTransform: 'uppercase',
+          letterSpacing: 0.5,
+          color: theme.text.secondary,
+          paddingBottom: nativeSpace[1],
+        }}
+      >
+        {EFFORT_SWITCH_LABEL}
+      </Text>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: nativeSpace[2] }}>
+        {options.map((level) => {
+          const checked = level === effort.value
+          return (
+            <Pressable
+              key={level ?? 'default'}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: checked }}
+              onPress={() => {
+                if (!checked) effort.onPick(level)
+              }}
+              style={({ pressed }) => ({
+                minHeight: 36,
+                justifyContent: 'center',
+                paddingHorizontal: nativeSpace[3],
+                borderRadius: nativeRadii[2],
+                backgroundColor: checked
+                  ? theme.surface.muted
+                  : pressed
+                    ? theme.surface.hover
+                    : 'transparent',
+              })}
+            >
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: checked ? '600' : '400',
+                  color: checked ? theme.text.primary : theme.text.secondary,
+                }}
+              >
+                {level ? effortLevelLabel(level) : effortDefaultLabel(effort.defaultValue)}
+              </Text>
+            </Pressable>
+          )
+        })}
+      </View>
+    </View>
+  )
+}
+
 export function ModelChip({
   provider,
   model,
@@ -182,6 +247,7 @@ export function ModelChip({
   cliSwitchError,
   authWarning,
   note,
+  effort,
 }: ModelChipProps) {
   const { theme, status: tones } = useNativeTheme()
   const [open, setOpen] = useState(false)
@@ -655,6 +721,7 @@ export function ModelChip({
                   No models reported.
                 </Text>
               )}
+              {effort && effort.levels.length > 0 && <EffortRow effort={effort} />}
 
               <View
                 style={{
@@ -719,6 +786,7 @@ export function ModelChip({
                   />
                 )
               })}
+              {effort && effort.levels.length > 0 && <EffortRow effort={effort} />}
               <View
                 style={{
                   height: 1,

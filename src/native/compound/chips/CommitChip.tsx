@@ -1,11 +1,12 @@
 import { useCommitDetails } from '../../../headless'
 import CommitChipBase, { CommitCard } from './CommitChipBase'
+import { useCommitOpener } from './CommitOpenerContext'
 
 export type CommitChipProps = {
   projectId: string
   /** The commit's full sha. */
   sha: string
-  /** Opens the commit; omitted, a press opens its details. */
+  /** Opens the commit; omitted, a press opens its details, which offer "Open in Git" when the app provides a `CommitOpenerProvider`. */
   onOpen?: () => void
 }
 
@@ -14,10 +15,12 @@ export type CommitChipProps = {
  * details sheet first opens. Built on `CommitChipBase`.
  */
 export default function CommitChip({ projectId, sha, onOpen }: CommitChipProps) {
+  const openCommit = useCommitOpener()
   return (
     <CommitChipBase
       sha={sha}
       {...(onOpen ? { onOpen } : {})}
+      {...(!onOpen && openCommit ? { onOpenInGit: () => openCommit(projectId, sha) } : {})}
       renderDetails={() => <LoadedCommitCard projectId={projectId} sha={sha} />}
     />
   )

@@ -37,7 +37,12 @@ export function useProjectDataBridge(
   const { activeProjectId } = useProjects()
   const activitiesApiOnly = opts?.activitiesApiOnly ?? false
   const cliActivities = opts?.cliActivities
-  const { activeAgentRunConfigId, activeActivityConfigId, activeActivityCliModel } = useLLMConfigs()
+  const {
+    activeAgentRunConfigId,
+    activeActivityConfigId,
+    activeActivityCliModel,
+    activeActivityApiEffort,
+  } = useLLMConfigs()
   return useCallback(
     async (req: BridgeRequest) => {
       const data = await dispatchProjectDataBridge(projectId, req)
@@ -62,6 +67,7 @@ export function useProjectDataBridge(
         req,
         activeActivityConfigId ?? activeAgentRunConfigId ?? undefined,
         cliAllowed ? (activeActivityCliModel ?? undefined) : undefined,
+        activeActivityApiEffort ?? undefined,
       )
       if (activities !== undefined) return activities
       const runners = await dispatchRunnersBridge(req)
@@ -89,6 +95,7 @@ export function useProjectDataBridge(
       activeAgentRunConfigId,
       activeActivityConfigId,
       activeActivityCliModel,
+      activeActivityApiEffort,
       activitiesApiOnly,
       cliActivities,
     ],

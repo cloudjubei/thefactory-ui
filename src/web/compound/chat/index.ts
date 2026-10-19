@@ -4,6 +4,21 @@ export {
   default as CliRunArtifactPanel,
   type CliRunArtifactPanelProps,
 } from './CliRunArtifactPanel'
+export { ChatChangesBar, type ChatChangesBarProps } from './ChatChangesBar'
+export {
+  ChatChangesBarConnected,
+  type ChatChangesBarConnectedProps,
+} from './ChatChangesBarConnected'
+export { ChatChangesMarker, type ChatChangesMarkerProps } from './ChatChangesMarker'
+export {
+  ChatChangesMarkerConnected,
+  type ChatChangesMarkerConnectedProps,
+} from './ChatChangesMarkerConnected'
+export { ChatReviewPanel, type ChatReviewPanelProps } from './ChatReviewPanel'
+export {
+  ChatReviewPanelConnected,
+  type ChatReviewPanelConnectedProps,
+} from './ChatReviewPanelConnected'
 export {
   default as EvidenceImageOverlay,
   type EvidenceImageOverlayProps,
@@ -73,6 +88,7 @@ export {
   type ManagerCardLinks,
 } from './ManagerCards'
 export { default as MessageRow, type MessageRowProps } from './MessageRow'
+export { default as ChatStopCard, type ChatStopCardProps } from './ChatStopCard'
 export { default as SystemPromptBubble, type SystemPromptBubbleProps } from './SystemPromptBubble'
 export {
   default as SystemPromptViewerModal,

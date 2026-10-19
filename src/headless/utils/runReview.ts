@@ -16,8 +16,10 @@ import type {
   VerificationCheckStatus,
 } from '../api/generated'
 import {
+  ALREADY_ON_BASE_LINE,
   ALREADY_ON_BASE_MESSAGE,
   ALREADY_ON_BASE_TITLE,
+  SHORT_SHA_LENGTH,
   CHECK_STATUS_TONES,
   LAND_FAILURE_LEAD,
   LAND_FAILURE_REASON_LABELS,
@@ -35,6 +37,7 @@ import {
 } from './runReviewConstants'
 import { checkMethodFor, checkRanInSentence } from './checkMethods'
 import type {
+  AlreadyOnBaseView,
   ReviewActionInput,
   ReviewActionMode,
   ReviewChangeCounts,
@@ -230,6 +233,24 @@ export function landFailureSummary(failure: CliRunLandFailure): ReviewLandFailur
 }
 
 /**
+ * The one line a run shows when its base already holds its change — nothing
+ * failed, and nothing is left to review — naming the commit that holds it when
+ * the record says. `undefined` for any other run. Pure.
+ */
+export function alreadyOnBaseView(
+  failure: CliRunLandFailure | undefined,
+): AlreadyOnBaseView | undefined {
+  if (failure?.reason !== 'already-on-base') return undefined
+  const sha = trimmedOrUndefined(failure.landedBy?.sha)?.slice(0, SHORT_SHA_LENGTH)
+  const subject = trimmedOrUndefined(failure.landedBy?.subject)
+  return {
+    text: ALREADY_ON_BASE_LINE(trimmedOrUndefined(failure.baseRef), sha),
+    ...(sha ? { sha } : {}),
+    ...(subject ? { subject } : {}),
+  }
+}
+
+/**
  * A merge attempt's outcome. Conflicts and hard failures read as danger; a
  * policy refusal (`aborted`, nothing merged) reads as a warning the user can
  * clear by re-running checks.
@@ -277,6 +298,12 @@ export function reviewActionMode(input: ReviewActionInput): ReviewActionMode {
   // put N ungated ways to land fragments of the same work beside one gated way
   // to land all of it.
   if (input.partOfStoryRun) return 'none'
+  if (
+    input.landFailureReason === 'already-on-base' ||
+    input.landFailureReason === 'no-source-changes'
+  ) {
+    return 'none'
+  }
   return 'apply'
 }
 

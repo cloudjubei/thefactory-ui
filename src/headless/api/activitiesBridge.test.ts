@@ -59,6 +59,39 @@ describe('dispatchActivitiesBridge', () => {
     expect(res).toEqual({ activityId: 'a2' })
   })
 
+  it('sends the API effort with the LLM config', async () => {
+    asMock(runActivity).mockResolvedValue({ data: { activityId: 'a3' } })
+    await dispatchActivitiesBridge(
+      'p1',
+      { type: 'overseer:activities.start', payload: { activityType: 'explore', params: {} } },
+      'cfg-opus',
+      undefined,
+      'max',
+    )
+    expect(runActivity).toHaveBeenCalledWith({
+      path: { projectId: 'p1' },
+      body: { activityType: 'explore', llmConfigId: 'cfg-opus', effort: 'max', params: {} },
+      throwOnError: true,
+    })
+  })
+
+  it('never sends the API effort beside a CLI selection, which carries its own', async () => {
+    asMock(runActivity).mockResolvedValue({ data: { activityId: 'a4' } })
+    const cliModel = { cli: 'claude-code' as const, modelId: 'opus', effort: 'low' as const }
+    await dispatchActivitiesBridge(
+      'p1',
+      { type: 'overseer:activities.start', payload: { activityType: 'explore' } },
+      'cfg-opus',
+      cliModel,
+      'max',
+    )
+    expect(runActivity).toHaveBeenCalledWith({
+      path: { projectId: 'p1' },
+      body: { activityType: 'explore', cliModel, params: undefined },
+      throwOnError: true,
+    })
+  })
+
   it('returns undefined for non-activities messages', async () => {
     expect(await dispatchActivitiesBridge('p1', { type: 'overseer:data.query' })).toBeUndefined()
     expect(runActivity).not.toHaveBeenCalled()

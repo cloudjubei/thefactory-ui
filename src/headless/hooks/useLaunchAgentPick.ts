@@ -1,6 +1,11 @@
 import { useMemo, useState } from 'react'
 
-import { pickLaunchApi, pickLaunchCli, pickLaunchModel } from '../utils/launchAgentPick'
+import {
+  pickLaunchApi,
+  pickLaunchCli,
+  pickLaunchEffort,
+  pickLaunchModel,
+} from '../utils/launchAgentPick'
 import { NO_LAUNCH_AGENT_PICK } from '../utils/launchAgentPickConstants'
 import type { LaunchAgentPick, LaunchModelChipSlot } from '../utils/launchAgentPickTypes'
 
@@ -19,6 +24,8 @@ export function useLaunchAgentPick(): { pick: LaunchAgentPick; slot: LaunchModel
       onPickCli: (cli, credentialId, model) => setPick(pickLaunchCli(cli, credentialId, model)),
       api: pick.api,
       onPickApi: () => setPick(pickLaunchApi()),
+      effort: pick.effort,
+      onPickEffort: (effort) => setPick((p) => pickLaunchEffort(p, effort)),
     }),
     [pick],
   )

@@ -248,29 +248,25 @@ describe('checkMethodRows', () => {
     expect(r.detail).toBe('1 failed')
   })
 
-  it('an errored check reads as failed, not as absent', () => {
+  it('an errored check reads as one that did not finish — never failed, never absent', () => {
     const v = verification({ checks: [check({ status: 'error', summary: 'harness died' })] })
-    expect(row(rows({ verification: v }), 'types').state).toBe('failed')
+    const r = row(rows({ verification: v }), 'types')
+    expect(r.state).toBe('unfinished')
+    expect(r.tone).toBe('warning')
+    expect(r.detail).toBe('harness died')
+    expect(r.action).toEqual({ kind: 'request', purpose: 'fix', approachId: undefined })
   })
 
-  it('marks a row whose failing checks all errored as one that could not finish', () => {
-    const v = verification({ checks: [check({ status: 'error', summary: '132/132 passed' })] })
-    expect(row(rows({ verification: v }), 'types').errored).toBe(true)
-  })
-
-  it('does not mark a row whose checks passed as one that could not finish', () => {
-    const v = verification({ checks: [check({ status: 'passed', summary: 'No type errors' })] })
-    expect(row(rows({ verification: v }), 'types')).not.toHaveProperty('errored')
-  })
-
-  it('does not mark a row whose checks failed as one that could not finish', () => {
+  it('reads a row whose checks failed beside one that errored as failed', () => {
     const v = verification({
       checks: [
         check({ id: 'a', status: 'error', summary: 'harness died' }),
         check({ id: 'b', status: 'failed', summary: '1 type error' }),
       ],
     })
-    expect(row(rows({ verification: v }), 'types')).not.toHaveProperty('errored')
+    const r = row(rows({ verification: v }), 'types')
+    expect(r.state).toBe('failed')
+    expect(r).not.toHaveProperty('unfinished')
   })
 
   it('matched checks that all skipped read as not run', () => {
@@ -2180,5 +2176,186 @@ describe('projectCheckLastRunSentence', () => {
         }),
       ),
     ).toBe('Last passed in 4.0s. Ran on the host — Android needs the SDK.')
+  })
+})
+
+describe('a check that did not finish', () => {
+  const stopped = {
+    path: 'src/completion/CompletionTools.test.ts',
+    reason: 'stopped after 30 s',
+    timedOutAfterMs: 30_000,
+    outputTail: '✓ builds the prompt\n  waiting on the stream…',
+  }
+  const unitTests = (over: Partial<VerificationCheckResult> = {}): VerificationCheckResult =>
+    check({
+      id: 'unit',
+      label: 'Unit tests',
+      kind: 'tests',
+      status: 'error',
+      summary: "1 file didn't finish (stopped after 30 s) — 132/132 passed in the other 2",
+      testCount: { total: 132, passed: 132, failed: 0, skipped: 0 },
+      unfinishedFiles: [stopped],
+      ...over,
+    })
+
+  it('carries the files that stopped and how the other files went', () => {
+    const r = row(rows({ verification: verification({ checks: [unitTests()] }) }), 'tests')
+    expect(r.state).toBe('unfinished')
+    expect(r.unfinished).toEqual({
+      checkLabel: 'Unit tests',
+      files: [stopped],
+      finished: { files: 2, passed: 132 },
+    })
+  })
+
+  it('counts the other files from the suites the record kept', () => {
+    const r = row(
+      rows({
+        verification: verification({
+          checks: [
+            unitTests({
+              summary: "1 file didn't finish (stopped after 30 s)",
+              testCount: undefined,
+              testSuites: [
+                { name: 'McpServer.test.ts', tests: 100, passed: 100, failed: 0, skipped: 0 },
+                { name: 'ToolLoopDetector.test.ts', tests: 32, passed: 32, failed: 0, skipped: 0 },
+                { name: 'Other.test.ts', tests: 1, passed: 1, failed: 0, skipped: 0 },
+              ],
+            }),
+          ],
+        }),
+      }),
+      'tests',
+    )
+    expect(r.unfinished?.finished).toEqual({ files: 3, passed: 133 })
+  })
+
+  it('says nothing of the other files when every file stopped', () => {
+    const r = row(
+      rows({
+        verification: verification({
+          checks: [
+            unitTests({
+              summary: "1 file didn't finish (stopped after 30 s)",
+              testCount: { total: 0, passed: 0, failed: 0, skipped: 0 },
+            }),
+          ],
+        }),
+      }),
+      'tests',
+    )
+    expect(r.unfinished).toEqual({ checkLabel: 'Unit tests', files: [stopped] })
+  })
+
+  it('keeps an older record that named no file as did-not-finish, with its summary', () => {
+    const r = row(
+      rows({
+        verification: verification({
+          checks: [unitTests({ unfinishedFiles: undefined, summary: '132/132 passed' })],
+        }),
+      }),
+      'tests',
+    )
+    expect(r.state).toBe('unfinished')
+    expect(r.detail).toBe('132/132 passed')
+    expect(r).not.toHaveProperty('unfinished')
+  })
+
+  it('draws its chip in words, with no failure mark', () => {
+    expect(checkChipFace({ state: 'unfinished' })).toEqual({
+      mark: '',
+      stateLabel: 'didn’t finish',
+      words: 'didn’t finish',
+    })
+    expect(CHECK_CHIP_MARKS.unfinished).not.toBe(CHECK_CHIP_MARKS.failed)
+  })
+
+  it('leads its callout with what happened, and the summary beneath', () => {
+    const r = row(rows({ verification: verification({ checks: [unitTests()] }) }), 'tests')
+    expect(checkCallout(r)).toEqual({
+      lead: CHECK_STATE_SENTENCES.unfinished,
+      detail: r.detail,
+    })
+  })
+})
+
+describe('signoffVerdict › checks that did not finish', () => {
+  const mk = (over: Partial<CheckMethodRow>): CheckMethodRow => ({
+    id: 'types',
+    label: 'Types',
+    noun: 'the typecheck',
+    setupVerb: 'wire up a typecheck',
+    state: 'failed',
+    tone: 'danger',
+    detail: '1 type error',
+    durationLabel: undefined,
+    output: undefined,
+    fill: 'run',
+    action: { kind: 'request', purpose: 'fix', approachId: undefined },
+    checkIds: [],
+    ...over,
+  })
+  const tests = mk({
+    id: 'tests',
+    label: 'Tests',
+    state: 'unfinished',
+    tone: 'warning',
+    detail: 'Unit tests didn’t finish',
+  })
+
+  it('counts what failed and what did not finish apart, and does not pass', () => {
+    const v = signoffVerdict({
+      rows: [
+        tests,
+        mk({}),
+        mk({ id: 'lint', label: 'Lint', detail: 'Lint: 2 errors' }),
+        mk({ id: 'format', label: 'Format', detail: '6 files unformatted' }),
+      ],
+      verified: true,
+    })
+    expect(v.key).toBe('failed')
+    expect(v.word).toBe('Didn’t pass')
+    expect(v.title).toBe('3 checks failed, 1 didn’t finish')
+    expect(v.detail).toBe(
+      'Unit tests didn’t finish · 1 type error · Lint: 2 errors · 6 files unformatted',
+    )
+  })
+
+  it('says a check whose record named its files did not finish, in short, beside what failed', () => {
+    const named = {
+      ...tests,
+      detail: "1 file didn't finish (stopped after 30 s) — 132/132 passed in the other 2",
+      unfinished: {
+        checkLabel: 'Unit tests',
+        files: [{ path: 'a.test.ts', reason: 'stopped after 30 s' }],
+      },
+    }
+    expect(signoffVerdict({ rows: [named, mk({})], verified: true }).detail).toBe(
+      'Unit tests didn’t finish · 1 type error',
+    )
+  })
+
+  it('names a lone check that did not finish', () => {
+    const v = signoffVerdict({ rows: [tests, mk({ state: 'passed' })], verified: true })
+    expect(v.key).toBe('failed')
+    expect(v.title).toBe('Tests didn’t finish')
+    expect(v.detail).toBe('Unit tests didn’t finish')
+  })
+
+  it('counts several that did not finish', () => {
+    const v = signoffVerdict({
+      rows: [tests, mk({ state: 'unfinished', detail: 'harness died' })],
+      verified: true,
+    })
+    expect(v.title).toBe('2 checks didn’t finish')
+  })
+
+  it('says one failed and one did not finish in the singular', () => {
+    const v = signoffVerdict({ rows: [tests, mk({})], verified: true })
+    expect(v.title).toBe('1 check failed, 1 didn’t finish')
+  })
+
+  it('reads a failure alone as before', () => {
+    expect(signoffVerdict({ rows: [mk({})], verified: true }).title).toBe('Types failed')
   })
 })

@@ -1,3 +1,5 @@
+import type { GitChangeFileView } from './gitChangeApprovalTypes'
+
 /** Emphasis for the live activity line. Copy is carried on the line itself. */
 export type CliRunActivityTone = 'booting' | 'working' | 'blocked'
 
@@ -88,4 +90,6 @@ export type CliDecidedAsk = {
   decidedVia?: 'card' | 'approve-all' | 'moved-on' | 'grant'
   /** What the standing grant that approved it allows, in words — set only for a grant's approval. */
   rule?: string
+  /** The files a git change's card listed when it was approved — what its commit receipt counts. */
+  changeFiles?: GitChangeFileView[]
 }

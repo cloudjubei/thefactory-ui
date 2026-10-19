@@ -13,6 +13,8 @@ export type NativeToolCallRenderArgs = {
   durationMs?: number
   /** When the call was made — a running call says where it waits once it has run a while. */
   startedAt?: string
+  /** What the call would do if approved, while it waits on that approval. */
+  previewResult?: unknown
   /** The call awaits approval in a batch: show a toggle granting it. */
   selectable?: boolean
   selected?: boolean

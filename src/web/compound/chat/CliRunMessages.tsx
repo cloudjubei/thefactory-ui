@@ -16,11 +16,13 @@ import {
   cliTranscriptToMessages,
   parseCliAgentModelTag,
   withCliRunFailure,
+  withCliStopNotice,
   withStoredCliReply,
 } from '../../../headless/utils/cliRunner'
 import { cliRowAsks, withAsksAwaitingOutcome } from '../../../headless/utils/pendingToolGrants'
 import type { CliDecidedAsk, CliPendingAsk } from '../../../headless/utils/cliRunActivityTypes'
 import type { PendingToolGrant } from '../../../headless/utils/chatTypes'
+import type { ChatStopNotice } from '../../../headless/utils/chatStopNoticeTypes'
 import { refuseWhileRunActive } from '../../../headless/utils/chatMessageDelete'
 import { CLI_TURN_DELETE_ACTION_LABEL } from '../../../headless/utils/chatMessageDeleteConstants'
 import type { MessageDeleteControl } from '../../../headless/utils/chatMessageDeleteTypes'
@@ -47,7 +49,7 @@ export type CliRunMessagesProps = {
   getToolHeaderPath?: (toolCall: ToolCall) => string | undefined
   onResolveFile?: (token: string) => UikitFileMeta | null
   renderReference?: (target: ReferenceTarget) => ReactNode | undefined
-  /** Renders the workspace diff/apply panel for the run (host-wired, carries projectId). */
+  /** Renders what the run changed, under its turn — `ChatBody` passes the changes marker. */
   renderCliRunArtifact?: (runId: string) => ReactNode
   /** Forwarded to each row: the live process run an announcement message launched. */
   renderProcessRun?: (processRunId: string) => ReactNode
@@ -62,6 +64,8 @@ export type CliRunMessagesProps = {
   coldStart?: boolean
   /** The reply the chat stored for this turn — shown until the run record arrives. */
   storedReply?: string
+  /** Why the turn stopped, as the chat stored it — shown as the stop card on the turn's last reply. */
+  stopNotice?: ChatStopNotice
   /** Route an in-app `overseer://…` link (or a link into this app) the agent wrote, in place. */
   onResourceLink?: (link: ResourceLink) => void
   /**
@@ -121,6 +125,7 @@ export default function CliRunMessages({
   renderProcessGroupRun,
   coldStart = false,
   storedReply,
+  stopNotice,
   onResourceLink,
   blockedOn,
   cliAsks,
@@ -189,8 +194,12 @@ export default function CliRunMessages({
   const approvals = useInlineApprovals(runId, messages, cliAsks, onClaimAsks, settled)
   const shown = useMemo(
     () =>
-      withStoredCliReply(messages, { content: storedReply, ...(model ? { model } : {}) }, active),
-    [messages, storedReply, model, active],
+      withCliStopNotice(
+        withStoredCliReply(messages, { content: storedReply, ...(model ? { model } : {}) }, active),
+        active ? undefined : stopNotice,
+        storedReply,
+      ),
+    [messages, storedReply, model, active, stopNotice],
   )
   const total = baseIndex + shown.length + 1
   let shownModel = false

@@ -1,5 +1,13 @@
 import { CHECK_METHOD_ABSENT_NOUNS, CHECK_METHOD_CAPTURE_VERBS } from './checkMethodConstants'
-import type { CheckMethodRow } from './checkMethodTypes'
+import type { CheckMethodRow, CheckUnfinishedTests } from './checkMethodTypes'
+import {
+  HANDOFF_FIX_TAIL,
+  HANDOFF_OUTPUT_TAIL_LEAD,
+  HANDOFF_UNFINISHED_FILE,
+  HANDOFF_UNFINISHED_FIND,
+  HANDOFF_UNFINISHED_LAST_OUTPUT,
+  HANDOFF_UNFINISHED_OTHERS,
+} from './handoffRequestsConstants'
 
 export type HandoffPurpose = 'fix' | 'setup' | 'capture'
 
@@ -28,6 +36,39 @@ function excerpt(output: string | undefined): string {
   return `\n\nOutput:\n${cut}`
 }
 
+/** The END of a check's output — where a run that did not finish shows how it ended. */
+function tailExcerpt(output: string | undefined): string {
+  const trimmed = output?.trim() ?? ''
+  if (trimmed.length === 0) return ''
+  const cut =
+    trimmed.length > OUTPUT_EXCERPT_CHARS ? `…${trimmed.slice(-OUTPUT_EXCERPT_CHARS)}` : trimmed
+  return `\n\n${HANDOFF_OUTPUT_TAIL_LEAD}\n${cut}`
+}
+
+/**
+ * What the agent is told of test files that did not finish: which, why, how the
+ * other files went, and the last each printed — then to find why, not to skip.
+ */
+function unfinishedMessage(onBranch: string, tests: CheckUnfinishedTests): string {
+  const files = tests.files.map((f) => HANDOFF_UNFINISHED_FILE(f.path, f.reason)).join('; ')
+  const others = tests.finished
+    ? HANDOFF_UNFINISHED_OTHERS(tests.finished.files, tests.finished.passed)
+    : ''
+  const one = tests.files.length === 1
+  const outputs = tests.files
+    .filter((f) => f.outputTail?.trim())
+    .map(
+      (f) =>
+        `${HANDOFF_UNFINISHED_LAST_OUTPUT(one ? undefined : f.path)}\n\n${f.outputTail!.trim()}\n\n`,
+    )
+    .join('')
+  const stopped = tests.files.every((f) => f.timedOutAfterMs !== undefined)
+  return (
+    `On ${onBranch}, the ${tests.checkLabel.toLowerCase()} didn’t finish: ${files}${others}. ` +
+    `${outputs}${HANDOFF_UNFINISHED_FIND(one, stopped)} ${HANDOFF_FIX_TAIL}`
+  )
+}
+
 /**
  * The hand-off for one method, in one of its three purposes.
  *
@@ -38,10 +79,8 @@ function excerpt(output: string | undefined): string {
  * sign off on.
  */
 export function handoffRequest(
-  row: Pick<
-    CheckMethodRow,
-    'id' | 'label' | 'noun' | 'setupVerb' | 'detail' | 'output' | 'errored'
-  >,
+  row: Pick<CheckMethodRow, 'id' | 'label' | 'noun' | 'setupVerb' | 'detail' | 'output'> &
+    Partial<Pick<CheckMethodRow, 'state' | 'unfinished'>>,
   purpose: HandoffPurpose,
   context: { branch: string | undefined },
 ): HandoffRequest {
@@ -62,9 +101,15 @@ export function handoffRequest(
       caveat:
         'Removing or skipping a check does not count as fixing it. New commits also invalidate the checks you have just read — they are re-run before it comes back to you.',
       message:
-        `On ${onBranch}, ${row.noun} ${row.errored ? 'could not finish' : 'failed'}: ${row.detail}. ` +
-        `Fix the cause — do not remove or skip the check — then run it again on that branch and file the result as evidence on this run.` +
-        excerpt(row.output),
+        row.state === 'unfinished'
+          ? row.unfinished
+            ? unfinishedMessage(onBranch, row.unfinished)
+            : `On ${onBranch}, ${row.noun} didn’t finish: ${row.detail}. ` +
+              `${HANDOFF_UNFINISHED_FIND(true, false)} ${HANDOFF_FIX_TAIL}` +
+              tailExcerpt(row.output)
+          : `On ${onBranch}, ${row.noun} failed: ${row.detail}. ` +
+            `Fix the cause — ${HANDOFF_FIX_TAIL}` +
+            excerpt(row.output),
     }
   }
 

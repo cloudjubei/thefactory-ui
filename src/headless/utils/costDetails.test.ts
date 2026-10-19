@@ -9,6 +9,7 @@ import {
 import {
   addCost,
   cliRunCost,
+  probeCostLabel,
   cliRunMessageUsage,
   cliRunSpendRecord,
   costChipLabel,
@@ -269,6 +270,24 @@ describe('isUnreported', () => {
     expect(isUnreported(acpRow)).toBe(true)
     expect(isUnreported(composerSpend)).toBe(false)
     expect(isUnreported({ ...composerSpend, unreportedTurns: 2 })).toBe(false)
+  })
+})
+
+describe('probeCostLabel', () => {
+  it("says a capability check's cost in dollars when every call stated one", () => {
+    expect(probeCostLabel({ totalCostUSD: 0.0123 })).toBe('$0.01')
+    expect(probeCostLabel({ totalCostUSD: 0.0012 })).toBe('$0.0012')
+  })
+
+  it("never says a plan's $0: unknown alone, unknown beside the stated part", () => {
+    expect(probeCostLabel({ costUnknown: true })).toBe('Unknown (subscription)')
+    expect(probeCostLabel({ totalCostUSD: 0.02, costUnknown: true })).toBe(
+      '$0.02 + unknown (subscription)',
+    )
+  })
+
+  it('says nothing when no call reported a cost', () => {
+    expect(probeCostLabel({})).toBeUndefined()
   })
 })
 

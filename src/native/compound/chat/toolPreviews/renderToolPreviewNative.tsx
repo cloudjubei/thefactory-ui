@@ -55,6 +55,12 @@ export type ToolPreviewHooks = {
   renderFeatureCard?: (story: StoryShape, feature: FeatureShape) => ReactNode
   renderStoryAndFeatureCallout?: (args: { storyId?: string; featureId?: string }) => ReactNode
   renderStoryBullet?: (storyId: string) => ReactNode
+  /**
+   * Render a filed review-evidence image as a thumbnail that opens the
+   * full-screen zoom viewer. The host owns it: fetching the bytes is an
+   * authenticated API call the preview registry cannot make.
+   */
+  renderEvidenceImage?: (args: { evidenceId: string; label?: string }) => ReactNode
   getToolPreview?: (toolCallId: string) => ToolPreview | undefined
   /** Render the live cross-project feature-request card for a `requestProjectFeature` result.
    * The host looks the LIVE record up by `requestId` (via `useCrossProjectRequests`) and owns
@@ -125,6 +131,15 @@ export const RECOGNIZED_TOOL_PREVIEW_NAMES: ReadonlySet<string> = new Set([
   'updateStory',
   'startFeatureWork',
   'startGroupWork',
+  'mobileTestDoctor',
+  'mobileTestBuildApp',
+  'mobileTestBootDevice',
+  'mobileTestOpenSession',
+  'mobileTestCloseSession',
+  'mobileTestSnapshot',
+  'mobileTestTap',
+  'mobileTestScreenshot',
+  'recordReviewEvidence',
   'updateFeature',
   'addStory',
   'addFeature',
@@ -633,6 +648,172 @@ export function renderToolPreviewNative({
       return <ReorderList items={order} movedId={reorderedFeatureId(args, order)} />
     return <SecondaryText>No reorder data</SecondaryText>
   }
+  if (name === 'mobileTestDoctor') {
+    const checks = (extract(result, ['checks']) as unknown[] | undefined) ?? []
+    const devices = (extract(result, ['devices']) as unknown[] | undefined) ?? []
+    const ready = extract(result, ['platformReady']) as Record<string, unknown> | undefined
+    return (
+      <View style={{ gap: 8 }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+          {ready
+            ? Object.entries(ready).map(([platform, ok]) => (
+                <SmallBadge
+                  key={platform}
+                >{`${platform} ${ok ? 'ready' : 'not ready'}`}</SmallBadge>
+              ))
+            : null}
+        </View>
+        {checks.length > 0 ? (
+          <View>
+            <SectionTitle>Toolchain</SectionTitle>
+            <PreLimited
+              lines={checks.map((c) => {
+                const r = c as { name?: string; available?: boolean; version?: string }
+                return `${r.available ? '✓' : '✗'} ${r.name ?? '?'}${r.version ? ` — ${r.version}` : ''}`
+              })}
+              maxLines={8}
+            />
+          </View>
+        ) : null}
+        {devices.length > 0 ? (
+          <View>
+            <SectionTitle>Devices</SectionTitle>
+            <PreLimited
+              lines={devices.map((d) => {
+                const r = d as { id?: string; platform?: string; state?: string; name?: string }
+                return `${r.id ?? '?'} · ${r.platform ?? '?'}${r.state ? ` · ${r.state}` : ''}${r.name ? ` · ${r.name}` : ''}`
+              })}
+              maxLines={8}
+            />
+          </View>
+        ) : (
+          <SecondaryText>No device is booted.</SecondaryText>
+        )}
+      </View>
+    )
+  }
+
+  if (name === 'mobileTestBuildApp' || name === 'mobileTestBootDevice') {
+    const appPath = tryString(extract(result, ['appPath']))
+    const task = tryString(extract(result, ['task']))
+    const ref = tryString(extract(result, ['ref'])) ?? tryString(extract(args, ['ref']))
+    const flavor = tryString(extract(args, ['flavor']))
+    const deviceId = tryString(extract(result, ['deviceId']))
+    const errorText = tryString(extract(result, ['error']))
+    return (
+      <View style={{ gap: 8 }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+          {flavor ? <SmallBadge>{flavor}</SmallBadge> : null}
+          {ref ? <SmallBadge>{`base @ ${ref.slice(0, 8)}`}</SmallBadge> : null}
+          {deviceId ? <SmallBadge>{deviceId}</SmallBadge> : null}
+        </View>
+        {task ? (
+          <Row>
+            <MonoText>{task}</MonoText>
+          </Row>
+        ) : null}
+        {appPath ? (
+          <View>
+            <SectionTitle>APK</SectionTitle>
+            <MonoText>{appPath}</MonoText>
+          </View>
+        ) : null}
+        {errorText ? <Text style={{ fontSize: 11, color: red[500] }}>{errorText}</Text> : null}
+      </View>
+    )
+  }
+
+  if (name === 'mobileTestOpenSession' || name === 'mobileTestCloseSession') {
+    const sessionId =
+      tryString(extract(result, ['sessionId'])) ?? tryString(extract(args, ['sessionId']))
+    const platform = tryString(extract(result, ['platform']))
+    const deviceId = tryString(extract(result, ['deviceId']))
+    const appId = tryString(extract(result, ['appId']))
+    return (
+      <View style={{ gap: 8 }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+          {platform ? <SmallBadge>{platform}</SmallBadge> : null}
+          {deviceId ? <SmallBadge>{deviceId}</SmallBadge> : null}
+          {appId ? <SmallBadge>{appId}</SmallBadge> : null}
+          <SmallBadge>{name === 'mobileTestCloseSession' ? 'closed' : 'open'}</SmallBadge>
+        </View>
+        {sessionId ? <MonoText style={{ fontSize: 10 }}>{sessionId}</MonoText> : null}
+      </View>
+    )
+  }
+
+  if (name === 'mobileTestSnapshot') {
+    const snapshot = tryString(extract(result, ['snapshot'])) ?? ''
+    const refsCount = extract(result, ['refsCount'])
+    return (
+      <View style={{ gap: 8 }}>
+        {typeof refsCount === 'number' ? <SmallBadge>{`${refsCount} elements`}</SmallBadge> : null}
+        {snapshot ? (
+          <View>
+            <SectionTitle>Screen</SectionTitle>
+            <PreLimited lines={snapshot.split(/\r?\n/)} maxLines={16} />
+          </View>
+        ) : null}
+      </View>
+    )
+  }
+
+  if (name === 'mobileTestTap') {
+    const ref = tryString(extract(args, ['ref']))
+    const x = extract(args, ['x'])
+    const y = extract(args, ['y'])
+    const ok = extract(result, ['ok'])
+    return (
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+        {ref ? <SmallBadge>{`ref ${ref}`}</SmallBadge> : null}
+        {typeof x === 'number' && typeof y === 'number' ? (
+          <SmallBadge>{`(${x}, ${y})`}</SmallBadge>
+        ) : null}
+        <SmallBadge>{ok === false ? 'failed' : 'tapped'}</SmallBadge>
+      </View>
+    )
+  }
+
+  if (name === 'mobileTestScreenshot') {
+    const path = tryString(extract(result, ['path']))
+    const ok = extract(result, ['ok'])
+    const errorText = tryString(extract(result, ['error']))
+    return (
+      <View style={{ gap: 8 }}>
+        <SmallBadge>{ok === false ? 'no image captured' : 'captured'}</SmallBadge>
+        {path ? <MonoText>{path}</MonoText> : null}
+        {errorText ? <Text style={{ fontSize: 11, color: red[500] }}>{errorText}</Text> : null}
+        <SecondaryText>
+          A captured shot becomes viewable once it is filed with recordReviewEvidence.
+        </SecondaryText>
+      </View>
+    )
+  }
+
+  if (name === 'recordReviewEvidence') {
+    const evidenceId = tryString(extract(result, ['id']))
+    const kind = tryString(extract(result, ['kind'])) ?? tryString(extract(args, ['kind']))
+    const label = tryString(extract(result, ['label'])) ?? tryString(extract(args, ['label']))
+    const phase = tryString(extract(result, ['phase'])) ?? tryString(extract(args, ['phase']))
+    const subject = tryString(extract(result, ['subject'])) ?? tryString(extract(args, ['subject']))
+    const errorText = tryString(extract(result, ['error']))
+    const isImage = (tryString(extract(result, ['mediaType'])) ?? '').startsWith('image/')
+    return (
+      <View style={{ gap: 8 }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+          {kind ? <SmallBadge>{kind}</SmallBadge> : null}
+          {phase ? <SmallBadge>{phase}</SmallBadge> : null}
+          {subject ? <SmallBadge>{subject}</SmallBadge> : null}
+        </View>
+        {label ? <SecondaryText>{label}</SecondaryText> : null}
+        {evidenceId && isImage && hooks?.renderEvidenceImage
+          ? hooks.renderEvidenceImage({ evidenceId, ...(label ? { label } : {}) })
+          : null}
+        {errorText ? <Text style={{ fontSize: 11, color: red[500] }}>{errorText}</Text> : null}
+      </View>
+    )
+  }
+
   if (name === 'startFeatureWork') {
     const storyId = tryString(extract(args, ['storyId']))
     const note = tryString(extract(args, ['note']))

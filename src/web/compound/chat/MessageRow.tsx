@@ -35,6 +35,8 @@ import AnsweredQuestionBubble from './AnsweredQuestionBubble'
 import { answeredQuestionOf } from '../../../headless/utils/agentQuestions'
 import { isOpenChangesCardOnlyMessage } from '../../../headless/utils/openChangesNotice'
 import OpenQuestionsCard from './OpenQuestionsCard'
+import ChatStopCard from './ChatStopCard'
+import { chatStopRestart } from '../../../headless/utils/chatStopNotice'
 
 function formatFriendlyTimestamp(iso: string): string {
   try {
@@ -269,6 +271,42 @@ function MessageRow({
   // ABOVE the early returns: a hook that runs on only some renders is the
   // "rendered more hooks" crash.
   const [confirmingDelete, setConfirmingDelete] = useState(false)
+
+  // One card for a stop, drawn from its notice — never also the error box or the message's text.
+  if (msg.stopNotice) {
+    const restart = chatStopRestart({
+      ...(onRestartTurn && restartControl ? { restart: restartControl } : {}),
+      hasRetry: !!onRetry,
+      isLast,
+      isThinking,
+    })
+    return (
+      <div
+        data-msg-idx={globalIndex}
+        ref={isLast ? setLastMessageRef : undefined}
+        className="flex items-start gap-2"
+      >
+        <div
+          className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold bg-[color-mix(in_srgb,var(--accent-primary)_14%,transparent)] text-(--text-primary) border border-(--border-subtle)"
+          aria-hidden
+        >
+          AI
+        </div>
+        <div className="min-w-0 flex-1">
+          <ChatStopCard
+            notice={msg.stopNotice}
+            {...(restart
+              ? {
+                  restart,
+                  onRestart: () => (restart.via === 'restart' ? onRestartTurn?.() : onRetry?.()),
+                }
+              : {})}
+            {...(msg.cliRunId ? { runId: msg.cliRunId } : {})}
+          />
+        </div>
+      </div>
+    )
+  }
 
   if (msg.error) {
     const showRetry = !!onRetry && isLast

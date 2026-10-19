@@ -313,7 +313,11 @@ export {
   managerPreReadStanding,
 } from './utils/managerCardStanding'
 export { useManagerCardStanding } from './hooks/useManagerCardStanding'
-export { isOpenChangesCardOnlyMessage, openChangesNoticeView } from './utils/openChangesNotice'
+export {
+  isOpenChangesCardOnlyMessage,
+  openChangesNoticeView,
+  openChangesWaitWords,
+} from './utils/openChangesNotice'
 export { OPEN_CHANGES_NOTICE_COPY } from './utils/openChangesNoticeConstants'
 export type {
   OpenChangesNoticeBusy,
@@ -336,6 +340,41 @@ export {
   type ChatOpenChangesTarget,
   type UseChatOpenChanges,
 } from './hooks/useChatOpenChanges'
+export {
+  chatChangesBarView,
+  chatChangesMarkerView,
+  chatChangesVerdictTag,
+  chatReviewHeader,
+  chatReviewLayout,
+  chatReviewPanelWidth,
+} from './utils/chatChangesDock'
+export {
+  CHAT_CHANGES_DOCK_COPY,
+  CHAT_REVIEW_CHAT_MIN_WIDTH,
+  CHAT_REVIEW_PANEL_DEFAULT_WIDTH,
+  CHAT_REVIEW_PANEL_MIN_WIDTH,
+  CHAT_REVIEW_SIDE_MIN_WIDTH,
+} from './utils/chatChangesDockConstants'
+export type {
+  ChatChangesBarInput,
+  ChatChangesBarView,
+  ChatChangesMarkerAction,
+  ChatChangesMarkerInput,
+  ChatChangesMarkerView,
+  ChatChangesTag,
+  ChatChangesVerdictInput,
+  ChatReviewHeaderInput,
+  ChatReviewActions,
+  ChatReviewHeaderView,
+  ChatReviewLayout,
+} from './utils/chatChangesDockTypes'
+export {
+  useChatChangesMarker,
+  useChatReviewHeader,
+  type ChatChangesMarkerPlace,
+} from './hooks/useChatChangesDock'
+export { useRunSignoffVerdict } from './hooks/useRunSignoffVerdict'
+export { useRunPassedProof } from './hooks/useRunPassedProof'
 export {
   processParkClosure,
   processParkStanding,
@@ -614,6 +653,7 @@ export {
   formatCostUSD,
   messageUsageCost,
   pickCost,
+  probeCostLabel,
 } from './utils/costDetails'
 export type {
   CliRunCostSource,
@@ -654,6 +694,7 @@ export type { PriceListEntryView, PriceRate, PriceRateKey } from './utils/priceL
 // land-failure / merge-outcome derivations shared by the web + native
 // `CliRunArtifactPanel`.
 export {
+  alreadyOnBaseView,
   asRunVerification,
   checkTone,
   isReviewReasonValid,
@@ -739,6 +780,7 @@ export type {
   CheckMethodId,
   CheckMethodRow,
   CheckMethodState,
+  CheckUnfinishedTests,
   ReviewTab,
   ReviewTabId,
   ReviewTabsInput,
@@ -813,6 +855,21 @@ export { openFeatureQuestions } from './utils/featureQuestions'
 export { openQuestionsCardView } from './utils/openQuestionsCard'
 export type { OpenQuestionsCardView } from './utils/openQuestionsCardTypes'
 export { OPEN_QUESTIONS_COPY } from './utils/openQuestionsCardConstants'
+export { chatStopCardView, chatStopDetailsLabel, chatStopRestart } from './utils/chatStopNotice'
+export type {
+  ChatStopCardView,
+  ChatStopCause,
+  ChatStopNotice,
+  ChatStopRestart,
+  ChatStopRestartInput,
+} from './utils/chatStopNoticeTypes'
+export {
+  CHAT_STOP_CAUSE_PILL,
+  CHAT_STOP_COPY,
+  CHAT_STOP_REPEAT_FROM,
+  CHAT_STOP_TURNS_TONE,
+  CHAT_STOP_UNKNOWN_TONE,
+} from './utils/chatStopNoticeConstants'
 export {
   useFeatureQuestionAnswers,
   type UseFeatureQuestionAnswers,
@@ -881,20 +938,60 @@ export type {
   ChatChipCliSelection,
 } from './utils/modelChipTypes'
 export {
+  asEffortLevel,
+  cliModelEffortRows,
+  effortDefaultLabel,
+  effortLevelLabel,
+  modelEffortChoice,
+  modelEffortLevels,
+} from './utils/modelEffort'
+export {
+  CLI_MODEL_DEFAULT_EFFORT_HINT,
+  CLI_MODEL_DEFAULT_EFFORT_LABEL,
+  EFFORT_DEFAULT_LABEL,
+  EFFORT_LEVEL_LABELS,
+  EFFORT_LEVELS,
+  EFFORT_NONE_LABEL,
+  EFFORT_NONE_VALUE,
+  EFFORT_SWITCH_LABEL,
+  LLM_CONFIG_DEFAULT_EFFORT_HINT,
+  LLM_CONFIG_DEFAULT_EFFORT_LABEL,
+} from './utils/modelEffortConstants'
+export type {
+  ApiEffortTarget,
+  CliEffortTarget,
+  CliModelEffortRow,
+  ModelEffortChoice,
+  ModelEffortSwitch,
+  ModelEffortTarget,
+} from './utils/modelEffortTypes'
+export { useModelEffort } from './hooks/useModelEffort'
+export {
   aggregateTestCounts,
   checkTestCounts,
+  finishedTestFileCount,
   parseTestCounts,
   testCountLabel,
   testTotalsHeadline,
   type TestCountSource,
   type TestCounts,
+  type TestTotalsHeadline,
+  type TestTotalsLayer,
   type TestTotalsOutcome,
 } from './utils/testCounts'
 export { TEST_COUNT_NONE_RAN, TEST_TOTALS_TITLES } from './utils/testCountsConstants'
 export { parseTestFailures, type TestFailure } from './utils/testFailures'
 export { checkTestResults } from './utils/testResults'
-export { TEST_SUITE_MODULE_SEPARATOR } from './utils/testResultsConstants'
-export type { CheckTestResults } from './utils/testResultsTypes'
+export {
+  FINISHED_FILES_WORD,
+  TEST_SUITE_MODULE_SEPARATOR,
+  UNFINISHED_FILE_WORD,
+} from './utils/testResultsConstants'
+export type {
+  CheckTestResults,
+  UnfinishedTestFileView,
+  UnfinishedTestsView,
+} from './utils/testResultsTypes'
 export { terminalOutputView, terminalPlainText } from './utils/terminalOutput'
 export {
   TERMINAL_BACKGROUND,
@@ -918,6 +1015,15 @@ export {
 export { useEvidenceDiff } from './hooks/useEvidenceDiff'
 export type { UseEvidenceDiff } from './hooks/useEvidenceDiff'
 export { useReviewEvidenceImage } from './hooks/useReviewEvidenceImage'
+export {
+  useToolApprovalPreviews,
+  type ToolApprovalPreviewFetcher,
+} from './hooks/useToolApprovalPreviews'
+export { toolApprovalPreviewError, toolCallsAwaitingPreview } from './utils/toolApprovalPreviews'
+export type {
+  ToolApprovalPreviewFailure,
+  ToolApprovalPreviewRequest,
+} from './utils/toolApprovalPreviewsTypes'
 export type { UseReviewEvidenceImage } from './hooks/useReviewEvidenceImage'
 export { useCommitDetails } from './hooks/useCommitDetails'
 export { commitChangesLabel, commitDetailsState, commitGitViewPath } from './utils/commitDetails'
@@ -1217,6 +1323,7 @@ export {
   VERDICT_TONES,
 } from './utils/runReviewConstants'
 export type {
+  AlreadyOnBaseView,
   ReviewActionInput,
   ReviewActionMode,
   ReviewChangeCounts,
@@ -1700,6 +1807,31 @@ export type {
   UsageModalUsage,
   UsageTableRow,
 } from './utils/usageBreakdownTypes'
+export { useDailyUsage, type UseDailyUsage } from './hooks/useDailyUsage'
+export {
+  dailyUsageChargedCell,
+  dailyUsageDayLabel,
+  dailyUsageListValueCell,
+  dailyUsageRangeEnding,
+  dailyUsageTokenCell,
+  dailyUsageView,
+} from './utils/dailyUsage'
+export {
+  DAILY_USAGE_DEFAULT_DAYS,
+  DAILY_USAGE_RANGE_OPTIONS,
+  DAILY_USAGE_TEXT,
+} from './utils/dailyUsageConstants'
+export type {
+  DailyUsageAnomalyRow,
+  DailyUsageDay,
+  DailyUsageModelRow,
+  DailyUsageRange,
+  DailyUsageStatus,
+  DailyUsageToolRow,
+  DailyUsageTotal,
+  DailyUsageUnattributedRow,
+  DailyUsageView,
+} from './utils/dailyUsageTypes'
 
 // LLM provider configs (create / update / delete + per-purpose active +
 // recents) backed by an app-provided `SyncKVStorage` for the active /
@@ -1741,6 +1873,7 @@ export {
   launchAgentPickSuggestionAgent,
   pickLaunchApi,
   pickLaunchCli,
+  pickLaunchEffort,
   pickLaunchModel,
 } from './utils/launchAgentPick'
 export { NO_LAUNCH_AGENT_PICK } from './utils/launchAgentPickConstants'
@@ -2554,7 +2687,7 @@ export type {
 } from './utils/processWaitingViewTypes'
 export type { ParkNoteCopy, RequestProofChoice } from './utils/processParkNoteTypes'
 export {
-  circlingRetryTakesNote,
+  processCirclingRecommendation,
   processCirclingView,
   processParkCirclingView,
   processStepCirclingView,
@@ -2835,6 +2968,11 @@ export {
   useRunChatDraft,
   type OpenRunChatDraft,
 } from './contexts/RunChatDraftContext'
+export {
+  ChatActionsProvider,
+  useChatActions,
+  type ChatActions,
+} from './contexts/ChatActionsContext'
 export {
   capabilityChatDraft,
   capabilitySetupHandler,
@@ -3241,6 +3379,8 @@ export {
 export { GIT_DIFF_SUPPRESSED_MESSAGE } from './utils/gitDiffConstants'
 export type { GitSetupForm, GitSetupPlan, ToolRowMilestone } from './utils/gitSetupApprovalTypes'
 export {
+  commitReceiptShas,
+  commitReceiptView,
   gitChangeArgs,
   gitChangeCard,
   gitChangeDecisionMetadata,
@@ -3248,8 +3388,10 @@ export {
   gitChangeMilestone,
   gitChangeProblem,
   isGitChangeGrant,
+  commitReceiptFiles,
 } from './utils/gitChangeApproval'
 export {
+  COMMIT_RECEIPT_COPY,
   GIT_CHANGE_COPY,
   GIT_CHANGE_RUN_BUSY,
   GIT_CHANGE_TOOL_NAMES,
@@ -3260,6 +3402,8 @@ export {
 } from './utils/processWorkBranchChangesView'
 export type { ProcessWorkBranchChangeRow } from './utils/processWorkBranchChangesView'
 export type {
+  CommitReceiptFile,
+  CommitReceiptView,
   GitChangeCardView,
   GitChangeCommitView,
   GitChangeEditView,
@@ -3376,6 +3520,7 @@ export {
   launchSuggestionPicks,
   launchSuggestionProofEdits,
   launchSuggestionRows,
+  workLaunchChatAgent,
   workLaunchOptions,
 } from './utils/workLaunchView'
 export * from './utils/workLaunchViewConstants'

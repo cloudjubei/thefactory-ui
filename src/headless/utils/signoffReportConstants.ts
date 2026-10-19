@@ -56,6 +56,9 @@ export const REPORT_SUMMARY_MAX = 80
 export const REPORT_PROOF_LINE_MAX = 140
 
 /** The methods "How it was proven" counts as the checks — everything the Build tab holds. */
+/** After the names of the checks that did not finish, in a report's proof line. */
+export const REPORT_CHECKS_UNFINISHED = 'didn’t finish'
+
 export const REPORT_CHECK_METHODS: readonly CheckMethodId[] = [
   'build',
   'types',

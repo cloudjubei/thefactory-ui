@@ -4,8 +4,8 @@ import ReferenceTextarea from '../files/ReferenceTextarea'
 import { useCanonicalizeReferences } from '../../../headless/contexts/ReferenceRenderingContext'
 import { useBranchCommits } from '../../../headless/hooks/useBranchCommits'
 import { viewedFilesProgress } from '../../../headless/utils/runReview'
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Pressable, Text, View } from 'react-native'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import type { FilesEmittedFilePreview, GitDiffSummary } from '../../../headless/api'
 import { answerFeatureQuestion } from '../../../headless/api'
@@ -21,7 +21,9 @@ import {
   groupEvidence,
   handoffRequest,
   incompleteStoryReason,
+  alreadyOnBaseView,
   isReviewReasonValid,
+  commitReceiptFiles,
   landFailureSummary,
   mergeNotice,
   openFeatureQuestions,
@@ -69,6 +71,7 @@ import { Modal } from '../../primitives/Modal'
 import Tooltip from '../../primitives/Tooltip'
 import CostChip from '../chips/CostChip'
 import RefChip from '../chips/RefChip'
+import { AlreadyOnBaseLine } from './AlreadyOnBaseLine'
 import { OpenChangesNotice } from './OpenChangesNotice'
 import { ReviewOnBaseOffer } from './ReviewOnBaseOffer'
 import {
@@ -123,6 +126,12 @@ export type CliRunArtifactPanelProps = {
    * to — every save affordance then stays hidden rather than failing on press.
    */
   onSaveFile?: SaveFileHandler
+  /**
+   * Drawn as a card of its own, with its head (the default) — or bare, filling
+   * the review screen it is opened in, whose own head says what it is: then it
+   * scrolls itself, with its decision pinned at the bottom.
+   */
+  framed?: boolean
 }
 
 const TEST_METHODS: readonly CheckMethodId[] = ['tests']
@@ -188,6 +197,7 @@ export default function CliRunArtifactPanel({
   onOpenGit,
   onBackToPipeline,
   onSaveFile,
+  framed = true,
 }: CliRunArtifactPanelProps) {
   const { theme, status } = useNativeTheme()
   const {
@@ -280,8 +290,12 @@ export default function CliRunArtifactPanel({
   // Changes a later turn captured again, or the person discarded, have no review
   // left: their sign-off says so and loads nothing.
   const settledNotice = chatChangesNotice(artifact)
+  // A change its base already holds has nothing left to review: one line says
+  // so, and nothing of a review loads behind it.
+  const alreadyOnBase = alreadyOnBaseView(landFailure)
   const reviewable =
     settledNotice === undefined &&
+    alreadyOnBase === undefined &&
     (artifact !== undefined || landFailure !== undefined || reportOnly)
   const evidence = useReviewEvidence(reviewable ? projectId : undefined, {
     runId,
@@ -305,7 +319,7 @@ export default function CliRunArtifactPanel({
   )
 
   useEffect(() => {
-    if (error || settledNotice !== undefined) return
+    if (error || settledNotice !== undefined || alreadyOnBase !== undefined) return
     // Load eagerly (not gated on a tab) so the decision bar reflects the real diff
     // state from the start. `error` gates the retry so a failing load cannot
     // refire forever.
@@ -328,6 +342,7 @@ export default function CliRunArtifactPanel({
     loadPreview,
     reportOnly,
     settledNotice,
+    alreadyOnBase,
   ])
 
   // The verification plan is what tells "not run" apart from "not set up", so
@@ -427,6 +442,22 @@ export default function CliRunArtifactPanel({
     )
   }
 
+  if (alreadyOnBase) {
+    return (
+      <AlreadyOnBaseLine
+        text={alreadyOnBase.text}
+        {...(alreadyOnBase.sha
+          ? {
+              change: {
+                files: commitReceiptFiles(artifact?.payload.files ?? []),
+                ...(alreadyOnBase.subject ? { message: alreadyOnBase.subject } : {}),
+              },
+            }
+          : {})}
+      />
+    )
+  }
+
   const files = artifact?.payload.files ?? []
   const counts = reviewChangeCounts(files)
   const changesHeader = chatChangesHeader({
@@ -502,6 +533,7 @@ export default function CliRunArtifactPanel({
     verdict,
     hasReviewBranch: !!review,
     partOfStoryRun: storyId !== undefined,
+    ...(landFailure ? { landFailureReason: landFailure.reason } : {}),
   })
   const busy = merging || approving || rejecting || requestingChanges
   const onBaseView =
@@ -638,93 +670,99 @@ export default function CliRunArtifactPanel({
 
   return (
     <View
-      style={{
-        marginTop: 8,
-        borderRadius: nativeRadii[2],
-        borderWidth: 1,
-        borderColor: theme.border.default,
-        backgroundColor: theme.surface.raised,
-        overflow: 'hidden',
-      }}
+      style={
+        framed
+          ? {
+              marginTop: 8,
+              borderRadius: nativeRadii[2],
+              borderWidth: 1,
+              borderColor: theme.border.default,
+              backgroundColor: theme.surface.raised,
+              overflow: 'hidden',
+            }
+          : { flex: 1 }
+      }
     >
       {/* Head — the run as a tool row: what, where, how long. */}
-      <View
-        style={{
-          flexDirection: 'row',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          gap: 8,
-          paddingHorizontal: 12,
-          paddingVertical: 8,
-          borderBottomWidth: 1,
-          borderBottomColor: theme.border.subtle,
-        }}
-      >
-        {/* The head carries the verdict's colour too, so the run's state is
-            readable before the eye reaches the verdict line below. */}
+      {framed ? (
         <View
           style={{
-            width: 16,
-            height: 16,
-            borderRadius: nativeRadii.round,
+            flexDirection: 'row',
+            flexWrap: 'wrap',
             alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: headMarker.bg,
+            gap: 8,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            borderBottomWidth: 1,
+            borderBottomColor: theme.border.subtle,
           }}
         >
+          {/* The head carries the verdict's colour too, so the run's state is
+            readable before the eye reaches the verdict line below. */}
           <View
             style={{
-              width: 6,
-              height: 6,
+              width: 16,
+              height: 16,
               borderRadius: nativeRadii.round,
-              backgroundColor: headMarker.fg,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: headMarker.bg,
             }}
-          />
-        </View>
-        <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text.primary }}>
-          {reportOnly
-            ? 'Stage output'
-            : artifact
-              ? changesHeader.title
-              : 'Agent changes were not committed'}
-        </Text>
-        {!reportOnly && artifact ? (
-          <Text style={{ fontSize: 12, color: theme.text.secondary }}>{changesHeader.meta}</Text>
-        ) : null}
-        {review && !review.shadow ? (
-          <Tooltip
-            content={
-              <Text style={{ fontSize: 12, color: theme.text.primary, maxWidth: 260 }}>
-                Its own branch — every commit this agent made lives here. Your own branch is
-                untouched until you approve.
-              </Text>
-            }
           >
-            <RefChip kind="branch" value={review.branch} />
-          </Tooltip>
-        ) : null}
-        <RunModelChip model={runModel} />
-        <View style={{ flex: 1 }} />
-        {/* Time and money together at the top right — see the web peer. The
+            <View
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: nativeRadii.round,
+                backgroundColor: headMarker.fg,
+              }}
+            />
+          </View>
+          <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text.primary }}>
+            {reportOnly
+              ? 'Stage output'
+              : artifact
+                ? changesHeader.title
+                : 'Agent changes were not committed'}
+          </Text>
+          {!reportOnly && artifact ? (
+            <Text style={{ fontSize: 12, color: theme.text.secondary }}>{changesHeader.meta}</Text>
+          ) : null}
+          {review && !review.shadow ? (
+            <Tooltip
+              content={
+                <Text style={{ fontSize: 12, color: theme.text.primary, maxWidth: 260 }}>
+                  Its own branch — every commit this agent made lives here. Your own branch is
+                  untouched until you approve.
+                </Text>
+              }
+            >
+              <RefChip kind="branch" value={review.branch} />
+            </Tooltip>
+          ) : null}
+          <RunModelChip model={runModel} />
+          <View style={{ flex: 1 }} />
+          {/* Time and money together at the top right — see the web peer. The
             cost sat on the LEFT of the spacer, reading as a footnote to the
             model chip rather than as what the run cost. */}
-        {facts.durationLabel || facts.costLabel ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            {facts.durationLabel ? <DurationPill label={facts.durationLabel} /> : null}
-            {facts.costLabel ? (
-              <CostChip
-                label={facts.costLabel}
-                cost={facts.cost}
-                title="This run"
-                appearance="text"
-                textStyle={{ fontSize: 11, fontWeight: '600', color: theme.text.primary }}
-              />
-            ) : null}
-          </View>
-        ) : null}
-      </View>
+          {facts.durationLabel || facts.costLabel ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              {facts.durationLabel ? <DurationPill label={facts.durationLabel} /> : null}
+              {facts.costLabel ? (
+                <CostChip
+                  label={facts.costLabel}
+                  cost={facts.cost}
+                  title="This run"
+                  appearance="text"
+                  textStyle={{ fontSize: 11, fontWeight: '600', color: theme.text.primary }}
+                />
+              ) : null}
+            </View>
+          ) : null}
+        </View>
+      ) : null}
 
-      <View style={{ gap: 12, paddingHorizontal: 12, paddingVertical: 12 }}>
+      <ReviewBody scrolls={!framed}>
         {noticeView ? (
           <OpenChangesNotice
             view={noticeView}
@@ -895,7 +933,7 @@ export default function CliRunArtifactPanel({
             ) : null}
 
             {/* What was checked — hidden on a hand-off (developer) run: those
-                checks + screens are the VERIFIER's, filed against this run's id. */}
+              checks + screens are the VERIFIER's, filed against this run's id. */}
             {!isHandoffRun ? (
               <View style={{ gap: 6 }}>
                 <Text
@@ -1042,9 +1080,10 @@ export default function CliRunArtifactPanel({
             ) : null}
           </>
         )}
-      </View>
+      </ReviewBody>
 
-      {/* Foot — the decision, or the work in flight that has replaced it. */}
+      {/* Foot — the decision, or the work in flight that has replaced it.
+          Filling a screen of its own, it stays pinned under the scrolling review. */}
       {openQuestions.length === 0 ? (
         <View
           style={{
@@ -1053,6 +1092,7 @@ export default function CliRunArtifactPanel({
             paddingVertical: 8,
             borderTopWidth: 1,
             borderTopColor: theme.border.subtle,
+            ...(framed ? {} : { paddingBottom: 12, backgroundColor: theme.surface.base }),
           }}
         >
           {decided ? (
@@ -1290,7 +1330,11 @@ export default function CliRunArtifactPanel({
               <Button variant="ghost" size="sm" onPress={() => setPendingHandoff(undefined)}>
                 Not now
               </Button>
-              <Button size="sm" onPress={confirmHandoff} disabled={!onSendMessage}>
+              <Button
+                size="sm"
+                onPress={confirmHandoff}
+                disabled={pendingHandoff.request.purpose !== 'capture' && !onSendMessage}
+              >
                 Start
               </Button>
             </View>
@@ -1309,5 +1353,24 @@ export default function CliRunArtifactPanel({
         projectId={projectId}
       />
     </View>
+  )
+}
+
+/**
+ * The review's body. Filling a screen of its own it scrolls, so the decision
+ * under it stays pinned at the bottom; as a card in the chat it is laid out in
+ * place.
+ */
+function ReviewBody({ scrolls, children }: { scrolls: boolean; children: ReactNode }) {
+  const layout = { gap: 12, paddingHorizontal: 12, paddingVertical: 12 }
+  if (!scrolls) return <View style={layout}>{children}</View>
+  return (
+    <ScrollView
+      style={{ flex: 1 }}
+      contentContainerStyle={{ ...layout, paddingBottom: 24 }}
+      keyboardShouldPersistTaps="handled"
+    >
+      {children}
+    </ScrollView>
   )
 }

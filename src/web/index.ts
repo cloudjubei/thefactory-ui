@@ -446,7 +446,7 @@ export {
 } from './compound/ChatSidebarPanel'
 
 export { default as ChatNotifySettings } from './compound/settings/ChatNotifySettings'
-// A chat's "Notify me", and the agents' own exchange drawn quietly.
+// A chat's "Notify me", the agents' own exchange drawn quietly, and the card a stop shows.
 export {
   AgentExchangeBlock,
   ChatNotifyLevelPicker,
@@ -455,7 +455,9 @@ export {
   ManagerEscalationCardView,
   ManagerOutcomeCardView,
   ManagerStopLine,
+  ChatStopCard,
   type AgentExchangeBlockProps,
+  type ChatStopCardProps,
   type ChatNotifyLevelPickerProps,
   type ManagerCardLinks,
 } from './compound/chat'
@@ -465,6 +467,18 @@ export {
   AgentQuestionCard,
   ChatBody,
   CliRunArtifactPanel,
+  ChatChangesBar,
+  type ChatChangesBarProps,
+  ChatChangesBarConnected,
+  type ChatChangesBarConnectedProps,
+  ChatChangesMarker,
+  type ChatChangesMarkerProps,
+  ChatChangesMarkerConnected,
+  type ChatChangesMarkerConnectedProps,
+  ChatReviewPanel,
+  type ChatReviewPanelProps,
+  ChatReviewPanelConnected,
+  type ChatReviewPanelConnectedProps,
   EvidenceImageOverlay,
   ChatDebugModal,
   ChatDynamicContextModal,
@@ -759,6 +773,11 @@ export {
   type DesignReferenceChipProps,
 } from './compound/design/DesignReferenceChip'
 export { default as StorageUsageSettings } from './compound/settings/StorageUsageSettings'
+export { default as UsageSettings } from './compound/settings/UsageSettings'
+export {
+  default as UsageSettingsView,
+  type UsageSettingsViewProps,
+} from './compound/settings/UsageSettingsView'
 export { default as GroupNotesSettings } from './compound/settings/GroupNotesSettings'
 export type { GroupNotesSettingsProps } from './compound/settings/GroupNotesSettings'
 export { default as NotesSettings } from './compound/settings/NotesSettings'

@@ -184,7 +184,7 @@ export function ManagerBriefCardView({
             gap: 12,
           }}
         >
-          {view.circling ? <CirclingNotice view={view.circling} showHint={false} /> : null}
+          {view.circling ? <CirclingNotice view={view.circling} /> : null}
           <View style={{ gap: 6 }}>
             <Caption>{MANAGER_BRIEF_STOPPED}</Caption>
             <Text style={{ fontSize: 13, color: theme.text.primary }}>{view.stopped}</Text>

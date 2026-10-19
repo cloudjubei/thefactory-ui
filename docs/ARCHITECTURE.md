@@ -694,8 +694,10 @@ the sign-off's head, Overall and every feature (`RunReviewFacts.timeDetails`,
 summed across scopes by `storySignoff` with the tools' `sumProcessTimeBreakdowns`).
 
 A cost CHIP says one thing: the charge, in dollars (`costChipLabel`) — `$0.00`
-is a real value for work a subscription covered, and a spend cap reads
-`$x of $cap`. When no charge is known the chip says why instead of a `$0.00`
+is a real value only for a free model's work; a plan's share reads
+`Unknown (subscription)` (a plan can bill overage), alone or after the stated
+charges, and a spend cap reads `$x of $cap`. The usage modal's Charged cell and
+a CLI capability check's cost (`probeCostLabel`) read a plan's share the same way. When no charge is known the chip says why instead of a `$0.00`
 it never was: `Charge pending` (a metered run still going — its runner prices
 it with its terminal write), `No known price`, or `Not reported` (a CLI that
 reported no token counts). A CLI run's recorded `costUSD` is never read: before
@@ -737,6 +739,36 @@ that run (`cliRunSpendRecord`). The UI's cost math extends the tools'
 (`processEntryCostFromSpends`, `sumProcessEntryCosts`) only with states the tools
 never write — no billing recorded, a run still going — and the parity tests in
 `costDetails.test.ts` hold the two alike on every row shape the tools do write.
+
+The usage modal also says how sure each row's charge is — its **Charge** column
+(`Confirmed`, `In plan`, `Unknown`, `Part unknown`, read as the ledger records
+it: a plan's charge unknown since a plan can bill overage, a free model's a
+confirmed nothing, a metered one confirmed only when stated over counts all
+reported) — and, under a row's label, what its counts lack (`Cache not
+reported · Interrupted`), from each row's `tokenFields`, not-reported marks and
+recorded `incompleteReasons` (a CLI row's, kept on the run's `modelUsage` as
+its ledger event records them; an API turn's on its message usage) through the
+tools' `usageCompletenessReasons`, worded by
+`USAGE_INCOMPLETE_REASON_LABELS`; a ledger row reads its
+`tokenFieldsNotReported`, and a cell whose count a call left unavailable reads
+`+ not reported`.
+
+**Settings › Usage.** `useDailyUsage(days)` (`hooks/useDailyUsage.ts`) reads
+`GET /usage/daily` for the last 7 or 30 UTC days, again on
+`usage:summaries-updated` (the backend's hourly rebuild, or a person's or an
+agent's) and on socket reopen, and `rebuild()` asks `POST /usage/daily/recompute`.
+`dailyUsageView` (`utils/dailyUsage.ts`) words the days once for both clients:
+newest first, each day's charge (`unknown` when no call stated one — never
+`$0`; `$0.50 + unknown` when only part is known), its list value marked `≈` as
+an estimate, how many calls are partial or have no usage, one row per
+source/provider/model with its counts (`unknown` / `+ unknown` for counts not
+reported) and cache-read share, its cache anomalies (`Cache reads down · … 18% of
+input, usually 79%`) and its spend per tool (an equal share of a multi-call
+response marked `shared`) with the spend no tool was given by why.
+`UsageSettingsView` (web + native) lays it out; `UsageSettings` wires it; scene
+`usage-settings` shows a complete day, partial and unknown days, an anomaly and
+nothing summarized, and `usage-modal-provenance` the modal's Charge column and
+missing counts.
 
 Every pricing panel words a price through `priceListEntryView`
 (`headless/utils/priceList.ts`): its source and all five rates, a rate the
@@ -1073,7 +1105,7 @@ the proof (`checkActionOffer`), never a button that does nothing.
 
 - **`TurnLimitField`** (`web|native/compound/TurnLimitField.tsx`) is the one "limit turns" switch and slider: the chat settings use it, and so do the launch docks (`ApprovalPanel`'s "How it runs", `GroupWorkLaunchPanel` — their `turnLimit` rides on the decision metadata, starting from `processGrantTurnLimitView`: what the agent asked, else the transport's default) and the run head's `RunTurnLimitChip` (the run's limit, edited while it runs through `useProcessRun().setTurnLimit`). The words — and what the limit means on an API model vs a CLI — come from `processLaunchTurnLimitView` / `processRunTurnLimitView` (headless).
 - **A park's retry** shows `RetryChoiceOptions` above the buttons when its choice carries `retry` (carry on / start fresh, the default picked, why) or `turnLimit` (the raise, prefilled with the suggested number); `ParkBlock` sends the pick as `resume(..., retry)` (`ProcessRetryPick`).
-- **A step going in circles** (showcase scene `going-in-circles`). thefactory-tools flags an agent attempt that ran out of turns, or nearly, and made no progress (`park.circling`, `entry.circling`; its `docs/AGENT_MANAGER_DESIGN.md` §21). `processCirclingView` ([processCirclingView.ts](../src/headless/utils/processCirclingView.ts)) reads a flag into its name, a sentence of how it ran out (tools' `processCirclingReasons`) and its evidence (tools' `processCirclingEvidenceLines`); `processParkCirclingView` reads it off the stop, its mirror on a parent included, and `processStepCirclingView` off a step's newest attempt or that mirror. `ParkBlock` (web + native) shows `CirclingNotice` under the stop's words — the "what a retry needs" line only once the manager's own retry went round too, since the retry's detail already says it — and `PipelineNode` puts `CirclingChip` on the step's row. The retry there reads "Try again with a change" with `changeRequired` and no raise: `circlingRetryTakesNote` opens `ParkNoteComposer` with `PROCESS_CIRCLING_NOTE_COPY`, required, and the note is sent with the retry; a retry the backend still refuses shows its message in the pipeline's error line. The run's card in a chat says `PROCESS_CIRCLING_CARD_LINE` (`processRunCardView`, read live), the manager's brief card leads with the notice (`managerBriefView` → `circling`), and an escalation with `why: 'circling'` reads "It keeps going in circles" (tools' `processManagerEscalationLabel`). The same on every model and transport.
+- **A step going in circles** (showcase scene `going-in-circles`). thefactory-tools flags an agent attempt that ran out of turns, or nearly, and made no progress (`park.circling`, `entry.circling`; its `docs/AGENT_MANAGER_DESIGN.md` §21). The flag informs; it blocks nothing — the stop keeps its normal choices, the retry with its raise and turn picker included, and no note is required. `processCirclingView` ([processCirclingView.ts](../src/headless/utils/processCirclingView.ts)) reads a flag into its name, a sentence of how it ran out (tools' `processCirclingReasons`), its evidence (tools' `processCirclingEvidenceLines`) and, when given, the manager's recommendation under `PROCESS_CIRCLING_RECOMMENDS` ("Going in circles — the manager recommends"). `processCirclingRecommendation` reads that recommendation live off the top-level run's `manager.escalation` for this stop (or, on a parent's mirror, the nested run's) — nothing with the manager off or before it handed the stop on; `processParkCirclingView(run, root)` puts the two together, and `processStepCirclingView` reads a step's newest attempt or the park's mirror. `ParkBlock` (web + native, given `root` — the drilled run's top-level run — by `PipelineNode`) shows `CirclingNotice` right above the stop's choices: the recommendation first when there is one, then how it ran out and the evidence; `PipelineNode` puts `CirclingChip` on the step's row. The run's card in a chat says `PROCESS_CIRCLING_CARD_LINE` (`processRunCardView`, read live), the manager's brief card leads with the notice (`managerBriefView` → `circling`), and its hand-off with `why: 'circling'` reads "Going in circles" (tools' `processManagerEscalationLabel`) with what it found and recommends. The same on every model and transport.
 - **"Settle its features"** — `RunClosurePanel` under any top-level story run that ended and was not settled (`processRunClosable`; failed, stopped, rejected, or approved but not landed — and a landed one whose features the story still has not done), `useProcessRunClosure`: the candidates from `GET /process-runs/:runId/closure` (empty — no panel — once every feature it worked is done), the person's picks, `POST …/closure`, rendered with the shared `FeatureClosureList`.
 - **"Finish as already landed"** — an approved run whose work did not land but whose base already holds it (runs that ended before landing knew "already landed", e.g. one refused for "holds only test seams"). `useProcessRunAlreadyLanded` reads `GET /process-runs/:runId/landing-check` only for a run that offers it (`processRunAlreadyLandedOffered`) and builds `processAlreadyLandedOffer`: the "Nothing to merge — this work was already on <base> (since <commit>)." line, the commit (`CommitChip`), each feature it worked as a `DependencyBullet` (web) / `DependencyRef` (native) with whether it becomes done, and what finishing does. `IntegrationResult` (web + native) shows it above "Try again" (which turns ghost) with the primary **Finish as already landed** → `POST …/settle-already-landed` (`decidedVia`). Its agent card (`settleRunAlreadyLanded`, kind `already-landed`) shows the same line and the features that become done.
 - **What users see, judged per change** (showcase scenes `step-ui-impact`, `signoff-screens-decision`, `capture-unservable`, in `playground/scenes/uiImpact.tsx`). Whether a change alters what users see is judged for the change, never from the project having an app: the developer, fixer and verifier report it (`reportUiImpact`), the attempt keeps it (`ProcessLedgerEntry.uiImpact`, who judged it), and the code review may file its own view (`ProcessReviewVerdict.uiImpact`), which stands over it. `headless/utils/uiImpactView.ts` reads them: `attemptUiImpactNote` ("Shows on screen" / "Nothing on screen", "Judged by the developer", why), `reviewUiImpactNote` ("Code review disagrees: …" when the newest judgement before it said the other way, else "Code review: …"), `screensDecisionNote` (the sign-off's "Screens needed" / "No screens needed" over the server's `ProcessRun.changeScreensDecision` — its reason names the files users see a not-visible judgement left unshown, all of them in `disputedUiPaths`) and `screensDecisionUiImpact` (a decision a judgement or the code review made, which the sign-off's `requestChangesProofPreset` follows beside `changeUiPaths`). The step panel (web `StepSidePanel`, native `StepScreen`) shows `UiImpactNote` above an attempt's output; `StorySignoffReview` (web + native) shows `ScreensDecisionNote` above the evidence. A capture approach whose page the browser tools cannot serve reads `unservable` in the approach menu: its chip is not set up, its callout leads with `CHECK_UNSERVABLE_LEAD` and the serve reason (`CheckMethodRow.unservable`), with no install hint, and the capability draft says "cannot be served — …".

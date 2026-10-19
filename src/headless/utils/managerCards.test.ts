@@ -173,7 +173,7 @@ describe('managerEscalationView', () => {
 
   it('heads a step that keeps going in circles as such', () => {
     const circling = { ...card, escalation: { ...card.escalation, why: 'circling' as const } }
-    expect(managerEscalationView(circling).headline).toBe('It keeps going in circles')
+    expect(managerEscalationView(circling).headline).toBe('Going in circles')
   })
 
   it('heads the card by why it is the person’s, with what happened, was found and tried', () => {

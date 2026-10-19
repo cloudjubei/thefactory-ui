@@ -100,6 +100,23 @@ describe('processRunModelPick', () => {
   it('is the API for a run whose launch named nothing', () => {
     expect(processRunModelPick(run({ input: undefined }))).toEqual({ api: true })
   })
+
+  it('carries the effort the run runs at, on either side', () => {
+    expect(
+      processRunModelPick(
+        run({
+          modelOverride: { runner: 'cli', cli: 'codex', model: 'gpt-5.5', effort: 'low', at: 1 },
+        }),
+      ),
+    ).toEqual({ api: false, cli: 'codex', model: 'gpt-5.5', effort: 'low' })
+    expect(processRunModelPick(run({ input: { runner: 'api', effort: 'xhigh' } }))).toEqual({
+      api: true,
+      effort: 'xhigh',
+    })
+    expect(
+      processRunModelPick(run({ modelOverride: { runner: 'api', effort: 'max', at: 2 } })),
+    ).toEqual({ api: true, effort: 'max' })
+  })
 })
 
 describe('processRunModelChipView', () => {
@@ -190,6 +207,18 @@ describe('runModelChangeBody', () => {
     ).toEqual({ runner: 'cli', cliTool: 'codex', cliModel: 'gpt-5.5', cliCredentialId: 'c2' })
   })
 
+  it('asks for the effort on either side', () => {
+    expect(runModelChangeBody({ api: true, effort: 'high' })).toEqual({
+      runner: 'api',
+      effort: 'high',
+    })
+    expect(runModelChangeBody({ api: false, cli: 'codex', effort: 'low' })).toEqual({
+      runner: 'cli',
+      cliTool: 'codex',
+      effort: 'low',
+    })
+  })
+
   it('asks for a model alone on the run’s own CLI', () => {
     expect(runModelChangeBody({ api: false, model: 'opus' })).toEqual({
       runner: 'cli',
@@ -232,5 +261,16 @@ describe('runModelChipSlot', () => {
     const onChange = vi.fn()
     runModelChipSlot(pick, onChange).onPickApi()
     expect(onChange).toHaveBeenCalledWith({ api: true })
+  })
+
+  it('shows the run’s effort and changes it alone, keeping the rest', () => {
+    const onChange = vi.fn()
+    const slot = runModelChipSlot({ ...pick, effort: 'high' }, onChange)
+    expect(slot.effort).toBe('high')
+    slot.onPickEffort('max')
+    expect(onChange).toHaveBeenLastCalledWith({ ...pick, effort: 'max' })
+    slot.onPickEffort(undefined)
+    expect(onChange).toHaveBeenLastCalledWith(pick)
+    expect(runModelChipSlot(pick, vi.fn()).effort).toBeUndefined()
   })
 })

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { ProcessRun } from 'thefactory-tools/types'
 import {
+  commitReceiptShas,
+  commitReceiptView,
   gitChangeArgs,
   gitChangeCard,
   gitChangeDecisionMetadata,
@@ -316,5 +318,85 @@ describe('gitChangeMilestone', () => {
       tone: 'success',
       title: 'Branch moved to abcdef01 on b',
     })
+  })
+})
+
+describe('commitReceiptView', () => {
+  const committed = {
+    operation: 'commit',
+    ok: true,
+    repoPath: '/Users/me/wargames',
+    branch: 'dev',
+    sha: '0956f8c41d2e9a',
+    previousSha: 'aaaa',
+    message: 'Draft 10: upright plaque, one gem wide\n\nLonger body.',
+  }
+  const files = [{ path: 'design/drafts/10-chip-slots-v5.html', status: 'modified' as const }]
+
+  it('reads a successful commit as one receipt: where, how many files, and what they were', () => {
+    expect(
+      commitReceiptView('commitGitChanges', JSON.stringify(committed), 'success', files),
+    ).toEqual({
+      sha: '0956f8c',
+      fullSha: '0956f8c41d2e9a',
+      branch: 'dev',
+      filesLabel: '1 file',
+      files: [{ path: 'design/drafts/10-chip-slots-v5.html', status: 'modified', letter: 'M' }],
+      message: 'Draft 10: upright plaque, one gem wide\n\nLonger body.',
+    })
+  })
+
+  it('counts several files, and says nothing of them when the card kept none', () => {
+    expect(
+      commitReceiptView('commitGitChanges', committed, 'success', [
+        { path: 'a', status: 'added' },
+        { path: 'b', status: 'deleted' },
+      ]),
+    ).toMatchObject({
+      filesLabel: '2 files',
+      files: [
+        { path: 'a', status: 'added', letter: 'A' },
+        { path: 'b', status: 'deleted', letter: 'D' },
+      ],
+    })
+    const bare = commitReceiptView('commitGitChanges', committed, 'success', undefined)
+    expect(bare).not.toHaveProperty('filesLabel')
+    expect(bare?.files).toEqual([])
+  })
+
+  it('is nothing for another tool, a commit still waiting, or one that failed', () => {
+    expect(commitReceiptView('pushGitBranch', committed, 'success', files)).toBeUndefined()
+    expect(commitReceiptView('commitGitChanges', undefined, 'require_confirmation', files)).toBe(
+      undefined,
+    )
+    expect(
+      commitReceiptView('commitGitChanges', { ...committed, ok: false }, 'success', files),
+    ).toBeUndefined()
+    expect(
+      commitReceiptView('commitGitChanges', { error: 'The repository changed.' }, 'success', files),
+    ).toBeUndefined()
+    expect(commitReceiptView('commitGitChanges', { ok: true }, 'success', files)).toBeUndefined()
+  })
+})
+
+describe('commitReceiptShas', () => {
+  it('collects every commit an approved commit ask made, and only those', () => {
+    expect(
+      commitReceiptShas([
+        {
+          toolName: 'commitGitChanges',
+          execution: {
+            ok: true,
+            result: JSON.stringify({ operation: 'commit', ok: true, sha: 'abc123' }),
+          },
+        },
+        {
+          toolName: 'commitGitChanges',
+          execution: { ok: false, result: '{"error":"no"}' },
+        },
+        { toolName: 'pushGitBranch', execution: { ok: true, result: '{"ok":true,"sha":"def"}' } },
+        { toolName: 'commitGitChanges' },
+      ]),
+    ).toEqual(['abc123'])
   })
 })

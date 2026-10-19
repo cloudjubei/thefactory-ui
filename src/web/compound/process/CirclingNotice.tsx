@@ -20,21 +20,29 @@ export function CirclingChip({ view }: { view: ProcessCirclingView }) {
 }
 
 /**
- * An attempt that went in circles, as a major issue: the flag, how it ran out,
- * the evidence a line each, and — on a stop — what trying again needs.
+ * An attempt that went in circles, as a major issue: the manager's
+ * recommendation first when it gave one ("Going in circles — the manager
+ * recommends"), then how it ran out and the evidence a line each.
  */
-export function CirclingNotice({
-  view,
-  showHint = true,
-}: {
-  view: ProcessCirclingView
-  /** Say what a retry needs — on a stop the person answers, not on a card that only reports. */
-  showHint?: boolean
-}) {
+export function CirclingNotice({ view }: { view: ProcessCirclingView }) {
+  const recommendation = view.recommendation
   return (
     <div className="flex flex-col gap-1.5 rounded-md px-2.5 py-2" style={TONE}>
+      {recommendation ? (
+        <div
+          className="flex flex-col gap-0.5 border-b pb-1.5"
+          style={{ borderColor: 'var(--status-stuck-soft-border)' }}
+        >
+          <span className="text-[11px] font-semibold uppercase tracking-wider">
+            {recommendation.heading}
+          </span>
+          <span className="text-[13px] font-semibold leading-snug">{recommendation.text}</span>
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-        <span className="text-[11px] font-semibold uppercase tracking-wider">{view.label}</span>
+        {recommendation ? null : (
+          <span className="text-[11px] font-semibold uppercase tracking-wider">{view.label}</span>
+        )}
         <span className="text-[12.5px] font-semibold">{view.headline}</span>
       </div>
       <ul className="m-0 flex list-none flex-col gap-0.5 p-0 text-[11.5px]">
@@ -42,7 +50,6 @@ export function CirclingNotice({
           <li key={line}>{line}</li>
         ))}
       </ul>
-      {showHint ? <div className="text-[11.5px] font-medium">{view.hint}</div> : null}
     </div>
   )
 }

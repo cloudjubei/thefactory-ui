@@ -102,6 +102,28 @@ export function agentExchangeStartOf(
   return index
 }
 
+/**
+ * Where a list showing its last `rows` rows starts: far enough back that that
+ * many rows are drawn — the agents' exchange folds many messages into one row,
+ * or draws none of them — so a window never opens inside an exchange, whose
+ * row is drawn at its first message. Counting messages instead opened a run's long manager
+ * exchange with every message in the window folded into a row above it, and
+ * nothing drawn at all. Pure.
+ */
+export function agentExchangeWindowStart(
+  layout: AgentExchangeLayout,
+  total: number,
+  rows: number,
+): number {
+  let start = total
+  let drawn = 0
+  while (start > 0 && drawn < rows) {
+    start -= 1
+    if (!layout.hidden.has(start)) drawn += 1
+  }
+  return start
+}
+
 /** What an agent said, as one plain line: its first line with words. */
 function firstLine(content: string): string {
   const line = content

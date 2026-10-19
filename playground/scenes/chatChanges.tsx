@@ -28,7 +28,12 @@ import {
   ReviewTabBar,
 } from '../../src/web/compound/chat/signoff'
 import ToolAskCard from '../../src/web/compound/chat/ToolAskCard'
-import type { ChatOpenChanges, CliRunReviewOnBase } from '../../src/headless/api/generated'
+import type { ChangeFile } from '../../src/web/compound/chat/signoff'
+import type {
+  ChatOpenChanges,
+  CliRunReviewOnBase,
+  RunVerification,
+} from '../../src/headless/api/generated'
 import { runProposalAskView } from '../../src/headless/utils/toolAskCard'
 import type { Scene } from '../showcase/types'
 
@@ -37,10 +42,10 @@ const noop = () => {}
 // ---------------------------------------------------------------------------------------------
 // The change card of a chat's own changes, as the chat draws it under the turn that made them
 
-const BRANCH = 'agent/84b6fd5bb3cd'
+export const BRANCH = 'agent/84b6fd5bb3cd'
 const HOUR = 60 * 60 * 1000
 /** A fixed "now" — the card counts the wait against it, so two loads draw the same pixels. */
-const NOW = Date.UTC(2026, 9, 15, 12, 30)
+export const NOW = Date.UTC(2026, 9, 15, 12, 30)
 
 const MODEL: RunModel = {
   tool: 'cursor-agent',
@@ -72,7 +77,7 @@ const OPEN: ChatOpenChanges = {
 }
 
 /** How the review stands against its base, as the server reads it, and the offer's state. */
-type OnBase = { preview: CliRunReviewOnBase; confirming?: boolean; error?: string }
+export type OnBase = { preview: CliRunReviewOnBase; confirming?: boolean; error?: string }
 
 /** A review whose base lacks one of its files. */
 const LACKS: CliRunReviewOnBase = {
@@ -83,26 +88,44 @@ const LACKS: CliRunReviewOnBase = {
   paths: ['index.html'],
 }
 
-/** The card as `CliRunArtifactPanel` lays it out, from the same parts, on fixed data. */
-function ChangeCard({ openChanges, onBase }: { openChanges?: ChatOpenChanges; onBase?: OnBase }) {
-  const header = chatChangesHeader({ fileCount: FILES.length, branch: BRANCH })
-  const rows = checkMethodRows({ verification: undefined, approaches: [], evidence: [] })
-  const headline = signoffVerdict({ rows, verified: false })
+export type ChangeCardProps = {
+  openChanges?: ChatOpenChanges
+  onBase?: OnBase
+  /** The checks that ran on the review branch; none ran when left out. */
+  verification?: RunVerification
+  files?: ChangeFile[]
+  /** Bare, as it fills the review panel or screen it opens in — no card, no head. */
+  framed?: boolean
+}
+
+/** The review as `CliRunArtifactPanel` lays it out, from the same parts, on fixed data. */
+export function ChangeCard({
+  openChanges,
+  onBase,
+  verification,
+  files = FILES,
+  framed = true,
+}: ChangeCardProps) {
+  const header = chatChangesHeader({ fileCount: files.length, branch: BRANCH })
+  const rows = checkMethodRows({ verification, approaches: [], evidence: [] })
+  const headline = signoffVerdict({ rows, verified: verification !== undefined })
+  const checks = verification?.checks ?? []
+  const testChecks = checks.filter((c) => c.kind === 'tests').length
   const tabs = reviewTabs({
     screens: 0,
     walkthroughs: 0,
     reports: 0,
     testCount: 0,
-    testChecks: 0,
-    buildChecks: 0,
-    changedFiles: FILES.length,
+    testChecks,
+    buildChecks: checks.length - testChecks,
+    changedFiles: files.length,
   })
   const earned = earnedApproveActions(
     approveActionDescriptors({
       branch: BRANCH,
       baseBranch: 'the working branch',
       hasRemote: true,
-      fileCount: FILES.length,
+      fileCount: files.length,
     }),
     headline.key,
   )
@@ -116,16 +139,22 @@ function ChangeCard({ openChanges, onBase }: { openChanges?: ChatOpenChanges; on
       })
     : undefined
   return (
-    <div className="max-w-3xl rounded-md border border-(--border-default) bg-(--surface-raised)">
-      <RunChangesHead
-        marker={headline.key}
-        title={header.title}
-        meta={header.meta}
-        {...(header.branch ? { branch: header.branch } : {})}
-        model={MODEL}
-        durationLabel="25s"
-        costLabel="$0.04"
-      />
+    <div
+      className={
+        framed ? 'max-w-3xl rounded-md border border-(--border-default) bg-(--surface-raised)' : ''
+      }
+    >
+      {framed ? (
+        <RunChangesHead
+          marker={headline.key}
+          title={header.title}
+          meta={header.meta}
+          {...(header.branch ? { branch: header.branch } : {})}
+          model={MODEL}
+          durationLabel="25s"
+          costLabel="$0.04"
+        />
+      ) : null}
       <div className="flex flex-col gap-3 px-3 py-3">
         {notice ? <OpenChangesNotice view={notice} onDiscard={noop} onRebuild={noop} /> : null}
         <RunVerdictLine headline={headline} />
@@ -146,7 +175,7 @@ function ChangeCard({ openChanges, onBase }: { openChanges?: ChatOpenChanges; on
           <ChangesTab
             projectId="wargames"
             review={undefined}
-            files={FILES}
+            files={files}
             loading={false}
             error={undefined}
             onRetry={undefined}
@@ -154,7 +183,11 @@ function ChangeCard({ openChanges, onBase }: { openChanges?: ChatOpenChanges; on
           />
         </div>
       </div>
-      <div className="flex flex-col gap-2 border-t border-(--border-subtle) px-3 py-2">
+      <div
+        className={`flex flex-col gap-2 border-t border-(--border-subtle) px-3 py-2 ${
+          framed ? '' : 'sticky bottom-0 z-10 bg-(--surface-base)'
+        }`}
+      >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3" />
           <DecisionBar
@@ -264,7 +297,7 @@ export const CHAT_CHANGES_SCENES: Scene[] = [
     component: 'CliRunArtifactPanel (RunChangesHead, OpenChangesNotice, ReviewOnBaseOffer)',
     group: 'Chat',
     description:
-      'The one card under a chat turn whose agent changed files: its head says whose changes they are, how many files and the branch of their own they wait on — never a process run’s sign-off. Once they wait past the limit, or no longer fit the checkout, the same card says so, with Discard there; no second card is posted.',
+      'The review of a chat turn’s changes — what opens from its marker or the bar above the message box, beside the chat or as a screen of its own; elsewhere it is still a card with this head. It says whose changes they are, how many files and the branch of their own they wait on — never a process run’s sign-off. Once they wait past the limit, or no longer fit the checkout, it says so, with Discard there.',
     states: [
       {
         id: 'fresh',

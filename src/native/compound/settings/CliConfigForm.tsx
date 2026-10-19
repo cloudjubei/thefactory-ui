@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Linking, ScrollView, Text, View } from 'react-native'
 import { visibleCliModelsForAuth } from 'thefactory-tools/utils'
 
@@ -10,8 +10,24 @@ import type {
   ModelInfo,
 } from '../../../headless/api'
 import { useCliConfigs } from '../../../headless'
-import type { CliLiveProbeResult } from '../../../headless'
+import type { CliLiveProbeResult, RunCliCapabilityCheckResponse } from '../../../headless'
+import { cliCapabilityCardView } from '../../../headless/utils/cliCapabilityCard'
+import { CLI_CAPABILITY_BATTERY_HINT } from '../../../headless/utils/cliCapabilityCardConstants'
+import type { CliCapabilityTone } from '../../../headless/utils/cliCapabilityCardTypes'
+import {
+  cliImageBuildAction,
+  cliImageBuildFailure,
+  cliImageBuildSuccess,
+  cliImagesNeedCheck,
+  newlyBuildingImageIds,
+} from '../../../headless/utils/cliImageView'
 import { loginAwaitsCode, parseLoginUrl } from '../../../headless/utils/cliRunner'
+import { cliModelEffortRows, effortLevelLabel } from '../../../headless/utils/modelEffort'
+import {
+  CLI_MODEL_DEFAULT_EFFORT_HINT,
+  CLI_MODEL_DEFAULT_EFFORT_LABEL,
+  EFFORT_DEFAULT_LABEL,
+} from '../../../headless/utils/modelEffortConstants'
 import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
 import { Input } from '../../primitives/Input'
@@ -30,6 +46,8 @@ import { IconPlay } from '../../icons/IconPlay'
 import { IconRobot } from '../../icons/IconRobot'
 import { nativeLightStatus, nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
+import { CliImageBuildProgress } from './CliImageBuildProgress'
+import { CliImageVersionChip } from './CliImageVersionChip'
 
 const CLI_LABELS: Record<string, string> = {
   'claude-code': 'Claude Code',
@@ -47,6 +65,12 @@ type ModelsProbeState =
   | { kind: 'ok'; models: ModelInfo[]; efforts: CliReasoningEffort[] }
   | { kind: 'error'; message: string }
 
+type CapabilityState =
+  | { kind: 'idle' }
+  | { kind: 'loading' }
+  | { kind: 'result'; card: RunCliCapabilityCheckResponse }
+  | { kind: 'error'; message: string }
+
 type LiveProbeState =
   | { kind: 'idle' }
   | { kind: 'loading' }
@@ -61,8 +85,9 @@ type LiveModelsProbeState =
 /**
  * Native peer of web's `CliConfigForm` — the CLI credential LIST. Shows every
  * cached CLI credential grouped by CLI, picks the default per CLI, toggles chip
- * availability, probes models / a live sandbox round-trip, and deletes
- * credentials. Adding is a separate modal flow ({@link CliAddCredentialForm}).
+ * availability, shows and builds each CLI's sandbox image, probes models / a
+ * live sandbox round-trip / the capability battery, and deletes credentials.
+ * Adding is a separate modal flow ({@link CliAddCredentialForm}).
  */
 export function CliConfigForm() {
   const { theme } = useNativeTheme()
@@ -74,15 +99,25 @@ export function CliConfigForm() {
     enabledClis,
     defaultModel,
     effort,
+    modelEffort,
     setActiveCli,
     setCliEnabled,
     setCliDefaultModel,
     setCliEffort,
+    setCliModelEffort,
     deleteCache,
     probeModels,
     probeModelsLive,
     cachedLiveModels,
     probeLive,
+    probeCapability,
+    capabilityScorecards,
+    cliImageVersions,
+    cliImageDocker,
+    cliImagesLoading,
+    cliImageBuildOutput,
+    checkCliImages,
+    startCliImageBuild,
     checkAuth,
     startAuthLogin,
     cancelAuthLogin,
@@ -94,6 +129,10 @@ export function CliConfigForm() {
   const [modelsProbe, setModelsProbe] = useState<Record<string, ModelsProbeState>>({})
   const [liveModelsProbe, setLiveModelsProbe] = useState<Record<string, LiveModelsProbeState>>({})
   const [liveProbe, setLiveProbe] = useState<Record<string, LiveProbeState>>({})
+  const [capability, setCapability] = useState<Record<string, CapabilityState>>({})
+  const [imageBuildError, setImageBuildError] = useState<Record<string, string>>({})
+  const [imageBuildStarting, setImageBuildStarting] = useState<Record<string, boolean>>({})
+  const [watchedImageBuilds, setWatchedImageBuilds] = useState<ReadonlySet<string>>(new Set())
   const [pendingDelete, setPendingDelete] = useState<RedactedCliAuthCacheEntry | null>(null)
   const [deleting, setDeleting] = useState(false)
   // Per-credential "Check now" auth probe in flight.
@@ -178,6 +217,36 @@ export function CliConfigForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cliKeys])
 
+  const checkedOnOpenRef = useRef(false)
+  useEffect(() => {
+    if (cliImagesLoading || checkedOnOpenRef.current) return
+    checkedOnOpenRef.current = true
+    if (cliImageDocker !== 'ok') return
+    if (cliImagesNeedCheck(cliImageVersions, Date.now())) void checkCliImages()
+  }, [cliImagesLoading, cliImageDocker, cliImageVersions, checkCliImages])
+
+  useEffect(() => {
+    const building = newlyBuildingImageIds(cliImageVersions, watchedImageBuilds)
+    if (building.length > 0) setWatchedImageBuilds((prev) => new Set([...prev, ...building]))
+  }, [cliImageVersions, watchedImageBuilds])
+
+  const startImageBuild = (cli: CliTool) => {
+    setImageBuildError((prev) => {
+      const next = { ...prev }
+      delete next[cli]
+      return next
+    })
+    setImageBuildStarting((prev) => ({ ...prev, [cli]: true }))
+    startCliImageBuild(cli)
+      .catch((err: unknown) => {
+        setImageBuildError((prev) => ({
+          ...prev,
+          [cli]: extractErrorMessage(err, 'The image build could not be started.'),
+        }))
+      })
+      .finally(() => setImageBuildStarting((prev) => ({ ...prev, [cli]: false })))
+  }
+
   const runLiveModelsProbe = async (cli: CliTool, credentialId: string) => {
     setLiveModelsProbe((prev) => ({ ...prev, [cli]: { kind: 'loading' } }))
     try {
@@ -210,6 +279,22 @@ export function CliConfigForm() {
     }
   }
 
+  const runCapabilityBattery = async (cli: CliTool, credentialId: string) => {
+    setCapability((prev) => ({ ...prev, [credentialId]: { kind: 'loading' } }))
+    try {
+      const card = await probeCapability(cli, credentialId)
+      setCapability((prev) => ({ ...prev, [credentialId]: { kind: 'result', card } }))
+    } catch (err) {
+      setCapability((prev) => ({
+        ...prev,
+        [credentialId]: {
+          kind: 'error',
+          message: extractErrorMessage(err, 'The capability battery failed to run.'),
+        },
+      }))
+    }
+  }
+
   const confirmDelete = async () => {
     if (!pendingDelete || deleting) return
     setDeleting(true)
@@ -227,6 +312,12 @@ export function CliConfigForm() {
     paddingHorizontal: nativeSpace[5],
     paddingVertical: nativeSpace[4],
   } as const
+
+  const probeToneColor: Record<CliCapabilityTone, string> = {
+    pass: nativeLightStatus.done.bg,
+    fail: nativeLightStatus.stuck.bg,
+    none: theme.text.secondary,
+  }
 
   if (!isLoaded) {
     return (
@@ -270,7 +361,20 @@ export function CliConfigForm() {
           liveModels ?? (modelsState.kind === 'ok' ? modelsState.models : []),
           'subscription',
         )
-        const canRefreshLive = (cli === 'cursor-agent' || cli === 'codex') && !!groupCredId
+        const canRefreshLive = !!groupCredId
+        const effortRows = cliModelEffortRows(modelOptions, modelEffort[cli])
+        const imageVersion = cliImageVersions.find((row) => row.cli === cli)
+        const isUpdating = imageVersion?.state === 'updating'
+        const imageUpdate = imageVersion?.update
+        const imageLog = imageUpdate
+          ? (cliImageBuildOutput[imageUpdate.updateId] ?? imageUpdate.logTail)
+          : ''
+        const buildAction = cliImageBuildAction(imageVersion, {
+          docker: cliImageDocker,
+          starting: imageBuildStarting[cli] === true,
+          cliName: cliLabel(cli),
+        })
+        const lockedStyle = isUpdating ? { opacity: 0.5 } : null
         return (
           <View
             key={cli}
@@ -293,15 +397,38 @@ export function CliConfigForm() {
                 borderBottomColor: theme.border.subtle,
               }}
             >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[3] }}>
+              <View
+                style={{
+                  flex: 1,
+                  flexDirection: 'row',
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  gap: nativeSpace[3],
+                }}
+              >
                 <IconRobot size={16} color={theme.text.secondary} />
                 <Text style={{ fontSize: 14, fontWeight: '600', color: theme.text.primary }}>
                   {cliLabel(cli)}
                 </Text>
+                <CliImageVersionChip version={imageVersion} loading={cliImagesLoading} />
+                {buildAction ? (
+                  <Button
+                    size="sm"
+                    variant={buildAction.tone}
+                    loading={buildAction.busy}
+                    disabled={buildAction.busy}
+                    onPress={() => startImageBuild(cli)}
+                    accessibilityLabel={buildAction.label}
+                    accessibilityHint={buildAction.hint}
+                  >
+                    {buildAction.label}
+                  </Button>
+                ) : null}
               </View>
               <Button
                 size="sm"
                 variant={enabled ? 'success' : 'outline'}
+                disabled={isUpdating}
                 onPress={() => void setCliEnabled(cli, !enabled)}
                 accessibilityLabel={enabled ? 'Enabled in chip' : 'Enable in chip'}
               >
@@ -309,8 +436,86 @@ export function CliConfigForm() {
               </Button>
             </View>
 
+            {imageBuildError[cli] ? (
+              <View
+                style={{
+                  ...mutedBlock,
+                  borderWidth: 1,
+                  borderColor: `${nativeLightStatus.stuck.bg}66`,
+                }}
+              >
+                <Text style={{ fontSize: 12, color: nativeLightStatus.stuck.bg }}>
+                  {imageBuildError[cli]}
+                </Text>
+              </View>
+            ) : null}
+
+            {isUpdating && imageUpdate?.status === 'building' ? (
+              <CliImageBuildProgress
+                cliName={cliLabel(cli)}
+                update={imageUpdate}
+                output={cliImageBuildOutput[imageUpdate.updateId]}
+              />
+            ) : null}
+
+            {imageUpdate?.status === 'succeeded' && watchedImageBuilds.has(imageUpdate.updateId) ? (
+              <View
+                style={{
+                  ...mutedBlock,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: nativeSpace[3],
+                  borderWidth: 1,
+                  borderColor: `${nativeLightStatus.done.bg}66`,
+                }}
+              >
+                <IconCheck size={14} color={nativeLightStatus.done.bg} />
+                <Text style={{ fontSize: 12, fontWeight: '500', color: nativeLightStatus.done.bg }}>
+                  {cliImageBuildSuccess(imageUpdate)}
+                </Text>
+              </View>
+            ) : null}
+
+            {imageUpdate?.status === 'failed' ? (
+              <View
+                style={{
+                  ...mutedBlock,
+                  gap: nativeSpace[3],
+                  borderWidth: 1,
+                  borderColor: `${nativeLightStatus.stuck.bg}66`,
+                }}
+              >
+                <Text
+                  style={{ fontSize: 12, fontWeight: '500', color: nativeLightStatus.stuck.bg }}
+                >
+                  {cliImageBuildFailure(imageUpdate)}
+                </Text>
+                {imageUpdate.error ? (
+                  <Text style={{ fontSize: 12, color: nativeLightStatus.stuck.bg }}>
+                    {imageUpdate.error}
+                  </Text>
+                ) : null}
+                {imageLog ? (
+                  <ScrollView
+                    style={{ maxHeight: 128 }}
+                    nestedScrollEnabled
+                    keyboardShouldPersistTaps="handled"
+                  >
+                    <Text
+                      style={{ fontFamily: 'Courier', fontSize: 11, color: theme.text.secondary }}
+                    >
+                      {imageLog}
+                    </Text>
+                  </ScrollView>
+                ) : null}
+              </View>
+            ) : null}
+
             {modelOptions.length > 0 ? (
-              <View style={{ gap: nativeSpace[3] }}>
+              <View
+                style={[{ gap: nativeSpace[3] }, lockedStyle]}
+                pointerEvents={isUpdating ? 'none' : 'auto'}
+              >
                 <View style={{ gap: nativeSpace[1] }}>
                   <Text style={{ fontSize: 12, color: theme.text.secondary }}>Default model</Text>
                   <Select
@@ -376,12 +581,51 @@ export function CliConfigForm() {
                     {liveModelsState.message}
                   </Text>
                 ) : null}
+                {effortRows.length > 0 ? (
+                  <View style={{ gap: nativeSpace[2] }}>
+                    <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+                      {CLI_MODEL_DEFAULT_EFFORT_LABEL}
+                    </Text>
+                    {effortRows.map((row) => (
+                      <View key={row.modelId} style={{ gap: nativeSpace[1] }}>
+                        <Text style={{ fontSize: 13, color: theme.text.primary }}>{row.label}</Text>
+                        <Select
+                          value={row.value ?? ''}
+                          onValueChange={(v) =>
+                            void setCliModelEffort(cli, row.modelId, v || undefined)
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder={EFFORT_DEFAULT_LABEL} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="">{EFFORT_DEFAULT_LABEL}</SelectItem>
+                            {row.levels.map((lvl) => (
+                              <SelectItem key={lvl} value={lvl}>
+                                {effortLevelLabel(lvl)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </View>
+                    ))}
+                    <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+                      {CLI_MODEL_DEFAULT_EFFORT_HINT}
+                    </Text>
+                  </View>
+                ) : null}
               </View>
             ) : null}
 
             {caches.map((cache) => {
               const isDefault = activeCliCredentialId === cache.id
               const liveState = liveProbe[cache.id] ?? { kind: 'idle' }
+              const storedCard = capabilityScorecards.find((c) => c.cli === cache.cli)
+              const capState: CapabilityState =
+                capability[cache.id] ??
+                (storedCard ? { kind: 'result', card: storedCard } : { kind: 'idle' })
+              const capView =
+                capState.kind === 'result' ? cliCapabilityCardView(capState.card) : undefined
               const status = cache.authStatus
               const isReauthing = reauth?.credentialId === cache.id
               const reauthOut = isReauthing ? (loginOutput[reauth.loginId] ?? '') : ''
@@ -389,7 +633,11 @@ export function CliConfigForm() {
               const reauthAwaitsCode = isReauthing ? loginAwaitsCode(reauthOut) : false
               const reauthResult = isReauthing ? loginResults[reauth.loginId] : undefined
               return (
-                <View key={cache.id} style={{ gap: nativeSpace[3] }}>
+                <View
+                  key={cache.id}
+                  style={[{ gap: nativeSpace[3] }, lockedStyle]}
+                  pointerEvents={isUpdating ? 'none' : 'auto'}
+                >
                   <View
                     style={{
                       flexDirection: 'row',
@@ -500,6 +748,16 @@ export function CliConfigForm() {
                     <Button
                       size="sm"
                       variant="outline"
+                      loading={capState.kind === 'loading'}
+                      onPress={() => void runCapabilityBattery(cli, cache.id)}
+                      accessibilityLabel="Capability battery"
+                      accessibilityHint={CLI_CAPABILITY_BATTERY_HINT}
+                    >
+                      Capability battery
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
                       loading={checking[cache.id]}
                       onPress={() => void runCheckAuth(cache.id)}
                       accessibilityLabel="Check whether this credential is still authenticated"
@@ -597,6 +855,96 @@ export function CliConfigForm() {
                     <Text style={{ fontSize: 12, color: nativeLightStatus.stuck.bg }}>
                       {liveState.message}
                     </Text>
+                  ) : null}
+
+                  {capState.kind === 'error' ? (
+                    <Text style={{ fontSize: 12, color: nativeLightStatus.stuck.bg }}>
+                      {capState.message}
+                    </Text>
+                  ) : null}
+
+                  {capView ? (
+                    <View
+                      style={{
+                        ...mutedBlock,
+                        gap: nativeSpace[2],
+                        borderWidth: 1,
+                        borderColor: theme.border.default,
+                      }}
+                    >
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          flexWrap: 'wrap',
+                          alignItems: 'center',
+                          gap: nativeSpace[3],
+                        }}
+                      >
+                        <Text
+                          style={{ fontSize: 12, fontWeight: '500', color: theme.text.primary }}
+                        >
+                          {capView.headline}
+                        </Text>
+                        <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+                          {capView.latency}
+                        </Text>
+                        {capView.cost ? (
+                          <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+                            {capView.cost}
+                          </Text>
+                        ) : null}
+                        {capView.finished ? (
+                          <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+                            {capView.finished}
+                          </Text>
+                        ) : null}
+                      </View>
+                      {capView.probes.map((probe) => (
+                        <View
+                          key={probe.id}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'flex-start',
+                            gap: nativeSpace[3],
+                          }}
+                        >
+                          <Text
+                            style={{ width: 40, fontSize: 12, color: probeToneColor[probe.tone] }}
+                          >
+                            {probe.status}
+                          </Text>
+                          <View style={{ flex: 1, gap: nativeSpace[1] }}>
+                            <Text style={{ fontSize: 12, color: theme.text.primary }}>
+                              {probe.label}
+                            </Text>
+                            <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+                              {probe.detail}
+                            </Text>
+                            {probe.cases.map((probeCase) => (
+                              <View
+                                key={probeCase.key}
+                                style={{
+                                  flexDirection: 'row',
+                                  alignItems: 'flex-start',
+                                  gap: nativeSpace[2],
+                                }}
+                              >
+                                <Text
+                                  style={{ fontSize: 12, color: probeToneColor[probeCase.tone] }}
+                                >
+                                  {probeCase.mark}
+                                </Text>
+                                <Text
+                                  style={{ flex: 1, fontSize: 12, color: theme.text.secondary }}
+                                >
+                                  {probeCase.detail}
+                                </Text>
+                              </View>
+                            ))}
+                          </View>
+                        </View>
+                      ))}
+                    </View>
                   ) : null}
 
                   {isReauthing ? (

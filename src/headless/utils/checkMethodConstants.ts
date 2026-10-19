@@ -202,6 +202,7 @@ export const CHECK_METHOD_APPROACH: Partial<Record<CheckMethodId, string>> = {
 export const CHECK_STATE_SENTENCES: Record<Exclude<CheckMethodState, 'unconfigured'>, string> = {
   passed: 'Passed. The proof is filed on this run.',
   failed: 'Failed on this branch.',
+  unfinished: 'Didn’t finish on this branch, so it neither passed nor failed.',
   flagged: 'Flagged on this branch — advisory, so it does not block sign-off.',
   unchecked: 'Configured for this project, but never run on this branch.',
 }
@@ -229,6 +230,9 @@ export const CHECK_AVAILABLE_SENTENCE = 'Available in this project, but not run 
 export const CHECK_UNSERVABLE_LEAD =
   'Its page can’t be served here, so nothing can be captured. Ask for a way to serve it here.'
 
+/** What a chip says after its name for a check that did not finish, in place of a mark. */
+export const CHECK_UNFINISHED_WORDS = 'didn’t finish'
+
 /** The state an available-but-not-run chip reads as, to a screen reader. */
 export const CHECK_AVAILABLE_LABEL = 'available'
 
@@ -236,6 +240,7 @@ export const CHECK_AVAILABLE_LABEL = 'available'
 export const CHECK_CHIP_MARKS: Record<CheckMethodState | 'available', string> = {
   passed: '✓',
   failed: '✕',
+  unfinished: '',
   flagged: '!',
   unchecked: '?',
   unconfigured: '+',
@@ -245,6 +250,7 @@ export const CHECK_CHIP_MARKS: Record<CheckMethodState | 'available', string> = 
 export const CHECK_STATE_TONES: Record<CheckMethodState, ReviewTone> = {
   passed: 'positive',
   failed: 'danger',
+  unfinished: 'warning',
   flagged: 'warning',
   unchecked: 'absent',
   unconfigured: 'neutral',
@@ -253,6 +259,7 @@ export const CHECK_STATE_TONES: Record<CheckMethodState, ReviewTone> = {
 export const CHECK_STATE_LABELS: Record<CheckMethodState, string> = {
   passed: 'passed',
   failed: 'failed',
+  unfinished: 'didn’t finish',
   flagged: 'flagged (advisory)',
   unchecked: 'not run',
   unconfigured: 'not set up',
@@ -292,7 +299,7 @@ export const COLLAPSE_ABSENT_PAST = 3
 export const SIGNOFF_VERDICT_WORDS: Record<SignoffVerdictKey, string> = {
   proven: 'Proven',
   partly: 'Partly proven',
-  failed: 'Failed',
+  failed: 'Didn’t pass',
   'not-run': 'Not verified',
 }
 
@@ -358,6 +365,29 @@ export const APPROVE_MENU_HEADS: Record<SignoffVerdictKey, string> = {
   failed: 'This run failed. Approving is possible, but read the report first.',
   'not-run': 'Nothing has been checked, so nothing supports a merge yet.',
 }
+
+/**
+ * The headline over checks that did not pass: what failed and what did not
+ * finish, counted apart — "3 checks failed, 1 didn’t finish", "Tests didn’t
+ * finish" — never one folded into the other.
+ */
+export const NOT_PASSED_TITLE = (
+  failed: readonly { label: string }[],
+  unfinished: readonly { label: string }[],
+): string => {
+  const checks = (n: number) => `${n} ${n === 1 ? 'check' : 'checks'}`
+  if (unfinished.length === 0) {
+    return failed.length === 1 ? `${failed[0].label} failed` : `${checks(failed.length)} failed`
+  }
+  if (failed.length > 0)
+    return `${checks(failed.length)} failed, ${unfinished.length} didn’t finish`
+  return unfinished.length === 1
+    ? `${unfinished[0].label} didn’t finish`
+    : `${checks(unfinished.length)} didn’t finish`
+}
+
+/** A verdict's word on a check whose record named the files it could not finish — the Tests tab names them. */
+export const UNFINISHED_CHECK_LINE = (checkLabel: string): string => `${checkLabel} didn’t finish`
 
 export const PROVEN_TITLE = 'Every configured check passed'
 export const PROVEN_DETAIL = 'Built, checked, and captured. Nothing outstanding.'

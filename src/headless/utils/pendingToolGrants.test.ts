@@ -668,6 +668,33 @@ describe('cliDecidedAsks', () => {
     ])
   })
 
+  it('keeps the files a git change card listed, which its result never names', () => {
+    const files = [{ path: 'design/drafts/10.html', status: 'modified' }]
+    const [ask] = cliDecidedAsks([
+      {
+        id: 'c1',
+        runId: 'run-1',
+        kind: 'tool-call',
+        status: 'approved',
+        payload: {
+          tool: 'commitGitChanges',
+          args: { message: 'Draft 10' },
+          detail: {
+            operation: 'commit',
+            headline: 'Commit 1 file to dev',
+            projectId: 'p',
+            repoPath: '/r',
+            warning: 'w',
+            facts: [],
+            diff: { files, patch: '', patchTruncated: false },
+          },
+        },
+      },
+    ])
+    expect(ask.changeFiles).toEqual(files)
+    expect(cliDecidedAsks([{ ...action, status: 'approved' }])[0]).not.toHaveProperty('changeFiles')
+  })
+
   it('keeps why the host withdrew an ask settled elsewhere', () => {
     const [ask] = cliDecidedAsks([
       {

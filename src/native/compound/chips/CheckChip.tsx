@@ -44,8 +44,9 @@ const GLYPH: Record<CheckMethodId, ComponentType<{ size?: number; color?: string
 export type CheckChipPalette = { bg: string; border: string; fg: string; dashed: boolean }
 
 /**
- * Colour says only pass / fail / flagged / absent. Flagged — only advisory
- * checks failed — is amber, never the red of a failure. The two absences draw
+ * Colour says only pass / fail / amber / absent. Flagged — only advisory
+ * checks failed — and unfinished — stopped before it could say — are amber,
+ * never the red of a failure. The two absences draw
  * dashed with no fill — the treatment reserved for "nobody looked" — so neither
  * can be read as a verdict.
  */
@@ -70,6 +71,7 @@ export function checkChipPalette(
         dashed: false,
       }
     case 'flagged':
+    case 'unfinished':
       return {
         bg: status.working.softBg,
         border: status.working.softBorder,
@@ -138,20 +140,24 @@ export default function CheckChip({ row, onPress, inert, style, selected }: Chec
       ]}
     >
       <Glyph size={13} color={palette.fg} />
-      <Text style={{ fontSize: 12, fontWeight: '500', color: palette.fg }}>{row.label}</Text>
-      <View
-        style={{
-          width: 13,
-          height: 13,
-          marginLeft: 1,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Text style={{ fontSize: 9, lineHeight: 11, fontWeight: '700', color: palette.fg }}>
-          {face.mark}
-        </Text>
-      </View>
+      <Text style={{ fontSize: 12, fontWeight: '500', color: palette.fg }}>
+        {face.words ? `${row.label} · ${face.words}` : row.label}
+      </Text>
+      {face.mark ? (
+        <View
+          style={{
+            width: 13,
+            height: 13,
+            marginLeft: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Text style={{ fontSize: 9, lineHeight: 11, fontWeight: '700', color: palette.fg }}>
+            {face.mark}
+          </Text>
+        </View>
+      ) : null}
     </Pressable>
   )
 }

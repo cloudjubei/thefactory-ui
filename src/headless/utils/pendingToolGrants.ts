@@ -6,6 +6,7 @@ import { getChatContext, getChatContextKey, isApiChatTurnId } from 'thefactory-t
 import type { ChatContextAgentRunStory } from '../api/generated'
 import { isQuestionAction, parseQuestionPayload } from './agentQuestions'
 import { isToolAskDecidedOnRow } from './approvalGrant'
+import { gitChangeCard } from './gitChangeApproval'
 import { ROW_DECIDED_ACTION_KINDS, SITE_ASK_KINDS } from './pendingToolGrantsConstants'
 import { isRemedyAction, parseRemedyPayload } from './agentRemedy'
 import type { PendingToolGrantData, PendingToolGrantDecision } from './chatTypes'
@@ -317,6 +318,7 @@ export function cliDecidedAsks(actions: readonly CliDecidedActionLike[]): CliDec
     const toolName = action.toolName ?? pendingActionToolName(action)
     const args = action.toolArgs ?? pendingActionArgs(action)
     const answer = answerOf(action.decisionMetadata)
+    const changeFiles = gitChangeCard({ detail: action.payload })?.diff?.files
     asks.push({
       id: action.id,
       runId: action.runId,
@@ -334,6 +336,7 @@ export function cliDecidedAsks(actions: readonly CliDecidedActionLike[]): CliDec
       ...(action.decidedVia === 'grant'
         ? { rule: grantRuleText(toolName, action.grantPayload, action.grantScope) }
         : {}),
+      ...(changeFiles ? { changeFiles } : {}),
     })
   }
   return asks

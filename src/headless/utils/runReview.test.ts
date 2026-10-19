@@ -9,6 +9,7 @@ import type {
 } from '../api/generated'
 import {
   asRunVerification,
+  alreadyOnBaseView,
   checkTone,
   isReviewReasonValid,
   landFailureSummary,
@@ -94,7 +95,7 @@ describe('checkTone', () => {
   it('maps each check status to its tone', () => {
     expect(checkTone('passed')).toBe('positive')
     expect(checkTone('failed')).toBe('danger')
-    expect(checkTone('error')).toBe('danger')
+    expect(checkTone('error')).toBe('warning')
     expect(checkTone('skipped')).toBe('neutral')
   })
 })
@@ -379,6 +380,37 @@ describe('landFailureSummary', () => {
   })
 })
 
+describe('alreadyOnBaseView', () => {
+  it('names the base and the commit that already holds the change', () => {
+    expect(
+      alreadyOnBaseView({
+        reason: 'already-on-base',
+        baseRef: 'dev',
+        landedBy: { sha: '0956f8c41d2e', subject: 'Draft 10: upright plaque, one gem wide' },
+        at: 5,
+      }),
+    ).toEqual({
+      text: 'Already on dev as 0956f8c — nothing left to review',
+      sha: '0956f8c',
+      subject: 'Draft 10: upright plaque, one gem wide',
+    })
+  })
+
+  it('says it is there without a commit when an older record names none', () => {
+    expect(alreadyOnBaseView({ reason: 'already-on-base', baseRef: 'dev', at: 5 })).toEqual({
+      text: 'Already on dev — nothing left to review',
+    })
+    expect(alreadyOnBaseView({ reason: 'already-on-base', at: 5 })?.text).toBe(
+      'Already on the base branch — nothing left to review',
+    )
+  })
+
+  it('is nothing for any other land failure, or none', () => {
+    expect(alreadyOnBaseView({ reason: 'no-source-changes', at: 5 })).toBeUndefined()
+    expect(alreadyOnBaseView(undefined)).toBeUndefined()
+  })
+})
+
 describe('ALREADY_ON_BASE_TITLE', () => {
   it('names the branch', () => {
     expect(ALREADY_ON_BASE_TITLE('dev')).toBe('Already on dev')
@@ -470,6 +502,17 @@ describe('reviewActionMode', () => {
 
   it('offers direct apply on the no-git path', () => {
     expect(reviewActionMode({ verdict: undefined, hasReviewBranch: false })).toBe('apply')
+  })
+
+  it('offers nothing to apply when the change is already on its base, or only touched ignored files', () => {
+    for (const landFailureReason of ['already-on-base', 'no-source-changes'] as const) {
+      expect(
+        reviewActionMode({ verdict: undefined, hasReviewBranch: false, landFailureReason }),
+      ).toBe('none')
+    }
+    expect(
+      reviewActionMode({ verdict: undefined, hasReviewBranch: false, landFailureReason: 'error' }),
+    ).toBe('apply')
   })
 
   it('offers NOTHING for a story run\u2019s per-feature sub-run', () => {

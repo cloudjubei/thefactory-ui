@@ -25,6 +25,8 @@ import ToolArgInline from './ToolArgInline'
 import ToolOriginBadge from './ToolOriginBadge'
 import ToolRowMilestoneLine from './ToolRowMilestoneLine'
 import { toolRowMilestone } from '../../../../headless/utils/gitSetupApproval'
+import { commitReceiptView } from '../../../../headless/utils/gitChangeApproval'
+import { CommitReceiptConnected } from '../CommitReceipt'
 
 function formatDurationLabel(ms?: number): string | undefined {
   if (typeof ms !== 'number' || !Number.isFinite(ms) || ms <= 0) return undefined
@@ -136,6 +138,11 @@ function ToolCallCardInner({
     resultType,
     toolCall.awaitingDecision === true,
   )
+
+  // A commit the person approved is one receipt line, in place of the row —
+  // see the web peer.
+  const receipt = commitReceiptView(toolCall.name, result, resultType, toolCall.changeFiles)
+  if (receipt) return <CommitReceiptConnected view={receipt} runId={toolCall.runId} />
 
   const status = statusVisual(resultType)
   const isRequireConfirm = resultType === 'require_confirmation'

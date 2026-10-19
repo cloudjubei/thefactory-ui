@@ -1,4 +1,5 @@
 import type {
+  CliRunLandFailureReason,
   CliRunVerdict,
   VerificationCheckKind,
   VerificationCheckStatus,
@@ -114,6 +115,22 @@ export type ReviewActionInput = {
    * bypassing the review branch, the verdict and every verification check.
    */
   partOfStoryRun?: boolean
+  /**
+   * Why the run's changes reached no review branch, when they did not. A change
+   * already on its base, or one that only touched ignored files, has nothing to
+   * apply — offering Apply and Discard there acts on nothing.
+   */
+  landFailureReason?: CliRunLandFailureReason
+}
+
+/** The one line a run whose change its base already holds shows in place of a review. */
+export type AlreadyOnBaseView = {
+  /** "Already on dev as 0956f8c — nothing left to review". */
+  text: string
+  /** The commit on the base that holds it, short — absent on an older record. */
+  sha?: string
+  /** That commit's subject. */
+  subject?: string
 }
 
 /** Cost + duration labels for the summary head; `undefined` when unrecorded. */

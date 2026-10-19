@@ -19,6 +19,7 @@ import { useAuth } from '../api/AuthContext'
 import { AGENT_RUNNER_EVENT, LLM_CONFIGS_EVENT } from '../utils/credentialStoreEventConstants'
 import { agentRunnerSelectionUpdate } from '../utils/agentRunnerSelection'
 import { activeLlmConfig } from '../utils/modelChip'
+import { asEffortLevel } from '../utils/modelEffort'
 import type { SyncKVStorage } from '../hooks/useStorageBackedState'
 
 /** CLI-agent selection for background activities — mirrors the `runActivity` `cliModel` body. */
@@ -79,6 +80,14 @@ export type LLMConfigsContextValue = {
   setActiveActivityCliModel: (model: ActivityCliModel | null) => void
   /** Recently-selected activity CLI agent+model picks, most-recent first (max {@link RECENTS_LIMIT}). */
   recentActivityCliModels: ActivityCliModel[]
+  /** The effort activities run at on an API model; null = the config's default. */
+  activeActivityApiEffort: CliReasoningEffort | null
+  /** Set (or clear, with `null`) the API effort for activities. */
+  setActiveActivityApiEffort: (effort: CliReasoningEffort | null) => void
+  /** The effort agent runs work at on an API model; null = the config's default. */
+  activeAgentRunApiEffort: CliReasoningEffort | null
+  /** Set (or clear, with `null`) the API effort for agent runs. */
+  setActiveAgentRunApiEffort: (effort: CliReasoningEffort | null) => void
   createConfig: (input: LlmConfigCreateInput) => Promise<GetLlmConfigResponse>
   updateConfig: (id: string, patch: LlmConfigEditInput) => Promise<GetLlmConfigResponse>
   deleteConfig: (id: string) => Promise<void>
@@ -91,6 +100,8 @@ const ACTIVE_ACTIVITY_CLI_MODEL_LS_KEY = 'thefactory-overseer-web:activeActivity
 const RECENT_ACTIVITY_CLI_MODEL_LS_KEY = 'thefactory-overseer-web:recentActivityCliModels'
 const ACTIVE_AGENT_RUN_CLI_MODEL_LS_KEY = 'thefactory-overseer-web:activeAgentRunCliModel'
 const RECENT_AGENT_RUN_CLI_MODEL_LS_KEY = 'thefactory-overseer-web:recentAgentRunCliModels'
+const ACTIVE_ACTIVITY_API_EFFORT_LS_KEY = 'thefactory-overseer-web:activeActivityApiEffort'
+const ACTIVE_AGENT_RUN_API_EFFORT_LS_KEY = 'thefactory-overseer-web:activeAgentRunApiEffort'
 const RECENT_CHAT_LS_KEY = 'thefactory-overseer-web:recentChatConfigIds'
 const RECENT_AGENT_RUN_LS_KEY = 'thefactory-overseer-web:recentAgentRunConfigIds'
 const RECENT_ACTIVITY_LS_KEY = 'thefactory-overseer-web:recentActivityConfigIds'
@@ -139,6 +150,22 @@ function readCliModel(storage: SyncKVStorage, key: string): ActivityCliModel | n
 function writeCliModel(storage: SyncKVStorage, key: string, model: ActivityCliModel | null) {
   try {
     storage.set(key, JSON.stringify(model))
+  } catch {
+    // ignore storage errors (private mode, etc.)
+  }
+}
+
+function readEffort(storage: SyncKVStorage, key: string): CliReasoningEffort | null {
+  try {
+    return asEffortLevel(storage.get(key)) ?? null
+  } catch {
+    return null
+  }
+}
+
+function writeEffort(storage: SyncKVStorage, key: string, effort: CliReasoningEffort | null) {
+  try {
+    storage.set(key, effort ?? '')
   } catch {
     // ignore storage errors (private mode, etc.)
   }
@@ -219,6 +246,14 @@ export function LLMConfigsProvider({ storage, children }: LLMConfigsProviderProp
   const [recentAgentRunCliModels, setRecentAgentRunCliModels] = useState<ActivityCliModel[]>(() =>
     readRecentCliModels(storage, RECENT_AGENT_RUN_CLI_MODEL_LS_KEY),
   )
+  const [activeActivityApiEffort, setActiveActivityApiEffortState] =
+    useState<CliReasoningEffort | null>(() =>
+      readEffort(storage, ACTIVE_ACTIVITY_API_EFFORT_LS_KEY),
+    )
+  const [activeAgentRunApiEffort, setActiveAgentRunApiEffortState] =
+    useState<CliReasoningEffort | null>(() =>
+      readEffort(storage, ACTIVE_AGENT_RUN_API_EFFORT_LS_KEY),
+    )
   const [recentChatIds, setRecentChatIds] = useState<string[]>(() =>
     readRecents(storage, RECENT_CHAT_LS_KEY),
   )
@@ -339,6 +374,22 @@ export function LLMConfigsProvider({ storage, children }: LLMConfigsProviderProp
     [storage],
   )
 
+  const setActiveActivityApiEffort = useCallback(
+    (effort: CliReasoningEffort | null) => {
+      setActiveActivityApiEffortState(effort)
+      writeEffort(storage, ACTIVE_ACTIVITY_API_EFFORT_LS_KEY, effort)
+    },
+    [storage],
+  )
+
+  const setActiveAgentRunApiEffort = useCallback(
+    (effort: CliReasoningEffort | null) => {
+      setActiveAgentRunApiEffortState(effort)
+      writeEffort(storage, ACTIVE_AGENT_RUN_API_EFFORT_LS_KEY, effort)
+    },
+    [storage],
+  )
+
   const refresh = useCallback(async () => {
     try {
       const { data } = await listLlmConfigs({ throwOnError: true })
@@ -449,6 +500,10 @@ export function LLMConfigsProvider({ storage, children }: LLMConfigsProviderProp
       activeActivityCliModel,
       setActiveActivityCliModel,
       recentActivityCliModels,
+      activeActivityApiEffort,
+      setActiveActivityApiEffort,
+      activeAgentRunApiEffort,
+      setActiveAgentRunApiEffort,
       activeRunnerKind,
       setActiveRunnerKind,
       activeAgentRunCliModel,
@@ -476,6 +531,10 @@ export function LLMConfigsProvider({ storage, children }: LLMConfigsProviderProp
       activeActivityCliModel,
       setActiveActivityCliModel,
       recentActivityCliModels,
+      activeActivityApiEffort,
+      setActiveActivityApiEffort,
+      activeAgentRunApiEffort,
+      setActiveAgentRunApiEffort,
       activeRunnerKind,
       setActiveRunnerKind,
       activeAgentRunCliModel,

@@ -14,8 +14,16 @@ import CliRunMessages from './CliRunMessages'
 import ToolApprovalFooter from './ToolApprovalFooter'
 import AgentExchangeBlock from './AgentExchangeBlock'
 import { useAppSettings } from '../../../headless/contexts/AppSettingsContext'
-import { agentExchangeLayout, agentExchangeStartOf } from '../../../headless/utils/agentExchanges'
+import {
+  agentExchangeLayout,
+  agentExchangeStartOf,
+  agentExchangeWindowStart,
+} from '../../../headless/utils/agentExchanges'
 import { formatDurationMs, useInlineApprovals } from '../../../headless'
+import {
+  useToolApprovalPreviews,
+  type ToolApprovalPreviewFetcher,
+} from '../../../headless/hooks/useToolApprovalPreviews'
 import type { UikitFileMeta } from '../files/FileDisplay'
 import type { ResourceLink } from 'thefactory-tools/types'
 import type { ChatMessageLike, PendingToolGrant } from '../../../headless/utils/chatTypes'
@@ -131,13 +139,18 @@ export interface MessageListProps {
 
   /** Host renderer for a tool call. */
   renderToolCall?: (args: NativeToolCallRenderArgs) => ReactNode
+  /**
+   * Host-supplied fetcher for the result a call waiting on an approval would
+   * have — passed to its row so the person deciding sees what it would do.
+   */
+  previewTool?: ToolApprovalPreviewFetcher
   onResolveFile?: (token: string) => UikitFileMeta | null
   /** Route an in-app `overseer://…` resource link. Forwarded to MessageRow's Markdown (F.2). */
   onResourceLink?: (link: ResourceLink) => void
   /** Shows the images sent with a message as thumbnails that open full size. */
   attachmentImages?: NativeAttachmentImages
   renderReference?: (target: ReferenceTarget) => ReactNode | undefined
-  /** Render the workspace-diff panel for a CLI-agent reply. Forwarded to MessageRow. */
+  /** Renders what a CLI-agent reply changed — `ChatBody` passes the turn's changes marker. Forwarded to MessageRow. */
   renderCliRunArtifact?: (runId: string) => ReactNode
   /** Forwarded to each row: the live process run an announcement message launched. */
   renderProcessRun?: (processRunId: string) => ReactNode
@@ -191,6 +204,7 @@ export default function MessageList({
   onRetry,
   onRestartTurn,
   renderToolCall,
+  previewTool,
   onResolveFile,
   onResourceLink,
   attachmentImages,
@@ -321,6 +335,7 @@ export default function MessageList({
   // A CLI turn's call whose ask the chat stores a row for is shown by that row alone.
   const storedAskIds = useMemo(() => storedChatAskIds(messages), [messages])
   const approvals = useInlineApprovals(`chat:${chatId ?? ''}`, renderable, cliAsks, onClaimAsks)
+  const toolPreviewById = useToolApprovalPreviews(chatId, renderable, previewTool)
   // Cold-start signal: only the chat's FIRST cli run (turn 1) pays the boot;
   // resident turns 2..N are warm. Keyed by cliRunId so it survives windowing.
   const firstCliRunId = useMemo(() => renderable.find((m) => m.cliRunId)?.cliRunId, [renderable])
@@ -343,8 +358,6 @@ export default function MessageList({
   useEffect(() => {
     setVisibleCount(DEFAULT_VISIBLE)
   }, [chatId])
-  const startIndex = Math.max(0, renderable.length - visibleCount)
-  const windowed = useMemo(() => renderable.slice(startIndex), [renderable, startIndex])
 
   // The agents' own exchange, drawn as the person chose — see web's MessageList.
   const agentMessages = useAppSettings().settings.notifications.agentMessages
@@ -354,6 +367,9 @@ export default function MessageList({
     () => agentExchangeLayout(renderable, agentMessages, { openTail: exchangeOpenTail }),
     [renderable, agentMessages, exchangeOpenTail],
   )
+  // The window counts rows that are drawn — see web's MessageList.
+  const startIndex = agentExchangeWindowStart(exchanges, renderable.length, visibleCount)
+  const windowed = useMemo(() => renderable.slice(startIndex), [renderable, startIndex])
 
   // ---- First-unread positioning ------------------------------------------
   // Judged against the last-read mark as it stood when the chat opened: the
@@ -533,6 +549,7 @@ export default function MessageList({
                   onShowUsage={onShowUsage}
                   coldStart={msg.cliRunId === firstCliRunId}
                   storedReply={msg.content}
+                  {...(msg.stopNotice ? { stopNotice: msg.stopNotice } : {})}
                   {...(cliBlockedOn && msg.cliRunId === pendingCliRunId
                     ? { blockedOn: cliBlockedOn }
                     : {})}
@@ -557,6 +574,11 @@ export default function MessageList({
                   prevUserMessagesLen={prevUserCount}
                   enhancedTotalLength={windowed.length}
                   renderToolCall={renderToolCall}
+                  toolPreview={
+                    msg.role === 'tool' && msg.toolCall?.toolCallId
+                      ? toolPreviewById[String(msg.toolCall.toolCallId)]
+                      : undefined
+                  }
                   onDeleteLastMessage={onDeleteLastMessage}
                   deleteControl={deleteControl}
                   deletePreview={isInDeleteRange(i, deleteFromIndex, deletePreview)}

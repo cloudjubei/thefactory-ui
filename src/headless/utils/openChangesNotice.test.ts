@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { CHAT_OPEN_CHANGES_NEEDS_YOU_AFTER_MS } from 'thefactory-tools/constants'
 
 import type { ChatOpenChanges } from '../api/generated'
-import { isOpenChangesCardOnlyMessage, openChangesNoticeView } from './openChangesNotice'
+import {
+  isOpenChangesCardOnlyMessage,
+  openChangesNoticeView,
+  openChangesWaitWords,
+} from './openChangesNotice'
 
 const HOUR = 60 * 60 * 1000
 const SINCE = 1_000_000
@@ -119,5 +123,19 @@ describe('isOpenChangesCardOnlyMessage', () => {
     ).toBe(false)
     expect(isOpenChangesCardOnlyMessage({ role: 'assistant' })).toBe(false)
     expect(isOpenChangesCardOnlyMessage({ role: 'user', openChangesCard: card })).toBe(false)
+  })
+})
+
+describe('openChangesWaitWords', () => {
+  it('counts whole hours below two days', () => {
+    expect(openChangesWaitWords(47 * HOUR + HOUR / 2)).toBe('47 h')
+  })
+
+  it('counts whole days from two days on', () => {
+    expect(openChangesWaitWords(48 * HOUR)).toBe('2 d')
+  })
+
+  it('never counts a negative wait', () => {
+    expect(openChangesWaitWords(-HOUR)).toBe('0 h')
   })
 })

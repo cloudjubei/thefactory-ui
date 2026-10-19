@@ -156,6 +156,7 @@ import type {
   CreateGroupNoteErrors,
   CreateGroupNoteResponses,
   CreateLlmConfigData,
+  CreateLlmConfigErrors,
   CreateLlmConfigResponses,
   CreateOverseerGithubRepoData,
   CreateOverseerGithubRepoErrors,
@@ -356,6 +357,9 @@ import type {
   GetCredentialCaptureData,
   GetCredentialCaptureErrors,
   GetCredentialCaptureResponses,
+  GetDailyUsageData,
+  GetDailyUsageErrors,
+  GetDailyUsageResponses,
   GetDataSourceData,
   GetDataSourceErrors,
   GetDataSourceResponses,
@@ -825,6 +829,9 @@ import type {
   RebuildChatOpenChangesData,
   RebuildChatOpenChangesErrors,
   RebuildChatOpenChangesResponses,
+  RecomputeDailyUsageData,
+  RecomputeDailyUsageErrors,
+  RecomputeDailyUsageResponses,
   RefreshDataSourceData,
   RefreshDataSourceErrors,
   RefreshDataSourceResponses,
@@ -991,9 +998,13 @@ import type {
   SetCliDefaultModelData,
   SetCliDefaultModelResponses,
   SetCliEffortData,
+  SetCliEffortErrors,
   SetCliEffortResponses,
   SetCliEnabledData,
   SetCliEnabledResponses,
+  SetCliModelEffortData,
+  SetCliModelEffortErrors,
+  SetCliModelEffortResponses,
   SetCliRunFileViewedData,
   SetCliRunFileViewedErrors,
   SetCliRunFileViewedResponses,
@@ -3020,7 +3031,7 @@ export const listLlmConfigs = <ThrowOnError extends boolean = false>(
 export const createLlmConfig = <ThrowOnError extends boolean = false>(
   options: Options<CreateLlmConfigData, ThrowOnError>,
 ) =>
-  (options.client ?? client).post<CreateLlmConfigResponses, unknown, ThrowOnError>({
+  (options.client ?? client).post<CreateLlmConfigResponses, CreateLlmConfigErrors, ThrowOnError>({
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/llm-configs',
@@ -3329,9 +3340,26 @@ export const setCliDefaultModel = <ThrowOnError extends boolean = false>(
 export const setCliEffort = <ThrowOnError extends boolean = false>(
   options: Options<SetCliEffortData, ThrowOnError>,
 ) =>
-  (options.client ?? client).post<SetCliEffortResponses, unknown, ThrowOnError>({
+  (options.client ?? client).post<SetCliEffortResponses, SetCliEffortErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/cli-configs/effort',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const setCliModelEffort = <ThrowOnError extends boolean = false>(
+  options: Options<SetCliModelEffortData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    SetCliModelEffortResponses,
+    SetCliModelEffortErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-configs/model-effort',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -5101,6 +5129,34 @@ export const getCostsByChat = <ThrowOnError extends boolean = false>(
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/costs/{chatKey}',
     ...options,
+  })
+
+export const getDailyUsage = <ThrowOnError extends boolean = false>(
+  options: Options<GetDailyUsageData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<GetDailyUsageResponses, GetDailyUsageErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/usage/daily',
+    ...options,
+  })
+
+export const recomputeDailyUsage = <ThrowOnError extends boolean = false>(
+  options: Options<RecomputeDailyUsageData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    RecomputeDailyUsageResponses,
+    RecomputeDailyUsageErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/usage/daily/recompute',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
   })
 
 export const listTemplates = <ThrowOnError extends boolean = false>(

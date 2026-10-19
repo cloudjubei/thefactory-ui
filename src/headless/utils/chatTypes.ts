@@ -13,12 +13,16 @@ import type {
   ChatOpenChangesCard,
   ChatOpenQuestionsCard,
   ProcessManagerChatCard,
+  UsageCompletenessReason,
+  UsageTokenFields,
 } from 'thefactory-tools/types'
 
 import type { AgentQuestion } from './agentQuestionTypes'
 import type { AgentRemedy } from './agentRemedyTypes'
+import type { ChatStopNotice } from './chatStopNoticeTypes'
 import type { CostSpend } from './costDetailsTypes'
 import type { CredentialCapture } from './credentialCaptureTypes'
+import type { GitChangeFileView } from './gitChangeApprovalTypes'
 
 export type ChatContextLike = {
   type:
@@ -66,6 +70,10 @@ export type ToolCallLike = {
   awaitingDecision?: boolean
   /** Who settled the call's ask — "Approved by you", "Approved by rule: …" — so every approval on screen can be traced to its decider. */
   decisionNote?: string
+  /** The files a git change's card listed when it was approved — what a commit's receipt lists. */
+  changeFiles?: GitChangeFileView[]
+  /** The run whose turn made the call — what a commit's receipt reads the turn's proof from. */
+  runId?: string
 }
 
 // Web's backend currently emits a free-form string; desktop's agent loop has
@@ -107,6 +115,10 @@ export type MessageUsageLike = {
   listCostUsd?: number
   /** Per model — a CLI turn can use more than one — so its details are not one guessed row. */
   byModel?: CostSpend[]
+  /** How an API turn's counts were obtained; a field absent was reported. A CLI turn's are on its rows. */
+  tokenFields?: Partial<UsageTokenFields>
+  /** Why the turn's counts fall short of, or only estimate, what was spent; absent when nothing is missing. */
+  incompleteReasons?: UsageCompletenessReason[]
 }
 
 export type ChatMessageLike = {
@@ -171,6 +183,11 @@ export type ChatMessageLike = {
    * that finished in the background, one entry per call.
    */
   backgroundResults?: ChatBackgroundJobResult[]
+  /**
+   * Why the turn or story run stopped: whose problem it was, in words, with the raw error kept
+   * apart. Shown as one stop card in place of the message's text or error.
+   */
+  stopNotice?: ChatStopNotice
 }
 
 // A tool grant the approval UI renders: one broker ask of the chat, whichever

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { placeToast } from '../utils/toastQueue'
 
 export type ToastVariant = 'default' | 'success' | 'error' | 'warning'
 
@@ -8,6 +9,7 @@ export interface ToastAction {
 }
 
 export interface ToastMessage {
+  /** A toast already showing under this id is replaced rather than stacked. */
   id?: string
   title?: string
   description?: string
@@ -44,15 +46,25 @@ export function useToastQueue(): UseToastQueue {
   const [items, setItems] = useState<ToastItem[]>([])
   const idSeq = useRef(0)
   const closeTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>())
+  const dismissTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>())
 
-  const remove = useCallback((id: string) => {
-    setItems((xs) => xs.filter((x) => x.id !== id))
-    const t = closeTimers.current.get(id)
-    if (t) {
-      clearTimeout(t)
-      closeTimers.current.delete(id)
+  const clearTimers = useCallback((id: string) => {
+    for (const timers of [closeTimers.current, dismissTimers.current]) {
+      const t = timers.get(id)
+      if (t) {
+        clearTimeout(t)
+        timers.delete(id)
+      }
     }
   }, [])
+
+  const remove = useCallback(
+    (id: string) => {
+      setItems((xs) => xs.filter((x) => x.id !== id))
+      clearTimers(id)
+    },
+    [clearTimers],
+  )
 
   const startClose = useCallback(
     (id: string, afterMs = DEFAULT_CLOSE_ANIMATION_MS) => {
@@ -76,17 +88,28 @@ export function useToastQueue(): UseToastQueue {
         action: msg.action ?? NOOP_ACTION,
         isClosing: false,
       }
-      setItems((xs) => [...xs, item])
-      if (duration > 0) setTimeout(() => startClose(id), duration)
+      clearTimers(id)
+      setItems((xs) => placeToast(xs, item))
+      if (duration > 0) {
+        dismissTimers.current.set(
+          id,
+          setTimeout(() => {
+            dismissTimers.current.delete(id)
+            startClose(id)
+          }, duration),
+        )
+      }
     },
-    [startClose],
+    [startClose, clearTimers],
   )
 
   useEffect(() => {
-    const timers = closeTimers.current
+    const all = [closeTimers.current, dismissTimers.current]
     return () => {
-      timers.forEach((t) => clearTimeout(t))
-      timers.clear()
+      for (const timers of all) {
+        timers.forEach((t) => clearTimeout(t))
+        timers.clear()
+      }
     }
   }, [])
 

@@ -10,6 +10,9 @@ import {
   type CliAuthWarning,
 } from '../../headless/utils/cliRunner'
 import { modelChipLabel } from '../../headless/utils/modelChip'
+import { effortDefaultLabel, effortLevelLabel } from '../../headless/utils/modelEffort'
+import { EFFORT_SWITCH_LABEL } from '../../headless/utils/modelEffortConstants'
+import type { ModelEffortSwitch } from '../../headless/utils/modelEffortTypes'
 import type { UsageModalModelPrice } from '../../headless/utils/usageBreakdownTypes'
 
 export type ModelChipConfig = {
@@ -63,6 +66,8 @@ export type ModelChipProps = {
   note?: string
   /** Opens with its picker showing, as a showcase state does. */
   defaultOpen?: boolean
+  /** The selected model's effort switch; hidden when the model offers no levels. */
+  effort?: ModelEffortSwitch
 }
 
 function providerDotClasses(p?: string) {
@@ -160,6 +165,42 @@ function useOutsideClick(refs: React.RefObject<HTMLElement | null>[], onOutside:
   }, [refs, onOutside])
 }
 
+function EffortRow({ effort }: { effort: ModelEffortSwitch }) {
+  const options = [undefined, ...effort.levels]
+  return (
+    <div className="px-2 pt-2 pb-1" role="radiogroup" aria-label={EFFORT_SWITCH_LABEL}>
+      <div className="mb-1 text-[10px] uppercase tracking-wide text-[var(--text-secondary)]">
+        {EFFORT_SWITCH_LABEL}
+      </div>
+      <div className="flex flex-wrap gap-1">
+        {options.map((level) => {
+          const checked = level === effort.value
+          return (
+            <button
+              key={level ?? 'default'}
+              type="button"
+              role="radio"
+              aria-checked={checked}
+              className={[
+                'rounded-md px-2 py-0.5 text-[11px] font-medium',
+                checked
+                  ? 'bg-[color-mix(in_srgb,var(--accent-primary)_16%,transparent)] text-[var(--text-primary)]'
+                  : 'text-[var(--text-secondary)] hover:bg-[color-mix(in_srgb,var(--accent-primary)_8%,transparent)]',
+              ].join(' ')}
+              onClick={(e) => {
+                e.stopPropagation()
+                if (!checked) effort.onPick(level)
+              }}
+            >
+              {level ? effortLevelLabel(level) : effortDefaultLabel(effort.defaultValue)}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 type PriceRecord = {
   inputPerMTokensUSD: number
   outputPerMTokensUSD: number
@@ -189,6 +230,7 @@ function Picker({
   cliSwitchError,
   authWarning,
   note,
+  effort,
 }: {
   anchorEl: HTMLElement
   onClose: () => void
@@ -212,6 +254,7 @@ function Picker({
   cliSwitchError?: string | null
   authWarning?: CliAuthWarning
   note?: string
+  effort?: ModelEffortSwitch
 }) {
   const panelRef = useRef<HTMLDivElement | null>(null)
   const [coords, setCoords] = useState<{
@@ -500,6 +543,7 @@ function Picker({
               ))}
             </select>
           </div>
+          {effort && effort.levels.length > 0 && <EffortRow effort={effort} />}
           {authWarning?.needsReauth && (
             <button
               role="menuitem"
@@ -571,6 +615,7 @@ function Picker({
             </button>
           )
         })}
+      {!useCli && effort && effort.levels.length > 0 && <EffortRow effort={effort} />}
       {!useCli && (
         <button
           role="menuitem"
@@ -617,6 +662,7 @@ export function ModelChip({
   authWarning,
   note,
   defaultOpen = false,
+  effort,
 }: ModelChipProps) {
   const [anchor, setAnchor] = useState<HTMLSpanElement | null>(null)
   const [open, setOpen] = useState(defaultOpen)
@@ -747,6 +793,7 @@ export function ModelChip({
           cliSwitchError={cliSwitchError}
           authWarning={authWarning}
           note={note}
+          effort={effort}
         />
       )}
     </>

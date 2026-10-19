@@ -1,12 +1,21 @@
 import { processRunWorksOnBranchNow } from 'thefactory-tools/utils'
 import type { ProcessRun } from 'thefactory-tools/types'
 import {
+  CHANGE_STATUS_LETTERS,
+  COMMIT_RECEIPT_COPY,
+  COMMIT_TOOL_NAME,
   GIT_CHANGE_COPY,
   GIT_CHANGE_DONE,
   GIT_CHANGE_RUN_BUSY,
   GIT_CHANGE_TOOL_NAMES,
 } from './gitChangeApprovalConstants'
-import type { GitChangeCardView } from './gitChangeApprovalTypes'
+import type {
+  CommitReceiptFile,
+  CommitReceiptView,
+  GitChangeCardView,
+  GitChangeFileView,
+} from './gitChangeApprovalTypes'
+import { SHORT_SHA_LENGTH } from './runReviewConstants'
 import type { ToolRowMilestone } from './gitSetupApprovalTypes'
 
 type GrantLike = { toolName?: string; args?: unknown; detail?: unknown }
@@ -125,4 +134,63 @@ export function gitChangeMilestone(
     ...(typeof out.repoPath === 'string' ? { detail: out.repoPath } : {}),
     ...(link ? { link } : {}),
   }
+}
+
+/** A commit's files, each with its status as one letter. Pure. */
+export function commitReceiptFiles(files: readonly GitChangeFileView[]): CommitReceiptFile[] {
+  return files.map((file) => ({
+    path: file.path,
+    status: file.status,
+    ...(file.binary ? { binary: true } : {}),
+    letter: CHANGE_STATUS_LETTERS[file.status],
+  }))
+}
+
+/** A commit's result as the host returned it, when the commit was made. */
+function madeCommit(result: unknown): { sha: string; out: Record<string, unknown> } | undefined {
+  const out = resultOf(result)
+  if (!out || out.ok !== true || typeof out.error === 'string') return undefined
+  return typeof out.sha === 'string' && out.sha.length > 0 ? { sha: out.sha, out } : undefined
+}
+
+/**
+ * The receipt a successful commit leaves in the chat in place of its tool row:
+ * the commit, the branch it went to, and the files the person approved — from
+ * the card they approved it on, since the commit's result names none. `undefined`
+ * for any other tool, a commit not yet made, or one that failed. Pure.
+ */
+export function commitReceiptView(
+  toolName: string | undefined,
+  result: unknown,
+  resultType: string | undefined,
+  files: readonly GitChangeFileView[] | undefined,
+): CommitReceiptView | undefined {
+  if (toolName !== COMMIT_TOOL_NAME || resultType !== 'success') return undefined
+  const made = madeCommit(result)
+  if (!made) return undefined
+  const { out } = made
+  const message = typeof out.message === 'string' && out.message.trim() ? out.message : undefined
+  return {
+    sha: made.sha.slice(0, SHORT_SHA_LENGTH),
+    fullSha: made.sha,
+    branch: typeof out.branch === 'string' ? out.branch : undefined,
+    ...(files ? { filesLabel: COMMIT_RECEIPT_COPY.files(files.length) } : {}),
+    files: commitReceiptFiles(files ?? []),
+    message,
+  }
+}
+
+/**
+ * Every commit the chat's approved commit asks made — what a turn's changes
+ * already on their base are matched against, so the receipt alone says so.
+ * Pure.
+ */
+export function commitReceiptShas(
+  asks: readonly { toolName?: string; execution?: { ok: boolean; result: string } }[],
+): string[] {
+  return asks.flatMap((ask) => {
+    if (ask.toolName !== COMMIT_TOOL_NAME || !ask.execution?.ok) return []
+    const made = madeCommit(ask.execution.result)
+    return made ? [made.sha] : []
+  })
 }

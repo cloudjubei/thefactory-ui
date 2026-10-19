@@ -23,6 +23,7 @@ import { TerminalOutput } from '../../TerminalOutput'
 import { TestResultsList } from '../../tests'
 import { DURATION_CHIP_CLASS } from '../ToolCall/StatusIcon'
 import { TONE_TEXT } from './tones'
+import { UnfinishedTests } from './UnfinishedTests'
 
 export type ChecksTabProps = {
   /** The method rows this tab owns (tests, or the build-side methods). */
@@ -51,6 +52,8 @@ function RecordNote({ text }: { text: string }) {
 const TOTALS_TONE: Record<TestTotalsOutcome, string> = {
   failed:
     'border-(--status-stuck-soft-border) bg-(--status-stuck-soft-bg) text-(--status-stuck-soft-fg)',
+  unfinished:
+    'border-(--status-working-soft-border) bg-(--status-working-soft-bg) text-(--status-working-soft-fg)',
   none: 'border-(--status-review-soft-border) bg-(--status-review-soft-bg) text-(--status-review-soft-fg)',
   passed:
     'border-(--status-done-soft-border) bg-(--status-done-soft-bg) text-(--status-done-soft-fg)',
@@ -119,6 +122,7 @@ function CheckBlock({
       {testResults ? (
         <>
           {testResults.unrecordedNote ? <RecordNote text={testResults.unrecordedNote} /> : null}
+          {testResults.unfinished ? <UnfinishedTests view={testResults.unfinished} /> : null}
           {testResults.results ? <TestResultsList results={testResults.results} /> : null}
           {testResults.omittedLabel ? (
             <span className="text-[11px] text-(--text-muted)">{testResults.omittedLabel}</span>
@@ -227,8 +231,7 @@ export default function ChecksTab({
   const testsRow = ran.length === 1 && ran[0]?.id === 'tests' ? ran[0] : undefined
   const layers = testsRow ? checks.filter((c) => testsRow.checkIds.includes(c.id)) : []
   const totals = testsRow ? aggregateTestCounts(layers) : undefined
-  const anyFailed = layers.some((l) => l.status === 'failed' || l.status === 'error')
-  const headline = totals ? testTotalsHeadline(totals, anyFailed) : undefined
+  const headline = totals ? testTotalsHeadline(totals, layers) : undefined
 
   return (
     <div className="flex flex-col gap-2">
@@ -238,12 +241,18 @@ export default function ChecksTab({
         >
           <span className="font-semibold">{headline.title}</span>
           <span className="flex-1" />
-          <span className="tabular-nums">✓ {totals.passed}</span>
-          <span className="tabular-nums">✗ {totals.failed}</span>
-          <span className="tabular-nums">○ {totals.skipped}</span>
-          <span className="tabular-nums opacity-80">
-            • {totals.total} across {layers.length} {layers.length === 1 ? 'layer' : 'layers'}
-          </span>
+          {headline.countsLabel ? (
+            <span className="tabular-nums">{headline.countsLabel}</span>
+          ) : (
+            <>
+              <span className="tabular-nums">✓ {totals.passed}</span>
+              <span className="tabular-nums">✗ {totals.failed}</span>
+              <span className="tabular-nums">○ {totals.skipped}</span>
+              <span className="tabular-nums opacity-80">
+                • {totals.total} across {layers.length} {layers.length === 1 ? 'layer' : 'layers'}
+              </span>
+            </>
+          )}
         </div>
       ) : null}
 

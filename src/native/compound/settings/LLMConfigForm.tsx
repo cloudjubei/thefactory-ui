@@ -27,6 +27,13 @@ import { IconRocket } from '../../icons/IconRocket'
 import { IconSave } from '../../icons/IconSave'
 import { llmConfigBilling } from '../../../headless/utils/llmConfigBilling'
 import { LLM_CONFIG_BILLING_OPTIONS } from '../../../headless/utils/llmConfigBillingConstants'
+import { effortLevelLabel, modelEffortChoice } from '../../../headless/utils/modelEffort'
+import {
+  EFFORT_NONE_LABEL,
+  EFFORT_NONE_VALUE,
+  LLM_CONFIG_DEFAULT_EFFORT_HINT,
+  LLM_CONFIG_DEFAULT_EFFORT_LABEL,
+} from '../../../headless/utils/modelEffortConstants'
 import { nativeLightStatus, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 
@@ -131,6 +138,13 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
   const canListModels = (key: string) => key.trim().length > 0 || hasStoredKey
   const [apiUrlOverride, setApiUrlOverride] = useState(initial?.apiUrlOverride ?? '')
   const [billing, setBilling] = useState<BillingBasis>(() => llmConfigBilling(initial))
+  const [defaultEffort, setDefaultEffort] = useState<string | undefined>(initial?.defaultEffort)
+  const effortChoice = modelEffortChoice({
+    runner: 'api',
+    provider,
+    model: model.trim(),
+    ...(defaultEffort ? { choice: defaultEffort } : {}),
+  })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [discardOpen, setDiscardOpen] = useState(false)
@@ -279,8 +293,17 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
         apiUrlOverride: apiUrlOverride.trim() || undefined,
         billing,
       }
-      if (mode.kind === 'create') await mode.onSubmit({ ...payload, apiKey: apiKey.trim() })
-      else await mode.onSubmit(apiKey.trim() ? { ...payload, apiKey: apiKey.trim() } : payload)
+      const effort = effortChoice.value
+      if (mode.kind === 'create') {
+        await mode.onSubmit({
+          ...payload,
+          ...(effort ? { defaultEffort: effort } : {}),
+          apiKey: apiKey.trim(),
+        })
+      } else {
+        const edit = { ...payload, defaultEffort: effort ?? null }
+        await mode.onSubmit(apiKey.trim() ? { ...edit, apiKey: apiKey.trim() } : edit)
+      }
       onCancel()
     } catch (err) {
       setError(
@@ -522,6 +545,32 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
           </Text>
         ) : null}
       </View>
+
+      {effortChoice.levels.length > 0 ? (
+        <Field label={LLM_CONFIG_DEFAULT_EFFORT_LABEL} hint={LLM_CONFIG_DEFAULT_EFFORT_HINT}>
+          <Select
+            value={effortChoice.value ?? EFFORT_NONE_VALUE}
+            onValueChange={(v) => {
+              const next = v === EFFORT_NONE_VALUE ? undefined : v
+              if (next === effortChoice.value) return
+              markDirty()
+              setDefaultEffort(next)
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={EFFORT_NONE_VALUE}>{EFFORT_NONE_LABEL}</SelectItem>
+              {effortChoice.levels.map((level) => (
+                <SelectItem key={level} value={level}>
+                  {effortLevelLabel(level)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      ) : null}
 
       <View accessibilityRole="radiogroup" accessibilityLabel="Billing" style={{ gap: 4 }}>
         <Text style={{ fontSize: 14, fontWeight: '500', color: theme.text.primary }}>Billing</Text>

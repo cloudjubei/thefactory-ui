@@ -20,7 +20,9 @@ import {
   groupEvidence,
   handoffRequest,
   incompleteStoryReason,
+  alreadyOnBaseView,
   isReviewReasonValid,
+  commitReceiptFiles,
   landFailureSummary,
   mergeNotice,
   openFeatureQuestions,
@@ -64,6 +66,7 @@ import { Button } from '../../primitives/Button'
 import Alert from '../../primitives/Alert'
 import { Modal } from '../../primitives/Modal'
 import Tooltip from '../../primitives/Tooltip'
+import { AlreadyOnBaseLine } from './AlreadyOnBaseLine'
 import { downloadDataUri, saveSideBySide } from './signoff/download'
 import { OpenChangesNotice } from './OpenChangesNotice'
 import { ReviewOnBaseOffer } from './ReviewOnBaseOffer'
@@ -113,6 +116,11 @@ export type CliRunArtifactPanelProps = {
    * stages live. Only meaningful (and only shown) when the run is process-owned.
    */
   onBackToPipeline?: (processRunId: string) => void
+  /**
+   * Drawn as a card of its own, with its head (the default) — or bare, filling
+   * the review panel or screen it is opened in, whose own head says what it is.
+   */
+  framed?: boolean
 }
 
 const DANGER_TEXT = 'text-(--color-red-700) dark:text-(--color-red-300)'
@@ -179,6 +187,7 @@ export default function CliRunArtifactPanel({
   onDraftMessage,
   onOpenGit,
   onBackToPipeline,
+  framed = true,
 }: CliRunArtifactPanelProps) {
   const {
     artifact,
@@ -271,8 +280,12 @@ export default function CliRunArtifactPanel({
   // Changes a later turn captured again, or the person discarded, have no review
   // left: their sign-off says so and loads nothing.
   const settledNotice = chatChangesNotice(artifact)
+  // A change its base already holds has nothing left to review: one line says
+  // so, and nothing of a review loads behind it.
+  const alreadyOnBase = alreadyOnBaseView(landFailure)
   const reviewable =
     settledNotice === undefined &&
+    alreadyOnBase === undefined &&
     (artifact !== undefined || landFailure !== undefined || reportOnly)
   const evidence = useReviewEvidence(reviewable ? projectId : undefined, {
     runId,
@@ -296,7 +309,7 @@ export default function CliRunArtifactPanel({
   )
 
   useEffect(() => {
-    if (error || settledNotice !== undefined) return
+    if (error || settledNotice !== undefined || alreadyOnBase !== undefined) return
     // Load eagerly (not gated on a tab) so the decision bar reflects the real diff
     // state from the start. `error` gates the retry so a failing load cannot
     // refire forever.
@@ -319,6 +332,7 @@ export default function CliRunArtifactPanel({
     loadPreview,
     reportOnly,
     settledNotice,
+    alreadyOnBase,
   ])
 
   // The verification plan is what tells "not run" apart from "not set up", so
@@ -417,6 +431,22 @@ export default function CliRunArtifactPanel({
     )
   }
 
+  if (alreadyOnBase) {
+    return (
+      <AlreadyOnBaseLine
+        text={alreadyOnBase.text}
+        {...(alreadyOnBase.sha
+          ? {
+              change: {
+                files: commitReceiptFiles(artifact?.payload.files ?? []),
+                ...(alreadyOnBase.subject ? { message: alreadyOnBase.subject } : {}),
+              },
+            }
+          : {})}
+      />
+    )
+  }
+
   const files = artifact?.payload.files ?? []
   const counts = reviewChangeCounts(files)
   const changesHeader = chatChangesHeader({
@@ -495,6 +525,7 @@ export default function CliRunArtifactPanel({
     verdict,
     hasReviewBranch: !!review,
     partOfStoryRun: storyId !== undefined,
+    ...(landFailure ? { landFailureReason: landFailure.reason } : {}),
   })
   const busy = merging || approving || rejecting || requestingChanges
   const onBaseView =
@@ -621,23 +652,31 @@ export default function CliRunArtifactPanel({
   }
 
   return (
-    <div className="mt-2 rounded-md border border-(--border-default) bg-(--surface-raised)">
-      <RunChangesHead
-        marker={reportOnly ? 'stage' : headline.key}
-        title={
-          reportOnly
-            ? 'Stage output'
-            : artifact
-              ? changesHeader.title
-              : 'Agent changes were not committed'
-        }
-        {...(!reportOnly && artifact ? { meta: changesHeader.meta } : {})}
-        {...(review && !review.shadow ? { branch: review.branch } : {})}
-        model={runModel}
-        {...(facts.durationLabel ? { durationLabel: facts.durationLabel } : {})}
-        {...(facts.costLabel ? { costLabel: facts.costLabel } : {})}
-        {...(facts.cost ? { cost: facts.cost } : {})}
-      />
+    <div
+      className={
+        framed
+          ? 'mt-2 rounded-md border border-(--border-default) bg-(--surface-raised)'
+          : undefined
+      }
+    >
+      {framed ? (
+        <RunChangesHead
+          marker={reportOnly ? 'stage' : headline.key}
+          title={
+            reportOnly
+              ? 'Stage output'
+              : artifact
+                ? changesHeader.title
+                : 'Agent changes were not committed'
+          }
+          {...(!reportOnly && artifact ? { meta: changesHeader.meta } : {})}
+          {...(review && !review.shadow ? { branch: review.branch } : {})}
+          model={runModel}
+          {...(facts.durationLabel ? { durationLabel: facts.durationLabel } : {})}
+          {...(facts.costLabel ? { costLabel: facts.costLabel } : {})}
+          {...(facts.cost ? { cost: facts.cost } : {})}
+        />
+      ) : null}
 
       <div className="flex flex-col gap-3 px-3 py-3">
         {noticeView ? (
@@ -913,7 +952,11 @@ export default function CliRunArtifactPanel({
           Hidden while a question is open: sign-off is final, so it must not be
           reachable until the agent has nothing left to settle. */}
       {openQuestions.length === 0 ? (
-        <div className="flex flex-col gap-2 border-t border-(--border-subtle) px-3 py-2">
+        <div
+          className={`flex flex-col gap-2 border-t border-(--border-subtle) px-3 py-2 ${
+            framed ? '' : 'sticky bottom-0 z-10 bg-(--surface-base)'
+          }`}
+        >
           {decided ? (
             <div className="flex flex-col gap-0.5">
               <div className={`text-[12px] font-medium ${TONE_TEXT[decided.tone]}`}>

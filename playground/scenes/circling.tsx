@@ -1,13 +1,14 @@
 import type { ReactNode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
-import { PROCESS_CIRCLING_RETRY_REFUSED } from 'thefactory-tools/constants'
 import type {
   ProcessCircling,
   ProcessLedgerEntry,
   ProcessManagerBriefCard,
+  ProcessManagerEscalation,
   ProcessManagerEscalationCard,
   ProcessRun,
 } from 'thefactory-tools/types'
+import { processRunParkChoices } from 'thefactory-tools/utils'
 import { processCirclingView, type ProcessCirclingView } from 'thefactory-ui/headless'
 // Not on the package's public surface: the pipeline draws its stop and its rows itself. The
 // showcase reaches into the source for them, as the playground renders the library from source.
@@ -65,13 +66,6 @@ const NEAR: ProcessCircling = {
   repeatedActions: [{ action: 'readStepTranscript {"stepId":"checks"}', count: 5 }],
   streak: 1,
   at: PARKED_AT,
-}
-
-const AFTER_MANAGER: ProcessCircling = {
-  ...AGAIN,
-  summary:
-    'Going in circles: ran out of turns (100 of 100) 2 times in a row, even after the manager’s retry; changed nothing.',
-  afterManager: true,
 }
 
 const attempt = (over: Partial<ProcessLedgerEntry>): ProcessLedgerEntry => ({
@@ -143,9 +137,26 @@ const PLAIN = featureRun(
   parkOn('Implement ran out of turns (50) before it finished.'),
 )
 
-const FIRST_RUN = featureRun(
+/** Handed on by the manager: what it found and the next step it recommends to the person. */
+const HANDED_ON: ProcessManagerEscalation = {
+  runId: 'run-feature',
+  parkedAt: PARKED_AT,
+  at: PARKED_AT,
+  signature: 's',
+  why: 'circling',
+  what: AGAIN.summary,
+  found:
+    'Every attempt reruns the same failing test and writes ProcessDriver.ts back. The test needs a fixture the brief never names — it is not in the checkout.',
+  tried: [],
+  recommendation:
+    'Add a note pointing it at the fixture under test/data, then try again — more turns alone went round the same way.',
+  recommendedChoice: 'retry',
+}
+
+const MANAGER_OFF_RUN = featureRun(
   [attempt({ summary: FIRST.summary, circling: FIRST })],
   parkOn('Implement is going in circles: ran out of turns (50 of 50); changed nothing.', FIRST),
+  { input: { runner: 'api', manager: { enabled: false } } },
 )
 
 const AGAIN_RUN = featureRun(
@@ -165,6 +176,8 @@ const AGAIN_RUN = featureRun(
   ),
   { turnLimit: LIMIT_100 },
 )
+
+const RECOMMENDED_RUN: ProcessRun = { ...AGAIN_RUN, manager: { escalation: HANDED_ON } }
 
 const NEAR_RUN = featureRun(
   [
@@ -245,35 +258,20 @@ const BRIEF: ProcessManagerBriefCard = {
   stepName: 'Implement',
   reason: 'turn-limit',
   message:
-    'Implement is going in circles: ran out of turns (100 of 100) 2 times in a row, even after the manager’s retry; changed nothing.',
-  circling: AFTER_MANAGER,
+    'Implement is going in circles: ran out of turns (100 of 100) 2 times in a row, even with more turns; changed nothing.',
+  circling: AGAIN,
   failed: ['stop: turn-limit'],
-  answers: [
-    { choice: 'retry', label: 'Try again with a change', detail: 'Say what must be different.' },
-    { choice: 'continue', label: 'Accept and carry on', detail: 'Move to the next step.' },
-  ],
-  tried: ['Tried “Implement” again with 100 turns, with a brief — Did not help'],
-  triesUsed: 1,
+  answers: processRunParkChoices(AGAIN_RUN).map((c) => ({
+    choice: c.choice,
+    label: c.label,
+    detail: c.detail,
+  })),
+  tried: [],
+  triesUsed: 0,
   triesMax: 8,
 }
 
-const ESCALATION: ProcessManagerEscalationCard = {
-  kind: 'escalation',
-  escalation: {
-    runId: 'run-feature',
-    parkedAt: PARKED_AT,
-    at: PARKED_AT,
-    signature: 's',
-    why: 'circling',
-    what: AFTER_MANAGER.summary,
-    found:
-      'Every attempt reruns the same failing test and edits ProcessDriver.ts back. The test needs a fixture the brief never names — it is not in the checkout.',
-    tried: ['Tried “Implement” again with 100 turns, with a brief — Did not help'],
-    recommendation:
-      'Add the missing fixture to the feature’s context, then try again with a note pointing at it.',
-    recommendedChoice: 'retry',
-  },
-}
+const ESCALATION: ProcessManagerEscalationCard = { kind: 'escalation', escalation: HANDED_ON }
 
 const frame = (node: ReactNode) => (
   <MemoryRouter>
@@ -315,8 +313,6 @@ function Row({
   )
 }
 
-const REFUSED = PROCESS_CIRCLING_RETRY_REFUSED
-
 export const CIRCLING_SCENES: Scene[] = [
   {
     id: 'going-in-circles',
@@ -324,7 +320,7 @@ export const CIRCLING_SCENES: Scene[] = [
     component: 'ParkBlock (ProcessPipeline) · CirclingNotice · CirclingChip · ManagerCards',
     group: 'Process',
     description:
-      'An agent step that ran out of turns, or nearly, and made no progress is flagged as going in circles: the stop says so with its evidence, a retry asks what must be different and never raises the turns by itself, and the manager treats it as a major issue — handing it to the person when its own retry went round again.',
+      'An agent step that ran out of turns, or nearly, and made no progress is flagged as going in circles. The flag blocks nothing: the stop keeps its normal choices — the raise and its turn picker included — and shows the flag, its evidence and the manager’s recommendation right beside them. The manager only diagnoses such a stop and hands it to the person with its recommendation; with the manager off, the flag and evidence show alone.',
     states: [
       {
         id: 'plain-turn-limit',
@@ -334,24 +330,24 @@ export const CIRCLING_SCENES: Scene[] = [
         render: () => park(PLAIN),
       },
       {
-        id: 'first-run-out-no-change',
-        title: 'Out of turns and changed nothing',
+        id: 'manager-recommends',
+        title: 'Flagged, with the manager’s recommendation',
         description:
-          'The developer used all 50 turns and left no commit. The retry reads “Try again with a change” and asks for a note; there is no raise.',
-        render: () => park(FIRST_RUN),
+          'Retried with 100 turns, it ran out again, wrote the same file back and was sent back with the same failing check. The manager handed the stop on: “Going in circles — the manager recommends …” sits right above the same choices as the base — raise the limit with its picker, carry on or stop.',
+        render: () => park(RECOMMENDED_RUN),
       },
       {
-        id: 'again-after-raise',
-        title: 'Out of turns again after a raise',
+        id: 'manager-off',
+        title: 'Flagged, with the manager off',
         description:
-          'Retried with 100 turns, it ran out again, wrote the same file back and was sent back with the same failing check.',
-        render: () => park(AGAIN_RUN),
+          'The developer used all 50 turns and left no commit. With the manager off there is no recommendation: the flag and its evidence show beside the normal choices.',
+        render: () => park(MANAGER_OFF_RUN),
       },
       {
         id: 'near-limit-repeated',
         title: 'Nearly out of turns, the same call again and again',
         description:
-          'The verifier used 47 of 50 turns and made the same call five times; the run stops on it instead of going round the loop.',
+          'The verifier used 47 of 50 turns and made the same call five times; the run stops on it instead of going round the loop, with its normal choices.',
         render: () => park(NEAR_RUN),
       },
       {
@@ -360,37 +356,6 @@ export const CIRCLING_SCENES: Scene[] = [
         description:
           'The story’s run carries the feature’s flag on its step; the decision is in the nested run.',
         render: () => park(MIRROR_RUN),
-      },
-      {
-        id: 'retry-refused',
-        title: 'A retry with nothing changed is refused',
-        description:
-          'Sent without a note, on the same model and the same work branch, the retry is refused and the page says why. On this page “Try again with a change” opens a note that must be filled in first.',
-        render: () =>
-          frame(
-            <div className="flex flex-col gap-3">
-              <div
-                role="alert"
-                className="rounded-md px-2.5 py-2 text-[12px]"
-                style={{
-                  background: 'var(--status-stuck-soft-bg)',
-                  border: '1px solid var(--status-stuck-soft-border)',
-                  color: 'var(--status-stuck-soft-fg)',
-                }}
-              >
-                {REFUSED}
-              </div>
-              <ParkBlock
-                run={FIRST_RUN}
-                managerLine={undefined}
-                onChoose={noop}
-                onChangeProof={noop}
-                onAnswerRequest={noop}
-                onDelegate={resolved}
-                onDrill={noop}
-              />
-            </div>,
-          ),
       },
       {
         id: 'step-row-chip',
@@ -415,14 +380,14 @@ export const CIRCLING_SCENES: Scene[] = [
         id: 'manager-brief',
         title: 'The manager’s brief leads with it',
         description:
-          'The brief card in the run’s chat, open: the flag and its evidence above what stopped.',
+          'The brief card in the run’s chat, open: a diagnosis, the flag and its evidence above what stopped. The manager recommends; it never answers the stop itself.',
         render: () => frame(<ManagerBriefCardView card={BRIEF} defaultOpen links={{}} />),
       },
       {
         id: 'escalated',
-        title: 'Handed to you: “It keeps going in circles”',
+        title: 'Handed to you: “Going in circles”',
         description:
-          'Its own retry went round again, so the manager hands the stop on with its diagnosis.',
+          'The manager’s hand-off card in the run’s chat, read live from the run: what it found and the next step it recommends.',
         render: () => frame(<ManagerEscalationCardView card={ESCALATION} links={{}} />),
       },
     ],

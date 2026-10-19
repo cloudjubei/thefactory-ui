@@ -37,11 +37,14 @@ import {
   CHECK_STATE_LABELS,
   CHECK_STATE_SENTENCES,
   CHECK_STATE_TONES,
+  CHECK_UNFINISHED_WORDS,
   CODE_REVIEW_DETAIL,
   CODE_REVIEW_NO_VERDICT,
   CODE_REVIEW_TAB,
   COLLAPSE_ABSENT_PAST,
+  NOT_PASSED_TITLE,
   NOT_RUN_TITLE,
+  UNFINISHED_CHECK_LINE,
   PROJECT_CHECK_METHOD,
   PROVEN_DETAIL,
   PROVEN_TITLE,
@@ -62,6 +65,7 @@ import type {
   CheckMethodId,
   CheckMethodRow,
   CheckMethodState,
+  CheckUnfinishedTests,
   ReviewTab,
   ReviewTabId,
   ReviewTabsInput,
@@ -71,6 +75,7 @@ import type {
 } from './checkMethodTypes'
 import { codeReviewVerdict, isCodeReview, reportAuthor } from './reviewEvidenceView'
 import { NOT_VERIFIED_DETAIL } from './runReviewConstants'
+import { checkTestCounts, finishedTestFileCount } from './testCounts'
 import { formatDurationMs, timeAgo } from './time'
 
 type ApproachState = 'available' | 'unavailable' | 'missing'
@@ -233,11 +238,16 @@ function isFailing(check: VerificationCheckResult): boolean {
  * A method's state from the checks that ran it. A failure only an ADVISORY
  * check reported is flagged, not failed: the project's own checks step does not
  * stop on it, so neither does the sign-off. One blocking failure beside it
- * still fails the method.
+ * still fails the method. Blocking checks that only errored — stopped or
+ * crashed before they could say — did not finish: that is not a failure.
  */
 function rollUp(checks: readonly VerificationCheckResult[]): CheckMethodState {
   const failing = checks.filter(isFailing)
-  if (failing.length > 0) return failing.every((c) => c.optional === true) ? 'flagged' : 'failed'
+  const blocking = failing.filter((c) => c.optional !== true)
+  if (failing.length > 0 && blocking.length === 0) return 'flagged'
+  if (blocking.length > 0) {
+    return blocking.every((c) => c.status === 'error') ? 'unfinished' : 'failed'
+  }
   if (checks.some((c) => c.status === 'passed')) return 'passed'
   return 'unchecked'
 }
@@ -266,7 +276,7 @@ function checksDetail(
   state: CheckMethodState,
   checks: readonly VerificationCheckResult[],
 ): string {
-  const failing = state === 'failed' || state === 'flagged'
+  const failing = state === 'failed' || state === 'flagged' || state === 'unfinished'
   const summaries = checks
     .filter((c) => (failing ? c.status !== 'passed' : true))
     .map((c) => c.summary)
@@ -295,7 +305,9 @@ function actionFor(
   if (state === 'passed' || state === 'flagged') {
     return { kind: 'open-proof', tab: CHECK_METHOD_TAB[id] }
   }
-  if (state === 'failed') return { kind: 'request', purpose: 'fix', approachId: known }
+  if (state === 'failed' || state === 'unfinished') {
+    return { kind: 'request', purpose: 'fix', approachId: known }
+  }
   if (state === 'unchecked') {
     return CHECK_METHOD_FILL[id] === 'run'
       ? { kind: 'run' }
@@ -546,7 +558,7 @@ export function checkMethodRows(input: {
       action: actionFor(id, state, approaches, finding),
       checkIds: matched.map((c) => c.id),
       ...(available ? { available } : {}),
-      ...(isErroredOnly(matched) ? { errored: true } : {}),
+      ...(state === 'unfinished' ? unfinishedTestsOf(matched) : {}),
       ...(state === 'unconfigured' && captured === 0 && unservableReason(approaches, id)
         ? { unservable: true as const }
         : {}),
@@ -554,17 +566,46 @@ export function checkMethodRows(input: {
   })
 }
 
-/** Whether checks failed only by erroring — none failed outright. */
-function isErroredOnly(checks: readonly VerificationCheckResult[]): boolean {
-  const failing = checks.filter(isFailing)
-  return failing.length > 0 && failing.every((c) => c.status === 'error')
+/**
+ * The test files a method's checks could not finish, from the first check whose
+ * record named them, with how the others went — nothing for an older record
+ * that named none.
+ */
+function unfinishedTestsOf(
+  checks: readonly VerificationCheckResult[],
+): { unfinished: CheckUnfinishedTests } | Record<string, never> {
+  const check = checks.find((c) => c.status === 'error' && (c.unfinishedFiles?.length ?? 0) > 0)
+  if (!check?.unfinishedFiles) return {}
+  const files = finishedTestFileCount(check)
+  const suites = check.testSuites ?? []
+  const passed =
+    suites.length > 0
+      ? suites.reduce((n, suite) => n + suite.passed, 0)
+      : checkTestCounts(check)?.passed
+  return {
+    unfinished: {
+      checkLabel: check.label,
+      files: check.unfinishedFiles,
+      ...(files !== undefined && files > 0 && passed !== undefined
+        ? { finished: { files, passed } }
+        : {}),
+    },
+  }
 }
 
 /** The mark and accessible state a chip shows, on every client. */
 export function checkChipFace(row: Pick<CheckMethodRow, 'state' | 'available'>): CheckChipFace {
-  return row.available && row.state === 'unchecked'
-    ? { mark: CHECK_CHIP_MARKS.available, stateLabel: CHECK_AVAILABLE_LABEL }
-    : { mark: CHECK_CHIP_MARKS[row.state], stateLabel: CHECK_STATE_LABELS[row.state] }
+  if (row.available && row.state === 'unchecked') {
+    return { mark: CHECK_CHIP_MARKS.available, stateLabel: CHECK_AVAILABLE_LABEL }
+  }
+  if (row.state === 'unfinished') {
+    return {
+      mark: CHECK_CHIP_MARKS.unfinished,
+      stateLabel: CHECK_STATE_LABELS.unfinished,
+      words: CHECK_UNFINISHED_WORDS,
+    }
+  }
+  return { mark: CHECK_CHIP_MARKS[row.state], stateLabel: CHECK_STATE_LABELS[row.state] }
 }
 
 /** The rows' labels as a sentence names them: "Tests, Types and Build". */
@@ -580,7 +621,8 @@ function flaggedNote(flagged: readonly CheckMethodRow[]): string {
 }
 
 /**
- * The headline. Failure wins; then "nothing at all was checked"; then any
+ * The headline. Failure — or a check that did not finish — wins, the two
+ * counted apart; then "nothing at all was checked"; then any
  * verdict-bearing method that could have run and did not demotes to partly;
  * otherwise proven. A method the project never had cannot be held against the
  * run — it is shown, but it does not demote.
@@ -598,6 +640,7 @@ export function signoffVerdict(input: SignoffVerdictInput): SignoffVerdict {
   // method (uitests) is the first that can actually reach `failed`, and swallowing
   // that would print "Every configured check passed" above a red chip.
   const failed = input.rows.filter((r) => r.state === 'failed')
+  const unfinished = input.rows.filter((r) => r.state === 'unfinished')
   const flagged = input.rows.filter((r) => r.state === 'flagged')
   const passed = bearing.filter((r) => r.state === 'passed')
   const cleared = bearing.filter((r) => r.state === 'passed' || r.state === 'flagged')
@@ -606,10 +649,13 @@ export function signoffVerdict(input: SignoffVerdictInput): SignoffVerdict {
   let key: SignoffVerdictKey
   let title: string
   let detail: string
-  if (failed.length > 0) {
+  if (failed.length > 0 || unfinished.length > 0) {
     key = 'failed'
-    title = failed.length === 1 ? `${failed[0].label} failed` : `${failed.length} checks failed`
-    detail = failed.map((r) => r.detail).join(' · ')
+    title = NOT_PASSED_TITLE(failed, unfinished)
+    detail = input.rows
+      .filter((r) => r.state === 'failed' || r.state === 'unfinished')
+      .map((r) => (r.unfinished ? UNFINISHED_CHECK_LINE(r.unfinished.checkLabel) : r.detail))
+      .join(' · ')
   } else if (!input.verified && cleared.length === 0) {
     key = 'not-run'
     title = NOT_RUN_TITLE

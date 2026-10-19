@@ -143,7 +143,7 @@ export function ManagerBriefCardView({
         <div className="grid gap-3.5 border-t border-(--border-subtle) py-3 pr-3.5 pl-11 [grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr))]">
           {view.circling ? (
             <div className="col-span-full">
-              <CirclingNotice view={view.circling} showHint={false} />
+              <CirclingNotice view={view.circling} />
             </div>
           ) : null}
           <div className="flex flex-col gap-1.5">

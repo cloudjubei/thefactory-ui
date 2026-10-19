@@ -265,6 +265,31 @@ describe('signoffProofRows', () => {
     ])
   })
 
+  it('says a check or a test run that did not finish did not, never that it passed or failed', () => {
+    const rows = signoffProofRows({
+      ...finalState,
+      checks: finalState.checks.map((c) =>
+        c.id === 'types'
+          ? { ...c, state: 'unfinished' as const, detail: 'harness died' }
+          : c.id === 'tests'
+            ? {
+                ...c,
+                state: 'unfinished' as const,
+                detail: "1 file didn't finish (stopped after 30 s) — 132/132 passed in the other 2",
+              }
+            : c,
+      ),
+      testTotals: { total: 132, passed: 132, failed: 0, skipped: 0 },
+    })
+    expect(rows.slice(0, 2).map((r) => [r.text, r.status])).toEqual([
+      ['Type check didn’t finish — harness died', 'unproven'],
+      [
+        "Tests: 1 file didn't finish (stopped after 30 s) — 132/132 passed in the other 2",
+        'unproven',
+      ],
+    ])
+  })
+
   it('counts several verified sections by outcome', () => {
     const rows = signoffProofRows({
       ...finalState,

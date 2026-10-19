@@ -9,8 +9,8 @@ import type { OpenChangesNoticeInput, OpenChangesNoticeView } from './openChange
 
 const HOUR_MS = 60 * 60 * 1000
 
-/** How long the changes have waited, as the notice counts it. */
-function waitWords(waitedMs: number): string {
+/** How long the changes have waited, as the notice counts it: hours, then days past two. Pure. */
+export function openChangesWaitWords(waitedMs: number): string {
   const hours = Math.max(0, Math.floor(waitedMs / HOUR_MS))
   return hours < OPEN_CHANGES_NOTICE_HOURS_BEFORE_DAYS
     ? OPEN_CHANGES_NOTICE_COPY.hours(hours)
@@ -36,7 +36,7 @@ export function openChangesNoticeView(
   const idle = input.busy === undefined
   return {
     ...(waiting
-      ? { waiting: OPEN_CHANGES_NOTICE_COPY.waiting(waitWords(now - open.openSince)) }
+      ? { waiting: OPEN_CHANGES_NOTICE_COPY.waiting(openChangesWaitWords(now - open.openSince)) }
       : {}),
     ...(unfit
       ? { unfit: OPEN_CHANGES_NOTICE_COPY.unfit(open.changed.length, open.files.length) }

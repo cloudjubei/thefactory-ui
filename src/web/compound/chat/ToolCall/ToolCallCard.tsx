@@ -11,6 +11,7 @@ import {
 } from '../../../../headless/utils/toolPreview'
 import { formatDurationMs } from '../../../../headless/utils/time'
 import { toolRowMilestone } from '../../../../headless/utils/gitSetupApproval'
+import { commitReceiptView } from '../../../../headless/utils/gitChangeApproval'
 import { slowToolLabel } from '../../../../headless/utils/backgroundJobs'
 import { TOOL_SLOW_TICK_MS } from '../../../../headless/utils/backgroundJobsConstants'
 import StatusIcon, { StatusChip } from './StatusIcon'
@@ -18,6 +19,7 @@ import ToolArgInline from './ToolArgInline'
 import ToolCallHoverCard from './ToolCallHoverCard'
 import ToolOriginBadge from './ToolOriginBadge'
 import ToolRowMilestoneLine from './ToolRowMilestoneLine'
+import { CommitReceiptConnected } from '../CommitReceipt'
 import AlwaysAllowControl from '../AlwaysAllowControl'
 import { alwaysAllowChoiceView } from '../../../../headless/utils/alwaysAllow'
 import type { AlwaysAllowScope, GrantCovers } from '../../../../headless/utils/chatTypes'
@@ -153,6 +155,11 @@ function ToolCallCardInner({
     resultType,
     toolCall.awaitingDecision === true,
   )
+
+  // A commit the person approved is one receipt line, in place of the row:
+  // committing was the decision, and the line says what came of it.
+  const receipt = commitReceiptView(toolCall.name, result, resultType, toolCall.changeFiles)
+  if (receipt) return <CommitReceiptConnected view={receipt} runId={toolCall.runId} />
 
   const hasPopup = resultType !== 'aborted'
   const isRequireConfirm = resultType === 'require_confirmation'

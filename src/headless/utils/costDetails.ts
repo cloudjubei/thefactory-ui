@@ -137,6 +137,20 @@ export function costChipLabel(cost: CostSource | undefined): string | undefined 
   return known ? `${known} + ${COST_CHARGE_SUBSCRIPTION}` : sentenceCase(COST_CHARGE_SUBSCRIPTION)
 }
 
+/**
+ * What a CLI capability check cost: the charges its calls stated, and — when a
+ * call ran on a plan, whose charge is unknown — never a `$0` for that share.
+ * Undefined when no call reported a cost.
+ */
+export function probeCostLabel(card: {
+  totalCostUSD?: number
+  costUnknown?: boolean
+}): string | undefined {
+  const known = formatCostUSD(card.totalCostUSD)
+  if (!card.costUnknown) return known
+  return known ? `${known} + ${COST_CHARGE_SUBSCRIPTION}` : sentenceCase(COST_CHARGE_SUBSCRIPTION)
+}
+
 function chargeLabel(cost: CostSource | undefined): string | undefined {
   const charged = formatCostUSD(cost?.costUsd)
   if (charged !== undefined || !cost) return charged
@@ -419,7 +433,9 @@ function wordList(words: readonly string[]): string {
   return `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`
 }
 
-const sentenceCase = (words: string): string => words.charAt(0).toUpperCase() + words.slice(1)
+/** `words` with a capital first letter. Pure. */
+export const sentenceCase = (words: string): string =>
+  words.charAt(0).toUpperCase() + words.slice(1)
 
 /** `not reported by Cursor`, to follow a count it is missing from. */
 const notReportedPhrase = (tools: readonly string[]): string =>

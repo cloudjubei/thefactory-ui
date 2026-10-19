@@ -2,11 +2,14 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { visibleCliModelsForAuth } from 'thefactory-tools/utils'
 
-import type { ChatContext, ModelInfo } from '../api'
+import type { ChatContext, CliReasoningEffort, ModelInfo } from '../api'
 import { useCliConfigs } from '../contexts/CliConfigsContext'
+import { useLLMConfigs } from '../contexts/LLMConfigsContext'
+import type { ModelEffortSwitch } from '../utils/modelEffortTypes'
 import { deriveCliAuthWarning, type CliAuthWarning } from '../utils/cliRunner'
 import { chatChipCliSelection } from '../utils/modelChip'
 import { useChatCliRunner } from './useChatCliRunner'
+import { useModelEffort } from './useModelEffort'
 
 /** A chat chip's run picks, when it chooses for a run about to start rather than for the chat. */
 export type ChatChipCliOverrides = {
@@ -22,6 +25,10 @@ export type ChatChipCliOverrides = {
   overrideApi?: boolean
   /** Switching to the API calls this instead of detaching the chat's runner. */
   onOverrideApi?: () => void
+  /** Show THIS effort instead of the chat's, without changing the chat. */
+  overrideEffort?: string | undefined
+  /** Picking an effort calls this instead of changing the chat's. */
+  onOverrideEffort?: (effort: CliReasoningEffort | undefined) => void
 }
 
 /** The `ModelChip` CLI props of a chat's chip. */
@@ -39,6 +46,8 @@ export type ChatChipCliWiring = {
   onToggleUseCli: (next: boolean) => void
   onPickCli: (cli: string) => void
   onPickCliModel: (modelId: string) => void
+  /** The selected model's effort switch; absent where a chooser cannot report an effort. */
+  effort?: ModelEffortSwitch
 }
 
 /**
@@ -54,8 +63,16 @@ export function useChatChipCli(
   chatContext: ChatContext,
   overrides: ChatChipCliOverrides = {},
 ): ChatChipCliWiring {
-  const { overrideModel, onOverrideModel, overrideCli, onOverrideCli, overrideApi, onOverrideApi } =
-    overrides
+  const {
+    overrideModel,
+    onOverrideModel,
+    overrideCli,
+    onOverrideCli,
+    overrideApi,
+    onOverrideApi,
+    overrideEffort,
+    onOverrideEffort,
+  } = overrides
   const chooser = onOverrideCli !== undefined
   const {
     enabledClis,
@@ -65,10 +82,12 @@ export function useChatChipCli(
     cachesByCli,
     defaultModel,
     effort,
+    modelEffort,
     probeModels,
     cachedLiveModels,
   } = useCliConfigs()
-  const { cliRunner, attach, detach } = useChatCliRunner(chatContext)
+  const { cliRunner, attach, detach, effort: chatEffort, setEffort } = useChatCliRunner(chatContext)
+  const { activeChatConfig, activeAgentRunConfig } = useLLMConfigs()
 
   const credentialForCli = useCallback(
     (cli: string): string | undefined => {
@@ -79,6 +98,7 @@ export function useChatChipCli(
   )
 
   const [cliModels, setCliModels] = useState<ModelInfo[]>([])
+  const [cliLevels, setCliLevels] = useState<string[]>([])
 
   const { useCli, selectedCli, selectedCliModelId, credentialId } = chatChipCliSelection({
     cliRunner: cliRunner ?? null,
@@ -104,15 +124,20 @@ export function useChatChipCli(
   useEffect(() => {
     if (!useCli || !selectedCli) {
       setCliModels([])
+      setCliLevels([])
       return
     }
     let cancelled = false
     void probeModels(selectedCli as Parameters<typeof probeModels>[0])
-      .then(({ models }) => {
-        if (!cancelled) setCliModels(models)
+      .then(({ models, efforts }) => {
+        if (cancelled) return
+        setCliModels(models)
+        setCliLevels(efforts)
       })
       .catch(() => {
-        if (!cancelled) setCliModels([])
+        if (cancelled) return
+        setCliModels([])
+        setCliLevels([])
       })
     return () => {
       cancelled = true
@@ -138,7 +163,6 @@ export function useChatChipCli(
           tool,
           credentialId: credentialForCli(tool),
           model: defaultModel[tool],
-          effort: effort[tool],
         }).catch((err: unknown) =>
           setCliSwitchError(err instanceof Error ? err.message : String(err)),
         )
@@ -156,7 +180,6 @@ export function useChatChipCli(
       enabledClis,
       credentialForCli,
       defaultModel,
-      effort,
       attach,
       detach,
       onOverrideCli,
@@ -175,10 +198,9 @@ export function useChatChipCli(
         tool: cli,
         credentialId: credentialForCli(cli),
         model: defaultModel[cli],
-        effort: effort[cli],
       })
     },
-    [credentialForCli, defaultModel, effort, attach, onOverrideCli],
+    [credentialForCli, defaultModel, attach, onOverrideCli],
   )
 
   const onPickCliModel = useCallback(
@@ -193,10 +215,67 @@ export function useChatChipCli(
         credentialId: cliRunner?.credentialId ?? credentialForCli(selectedCli),
         apiKeyCredentialId: cliRunner?.apiKeyCredentialId,
         model: modelId,
-        effort: cliRunner?.effort ?? effort[selectedCli],
+        effort: cliRunner?.effort,
       })
     },
-    [selectedCli, cliRunner, credentialForCli, effort, attach, onOverrideModel],
+    [selectedCli, cliRunner, credentialForCli, attach, onOverrideModel],
+  )
+
+  const apiConfig = chooser ? activeAgentRunConfig : activeChatConfig
+  const pickedForRun =
+    overrideCli !== undefined || overrideApi === true || overrideModel !== undefined
+  const ownEffort = useCli ? cliRunner?.effort : chatEffort
+  const choice = chooser ? (overrideEffort ?? (pickedForRun ? undefined : ownEffort)) : ownEffort
+  const onPickEffort = useCallback(
+    (next: CliReasoningEffort | undefined) => {
+      if (chooser) {
+        onOverrideEffort?.(next)
+        return
+      }
+      if (useCli && selectedCli) {
+        void attach({
+          tool: selectedCli,
+          credentialId: cliRunner?.credentialId ?? credentialForCli(selectedCli),
+          apiKeyCredentialId: cliRunner?.apiKeyCredentialId,
+          model: cliRunner?.model ?? selectedCliModelId,
+          effort: next,
+        })
+        return
+      }
+      void setEffort(next)
+    },
+    [
+      chooser,
+      onOverrideEffort,
+      useCli,
+      selectedCli,
+      cliRunner,
+      credentialForCli,
+      selectedCliModelId,
+      attach,
+      setEffort,
+    ],
+  )
+  const effortSwitch = useModelEffort(
+    useCli
+      ? {
+          runner: 'cli',
+          ...(selectedCliModelId ? { modelId: selectedCliModelId } : {}),
+          models: effectiveCliModels,
+          cliLevels,
+          ...(choice ? { choice } : {}),
+          ...(selectedCli && selectedCliModelId
+            ? { modelDefault: modelEffort[selectedCli]?.[selectedCliModelId] }
+            : {}),
+          ...(selectedCli ? { cliDefault: effort[selectedCli] } : {}),
+        }
+      : {
+          runner: 'api',
+          ...(apiConfig ? { provider: apiConfig.provider, model: apiConfig.model } : {}),
+          ...(choice ? { choice } : {}),
+          ...(apiConfig?.defaultEffort ? { configDefault: apiConfig.defaultEffort } : {}),
+        },
+    onPickEffort,
   )
 
   return {
@@ -211,5 +290,6 @@ export function useChatChipCli(
     onToggleUseCli,
     onPickCli,
     onPickCliModel,
+    ...(chooser && !onOverrideEffort ? {} : { effort: effortSwitch }),
   }
 }

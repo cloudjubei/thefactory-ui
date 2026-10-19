@@ -65,6 +65,7 @@ describe('checkTestResults', () => {
       },
       omittedLabel: undefined,
       unrecordedNote: undefined,
+      unfinished: undefined,
     })
   })
 
@@ -106,6 +107,7 @@ describe('checkTestResults', () => {
       results: undefined,
       omittedLabel: undefined,
       unrecordedNote: TEST_SUITES_NOT_RECORDED_TOTALS,
+      unfinished: undefined,
     })
   })
 
@@ -115,6 +117,7 @@ describe('checkTestResults', () => {
       results: undefined,
       omittedLabel: undefined,
       unrecordedNote: TEST_SUITES_NOT_RECORDED_TOTALS,
+      unfinished: undefined,
     })
   })
 
@@ -197,5 +200,102 @@ describe('checkTestResults', () => {
         check({ status: 'error', testCount: { total: 0, passed: 0, failed: 0, skipped: 0 } }),
       ),
     ).toBeUndefined()
+  })
+
+  describe('a run that left files unfinished', () => {
+    const stopped = {
+      path: 'src/completion/CompletionTools.test.ts',
+      reason: 'stopped after 30 s',
+      timedOutAfterMs: 30_000,
+      outputTail: 'waiting on the stream…',
+    }
+    const unfinishedRun = (over: Partial<VerificationCheckResult> = {}) =>
+      check({
+        kind: 'tests',
+        status: 'error',
+        summary: "1 file didn't finish (stopped after 30 s) — 132/132 passed in the other 2",
+        testCount: { total: 132, passed: 132, failed: 0, skipped: 0 },
+        unfinishedFiles: [stopped],
+        ...over,
+      })
+
+    it('lists each file that stopped, with its last output, and the others as one passed row', () => {
+      expect(checkTestResults(unfinishedRun())).toEqual({
+        results: undefined,
+        omittedLabel: undefined,
+        unrecordedNote: undefined,
+        unfinished: {
+          files: [
+            {
+              path: stopped.path,
+              reason: 'stopped after 30 s',
+              stopped: true,
+              outputTail: 'waiting on the stream…',
+            },
+          ],
+          finished: {
+            label: 'The other 2 files',
+            countLabel: '132 tests',
+            files: 2,
+            passed: 132,
+            listed: false,
+          },
+        },
+      })
+    })
+
+    it('names the files that finished when the record kept their suites', () => {
+      const view = checkTestResults(
+        unfinishedRun({
+          testSuites: [
+            { name: 'McpServer.test.ts', tests: 100, passed: 100, failed: 0, skipped: 0 },
+            { name: 'ToolLoopDetector.test.ts', tests: 32, passed: 32, failed: 0, skipped: 0 },
+          ],
+        }),
+      )
+      expect(view?.unfinished?.finished).toEqual({
+        label: 'McpServer.test.ts · ToolLoopDetector.test.ts',
+        countLabel: '132 tests',
+        files: 2,
+        passed: 132,
+        listed: true,
+      })
+      expect(view?.results?.tests).toHaveLength(2)
+      expect(view?.unrecordedNote).toBeUndefined()
+    })
+
+    it('says the other file in the singular, and a file that crashed was not stopped', () => {
+      const view = checkTestResults(
+        unfinishedRun({
+          summary: "1 file didn't finish (crashed: boom) — 1/1 passed in the other file",
+          testCount: { total: 1, passed: 1, failed: 0, skipped: 0 },
+          unfinishedFiles: [{ path: 'b.test.ts', reason: 'crashed: boom' }],
+        }),
+      )
+      expect(view?.unfinished).toEqual({
+        files: [
+          { path: 'b.test.ts', reason: 'crashed: boom', stopped: false, outputTail: undefined },
+        ],
+        finished: {
+          label: 'The other file',
+          countLabel: '1 test',
+          files: 1,
+          passed: 1,
+          listed: false,
+        },
+      })
+    })
+
+    it('lists the files even when every one stopped and no test was counted', () => {
+      const view = checkTestResults(
+        unfinishedRun({
+          summary: "1 file didn't finish (stopped after 30 s)",
+          testCount: { total: 0, passed: 0, failed: 0, skipped: 0 },
+        }),
+      )
+      expect(view?.unfinished?.files).toHaveLength(1)
+      expect(view?.unfinished?.finished).toBeUndefined()
+      expect(view?.unrecordedNote).toBeUndefined()
+    })
   })
 })

@@ -2,8 +2,6 @@ import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } f
 import { chatNotifyLevel } from '../../../headless/utils/chatNotify'
 import {
   choiceTakesNote,
-  circlingRetryTakesNote,
-  PROCESS_CIRCLING_NOTE_COPY,
   processParkCirclingView,
   processStepCirclingView,
   computeChatRowStatus,
@@ -492,6 +490,7 @@ export default function ProcessPipeline({
                 <PipelineNode
                   key={state.step.id}
                   run={run}
+                  root={stopRoot}
                   state={state}
                   now={now}
                   stopHolder={stopHolder}
@@ -940,6 +939,7 @@ function Marker({ look }: { look: ProcessNodeLook }) {
  */
 function PipelineNode({
   run,
+  root,
   state,
   now,
   stopHolder,
@@ -957,6 +957,8 @@ function PipelineNode({
   onOpenTranscript,
 }: {
   run: ProcessRun
+  /** The top-level run that keeps the agent manager's record. */
+  root: ProcessRun | undefined
   state: ReturnType<typeof processStepStates>[number]
   now: number
   /** Who has the stop the run waits at — its agent manager, or the person. */
@@ -1103,6 +1105,7 @@ function PipelineNode({
         <div className="px-4 pb-3.5 sm:pl-[58px] sm:pr-5">
           <ParkBlock
             run={run}
+            root={root}
             managerLine={managerLine}
             {...(alreadyMerged ? { alreadyMerged } : {})}
             onChoose={onChoose}
@@ -1128,6 +1131,7 @@ function PipelineNode({
  */
 export function ParkBlock({
   run,
+  root,
   managerLine,
   alreadyMerged,
   onChoose,
@@ -1140,6 +1144,8 @@ export function ParkBlock({
   onDrill,
 }: {
   run: ProcessRun
+  /** The top-level run that keeps the agent manager's record — `run` itself when omitted. */
+  root?: ProcessRun | undefined
   /** What the agent manager is doing on the stop, while it has it — said in place of what waits on the person. */
   managerLine: string | undefined
   /** Finishing the run as already merged, when its base already holds the work. */
@@ -1211,7 +1217,7 @@ export function ParkBlock({
   const reflected = isReflectedPark(park)
   const choices = processRunParkChoices(run)
   const proofChange = choices.find((c) => c.choice === 'change-proof')?.proofChange
-  const circling = processParkCirclingView(run)
+  const circling = processParkCirclingView(run, root ?? run)
   const tone = managerLine ? PROCESS_LIVE_TONE : park.reason === 'gate' ? 'review' : 'on_hold'
 
   return (
@@ -1225,12 +1231,7 @@ export function ParkBlock({
       <div className="text-[13px] font-semibold" style={{ color: `var(--status-${tone}-soft-fg)` }}>
         <RichText text={managerLine ?? park.message} />
       </div>
-      {circling ? (
-        <CirclingNotice
-          view={circling}
-          showHint={circling.afterManager && !reflected && !managerLine}
-        />
-      ) : null}
+      {circling ? <CirclingNotice view={circling} /> : null}
       {reflected && park.childRunId ? (
         <button
           type="button"
@@ -1240,22 +1241,7 @@ export function ParkBlock({
           {managerLine ? PROCESS_NESTED_RUN_OPEN.quiet : PROCESS_NESTED_RUN_OPEN.decide}
         </button>
       ) : null}
-      {noteFor === 'retry' ? (
-        <ParkNoteComposer
-          copy={PROCESS_CIRCLING_NOTE_COPY}
-          required
-          onSend={(note) =>
-            onChoose(
-              'retry',
-              note,
-              undefined,
-              undefined,
-              retryChoice ? (retryPick ?? processRetryPickStart(retryChoice)) : undefined,
-            )
-          }
-          onCancel={() => setNoteFor(undefined)}
-        />
-      ) : noteFor ? (
+      {noteFor ? (
         <ParkNoteComposer
           copy={parkNoteCopy(noteFor)}
           {...(noteFor === 'request-changes'
@@ -1300,7 +1286,7 @@ export function ParkBlock({
                   onClick={() =>
                     choice.choice === 'change-proof'
                       ? setChangingProof(true)
-                      : choiceTakesNote(choice.choice) || circlingRetryTakesNote(choice)
+                      : choiceTakesNote(choice.choice)
                         ? setNoteFor(choice.choice)
                         : choice.choice === 'retry' && retryChoice
                           ? onChoose(

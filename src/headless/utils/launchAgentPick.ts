@@ -1,5 +1,5 @@
 // The agent a launch card's chip picks for one run: the API, a CLI and its
-// login, a model — carried on the decision, never written back to the chat.
+// login, a model, an effort — carried on the decision, never written back to the chat.
 
 import type {
   LaunchAgentAsked,
@@ -8,22 +8,24 @@ import type {
   LaunchSuggestionAgent,
 } from './launchAgentPickTypes'
 
-/** The API for the run, forgetting any CLI picked before. Pure. */
-export function pickLaunchApi(): LaunchAgentPick {
-  return { api: true }
+/** The API for the run, at the effort given, forgetting any CLI picked before. Pure. */
+export function pickLaunchApi(effort?: string): LaunchAgentPick {
+  return { api: true, ...(effort ? { effort } : {}) }
 }
 
-/** A CLI for the run, at the model given — that CLI's default when none. Pure. */
+/** A CLI for the run, at the model and effort given — that CLI's defaults when none. Pure. */
 export function pickLaunchCli(
   cli: string,
   credentialId: string | undefined,
   model: string | undefined,
+  effort?: string,
 ): LaunchAgentPick {
   return {
     api: false,
     cli,
     ...(credentialId ? { credentialId } : {}),
     ...(model ? { model } : {}),
+    ...(effort ? { effort } : {}),
   }
 }
 
@@ -32,13 +34,24 @@ export function pickLaunchModel(pick: LaunchAgentPick, model: string): LaunchAge
   return { ...pick, api: false, model }
 }
 
-/** What the decision carries: the side when one was picked, the CLI, its login and model. Pure. */
+/** An effort for the run, on the side picked; `undefined` drops the one picked before. Pure. */
+export function pickLaunchEffort(
+  pick: LaunchAgentPick,
+  effort: string | undefined,
+): LaunchAgentPick {
+  const { effort: _before, ...rest } = pick
+  return effort ? { ...rest, effort } : rest
+}
+
+/** What the decision carries: the side when one was picked, the CLI, its login, model and effort. Pure. */
 export function launchAgentPickMetadata(pick: LaunchAgentPick): LaunchAgentPickMetadata {
-  if (pick.api) return { runner: 'api' }
+  const effort = pick.effort ? { effort: pick.effort } : {}
+  if (pick.api) return { runner: 'api', ...effort }
   return {
     ...(pick.cli ? { runner: 'cli' as const, cliTool: pick.cli } : {}),
     ...(pick.model ? { cliModel: pick.model } : {}),
     ...(pick.cli && pick.credentialId ? { cliCredentialId: pick.credentialId } : {}),
+    ...effort,
   }
 }
 

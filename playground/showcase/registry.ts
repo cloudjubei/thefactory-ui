@@ -1,13 +1,19 @@
 import { APP_BRIDGE_ASK_SCENES } from '../scenes/appBridgeAsks'
 import { CHAT_SCENES } from '../scenes/chat'
+import { CHAT_STOP_SCENES } from '../scenes/chatStop'
 import { CIRCLING_SCENES } from '../scenes/circling'
 import { CHAT_CHANGES_SCENES } from '../scenes/chatChanges'
+import { CHAT_CHANGES_DOCK_SCENES } from '../scenes/chatChangesDock'
+import { CHECKS_UNFINISHED_SCENES } from '../scenes/checksUnfinished'
+import { COMMIT_RECEIPT_SCENES } from '../scenes/commitReceipt'
 import { CHAT_PAUSED_RUN_SCENES } from '../scenes/chatPausedRun'
 import { DESIGN_SCENES } from '../scenes/design'
 import { FEATURE_REQUEST_CARD_SCENES } from '../scenes/featureRequestCard'
 import { FEATURE_REQUEST_WAIT_CYCLE_SCENES } from '../scenes/featureRequestWaitCycle'
+import { GIT_STASH_SCENES } from '../scenes/gitStash'
 import { LAND_NOTICE_SCENES } from '../scenes/landNotice'
 import { LEAVE_GUARD_SCENES } from '../scenes/leaveGuard'
+import { MODEL_EFFORT_SCENES } from '../scenes/modelEffort'
 import { OPEN_RUN_SCENES } from '../scenes/openRun'
 import { PRIMITIVE_SCENES } from '../scenes/primitives'
 import { PARK_CLOSING_SCENES } from '../scenes/parkClosing'
@@ -22,6 +28,7 @@ import { SIBLING_STABLE_BRANCH_SCENES } from '../scenes/siblingStableBranch'
 import { RUN_TIME_DETAILS_SCENES } from '../scenes/runTimeDetails'
 import { STORY_WORK_SCENES } from '../scenes/storyWork'
 import { UI_IMPACT_SCENES } from '../scenes/uiImpact'
+import { USAGE_SCENES } from '../scenes/usage'
 import { WORK_LAUNCH_SCENES } from '../scenes/workLaunch'
 import { WORKFLOW_GUARD_SCENES } from '../scenes/workflowGuards'
 import {
@@ -40,7 +47,12 @@ import type { Scene, SceneGroup, SceneState } from './types'
  */
 export const SCENES: readonly Scene[] = [
   ...CHAT_SCENES,
+  ...MODEL_EFFORT_SCENES,
+  ...CHAT_STOP_SCENES,
   ...CHAT_CHANGES_SCENES,
+  ...CHAT_CHANGES_DOCK_SCENES,
+  ...CHECKS_UNFINISHED_SCENES,
+  ...COMMIT_RECEIPT_SCENES,
   ...CHAT_PAUSED_RUN_SCENES,
   ...FEATURE_REQUEST_CARD_SCENES,
   ...FEATURE_REQUEST_WAIT_CYCLE_SCENES,
@@ -64,10 +76,18 @@ export const SCENES: readonly Scene[] = [
   ...DESIGN_SCENES,
   ...LEAVE_GUARD_SCENES,
   ...APP_BRIDGE_ASK_SCENES,
+  ...GIT_STASH_SCENES,
+  ...USAGE_SCENES,
   ...PRIMITIVE_SCENES,
 ]
 
-export const SCENE_GROUPS: readonly SceneGroup[] = ['Chat', 'Process', 'Design', 'Primitives']
+export const SCENE_GROUPS: readonly SceneGroup[] = [
+  'Chat',
+  'Process',
+  'Design',
+  'Settings',
+  'Primitives',
+]
 
 /** What a playground URL asks for. */
 export type SceneRoute =

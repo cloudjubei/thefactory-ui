@@ -1,3 +1,4 @@
+import type { VerificationUnfinishedTestFile } from '../api/generated'
 import type { HandoffPurpose } from './handoffRequests'
 import type { ReviewTone } from './runReviewTypes'
 
@@ -22,15 +23,34 @@ export type CheckMethodId =
   | 'diff'
 
 /**
- * Five states. Two of them are ABSENCE and must never read as a verdict:
+ * Six states. Two of them are ABSENCE and must never read as a verdict:
  *  - `unchecked`    — the check exists (or the evidence is capturable) but nothing
  *                     ran on this branch.
  *  - `unconfigured` — the project has no such check, and no such evidence source.
  *
  * `flagged` is a method whose only failing results are ADVISORY (`optional`) —
  * lint, format: reported, but it never fails a verdict or a status.
+ *
+ * `unfinished` is a method whose blocking checks did not finish — a test file
+ * stopped at its time limit, a harness that crashed — and none failed outright:
+ * it did not pass, but nothing it ran failed either.
  */
-export type CheckMethodState = 'passed' | 'failed' | 'flagged' | 'unchecked' | 'unconfigured'
+export type CheckMethodState =
+  | 'passed'
+  | 'failed'
+  | 'unfinished'
+  | 'flagged'
+  | 'unchecked'
+  | 'unconfigured'
+
+/** The test files a method's check could not finish, and how the others went. */
+export type CheckUnfinishedTests = {
+  /** The check's own name: "Unit tests". */
+  checkLabel: string
+  files: VerificationUnfinishedTestFile[]
+  /** The files that did finish: how many, and the tests that passed in them. Absent when none did. */
+  finished?: { files: number; passed: number }
+}
 
 /**
  * How a method's gap gets FILLED — the thing that decides which control is
@@ -103,8 +123,8 @@ export type CheckMethodRow = {
   durationLabel: string | undefined
   /** Raw output when a check carried some — console text, failing test names. */
   output: string | undefined
-  /** Set when every failing check that rolled up errored: it could not finish, rather than failed. */
-  errored?: boolean
+  /** The test files it could not finish — set only on an `unfinished` row whose record named them. */
+  unfinished?: CheckUnfinishedTests
   fill: CheckMethodFill
   action: CheckMethodAction
   /** Ids of the verification checks that rolled up into this row. */
@@ -123,9 +143,12 @@ export type CheckMethodRow = {
 
 /** What a chip shows for its state: an available check that never ran reads apart from one nobody knows about. */
 export type CheckChipFace = {
+  /** The mark after the name; empty when the state is said in words instead. */
   mark: string
   /** The state as an accessible name reads it: "passed", "available". */
   stateLabel: string
+  /** The state in words after the name — "didn’t finish" — for a state a mark would misread. */
+  words?: string
 }
 
 export type ReviewTab = {

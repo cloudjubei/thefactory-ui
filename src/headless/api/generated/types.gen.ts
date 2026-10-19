@@ -421,6 +421,7 @@ export type AgentRunType =
   | 'judge'
   | 'remedy'
   | 'report'
+  | 'analyst'
   | 'designer'
   | 'fixer'
 
@@ -491,9 +492,11 @@ export type AgentRunParams = {
     | 'judge'
     | 'remedy'
     | 'report'
+    | 'analyst'
     | 'designer'
     | 'fixer'
   commitMessage?: string
+  stepTask?: string
 }
 
 export type PreviewToolNotSupportedResult = {
@@ -1761,6 +1764,17 @@ export type ChatOpenQuestionsCard = {
   featureIds?: Array<string>
 }
 
+export type CompletionStopCause = 'overseer' | 'provider' | 'agent' | 'turns'
+
+export type CompletionStopNotice = {
+  cause: CompletionStopCause
+  featureTitle?: string
+  reason: string
+  raw?: string
+  turnLimit?: number
+  repeats?: number
+}
+
 export type CompletionMessageBase = {
   role: CompletionMessageRole
   content: string
@@ -1789,6 +1803,14 @@ export type CompletionMessageBase = {
   }
   needsYouAt?: string
   needsYouClosedAt?: string
+  stopNotice?: {
+    cause: CompletionStopCause
+    featureTitle?: string
+    reason: string
+    raw?: string
+    turnLimit?: number
+    repeats?: number
+  }
 }
 
 export type CompletionSystemMessage = {
@@ -1819,6 +1841,14 @@ export type CompletionSystemMessage = {
   }
   needsYouAt?: string
   needsYouClosedAt?: string
+  stopNotice?: {
+    cause: CompletionStopCause
+    featureTitle?: string
+    reason: string
+    raw?: string
+    turnLimit?: number
+    repeats?: number
+  }
   error?: string
 }
 
@@ -1864,10 +1894,26 @@ export type CompletionUserMessage = {
   }
   needsYouAt?: string
   needsYouClosedAt?: string
+  stopNotice?: {
+    cause: CompletionStopCause
+    featureTitle?: string
+    reason: string
+    raw?: string
+    turnLimit?: number
+    repeats?: number
+  }
   files?: Array<string>
   images?: Array<CompletionImage>
   handoffFrom?: string
   backgroundResults?: Array<ChatBackgroundJobResult>
+  restartedAfter?: {
+    cause: CompletionStopCause
+    featureTitle?: string
+    reason: string
+    raw?: string
+    turnLimit?: number
+    repeats?: number
+  }
 }
 
 export type UsageTokenField = 'input' | 'output' | 'cacheRead' | 'cacheWrite'
@@ -1882,6 +1928,19 @@ export type UsageTokenFields = {
 }
 
 export type PriceSource = 'provider-reported' | 'price-table' | 'unknown'
+
+export type UsageCompletenessReason =
+  | 'cursor-acp-no-usage'
+  | 'usage-not-reported'
+  | 'interrupted'
+  | 'fallback-model'
+  | 'stream-without-final'
+  | 'estimated-usage'
+  | 'turn-usage-only'
+  | 'counter-decreased'
+  | 'first-request-not-counted'
+  | 'output-not-reported'
+  | 'cache-not-reported'
 
 export type ModelSpend = {
   provider: string
@@ -1903,6 +1962,7 @@ export type ModelSpend = {
     cacheWrite?: 'reported' | 'derived' | 'unavailable'
   }
   priceSource?: 'provider-reported' | 'price-table' | 'unknown'
+  incompleteReasons?: Array<UsageCompletenessReason>
 }
 
 export type CompletionUsage = {
@@ -1920,6 +1980,13 @@ export type CompletionUsage = {
   billing?: 'subscription' | 'metered' | 'free'
   listCostUsd?: number
   byModel?: Array<ModelSpend>
+  tokenFields?: {
+    input?: 'reported' | 'derived' | 'unavailable'
+    output?: 'reported' | 'derived' | 'unavailable'
+    cacheRead?: 'reported' | 'derived' | 'unavailable'
+    cacheWrite?: 'reported' | 'derived' | 'unavailable'
+  }
+  incompleteReasons?: Array<UsageCompletenessReason>
 }
 
 export type CompletionAssistantMessage = {
@@ -1950,6 +2017,14 @@ export type CompletionAssistantMessage = {
   }
   needsYouAt?: string
   needsYouClosedAt?: string
+  stopNotice?: {
+    cause: CompletionStopCause
+    featureTitle?: string
+    reason: string
+    raw?: string
+    turnLimit?: number
+    repeats?: number
+  }
   usage: {
     promptTokens: number
     completionTokens: number
@@ -1965,6 +2040,13 @@ export type CompletionAssistantMessage = {
     billing?: 'subscription' | 'metered' | 'free'
     listCostUsd?: number
     byModel?: Array<ModelSpend>
+    tokenFields?: {
+      input?: 'reported' | 'derived' | 'unavailable'
+      output?: 'reported' | 'derived' | 'unavailable'
+      cacheRead?: 'reported' | 'derived' | 'unavailable'
+      cacheWrite?: 'reported' | 'derived' | 'unavailable'
+    }
+    incompleteReasons?: Array<UsageCompletenessReason>
   }
   model: {
     model: string
@@ -2008,6 +2090,14 @@ export type CompletionToolMessage = {
   }
   needsYouAt?: string
   needsYouClosedAt?: string
+  stopNotice?: {
+    cause: CompletionStopCause
+    featureTitle?: string
+    reason: string
+    raw?: string
+    turnLimit?: number
+    repeats?: number
+  }
   model: {
     model: string
     provider: LlmProvider
@@ -2079,6 +2169,13 @@ export type Chat = {
       billing?: 'subscription' | 'metered' | 'free'
       listCostUsd?: number
       byModel?: Array<ModelSpend>
+      tokenFields?: {
+        input?: 'reported' | 'derived' | 'unavailable'
+        output?: 'reported' | 'derived' | 'unavailable'
+        cacheRead?: 'reported' | 'derived' | 'unavailable'
+        cacheWrite?: 'reported' | 'derived' | 'unavailable'
+      }
+      incompleteReasons?: Array<UsageCompletenessReason>
     }
     model?: {
       model: string
@@ -2122,6 +2219,14 @@ export type Chat = {
     }
     needsYouAt?: string
     needsYouClosedAt?: string
+    stopNotice?: {
+      cause: CompletionStopCause
+      featureTitle?: string
+      reason: string
+      raw?: string
+      turnLimit?: number
+      repeats?: number
+    }
     toolCall?: {
       toolCallId: string
       name: string
@@ -2157,6 +2262,7 @@ export type Chat = {
     model?: string
     effort?: string
   }
+  effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
   archivedAt?: string
   listHiddenAt?: string
   notifyLevel?: 'everything' | 'needs-me' | 'nothing'
@@ -2280,6 +2386,13 @@ export type ChatCreateInput = {
       billing?: 'subscription' | 'metered' | 'free'
       listCostUsd?: number
       byModel?: Array<ModelSpend>
+      tokenFields?: {
+        input?: 'reported' | 'derived' | 'unavailable'
+        output?: 'reported' | 'derived' | 'unavailable'
+        cacheRead?: 'reported' | 'derived' | 'unavailable'
+        cacheWrite?: 'reported' | 'derived' | 'unavailable'
+      }
+      incompleteReasons?: Array<UsageCompletenessReason>
     }
     model?: {
       model: string
@@ -2323,6 +2436,14 @@ export type ChatCreateInput = {
     }
     needsYouAt?: string
     needsYouClosedAt?: string
+    stopNotice?: {
+      cause: CompletionStopCause
+      featureTitle?: string
+      reason: string
+      raw?: string
+      turnLimit?: number
+      repeats?: number
+    }
     toolCall?: {
       toolCallId: string
       name: string
@@ -2385,6 +2506,13 @@ export type ChatEditInput = {
       billing?: 'subscription' | 'metered' | 'free'
       listCostUsd?: number
       byModel?: Array<ModelSpend>
+      tokenFields?: {
+        input?: 'reported' | 'derived' | 'unavailable'
+        output?: 'reported' | 'derived' | 'unavailable'
+        cacheRead?: 'reported' | 'derived' | 'unavailable'
+        cacheWrite?: 'reported' | 'derived' | 'unavailable'
+      }
+      incompleteReasons?: Array<UsageCompletenessReason>
     }
     model?: {
       model: string
@@ -2428,6 +2556,14 @@ export type ChatEditInput = {
     }
     needsYouAt?: string
     needsYouClosedAt?: string
+    stopNotice?: {
+      cause: CompletionStopCause
+      featureTitle?: string
+      reason: string
+      raw?: string
+      turnLimit?: number
+      repeats?: number
+    }
     toolCall?: {
       toolCallId: string
       name: string
@@ -2451,6 +2587,7 @@ export type ChatEditInput = {
   metadata?: {
     [key: string]: JsonValue
   }
+  effort?: CliReasoningEffort | unknown
 }
 
 export type ChatTopicCreateInput = {
@@ -3020,6 +3157,7 @@ export type ChatContextArguments = {
     | 'judge'
     | 'remedy'
     | 'report'
+    | 'analyst'
     | 'designer'
     | 'fixer'
 }
@@ -3292,6 +3430,13 @@ export type VerificationTestCount = {
   skipped: number
 }
 
+export type VerificationUnfinishedTestFile = {
+  path: string
+  reason: string
+  timedOutAfterMs?: number
+  outputTail?: string
+}
+
 export type VerificationTestFailure = {
   name: string
   message?: string
@@ -3361,6 +3506,7 @@ export type VerificationCheckResult = {
     failed: number
     skipped: number
   }
+  unfinishedFiles?: Array<VerificationUnfinishedTestFile>
   testSuites?: Array<VerificationTestSuite>
   testSuitesOmitted?: number
   modules?: Array<string>
@@ -3677,19 +3823,6 @@ export type CliRunStatus =
   | 'aborted'
   | 'paused'
 
-export type UsageCompletenessReason =
-  | 'cursor-acp-no-usage'
-  | 'usage-not-reported'
-  | 'interrupted'
-  | 'fallback-model'
-  | 'stream-without-final'
-  | 'estimated-usage'
-  | 'turn-usage-only'
-  | 'counter-decreased'
-  | 'first-request-not-counted'
-  | 'output-not-reported'
-  | 'cache-not-reported'
-
 export type CliRunUsage = {
   tokensIn: number
   tokensOut: number
@@ -3898,6 +4031,7 @@ export type CliRunReview = {
   seamSha?: string
   carriedSeamSha?: string
   seamError?: string
+  seamEdits?: Array<string>
   landedAt?: number
   shadow?: boolean
   reviewRunId?: string
@@ -3925,6 +4059,10 @@ export type CliRunLandFailure = {
   reason: CliRunLandFailureReason
   message?: string
   baseRef?: string
+  landedBy?: {
+    sha: string
+    subject: string
+  }
   at: number
 }
 
@@ -4030,6 +4168,7 @@ export type CliRun = {
     seamSha?: string
     carriedSeamSha?: string
     seamError?: string
+    seamEdits?: Array<string>
     landedAt?: number
     shadow?: boolean
     reviewRunId?: string
@@ -4047,6 +4186,10 @@ export type CliRun = {
     reason: CliRunLandFailureReason
     message?: string
     baseRef?: string
+    landedBy?: {
+      sha: string
+      subject: string
+    }
     at: number
   }
   verification?: {
@@ -4284,6 +4427,7 @@ export type CliRunSummary = {
     seamSha?: string
     carriedSeamSha?: string
     seamError?: string
+    seamEdits?: Array<string>
     landedAt?: number
     shadow?: boolean
     reviewRunId?: string
@@ -4301,6 +4445,10 @@ export type CliRunSummary = {
     reason: CliRunLandFailureReason
     message?: string
     baseRef?: string
+    landedBy?: {
+      sha: string
+      subject: string
+    }
     at: number
   }
   verification?: {
@@ -4403,6 +4551,7 @@ export type ChatOpenChangesRebuild =
         seamSha?: string
         carriedSeamSha?: string
         seamError?: string
+        seamEdits?: Array<string>
         landedAt?: number
         shadow?: boolean
         reviewRunId?: string
@@ -4923,6 +5072,7 @@ export type CliRunApproveResult = {
       seamSha?: string
       carriedSeamSha?: string
       seamError?: string
+      seamEdits?: Array<string>
       landedAt?: number
       shadow?: boolean
       reviewRunId?: string
@@ -4940,6 +5090,10 @@ export type CliRunApproveResult = {
       reason: CliRunLandFailureReason
       message?: string
       baseRef?: string
+      landedBy?: {
+        sha: string
+        subject: string
+      }
       at: number
     }
     verification?: {
@@ -5320,6 +5474,7 @@ export type CliProbeResult = {
   detail: string
   latencyMs: number
   costUSD?: number
+  costUnknown?: true
   cases: Array<CliProbeCaseResult>
 }
 
@@ -5333,6 +5488,7 @@ export type CliCapabilityScorecard = {
   applicable: number
   p50LatencyMs: number
   totalCostUSD?: number
+  costUnknown?: true
   error?: string
 }
 
@@ -5677,8 +5833,6 @@ export type CompletionResponse = {
   raw?: unknown
 }
 
-export type RunnerMode = 'api' | 'cli'
-
 export type CompletionToolResults = {
   resultType: AgentToolsResultType
   results: Array<ToolCallWithResult>
@@ -5686,6 +5840,8 @@ export type CompletionToolResults = {
   startedAt: string
   completedAt: string
 }
+
+export type RunnerMode = 'api' | 'cli'
 
 export type CompletionResponseWithTools = CompletionResponse & {
   toolResults: CompletionToolResults
@@ -5727,6 +5883,50 @@ export type CompletionResponseTurns = {
     toolName: string
     error: string
     count: number
+  }
+}
+
+export type CompletionStopEnding = {
+  resultType: AgentToolsResultType
+  error?: unknown
+  toolFailure?: {
+    toolName: string
+    error: string
+    count: number
+  }
+} & {
+  failure?: {
+    kind: CliRunFailureKind
+    message: string
+  }
+}
+
+export type CompletionStopDetail = {
+  message?: string
+  raw?: string
+  turnLimit?: number
+  featureTitle?: string
+}
+
+export type RestartableMessage = {
+  role: string
+  content?: unknown
+  error?: unknown
+  stopNotice?: {
+    cause: CompletionStopCause
+    featureTitle?: string
+    reason: string
+    raw?: string
+    turnLimit?: number
+    repeats?: number
+  }
+  restartedAfter?: {
+    cause: CompletionStopCause
+    featureTitle?: string
+    reason: string
+    raw?: string
+    turnLimit?: number
+    repeats?: number
   }
 }
 
@@ -6994,6 +7194,13 @@ export type ResearchTraceEvent = {
     billing?: 'subscription' | 'metered' | 'free'
     listCostUsd?: number
     byModel?: Array<ModelSpend>
+    tokenFields?: {
+      input?: 'reported' | 'derived' | 'unavailable'
+      output?: 'reported' | 'derived' | 'unavailable'
+      cacheRead?: 'reported' | 'derived' | 'unavailable'
+      cacheWrite?: 'reported' | 'derived' | 'unavailable'
+    }
+    incompleteReasons?: Array<UsageCompletenessReason>
   }
   query?: string
   results?: Array<{
@@ -9875,7 +10082,39 @@ export type InferenceResult = {
         cacheWrite?: 'reported' | 'derived' | 'unavailable'
       }
       priceSource?: 'provider-reported' | 'price-table' | 'unknown'
+      incompleteReasons?: Array<
+        | 'cursor-acp-no-usage'
+        | 'usage-not-reported'
+        | 'interrupted'
+        | 'fallback-model'
+        | 'stream-without-final'
+        | 'estimated-usage'
+        | 'turn-usage-only'
+        | 'counter-decreased'
+        | 'first-request-not-counted'
+        | 'output-not-reported'
+        | 'cache-not-reported'
+      >
     }>
+    tokenFields?: {
+      input?: 'reported' | 'derived' | 'unavailable'
+      output?: 'reported' | 'derived' | 'unavailable'
+      cacheRead?: 'reported' | 'derived' | 'unavailable'
+      cacheWrite?: 'reported' | 'derived' | 'unavailable'
+    }
+    incompleteReasons?: Array<
+      | 'cursor-acp-no-usage'
+      | 'usage-not-reported'
+      | 'interrupted'
+      | 'fallback-model'
+      | 'stream-without-final'
+      | 'estimated-usage'
+      | 'turn-usage-only'
+      | 'counter-decreased'
+      | 'first-request-not-counted'
+      | 'output-not-reported'
+      | 'cache-not-reported'
+    >
   }
 }
 
@@ -10840,6 +11079,7 @@ export type MobileBuildProvenance = {
   root: string
   sha: string
   dirty: boolean
+  dirtyPaths?: Array<string>
   tree?: string
   module: string
   flavor?: string
@@ -11070,6 +11310,7 @@ export type MobileDeviceInstall = {
     root: string
     sha: string
     dirty: boolean
+    dirtyPaths?: Array<string>
     tree?: string
     module: string
     flavor?: string
@@ -11682,6 +11923,14 @@ export type ProcessManagerHandledSummary = {
   lines: Array<ProcessManagerHandledLine>
 }
 
+export type ProcessManagerAnsweredBefore = {
+  stops: number
+  answers: Array<{
+    choice: string
+    times: number
+  }>
+}
+
 export type ProcessWorkBranchStack = {
   runId: string
   branch: string
@@ -11931,6 +12180,7 @@ export type ProcessPlanStep = {
     | 'judge'
     | 'remedy'
     | 'report'
+    | 'analyst'
     | 'designer'
     | 'fixer'
   agentProves?: false
@@ -16043,6 +16293,13 @@ export type RecommendTraceEvent = {
     billing?: 'subscription' | 'metered' | 'free'
     listCostUsd?: number
     byModel?: Array<ModelSpend>
+    tokenFields?: {
+      input?: 'reported' | 'derived' | 'unavailable'
+      output?: 'reported' | 'derived' | 'unavailable'
+      cacheRead?: 'reported' | 'derived' | 'unavailable'
+      cacheWrite?: 'reported' | 'derived' | 'unavailable'
+    }
+    incompleteReasons?: Array<UsageCompletenessReason>
   }
   unit?: string
   item?: string
@@ -16928,6 +17185,7 @@ export type ReviewEvidenceBuild = {
   platform?: 'android' | 'ios' | 'web'
   sha: string
   dirty: boolean
+  dirtyPaths?: Array<string>
   variant?: string
   overlays?: Array<string>
   tree?: string
@@ -16940,6 +17198,7 @@ export type ReviewEvidenceCaptureDescription = {
     platform?: 'android' | 'ios' | 'web'
     sha: string
     dirty: boolean
+    dirtyPaths?: Array<string>
     variant?: string
     overlays?: Array<string>
     tree?: string
@@ -17123,6 +17382,7 @@ export type ReviewEvidenceRef = {
     platform?: 'android' | 'ios' | 'web'
     sha: string
     dirty: boolean
+    dirtyPaths?: Array<string>
     variant?: string
     overlays?: Array<string>
     tree?: string
@@ -17300,6 +17560,17 @@ export type ReviewEvidenceTextCut = {
   headChars: number
   tailChars: number
 }
+
+export type ReviewEvidenceLookup =
+  | {
+      ref: ReviewEvidenceRef
+    }
+  | {
+      candidates: Array<string>
+    }
+  | {
+      missing: true
+    }
 
 export type ReviewEvidenceContent = {
   id: string
@@ -17590,6 +17861,7 @@ export type FeatureTransitionOptions = {
 export type RetireQuestionsOptions = {
   answer?: string
   askedSince?: string
+  askedBefore?: string
 }
 
 export type FeatureSummary = {
@@ -17785,6 +18057,7 @@ export type BuildTestResultArgs = {
   wallMs: number
   parser?: 'vitest' | 'python' | 'jest' | 'pytest'
   timedOut?: boolean
+  timeoutMs?: number
 }
 
 export type TestStatus = 'ok' | 'fail' | 'skipped' | 'error'
@@ -17822,6 +18095,9 @@ export type TestResult = {
   passes: Array<TestRegular>
   failures: Array<TestFailure>
   skips: Array<TestRegular>
+  timedOut?: boolean
+  timeoutMs?: number
+  exitCode?: number
 }
 
 export type TestsResult = {
@@ -18637,6 +18913,7 @@ export type UiBuildProvenance = {
   root: string
   sha: string
   dirty: boolean
+  dirtyPaths?: Array<string>
   overlays?: Array<string>
   tree?: string
   recipe: string
@@ -18670,6 +18947,7 @@ export type UiTreeSnapshot = {
   head: string
   commit: string
   dirty: boolean
+  dirtyPaths?: Array<string>
   tree?: string
 }
 
@@ -18733,6 +19011,7 @@ export type UiCaptureBuildState = {
     root: string
     sha: string
     dirty: boolean
+    dirtyPaths?: Array<string>
     overlays?: Array<string>
     tree?: string
     recipe: string
@@ -18750,6 +19029,7 @@ export type UiRecordingBuildState = {
     root: string
     sha: string
     dirty: boolean
+    dirtyPaths?: Array<string>
     overlays?: Array<string>
     tree?: string
     recipe: string
@@ -18760,6 +19040,7 @@ export type UiRecordingBuildState = {
     root: string
     sha: string
     dirty: boolean
+    dirtyPaths?: Array<string>
     overlays?: Array<string>
     tree?: string
     recipe: string
@@ -19826,8 +20107,6 @@ export type ProcessCirclingActivity = {
   calls?: Array<ProcessCirclingToolCall>
   writes?: Array<ProcessCirclingFileWrite>
 }
-
-export type ProcessCirclingChange = 'note' | 'model' | 'work-branch'
 
 export type ProcessRetryOffer = {
   canContinue: boolean
@@ -21806,7 +22085,6 @@ export type ProcessParkChoice = {
     current: ProcessTurnLimit
     suggested: number
   }
-  changeRequired?: true
   proofChange?: {
     featureId?: string
     stepId: string
@@ -22787,6 +23065,13 @@ export type AddMessagesInput = {
       billing?: 'subscription' | 'metered' | 'free'
       listCostUsd?: number
       byModel?: Array<ModelSpend>
+      tokenFields?: {
+        input?: 'reported' | 'derived' | 'unavailable'
+        output?: 'reported' | 'derived' | 'unavailable'
+        cacheRead?: 'reported' | 'derived' | 'unavailable'
+        cacheWrite?: 'reported' | 'derived' | 'unavailable'
+      }
+      incompleteReasons?: Array<UsageCompletenessReason>
     }
     model?: {
       model: string
@@ -22830,6 +23115,14 @@ export type AddMessagesInput = {
     }
     needsYouAt?: string
     needsYouClosedAt?: string
+    stopNotice?: {
+      cause: CompletionStopCause
+      featureTitle?: string
+      reason: string
+      raw?: string
+      turnLimit?: number
+      repeats?: number
+    }
     toolCall?: {
       toolCallId: string
       name: string
@@ -22992,13 +23285,13 @@ export type LlmConfigEditInput = {
   name?: string
   provider?: 'openai' | 'anthropic' | 'gemini' | 'deepseek' | 'xai' | 'qwen' | 'llama' | 'custom'
   model?: string
-  defaultEffort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
   apiKey?: string
   apiUrlOverride?: string
   costInputPerMTokensUSD?: number
   costOutputPerMTokensUSD?: number
   costCacheReadInputPerMTokensUSD?: number
   billing?: 'subscription' | 'metered' | 'free'
+  defaultEffort?: CliReasoningEffort | unknown
 }
 
 export type GitCredentialEditInput = {
@@ -25921,6 +26214,10 @@ export type SetProcessRunModelData = {
      */
     cliCredentialId?: string
     /**
+     * The reasoning effort, one the model offers, on either side; left out, the run keeps its own on the same CLI.
+     */
+    effort?: string
+    /**
      * The app the person decided on — recorded on the decision with `decidedBy: person`. Required: a decision nobody can attribute is refused.
      */
     decidedVia: 'web' | 'desktop' | 'mobile'
@@ -28519,6 +28816,19 @@ export type CreateLlmConfigData = {
   url: '/api/v1/llm-configs'
 }
 
+export type CreateLlmConfigErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type CreateLlmConfigError = CreateLlmConfigErrors[keyof CreateLlmConfigErrors]
+
 export type CreateLlmConfigResponses = {
   /**
    * Default Response
@@ -28600,6 +28910,14 @@ export type UpdateLlmConfigData = {
 }
 
 export type UpdateLlmConfigErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
   /**
    * Default Response
    */
@@ -29155,6 +29473,19 @@ export type SetCliEffortData = {
   url: '/api/v1/cli-configs/effort'
 }
 
+export type SetCliEffortErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type SetCliEffortError = SetCliEffortErrors[keyof SetCliEffortErrors]
+
 export type SetCliEffortResponses = {
   /**
    * Default Response
@@ -29163,6 +29494,39 @@ export type SetCliEffortResponses = {
 }
 
 export type SetCliEffortResponse = SetCliEffortResponses[keyof SetCliEffortResponses]
+
+export type SetCliModelEffortData = {
+  body: {
+    cli: CliTool
+    model: string
+    effort: string | unknown
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/cli-configs/model-effort'
+}
+
+export type SetCliModelEffortErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type SetCliModelEffortError = SetCliModelEffortErrors[keyof SetCliModelEffortErrors]
+
+export type SetCliModelEffortResponses = {
+  /**
+   * Default Response
+   */
+  204: void
+}
+
+export type SetCliModelEffortResponse = SetCliModelEffortResponses[keyof SetCliModelEffortResponses]
 
 export type GetActiveRunnerKindData = {
   body?: never
@@ -30152,6 +30516,7 @@ export type ListChatSummariesResponses = {
       model?: string
       effort?: string
     }
+    effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
     archivedAt?: string
     listHiddenAt?: string
     notifyLevel?: 'everything' | 'needs-me' | 'nothing'
@@ -30225,6 +30590,7 @@ export type GetChatSummaryResponses = {
       model?: string
       effort?: string
     }
+    effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
     archivedAt?: string
     listHiddenAt?: string
     notifyLevel?: 'everything' | 'needs-me' | 'nothing'
@@ -32618,6 +32984,7 @@ export type GitStashData = {
   body: {
     message?: string
     keepIndex?: boolean
+    includeUntracked?: boolean
   }
   path: {
     projectId: string
@@ -33906,6 +34273,13 @@ export type SendCompletionData = {
           billing?: 'subscription' | 'metered' | 'free'
           listCostUsd?: number
           byModel?: Array<ModelSpend>
+          tokenFields?: {
+            input?: 'reported' | 'derived' | 'unavailable'
+            output?: 'reported' | 'derived' | 'unavailable'
+            cacheRead?: 'reported' | 'derived' | 'unavailable'
+            cacheWrite?: 'reported' | 'derived' | 'unavailable'
+          }
+          incompleteReasons?: Array<UsageCompletenessReason>
         }
         model?: {
           model: string
@@ -33949,6 +34323,14 @@ export type SendCompletionData = {
         }
         needsYouAt?: string
         needsYouClosedAt?: string
+        stopNotice?: {
+          cause: CompletionStopCause
+          featureTitle?: string
+          reason: string
+          raw?: string
+          turnLimit?: number
+          repeats?: number
+        }
         toolCall?: {
           toolCallId: string
           name: string
@@ -34036,6 +34418,13 @@ export type SendCompletionResponses = {
         billing?: 'subscription' | 'metered' | 'free'
         listCostUsd?: number
         byModel?: Array<ModelSpend>
+        tokenFields?: {
+          input?: 'reported' | 'derived' | 'unavailable'
+          output?: 'reported' | 'derived' | 'unavailable'
+          cacheRead?: 'reported' | 'derived' | 'unavailable'
+          cacheWrite?: 'reported' | 'derived' | 'unavailable'
+        }
+        incompleteReasons?: Array<UsageCompletenessReason>
       }
       model?: {
         model: string
@@ -34079,6 +34468,14 @@ export type SendCompletionResponses = {
       }
       needsYouAt?: string
       needsYouClosedAt?: string
+      stopNotice?: {
+        cause: CompletionStopCause
+        featureTitle?: string
+        reason: string
+        raw?: string
+        turnLimit?: number
+        repeats?: number
+      }
       toolCall?: {
         toolCallId: string
         name: string
@@ -34217,6 +34614,13 @@ export type SendCompletionWithToolsResponses = {
             billing?: 'subscription' | 'metered' | 'free'
             listCostUsd?: number
             byModel?: Array<ModelSpend>
+            tokenFields?: {
+              input?: 'reported' | 'derived' | 'unavailable'
+              output?: 'reported' | 'derived' | 'unavailable'
+              cacheRead?: 'reported' | 'derived' | 'unavailable'
+              cacheWrite?: 'reported' | 'derived' | 'unavailable'
+            }
+            incompleteReasons?: Array<UsageCompletenessReason>
           }
           model?: {
             model: string
@@ -34260,6 +34664,14 @@ export type SendCompletionWithToolsResponses = {
           }
           needsYouAt?: string
           needsYouClosedAt?: string
+          stopNotice?: {
+            cause: CompletionStopCause
+            featureTitle?: string
+            reason: string
+            raw?: string
+            turnLimit?: number
+            repeats?: number
+          }
           toolCall?: {
             toolCallId: string
             name: string
@@ -34340,6 +34752,13 @@ export type SendChatCompletionWithToolsData = {
         billing?: 'subscription' | 'metered' | 'free'
         listCostUsd?: number
         byModel?: Array<ModelSpend>
+        tokenFields?: {
+          input?: 'reported' | 'derived' | 'unavailable'
+          output?: 'reported' | 'derived' | 'unavailable'
+          cacheRead?: 'reported' | 'derived' | 'unavailable'
+          cacheWrite?: 'reported' | 'derived' | 'unavailable'
+        }
+        incompleteReasons?: Array<UsageCompletenessReason>
       }
       model?: {
         model: string
@@ -34383,6 +34802,14 @@ export type SendChatCompletionWithToolsData = {
       }
       needsYouAt?: string
       needsYouClosedAt?: string
+      stopNotice?: {
+        cause: CompletionStopCause
+        featureTitle?: string
+        reason: string
+        raw?: string
+        turnLimit?: number
+        repeats?: number
+      }
       toolCall?: {
         toolCallId: string
         name: string
@@ -34467,6 +34894,13 @@ export type SendChatCompletionWithToolsResponses = {
             billing?: 'subscription' | 'metered' | 'free'
             listCostUsd?: number
             byModel?: Array<ModelSpend>
+            tokenFields?: {
+              input?: 'reported' | 'derived' | 'unavailable'
+              output?: 'reported' | 'derived' | 'unavailable'
+              cacheRead?: 'reported' | 'derived' | 'unavailable'
+              cacheWrite?: 'reported' | 'derived' | 'unavailable'
+            }
+            incompleteReasons?: Array<UsageCompletenessReason>
           }
           model?: {
             model: string
@@ -34510,6 +34944,14 @@ export type SendChatCompletionWithToolsResponses = {
           }
           needsYouAt?: string
           needsYouClosedAt?: string
+          stopNotice?: {
+            cause: CompletionStopCause
+            featureTitle?: string
+            reason: string
+            raw?: string
+            turnLimit?: number
+            repeats?: number
+          }
           toolCall?: {
             toolCallId: string
             name: string
@@ -34590,6 +35032,13 @@ export type SendChatWithCliData = {
         billing?: 'subscription' | 'metered' | 'free'
         listCostUsd?: number
         byModel?: Array<ModelSpend>
+        tokenFields?: {
+          input?: 'reported' | 'derived' | 'unavailable'
+          output?: 'reported' | 'derived' | 'unavailable'
+          cacheRead?: 'reported' | 'derived' | 'unavailable'
+          cacheWrite?: 'reported' | 'derived' | 'unavailable'
+        }
+        incompleteReasons?: Array<UsageCompletenessReason>
       }
       model?: {
         model: string
@@ -34633,6 +35082,14 @@ export type SendChatWithCliData = {
       }
       needsYouAt?: string
       needsYouClosedAt?: string
+      stopNotice?: {
+        cause: CompletionStopCause
+        featureTitle?: string
+        reason: string
+        raw?: string
+        turnLimit?: number
+        repeats?: number
+      }
       toolCall?: {
         toolCallId: string
         name: string
@@ -34841,6 +35298,13 @@ export type ResumeCompletionResponses = {
             billing?: 'subscription' | 'metered' | 'free'
             listCostUsd?: number
             byModel?: Array<ModelSpend>
+            tokenFields?: {
+              input?: 'reported' | 'derived' | 'unavailable'
+              output?: 'reported' | 'derived' | 'unavailable'
+              cacheRead?: 'reported' | 'derived' | 'unavailable'
+              cacheWrite?: 'reported' | 'derived' | 'unavailable'
+            }
+            incompleteReasons?: Array<UsageCompletenessReason>
           }
           model?: {
             model: string
@@ -34884,6 +35348,14 @@ export type ResumeCompletionResponses = {
           }
           needsYouAt?: string
           needsYouClosedAt?: string
+          stopNotice?: {
+            cause: CompletionStopCause
+            featureTitle?: string
+            reason: string
+            raw?: string
+            turnLimit?: number
+            repeats?: number
+          }
           toolCall?: {
             toolCallId: string
             name: string
@@ -35077,6 +35549,103 @@ export type GetCostsByChatResponses = {
 }
 
 export type GetCostsByChatResponse = GetCostsByChatResponses[keyof GetCostsByChatResponses]
+
+export type GetDailyUsageData = {
+  body?: never
+  path?: never
+  query: {
+    /**
+     * A UTC day, YYYY-MM-DD.
+     */
+    fromDay: string
+    /**
+     * A UTC day, YYYY-MM-DD.
+     */
+    toDay: string
+  }
+  url: '/api/v1/usage/daily'
+}
+
+export type GetDailyUsageErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetDailyUsageError = GetDailyUsageErrors[keyof GetDailyUsageErrors]
+
+export type GetDailyUsageResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    fromDay: string
+    toDay: string
+    summaries: Array<LlmDailyUsageSummaryContent>
+  }
+}
+
+export type GetDailyUsageResponse = GetDailyUsageResponses[keyof GetDailyUsageResponses]
+
+export type RecomputeDailyUsageData = {
+  body: {
+    /**
+     * A UTC day, YYYY-MM-DD.
+     */
+    fromDay?: string
+    /**
+     * Rebuild every day from the first.
+     */
+    full?: boolean
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/usage/daily/recompute'
+}
+
+export type RecomputeDailyUsageErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type RecomputeDailyUsageError = RecomputeDailyUsageErrors[keyof RecomputeDailyUsageErrors]
+
+export type RecomputeDailyUsageResponses = {
+  /**
+   * Default Response
+   */
+  200: DailyUsageRecomputeResult
+}
+
+export type RecomputeDailyUsageResponse =
+  RecomputeDailyUsageResponses[keyof RecomputeDailyUsageResponses]
 
 export type ListTemplatesData = {
   body?: never
@@ -37241,6 +37810,10 @@ export type ListCliAgentModelsData = {
   path?: never
   query: {
     cli: CliTool
+    /**
+     * A model whose effort levels `efforts` lists; absent, the CLI’s own.
+     */
+    modelId?: string
   }
   url: '/api/v1/cli-runs/probe/models'
 }
@@ -40185,6 +40758,10 @@ export type RunActivityData = {
        */
       credentialId?: string
     }
+    /**
+     * Reasoning effort for an API run, one its model offers; a CLI run names its own in `cliModel`.
+     */
+    effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
     params?: {
       [key: string]: unknown
     }

@@ -28,6 +28,7 @@ import { TerminalOutput } from '../../TerminalOutput'
 import { TestResultsList } from '../../tests/TestResultsList'
 import DurationPill from './DurationPill'
 import { toneText } from './tones'
+import { UnfinishedTests } from './UnfinishedTests'
 
 export type ChecksTabProps = {
   /** The method rows this tab owns (tests, or the build-side methods). */
@@ -156,6 +157,7 @@ function CheckBlock({
       {testResults ? (
         <>
           {testResults.unrecordedNote ? <RecordNote text={testResults.unrecordedNote} /> : null}
+          {testResults.unfinished ? <UnfinishedTests view={testResults.unfinished} /> : null}
           {testResults.results ? <TestResultsList results={testResults.results} inline /> : null}
           {testResults.omittedLabel ? (
             <Text style={{ fontSize: 11, color: theme.text.muted }}>
@@ -265,14 +267,15 @@ export default function ChecksTab({
   const testsRow = ran.length === 1 && ran[0]?.id === 'tests' ? ran[0] : undefined
   const layers = testsRow ? checks.filter((c) => testsRow.checkIds.includes(c.id)) : []
   const totals = testsRow ? aggregateTestCounts(layers) : undefined
-  const anyFailed = layers.some((l) => l.status === 'failed' || l.status === 'error')
-  const headline = totals ? testTotalsHeadline(totals, anyFailed) : undefined
+  const headline = totals ? testTotalsHeadline(totals, layers) : undefined
   const agg =
     headline?.outcome === 'failed'
       ? status.stuck
-      : headline?.outcome === 'none'
-        ? status.review
-        : status.done
+      : headline?.outcome === 'unfinished'
+        ? status.working
+        : headline?.outcome === 'none'
+          ? status.review
+          : status.done
 
   return (
     <View style={{ gap: 8 }}>
@@ -295,12 +298,18 @@ export default function ChecksTab({
             {headline.title}
           </Text>
           <View style={{ flex: 1 }} />
-          <Text style={{ fontSize: 12, color: agg.softFg }}>{`✓ ${totals.passed}`}</Text>
-          <Text style={{ fontSize: 12, color: agg.softFg }}>{`✗ ${totals.failed}`}</Text>
-          <Text style={{ fontSize: 12, color: agg.softFg }}>{`○ ${totals.skipped}`}</Text>
-          <Text style={{ fontSize: 12, color: theme.text.muted }}>
-            {`• ${totals.total} across ${layers.length} ${layers.length === 1 ? 'layer' : 'layers'}`}
-          </Text>
+          {headline.countsLabel ? (
+            <Text style={{ fontSize: 12, color: agg.softFg }}>{headline.countsLabel}</Text>
+          ) : (
+            <>
+              <Text style={{ fontSize: 12, color: agg.softFg }}>{`✓ ${totals.passed}`}</Text>
+              <Text style={{ fontSize: 12, color: agg.softFg }}>{`✗ ${totals.failed}`}</Text>
+              <Text style={{ fontSize: 12, color: agg.softFg }}>{`○ ${totals.skipped}`}</Text>
+              <Text style={{ fontSize: 12, color: theme.text.muted }}>
+                {`• ${totals.total} across ${layers.length} ${layers.length === 1 ? 'layer' : 'layers'}`}
+              </Text>
+            </>
+          )}
         </View>
       ) : null}
 

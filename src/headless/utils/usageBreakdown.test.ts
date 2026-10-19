@@ -10,7 +10,7 @@ import {
   unavailableLedgerRows,
   usagePriceKeys,
 } from './usageBreakdown'
-import { USAGE_TABLE_COLUMNS } from './usageBreakdownConstants'
+import { USAGE_FOOTNOTES, USAGE_TABLE_COLUMNS } from './usageBreakdownConstants'
 import type {
   UsageModalCostAggregate,
   UsageModalMessage,
@@ -143,7 +143,8 @@ describe('ledgerUsageRows', () => {
       key: 'ledger:TOTALS',
       label: 'TOTALS',
       total: true,
-      charged: '$0.0102',
+      charged: '$0.0102 + unknown (subscription)',
+      charge: 'Part unknown',
       tokens: '148,195',
       prompt: '47,145',
       completion: '4,170',
@@ -154,6 +155,7 @@ describe('ledgerUsageRows', () => {
       unpriced: '131,194',
       listValue: '$0.0169 (known prices only)',
       notReportedBy: '',
+      incomplete: '',
     })
   })
 
@@ -333,11 +335,15 @@ describe('ledgerUsageRows', () => {
     ])
   })
 
-  it('tells a subscription $0 apart from a model with no price', () => {
+  it("tells a plan's unknown charge apart from a model with no price", () => {
     const rows = ledgerUsageRows(aggregate)
     const composer = rows.find((r) => r.label === 'Cursor · Composer 2.5 (subscription)')
     const codex = rows.find((r) => r.label === 'OpenAI · gpt-5.5-codex')
-    expect(composer).toMatchObject({ charged: '$0.0000', included: '14,701', unpriced: '0' })
+    expect(composer).toMatchObject({
+      charged: 'Unknown (subscription)',
+      included: '14,701',
+      unpriced: '0',
+    })
     expect(composer?.listValue).toBe('$0.0067')
     expect(codex).toMatchObject({ charged: '—', included: '0', unpriced: '131,194' })
     expect(codex?.listValue).toBe('—')
@@ -469,12 +475,12 @@ describe('currentUsageRows', () => {
     expect(row).toMatchObject({ charged: '≈ $0.0212', tokens: '3,500', listValue: '$0.0212' })
   })
 
-  it('counts a subscription turn as included, charged $0, worth its list value', () => {
+  it('counts a subscription turn as included, its charge unknown, worth its list value', () => {
     const row = currentUsageRows(messages, prices).find(
       (r) => r.label === 'Cursor · composer-2.5 (subscription)',
     )
     expect(row).toMatchObject({
-      charged: '$0.0000',
+      charged: 'Unknown (subscription)',
       included: '14,701',
       unpriced: '0',
       listValue: '$0.0067',
@@ -492,10 +498,14 @@ describe('currentUsageRows', () => {
       ],
       prices,
     )
-    expect(rows[0]).toMatchObject({ charged: '$0.0000', included: '1,200', listValue: '$0.0110' })
+    expect(rows[0]).toMatchObject({
+      charged: 'Unknown (subscription)',
+      included: '1,200',
+      listValue: '$0.0110',
+    })
   })
 
-  it('values a $0 subscription turn at its list price, not at the $0 it was charged', () => {
+  it('values a subscription turn at its list price, not at the $0 it stored', () => {
     const rows = currentUsageRows(
       [
         {
@@ -506,7 +516,7 @@ describe('currentUsageRows', () => {
       ],
       prices,
     )
-    expect(rows[0]).toMatchObject({ charged: '$0.0000', listValue: '$0.0110' })
+    expect(rows[0]).toMatchObject({ charged: 'Unknown (subscription)', listValue: '$0.0110' })
   })
 
   it('keeps one model on a plan and on a key as two rows, named as the ledger names them', () => {
@@ -521,7 +531,7 @@ describe('currentUsageRows', () => {
       'OpenAI · gpt-5.5',
       'OpenAI · gpt-5.5 (subscription)',
     ])
-    expect(rows[2]).toMatchObject({ charged: '$0.0000', included: '1,200' })
+    expect(rows[2]).toMatchObject({ charged: 'Unknown (subscription)', included: '1,200' })
     expect(ledgerUsageRows(aggregate).map((r) => r.label)).toContain(
       'Cursor · Composer 2.5 (subscription)',
     )
@@ -541,7 +551,7 @@ describe('currentUsageRows', () => {
       'OpenAI · o9-preview',
     ])
     expect(rows[0]).toMatchObject({
-      charged: '≈ $0.0212',
+      charged: '≈ $0.0212 + unknown (subscription)',
       included: '14,701',
       unpriced: '150',
       listValue: '$0.0279 (known prices only)',
@@ -558,7 +568,8 @@ describe('currentUsageRows', () => {
         key: 'current:TOTALS',
         label: 'TOTALS',
         total: true,
-        charged: '$0.0000',
+        charged: 'Unknown (subscription)',
+        charge: 'Unknown',
         tokens: 'Not reported',
         prompt: 'Not reported',
         completion: 'Not reported',
@@ -569,6 +580,7 @@ describe('currentUsageRows', () => {
         unpriced: '0',
         listValue: '—',
         notReportedBy: 'Not reported by Cursor',
+        incomplete: 'No usage reported',
       },
     ])
   })
@@ -610,7 +622,7 @@ describe('currentUsageRows', () => {
     )
     expect(row).toMatchObject({
       notReportedBy: 'Not reported by Claude Code',
-      charged: '$0.0000',
+      charged: 'Unknown (subscription)',
       tokens: '41,932 + not reported',
       prompt: '2',
       completion: 'Not reported',
@@ -752,7 +764,7 @@ describe('currentUsageRows', () => {
     ])
     expect(rows[2]).toMatchObject({
       key: 'current:Cursor · Composer 2.5 (subscription)',
-      charged: '$0.0000',
+      charged: 'Unknown (subscription)',
       tokens: '14,701',
       included: '14,701',
       unpriced: '0',
@@ -888,7 +900,7 @@ describe('currentUsageRows', () => {
       {},
     )
     expect(row).toMatchObject({
-      charged: '$0.0000',
+      charged: 'Unknown (subscription)',
       included: '145,895',
       unpriced: '0',
       listValue: '$0.0067 (known prices only)',
@@ -943,7 +955,7 @@ describe('currentUsageRows', () => {
     expect(rows[0]).toMatchObject({
       label: 'TOTALS',
       notReportedBy: 'Not reported by Cursor and Codex',
-      charged: '$0.0102',
+      charged: '$0.0102 + unknown (subscription)',
       tokens: '2,300 + not reported',
       included: 'Not reported',
       unpriced: 'Not reported',
@@ -1063,10 +1075,310 @@ describe('USAGE_TABLE_COLUMNS', () => {
     const [row] = ledgerUsageRows(aggregate)
     const shown = USAGE_TABLE_COLUMNS.map((c) => c.cell)
     const worded = Object.keys(row).filter(
-      (k) => !['key', 'total', 'cacheRatio', 'notReportedBy'].includes(k),
+      (k) => !['key', 'total', 'cacheRatio', 'notReportedBy', 'incomplete'].includes(k),
     )
     expect([...shown].sort()).toEqual([...worded].sort())
     expect(new Set(shown).size).toBe(shown.length)
-    expect(shown.slice(0, 5)).toEqual(['label', 'charged', 'included', 'unpriced', 'listValue'])
+    expect(shown.slice(0, 6)).toEqual([
+      'label',
+      'charged',
+      'charge',
+      'included',
+      'unpriced',
+      'listValue',
+    ])
+  })
+})
+
+describe('charge status and missing counts', () => {
+  const metered = (over: Partial<ModelSpend> = {}): ModelSpend => ({
+    provider: 'anthropic',
+    model: 'claude-opus-5',
+    billing: 'metered',
+    inputTokens: 1000,
+    outputTokens: 200,
+    cacheReadTokens: 4000,
+    cacheWriteTokens: 0,
+    costUsd: 0.05,
+    listCostUsd: 0.05,
+    ...over,
+  })
+  const turn = (...byModel: ModelSpend[]): UsageModalMessage => ({
+    role: 'assistant',
+    usage: {
+      promptTokens: byModel.reduce((n, row) => n + row.inputTokens, 0),
+      completionTokens: byModel.reduce((n, row) => n + row.outputTokens, 0),
+      byModel,
+    },
+  })
+  const apiTurn = (usage: UsageModalMessage['usage']): UsageModalMessage => ({
+    role: 'assistant',
+    model: { provider: 'openai', model: 'gpt-5.5' },
+    usage,
+  })
+
+  it('reads a ledger row as confirmed, in plan, unknown or part unknown by how its calls were paid', () => {
+    const rows = ledgerUsageRows(aggregate)
+    const charge = Object.fromEntries(rows.map((row) => [row.label, row.charge]))
+    expect(charge).toEqual({
+      TOTALS: 'Part unknown',
+      'Cursor · Composer 2.5 (subscription)': 'Unknown',
+      'OpenAI · gpt-5.5': 'Confirmed',
+      'OpenAI · gpt-5.5-codex': 'Unknown',
+    })
+  })
+
+  it('reads a free model as in plan, and a metered row with some calls unpriced as part unknown', () => {
+    const rows = ledgerUsageRows({
+      chatKey: 'all',
+      totalCostUSD: 0.2,
+      totalPromptTokens: 300,
+      totalCompletionTokens: 30,
+      totalCachedReadInputTokens: 0,
+      breakdown: {
+        'local:llama (free)': {
+          provider: 'local',
+          model: 'llama',
+          billing: 'free',
+          costUSD: 0,
+          promptTokens: 100,
+          completionTokens: 10,
+          cachedReadInputTokens: 0,
+          includedTokens: 110,
+        },
+        'openai:gpt-5.5': {
+          provider: 'openai',
+          model: 'gpt-5.5',
+          billing: 'metered',
+          costUSD: 0.2,
+          promptTokens: 200,
+          completionTokens: 20,
+          cachedReadInputTokens: 0,
+          unpricedTokens: 50,
+        },
+      },
+    })
+    expect(rows.map((row) => row.charge)).toEqual(['Part unknown', 'Part unknown', 'In plan'])
+  })
+
+  it("marks a ledger row's counts a call left unavailable and says which", () => {
+    const [, row] = ledgerUsageRows({
+      chatKey: 'all',
+      totalCostUSD: 0.1,
+      totalPromptTokens: 100,
+      totalCompletionTokens: 10,
+      totalCachedReadInputTokens: 0,
+      breakdown: {
+        'openai:gpt-5.5': {
+          provider: 'openai',
+          model: 'gpt-5.5',
+          billing: 'metered',
+          costUSD: 0.1,
+          promptTokens: 100,
+          completionTokens: 10,
+          cachedReadInputTokens: 0,
+          tokenFieldsNotReported: ['cacheRead', 'cacheWrite'],
+        },
+        'openai:gpt-5.4': {
+          provider: 'openai',
+          model: 'gpt-5.4',
+          billing: 'metered',
+          costUSD: 0,
+          promptTokens: 0,
+          completionTokens: 0,
+          cachedReadInputTokens: 0,
+        },
+      },
+    })
+    expect(row).toMatchObject({
+      label: 'OpenAI · gpt-5.5',
+      prompt: '100',
+      cachedRead: 'Not reported',
+      cacheWrite: 'Not reported',
+      incomplete: 'Cache not reported',
+      charge: 'Part unknown',
+    })
+  })
+
+  it('reads a CLI row by its token fields: a cache count it never reported is marked, never 0', () => {
+    const [row] = currentUsageRows(
+      [turn(metered({ tokenFields: { cacheRead: 'unavailable', cacheWrite: 'unavailable' } }))],
+      {},
+    )
+    expect(row).toMatchObject({
+      cachedRead: '4,000 + not reported',
+      cacheWrite: 'Not reported',
+      prompt: '1,000',
+      incomplete: 'Cache not reported',
+      charge: 'Unknown',
+      notReportedBy: 'Not reported by Claude Code',
+    })
+  })
+
+  it('says a count only estimated is an estimate, and an output never reported is missing', () => {
+    const [estimated] = currentUsageRows(
+      [turn(metered({ tokenFields: { input: 'derived', output: 'derived' } }))],
+      {},
+    )
+    expect(estimated.incomplete).toBe('Estimated')
+    expect(estimated.charge).toBe('Unknown')
+    const [cut] = currentUsageRows([turn(claudeCutShortSpend)], {})
+    expect(cut.incomplete).toBe('Output not reported')
+    expect(cut.charge).toBe('Unknown')
+  })
+
+  it('says a turn that reported nothing reported no usage', () => {
+    const [row] = currentUsageRows(
+      [cliTurn(cursorAcpTurn, { provider: 'cursor', model: 'auto' })],
+      {},
+    )
+    expect(row.incomplete).toBe('No usage reported')
+    expect(row.charge).toBe('Unknown')
+  })
+
+  it("reads a plan's fully reported CLI row as an unknown charge — a plan can bill overage", () => {
+    const [row] = currentUsageRows([turn(metered({ billing: 'subscription', costUsd: 0 }))], {})
+    expect(row).toMatchObject({ charge: 'Unknown', incomplete: '' })
+  })
+
+  it('reads a fully reported metered CLI row with its charge as confirmed, and says nothing is missing', () => {
+    const [row] = currentUsageRows([turn(metered())], {})
+    expect(row).toMatchObject({ charge: 'Confirmed', incomplete: '' })
+  })
+
+  it('reads an API turn by its stored charge: confirmed; estimated or unpriced: unknown', () => {
+    const price: UsageModalModelPrice = {
+      provider: 'openai',
+      model: 'gpt-5.5',
+      inputPerMTokensUSD: 1,
+      outputPerMTokensUSD: 2,
+    }
+    const prices = { 'openai::gpt-5.5': price }
+    const stored = currentUsageRows(
+      [apiTurn({ promptTokens: 10, completionTokens: 5, cost: 0.01 })],
+      prices,
+    )
+    const estimated = currentUsageRows([apiTurn({ promptTokens: 10, completionTokens: 5 })], prices)
+    const unpriced = currentUsageRows([apiTurn({ promptTokens: 10, completionTokens: 5 })], {})
+    const plan = currentUsageRows(
+      [apiTurn({ promptTokens: 10, completionTokens: 5, billing: 'subscription', cost: 0 })],
+      prices,
+    )
+    expect([stored, estimated, unpriced, plan].map(([row]) => row.charge)).toEqual([
+      'Confirmed',
+      'Unknown',
+      'Unknown',
+      'Unknown',
+    ])
+  })
+
+  it('gathers every row’s charge and every missing count into TOTALS', () => {
+    const rows = currentUsageRows(
+      [
+        turn(metered()),
+        turn(
+          metered({
+            provider: 'cursor',
+            model: 'composer-2.5',
+            billing: 'free',
+            costUsd: 0,
+            tokenFields: { cacheWrite: 'unavailable' },
+          }),
+        ),
+      ],
+      {},
+    )
+    expect(rows[0]).toMatchObject({
+      label: 'TOTALS',
+      charge: 'Confirmed',
+      incomplete: 'Cache not reported',
+    })
+  })
+
+  it("reads a CLI row's recorded reasons — an interrupted attempt is short even with every count reported", () => {
+    const [row] = currentUsageRows(
+      [turn(metered({ incompleteReasons: ['interrupted', 'counter-decreased'] }))],
+      {},
+    )
+    expect(row).toMatchObject({ charge: 'Unknown', incomplete: 'Counter reset · Interrupted' })
+  })
+
+  it('reads an API turn by the counts it left out and its recorded reasons, as the ledger does', () => {
+    const [cacheless] = currentUsageRows(
+      [
+        apiTurn({
+          promptTokens: 10,
+          completionTokens: 5,
+          cachedReadInputTokens: 0,
+          cost: 0.01,
+          tokenFields: { cacheRead: 'unavailable', cacheWrite: 'unavailable' },
+          incompleteReasons: ['cache-not-reported'],
+        }),
+      ],
+      {},
+    )
+    expect(cacheless).toMatchObject({
+      charge: 'Unknown',
+      incomplete: 'Cache not reported',
+      cachedRead: 'Not reported',
+      prompt: '10',
+    })
+    const [estimated] = currentUsageRows(
+      [
+        apiTurn({
+          promptTokens: 10,
+          completionTokens: 5,
+          cost: 0.01,
+          tokenFields: { input: 'derived', output: 'derived' },
+          incompleteReasons: ['estimated-usage'],
+        }),
+      ],
+      {},
+    )
+    expect(estimated).toMatchObject({ charge: 'Unknown', incomplete: 'Estimated' })
+    const [cut] = currentUsageRows(
+      [
+        apiTurn({
+          promptTokens: 10,
+          completionTokens: 5,
+          cost: 0.01,
+          incompleteReasons: ['interrupted'],
+        }),
+      ],
+      {},
+    )
+    expect(cut).toMatchObject({ charge: 'Unknown', incomplete: 'Interrupted' })
+  })
+
+  it("never reads a plan's charge as $0: unknown alone, unknown beside what other models were charged", () => {
+    const [plan] = currentUsageRows([turn(metered({ billing: 'subscription', costUsd: 0 }))], {})
+    expect(plan.charged).toBe('Unknown (subscription)')
+    const [mixed] = currentUsageRows(
+      [
+        turn(metered()),
+        turn(metered({ model: 'claude-haiku-5', billing: 'subscription', costUsd: 0 })),
+      ],
+      {},
+    )
+    expect(mixed.charged).toBe('$0.0500 + unknown (subscription)')
+    const [apiPlan] = currentUsageRows(
+      [apiTurn({ promptTokens: 10, completionTokens: 5, billing: 'subscription', cost: 0 })],
+      {},
+    )
+    expect(apiPlan.charged).toBe('Unknown (subscription)')
+  })
+
+  it('never reads a ledger plan row as $0', () => {
+    const rows = ledgerUsageRows(aggregate)
+    expect(rows.find((row) => row.label.includes('subscription'))?.charged).toBe(
+      'Unknown (subscription)',
+    )
+    expect(rows[0].charged).toBe('$0.0102 + unknown (subscription)')
+  })
+
+  it('explains the charge column under the tables, and never calls a plan’s share free', () => {
+    expect(USAGE_FOOTNOTES.some((note) => note.startsWith('Charge says'))).toBe(true)
+    expect(USAGE_FOOTNOTES.some((note) => note.includes("a plan's share reads unknown"))).toBe(true)
+    expect(USAGE_FOOTNOTES.join(' ')).not.toContain('not charged')
   })
 })

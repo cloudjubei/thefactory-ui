@@ -2,10 +2,12 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { visibleCliModelsForAuth } from 'thefactory-tools/utils'
 
-import type { ModelInfo } from '../api'
+import type { CliReasoningEffort, ModelInfo } from '../api'
 import { useCliConfigs } from '../contexts/CliConfigsContext'
 import { useLLMConfigs, type ActivityCliModel } from '../contexts/LLMConfigsContext'
 import { deriveCliAuthWarning, type CliAuthWarning } from '../utils/cliRunner'
+import type { ModelEffortSwitch } from '../utils/modelEffortTypes'
+import { useModelEffort } from './useModelEffort'
 
 /** The `ModelChip` CLI props derived from the agent-run (Run button) selection. */
 export type AgentRunChipCliWiring = {
@@ -21,6 +23,8 @@ export type AgentRunChipCliWiring = {
   onPickCli: (cli: string) => void
   onPickCliModel: (modelId: string) => void
   onPickRecentCli: (model: ActivityCliModel) => void
+  /** The effort switch for the side agent runs work on: the CLI model, or the API config. */
+  effort: ModelEffortSwitch
 }
 
 /**
@@ -43,6 +47,9 @@ export function useAgentRunChipCli(): AgentRunChipCliWiring {
     activeAgentRunCliModel: cliModel,
     setActiveAgentRunCliModel: setCliModel,
     recentAgentRunCliModels: recentCliModels,
+    activeAgentRunConfig,
+    activeAgentRunApiEffort,
+    setActiveAgentRunApiEffort,
   } = useLLMConfigs()
   const {
     enabledClis,
@@ -52,6 +59,7 @@ export function useAgentRunChipCli(): AgentRunChipCliWiring {
     cachesByCli,
     defaultModel,
     effort,
+    modelEffort,
     probeModels,
     cachedLiveModels,
   } = useCliConfigs()
@@ -65,6 +73,7 @@ export function useAgentRunChipCli(): AgentRunChipCliWiring {
   )
 
   const [cliModels, setCliModels] = useState<ModelInfo[]>([])
+  const [cliLevels, setCliLevels] = useState<string[]>([])
 
   const useCli = activeRunnerKind === 'cli'
   const selectedCli = cliModel?.cli ?? activeCli ?? null
@@ -81,15 +90,20 @@ export function useAgentRunChipCli(): AgentRunChipCliWiring {
   useEffect(() => {
     if (!useCli || !selectedCli) {
       setCliModels([])
+      setCliLevels([])
       return
     }
     let cancelled = false
     void probeModels(selectedCli as Parameters<typeof probeModels>[0])
-      .then(({ models }) => {
-        if (!cancelled) setCliModels(models)
+      .then(({ models, efforts }) => {
+        if (cancelled) return
+        setCliModels(models)
+        setCliLevels(efforts)
       })
       .catch(() => {
-        if (!cancelled) setCliModels([])
+        if (cancelled) return
+        setCliModels([])
+        setCliLevels([])
       })
     return () => {
       cancelled = true
@@ -100,10 +114,9 @@ export function useAgentRunChipCli(): AgentRunChipCliWiring {
     (cli: string): ActivityCliModel => ({
       cli: cli as ActivityCliModel['cli'],
       modelId: defaultModel[cli],
-      effort: effort[cli] as ActivityCliModel['effort'],
       credentialId: credentialForCli(cli),
     }),
-    [defaultModel, effort, credentialForCli],
+    [defaultModel, credentialForCli],
   )
 
   const onToggleUseCli = useCallback(
@@ -141,11 +154,11 @@ export function useAgentRunChipCli(): AgentRunChipCliWiring {
       setCliModel({
         cli: selectedCli as ActivityCliModel['cli'],
         modelId,
-        effort: (cliModel?.effort ?? effort[selectedCli]) as ActivityCliModel['effort'],
+        ...(cliModel?.effort ? { effort: cliModel.effort } : {}),
         credentialId: cliModel?.credentialId ?? credentialForCli(selectedCli),
       })
     },
-    [selectedCli, cliModel, effort, credentialForCli, setActiveRunnerKind, setCliModel],
+    [selectedCli, cliModel, credentialForCli, setActiveRunnerKind, setCliModel],
   )
 
   const onPickRecentCli = useCallback(
@@ -156,7 +169,45 @@ export function useAgentRunChipCli(): AgentRunChipCliWiring {
     [credentialForCli, setActiveRunnerKind, setCliModel],
   )
 
+  const onPickEffort = useCallback(
+    (next: CliReasoningEffort | undefined) => {
+      if (useCli && cliModel) {
+        const { effort: _kept, ...rest } = cliModel
+        setCliModel(next ? { ...rest, effort: next } : rest)
+        return
+      }
+      setActiveAgentRunApiEffort(next ?? null)
+    },
+    [useCli, cliModel, setCliModel, setActiveAgentRunApiEffort],
+  )
+  const effortSwitch = useModelEffort(
+    useCli
+      ? {
+          runner: 'cli',
+          ...(selectedCliModelId ? { modelId: selectedCliModelId } : {}),
+          models: effectiveCliModels,
+          cliLevels,
+          ...(cliModel?.effort ? { choice: cliModel.effort } : {}),
+          ...(selectedCli && selectedCliModelId
+            ? { modelDefault: modelEffort[selectedCli]?.[selectedCliModelId] }
+            : {}),
+          ...(selectedCli ? { cliDefault: effort[selectedCli] } : {}),
+        }
+      : {
+          runner: 'api',
+          ...(activeAgentRunConfig
+            ? { provider: activeAgentRunConfig.provider, model: activeAgentRunConfig.model }
+            : {}),
+          ...(activeAgentRunApiEffort ? { choice: activeAgentRunApiEffort } : {}),
+          ...(activeAgentRunConfig?.defaultEffort
+            ? { configDefault: activeAgentRunConfig.defaultEffort }
+            : {}),
+        },
+    onPickEffort,
+  )
+
   return {
+    effort: effortSwitch,
     useCli,
     selectedCli,
     selectedCliModelId,

@@ -8,11 +8,27 @@ import type {
   CliTool,
   ModelInfo,
 } from '../../../headless/api'
-import { CliImageBuildProgress, cliImageBuildStepLabel } from './CliImageBuildProgress'
+import { CliImageBuildProgress } from './CliImageBuildProgress'
 import { CliImageVersionChip } from './CliImageVersionChip'
 import { useCliConfigs } from '../../../headless'
 import type { CliLiveProbeResult, RunCliCapabilityCheckResponse } from '../../../headless'
+import { cliCapabilityCardView } from '../../../headless/utils/cliCapabilityCard'
+import { CLI_CAPABILITY_BATTERY_HINT } from '../../../headless/utils/cliCapabilityCardConstants'
+import type { CliCapabilityTone } from '../../../headless/utils/cliCapabilityCardTypes'
+import {
+  cliImageBuildAction,
+  cliImageBuildFailure,
+  cliImageBuildSuccess,
+  cliImagesNeedCheck,
+  newlyBuildingImageIds,
+} from '../../../headless/utils/cliImageView'
 import { loginAwaitsCode, parseLoginUrl } from '../../../headless/utils/cliRunner'
+import { cliModelEffortRows, effortLevelLabel } from '../../../headless/utils/modelEffort'
+import {
+  CLI_MODEL_DEFAULT_EFFORT_HINT,
+  CLI_MODEL_DEFAULT_EFFORT_LABEL,
+  EFFORT_DEFAULT_LABEL,
+} from '../../../headless/utils/modelEffortConstants'
 import { Alert, Button, ConfirmDialog, NativeSelect, Spinner } from '../..'
 import { IconCheck, IconDelete, IconPlay, IconRobot } from '../../icons'
 
@@ -24,6 +40,12 @@ const CLI_LABELS: Record<string, string> = {
 
 function cliLabel(cli: string): string {
   return CLI_LABELS[cli] ?? cli
+}
+
+const PROBE_TONE_CLASSES: Record<CliCapabilityTone, string> = {
+  pass: 'text-green-500',
+  fail: 'text-red-500',
+  none: 'text-(--text-secondary)',
 }
 
 type ModelsProbeState =
@@ -65,10 +87,12 @@ export function CliConfigForm() {
     enabledClis,
     defaultModel,
     effort,
+    modelEffort,
     setActiveCli,
     setCliEnabled,
     setCliDefaultModel,
     setCliEffort,
+    setCliModelEffort,
     deleteCache,
     probeModels,
     probeModelsLive,
@@ -177,25 +201,17 @@ export function CliConfigForm() {
   // Check upstream CLI versions when this view opens, so a fresh "update available"
   // is shown without waiting for the app-level provider's initial check. Respects the
   // 6h staleness window the check already persists, so re-opening does not hammer the registry.
-  const CLI_IMAGE_STALE_MS = 6 * 60 * 60 * 1000
   const checkedOnOpenRef = useRef(false)
   useEffect(() => {
     if (cliImagesLoading || checkedOnOpenRef.current) return
     checkedOnOpenRef.current = true
     if (cliImageDocker !== 'ok') return
-    const stale = cliImageVersions.some(
-      (row) =>
-        !row.latestCheckedAt || Date.now() - Date.parse(row.latestCheckedAt) > CLI_IMAGE_STALE_MS,
-    )
-    if (stale) void checkCliImages()
+    if (cliImagesNeedCheck(cliImageVersions, Date.now())) void checkCliImages()
   }, [cliImagesLoading, cliImageDocker, cliImageVersions, checkCliImages])
 
   // Builds seen in progress in this view, so a success is confirmed for them and not for an old record.
   useEffect(() => {
-    const building = cliImageVersions
-      .filter((row) => row.state === 'updating' && row.update)
-      .map((row) => row.update!.updateId)
-      .filter((id) => !watchedImageBuilds.has(id))
+    const building = newlyBuildingImageIds(cliImageVersions, watchedImageBuilds)
     if (building.length > 0) setWatchedImageBuilds((prev) => new Set([...prev, ...building]))
   }, [cliImageVersions, watchedImageBuilds])
 
@@ -311,11 +327,17 @@ export function CliConfigForm() {
           liveModels ?? (modelsState.kind === 'ok' ? modelsState.models : []),
           'subscription',
         )
-        const canRefreshLive = (cli === 'cursor-agent' || cli === 'codex') && !!groupCredId
+        const canRefreshLive = !!groupCredId
+        const effortRows = cliModelEffortRows(modelOptions, modelEffort[cli])
         const imageVersion = cliImageVersions.find((row) => row.cli === cli)
         const isUpdating = imageVersion?.state === 'updating'
         const isStarting = imageBuildStarting[cli] === true
         const imageUpdate = imageVersion?.update
+        const buildAction = cliImageBuildAction(imageVersion, {
+          docker: cliImageDocker,
+          starting: isStarting,
+          cliName: cliLabel(cli),
+        })
         return (
           <div
             key={cli}
@@ -326,38 +348,19 @@ export function CliConfigForm() {
                 <IconRobot className="w-4 h-4 text-(--text-secondary)" />
                 <span className="text-sm font-semibold text-(--text-primary)">{cliLabel(cli)}</span>
                 <CliImageVersionChip version={imageVersion} loading={cliImagesLoading} />
-                {cliImageDocker === 'ok' &&
-                  imageVersion &&
-                  (isUpdating || imageVersion.state !== 'up-to-date') && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={
-                        imageVersion.state === 'update-available' ||
-                        imageVersion.state === 'not-built'
-                          ? 'success'
-                          : 'outline'
-                      }
-                      loading={isUpdating || isStarting}
-                      disabled={isUpdating || isStarting}
-                      onClick={() => startImageBuild(cli)}
-                      title={
-                        imageVersion.state === 'unknown'
-                          ? (imageVersion.detail ?? 'Rebuild this image')
-                          : `Build ${cliLabel(cli)} ${imageVersion.latest ?? ''}`
-                      }
-                    >
-                      {isUpdating
-                        ? 'Updating…'
-                        : isStarting
-                          ? 'Starting…'
-                          : imageVersion.state === 'not-built'
-                            ? 'Build image'
-                            : imageVersion.state === 'update-available'
-                              ? `Update to ${imageVersion.latest ?? ''}`
-                              : 'Rebuild'}
-                    </Button>
-                  )}
+                {buildAction && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={buildAction.tone}
+                    loading={buildAction.busy}
+                    disabled={buildAction.busy}
+                    onClick={() => startImageBuild(cli)}
+                    title={buildAction.hint}
+                  >
+                    {buildAction.label}
+                  </Button>
+                )}
               </div>
               <Button
                 type="button"
@@ -389,20 +392,14 @@ export function CliConfigForm() {
               watchedImageBuilds.has(imageUpdate.updateId) && (
                 <div className="rounded border border-green-600/40 bg-(--surface-muted) px-2 py-2 text-xs flex items-center gap-2 text-green-600">
                   <IconCheck className="w-3.5 h-3.5" />
-                  <span className="font-medium">
-                    Updated to {imageUpdate.installedAfter ?? imageUpdate.targetVersion}
-                  </span>
+                  <span className="font-medium">{cliImageBuildSuccess(imageUpdate)}</span>
                 </div>
               )}
 
             {imageUpdate?.status === 'failed' && (
               <div className="rounded border border-red-500/40 bg-(--surface-muted) px-2 py-2 text-xs flex flex-col gap-2">
                 <span className="text-red-500 font-medium">
-                  Update to {imageUpdate.targetVersion} failed
-                  {cliImageBuildStepLabel(imageUpdate.phase)
-                    ? ` at “${cliImageBuildStepLabel(imageUpdate.phase)}”`
-                    : ''}{' '}
-                  — the previous image is still in use.
+                  {cliImageBuildFailure(imageUpdate)}
                 </span>
                 {imageUpdate.error && <span className="text-red-500">{imageUpdate.error}</span>}
                 {(cliImageBuildOutput[imageUpdate.updateId] ?? imageUpdate.logTail) && (
@@ -473,7 +470,7 @@ export function CliConfigForm() {
                         ? 'Showing the default list. Load live models for this account.'
                         : 'Showing the default list.'}
                   </p>
-                  {liveModelsState.kind === 'loading' && cli === 'cursor-agent' && (
+                  {liveModelsState.kind === 'loading' && cli !== 'codex' && (
                     <div className="rounded bg-(--surface-muted) px-2 py-1.5 text-xs text-(--text-secondary) flex items-center gap-2">
                       <Spinner size={14} />
                       Booting sandbox to list models — a few seconds…
@@ -481,6 +478,42 @@ export function CliConfigForm() {
                   )}
                   {liveModelsState.kind === 'error' && (
                     <p className="text-xs text-red-500">{liveModelsState.message}</p>
+                  )}
+                  {effortRows.length > 0 && (
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs text-(--text-secondary)">
+                        {CLI_MODEL_DEFAULT_EFFORT_LABEL}
+                      </span>
+                      {effortRows.map((row) => (
+                        <label
+                          key={row.modelId}
+                          className="flex items-center justify-between gap-3"
+                        >
+                          <span className="truncate text-sm text-(--text-primary)">
+                            {row.label}
+                          </span>
+                          <NativeSelect
+                            size="sm"
+                            className="w-40"
+                            aria-label={`${row.label} ${CLI_MODEL_DEFAULT_EFFORT_LABEL}`}
+                            value={row.value ?? ''}
+                            onChange={(e) =>
+                              void setCliModelEffort(cli, row.modelId, e.target.value || undefined)
+                            }
+                          >
+                            <option value="">{EFFORT_DEFAULT_LABEL}</option>
+                            {row.levels.map((lvl) => (
+                              <option key={lvl} value={lvl}>
+                                {effortLevelLabel(lvl)}
+                              </option>
+                            ))}
+                          </NativeSelect>
+                        </label>
+                      ))}
+                      <p className="text-xs text-(--text-secondary)">
+                        {CLI_MODEL_DEFAULT_EFFORT_HINT}
+                      </p>
+                    </div>
                   )}
                 </div>
               )}
@@ -492,6 +525,8 @@ export function CliConfigForm() {
                 const capState: CapabilityState =
                   capability[cache.id] ??
                   (storedCard ? { kind: 'result', card: storedCard } : { kind: 'idle' })
+                const capView =
+                  capState.kind === 'result' ? cliCapabilityCardView(capState.card) : undefined
                 const status = cache.authStatus
                 const isReauthing = reauth?.credentialId === cache.id
                 const reauthOut = isReauthing ? (loginOutput[reauth.loginId] ?? '') : ''
@@ -556,7 +591,7 @@ export function CliConfigForm() {
                           variant="outline"
                           loading={capState.kind === 'loading'}
                           onClick={() => void runCapabilityBattery(cli, cache.id)}
-                          title="Run the capability battery: structured output, grounding, off-topic refusal, canonicalization, latency and web search"
+                          title={CLI_CAPABILITY_BATTERY_HINT}
                         >
                           Capability battery
                         </Button>
@@ -640,42 +675,26 @@ export function CliConfigForm() {
                       <p className="text-xs text-red-500">{capState.message}</p>
                     )}
 
-                    {capState.kind === 'result' && (
+                    {capView && (
                       <div className="rounded border border-(--border-default) bg-(--surface-muted) px-2 py-2 text-xs flex flex-col gap-1.5">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-(--text-primary) font-medium">
-                            {capState.card.passed}/{capState.card.applicable} probes passed
+                            {capView.headline}
                           </span>
-                          <span className="text-(--text-secondary)">
-                            median call {Math.round(capState.card.p50LatencyMs / 100) / 10}s
-                          </span>
-                          {typeof capState.card.totalCostUSD === 'number' && (
-                            <span className="text-(--text-secondary)">
-                              ${capState.card.totalCostUSD.toFixed(4)}
-                            </span>
-                          )}
-                          {capState.card.finishedAt && (
+                          <span className="text-(--text-secondary)">{capView.latency}</span>
+                          {capView.cost ? (
+                            <span className="text-(--text-secondary)">{capView.cost}</span>
+                          ) : null}
+                          {capView.finished && (
                             <span className="text-(--text-secondary) ml-auto">
-                              {new Date(capState.card.finishedAt).toLocaleString()}
+                              {capView.finished}
                             </span>
                           )}
                         </div>
-                        {capState.card.probes.map((probe) => (
+                        {capView.probes.map((probe) => (
                           <div key={probe.id} className="flex items-start gap-2">
-                            <span
-                              className={
-                                probe.status === 'pass'
-                                  ? 'text-green-500 w-14 shrink-0'
-                                  : probe.status === 'fail'
-                                    ? 'text-red-500 w-14 shrink-0'
-                                    : 'text-(--text-secondary) w-14 shrink-0'
-                              }
-                            >
-                              {probe.status === 'pass'
-                                ? 'PASS'
-                                : probe.status === 'fail'
-                                  ? 'FAIL'
-                                  : 'N/A'}
+                            <span className={`${PROBE_TONE_CLASSES[probe.tone]} w-14 shrink-0`}>
+                              {probe.status}
                             </span>
                             <div className="grow flex flex-col gap-1">
                               <div className="flex items-start gap-2">
@@ -684,30 +703,23 @@ export function CliConfigForm() {
                                 </span>
                                 <span className="text-(--text-secondary) grow">{probe.detail}</span>
                               </div>
-                              {probe.status === 'fail' &&
-                                probe.cases.some((probeCase) => probeCase.detail) && (
-                                  <ul className="flex flex-col gap-0.5 pl-40">
-                                    {probe.cases
-                                      .filter((probeCase) => probeCase.detail)
-                                      .map((probeCase) => (
-                                        <li
-                                          key={probeCase.input}
-                                          className="flex items-start gap-2 text-(--text-secondary)"
-                                        >
-                                          <span
-                                            className={
-                                              probeCase.status === 'pass'
-                                                ? 'text-green-500 shrink-0'
-                                                : 'text-red-500 shrink-0'
-                                            }
-                                          >
-                                            {probeCase.status === 'pass' ? '✓' : '✗'}
-                                          </span>
-                                          <span>{probeCase.detail}</span>
-                                        </li>
-                                      ))}
-                                  </ul>
-                                )}
+                              {probe.cases.length > 0 && (
+                                <ul className="flex flex-col gap-0.5 pl-40">
+                                  {probe.cases.map((probeCase) => (
+                                    <li
+                                      key={probeCase.key}
+                                      className="flex items-start gap-2 text-(--text-secondary)"
+                                    >
+                                      <span
+                                        className={`${PROBE_TONE_CLASSES[probeCase.tone]} shrink-0`}
+                                      >
+                                        {probeCase.mark}
+                                      </span>
+                                      <span>{probeCase.detail}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
                             </div>
                           </div>
                         ))}

@@ -24,6 +24,7 @@ import type {
 import { proofPlanMarkRows } from './proofPlanView'
 import {
   CHECK_STATE_TONES,
+  NOT_PASSED_TITLE,
   NOT_RUN_TITLE,
   SIGNOFF_VERDICT_TONES,
   SIGNOFF_VERDICT_WORDS,
@@ -843,7 +844,9 @@ function clearsStoryWide(row: CheckMethodRow): boolean {
  * failure — its chip carries the flag.
  */
 function overallStatus(rows: readonly CheckMethodRow[]): VerifyReviewStatus {
-  if (rows.some((r) => r.state === 'failed')) return OVERALL_STATUS.failed
+  if (rows.some((r) => r.state === 'failed' || r.state === 'unfinished')) {
+    return OVERALL_STATUS.failed
+  }
   if (rows.some(clearsStoryWide)) return OVERALL_STATUS.green
   return OVERALL_STATUS.unchecked
 }
@@ -1074,16 +1077,24 @@ function reviewTurnedBack(steps: readonly StoryStepLine[]): SignoffVerdict | und
 function storyWideVerdict(
   overall: Pick<OverallSignoff, 'rows' | 'steps'>,
 ): SignoffVerdict | undefined {
-  const failed = overall.rows.filter((r) => r.state === 'failed')
-  if (failed.length > 0) {
+  const notPassed = overall.rows.filter((r) => r.state === 'failed' || r.state === 'unfinished')
+  if (notPassed.length > 0) {
+    const failed = notPassed.filter((r) => r.state === 'failed')
+    const unfinished = notPassed.filter((r) => r.state === 'unfinished')
     const titleOf = (row: CheckMethodRow): string => {
       const step = overall.steps.find((l) => STORY_STEP_METHODS[l.key] === row.id)
-      return step ? `${step.name}: ${step.word.toLowerCase()}` : `${row.label} failed`
+      return step
+        ? `${step.name}: ${step.word.toLowerCase()}`
+        : NOT_PASSED_TITLE(failed, unfinished)
     }
     return makeVerdict(
       'failed',
-      failed.length === 1 ? titleOf(failed[0]) : `${failed.length} story-wide checks failed`,
-      failed.map((r) => r.detail).join(' · '),
+      notPassed.length === 1
+        ? titleOf(notPassed[0])
+        : unfinished.length > 0
+          ? NOT_PASSED_TITLE(failed, unfinished)
+          : `${failed.length} story-wide checks failed`,
+      notPassed.map((r) => r.detail).join(' · '),
     )
   }
   const cleared = overall.rows.filter(clearsStoryWide)

@@ -27,19 +27,14 @@ export function CirclingChip({ view }: { view: ProcessCirclingView }) {
 }
 
 /**
- * An attempt that went in circles, as a major issue: the flag, how it ran out,
- * the evidence a line each, and — on a stop — what trying again needs.
+ * An attempt that went in circles, as a major issue: the manager's
+ * recommendation first when it gave one ("Going in circles — the manager
+ * recommends"), then how it ran out and the evidence a line each.
  */
-export function CirclingNotice({
-  view,
-  showHint = true,
-}: {
-  view: ProcessCirclingView
-  /** Say what a retry needs — on a stop the person answers, not on a card that only reports. */
-  showHint?: boolean
-}) {
+export function CirclingNotice({ view }: { view: ProcessCirclingView }) {
   const { status } = useNativeTheme()
   const color = status.stuck.softFg
+  const recommendation = view.recommendation
   return (
     <View
       style={{
@@ -52,18 +47,31 @@ export function CirclingNotice({
         borderWidth: 1,
       }}
     >
-      <Text style={{ fontSize: 11, fontWeight: '700', color, textTransform: 'uppercase' }}>
-        {view.label}
-      </Text>
+      {recommendation ? (
+        <View
+          style={{
+            gap: 2,
+            paddingBottom: nativeSpace[1],
+            borderBottomWidth: 1,
+            borderBottomColor: status.stuck.softBorder,
+          }}
+        >
+          <Text style={{ fontSize: 11, fontWeight: '700', color, textTransform: 'uppercase' }}>
+            {recommendation.heading}
+          </Text>
+          <Text style={{ fontSize: 13, fontWeight: '600', color }}>{recommendation.text}</Text>
+        </View>
+      ) : (
+        <Text style={{ fontSize: 11, fontWeight: '700', color, textTransform: 'uppercase' }}>
+          {view.label}
+        </Text>
+      )}
       <Text style={{ fontSize: 12.5, fontWeight: '600', color }}>{view.headline}</Text>
       {view.evidence.map((line) => (
         <Text key={line} style={{ fontSize: 11.5, color }}>
           {line}
         </Text>
       ))}
-      {showHint ? (
-        <Text style={{ fontSize: 11.5, fontWeight: '500', color }}>{view.hint}</Text>
-      ) : null}
     </View>
   )
 }

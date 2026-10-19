@@ -43,7 +43,8 @@ export type CheckChipProps = {
 /**
  * One verification method as a chip: its glyph, its name, and a mark for its
  * state. The glyph never changes — a reader learns "this is lint" once — and
- * colour says only pass / fail / flagged / absent.
+ * colour says only pass / fail / amber / absent; a check that did not finish
+ * says so in words instead of a mark.
  */
 export default function CheckChip({
   row,
@@ -70,9 +71,16 @@ export default function CheckChip({
     >
       <Glyph className="check-chip__glyph" />
       {row.label}
-      <span className="check-chip__mark" aria-hidden>
-        {face.mark}
-      </span>
+      {face.words ? (
+        <span className="check-chip__words" aria-hidden>
+          · {face.words}
+        </span>
+      ) : null}
+      {face.mark ? (
+        <span className="check-chip__mark" aria-hidden>
+          {face.mark}
+        </span>
+      ) : null}
     </button>
   )
 }
