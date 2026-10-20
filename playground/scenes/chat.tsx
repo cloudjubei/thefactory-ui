@@ -12,6 +12,10 @@ import { toolAskCardView, type PendingToolGrant } from 'thefactory-ui/headless'
 import ApprovalPanel from '../../src/web/compound/chat/ApprovalPanel'
 import ApprovalStack from '../../src/web/compound/chat/ApprovalStack'
 import ToolAskCard from '../../src/web/compound/chat/ToolAskCard'
+import type { CliRunStatus } from '../../src/headless/api/generated'
+import { describeCliRunActivity, isCliRunWorking } from '../../src/headless/utils/cliRunActivity'
+import { withCliRunFailure } from '../../src/headless/utils/cliRunner'
+import { RUN_STOPPED_REASON } from '../../src/headless/utils/cliRunnerConstants'
 import type { Scene } from '../showcase/types'
 
 const noop = () => {}
@@ -124,6 +128,12 @@ const RUNNING: ToolCallCardProps = {
   toolCall: { toolCallId: 't-run', name: 'runProjectCheck', arguments: { check: 'build' } },
   // No `startedAt`: a running row would count up from it.
   resultType: 'running',
+}
+
+const STOPPED: ToolCallCardProps = {
+  toolCall: { toolCallId: 't-stopped', name: 'runProjectCheck', arguments: { check: 'build' } },
+  resultType: 'aborted',
+  result: { outcome: 'stopped', reason: RUN_STOPPED_REASON },
 }
 
 const ERRORED_CALL: ToolCallCardProps = {
@@ -314,6 +324,38 @@ function Card(props: Partial<Parameters<typeof ToolAskCard>[0]> & { of: PendingT
   )
 }
 
+// ---------------------------------------------------------------------------------------------
+// A CLI turn's last rows, and the activity row while its run works
+
+const CLI_TURN: Msg = {
+  id: 'c1',
+  role: 'assistant',
+  showModel: true,
+  model: 'cli-agent/claude/claude-opus-5-5',
+  content: 'Reading the playground entry and the architecture notes before adding the scene.',
+}
+
+/** The turn as the run view lays it out: the activity row shows only while the run works. */
+function CliTurn({ status, failure }: { status: CliRunStatus; failure?: string }) {
+  const failed = withCliRunFailure([], status, failure)
+  const activity = describeCliRunActivity({
+    runningToolNames: [],
+    booting: false,
+    coldStart: false,
+    sinceLastActionMs: 12_000,
+    blocked: [],
+  })
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Conversation messages={[CLI_TURN]} />
+      <ToolCallCard {...READ_FILE} />
+      <ToolCallCard {...(isCliRunWorking(status) ? RUNNING : STOPPED)} />
+      {failed.length > 0 ? <Conversation messages={failed} /> : null}
+      {isCliRunWorking(status) ? <ThinkingRow spinnerLabel={activity.label} /> : null}
+    </div>
+  )
+}
+
 export const CHAT_SCENES: Scene[] = [
   {
     id: 'message-bubbles',
@@ -370,6 +412,30 @@ export const CHAT_SCENES: Scene[] = [
         title: 'Waiting on you',
         render: () => <ThinkingRow tone="blocked" spinnerLabel="Waiting for your approval" />,
       },
+      {
+        id: 'cli-working',
+        title: 'CLI run working',
+        render: () => <CliTurn status="running" />,
+      },
+      {
+        id: 'cli-paused',
+        title: 'CLI run paused',
+        description:
+          'A backend restart parks its runs paused. Nothing runs a paused run, so its turn shows as ended: the call it was on reads as stopped, no activity row, and the composer is free.',
+        render: () => <CliTurn status="paused" />,
+      },
+      {
+        id: 'cli-paused-failure',
+        title: 'CLI run paused on a failure',
+        description:
+          'Its failure policy paused the run — here an expired login. It is not working either, and its turn ends with the failure, as a failed run’s does.',
+        render: () => (
+          <CliTurn
+            status="paused"
+            failure="Claude Code’s login expired. Sign in again to carry on."
+          />
+        ),
+      },
     ],
   },
   {
@@ -383,11 +449,18 @@ export const CHAT_SCENES: Scene[] = [
         id: 'statuses',
         title: 'Every status',
         render: () => (
-          <ToolRows rows={[READ_FILE, SEARCH, RUNNING, ERRORED_CALL, DENIED, AWAITING]} />
+          <ToolRows rows={[READ_FILE, SEARCH, RUNNING, STOPPED, ERRORED_CALL, DENIED, AWAITING]} />
         ),
       },
       { id: 'success', title: 'Succeeded', render: () => <ToolRows rows={[READ_FILE]} /> },
       { id: 'running', title: 'Running', render: () => <ToolRows rows={[RUNNING]} /> },
+      {
+        id: 'stopped',
+        title: 'Stopped',
+        description:
+          'The call was still open when its run stopped working — stopped, failed or paused by a restart. It will not finish, so it no longer spins.',
+        render: () => <ToolRows rows={[STOPPED]} />,
+      },
       { id: 'errored', title: 'Errored', render: () => <ToolRows rows={[ERRORED_CALL]} /> },
       { id: 'denied', title: 'Denied', render: () => <ToolRows rows={[DENIED]} /> },
       {

@@ -7,6 +7,7 @@ import type {
 import { canonicalProofKinds } from 'thefactory-tools/utils'
 
 import {
+  ACCEPT_DROPPED_NOTE_COPY,
   PARK_NOTE_CHOICES,
   PARK_NOTE_COUNTER_FROM,
   PARK_NOTE_MAX_LENGTH,
@@ -23,9 +24,11 @@ export function choiceTakesNote(choice: ProcessParkAction): boolean {
   return PARK_NOTE_CHOICES.has(choice)
 }
 
-/** The composer's words for a park choice that takes a note: sending work back to the developer, else a request for changes. */
+/** The composer's words for a park choice that takes a note: sending work back to the developer, accepting a dropped change, else a request for changes. */
 export function parkNoteCopy(choice: ProcessParkAction): ParkNoteCopy {
-  return choice === 'send-to-developer' ? SEND_TO_DEVELOPER_NOTE_COPY : PARK_NOTE_COPY
+  if (choice === 'send-to-developer') return SEND_TO_DEVELOPER_NOTE_COPY
+  if (choice === 'accept-dropped-change') return ACCEPT_DROPPED_NOTE_COPY
+  return PARK_NOTE_COPY
 }
 
 /** Whether the note IS the answer, so the composer will not send it blank. */

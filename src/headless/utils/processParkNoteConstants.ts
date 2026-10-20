@@ -13,10 +13,14 @@ export const PARK_NOTE_CHOICES: ReadonlySet<ProcessParkAction> = new Set([
   'request-changes',
   'more-info',
   'send-to-developer',
+  'accept-dropped-change',
 ])
 
 /** The park choices whose note is the whole answer, so they cannot be sent empty. */
-export const PARK_NOTE_REQUIRED_CHOICES: ReadonlySet<ProcessParkAction> = new Set(['more-info'])
+export const PARK_NOTE_REQUIRED_CHOICES: ReadonlySet<ProcessParkAction> = new Set([
+  'more-info',
+  'accept-dropped-change',
+])
 
 /** The composer's words at a gate: a request for changes always sends the work back to be fixed. */
 export const PARK_NOTE_COPY: ParkNoteCopy = {
@@ -29,6 +33,12 @@ export const PARK_NOTE_COPY: ParkNoteCopy = {
 export const SEND_TO_DEVELOPER_NOTE_COPY: ParkNoteCopy = {
   prompt: 'What should the developer do? Optional — the checks’ findings go with it.',
   submitLabel: 'Send back',
+}
+
+/** The composer's words when a person accepts that an earlier merge dropped a change on purpose. */
+export const ACCEPT_DROPPED_NOTE_COPY: ParkNoteCopy = {
+  prompt: 'Why was dropping it right?',
+  submitLabel: 'Accept',
 }
 
 export const PARK_NOTE_CANCEL = 'Cancel'

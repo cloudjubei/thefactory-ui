@@ -5,6 +5,7 @@ import type {
   LaunchAgentAsked,
   LaunchAgentPick,
   LaunchAgentPickMetadata,
+  LaunchModelChipSlot,
   LaunchSuggestionAgent,
 } from './launchAgentPickTypes'
 
@@ -82,4 +83,19 @@ export function launchAgentPickSuggestionAgent(
     ...(model ? { model } : {}),
     ...(cliCredentialId ? { cliCredentialId } : {}),
   }
+}
+
+/**
+ * What a launch card's model chip shows: the person's pick, else the agent the
+ * launch asks for — a story's Run asks for the person's own, an agent's card
+ * for the one it named — else the chat's. Its pickers are the slot's. Pure.
+ */
+export function launchModelChipSlotOf(
+  slot: LaunchModelChipSlot,
+  asked: LaunchAgentAsked & Pick<LaunchAgentPickMetadata, 'runner'>,
+): LaunchModelChipSlot {
+  if (slot.api || slot.cli !== undefined || slot.model !== undefined) return slot
+  if (asked.runner === 'api') return { ...slot, api: true }
+  if (!asked.cliTool) return slot
+  return { ...slot, cli: asked.cliTool, model: asked.cliModel }
 }

@@ -420,6 +420,26 @@ describe('buildChatDebugDump — CLI runs', () => {
     expect(dump.runs[0].derivedMessages[0].content.preview).toBe('the reply')
   })
 
+  it('derives a call left open as stopped once its run is no longer working, as the chat shows it', () => {
+    const openCall: CliRunTranscriptEntry = {
+      at: 1,
+      kind: 'tool-call',
+      payload: {
+        type: 'assistant',
+        message: {
+          content: [{ type: 'tool_use', id: 'tu-1', name: 'Bash', input: { command: 'ls' } }],
+        },
+      },
+    }
+    const typeIn = (status: CliRun['status']) =>
+      buildChatDebugDump({ context, runs: [runOf({ status, transcript: [openCall] })] }).runs[0]
+        .derivedMessages[0].toolResult?.type
+    expect(typeIn('paused')).toBe('aborted')
+    expect(typeIn('errored')).toBe('aborted')
+    expect(typeIn('running')).toBe('running')
+    expect(typeIn('awaiting-approval')).toBe('running')
+  })
+
   it('drops derived thinking messages when the chat renders with thinking off', () => {
     const thinking: CliRunTranscriptEntry = {
       at: 1,

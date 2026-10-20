@@ -151,13 +151,19 @@ export function featureProcessOverlay(
  * feature's own Run in place. Pure.
  */
 export function isFeatureInLiveRun(
-  run: (Pick<ProcessRun, 'status'> & Partial<Pick<ProcessRun, 'plan'>>) | undefined,
+  run:
+    | (Pick<ProcessRun, 'status'> & Partial<Pick<ProcessRun, 'plan' | 'withdrawnFeatureIds'>>)
+    | undefined,
   featureId: string,
 ): boolean {
   return run !== undefined && isProcessRunActive(run) && planCarriesFeature(run, featureId)
 }
 
-function planCarriesFeature(run: Partial<Pick<ProcessRun, 'plan'>>, featureId: string): boolean {
+function planCarriesFeature(
+  run: Partial<Pick<ProcessRun, 'plan' | 'withdrawnFeatureIds'>>,
+  featureId: string,
+): boolean {
+  if (run.withdrawnFeatureIds?.includes(featureId)) return false
   return (run.plan?.steps ?? []).some(
     (s) => s.subject?.kind === 'feature' && s.subject.id === featureId,
   )

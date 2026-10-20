@@ -242,6 +242,9 @@ import type {
   DeleteGitCredentialData,
   DeleteGitCredentialErrors,
   DeleteGitCredentialResponses,
+  DeleteGroupAgentTypeData,
+  DeleteGroupAgentTypeErrors,
+  DeleteGroupAgentTypeResponses,
   DeleteGroupNoteData,
   DeleteGroupNoteErrors,
   DeleteGroupNoteResponses,
@@ -259,6 +262,9 @@ import type {
   DeleteProcessRunData,
   DeleteProcessRunErrors,
   DeleteProcessRunResponses,
+  DeleteProjectAgentTypeData,
+  DeleteProjectAgentTypeErrors,
+  DeleteProjectAgentTypeResponses,
   DeleteProjectData,
   DeleteProjectDataData,
   DeleteProjectDataErrors,
@@ -305,9 +311,6 @@ import type {
   FileDesignProposalEntryData,
   FileDesignProposalEntryErrors,
   FileDesignProposalEntryResponses,
-  ForkCliAgentRunData,
-  ForkCliAgentRunErrors,
-  ForkCliAgentRunResponses,
   GetActiveCliStateData,
   GetActiveCliStateResponses,
   GetActiveRunnerKindData,
@@ -319,6 +322,7 @@ import type {
   GetAllFileStatsErrors,
   GetAllFileStatsResponses,
   GetChatData,
+  GetChatErrors,
   GetChatOpenChangesData,
   GetChatOpenChangesErrors,
   GetChatOpenChangesResponses,
@@ -407,6 +411,9 @@ import type {
   GetGitTextRecoveryData,
   GetGitTextRecoveryErrors,
   GetGitTextRecoveryResponses,
+  GetKnowledgeEvaluationSettingsData,
+  GetKnowledgeEvaluationSettingsErrors,
+  GetKnowledgeEvaluationSettingsResponses,
   GetLastCoverageData,
   GetLastCoverageErrors,
   GetLastCoverageResponses,
@@ -650,6 +657,9 @@ import type {
   ListGitStashesData,
   ListGitStashesErrors,
   ListGitStashesResponses,
+  ListGroupAgentTypesData,
+  ListGroupAgentTypesErrors,
+  ListGroupAgentTypesResponses,
   ListGroupNotesData,
   ListGroupNotesErrors,
   ListGroupNotesResponses,
@@ -673,6 +683,9 @@ import type {
   ListProcessRunBranchesResponses,
   ListProcessRunsData,
   ListProcessRunsResponses,
+  ListProjectAgentTypesData,
+  ListProjectAgentTypesErrors,
+  ListProjectAgentTypesResponses,
   ListProjectChecksData,
   ListProjectChecksErrors,
   ListProjectChecksResponses,
@@ -803,6 +816,9 @@ import type {
   PushOverseerData,
   PushOverseerErrors,
   PushOverseerResponses,
+  PutKnowledgeEvaluationDefaultsData,
+  PutKnowledgeEvaluationDefaultsErrors,
+  PutKnowledgeEvaluationDefaultsResponses,
   PutProjectDataData,
   PutProjectDataErrors,
   PutProjectDataResponses,
@@ -900,9 +916,6 @@ import type {
   ResumeActivityData,
   ResumeActivityErrors,
   ResumeActivityResponses,
-  ResumeCliAgentRunData,
-  ResumeCliAgentRunErrors,
-  ResumeCliAgentRunResponses,
   ResumeCompletionData,
   ResumeCompletionErrors,
   ResumeCompletionResponses,
@@ -947,9 +960,21 @@ import type {
   RunTestsResponses,
   RunTrainerToolData,
   RunTrainerToolResponses,
+  SaveGroupAgentTypeData,
+  SaveGroupAgentTypeErrors,
+  SaveGroupAgentTypeResponses,
+  SaveGroupAgentTypeSlotsData,
+  SaveGroupAgentTypeSlotsErrors,
+  SaveGroupAgentTypeSlotsResponses,
   SaveProcessData,
   SaveProcessErrors,
   SaveProcessResponses,
+  SaveProjectAgentTypeData,
+  SaveProjectAgentTypeErrors,
+  SaveProjectAgentTypeResponses,
+  SaveProjectAgentTypeSlotsData,
+  SaveProjectAgentTypeSlotsErrors,
+  SaveProjectAgentTypeSlotsResponses,
   ScanCodeIntelData,
   ScanCodeIntelErrors,
   ScanCodeIntelResponses,
@@ -974,9 +999,6 @@ import type {
   SendChatWithCliData,
   SendChatWithCliErrors,
   SendChatWithCliResponses,
-  SendCompletionData,
-  SendCompletionErrors,
-  SendCompletionResponses,
   SendCompletionWithToolsData,
   SendCompletionWithToolsErrors,
   SendCompletionWithToolsResponses,
@@ -1037,9 +1059,6 @@ import type {
   ShowChatInListData,
   ShowChatInListErrors,
   ShowChatInListResponses,
-  StartCliAgentRunData,
-  StartCliAgentRunErrors,
-  StartCliAgentRunResponses,
   StartCliAuthLoginData,
   StartCliAuthLoginErrors,
   StartCliAuthLoginResponses,
@@ -1082,6 +1101,9 @@ import type {
   StartTestsRunData,
   StartTestsRunErrors,
   StartTestsRunResponses,
+  StopActivityData,
+  StopActivityErrors,
+  StopActivityResponses,
   SubmitCliAuthLoginInputData,
   SubmitCliAuthLoginInputErrors,
   SubmitCliAuthLoginInputResponses,
@@ -2215,6 +2237,132 @@ export const listProcessRunBranches = <ThrowOnError extends boolean = false>(
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/process-runs/{runId}/branches',
     ...options,
+  })
+
+export const listProjectAgentTypes = <ThrowOnError extends boolean = false>(
+  options: Options<ListProjectAgentTypesData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ListProjectAgentTypesResponses,
+    ListProjectAgentTypesErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/agent-types',
+    ...options,
+  })
+
+export const deleteProjectAgentType = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteProjectAgentTypeData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<
+    DeleteProjectAgentTypeResponses,
+    DeleteProjectAgentTypeErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/agent-types/{agentTypeId}',
+    ...options,
+  })
+
+export const saveProjectAgentType = <ThrowOnError extends boolean = false>(
+  options: Options<SaveProjectAgentTypeData, ThrowOnError>,
+) =>
+  (options.client ?? client).put<
+    SaveProjectAgentTypeResponses,
+    SaveProjectAgentTypeErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/agent-types/{agentTypeId}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const saveProjectAgentTypeSlots = <ThrowOnError extends boolean = false>(
+  options: Options<SaveProjectAgentTypeSlotsData, ThrowOnError>,
+) =>
+  (options.client ?? client).put<
+    SaveProjectAgentTypeSlotsResponses,
+    SaveProjectAgentTypeSlotsErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/agent-type-slots',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const listGroupAgentTypes = <ThrowOnError extends boolean = false>(
+  options: Options<ListGroupAgentTypesData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ListGroupAgentTypesResponses,
+    ListGroupAgentTypesErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/agent-types',
+    ...options,
+  })
+
+export const deleteGroupAgentType = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteGroupAgentTypeData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<
+    DeleteGroupAgentTypeResponses,
+    DeleteGroupAgentTypeErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/agent-types/{agentTypeId}',
+    ...options,
+  })
+
+export const saveGroupAgentType = <ThrowOnError extends boolean = false>(
+  options: Options<SaveGroupAgentTypeData, ThrowOnError>,
+) =>
+  (options.client ?? client).put<
+    SaveGroupAgentTypeResponses,
+    SaveGroupAgentTypeErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/agent-types/{agentTypeId}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const saveGroupAgentTypeSlots = <ThrowOnError extends boolean = false>(
+  options: Options<SaveGroupAgentTypeSlotsData, ThrowOnError>,
+) =>
+  (options.client ?? client).put<
+    SaveGroupAgentTypeSlotsResponses,
+    SaveGroupAgentTypeSlotsErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/agent-type-slots',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
   })
 
 export const listProcessGroupRuns = <ThrowOnError extends boolean = false>(
@@ -3697,10 +3845,13 @@ export const getChatSummary = <ThrowOnError extends boolean = false>(
     },
   })
 
+/**
+ * The chat for a context, opened and stored the first time it is asked for. A context naming a project, story, feature or group that does not exist answers 404 and stores nothing.
+ */
 export const getChat = <ThrowOnError extends boolean = false>(
   options: Options<GetChatData, ThrowOnError>,
 ) =>
-  (options.client ?? client).post<GetChatResponses, unknown, ThrowOnError>({
+  (options.client ?? client).post<GetChatResponses, GetChatErrors, ThrowOnError>({
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/chats/get',
@@ -4973,20 +5124,6 @@ export const detectEnvironment = <ThrowOnError extends boolean = false>(
     },
   })
 
-export const sendCompletion = <ThrowOnError extends boolean = false>(
-  options: Options<SendCompletionData, ThrowOnError>,
-) =>
-  (options.client ?? client).post<SendCompletionResponses, SendCompletionErrors, ThrowOnError>({
-    responseType: 'json',
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/v1/completions/send',
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  })
-
 export const sendCompletionWithTools = <ThrowOnError extends boolean = false>(
   options: Options<SendCompletionWithToolsData, ThrowOnError>,
 ) =>
@@ -5700,52 +5837,6 @@ export const suggestLaunchSetup = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/processes/suggest-setup',
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  })
-
-export const startCliAgentRun = <ThrowOnError extends boolean = false>(
-  options: Options<StartCliAgentRunData, ThrowOnError>,
-) =>
-  (options.client ?? client).post<StartCliAgentRunResponses, StartCliAgentRunErrors, ThrowOnError>({
-    responseType: 'json',
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/v1/cli-runs/start',
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  })
-
-export const resumeCliAgentRun = <ThrowOnError extends boolean = false>(
-  options: Options<ResumeCliAgentRunData, ThrowOnError>,
-) =>
-  (options.client ?? client).post<
-    ResumeCliAgentRunResponses,
-    ResumeCliAgentRunErrors,
-    ThrowOnError
-  >({
-    responseType: 'json',
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/v1/cli-runs/{runId}/resume',
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  })
-
-export const forkCliAgentRun = <ThrowOnError extends boolean = false>(
-  options: Options<ForkCliAgentRunData, ThrowOnError>,
-) =>
-  (options.client ?? client).post<ForkCliAgentRunResponses, ForkCliAgentRunErrors, ThrowOnError>({
-    responseType: 'json',
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/v1/cli-runs/fork',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -6850,6 +6941,23 @@ export const abortActivity = <ThrowOnError extends boolean = false>(
     ...options,
   })
 
+/**
+ * The person stops one activity of this project, confirmed in their client: its work is ended and awaited, its outputs kept, and it never starts again under this id. Activities it started that are still queued or running are stopped with it. Answers what the store shows afterwards, each started activity in children.
+ */
+export const stopActivity = <ThrowOnError extends boolean = false>(
+  options: Options<StopActivityData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<StopActivityResponses, StopActivityErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/activities/{activityId}/stop',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
 export const resumeActivity = <ThrowOnError extends boolean = false>(
   options: Options<ResumeActivityData, ThrowOnError>,
 ) =>
@@ -6858,6 +6966,38 @@ export const resumeActivity = <ThrowOnError extends boolean = false>(
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/projects/{projectId}/activities/{activityId}/resume',
     ...options,
+  })
+
+export const getKnowledgeEvaluationSettings = <ThrowOnError extends boolean = false>(
+  options: Options<GetKnowledgeEvaluationSettingsData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetKnowledgeEvaluationSettingsResponses,
+    GetKnowledgeEvaluationSettingsErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/knowledge-evaluation/settings',
+    ...options,
+  })
+
+export const putKnowledgeEvaluationDefaults = <ThrowOnError extends boolean = false>(
+  options: Options<PutKnowledgeEvaluationDefaultsData, ThrowOnError>,
+) =>
+  (options.client ?? client).put<
+    PutKnowledgeEvaluationDefaultsResponses,
+    PutKnowledgeEvaluationDefaultsErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/knowledge-evaluation/defaults',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
   })
 
 export const runTrainerTool = <ThrowOnError extends boolean = false>(

@@ -93,3 +93,15 @@ export type CliDecidedAsk = {
   /** The files a git change's card listed when it was approved — what its commit receipt counts. */
   changeFiles?: GitChangeFileView[]
 }
+
+/** The parts of a run record that say how it ended. */
+export type CliRunEndRecord = {
+  status?: string
+  failure?: { message?: string } | null
+  abortReason?: string | null
+}
+
+/** How a run that is no longer working ended for its chat: the failure to surface, if any. */
+export type CliRunSettlement = {
+  error?: string
+}

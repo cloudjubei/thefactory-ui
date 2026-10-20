@@ -3,9 +3,12 @@ import {
   appendCliRunTranscript,
   blockedOnFromGrants,
   blockedToolNames,
+  cliRunSettlement,
+  cliRunUpdateSettlement,
   describeCliRunActivity,
   describeSubagentSteps,
   formatCliElapsed,
+  isCliRunWorking,
   lastCliActionAtMs,
   mergeCliRunTranscript,
   runningCliToolNames,
@@ -15,6 +18,7 @@ import {
   CLI_BLOCKED_SUBLABEL,
   CLI_BOOT_SUBLABEL,
   CLI_QUESTION_SUBLABEL,
+  CLI_RUN_ENDED_WITHOUT_REPLY,
 } from './cliRunActivityConstants'
 import type { CliRunActivityInput, CliRunBlockedOn } from './cliRunActivityTypes'
 import type { CliRunTranscriptEntry } from '../api/generated'
@@ -395,5 +399,136 @@ describe('describeSubagentSteps', () => {
       subagentMessages: [toolMessage('readFile', 'running')],
     }
     expect(describeSubagentSteps([inner])).toBe('1 step · 1 tool call · now readFile')
+  })
+})
+
+describe('isCliRunWorking', () => {
+  it.each(['running', 'awaiting-approval'] as const)('counts a %s run as working', (status) => {
+    expect(isCliRunWorking(status)).toBe(true)
+  })
+
+  it.each(['paused', 'succeeded', 'errored', 'aborted'] as const)(
+    'counts a %s run as not working',
+    (status) => {
+      expect(isCliRunWorking(status)).toBe(false)
+    },
+  )
+
+  it('counts a run with no status yet, or one it does not know, as not working', () => {
+    expect(isCliRunWorking(undefined)).toBe(false)
+    expect(isCliRunWorking('')).toBe(false)
+    expect(isCliRunWorking('cancelled')).toBe(false)
+  })
+})
+
+describe('cliRunSettlement', () => {
+  it('leaves a run still working, or with no status, unsettled', () => {
+    expect(cliRunSettlement({ status: 'running' }, false)).toBeUndefined()
+    expect(
+      cliRunSettlement(
+        { status: 'awaiting-approval', failure: { message: 'not yet' }, abortReason: 'x' },
+        true,
+      ),
+    ).toBeUndefined()
+    expect(cliRunSettlement({}, false)).toBeUndefined()
+    expect(cliRunSettlement({ failure: { message: 'gone' } }, false)).toBeUndefined()
+  })
+
+  it('settles a run a restart paused as ended, with no error', () => {
+    expect(cliRunSettlement({ status: 'paused' }, false)).toEqual({})
+    expect(cliRunSettlement({ status: 'paused', abortReason: '  ', failure: null }, false)).toEqual(
+      {},
+    )
+    expect(cliRunSettlement({ status: 'paused' }, true)).toEqual({})
+  })
+
+  it('surfaces a run its failure policy paused with its failure, as for a failed run', () => {
+    expect(
+      cliRunSettlement(
+        { status: 'paused', failure: { message: 'Login expired' }, abortReason: 'restart' },
+        false,
+      ),
+    ).toEqual({ error: 'Login expired' })
+    expect(
+      cliRunSettlement(
+        { status: 'paused', failure: { message: '' }, abortReason: 'Re-login' },
+        true,
+      ),
+    ).toEqual({ error: 'Re-login' })
+    expect(cliRunSettlement({ status: 'paused', failure: {} }, false)).toEqual({
+      error: CLI_RUN_ENDED_WITHOUT_REPLY('paused'),
+    })
+    expect(cliRunSettlement({ status: 'paused', abortReason: 'Login expired' }, true)).toEqual({
+      error: 'Login expired',
+    })
+  })
+
+  it('settles a finished run with no error', () => {
+    expect(cliRunSettlement({ status: 'succeeded' }, false)).toEqual({})
+    expect(cliRunSettlement({ status: 'succeeded', abortReason: 'ignored' }, true)).toEqual({})
+  })
+
+  it('surfaces a failed run with the reason it recorded, its failure first', () => {
+    expect(
+      cliRunSettlement(
+        { status: 'errored', failure: { message: 'Sandbox would not start' }, abortReason: 'b' },
+        false,
+      ),
+    ).toEqual({ error: 'Sandbox would not start' })
+    expect(cliRunSettlement({ status: 'errored', abortReason: 'Killed' }, true)).toEqual({
+      error: 'Killed',
+    })
+    expect(
+      cliRunSettlement(
+        { status: 'errored', failure: { message: '  ' }, abortReason: 'Killed' },
+        false,
+      ),
+    ).toEqual({ error: 'Killed' })
+    expect(cliRunSettlement({ status: 'errored', failure: {} }, false)).toEqual({
+      error: CLI_RUN_ENDED_WITHOUT_REPLY('errored'),
+    })
+  })
+
+  it('surfaces an abort only when the person did not stop it', () => {
+    expect(cliRunSettlement({ status: 'aborted', abortReason: 'Timed out' }, false)).toEqual({
+      error: 'Timed out',
+    })
+    expect(cliRunSettlement({ status: 'aborted' }, false)).toEqual({
+      error: CLI_RUN_ENDED_WITHOUT_REPLY('aborted'),
+    })
+    expect(cliRunSettlement({ status: 'aborted', abortReason: 'Stopped by you' }, true)).toEqual({})
+  })
+
+  it('says how the run ended when it recorded no reason', () => {
+    expect(CLI_RUN_ENDED_WITHOUT_REPLY('errored')).toBe('The agent run errored without a reply.')
+  })
+})
+
+describe('cliRunUpdateSettlement', () => {
+  it('surfaces the error a terminal update carries for a run that failed or a policy paused', () => {
+    expect(cliRunUpdateSettlement({ status: 'errored', error: 'boom' }, false)).toEqual({
+      error: 'boom',
+    })
+    expect(cliRunUpdateSettlement({ status: 'paused', error: 'Login expired' }, false)).toEqual({
+      error: 'Login expired',
+    })
+    expect(cliRunUpdateSettlement({ status: 'aborted', error: 'Timed out' }, false)).toEqual({
+      error: 'Timed out',
+    })
+  })
+
+  it('names how the run ended when its update carries no error', () => {
+    expect(cliRunUpdateSettlement({ status: 'errored' }, false)).toEqual({
+      error: CLI_RUN_ENDED_WITHOUT_REPLY('errored'),
+    })
+    expect(cliRunUpdateSettlement({ status: 'aborted' }, false)).toEqual({
+      error: CLI_RUN_ENDED_WITHOUT_REPLY('aborted'),
+    })
+  })
+
+  it('ends quietly for a finished run, a pause with no failure, and the person’s own Stop', () => {
+    expect(cliRunUpdateSettlement({ status: 'succeeded', error: 'ignored' }, false)).toEqual({})
+    expect(cliRunUpdateSettlement({ status: 'paused' }, false)).toEqual({})
+    expect(cliRunUpdateSettlement({ status: 'aborted', error: 'Stopped by you' }, true)).toEqual({})
   })
 })

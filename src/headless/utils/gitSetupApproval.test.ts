@@ -6,6 +6,7 @@ import {
   gitSetupMilestone,
   gitSetupPlan,
   isGitSetupGrant,
+  toolRowMilestone,
 } from './gitSetupApproval'
 
 const args = { repoName: 'wargames', private: true, description: 'A war game' }
@@ -149,5 +150,20 @@ describe('gitSetupMilestone', () => {
     )
     expect(gitSetupMilestone('not json', 'success', false)).toBeUndefined()
     expect(gitSetupMilestone(undefined, 'running', false)).toBeUndefined()
+  })
+})
+
+describe('toolRowMilestone', () => {
+  it('gives a stopActivity row the outcome its action recorded', () => {
+    const recorded = JSON.stringify({ activityId: 'a', outcome: 'noop', status: 'failed' })
+    expect(toolRowMilestone('stopActivity', undefined, 'success', false, recorded)).toEqual({
+      tone: 'neutral',
+      title: 'Already failed — nothing changed',
+    })
+  })
+
+  it('gives a tool with no line none', () => {
+    expect(toolRowMilestone('readFile', { outcome: 'stopped' }, 'success', false)).toBeUndefined()
+    expect(toolRowMilestone(undefined, { outcome: 'stopped' }, 'success', false)).toBeUndefined()
   })
 })

@@ -67,6 +67,12 @@ export const FEATURE_REQUEST_WAIT_CYCLE_WORDS = {
     `Decide first in ${projectId}, which owns what this side waits on.`,
 } as const
 
+/** Starting an accepted request's work that never started. */
+export const FEATURE_REQUEST_START_WORK_WORDS = {
+  action: 'Start work',
+  hint: 'Its work has not started yet.',
+} as const
+
 /** How a request whose work ended blocked or failed offers to start it again. */
 export const FEATURE_REQUEST_START_AGAIN_WORDS = {
   action: 'Start again',

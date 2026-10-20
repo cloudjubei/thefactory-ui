@@ -25,16 +25,20 @@ function Card({
   request,
   initialSettleMode,
   startAgain,
+  startWork,
 }: {
   request: FeatureRequestCardData
   initialSettleMode?: FeatureRequestSettleMode
   startAgain?: boolean
+  startWork?: boolean
 }) {
   return (
     <div className="max-w-xl">
       <FeatureRequestCard
         request={request}
+        defaultMode="process"
         onOpenFull={noop}
+        onStartWork={startWork ? noop : undefined}
         onMarkDelivered={noop}
         onHandOver={noop}
         onStartAgain={startAgain ? noop : undefined}
@@ -153,6 +157,32 @@ export const FEATURE_REQUEST_CARD_SCENES: Scene[] = [
         description:
           'Paired with Blocked — start again: a failed request offers the same, saying its work failed.',
         render: () => <Card startAgain request={{ ...REQUEST, status: 'failed' }} />,
+      },
+      {
+        id: 'accepted-work-started',
+        title: 'Accepted — work started',
+        description:
+          'The look-alike base: accepted, and its work already started, so the card offers nothing to start.',
+        render: () => (
+          <Card startWork request={{ ...REQUEST, status: 'accepted', reviewBranch: undefined }} />
+        ),
+      },
+      {
+        id: 'accepted-start-work',
+        title: 'Accepted — start work',
+        description:
+          'Paired with Accepted — work started: accepted while its launch card was left unconfirmed, the card in the asking chat offers Start work, as the request’s own card and full view do.',
+        render: () => (
+          <Card
+            startWork
+            request={{
+              ...REQUEST,
+              status: 'accepted',
+              reviewBranch: undefined,
+              workNotStarted: true,
+            }}
+          />
+        ),
       },
       {
         id: 'blocked-review-rejected',

@@ -11,7 +11,9 @@ import {
   type TextInputSelectionChangeEventData,
 } from 'react-native'
 
-import { useFileMentions, type ReferenceSuggestion } from '../../../headless'
+import { isFolderMention, useFileMentions, type ReferenceSuggestion } from '../../../headless'
+import { IconFolder } from '../../icons'
+import FileTypeIcon from './FileTypeIcon'
 import type { ReferenceSigil } from '../../../headless/utils/reference'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
@@ -35,7 +37,7 @@ export interface FileMentionsTextareaProps {
   /** Returns ranked suggestions for the active `&<token>` — notes and the
    *  chat's attachments. When omitted, `&` shows no suggestions. */
   onSearchHandles?: (token: string) => ReadonlyArray<ReferenceSuggestion>
-  /** Fires AFTER the user taps an `@`-file suggestion. */
+  /** Fires AFTER the user taps an `@`-file suggestion — not a folder, which is not a file. */
   onAcceptFileMention?: (path: string) => void
   /** Fires AFTER the user taps a `#` or `&` suggestion, with the sigil it was picked under. */
   onAcceptReference?: (value: string, sigil: ReferenceSigil) => void
@@ -251,6 +253,11 @@ function SuggestionsStrip({
               })}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}>
+                {isFolderMention(path) ? (
+                  <IconFolder size={16} />
+                ) : (
+                  <FileTypeIcon path={describeFile?.(path).path ?? path} size={16} />
+                )}
                 <Text
                   style={{ flexShrink: 1, fontSize: 13, color: theme.text.primary }}
                   numberOfLines={1}

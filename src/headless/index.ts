@@ -78,6 +78,7 @@ export {
 export {
   canSettleFeatureRequest,
   canStartFeatureRequestAgain,
+  canStartFeatureRequestWork,
   featureRequestAcceptHint,
   featureRequestBriefOfToolArgs,
   featureRequestChatContext,
@@ -186,6 +187,12 @@ export {
 export { useStorageBackedState, type SyncKVStorage } from './hooks/useStorageBackedState'
 export { useProjectSettings, type ProjectSettingsApi } from './hooks/useProjectSettings'
 export { useDirtyGuard, type UseDirtyGuard } from './hooks/useDirtyGuard'
+export { useStoryChangeError, type UseStoryChangeError } from './hooks/useStoryChangeError'
+export {
+  attemptStoryChange,
+  featureWriteError,
+  storyChangeErrorText,
+} from './utils/storyWriteErrors'
 export { useAppDirtyGuard, type UseAppDirtyGuard } from './hooks/useAppDirtyGuard'
 export {
   LeaveGuardProvider,
@@ -409,6 +416,54 @@ export {
   projectStableBranchOf,
 } from './utils/projectStableBranch'
 export * from './utils/projectStableBranchConstants'
+export { projectMetadataCarried } from './utils/projectFormMetadata'
+export * from './utils/projectFormMetadataConstants'
+export {
+  evaluationDefaultsFieldView,
+  evaluationDefaultsModelLabel,
+  evaluationDefaultsSummary,
+  evaluationDefaultsWithChoice,
+  evaluationDefaultsWithConcurrency,
+  evaluationDefaultsWithFocus,
+  evaluationDefaultsWithModel,
+  evaluationModelKind,
+  readEvaluationDefaults,
+  withEvaluationDefaults,
+} from './utils/evaluationDefaults'
+export * from './utils/evaluationDefaultsConstants'
+export type {
+  EvaluationChoiceKey,
+  EvaluationChoiceOption,
+  EvaluationChoiceView,
+  EvaluationDefaultsFieldView,
+  EvaluationFocusKey,
+  EvaluationFocusOption,
+  EvaluationFocusView,
+  EvaluationModelKind,
+} from './utils/evaluationDefaultsTypes'
+export * from './utils/knowledgeEvaluationConstants'
+export type {
+  KnowledgeEvaluationBuildMode,
+  KnowledgeEvaluationCli,
+  KnowledgeEvaluationDefaults,
+  KnowledgeEvaluationPromptMode,
+  KnowledgeEvaluationSettings,
+  KnowledgeEvaluationStage,
+} from './utils/knowledgeEvaluationTypes'
+export {
+  readKnowledgeEvaluationSettings,
+  useKnowledgeEvaluationSettings,
+} from './hooks/useKnowledgeEvaluationSettings'
+export type { UseKnowledgeEvaluationSettings } from './hooks/useKnowledgeEvaluationSettings'
+export { evaluationLaunchAskView } from './utils/evaluationLaunchAskView'
+export * from './utils/evaluationLaunchAskViewConstants'
+export type {
+  EvaluationLaunchAskBodyView,
+  EvaluationLaunchBuildLine,
+  EvaluationLaunchCapabilityRow,
+  EvaluationLaunchPreviewView,
+  EvaluationLaunchSettingRow,
+} from './utils/evaluationLaunchAskViewTypes'
 
 // Badge aggregation
 export {
@@ -552,6 +607,38 @@ export { maskSecret } from './utils/mask'
 
 // Per-project tri-state override resolver (notification categories, badges)
 export { resolveTriState } from './utils/triState'
+
+// Where one event's notification goes (OS, in-app, dropped) under the Notifications settings
+export { routeNotification } from './utils/notificationRoute'
+export type {
+  NotificationPermissionState,
+  NotificationRoute,
+  NotificationRouteInput,
+} from './utils/notificationRouteTypes'
+
+// Backend connection settings: Test connection and Reset all, the same on every client
+export {
+  backendTestCandidate,
+  backendTestLine,
+  normalizeBackendUrl,
+} from './utils/backendConnection'
+export {
+  BACKEND_RESET_BODY,
+  BACKEND_RESET_LABEL,
+  BACKEND_RESET_TITLE,
+  BACKEND_TEST_FAILED,
+  BACKEND_TEST_LABEL,
+  BACKEND_TESTING_LABEL,
+} from './utils/backendConnectionConstants'
+export type { BackendTestLine, BackendTestState } from './utils/backendConnectionTypes'
+export {
+  useBackendConnectionTest,
+  type UseBackendConnectionTest,
+} from './hooks/useBackendConnectionTest'
+
+// `data:` URIs taken apart, for clients that write the bytes to a file
+export { parseDataUri } from './utils/dataUri'
+export type { ParsedDataUri } from './utils/dataUriTypes'
 
 // Keyboard-shortcut combo parsing + matching + pretty-printing.
 // `Mod` resolves to ⌘ or Ctrl based on the consumer's `ShortcutsModifier`.
@@ -1609,7 +1696,14 @@ export {
 
 // `@file` mention + `#dep` reference parsers (shared between web's
 // `FileMentionsTextarea` and the native peer via `useFileMentions`).
-export { applyMention, parseMention, rankMentionMatches, type MentionParse } from './utils/mention'
+export {
+  applyMention,
+  isFolderMention,
+  mentionFolders,
+  parseMention,
+  rankMentionMatches,
+  type MentionParse,
+} from './utils/mention'
 export {
   applyReference,
   parseReference,
@@ -2661,6 +2755,7 @@ export {
 // `thefactory-tools`, so the sign-off and an agent's request require the same.
 export { requestChangesProofPreset, uiChangeScopeOf } from 'thefactory-tools/utils'
 export {
+  ACCEPT_DROPPED_NOTE_COPY,
   PARK_NOTE_CANCEL,
   PARK_NOTE_CHOICES,
   PARK_NOTE_COPY,
@@ -2771,6 +2866,61 @@ export type {
   BaseBranchRowView,
   GroupBaseBranchMetadata,
 } from './utils/processBaseBranchTypes'
+export { useAgentTypeSettings, type UseAgentTypeSettings } from './hooks/useAgentTypeSettings'
+export {
+  agentTypeDraftOf,
+  agentTypeDraftProblem,
+  agentTypeSaveRequest,
+  agentTypeSettingsView,
+  agentTypeSlotsWith,
+} from './utils/agentTypeSettings'
+export {
+  AGENT_TYPE_ACTIONS,
+  AGENT_TYPE_BUILTINS_HEADING,
+  AGENT_TYPE_DRAFT_PROBLEMS,
+  AGENT_TYPE_FIELD_HINTS,
+  AGENT_TYPE_FIELD_LABELS,
+  AGENT_TYPE_INHERITED_HEADING,
+  AGENT_TYPE_NONE_YET,
+  AGENT_TYPE_OWN_HEADING,
+  AGENT_TYPE_PROVING_ROLES,
+  AGENT_TYPE_REMOVE_CONFIRM,
+  AGENT_TYPE_SETTINGS_GROUP_INTRO,
+  AGENT_TYPE_SETTINGS_HEADING,
+  AGENT_TYPE_SETTINGS_PROJECT_INTRO,
+  AGENT_TYPE_SLOT_DEFAULTS_HEADING,
+  AGENT_TYPE_SLOT_DEFAULTS_NOTE,
+} from './utils/agentTypeSettingsConstants'
+export type {
+  AgentTypeDraft,
+  AgentTypeOwner,
+  AgentTypeRowView,
+  AgentTypeSaveRequest,
+  AgentTypeSettingsData,
+  AgentTypeSettingsView,
+  AgentTypeSlotSettingView,
+} from './utils/agentTypeSettingsTypes'
+export {
+  agentTypeOptionView,
+  agentTypeSlotRows,
+  agentTypeSlotsMetadata,
+  agentTypeSlotsOf,
+} from './utils/agentTypeSlotChoice'
+export {
+  AGENT_TYPE_NOT_PROVING_TAG,
+  AGENT_TYPE_SCOPE_LABELS,
+  AGENT_TYPE_SLOT_LABELS,
+  AGENT_TYPE_SLOT_NOTE,
+  AGENT_TYPE_SLOT_PICKED_LABEL,
+  AGENT_TYPE_SLOT_SOURCE_LABELS,
+  AGENT_TYPE_SLOTS_HEADING,
+} from './utils/agentTypeSlotChoiceConstants'
+export type {
+  AgentTypeOptionView,
+  AgentTypeSlotPicks,
+  AgentTypeSlotRowView,
+  AgentTypeSlotsMetadata,
+} from './utils/agentTypeSlotChoiceTypes'
 export {
   featureProcessChoice,
   featureProcessLabel,
@@ -2790,6 +2940,24 @@ export type {
   FeatureProcessMetadata,
   FeatureProcessOptionView,
 } from './utils/processFeatureProcessTypes'
+export {
+  launchFeaturePickMetadata,
+  launchFeaturePickOffered,
+  launchFeaturePickRows,
+  launchFeaturePicked,
+  launchFeaturePreviewIds,
+  toggleLaunchFeaturePick,
+} from './utils/launchFeaturePick'
+export {
+  LAUNCH_FEATURE_LEFT_OUT,
+  LAUNCH_FEATURE_PICK_NONE,
+  launchFeaturePickCount,
+} from './utils/launchFeaturePickConstants'
+export type {
+  LaunchFeaturePickCandidate,
+  LaunchFeaturePickMetadata,
+  LaunchFeaturePickRow,
+} from './utils/launchFeaturePickTypes'
 export {
   launchFeatureRows,
   launchProofPlanRows,
@@ -3074,6 +3242,8 @@ export type {
   ProcessResumeChoice,
   ProcessRun,
   ProcessRunStatus,
+  ProcessDroppedChangeAcceptance,
+  ProcessDroppedChangeAcceptedRow,
   ProcessWaitingAsk,
   ProcessWaitingItemChoice,
   ProcessWaitingKind,
@@ -3200,6 +3370,28 @@ export type {
   AppWorkStartReply,
 } from './utils/appWorkStartTypes'
 export { useAppWorkStart, type UseAppWorkStart } from './hooks/useAppWorkStart'
+export {
+  featureRequestBody,
+  featureRequestDeclined,
+  featureRequestDraftError,
+  featureRequestLines,
+  featureRequestLinesText,
+  featureRequestSent,
+  isFeatureRequestRequest,
+  parseFeatureRequestPayload,
+} from './utils/appFeatureRequest'
+export * from './utils/appFeatureRequestConstants'
+export { AppFeatureRequestStore } from './utils/appFeatureRequestStore'
+export type {
+  AppFeatureRequestAsk,
+  AppFeatureRequestDraft,
+  AppFeatureRequestListener,
+  AppFeatureRequestReply,
+} from './utils/appFeatureRequestTypes'
+export { useAppFeatureRequest, type UseAppFeatureRequest } from './hooks/useAppFeatureRequest'
+export { parseAppChatSidebar } from './utils/appChatSidebar'
+export type { AppChatSidebarRequest } from './utils/appChatSidebarTypes'
+export * from './utils/appChatSidebarConstants'
 export { appDirtyLeaveMessage, isAppDirtyRequest, parseAppDirtyPayload } from './utils/appDirty'
 export {
   APP_DIRTY_DEFAULT_MESSAGE,
@@ -3379,6 +3571,23 @@ export {
 export { GIT_DIFF_SUPPRESSED_MESSAGE } from './utils/gitDiffConstants'
 export type { GitSetupForm, GitSetupPlan, ToolRowMilestone } from './utils/gitSetupApprovalTypes'
 export {
+  activityStopApprovalView,
+  activityStopArgs,
+  activityStopCardOf,
+  activityStopMilestone,
+  isActivityStopGrant,
+} from './utils/activityStopApproval'
+export {
+  ACTIVITY_STOP_COPY,
+  ACTIVITY_STOP_OUTCOME_COPY,
+  STOP_ACTIVITY_TOOL_NAME,
+} from './utils/activityStopApprovalConstants'
+export type {
+  ActivityStopApprovalView,
+  ActivityStopFact,
+  ActivityStopStepRow,
+} from './utils/activityStopApprovalTypes'
+export {
   commitReceiptShas,
   commitReceiptView,
   gitChangeArgs,
@@ -3401,6 +3610,11 @@ export {
   processWorkBranchChangeRows,
 } from './utils/processWorkBranchChangesView'
 export type { ProcessWorkBranchChangeRow } from './utils/processWorkBranchChangesView'
+export { processDroppedChangeRows } from './utils/processDroppedChange'
+export {
+  PROCESS_DROPPED_CHANGE_LABEL,
+  PROCESS_DROPPED_CHANGE_WHO,
+} from './utils/processDroppedChangeConstants'
 export type {
   CommitReceiptFile,
   CommitReceiptView,

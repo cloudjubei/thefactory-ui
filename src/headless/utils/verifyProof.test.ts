@@ -1273,6 +1273,32 @@ describe('verifyAttemptEvidence', () => {
     })
   })
 
+  it('shows what the earlier attempts a developer-verifier carried on filed, in its window', () => {
+    const carried = { ...review, earlierRunIds: ['earlier-run'] }
+    const filed = [
+      ...tiles,
+      tile({
+        id: 'rep-earlier',
+        kind: 'report',
+        mediaType: 'text/markdown',
+        runId: 'earlier-run',
+        verdict: 'approved',
+        createdAt: 120,
+      }),
+      tile({
+        id: 'rep-before-the-chain',
+        kind: 'report',
+        mediaType: 'text/markdown',
+        runId: 'earlier-run',
+        createdAt: 90,
+      }),
+    ]
+    const ev = verifyAttemptEvidence({ entry: verify('v3', 'passed', 100), review: carried }, filed)
+    expect(ev.reports.map((r) => r.ref.id).sort()).toEqual(['rep-earlier', 'rep-now'])
+    const own = verifyAttemptEvidence({ entry: verify('v3', 'passed', 100), review }, filed)
+    expect(own.reports.map((r) => r.ref.id)).toEqual(['rep-now'])
+  })
+
   it('keeps a recording the gate did not cover apart from the ones it did', () => {
     const ev = verifyAttemptEvidence(
       {

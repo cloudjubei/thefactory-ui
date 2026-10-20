@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import type { ChatContext, ProcessLedgerEntry, ProcessRun } from 'thefactory-tools/types'
 import { emptyProcessTimeBreakdown, processRunChatContext } from 'thefactory-tools/utils'
 
-import { chatHeaderView, chatKindOf, chatMessagesCost } from './chatHeader'
-import { CHAT_KIND_VIEW } from './chatHeaderConstants'
+import { chatHeaderView, chatKindOf, chatMessagesCost, chatWorkPill } from './chatHeader'
+import { CHAT_KIND_VIEW, CHAT_WORK_IN_PROGRESS_LABEL } from './chatHeaderConstants'
 import type { ChatHeaderInput } from './chatHeaderTypes'
 import { processRunBadge } from './processView'
 import { statusLabel } from './status'
@@ -255,6 +255,25 @@ describe('chatHeaderView — an agent run chat given a process run', () => {
   })
 })
 
+describe('chatWorkPill', () => {
+  it('never says Working for a started story or feature: only a live turn does', () => {
+    expect(chatWorkPill('in_progress')).toEqual({
+      label: CHAT_WORK_IN_PROGRESS_LABEL,
+      tone: 'working',
+    })
+    expect(CHAT_WORK_IN_PROGRESS_LABEL).toBe('In progress')
+    expect(chatWorkPill('in_progress').label).not.toBe(statusLabel('in_progress'))
+  })
+
+  it.each(['pending', 'reviewable', 'done', 'blocked', 'deferred'] as const)(
+    'keeps the shared label and tone for %s',
+    (status) => {
+      expect(chatWorkPill(status).label).toBe(statusLabel(status))
+      expect(chatWorkPill(status).label).not.toBe(CHAT_WORK_IN_PROGRESS_LABEL)
+    },
+  )
+})
+
 describe('chatHeaderView — a story chat', () => {
   it('titles it by reference and title, pills its status and lists its features', () => {
     const story = {
@@ -272,7 +291,7 @@ describe('chatHeaderView — a story chat', () => {
       }),
     )
     expect(view.title).toBe('Story #7 · Agent-to-agent chat messaging')
-    expect(view.pill).toEqual({ label: statusLabel('in_progress'), tone: 'working' })
+    expect(view.pill).toEqual({ label: 'In progress', tone: 'working' })
     expect(view.context).toBe('1 of 3 features done')
     expect(view.strip?.label).toBe('Features')
     expect(view.strip?.entries.map((e) => e.label)).toEqual([
@@ -321,6 +340,7 @@ describe('chatHeaderView — a feature chat', () => {
       }),
     )
     expect(view.title).toBe('Feature #7.2 · Feature f2')
+    expect(view.pill).toEqual({ label: 'In progress', tone: 'working' })
     expect(view.context).toBe('Story #7 · Messaging')
     expect(view.strip).toMatchObject({ label: 'Done when' })
     expect(view.strip?.entries.map((e) => e.label)).toEqual([

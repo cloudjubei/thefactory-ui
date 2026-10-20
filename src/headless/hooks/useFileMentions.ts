@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { applyMention, parseMention, type MentionParse } from '../utils/mention'
+import { applyMention, isFolderMention, parseMention, type MentionParse } from '../utils/mention'
 import {
   applyReference,
   parseReference,
@@ -33,7 +33,7 @@ export interface UseFileMentionsOptions {
   /** Returns ranked suggestions for the active `&<token>` — notes and the
    *  chat's attachments. When omitted, `&` opens no dropdown. */
   onSearchHandles?: (token: string) => ReadonlyArray<ReferenceSuggestion>
-  /** Fires AFTER the user accepts an `@`-file mention. */
+  /** Fires AFTER the user accepts an `@`-file mention — not a folder, which is not a file. */
   onAcceptFileMention?: (path: string) => void
   /** Fires AFTER the user accepts a `#` or `&` suggestion, with the sigil it was picked under. */
   onAcceptReference?: (value: string, sigil: ReferenceSigil) => void
@@ -134,7 +134,7 @@ export function useFileMentions({
       setPendingCursor(next.cursor)
       onChange(next.text)
       setCursor(next.cursor)
-      onAcceptFileMention?.(path)
+      if (!isFolderMention(path)) onAcceptFileMention?.(path)
     },
     [mentionParse, value, onChange, onAcceptFileMention],
   )

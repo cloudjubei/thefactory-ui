@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { ProcessProposal } from 'thefactory-tools/types'
+import type { AgentTypeSlotMap, ProcessProposal } from 'thefactory-tools/types'
 import { previewProcess } from '../api'
 import { useAuth } from '../api'
 import { launchRefusalMessage } from '../utils/approvalGrant'
@@ -31,9 +31,12 @@ export function useProcessProposal(input: {
   featureProcessId?: string
   /** Only these of the story's pending features — a feature's own launch. */
   featureIds?: readonly string[]
+  /** The agent type the ask proposed for each slot — the proposal offers it over the defaults. */
+  agentTypeSlots?: AgentTypeSlotMap
 }): UseProcessProposal {
   const { projectId, storyId, processId, featureProcessId } = input
   const featureKey = input.featureIds?.join(',') ?? ''
+  const slotsKey = input.agentTypeSlots ? JSON.stringify(input.agentTypeSlots) : ''
   const { token } = useAuth()
   const [proposal, setProposal] = useState<ProcessProposal | undefined>(undefined)
   const [isLoaded, setIsLoaded] = useState(false)
@@ -58,6 +61,7 @@ export function useProcessProposal(input: {
         ...(processId ? { processId } : {}),
         ...(featureProcessId ? { featureProcessId } : {}),
         ...(featureKey ? { featureIds: featureKey.split(',') } : {}),
+        ...(slotsKey ? { agentTypeSlots: JSON.parse(slotsKey) as AgentTypeSlotMap } : {}),
       },
       throwOnError: true,
     })
@@ -67,6 +71,7 @@ export function useProcessProposal(input: {
       })
       .catch((err: unknown) => {
         if (!live) return
+        setProposal(undefined)
         setRefusal(launchRefusalMessage(err))
         setLoadError(err instanceof Error ? err : new Error(String(err)))
       })
@@ -76,7 +81,7 @@ export function useProcessProposal(input: {
     return () => {
       live = false
     }
-  }, [token, projectId, storyId, processId, featureProcessId, featureKey])
+  }, [token, projectId, storyId, processId, featureProcessId, featureKey, slotsKey])
 
   return useMemo<UseProcessProposal>(
     () => ({ isLoaded, loadError, proposal, refusal }),

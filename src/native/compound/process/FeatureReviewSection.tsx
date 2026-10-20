@@ -453,7 +453,13 @@ export default function FeatureReviewSection({
             />
           ) : currentTab === 'walkthrough' ? (
             <View style={{ gap: 12 }}>
-              {recordings.length > 0 ? <WalkthroughTab recordings={recordings} /> : null}
+              {recordings.length > 0 ? (
+                <WalkthroughTab
+                  projectId={projectId}
+                  recordings={recordings}
+                  {...(onSaveFile ? { onSaveFile } : {})}
+                />
+              ) : null}
               {uncountedRecordings.length > 0 ? (
                 <View style={{ gap: 8 }}>
                   <View style={{ gap: 2 }}>
@@ -473,7 +479,11 @@ export default function FeatureReviewSection({
                     </Text>
                   </View>
                   <View style={{ opacity: 0.75 }}>
-                    <WalkthroughTab recordings={uncountedRecordings} />
+                    <WalkthroughTab
+                      projectId={projectId}
+                      recordings={uncountedRecordings}
+                      {...(onSaveFile ? { onSaveFile } : {})}
+                    />
                   </View>
                 </View>
               ) : null}

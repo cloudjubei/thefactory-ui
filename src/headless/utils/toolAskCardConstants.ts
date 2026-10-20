@@ -121,6 +121,7 @@ export const FEATURE_WORK_ASK = {
   joinHeadline: (title: string) => `Add ${title} to its open run`,
   consequence:
     'The run works in its own copy of the repository and merges nothing — your branch is not touched, and nothing goes in without your sign-off.',
+  chatConsequence: 'This chat’s agent does the work here, in the chat, where you follow each turn.',
   verb: 'Start work',
   joinVerb: 'Add to that run',
   nothingLeft: 'Every feature on this story is done or deferred — there is nothing to start.',

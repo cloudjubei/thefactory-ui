@@ -7,7 +7,7 @@ vi.mock('./generated', () => ({
 }))
 
 import { createFeature, createStory, startStoryWork } from './generated'
-import { startAppWork } from './appWorkStart'
+import { makeAppWork } from './appWorkStart'
 import type { AppWorkStartProgress } from '../utils/appWorkStartTypes'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -32,15 +32,12 @@ beforeEach(() => {
   asMock(createFeature)
     .mockResolvedValueOnce({ data: storyWith(['f1']) })
     .mockResolvedValueOnce({ data: storyWith(['f1', 'f2']) })
-  asMock(startStoryWork).mockResolvedValue({
-    data: { mode: 'process', chatContextId: 'c', processRunId: 'run-9' },
-  })
 })
 
-describe('startAppWork', () => {
-  it('makes the story and its features, then starts a run on exactly those features', async () => {
+describe('makeAppWork', () => {
+  it('makes the story and its features, and starts nothing — the person chooses how next', async () => {
     const progress: AppWorkStartProgress[] = []
-    const started = await startAppWork('p1', draft, {}, (p) => progress.push(p))
+    const made = await makeAppWork('p1', draft, {}, (p) => progress.push(p))
     expect(createStory).toHaveBeenCalledWith({
       path: { projectId: 'p1' },
       body: { title: draft.title, description: draft.description },
@@ -68,12 +65,8 @@ describe('startAppWork', () => {
         throwOnError: true,
       },
     ])
-    expect(startStoryWork).toHaveBeenCalledWith({
-      path: { projectId: 'p1', storyId: 's1' },
-      body: { mode: 'process', featureIds: ['f1', 'f2'] },
-      throwOnError: true,
-    })
-    expect(started).toEqual({ storyId: 's1', runId: 'run-9' })
+    expect(startStoryWork).not.toHaveBeenCalled()
+    expect(made).toEqual({ storyId: 's1', featureIds: ['f1', 'f2'] })
     expect(progress).toEqual([
       { storyId: 's1', featureIds: [] },
       { storyId: 's1', featureIds: ['f1'] },
@@ -85,60 +78,61 @@ describe('startAppWork', () => {
     asMock(createFeature)
       .mockReset()
       .mockResolvedValue({ data: storyWith(['f1']) })
-    await startAppWork('p1', { ...draft, features: [] }, {}, () => {})
+    const made = await makeAppWork('p1', { ...draft, features: [] }, {}, () => {})
     expect(createFeature).toHaveBeenCalledTimes(1)
     expect(asMock(createFeature).mock.calls[0][0].body).toMatchObject({
       title: draft.title,
       description: draft.description,
     })
-    expect(asMock(startStoryWork).mock.calls[0][0].body.featureIds).toEqual(['f1'])
+    expect(made.featureIds).toEqual(['f1'])
   })
 
   it('carries on from where a failed start stopped, never making the story twice', async () => {
     asMock(createFeature)
       .mockReset()
       .mockResolvedValue({ data: storyWith(['f1', 'f2']) })
-    const started = await startAppWork('p1', draft, { storyId: 's1', featureIds: ['f1'] }, () => {})
+    const made = await makeAppWork('p1', draft, { storyId: 's1', featureIds: ['f1'] }, () => {})
     expect(createStory).not.toHaveBeenCalled()
     expect(createFeature).toHaveBeenCalledTimes(1)
     expect(asMock(createFeature).mock.calls[0][0].body.title).toBe(
       'Record rejected source revision r4',
     )
-    expect(asMock(startStoryWork).mock.calls[0][0].body.featureIds).toEqual(['f1', 'f2'])
-    expect(started.storyId).toBe('s1')
+    expect(made).toEqual({ storyId: 's1', featureIds: ['f1', 'f2'] })
   })
 
-  it('only starts the run when every feature already exists', async () => {
-    await startAppWork('p1', draft, { storyId: 's1', featureIds: ['f1', 'f2'] }, () => {})
+  it('makes nothing more when every feature already exists', async () => {
+    const made = await makeAppWork(
+      'p1',
+      draft,
+      { storyId: 's1', featureIds: ['f1', 'f2'] },
+      () => {},
+    )
     expect(createStory).not.toHaveBeenCalled()
     expect(createFeature).not.toHaveBeenCalled()
-    expect(startStoryWork).toHaveBeenCalledTimes(1)
-  })
-
-  it('answers no run when the work started in a chat', async () => {
-    asMock(startStoryWork).mockResolvedValue({ data: { mode: 'chat', chatContextId: 'c' } })
-    expect(await startAppWork('p1', draft, {}, () => {})).toEqual({ storyId: 's1' })
+    expect(made).toEqual({ storyId: 's1', featureIds: ['f1', 'f2'] })
   })
 
   it("throws the backend's refusal, keeping the progress made", async () => {
-    asMock(startStoryWork).mockRejectedValue(
-      Object.assign(new Error('x'), {
-        isAxiosError: true,
-        response: { status: 409, data: { error: 'A run of this story is already open.' } },
-      }),
-    )
+    asMock(createFeature)
+      .mockReset()
+      .mockResolvedValueOnce({ data: storyWith(['f1']) })
+      .mockRejectedValueOnce(
+        Object.assign(new Error('x'), {
+          isAxiosError: true,
+          response: { status: 409, data: { error: 'The story is archived.' } },
+        }),
+      )
     const progress: AppWorkStartProgress[] = []
-    await expect(startAppWork('p1', draft, {}, (p) => progress.push(p))).rejects.toThrow(
-      'A run of this story is already open.',
+    await expect(makeAppWork('p1', draft, {}, (p) => progress.push(p))).rejects.toThrow(
+      'The story is archived.',
     )
-    expect(progress.at(-1)).toEqual({ storyId: 's1', featureIds: ['f1', 'f2'] })
+    expect(progress.at(-1)).toEqual({ storyId: 's1', featureIds: ['f1'] })
   })
 
   it('throws when a new feature cannot be found in the story', async () => {
     asMock(createFeature)
       .mockReset()
       .mockResolvedValue({ data: storyWith([]) })
-    await expect(startAppWork('p1', draft, {}, () => {})).rejects.toThrow(/feature/i)
-    expect(startStoryWork).not.toHaveBeenCalled()
+    await expect(makeAppWork('p1', draft, {}, () => {})).rejects.toThrow(/feature/i)
   })
 })

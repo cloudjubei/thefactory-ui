@@ -996,7 +996,11 @@ export default function CliRunArtifactPanel({
                     capturing={working !== undefined}
                   />
                 ) : currentTab === 'walkthrough' ? (
-                  <WalkthroughTab recordings={recordings} />
+                  <WalkthroughTab
+                    projectId={projectId}
+                    recordings={recordings}
+                    {...(onSaveFile ? { onSaveFile } : {})}
+                  />
                 ) : currentTab === 'tests' ? (
                   <ChecksTab
                     methods={methodRows.filter((r) => TEST_METHODS.includes(r.id))}

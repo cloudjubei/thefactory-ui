@@ -14,6 +14,7 @@ import type { BillingBasis, CliRunUsage } from 'thefactory-tools/types'
 import { cliRunSpends, roundMoneyUSD } from 'thefactory-tools/utils'
 
 import type { MessageUsageLike } from './chatTypes'
+import { isCliRunWorking } from './cliRunActivity'
 import {
   COST_BILLING_LABELS,
   COST_BILLING_UNRECORDED,
@@ -247,8 +248,7 @@ function costOfSpends(spends: readonly CostSpend[]): CostSource | undefined {
 
 const NO_TOKENS: CliRunUsage = { tokensIn: 0, tokensOut: 0 }
 
-const isInFlight = (run: CliRunCostSource): boolean =>
-  run.status === 'running' || run.status === 'awaiting-approval'
+const isInFlight = (run: CliRunCostSource): boolean => isCliRunWorking(run.status)
 
 /**
  * The one row a run with no per-model rows stands for, named and priced by the

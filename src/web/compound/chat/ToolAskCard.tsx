@@ -10,6 +10,7 @@ import {
   IconMerge,
   IconPackage,
   IconPlay,
+  IconStop,
   IconUpload,
   IconWrench,
 } from '../../icons'
@@ -34,6 +35,7 @@ const ICONS: Record<ToolAskIcon, ComponentType<{ className?: string }>> = {
   file: IconFile,
   delete: IconDelete,
   run: IconPlay,
+  stop: IconStop,
   tool: IconWrench,
 }
 

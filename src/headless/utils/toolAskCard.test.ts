@@ -14,6 +14,7 @@ import {
   toolAskDecidedLinesAwaitingRows,
   toolAskScopeOptions,
 } from './toolAskCard'
+import { LAUNCH_FEATURE_PICK_NONE } from './launchFeaturePickConstants'
 import {
   ACCEPT_REQUEST_ASK,
   CHAT_REVIEW_ASK,
@@ -496,6 +497,29 @@ describe('featureWorkAskView', () => {
       `Start work on ${FEATURE_WORK_ASK.untitled}`,
     )
   })
+
+  it('tags a process run as working in its own copy, and work in the chat as neither', () => {
+    const process = featureWorkAskView({ joinsOpenRun: false, mode: 'process' })
+    expect(process.tag).toBe(FEATURE_WORK_ASK.tag)
+    expect(process.consequence).toBe(FEATURE_WORK_ASK.consequence)
+
+    const chat = featureWorkAskView({
+      storyTitle: 'Stash safety',
+      joinsOpenRun: false,
+      mode: 'chat',
+    })
+    expect(chat.tag).toBeUndefined()
+    expect(chat.consequence).toBe(FEATURE_WORK_ASK.chatConsequence)
+    expect(chat.consequence).not.toMatch(/copy/)
+    expect(chat.headline).toBe('Start work on Stash safety')
+  })
+
+  it('promises no wait in the chat — waiting on other work is a process run’s', () => {
+    expect(
+      featureWorkAskView({ joinsOpenRun: false, mode: 'chat', waitingOn: ['story-18'] })
+        .consequence,
+    ).toBe(FEATURE_WORK_ASK.chatConsequence)
+  })
 })
 
 describe('featureWorkLaunchCheck', () => {
@@ -529,6 +553,12 @@ describe('featureWorkLaunchCheck', () => {
     expect(featureWorkLaunchCheck({ ...ready, storyLoaded: false, featureCount: 0 })).toEqual({
       ready: true,
     })
+  })
+
+  it('asks for a feature to be picked before anything else', () => {
+    expect(
+      featureWorkLaunchCheck({ ...ready, nonePicked: true, refusal: 'Cannot start "F0".' }),
+    ).toEqual({ ready: false, problem: LAUNCH_FEATURE_PICK_NONE })
   })
 
   it('asks for the open work to be settled first', () => {

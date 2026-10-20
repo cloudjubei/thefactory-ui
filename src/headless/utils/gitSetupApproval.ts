@@ -6,6 +6,8 @@ import {
 } from './gitSetupApprovalConstants'
 import { GIT_CHANGE_TOOL_NAMES } from './gitChangeApprovalConstants'
 import { gitChangeMilestone } from './gitChangeApproval'
+import { activityStopMilestone } from './activityStopApproval'
+import { STOP_ACTIVITY_TOOL_NAME } from './activityStopApprovalConstants'
 import type { GitSetupForm, GitSetupPlan, ToolRowMilestone } from './gitSetupApprovalTypes'
 
 type GrantLike = { toolName?: string; args?: unknown; detail?: unknown }
@@ -151,19 +153,25 @@ const MILESTONES: Record<
     result: unknown,
     resultType: string | undefined,
     awaitingDecision: boolean,
+    execution?: unknown,
   ) => ToolRowMilestone | undefined
 > = {
   [GIT_SETUP_TOOL_NAME]: gitSetupMilestone,
   ...Object.fromEntries(GIT_CHANGE_TOOL_NAMES.map((name) => [name, gitChangeMilestone])),
+  [STOP_ACTIVITY_TOOL_NAME]: activityStopMilestone,
 }
 
-/** The milestone line a tool row shows, for the tools that have one. */
+/**
+ * The milestone line a tool row shows, for the tools that have one. `execution` is what the
+ * call's action recorded carrying it out, for the lines that read it.
+ */
 export function toolRowMilestone(
   toolName: string | undefined,
   result: unknown,
   resultType: string | undefined,
   awaitingDecision: boolean,
+  execution?: unknown,
 ): ToolRowMilestone | undefined {
   const milestone = toolName ? MILESTONES[toolName] : undefined
-  return milestone?.(result, resultType, awaitingDecision)
+  return milestone?.(result, resultType, awaitingDecision, execution)
 }

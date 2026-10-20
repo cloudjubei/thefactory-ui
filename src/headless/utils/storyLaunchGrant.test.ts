@@ -88,4 +88,38 @@ describe('storyLaunchGrant', () => {
     expect(onCancel).toHaveBeenCalledTimes(1)
     expect(onLaunch).not.toHaveBeenCalled()
   })
+
+  describe('with its process decided before the card opened', () => {
+    const fixed = () => {
+      const onLaunch = vi.fn(async () => undefined)
+      const grant = storyLaunchGrant({
+        storyId: 's1',
+        chatRunner: 'cli',
+        processId: 'reference-intake',
+        onLaunch,
+        onCancel: vi.fn(),
+      })
+      return { grant, onLaunch }
+    }
+
+    it('names the process on the card and says it is fixed', () => {
+      const { grant } = fixed()
+      expect(startFeatureWorkGrantSummary(grant)).toMatchObject({ processId: 'reference-intake' })
+      expect(grant.processFixed).toBe(true)
+    })
+
+    it('launches that process as a process run, whatever the card sent', async () => {
+      const { grant, onLaunch } = fixed()
+      await grant.decide('once', { mode: 'chat', processId: 'story-default', cliModel: 'opus' })
+      expect(onLaunch).toHaveBeenCalledWith({
+        mode: 'process',
+        processId: 'reference-intake',
+        cliModel: 'opus',
+      })
+    })
+
+    it('is not fixed when no process was decided', () => {
+      expect(make().grant).not.toHaveProperty('processFixed')
+    })
+  })
 })

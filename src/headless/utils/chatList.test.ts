@@ -167,8 +167,15 @@ describe('chatListRow — what a row says', () => {
       kind: 'story',
       title: 'Agent-to-agent chat messaging',
       sub: 'Story #4',
-      pill: { label: 'Working', tone: 'working' },
+      pill: { label: 'In progress', tone: 'working' },
     })
+  })
+
+  it('pills a started feature chat as In progress, never Working', () => {
+    const work = { title: 'Typed resolver', status: 'in_progress', ref: '#3.1' }
+    const shown = row({ chat: { context: FEATURE }, work })
+    expect(shown.pill).toEqual({ label: 'In progress', tone: 'working' })
+    expect(shown.running).toBe(false)
   })
 
   it('names a feature chat by its feature', () => {

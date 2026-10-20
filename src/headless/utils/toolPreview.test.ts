@@ -191,6 +191,13 @@ describe('getToolHeaderPath', () => {
     )
   })
 
+  it('names the feature a feature delete would remove', () => {
+    expect((ToolSchemas as unknown as Record<string, unknown>).deleteFeature).toBeDefined()
+    expect(
+      getToolHeaderPath({ name: 'deleteFeature', arguments: { storyId: 's1', featureId: 'f1' } }),
+    ).toBe('story s1 / feature f1')
+  })
+
   it('names only tools the generated registry actually carries', () => {
     const registry = ToolSchemas as unknown as Record<string, unknown>
     for (const name of ['astGetOutline', 'deletePaths', 'renamePaths', 'writeFile', 'readFile']) {

@@ -74,6 +74,11 @@ export type ToolCallLike = {
   changeFiles?: GitChangeFileView[]
   /** The run whose turn made the call — what a commit's receipt reads the turn's proof from. */
   runId?: string
+  /**
+   * What the call's action recorded carrying it out, as recorded — read live from the action, so
+   * a row's outcome line follows it rather than a copy taken when the row was written.
+   */
+  executionResult?: string
 }
 
 // Web's backend currently emits a free-form string; desktop's agent loop has
@@ -269,6 +274,11 @@ export type PendingToolGrantData = {
   grantCovers?: GrantCovers
   /** The chat the ask was raised in — what an always-allow in this chat names. */
   chatContextId?: string
+  /**
+   * A launch whose process was decided before its card opened — an app's own process: the card
+   * offers neither the chat nor another process, and the person picks how it runs (the agent).
+   */
+  processFixed?: boolean
 }
 
 export type PendingToolGrant = PendingToolGrantData & {

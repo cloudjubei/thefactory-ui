@@ -17,6 +17,7 @@ import type {
 } from '../../headless/hooks/useCrossProjectRequests'
 import { FeatureRequestSettleActions, FeatureRequestSettledNote } from './FeatureRequestSettle'
 import { FeatureRequestStartAgain } from './FeatureRequestStartAgain'
+import { FeatureRequestStartWork } from './FeatureRequestStartWork'
 import WorkLaunchChooser from './WorkLaunchChooser'
 import { workLaunchOptions } from '../../headless/utils/workLaunchView'
 import type { WorkLaunchMode } from 'thefactory-tools/types'
@@ -60,6 +61,8 @@ export interface FeatureRequestCardData {
   settled?: FeatureRequestSettledView
   /** The requests whose work this one took over. */
   takenOver?: FeatureRequestLinkView[]
+  /** Accepted, and nothing started its work yet — `canStartFeatureRequestWork`. */
+  workNotStarted?: boolean
 }
 
 const STATUS_LABEL: Record<FeatureRequestCardStatus, string> = {
@@ -106,6 +109,8 @@ export interface FeatureRequestCardProps {
   onMarkDelivered?: (input: FeatureRequestDeliveryForm) => void
   /** Hand the request over to another project's request or story — offered likewise. */
   onHandOver?: (input: FeatureRequestHandoverForm) => void
+  /** Start the work of an accepted request that never started, the way chosen. */
+  onStartWork?: (mode: WorkLaunchMode) => void
   /** Start the work again — offered once it ended blocked or failed. */
   onStartAgain?: (mode: WorkLaunchMode) => void
   /** Open another request, from the links between requests handed over and taken over. */
@@ -130,6 +135,7 @@ export function FeatureRequestCard({
   onOpenFull,
   onMarkDelivered,
   onHandOver,
+  onStartWork,
   onStartAgain,
   onOpenRequest,
   initialSettleMode,
@@ -150,6 +156,7 @@ export function FeatureRequestCard({
     statusReason,
     settled,
     takenOver,
+    workNotStarted,
   } = request
   const canDecide = status === 'pending' && (onAccept || onReject)
   const [choosing, setChoosing] = useState(false)
@@ -265,6 +272,13 @@ export function FeatureRequestCard({
           {footer}
         </View>
       )}
+      {onStartWork && status === 'accepted' && workNotStarted ? (
+        <FeatureRequestStartWork
+          onStartWork={onStartWork}
+          {...(defaultMode ? { defaultMode } : {})}
+          {...(busy !== undefined ? { busy } : {})}
+        />
+      ) : null}
       {onStartAgain && (status === 'blocked' || status === 'failed') ? (
         <FeatureRequestStartAgain
           failed={status === 'failed'}

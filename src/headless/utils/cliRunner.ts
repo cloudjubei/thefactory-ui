@@ -12,7 +12,6 @@ import type {
   CliRunTranscriptEntry,
   CliTool,
   FilesEmittedArtifact,
-  StartCliAgentRunData,
 } from '../api/generated'
 import type { ChatMessageLike, MessageUsageLike, ToolCallLike, ToolOrigin } from './chatTypes'
 import type { ChatStopNotice } from './chatStopNoticeTypes'
@@ -27,6 +26,7 @@ import {
   ASK_CARRIED_OUT_NOTE,
   ASK_DECLINED_REASON,
   ASK_EXPIRED_REASON,
+  RUN_STOPPED_REASON,
   DECIDED_BY_RULE_NOTE,
   DECIDED_BY_YOU_APPROVE_ALL_NOTE,
   DECIDED_BY_YOU_NOTE,
@@ -34,37 +34,6 @@ import {
   DECLINED_BY_YOU_NOTE,
   TURN_ENDED_REASON,
 } from './cliRunnerConstants'
-
-export type StartCliRunBodyInput = {
-  projectId: string
-  prompt: string
-  chatContextId?: string
-  storyId?: string
-}
-
-/**
- * Map a chat's persisted {@link ChatCliRunner} to a `startCliAgentRun` request
- * body. The two shapes diverge: the chat stores `{ tool, credentialId }` while
- * the run endpoint expects `{ cli, authCredentialId }` — so `tool → cli` and
- * `credentialId → authCredentialId`. `tool` is a loose string on the chat side;
- * the runner validates the CLI at its boundary.
- */
-export function chatCliRunnerToStartRunBody(
-  runner: ChatCliRunner,
-  input: StartCliRunBodyInput,
-): StartCliAgentRunData['body'] {
-  return {
-    projectId: input.projectId,
-    cli: runner.tool as CliTool,
-    prompt: input.prompt,
-    ...(input.chatContextId ? { chatContextId: input.chatContextId } : {}),
-    ...(input.storyId ? { storyId: input.storyId } : {}),
-    ...(runner.credentialId ? { authCredentialId: runner.credentialId } : {}),
-    ...(runner.apiKeyCredentialId ? { apiKeyCredentialId: runner.apiKeyCredentialId } : {}),
-    ...(runner.model ? { modelId: runner.model } : {}),
-    ...(cliEffort(runner.effort) ? { effort: cliEffort(runner.effort) } : {}),
-  }
-}
 
 /** The reasoning-effort levels a run request accepts. */
 const CLI_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const
@@ -961,6 +930,10 @@ export function normalizeCliTranscript(entries: CliRunTranscriptEntry[]): CliTra
  *
  * `opts.storedAskIds` — the asks the chat stores rows of its own for: a call
  * raising one of them is left to that row, never shown twice.
+ *
+ * `opts.runEnded` — the run's record says it is no longer working (finished,
+ * stopped, failed or paused): a call still open that no ask holds will never
+ * finish, so it reads as stopped rather than running.
  */
 export function cliTranscriptToMessages(
   entries: CliRunTranscriptEntry[],
@@ -973,6 +946,7 @@ export function cliTranscriptToMessages(
     runId?: string
     usage?: MessageUsageLike
     storedAskIds?: ReadonlySet<string>
+    runEnded?: boolean
   },
 ): ChatMessageLike[] {
   const showThinking = opts?.showThinking ?? true
@@ -1023,7 +997,8 @@ export function cliTranscriptToMessages(
         ask === undefined && actionId !== undefined ? decidedById.get(actionId) : undefined
       const decided = decidedAsk ? decidedRowResult(decidedAsk, step.hostOutcome) : undefined
       const ended = endedOpen.has(step)
-      const resultType = ended ? 'not_allowed' : step.resultType
+      const stopped = opts?.runEnded === true && ask === undefined && step.resultType === 'running'
+      const resultType = ended ? 'not_allowed' : stopped ? 'aborted' : step.resultType
       const scope = step.parentToolCallId ?? ''
       const queued =
         ask === undefined &&
@@ -1056,7 +1031,9 @@ export function cliTranscriptToMessages(
             ? decided.result
             : ended
               ? { outcome: 'ended', reason: TURN_ENDED_REASON }
-              : step.result,
+              : stopped
+                ? { outcome: 'stopped', reason: RUN_STOPPED_REASON }
+                : step.result,
           type: ask
             ? !asking
               ? 'pending'
@@ -1092,8 +1069,14 @@ export function cliTranscriptToMessages(
  * What a settled ask leaves on its call's row: the run whose turn asked it, and
  * the files its git change card listed — what a commit's receipt is drawn from.
  */
-function settledAskFacts(ask: CliDecidedAsk): Pick<ToolCallLike, 'changeFiles' | 'runId'> {
-  return { runId: ask.runId, ...(ask.changeFiles ? { changeFiles: ask.changeFiles } : {}) }
+function settledAskFacts(
+  ask: CliDecidedAsk,
+): Pick<ToolCallLike, 'changeFiles' | 'runId' | 'executionResult'> {
+  return {
+    runId: ask.runId,
+    ...(ask.changeFiles ? { changeFiles: ask.changeFiles } : {}),
+    ...(ask.execution ? { executionResult: ask.execution.result } : {}),
+  }
 }
 
 /** The asks a chat's stored rows stand for — what a CLI turn's rows leave to them. Pure. */
@@ -1191,15 +1174,16 @@ export type CliRunUpdateParsed =
   | { runId: string; kind: 'other' }
 
 /** Terminal status a `cli:run-update` `finished`/`error` event resolves to. */
-export type CliRunTerminalStatus = 'succeeded' | 'errored' | 'aborted'
+export type CliRunTerminalStatus = 'succeeded' | 'errored' | 'aborted' | 'paused'
 
 /**
  * Parse a `cli:run-update` WS payload (`{ runId, type, event }`) into a typed
  * shape for the chat streaming preview: `transcript` carries the entry's
  * assistant text (possibly empty), `terminal` marks `finished`/`error` and
  * carries the run's terminal `status` + optional `error` message (so a detached
- * run can surface failures the HTTP response no longer returns). Returns `null`
- * when the payload isn't a recognisable run-update envelope.
+ * run can surface failures the HTTP response no longer returns). A run its
+ * failure policy paused carries its failure. Returns `null` when the payload
+ * isn't a recognisable run-update envelope.
  */
 export function parseCliRunUpdateEvent(data: unknown): CliRunUpdateParsed | null {
   if (typeof data !== 'object' || data === null) return null
@@ -1218,7 +1202,9 @@ export function parseCliRunUpdateEvent(data: unknown): CliRunUpdateParsed | null
     }
     const rawStatus = ev?.result?.status
     const status: CliRunTerminalStatus =
-      rawStatus === 'errored' || rawStatus === 'aborted' ? rawStatus : 'succeeded'
+      rawStatus === 'errored' || rawStatus === 'aborted' || rawStatus === 'paused'
+        ? rawStatus
+        : 'succeeded'
     const failure = ev?.result?.failure?.message
     const abortReason = ev?.result?.abortReason
     const error =
@@ -1452,14 +1438,18 @@ export function deriveCliAuthWarning(
  * that did not fail. A run that failed before the agent spoke — a login that
  * could not be refreshed, a sandbox that would not start — has an empty
  * transcript, and its turn used to render as an empty block with only a delete
- * control. The reason is the run record's own, so it survives a reload.
+ * control. A run its failure policy paused (an expired login) keeps the
+ * failure's reason and says it the same way; a run a restart paused recorded
+ * none and says nothing. The reason is the run record's own, so it survives a
+ * reload.
  */
 export function cliRunFailureNotice(
   status: CliRunStatus | undefined,
   abortReason: string | undefined,
 ): string | undefined {
-  if (status !== 'errored') return undefined
   const reason = abortReason?.trim()
+  if (status === 'paused') return reason ? reason : undefined
+  if (status !== 'errored') return undefined
   return reason ? reason : CLI_RUN_FAILED_FALLBACK_NOTICE
 }
 

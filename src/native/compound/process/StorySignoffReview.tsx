@@ -59,6 +59,7 @@ import {
   type EvidenceLoadState,
   type ProcessIntegrationDecision,
   type ProcessIntegrationMode,
+  type ProcessDroppedChangeAcceptedRow,
   type ProcessParkChoice,
   type ProcessResumeChoice,
   type SignoffMergeHold,
@@ -143,6 +144,8 @@ export type StorySignoffReviewProps = {
   changeUiPaths?: readonly string[]
   /** Whether the story's change must be shown on screen, what decided it and why. */
   changeScreensDecision?: ChangeScreensDecision
+  /** Each change the run accepted as dropped on purpose (`processDroppedChangeRows`), listed with what needs a look. */
+  droppedAccepted?: readonly ProcessDroppedChangeAcceptedRow[]
 }
 
 const TEST_METHODS: readonly CheckMethodId[] = ['tests']
@@ -260,6 +263,7 @@ function StorySignoffPanel({
   proofUnavailable,
   changeUiPaths,
   changeScreensDecision,
+  droppedAccepted = [],
   signoff,
   evidence,
   evidenceState,
@@ -534,6 +538,7 @@ function StorySignoffPanel({
         }
       : undefined,
     attention,
+    droppedAccepted,
   })
 
   const overall = signoff.overall
@@ -1030,7 +1035,11 @@ function StorySignoffPanel({
               {...save}
             />
           ) : current?.target.tab === 'walkthrough' ? (
-            <WalkthroughTab recordings={overallSection.recordings} />
+            <WalkthroughTab
+              projectId={projectId}
+              recordings={overallSection.recordings}
+              {...save}
+            />
           ) : null}
         </View>
       ) : null}

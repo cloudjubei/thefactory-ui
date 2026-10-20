@@ -7,8 +7,16 @@ import {
   CLI_BLOCKED_SUBLABEL,
   CLI_BOOT_SUBLABEL,
   CLI_QUESTION_SUBLABEL,
+  CLI_RUN_ENDED_WITHOUT_REPLY,
+  CLI_RUN_WORKING_STATUSES,
 } from './cliRunActivityConstants'
-import type { CliRunActivity, CliRunActivityInput, CliRunBlockedOn } from './cliRunActivityTypes'
+import type {
+  CliRunActivity,
+  CliRunActivityInput,
+  CliRunBlockedOn,
+  CliRunEndRecord,
+  CliRunSettlement,
+} from './cliRunActivityTypes'
 import type { ChatMessageLike, PendingToolGrantData } from './chatTypes'
 
 /**
@@ -214,4 +222,54 @@ export function describeCliRunActivity(input: CliRunActivityInput): CliRunActivi
     }
   }
   return { tone: 'working', label: `Working…${suffix}` }
+}
+
+/**
+ * Whether a CLI run is still working, by its status — the one rule every view
+ * reads "streaming", "busy" and the Stop button from. A `paused` run is not:
+ * nothing executes it until it is resumed, so its turn shows as ended.
+ */
+export function isCliRunWorking(status: string | undefined): boolean {
+  return status !== undefined && CLI_RUN_WORKING_STATUSES.has(status)
+}
+
+/**
+ * How a run read back from its record ended for the chat that sent it, or
+ * `undefined` while it is still working (or its record names no status). A run
+ * that failed, was paused by its failure policy, or was aborted by anything but
+ * the person's own Stop, surfaces its recorded reason; a run that finished, or
+ * that a restart paused with no failure or reason recorded, ends quietly.
+ */
+export function cliRunSettlement(
+  run: CliRunEndRecord,
+  userAborted: boolean,
+): CliRunSettlement | undefined {
+  const { status } = run
+  if (status === undefined || isCliRunWorking(status)) return undefined
+  const failed =
+    status === 'errored' ||
+    (status === 'aborted' && !userAborted) ||
+    (status === 'paused' && (run.failure != null || !!run.abortReason?.trim()))
+  if (!failed) return {}
+  const reason = [run.failure?.message, run.abortReason].find(
+    (said): said is string => typeof said === 'string' && said.trim().length > 0,
+  )
+  return { error: reason ?? CLI_RUN_ENDED_WITHOUT_REPLY(status) }
+}
+
+/**
+ * {@link cliRunSettlement} for a terminal `cli:run-update`, whose one `error`
+ * is the run's failure (or abort reason) as the update reported it.
+ */
+export function cliRunUpdateSettlement(
+  update: { status: string; error?: string },
+  userAborted: boolean,
+): CliRunSettlement | undefined {
+  return cliRunSettlement(
+    {
+      status: update.status,
+      ...(update.error !== undefined ? { failure: { message: update.error } } : {}),
+    },
+    userAborted,
+  )
 }

@@ -77,11 +77,6 @@ Overseer". What remains:
   project") plus the orchestrator's own landing. `startFeatureWork` now inherits the chat's CLI agent,
   so this path is reachable from the intake loop; unifying the records is what makes its review
   surface as good as the API runner's.
-- **The allowlist and the permission context are not applied on every dispatch path.**
-  `resumeCliAgentRun` / `forkCliAgentRun` rebuild options from the persisted `CliRun`, which stores
-  neither `allowedToolNames` nor `runContext` / `toolApprovalMode`, and `POST /cli-runs/start`
-  resolves none of them. Both are HTTP-reachable; they hand the run the full built-in set, and they
-  fall back to `runContext: 'unattended'` — so a chat's turn resumed through them would not ask.
 - **The chat tool catalogue is transport-wide, not context-aware** (`?runner=` only), so a global CLI
   chat's real tools (onboarding, credential capture, discovery) are missing from the list while
   irrelevant rows appear; and the API catalogue omits backend-injected families that remain active.

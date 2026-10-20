@@ -4,6 +4,9 @@
 
 import type { WorkLaunchMode } from 'thefactory-tools/types'
 import { grantDetailView } from './approvalGrant'
+import { evaluationLaunchAskView } from './evaluationLaunchAskView'
+import { EVALUATE_KNOWLEDGE_TOOL } from './evaluationLaunchAskViewConstants'
+import { LAUNCH_FEATURE_PICK_NONE } from './launchFeaturePickConstants'
 import type { AlwaysAllowScope, GrantCovers, PendingToolGrantDecision } from './chatTypes'
 import type { GitChangeCardView } from './gitChangeApprovalTypes'
 import type { GitSetupPlan } from './gitSetupApprovalTypes'
@@ -362,6 +365,9 @@ export function toolAskCardView(grant: GrantLike): ToolAskCardView {
   if (tool === FEATURE_QUESTION_TOOL) {
     return { ...base, ...featureQuestionAskView(payload.detail, args) }
   }
+  if (tool === EVALUATE_KNOWLEDGE_TOOL) {
+    return { ...base, ...evaluationLaunchAskView(payload.detail, args) }
+  }
   if (tool === ACCEPT_REQUEST_TOOL) {
     const mode = args.mode === 'process' || args.mode === 'chat' ? args.mode : undefined
     return {
@@ -664,19 +670,23 @@ export function featureWorkAskView(input: {
   args?: unknown
   /** The work elsewhere, not done yet, the run waits on before it starts. */
   waitingOn?: readonly string[]
+  /** The way of working the card is set to; a process run when absent. */
+  mode?: WorkLaunchMode
 }): ToolAskCardView {
   const title = input.storyTitle ?? FEATURE_WORK_ASK.untitled
+  const inChat = input.mode === 'chat'
   return {
     icon: 'run',
     tone: 'ask',
     ask: FEATURE_WORK_ASK.ask,
-    tag: FEATURE_WORK_ASK.tag,
+    ...(inChat ? {} : { tag: FEATURE_WORK_ASK.tag }),
     headline: input.joinsOpenRun
       ? FEATURE_WORK_ASK.joinHeadline(title)
       : FEATURE_WORK_ASK.headline(title),
     ...reasonOf(input.args),
-    consequence:
-      input.waitingOn && input.waitingOn.length > 0
+    consequence: inChat
+      ? FEATURE_WORK_ASK.chatConsequence
+      : input.waitingOn && input.waitingOn.length > 0
         ? `${FEATURE_WORK_ASK.waitsOn(input.waitingOn)} ${FEATURE_WORK_ASK.consequence}`
         : FEATURE_WORK_ASK.consequence,
     verb: input.joinsOpenRun ? FEATURE_WORK_ASK.joinVerb : FEATURE_WORK_ASK.verb,
@@ -696,7 +706,10 @@ export function featureWorkLaunchCheck(input: {
   openWorkUnchosen: boolean
   storyLoaded: boolean
   featureCount: number
+  /** The person took every feature out of the launch. */
+  nonePicked?: boolean
 }): ToolAskLaunchCheck {
+  if (input.nonePicked) return { ready: false, problem: LAUNCH_FEATURE_PICK_NONE }
   if (input.refusal !== undefined) return { ready: false, problem: input.refusal }
   if (input.storyLoaded && input.featureCount === 0) {
     return { ready: false, problem: FEATURE_WORK_ASK.nothingLeft }

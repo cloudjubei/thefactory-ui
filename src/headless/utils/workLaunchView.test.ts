@@ -8,6 +8,8 @@ import {
   launchSuggestionRows,
   workLaunchChatAgent,
   workLaunchOptions,
+  launchDecisionMetadata,
+  startWorkChatContext,
 } from './workLaunchView'
 
 describe('workLaunchOptions', () => {
@@ -232,5 +234,40 @@ describe('workLaunchChatAgent', () => {
     })
     expect(workLaunchChatAgent('api', null, null)).toEqual({ runner: 'api' })
     expect(workLaunchChatAgent('cli', null, 'medium')).toEqual({ runner: 'api', effort: 'medium' })
+  })
+})
+
+describe('launchDecisionMetadata', () => {
+  const picks = { mode: 'process', turnLimit: 40, note: 'look at the login first', runner: 'cli' }
+
+  it.each(['once', 'always-in-chat', 'always-everywhere'] as const)(
+    'carries the card’s picks on an approval (%s)',
+    (decision) => {
+      expect(launchDecisionMetadata(decision, picks)).toBe(picks)
+    },
+  )
+
+  it('sends only the decision on a deny, whatever the card holds', () => {
+    expect(launchDecisionMetadata('deny', picks)).toBeUndefined()
+  })
+
+  it('sends nothing for a card that holds no picks', () => {
+    expect(launchDecisionMetadata('once', undefined)).toBeUndefined()
+  })
+})
+
+describe('startWorkChatContext', () => {
+  it('is the story’s chat for a story’s or a feature’s Run', () => {
+    expect(startWorkChatContext({ projectId: 'p', storyId: 's', featureIds: ['f'] })).toEqual({
+      type: 'STORY',
+      projectId: 'p',
+      storyId: 's',
+    })
+  })
+
+  it('is the request’s chat for a feature request’s work', () => {
+    expect(
+      startWorkChatContext({ projectId: 'p', storyId: 's', request: { id: 'r', again: false } }),
+    ).toEqual({ type: 'FEATURE_REQUEST', projectId: 'p', featureRequestId: 'r' })
   })
 })

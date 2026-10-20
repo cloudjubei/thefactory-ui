@@ -35,3 +35,9 @@ export const GRANT_RULE_UNNAMED = (where: string): string => `always allow this 
 
 /** Why a row's call did not run, when its turn ended with the call still open. */
 export const TURN_ENDED_REASON = 'Its turn ended before it ran.'
+
+/** Why a row's call has no result, when its run stopped working with the call still open. */
+export const RUN_STOPPED_REASON = 'Its run stopped before it finished.'
+
+/** The chip a tool row shows once its call was stopped before it finished. */
+export const TOOL_STOPPED_LABEL = 'Stopped'

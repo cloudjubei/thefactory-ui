@@ -4,6 +4,7 @@ import { Pressable, Text, View } from 'react-native'
 import ReferenceTextarea from '../files/ReferenceTextarea'
 import ChainChip from '../process/ChainChip'
 import {
+  LAUNCH_FEATURE_LEFT_OUT,
   LAUNCH_FEATURES_HEADING,
   PROOF_PLAN_EDITED_LABEL,
   PROOF_PLAN_EMPTY_LABEL,
@@ -11,6 +12,8 @@ import {
   PROOF_PLAN_EXTEND_NOTE,
   PROOF_PLAN_NOTES_PLACEHOLDER,
   PROOF_PLAN_SAVE_LABEL,
+  launchFeaturePickCount,
+  type LaunchFeaturePickRow,
   type LaunchFeatureRow,
   type ProofKind,
   type ProposalChip,
@@ -39,6 +42,14 @@ export type LaunchFeatureListProps = {
   onToggleKind: (featureId: string, kind: ProofKind) => void
   onNotesChange: (featureId: string, notes: string) => void
   onSaveChange: (save: boolean) => void
+  /**
+   * The story's open features to pick from — every one listed, those left out
+   * dimmed, each ticked in or out. Absent: the launch works the rows as they are.
+   */
+  pick?: {
+    rows: readonly LaunchFeaturePickRow[]
+    onToggle: (featureId: string) => void
+  }
 }
 
 /**
@@ -58,12 +69,51 @@ export default function LaunchFeatureList({
   onToggleKind,
   onNotesChange,
   onSaveChange,
+  pick,
 }: LaunchFeatureListProps) {
   const { theme, status } = useNativeTheme()
   const [editing, setEditing] = useState<ReadonlySet<string>>(new Set())
   const [showSteps, setShowSteps] = useState(false)
   const hasSteps = rows.some((r) => r.chain.length > 0) || tail.length > 0
   const anyEdited = rows.some((r) => r.proof?.edited)
+  const listed = pick
+    ? pick.rows
+    : rows.map((r) => ({ featureId: r.featureId, title: r.title, picked: true }))
+  const pickedCount = listed.filter((item) => item.picked).length
+  const pickBox = (item: LaunchFeaturePickRow) =>
+    pick ? (
+      <Pressable
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: item.picked, disabled: busy }}
+        accessibilityLabel={`${item.picked ? 'Leave out' : 'Work on'} “${item.title}”`}
+        disabled={busy}
+        onPress={() => pick.onToggle(item.featureId)}
+        hitSlop={8}
+        style={{
+          width: 20,
+          height: 20,
+          borderRadius: 4,
+          borderWidth: 1.5,
+          borderColor: item.picked ? theme.accent.primary : theme.border.strong,
+          backgroundColor: item.picked ? theme.accent.primary : 'transparent',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        {item.picked ? (
+          <Text style={{ fontSize: 12, color: theme.text.inverted, fontWeight: '700' }}>✓</Text>
+        ) : null}
+      </Pressable>
+    ) : null
+  const cardStyle = {
+    gap: 6,
+    borderWidth: 1,
+    borderColor: theme.border.subtle,
+    backgroundColor: theme.surface.base,
+    borderRadius: nativeRadii[3],
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  } as const
   const toggleEditing = (featureId: string) =>
     setEditing((prev) => {
       const next = new Set(prev)
@@ -94,7 +144,7 @@ export default function LaunchFeatureList({
           {LAUNCH_FEATURES_HEADING}
         </Text>
         <Text style={{ fontSize: 11, color: theme.text.muted, flexShrink: 1 }}>
-          {rows.length} feature{rows.length === 1 ? '' : 's'}
+          {launchFeaturePickCount(pickedCount, listed.length)}
           {agentStepCount !== undefined
             ? ` · ${agentStepCount} agent step${agentStepCount === 1 ? '' : 's'}`
             : ''}
@@ -114,23 +164,46 @@ export default function LaunchFeatureList({
         ) : null}
       </View>
 
-      {rows.map((row) => {
+      {listed.map((item) => {
+        const row = item.picked ? rows.find((r) => r.featureId === item.featureId) : undefined
+        if (!row) {
+          return (
+            <View
+              key={item.featureId}
+              style={[
+                cardStyle,
+                { flexDirection: 'row', alignItems: 'center', gap: 8 },
+                item.picked ? null : { opacity: 0.6 },
+              ]}
+            >
+              {pickBox(item)}
+              {storyId ? (
+                <DependencyBullet
+                  resolved={resolveBullet(`${storyId}.${item.featureId}`)}
+                  dependency={`${storyId}.${item.featureId}`}
+                  interactive={false}
+                />
+              ) : null}
+              <Text
+                numberOfLines={2}
+                style={{ flex: 1, fontSize: 13, fontWeight: '500', color: theme.text.primary }}
+              >
+                {item.title}
+              </Text>
+              {item.picked ? null : (
+                <Text style={{ fontSize: 11, color: theme.text.muted }}>
+                  {LAUNCH_FEATURE_LEFT_OUT}
+                </Text>
+              )}
+            </View>
+          )
+        }
         const proof = row.proof
         const open = proof !== undefined && editing.has(row.featureId)
         return (
-          <View
-            key={row.featureId}
-            style={{
-              gap: 6,
-              borderWidth: 1,
-              borderColor: theme.border.subtle,
-              backgroundColor: theme.surface.base,
-              borderRadius: nativeRadii[3],
-              paddingHorizontal: 10,
-              paddingVertical: 8,
-            }}
-          >
+          <View key={row.featureId} style={cardStyle}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              {pickBox(item)}
               {storyId ? (
                 <DependencyBullet
                   resolved={resolveBullet(`${storyId}.${row.featureId}`)}

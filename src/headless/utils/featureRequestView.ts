@@ -219,6 +219,13 @@ export function featureRequestRejectedLine(fromLabel: string): string {
   return `${fromLabel} was told; nothing was started.`
 }
 
+/** Whether an accepted request's work is still to start: it was accepted, and nothing started it. */
+export function canStartFeatureRequestWork(
+  request: Pick<FeatureRequest, 'status' | 'handling'>,
+): boolean {
+  return request.status === 'accepted' && !request.handling?.work
+}
+
 /** Whether a request's work can be started again: it ended blocked or failed, on a story. */
 export function canStartFeatureRequestAgain(
   request: Pick<FeatureRequest, 'status' | 'handling'>,

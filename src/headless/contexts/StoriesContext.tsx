@@ -43,6 +43,7 @@ import type {
 import { REVALIDATE_TIMEOUT_MS, acceptOkOr304, readEtagHeader } from '../utils/swrFetch'
 import { wsEventConcernsProject } from '../utils/wsEventProject'
 import { InflightRequests } from '../utils/inflightRequests'
+import { featureWriteError } from '../utils/storyWriteErrors'
 
 /** SWR caches keyed by projectId. Module-scope so they survive provider
  *  re-mounts (e.g. StrictMode double-invoke) and let project switches
@@ -560,6 +561,8 @@ export function StoriesProvider({ children }: { children: ReactNode }) {
         path: { projectId: requireProject(), storyId, featureId },
         body: patch,
         throwOnError: true,
+      }).catch((err: unknown) => {
+        throw featureWriteError(err)
       })
       await refresh()
       return data
@@ -572,6 +575,8 @@ export function StoriesProvider({ children }: { children: ReactNode }) {
       await deleteFeature({
         path: { projectId: requireProject(), storyId, featureId },
         throwOnError: true,
+      }).catch((err: unknown) => {
+        throw featureWriteError(err)
       })
       await refresh()
     },

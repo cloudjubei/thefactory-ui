@@ -121,7 +121,8 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
   // pending approval), so it cannot answer "is a run running now". Only a
   // `status: 'running'` probe can, and `isRunActive` is derived from it.
   // Re-resolved on run lifecycle events (not a timer) so start/end/resume is
-  // picked up live.
+  // picked up live, and on a reconnect — a backend restart parks its runs
+  // `paused` without any event.
   // A STORY agent-run chat's work may run in per-feature sub-runs keyed to their
   // feature chats, so asking by `chatContextId` alone misses them. Ask by
   // `storyId` — the handle every run in the story carries — and let
@@ -170,29 +171,37 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
       if (!isCliRunLifecycleEvent(data)) return
       if (storyChat || cliRunLifecycleConcernsChat(data, chatContextId)) void discover()
     })
+    const offReconnect = ws.onReconnect(() => void discover())
     return () => {
       cancelled = true
       off()
+      offReconnect()
     }
   }, [chatContextId, storyChat, ws])
 
   // A turn the server runs with no CLI run behind it — an API chat carried on
-  // after a decision, or sent from another client — is busy the same way.
+  // after a decision, or sent from another client — is busy the same way, and
+  // is re-read on a reconnect the same way: a restart ends it without an event.
   const [apiTurn, setApiTurn] = useState<{ chatContextId: string; active: boolean }>()
   useEffect(() => {
     let cancelled = false
-    void getChatTurn({ query: { chatContextId }, throwOnError: true })
-      .then(({ data }) => {
-        if (!cancelled) setApiTurn({ chatContextId, active: data.active })
-      })
-      .catch(() => {})
+    const read = () => {
+      void getChatTurn({ query: { chatContextId }, throwOnError: true })
+        .then(({ data }) => {
+          if (!cancelled) setApiTurn({ chatContextId, active: data.active })
+        })
+        .catch(() => {})
+    }
+    read()
     const off = ws.on('completion:turn', (data) => {
       const active = chatTurnActivity(data, chatContextId)
       if (active !== undefined) setApiTurn({ chatContextId, active })
     })
+    const offReconnect = ws.onReconnect(read)
     return () => {
       cancelled = true
       off()
+      offReconnect()
     }
   }, [chatContextId, ws])
   const apiTurnActive = apiTurn?.chatContextId === chatContextId && apiTurn.active

@@ -66,6 +66,7 @@ export default defineConfig({
   resolve: {
     alias: [
       { find: /^thefactory-ui\/web\/styles$/, replacement: src('web/styles/index.css') },
+      { find: /^thefactory-ui\/web\/icons$/, replacement: src('web/icons/index.ts') },
       { find: /^thefactory-ui\/web$/, replacement: src('web/index.ts') },
       { find: /^thefactory-ui\/headless$/, replacement: src('headless/index.ts') },
       ...thefactoryToolsAliases(),

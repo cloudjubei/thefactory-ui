@@ -16,7 +16,6 @@ import type {
   // Completions
   AbortCompletionData,
   ResumeCompletionData,
-  SendCompletionData,
   SendCompletionWithToolsData,
   // Coverage / tests
   CoverageResult,
@@ -64,7 +63,6 @@ import type {
 export type ChatMessage = NonNullable<GetChatResponse['messages']>[number]
 
 // --- Completions ---
-export type SendCompletionInput = SendCompletionData['body']
 export type SendWithToolsInput = SendCompletionWithToolsData['body']
 export type ResumeCompletionInput = ResumeCompletionData['body']
 export type AbortCompletionInput = AbortCompletionData['body']

@@ -1,6 +1,6 @@
 export const APP_WORK_START_HEADING = 'Start work?'
 
-export const APP_WORK_START_HINT = 'The app asks to start a run in this project.'
+export const APP_WORK_START_HINT = 'The app asks to start work in this project.'
 
 export const APP_WORK_START_ONE_FEATURE = 'Runs as one feature.'
 
@@ -17,6 +17,9 @@ export const APP_WORK_START_LABELS = {
 export const APP_WORK_START_TITLE_REQUIRED = 'The work needs a title.'
 
 export const APP_WORK_START_FEATURE_TITLE_REQUIRED = 'Each feature needs a title.'
+
+export const APP_WORK_START_PROCESS_INVALID =
+  'processId must be a process id: letters, digits, dots, dashes or underscores.'
 
 export const APP_WORK_START_FEATURES_INVALID = 'features must be a list of { title, description }.'
 

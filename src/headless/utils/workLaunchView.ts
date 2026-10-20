@@ -7,8 +7,9 @@ import {
 } from 'thefactory-tools/constants'
 import type { LaunchSetupSuggestion, ProcessProposal, ProofKind } from 'thefactory-tools/types'
 import { projectWorkLaunchMode } from 'thefactory-tools/utils'
-import type { CliReasoningEffort } from '../api'
+import type { ChatContext, CliReasoningEffort } from '../api'
 import type { ActivityCliModel } from '../contexts/LLMConfigsContext'
+import type { PendingToolGrantDecision } from './chatTypes'
 import type { LaunchProofPlanEdits } from './proofPlanViewTypes'
 import { FEATURE_PROCESS_WORDS, LAUNCH_SUGGESTION_LABELS } from './workLaunchViewConstants'
 import type {
@@ -16,6 +17,7 @@ import type {
   LaunchSuggestionInput,
   LaunchSuggestionPicks,
   LaunchSuggestionRow,
+  StartWorkTarget,
   WorkLaunchOptionView,
 } from './workLaunchViewTypes'
 
@@ -146,4 +148,19 @@ export function workLaunchChatAgent(
     }
   }
   return { runner: 'api', ...(apiEffort ? { effort: apiEffort } : {}) }
+}
+
+/** What a launch card's decision carries: the card's picks on an approval, nothing on a deny. Pure. */
+export function launchDecisionMetadata(
+  decision: PendingToolGrantDecision,
+  metadata: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
+  return decision === 'deny' ? undefined : metadata
+}
+
+/** The chat a start's work belongs to — a feature request's, else its story's. Pure. */
+export function startWorkChatContext(target: StartWorkTarget): ChatContext {
+  return target.request
+    ? { type: 'FEATURE_REQUEST', projectId: target.projectId, featureRequestId: target.request.id }
+    : { type: 'STORY', projectId: target.projectId, storyId: target.storyId }
 }

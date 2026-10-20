@@ -37,15 +37,45 @@ export function parseMention(text: string, cursor: number): MentionParse | null 
   return null
 }
 
+/** The folders on the way to each file, each written with a closing `/`, in the order first met. */
+export function mentionFolders(paths: readonly string[]): string[] {
+  const folders = new Set<string>()
+  for (const path of paths) {
+    for (let slash = path.indexOf('/'); slash > 0; slash = path.indexOf('/', slash + 1)) {
+      folders.add(path.slice(0, slash + 1))
+    }
+  }
+  return [...folders]
+}
+
+/** An `@` suggestion that names a folder rather than a file — in this project or another. */
+export function isFolderMention(value: string): boolean {
+  return value.endsWith('/')
+}
+
+const mentionCandidateCache = new WeakMap<readonly string[], readonly string[]>()
+
+/** What `@` offers for a project's files: the files, then the folders that hold them. */
+function mentionCandidates(paths: readonly string[]): readonly string[] {
+  const cached = mentionCandidateCache.get(paths)
+  if (cached) return cached
+  const candidates = [...paths, ...mentionFolders(paths)]
+  mentionCandidateCache.set(paths, candidates)
+  return candidates
+}
+
 /**
- * Substring-match scoring: prefix matches outrank infix matches; shorter paths
- * outrank longer ones at equal match position. Case-insensitive.
+ * Substring-match scoring over a project's files and the folders that hold
+ * them: prefix matches outrank infix matches; shorter paths outrank longer ones
+ * at equal match position, so a folder comes before the files inside it.
+ * Case-insensitive. With nothing typed, files come first.
  */
-export function rankMentionMatches(paths: string[], token: string, limit = 8): string[] {
-  if (token.length === 0) return paths.slice(0, limit)
+export function rankMentionMatches(paths: readonly string[], token: string, limit = 8): string[] {
+  const candidates = mentionCandidates(paths)
+  if (token.length === 0) return candidates.slice(0, limit)
   const needle = token.toLowerCase()
   const scored: { path: string; score: number }[] = []
-  for (const p of paths) {
+  for (const p of candidates) {
     const idx = p.toLowerCase().indexOf(needle)
     if (idx === -1) continue
     scored.push({ path: p, score: idx * 1000 + p.length })
@@ -60,7 +90,7 @@ export type ProjectMentionFiles = { projectId: string; paths: readonly string[] 
 const PROJECT_FILE_MENTION = /^([A-Za-z0-9][A-Za-z0-9_-]*):(.*)$/
 
 /**
- * {@link rankMentionMatches} over several projects' files, each written
+ * {@link rankMentionMatches} over several projects' files and folders, each written
  * `<projectId>:<path>` — the token that says which project a file is in. A
  * token naming a project before a colon (`ui:src`) looks in that project only.
  * Equal matches keep the projects' order.
@@ -77,7 +107,7 @@ export function rankProjectMentionMatches(
   const needle = (only ? named![2]! : token).toLowerCase()
   const scored: { value: string; score: number }[] = []
   for (const project of only ? [only] : projects) {
-    for (const path of project.paths) {
+    for (const path of mentionCandidates(project.paths)) {
       const idx = path.toLowerCase().indexOf(needle)
       if (idx === -1) continue
       scored.push({ value: `${project.projectId}:${path}`, score: idx * 1000 + path.length })

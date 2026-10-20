@@ -144,7 +144,30 @@ comes back from the URL change is **not** echoed to the app as `nav.open`.
 **Agents.** Chat agents have no tool to refresh a live-data source or change its schedule yet (no
 live-data names in thefactory-tools' `ALL_CHAT_AGENT_TOOLS`, no host extra tool in the backend).
 
-Showcase: `app-work-start` (`features`, `no-features`, `start-failed`), `live-data-task-source`
+**`overseer:feature.request { targetProjectId, title, summary?, description?, doneWhen?, references? }`**
+(request). A request to ANOTHER project, confirmed by the person before it is sent: `useAppFeatureRequest`
+(headless) queues the asks like `work.start` — none expires, a remount declines them — and
+`AppFeatureRequestDialog` (web) / `AppFeatureRequestSheet` (native) show where it goes and let the person
+edit title, summary, description and done-when lines (one per line, blank ones dropped on Send); the
+`references` are listed, not editable. Send files it through `POST /feature-requests` from the app's
+project (`featureRequestBody`). The answer is `{ status: 'sent', requestId }` or `{ status: 'declined',
+reason? }`; a request to the app's own project is refused before it is shown.
+
+**`overseer:chat.requestSidebar { runId?, message? }`** (request, read by `parseAppChatSidebar`). With
+a `runId`, the host opens that process run's own chat (`openAppRunChat` → `POST /process-runs/:runId/chat`,
+created the first time) — beside the app on web / desktop, as the chat sheet on mobile — sends `message`
+into it when given (without waiting for the reply, as `chat.discuss` sends its seed) and answers
+`{ context }`; without one it shows the project's chat as before and a `message` is dropped.
+
+**`overseer:work.start { …, processId? }`.** An app may name the process its work runs by. Start then
+opens the launch card straight away — no choice of a process run or the chat (`StartWorkTarget.processId`,
+`useStartWork().open(target, 'process')`) — and the card keeps that process: `storyLaunchGrant` puts it in
+the launch's args, marks the grant `processFixed` (the card hides its process-or-chat switch and a
+suggestion never changes the process) and launches with it whatever the card sends. The person picks the
+agent. (The launch card needs the app's providers, so it has no showcase scene.)
+
+Showcase: `app-feature-request` (`from-reference`, `minimal`, `sending`, `send-failed`),
+`app-work-start` (`features`, `no-features`, `start-failed`), `live-data-task-source`
 (`schedule`). The Live data edit form of a task source (`sourceToForm` → `adapterKind: 'task'`) shows its
 name and script read-only and saves only `{ freshness, autoUpdate }` (`formToSourcePatch`,
 `LiveDataTaskSourceFields` web + native).
@@ -449,7 +472,9 @@ output says so (`legacyNote`, `LEGACY_CHECK_RECORD_NOTE`) instead of reading as
 an empty success. A `developer-verifier` step —
 the self-verified process's one agent, which implements and proves the change
 itself — is read as a verify attempt filed under its own run, exactly as the
-tools' `processVerifyReview` reads it (`PROVING_AGENT_TYPES`). Every surface that
+tools' `processVerifyReview` reads it (`PROVING_AGENT_TYPES`) — and, when it
+carried earlier attempts on, under theirs too (`earlierRunIds`, which also
+loads the story's evidence in `useVerifyAttemptEvidence`). Every surface that
 names a role does it through `agentRoleLabel` ("developer + verifier").
 
 **Checks against a sibling's stable branch.** When the checks failed against

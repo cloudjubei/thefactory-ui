@@ -6,6 +6,7 @@ import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 import { useAppSettings, useCliRunArtifact, useInlineApprovals } from '../../../headless'
 import {
   describeCliRunActivity,
+  isCliRunWorking,
   turnBlockedOn,
   lastCliActionAtMs,
   runningCliToolNames,
@@ -136,7 +137,7 @@ export default function CliRunMessages({
   const { transcript, status, abortReason, notReady, startedAtMs, error, usage } =
     useCliRunArtifact(runId, undefined)
   const showThinking = useAppSettings().settings.userPreferences.cliShowThinking ?? true
-  const streaming = status === 'running' || status === 'awaiting-approval' || status === 'paused'
+  const streaming = isCliRunWorking(status)
   // Active = booting (record not written yet, the container spin-up) or
   // streaming; `booting` holds until the first transcript byte so the long boot
   // isn't a blank gap. Mirrors web.
@@ -164,6 +165,7 @@ export default function CliRunMessages({
           runId,
           ...(usage ? { usage } : {}),
           ...(storedAskIds ? { storedAskIds } : {}),
+          runEnded: status !== undefined && !isCliRunWorking(status),
         }),
         status,
         abortReason,

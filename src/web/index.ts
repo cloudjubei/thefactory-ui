@@ -377,6 +377,10 @@ export {
   type BadgeSettingsProps,
 } from './compound/settings/BadgeSettings'
 export { default as NotificationSettings } from './compound/settings/NotificationSettings'
+export {
+  default as BackendConnectionPanel,
+  type BackendConnectionPanelProps,
+} from './compound/settings/BackendConnectionPanel'
 export { default as CrossProjectSettings } from './compound/settings/CrossProjectSettings'
 export {
   default as SavedRulesSettings,
@@ -394,13 +398,7 @@ export { default as ShortcutsHelp } from './compound/shell/ShortcutsHelp'
 
 // Stories Kanban board.
 export { default as BoardView, type BoardViewProps } from './compound/stories/BoardView'
-export {
-  default as RunAgentButton,
-  AgentTypePicker,
-  type AgentRunType,
-  type AgentTypePickerProps,
-  type RunAgentButtonProps,
-} from './compound/RunAgentButton'
+export { default as RunAgentButton, type RunAgentButtonProps } from './compound/RunAgentButton'
 export {
   default as StoryForm,
   type StoryFormProps,
@@ -723,6 +721,14 @@ export {
   type ProjectStableBranchFieldProps,
 } from './compound/projects/ProjectStableBranchField'
 export {
+  default as ProjectEvaluationDefaultsField,
+  type ProjectEvaluationDefaultsFieldProps,
+} from './compound/projects/ProjectEvaluationDefaultsField'
+export {
+  default as EvaluationLaunchAskBody,
+  type EvaluationLaunchAskBodyProps,
+} from './compound/chat/EvaluationLaunchAskBody'
+export {
   default as SiblingFallbackNotice,
   RunSiblingFallbackNotice,
   type SiblingFallbackNoticeProps,
@@ -735,6 +741,18 @@ export {
   default as GroupTicketSettings,
   type GroupTicketSettingsProps,
 } from './compound/projects/GroupTicketSettings'
+export {
+  default as AgentTypeSettings,
+  type AgentTypeSettingsProps,
+} from './compound/settings/AgentTypeSettings'
+export {
+  default as AgentTypeSettingsPanel,
+  type AgentTypeSettingsPanelProps,
+} from './compound/settings/AgentTypeSettingsPanel'
+export {
+  default as AgentTypeSlotChooser,
+  type AgentTypeSlotChooserProps,
+} from './compound/chat/AgentTypeSlotChooser'
 
 // Settings panels — all wired to the lifted headless contexts.
 export {
@@ -889,6 +907,10 @@ export {
   default as AppWorkStartDialog,
   type AppWorkStartDialogProps,
 } from './compound/AppWorkStartDialog'
+export {
+  default as AppFeatureRequestDialog,
+  type AppFeatureRequestDialogProps,
+} from './compound/AppFeatureRequestDialog'
 export {
   default as LiveDataTaskSourceFields,
   type LiveDataTaskSourceFieldsProps,

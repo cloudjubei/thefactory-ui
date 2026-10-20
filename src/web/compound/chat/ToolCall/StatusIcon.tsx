@@ -10,14 +10,16 @@ import {
   BACKGROUND_TOOL_LABEL,
   BACKGROUND_TOOL_RESULT_TYPE,
 } from '../../../../headless/utils/backgroundJobsConstants'
+import { TOOL_STOPPED_LABEL } from '../../../../headless/utils/cliRunnerConstants'
 import type { ToolResultType } from './types'
 
 /**
  * The single lifecycle status chip shown at the right of a tool card's first
  * row — identical for CLI and API tools. Exactly one of: "Queued" (pending, not
- * yet executing), a spinner (running), or the elapsed time (terminal). Nothing
- * for require_confirmation/aborted/not_allowed (the left icon / Switch convey
- * those). The blue pill style is shared so the three states read the same.
+ * yet executing), a spinner (running), "Stopped" (aborted, in the stop icon's
+ * orange), or the elapsed time (terminal). Nothing for
+ * require_confirmation/not_allowed (the left icon / Switch convey those). The
+ * blue pill style is shared so the running and finished states read the same.
  */
 /**
  * The duration/status pill, as one string so every surface that shows a run's
@@ -49,6 +51,13 @@ export function StatusChip({
     )
   }
   if (resultType === 'pending') return <span className={chip}>Queued</span>
+  if (resultType === 'aborted') {
+    return (
+      <span className="inline-flex items-center text-[11px] font-medium text-orange-600 dark:text-orange-400 bg-orange-500/10 rounded-full px-1.5 py-0.5 shrink-0">
+        {TOOL_STOPPED_LABEL}
+      </span>
+    )
+  }
   if (resultType === BACKGROUND_TOOL_RESULT_TYPE) {
     return <span className={chip}>{BACKGROUND_TOOL_LABEL}</span>
   }

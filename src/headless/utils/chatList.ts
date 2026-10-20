@@ -8,7 +8,7 @@ import {
 
 import { assistantArchivedNotice, assistantBackNotice } from './assistantConstants'
 import { chatChannelOf } from './chatChannel'
-import { chatKindOf } from './chatHeader'
+import { chatKindOf, chatWorkPill } from './chatHeader'
 import { CHAT_KIND_VIEW } from './chatHeaderConstants'
 import type { ChatKind } from './chatHeaderTypes'
 import {
@@ -28,8 +28,7 @@ import type {
 } from './chatListTypes'
 import { formatChatTitle } from './chatTitle'
 import { processRunBadge } from './processView'
-import { isStoryStatus, statusLabel } from './status'
-import { storyStatusTone } from './stepsStrip'
+import { isStoryStatus } from './status'
 
 /** Whether a chat belongs in the chat list: not an assistant conversation, nor an agent run's own chat. Pure. */
 export function isChatInChatList(context: ChatContext): boolean {
@@ -110,7 +109,7 @@ function rowPill(input: ChatListRowInput, kind: ChatKind): ChatListRow['pill'] {
   if (kind === 'run') return input.run ? processRunBadge(input.run, input.now) : undefined
   const work = kind === 'story' || kind === 'feature' ? input.work : undefined
   if (!work || !isStoryStatus(work.status)) return undefined
-  return { label: statusLabel(work.status), tone: storyStatusTone(work.status) }
+  return chatWorkPill(work.status)
 }
 
 /**

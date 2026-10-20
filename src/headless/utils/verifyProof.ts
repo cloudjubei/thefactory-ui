@@ -569,8 +569,9 @@ function filedBy(
 ): EvidenceTile[] {
   const review = attempt.review
   if (!review) return []
+  const filedUnder = new Set([review.reviewedRunId, ...(review.earlierRunIds ?? [])])
   return evidenceFiledWithin(
-    tiles.filter((t) => t.ref.runId === review.reviewedRunId),
+    tiles.filter((t) => filedUnder.has(t.ref.runId)),
     {
       since: review.filedSince,
       ...(review.filedUntil !== undefined ? { until: review.filedUntil } : {}),

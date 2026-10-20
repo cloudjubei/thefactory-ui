@@ -34,7 +34,11 @@ import {
   type VerificationApproachOption,
 } from '../api/generated'
 import { useApi } from '../api/ApiContext'
-import { appendCliRunTranscript, mergeCliRunTranscript } from '../utils/cliRunActivity'
+import {
+  appendCliRunTranscript,
+  isCliRunWorking,
+  mergeCliRunTranscript,
+} from '../utils/cliRunActivity'
 import { CLI_TRANSCRIPT_FLUSH_MS } from '../utils/cliRunActivityConstants'
 import { cliRunTranscripts } from '../utils/cliRunTranscriptCache'
 import { InflightRequests } from '../utils/inflightRequests'
@@ -89,12 +93,13 @@ export type UseCliRunArtifact = {
   /**
    * The run's lifecycle status, kept live off `statusChanged` events. Drives the
    * transcript's "streaming" affordances (current step expanded + running timer)
-   * while the run is active (`running` / `awaiting-approval` / `paused`).
+   * while the run works — see `isCliRunWorking`; a `paused` run does not.
    */
   status: CliRunStatus | undefined
   /**
    * Why the run ended early, from its record — e.g. a login that could not be
-   * refreshed. What a failed run's turn shows when the agent never spoke.
+   * refreshed. What a failed run's turn shows when the agent never spoke, and a
+   * run its failure policy paused keeps it the same way.
    */
   abortReason: string | undefined
   /**
@@ -585,6 +590,12 @@ export function useCliRunArtifact(
     }
   }, [runId, ws, applyRunRecord, flushPendingEntries])
 
+  const working = isCliRunWorking(status)
+  useEffect(() => {
+    if (!runId || !working) return
+    return ws.onReconnect(() => setFetchNonce((n) => n + 1))
+  }, [runId, working, ws])
+
   const reload = useCallback(() => setFetchNonce((n) => n + 1), [])
 
   const loadPreview = useCallback(async () => {
@@ -857,11 +868,10 @@ export function useCliRunArtifact(
       return
     }
     let cancelled = false
-    const TERMINAL = new Set(['succeeded', 'errored', 'aborted', 'canceled', 'cancelled'])
     const check = async () => {
       try {
         const { data } = await getCliAgentRun({ path: { runId: reviewRunId }, throwOnError: true })
-        if (!cancelled) setReviewRunTerminal(!!data?.status && TERMINAL.has(data.status))
+        if (!cancelled) setReviewRunTerminal(!!data?.status && !isCliRunWorking(data.status))
       } catch {
         // A verifier record that cannot be read yet (404 in the moment between
         // launch and its first write) is not terminal — hold "Verifying…" until an

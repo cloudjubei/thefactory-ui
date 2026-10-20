@@ -10,6 +10,8 @@ export interface StoryLaunchGrantInput {
   chatRunner: 'api' | 'cli'
   /** That agent as a launch carries it (`runner`, `cliTool`, `cliModel`, `cliCredentialId`) — the card's picks win. */
   agent?: Record<string, unknown>
+  /** The process the work runs by, decided before the card opened; the card keeps it. */
+  processId?: string
   /** Launch with the card's picks — the same decision metadata an approved ask carries. */
   onLaunch: (metadata: Record<string, unknown>) => Promise<void>
   /** Close the card without launching. */
@@ -27,6 +29,7 @@ export function storyLaunchGrant(input: StoryLaunchGrantInput): PendingToolGrant
     ...agent,
     storyId: input.storyId,
     mode: 'process',
+    ...(input.processId ? { processId: input.processId } : {}),
     ...(input.featureIds && input.featureIds.length > 0
       ? { featureIds: [...input.featureIds] }
       : {}),
@@ -38,12 +41,17 @@ export function storyLaunchGrant(input: StoryLaunchGrantInput): PendingToolGrant
     toolName: START_FEATURE_WORK_TOOL_NAME,
     args,
     detail: { tool: START_FEATURE_WORK_TOOL_NAME, args },
+    ...(input.processId ? { processFixed: true } : {}),
     decide: async (decision: PendingToolGrantDecision, metadata?: Record<string, unknown>) => {
       if (decision === 'deny') {
         input.onCancel()
         return
       }
-      await input.onLaunch({ ...agent, ...metadata })
+      await input.onLaunch({
+        ...agent,
+        ...metadata,
+        ...(input.processId ? { mode: 'process', processId: input.processId } : {}),
+      })
     },
   }
 }

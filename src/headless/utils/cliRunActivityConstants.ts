@@ -1,3 +1,5 @@
+import type { CliRunStatus } from '../api/generated'
+
 /** Shown under "Preparing <agent>…" — the container/CLI cold start is paid on turn 1. */
 export const CLI_BOOT_SUBLABEL = 'The first message is slowest while the sandbox starts up.'
 
@@ -37,3 +39,17 @@ export const CLI_HOST_UNRUN_OUTCOMES: ReadonlySet<string> = new Set([
   'denied',
   'expired',
 ])
+
+/**
+ * The run statuses in which the agent is still working: its process runs, or it
+ * waits on a decision it raised. A `paused` run — parked when the backend
+ * restarted, or by its failure policy — is not working until it is resumed.
+ */
+export const CLI_RUN_WORKING_STATUSES: ReadonlySet<string> = new Set<CliRunStatus>([
+  'running',
+  'awaiting-approval',
+])
+
+/** What a chat says of a run that failed without a reply and recorded no reason. */
+export const CLI_RUN_ENDED_WITHOUT_REPLY = (status: string): string =>
+  `The agent run ${status} without a reply.`

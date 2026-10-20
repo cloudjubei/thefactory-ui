@@ -1,5 +1,6 @@
-import type { WorkLaunchMode } from 'thefactory-tools/types'
+import type { AgentTypeSlotMap, WorkLaunchMode } from 'thefactory-tools/types'
 import { partitionGrants } from './agentQuestions'
+import { agentTypeSlotsOf } from './agentTypeSlotChoice'
 import type { ApprovalPanelHold, PendingToolGrant } from './chatTypes'
 import type { GrantDetailView } from './approvalGrantTypes'
 import { START_GROUP_WORK_TOOL_NAME } from './processGroupLaunchConstants'
@@ -134,6 +135,8 @@ export type StartFeatureWorkGrantSummary = {
   cliModel?: string
   /** The CLI sign-in the agent asked for. */
   cliCredentialId?: string
+  /** The agent type the agent proposed for each slot — the card starts on it, the person may change it. */
+  agentTypeSlots?: AgentTypeSlotMap
 }
 
 /** A string argument, trimmed; blank or not a string is none. */
@@ -167,6 +170,7 @@ export function startFeatureWorkGrantSummary(
   const cliTool = textArg(record.cliTool)
   const cliModel = textArg(record.cliModel)
   const cliCredentialId = textArg(record.cliCredentialId)
+  const agentTypeSlots = agentTypeSlotsOf(record.agentTypeSlots)
   const relevantNoteIds = Array.isArray(record.relevantNoteIds)
     ? record.relevantNoteIds.filter((x): x is string => typeof x === 'string' && x.length > 0)
     : []
@@ -184,6 +188,7 @@ export function startFeatureWorkGrantSummary(
     ...(cliTool ? { cliTool } : {}),
     ...(cliModel ? { cliModel } : {}),
     ...(cliCredentialId ? { cliCredentialId } : {}),
+    ...(agentTypeSlots ? { agentTypeSlots } : {}),
   }
 }
 

@@ -1,3 +1,5 @@
+import type { ProcessDroppedChangeAcceptedRow } from 'thefactory-tools/types'
+
 import type { ScreenPair } from './reviewEvidenceViewTypes'
 import type { SignoffAttentionItem, SignoffRequestOutcome } from './signoffPageTypes'
 
@@ -20,6 +22,8 @@ export type SignoffDecisionInput = {
   /** The fix pass the request was answered by. */
   fix: SignoffDecisionFix | undefined
   attention: readonly SignoffAttentionItem[]
+  /** Each file a merge into the work branch was accepted dropping a side of, as the run's record words it. */
+  droppedAccepted: readonly ProcessDroppedChangeAcceptedRow[]
 }
 
 /** How an attention item reads at a glance: met, not met, or worth a look. */

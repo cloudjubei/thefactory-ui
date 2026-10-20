@@ -4,6 +4,7 @@ import {
   launchAgentPickMetadata,
   launchAgentPickSuggestionAgent,
   launchAgentPickRunner,
+  launchModelChipSlotOf,
 } from '../../../headless/utils/launchAgentPick'
 import type { LaunchModelChipSlot } from '../../../headless/utils/launchAgentPickTypes'
 import { useCanonicalizeReferences } from '../../../headless/contexts/ReferenceRenderingContext'
@@ -32,16 +33,24 @@ import { runProposalArgs } from '../../../headless/utils/runProposalView'
 import { processProposalView } from '../../../headless/utils/processProposalView'
 import {
   launchOverlapView,
+  agentTypeSlotRows,
+  agentTypeSlotsMetadata,
   baseBranchChoice,
   baseBranchMetadata,
   featureProcessChoice,
   featureProcessMetadata,
   storyOpenFeatures,
   isGitSetupGrant,
+  isActivityStopGrant,
   isGitChangeGrant,
   isRunProposalGrant,
   isStartGroupWorkGrant,
   LAUNCH_HOW_IT_RUNS_HEADING,
+  launchFeaturePickMetadata,
+  launchFeaturePickOffered,
+  launchFeaturePickRows,
+  launchFeaturePicked,
+  launchFeaturePreviewIds,
   launchFeatureRows,
   launchProofPlanRows,
   proofPlanMetadata,
@@ -51,17 +60,20 @@ import {
   processOpenWorkView,
   processTurnLimitOfView,
   setLaunchProofNotes,
+  toggleLaunchFeaturePick,
   toggleLaunchProofKind,
   useProcessProposal,
   useProjectNotes,
   useStories,
 } from '../../../headless'
 import type {
+  AgentTypeSlotPicks,
   LaunchProofPlanEdits,
   PendingToolGrant,
   ProcessOpenWorkChoice,
 } from '../../../headless'
 import DependencyBullet from '../stories/DependencyBullet'
+import AgentTypeSlotChooser from './AgentTypeSlotChooser'
 import BaseBranchChooser from './BaseBranchChooser'
 import FeatureProcessChooser from './FeatureProcessChooser'
 import LaunchOverlapNote from './LaunchOverlapNote'
@@ -71,6 +83,7 @@ import LaunchFeatureList from './LaunchFeatureList'
 import ProjectNoteChip from '../chips/ProjectNoteChip'
 import GitSetupApprovalPanel from './GitSetupApprovalPanel'
 import GroupWorkLaunchPanel from './GroupWorkLaunchPanel'
+import ActivityStopApprovalPanel from './ActivityStopApprovalPanel'
 import GitChangeApprovalPanel from './GitChangeApprovalPanel'
 import RunProposalApprovalPanel from './RunProposalApprovalPanel'
 import { TurnLimitField } from '../TurnLimitField'
@@ -78,6 +91,7 @@ import SegmentedControl from '../../primitives/SegmentedControl'
 import LaunchSuggestionPanel from './LaunchSuggestionPanel'
 import { useLaunchSuggestion } from '../../../headless/hooks/useWorkLaunch'
 import {
+  launchDecisionMetadata,
   launchSuggestionPicks,
   launchSuggestionProofEdits,
   launchSuggestionRows,
@@ -147,6 +161,16 @@ export default function ApprovalPanel(props: ApprovalPanelProps) {
         {...(props.groupId !== undefined ? { groupId: props.groupId } : {})}
         {...(props.renderModelChip ? { renderModelChip: props.renderModelChip } : {})}
         {...(props.renderProcessRun ? { renderProcessRun: props.renderProcessRun } : {})}
+        onDecideLater={props.onDecideLater}
+        {...(props.onDecided ? { onDecided: props.onDecided } : {})}
+      />
+    )
+  }
+  // Stopping a background activity ends work for good: its own card states what the host read.
+  if (isActivityStopGrant(props.grant)) {
+    return (
+      <ActivityStopApprovalPanel
+        grant={props.grant}
         onDecideLater={props.onDecideLater}
         {...(props.onDecided ? { onDecided: props.onDecided } : {})}
       />
@@ -242,6 +266,14 @@ function ToolApprovalPanel({
   // The story's open features, never its launch plan: whether they may start
   // (a blocker not done yet) is the proposal's refusal, shown on the card.
   const features = story ? storyOpenFeatures(story) : []
+  const [featurePick, setFeaturePick] = useState<readonly string[] | undefined>(undefined)
+  const previewFeatureIds =
+    features.length > 0
+      ? launchFeaturePreviewIds(
+          features,
+          launchFeaturePicked(features, summary.featureIds, featurePick),
+        )
+      : summary.featureIds
   // How each feature is worked — the person's pick, never the agent's. Until
   // they pick, the story process's own; the proposal nests whichever is picked.
   const [featureProcessPick, setFeatureProcessPick] = useState<string | undefined>(undefined)
@@ -257,7 +289,8 @@ function ToolApprovalPanel({
     storyId: isLaunch ? summary.storyId : undefined,
     ...(processPick ? { processId: processPick } : {}),
     ...(featureProcessPick ? { featureProcessId: featureProcessPick } : {}),
-    ...(summary.featureIds ? { featureIds: summary.featureIds } : {}),
+    ...(previewFeatureIds ? { featureIds: previewFeatureIds } : {}),
+    ...(summary.agentTypeSlots ? { agentTypeSlots: summary.agentTypeSlots } : {}),
   })
   const featureProcess = featureProcessChoice(proposal, featureProcessPick)
   // The story process's own way of working features, as first proposed — the
@@ -278,6 +311,18 @@ function ToolApprovalPanel({
   // Work added to an open run is worked the way that run works its own.
   const joinsOpenRun = openWorkChoice === 'extend' && openWorkMeta !== undefined
   const featureProcessMeta = joinsOpenRun ? undefined : featureProcessMetadata(featureProcess)
+  const pickCandidates =
+    joinsOpenRun && openWork
+      ? features.filter((f) => openWork.newFeatures.some((n) => n.id === f.id))
+      : features
+  const picked = launchFeaturePicked(pickCandidates, summary.featureIds, featurePick)
+  const pickOffered = launchFeaturePickOffered(pickCandidates)
+  const pickRows = pickOffered ? launchFeaturePickRows(pickCandidates, picked) : undefined
+  const pickMeta = pickOffered ? launchFeaturePickMetadata(picked) : undefined
+  const togglePick = (featureId: string) =>
+    setFeaturePick((prev) =>
+      toggleLaunchFeaturePick(pickCandidates, summary.featureIds, prev, featureId),
+    )
   // The branch the work goes off and back into — the person's pick, else the
   // agent's ask, else the checkout's current branch. Work that joins or builds
   // on an open run goes back where that run's does.
@@ -287,6 +332,9 @@ function ToolApprovalPanel({
     (openWorkChoice === 'extend' || openWorkChoice === 'new-on-branch')
   const baseBranch = baseBranchChoice(proposal?.baseBranches, summary.baseBranch, basePick)
   const baseBranchMeta = followsOpenRun ? undefined : baseBranchMetadata(baseBranch)
+  const [slotPicks, setSlotPicks] = useState<AgentTypeSlotPicks>({})
+  const slotRows = joinsOpenRun ? [] : agentTypeSlotRows(proposal, slotPicks)
+  const slotMeta = joinsOpenRun ? undefined : agentTypeSlotsMetadata(proposal, slotPicks)
   // How each feature is proven — its requestor's plan, confirmed or added to
   // here. Work joining an open run reads the features' own plans, so it saves.
   const [proofPlanEdits, setProofPlanEdits] = useState<LaunchProofPlanEdits>({})
@@ -316,7 +364,7 @@ function ToolApprovalPanel({
     const s = suggestion.suggestion
     if (!s) return
     const picks = launchSuggestionPicks(s)
-    if (picks.processId) setProcessPick(picks.processId)
+    if (picks.processId && !grant.processFixed) setProcessPick(picks.processId)
     if (picks.featureProcessId) setFeatureProcessPick(picks.featureProcessId)
     if (picks.baseBranch) setBasePick(picks.baseBranch)
     if (picks.turnLimit) setTurnLimitPick(picks.turnLimit)
@@ -328,6 +376,7 @@ function ToolApprovalPanel({
   const view = featureWorkAskView({
     ...(story?.title ? { storyTitle: story.title } : {}),
     joinsOpenRun,
+    mode,
     args: runProposalArgs(grant),
     ...(proposal?.waitingOn ? { waitingOn: proposal.waitingOn } : {}),
   })
@@ -342,6 +391,7 @@ function ToolApprovalPanel({
     openWorkUnchosen: !inChat && openWork !== undefined && openWorkMeta === undefined,
     storyLoaded: story !== undefined,
     featureCount: features.length,
+    nonePicked: pickOffered && picked.length === 0,
   })
 
   const decide = (decision: PendingToolGrantDecision) => {
@@ -354,30 +404,36 @@ function ToolApprovalPanel({
     void grant
       .decide(
         decision,
-        isLaunch && inChat
-          ? {
-              mode: 'chat',
-              ...(trimmedNote ? { note: trimmedNote } : {}),
-              ...launchAgentPickMetadata(agentPick),
-            }
-          : isLaunch
+        launchDecisionMetadata(
+          decision,
+          isLaunch && inChat
             ? {
-                // Proof is no longer a dock toggle — it belongs to the process the
-                // agent chose (its Verify → Report chain), so the launch carries
-                // the agent's own choice unchanged rather than overriding it here.
-                mode: 'process',
-                ...(processPick && processPick !== summary.processId
-                  ? { processId: processPick }
-                  : {}),
+                mode: 'chat',
                 ...(trimmedNote ? { note: trimmedNote } : {}),
                 ...launchAgentPickMetadata(agentPick),
-                turnLimit: processTurnLimitOfView(turnLimit),
-                ...(decision === 'once' && openWorkMeta ? openWorkMeta : {}),
-                ...(decision === 'once' && featureProcessMeta ? featureProcessMeta : {}),
-                ...(decision === 'once' && baseBranchMeta ? baseBranchMeta : {}),
-                ...(decision === 'once' && proofPlanMeta ? proofPlanMeta : {}),
+                ...(decision === 'once' && pickMeta ? pickMeta : {}),
               }
-            : undefined,
+            : isLaunch
+              ? {
+                  // Proof is no longer a dock toggle — it belongs to the process the
+                  // agent chose (its Verify → Report chain), so the launch carries
+                  // the agent's own choice unchanged rather than overriding it here.
+                  mode: 'process',
+                  ...(processPick && processPick !== summary.processId
+                    ? { processId: processPick }
+                    : {}),
+                  ...(trimmedNote ? { note: trimmedNote } : {}),
+                  ...launchAgentPickMetadata(agentPick),
+                  turnLimit: processTurnLimitOfView(turnLimit),
+                  ...(decision === 'once' && openWorkMeta ? openWorkMeta : {}),
+                  ...(decision === 'once' && featureProcessMeta ? featureProcessMeta : {}),
+                  ...(decision === 'once' && baseBranchMeta ? baseBranchMeta : {}),
+                  ...(decision === 'once' && slotMeta ? slotMeta : {}),
+                  ...(decision === 'once' && proofPlanMeta ? proofPlanMeta : {}),
+                  ...(decision === 'once' && pickMeta ? pickMeta : {}),
+                }
+              : undefined,
+        ),
       )
       .then(() => onDecided?.(toolAskDecidedLine(view, decision)))
       .catch((err: unknown) => {
@@ -442,7 +498,7 @@ function ToolApprovalPanel({
           </div>
         ) : null}
 
-        {isLaunch ? (
+        {isLaunch && !grant.processFixed ? (
           <SegmentedControl
             size="sm"
             ariaLabel="How the work is done"
@@ -494,8 +550,20 @@ function ToolApprovalPanel({
                 onChoose={setBasePick}
               />
             )}
+            {inChat
+              ? null
+              : slotRows.map((row) => (
+                  <AgentTypeSlotChooser
+                    key={row.slot}
+                    row={row}
+                    busy={busy}
+                    onChoose={(agentTypeId) =>
+                      setSlotPicks((prev) => ({ ...prev, [row.slot]: agentTypeId }))
+                    }
+                  />
+                ))}
             {renderModelChip ? (
-              renderModelChip(chipSlot)
+              renderModelChip(launchModelChipSlotOf(chipSlot, summary))
             ) : (
               <Tooltip
                 placement="top"
@@ -544,12 +612,13 @@ function ToolApprovalPanel({
           )}
         </div>
 
-        {!inChat && featureRows.length > 0 ? (
+        {(!inChat && featureRows.length > 0) || pickRows ? (
           <LaunchFeatureList
             {...(summary.storyId ? { storyId: summary.storyId } : {})}
-            rows={featureRows}
-            tail={proposalView?.tail ?? []}
-            {...(proposalView ? { agentStepCount: proposalView.agentStepCount } : {})}
+            rows={inChat ? [] : featureRows}
+            tail={inChat ? [] : (proposalView?.tail ?? [])}
+            {...(proposalView && !inChat ? { agentStepCount: proposalView.agentStepCount } : {})}
+            {...(pickRows ? { pick: { rows: pickRows, onToggle: togglePick } } : {})}
             save={saveProofPlans}
             joinsOpenRun={joinsOpenRun}
             busy={busy}

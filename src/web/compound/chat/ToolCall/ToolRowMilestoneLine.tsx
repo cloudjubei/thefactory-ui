@@ -5,6 +5,7 @@ const TONE: Record<ToolRowMilestone['tone'], string> = {
   success: 'border-green-500/40 bg-green-500/10 text-green-800 dark:text-green-200',
   warning: 'border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-200',
   error: 'border-red-500/40 bg-red-500/10 text-red-800 dark:text-red-200',
+  neutral: 'border-(--border-subtle) bg-(--surface-raised) text-(--text-secondary)',
 }
 
 /**

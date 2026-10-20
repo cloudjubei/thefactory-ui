@@ -1,6 +1,7 @@
 import { getChatContextKey } from 'thefactory-tools/utils'
 import type { Chat, CliRun, CliRunTranscriptEntry } from '../api/generated'
 import type { ToolOrigin } from './chatTypes'
+import { isCliRunWorking } from './cliRunActivity'
 import {
   cliTranscriptToMessages,
   messageModelTag,
@@ -213,6 +214,7 @@ function debugRun(
   const allDerived = cliTranscriptToMessages(entries, {
     ...(options.modelTag ? { model: options.modelTag } : {}),
     showThinking: options.showThinking,
+    runEnded: !isCliRunWorking(run.status),
   })
   const derivedMessages: ChatDebugMessage[] = []
   for (let i = 0; i < allDerived.length; i++) {

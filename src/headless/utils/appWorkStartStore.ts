@@ -28,6 +28,7 @@ export class AppWorkStartStore {
         progress: {},
         busy: false,
         error: null,
+        launching: false,
         resolve,
       })
       this._emit()
@@ -55,6 +56,10 @@ export class AppWorkStartStore {
 
   setProgress(id: number, progress: AppWorkStartProgress): void {
     this._update(id, () => ({ progress }))
+  }
+
+  setLaunching(id: number, launching: boolean): void {
+    this._update(id, () => ({ launching, busy: false }))
   }
 
   fail(id: number, error: string): void {
@@ -95,6 +100,7 @@ export class AppWorkStartStore {
           progress: head.progress,
           busy: head.busy,
           error: head.error,
+          launching: head.launching,
           waiting: this._queue.length - 1,
         }
       : null

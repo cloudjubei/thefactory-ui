@@ -18,6 +18,7 @@ describe('AppWorkStartStore', () => {
       progress: {},
       busy: false,
       error: null,
+      launching: false,
       waiting: 1,
     })
     store.settle(store.current()!.id, { status: 'declined' })
@@ -79,6 +80,19 @@ describe('AppWorkStartStore', () => {
     })
     store.setBusy(id, true)
     expect(store.current()).toMatchObject({ busy: true, error: null })
+  })
+
+  it('marks the ask as at the way-of-working choice, and back at its confirmation when that closes', () => {
+    const store = new AppWorkStartStore()
+    void store.enqueue(draft('A'))
+    const id = store.current()!.id
+    store.setBusy(id, true)
+    store.setLaunching(id, true)
+    expect(store.current()).toMatchObject({ launching: true, busy: false })
+    store.setLaunching(id, false)
+    expect(store.current()).toMatchObject({ launching: false, busy: false })
+    store.setLaunching(id + 1, true)
+    expect(store.current()?.launching).toBe(false)
   })
 
   it('ignores edits once the story exists or while starting', () => {

@@ -6,12 +6,12 @@ import {
   DECIDED_BY_RULE_NOTE,
   DECIDED_BY_YOU_APPROVE_ALL_NOTE,
   DECLINED_BY_MOVING_ON_NOTE,
+  RUN_STOPPED_REASON,
   TURN_ENDED_REASON,
 } from './cliRunnerConstants'
 import { describe, it, expect } from 'vitest'
 import {
   chatCliRunnerToDispatchOptions,
-  chatCliRunnerToStartRunBody,
   cliAssistantTextFromEntry,
   cliRunFailureNotice,
   withCliRunFailure,
@@ -85,54 +85,6 @@ describe('chatCliRunnerToDispatchOptions', () => {
       model: 'opus',
       effort: 'high',
     })
-  })
-})
-
-describe('chatCliRunnerToStartRunBody', () => {
-  it('maps tool→cli and credentialId→authCredentialId with prompt + project', () => {
-    const body = chatCliRunnerToStartRunBody(
-      { tool: 'claude-code', credentialId: 'cli-1' },
-      { projectId: 'p1', prompt: 'hi', chatContextId: 'c1' },
-    )
-    expect(body).toEqual({
-      projectId: 'p1',
-      cli: 'claude-code',
-      prompt: 'hi',
-      chatContextId: 'c1',
-      authCredentialId: 'cli-1',
-    })
-  })
-
-  it('carries apiKeyCredentialId through and omits absent optionals', () => {
-    const body = chatCliRunnerToStartRunBody(
-      { tool: 'codex', apiKeyCredentialId: 'llm-1' },
-      { projectId: 'p1', prompt: 'go' },
-    )
-    expect(body).toEqual({
-      projectId: 'p1',
-      cli: 'codex',
-      prompt: 'go',
-      apiKeyCredentialId: 'llm-1',
-    })
-    expect('chatContextId' in body).toBe(false)
-    expect('authCredentialId' in body).toBe(false)
-  })
-
-  it('threads storyId when present', () => {
-    const body = chatCliRunnerToStartRunBody(
-      { tool: 'cursor-agent', credentialId: 'c' },
-      { projectId: 'p1', prompt: 'x', storyId: 's1' },
-    )
-    expect(body.storyId).toBe('s1')
-  })
-
-  it('forwards model→modelId and effort onto the run body', () => {
-    const body = chatCliRunnerToStartRunBody(
-      { tool: 'claude-code', credentialId: 'cli-1', model: 'opus', effort: 'high' },
-      { projectId: 'p1', prompt: 'go' },
-    )
-    expect(body.modelId).toBe('opus')
-    expect(body.effort).toBe('high')
   })
 })
 
@@ -1081,6 +1033,20 @@ describe('normalizeCliTranscript', () => {
     ...over,
   })
 
+  it('carries what the action recorded carrying the call out to its row, live from the action', () => {
+    const recorded = '{"activityId":"x","outcome":"stopped","status":"aborted"}'
+    const [row] = cliTranscriptToMessages(askedThen('stopActivity', 'a1'), {
+      decidedAsks: [
+        decided({ toolName: 'stopActivity', execution: { ok: true, result: recorded } }),
+      ],
+    })
+    expect(row.toolCall?.executionResult).toBe(recorded)
+    const [unrecorded] = cliTranscriptToMessages(askedThen('stopActivity', 'a1'), {
+      decidedAsks: [decided({ toolName: 'stopActivity' })],
+    })
+    expect(unrecorded.toolCall).not.toHaveProperty('executionResult')
+  })
+
   it('carries the files an approved commit’s card listed, and the run it was asked in, to its row', () => {
     const files = [{ path: 'design/drafts/10.html', status: 'modified' as const }]
     const [row] = cliTranscriptToMessages(askedThen('commitGitChanges', 'a1'), {
@@ -1200,6 +1166,65 @@ describe('normalizeCliTranscript', () => {
       { pendingAsks: [] },
     )
     expect(rows.map((r) => r.toolResult?.type)).toEqual(['not_allowed', 'running'])
+  })
+
+  it('shows a call left open by a run no longer working as stopped, and why', () => {
+    const [row] = cliTranscriptToMessages([call('t1', 'Read', { p: 'a' })], {
+      pendingAsks: [],
+      runEnded: true,
+    })
+    expect(row!.toolResult?.type).toBe('aborted')
+    expect(row!.toolResult?.result).toEqual({ outcome: 'stopped', reason: RUN_STOPPED_REASON })
+  })
+
+  it('keeps an open call running while its run still works', () => {
+    const transcript = [call('t1', 'Read', { p: 'a' })]
+    expect(cliTranscriptToMessages(transcript)[0]!.toolResult?.type).toBe('running')
+    expect(cliTranscriptToMessages(transcript, { runEnded: false })[0]!.toolResult?.type).toBe(
+      'running',
+    )
+  })
+
+  it('stops only the calls left open, not the ones that finished, once the run ended', () => {
+    const rows = cliTranscriptToMessages(
+      [
+        call('t1', 'Read', { p: 'a' }),
+        answered('t1', { ok: true }),
+        call('t2', 'Read', { p: 'b' }, 3),
+        call('t3', 'grepFiles', { q: 'x' }, 4),
+      ],
+      { runEnded: true },
+    )
+    expect(rows.map((r) => r.toolResult?.type)).toEqual(['success', 'aborted', 'aborted'])
+  })
+
+  it('keeps a call held open for an ask answerable after its run stopped', () => {
+    const [row] = cliTranscriptToMessages([call('t1', 'addStory', { title: 'T' })], {
+      pendingAsks: [{ id: 'a1', toolName: 'addStory', args: { title: 'T' }, decidedOnRow: true }],
+      runEnded: true,
+    })
+    expect(row!.toolResult?.type).toBe('require_confirmation')
+    expect(row!.toolResult?.result).toBeUndefined()
+    expect(row!.toolCall?.approvalId).toBe('a1')
+  })
+
+  it('stops a call queued behind an ask once its run ended, keeping the ask', () => {
+    const rows = cliTranscriptToMessages(
+      [call('t1', 'updateStory', { id: 's' }), call('t2', 'addFeature', { n: 1 })],
+      {
+        pendingAsks: [{ id: 'a1', toolName: 'updateStory', args: { id: 's' }, decidedOnRow: true }],
+        runEnded: true,
+      },
+    )
+    expect(rows.map((r) => r.toolResult?.type)).toEqual(['require_confirmation', 'aborted'])
+  })
+
+  it('still says a call its turn ended without running did not run, once the run ended too', () => {
+    const [row] = cliTranscriptToMessages([call('t1', 'Read', { p: 'a' }), turnEnded()], {
+      runEnded: true,
+    })
+    expect(row!.toolResult?.type).toBe('not_allowed')
+    expect(row!.toolResult?.result).toEqual({ outcome: 'ended', reason: TURN_ENDED_REASON })
   })
 
   it('still shows a call made alongside one that ran as running', () => {
@@ -1501,7 +1526,7 @@ describe('normalizeCliTranscript', () => {
     expect(messages.map((m) => m.usage)).toEqual(messages.map(() => undefined))
   })
 
-  it("attaches the run record's usage, even at a $0 charge", () => {
+  it("attaches the run record's usage, a subscription's charge left unknown", () => {
     const usage = cliRunMessageUsage({
       cli: { tool: 'cursor-agent', version: '' },
       status: 'succeeded',
@@ -1523,10 +1548,10 @@ describe('normalizeCliTranscript', () => {
     )
     expect(messages[0].usage).toBe(usage)
     expect(messages[0].usage).toMatchObject({
-      cost: 0,
       billing: 'subscription',
       promptTokens: 5825,
     })
+    expect(messages[0].usage).not.toHaveProperty('cost')
   })
 
   it('keeps the CLI tag the model chip reads, whatever model the run reported', () => {
@@ -1707,6 +1732,29 @@ describe('parseCliRunUpdateEvent', () => {
         event: { result: { status: 'aborted', abortReason: 'user aborted' } },
       }),
     ).toEqual({ runId: 'r1', kind: 'terminal', status: 'aborted', error: 'user aborted' })
+    // A run its failure policy paused carries the failure it paused on.
+    expect(
+      parseCliRunUpdateEvent({
+        runId: 'r1',
+        type: 'finished',
+        event: { result: { status: 'paused', failure: { message: 'Login expired' } } },
+      }),
+    ).toEqual({ runId: 'r1', kind: 'terminal', status: 'paused', error: 'Login expired' })
+    // A pause names its reason when it has only that, and carries no error with none.
+    expect(
+      parseCliRunUpdateEvent({
+        runId: 'r1',
+        type: 'finished',
+        event: { result: { status: 'paused', abortReason: 'Login expired' } },
+      }),
+    ).toEqual({ runId: 'r1', kind: 'terminal', status: 'paused', error: 'Login expired' })
+    expect(
+      parseCliRunUpdateEvent({
+        runId: 'r1',
+        type: 'finished',
+        event: { result: { status: 'paused' } },
+      }),
+    ).toEqual({ runId: 'r1', kind: 'terminal', status: 'paused' })
     // An `error` event is always errored, carrying its message.
     expect(
       parseCliRunUpdateEvent({ runId: 'r1', type: 'error', event: { error: 'kaboom' } }),
@@ -2244,6 +2292,16 @@ describe('cliRunFailureNotice', () => {
     expect(cliRunFailureNotice('errored', undefined)).toBe('The agent run failed.')
     expect(cliRunFailureNotice('errored', '   ')).toBe('The agent run failed.')
   })
+
+  it('says why a run its failure policy paused stopped, as for a failed run', () => {
+    expect(cliRunFailureNotice('paused', 'Login expired')).toBe('Login expired')
+    expect(cliRunFailureNotice('paused', '  Login expired ')).toBe('Login expired')
+  })
+
+  it('says nothing for a run a restart paused, which recorded no reason', () => {
+    expect(cliRunFailureNotice('paused', undefined)).toBeUndefined()
+    expect(cliRunFailureNotice('paused', '   ')).toBeUndefined()
+  })
 })
 
 describe('withCliRunFailure', () => {
@@ -2271,6 +2329,15 @@ describe('withCliRunFailure', () => {
   it('leaves a run that did not fail untouched', () => {
     const said = [{ role: 'assistant' as const, content: 'done' }]
     expect(withCliRunFailure(said, 'succeeded', undefined)).toBe(said)
+  })
+
+  it('ends a turn its failure policy paused with the failure, and a restart’s pause with none', () => {
+    const said = [{ role: 'assistant' as const, content: 'Looking at the files…' }]
+    expect(withCliRunFailure(said, 'paused', 'Login expired')).toEqual([
+      ...said,
+      { role: 'assistant', content: '', error: 'Login expired' },
+    ])
+    expect(withCliRunFailure(said, 'paused', undefined)).toBe(said)
   })
 })
 
@@ -2448,6 +2515,21 @@ describe('subagent steps', () => {
     expect(nested[2].toolResult?.type).toBe('running')
   })
 
+  it("stops a subagent's open call, and the call that started it, once the run ended", () => {
+    const messages = cliTranscriptToMessages(
+      [
+        call('a1', 'Agent', 2),
+        call('g1', 'grepFiles', 4, 'a1'),
+        answered('g1', 5, 'a1'),
+        call('l1', 'listContents', 6, 'a1'),
+      ],
+      { runEnded: true },
+    )
+    expect(messages[0]!.toolResult?.type).toBe('aborted')
+    const nested = messages[0]!.subagentMessages ?? []
+    expect(nested.map((m) => m.toolResult?.type)).toEqual(['success', 'aborted'])
+  })
+
   it("nests a subagent's own subagent one level deeper", () => {
     const messages = cliTranscriptToMessages([
       call('a1', 'Agent', 1),
@@ -2614,6 +2696,17 @@ describe('storedChatAskRows — an API chat’s rows show its asks as a CLI turn
     const [m] = storedChatAskRows([row('a1')], [ask('a1', { awaitingOutcome: true })], [])
     expect(m!.toolResult?.type).toBe('pending')
     expect(m!.toolCall).not.toHaveProperty('approvalId')
+  })
+
+  it('gives a settled row what its action recorded carrying the call out', () => {
+    const recorded = '{"activityId":"x","outcome":"failed","code":"adapter-failed"}'
+    const [m] = storedChatAskRows(
+      [row('a1', 'success', 'stopActivity')],
+      [],
+      [decided('a1', { execution: { ok: true, result: recorded } })],
+    )
+    expect(m!.toolCall?.executionResult).toBe(recorded)
+    expect(m!.toolResult?.type).toBe('success')
   })
 
   it('shows a decided ask still being carried out as under way, and who decided it', () => {

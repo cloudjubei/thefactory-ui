@@ -8,6 +8,7 @@ import {
   CHAT_HEADER_CHAT_COST_TITLE,
   CHAT_HEADER_RUN_TIME_TITLE,
   CHAT_KIND_VIEW,
+  CHAT_WORK_IN_PROGRESS_LABEL,
 } from './chatHeaderConstants'
 import type { ChatHeaderInput, ChatHeaderPill, ChatHeaderView, ChatKind } from './chatHeaderTypes'
 import { formatChatTitle } from './chatTitle'
@@ -21,7 +22,7 @@ import {
   formatProcessDuration,
 } from './processView'
 import { processTimeDetailsView } from './processTimeDetails'
-import { statusLabel } from './status'
+import { statusLabel, type StoryStatus } from './status'
 import {
   featureStripEntries,
   processRunStripEntries,
@@ -105,11 +106,23 @@ function headerTitle(input: ChatHeaderInput, kind: ChatKind): string {
   return fallbackTitle(input)
 }
 
+/**
+ * The pill a chat about a story or feature shows for its status: the shared
+ * label and tone, except that a started item reads In progress, so Working in
+ * a chat only ever means a live turn. Pure.
+ */
+export function chatWorkPill(status: StoryStatus): ChatHeaderPill {
+  return {
+    label: status === 'in_progress' ? CHAT_WORK_IN_PROGRESS_LABEL : statusLabel(status),
+    tone: storyStatusTone(status),
+  }
+}
+
 function headerPill(input: ChatHeaderInput, kind: ChatKind): ChatHeaderPill | undefined {
   if (kind === 'assistant') return input.listHidden ? CHAT_HEADER_ARCHIVED_PILL : undefined
   if (kind === 'run' && input.run) return processRunBadge(input.run, input.now)
   const work = kind === 'story' ? input.story : kind === 'feature' ? input.feature : undefined
-  return work ? { label: statusLabel(work.status), tone: storyStatusTone(work.status) } : undefined
+  return work ? chatWorkPill(work.status) : undefined
 }
 
 function runStepName(input: ChatHeaderInput): string | undefined {

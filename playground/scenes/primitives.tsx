@@ -236,6 +236,14 @@ export const PRIMITIVE_SCENES: Scene[] = [
           <Alert variant="info">This project depends on code outside its checkout.</Alert>
         ),
       },
+      {
+        id: 'dismissible',
+        title: 'With a close button',
+        description: 'Given `onDismiss`, the alert can be put away.',
+        render: () => (
+          <Alert onDismiss={noop}>Could not save the story: the title is required.</Alert>
+        ),
+      },
     ],
   },
   {

@@ -8,6 +8,7 @@ import {
 } from '../../../icons'
 import { TOOL_AWAITING_DECISION_LABEL } from '../../../../headless/utils/gitSetupApprovalConstants'
 import type { ToolResultTypeLike } from '../../../../headless/utils/chatTypes'
+import { TOOL_STOPPED_LABEL } from '../../../../headless/utils/cliRunnerConstants'
 import {
   BACKGROUND_TOOL_LABEL,
   BACKGROUND_TOOL_RESULT_TYPE,
@@ -16,9 +17,10 @@ import { nativePalette, nativeRadii } from '../../../../tokens/native'
 
 /**
  * Native peer of web's `StatusChip`: the single lifecycle status chip at the
- * right of a tool card's first row — "Queued" (pending), a spinner (running), or
- * the elapsed time (terminal). Same blue pill for CLI + API; nothing for
- * confirm/aborted/not_allowed. Keep in lockstep with the web `StatusChip`.
+ * right of a tool card's first row — "Queued" (pending), a spinner (running),
+ * "Stopped" (aborted, in the stop icon's orange), or the elapsed time
+ * (terminal). Same pills for CLI + API; nothing for confirm/not_allowed. Keep
+ * in lockstep with the web `StatusChip`.
  */
 export function StatusChip({
   resultType,
@@ -62,6 +64,13 @@ export function StatusChip({
     return (
       <View style={wrap}>
         <Text style={txt}>Queued</Text>
+      </View>
+    )
+  }
+  if (resultType === 'aborted') {
+    return (
+      <View style={[wrap, { backgroundColor: 'rgba(249,115,22,0.12)' }]}>
+        <Text style={[txt, { color: nativePalette.orange[600] }]}>{TOOL_STOPPED_LABEL}</Text>
       </View>
     )
   }

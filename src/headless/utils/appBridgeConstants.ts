@@ -15,3 +15,5 @@ export const DATA_CHANGED_MESSAGE = 'data.changed'
 export const USER_CURRENT_MESSAGE = 'user.current'
 
 export const WORK_START_MESSAGE = 'work.start'
+
+export const FEATURE_REQUEST_MESSAGE = 'feature.request'

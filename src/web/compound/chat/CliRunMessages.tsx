@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useAppSettings, useCliRunArtifact, useInlineApprovals } from '../../../headless'
 import {
   describeCliRunActivity,
+  isCliRunWorking,
   turnBlockedOn,
   lastCliActionAtMs,
   runningCliToolNames,
@@ -141,7 +142,7 @@ export default function CliRunMessages({
   const { transcript, status, abortReason, notReady, startedAtMs, error, usage } =
     useCliRunArtifact(runId, undefined)
   const showThinking = useAppSettings().settings.userPreferences.cliShowThinking ?? true
-  const streaming = status === 'running' || status === 'awaiting-approval' || status === 'paused'
+  const streaming = isCliRunWorking(status)
   // The run is "active" (show the activity line) while it's booting (record not
   // written yet → `notReady`, the long container spin-up) or streaming.
   // `booting` holds until the first transcript byte lands, so there's never a
@@ -170,6 +171,7 @@ export default function CliRunMessages({
           runId,
           ...(usage ? { usage } : {}),
           ...(storedAskIds ? { storedAskIds } : {}),
+          runEnded: status !== undefined && !isCliRunWorking(status),
         }),
         status,
         abortReason,

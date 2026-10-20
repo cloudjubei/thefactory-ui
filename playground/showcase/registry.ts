@@ -1,4 +1,8 @@
+import { ACTIVITY_STOP_SCENES } from '../scenes/activityStop'
+import { AGENT_TYPE_SCENES } from '../scenes/agentTypes'
+import { BACKEND_CONNECTION_SCENES } from '../scenes/backendConnection'
 import { APP_BRIDGE_ASK_SCENES } from '../scenes/appBridgeAsks'
+import { APP_FEATURE_REQUEST_SCENES } from '../scenes/appFeatureRequest'
 import { CHAT_SCENES } from '../scenes/chat'
 import { CHAT_STOP_SCENES } from '../scenes/chatStop'
 import { CIRCLING_SCENES } from '../scenes/circling'
@@ -8,10 +12,15 @@ import { CHECKS_UNFINISHED_SCENES } from '../scenes/checksUnfinished'
 import { COMMIT_RECEIPT_SCENES } from '../scenes/commitReceipt'
 import { CHAT_PAUSED_RUN_SCENES } from '../scenes/chatPausedRun'
 import { DESIGN_SCENES } from '../scenes/design'
+import { DROPPED_CHANGE_SCENES } from '../scenes/droppedChange'
+import { FEATURE_POOL_SCENES } from '../scenes/featurePool'
 import { FEATURE_REQUEST_CARD_SCENES } from '../scenes/featureRequestCard'
 import { FEATURE_REQUEST_WAIT_CYCLE_SCENES } from '../scenes/featureRequestWaitCycle'
+import { FILE_SUGGESTION_SCENES } from '../scenes/fileSuggestions'
 import { GIT_STASH_SCENES } from '../scenes/gitStash'
+import { KNOWLEDGE_EVALUATION_SCENES } from '../scenes/knowledgeEvaluation'
 import { LAND_NOTICE_SCENES } from '../scenes/landNotice'
+import { LAUNCH_MODEL_CHIP_SCENES } from '../scenes/launchModelChip'
 import { LEAVE_GUARD_SCENES } from '../scenes/leaveGuard'
 import { MODEL_EFFORT_SCENES } from '../scenes/modelEffort'
 import { OPEN_RUN_SCENES } from '../scenes/openRun'
@@ -26,6 +35,7 @@ import { REGENERATED_MERGE_SCENES } from '../scenes/regeneratedMerge'
 import { RUNNING_TONE_SCENES } from '../scenes/runningTone'
 import { SIBLING_STABLE_BRANCH_SCENES } from '../scenes/siblingStableBranch'
 import { RUN_TIME_DETAILS_SCENES } from '../scenes/runTimeDetails'
+import { STORY_CHANGE_ERROR_SCENES } from '../scenes/storyChangeErrors'
 import { STORY_WORK_SCENES } from '../scenes/storyWork'
 import { UI_IMPACT_SCENES } from '../scenes/uiImpact'
 import { USAGE_SCENES } from '../scenes/usage'
@@ -47,8 +57,10 @@ import type { Scene, SceneGroup, SceneState } from './types'
  */
 export const SCENES: readonly Scene[] = [
   ...CHAT_SCENES,
+  ...FILE_SUGGESTION_SCENES,
   ...MODEL_EFFORT_SCENES,
   ...CHAT_STOP_SCENES,
+  ...ACTIVITY_STOP_SCENES,
   ...CHAT_CHANGES_SCENES,
   ...CHAT_CHANGES_DOCK_SCENES,
   ...CHECKS_UNFINISHED_SCENES,
@@ -67,17 +79,25 @@ export const SCENES: readonly Scene[] = [
   ...PROOF_CHANGE_SCENES,
   ...UI_IMPACT_SCENES,
   ...PARK_CLOSING_SCENES,
+  ...DROPPED_CHANGE_SCENES,
   ...CIRCLING_SCENES,
   ...REGENERATED_MERGE_SCENES,
   ...RUNNING_TONE_SCENES,
   ...STORY_WORK_SCENES,
+  ...STORY_CHANGE_ERROR_SCENES,
   ...WORK_LAUNCH_SCENES,
+  ...LAUNCH_MODEL_CHIP_SCENES,
+  ...KNOWLEDGE_EVALUATION_SCENES,
+  ...FEATURE_POOL_SCENES,
+  ...AGENT_TYPE_SCENES,
   ...WORKFLOW_GUARD_SCENES,
   ...DESIGN_SCENES,
   ...LEAVE_GUARD_SCENES,
   ...APP_BRIDGE_ASK_SCENES,
+  ...APP_FEATURE_REQUEST_SCENES,
   ...GIT_STASH_SCENES,
   ...USAGE_SCENES,
+  ...BACKEND_CONNECTION_SCENES,
   ...PRIMITIVE_SCENES,
 ]
 

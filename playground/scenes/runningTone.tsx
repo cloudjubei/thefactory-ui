@@ -376,7 +376,7 @@ export const RUNNING_TONE_SCENES: Scene[] = [
         id: 'chat-list',
         title: 'Chat list rows',
         description:
-          'A project’s chats under Runs: Running and Manager on it in blue, Sign off in gold, Done in green. Under All, story chats keep their stored Working orange and Done green.',
+          'A project’s chats under Runs: Running and Manager on it in blue, Sign off in gold, Done in green. Under All, story chats keep their stored status: In progress in orange, Done in green. Working is kept for a live turn.',
         render: () => (
           <div className="flex flex-col gap-3">
             <List

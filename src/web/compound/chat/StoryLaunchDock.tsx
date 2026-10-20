@@ -10,6 +10,8 @@ export type StoryLaunchDockProps = {
   storyId: string
   /** Only these of the story's pending features — a feature's own Run. */
   featureIds?: readonly string[]
+  /** The process the work runs by, decided before the card opened — an app's own; the card keeps it. */
+  processId?: string
   /** The agent the person's chats run on — what the work runs on unless picked on the card. */
   chatRunner: 'api' | 'cli'
   /** That agent as a launch carries it — the card's picks win; the suggestion is asked of it. */
@@ -34,6 +36,7 @@ export default function StoryLaunchDock({
   projectId,
   storyId,
   featureIds,
+  processId,
   chatRunner,
   agent,
   onLaunch,
@@ -48,12 +51,13 @@ export default function StoryLaunchDock({
       storyLaunchGrant({
         storyId,
         ...(featureKey ? { featureIds: featureKey.split(',') } : {}),
+        ...(processId ? { processId } : {}),
         chatRunner,
         ...(agentKey ? { agent: JSON.parse(agentKey) as Record<string, unknown> } : {}),
         onLaunch,
         onCancel: onClose,
       }),
-    [storyId, featureKey, chatRunner, agentKey, onLaunch, onClose],
+    [storyId, featureKey, processId, chatRunner, agentKey, onLaunch, onClose],
   )
   return (
     <Modal isOpen={isOpen} onClose={onClose} hideHeader size="lg">

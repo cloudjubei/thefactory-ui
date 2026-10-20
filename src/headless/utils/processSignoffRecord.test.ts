@@ -102,6 +102,19 @@ describe('processSignoffRecord', () => {
     })
   })
 
+  it('says an accepted dropped change as such', () => {
+    const accepted = entry('e6', {
+      override: { choice: 'accept-dropped-change', at: 6, note: 'dev removed it' },
+    })
+    expect(
+      processSignoffRecord({ ...ids, workBranch }, { entries: [accepted] })?.latest,
+    ).toMatchObject({
+      label: 'Dropped change accepted',
+      tone: 'empty',
+      note: 'dev removed it',
+    })
+  })
+
   describe('who decided', () => {
     const run = { ...ids, workBranch }
     const decided = (override: Partial<NonNullable<ProcessLedgerEntry['override']>>) =>

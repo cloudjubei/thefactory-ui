@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
-import { startAppWork } from '../api/appWorkStart'
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { makeAppWork } from '../api/appWorkStart'
 import type { BridgeRequest } from '../utils/appBridge'
 import {
   isWorkStartRequest,
@@ -19,6 +19,8 @@ import type {
   AppWorkStartDraft,
   AppWorkStartReply,
 } from '../utils/appWorkStartTypes'
+import type { StartWorkOutcome } from '../utils/workLaunchViewTypes'
+import { useStartWork, type StartWorkState } from './useStartWork'
 
 export interface UseAppWorkStart {
   /** The ask the person is answering, or `null`. Draw it over the App view. */
@@ -29,18 +31,32 @@ export interface UseAppWorkStart {
    */
   handleBridgeMessage: (req: BridgeRequest) => Promise<AppWorkStartReply> | null
   edit: (draft: AppWorkStartDraft) => void
-  /** Make the story and its features, then start the run; a failure stays on the ask for another Start. */
+  /**
+   * Make the story and its features, then open the choice of how they run; a failure stays on
+   * the ask for another Start.
+   */
   start: () => void
   /** Decline the ask: nothing is made. */
   cancel: () => void
+  /**
+   * The made work's choice of a process run or the chat, and its launch card — every Run's
+   * own. Draw it with `StartWorkDialog`; closing it goes back to the ask.
+   */
+  startWork: StartWorkState
 }
 
 /**
  * An embedded app's `work.start`: the person confirms (and may edit) the work over the App view
- * before anything is made. `mountKey` names the mounted app; when it changes or the App view goes
- * away, every open ask is declined with a reason, since the app that asked is gone.
+ * before anything is made, then chooses how it runs as at every Run. `mountKey` names the mounted
+ * app; when it changes or the App view goes away, every open ask is declined with a reason, since
+ * the app that asked is gone.
  */
-export function useAppWorkStart(projectId: string | undefined, mountKey: string): UseAppWorkStart {
+export function useAppWorkStart(
+  projectId: string | undefined,
+  mountKey: string,
+  /** The agent work started in a chat runs on — `useProjectWorkLaunch().chatAgent`. */
+  chatAgent?: Record<string, unknown>,
+): UseAppWorkStart {
   const [store] = useState(() => new AppWorkStartStore())
   const ask = useSyncExternalStore(
     useCallback((listener: () => void) => store.subscribe(listener), [store]),
@@ -48,7 +64,26 @@ export function useAppWorkStart(projectId: string | undefined, mountKey: string)
     () => store.current(),
   )
 
-  useEffect(() => () => store.declineAll(APP_WORK_START_CLOSED), [store, mountKey])
+  const onStarted = useCallback(
+    (outcome: StartWorkOutcome) => {
+      const current = store.current()
+      const storyId = current?.progress.storyId
+      if (!current?.launching || !storyId) return
+      const runId = outcome.mode === 'process' ? outcome.processRunId : undefined
+      store.settle(current.id, workStartStarted(storyId, runId))
+    },
+    [store],
+  )
+  const work = useStartWork(onStarted, chatAgent)
+  const { open: openWork, close: closeWork } = work
+
+  useEffect(
+    () => () => {
+      closeWork()
+      store.declineAll(APP_WORK_START_CLOSED)
+    },
+    [closeWork, store, mountKey],
+  )
 
   const handleBridgeMessage = useCallback(
     (req: BridgeRequest) => {
@@ -71,7 +106,7 @@ export function useAppWorkStart(projectId: string | undefined, mountKey: string)
 
   const start = useCallback(() => {
     const current = store.current()
-    if (!current || current.busy) return
+    if (!current || current.busy || current.launching) return
     if (!projectId) {
       store.fail(current.id, APP_WORK_START_NO_PROJECT)
       return
@@ -82,19 +117,37 @@ export function useAppWorkStart(projectId: string | undefined, mountKey: string)
       return
     }
     store.setBusy(current.id, true)
-    startAppWork(projectId, current.draft, current.progress, (progress) =>
+    makeAppWork(projectId, current.draft, current.progress, (progress) =>
       store.setProgress(current.id, progress),
     )
-      .then(({ storyId, runId }) => store.settle(current.id, workStartStarted(storyId, runId)))
+      .then(({ storyId, featureIds }) => {
+        store.setLaunching(current.id, true)
+        const { processId } = current.draft
+        if (processId) openWork({ projectId, storyId, featureIds, processId }, 'process')
+        else openWork({ projectId, storyId, featureIds })
+      })
       .catch((err: unknown) =>
         store.fail(current.id, err instanceof Error ? err.message : APP_WORK_START_FAILED),
       )
-  }, [projectId, store])
+  }, [openWork, projectId, store])
 
   const cancel = useCallback(() => {
     const current = store.current()
-    if (current && !current.busy) store.settle(current.id, workStartDeclined())
+    if (current && !current.busy && !current.launching)
+      store.settle(current.id, workStartDeclined())
   }, [store])
 
-  return { ask, handleBridgeMessage, edit, start, cancel }
+  const startWork = useMemo<StartWorkState>(
+    () => ({
+      ...work,
+      close: () => {
+        closeWork()
+        const current = store.current()
+        if (current?.launching) store.setLaunching(current.id, false)
+      },
+    }),
+    [closeWork, store, work],
+  )
+
+  return { ask, handleBridgeMessage, edit, start, cancel, startWork }
 }

@@ -9,6 +9,11 @@ export interface AppWorkStartDraft {
   title: string
   description: string
   features: AppWorkFeatureDraft[]
+  /**
+   * The process the app's work runs by. When set, the person is not asked whether it runs as a
+   * process or in the chat, and the launch card keeps this process: they pick only the agent.
+   */
+  processId?: string
 }
 
 /** The `work.start` answer: the work started, or the person declined it. */
@@ -30,6 +35,8 @@ export interface AppWorkStartAsk {
   progress: AppWorkStartProgress
   busy: boolean
   error: string | null
+  /** The work is made and the person is choosing how it runs — the confirmation is hidden. */
+  launching: boolean
   /** Further asks waiting behind this one. */
   waiting: number
 }

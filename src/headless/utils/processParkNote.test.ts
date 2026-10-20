@@ -12,6 +12,7 @@ import {
   waitingNoteCopy,
 } from './processParkNote'
 import {
+  ACCEPT_DROPPED_NOTE_COPY,
   PARK_NOTE_COPY,
   PARK_NOTE_COUNTER_FROM,
   PARK_NOTE_MAX_LENGTH,
@@ -30,12 +31,18 @@ const EVERY_CHOICE: ProcessParkAction[] = [
   'resolved',
   'more-info',
   'send-to-developer',
+  'accept-dropped-change',
   'delegate',
 ]
-const NOTED: ProcessParkAction[] = ['request-changes', 'more-info', 'send-to-developer']
+const NOTED: ProcessParkAction[] = [
+  'request-changes',
+  'more-info',
+  'send-to-developer',
+  'accept-dropped-change',
+]
 
 describe('choiceTakesNote', () => {
-  it('asks for a note when changes are requested, a waiting agent is told more, or work goes back to the developer', () => {
+  it('asks for a note when changes are requested, a waiting agent is told more, work goes back to the developer, or a dropped change is accepted', () => {
     expect(EVERY_CHOICE.filter(choiceTakesNote)).toEqual(NOTED)
   })
 
@@ -58,11 +65,19 @@ describe('parkNoteCopy', () => {
   it('keeps the gate’s words for a request for changes', () => {
     expect(parkNoteCopy('request-changes')).toBe(PARK_NOTE_COPY)
   })
+
+  it('asks why dropping a change was right when it is accepted', () => {
+    expect(parkNoteCopy('accept-dropped-change')).toBe(ACCEPT_DROPPED_NOTE_COPY)
+    expect(ACCEPT_DROPPED_NOTE_COPY).toEqual({
+      prompt: 'Why was dropping it right?',
+      submitLabel: 'Accept',
+    })
+  })
 })
 
 describe('parkNoteRequired', () => {
-  it('will not send "more info" or an answer blank — the words are the answer', () => {
-    expect(EVERY_CHOICE.filter(parkNoteRequired)).toEqual(['more-info'])
+  it('will not send "more info", an answer, or an accepted dropped change blank — the words are the answer', () => {
+    expect(EVERY_CHOICE.filter(parkNoteRequired)).toEqual(['more-info', 'accept-dropped-change'])
   })
 })
 

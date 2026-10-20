@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   launchAgentPickMetadata,
+  launchModelChipSlotOf,
   launchAgentPickSuggestionAgent,
   launchAgentPickRunner,
   pickLaunchApi,
@@ -129,5 +130,50 @@ describe('launchAgentPickSuggestionAgent', () => {
 
   it('asks no CLI when the API is picked', () => {
     expect(launchAgentPickSuggestionAgent(pickLaunchApi(), asked)).toEqual({})
+  })
+})
+
+describe('launchModelChipSlotOf', () => {
+  const slot = {
+    model: undefined,
+    onPick: () => {},
+    cli: undefined,
+    onPickCli: () => {},
+    api: false,
+    onPickApi: () => {},
+    effort: undefined,
+    onPickEffort: () => {},
+  }
+
+  it('shows the CLI and model the launch asks for until the person picks', () => {
+    expect(
+      launchModelChipSlotOf(slot, { runner: 'cli', cliTool: 'codex', cliModel: 'gpt-5' }),
+    ).toMatchObject({ cli: 'codex', model: 'gpt-5', api: false })
+  })
+
+  it('shows the API when the launch asks for it', () => {
+    expect(launchModelChipSlotOf(slot, { runner: 'api', cliTool: 'codex' })).toMatchObject({
+      api: true,
+      cli: undefined,
+    })
+  })
+
+  it('shows the chat’s own agent when the launch asks for none', () => {
+    expect(launchModelChipSlotOf(slot, {})).toBe(slot)
+  })
+
+  it.each([
+    ['a CLI', { cli: 'claude-code' }],
+    ['a model', { model: 'opus' }],
+    ['the API', { api: true }],
+  ])('shows %s the person picked over what the launch asks for', (_label, picked) => {
+    const mine = { ...slot, ...picked }
+    expect(launchModelChipSlotOf(mine, { runner: 'cli', cliTool: 'codex' })).toBe(mine)
+  })
+
+  it('keeps the slot’s pickers, so a pick still reaches the card', () => {
+    const shown = launchModelChipSlotOf(slot, { runner: 'cli', cliTool: 'codex' })
+    expect(shown.onPickCli).toBe(slot.onPickCli)
+    expect(shown.onPick).toBe(slot.onPick)
   })
 })

@@ -11,6 +11,7 @@ import {
 import {
   APP_WORK_START_FEATURE_TITLE_REQUIRED,
   APP_WORK_START_FEATURES_INVALID,
+  APP_WORK_START_PROCESS_INVALID,
   APP_WORK_START_TITLE_REQUIRED,
 } from './appWorkStartConstants'
 
@@ -68,6 +69,21 @@ describe('parseWorkStartPayload', () => {
       })
     },
   )
+
+  it('reads the process the work runs by, trimmed', () => {
+    expect(parseWorkStartPayload({ title: 'T', processId: ' reference-intake ' })).toEqual({
+      title: 'T',
+      description: '',
+      features: [],
+      processId: 'reference-intake',
+    })
+  })
+
+  it.each([' ', '../x', 'a b', 7])('refuses a process id that is not one: %j', (processId) => {
+    expect(parseWorkStartPayload({ title: 'T', processId })).toEqual({
+      error: APP_WORK_START_PROCESS_INVALID,
+    })
+  })
 
   it('asks for a title on every feature', () => {
     expect(parseWorkStartPayload({ title: 'T', features: [{ description: 'd' }] })).toEqual({

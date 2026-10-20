@@ -32,7 +32,7 @@ export default function AppWorkStartDialog({
   onStart,
   onCancel,
 }: AppWorkStartDialogProps) {
-  if (!ask) return null
+  if (!ask || ask.launching) return null
   const { draft, busy, error } = ask
   const editable = workStartEditable(ask)
   const setFeature = (index: number, patch: Partial<AppWorkStartDraft['features'][number]>) =>

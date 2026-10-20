@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
-  resolveTriState,
+  routeNotification,
   useActiveProject,
   useAppSettings,
+  type NotificationPermissionState,
   type NotificationPrefs,
 } from '../../headless'
 import { useProjectSettingsConnected } from './useProjectSettingsConnected'
 import { playBeep } from '../utils/beep'
 
-export type NotificationPermissionState = 'granted' | 'denied' | 'default' | 'unsupported'
+export type { NotificationPermissionState }
 
 export type WebNotificationsApi = {
   permission: NotificationPermissionState
@@ -52,26 +53,23 @@ export function useWebNotifications(): WebNotificationsApi {
 
   const notify = useCallback<WebNotificationsApi['notify']>(
     (category, options) => {
-      if (permission !== 'granted') return
-      const prefs = settings.notifications
-      if (!prefs.osNotificationsEnabled) return
-      // Per-project tri-state override; missing falls back to the global toggle.
-      const allowed = resolveTriState(
-        prefs.categories[category],
-        projectSettings.notifications.categories[category],
-      )
-      if (!allowed) return
-      if (typeof document !== 'undefined' && document.visibilityState === 'visible') return
+      const route = routeNotification({
+        prefs: settings.notifications,
+        projectOverrides: projectSettings.notifications.categories,
+        category,
+        permission,
+        foreground: typeof document !== 'undefined' && document.visibilityState === 'visible',
+        inAppWhenForeground: false,
+      })
+      if (route.show !== 'os') return
 
       const n = new Notification(options.title, {
         body: options.body,
         tag: options.tag,
       })
-      if (prefs.soundsEnabled) playBeep()
-      const seconds = prefs.displayDurationSeconds
-      if (seconds > 0) {
-        window.setTimeout(() => n.close(), seconds * 1000)
-      }
+      if (route.sound) playBeep()
+      const { closeAfterMs } = route
+      if (closeAfterMs !== null) window.setTimeout(() => n.close(), closeAfterMs)
     },
     [permission, settings.notifications, projectSettings.notifications.categories],
   )

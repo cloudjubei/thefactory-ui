@@ -484,7 +484,7 @@ describe('cliRunCost', () => {
     })
   })
 
-  it('reads a subscription run still in flight as $0 charged, its tokens so far included', () => {
+  it('reads a subscription run still in flight with no charge stated, its tokens so far included', () => {
     const cost = cliRunCost({
       ...cursorOnDisk,
       status: 'running',
@@ -492,7 +492,6 @@ describe('cliRunCost', () => {
       reportedModel: 'Composer 2.5',
     })
     expect(cost).toEqual({
-      costUsd: 0,
       includedTokens: 14_701,
       byModel: [
         {
@@ -504,10 +503,11 @@ describe('cliRunCost', () => {
           outputTokens: 860,
           cacheReadTokens: 8016,
           cacheWriteTokens: 0,
-          costUsd: 0,
         },
       ],
     })
+    expect(cost).not.toHaveProperty('costUsd')
+    expect(cost?.byModel?.[0]).not.toHaveProperty('costUsd')
   })
 
   it('leaves the charge of a metered run in flight to its terminal write: pending, not unpriced', () => {
@@ -551,7 +551,6 @@ describe('cliRunCost', () => {
   it('reads a turn whose CLI reported no tokens as its model and billing, its tokens not reported — never zero', () => {
     const cost = cliRunCost(cursorAcpTurn)
     expect(cost).toEqual({
-      costUsd: 0,
       byModel: [
         {
           provider: 'cursor',
@@ -562,11 +561,12 @@ describe('cliRunCost', () => {
           outputTokens: 0,
           cacheReadTokens: 0,
           cacheWriteTokens: 0,
-          costUsd: 0,
           tokensNotReported: true,
         },
       ],
     })
+    expect(cost).not.toHaveProperty('costUsd')
+    expect(cost?.byModel?.[0]).not.toHaveProperty('costUsd')
     expect(cost?.includedTokens).toBeUndefined()
   })
 
@@ -1040,18 +1040,18 @@ describe('costDetailsView', () => {
     ])
     expect(view?.rows).toEqual([
       {
-        key: '["cursor","auto","Auto","subscription",true,false,true,false,false,false]',
+        key: '["cursor","auto","Auto","subscription",false,false,true,false,false,false]',
         model: 'Auto',
         modelId: 'auto',
         provider: 'Cursor',
         billing: 'subscription',
         billingLabel: 'Included in your Cursor subscription',
         tokens: [{ label: 'Tokens', value: 'Not reported by Cursor' }],
-        chargedUsd: 0,
         charged: 'Unknown (subscription)',
         listValue: 'Unknown: its tokens were not reported',
       },
     ])
+    expect(view?.rows[0]).not.toHaveProperty('chargedUsd')
     expect(view?.notes).toEqual([COST_NOTE_AUTO, COST_NOTE_OVERAGE, CURSOR_TURN_NOT_REPORTED])
     expect(view?.notes).not.toContain(COST_NOTE_NO_MODELS)
   })
@@ -1352,13 +1352,13 @@ describe('cliRunMessageUsage', () => {
     expect(usage?.billing).toBeUndefined()
   })
 
-  it('attaches no token counts for a turn whose CLI reported none — only its charge, billing and model row', () => {
+  it('attaches no token counts and no charge for a turn whose CLI reported none — only its billing and model row', () => {
     const usage = cliRunMessageUsage(cursorAcpTurn)
     expect(usage).toEqual({
-      cost: 0,
       billing: 'subscription',
       byModel: cliRunCost(cursorAcpTurn)?.byModel,
     })
+    expect(usage).not.toHaveProperty('cost')
     const view = costDetailsView(messageUsageCost(usage!, 'cli-agent/cursor-agent/auto'))
     expect(view?.rows[0]).toMatchObject({ model: 'Auto', provider: 'Cursor' })
     expect(view?.summary).toContainEqual({

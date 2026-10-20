@@ -12,7 +12,9 @@ import {
   type MouseEventHandler,
   type ReactEventHandler,
 } from 'react'
-import { applyMention, parseMention } from '../../../headless/utils/mention'
+import { applyMention, isFolderMention, parseMention } from '../../../headless/utils/mention'
+import { IconFolder } from '../../icons/IconFolder'
+import { FileTypeIcon } from './FileTypeIcon'
 import { applyReference, parseReference, type ReferenceSuggestion } from './reference'
 import type { ReferenceSigil } from '../../../headless/utils/reference'
 
@@ -41,7 +43,8 @@ export type FileMentionsTextareaProps = {
   /**
    * Fires AFTER the user accepts an `@`-file mention from the dropdown (via
    * Enter, Tab, or click). Useful for consumer-side side effects such as
-   * tracking which files are now referenced in the text.
+   * tracking which files are now referenced in the text. A folder picked
+   * after `@` is not a file, so it does not fire.
    */
   onAcceptFileMention?: (path: string) => void
   /**
@@ -165,7 +168,7 @@ function FileMentionsTextareaInner(
       pendingCursor.current = next.cursor
       onChange(next.text)
       setCursor(next.cursor)
-      onAcceptFileMention?.(path)
+      if (!isFolderMention(path)) onAcceptFileMention?.(path)
     },
     [mentionParse, value, onChange, onAcceptFileMention],
   )
@@ -324,11 +327,17 @@ const FileMentionsTextarea = forwardRef(FileMentionsTextareaInner)
 export default FileMentionsTextarea
 
 function FileSuggestionRow({ row }: { row: { path: string; project?: string } }) {
-  if (!row.project) return <>{row.path}</>
   return (
     <span className="flex items-center gap-2 min-w-0">
+      {isFolderMention(row.path) ? (
+        <IconFolder className="h-4 w-4 shrink-0" />
+      ) : (
+        <FileTypeIcon name={row.path} size={16} className="inline-flex shrink-0" />
+      )}
       <span className="truncate">{row.path}</span>
-      <span className="ml-auto shrink-0 text-xs text-(--text-secondary)">{row.project}</span>
+      {row.project && (
+        <span className="ml-auto shrink-0 text-xs text-(--text-secondary)">{row.project}</span>
+      )}
     </span>
   )
 }

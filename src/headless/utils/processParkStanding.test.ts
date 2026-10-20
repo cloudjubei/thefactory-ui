@@ -218,6 +218,25 @@ describe('processParkClosure', () => {
     ).toEqual({ tone: 'handled', line: `Decided — you approved it · ${at(ANSWERED)}` })
   })
 
+  it('says the person accepted the dropped change', () => {
+    const holder = run({
+      ledger: [
+        entry({
+          override: {
+            choice: 'accept-dropped-change',
+            at: ANSWERED,
+            decidedBy: 'person',
+            decidedVia: 'desktop',
+            note: 'dev removed it',
+          },
+        }),
+      ],
+    })
+    expect(processParkClosure(token, holder).line).toBe(
+      `Handled — you accepted the dropped change on desktop · ${at(ANSWERED)}`,
+    )
+  })
+
   it('counts an answer given at the very moment the run parked', () => {
     const holder = run({ ledger: [entry({ override: { choice: 'retry', at: PARKED } })] })
     expect(processParkClosure(token, holder)).toEqual({

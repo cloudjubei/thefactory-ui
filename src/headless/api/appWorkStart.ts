@@ -1,4 +1,4 @@
-import { createFeature, createStory, startStoryWork } from './generated'
+import { createFeature, createStory } from './generated'
 import { extractErrorMessage } from './errorMessage'
 import { workStartFeatures } from '../utils/appWorkStart'
 import {
@@ -8,17 +8,17 @@ import {
 import type { AppWorkStartDraft, AppWorkStartProgress } from '../utils/appWorkStartTypes'
 
 /**
- * Start the work an app asked for, once the person said Start: a story in the project, one
- * feature per asked feature (or the work as one), then a process run on exactly those features
- * (`start-work`). Each step reports its progress, and a start given that progress carries on
- * from there, so Start after a failure never makes a second story.
+ * Make the work an app asked for, once the person said Start: a story in the project and one
+ * feature per asked feature (or the work as one). How it is worked is the person's next choice,
+ * the same one every Run offers. Each step reports its progress, and a call given that progress
+ * carries on from there, so Start after a failure never makes a second story.
  */
-export async function startAppWork(
+export async function makeAppWork(
   projectId: string,
   draft: AppWorkStartDraft,
   progress: AppWorkStartProgress,
   onProgress: (progress: AppWorkStartProgress) => void,
-): Promise<{ storyId: string; runId?: string }> {
+): Promise<{ storyId: string; featureIds: string[] }> {
   try {
     let storyId = progress.storyId
     if (!storyId) {
@@ -42,12 +42,7 @@ export async function startAppWork(
       featureIds.push(made.id)
       onProgress({ storyId, featureIds: [...featureIds] })
     }
-    const { data } = await startStoryWork({
-      path: { projectId, storyId },
-      body: { mode: 'process', featureIds },
-      throwOnError: true,
-    })
-    return data.processRunId ? { storyId, runId: data.processRunId } : { storyId }
+    return { storyId, featureIds }
   } catch (err) {
     throw new Error(extractErrorMessage(err, APP_WORK_START_FAILED))
   }

@@ -31,6 +31,7 @@ import {
   processRetryChoiceOf,
   processRetryPickStart,
   processRetryTurnLimitView,
+  processDroppedChangeRows,
   processRunParkChoices,
   processRunIntegrationModes,
   processRunBadge,
@@ -119,6 +120,7 @@ import AlreadyMergedOffer from './AlreadyMergedOffer'
 import BaseMovedNote from './BaseMovedNote'
 import CloseUnmergedConfirm from './CloseUnmergedConfirm'
 import WorkBranchChangesNote from './WorkBranchChangesNote'
+import DroppedChangesNote from './DroppedChangesNote'
 import IntegrationResult from './IntegrationResult'
 import { CirclingChip, CirclingNotice } from './CirclingNotice'
 import ParkNoteComposer from './ParkNoteComposer'
@@ -456,6 +458,7 @@ export default function ProcessPipeline({
 
           {signoff ? null : <BaseMovedNote run={run} onChoose={(choice) => choose(choice)} />}
           <WorkBranchChangesNote run={run} />
+          <DroppedChangesNote run={run} />
           {managerView ? (
             <RunManagerPanel
               view={managerView}
@@ -538,6 +541,7 @@ export default function ProcessPipeline({
                   storyId={run.storyId as string}
                   storyRunId={run.id}
                   choices={processRunParkChoices(run)}
+                  droppedAccepted={processDroppedChangeRows(run)}
                   {...(run.proofUnavailable ? { proofUnavailable: run.proofUnavailable } : {})}
                   {...(run.changeUiPaths ? { changeUiPaths: run.changeUiPaths } : {})}
                   {...(run.changeScreensDecision
@@ -1244,6 +1248,7 @@ export function ParkBlock({
       {noteFor ? (
         <ParkNoteComposer
           copy={parkNoteCopy(noteFor)}
+          required={parkNoteRequired(noteFor)}
           {...(noteFor === 'request-changes'
             ? { proofChoices: requestProofChoices(run.proofUnavailable) }
             : {})}

@@ -2,9 +2,10 @@ import type { ReactNode } from 'react'
 import { Text } from 'react-native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import type { WorkLaunchMode } from 'thefactory-tools/types'
+import type { ChatContext } from '../../../headless/api'
 import type { StartWorkState } from '../../../headless/hooks/useStartWork'
 import type { LaunchModelChipSlot } from '../../../headless/utils/launchAgentPickTypes'
-import { workLaunchOptions } from '../../../headless/utils/workLaunchView'
+import { startWorkChatContext, workLaunchOptions } from '../../../headless/utils/workLaunchView'
 import { WORK_LAUNCH_HEADING } from '../../../headless/utils/workLaunchViewConstants'
 import { Modal } from '../../primitives/Modal'
 import WorkLaunchChooser from '../WorkLaunchChooser'
@@ -20,7 +21,8 @@ export type StartWorkDialogProps = {
   defaultMode?: WorkLaunchMode
   /** The agent the person's chats run on. */
   chatRunner: 'api' | 'cli'
-  renderModelChip?: (picked: LaunchModelChipSlot) => ReactNode
+  /** The app's model chip, given the chat the work belongs to — the run's agent is picked on it. */
+  renderModelChip?: (picked: LaunchModelChipSlot, chatContext: ChatContext) => ReactNode
   renderProcessRun?: (processRunId: string) => ReactNode
 }
 
@@ -45,11 +47,17 @@ export default function StartWorkDialog({
         projectId={target.projectId}
         storyId={target.storyId}
         {...(target.featureIds ? { featureIds: target.featureIds } : {})}
+        {...(target.processId ? { processId: target.processId } : {})}
         chatRunner={chatRunner}
         {...(chatAgent ? { agent: chatAgent } : {})}
         onLaunch={launch}
         onClose={close}
-        {...(renderModelChip ? { renderModelChip } : {})}
+        {...(renderModelChip
+          ? {
+              renderModelChip: (picked: LaunchModelChipSlot) =>
+                renderModelChip(picked, startWorkChatContext(target)),
+            }
+          : {})}
         {...(renderProcessRun ? { renderProcessRun } : {})}
       />
     )

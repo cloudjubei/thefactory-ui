@@ -4,6 +4,7 @@ import {
   listActivities,
   resumeActivity,
   runActivity,
+  stopActivity,
   type RunActivityData,
 } from './generated'
 import { bridgeMessageName, type BridgeRequest } from '../utils/appBridge'
@@ -77,6 +78,17 @@ export async function dispatchActivitiesBridge(
       if (!payload.activityId) throw new Error('activities.abort requires an activityId')
       const res = await abortActivity({
         path: { projectId, activityId: payload.activityId },
+        throwOnError: true,
+      })
+      return res.data
+    }
+    case 'activities.stop': {
+      const payload = (req.payload ?? {}) as { activityId?: string; reason?: string }
+      if (!payload.activityId) throw new Error('activities.stop requires an activityId')
+      const reason = typeof payload.reason === 'string' ? payload.reason.trim() : ''
+      const res = await stopActivity({
+        path: { projectId, activityId: payload.activityId },
+        body: reason ? { reason } : {},
         throwOnError: true,
       })
       return res.data

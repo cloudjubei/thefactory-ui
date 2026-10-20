@@ -4,6 +4,7 @@ import type { ProcessStepState } from 'thefactory-tools/types'
 import {
   formatFriendlyTimestamp,
   processSignoffDiscussDraft,
+  processDroppedChangeRows,
   processSignoffRecord,
   PROCESS_SIGNOFF_RECORD_TEXT,
   REQUEST_PROOF_HEADING,
@@ -159,6 +160,7 @@ export default function SignoffRecord({ run, state, onOpen }: SignoffRecordProps
             projectId={run.projectId}
             storyId={run.storyId}
             storyRunId={run.id}
+            droppedAccepted={processDroppedChangeRows(run)}
             onOpenStep={onOpen}
           />
         </View>

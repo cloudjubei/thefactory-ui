@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import type { FeatureRequest } from 'thefactory-tools/types'
 import {
+  featureWorkAskView,
   launchSuggestionRows,
   workLaunchOptions,
   type LaunchSuggestionRow,
@@ -12,6 +13,7 @@ import {
 } from 'thefactory-ui/web'
 import type { Scene } from '../showcase/types'
 import ApprovalPanel from '../../src/web/compound/chat/ApprovalPanel'
+import ToolAskCard from '../../src/web/compound/chat/ToolAskCard'
 import { upsertFeatureRequest } from '../../src/headless/hooks/featureRequestsStore'
 import type { PendingToolGrant } from '../../src/headless/utils/chatTypes'
 
@@ -106,7 +108,38 @@ function Incoming({
   )
 }
 
+function StartWorkCard({ mode }: { mode: 'process' | 'chat' }) {
+  const view = featureWorkAskView({ storyTitle: 'Spend per run', joinsOpenRun: false, mode })
+  return (
+    <div className="max-w-2xl rounded-xl border border-(--border-subtle) bg-(--surface-base) p-3">
+      <ToolAskCard view={view} busy={false} onApprove={noop} onDeny={noop} onLater={noop} />
+    </div>
+  )
+}
+
 export const WORK_LAUNCH_SCENES: Scene[] = [
+  {
+    id: 'work-launch-card-mode',
+    title: 'Start work card — the way picked',
+    component: 'ToolAskCard',
+    group: 'Process',
+    description:
+      'The startFeatureWork card names where the work happens for the way it is set to: a process run is tagged Isolated copy and says it works in its own copy; switched to In this chat, the tag goes and it says the chat’s agent works here. Approve starts it the way the card shows.',
+    states: [
+      {
+        id: 'process',
+        title: 'Process run',
+        description: 'The look-alike base: the card set to a process run.',
+        render: () => <StartWorkCard mode="process" />,
+      },
+      {
+        id: 'chat',
+        title: 'In this chat',
+        description: 'Paired with Process run: the same card switched to In this chat.',
+        render: () => <StartWorkCard mode="chat" />,
+      },
+    ],
+  },
   {
     id: 'work-launch-choice',
     title: 'Start work — the choice',

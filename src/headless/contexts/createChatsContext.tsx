@@ -64,6 +64,8 @@ import { createCoalescedRefresh } from '../utils/runUpdateRefresh'
 import { isRestartableChatTail } from '../utils/chatMessageRestart'
 import { lastMessageDeleteFromIndex } from '../utils/chatTurnDelete'
 import { chatCliRunnerToDispatchOptions, parseCliRunUpdateEvent } from '../utils/cliRunner'
+import { cliRunSettlement, cliRunUpdateSettlement } from '../utils/cliRunActivity'
+import type { CliRunEndRecord } from '../utils/cliRunActivityTypes'
 import { buildChatPromptVariables, interpolateChatSystemPrompt } from '../utils/promptInterpolate'
 import { ChatDraftStore } from '../utils/chatDraftStore'
 import { CHAT_TURN_LIMIT_START } from '../utils/chatTurnLimitConstants'
@@ -783,25 +785,18 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
           // (no finish flash); `MessageList` drops the trailing live block once a
           // displayed message owns the runId.
           //
-          // Surface a failure only for a GENUINE error/abort that we mapped to
-          // this chat: a user-initiated Stop (userAborted) is a clean stop, not
+          // Surface a failure only for a GENUINE error/abort/policy pause that
+          // we mapped to this chat: a user-initiated Stop (userAborted) is a clean stop, not
           // an error, and a fallback-routed event isn't reliably this chat's.
-          const surfaceError =
-            !!mapped && !userAborted && (parsed.status === 'errored' || parsed.status === 'aborted')
+          const surfaceError = mapped
+            ? cliRunUpdateSettlement(parsed, userAborted)?.error
+            : undefined
           updateLiveState(target, {
             isSending: false,
             pendingAssistant: null,
             cliModel: null,
             cliStartedAt: null,
-            ...(surfaceError
-              ? {
-                  sendError: new Error(
-                    parsed.error && parsed.error.length > 0
-                      ? parsed.error
-                      : `The agent run ${parsed.status} without a reply.`,
-                  ),
-                }
-              : {}),
+            ...(surfaceError !== undefined ? { sendError: new Error(surfaceError) } : {}),
           })
           cliRunCtxByRunIdRef.current.delete(parsed.runId)
           return
@@ -869,8 +864,9 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
     // On a WS (re)connect, resync any chat still mid-CLI-run: a terminal
     // `cli:run-update` that fired while the socket was down is lost (the
     // transport has no replay), which would otherwise strand `isSending`
-    // forever. Fetch the authoritative run record and, if it has terminated,
-    // clear the spinner + surface a genuine failure. This is the backstop for a
+    // forever. Fetch the authoritative run record and, once it is no longer
+    // working — ended, or paused by a backend restart — clear the spinner +
+    // surface a genuine failure. This is the backstop for a
     // run that errored/aborted with no persisted reply (the reply-landed
     // reconcile above can't catch that case).
     useEffect(() => {
@@ -882,31 +878,20 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         if (!live?.isSending) continue
         void getCliAgentRun({ path: { runId }, throwOnError: true })
           .then(({ data }) => {
-            const run = data as {
-              status?: string
-              failure?: { message?: string }
-              abortReason?: string
-            }
-            const status = run.status
-            if (status !== 'succeeded' && status !== 'errored' && status !== 'aborted') return
+            const settled = cliRunSettlement(
+              data as CliRunEndRecord,
+              userAbortedRunIdsRef.current.has(runId),
+            )
+            if (!settled) return
             finalizedCliRunIdsRef.current.add(runId)
             cliRunCtxByRunIdRef.current.delete(runId)
-            const userAborted = userAbortedRunIdsRef.current.delete(runId)
-            const surfaceError = status === 'errored' || (status === 'aborted' && !userAborted)
+            userAbortedRunIdsRef.current.delete(runId)
             updateLiveState(ctx, {
               isSending: false,
               pendingAssistant: null,
               cliModel: null,
               cliStartedAt: null,
-              ...(surfaceError
-                ? {
-                    sendError: new Error(
-                      run.failure?.message ??
-                        run.abortReason ??
-                        `The agent run ${status} without a reply.`,
-                    ),
-                  }
-                : {}),
+              ...(settled.error !== undefined ? { sendError: new Error(settled.error) } : {}),
             })
           })
           .catch(() => {})

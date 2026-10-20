@@ -8,6 +8,7 @@ import type {
 import {
   canSettleFeatureRequest,
   canStartFeatureRequestAgain,
+  canStartFeatureRequestWork,
   featureRequestAcceptHint,
   featureRequestBriefOfToolArgs,
   featureRequestChatContext,
@@ -301,19 +302,21 @@ describe('featureRequestStoryLabel', () => {
 })
 
 describe('canSettleFeatureRequest', () => {
-  it.each(['pending', 'accepted', 'in_review', 'blocked', 'failed', 'rejected'] as const)(
-    'offers to settle a %s request elsewhere',
-    (status) => {
-      expect(canSettleFeatureRequest({ status })).toBe(true)
-    },
-  )
+  it.each([
+    'pending',
+    'accepted',
+    'in_progress',
+    'in_review',
+    'blocked',
+    'failed',
+    'rejected',
+  ] as const)('offers to settle a %s request elsewhere', (status) => {
+    expect(canSettleFeatureRequest({ status })).toBe(true)
+  })
 
-  it.each(['completed', 'handed_over', 'in_progress'] as const)(
-    'offers nothing for a %s request',
-    (status) => {
-      expect(canSettleFeatureRequest({ status })).toBe(false)
-    },
-  )
+  it.each(['completed', 'handed_over'] as const)('offers nothing for a %s request', (status) => {
+    expect(canSettleFeatureRequest({ status })).toBe(false)
+  })
 })
 
 describe('featureRequestSettledLine', () => {
@@ -436,6 +439,51 @@ describe('featureRequestChatContext', () => {
       projectId: 'backend',
       featureRequestId: 'fr-9',
     })
+  })
+})
+
+describe('canStartFeatureRequestWork', () => {
+  it('offers starting an accepted request whose work never started', () => {
+    expect(canStartFeatureRequestWork({ status: 'accepted', handling: { storyId: 's1' } })).toBe(
+      true,
+    )
+  })
+
+  it('does not offer it once its work started, in a run or in the chat', () => {
+    expect(
+      canStartFeatureRequestWork({
+        status: 'accepted',
+        handling: {
+          storyId: 's1',
+          work: { mode: 'process', processRunId: 'r1', startedAt: '2026-10-20T00:00:00.000Z' },
+        },
+      }),
+    ).toBe(false)
+    expect(
+      canStartFeatureRequestWork({
+        status: 'accepted',
+        handling: {
+          storyId: 's1',
+          work: {
+            mode: 'chat',
+            chatContextId: '/projects/p',
+            startedAt: '2026-10-20T00:00:00.000Z',
+          },
+        },
+      }),
+    ).toBe(false)
+  })
+
+  it.each([
+    'pending',
+    'in_progress',
+    'in_review',
+    'blocked',
+    'failed',
+    'completed',
+    'rejected',
+  ] as const)('does not offer it for a %s request', (status) => {
+    expect(canStartFeatureRequestWork({ status, handling: { storyId: 's1' } })).toBe(false)
   })
 })
 

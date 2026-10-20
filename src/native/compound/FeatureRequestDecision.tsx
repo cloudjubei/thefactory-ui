@@ -11,6 +11,7 @@ import { Textarea } from '../primitives/Textarea'
 import {
   canSettleFeatureRequest,
   canStartFeatureRequestAgain,
+  canStartFeatureRequestWork,
   featureRequestAcceptHint,
   featureRequestPhase,
   featureRequestRejectedLine,
@@ -27,6 +28,7 @@ import type {
 } from '../../headless/hooks/useCrossProjectRequests'
 import { FeatureRequestSettleActions, FeatureRequestSettledNote } from './FeatureRequestSettle'
 import { FeatureRequestStartAgain } from './FeatureRequestStartAgain'
+import { FeatureRequestStartWork } from './FeatureRequestStartWork'
 import WorkLaunchChooser from './WorkLaunchChooser'
 
 export interface FeatureRequestDecisionProps {
@@ -147,36 +149,6 @@ function Pending({
   )
 }
 
-/** Starting the work of a request accepted for a process run whose launch was left unconfirmed. */
-function StartWork({
-  onStartWork,
-  defaultMode,
-  busy,
-}: Required<Pick<FeatureRequestDecisionProps, 'onStartWork'>> &
-  Pick<FeatureRequestDecisionProps, 'defaultMode' | 'busy'>) {
-  const { theme } = useNativeTheme()
-  const [choosing, setChoosing] = useState(false)
-  return choosing ? (
-    <WorkLaunchChooser
-      options={workLaunchOptions({ workLaunchMode: defaultMode })}
-      onChoose={onStartWork}
-      onCancel={() => setChoosing(false)}
-      busy={busy}
-    />
-  ) : (
-    <View style={{ gap: nativeSpace[2] }}>
-      <View style={{ flexDirection: 'row' }}>
-        <Button size="sm" variant="primary" onPress={() => setChoosing(true)} disabled={busy}>
-          Start work
-        </Button>
-      </View>
-      <Text style={{ fontSize: 12, color: theme.text.secondary }}>
-        Its work has not started yet.
-      </Text>
-    </View>
-  )
-}
-
 /**
  * Native peer of web's `FeatureRequestDecision` — Accept & start work / Reject… (with an optional
  * reason, confirmed in place) while the request waits; the story it was placed on and how the work
@@ -280,8 +252,8 @@ export default function FeatureRequestDecision(props: FeatureRequestDecisionProp
           ) : null}
         </View>
       )}
-      {props.onStartWork && request.status === 'accepted' && !request.handling?.work ? (
-        <StartWork
+      {props.onStartWork && canStartFeatureRequestWork(request) ? (
+        <FeatureRequestStartWork
           onStartWork={props.onStartWork}
           {...(props.defaultMode ? { defaultMode: props.defaultMode } : {})}
           {...(busy !== undefined ? { busy } : {})}

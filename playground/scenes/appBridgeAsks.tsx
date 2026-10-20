@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { AppWorkStartDialog, LiveDataTaskSourceFields } from 'thefactory-ui/web'
+import { AppWorkStartDialog, LiveDataTaskSourceFields, StartWorkDialog } from 'thefactory-ui/web'
 import { sourceToForm, type AppWorkStartAsk, type LiveDataSourceForm } from 'thefactory-ui/headless'
 import type { DataSource } from 'thefactory-ui/headless/api'
 import type { Scene } from '../showcase/types'
@@ -31,6 +31,7 @@ const WITH_FEATURES: AppWorkStartAsk = {
   progress: {},
   busy: false,
   error: null,
+  launching: false,
   waiting: 0,
 }
 
@@ -57,6 +58,24 @@ function WorkStartDemo({ initial }: { initial: AppWorkStartAsk }) {
       onEdit={(draft) => setAsk((a) => ({ ...a, draft }))}
       onStart={noop}
       onCancel={noop}
+    />
+  )
+}
+
+function ChoosingDemo() {
+  return (
+    <StartWorkDialog
+      start={{
+        target: { projectId: 'wargames', storyId: 's1', featureIds: ['f1', 'f2'] },
+        mode: undefined,
+        busy: false,
+        error: undefined,
+        choose: noop,
+        launch: async () => {},
+        close: noop,
+        chatAgent: undefined,
+      }}
+      chatRunner="cli"
     />
   )
 }
@@ -97,7 +116,7 @@ export const APP_BRIDGE_ASK_SCENES: Scene[] = [
     component: 'AppWorkStartDialog',
     group: 'Process',
     description:
-      'An embedded app’s `overseer:work.start`, confirmed over the App view before anything is made: title, description and features, editable until Start makes the story. Cancel or X declines. It waits as long as the person takes.',
+      'An embedded app’s `overseer:work.start`, confirmed over the App view before anything is made: title, description and features, editable until Start makes the story. Start then offers the choice every Run offers — a process run (its launch card) or in this chat; closing that choice comes back here. Cancel or X declines. It waits as long as the person takes.',
     states: [
       {
         id: 'features',
@@ -116,9 +135,17 @@ export const APP_BRIDGE_ASK_SCENES: Scene[] = [
       {
         id: 'start-failed',
         title: 'Start failed after the story was made',
-        description: 'The fields are locked; Start tries the run again on the same story.',
+        description: 'The fields are locked; Start tries again on the same story.',
         overlay: true,
         render: () => <WorkStartDemo initial={FAILED} />,
+      },
+      {
+        id: 'choosing',
+        title: 'Choosing how it runs',
+        description:
+          'Paired with With features: the story is made, and Start opened the same choice as every Run.',
+        overlay: true,
+        render: () => <ChoosingDemo />,
       },
     ],
   },

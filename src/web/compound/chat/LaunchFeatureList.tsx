@@ -3,6 +3,7 @@ import ReferenceTextarea from '../files/ReferenceTextarea'
 import DependencyBullet from '../stories/DependencyBullet'
 import ChainChip from '../process/ChainChip'
 import {
+  LAUNCH_FEATURE_LEFT_OUT,
   LAUNCH_FEATURES_HEADING,
   PROOF_PLAN_EDITED_LABEL,
   PROOF_PLAN_EMPTY_LABEL,
@@ -10,6 +11,8 @@ import {
   PROOF_PLAN_EXTEND_NOTE,
   PROOF_PLAN_NOTES_PLACEHOLDER,
   PROOF_PLAN_SAVE_LABEL,
+  launchFeaturePickCount,
+  type LaunchFeaturePickRow,
   type LaunchFeatureRow,
   type ProofKind,
   type ProposalChip,
@@ -31,6 +34,14 @@ export type LaunchFeatureListProps = {
   onToggleKind: (featureId: string, kind: ProofKind) => void
   onNotesChange: (featureId: string, notes: string) => void
   onSaveChange: (save: boolean) => void
+  /**
+   * The story's open features to pick from — every one listed, those left out
+   * dimmed, each ticked in or out. Absent: the launch works the rows as they are.
+   */
+  pick?: {
+    rows: readonly LaunchFeaturePickRow[]
+    onToggle: (featureId: string) => void
+  }
 }
 
 /**
@@ -50,11 +61,27 @@ export default function LaunchFeatureList({
   onToggleKind,
   onNotesChange,
   onSaveChange,
+  pick,
 }: LaunchFeatureListProps) {
   const [editing, setEditing] = useState<ReadonlySet<string>>(new Set())
   const [showSteps, setShowSteps] = useState(false)
   const hasSteps = rows.some((r) => r.chain.length > 0) || tail.length > 0
   const anyEdited = rows.some((r) => r.proof?.edited)
+  const listed = pick
+    ? pick.rows
+    : rows.map((r) => ({ featureId: r.featureId, title: r.title, picked: true }))
+  const pickedCount = listed.filter((item) => item.picked).length
+  const pickBox = (item: LaunchFeaturePickRow) =>
+    pick ? (
+      <input
+        type="checkbox"
+        checked={item.picked}
+        disabled={busy}
+        aria-label={`${item.picked ? 'Leave out' : 'Work on'} “${item.title}”`}
+        onChange={() => pick.onToggle(item.featureId)}
+        className="shrink-0 accent-(--accent-primary)"
+      />
+    ) : null
   const toggleEditing = (featureId: string) =>
     setEditing((prev) => {
       const next = new Set(prev)
@@ -70,7 +97,7 @@ export default function LaunchFeatureList({
           {LAUNCH_FEATURES_HEADING}
         </span>
         <span className="text-[11px] text-(--text-muted)">
-          {rows.length} feature{rows.length === 1 ? '' : 's'}
+          {launchFeaturePickCount(pickedCount, listed.length)}
           {agentStepCount !== undefined
             ? ` · ${agentStepCount} agent step${agentStepCount === 1 ? '' : 's'}`
             : ''}
@@ -87,7 +114,29 @@ export default function LaunchFeatureList({
         ) : null}
       </div>
       <div className="flex flex-col overflow-hidden rounded-md border border-(--border-subtle) bg-(--surface-base)">
-        {rows.map((row, i) => {
+        {listed.map((item, i) => {
+          const row = item.picked ? rows.find((r) => r.featureId === item.featureId) : undefined
+          if (!row) {
+            return (
+              <div
+                key={item.featureId}
+                className={`flex min-h-[26px] items-center gap-2 px-2.5 py-1.5 ${i > 0 ? 'border-t border-(--border-subtle)' : ''} ${item.picked ? '' : 'opacity-60'}`}
+              >
+                {pickBox(item)}
+                {storyId ? (
+                  <DependencyBullet dependency={`${storyId}.${item.featureId}`} interactive />
+                ) : null}
+                <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-(--text-primary)">
+                  {item.title}
+                </span>
+                {item.picked ? null : (
+                  <span className="shrink-0 text-[11px] text-(--text-muted)">
+                    {LAUNCH_FEATURE_LEFT_OUT}
+                  </span>
+                )}
+              </div>
+            )
+          }
           const proof = row.proof
           const open = proof !== undefined && editing.has(row.featureId)
           return (
@@ -96,6 +145,7 @@ export default function LaunchFeatureList({
               className={`flex flex-col gap-1.5 px-2.5 py-1.5 ${i > 0 ? 'border-t border-(--border-subtle)' : ''}`}
             >
               <div className="flex min-h-[26px] items-center gap-2">
+                {pickBox(item)}
                 {storyId ? (
                   <DependencyBullet dependency={`${storyId}.${row.featureId}`} interactive />
                 ) : null}

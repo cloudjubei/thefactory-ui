@@ -33,7 +33,15 @@ export type EntityFilter = unknown
 
 export type PendingActionStatus = 'pending' | 'approved' | 'denied' | 'expired'
 
-export type ActionPayload = unknown
+export type ToolAskPayload = {
+  tool: string
+  args: {
+    [key: string]: unknown
+  }
+  detail?: unknown
+}
+
+export type ActionPayload = ToolAskPayload | unknown
 
 export type ActionDecisionMetadata = unknown
 
@@ -56,7 +64,7 @@ export type ActionRequest = {
   runId: string
   kind: string
   payload: ActionPayload
-  grantPayload?: unknown
+  grantPayload?: ToolAskPayload | unknown
   credentialId?: string
   toolName?: string
   toolArgs?: {
@@ -161,7 +169,7 @@ export type PendingAction = {
   runId: string
   kind: string
   payload: ActionPayload
-  grantPayload?: unknown
+  grantPayload?: ToolAskPayload | unknown
   credentialId?: string
   noPermanentGrant?: boolean
   idempotencyKey?: string
@@ -249,7 +257,7 @@ export type ActivityStopProvenance = {
 
 export type ActivityStatus = 'queued' | 'running' | 'completed' | 'failed' | 'aborted'
 
-export type ActivityStopResult = {
+export type ActivityStopOutcome = {
   activityId: string
   outcome: 'refused' | 'noop' | 'stopped' | 'not-stopped' | 'failed'
   code?: string
@@ -257,6 +265,68 @@ export type ActivityStopResult = {
   finishedAt?: string
   attemptId?: string
 }
+
+export type ActivityStopChildResult = {
+  activityId: string
+  outcome: 'refused' | 'noop' | 'stopped' | 'not-stopped' | 'failed'
+  code?: string
+  status?: 'queued' | 'running' | 'completed' | 'failed' | 'aborted'
+  finishedAt?: string
+  attemptId?: string
+  parentActivityId: string
+}
+
+export type ActivityStopResult = {
+  activityId: string
+  outcome: 'refused' | 'noop' | 'stopped' | 'not-stopped' | 'failed'
+  code?: string
+  status?: 'queued' | 'running' | 'completed' | 'failed' | 'aborted'
+  finishedAt?: string
+  attemptId?: string
+  children?: Array<ActivityStopChildResult>
+}
+
+export type ActivityStopCardParamsOmitted = 'none' | 'too-large'
+
+export type ActivityStepState = {
+  key: string
+  status: ActivityStatus
+  done: number
+  total: number
+  startedAt?: string
+  endedAt?: string
+}
+
+export type ActivityStopCard = {
+  kind: 'activity-stop'
+  version: 1
+  projectId: string
+  activityId: string
+  activityType?: string
+  recordType: string
+  status: ActivityStatus
+  paused: boolean
+  launchParams?: {
+    [key: string]: unknown
+  }
+  redactedParams?: Array<string>
+  paramsOmitted?: 'none' | 'too-large'
+  startedAt: string
+  snapshotAt: string
+  elapsedMs: number
+  steps: Array<{
+    key: string
+    status: ActivityStatus
+    done: number
+    total: number
+  }>
+  costUSD?: number
+  reason?: string
+  liveChildCount?: number
+  liveChildTypes?: Array<string>
+}
+
+export type ActivityStopFence = 'stopping' | 'stopped'
 
 export type LlmProvider =
   | 'openai'
@@ -345,15 +415,6 @@ export type ItemFreshnessOpts = {
   sourceHash?: string
 }
 
-export type ActivityStepState = {
-  key: string
-  status: ActivityStatus
-  done: number
-  total: number
-  startedAt?: string
-  endedAt?: string
-}
-
 export type ActivityRun = {
   activityId: string
   scope: string
@@ -371,6 +432,7 @@ export type ActivityRun = {
     [key: string]: unknown
   }
   stopAttempts?: Array<ActivityStopProvenance>
+  parentActivityId?: string
   error?: string
   costUSD?: number
   startedAt: string
@@ -395,6 +457,7 @@ export type ActivityRunInput = {
   resumeToken?: {
     [key: string]: unknown
   }
+  parentActivityId?: string
   status?: 'queued' | 'running'
 }
 
@@ -1254,6 +1317,14 @@ export type CreateCapabilityToolsOptions = {
   }
 }
 
+export type ChatApiTurnUnavailableCode =
+  | 'cli-chat'
+  | 'missing-configuration'
+  | 'unusable-configuration'
+  | 'credential-read-failed'
+  | 'missing-settings'
+  | 'context-unavailable'
+
 export type ChatContextType =
   | 'GENERAL'
   | 'GROUP'
@@ -1708,6 +1779,7 @@ export type ProcessResumeChoice =
   | 'send-to-developer'
   | 'recheck'
   | 'close-unmerged'
+  | 'accept-dropped-change'
 
 export type ProcessParkAction = ProcessResumeChoice | 'delegate'
 
@@ -5257,6 +5329,12 @@ export type ResidentBackgroundResults = {
   backgroundResults: Array<ChatBackgroundJobResult>
 }
 
+export type ModelTokenCount =
+  | 'inputTokens'
+  | 'outputTokens'
+  | 'cacheReadTokens'
+  | 'cacheWriteTokens'
+
 export type ResidentTurnSpend = {
   tokens?: Array<CliModelTokens>
   reportedModel?: string
@@ -5873,6 +5951,7 @@ export type CompletionToolFailure = {
   toolName: string
   error: string
   count: number
+  arguments?: string
 }
 
 export type CompletionResponseTurns = {
@@ -5883,6 +5962,7 @@ export type CompletionResponseTurns = {
     toolName: string
     error: string
     count: number
+    arguments?: string
   }
 }
 
@@ -5893,6 +5973,7 @@ export type CompletionStopEnding = {
     toolName: string
     error: string
     count: number
+    arguments?: string
   }
 } & {
   failure?: {
@@ -5907,6 +5988,8 @@ export type CompletionStopDetail = {
   turnLimit?: number
   featureTitle?: string
 }
+
+export type ToolCallFailureStep = 'succeeded' | 'failed' | 'neither'
 
 export type RestartableMessage = {
   role: string
@@ -10489,6 +10572,7 @@ export type LlmCostLedgerEntryContent = {
   toolCallCount?: number
   toolCalls?: Array<UsageEventToolCall>
   pendingChatKeys?: Array<string>
+  settlingChatKeys?: Array<string>
 }
 
 export type CostLedgerPlacement = {
@@ -10587,6 +10671,10 @@ export type LlmCostAggregateContent = {
       billing?: 'subscription' | 'metered' | 'free'
     }
   }
+}
+
+export type StoredCostAggregateContent = LlmCostAggregateContent & {
+  unsettledLedgerIds?: Array<string>
   foldedOriginIds?: Array<string>
 }
 
@@ -10595,7 +10683,7 @@ export type LlmCostAggregateEntity = {
   projectId: string
   type: string & 'cost-aggregate'
   shouldEmbed: boolean
-  content: unknown & LlmCostAggregateContent
+  content: unknown & StoredCostAggregateContent
   externalKey?: string | unknown
   createdAt: string
   updatedAt: string
@@ -10832,6 +10920,15 @@ export type McpErrorCallOutcome = {
   outcome: string
 }
 
+export type McpCallFailureStep =
+  | {
+      step: 'succeeded' | 'neither'
+    }
+  | {
+      step: 'failed'
+      error: string
+    }
+
 export type BrokerAsk = {
   kind: string
   payload: unknown
@@ -10841,13 +10938,7 @@ export type BrokerAsk = {
 
 export type ToolCallAsk = {
   kind: string
-  payload: unknown & {
-    tool: string
-    args: {
-      [key: string]: unknown
-    }
-    detail?: unknown
-  }
+  payload: unknown & ToolAskPayload
   grantPayload: unknown & {
     tool: string
   }
@@ -12145,6 +12236,7 @@ export type ProcessStep = {
   processId?: string
   expand?: 'features'
   onlyWhenSentBack?: boolean
+  produces?: Array<string>
 }
 
 export type ProcessSubject = {
@@ -12166,6 +12258,7 @@ export type ProcessPlanStep = {
   processId?: string
   expand?: 'features'
   onlyWhenSentBack?: boolean
+  produces?: Array<string>
   subject?: {
     kind: 'feature'
     id: string
@@ -12444,6 +12537,7 @@ export type ProcessPlan = {
   loops: Array<ProcessLoop>
   frozenAt: number
   amendments?: Array<ProcessPlanAmendment>
+  signOff?: 'automatic'
 }
 
 export type ProcessRunStatus =
@@ -13224,6 +13318,22 @@ export type ProcessRunTotals = {
   }
 }
 
+export type ProcessDroppedChangeAcceptance = {
+  mergeSha: string
+  files: Array<{
+    path: string
+    kept: 'work' | 'base'
+  }>
+  note: string
+  at: number
+  stepId: string
+  entryId?: string
+  decidedBy?: 'person' | 'agent'
+  decidedVia?: ProcessPersonDecisionVia | 'tool' | 'manager'
+  toolName?: string
+  chatContextId?: string
+}
+
 export type ProofKindUnavailable = {
   kind: ProofKind
   reason: string
@@ -13313,6 +13423,7 @@ export type ProcessRun = {
   projectId: string
   storyId?: string
   featureId?: string
+  withdrawnFeatureIds?: Array<string>
   chatContextId?: string
   parentRunId?: string
   parentStepId?: string
@@ -13596,6 +13707,7 @@ export type ProcessRun = {
     }
   }
   baseUpdates?: Array<ProcessBaseUpdate>
+  droppedChangesAccepted?: Array<ProcessDroppedChangeAcceptance>
   baseMoved?: {
     baseRef: string
     baseSha: string
@@ -17841,6 +17953,13 @@ export type LiveRunFeatureUpdateDecision =
   | LiveRunFeatureUpdateRework
   | LiveRunFeatureUpdateRefuse
 
+export type LiveRunFeatureDeleteApply = {
+  action: 'delete'
+  removeFromRun: boolean
+}
+
+export type LiveRunFeatureDeleteDecision = LiveRunFeatureDeleteApply | LiveRunFeatureUpdateRefuse
+
 export type FeatureTransitionEvent =
   | 'implement-started'
   | 'verified'
@@ -17905,6 +18024,14 @@ export type StoryDeletion = {
     id: string
     title: string
   }
+}
+
+export type FeatureDeletion = {
+  deleted: {
+    id: string
+    title: string
+  }
+  storyId: string
 }
 
 export type StoryFeatureCensus = {
@@ -18332,8 +18459,6 @@ export type ToolName =
   | 'listLiveModels'
   | 'checkCliAuthStatus'
   | 'startCliReauth'
-  | 'resumeCliAgentRun'
-  | 'forkCliAgentRun'
   | 'abortCliAgentRun'
   | 'listPendingCliAgentActions'
   | 'listCliAgentRunActions'
@@ -18363,6 +18488,7 @@ export type ToolName =
   | 'landApiAgentRun'
   | 'prepareIsolatedChatWorkspace'
   | 'finalizeIsolatedChatTurn'
+  | 'snapshotIsolatedChatWorkspace'
   | 'readChatOpenChanges'
   | 'rebuildChatReviewOnCheckout'
   | 'verifyCliRunReview'
@@ -18710,7 +18836,6 @@ export type ToolName =
   | 'getFeatureFromIndex'
   | 'addFeature'
   | 'updateFeature'
-  | 'deleteFeature'
   | 'reorderFeature'
   | 'blockFeature'
   | 'answerFeatureQuestion'
@@ -18718,6 +18843,7 @@ export type ToolName =
   | 'listStoryNotes'
   | 'listStories'
   | 'deleteStory'
+  | 'deleteFeature'
   | 'setFeatureStatus'
   | 'removeBlocker'
   | 'addStoryNote'
@@ -19638,6 +19764,19 @@ export type CloseRun = {
   groupRunId?: string
 }
 
+export type ProcessDroppedChangeWho = {
+  person: string
+  agent: string
+}
+
+export type ProcessDroppedChangeAcceptedRow = {
+  key: string
+  path: string
+  mergeSha: string
+  note: string
+  text: string
+}
+
 export type LoopedRun = {
   plan: {
     steps: Array<ProcessPlanStep>
@@ -19942,6 +20081,8 @@ export type ClosureRun = {
   }
 }
 
+export type ProcessSignOff = 'person' | 'automatic'
+
 export type ProcessDefinition = {
   id: string
   name: string
@@ -19957,6 +20098,7 @@ export type ProcessDefinition = {
     enabled?: boolean
     autonomy?: 'observe' | 'recommend' | 'act'
   }
+  signOff?: 'person' | 'automatic'
 }
 
 export type ProcessLaunchContext = {
@@ -20175,6 +20317,15 @@ export type StageProcessRunChangeInput =
       retryMode?: 'continue' | 'fresh'
     }
 
+export type ProcessRunFeatureScopeChange = {
+  withdraw?: Array<string>
+  proofPlans?:
+    | {
+        [key: string]: ProofPlan
+      }
+    | unknown
+}
+
 export type StageProcessRunChangeOptions = {
   needsYouResolution?: {
     itemId: string
@@ -20269,6 +20420,7 @@ export type ProcessRunChatState = {
     projectId: string
     storyId?: string
     featureId?: string
+    withdrawnFeatureIds?: Array<string>
     chatContextId?: string
     parentRunId?: string
     parentStepId?: string
@@ -20552,6 +20704,7 @@ export type ProcessRunChatState = {
       }
     }
     baseUpdates?: Array<ProcessBaseUpdate>
+    droppedChangesAccepted?: Array<ProcessDroppedChangeAcceptance>
     baseMoved?: {
       baseRef: string
       baseSha: string
@@ -21030,6 +21183,7 @@ export type ProcessRunSummary = {
   projectId: string
   storyId?: string
   featureId?: string
+  withdrawnFeatureIds?: Array<string>
   chatContextId?: string
   parentRunId?: string
   parentStepId?: string
@@ -21310,6 +21464,7 @@ export type ProcessRunSummary = {
       }
     }
   }
+  droppedChangesAccepted?: Array<ProcessDroppedChangeAcceptance>
   baseMoved?: {
     baseRef: string
     baseSha: string
@@ -21442,6 +21597,7 @@ export type ProcessRunDecision =
         | 'send-to-developer'
         | 'recheck'
         | 'close-unmerged'
+        | 'accept-dropped-change'
       note?: string
     }
   | {
@@ -21761,6 +21917,7 @@ export type StartProcessRunInput = {
     limitTurns: boolean
     maxTurns: number
   }
+  droppedChangesAccepted?: Array<ProcessDroppedChangeAcceptance>
 }
 
 export type ProcessRunQuery = {
@@ -24769,6 +24926,14 @@ export type DeleteFeatureErrors = {
     code?: string
     requestId?: string
   }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
 }
 
 export type DeleteFeatureError = DeleteFeatureErrors[keyof DeleteFeatureErrors]
@@ -24806,6 +24971,14 @@ export type UpdateFeatureErrors = {
    * Default Response
    */
   404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
     error: string
     code?: string
     requestId?: string
@@ -25112,6 +25285,10 @@ export type PreviewProcessData = {
      * Only these of the story’s pending features — a feature’s own launch. All of them when absent.
      */
     featureIds?: Array<string>
+    agentTypeSlots?: {
+      implementer?: string
+      verifier?: string
+    }
   }
   path?: never
   query?: never
@@ -25163,6 +25340,19 @@ export type PreviewProcessResponses = {
       description?: string
       agent: boolean
       agentType?: string
+      slot?: 'implementer' | 'verifier'
+      agentRole?:
+        | 'developer'
+        | 'developer-verifier'
+        | 'verifier'
+        | 'capture'
+        | 'judge'
+        | 'remedy'
+        | 'report'
+        | 'analyst'
+        | 'designer'
+        | 'fixer'
+      agentProves?: false
       subject?: {
         kind: 'feature'
         id: string
@@ -25199,6 +25389,8 @@ export type PreviewProcessResponses = {
         files: Array<string>
       }
     }
+    agentTypes?: Array<AgentTypeOption>
+    agentTypeSlots?: Array<AgentTypeSlotProposal>
   }
 }
 
@@ -25470,6 +25662,7 @@ export type ResumeProcessRunData = {
       | 'send-to-developer'
       | 'recheck'
       | 'close-unmerged'
+      | 'accept-dropped-change'
     /**
      * The app the person decided on — recorded on the decision with `decidedBy: person`. Required: a decision nobody can attribute is refused.
      */
@@ -26499,6 +26692,409 @@ export type ListProcessRunBranchesResponses = {
 
 export type ListProcessRunBranchesResponse =
   ListProcessRunBranchesResponses[keyof ListProcessRunBranchesResponses]
+
+export type ListProjectAgentTypesData = {
+  body?: never
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/agent-types'
+}
+
+export type ListProjectAgentTypesErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ListProjectAgentTypesError =
+  ListProjectAgentTypesErrors[keyof ListProjectAgentTypesErrors]
+
+export type ListProjectAgentTypesResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    agentTypes: Array<ResolvedAgentType>
+    slotDefaults: AgentTypeSlotMap
+    ownSlotDefaults: AgentTypeSlotMap
+    groupSlotDefaults: AgentTypeSlotMap
+    groupId?: string
+  }
+}
+
+export type ListProjectAgentTypesResponse =
+  ListProjectAgentTypesResponses[keyof ListProjectAgentTypesResponses]
+
+export type DeleteProjectAgentTypeData = {
+  body?: never
+  path: {
+    projectId: string
+    agentTypeId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/agent-types/{agentTypeId}'
+}
+
+export type DeleteProjectAgentTypeErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type DeleteProjectAgentTypeError =
+  DeleteProjectAgentTypeErrors[keyof DeleteProjectAgentTypeErrors]
+
+export type DeleteProjectAgentTypeResponses = {
+  /**
+   * Default Response
+   */
+  204: void
+}
+
+export type DeleteProjectAgentTypeResponse =
+  DeleteProjectAgentTypeResponses[keyof DeleteProjectAgentTypeResponses]
+
+export type SaveProjectAgentTypeData = {
+  body: {
+    label: string
+    description?: string
+    baseRole: AgentRunType
+    brief?: string
+    briefMode?: 'append' | 'replace'
+    proves?: boolean
+    tools?: Array<string>
+    contextDocs?: Array<string>
+  }
+  path: {
+    projectId: string
+    agentTypeId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/agent-types/{agentTypeId}'
+}
+
+export type SaveProjectAgentTypeErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type SaveProjectAgentTypeError = SaveProjectAgentTypeErrors[keyof SaveProjectAgentTypeErrors]
+
+export type SaveProjectAgentTypeResponses = {
+  /**
+   * Default Response
+   */
+  200: AgentTypeDefinition
+}
+
+export type SaveProjectAgentTypeResponse =
+  SaveProjectAgentTypeResponses[keyof SaveProjectAgentTypeResponses]
+
+export type SaveProjectAgentTypeSlotsData = {
+  body: AgentTypeSlotMap
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/agent-type-slots'
+}
+
+export type SaveProjectAgentTypeSlotsErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type SaveProjectAgentTypeSlotsError =
+  SaveProjectAgentTypeSlotsErrors[keyof SaveProjectAgentTypeSlotsErrors]
+
+export type SaveProjectAgentTypeSlotsResponses = {
+  /**
+   * Default Response
+   */
+  200: AgentTypeSlotMap
+}
+
+export type SaveProjectAgentTypeSlotsResponse =
+  SaveProjectAgentTypeSlotsResponses[keyof SaveProjectAgentTypeSlotsResponses]
+
+export type ListGroupAgentTypesData = {
+  body?: never
+  path: {
+    groupId: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/agent-types'
+}
+
+export type ListGroupAgentTypesErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ListGroupAgentTypesError = ListGroupAgentTypesErrors[keyof ListGroupAgentTypesErrors]
+
+export type ListGroupAgentTypesResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    agentTypes: Array<ResolvedAgentType>
+    slotDefaults: AgentTypeSlotMap
+  }
+}
+
+export type ListGroupAgentTypesResponse =
+  ListGroupAgentTypesResponses[keyof ListGroupAgentTypesResponses]
+
+export type DeleteGroupAgentTypeData = {
+  body?: never
+  path: {
+    groupId: string
+    agentTypeId: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/agent-types/{agentTypeId}'
+}
+
+export type DeleteGroupAgentTypeErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type DeleteGroupAgentTypeError = DeleteGroupAgentTypeErrors[keyof DeleteGroupAgentTypeErrors]
+
+export type DeleteGroupAgentTypeResponses = {
+  /**
+   * Default Response
+   */
+  204: void
+}
+
+export type DeleteGroupAgentTypeResponse =
+  DeleteGroupAgentTypeResponses[keyof DeleteGroupAgentTypeResponses]
+
+export type SaveGroupAgentTypeData = {
+  body: {
+    label: string
+    description?: string
+    baseRole: AgentRunType
+    brief?: string
+    briefMode?: 'append' | 'replace'
+    proves?: boolean
+    tools?: Array<string>
+    contextDocs?: Array<string>
+  }
+  path: {
+    groupId: string
+    agentTypeId: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/agent-types/{agentTypeId}'
+}
+
+export type SaveGroupAgentTypeErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type SaveGroupAgentTypeError = SaveGroupAgentTypeErrors[keyof SaveGroupAgentTypeErrors]
+
+export type SaveGroupAgentTypeResponses = {
+  /**
+   * Default Response
+   */
+  200: AgentTypeDefinition
+}
+
+export type SaveGroupAgentTypeResponse =
+  SaveGroupAgentTypeResponses[keyof SaveGroupAgentTypeResponses]
+
+export type SaveGroupAgentTypeSlotsData = {
+  body: AgentTypeSlotMap
+  path: {
+    groupId: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/agent-type-slots'
+}
+
+export type SaveGroupAgentTypeSlotsErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type SaveGroupAgentTypeSlotsError =
+  SaveGroupAgentTypeSlotsErrors[keyof SaveGroupAgentTypeSlotsErrors]
+
+export type SaveGroupAgentTypeSlotsResponses = {
+  /**
+   * Default Response
+   */
+  200: AgentTypeSlotMap
+}
+
+export type SaveGroupAgentTypeSlotsResponse =
+  SaveGroupAgentTypeSlotsResponses[keyof SaveGroupAgentTypeSlotsResponses]
 
 export type ListProcessGroupRunsData = {
   body?: never
@@ -30611,6 +31207,19 @@ export type GetChatData = {
   url: '/api/v1/chats/get'
 }
 
+export type GetChatErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetChatError = GetChatErrors[keyof GetChatErrors]
+
 export type GetChatResponses = {
   /**
    * Default Response
@@ -34224,284 +34833,6 @@ export type DetectEnvironmentResponses = {
 
 export type DetectEnvironmentResponse = DetectEnvironmentResponses[keyof DetectEnvironmentResponses]
 
-export type SendCompletionData = {
-  body: {
-    request: {
-      chatContext: ChatContext
-      llmConfig: {
-        model: string
-        provider:
-          | 'openai'
-          | 'anthropic'
-          | 'gemini'
-          | 'deepseek'
-          | 'xai'
-          | 'qwen'
-          | 'llama'
-          | 'custom'
-        id?: string
-        name?: string
-        apiUrlOverride?: string
-        effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
-        defaultEffort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
-        costInputPerMTokensUSD?: number
-        costOutputPerMTokensUSD?: number
-        costCacheReadInputPerMTokensUSD?: number
-        billing?: 'subscription' | 'metered' | 'free'
-        apiKey?: string
-      }
-      systemPrompt?: string
-      messages: Array<{
-        role: 'system' | 'user' | 'assistant' | 'tool'
-        content: string
-        startedAt?: string
-        completedAt?: string
-        durationMs?: number
-        files?: Array<string>
-        usage?: {
-          promptTokens: number
-          completionTokens: number
-          inputTokens?: number
-          totalTokens?: number
-          cachedReadInputTokens?: number
-          cacheWriteInputTokens?: number
-          cacheWrite1hInputTokens?: number
-          reasoningTokens?: number
-          cost?: number
-          costInput?: number
-          costOutput?: number
-          billing?: 'subscription' | 'metered' | 'free'
-          listCostUsd?: number
-          byModel?: Array<ModelSpend>
-          tokenFields?: {
-            input?: 'reported' | 'derived' | 'unavailable'
-            output?: 'reported' | 'derived' | 'unavailable'
-            cacheRead?: 'reported' | 'derived' | 'unavailable'
-            cacheWrite?: 'reported' | 'derived' | 'unavailable'
-          }
-          incompleteReasons?: Array<UsageCompletenessReason>
-        }
-        model?: {
-          model: string
-          provider: LlmProvider
-        }
-        suggestedActions?: Array<string>
-        thinking?: string
-        cliRunId?: string
-        featureRequestId?: string
-        processRunId?: string
-        processRunParkedAt?: number
-        processRunChecksEntryId?: string
-        processGroupRunId?: string
-        handoffFrom?: string
-        answersHandoffFrom?: string
-        backgroundResults?: Array<{
-          jobId: string
-          toolName: string
-          toolCallId?: string
-          status: 'succeeded' | 'failed'
-          tookMs: number
-        }>
-        managerCard?:
-          | ProcessManagerBriefCard
-          | ProcessManagerInterventionCard
-          | ProcessManagerPreReadCard
-          | ProcessManagerEscalationCard
-        openChangesCard?: {
-          kind: 'unfit' | 'waiting'
-          runId: string
-          projectId: string
-          chatContextId: string
-          since: number
-          fileCount: number
-          changedCount?: number
-        }
-        openQuestionsCard?: {
-          projectId: string
-          storyId: string
-          featureIds?: Array<string>
-        }
-        needsYouAt?: string
-        needsYouClosedAt?: string
-        stopNotice?: {
-          cause: CompletionStopCause
-          featureTitle?: string
-          reason: string
-          raw?: string
-          turnLimit?: number
-          repeats?: number
-        }
-        toolCall?: {
-          toolCallId: string
-          name: string
-          arguments?: unknown
-          providerState?: unknown
-        }
-        toolResult?: {
-          type: string
-          result?: unknown
-          durationMs?: number
-          actionId?: string
-        }
-        error?: string
-        providerState?: unknown
-      }>
-      availableTools?: Array<string>
-      numberMessagesToSend?: number
-      historySummarization?: {
-        enabled: boolean
-        keepLastTurns?: number
-        maxOpsInSummary?: number
-      }
-      messageSanitization?: {
-        enabled: boolean
-        keepLastMessages?: number
-        protectedChars?: number
-        hardMaxToolContentChars?: number
-        maxAssistantChars?: number
-        maxToolArgChars?: number
-        maxToolContentChars?: number
-        toolContentPreviewChars?: number
-      }
-    }
-  }
-  path?: never
-  query?: never
-  url: '/api/v1/completions/send'
-}
-
-export type SendCompletionErrors = {
-  /**
-   * Default Response
-   */
-  400: {
-    error: string
-    code?: string
-    requestId?: string
-  }
-  /**
-   * Default Response
-   */
-  500: {
-    error: string
-    code?: string
-    requestId?: string
-  }
-}
-
-export type SendCompletionError = SendCompletionErrors[keyof SendCompletionErrors]
-
-export type SendCompletionResponses = {
-  /**
-   * Default Response
-   */
-  200: {
-    assistantMessage: {
-      role: 'system' | 'user' | 'assistant' | 'tool'
-      content: string
-      startedAt?: string
-      completedAt?: string
-      durationMs?: number
-      files?: Array<string>
-      usage?: {
-        promptTokens: number
-        completionTokens: number
-        inputTokens?: number
-        totalTokens?: number
-        cachedReadInputTokens?: number
-        cacheWriteInputTokens?: number
-        cacheWrite1hInputTokens?: number
-        reasoningTokens?: number
-        cost?: number
-        costInput?: number
-        costOutput?: number
-        billing?: 'subscription' | 'metered' | 'free'
-        listCostUsd?: number
-        byModel?: Array<ModelSpend>
-        tokenFields?: {
-          input?: 'reported' | 'derived' | 'unavailable'
-          output?: 'reported' | 'derived' | 'unavailable'
-          cacheRead?: 'reported' | 'derived' | 'unavailable'
-          cacheWrite?: 'reported' | 'derived' | 'unavailable'
-        }
-        incompleteReasons?: Array<UsageCompletenessReason>
-      }
-      model?: {
-        model: string
-        provider: LlmProvider
-      }
-      suggestedActions?: Array<string>
-      thinking?: string
-      cliRunId?: string
-      featureRequestId?: string
-      processRunId?: string
-      processRunParkedAt?: number
-      processRunChecksEntryId?: string
-      processGroupRunId?: string
-      handoffFrom?: string
-      answersHandoffFrom?: string
-      backgroundResults?: Array<{
-        jobId: string
-        toolName: string
-        toolCallId?: string
-        status: 'succeeded' | 'failed'
-        tookMs: number
-      }>
-      managerCard?:
-        | ProcessManagerBriefCard
-        | ProcessManagerInterventionCard
-        | ProcessManagerPreReadCard
-        | ProcessManagerEscalationCard
-      openChangesCard?: {
-        kind: 'unfit' | 'waiting'
-        runId: string
-        projectId: string
-        chatContextId: string
-        since: number
-        fileCount: number
-        changedCount?: number
-      }
-      openQuestionsCard?: {
-        projectId: string
-        storyId: string
-        featureIds?: Array<string>
-      }
-      needsYouAt?: string
-      needsYouClosedAt?: string
-      stopNotice?: {
-        cause: CompletionStopCause
-        featureTitle?: string
-        reason: string
-        raw?: string
-        turnLimit?: number
-        repeats?: number
-      }
-      toolCall?: {
-        toolCallId: string
-        name: string
-        arguments?: unknown
-        providerState?: unknown
-      }
-      toolResult?: {
-        type: string
-        result?: unknown
-        durationMs?: number
-        actionId?: string
-      }
-      error?: string
-      providerState?: unknown
-    }
-    toolCalls: Array<{
-      toolCallId: string
-      name: string
-      arguments?: unknown
-      providerState?: unknown
-    }>
-  }
-}
-
-export type SendCompletionResponse = SendCompletionResponses[keyof SendCompletionResponses]
-
 export type SendCompletionWithToolsData = {
   body: {
     request: {
@@ -37409,160 +37740,6 @@ export type SuggestLaunchSetupResponses = {
 
 export type SuggestLaunchSetupResponse =
   SuggestLaunchSetupResponses[keyof SuggestLaunchSetupResponses]
-
-export type StartCliAgentRunData = {
-  body: {
-    projectId: string
-    cli: CliTool
-    prompt: string
-    chatContextId?: string
-    storyId?: string
-    policy?: {
-      network?: 'none' | 'proxied'
-      proxyAllowlist?: Array<string>
-      proxySharedGroup?: string
-      cpuLimit?: string
-      memoryLimit?: string
-      pidsLimit?: number
-      workspaceSizeCapBytes?: number
-    }
-    authCredentialId?: string
-    apiKeyCredentialId?: string
-    modelId?: string
-    effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
-    workspaceHostPath?: string
-    subscription?: {
-      plan?: string
-      tokensRemainingPerWindow?: number
-      windowResetAt?: number
-      [key: string]: unknown
-    }
-  }
-  path?: never
-  query?: never
-  url: '/api/v1/cli-runs/start'
-}
-
-export type StartCliAgentRunErrors = {
-  /**
-   * Default Response
-   */
-  500: {
-    error: string
-    code?: string
-    requestId?: string
-  }
-  /**
-   * Default Response
-   */
-  503: {
-    error: string
-    code?: string
-    requestId?: string
-  }
-}
-
-export type StartCliAgentRunError = StartCliAgentRunErrors[keyof StartCliAgentRunErrors]
-
-export type StartCliAgentRunResponses = {
-  /**
-   * Default Response
-   */
-  202: {
-    runId: string
-  }
-}
-
-export type StartCliAgentRunResponse = StartCliAgentRunResponses[keyof StartCliAgentRunResponses]
-
-export type ResumeCliAgentRunData = {
-  body: {
-    prompt: string
-  }
-  path: {
-    runId: string
-  }
-  query?: never
-  url: '/api/v1/cli-runs/{runId}/resume'
-}
-
-export type ResumeCliAgentRunErrors = {
-  /**
-   * Default Response
-   */
-  500: {
-    error: string
-    code?: string
-    requestId?: string
-  }
-  /**
-   * Default Response
-   */
-  503: {
-    error: string
-    code?: string
-    requestId?: string
-  }
-}
-
-export type ResumeCliAgentRunError = ResumeCliAgentRunErrors[keyof ResumeCliAgentRunErrors]
-
-export type ResumeCliAgentRunResponses = {
-  /**
-   * Default Response
-   */
-  202: {
-    runId: string
-  }
-}
-
-export type ResumeCliAgentRunResponse = ResumeCliAgentRunResponses[keyof ResumeCliAgentRunResponses]
-
-export type ForkCliAgentRunData = {
-  body: {
-    sourceRunId: string
-    cli: CliTool
-    prompt: string
-    authCredentialId?: string
-    apiKeyCredentialId?: string
-    notes?: string
-  }
-  path?: never
-  query?: never
-  url: '/api/v1/cli-runs/fork'
-}
-
-export type ForkCliAgentRunErrors = {
-  /**
-   * Default Response
-   */
-  500: {
-    error: string
-    code?: string
-    requestId?: string
-  }
-  /**
-   * Default Response
-   */
-  503: {
-    error: string
-    code?: string
-    requestId?: string
-  }
-}
-
-export type ForkCliAgentRunError = ForkCliAgentRunErrors[keyof ForkCliAgentRunErrors]
-
-export type ForkCliAgentRunResponses = {
-  /**
-   * Default Response
-   */
-  202: {
-    runId: string
-  }
-}
-
-export type ForkCliAgentRunResponse = ForkCliAgentRunResponses[keyof ForkCliAgentRunResponses]
 
 export type AbortCliAgentRunData = {
   body: {
@@ -40867,6 +41044,19 @@ export type ListActivitiesResponses = {
         [key: string]: unknown
       }
       error?: string
+      costUSD?: number
+      stopAttempts?: Array<{
+        attemptId: string
+        callerId: string
+        approvalId: string
+        approvedBy: string
+        reason?: string
+        requestedAt: string
+        settledAt?: string
+        outcome: 'pending' | 'cancelled' | 'failed'
+        failureCode?: string
+      }>
+      parentActivityId?: string
       startedAt: string
       updatedAt: string
       finishedAt?: string
@@ -40931,6 +41121,19 @@ export type GetActivityResponses = {
       [key: string]: unknown
     }
     error?: string
+    costUSD?: number
+    stopAttempts?: Array<{
+      attemptId: string
+      callerId: string
+      approvalId: string
+      approvedBy: string
+      reason?: string
+      requestedAt: string
+      settledAt?: string
+      outcome: 'pending' | 'cancelled' | 'failed'
+      failureCode?: string
+    }>
+    parentActivityId?: string
     startedAt: string
     updatedAt: string
     finishedAt?: string
@@ -40974,11 +41177,79 @@ export type AbortActivityResponses = {
    * Default Response
    */
   200: {
+    /**
+     * aborted, alreadyFinished or unknown; stopping when its work was signalled but has not ended yet.
+     */
     status: string
   }
 }
 
 export type AbortActivityResponse = AbortActivityResponses[keyof AbortActivityResponses]
+
+export type StopActivityData = {
+  body: {
+    /**
+     * Why it is being stopped.
+     */
+    reason?: string
+  }
+  path: {
+    /**
+     * Project id.
+     */
+    projectId: string
+    /**
+     * Activity run id.
+     */
+    activityId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/activities/{activityId}/stop'
+}
+
+export type StopActivityErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type StopActivityError = StopActivityErrors[keyof StopActivityErrors]
+
+export type StopActivityResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    activityId: string
+    outcome: 'refused' | 'noop' | 'stopped' | 'not-stopped' | 'failed'
+    code?: string
+    status?: 'queued' | 'running' | 'completed' | 'failed' | 'aborted'
+    finishedAt?: string
+    attemptId?: string
+    /**
+     * Every queued or running activity it started, and theirs in turn, each with its own outcome; absent when there were none.
+     */
+    children?: Array<{
+      activityId: string
+      outcome: 'refused' | 'noop' | 'stopped' | 'not-stopped' | 'failed'
+      code?: string
+      status?: 'queued' | 'running' | 'completed' | 'failed' | 'aborted'
+      finishedAt?: string
+      attemptId?: string
+      /**
+       * The activity that started it.
+       */
+      parentActivityId: string
+    }>
+  }
+}
+
+export type StopActivityResponse = StopActivityResponses[keyof StopActivityResponses]
 
 export type ResumeActivityData = {
   body?: never
@@ -41027,6 +41298,189 @@ export type ResumeActivityResponses = {
 }
 
 export type ResumeActivityResponse = ResumeActivityResponses[keyof ResumeActivityResponses]
+
+export type GetKnowledgeEvaluationSettingsData = {
+  body?: never
+  path: {
+    /**
+     * Project id.
+     */
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/knowledge-evaluation/settings'
+}
+
+export type GetKnowledgeEvaluationSettingsErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetKnowledgeEvaluationSettingsError =
+  GetKnowledgeEvaluationSettingsErrors[keyof GetKnowledgeEvaluationSettingsErrors]
+
+export type GetKnowledgeEvaluationSettingsResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    available: boolean
+    defaults:
+      | {
+          stage?: 'smoke' | 'sample' | 'full' | 'deepen' | 'saturate' | 'drill'
+          preset?: string
+          focusCapabilities?: Array<string>
+          focusFixtures?: Array<string>
+          promptMode?: 'neutral' | 'production'
+          buildMode?: 'heuristic' | 'llm'
+          concurrency?: number
+          cli?: 'claude-code' | 'cursor-agent' | 'codex'
+          modelId?: string
+          llmConfigId?: string
+        }
+      | unknown
+    tabDefaults: {
+      preset: string
+      promptMode: 'neutral' | 'production'
+      buildMode: 'heuristic' | 'llm'
+      concurrency: number
+    }
+    choices: {
+      stages: Array<'smoke' | 'sample' | 'full' | 'deepen' | 'saturate' | 'drill'>
+      presets: Array<string>
+      capabilities: Array<{
+        capability: string
+        label: string
+        scenarios: number
+      }>
+      fixtures: Array<string>
+      promptModes: Array<'neutral' | 'production'>
+      buildModes: Array<'heuristic' | 'llm'>
+      clis: Array<'claude-code' | 'cursor-agent' | 'codex'>
+      concurrencyMax: number
+    }
+  }
+}
+
+export type GetKnowledgeEvaluationSettingsResponse =
+  GetKnowledgeEvaluationSettingsResponses[keyof GetKnowledgeEvaluationSettingsResponses]
+
+export type PutKnowledgeEvaluationDefaultsData = {
+  body: {
+    defaults:
+      | {
+          stage?: 'smoke' | 'sample' | 'full' | 'deepen' | 'saturate' | 'drill'
+          preset?: string
+          focusCapabilities?: Array<string>
+          focusFixtures?: Array<string>
+          promptMode?: 'neutral' | 'production'
+          buildMode?: 'heuristic' | 'llm'
+          concurrency?: number
+          cli?: 'claude-code' | 'cursor-agent' | 'codex'
+          modelId?: string
+          llmConfigId?: string
+        }
+      | unknown
+  }
+  path: {
+    /**
+     * Project id.
+     */
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/knowledge-evaluation/defaults'
+}
+
+export type PutKnowledgeEvaluationDefaultsErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  422: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type PutKnowledgeEvaluationDefaultsError =
+  PutKnowledgeEvaluationDefaultsErrors[keyof PutKnowledgeEvaluationDefaultsErrors]
+
+export type PutKnowledgeEvaluationDefaultsResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    available: boolean
+    defaults:
+      | {
+          stage?: 'smoke' | 'sample' | 'full' | 'deepen' | 'saturate' | 'drill'
+          preset?: string
+          focusCapabilities?: Array<string>
+          focusFixtures?: Array<string>
+          promptMode?: 'neutral' | 'production'
+          buildMode?: 'heuristic' | 'llm'
+          concurrency?: number
+          cli?: 'claude-code' | 'cursor-agent' | 'codex'
+          modelId?: string
+          llmConfigId?: string
+        }
+      | unknown
+    tabDefaults: {
+      preset: string
+      promptMode: 'neutral' | 'production'
+      buildMode: 'heuristic' | 'llm'
+      concurrency: number
+    }
+    choices: {
+      stages: Array<'smoke' | 'sample' | 'full' | 'deepen' | 'saturate' | 'drill'>
+      presets: Array<string>
+      capabilities: Array<{
+        capability: string
+        label: string
+        scenarios: number
+      }>
+      fixtures: Array<string>
+      promptModes: Array<'neutral' | 'production'>
+      buildModes: Array<'heuristic' | 'llm'>
+      clis: Array<'claude-code' | 'cursor-agent' | 'codex'>
+      concurrencyMax: number
+    }
+  }
+}
+
+export type PutKnowledgeEvaluationDefaultsResponse =
+  PutKnowledgeEvaluationDefaultsResponses[keyof PutKnowledgeEvaluationDefaultsResponses]
 
 export type RunTrainerToolData = {
   body: {

@@ -29,12 +29,17 @@ import {
   PROCESS_MANAGER_PROJECT_DETAIL,
   PROCESS_MANAGER_PROJECT_LABEL,
   projectManagerSettingsOf,
+  projectMetadataCarried,
   projectStableBranchOf,
+  readEvaluationDefaults,
   readTicketConnection,
+  useKnowledgeEvaluationSettings,
   useProjectsGroups,
+  withEvaluationDefaults,
   type ProcessManagerAutonomy,
 } from '../../../headless'
 import ProjectCodeInfoModal, { type CodeInfoValue } from './ProjectCodeInfoModal'
+import ProjectEvaluationDefaultsField from './ProjectEvaluationDefaultsField'
 import ProjectStableBranchField from './ProjectStableBranchField'
 import TicketConnectionPicker from './TicketConnectionPicker'
 
@@ -57,6 +62,8 @@ export type ProjectFormState = {
     processManager?: { enabled: boolean; autonomy: ProcessManagerAutonomy }
     /** The branch other projects are checked against when this one's pending changes break them. */
     stableBranch?: string
+    /** Every other key the project's metadata holds, carried through a save untouched. */
+    [key: string]: unknown
   }
   codeInfo?: ProjectCodeInfo
   /**
@@ -98,6 +105,7 @@ export function projectToFormState(p: GetProjectResponse): ProjectFormState {
     repo_url: p.repo_url ?? '',
     active: p.active !== false,
     metadata: {
+      ...projectMetadataCarried(md),
       icon: iconKey,
       githubCredentialsId: credsId,
       hasApp,
@@ -135,6 +143,7 @@ export function ProjectEditorForm({
 }: ProjectEditorFormProps) {
   const { credentials } = useGitCredentials()
   const { groups } = useProjectsGroups()
+  const evaluation = useKnowledgeEvaluationSettings(mode === 'edit' ? form.id : undefined)
   const [iconPickerOpen, setIconPickerOpen] = useState(false)
   const [codeInfoOpen, setCodeInfoOpen] = useState(false)
 
@@ -403,6 +412,17 @@ export function ProjectEditorForm({
           {...(mainGroup
             ? { inherited: { groupTitle: mainGroup.title, binding: mainGroup.ticketConnection } }
             : {})}
+        />
+      ) : null}
+
+      {mode === 'edit' && evaluation.settings?.available ? (
+        <ProjectEvaluationDefaultsField
+          key={form.id}
+          settings={evaluation.settings}
+          value={readEvaluationDefaults(form.metadata.evaluationDefaults)}
+          onChange={(next) =>
+            setForm((s) => ({ ...s, metadata: withEvaluationDefaults(s.metadata, next) }))
+          }
         />
       ) : null}
 

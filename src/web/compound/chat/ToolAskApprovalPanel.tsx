@@ -24,6 +24,7 @@ import {
 import type { ToolAskBody, ToolAskDecidedLine } from '../../../headless/utils/toolAskCardTypes'
 import type { PendingToolGrant, PendingToolGrantDecision } from '../../../headless/utils/chatTypes'
 import DesignAskBox from '../design/DesignAskBox'
+import EvaluationLaunchAskBody from './EvaluationLaunchAskBody'
 import WorkLaunchChooser from '../WorkLaunchChooser'
 import { useFeatureRequestRecord } from '../../../headless/hooks/useCrossProjectRequests'
 import { featureRequestSummary } from '../../../headless/utils/featureRequestView'
@@ -322,6 +323,8 @@ export default function ToolAskApprovalPanel({
           entries={body.entries}
           newScreens={body.newScreens}
         />
+      ) : body.kind === 'evaluation-launch' ? (
+        <EvaluationLaunchAskBody body={body} />
       ) : body.kind === 'references' ? (
         <div className="rounded-md bg-(--surface-muted) p-3 text-[13px]">
           <RichText text={body.text} />

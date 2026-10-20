@@ -19,6 +19,11 @@ const TONE: Record<ToolRowMilestone['tone'], { bg: string; border: string; fg: s
     fg: nativePalette.orange[800],
   },
   error: { bg: nativePalette.red[50], border: nativePalette.red[300], fg: nativePalette.red[800] },
+  neutral: {
+    bg: nativePalette.gray[50],
+    border: nativePalette.gray[300],
+    fg: nativePalette.gray[700],
+  },
 }
 
 /**

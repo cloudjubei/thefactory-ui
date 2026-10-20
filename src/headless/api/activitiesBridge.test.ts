@@ -6,9 +6,10 @@ vi.mock('./generated', () => ({
   getActivity: vi.fn(),
   abortActivity: vi.fn(),
   resumeActivity: vi.fn(),
+  stopActivity: vi.fn(),
 }))
 
-import { runActivity } from './generated'
+import { runActivity, stopActivity } from './generated'
 import { dispatchActivitiesBridge } from './activitiesBridge.js'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -124,5 +125,35 @@ describe('dispatchActivitiesBridge', () => {
         payload: { activityType: 'build-catalog' },
       }),
     ).rejects.toThrow('An activity of this type is already running')
+  })
+
+  it('stops an activity for the person, with their reason, answering what the stop observed', async () => {
+    asMock(stopActivity).mockResolvedValue({ data: { activityId: 'a1', outcome: 'stopped' } })
+    const res = await dispatchActivitiesBridge('p1', {
+      type: 'overseer:activities.stop',
+      payload: { activityId: 'a1', reason: 'Enough results' },
+    })
+    expect(stopActivity).toHaveBeenCalledWith({
+      path: { projectId: 'p1', activityId: 'a1' },
+      body: { reason: 'Enough results' },
+      throwOnError: true,
+    })
+    expect(res).toEqual({ activityId: 'a1', outcome: 'stopped' })
+  })
+
+  it('stops without a reason when none is given, and needs an id', async () => {
+    asMock(stopActivity).mockResolvedValue({ data: { activityId: 'a1', outcome: 'noop' } })
+    await dispatchActivitiesBridge('p1', {
+      type: 'overseer:activities.stop',
+      payload: { activityId: 'a1', reason: '  ' },
+    })
+    expect(stopActivity).toHaveBeenCalledWith({
+      path: { projectId: 'p1', activityId: 'a1' },
+      body: {},
+      throwOnError: true,
+    })
+    await expect(
+      dispatchActivitiesBridge('p1', { type: 'overseer:activities.stop', payload: {} }),
+    ).rejects.toThrow('activities.stop requires an activityId')
   })
 })

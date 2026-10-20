@@ -19,7 +19,7 @@ export type GitSetupPlan = {
 
 /** A line under a tool row marking where its work stands — waiting on you, or what it did. */
 export type ToolRowMilestone = {
-  tone: 'waiting' | 'success' | 'warning' | 'error'
+  tone: 'waiting' | 'success' | 'warning' | 'error' | 'neutral'
   title: string
   detail?: string
   link?: { url: string; label: string }

@@ -26,10 +26,12 @@ export type UseVerifyAttemptEvidence = {
  *
  * A reviewer files under the run it reviewed, but the before of a pair is often
  * shared from another attempt and filed under that attempt's run. When the
- * attempt's proof names a capture the reviewed run does not hold, the story's
- * evidence is loaded too and every capture is found by id — only then, so an
- * attempt whose proof is all its own costs one listing, as before. A capture is
- * called missing only once every listing it could be in has loaded.
+ * attempt's proof names a capture the reviewed run does not hold — or the
+ * attempt carried earlier attempts on, whose filings are under their own runs
+ * and count as its own — the story's evidence is loaded too and every capture is
+ * found by id — only then, so an attempt whose proof is all its own costs one
+ * listing, as before. A capture is called missing only once every listing it
+ * could be in has loaded.
  */
 export function useVerifyAttemptEvidence(
   projectId: string | undefined,
@@ -38,9 +40,11 @@ export function useVerifyAttemptEvidence(
 ): UseVerifyAttemptEvidence {
   const run = useReviewEvidence(projectId, { runId: review.reviewedRunId })
   const storyId = useMemo(() => run.refs.find((r) => r.storyId)?.storyId, [run.refs])
+  const carriesOn = (review.earlierRunIds?.length ?? 0) > 0
   const widen = useMemo(
-    () => storyId !== undefined && missingEvidenceIds(entry.proof, run.refs).length > 0,
-    [storyId, entry.proof, run.refs],
+    () =>
+      storyId !== undefined && (carriesOn || missingEvidenceIds(entry.proof, run.refs).length > 0),
+    [storyId, carriesOn, entry.proof, run.refs],
   )
   const story = useReviewEvidence(widen ? projectId : undefined, widen ? { storyId } : {})
 

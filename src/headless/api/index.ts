@@ -11,6 +11,8 @@ export {
 
 export { extractErrorMessage } from './errorMessage'
 
+export { openAppRunChat } from './appRunChat'
+
 export {
   extractServerError,
   getResponseDataMessage,

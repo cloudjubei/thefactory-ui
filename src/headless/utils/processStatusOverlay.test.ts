@@ -347,6 +347,11 @@ describe('featureProcessOverlay', () => {
       expect(isFeatureInLiveRun(storyRun({ status: 'pending' }), 'a')).toBe(true)
     })
 
+    it('is false for a feature taken off the run while it was live', () => {
+      expect(isFeatureInLiveRun(storyRun({ withdrawnFeatureIds: ['b'] }), 'b')).toBe(false)
+      expect(isFeatureInLiveRun(storyRun({ withdrawnFeatureIds: ['b'] }), 'a')).toBe(true)
+    })
+
     it('is false for a feature the run does not carry', () => {
       expect(
         isFeatureInLiveRun(storyRun({ cursor: { stepId: 'features:a', iteration: 1 } }), 'z'),

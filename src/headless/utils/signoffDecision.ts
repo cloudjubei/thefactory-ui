@@ -4,11 +4,12 @@ import type { SignoffDecisionInput, SignoffDecisionItem } from './signoffDecisio
  * The decision card's one attention list, under the headline: the person's own
  * request first — met or not, its counted before/after pairs as thumbnail
  * chips and the fix pass that answered it as its step chip — then each section
- * to look at before deciding, with what Verify said as its action. Every item
- * is an icon, one line and chips; nothing is a text link. Pure.
+ * to look at before deciding, with what Verify said as its action, then each
+ * change accepted as dropped on purpose, with nothing to open. Every item is an
+ * icon, one line and chips; nothing is a text link. Pure.
  */
 export function signoffDecisionItems(input: SignoffDecisionInput): SignoffDecisionItem[] {
-  const { request, fix, attention } = input
+  const { request, fix, attention, droppedAccepted } = input
   const items: SignoffDecisionItem[] = []
   if (request) {
     items.push({
@@ -37,6 +38,17 @@ export function signoffDecisionItems(input: SignoffDecisionInput): SignoffDecisi
       text: item.text,
       pairs: [],
       actions: [{ kind: 'verify', label: item.action, sectionId: item.sectionId }],
+    })
+  }
+  for (const row of droppedAccepted) {
+    items.push({
+      key: `dropped-${row.key}`,
+      tone: 'working',
+      dependency: undefined,
+      label: undefined,
+      text: row.text,
+      pairs: [],
+      actions: [],
     })
   }
   return items

@@ -3,6 +3,7 @@ import { WORK_START_MESSAGE } from './appBridgeConstants'
 import {
   APP_WORK_START_FEATURE_TITLE_REQUIRED,
   APP_WORK_START_FEATURES_INVALID,
+  APP_WORK_START_PROCESS_INVALID,
   APP_WORK_START_TITLE_REQUIRED,
 } from './appWorkStartConstants'
 import type {
@@ -26,7 +27,12 @@ function text(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
 }
 
-/** The work an app asks to start (`work.start {title, description, features?}`), or why it cannot be shown. */
+const PROCESS_ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
+
+/**
+ * The work an app asks to start (`work.start {title, description, features?, processId?}`), or
+ * why it cannot be shown.
+ */
 export function parseWorkStartPayload(payload: unknown): AppWorkStartDraft | { error: string } {
   const rec = asRecord(payload)
   const title = text(rec?.title)
@@ -41,7 +47,16 @@ export function parseWorkStartPayload(payload: unknown): AppWorkStartDraft | { e
     if (!featureTitle) return { error: APP_WORK_START_FEATURE_TITLE_REQUIRED }
     features.push({ title: featureTitle, description: text(feature.description) })
   }
-  return { title, description: text(rec.description), features }
+  const processId = text(rec.processId)
+  if (rec.processId !== undefined && !PROCESS_ID.test(processId)) {
+    return { error: APP_WORK_START_PROCESS_INVALID }
+  }
+  return {
+    title,
+    description: text(rec.description),
+    features,
+    ...(processId ? { processId } : {}),
+  }
 }
 
 /** Why the person's edited draft cannot start, or `null` when it can. */

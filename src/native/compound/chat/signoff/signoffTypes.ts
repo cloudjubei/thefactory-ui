@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react'
+
 /** One file the panel is handing to the host to put somewhere the user can reach. */
 export type SaveFileRequest = {
   /** Suggested file name, extension included. */
@@ -16,3 +18,12 @@ export type SaveFileRequest = {
  * and every save affordance stays hidden rather than failing when pressed.
  */
 export type SaveFileHandler = (file: SaveFileRequest) => void | Promise<void>
+
+/**
+ * What the app hosting the review surfaces supplies for media this package
+ * cannot play itself: a video player, handed the recording as a `data:` URI.
+ * Left out, a recording is named and sized instead of played.
+ */
+export type MediaHost = {
+  renderVideo?: (dataUri: string) => ReactNode
+}

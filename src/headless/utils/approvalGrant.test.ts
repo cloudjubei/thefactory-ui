@@ -80,6 +80,15 @@ describe('startFeatureWorkGrantSummary', () => {
     expect(of('inline')).toBeUndefined()
   })
 
+  it('reads the agent type the agent proposed for each slot, and none when it named none', () => {
+    const of = (agentTypeSlots: unknown) =>
+      startFeatureWorkGrantSummary(grant({ detail: { args: { storyId: 's', agentTypeSlots } } }))
+    expect(of({ verifier: 'screen-checker', reviewer: 'x' }).agentTypeSlots).toEqual({
+      verifier: 'screen-checker',
+    })
+    expect(of(['verifier'])).not.toHaveProperty('agentTypeSlots')
+  })
+
   it('reads the CLI, model and sign-in the agent asked for, dropping blanks and non-strings', () => {
     expect(
       startFeatureWorkGrantSummary(

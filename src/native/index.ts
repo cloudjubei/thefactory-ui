@@ -295,6 +295,17 @@ export {
   default as CliRunArtifactPanel,
   type CliRunArtifactPanelProps,
 } from './compound/chat/CliRunArtifactPanel'
+// The review surfaces' host slots: saving a file, and the app's video player for walkthroughs.
+export type {
+  MediaHost,
+  SaveFileHandler,
+  SaveFileRequest,
+} from './compound/chat/signoff/signoffTypes'
+export { MediaHostProvider, useMediaHost } from './compound/chat/signoff/MediaHostContext'
+export {
+  default as WalkthroughTab,
+  type WalkthroughTabProps,
+} from './compound/chat/signoff/WalkthroughTab'
 export { ChatChangesBar, type ChatChangesBarProps } from './compound/chat/ChatChangesBar'
 export {
   ChatChangesBarConnected,
@@ -620,6 +631,14 @@ export {
   type ProjectStableBranchFieldProps,
 } from './compound/projects/ProjectStableBranchField'
 export {
+  default as ProjectEvaluationDefaultsField,
+  type ProjectEvaluationDefaultsFieldProps,
+} from './compound/projects/ProjectEvaluationDefaultsField'
+export {
+  default as EvaluationLaunchAskBody,
+  type EvaluationLaunchAskBodyProps,
+} from './compound/chat/EvaluationLaunchAskBody'
+export {
   default as SiblingFallbackNotice,
   RunSiblingFallbackNotice,
   type SiblingFallbackNoticeProps,
@@ -632,6 +651,14 @@ export {
   default as GroupTicketSettings,
   type GroupTicketSettingsProps,
 } from './compound/projects/GroupTicketSettings'
+export {
+  default as AgentTypeSettings,
+  type AgentTypeSettingsProps,
+} from './compound/settings/AgentTypeSettings'
+export {
+  default as AgentTypeSlotChooser,
+  type AgentTypeSlotChooserProps,
+} from './compound/chat/AgentTypeSlotChooser'
 export {
   default as GithubConnectModal,
   type GithubConnectModalProps,
@@ -651,6 +678,14 @@ export {
   type NotesSettingsProps,
 } from './compound/settings/NotesSettings'
 export { default as UsageSettings } from './compound/settings/UsageSettings'
+export {
+  default as BackendConnectionTest,
+  type BackendConnectionTestProps,
+} from './compound/settings/BackendConnectionTest'
+export {
+  default as BackendResetCard,
+  type BackendResetCardProps,
+} from './compound/settings/BackendResetCard'
 export {
   default as UsageSettingsView,
   type UsageSettingsViewProps,
@@ -723,6 +758,10 @@ export {
   default as AppWorkStartSheet,
   type AppWorkStartSheetProps,
 } from './compound/AppWorkStartSheet'
+export {
+  default as AppFeatureRequestSheet,
+  type AppFeatureRequestSheetProps,
+} from './compound/AppFeatureRequestSheet'
 export {
   default as LiveDataTaskSourceFields,
   type LiveDataTaskSourceFieldsProps,

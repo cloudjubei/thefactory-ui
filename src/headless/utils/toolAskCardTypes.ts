@@ -1,5 +1,6 @@
 import type { WorkLaunchMode } from 'thefactory-tools/types'
 import type { PendingToolGrantDecision } from './chatTypes'
+import type { EvaluationLaunchAskBodyView } from './evaluationLaunchAskViewTypes'
 
 /** The tile a waiting tool's card shows in its header. */
 export type ToolAskIcon =
@@ -13,6 +14,7 @@ export type ToolAskIcon =
   | 'file'
   | 'delete'
   | 'run'
+  | 'stop'
   | 'tool'
 
 /** An ordinary ask, or one that throws something away for good. */
@@ -70,6 +72,8 @@ export type ToolAskBody =
       /** New screens the agent says are not one of those they resemble. */
       newScreens: Array<{ name: string; closest: string[]; why: string }>
     }
+  /** A knowledge evaluation launch: every resolved setting, the model, and what its dry run says it would do. */
+  | ({ kind: 'evaluation-launch' } & EvaluationLaunchAskBodyView)
 
 /** One image a design ask files: the screen and state it names, by id or by name, its variant and file. */
 export type DesignAskEntry = {

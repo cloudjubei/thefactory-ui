@@ -48,6 +48,11 @@ export interface StartWorkTarget {
   featureIds?: readonly string[]
   /** The feature request whose work this is — accepted, or started again. */
   request?: { id: string; again: boolean }
+  /**
+   * The process the work runs by, decided before the start opened: no choice of a process run or
+   * the chat, and the launch card keeps this process — the person picks the agent.
+   */
+  processId?: string
 }
 
 /** Where a start went, for the host to open. */

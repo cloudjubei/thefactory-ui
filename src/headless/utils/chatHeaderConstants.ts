@@ -26,3 +26,9 @@ export const CHAT_HEADER_ASSISTANT_CONTEXT = 'Across everything'
 
 /** The pill of an Assistant conversation archived from the list. */
 export const CHAT_HEADER_ARCHIVED_PILL = { label: 'Archived', tone: 'empty' } as const
+
+/**
+ * A started story or feature's pill in a chat, in place of the shared "Working":
+ * in a chat, Working means a live turn, and a started item may have none.
+ */
+export const CHAT_WORK_IN_PROGRESS_LABEL = 'In progress'

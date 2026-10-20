@@ -36,7 +36,7 @@ export default function AppWorkStartSheet({
   onCancel,
 }: AppWorkStartSheetProps) {
   const { theme } = useNativeTheme()
-  if (!ask) return null
+  if (!ask || ask.launching) return null
   const { draft, busy, error } = ask
   const editable = workStartEditable(ask)
   const setFeature = (index: number, patch: Partial<AppWorkStartDraft['features'][number]>) =>

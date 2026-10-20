@@ -154,6 +154,7 @@ function ToolCallCardInner({
     result,
     resultType,
     toolCall.awaitingDecision === true,
+    toolCall.executionResult,
   )
 
   // A commit the person approved is one receipt line, in place of the row:
