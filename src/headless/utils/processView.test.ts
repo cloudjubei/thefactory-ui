@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ProcessRun, ProcessStepOutcome } from 'thefactory-tools/types'
+import type { ProcessLedgerEntry, ProcessRun, ProcessStepOutcome } from 'thefactory-tools/types'
 import { AGENT_RUN_TYPES, PROCESS_STEP_KINDS } from 'thefactory-tools/constants'
 import { emptyProcessTimeBreakdown } from 'thefactory-tools/utils'
 import { PROCESS_CIRCLING_CARD_LINE } from './processCirclingViewConstants'
@@ -8,6 +8,7 @@ import {
   PROCESS_RUN_STATUS_VIEW,
   processRunChipLabel,
   processStepTone,
+  processAttemptTone,
   processRunSpend,
   PROCESS_KIND_BLURB,
   copyProcessDefinition,
@@ -167,6 +168,33 @@ describe('processStepTone', () => {
 
   it('does not claim a done step succeeded when it recorded no outcome', () => {
     expect(processStepTone('done', undefined)).toBe('empty')
+  })
+})
+
+describe('processAttemptTone', () => {
+  const attempt = (over: Partial<ProcessLedgerEntry>): ProcessLedgerEntry => ({
+    id: 'v3',
+    stepId: 'verify',
+    iteration: 3,
+    status: 'done',
+    startedAt: 0,
+    ...over,
+  })
+
+  it('draws an attempt carried on past unproven in the gold of Accepted unchecked', () => {
+    expect(
+      processAttemptTone(
+        attempt({ outcome: 'unchecked', override: { choice: 'continue', at: 1 } }),
+      ),
+    ).toBe('review')
+  })
+
+  it('keeps an unproven attempt sent to try again, a pass and a running one in their own tones', () => {
+    expect(
+      processAttemptTone(attempt({ outcome: 'unchecked', override: { choice: 'retry', at: 1 } })),
+    ).toBe('blocked')
+    expect(processAttemptTone(attempt({ outcome: 'passed' }))).toBe('done')
+    expect(processAttemptTone(attempt({ status: 'running' }))).toBe('running')
   })
 })
 
@@ -691,6 +719,36 @@ describe('processNodeState', () => {
     expect(processNodeState(st({ status: 'done', outcome: 'skipped' }), undefined)).toBe('skipped')
   })
 
+  it('reads an unchecked step carried on past as accepted, not as a failure', () => {
+    const state = {
+      ...st({ outcome: 'unchecked' }),
+      latest: {
+        stepId: 'x',
+        status: 'done' as const,
+        outcome: 'unchecked' as const,
+        override: { choice: 'continue' as const, at: 1, decidedBy: 'person' as const },
+      },
+    }
+    expect(processNodeState(state, undefined)).toBe('accepted')
+  })
+
+  it('reads a process step whose nested run passed over steps carried on past as accepted, not done', () => {
+    const state = {
+      ...st({ outcome: 'passed' }),
+      latest: {
+        stepId: 'x',
+        status: 'done' as const,
+        outcome: 'passed' as const,
+        acceptedUnchecked: [
+          { stepId: 'verify', stepName: 'Verify', at: 1, decidedBy: 'manager' as const },
+        ],
+      },
+    }
+    expect(processNodeState(state, undefined)).toBe('accepted')
+    expect(processNodeState({ ...state, requeued: true }, undefined)).toBe('requeued')
+    expect(processNodeState(state, 'x')).toBe('parked')
+  })
+
   it('reads a failed step whose Try again went to the checks first as rechecked, not failed', () => {
     const state = { ...st({ outcome: 'errored' }), rechecked: { stepId: 'checks' } }
     expect(processNodeState(state, undefined)).toBe('rechecked')
@@ -725,6 +783,7 @@ describe('processNodeTone', () => {
   it('only ever names a status the package has tokens for', () => {
     const states = [
       'done',
+      'accepted',
       'working',
       'failed',
       'parked',
@@ -744,6 +803,7 @@ describe('processNodeGlyph', () => {
   it('shows a verdict glyph where there is one, else the ordinal', () => {
     expect(processNodeGlyph('done', 2)).toBe('✓')
     expect(processNodeGlyph('failed', 2)).toBe('!')
+    expect(processNodeGlyph('accepted', 2)).toBe('!')
     expect(processNodeGlyph('parked', 2)).toBe('?')
     expect(processNodeGlyph('queued', 2)).toBe('2')
     expect(processNodeGlyph('working', 3)).toBe('3')
@@ -789,6 +849,15 @@ describe('processNodeLook', () => {
       shape: 'solid',
       glyph: '?',
       tone: 'review',
+    })
+  })
+
+  it('draws a step accepted unchecked as a filled gold mark — never the done green', () => {
+    expect(processNodeLook('accepted', false, 4)).toEqual({
+      tone: 'review',
+      shape: 'solid',
+      spin: false,
+      glyph: '!',
     })
   })
 })

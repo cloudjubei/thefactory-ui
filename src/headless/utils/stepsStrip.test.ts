@@ -154,7 +154,57 @@ function entry(stepId: string, over: Partial<ProcessLedgerEntry> = {}): ProcessL
   } as ProcessLedgerEntry
 }
 
+describe('stepsStripView — steps accepted unchecked', () => {
+  it('counts the folded steps accepted unchecked on the done chip', () => {
+    const list: StepsStripEntry[] = [
+      { key: 'a', label: 'A', phase: 'done', tone: 'done' },
+      {
+        key: 'b',
+        label: 'B',
+        phase: 'done',
+        tone: 'review',
+        acceptedUnchecked: 'Verify accepted by you — never proven',
+      },
+      { key: 'c', label: 'C', phase: 'current', tone: 'running' },
+      { key: 'd', label: 'D', phase: 'upcoming', tone: 'queued' },
+    ]
+    expect(stepsStripView(list, { narrow: true }).items[0]).toMatchObject({
+      kind: 'done',
+      count: 2,
+      acceptedUnchecked: 1,
+    })
+  })
+
+  it('counts none when every folded step proved itself', () => {
+    const view = stepsStripView(entries(['done', 'done', 'current']), { narrow: true })
+    expect(view.items[0]).toMatchObject({ kind: 'done', count: 2, acceptedUnchecked: 0 })
+  })
+})
+
 describe('processRunStripEntries', () => {
+  it('draws a step carried on past unproven as done in gold, saying who accepted it', () => {
+    const r = run({
+      status: 'parked',
+      park: { reason: 'gate', stepId: 'signoff', message: '', parkedAt: 0 },
+      ledger: [
+        entry('impl'),
+        entry('verify', {
+          outcome: 'unchecked',
+          override: { choice: 'continue', at: 1, decidedBy: 'manager', decidedVia: 'manager' },
+        }),
+      ],
+    })
+    const [impl, verify] = processRunStripEntries(r)
+    expect(impl).toEqual({ key: 'impl', label: 'Implement', phase: 'done', tone: 'done' })
+    expect(verify).toEqual({
+      key: 'verify',
+      label: 'Verify',
+      phase: 'done',
+      tone: 'review',
+      acceptedUnchecked: 'Accepted by the manager — never proven',
+    })
+  })
+
   it('names every planned step in order', () => {
     expect(processRunStripEntries(run()).map((e) => [e.key, e.label])).toEqual([
       ['impl', 'Implement'],

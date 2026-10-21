@@ -70,6 +70,20 @@ describe('signoffAttentionItems', () => {
     ])
   })
 
+  it('names the manager when it accepted the section', () => {
+    const [item] = signoffAttentionItems([
+      {
+        id: 'fix-430fd523',
+        dependency: undefined,
+        label: 'Fix · pass 3',
+        mode: 'unknown',
+        standing: 'accepted',
+        acceptedBy: 'the manager',
+      },
+    ])
+    expect(item?.text).toBe('was accepted by the manager without its Verify step passing.')
+  })
+
   it('names a section verified dry', () => {
     const items = signoffAttentionItems([
       { id: 'f2', dependency: undefined, label: 'Fix · pass 1', mode: 'dry', standing: 'passed' },

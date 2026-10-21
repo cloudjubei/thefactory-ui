@@ -57,6 +57,8 @@ export const EVALUATION_LAUNCH_ASK = {
   resetValue: 'Start over',
   withoutRawSource: 'Left out',
   compared: 'Compared',
+  concurrencyCapped: (requested: string, by?: string) =>
+    by ? `Capped by ${by} — ${requested} asked` : `Capped — ${requested} asked`,
 } as const
 
 /** How many characters of a commit the card shows. */

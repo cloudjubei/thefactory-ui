@@ -8,6 +8,8 @@ export type EvaluationLaunchSettingRow = {
   detail?: string
   /** Where the value came from, in short words; absent when the host did not say. */
   source?: string
+  /** The value runs below what was asked: what capped it and what was asked, in one short line. */
+  capped?: string
 }
 
 /** One capability the launch would measure, with how much work it holds. */

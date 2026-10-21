@@ -12,8 +12,9 @@ const CHIP =
 
 /**
  * An evaluation launch on its approval card: a mixed-builds warning first when the ledger would mix
- * builds, every resolved setting with where it came from, the run it matched, and what its dry run
- * says it would do — the ledger, the work by capability, and the build that would run.
+ * builds, every resolved setting with where it came from — a capped one with what capped it — the
+ * run it matched, and what its dry run says it would do — the ledger, the work by capability, and
+ * the build that would run.
  */
 export default function EvaluationLaunchAskBody({ body }: EvaluationLaunchAskBodyProps) {
   const preview = body.preview
@@ -44,6 +45,11 @@ export default function EvaluationLaunchAskBody({ body }: EvaluationLaunchAskBod
                 {row.detail ? (
                   <span className="text-[12px] wrap-break-word text-(--text-muted)">
                     {row.detail}
+                  </span>
+                ) : null}
+                {row.capped ? (
+                  <span className="text-[12px] wrap-break-word text-(--status-stuck-soft-fg)">
+                    {row.capped}
                   </span>
                 ) : null}
               </dd>

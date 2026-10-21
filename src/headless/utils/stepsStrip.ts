@@ -1,6 +1,7 @@
 import type { Feature, ProcessRun, ProcessRunStopHolder } from 'thefactory-tools/types'
 import { processStepStates } from 'thefactory-tools/utils'
 
+import { processStepAcceptedUnchecked } from './processAcceptedUnchecked'
 import { processNodeBadge, processNodeState, processNodeTone } from './processView'
 import type { ProcessStatusTone } from './processView'
 import { acceptanceCriteriaLines } from './signoffPage'
@@ -50,7 +51,8 @@ function stepItem(entry: StepsStripEntry): StepsStripItem {
  * the one the work is on become one `✓ N done` chip, that step stays in full
  * with its attempt pill, the next one follows on a wide strip, and the rest
  * become `+N more`. Without a current step the first unfinished one anchors
- * the fold, and a finished list anchors on its last step. Pure.
+ * the fold, and a finished list anchors on its last step. The `✓ N done` chip
+ * counts the steps in it that were accepted unchecked. Pure.
  */
 export function stepsStripView(
   entries: readonly StepsStripEntry[],
@@ -62,7 +64,8 @@ export function stepsStripView(
     return { items: entries.map(stepItem), folded: false }
   }
   const anchor = anchorIndex(entries)
-  const doneCount = entries.slice(0, anchor).filter((e) => e.phase === 'done').length
+  const folded = entries.slice(0, anchor).filter((e) => e.phase === 'done')
+  const doneCount = folded.length
   const after = entries.length - anchor - 1
   const showNext = !narrow && after > 0
   const rest = after - (showNext ? 1 : 0)
@@ -73,6 +76,7 @@ export function stepsStripView(
       key: 'done',
       label: narrow ? `✓ ${doneCount}/${entries.length}` : `✓ ${doneCount} done`,
       count: doneCount,
+      acceptedUnchecked: folded.filter((e) => e.acceptedUnchecked !== undefined).length,
     })
   }
   items.push({ kind: 'step', key: entries[anchor].key, entry: entries[anchor], emphasis: true })
@@ -93,7 +97,8 @@ export function stepsStripView(
  * parked — is current, steps it finished are done, and steps it has not reached
  * or will run again are upcoming. A retried step carries its attempt pill. The
  * step a run is stopped at reads as work going on while `stopHolder` says its
- * agent manager has the stop. Pure.
+ * agent manager has the stop. A step carried on past although it was never
+ * proven is done in the gold of "Accepted unchecked", saying who accepted it. Pure.
  */
 export function processRunStripEntries(
   run: ProcessRun,
@@ -110,12 +115,14 @@ export function processRunStripEntries(
           ? 'upcoming'
           : 'done'
     const attempt = processNodeBadge(state, run)
+    const accepted = nodeState === 'accepted' ? processStepAcceptedUnchecked(state) : undefined
     return {
       key: state.step.id,
       label: state.step.name,
       phase,
       tone: processNodeTone(nodeState, state.step.kind === 'gate'),
       ...(attempt ? { attempt } : {}),
+      ...(accepted ? { acceptedUnchecked: accepted.line } : {}),
     }
   })
 }

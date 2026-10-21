@@ -204,6 +204,7 @@ export default function ProcessPipeline({
   const [stack, setStack] = useState<string[]>([])
   const [panel, setPanel] = useState<StepPanelTarget | null>(null)
   const [reportText, setReportText] = useState<string | undefined>()
+  const { resolveDependency } = useStories()
   const currentId = stack[stack.length - 1] ?? runId
   const {
     isLoaded,
@@ -500,6 +501,7 @@ export default function ProcessPipeline({
                   managerLine={managerLine}
                   {...(alreadyMerged ? { alreadyMerged } : {})}
                   addedTag={amendments.addedSteps[state.step.id]}
+                  resolveDependency={resolveDependency}
                   onChoose={choose}
                   onChangeProof={(draft) => void changeProof(draft)}
                   onAnswerRequest={(actionId, choice) =>
@@ -938,10 +940,12 @@ function Marker({ look }: { look: ProcessNodeLook }) {
  * One step: its status, its name (a feature by its chip alone), what it came
  * to in a line, its time and cost, and a chevron when it produced something to
  * preview. A skipped or not-needed step is grey with no chips and no chevron.
+ * A step the run carried on past although it was never proven wears the gold
+ * "Accepted unchecked" pill, and its line says who accepted it.
  * The step a run is parked on (other than its sign-off) carries its decision
  * inline; a feature the run is on opens its stages by itself.
  */
-function PipelineNode({
+export function PipelineNode({
   run,
   root,
   state,
@@ -950,6 +954,7 @@ function PipelineNode({
   managerLine,
   alreadyMerged,
   addedTag,
+  resolveDependency,
   onChoose,
   onChangeProof,
   onAnswerRequest,
@@ -972,6 +977,8 @@ function PipelineNode({
   /** Finishing the run as already merged from its stop, when its base already holds the work. */
   alreadyMerged?: ProcessAlreadyMergedAction
   addedTag: string | undefined
+  /** Whether a feature's reference resolves to a story the app has loaded. */
+  resolveDependency: ReturnType<typeof useStories>['resolveDependency']
   onChoose: (
     choice: ProcessResumeChoice,
     note?: string,
@@ -990,7 +997,6 @@ function PipelineNode({
   onOpenPanel: (target: StepPanelTarget) => void
   onOpenTranscript?: (ref: ProcessNodeRunRef) => void
 }) {
-  const { resolveDependency } = useStories()
   const parkStepId = run.park?.stepId
   const parked = parkStepId === state.step.id
   const nodeState = processNodeState(state, parkStepId)
@@ -1039,6 +1045,11 @@ function PipelineNode({
             </span>
           ) : null}
           {circling && !row.inert ? <CirclingChip view={circling} /> : null}
+          {row.acceptedUnchecked ? (
+            <ToneBadge tone={look.tone} title={row.acceptedUnchecked.line}>
+              {row.acceptedUnchecked.label}
+            </ToneBadge>
+          ) : null}
           {iteration && !row.inert ? (
             <span
               className="inline-flex shrink-0 items-center rounded-full px-2 py-px text-[10.5px] font-semibold tabular-nums"

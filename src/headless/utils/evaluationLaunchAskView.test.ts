@@ -250,6 +250,60 @@ describe('evaluationLaunchAskView — settings', () => {
     expect(view.body.previewUnavailable).toBe('Preview unavailable')
   })
 
+  it('shows the concurrency the launch runs at, and in a short line what capped it and what was asked', () => {
+    const cappedBy = 'the host’s CLI evaluation limit (THEFACTORY_EVAL_CLI_CONCURRENCY)'
+    const view = evaluationLaunchAskView(
+      detail({
+        params: { ...PARAMS, concurrency: 4 },
+        concurrencyCap: { requested: 10, effective: 4, cappedBy },
+      }),
+      {},
+    )
+    if (view.body.kind !== 'evaluation-launch') throw new Error('not an evaluation launch')
+    expect(view.body.settings.find((r) => r.key === 'concurrency')).toEqual({
+      key: 'concurrency',
+      label: 'Concurrency',
+      value: '4',
+      capped: EVALUATION_LAUNCH_ASK.concurrencyCapped('10', cappedBy),
+      source: 'project default',
+    })
+    expect(EVALUATION_LAUNCH_ASK.concurrencyCapped('10', cappedBy)).toBe(
+      `Capped by ${cappedBy} — 10 asked`,
+    )
+  })
+
+  it('says a launch was capped without naming what capped it when the host did not say', () => {
+    const view = evaluationLaunchAskView(
+      detail({
+        params: { ...PARAMS, concurrency: 4 },
+        concurrencyCap: { requested: 10, effective: 4 },
+      }),
+      {},
+    )
+    if (view.body.kind !== 'evaluation-launch') throw new Error('not an evaluation launch')
+    expect(view.body.settings.find((r) => r.key === 'concurrency')?.capped).toBe(
+      'Capped — 10 asked',
+    )
+  })
+
+  it('shows the effective number from the cap, and no cap line for a launch that runs at what was asked or a cap it cannot read', () => {
+    const shown = (over: Record<string, unknown>) => {
+      const view = evaluationLaunchAskView(detail(over), {})
+      if (view.body.kind !== 'evaluation-launch') throw new Error('not an evaluation launch')
+      return view.body.settings.find((r) => r.key === 'concurrency')
+    }
+    expect(shown({ concurrencyCap: { requested: 10, effective: 4 } })?.value).toBe('4')
+    expect(shown({})).not.toHaveProperty('capped')
+    expect(shown({ concurrencyCap: { requested: '10', effective: 4 } })).toMatchObject({
+      value: '10',
+    })
+    expect(shown({ concurrencyCap: { requested: '10', effective: 4 } })).not.toHaveProperty(
+      'capped',
+    )
+    expect(shown({ concurrencyCap: { requested: 10, effective: 10 } })).not.toHaveProperty('capped')
+    expect(shown({ concurrencyCap: 'four' })).not.toHaveProperty('capped')
+  })
+
   it('shows an unknown stage or steering by its own name', () => {
     const view = evaluationLaunchAskView(
       detail({ params: { stage: 'marathon', promptMode: 'loud' } }),

@@ -226,6 +226,33 @@ const UNAVAILABLE = launch(
   'Re-measure the nine focused capabilities on the same settings as the last saturate run.',
 )
 
+const CLI_BRAKE = "the host's CLI evaluation limit (THEFACTORY_EVAL_CLI_CONCURRENCY)"
+
+const CAPPED = launch(
+  'capped',
+  {
+    params: { ...PARAMS, concurrency: 4 },
+    model: CURSOR,
+    sources: MATCHED_SOURCES,
+    matchActivityId: 'd9056233-b815-419a-9117-d50d40414078',
+    preview: preview({ concurrency: 4 }),
+    concurrencyCap: { requested: 10, effective: 4, cappedBy: CLI_BRAKE },
+  },
+  'Re-measure the nine focused capabilities on the same settings as the last saturate run.',
+)
+
+const NOT_CAPPED = launch(
+  'not-capped',
+  {
+    params: { ...PARAMS, concurrency: 4 },
+    model: CURSOR,
+    sources: { ...MATCHED_SOURCES, concurrency: 'explicit' },
+    matchActivityId: 'd9056233-b815-419a-9117-d50d40414078',
+    preview: preview({ concurrency: 4 }),
+  },
+  'Re-measure the nine focused capabilities on the same settings as the last saturate run.',
+)
+
 /** Sized like the dock it replaces the composer in. */
 function DockPanel({ of }: { of: PendingToolGrant }) {
   return (
@@ -316,6 +343,20 @@ export const KNOWLEDGE_EVALUATION_SCENES: Scene[] = [
         description:
           'The ledger already holds runs from other builds; this build and a linked one have uncommitted changes.',
         render: () => <DockPanel of={MIXED} />,
+      },
+      {
+        id: 'concurrency-capped',
+        title: 'Concurrency capped by the host',
+        description:
+          'Matched run asked for 10 concurrent runs; a CLI evaluation runs at 4 under the host’s limit, and the card says so.',
+        render: () => <DockPanel of={CAPPED} />,
+      },
+      {
+        id: 'concurrency-not-capped',
+        title: 'Concurrency as asked',
+        description:
+          'The look-alike of the capped card: 4 concurrent runs asked in the call, 4 run, no cap line.',
+        render: () => <DockPanel of={NOT_CAPPED} />,
       },
       {
         id: 'preview-unavailable',

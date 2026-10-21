@@ -41,8 +41,13 @@ import { costDetailsView } from './costDetails'
 // keys, which is what the worst-wins rule turns on.
 const fs = (key: FeatureSignoff['verdict']['key'], title: string = key): FeatureSignoff =>
   ({ title, verdict: { key }, standing: undefined }) as FeatureSignoff
-const acceptedFs = (title: string): FeatureSignoff =>
-  ({ title, verdict: { key: 'partly' }, standing: 'accepted' }) as FeatureSignoff
+const acceptedFs = (title: string, acceptedBy?: string): FeatureSignoff =>
+  ({
+    title,
+    verdict: { key: 'partly' },
+    standing: 'accepted',
+    ...(acceptedBy ? { acceptedBy } : {}),
+  }) as FeatureSignoff
 
 describe('aggregateStoryVerdict', () => {
   it('is proven only when every feature is proven', () => {
@@ -107,6 +112,30 @@ describe('aggregateStoryVerdict', () => {
     expect(v.key).toBe('partly')
     expect(v.title).toBe('0 of 2 features proven · 2 accepted by you')
     expect(v.detail).toBe('')
+  })
+
+  it('names you and the manager when each accepted a feature', () => {
+    const v = aggregateStoryVerdict(
+      [fs('proven'), acceptedFs('Checkout', 'you'), acceptedFs('Cart', 'the manager')],
+      undefined,
+    )
+    expect(v.title).toBe('1 of 3 features proven · 2 accepted by you and the manager')
+  })
+
+  it('names the manager alone when it accepted every feature, each once', () => {
+    const v = aggregateStoryVerdict(
+      [acceptedFs('Checkout', 'the manager'), acceptedFs('Cart', 'the manager')],
+      undefined,
+    )
+    expect(v.title).toBe('0 of 2 features proven · 2 accepted by the manager')
+  })
+
+  it('reads an acceptance recorded before it was attributed as yours, beside the manager’s', () => {
+    const v = aggregateStoryVerdict(
+      [acceptedFs('Checkout', 'the manager'), acceptedFs('Cart')],
+      undefined,
+    )
+    expect(v.title).toBe('0 of 2 features proven · 2 accepted by the manager and you')
   })
 
   it('does not count an accepted feature as one still to prove', () => {
@@ -2991,7 +3020,57 @@ describe('buildStorySignoff — a feature’s own code review, from its run’s 
       })
       expect(f.statusLine).toEqual({ tone: 'review', label: 'Accepted by you' })
       expect(f.standing).toBe('accepted')
+      expect(f.acceptedBy).toBe('you')
       expect(s.verdict.key).toBe('partly')
+    })
+
+    it('names the manager when it carried the feature on past the review', () => {
+      const s = signoffOf([
+        implement(1),
+        review(1, {
+          outcome: 'failed',
+          review: { verdict: 'rejected', reason: 'Out of scope.' },
+          override: {
+            choice: 'continue',
+            at: start(1, 16),
+            decidedBy: 'manager',
+            decidedVia: 'manager',
+          },
+        }),
+        verify(1),
+      ])
+      const f = s.features[0]
+      expect(f.verdict.title).toBe('Code review: rejected — accepted by the manager')
+      expect(f.statusLine).toEqual({ tone: 'review', label: 'Accepted by the manager' })
+      expect(f.codeReview).toMatchObject({ accepted: true, acceptedBy: 'the manager' })
+      expect(f.acceptedBy).toBe('the manager')
+      expect(s.verdict.title).toBe('0 of 1 feature proven · 1 accepted by the manager')
+    })
+
+    it('names the manager when it carried an unchecked verify on, with no review to pass', () => {
+      const s = signoffOf([
+        implement(1),
+        review(1, { outcome: 'passed', review: { verdict: 'approved' } }),
+        verify(1, {
+          outcome: 'unchecked',
+          override: { choice: 'continue', at: start(1, 26), decidedBy: 'manager' },
+        }),
+      ])
+      const f = s.features[0]
+      expect(f.standing).toBe('accepted')
+      expect(f.statusLine).toEqual({ tone: 'review', label: 'Accepted unchecked' })
+      expect(f.acceptedBy).toBe('the manager')
+      expect(s.verdict.title).toBe('0 of 1 feature proven · 1 accepted by the manager')
+    })
+
+    it('names no one on a feature that proved itself', () => {
+      const f = featureOf([
+        implement(1),
+        review(1, { outcome: 'passed', review: { verdict: 'approved' } }),
+        verify(1),
+      ])
+      expect(f.acceptedBy).toBeUndefined()
+      expect(f.codeReview?.acceptedBy).toBeUndefined()
     })
 
     it('leaves a verify that failed after it to fail the feature', () => {

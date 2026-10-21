@@ -2688,6 +2688,7 @@ export {
   processRunPersonEnding,
   processRunSpend,
   processStepTone,
+  processAttemptTone,
   processStepFinishedView,
   processStepAgentTypeOfRun,
   processNodeState,
@@ -2720,6 +2721,27 @@ export {
   type VerifyReviewStatus,
   type ProcessOpenLeaf,
 } from './utils/processView'
+// A step the run carried on past although it was never proven — "Accepted
+// unchecked" in gold wherever a step's status shows, saying who accepted it.
+export {
+  isProcessEntryAcceptedUnchecked,
+  processAcceptedByList,
+  processAcceptedByWord,
+  processEntryAcceptedUnchecked,
+  processStepAcceptedUnchecked,
+} from './utils/processAcceptedUnchecked'
+export {
+  PROCESS_ACCEPTED_BY,
+  PROCESS_ACCEPTED_NEVER_PROVEN,
+  PROCESS_ACCEPTED_UNCHECKED_COUNT,
+  PROCESS_ACCEPTED_UNCHECKED_LABEL,
+  PROCESS_ACCEPTED_UNCHECKED_NOTE,
+  PROCESS_ACCEPTED_UNCHECKED_TONE,
+} from './utils/processAcceptedUncheckedConstants'
+export type {
+  ProcessAcceptedEntry,
+  ProcessAcceptedUncheckedView,
+} from './utils/processAcceptedUncheckedTypes'
 export type {
   ProcessNodeLook,
   ProcessNodeSummary,

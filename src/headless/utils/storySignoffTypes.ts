@@ -200,6 +200,11 @@ export type SectionSignoff = {
    * turned it back.
    */
   standing: VerifyAttemptStanding | undefined
+  /**
+   * Who accepted the section — over its verify gate or past its code review —
+   * as a line names them: "you", "the manager". Absent unless it was accepted.
+   */
+  acceptedBy?: string
   /** This feature's time and cost: its latest run's totals alone. */
   facts: RunReviewFacts
   /** Which agent/model produced this feature's run. */
@@ -233,8 +238,10 @@ export type SectionCodeReview = {
   line: StoryStepLine | undefined
   /** The verdict it reached; absent while it runs, or when it reached none. */
   verdict: VerifyReviewerVerdict | undefined
-  /** A person carried the feature on past a review that turned it back. */
+  /** Someone carried the feature on past a review that turned it back. */
   accepted: boolean
+  /** Who carried it on past the review — "you", "the manager" — when someone did. */
+  acceptedBy?: string
 }
 
 /**

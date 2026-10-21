@@ -11,6 +11,9 @@ import type {
   ProcessVerifyReview,
 } from 'thefactory-tools/types'
 import { costChipLabel, formatCostUSD } from './costDetails'
+import { isProcessEntryAcceptedUnchecked } from './processAcceptedUnchecked'
+import { PROCESS_ACCEPTED_UNCHECKED_TONE } from './processAcceptedUncheckedConstants'
+import type { ProcessAcceptedEntry } from './processAcceptedUncheckedTypes'
 import { PROCESS_CIRCLING_CARD_LINE } from './processCirclingViewConstants'
 import { processIntegrationBadge } from './processIntegration'
 import { processRunManagerLine } from './processRunStop'
@@ -142,6 +145,17 @@ export function processStepTone(
   if (status === 'pending') return 'empty'
   if (status === 'running') return PROCESS_LIVE_TONE
   return outcome ? PROCESS_OUTCOME_VIEW[outcome].tone : 'empty'
+}
+
+/**
+ * The tone one attempt's chip shows: the gold of "Accepted unchecked" when the
+ * run carried it on past although it proved nothing, else its outcome's.
+ */
+export function processAttemptTone(
+  entry: ProcessAcceptedEntry & Pick<ProcessLedgerEntry, 'status'>,
+): ProcessStatusTone {
+  if (isProcessEntryAcceptedUnchecked(entry)) return PROCESS_ACCEPTED_UNCHECKED_TONE
+  return processStepTone(entry.status === 'running' ? 'running' : 'done', entry.outcome)
 }
 
 /**
@@ -372,9 +386,12 @@ export function parkedRunRef(run: ProcessRun): ProcessNodeRunRef | undefined {
  * everything, because a run sitting on a decision is the thing the eye must find
  * first. `requeued` is a step a later pass went back over — a verify that failed
  * and sent the work back is NEXT again, not the red failure it no longer is.
+ * `accepted` is a step the run carried on past although it was never proven —
+ * its own unchecked attempt, or a nested run that succeeded over such steps.
  */
 export type ProcessNodeState =
   | 'done'
+  | 'accepted'
   | 'working'
   | 'failed'
   | 'parked'
@@ -387,6 +404,7 @@ export type ProcessNodeState =
 export function processNodeState(
   state: Pick<ProcessStepState, 'status' | 'outcome' | 'requeued' | 'rechecked'> & {
     step: { id: string }
+    latest?: ProcessAcceptedEntry
   },
   parkedStepId: string | undefined,
 ): ProcessNodeState {
@@ -395,6 +413,7 @@ export function processNodeState(
   if (state.requeued) return 'requeued'
   if (state.rechecked) return 'rechecked'
   if (state.status === 'pending') return 'queued'
+  if (isProcessEntryAcceptedUnchecked(state.latest)) return 'accepted'
   if (state.outcome === 'failed' || state.outcome === 'errored' || state.outcome === 'unchecked')
     return 'failed'
   if (state.outcome === 'skipped') return 'skipped'
@@ -408,6 +427,8 @@ export function processNodeTone(nodeState: ProcessNodeState, isGate: boolean): P
   switch (nodeState) {
     case 'done':
       return 'done'
+    case 'accepted':
+      return PROCESS_ACCEPTED_UNCHECKED_TONE
     case 'working':
       return PROCESS_LIVE_TONE
     case 'failed':
@@ -427,6 +448,7 @@ export function processNodeGlyph(nodeState: ProcessNodeState, ordinal: number): 
     case 'done':
       return '✓'
     case 'failed':
+    case 'accepted':
       return '!'
     case 'parked':
       return '?'

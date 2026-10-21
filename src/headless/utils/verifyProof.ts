@@ -18,6 +18,8 @@ import type {
 import { processEntryWorkMs, processVerifyReview } from 'thefactory-tools/utils'
 
 import type { ReviewEvidenceRef } from '../api/generated'
+import { processAcceptedByWord } from './processAcceptedUnchecked'
+import { PROCESS_ACCEPTED_UNCHECKED_LABEL } from './processAcceptedUncheckedConstants'
 import { formatProcessDuration, verifyReviewStatus, type VerifyReviewStatus } from './processView'
 import {
   evidenceFiledWithin,
@@ -35,7 +37,8 @@ import type { EvidenceTile, ScreenPair } from './reviewEvidenceViewTypes'
 import { runReviewFacts } from './runReview'
 import type { RunReviewFacts } from './runReviewTypes'
 import {
-  ACCEPTED_BY_YOU,
+  ACCEPTED_BY,
+  ACCEPTED_NOTE,
   ACCEPTING_CHOICES,
   APPROVED_UNCONFIRMED,
   ATTEMPT_EMPTY,
@@ -186,11 +189,27 @@ export function verifyAttemptStanding(entry: GatedEntry): VerifyAttemptStanding 
 const stands = (standing: VerifyAttemptStanding): boolean =>
   standing === 'passed' || standing === 'accepted'
 
-/** A verify attempt's headline — the gate's, unless a person accepted the attempt over it. */
+/** Who accepted an attempt over its gate, as a line names them. */
+function acceptedBy(entry: Pick<ProcessLedgerEntry, 'override'>): string {
+  return processAcceptedByWord(entry.override?.decidedBy)
+}
+
+/**
+ * A verify attempt's headline — the gate's, unless someone accepted the attempt
+ * over it: "Accepted unchecked" when the gate could not confirm its proof, else
+ * who accepted it.
+ */
 export function verifyAttemptStatus(entry: GatedEntry): VerifyReviewStatus {
-  return verifyAttemptStanding(entry) === 'accepted'
-    ? { tone: 'review', label: ACCEPTED_BY_YOU }
-    : verifyReviewStatus({ status: entry.status, outcome: gateOutcome(entry) })
+  if (verifyAttemptStanding(entry) !== 'accepted') {
+    return verifyReviewStatus({ status: entry.status, outcome: gateOutcome(entry) })
+  }
+  return {
+    tone: 'review',
+    label:
+      gateOutcome(entry) === 'unchecked'
+        ? PROCESS_ACCEPTED_UNCHECKED_LABEL
+        : ACCEPTED_BY(acceptedBy(entry)),
+  }
 }
 
 function gateSaid(entry: Pick<ProcessLedgerEntry, 'outcome' | 'proof'>): string {
@@ -695,9 +714,10 @@ function gateNote(
 
 function acceptanceNote(entry: ProcessLedgerEntry): VerifyVerdictNote {
   const note = trimmed(entry.override?.note)
+  const who = acceptedBy(entry)
   return {
-    label: ACCEPTED_BY_YOU,
-    ...(note ? { reason: `Your note: ${note}` } : {}),
+    label: ACCEPTED_BY(who),
+    ...(note ? { reason: ACCEPTED_NOTE(who, note) } : {}),
     tone: 'review',
   }
 }
@@ -772,7 +792,7 @@ function acceptedLabel(accepted: VerifyAttempt): string {
     case 'passed':
       return `${which} — the one the gate passed`
     case 'accepted':
-      return `${which} — accepted by you; ${said}`
+      return `${which} — accepted by ${acceptedBy(accepted.entry)}; ${said}`
     case 'running':
       return `${which} — still running`
     case 'unchecked':
@@ -795,6 +815,7 @@ export function featureVerifyView(
     accepted: view,
     acceptedLabel: acceptedLabel(accepted),
     standing: view.standing,
+    ...(view.standing === 'accepted' ? { acceptedBy: acceptedBy(accepted.entry) } : {}),
     mode: header?.mode ?? 'unknown',
   }
 }

@@ -13,7 +13,7 @@ export type SignoffAttentionInput = {
   dependency: string | undefined
   /** What to call it when it has no reference — "Fix · pass 2". */
   label: string
-} & Pick<FeatureVerifyView, 'mode' | 'standing'>
+} & Pick<FeatureVerifyView, 'mode' | 'standing' | 'acceptedBy'>
 
 /** One line of the attention box: what needs a look, and where to see what Verify said. */
 export type SignoffAttentionItem = {

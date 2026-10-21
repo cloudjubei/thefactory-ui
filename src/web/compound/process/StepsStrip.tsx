@@ -1,8 +1,11 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 
 import {
+  PROCESS_ACCEPTED_UNCHECKED_COUNT,
+  PROCESS_ACCEPTED_UNCHECKED_TONE,
   STEPS_STRIP_COPY,
   stepsStripView,
+  type ProcessStatusTone,
   type StepsStripEntry,
   type StepsStripModel,
 } from '../../../headless'
@@ -28,6 +31,11 @@ function Dot({ entry }: { entry: StepsStripEntry }) {
   )
 }
 
+/** What a step's hover says: its name, its attempt, and who accepted it when it was never proven. */
+function stepTitle(entry: StepsStripEntry): string {
+  return [entry.label, entry.attempt, entry.acceptedUnchecked].filter(Boolean).join(' · ')
+}
+
 function AttemptPill({ text }: { text: string }) {
   return (
     <span className="shrink-0 rounded-full bg-(--surface-muted) px-1.5 text-[10px] font-semibold text-(--text-secondary)">
@@ -47,7 +55,7 @@ function Step({
 }) {
   return (
     <span
-      title={entry.attempt ? `${entry.label} · ${entry.attempt}` : entry.label}
+      title={stepTitle(entry)}
       className={`inline-flex min-w-0 items-center gap-1.5 rounded-full ${emphasis ? 'shrink py-px pl-1 pr-2 font-semibold' : 'shrink-[2]'}`}
       style={{
         maxWidth: emphasis && !narrow ? 280 : 170,
@@ -64,6 +72,15 @@ function Step({
       {emphasis && entry.attempt ? <AttemptPill text={entry.attempt} /> : null}
     </span>
   )
+}
+
+/** The folded `✓ N done` chip — in the gold of "Accepted unchecked" when it holds such steps. */
+function doneChipStyle(tone: ProcessStatusTone) {
+  return {
+    background: `var(--status-${tone}-soft-bg)`,
+    color: `var(--status-${tone}-soft-fg)`,
+    border: `1px solid var(--status-${tone}-soft-border)`,
+  }
 }
 
 /**
@@ -117,14 +134,17 @@ export default function StepsStrip({ model, narrow = false }: StepsStripProps) {
               onClick={() => setOpen((v) => !v)}
               aria-expanded={open}
               aria-label={`${item.label} — ${STEPS_STRIP_COPY.openList}`}
+              title={
+                item.kind === 'done' && item.acceptedUnchecked > 0
+                  ? PROCESS_ACCEPTED_UNCHECKED_COUNT(item.acceptedUnchecked)
+                  : undefined
+              }
               className="inline-flex h-[22px] shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 text-[11.5px] font-semibold"
               style={
                 item.kind === 'done'
-                  ? {
-                      background: 'var(--status-done-soft-bg)',
-                      color: 'var(--status-done-soft-fg)',
-                      border: '1px solid var(--status-done-soft-border)',
-                    }
+                  ? doneChipStyle(
+                      item.acceptedUnchecked > 0 ? PROCESS_ACCEPTED_UNCHECKED_TONE : 'done',
+                    )
                   : {
                       background: 'var(--surface-raised)',
                       color: 'var(--text-secondary)',
@@ -161,8 +181,16 @@ export default function StepsStrip({ model, narrow = false }: StepsStripProps) {
               }
             >
               <Dot entry={entry} />
-              <span className="min-w-0 flex-1 truncate" title={entry.label}>
-                {entry.label}
+              <span className="flex min-w-0 flex-1 flex-col" title={stepTitle(entry)}>
+                <span className="truncate">{entry.label}</span>
+                {entry.acceptedUnchecked ? (
+                  <span
+                    className="truncate text-[11.5px] font-normal"
+                    style={{ color: `var(--status-${entry.tone}-soft-fg)` }}
+                  >
+                    {entry.acceptedUnchecked}
+                  </span>
+                ) : null}
               </span>
               {entry.attempt ? <AttemptPill text={entry.attempt} /> : null}
             </div>

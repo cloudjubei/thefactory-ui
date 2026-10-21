@@ -46,6 +46,7 @@ import {
   verificationStatusOf,
   withProcessChecks,
 } from './processChecksView'
+import { processAcceptedByList, processAcceptedByWord } from './processAcceptedUnchecked'
 import { processTimeDetailsView } from './processTimeDetails'
 import { formatProcessDuration, PROCESS_OUTCOME_VIEW, type VerifyReviewStatus } from './processView'
 import { runModelOf } from './runModel'
@@ -126,7 +127,7 @@ import {
   verifyAttemptStatus,
   verifyGateLine,
 } from './verifyProof'
-import { ACCEPTED_BY_YOU, ACCEPTING_CHOICES, GATE_OUTCOME_SAID } from './verifyProofConstants'
+import { ACCEPTED_BY, ACCEPTING_CHOICES, GATE_OUTCOME_SAID } from './verifyProofConstants'
 import type {
   EvidenceLoadState,
   FeatureVerifyView,
@@ -432,15 +433,15 @@ function gateVerdict(accepted: VerifyAttempt): SignoffVerdict {
   }
 }
 
-/** Where a section stands: its verdict, the line beside its title, and its standing. */
-type SectionStanding = Pick<SectionSignoff, 'verdict' | 'statusLine' | 'standing'>
+/** Where a section stands: its verdict, the line beside its title, its standing, and who accepted it. */
+type SectionStanding = Pick<SectionSignoff, 'verdict' | 'statusLine' | 'standing' | 'acceptedBy'>
 
 /**
  * A feature's standing once its code review is read over it. A review that
  * turned the change back fails the feature whatever its verify gate said — its
  * back edge sends the work to be fixed, so a verify passing beside it is a pass
- * on something the review would not let through. A person who carried it on
- * past that review accepted it; it is never proven over the review.
+ * on something the review would not let through. Whoever carried it on past
+ * that review accepted it, and is named; it is never proven over the review.
  */
 function reviewedStanding(
   base: SectionStanding,
@@ -458,10 +459,12 @@ function reviewedStanding(
     }
   }
   if (base.verdict.key !== 'proven') return base
+  const who = review.acceptedBy ?? processAcceptedByWord(undefined)
   return {
-    verdict: makeVerdict('partly', `${title}${FEATURE_REVIEW_ACCEPTED_SUFFIX}`, detail),
-    statusLine: { tone: 'review', label: ACCEPTED_BY_YOU },
+    verdict: makeVerdict('partly', `${title}${FEATURE_REVIEW_ACCEPTED_SUFFIX(who)}`, detail),
+    statusLine: { tone: 'review', label: ACCEPTED_BY(who) },
     standing: 'accepted',
+    acceptedBy: who,
   }
 }
 
@@ -506,11 +509,15 @@ function sectionSignoffFor(
     : filedRows
   const verified = verification !== undefined
   const verdict = verify ? gateVerdict(verify) : signoffVerdict({ rows, verified })
+  const verifyStanding = verify ? verifyAttemptStanding(verify.entry) : undefined
   const standing = reviewedStanding(
     {
       verdict,
       statusLine: verify ? verifyAttemptStatus(verify.entry) : CHECKS_STATUS_LINE[verdict.key],
-      standing: verify ? verifyAttemptStanding(verify.entry) : undefined,
+      standing: verifyStanding,
+      ...(verify && verifyStanding === 'accepted'
+        ? { acceptedBy: processAcceptedByWord(verify.entry.override?.decidedBy) }
+        : {}),
     },
     codeReview,
   )
@@ -736,7 +743,12 @@ function runCodeReview(
     line.check === 'failed' &&
     entry.override !== undefined &&
     ACCEPTING_CHOICES.includes(entry.override.choice)
-  return { line, verdict, accepted }
+  return {
+    line,
+    verdict,
+    accepted,
+    ...(accepted ? { acceptedBy: processAcceptedByWord(entry.override?.decidedBy) } : {}),
+  }
 }
 
 function capitalized(text: string): string {
@@ -969,9 +981,9 @@ const isAccepted = (f: FeatureSignoff): boolean => f.standing === 'accepted'
  *
  * Any failure fails the story; a mix of proven and not-yet-proven is partly; all
  * proven is proven, unless the story itself is unfinished, which demotes it the
- * same way a single run's does. A feature a person accepted over the gate is
+ * same way a single run's does. A feature someone accepted over the gate is
  * settled but not proven, so the story is never called proven over it — and it
- * is named, not counted among what still needs proving. The newest fix pass is
+ * is named with who accepted it, not counted among what still needs proving. The newest fix pass is
  * checked like a feature: one that failed fails the story, and one nobody proved
  * keeps it from reading proven. An earlier pass is history the newest superseded.
  */
@@ -1021,7 +1033,7 @@ export function aggregateStoryVerdict(
     }
     return makeVerdict(
       'partly',
-      `${proven} of ${total} ${featureWord(total)} proven · ${accepted.length} accepted by you`,
+      `${proven} of ${total} ${featureWord(total)} proven · ${accepted.length} accepted by ${processAcceptedByList(accepted.map((f) => f.acceptedBy))}`,
       '',
     )
   }

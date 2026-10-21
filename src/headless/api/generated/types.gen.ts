@@ -560,6 +560,7 @@ export type AgentRunParams = {
     | 'fixer'
   commitMessage?: string
   stepTask?: string
+  featureIds?: Array<string>
 }
 
 export type PreviewToolNotSupportedResult = {
@@ -990,6 +991,17 @@ export type BuildAgentRunContextFilesResult =
       blockerMessage: string
     }
 
+export type FeatureMissingContext = {
+  featureId: string
+  title: string
+  paths: Array<string>
+}
+
+export type AgentRunContextMissingEvent = {
+  runId: string
+  missing: FeatureMissingContext
+}
+
 export type AgentRunNotStartedEvent = {
   runId: string
   reason: string
@@ -1034,6 +1046,14 @@ export type CliRunFailure = {
   retryable: boolean
   retryAfterSec?: number
 }
+
+export type ProcessRunFailureReport =
+  | {
+      failure: CliRunFailure
+    }
+  | {
+      error: string
+    }
 
 export type ProcessAgentRunner = {
   name: string
@@ -4770,6 +4790,29 @@ export type PerCliRunnerExtra = {
   }
 }
 
+export type GitMergeBranchStatus =
+  | 'up-to-date'
+  | 'fast-forward'
+  | 'merged'
+  | 'staged'
+  | 'conflicts'
+  | 'refused'
+
+export type GitMergeBranchOutcome = {
+  status: GitMergeBranchStatus
+  source: string
+  into?: string
+  mergedSha?: string
+  conflictedFiles?: Array<string>
+  message: string
+  reason?: string
+}
+
+export type WorkspaceMergeOutcome = GitMergeBranchOutcome & {
+  next: string
+  setAside?: Array<string>
+}
+
 export type PrepareIsolatedChatWorkspaceInput = {
   sourceDir: string
   workspaceDir: string
@@ -6050,6 +6093,13 @@ export type ProviderExtraction = {
     reasoningTokens?: number
   }
   toolCalls?: Array<ToolCall>
+  stopReason?: string
+  refusal?: string
+}
+
+export type ProviderStop = {
+  stopReason?: string
+  refusal?: string
 }
 
 export type CustomProviderEndpointKind = 'openai-responses' | 'openai-chat' | 'anthropic-messages'
@@ -6174,6 +6224,14 @@ export type AnthropicResponse = {
       reasoning_tokens?: unknown
     }
   }
+  stop_reason?: string | unknown
+  stop_details?:
+    | {
+        type?: string
+        category?: string | unknown
+        explanation?: string | unknown
+      }
+    | unknown
 }
 
 export type OpenAiResponsesTool = {
@@ -6320,6 +6378,7 @@ export type OpenAiResponseToolCall = {
 
 export type OpenAiChatResponse = {
   choices?: Array<{
+    finish_reason?: string | unknown
     message?: {
       content?: string | unknown
       refusal?: string | unknown
@@ -6384,6 +6443,12 @@ export type OpenAiResponsesResponse = {
       reasoning_tokens?: number
     }
   }
+  status?: string
+  incomplete_details?:
+    | {
+        reason?: string | unknown
+      }
+    | unknown
 }
 
 export type GeminiPart = {
@@ -6450,7 +6515,11 @@ export type GeminiResponse = {
     content?: {
       parts?: Array<GeminiPart>
     }
+    finishReason?: string
   }>
+  promptFeedback?: {
+    blockReason?: string
+  }
   text?: string
   usageMetadata?: {
     promptTokenCount?: number
@@ -9070,24 +9139,6 @@ export type GitStatusPorcelain = {
 export type GitMergeBranchOptions = {
   noFastForward?: boolean
   commit?: boolean
-}
-
-export type GitMergeBranchStatus =
-  | 'up-to-date'
-  | 'fast-forward'
-  | 'merged'
-  | 'staged'
-  | 'conflicts'
-  | 'refused'
-
-export type GitMergeBranchOutcome = {
-  status: GitMergeBranchStatus
-  source: string
-  into?: string
-  mergedSha?: string
-  conflictedFiles?: Array<string>
-  message: string
-  reason?: string
 }
 
 export type GitBranchDetails = {
@@ -12538,6 +12589,7 @@ export type ProcessPlan = {
   frozenAt: number
   amendments?: Array<ProcessPlanAmendment>
   signOff?: 'automatic'
+  features?: Array<ProcessSubject>
 }
 
 export type ProcessRunStatus =
@@ -12758,6 +12810,14 @@ export type ProcessProofPlanChange = {
 export type ProcessDecidedBy = 'person' | 'agent' | 'manager'
 
 export type ProcessDecidedVia = ProcessPersonDecisionVia | 'tool' | 'manager'
+
+export type ProcessAcceptedUnchecked = {
+  stepId: string
+  stepName: string
+  at: number
+  decidedBy?: 'person' | 'agent' | 'manager'
+  note?: string
+}
 
 export type ProcessProofPair = {
   subject: string
@@ -12997,6 +13057,7 @@ export type ProcessLedgerEntry = {
     shownEvidenceIds?: Array<string>
   }
   unmetRequest?: string
+  acceptedUnchecked?: Array<ProcessAcceptedUnchecked>
   cleanup?: {
     outcomes: Array<ProcessCleanupOutcome>
     keptIds: Array<string>
@@ -14657,6 +14718,20 @@ export type ProjectCheckTestFilter = {
   describe: string
 }
 
+export type ProjectCheckNamedTestFallback = {
+  id: string
+  label: string
+  argv: Array<string>
+  command: string
+  source: string
+  testFilter: ProjectCheckTestFilter
+  testReport?: {
+    format: ProjectCheckTestReportFormat
+    args: Array<string>
+    lead: Array<string>
+  }
+}
+
 export type ProjectCheckPreStep = {
   argv: Array<string>
   command: string
@@ -14690,6 +14765,7 @@ export type ProjectCheck = {
   }
   modules?: Array<string>
   coverageNote?: string
+  namedTestFallbacks?: Array<ProjectCheckNamedTestFallback>
   preSteps?: Array<ProjectCheckPreStep>
 }
 
@@ -17765,8 +17841,9 @@ export type SandboxProxyForRunOptions = {
   policy: SandboxPolicy
 }
 
-export type SandboxProxyOptions = {
-  allowlist?: Array<string>
+export type SandboxProxyTarget = {
+  host: string
+  port: number
 }
 
 export type SandboxProxySidecarOptions = {
@@ -17862,8 +17939,20 @@ export type StorageUsageStanding = {
 
 export type LiveRunFeatureProgress = 'not-in-run' | 'not-started' | 'started'
 
+export type LiveRunFeatureRun = {
+  plan: ProcessPlan
+  ledger: Array<ProcessLedgerEntry>
+} & {
+  cursor?: {
+    stepId: string
+    iteration: number
+  }
+  featureId?: string
+  withdrawnFeatureIds?: Array<string>
+}
+
 export type LiveRunFeatureUpdateContext = {
-  runFeatureIds?: Array<string>
+  run: LiveRunFeatureRun
   feature: {
     id: string
     title: string
@@ -17875,7 +17964,6 @@ export type LiveRunFeatureUpdateContext = {
       >
       notes?: string
     }
-    status: Status
     blockers?: Array<string>
   }
 }
@@ -17975,6 +18063,10 @@ export type FeatureTransitionEvent =
 export type FeatureTransitionOptions = {
   note?: string
   questionsAskedSince?: string
+}
+
+export type FeatureQuestionAnswerOptions = {
+  workPassed?: boolean
 }
 
 export type RetireQuestionsOptions = {
@@ -20081,6 +20173,16 @@ export type ClosureRun = {
   }
 }
 
+export type ChainLink = {
+  id: string
+  continues?: string
+  retryMode?: 'continue' | 'fresh'
+  resumes?: string
+  viaLoopId?: string
+} & {
+  stepId?: string
+}
+
 export type ProcessSignOff = 'person' | 'automatic'
 
 export type ProcessDefinition = {
@@ -20870,6 +20972,7 @@ export type ProcessContinueChoice = 'allow' | 'allow-site' | 'resolved' | 'more-
 
 export type ProcessVerifyReview = {
   reviewedRunId: string
+  earlierRunIds?: Array<string>
   filedSince: number
   filedUntil?: number
 }
@@ -21669,8 +21772,16 @@ export type ProcessCursorState = {
 export type ProcessStepContinuation = {
   entryId: string
   ask: ProcessWaitingAsk
-  choice: ProcessContinueChoice
+  choice: ProcessContinueChoice | 'update-base'
   note?: string
+  baseUpdate?: {
+    baseRef: string
+    baseSha: string
+    commits: number
+    sha: string
+    at: number
+    exportsUnchecked?: Array<string>
+  }
   runRef?: {
     runId: string
     agentRunId?: string
@@ -22053,6 +22164,7 @@ export type ProcessStepState = {
       shownEvidenceIds?: Array<string>
     }
     unmetRequest?: string
+    acceptedUnchecked?: Array<ProcessAcceptedUnchecked>
     cleanup?: {
       outcomes: Array<ProcessCleanupOutcome>
       keptIds: Array<string>
@@ -40988,6 +41100,23 @@ export type RunActivityResponses = {
    */
   202: {
     activityId: string
+    /**
+     * A knowledge evaluation admitted to run at another concurrency than its params ask; kept beside the activity.
+     */
+    concurrencyCap?: {
+      /**
+       * The concurrency its params ask.
+       */
+      requested: number
+      /**
+       * The concurrency it runs at.
+       */
+      effective: number
+      /**
+       * What capped it, in words.
+       */
+      cappedBy?: string
+    }
   }
 }
 
@@ -41294,6 +41423,23 @@ export type ResumeActivityResponses = {
    */
   202: {
     activityId: string
+    /**
+     * A knowledge evaluation admitted to run at another concurrency than its params ask; kept beside the activity.
+     */
+    concurrencyCap?: {
+      /**
+       * The concurrency its params ask.
+       */
+      requested: number
+      /**
+       * The concurrency it runs at.
+       */
+      effective: number
+      /**
+       * What capped it, in words.
+       */
+      cappedBy?: string
+    }
   }
 }
 

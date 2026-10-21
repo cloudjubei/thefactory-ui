@@ -105,8 +105,8 @@ export const FIX_NOTE_LABEL = 'Your note'
 /** A feature's verdict detail when its code review turned the change back without saying why. */
 export const FEATURE_REVIEW_TURNED_BACK = 'The feature’s code review turned the change back.'
 
-/** A feature's verdict title when a person carried it on past its code review. */
-export const FEATURE_REVIEW_ACCEPTED_SUFFIX = ' — accepted by you'
+/** A feature's verdict title when someone carried it on past its code review — " — accepted by the manager". */
+export const FEATURE_REVIEW_ACCEPTED_SUFFIX = (who: string): string => ` — accepted by ${who}`
 
 /** The story headline's detail when its code review turned the change back without saying why. */
 export const STORY_REVIEW_TURNED_BACK = 'The story’s code review turned the change back.'

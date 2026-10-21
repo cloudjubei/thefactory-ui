@@ -43,7 +43,36 @@ const short = (sha: string): string => sha.slice(0, EVALUATION_LAUNCH_SHORT_SHA)
 const labelOf = <K extends string>(labels: Record<K, string>, value: string): string =>
   (labels as Record<string, string>)[value] ?? value
 
-type RowValue = { value: string; detail?: string }
+type RowValue = { value: string; detail?: string; capped?: string }
+
+type ConcurrencyCap = { requested: number; effective: number; cappedBy?: string }
+
+const runs = (v: unknown): number | undefined =>
+  typeof v === 'number' && Number.isInteger(v) && v > 0 ? v : undefined
+
+/** The host's word that the launch runs at another concurrency than was asked, when it can be read. */
+function concurrencyCapOf(raw: unknown): ConcurrencyCap | undefined {
+  const cap = record(raw)
+  const requested = runs(cap.requested)
+  const effective = runs(cap.effective)
+  if (requested === undefined || effective === undefined || requested === effective)
+    return undefined
+  const cappedBy = text(cap.cappedBy)
+  return { requested, effective, ...(cappedBy ? { cappedBy } : {}) }
+}
+
+function concurrencyValue(
+  concurrency: number | undefined,
+  cap: ConcurrencyCap | undefined,
+): RowValue | undefined {
+  if (cap) {
+    return {
+      value: figure(cap.effective),
+      capped: EVALUATION_LAUNCH_ASK.concurrencyCapped(figure(cap.requested), cap.cappedBy),
+    }
+  }
+  return concurrency !== undefined ? { value: figure(concurrency) } : undefined
+}
 
 function namesValue(names: string[], counted: (n: number) => string): RowValue | undefined {
   if (names.length === 0) return undefined
@@ -56,6 +85,7 @@ function settingRows(
   params: Record<string, unknown>,
   sources: Record<string, unknown>,
   model: string | undefined,
+  cap: ConcurrencyCap | undefined,
 ): EvaluationLaunchSettingRow[] {
   const L = KNOWLEDGE_EVALUATION_SETTING_LABEL
   const stage = text(params.stage)
@@ -88,7 +118,7 @@ function settingRows(
       'buildMode',
       buildMode ? { value: labelOf(KNOWLEDGE_EVALUATION_BUILD_MODE_LABEL, buildMode) } : undefined,
     ],
-    ['concurrency', concurrency !== undefined ? { value: figure(concurrency) } : undefined],
+    ['concurrency', concurrencyValue(concurrency, cap)],
     [
       'ablateRawSource',
       params.ablateRawSource === true
@@ -253,7 +283,8 @@ function previewView(raw: unknown): EvaluationLaunchPreviewView | undefined {
 }
 
 /**
- * The card for an `evaluateKnowledge` launch: every setting it resolved and where each came from,
+ * The card for an `evaluateKnowledge` launch: every setting it resolved and where each came from —
+ * the concurrency as it runs, with a short line saying what capped it when the host capped it —
  * the model, the earlier run it matched, and what its dry run says it would do — the ledger, the
  * work, the build. Read from the host's detail, never trusted for shape; without one, the agent's
  * own arguments. Resetting or replacing a ledger is a danger card. Pure.
@@ -278,7 +309,7 @@ export function evaluationLaunchAskView(
   const covered = preview?.covered !== undefined
   const agentRuns = preview && !covered ? count(work.agentRuns) : undefined
   const body: EvaluationLaunchAskBodyView = {
-    settings: settingRows(params, sources, model),
+    settings: settingRows(params, sources, model, concurrencyCapOf(card.concurrencyCap)),
     ...(model ? { model } : {}),
     ...(matchActivityId ? { matchActivityId } : {}),
     ...(preview

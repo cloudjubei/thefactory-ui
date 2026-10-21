@@ -48,6 +48,23 @@ describe('showcase registry', () => {
       expect(ids).toContain(id)
   })
 
+  it('pairs every accepted-unchecked state with a plain-pass base that never says it', () => {
+    const scene = SCENES.find((s) => s.id === 'accepted-unchecked')
+    const said = /accepted unchecked|never proven/i
+    const states = scene?.states ?? []
+    const bases = states.filter((s) => s.id.endsWith('-plain-pass') || s.id.endsWith('-passed'))
+    expect(bases).toHaveLength(6)
+    for (const base of bases) {
+      const surface = base.id.replace(/-(plain-pass|passed)$/, '')
+      const accepted = states.filter((s) => s.id.startsWith(`${surface}-accepted`))
+      expect(accepted.length, surface).toBeGreaterThan(0)
+      expect(renderToStaticMarkup(<>{base.render()}</>), base.id).not.toMatch(said)
+      for (const state of accepted) {
+        expect(renderToStaticMarkup(<>{state.render()}</>), state.id).toMatch(said)
+      }
+    }
+  })
+
   it('shows the stash dialog leaving untracked files out and taking them', () => {
     const stash = SCENES.find((s) => s.id === 'git-stash')
     expect(stash?.states.map((s) => s.id)).toEqual(['tracked-only', 'include-untracked'])

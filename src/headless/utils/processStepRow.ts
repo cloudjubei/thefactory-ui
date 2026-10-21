@@ -5,6 +5,7 @@ import type {
   ProcessStepState,
 } from 'thefactory-tools/types'
 
+import { processAcceptedByWord, processStepAcceptedUnchecked } from './processAcceptedUnchecked'
 import {
   formatProcessDuration,
   processNodeState,
@@ -107,7 +108,8 @@ function resultLine(
  * `processRunStopHolder`) says the agent manager has the stop: then it says
  * the manager is on it. A running step waiting its turn behind work the host
  * runs one at a time — a checks step behind another check run of the project —
- * says so, with how long it has waited when it is given `now`.
+ * says so, with how long it has waited when it is given `now`. A step the run
+ * carried on past although it was never proven says who accepted what.
  */
 export function processStepRowView(
   state: ProcessStepState,
@@ -120,12 +122,17 @@ export function processStepRowView(
   const managerOnIt = nodeState === 'parked' && stopHolder === 'manager'
   const inert = nodeState === 'skipped' || (nodeState === 'queued' && state.entries.length === 0)
   const preview = previewKind(state, run)
-  const result = managerOnIt ? PROCESS_STEP_MANAGER_ON_IT : resultLine(state, nodeState, now)
+  const acceptedUnchecked =
+    nodeState === 'accepted' ? processStepAcceptedUnchecked(state) : undefined
+  const result = managerOnIt
+    ? PROCESS_STEP_MANAGER_ON_IT
+    : (acceptedUnchecked?.line ?? resultLine(state, nodeState, now))
   return {
     inert,
     result: result ? clipLine(result.split('\n')[0], PROCESS_STEP_RESULT_MAX) : undefined,
     waitingOnYou: nodeState === 'parked' && !managerOnIt,
     managerOnIt,
+    acceptedUnchecked,
     expandable: !inert && preview !== 'none' && state.latest !== undefined,
     preview,
   }
@@ -134,7 +141,8 @@ export function processStepRowView(
 /**
  * A feature step's own stages as chips — Implement, Checks, Code review, Verify,
  * Report — each marked by where it stands and saying the one thing worth
- * knowing: a review's verdict, a verify a person accepted, a retry.
+ * knowing: a review's verdict, a stage carried on past although it was never
+ * proven (who accepted it on its hover), a verify accepted over its gate, a retry.
  */
 export function processStageChips(
   states: readonly ProcessStepState[],
@@ -145,14 +153,16 @@ export function processStageChips(
     const stopped = processNodeState(s, parkStepId)
     const managerOnIt = stopped === 'parked' && stopHolder === 'manager'
     const nodeState = managerOnIt ? 'working' : stopped
+    const unchecked = nodeState === 'accepted' ? processStepAcceptedUnchecked(s) : undefined
     const accepted =
+      !unchecked &&
       s.latest !== undefined &&
       s.step.agentType === 'verifier' &&
       verifyAttemptStanding(s.latest) === 'accepted'
     const review = s.step.kind === 'judge' ? s.latest?.review : undefined
     const note = accepted
-      ? 'accepted by you'
-      : review && !s.requeued
+      ? `accepted by ${processAcceptedByWord(s.latest?.override?.decidedBy)}`
+      : review && !s.requeued && !unchecked
         ? PROCESS_REVIEW_VERDICT_WORDS[review.verdict].toLowerCase()
         : s.attempts > 1 && nodeState === 'done'
           ? `${s.attempts} attempts`
@@ -165,6 +175,8 @@ export function processStageChips(
       mark: accepted ? '!' : PROCESS_STAGE_MARKS[nodeState],
       tone: accepted ? 'working' : processNodeTone(nodeState, s.step.kind === 'gate'),
       note,
+      tinted: accepted || unchecked !== undefined,
+      ...(unchecked ? { title: unchecked.line } : {}),
       inert: nodeState === 'skipped' || s.latest === undefined,
     }
   })

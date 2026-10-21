@@ -9,7 +9,7 @@ import {
   hasIsolatedAttempts,
   processStageChips,
   processStepStates,
-  processStepTone,
+  processAttemptTone,
   reportPreviewTiles,
   reportSectionsOf,
   useProcessRun,
@@ -124,8 +124,7 @@ export default function StepPreview({
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
           <Text style={{ fontSize: 11, color: theme.text.muted }}>Attempts</Text>
           {state.entries.map((e, i) => {
-            const v =
-              status[processStepTone(e.status === 'running' ? 'running' : 'done', e.outcome)]
+            const v = status[processAttemptTone(e)]
             return (
               <Pressable
                 key={e.id ?? i}
@@ -271,8 +270,8 @@ function StagesPreview({
               paddingHorizontal: 12,
               borderRadius: nativeRadii.round,
               borderWidth: 1,
-              borderColor: chip.tone === 'working' ? v.softBorder : theme.border.subtle,
-              backgroundColor: chip.tone === 'working' ? v.softBg : theme.surface.raised,
+              borderColor: chip.tinted ? v.softBorder : theme.border.subtle,
+              backgroundColor: chip.tinted ? v.softBg : theme.surface.raised,
               opacity: chip.inert ? 0.6 : 1,
             }}
           >

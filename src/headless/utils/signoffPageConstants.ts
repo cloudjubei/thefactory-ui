@@ -2,7 +2,8 @@ import type { CheckMethodId, ReviewTabId } from './checkMethodTypes'
 import type { CodeReviewTone } from './signoffCodeReviewTypes'
 import type { StoryStepTone } from './storySignoffTypes'
 
-export const SIGNOFF_ATTENTION_ACCEPTED = 'was accepted by you without its Verify step passing.'
+export const SIGNOFF_ATTENTION_ACCEPTED = (who: string): string =>
+  `was accepted by ${who} without its Verify step passing.`
 export const SIGNOFF_ATTENTION_DRY = 'was verified dry — not against the live backend.'
 export const SIGNOFF_ATTENTION_ACTION = 'See what Verify said'
 

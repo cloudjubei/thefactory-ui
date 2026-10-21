@@ -220,6 +220,8 @@ export type FeatureVerifyView = {
   /** Which attempt is shown and why — "Verify attempt 4 of 4 — the one the gate passed". */
   acceptedLabel: string
   standing: VerifyAttemptStanding
+  /** Who accepted the shown attempt over its gate — "you", "the manager" — when someone did. */
+  acceptedBy?: string
   /** What data the shown attempt ran on — unknown when its entry records no proof. */
   mode: VerifyProofMode
 }

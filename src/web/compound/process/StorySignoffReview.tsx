@@ -475,7 +475,7 @@ function StorySignoffPanel({
       })),
     ].flatMap((s) => {
       const v = verifyBySection.get(s.id)
-      return v ? [{ ...s, mode: v.mode, standing: v.standing }] : []
+      return v ? [{ ...s, mode: v.mode, standing: v.standing, acceptedBy: v.acceptedBy }] : []
     }),
   )
 

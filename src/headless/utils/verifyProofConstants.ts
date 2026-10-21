@@ -80,7 +80,14 @@ export const CAPTURE_LOADING = 'Loading…'
 export const CAPTURE_LOAD_FAILED = 'Couldn’t load the evidence'
 export const CAPTURE_MISSING = 'Not in the evidence store'
 
-export const ACCEPTED_BY_YOU = 'Accepted by you'
+/** Who accepted an attempt over its gate — "Accepted by the manager". */
+export const ACCEPTED_BY = (who: string): string => `Accepted by ${who}`
+
+/** The words the person or agent accepted it with, named as theirs. */
+export const ACCEPTED_NOTE = (who: string, note: string): string =>
+  who === 'you'
+    ? `Your note: ${note}`
+    : `${who.charAt(0).toUpperCase()}${who.slice(1)}’s note: ${note}`
 
 /** The park answers that carry an attempt on over its gate — a person accepting it. */
 export const ACCEPTING_CHOICES: readonly ProcessResumeChoice[] = ['continue', 'approve']

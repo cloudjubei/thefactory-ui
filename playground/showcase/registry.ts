@@ -1,3 +1,4 @@
+import { ACCEPTED_UNCHECKED_SCENES } from '../scenes/acceptedUnchecked'
 import { ACTIVITY_STOP_SCENES } from '../scenes/activityStop'
 import { AGENT_TYPE_SCENES } from '../scenes/agentTypes'
 import { BACKEND_CONNECTION_SCENES } from '../scenes/backendConnection'
@@ -73,6 +74,7 @@ export const SCENES: readonly Scene[] = [
   ...PROCESS_SCENES,
   ...RUN_TIME_DETAILS_SCENES,
   ...PROCESS_CHECKS_SCENES,
+  ...ACCEPTED_UNCHECKED_SCENES,
   ...SIBLING_STABLE_BRANCH_SCENES,
   ...PROCESS_FEATURE_SCENES,
   ...PROCESS_MODEL_SCENES,

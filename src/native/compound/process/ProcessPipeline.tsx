@@ -1183,6 +1183,9 @@ function PipelineNode({
               </View>
             ) : null}
             {circling && !row.inert ? <CirclingChip view={circling} /> : null}
+            {row.acceptedUnchecked ? (
+              <ToneBadge tone={look.tone} label={row.acceptedUnchecked.label} />
+            ) : null}
             {iteration && !row.inert ? (
               <View
                 style={{

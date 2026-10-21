@@ -1,3 +1,4 @@
+import { PROCESS_ACCEPTED_UNCHECKED_NOTE } from './processAcceptedUncheckedConstants'
 import type { ProcessNodeState } from './processView'
 import { PROCESS_RUN_WORDS } from './processViewConstants'
 
@@ -19,6 +20,7 @@ export const PROCESS_REVIEW_VERDICT_WORDS = {
 /** The mark a stage chip wears for where its step stands. */
 export const PROCESS_STAGE_MARKS: Record<ProcessNodeState, string> = {
   done: '✓',
+  accepted: '!',
   failed: '✗',
   parked: '?',
   working: '…',
@@ -31,6 +33,7 @@ export const PROCESS_STAGE_MARKS: Record<ProcessNodeState, string> = {
 /** The word a stage chip says when nothing more specific does. */
 export const PROCESS_STAGE_WORDS: Record<ProcessNodeState, string | undefined> = {
   done: undefined,
+  accepted: PROCESS_ACCEPTED_UNCHECKED_NOTE,
   failed: 'did not pass',
   parked: PROCESS_RUN_WORDS.needsYou.toLowerCase(),
   working: 'running',

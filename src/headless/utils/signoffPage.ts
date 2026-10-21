@@ -61,7 +61,7 @@ export function signoffAttentionItems(
   return sections.flatMap((s): SignoffAttentionItem[] => {
     if (s.standing !== 'passed' && s.standing !== 'accepted') return []
     const texts = [
-      ...(s.standing === 'accepted' ? [SIGNOFF_ATTENTION_ACCEPTED] : []),
+      ...(s.standing === 'accepted' ? [SIGNOFF_ATTENTION_ACCEPTED(s.acceptedBy ?? 'you')] : []),
       ...(s.mode === 'dry' ? [SIGNOFF_ATTENTION_DRY] : []),
     ]
     return texts.map((text, i) => ({

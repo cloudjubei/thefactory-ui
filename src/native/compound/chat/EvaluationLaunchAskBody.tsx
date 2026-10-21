@@ -95,6 +95,9 @@ export default function EvaluationLaunchAskBody({ body }: EvaluationLaunchAskBod
               {row.detail ? (
                 <Text style={{ fontSize: 12, color: theme.text.muted }}>{row.detail}</Text>
               ) : null}
+              {row.capped ? (
+                <Text style={{ fontSize: 12, color: status.stuck.softFg }}>{row.capped}</Text>
+              ) : null}
             </View>
             {row.source ? (
               <Text style={{ fontSize: 11.5, color: theme.text.muted }}>{row.source}</Text>

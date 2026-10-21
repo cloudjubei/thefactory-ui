@@ -298,6 +298,53 @@ describe('processStepRowView', () => {
     })
   })
 
+  it('says which nested step was accepted unchecked, and by whom, in place of the summary', () => {
+    const fix = state(
+      { id: 'fix', name: 'Fix', kind: 'process' },
+      {
+        latest: entry({
+          stepId: 'fix',
+          childRunId: 'a96d0620-50aa-4473-9b06-c3da9b5a10df',
+          summary:
+            'Accepted unchecked: Verify was carried on past by you, never proven. 4 of 6 steps passed.',
+          acceptedUnchecked: [
+            { stepId: 'verify', stepName: 'Verify', at: 1, decidedBy: 'person' },
+            { stepId: 'report', stepName: 'Report', at: 2, decidedBy: 'manager' },
+          ],
+        }),
+      },
+    )
+    const row = processStepRowView(fix, undefined)
+    expect(row.acceptedUnchecked?.label).toBe('Accepted unchecked')
+    expect(row.result).toBe('Verify accepted by you, Report by the manager — never proven')
+    expect(row).toMatchObject({ inert: false, expandable: true, preview: 'stages' })
+  })
+
+  it('says who carried an unchecked step on past', () => {
+    const verify = state(
+      { id: 'verify', name: 'Verify', agentType: 'verifier' },
+      {
+        outcome: 'unchecked',
+        latest: entry({
+          stepId: 'verify',
+          outcome: 'unchecked',
+          summary: 'This change alters what users see, and nothing showed it on screen.',
+          override: { choice: 'continue', at: 1, decidedBy: 'person', decidedVia: 'web' },
+        }),
+      },
+    )
+    expect(processStepRowView(verify, undefined).result).toBe('Accepted by you — never proven')
+  })
+
+  it('keeps a plain pass beside it as it was, with no accepted chip', () => {
+    const row = processStepRowView(
+      state({ kind: 'check' }, { latest: entry({ summary: 'Build ✓ · Unit tests ✓' }) }),
+      undefined,
+    )
+    expect(row.acceptedUnchecked).toBeUndefined()
+    expect(row.result).toBe('Build ✓ · Unit tests ✓')
+  })
+
   it('has nothing to say of a done step with no summary', () => {
     expect(processStepRowView(state({ kind: 'check' }), undefined).result).toBeUndefined()
   })
@@ -326,9 +373,68 @@ describe('processStageChips', () => {
     expect(chips.map((c) => [c.label, c.mark, c.note, c.tone])).toEqual([
       ['Implement', '✓', '3 attempts', 'done'],
       ['Code review', '✓', 'approved', 'done'],
-      ['Verify', '!', 'accepted by you', 'working'],
+      ['Verify', '!', 'accepted unchecked', 'review'],
       ['Report', '✓', undefined, 'done'],
     ])
+    expect(chips[2]).toMatchObject({ tinted: true, title: 'Accepted by you — never proven' })
+    expect(chips[3]).toMatchObject({ tinted: false })
+    expect(chips[3]?.title).toBeUndefined()
+  })
+
+  it('says who accepted a stage unchecked, a verify and a report alike', () => {
+    const chips = processStageChips(
+      [
+        state(
+          { id: 'verify', name: 'Verify', agentType: 'verifier' },
+          {
+            outcome: 'unchecked',
+            latest: entry({
+              outcome: 'unchecked',
+              override: { choice: 'continue', at: 1, decidedBy: 'person', decidedVia: 'web' },
+            }),
+          },
+        ),
+        state(
+          { id: 'report', name: 'Report', kind: 'report' },
+          {
+            outcome: 'unchecked',
+            latest: entry({
+              outcome: 'unchecked',
+              override: { choice: 'continue', at: 2, decidedBy: 'manager', decidedVia: 'manager' },
+            }),
+          },
+        ),
+      ],
+      undefined,
+    )
+    expect(chips.map((c) => [c.label, c.mark, c.note, c.tone, c.title])).toEqual([
+      ['Verify', '!', 'accepted unchecked', 'review', 'Accepted by you — never proven'],
+      ['Report', '!', 'accepted unchecked', 'review', 'Accepted by the manager — never proven'],
+    ])
+  })
+
+  it('keeps a verify accepted over a gate that failed it apart, naming who accepted it', () => {
+    const [chip] = processStageChips(
+      [
+        state(
+          { id: 'verify', name: 'Verify', agentType: 'verifier' },
+          {
+            outcome: 'failed',
+            latest: entry({
+              outcome: 'failed',
+              override: { choice: 'approve', at: 1, decidedBy: 'manager' },
+            }),
+          },
+        ),
+      ],
+      undefined,
+    )
+    expect(chip).toMatchObject({
+      mark: '!',
+      note: 'accepted by the manager',
+      tone: 'working',
+      tinted: true,
+    })
   })
 
   it('makes a stage that never ran or was skipped inert', () => {

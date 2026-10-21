@@ -5,9 +5,10 @@ import {
   codeReviewVerdictBadge,
   codeReviewView,
   hasIsolatedAttempts,
+  processAttemptTone,
   processStageChips,
+  processStepAcceptedUnchecked,
   processStepStates,
-  processStepTone,
   reportPreviewTiles,
   reportSectionsOf,
   useProcessRun,
@@ -15,6 +16,7 @@ import {
   type ProcessRun,
   type ProcessStepPreviewKind,
   type ProcessRunStopHolder,
+  type ProcessStatusTone,
 } from '../../../../headless'
 import type { ProcessStepState } from 'thefactory-tools/types'
 import { IconExternalLink } from '../../../icons'
@@ -111,12 +113,13 @@ export default function StepPreview({
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-[11px] text-(--text-muted)">Attempts</span>
           {state.entries.map((e, i) => {
-            const tone = processStepTone(e.status === 'running' ? 'running' : 'done', e.outcome)
+            const tone = processAttemptTone(e)
+            const accepted = processStepAcceptedUnchecked({ step: state.step, latest: e })
             return (
               <button
                 key={e.id ?? i}
                 type="button"
-                title={e.summary ?? e.outcome ?? `Attempt ${i + 1}`}
+                title={accepted?.line ?? e.summary ?? e.outcome ?? `Attempt ${i + 1}`}
                 onClick={() => onOpen(target(e.id))}
                 className={`badge badge--soft badge--sm tabular-nums ${PROCESS_TONE_BADGE[tone]}`}
               >
@@ -222,6 +225,28 @@ function StagesPreview({
 }) {
   const { run: child } = useProcessRun(childRunId)
   if (!child) return null
+  return <StageChips child={child} stopHolder={stopHolder} onOpen={onOpen} onDrill={onDrill} />
+}
+
+/** A stage chip's tint, for the tones a stage someone carried on past is drawn in. */
+const STAGE_TINT: Partial<Record<ProcessStatusTone, string>> = {
+  working: 'border-(--status-working-soft-border) bg-(--status-working-soft-bg)',
+  review: 'border-(--status-review-soft-border) bg-(--status-review-soft-bg)',
+}
+
+/** A feature's own stages as chips, each opening its view, and the way into its whole pipeline. */
+export function StageChips({
+  child,
+  stopHolder,
+  onOpen,
+  onDrill,
+}: {
+  child: ProcessRun
+  /** Who has the stop the nested run is at, as its top-level run reads it. */
+  stopHolder?: ProcessRunStopHolder
+  onOpen: (target: StepPanelTarget) => void
+  onDrill: (childRunId: string) => void
+}) {
   const chips = processStageChips(processStepStates(child), child.park?.stepId, stopHolder)
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -230,8 +255,9 @@ function StagesPreview({
           key={chip.stepId}
           type="button"
           disabled={chip.inert}
+          title={chip.title}
           onClick={() => onOpen({ runId: child.id, stepId: chip.stepId })}
-          className={`inline-flex h-7.5 items-center gap-1.5 rounded-full border px-3 text-[12px] text-(--text-primary) enabled:hover:border-(--accent-primary)/50 enabled:hover:bg-(--accent-primary)/5 disabled:opacity-60 ${chip.tone === 'working' ? 'border-(--status-working-soft-border) bg-(--status-working-soft-bg)' : 'border-(--border-subtle) bg-(--surface-raised)'}`}
+          className={`inline-flex h-7.5 items-center gap-1.5 rounded-full border px-3 text-[12px] text-(--text-primary) enabled:hover:border-(--accent-primary)/50 enabled:hover:bg-(--accent-primary)/5 disabled:opacity-60 ${(chip.tinted && STAGE_TINT[chip.tone]) || 'border-(--border-subtle) bg-(--surface-raised)'}`}
         >
           {chip.mark ? (
             <span className="font-bold" style={{ color: `var(--status-${chip.tone}-soft-fg)` }}>
@@ -246,7 +272,7 @@ function StagesPreview({
         type="button"
         aria-label="Open this feature’s pipeline"
         title="Open this feature’s pipeline"
-        onClick={() => onDrill(childRunId)}
+        onClick={() => onDrill(child.id)}
         className="inline-flex size-7.5 items-center justify-center rounded-full border border-(--border-subtle) text-(--accent-primary) hover:bg-(--surface-hover)"
       >
         <IconExternalLink className="size-3.5" />

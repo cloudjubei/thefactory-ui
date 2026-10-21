@@ -12,6 +12,11 @@ export type StepsStripEntry = {
   tone: ProcessStatusTone
   /** The attempt pill — `attempt 3 of 3` — shown only once a step was retried. */
   attempt?: string
+  /**
+   * A step the run carried on past although it was never proven: who accepted
+   * what, for its hover — "Verify accepted by you — never proven".
+   */
+  acceptedUnchecked?: string
 }
 
 /** One thing on the strip, left to right. */
@@ -22,6 +27,8 @@ export type StepsStripItem =
       /** `✓ 8 done`, or `✓ 8/12` on a narrow strip. Opens the full list. */
       label: string
       count: number
+      /** How many of them were accepted unchecked — drawn in their gold, said on its hover. */
+      acceptedUnchecked: number
     }
   | {
       kind: 'step'

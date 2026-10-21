@@ -1008,14 +1008,24 @@ describe('verifyAttemptStanding', () => {
 })
 
 describe('verifyAttemptStatus', () => {
-  it('says a person accepted it, never what the gate concluded', () => {
+  it('says an attempt the gate could not confirm was accepted unchecked, never a pass', () => {
     expect(verifyAttemptStatus(verify('v', 'unchecked', 0, accept('continue')))).toEqual({
       tone: 'review',
-      label: 'Accepted by you',
+      label: 'Accepted unchecked',
     })
+  })
+
+  it('says who accepted an attempt over a gate that did not pass it', () => {
     expect(verifyAttemptStatus(verify('v', 'failed', 0, accept('approve'))).label).toBe(
       'Accepted by you',
     )
+    const byManager = verify('v', 'failed', 0, {
+      override: { choice: 'continue', at: 999, decidedBy: 'manager' },
+    })
+    expect(verifyAttemptStatus(byManager)).toEqual({
+      tone: 'review',
+      label: 'Accepted by the manager',
+    })
   })
 
   it('otherwise reads the gate', () => {
@@ -1417,10 +1427,11 @@ describe('featureVerifyView', () => {
     ])
     const view = featureVerifyView(acceptedVerifyAttempt(accepted)!, tiles)
     expect(view.standing).toBe('accepted')
+    expect(view.acceptedBy).toBe('you')
     expect(view.acceptedLabel).toBe(
       'Verify attempt 2 of 2 — accepted by you; the gate could not confirm the proof',
     )
-    expect(view.accepted.status).toEqual({ tone: 'review', label: 'Accepted by you' })
+    expect(view.accepted.status).toEqual({ tone: 'review', label: 'Accepted unchecked' })
     expect(view.accepted.notes).toEqual([
       { label: 'Accepted by you', tone: 'review' },
       {
@@ -1433,6 +1444,45 @@ describe('featureVerifyView', () => {
     expect(view.accepted.evidence.proof?.header?.title).toBe(
       'Checked dry — not against the live backend',
     )
+  })
+
+  it('names the manager as the one who accepted an attempt it carried on, with its note', () => {
+    const view = featureVerifyView(
+      acceptedVerifyAttempt(
+        childRun([
+          implement('i1', 'dev-1', 0),
+          verify('v1', 'unchecked', 10, {
+            override: {
+              choice: 'continue',
+              at: 999,
+              decidedBy: 'manager',
+              decidedVia: 'manager',
+              note: 'Screens filed under the earlier run.',
+            },
+          }),
+        ]),
+      )!,
+      tiles,
+    )
+    expect(view.acceptedBy).toBe('the manager')
+    expect(view.acceptedLabel).toBe(
+      'Verify attempt 1 of 1 — accepted by the manager; the gate could not confirm the proof',
+    )
+    expect(view.accepted.status).toEqual({ tone: 'review', label: 'Accepted unchecked' })
+    expect(view.accepted.notes[0]).toEqual({
+      label: 'Accepted by the manager',
+      reason: 'The manager’s note: Screens filed under the earlier run.',
+      tone: 'review',
+    })
+  })
+
+  it('names no one on an attempt the gate passed', () => {
+    const view = featureVerifyView(
+      acceptedVerifyAttempt(childRun([implement('i1', 'dev-1', 0), verify('v1', 'passed', 10)]))!,
+      tiles,
+    )
+    expect(view.standing).toBe('passed')
+    expect(view.acceptedBy).toBeUndefined()
   })
 
   it('says nothing about the data of an accepted attempt whose reviewer never named it', () => {
