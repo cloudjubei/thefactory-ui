@@ -1067,6 +1067,11 @@ export type AgentRunFailureEvent = {
   runner: ProcessAgentRunner
 }
 
+export type AgentRunWorkScope = {
+  storyId?: string
+  featureId?: string
+}
+
 export type CapturePlatform = 'android' | 'ios' | 'web'
 
 export type ProofKind =
@@ -5666,6 +5671,7 @@ export type CodeIntelUpdate = {
 }
 
 export type CodeIntelToolsOptions = {
+  persistCatalogue?: boolean
   includeGlobs?: Array<string>
   ignoreGlobs?: Array<string>
   autoExternalDependencies?: boolean
@@ -9053,6 +9059,22 @@ export type GitBranchRemoval =
       reason: string
     }
 
+export type GitRecordedBranchRemoval =
+  | {
+      removed: true
+      tip: string
+    }
+  | {
+      removed: false
+      reason: string
+    }
+
+export type RemoveRecordedBranchInput = {
+  branch: string
+  recoveryLogPath: string
+  reason: string
+}
+
 export type GitContainment =
   | {
       kind: 'contained'
@@ -11085,6 +11107,18 @@ export type MergeRegenerateOutcome =
       reason: string
     }
 
+export type ProjectFilesRegeneration =
+  | {
+      ran: true
+      passed: boolean
+      summary: string
+      rewritten: Array<string>
+    }
+  | {
+      ran: false
+      reason: string
+    }
+
 export type MobilePlatform = 'android' | 'ios'
 
 export type MobileBounds = {
@@ -12261,6 +12295,13 @@ export type ProcessRunIntegration = {
   at: number
 }
 
+export type ProcessRunAlreadyMet = {
+  baseRef: string
+  sha: string
+  summary: string
+  at: number
+}
+
 export type ProcessScope = 'global' | 'project'
 
 export type ProcessStepKind =
@@ -12928,6 +12969,11 @@ export type ProcessUiImpact = {
   by: 'developer' | 'developer-verifier' | 'fixer' | 'verifier'
 }
 
+export type ProcessRegeneratedCommit = {
+  files: Array<string>
+  sha: string
+}
+
 export type ProjectCheckNotCausedCause = 'not-reproducible' | 'pre-existing' | 'environment'
 
 export type ProjectCheckNotCausedReport = {
@@ -13110,6 +13156,10 @@ export type ProcessLedgerEntry = {
     by: 'developer' | 'developer-verifier' | 'fixer' | 'verifier'
   }
   checks?: Array<VerificationCheckResult>
+  regenerated?: {
+    files: Array<string>
+    sha: string
+  }
   checkedSha?: string
   checkedEnvironment?: string
   reusedChecksOf?: string
@@ -13575,6 +13625,12 @@ export type ProcessRun = {
       }
     }
     regenerated?: Array<string>
+    at: number
+  }
+  alreadyMet?: {
+    baseRef: string
+    sha: string
+    summary: string
     at: number
   }
   plan: ProcessPlan
@@ -20615,6 +20671,12 @@ export type ProcessRunChatState = {
       regenerated?: Array<string>
       at: number
     }
+    alreadyMet?: {
+      baseRef: string
+      sha: string
+      summary: string
+      at: number
+    }
     plan: ProcessPlan
     status: ProcessRunStatus
     cursor?: {
@@ -20969,6 +21031,29 @@ export type ProcessNeedsYouItem = {
 }
 
 export type ProcessContinueChoice = 'allow' | 'allow-site' | 'resolved' | 'more-info'
+
+export type ProcessAttemptAgentRun = {
+  id: string
+  createdAt: number
+  chatContextId?: string
+  storyId?: string
+  processRunId?: string
+  mirrorOf?: string
+} & {
+  [key: string]: unknown
+}
+
+export type ProcessRegeneratedCommitOutcome =
+  | ({
+      status: 'committed'
+    } & ProcessRegeneratedCommit)
+  | {
+      status: 'unchanged'
+    }
+  | {
+      status: 'refused'
+      reason: string
+    }
 
 export type ProcessVerifyReview = {
   reviewedRunId: string
@@ -21377,6 +21462,12 @@ export type ProcessRunSummary = {
       }
     }
     regenerated?: Array<string>
+    at: number
+  }
+  alreadyMet?: {
+    baseRef: string
+    sha: string
+    summary: string
     at: number
   }
   plan: ProcessPlan
@@ -21858,6 +21949,10 @@ export type ProcessStepResult = {
     by: 'developer' | 'developer-verifier' | 'fixer' | 'verifier'
   }
   checks?: Array<VerificationCheckResult>
+  regenerated?: {
+    files: Array<string>
+    sha: string
+  }
   checkedSha?: string
   checkedEnvironment?: string
   reusedChecksOf?: string
@@ -22217,6 +22312,10 @@ export type ProcessStepState = {
       by: 'developer' | 'developer-verifier' | 'fixer' | 'verifier'
     }
     checks?: Array<VerificationCheckResult>
+    regenerated?: {
+      files: Array<string>
+      sha: string
+    }
     checkedSha?: string
     checkedEnvironment?: string
     reusedChecksOf?: string
