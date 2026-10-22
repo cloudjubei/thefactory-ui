@@ -1,5 +1,7 @@
-/** The only shape the delete range needs: what kind of message each row is. */
-export type DeletableMessage = { role: string }
+import { withoutUndrawnTail, type DrawableMessage } from './chatShownMessages'
+
+/** The only shape the delete range needs: what kind of message each row is, and whether it is drawn. */
+export type DeletableMessage = DrawableMessage
 
 /**
  * The FIRST index the delete control would remove, or `undefined` when it would
@@ -9,16 +11,20 @@ export type DeletableMessage = { role: string }
  * which always trims a SUFFIX: a trailing run of `tool` messages goes together
  * with the `assistant` message that produced them, because half a tool round-trip
  * is not a state the model can be resumed from. Anything else removes one message.
- * The two must agree — change one and change the other, or the panel will
- * highlight rows that survive (or miss rows that do not).
+ * Messages no client draws under the last one go with it, so the last message
+ * is always the one the person can see. The two must agree — change one and
+ * change the other, or the panel will highlight rows that survive (or miss rows
+ * that do not).
  *
  * Note what is NOT in the range: the user's own message. Deleting a turn takes
  * the agent's reply away and leaves the request that prompted it.
  */
 export function lastMessageDeleteFromIndex(
-  messages: readonly DeletableMessage[],
+  chatMessages: readonly DeletableMessage[],
 ): number | undefined {
-  if (messages.length === 0) return undefined
+  if (chatMessages.length === 0) return undefined
+  const messages = withoutUndrawnTail(chatMessages)
+  if (messages.length === 0) return 0
 
   const last = messages[messages.length - 1]
   if (last?.role !== 'tool') return messages.length - 1

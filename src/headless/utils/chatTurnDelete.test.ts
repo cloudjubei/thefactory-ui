@@ -40,6 +40,23 @@ describe('lastMessageDeleteFromIndex', () => {
   it('takes the whole list when every message is a tool result', () => {
     expect(lastMessageDeleteFromIndex(msgs('tool'))).toBe(0)
   })
+
+  describe('under messages no client draws', () => {
+    const card = { role: 'assistant', openChangesCard: { kind: 'waiting' } }
+
+    it('takes the last drawn message together with the undrawn ones under it', () => {
+      const turn = { role: 'assistant', cliRunId: 'r0' }
+      expect(lastMessageDeleteFromIndex([{ role: 'user' }, turn, card, card])).toBe(1)
+    })
+
+    it('takes a tool tail with its assistant and the undrawn ones under it', () => {
+      expect(lastMessageDeleteFromIndex([...msgs('user', 'assistant', 'tool'), card])).toBe(1)
+    })
+
+    it('takes the whole list when no message is drawn', () => {
+      expect(lastMessageDeleteFromIndex([card])).toBe(0)
+    })
+  })
 })
 
 describe('isInDeleteRange', () => {

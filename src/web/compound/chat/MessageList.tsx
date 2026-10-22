@@ -27,6 +27,7 @@ import type { ResourceLink } from 'thefactory-tools/types'
 import type { ToolCall, ToolResultType } from './ToolCall'
 import type { ChatMessageLike, PendingToolGrant } from '../../../headless/utils/chatTypes'
 import { describeLastMessageDelete } from '../../../headless/utils/chatMessageDelete'
+import { chatShownMessages } from '../../../headless/utils/chatShownMessages'
 import { firstUnreadMessageIndex } from '../../../headless/utils/chatUnread'
 import { useToolApprovalPreviews } from '../../../headless/hooks/useToolApprovalPreviews'
 import type { ToolPreviewResult } from '../../../headless/api/sdkTypes'
@@ -254,8 +255,10 @@ export default function MessageList({
     [rowAsks, decidedIds],
   )
   shownAsksRef.current = pendingRowAsks
+  // Only what is drawn: a message drawn as nothing must not be the last one,
+  // or the row the person sees last offers no delete, retry or restart.
   const askedMessages = useMemo(
-    () => storedChatAskRows(messages, pendingRowAsks, decidedAsks ?? []),
+    () => chatShownMessages(storedChatAskRows(messages, pendingRowAsks, decidedAsks ?? [])),
     [messages, pendingRowAsks, decidedAsks],
   )
   // A CLI turn's call whose ask the chat stores a row for is shown by that row alone.

@@ -28,6 +28,7 @@ import type { UikitFileMeta } from '../files/FileDisplay'
 import type { ResourceLink } from 'thefactory-tools/types'
 import type { ChatMessageLike, PendingToolGrant } from '../../../headless/utils/chatTypes'
 import { describeLastMessageDelete } from '../../../headless/utils/chatMessageDelete'
+import { chatShownMessages } from '../../../headless/utils/chatShownMessages'
 import { isInDeleteRange, lastMessageDeleteFromIndex } from '../../../headless/utils/chatTurnDelete'
 import { describeLastUserMessageRestart } from '../../../headless/utils/chatMessageRestart'
 import type { CliRunBlockedOn } from '../../../headless/utils/cliRunActivityTypes'
@@ -328,8 +329,9 @@ export default function MessageList({
     [rowAsks, decidedIds],
   )
   shownAsksRef.current = pendingRowAsks
+  // Only what is drawn — see web's MessageList.
   const renderable = useMemo(
-    () => storedChatAskRows(messages, pendingRowAsks, decidedAsks ?? []),
+    () => chatShownMessages(storedChatAskRows(messages, pendingRowAsks, decidedAsks ?? [])),
     [messages, pendingRowAsks, decidedAsks],
   )
   // A CLI turn's call whose ask the chat stores a row for is shown by that row alone.
@@ -444,11 +446,11 @@ export default function MessageList({
             the run's booting spinner for the whole run. Suppress it whenever a
             turn is in flight (`turnInFlight` includes server-truth `isBusy`, so
             it covers a run this session did not start). */}
-        {systemPrompt && messages.length === 0 && !turnInFlight && (
+        {systemPrompt && renderable.length === 0 && !turnInFlight && (
           <SystemPromptBubble content={systemPrompt} timestamp={systemPromptTimestamp} />
         )}
         {leadingContent ?? null}
-        {messages.length === 0 && !isThinking && !leadingContent
+        {renderable.length === 0 && !isThinking && !leadingContent
           ? (emptyStateContent ??
             (transcript && !turnInFlight && !pendingCliRunId ? (
               <View

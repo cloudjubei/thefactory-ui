@@ -65,6 +65,18 @@ describe('showcase registry', () => {
     }
   })
 
+  it('draws a failed turn under a hidden notice exactly as the turn alone, Try again offered', () => {
+    const states = SCENES.find((s) => s.id === 'chat-hidden-notice-tail')?.states ?? []
+    const markup = (id: string) =>
+      renderToStaticMarkup(<>{states.find((s) => s.id === id)?.render()}</>)
+    const base = markup('failed-turn')
+    expect(base).toMatch(/Try again/)
+    expect(markup('failed-turn-hidden-notice')).toBe(base)
+    const person = markup('person-message-hidden-notice')
+    expect(person).toMatch(/Try again/)
+    expect(person).not.toMatch(/waited over/)
+  })
+
   it('shows the stash dialog leaving untracked files out and taking them', () => {
     const stash = SCENES.find((s) => s.id === 'git-stash')
     expect(stash?.states.map((s) => s.id)).toEqual(['tracked-only', 'include-untracked'])

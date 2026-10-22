@@ -33,7 +33,6 @@ import { RunParkClosure } from './ParkClosureLine'
 import { RunSiblingFallbackNotice } from '../process/SiblingFallbackNotice'
 import AnsweredQuestionBubble from './AnsweredQuestionBubble'
 import { answeredQuestionOf } from '../../../headless/utils/agentQuestions'
-import { isOpenChangesCardOnlyMessage } from '../../../headless/utils/openChangesNotice'
 import OpenQuestionsCard from './OpenQuestionsCard'
 import ChatStopCard from './ChatStopCard'
 import { chatStopRestart } from '../../../headless/utils/chatStopNotice'
@@ -355,8 +354,6 @@ function MessageRow({
       </div>
     )
   }
-
-  if (isOpenChangesCardOnlyMessage(msg)) return null
 
   const openQuestionsCard = role === 'assistant' ? msg.openQuestionsCard : undefined
   if (openQuestionsCard) {

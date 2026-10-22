@@ -1,4 +1,3 @@
-import type { ChatAudienceMessage } from 'thefactory-tools/types'
 import { isChatOpenChangesOverdue } from 'thefactory-tools/utils'
 
 import {
@@ -54,10 +53,13 @@ export function openChangesNoticeView(
 /**
  * Whether a message only carries a card about the chat's open changes — one the
  * host posted on its own before cards were raised on the turn holding them.
- * Drawn as nothing: the change card says what it said. Pure.
+ * No client draws it — the message lists leave it out (`chatShownMessages`):
+ * the change card says what it said. Pure.
  */
-export function isOpenChangesCardOnlyMessage(
-  message: Pick<ChatAudienceMessage, 'role' | 'openChangesCard'> & { cliRunId?: string },
-): boolean {
+export function isOpenChangesCardOnlyMessage(message: {
+  role: string
+  openChangesCard?: unknown
+  cliRunId?: string
+}): boolean {
   return message.role === 'assistant' && message.openChangesCard !== undefined && !message.cliRunId
 }
