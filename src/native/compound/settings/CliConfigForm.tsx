@@ -13,7 +13,6 @@ import { useCliConfigs } from '../../../headless'
 import type { CliLiveProbeResult, RunCliCapabilityCheckResponse } from '../../../headless'
 import { cliCapabilityCardView } from '../../../headless/utils/cliCapabilityCard'
 import { CLI_CAPABILITY_BATTERY_HINT } from '../../../headless/utils/cliCapabilityCardConstants'
-import type { CliCapabilityTone } from '../../../headless/utils/cliCapabilityCardTypes'
 import {
   cliImageBuildAction,
   cliImageBuildFailure,
@@ -46,6 +45,7 @@ import { IconPlay } from '../../icons/IconPlay'
 import { IconRobot } from '../../icons/IconRobot'
 import { nativeLightStatus, nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
+import { CliCapabilityCardPanel } from './CliCapabilityCardPanel'
 import { CliImageBuildProgress } from './CliImageBuildProgress'
 import { CliImageVersionChip } from './CliImageVersionChip'
 
@@ -312,12 +312,6 @@ export function CliConfigForm() {
     paddingHorizontal: nativeSpace[5],
     paddingVertical: nativeSpace[4],
   } as const
-
-  const probeToneColor: Record<CliCapabilityTone, string> = {
-    pass: nativeLightStatus.done.bg,
-    fail: nativeLightStatus.stuck.bg,
-    none: theme.text.secondary,
-  }
 
   if (!isLoaded) {
     return (
@@ -863,89 +857,7 @@ export function CliConfigForm() {
                     </Text>
                   ) : null}
 
-                  {capView ? (
-                    <View
-                      style={{
-                        ...mutedBlock,
-                        gap: nativeSpace[2],
-                        borderWidth: 1,
-                        borderColor: theme.border.default,
-                      }}
-                    >
-                      <View
-                        style={{
-                          flexDirection: 'row',
-                          flexWrap: 'wrap',
-                          alignItems: 'center',
-                          gap: nativeSpace[3],
-                        }}
-                      >
-                        <Text
-                          style={{ fontSize: 12, fontWeight: '500', color: theme.text.primary }}
-                        >
-                          {capView.headline}
-                        </Text>
-                        <Text style={{ fontSize: 12, color: theme.text.secondary }}>
-                          {capView.latency}
-                        </Text>
-                        {capView.cost ? (
-                          <Text style={{ fontSize: 12, color: theme.text.secondary }}>
-                            {capView.cost}
-                          </Text>
-                        ) : null}
-                        {capView.finished ? (
-                          <Text style={{ fontSize: 12, color: theme.text.secondary }}>
-                            {capView.finished}
-                          </Text>
-                        ) : null}
-                      </View>
-                      {capView.probes.map((probe) => (
-                        <View
-                          key={probe.id}
-                          style={{
-                            flexDirection: 'row',
-                            alignItems: 'flex-start',
-                            gap: nativeSpace[3],
-                          }}
-                        >
-                          <Text
-                            style={{ width: 40, fontSize: 12, color: probeToneColor[probe.tone] }}
-                          >
-                            {probe.status}
-                          </Text>
-                          <View style={{ flex: 1, gap: nativeSpace[1] }}>
-                            <Text style={{ fontSize: 12, color: theme.text.primary }}>
-                              {probe.label}
-                            </Text>
-                            <Text style={{ fontSize: 12, color: theme.text.secondary }}>
-                              {probe.detail}
-                            </Text>
-                            {probe.cases.map((probeCase) => (
-                              <View
-                                key={probeCase.key}
-                                style={{
-                                  flexDirection: 'row',
-                                  alignItems: 'flex-start',
-                                  gap: nativeSpace[2],
-                                }}
-                              >
-                                <Text
-                                  style={{ fontSize: 12, color: probeToneColor[probeCase.tone] }}
-                                >
-                                  {probeCase.mark}
-                                </Text>
-                                <Text
-                                  style={{ flex: 1, fontSize: 12, color: theme.text.secondary }}
-                                >
-                                  {probeCase.detail}
-                                </Text>
-                              </View>
-                            ))}
-                          </View>
-                        </View>
-                      ))}
-                    </View>
-                  ) : null}
+                  {capView ? <CliCapabilityCardPanel view={capView} /> : null}
 
                   {isReauthing ? (
                     <View

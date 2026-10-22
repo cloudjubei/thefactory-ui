@@ -573,7 +573,7 @@ describe('runReviewFacts', () => {
 
   it('labels a subscription run’s charge unknown — never a $0.00 that reads as free — with its tokens in the details only', () => {
     const facts = runReviewFacts({ cost: subscriptionRun, durationMs: 1500 })
-    expect(facts.costLabel).toBe('Unknown (subscription)')
+    expect(facts.costLabel).toBe('$?')
     expect(facts.cost).toBe(subscriptionRun)
   })
 

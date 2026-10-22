@@ -39,8 +39,7 @@ export const SIGNOFF_BILLING_MIXED = 'mixed billing'
 
 /** What the Cost tile's breakdown says billed and list price mean. */
 export const SIGNOFF_BILLING_NOTES: Record<BillingBasis | 'mixed', string> = {
-  subscription:
-    'Billed on your subscription: what it charged is unknown, since a plan can bill usage past its allowance. List price is what the same tokens would cost on the API.',
+  subscription: 'List price is what the same tokens would cost on the API.',
   metered: 'Billed per token on an API key. List price is the same tokens at catalogue prices.',
   free: 'These models are free, so nothing was charged.',
   mixed:

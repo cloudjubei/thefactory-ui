@@ -42,6 +42,15 @@ describe('cliCapabilityCardView', () => {
     expect(view.finished).toBeUndefined()
   })
 
+  it("reads a plan's unknown charge as $? and names the plan beside it", () => {
+    expect(cliCapabilityCardView(card({ cli: 'claude-code', costUnknown: true })).cost).toBe(
+      '$? — included in your Claude subscription up to its allowance',
+    )
+    expect(
+      cliCapabilityCardView(card({ cli: 'codex', totalCostUSD: 0.02, costUnknown: true })).cost,
+    ).toBe('$0.02 + $? — included in your ChatGPT subscription up to its allowance')
+  })
+
   it('labels each probe by its result, treating anything else as not applicable', () => {
     const view = cliCapabilityCardView(
       card({

@@ -238,6 +238,11 @@ function CostBreakdown({ view }: { view: SignoffCostView }) {
   const { theme } = useNativeTheme()
   return (
     <Panel>
+      {view.reasons.map((reason) => (
+        <Text key={reason} style={{ fontSize: 12, color: theme.text.primary }}>
+          {reason}
+        </Text>
+      ))}
       {view.note ? (
         <Text style={{ fontSize: 12, color: theme.text.secondary }}>{view.note}</Text>
       ) : null}

@@ -317,9 +317,7 @@ describe('processRunSpend', () => {
   it('keeps the chip to dollars: unpriced tokens belong in its details, never on it', () => {
     const r = run({ totals: totals({ costUsd: 0.5, unpricedTokens: 12_345 }) })
     expect(processRunSpend(r)?.label).toBe('$0.50')
-    expect(processRunSpend(run({ totals: totals({ unpricedTokens: 800 }) }))?.label).toBe(
-      'No known price',
-    )
+    expect(processRunSpend(run({ totals: totals({ unpricedTokens: 800 }) }))?.label).toBe('$?')
   })
 
   it('keeps the cap label dollars only, whatever went unpriced', () => {
@@ -345,7 +343,7 @@ describe('processRunSpend', () => {
     const r = run({
       totals: totals({ costUsd: 0, includedTokens: 1_308_171, byModel: [planSpend] }),
     })
-    expect(processRunSpend(r)?.label).toBe('Unknown (subscription)')
+    expect(processRunSpend(r)?.label).toBe('$?')
   })
 
   it('keeps a run read without its models at the $0.00 its totals say', () => {
@@ -369,7 +367,7 @@ describe('processRunSpend', () => {
     })
     expect(processRunSpend(capped)).toEqual({
       cap: 5,
-      label: 'No known price · cap $5.00',
+      label: '$? · cap $5.00',
       title: 'Spent against the cap',
     })
     const raised = run({
@@ -377,7 +375,7 @@ describe('processRunSpend', () => {
       budgetGrants: { spendUsdCap: 5 },
       totals: totals({ unpricedTokens: 50_000, byModel: [unpriced] }),
     })
-    expect(processRunSpend(raised)?.label).toBe('No known price · cap $10.00 (raised)')
+    expect(processRunSpend(raised)?.label).toBe('$? · cap $10.00 (raised)')
     const covered = run({
       budget: { spendUsdCap: 5 },
       totals: totals({ costUsd: 0, includedTokens: 50_000 }),
@@ -403,7 +401,7 @@ describe('processRunSpend', () => {
     expect(processRunSpend(capped)).toEqual({
       spent: 0,
       cap: 5,
-      label: 'Unknown (subscription) · cap $5.00',
+      label: '$? · cap $5.00',
       title: 'Spent against the cap',
     })
   })

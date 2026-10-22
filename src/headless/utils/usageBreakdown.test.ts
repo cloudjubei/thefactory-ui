@@ -143,7 +143,8 @@ describe('ledgerUsageRows', () => {
       key: 'ledger:TOTALS',
       label: 'TOTALS',
       total: true,
-      charged: '$0.0102 + unknown (subscription)',
+      charged: '$0.0102 + $?',
+      chargeReason: 'On your Cursor subscription; no known price for 131,194 tokens',
       charge: 'Part unknown',
       tokens: '148,195',
       prompt: '47,145',
@@ -267,7 +268,7 @@ describe('ledgerUsageRows', () => {
     })
     expect(codex).toMatchObject({
       notReportedBy: 'Not reported by Codex',
-      charged: '—',
+      charged: '$?',
       tokens: 'Not reported',
       included: '0',
       unpriced: 'Not reported',
@@ -340,12 +341,12 @@ describe('ledgerUsageRows', () => {
     const composer = rows.find((r) => r.label === 'Cursor · Composer 2.5 (subscription)')
     const codex = rows.find((r) => r.label === 'OpenAI · gpt-5.5-codex')
     expect(composer).toMatchObject({
-      charged: 'Unknown (subscription)',
+      charged: '$?',
       included: '14,701',
       unpriced: '0',
     })
     expect(composer?.listValue).toBe('$0.0067')
-    expect(codex).toMatchObject({ charged: '—', included: '0', unpriced: '131,194' })
+    expect(codex).toMatchObject({ charged: '$?', included: '0', unpriced: '131,194' })
     expect(codex?.listValue).toBe('—')
   })
 
@@ -480,7 +481,7 @@ describe('currentUsageRows', () => {
       (r) => r.label === 'Cursor · composer-2.5 (subscription)',
     )
     expect(row).toMatchObject({
-      charged: 'Unknown (subscription)',
+      charged: '$?',
       included: '14,701',
       unpriced: '0',
       listValue: '$0.0067',
@@ -499,7 +500,7 @@ describe('currentUsageRows', () => {
       prices,
     )
     expect(rows[0]).toMatchObject({
-      charged: 'Unknown (subscription)',
+      charged: '$?',
       included: '1,200',
       listValue: '$0.0110',
     })
@@ -516,7 +517,7 @@ describe('currentUsageRows', () => {
       ],
       prices,
     )
-    expect(rows[0]).toMatchObject({ charged: 'Unknown (subscription)', listValue: '$0.0110' })
+    expect(rows[0]).toMatchObject({ charged: '$?', listValue: '$0.0110' })
   })
 
   it('keeps one model on a plan and on a key as two rows, named as the ledger names them', () => {
@@ -531,7 +532,7 @@ describe('currentUsageRows', () => {
       'OpenAI · gpt-5.5',
       'OpenAI · gpt-5.5 (subscription)',
     ])
-    expect(rows[2]).toMatchObject({ charged: 'Unknown (subscription)', included: '1,200' })
+    expect(rows[2]).toMatchObject({ charged: '$?', included: '1,200' })
     expect(ledgerUsageRows(aggregate).map((r) => r.label)).toContain(
       'Cursor · Composer 2.5 (subscription)',
     )
@@ -539,7 +540,7 @@ describe('currentUsageRows', () => {
 
   it('never estimates a model with no price as $0', () => {
     const row = currentUsageRows(messages, prices).find((r) => r.label === 'OpenAI · o9-preview')
-    expect(row).toMatchObject({ charged: '—', unpriced: '150', listValue: '—' })
+    expect(row).toMatchObject({ charged: '$?', unpriced: '150', listValue: '—' })
   })
 
   it('totals every model, most charged first', () => {
@@ -551,7 +552,7 @@ describe('currentUsageRows', () => {
       'OpenAI · o9-preview',
     ])
     expect(rows[0]).toMatchObject({
-      charged: '≈ $0.0212 + unknown (subscription)',
+      charged: '≈ $0.0212 + $?',
       included: '14,701',
       unpriced: '150',
       listValue: '$0.0279 (known prices only)',
@@ -568,7 +569,8 @@ describe('currentUsageRows', () => {
         key: 'current:TOTALS',
         label: 'TOTALS',
         total: true,
-        charged: 'Unknown (subscription)',
+        charged: '$?',
+        chargeReason: 'On your Cursor subscription',
         charge: 'Unknown',
         tokens: 'Not reported',
         prompt: 'Not reported',
@@ -622,7 +624,7 @@ describe('currentUsageRows', () => {
     )
     expect(row).toMatchObject({
       notReportedBy: 'Not reported by Claude Code',
-      charged: 'Unknown (subscription)',
+      charged: '$?',
       tokens: '41,932 + not reported',
       prompt: '2',
       completion: 'Not reported',
@@ -657,7 +659,7 @@ describe('currentUsageRows', () => {
       { 'anthropic::claude-sonnet-5': sonnet },
     )
     expect(row).toMatchObject({
-      charged: '—',
+      charged: '$?',
       unpriced: '41,932 + not reported',
       listValue: '—',
     })
@@ -764,7 +766,7 @@ describe('currentUsageRows', () => {
     ])
     expect(rows[2]).toMatchObject({
       key: 'current:Cursor · Composer 2.5 (subscription)',
-      charged: 'Unknown (subscription)',
+      charged: '$?',
       tokens: '14,701',
       included: '14,701',
       unpriced: '0',
@@ -813,7 +815,7 @@ describe('currentUsageRows', () => {
       listValue: '$0.0067',
     })
     expect(rows.find((r) => r.label === 'Cursor · Grok 4.5')).toMatchObject({
-      charged: '—',
+      charged: '$?',
       tokens: '131,194',
       prompt: '40,120',
       completion: '3,010',
@@ -841,7 +843,7 @@ describe('currentUsageRows', () => {
       notReportedBy: 'Not reported by Claude Code',
       completion: '6,623 + not reported',
       tokens: '1,350,103 + not reported',
-      charged: '—',
+      charged: '$?',
       unpriced: '1,350,103 + not reported',
     })
   })
@@ -900,7 +902,7 @@ describe('currentUsageRows', () => {
       {},
     )
     expect(row).toMatchObject({
-      charged: 'Unknown (subscription)',
+      charged: '$?',
       included: '145,895',
       unpriced: '0',
       listValue: '$0.0067 (known prices only)',
@@ -936,7 +938,7 @@ describe('currentUsageRows', () => {
     )
     expect(row).toMatchObject({
       notReportedBy: 'Not reported by Codex',
-      charged: '—',
+      charged: '$?',
       included: '0',
       unpriced: 'Not reported',
       tokens: 'Not reported',
@@ -955,7 +957,7 @@ describe('currentUsageRows', () => {
     expect(rows[0]).toMatchObject({
       label: 'TOTALS',
       notReportedBy: 'Not reported by Cursor and Codex',
-      charged: '$0.0102 + unknown (subscription)',
+      charged: '$0.0102 + $?',
       tokens: '2,300 + not reported',
       included: 'Not reported',
       unpriced: 'Not reported',
@@ -987,7 +989,7 @@ describe('currentUsageRows', () => {
     expect(rows.find((r) => r.label === 'OpenAI · gpt-5')).toMatchObject({
       tokens: '13,895',
       unpriced: '13,895',
-      charged: '—',
+      charged: '$?',
     })
   })
 
@@ -1075,7 +1077,8 @@ describe('USAGE_TABLE_COLUMNS', () => {
     const [row] = ledgerUsageRows(aggregate)
     const shown = USAGE_TABLE_COLUMNS.map((c) => c.cell)
     const worded = Object.keys(row).filter(
-      (k) => !['key', 'total', 'cacheRatio', 'notReportedBy', 'incomplete'].includes(k),
+      (k) =>
+        !['key', 'total', 'cacheRatio', 'notReportedBy', 'incomplete', 'chargeReason'].includes(k),
     )
     expect([...shown].sort()).toEqual([...worded].sort())
     expect(new Set(shown).size).toBe(shown.length)
@@ -1352,7 +1355,7 @@ describe('charge status and missing counts', () => {
 
   it("never reads a plan's charge as $0: unknown alone, unknown beside what other models were charged", () => {
     const [plan] = currentUsageRows([turn(metered({ billing: 'subscription', costUsd: 0 }))], {})
-    expect(plan.charged).toBe('Unknown (subscription)')
+    expect(plan.charged).toBe('$?')
     const [mixed] = currentUsageRows(
       [
         turn(metered()),
@@ -1360,25 +1363,73 @@ describe('charge status and missing counts', () => {
       ],
       {},
     )
-    expect(mixed.charged).toBe('$0.0500 + unknown (subscription)')
+    expect(mixed.charged).toBe('$0.0500 + $?')
     const [apiPlan] = currentUsageRows(
       [apiTurn({ promptTokens: 10, completionTokens: 5, billing: 'subscription', cost: 0 })],
       {},
     )
-    expect(apiPlan.charged).toBe('Unknown (subscription)')
+    expect(apiPlan.charged).toBe('$?')
   })
 
   it('never reads a ledger plan row as $0', () => {
     const rows = ledgerUsageRows(aggregate)
-    expect(rows.find((row) => row.label.includes('subscription'))?.charged).toBe(
-      'Unknown (subscription)',
-    )
-    expect(rows[0].charged).toBe('$0.0102 + unknown (subscription)')
+    expect(rows.find((row) => row.label.includes('subscription'))?.charged).toBe('$?')
+    expect(rows[0].charged).toBe('$0.0102 + $?')
   })
 
   it('explains the charge column under the tables, and never calls a plan’s share free', () => {
     expect(USAGE_FOOTNOTES.some((note) => note.startsWith('Charge says'))).toBe(true)
-    expect(USAGE_FOOTNOTES.some((note) => note.includes("a plan's share reads unknown"))).toBe(true)
     expect(USAGE_FOOTNOTES.join(' ')).not.toContain('not charged')
+  })
+
+  it('explains $? under the tables: never $0, and the row says why', () => {
+    expect(USAGE_FOOTNOTES[0]).toBe(
+      "Charged is what was billed; a charge that is not known reads $?, never $0, and its row says why — a plan's share (a plan includes usage up to its allowance and may bill beyond it) or tokens with no known price. Included counts tokens a plan or a free model covered. Unpriced counts metered tokens with no known price: their cost is unknown, not $0.",
+    )
+    expect(USAGE_FOOTNOTES[2]).toBe(
+      'Charge says how sure the charged figure is: Confirmed was billed per token at a known rate; In plan cost nothing extra; Unknown has no stated charge — its Charged figure reads $? because a plan can bill overage, a price is missing, or the counts are short — so it is not a confirmed $0.',
+    )
+    expect(USAGE_FOOTNOTES.join(' ')).not.toMatch(/unknown \(subscription\)/)
+  })
+
+  it('says under a $? row why its charge is unknown: the plan it ran on, the tokens with no known price', () => {
+    const rows = ledgerUsageRows(aggregate)
+    const reason = Object.fromEntries(rows.map((row) => [row.label, row.chargeReason]))
+    expect(reason).toEqual({
+      TOTALS: 'On your Cursor subscription; no known price for 131,194 tokens',
+      'Cursor · Composer 2.5 (subscription)': 'On your Cursor subscription',
+      'OpenAI · gpt-5.5': '',
+      'OpenAI · gpt-5.5-codex': 'No known price for 131,194 tokens',
+    })
+  })
+
+  it('names every plan a row ran on, and a plan the record does not name as your subscription', () => {
+    const [both] = currentUsageRows(
+      [
+        turn(metered({ billing: 'subscription', costUsd: 0 })),
+        turn(metered({ provider: 'cursor', model: 'auto', billing: 'subscription', costUsd: 0 })),
+      ],
+      {},
+    )
+    expect(both).toMatchObject({
+      charged: '$?',
+      chargeReason: 'On your Claude and Cursor subscriptions',
+    })
+    const [cli] = sourceUsageRows({
+      ...aggregate,
+      bySource: { cli: { ...aggregate.bySource!.cli!, billing: 'subscription' } },
+    })!
+    expect(cli).toMatchObject({
+      charged: '$?',
+      chargeReason: 'On your subscription; no known price for 131,194 tokens',
+    })
+  })
+
+  it('gives no reason beside a charge that is known, even with tokens unpriced beside it', () => {
+    const [row] = currentUsageRows(
+      [turn(metered(), metered({ model: 'o9', costUsd: undefined, listCostUsd: undefined }))],
+      {},
+    )
+    expect(row).toMatchObject({ charged: '$0.0500', chargeReason: '' })
   })
 })

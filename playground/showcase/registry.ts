@@ -9,10 +9,12 @@ import { CHAT_HIDDEN_TAIL_SCENES } from '../scenes/chatHiddenTail'
 import { CHAT_LIST_CLOSED_SCENES } from '../scenes/chatListClosed'
 import { CHAT_STOP_SCENES } from '../scenes/chatStop'
 import { CIRCLING_SCENES } from '../scenes/circling'
+import { CLI_CAPABILITY_CARD_SCENES } from '../scenes/cliCapabilityCard'
 import { CHAT_CHANGES_SCENES } from '../scenes/chatChanges'
 import { CHAT_CHANGES_DOCK_SCENES } from '../scenes/chatChangesDock'
 import { CHECKS_UNFINISHED_SCENES } from '../scenes/checksUnfinished'
 import { COMMIT_RECEIPT_SCENES } from '../scenes/commitReceipt'
+import { COST_CHIP_SCENES } from '../scenes/costChip'
 import { CHAT_PAUSED_RUN_SCENES } from '../scenes/chatPausedRun'
 import { DESIGN_SCENES } from '../scenes/design'
 import { DROPPED_CHANGE_SCENES } from '../scenes/droppedChange'
@@ -79,6 +81,7 @@ export const SCENES: readonly Scene[] = [
   ...LAND_NOTICE_SCENES,
   ...PROCESS_SCENES,
   ...RUN_TIME_DETAILS_SCENES,
+  ...COST_CHIP_SCENES,
   ...PROCESS_CHECKS_SCENES,
   ...ACCEPTED_UNCHECKED_SCENES,
   ...SIBLING_STABLE_BRANCH_SCENES,
@@ -105,6 +108,7 @@ export const SCENES: readonly Scene[] = [
   ...APP_FEATURE_REQUEST_SCENES,
   ...GIT_STASH_SCENES,
   ...USAGE_SCENES,
+  ...CLI_CAPABILITY_CARD_SCENES,
   ...BACKEND_CONNECTION_SCENES,
   ...PRIMITIVE_SCENES,
 ]

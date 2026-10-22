@@ -157,6 +157,11 @@ function TimeBreakdown({ view }: { view: SignoffTimeView }) {
 function CostBreakdown({ view }: { view: SignoffCostView }) {
   return (
     <Panel>
+      {view.reasons.map((reason) => (
+        <span key={reason} className="text-[12px] text-(--text-primary)">
+          {reason}
+        </span>
+      ))}
       {view.note ? <span className="text-[12px] text-(--text-secondary)">{view.note}</span> : null}
       {view.rows.map((row) => (
         <div

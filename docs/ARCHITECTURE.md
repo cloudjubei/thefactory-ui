@@ -719,21 +719,31 @@ the sign-off's head, Overall and every feature (`RunReviewFacts.timeDetails`,
 summed across scopes by `storySignoff` with the tools' `sumProcessTimeBreakdowns`).
 
 A cost CHIP says one thing: the charge, in dollars (`costChipLabel`) — `$0.00`
-is a real value only for a free model's work; a plan's share reads
-`Unknown (subscription)` (a plan can bill overage), alone or after the stated
-charges, and a spend cap reads `$x of $cap`. The usage modal's Charged cell and
-a CLI capability check's cost (`probeCostLabel`) read a plan's share the same way. When no charge is known the chip says why instead of a `$0.00`
-it never was: `Charge pending` (a metered run still going — its runner prices
-it with its terminal write), `No known price`, or `Not reported` (a CLI that
-reported no token counts). A CLI run's recorded `costUSD` is never read: before
+is a real value only for a free model's work, and a spend cap reads
+`$x of $cap`. A charge that is not known reads `$?` whatever the reason, alone
+or after the stated charges (`$0.53 + $?`), never a `$0.00` it never was: a
+plan's share (a plan can bill overage), a metered run still going (its runner
+prices it with its terminal write), no known price, or counts a CLI has not
+reported or never did. The details the chip opens say why
+(`CostDetailsView.chargeReasons`, under the summary): the plan it ran on, from
+`COST_PLAN_NAMES`; the model with no known price or no recorded billing; the
+tool that left its counts out; a run still going — one sentence per cause, each
+with its share in tokens (or turns) when the cost has several parts, and the
+notes no longer repeat what a reason says. The sign-off's Cost tile reads the
+same `$?` and lists the same reasons in its breakdown. The usage modal's
+Charged cell reads `$?` the same way, with the reason under the row's label
+(`UsageTableRow.chargeReason`: `On your Claude subscription; no known price for
+4,000 tokens`), and a CLI capability check's cost (`probeCostLabel`), which opens
+no details, says its plan beside it: `$? — included in your Claude subscription
+up to its allowance` (`CliCapabilityCardPanel` on both clients). A CLI run's recorded `costUSD` is never read: before
 billing was kept it held Claude Code's list-price estimate and Cursor's "no
 price found" $0; a run's cost comes from its per-model rows and billing, read
 through `thefactory-tools` `cliRunSpends` so a run's chip and its process
 attempt's chip agree. Everything else a cost knows lives in ONE details view,
 `headless/utils/costDetails.ts` → `costDetailsView(cost)`: the tokens a plan
 included, the metered tokens with no known price (unknown, never $0), the list
-value, a row per model with how it was paid for, and notes on what the record
-cannot say (which model Cursor's Auto used; usage beyond a plan's allowance).
+value, why a `$?` charge is not known, a row per model with how it was paid
+for, and notes on what the record cannot say (which model Cursor's Auto used).
 Every chip opens it through `CostChip` — a hover/focus/pinned popover on web
 (always a tab stop, so it is never put inside a `<button>`: a clickable row is a
 stretched button with the chip beside it), a bottom sheet on native — whether the cost is a pipeline ledger cost, a CLI run

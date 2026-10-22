@@ -413,6 +413,10 @@ const planTurn: UsageModalMessage = {
   },
 }
 
+const { cost: _cost, ...unpricedUsage } = apiTurn.usage!
+
+const unpricedTurn: UsageModalMessage = { ...apiTurn, usage: unpricedUsage }
+
 const noPrice = async () => undefined
 
 export const USAGE_SCENES: Scene[] = [
@@ -458,16 +462,36 @@ export const USAGE_SCENES: Scene[] = [
     component: 'UsageModal',
     group: 'Chat',
     description:
-      'The usage modal’s Charge column says how sure each charge is, and the line under a row names what its counts lack — a cache count never reported, an output never reported, an estimate.',
+      'The usage modal’s Charge column says how sure each charge is; a Charged figure that is not known reads $?, never $0, and the lines under a row say why and name what its counts lack — a cache count never reported, an output never reported, an estimate.',
     states: [
+      {
+        id: 'api-turn',
+        title: 'An API turn’s known charge',
+        overlay: true,
+        description:
+          'The look-alike the $? states differ from: a stated charge in dollars, no reason under the row.',
+        render: () => (
+          <UsageModal isOpen onClose={() => {}} messages={[apiTurn]} getPrice={noPrice} />
+        ),
+      },
       {
         id: 'plan-and-api',
         title: 'A plan’s charge and an API turn’s gaps',
         overlay: true,
         description:
-          'A plan turn reads Unknown (subscription), never $0; an API turn that never reported its cache counts is short and its charge unknown.',
+          'A plan turn reads $?, never $0, with “On your Cursor subscription” under its row; an API turn that never reported its cache counts is short and its charge unknown.',
         render: () => (
           <UsageModal isOpen onClose={() => {}} messages={[planTurn, apiTurn]} getPrice={noPrice} />
+        ),
+      },
+      {
+        id: 'no-known-price',
+        title: 'A turn with no known price',
+        overlay: true,
+        description:
+          'A metered turn with no stored charge and no price reads $?, with “No known price for 3,610 tokens” under its row.',
+        render: () => (
+          <UsageModal isOpen onClose={() => {}} messages={[unpricedTurn]} getPrice={noPrice} />
         ),
       },
       {

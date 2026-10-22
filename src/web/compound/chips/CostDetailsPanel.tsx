@@ -23,7 +23,8 @@ function Lines({ lines, className }: { lines: CostDetailsLine[]; className?: str
 
 /**
  * A cost's details — the one view every cost chip opens. The chip says the
- * charge; this says the rest: tokens a plan covered, tokens with no known
+ * charge; this says the rest: why a `$?` charge is not known, tokens a plan
+ * covered, tokens with no known
  * price, what it all comes to at list price, a row per model with how it was
  * paid for, and what the record cannot say. Worded in headless
  * (`costDetailsView`) so the native sheet reads the same.
@@ -33,6 +34,13 @@ export default function CostDetailsPanel({ view, title }: CostDetailsPanelProps)
     <div className="flex min-h-0 w-[300px] max-w-full flex-col gap-2 overflow-y-auto text-xs text-(--text-primary)">
       {title ? <div className="font-semibold">{title}</div> : null}
       <Lines lines={view.summary} />
+      {view.chargeReasons.length > 0 ? (
+        <ul className="flex flex-col gap-1 text-(--text-secondary)">
+          {view.chargeReasons.map((reason) => (
+            <li key={reason}>{reason}</li>
+          ))}
+        </ul>
+      ) : null}
       {view.rows.map((row) => (
         <div key={row.key} className="flex flex-col gap-1 border-t border-(--border-subtle) pt-2">
           <div className="flex items-baseline justify-between gap-3">

@@ -216,12 +216,12 @@ function DataRow({ row }: { row: UsageTableRow }) {
       }}
     >
       {USAGE_TABLE_COLUMNS.map((c) =>
-        c.cell === 'label' && (row.notReportedBy || row.incomplete) ? (
+        c.cell === 'label' && (row.chargeReason || row.notReportedBy || row.incomplete) ? (
           <View key={c.cell} style={cellBase}>
             <Text style={num} numberOfLines={CELL_LINES}>
               {row.label}
             </Text>
-            {[row.notReportedBy, row.incomplete]
+            {[row.chargeReason, row.notReportedBy, row.incomplete]
               .filter((note) => note !== '')
               .map((note) => (
                 <Text

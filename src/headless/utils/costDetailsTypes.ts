@@ -96,7 +96,7 @@ export interface CostDetailsRow {
    */
   tokens: CostDetailsLine[]
   chargedUsd?: number
-  /** What was charged: `Unknown` for metered tokens with no known price, `Pending` mid-run. */
+  /** What was charged: `Unknown` for a plan's share or metered tokens with no known price, `Pending` mid-run. */
   charged: string
   listCostUsd?: number
   /** `≈ $X at list price`, `No known price`, `Priced when the run ends`, or why the tokens' value is unknown. */
@@ -106,7 +106,7 @@ export interface CostDetailsRow {
 /** Everything a cost's details view shows, worded once for web and native. */
 export interface CostDetailsView {
   chargedUsd?: number
-  /** What was charged — exactly what the chip says. */
+  /** What was charged — exactly what the chip says: `$1.25`, `$0.53 + $?`, `$?`. */
   charged: string
   /** Every token counted; a count the CLI never reported adds nothing here. */
   totalTokens: number
@@ -121,6 +121,13 @@ export interface CostDetailsView {
    * so, and a total missing counts a tool never reported names that tool.
    */
   summary: CostDetailsLine[]
+  /**
+   * Why the charge is unknown when the chip reads `$?` — one plain sentence per
+   * cause, naming the plan, the model with no price or the tool that left its
+   * counts out, with each share when there are several. Empty when the charge
+   * is known.
+   */
+  chargeReasons: string[]
   rows: CostDetailsRow[]
   /** What the numbers cannot say, said plainly. */
   notes: string[]

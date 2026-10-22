@@ -59,6 +59,11 @@ function UsageTable({ rows }: { rows: UsageTableRow[] }) {
                     className={`px-2 py-2 align-top ${c.cell === 'label' ? 'whitespace-normal break-words text-[var(--text-primary)]' : ''}`}
                   >
                     {r[c.cell]}
+                    {c.cell === 'label' && r.chargeReason ? (
+                      <div className="text-[11px] font-normal text-[var(--text-secondary)]">
+                        {r.chargeReason}
+                      </div>
+                    ) : null}
                     {c.cell === 'label' && r.notReportedBy ? (
                       <div className="text-[11px] font-normal text-[var(--text-secondary)]">
                         {r.notReportedBy}

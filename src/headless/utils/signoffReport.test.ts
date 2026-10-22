@@ -129,7 +129,7 @@ describe('reportTiles', () => {
     expect(time.detail?.kind).toBe('time')
     expect(spend).toMatchObject({
       label: 'Cost',
-      value: 'Unknown (subscription)',
+      value: '$?',
       sub: 'subscription · list price $2.00',
     })
     expect(spend.detail?.kind).toBe('cost')

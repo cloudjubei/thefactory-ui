@@ -89,7 +89,7 @@ export const RUN_TIME_DETAILS_SCENES: Scene[] = [
     component: 'TimeDetailsPanel (RunHead time chip)',
     group: 'Process',
     description:
-      'What a run’s time chip opens: where the time went, and — once its agent manager took turns on the run — the manager’s line, its cost and time, counted in the total. A subscription’s share reads unknown, never $0.00.',
+      'What a run’s time chip opens: where the time went, and — once its agent manager took turns on the run — the manager’s line, its cost and time, counted in the total. A subscription’s share reads $?, never $0.00.',
     states: [
       {
         id: 'no-manager',
@@ -106,7 +106,7 @@ export const RUN_TIME_DETAILS_SCENES: Scene[] = [
       {
         id: 'manager-subscription',
         title: 'Agent manager, subscription',
-        description: 'On a plan its share is unknown: “Unknown (subscription) · 4m”.',
+        description: 'On a plan its share is unknown: “$? · 4m”.',
         render: () => <Details manager={SUBSCRIPTION} />,
       },
     ],

@@ -106,8 +106,17 @@ export interface UsageTableRow {
    * Cursor` — shown under its label; empty when every count was reported.
    */
   notReportedBy: string
-  /** What was charged; `≈`-prefixed when part of it is estimated from current prices. */
+  /**
+   * What was charged; `≈`-prefixed when part of it is estimated from current
+   * prices. A charge not known reads `$?`, alone or after the known part.
+   */
   charged: string
+  /**
+   * Why a `$?` charge is unknown, shown under the label — the plans it ran on,
+   * the tokens with no known price: `On your Claude subscription; no known
+   * price for 4,000 tokens`. Empty when the charge is known.
+   */
+  chargeReason: string
   /** How sure that charge is: `Confirmed`, `In plan`, `Unknown`, `Part unknown`, or `—` with no calls. */
   charge: string
   /** What the row's counts lack, in words — `Cache not reported · Estimated` — shown under its label; empty when nothing. */

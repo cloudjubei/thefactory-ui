@@ -823,7 +823,7 @@ describe("buildStorySignoff — time and cost are the pipeline's", () => {
   it('gives a feature relaunched under one story run its newest run alone, never a CLI guess', () => {
     expect(signoff().features[0].facts).toEqual({
       durationLabel: '44m 00s',
-      costLabel: 'No known price',
+      costLabel: '$?',
       cost: { unpricedTokens: 32_700_000 },
     })
   })
@@ -976,7 +976,7 @@ describe("buildStorySignoff — time and cost are the pipeline's", () => {
     it('heads the story with the latest root, never the one before it', () => {
       expect(relaunched().facts).toEqual({
         durationLabel: '3m 00s',
-        costLabel: 'No known price',
+        costLabel: '$?',
         cost: { unpricedTokens: 32_700_000 },
       })
     })
@@ -985,7 +985,7 @@ describe("buildStorySignoff — time and cost are the pipeline's", () => {
       const f1 = relaunched().features.find((f) => f.featureId === 'f1')
       expect(f1?.facts).toEqual({
         durationLabel: '1m 00s',
-        costLabel: 'No known price',
+        costLabel: '$?',
         cost: { unpricedTokens: 32_700_000 },
       })
     })
@@ -1013,7 +1013,7 @@ describe("buildStorySignoff — time and cost are the pipeline's", () => {
     })
     expect(story.features[0].facts).toEqual({
       durationLabel: '7m 00s',
-      costLabel: 'No known price',
+      costLabel: '$?',
       cost: { unpricedTokens: 32_700_000 },
     })
     expect(story.facts.durationLabel).toBe('7m 00s')
@@ -1063,7 +1063,7 @@ describe('buildStorySignoff — cost details', () => {
       ],
       evidence: [],
     })
-    expect(signoff.facts.costLabel).toBe('Unknown (subscription)')
+    expect(signoff.facts.costLabel).toBe('$?')
     expect(signoff.facts.cost).toMatchObject({
       costUsd: 0,
       includedTokens: 14_701 + 9_876,

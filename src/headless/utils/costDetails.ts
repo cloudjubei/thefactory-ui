@@ -3,8 +3,8 @@
  *
  * A chip says what was CHARGED, in dollars and nothing else — `$0.00` is a real
  * value for a free model's work, never for a subscription's: a plan can bill
- * usage past its allowance, so what it charged is unknown, and the chip says
- * so. Everything else a cost knows (which
+ * usage past its allowance, so what it charged is unknown, and the chip reads
+ * `$?`, its details saying why. Everything else a cost knows (which
  * model ran, how its tokens were paid for, what they are worth at list price,
  * which tokens have no known price) lives in one details view, worded here once
  * so the web popover and the native sheet cannot drift. Pure: no React, no I/O.
@@ -18,10 +18,9 @@ import { isCliRunWorking } from './cliRunActivity'
 import {
   COST_BILLING_LABELS,
   COST_BILLING_UNRECORDED,
-  COST_CHARGE_PENDING,
   COST_CHARGE_PENDING_SHORT,
-  COST_CHARGE_SUBSCRIPTION,
   COST_CHARGE_UNKNOWN,
+  COST_CHARGE_UNKNOWN_CHIP,
   COST_COUNTS_PENDING,
   COST_LIST_OUTPUT_NOT_REPORTED,
   COST_LIST_PARTIAL,
@@ -33,13 +32,20 @@ import {
   COST_NOTE_NO_MODELS,
   COST_NOTE_OUTPUT_NOT_REPORTED_TAIL,
   COST_NOTE_OUTPUT_PENDING_TAIL,
-  COST_NOTE_OVERAGE,
   COST_NOTE_PENDING,
   COST_NOTE_TOKENS_NOT_REPORTED_TAIL,
   COST_NOTE_UNPRICED,
   COST_NOTE_UNRECORDED_BILLING,
   COST_PLAN_NAMES,
   COST_PROVIDER_NAMES,
+  COST_REASON_INCLUDED_HEAD,
+  COST_REASON_INCLUDED_TAIL,
+  COST_REASON_MODEL_UNNAMED,
+  COST_REASON_NO_BILLING,
+  COST_REASON_NO_PRICE,
+  COST_REASON_SUBJECT_PART,
+  COST_REASON_SUBJECT_WHOLE,
+  COST_REASON_SUBSCRIPTION_TAIL,
   COST_REPORTING_TOOL_UNKNOWN,
   COST_REPORTING_TOOLS,
   COST_TOKENS_NOT_REPORTED,
@@ -116,51 +122,68 @@ function lacksPrice(cost: CostSource, rows: readonly CostSpend[]): boolean {
 
 const isSubscription = (s: CostSpend): boolean => s.billing === 'subscription'
 
+/** A chip's charge in parts: the dollars that are known, and whether some of it is not. */
+type ChipCharge = { known?: string; unknown: boolean }
+
 /**
- * What a cost chip says: the charge in dollars, and never a token count. When
- * no charge is known the chip says why — still to come on a run in flight, no
- * price for its tokens, usage the CLI has not reported yet, or usage it never
- * reported — rather than a `$0.00` it never was. A subscription's share is
- * unknown (a plan can bill past its allowance): alone it is
- * {@link COST_CHARGE_SUBSCRIPTION}, beside other charges it follows them.
- * Undefined when nothing was measured.
+ * What a cost chip says: the charge in dollars, and never a token count. A
+ * charge that is not known — a plan's share (a plan can bill past its
+ * allowance), tokens with no known price, counts the CLI has not reported yet
+ * or never did, a run still going — reads {@link COST_CHARGE_UNKNOWN_CHIP},
+ * alone or after the charges that are known, rather than a `$0.00` it never
+ * was; the details say why ({@link CostDetailsView.chargeReasons}). Undefined
+ * when nothing was measured.
  */
 export function costChipLabel(cost: CostSource | undefined): string | undefined {
+  return chipLabel(chipCharge(cost))
+}
+
+function chipLabel(charge: ChipCharge | undefined): string | undefined {
+  if (!charge?.unknown) return charge?.known
+  return charge.known ? `${charge.known} + ${COST_CHARGE_UNKNOWN_CHIP}` : COST_CHARGE_UNKNOWN_CHIP
+}
+
+/** A subscription's share is never known; beside it, the charges of the rest are. */
+function chipCharge(cost: CostSource | undefined): ChipCharge | undefined {
   const rows = cost?.byModel ?? []
-  if (!cost || !rows.some(isSubscription)) return chargeLabel(cost)
+  if (!cost || !rows.some(isSubscription)) return chargeOf(cost)
   const others = rows.filter((s) => !isSubscription(s))
   const costUsd = others.reduce<number | undefined>((sum, s) => addMoney(sum, s.costUsd), undefined)
   const { costUsd: _withSubscription, ...rest } = cost
   const known =
     others.length > 0
-      ? chargeLabel({ ...rest, byModel: others, ...(costUsd !== undefined ? { costUsd } : {}) })
+      ? chargeOf({ ...rest, byModel: others, ...(costUsd !== undefined ? { costUsd } : {}) })?.known
       : undefined
-  return known ? `${known} + ${COST_CHARGE_SUBSCRIPTION}` : sentenceCase(COST_CHARGE_SUBSCRIPTION)
+  return { ...(known !== undefined ? { known } : {}), unknown: true }
 }
 
 /**
- * What a CLI capability check cost: the charges its calls stated, and — when a
- * call ran on a plan, whose charge is unknown — never a `$0` for that share.
- * Undefined when no call reported a cost.
+ * What a CLI capability check cost: the charges its calls stated and — when a
+ * call ran on a plan, whose charge is unknown — {@link COST_CHARGE_UNKNOWN_CHIP}
+ * beside them, never a `$0` for that share. The card opens no details, so the
+ * plan the CLI's login draws on is said beside it. Undefined when no call
+ * reported a cost.
  */
 export function probeCostLabel(card: {
+  cli?: string
   totalCostUSD?: number
   costUnknown?: boolean
 }): string | undefined {
   const known = formatCostUSD(card.totalCostUSD)
   if (!card.costUnknown) return known
-  return known ? `${known} + ${COST_CHARGE_SUBSCRIPTION}` : sentenceCase(COST_CHARGE_SUBSCRIPTION)
+  const plan = card.cli ? COST_PLAN_NAMES[card.cli] : undefined
+  const charge = chipLabel({ ...(known !== undefined ? { known } : {}), unknown: true })
+  return `${charge} — ${COST_REASON_INCLUDED_HEAD} ${plan ? `${plan} ` : ''}${COST_REASON_INCLUDED_TAIL}`
 }
 
-function chargeLabel(cost: CostSource | undefined): string | undefined {
-  const charged = formatCostUSD(cost?.costUsd)
-  if (charged !== undefined || !cost) return charged
+function chargeOf(cost: CostSource | undefined): ChipCharge | undefined {
+  const known = formatCostUSD(cost?.costUsd)
+  if (known !== undefined) return { known, unknown: false }
+  if (!cost) return undefined
   const rows = cost.byModel ?? []
-  if (rows.some((s) => s.chargePending)) return COST_CHARGE_PENDING
-  if (lacksPrice(cost, rows)) return COST_NO_KNOWN_PRICE
-  const lacking = rows.filter(lacksCounts)
-  if (lacking.length === 0) return undefined
-  return lacking.every(isCountsPending) ? COST_COUNTS_PENDING : COST_TOKENS_NOT_REPORTED
+  const unknown =
+    rows.some((s) => s.chargePending) || lacksPrice(cost, rows) || rows.some(lacksCounts)
+  return unknown ? { unknown: true } : undefined
 }
 
 /**
@@ -427,8 +450,8 @@ export function reportingToolOf(provider: string): string {
   return COST_REPORTING_TOOLS[provider] ?? COST_REPORTING_TOOL_UNKNOWN
 }
 
-/** `Cursor`, `Cursor and Codex`, `Cursor, Codex and Claude Code`. */
-function wordList(words: readonly string[]): string {
+/** `Cursor`, `Cursor and Codex`, `Cursor, Codex and Claude Code`. Pure. */
+export function wordList(words: readonly string[]): string {
   if (words.length <= 1) return words.join('')
   return `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`
 }
@@ -518,7 +541,7 @@ function detailsRow(s: CostSpend): CostDetailsRow {
     ...rowTokens(s),
     ...(s.costUsd !== undefined ? { chargedUsd: s.costUsd } : {}),
     charged: isSubscription(s)
-      ? sentenceCase(COST_CHARGE_SUBSCRIPTION)
+      ? COST_CHARGE_UNKNOWN
       : chargedWords(s.costUsd, s.chargePending === true),
     ...(s.listCostUsd !== undefined ? { listCostUsd: s.listCostUsd } : {}),
     listValue: listValue(s),
@@ -528,14 +551,12 @@ function detailsRow(s: CostSpend): CostDetailsRow {
 const isCursorAuto = (s: CostSpend): boolean =>
   CURSOR_PROVIDERS.has(s.provider) && s.model.toLowerCase() === CURSOR_AUTO_MODEL
 
-/**
- * One note per tool for the turns it reported no counts for, saying how many
- * when a sum holds several — so a Cursor resident turn reads "Cursor did not
- * report token counts for this turn". Turns still going get their own note:
- * their counts have not come YET, which is not a failure to report them.
- */
-function unreportedTurnNotes(rows: readonly CostSpend[]): string[] {
-  const turns = new Map<string, { tool: string; pending: boolean; count: number }>()
+/** One tool's turns that reported no counts, settled or still going, as a sum holds them. */
+type UnreportedTurns = { tool: string; pending: boolean; count: number }
+
+/** The turns each tool reported no counts for, settled apart from still going, in first-seen order. */
+function unreportedTurns(rows: readonly CostSpend[]): UnreportedTurns[] {
+  const turns = new Map<string, UnreportedTurns>()
   for (const s of rows) {
     if (!isUnreported(s)) continue
     const tool = reportingToolOf(s.provider)
@@ -544,43 +565,211 @@ function unreportedTurnNotes(rows: readonly CostSpend[]): string[] {
     const seen = turns.get(key) ?? { tool, pending, count: 0 }
     turns.set(key, { ...seen, count: seen.count + unreportedTurnsOf(s) })
   }
-  return [...turns.values()].map(({ tool, pending, count }) => {
-    const which = count === 1 ? 'this turn' : `${count} turns`
-    return pending
-      ? `${sentenceCase(tool)} has not reported token counts for ${which} yet.`
-      : `${sentenceCase(tool)} did not report token counts for ${which}${COST_NOTE_TOKENS_NOT_REPORTED_TAIL}`
-  })
+  return [...turns.values()]
 }
+
+const turnsWords = (count: number): string => (count === 1 ? 'this turn' : `${count} turns`)
+
+const itsOrTheir = (count: number): string => (count === 1 ? 'its' : 'their')
+
+/**
+ * One note per tool for the turns it reported no counts for, saying how many
+ * when a sum holds several — so a Cursor resident turn reads "Cursor did not
+ * report token counts for this turn". Turns still going get their own note:
+ * their counts have not come YET, which is not a failure to report them.
+ */
+function unreportedTurnNotes(rows: readonly CostSpend[]): string[] {
+  return unreportedTurns(rows).map(({ tool, pending, count }) =>
+    pending
+      ? `${sentenceCase(tool)} has not reported token counts for ${turnsWords(count)} yet.`
+      : `${sentenceCase(tool)} did not report token counts for ${turnsWords(count)}${COST_NOTE_TOKENS_NOT_REPORTED_TAIL}`,
+  )
+}
+
+/** The tools, once each, that left out the output of these rows' turns: cut off, or still going. */
+const toolsLackingOutput = (rows: readonly CostSpend[], pending: boolean): string[] => [
+  ...new Set(
+    rows
+      .filter((s) => s.outputTokensNotReported && isCountsPending(s) === pending)
+      .map((s) => sentenceCase(reportingToolOf(s.provider))),
+  ),
+]
 
 /**
  * One note per tool for the turns whose output it left out: cut off before
  * reporting it, then — separately — still going, their output still to come.
  */
 function unreportedOutputNotes(rows: readonly CostSpend[]): string[] {
-  const noted = (pending: boolean, tail: string) =>
-    [
-      ...new Set(
-        rows
-          .filter((s) => s.outputTokensNotReported && isCountsPending(s) === pending)
-          .map((s) => reportingToolOf(s.provider)),
-      ),
-    ].map((tool) => `${sentenceCase(tool)}${tail}`)
   return [
-    ...noted(false, COST_NOTE_OUTPUT_NOT_REPORTED_TAIL),
-    ...noted(true, COST_NOTE_OUTPUT_PENDING_TAIL),
+    ...toolsLackingOutput(rows, false).map(
+      (tool) => `${tool}${COST_NOTE_OUTPUT_NOT_REPORTED_TAIL}`,
+    ),
+    ...toolsLackingOutput(rows, true).map((tool) => `${tool}${COST_NOTE_OUTPUT_PENDING_TAIL}`),
   ]
 }
 
-function detailsNotes(cost: CostSource, rows: CostSpend[]): string[] {
+/**
+ * Why one row's charge is not known: it ran on a plan, its run is still going,
+ * its CLI reported none of its counts or not its output, its billing was never
+ * recorded, or no price is known for its model. Undefined when it is known — a
+ * stated charge, or a free model's.
+ */
+type UnknownCharge = 'subscription' | 'pending' | 'tokens' | 'output' | 'billing' | 'price'
+
+function unknownChargeOf(s: CostSpend): UnknownCharge | undefined {
+  if (isSubscription(s)) return 'subscription'
+  if (s.costUsd !== undefined) return undefined
+  if (s.chargePending) return 'pending'
+  if (isUnreported(s)) return 'tokens'
+  if (s.outputTokensNotReported) return 'output'
+  if (s.billing === 'free') return undefined
+  return s.billing ? 'price' : 'billing'
+}
+
+/** A row whose unknown charge a reason puts down to its counts — so no note repeats them. */
+const isChargeLackingCounts = (s: CostSpend): boolean => {
+  const unknown = unknownChargeOf(s)
+  return unknown === 'tokens' || unknown === 'output'
+}
+
+const tokensWords = (n: number): string => `${TOKENS.format(n)} ${n === 1 ? 'token' : 'tokens'}`
+
+/** Items in first-seen order of their key, each key's items together. */
+function groupBy<T>(items: readonly T[], keyOf: (item: T) => string): T[][] {
+  const groups = new Map<string, T[]>()
+  for (const item of items) groups.set(keyOf(item), [...(groups.get(keyOf(item)) ?? []), item])
+  return [...groups.values()]
+}
+
+/** A row's model as a reason names it: the tool's name for it, its id, else who serves it. */
+function modelWords(s: CostSpend): string {
+  const named = s.label?.trim() || (s.model === UNREPORTED_MODEL ? '' : s.model)
+  if (named) return named
+  const provider = COST_PROVIDER_NAMES[s.provider]
+  if (!provider) return COST_REASON_MODEL_UNNAMED
+  return `${/^[AEIOU]/.test(provider) ? 'an' : 'a'} ${provider} model`
+}
+
+/** One reason's words, told whether it shares the cost with other parts, so it can state its share. */
+type ChargeReason = (shared: boolean) => string
+
+/**
+ * One reason per plan: the share it covered is unknown, since a plan includes
+ * usage up to its allowance and may bill past it. Beside other parts it states
+ * its tokens, or — when its turns reported none — that some of the work was its.
+ */
+function planReasons(rows: readonly CostSpend[]): ChargeReason[] {
+  return groupBy(rows, (s) => COST_PLAN_NAMES[s.provider] ?? '').map((group) => (shared) => {
+    const plan = COST_PLAN_NAMES[group[0].provider]
+    const counted = group.filter((s) => !isUnreported(s)).reduce((n, s) => n + spendTokens(s), 0)
+    const subject = !shared
+      ? COST_REASON_SUBJECT_WHOLE
+      : counted > 0
+        ? tokensWords(counted)
+        : COST_REASON_SUBJECT_PART
+    return `${subject} ran on your ${plan ? `${plan} ` : ''}${COST_REASON_SUBSCRIPTION_TAIL}`
+  })
+}
+
+/** One reason naming every model `lead` says of — each with its tokens when there is more than one share. */
+function modelReasons(rows: readonly CostSpend[], lead: string): ChargeReason[] {
+  if (rows.length === 0) return []
+  const models = groupBy(rows, modelWords)
+  return [
+    (shared) => {
+      const each = shared || models.length > 1
+      const names = models.map((group) => {
+        const name = modelWords(group[0])
+        const tokens = group.reduce((n, s) => n + spendTokens(s), 0)
+        return each ? `${name} (${tokensWords(tokens)})` : name
+      })
+      return `${lead} ${wordList(names)}, so ${itsOrTheir(models.length)} charge is unknown.`
+    },
+  ]
+}
+
+/** One reason per tool whose missing counts leave a charge unknown — or, on a turn still going, not known yet. */
+function countReasons(rows: readonly CostSpend[]): ChargeReason[] {
+  const turns = unreportedTurns(rows).map(({ tool, pending, count }) => {
+    const subject = sentenceCase(tool)
+    return pending
+      ? `${subject} has not reported token counts for ${turnsWords(count)} yet, so ${itsOrTheir(count)} charge is not known yet.`
+      : `${subject} did not report token counts for ${turnsWords(count)}, so ${itsOrTheir(count)} charge is unknown.`
+  })
+  const output = [
+    ...toolsLackingOutput(rows, false).map(
+      (tool) =>
+        `${tool} stopped before reporting how many output tokens it used, so that work's charge is unknown.`,
+    ),
+    ...toolsLackingOutput(rows, true).map(
+      (tool) =>
+        `${tool} has not reported how many output tokens it used yet, so that work's charge is not known yet.`,
+    ),
+  ]
+  return [...turns, ...output].map((words) => () => words)
+}
+
+/**
+ * Why a chip reads `$?`, in the words of what the record holds: the plan each
+ * share ran on, a run still going, the models with no known price or no
+ * recorded billing, the tools that left counts out. Each states its share when
+ * the cost has several parts — `knownPart` is a charge stated beside them. A
+ * cost kept before per-model rows says how many of its tokens had no price.
+ */
+function chargeReasons(cost: CostSource, rows: readonly CostSpend[], knownPart: boolean): string[] {
+  const rowsOf = (kind: UnknownCharge) => rows.filter((s) => unknownChargeOf(s) === kind)
+  const reasons: ChargeReason[] = [
+    ...planReasons(rowsOf('subscription')),
+    ...(rowsOf('pending').length > 0 ? [() => COST_NOTE_PENDING] : []),
+    ...modelReasons(rowsOf('price'), COST_REASON_NO_PRICE),
+    ...modelReasons(rowsOf('billing'), COST_REASON_NO_BILLING),
+    ...countReasons(rows.filter(isChargeLackingCounts)),
+  ]
+  const unpriced = cost.unpricedTokens ?? 0
+  if (reasons.length === 0 && unpriced > 0) {
+    reasons.push(
+      () => `${COST_REASON_NO_PRICE} ${tokensWords(unpriced)}, so their charge is unknown.`,
+    )
+  }
+  const shared = reasons.length + (knownPart ? 1 : 0) > 1
+  return reasons.map((reason) => reason(shared))
+}
+
+/**
+ * What the numbers cannot say. With the charge's reasons beside them
+ * (`withReasons`), the notes leave out what a reason already says: a run still
+ * going, no known price, and counts that left a charge unknown.
+ */
+function detailsNotes(cost: CostSource, rows: CostSpend[], withReasons: boolean): string[] {
   const notes: string[] = []
   if (rows.some(isCursorAuto)) notes.push(COST_NOTE_AUTO)
-  if (rows.some((s) => s.billing === 'subscription')) notes.push(COST_NOTE_OVERAGE)
-  if (rows.some((s) => s.chargePending)) notes.push(COST_NOTE_PENDING)
-  if (lacksPrice(cost, rows)) notes.push(COST_NOTE_UNPRICED)
-  notes.push(...unreportedTurnNotes(rows), ...unreportedOutputNotes(rows))
-  if (rows.some((s) => !s.billing)) notes.push(COST_NOTE_UNRECORDED_BILLING)
+  if (!withReasons && rows.some((s) => s.chargePending)) notes.push(COST_NOTE_PENDING)
+  if (!withReasons && lacksPrice(cost, rows)) notes.push(COST_NOTE_UNPRICED)
+  const counted = withReasons ? rows.filter((s) => !isChargeLackingCounts(s)) : rows
+  notes.push(...unreportedTurnNotes(counted), ...unreportedOutputNotes(counted))
+  const unbilled = rows.filter((s) => !s.billing)
+  if (unbilled.some((s) => !withReasons || unknownChargeOf(s) !== 'billing')) {
+    notes.push(COST_NOTE_UNRECORDED_BILLING)
+  }
   if (rows.length === 0) notes.push(COST_NOTE_NO_MODELS)
   return notes
+}
+
+/**
+ * What the details say was charged: the chip's dollars, with what is not known
+ * in words — `Unknown`, `$0.53 + unknown`, or `Pending` while a metered run
+ * still going is all that keeps it from being known.
+ */
+function chargedSummary(
+  cost: CostSource,
+  rows: readonly CostSpend[],
+  charge: ChipCharge | undefined,
+): string {
+  const pending = rows.some((s) => s.chargePending)
+  if (!charge?.unknown) return chargedWords(cost.costUsd, pending)
+  const unknown =
+    pending && !rows.some(isSubscription) ? COST_CHARGE_PENDING_SHORT : COST_CHARGE_UNKNOWN
+  return charge.known ? `${charge.known} + ${unknown.toLowerCase()}` : unknown
 }
 
 /**
@@ -614,7 +803,8 @@ function totalTokensWords(total: number, rows: readonly CostSpend[]): string {
  * key. Undefined when nothing was measured.
  */
 export function costDetailsView(cost: CostSource | undefined): CostDetailsView | undefined {
-  const charged = costChipLabel(cost)
+  const charge = chipCharge(cost)
+  const charged = chipLabel(charge)
   const rows = mergeSpends(cost?.byModel ?? [])
   if (!cost || (charged === undefined && rows.length === 0)) return undefined
   const includedTokens = cost.includedTokens ?? 0
@@ -624,14 +814,8 @@ export function costDetailsView(cost: CostSource | undefined): CostDetailsView |
     rows.length > 0
       ? counted.reduce((n, s) => n + spendTokens(s), 0)
       : includedTokens + unpricedTokens
-  const pending = rows.some((s) => s.chargePending)
   const summary: CostDetailsLine[] = [
-    {
-      label: 'Charged',
-      value: rows.some(isSubscription)
-        ? (charged ?? sentenceCase(COST_CHARGE_SUBSCRIPTION))
-        : chargedWords(cost.costUsd, pending),
-    },
+    { label: 'Charged', value: chargedSummary(cost, rows, charge) },
   ]
   if (includedTokens > 0) {
     summary.push({ label: 'Included tokens', value: TOKENS.format(includedTokens) })
@@ -651,13 +835,14 @@ export function costDetailsView(cost: CostSource | undefined): CostDetailsView |
     summary.push({ label: 'Total tokens', value: totalTokensWords(totalTokens, rows) })
   return {
     ...(cost.costUsd !== undefined ? { chargedUsd: cost.costUsd } : {}),
-    charged: charged ?? COST_CHARGE_UNKNOWN,
+    charged: charged ?? COST_CHARGE_UNKNOWN_CHIP,
     totalTokens,
     includedTokens,
     unpricedTokens,
     ...(cost.listCostUsd !== undefined ? { listCostUsd: cost.listCostUsd } : {}),
     summary,
+    chargeReasons: charge?.unknown ? chargeReasons(cost, rows, charge.known !== undefined) : [],
     rows: rows.map(detailsRow),
-    notes: detailsNotes(cost, rows),
+    notes: detailsNotes(cost, rows, charge?.unknown === true),
   }
 }

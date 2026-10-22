@@ -9,12 +9,12 @@ import type {
   ModelInfo,
 } from '../../../headless/api'
 import { CliImageBuildProgress } from './CliImageBuildProgress'
+import { CliCapabilityCardPanel } from './CliCapabilityCardPanel'
 import { CliImageVersionChip } from './CliImageVersionChip'
 import { useCliConfigs } from '../../../headless'
 import type { CliLiveProbeResult, RunCliCapabilityCheckResponse } from '../../../headless'
 import { cliCapabilityCardView } from '../../../headless/utils/cliCapabilityCard'
 import { CLI_CAPABILITY_BATTERY_HINT } from '../../../headless/utils/cliCapabilityCardConstants'
-import type { CliCapabilityTone } from '../../../headless/utils/cliCapabilityCardTypes'
 import {
   cliImageBuildAction,
   cliImageBuildFailure,
@@ -40,12 +40,6 @@ const CLI_LABELS: Record<string, string> = {
 
 function cliLabel(cli: string): string {
   return CLI_LABELS[cli] ?? cli
-}
-
-const PROBE_TONE_CLASSES: Record<CliCapabilityTone, string> = {
-  pass: 'text-green-500',
-  fail: 'text-red-500',
-  none: 'text-(--text-secondary)',
 }
 
 type ModelsProbeState =
@@ -675,56 +669,7 @@ export function CliConfigForm() {
                       <p className="text-xs text-red-500">{capState.message}</p>
                     )}
 
-                    {capView && (
-                      <div className="rounded border border-(--border-default) bg-(--surface-muted) px-2 py-2 text-xs flex flex-col gap-1.5">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-(--text-primary) font-medium">
-                            {capView.headline}
-                          </span>
-                          <span className="text-(--text-secondary)">{capView.latency}</span>
-                          {capView.cost ? (
-                            <span className="text-(--text-secondary)">{capView.cost}</span>
-                          ) : null}
-                          {capView.finished && (
-                            <span className="text-(--text-secondary) ml-auto">
-                              {capView.finished}
-                            </span>
-                          )}
-                        </div>
-                        {capView.probes.map((probe) => (
-                          <div key={probe.id} className="flex items-start gap-2">
-                            <span className={`${PROBE_TONE_CLASSES[probe.tone]} w-14 shrink-0`}>
-                              {probe.status}
-                            </span>
-                            <div className="grow flex flex-col gap-1">
-                              <div className="flex items-start gap-2">
-                                <span className="text-(--text-primary) w-40 shrink-0">
-                                  {probe.label}
-                                </span>
-                                <span className="text-(--text-secondary) grow">{probe.detail}</span>
-                              </div>
-                              {probe.cases.length > 0 && (
-                                <ul className="flex flex-col gap-0.5 pl-40">
-                                  {probe.cases.map((probeCase) => (
-                                    <li
-                                      key={probeCase.key}
-                                      className="flex items-start gap-2 text-(--text-secondary)"
-                                    >
-                                      <span
-                                        className={`${PROBE_TONE_CLASSES[probeCase.tone]} shrink-0`}
-                                      >
-                                        {probeCase.mark}
-                                      </span>
-                                      <span>{probeCase.detail}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    {capView && <CliCapabilityCardPanel view={capView} />}
 
                     {isReauthing && (
                       <div className="rounded border border-(--border-default) bg-(--surface-muted) px-2 py-2 text-xs flex flex-col gap-2">

@@ -46,22 +46,31 @@ export const UNREPORTED_MODEL = 'unknown'
 /** The charge of metered tokens with no known price — unknown, never $0. */
 export const COST_CHARGE_UNKNOWN = 'Unknown'
 
-/** What a subscription's work was charged: unknown, since a plan can bill usage past its allowance. */
-export const COST_CHARGE_SUBSCRIPTION = 'unknown (subscription)'
+/**
+ * A chip's charge when it is not known, whatever the reason — a plan, no known
+ * price, counts not reported, a run still going. The details say which.
+ */
+export const COST_CHARGE_UNKNOWN_CHIP = '$?'
 
-/** A chip, or a row's list value, when no price is known. */
+/**
+ * Follows `$?` where no details open to say why — a CLI capability check's
+ * cost: "<$? —> included in your <plan> subscription up to its allowance".
+ */
+export const COST_REASON_INCLUDED_HEAD = 'included in your'
+
+/** Ends {@link COST_REASON_INCLUDED_HEAD}, after the plan's name. */
+export const COST_REASON_INCLUDED_TAIL = 'subscription up to its allowance'
+
+/** A row's list value when no price is known. */
 export const COST_NO_KNOWN_PRICE = 'No known price'
 
-/** The chip of a metered run still in flight: its charge is settled by the runner's terminal write. */
-export const COST_CHARGE_PENDING = 'Charge pending'
-
-/** The same, where a charge would be written in the details. */
+/** Where a metered run still in flight has its charge written in the details: its runner prices it at the end. */
 export const COST_CHARGE_PENDING_SHORT = 'Pending'
 
 /** A pending row's list value: the runner prices it when the run ends. */
 export const COST_LIST_PENDING = 'Priced when the run ends'
 
-/** The chip of a cost whose charge is unknown because the CLI never reported what it used — unknown, never $0. */
+/** Where a count the CLI never reported would be — unknown, never 0. */
 export const COST_TOKENS_NOT_REPORTED = 'Not reported'
 
 /**
@@ -98,9 +107,6 @@ export const COST_LIST_PARTIAL = 'for the tokens with a known price'
 
 export const COST_NOTE_AUTO = 'Cursor does not say which model Auto used.'
 
-export const COST_NOTE_OVERAGE =
-  "Usage beyond your plan's allowance is billed by the provider; the CLI does not report which requests were."
-
 export const COST_NOTE_UNPRICED =
   'Tokens with no known price are counted, not charged as $0: their cost is unknown.'
 
@@ -109,8 +115,31 @@ export const COST_NOTE_UNRECORDED_BILLING =
 
 export const COST_NOTE_NO_MODELS = 'This was recorded before costs were kept per model.'
 
+/** Why a metered run still going has no charge yet — a reason when the chip reads `$?`, else a note. */
 export const COST_NOTE_PENDING =
   'This run is still going: its charge is worked out from its tokens when it ends.'
+
+/**
+ * Follows "<This | 41,932 tokens | Some of this> ran on your <plan> " — why a
+ * plan's share has no known charge.
+ */
+export const COST_REASON_SUBSCRIPTION_TAIL =
+  "subscription, which includes usage up to your plan's allowance and may bill usage beyond it, so the exact charge is not known."
+
+/** The subject of a plan's reason when it is the only share of the cost. */
+export const COST_REASON_SUBJECT_WHOLE = 'This'
+
+/** The subject of a plan's reason when its share has no counts to state. */
+export const COST_REASON_SUBJECT_PART = 'Some of this'
+
+/** Leads the models a reason names when no price is known for them. */
+export const COST_REASON_NO_PRICE = 'No known price for'
+
+/** Leads the models a reason names when their billing was never recorded. */
+export const COST_REASON_NO_BILLING = 'Billing was not recorded for'
+
+/** A model a reason names when neither the model nor who serves it was recorded. */
+export const COST_REASON_MODEL_UNNAMED = 'an unnamed model'
 
 /** Follows "<Tool> did not report token counts for <this turn | N turns>". */
 export const COST_NOTE_TOKENS_NOT_REPORTED_TAIL =

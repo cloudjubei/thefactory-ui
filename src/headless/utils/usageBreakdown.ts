@@ -29,10 +29,12 @@ import {
   reportingToolOf,
   sentenceCase,
   spendTokens,
+  wordList,
 } from './costDetails'
 import {
-  COST_CHARGE_SUBSCRIPTION,
+  COST_CHARGE_UNKNOWN_CHIP,
   COST_MODEL_UNRECORDED,
+  COST_PLAN_NAMES,
   COST_PROVIDER_NAMES,
   COST_TOKENS_NOT_REPORTED,
 } from './costDetailsConstants'
@@ -47,6 +49,9 @@ import {
   USAGE_INCOMPLETE_SEPARATOR,
   USAGE_LEDGER_UNAVAILABLE,
   USAGE_LIST_PARTIAL,
+  USAGE_REASON_NO_PRICE,
+  USAGE_REASON_PLAN,
+  USAGE_REASON_SEPARATOR,
 } from './usageBreakdownConstants'
 import type {
   UsageModalCostAggregate,
@@ -89,8 +94,11 @@ type UsageSums = {
   charges: Set<ChargeStatus>
   /** Why the counts here fall short. */
   reasons: Set<UsageCompletenessReason>
-  /** Some tokens here were a plan's, whose charge is unknown — a plan can bill overage. */
-  subscription: boolean
+  /**
+   * The plans some tokens here were a plan's, by name — `''` for one the record
+   * names no provider of. Their charge is unknown: a plan can bill overage.
+   */
+  plans: Set<string>
 }
 
 const emptySums = (): UsageSums => ({
@@ -111,7 +119,7 @@ const emptySums = (): UsageSums => ({
   fieldUnreportedBy: { input: new Set(), cacheRead: new Set(), cacheWrite: new Set() },
   charges: new Set(),
   reasons: new Set(),
-  subscription: false,
+  plans: new Set(),
 })
 
 const totalTokens = (s: UsageSums) => s.prompt + s.completion + s.cachedRead + s.cacheWrite
@@ -120,22 +128,61 @@ const totalTokens = (s: UsageSums) => s.prompt + s.completion + s.cachedRead + s
 const isIncluded = (billing: UsageModalUsage['billing']) =>
   billing === 'subscription' || billing === 'free'
 
+/** Note that some of a group's tokens ran on the plan `provider`'s login draws on. */
+const addPlan = (s: UsageSums, provider: string | undefined) =>
+  s.plans.add(COST_PLAN_NAMES[provider ?? ''] ?? '')
+
 /**
- * The charged cell. A group whose every token is unpriced — or whose only
- * uncovered turns reported no counts — was charged an unknown amount, so it
- * reads `—` rather than a `$0` it never was.
+ * Whether a group's charge is unknown in whole or part, as its cell says it:
+ * a plan's share (a plan can bill overage), or — with nothing charged or
+ * included beside them — tokens with no known price or turns whose CLI
+ * reported no counts. Beside a charge, unpriced tokens leave the charge as it
+ * is, as a cost chip does.
+ */
+function chargeUnknown(s: UsageSums): boolean {
+  if (s.plans.size > 0) return true
+  const unknown = s.unpriced > 0 || s.unpricedUnreportedBy.size > 0
+  return s.charged === 0 && unknown && s.included === 0
+}
+
+/**
+ * The charged cell, as a cost chip says it: a charge that is not known reads
+ * `$?` rather than a `$0` it never was — after the stated part, on a plan's
+ * group that also has one.
  */
 function chargedCell(s: UsageSums): string {
   const amount = s.estimated ? `≈ ${usd(s.charged)}` : usd(s.charged)
-  if (s.subscription) {
-    const known = s.charges.has('confirmed-amount') || s.charges.has('included-in-plan-confirmed')
-    return known
-      ? `${amount} + ${COST_CHARGE_SUBSCRIPTION}`
-      : sentenceCase(COST_CHARGE_SUBSCRIPTION)
-  }
-  const unknown = s.unpriced > 0 || s.unpricedUnreportedBy.size > 0
-  if (s.charged === 0 && unknown && s.included === 0) return NONE
-  return amount
+  if (!chargeUnknown(s)) return amount
+  const known =
+    s.plans.size > 0 &&
+    (s.charges.has('confirmed-amount') || s.charges.has('included-in-plan-confirmed'))
+  return known ? `${amount} + ${COST_CHARGE_UNKNOWN_CHIP}` : COST_CHARGE_UNKNOWN_CHIP
+}
+
+/**
+ * Why a group's `$?` charge is unknown, said under its label: the plans it ran
+ * on, then how many of its tokens have no known price. The CLIs that reported
+ * no counts are already named there ({@link UsageTableRow.notReportedBy}).
+ * Empty when the charge is known.
+ */
+function chargeReasonCell(s: UsageSums): string {
+  if (!chargeUnknown(s)) return ''
+  const named = [...s.plans].filter((plan) => plan !== '')
+  const plans =
+    s.plans.size === 0
+      ? []
+      : named.length === 0
+        ? [`${USAGE_REASON_PLAN} subscription`]
+        : [
+            `${USAGE_REASON_PLAN} ${wordList(named)} ${named.length === 1 ? 'subscription' : 'subscriptions'}`,
+          ]
+  const unpriced =
+    s.unpriced > 0
+      ? [
+          `${USAGE_REASON_NO_PRICE} ${COUNT.format(s.unpriced)} ${s.unpriced === 1 ? 'token' : 'tokens'}`,
+        ]
+      : []
+  return sentenceCase([...plans, ...unpriced].join(USAGE_REASON_SEPARATOR))
 }
 
 /**
@@ -183,6 +230,7 @@ function tableRow(key: string, label: string, s: UsageSums, total = false): Usag
     label,
     total,
     charged: chargedCell(s),
+    chargeReason: chargeReasonCell(s),
     charge: chargeCell(s.charges),
     tokens: countCell(totalTokens(s), anyGap),
     prompt: countCell(s.prompt, union(s.unreportedBy, field.input)),
@@ -247,7 +295,7 @@ function addFieldGaps(s: UsageSums, tool: string, fields: UsageTokenFields) {
  * includes may be a plan's.
  */
 function addLedgerCharges(s: UsageSums, b: UsageModalCostBreakdown) {
-  if (b.billing === 'subscription') s.subscription = true
+  if (b.billing === 'subscription') addPlan(s, b.provider)
   if (b.billing === 'free') {
     s.charges.add('included-in-plan-confirmed')
     return
@@ -470,7 +518,7 @@ function addSpendProvenance(s: UsageSums, row: CostSpend) {
   }
   const reasons = [...usageCompletenessReasons(fields), ...(row.incompleteReasons ?? [])]
   for (const reason of reasons) s.reasons.add(reason)
-  if (row.billing === 'subscription') s.subscription = true
+  if (row.billing === 'subscription') addPlan(s, row.provider)
   if (row.billing === 'free') s.charges.add('included-in-plan-confirmed')
   else if (row.billing === 'subscription') s.charges.add('unknown')
   else if (reasons.length === 0 && typeof row.costUsd === 'number')
@@ -560,7 +608,7 @@ function addMessage(
   const included = isIncluded(usage.billing)
   const short = addApiProvenance(s, usage, providerName(provider))
   s.charges.add(apiTurnCharge(usage, short))
-  if (usage.billing === 'subscription') s.subscription = true
+  if (usage.billing === 'subscription') addPlan(s, provider)
   if (included) s.included += count
   if (typeof usage.cost === 'number') {
     s.charged = roundMoneyUSD(s.charged + usage.cost)
@@ -592,7 +640,7 @@ function addSums(into: UsageSums, s: UsageSums) {
   into.unpriced += s.unpriced
   if (s.list !== undefined) into.list = roundMoneyUSD((into.list ?? 0) + s.list)
   into.listPartial ||= s.listPartial
-  into.subscription ||= s.subscription
+  for (const plan of s.plans) into.plans.add(plan)
   for (const [to, from] of [
     [into.unreportedBy, s.unreportedBy],
     [into.outputUnreportedBy, s.outputUnreportedBy],

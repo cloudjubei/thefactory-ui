@@ -93,8 +93,10 @@ export type SignoffCostTokens = {
 
 /** What the Cost tile says, and the breakdown it opens. */
 export type SignoffCostView = {
-  /** "$0.00 billed". */
+  /** "$0.00 billed", or `$?` when the charge is not known. */
   headline: string
+  /** Why the charge is not known, one sentence per cause — the cost details' `chargeReasons`. */
+  reasons: string[]
   /** "subscription · list price $11.76". */
   billing: string | undefined
   /** "14 agent runs". */

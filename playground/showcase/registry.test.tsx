@@ -65,6 +65,43 @@ describe('showcase registry', () => {
     }
   })
 
+  it('pairs every unknown cost chip with a known-charge base: $? on the chip, the reason in its details', () => {
+    const states = SCENES.find((s) => s.id === 'cost-chip')?.states ?? []
+    const markup = (id: string) =>
+      renderToStaticMarkup(<>{states.find((s) => s.id === id)?.render()}</>)
+    const reason =
+      /charge is (not known|unknown)|priced when|worked out from its tokens when it ends/
+    const base = markup('known-charge')
+    expect(base).toMatch(/\$0\.38/)
+    expect(base).not.toMatch(/\$\?/)
+    expect(base).not.toMatch(reason)
+    const unknown = states.filter((s) => s.id.startsWith('unknown-'))
+    expect(unknown.length).toBeGreaterThan(0)
+    for (const state of unknown) {
+      const drawn = markup(state.id)
+      expect(drawn, state.id).toMatch(/\$\?/)
+      expect(drawn, state.id).toMatch(reason)
+      expect(drawn, state.id).not.toMatch(
+        /Unknown \(subscription\)|Charge pending|No known price<\/span>/,
+      )
+    }
+  })
+
+  it('pairs a capability check on a plan with a known-cost base: $? and the plan beside it', () => {
+    const states = SCENES.find((s) => s.id === 'cli-capability-card')?.states ?? []
+    const markup = (id: string) =>
+      renderToStaticMarkup(<>{states.find((s) => s.id === id)?.render()}</>)
+    const plan = /\$\? — included in your Claude subscription up to its allowance/
+    const base = markup('api-key-cost')
+    expect(base).toMatch(/\$0\.50/)
+    expect(base).not.toMatch(/\$\?/)
+    for (const id of ['plan-cost', 'plan-and-api-key-cost']) {
+      expect(markup(id), id).toMatch(plan)
+      expect(markup(id), id).not.toMatch(/unknown \(subscription\)/i)
+    }
+    expect(markup('plan-and-api-key-cost')).toMatch(/\$0\.02 \+ \$\?/)
+  })
+
   it('draws a failed turn under a hidden notice exactly as the turn alone, Try again offered', () => {
     const states = SCENES.find((s) => s.id === 'chat-hidden-notice-tail')?.states ?? []
     const markup = (id: string) =>

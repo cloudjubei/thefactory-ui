@@ -25,7 +25,6 @@ import {
 import {
   COST_NOTE_AUTO,
   COST_NOTE_NO_MODELS,
-  COST_NOTE_OVERAGE,
   COST_NOTE_PENDING,
   COST_NOTE_UNPRICED,
   COST_NOTE_UNRECORDED_BILLING,
@@ -215,6 +214,16 @@ const CURSOR_TURN_NOT_REPORTED =
 const CLAUDE_OUTPUT_NOT_REPORTED =
   'Claude Code stopped before reporting how many output tokens it used: that output is unknown, not zero, and has no list value.'
 
+const PLAN_REASON_TAIL =
+  "subscription, which includes usage up to your plan's allowance and may bill usage beyond it, so the exact charge is not known."
+
+const CURSOR_PLAN_REASON = `This ran on your Cursor ${PLAN_REASON_TAIL}`
+
+const CLAUDE_PLAN_REASON = `This ran on your Claude ${PLAN_REASON_TAIL}`
+
+const CLAUDE_OUTPUT_CHARGE_UNKNOWN =
+  "Claude Code stopped before reporting how many output tokens it used, so that work's charge is unknown."
+
 describe('formatCostUSD', () => {
   it('drops out when unrecorded or nonsensical', () => {
     expect(formatCostUSD(undefined)).toBeUndefined()
@@ -279,10 +288,18 @@ describe('probeCostLabel', () => {
     expect(probeCostLabel({ totalCostUSD: 0.0012 })).toBe('$0.0012')
   })
 
-  it("never says a plan's $0: unknown alone, unknown beside the stated part", () => {
-    expect(probeCostLabel({ costUnknown: true })).toBe('Unknown (subscription)')
-    expect(probeCostLabel({ totalCostUSD: 0.02, costUnknown: true })).toBe(
-      '$0.02 + unknown (subscription)',
+  it("never says a plan's $0: $? alone or beside the stated part, and the plan it ran on", () => {
+    expect(probeCostLabel({ cli: 'cursor-agent', costUnknown: true })).toBe(
+      '$? — included in your Cursor subscription up to its allowance',
+    )
+    expect(probeCostLabel({ cli: 'claude-code', totalCostUSD: 0.02, costUnknown: true })).toBe(
+      '$0.02 + $? — included in your Claude subscription up to its allowance',
+    )
+  })
+
+  it('names no plan for a CLI it knows no plan of', () => {
+    expect(probeCostLabel({ cli: 'opencode', costUnknown: true })).toBe(
+      '$? — included in your subscription up to its allowance',
     )
   })
 
@@ -296,9 +313,9 @@ describe('costChipLabel', () => {
     expect(costChipLabel({ costUsd: 1.25 })).toBe('$1.25')
   })
 
-  it('says a subscription run’s charge is unknown — a plan can bill past its allowance — never a $0.00 that reads as free', () => {
-    expect(costChipLabel(cliRunCost(cursorRun))).toBe('Unknown (subscription)')
-    expect(costChipLabel(cliRunCost(cursorAcpTurn))).toBe('Unknown (subscription)')
+  it('reads a subscription run’s unknown charge as $? — a plan can bill past its allowance — never a $0.00 that reads as free', () => {
+    expect(costChipLabel(cliRunCost(cursorRun))).toBe('$?')
+    expect(costChipLabel(cliRunCost(cursorAcpTurn))).toBe('$?')
   })
 
   it('shows what an API key was charged beside a subscription’s unknown share', () => {
@@ -307,7 +324,15 @@ describe('costChipLabel', () => {
       listCostUsd: 0.5265756,
       byModel: [sonnetMetered],
     })
-    expect(costChipLabel(cost)).toBe('$0.53 + unknown (subscription)')
+    expect(costChipLabel(cost)).toBe('$0.53 + $?')
+  })
+
+  it('reads $? beside a subscription when nothing else has a known charge either', () => {
+    const cost = addCost(cliRunCost(cursorRun), {
+      unpricedTokens: 131_194,
+      byModel: [codexUnpriced],
+    })
+    expect(costChipLabel(cost)).toBe('$?')
   })
 
   it('keeps a free model’s charge a real $0.00', () => {
@@ -326,15 +351,7 @@ describe('costChipLabel', () => {
     expect(label).not.toMatch(/token/i)
   })
 
-  it('says no price is known when nothing was charged that can be priced', () => {
-    expect(costChipLabel({ unpricedTokens: 131_194 })).toBe('No known price')
-  })
-
-  it('says a run still in flight has a charge still to come, not an unknown one', () => {
-    expect(costChipLabel(cliRunCost(claudeInFlight))).toBe('Charge pending')
-  })
-
-  it('says the tokens were not reported when a metered run reported none', () => {
+  it('never puts the reason on the chip: every unknown charge reads $?, and the details say why', () => {
     const codexTurn: RunRecord = {
       cli: { tool: 'codex', version: '0.130.0' },
       status: 'succeeded',
@@ -342,50 +359,18 @@ describe('costChipLabel', () => {
       billing: 'metered',
       tokensNotReported: true,
     }
-    expect(costChipLabel(cliRunCost(codexTurn))).toBe('Not reported')
-  })
-
-  it('says the output was not reported, not that no price is known, when a metered run stopped before reporting it', () => {
-    const cost = cliRunCost({
-      ...claudeCutShort,
-      billing: 'metered',
-      modelUsage: [claudeCutShortMetered],
-    })
-    expect(cost?.unpricedTokens).toBe(41_932)
-    expect(costChipLabel(cost)).toBe('Not reported')
-  })
-
-  it('says not reported when a metered turn that reported nothing sits beside one whose output went unreported', () => {
-    const codexTurn: RunRecord = {
-      cli: { tool: 'codex', version: '0.130.0' },
-      status: 'aborted',
-      modelId: 'gpt-5.5-codex',
-      billing: 'metered',
-      tokensNotReported: true,
-    }
-    const cost = addCost(
-      cliRunCost({ ...claudeCutShort, billing: 'metered', modelUsage: [claudeCutShortMetered] }),
-      cliRunCost(codexTurn),
-    )
-    expect(costChipLabel(cost)).toBe('Not reported')
-    expect(costDetailsView(cost)?.notes).not.toContain(COST_NOTE_UNPRICED)
-  })
-
-  it('says the counts are still to come, not unreported, on a run in flight whose billing is not settled yet', () => {
     const { billing: _billing, ...unsettled } = claudeStreaming
-    expect(costChipLabel(cliRunCost(unsettled))).toBe('Not reported yet')
-    const cutOff = cliRunCost({ ...unsettled, status: 'paused' })
-    expect(costChipLabel(cutOff)).toBe('Not reported')
-    expect(costChipLabel(addCost(cutOff, cliRunCost(unsettled)))).toBe('Not reported')
-  })
-
-  it('still says no price is known when a model with no price ran beside one whose output went unreported', () => {
-    const cost = cliRunCost({
-      ...claudeCutShort,
-      billing: 'metered',
-      modelUsage: [claudeCutShortMetered, codexUnpriced],
-    })
-    expect(costChipLabel(cost)).toBe('No known price')
+    for (const cost of [
+      { unpricedTokens: 131_194 },
+      cliRunCost(claudeInFlight),
+      cliRunCost(codexTurn),
+      cliRunCost({ ...claudeCutShort, billing: 'metered', modelUsage: [claudeCutShortMetered] }),
+      cliRunCost(unsettled),
+      cliRunCost({ ...unsettled, status: 'paused' }),
+      cliRunCost(claudeOnDisk),
+    ]) {
+      expect(costChipLabel(cost)).toBe('$?')
+    }
   })
 
   it('is undefined when nothing was measured', () => {
@@ -464,7 +449,7 @@ describe('cliRunCost', () => {
         },
       ],
     })
-    expect(costChipLabel(cost)).toBe('No known price')
+    expect(costChipLabel(cost)).toBe('$?')
   })
 
   it("never reads an older Cursor run's recorded $0 as a charge — it meant no price was found", () => {
@@ -531,7 +516,7 @@ describe('cliRunCost', () => {
   it('keeps a run blocked on an approval pending: it is still going', () => {
     const blocked = cliRunCost({ ...claudeInFlight, status: 'awaiting-approval' })
     expect(blocked?.byModel?.[0].chargePending).toBe(true)
-    expect(costChipLabel(blocked)).toBe('Charge pending')
+    expect(costChipLabel(blocked)).toBe('$?')
   })
 
   it('never calls a run pending whose billing was never settled — its runner will not price it', () => {
@@ -643,7 +628,7 @@ describe('cliRunSpendRecord', () => {
   it("reads a landed record's spend off the run it mirrors — the mirror carries none of its own", () => {
     const source = cliRunSpendRecord(landed, [verifier, landed, workRun])
     expect(source).toBe(workRun)
-    expect(costChipLabel(cliRunCost(source!))).toBe('Unknown (subscription)')
+    expect(costChipLabel(cliRunCost(source!))).toBe('$?')
     expect(source?.durationMs).toBe(21_852)
     expect(cliRunCost(landed)).toBeUndefined()
   })
@@ -865,9 +850,9 @@ describe('pickCost', () => {
 describe('costDetailsView', () => {
   it('opens a subscription run with its charge unknown, its tokens included, and its list value', () => {
     const view = costDetailsView(cliRunCost(cursorRun))
-    expect(view?.charged).toBe('Unknown (subscription)')
+    expect(view?.charged).toBe('$?')
     expect(view?.summary).toEqual([
-      { label: 'Charged', value: 'Unknown (subscription)' },
+      { label: 'Charged', value: 'Unknown' },
       { label: 'Included tokens', value: '14,701' },
       { label: 'At list price', value: '≈ $0.0067' },
       { label: 'Total tokens', value: '14,701' },
@@ -891,12 +876,13 @@ describe('costDetailsView', () => {
           { label: 'Cache write', value: '0' },
         ],
         chargedUsd: 0,
-        charged: 'Unknown (subscription)',
+        charged: 'Unknown',
         listCostUsd: 0.0066657,
         listValue: '≈ $0.0067 at list price',
       },
     ])
-    expect(view?.notes).toEqual([COST_NOTE_OVERAGE])
+    expect(view?.chargeReasons).toEqual([CURSOR_PLAN_REASON])
+    expect(view?.notes).toEqual([])
   })
 
   it("names a Claude login's plan, not the provider", () => {
@@ -904,6 +890,7 @@ describe('costDetailsView', () => {
     expect(view?.rows[0].billingLabel).toBe('Included in your Claude subscription')
     expect(view?.rows[0].modelId).toBeUndefined()
     expect(view?.rows[0].listValue).toBe('≈ $0.53 at list price')
+    expect(view?.chargeReasons).toEqual([CLAUDE_PLAN_REASON])
   })
 
   it('does not repeat a model id that is its own name', () => {
@@ -925,11 +912,15 @@ describe('costDetailsView', () => {
     })
     expect(view?.summary).toContainEqual({ label: 'Unpriced tokens', value: '131,194' })
     const [included, unpriced] = view!.rows
-    expect(included.charged).toBe('Unknown (subscription)')
+    expect(included.charged).toBe('Unknown')
     expect(unpriced.billingLabel).toBe('API key — billed per token')
     expect(unpriced.charged).toBe('Unknown')
     expect(unpriced.listValue).toBe('No known price')
-    expect(view?.notes).toEqual([COST_NOTE_OVERAGE, COST_NOTE_UNPRICED])
+    expect(view?.chargeReasons).toEqual([
+      `14,701 tokens ran on your Cursor ${PLAN_REASON_TAIL}`,
+      'No known price for gpt-5.5-codex (131,194 tokens), so its charge is unknown.',
+    ])
+    expect(view?.notes).toEqual([])
   })
 
   it('says Cursor never names the model Auto used, and prices nothing it cannot', () => {
@@ -1001,7 +992,7 @@ describe('costDetailsView', () => {
 
   it('says a row was recorded before billing or its model was kept, and that its charge is unknown', () => {
     const view = costDetailsView(cliRunCost(claudeOnDisk))
-    expect(view?.charged).toBe('No known price')
+    expect(view?.charged).toBe('$?')
     expect(view?.rows[0]).toMatchObject({
       model: 'Model not recorded',
       provider: 'Anthropic',
@@ -1009,7 +1000,10 @@ describe('costDetailsView', () => {
       charged: 'Unknown',
       listValue: 'No known price',
     })
-    expect(view?.notes).toEqual([COST_NOTE_UNPRICED, COST_NOTE_UNRECORDED_BILLING])
+    expect(view?.chargeReasons).toEqual([
+      'Billing was not recorded for an Anthropic model, so its charge is unknown.',
+    ])
+    expect(view?.notes).toEqual([])
   })
 
   it('opens a ledger cost kept before per-model rows with what it has', () => {
@@ -1022,20 +1016,159 @@ describe('costDetailsView', () => {
       { label: 'Charged', value: '$1.25' },
       { label: 'Unpriced tokens', value: '4,000' },
     ])
+    expect(view?.chargeReasons).toEqual([])
     expect(view?.notes).toEqual([COST_NOTE_UNPRICED, COST_NOTE_NO_MODELS])
   })
 
   it('says the charge is unknown when none of it could be priced', () => {
     const view = costDetailsView({ unpricedTokens: 131_194, byModel: [codexUnpriced] })
-    expect(view?.charged).toBe('No known price')
+    expect(view?.charged).toBe('$?')
     expect(view?.summary[0]).toEqual({ label: 'Charged', value: 'Unknown' })
+    expect(view?.chargeReasons).toEqual([
+      'No known price for gpt-5.5-codex, so its charge is unknown.',
+    ])
+    expect(view?.notes).toEqual([])
+  })
+
+  it('names every model with no known price, each with its share', () => {
+    const o4: ModelSpend = {
+      ...codexUnpriced,
+      model: 'o4-mini',
+      inputTokens: 1,
+      cacheReadTokens: 0,
+      outputTokens: 0,
+    }
+    const view = costDetailsView({ unpricedTokens: 131_195, byModel: [codexUnpriced, o4] })
+    expect(view?.chargeReasons).toEqual([
+      'No known price for gpt-5.5-codex (131,194 tokens) and o4-mini (1 token), so their charge is unknown.',
+    ])
+  })
+
+  it('says what is known of a cost kept before per-model rows: how many tokens had no price', () => {
+    const view = costDetailsView({ unpricedTokens: 131_194 })
+    expect(view?.charged).toBe('$?')
+    expect(view?.chargeReasons).toEqual([
+      'No known price for 131,194 tokens, so their charge is unknown.',
+    ])
+    expect(view?.notes).toEqual([COST_NOTE_NO_MODELS])
+  })
+
+  it('gives a reason only for an unknown charge: a known one has none', () => {
+    expect(costDetailsView({ costUsd: 1.25, byModel: [sonnetMetered] })?.chargeReasons).toEqual([])
+    const free: ModelSpend = { ...composerSpend, billing: 'free' }
+    expect(costDetailsView({ costUsd: 0, byModel: [free] })?.chargeReasons).toEqual([])
+  })
+
+  it('states the share a plan covered beside what an API key was charged', () => {
+    const view = costDetailsView(
+      addCost(cliRunCost(cursorRun), {
+        costUsd: 0.5265756,
+        listCostUsd: 0.5265756,
+        byModel: [sonnetMetered],
+      }),
+    )
+    expect(view?.charged).toBe('$0.53 + $?')
+    expect(view?.summary[0]).toEqual({ label: 'Charged', value: '$0.53 + unknown' })
+    expect(view?.chargeReasons).toEqual([`14,701 tokens ran on your Cursor ${PLAN_REASON_TAIL}`])
+  })
+
+  it('names each plan with its share when work ran on two', () => {
+    const view = costDetailsView(addCost(cliRunCost(cursorRun), cliRunCost(claudeRun)))
+    expect(view?.chargeReasons).toEqual([
+      `14,701 tokens ran on your Cursor ${PLAN_REASON_TAIL}`,
+      `1,308,171 tokens ran on your Claude ${PLAN_REASON_TAIL}`,
+    ])
+  })
+
+  it('says some of it ran on a plan when the plan turns reported no counts to share out', () => {
+    const view = costDetailsView(
+      addCost(cliRunCost(cursorAcpTurn), {
+        costUsd: 0.5265756,
+        listCostUsd: 0.5265756,
+        byModel: [sonnetMetered],
+      }),
+    )
+    expect(view?.chargeReasons).toEqual([`Some of this ran on your Cursor ${PLAN_REASON_TAIL}`])
+  })
+
+  it('names no plan when the record names no provider a plan belongs to', () => {
+    const view = costDetailsView(
+      cliRunCost({ status: 'succeeded', billing: 'subscription', tokensNotReported: true }),
+    )
+    expect(view?.chargeReasons).toEqual([`This ran on your ${PLAN_REASON_TAIL}`])
+  })
+
+  it('says which tool reported no counts for a metered turn, and how many turns', () => {
+    const codexTurn: RunRecord = {
+      cli: { tool: 'codex', version: '0.130.0' },
+      status: 'succeeded',
+      modelId: 'gpt-5.5-codex',
+      billing: 'metered',
+      tokensNotReported: true,
+    }
+    const one = costDetailsView(cliRunCost(codexTurn))
+    expect(one?.chargeReasons).toEqual([
+      'Codex did not report token counts for this turn, so its charge is unknown.',
+    ])
+    expect(one?.notes).toEqual([])
+    const two = costDetailsView(addCost(cliRunCost(codexTurn), cliRunCost(codexTurn)))
+    expect(two?.chargeReasons).toEqual([
+      'Codex did not report token counts for 2 turns, so their charge is unknown.',
+    ])
+  })
+
+  it('says counts still to come on a turn whose billing is not settled yet keep its charge unknown for now', () => {
+    const { billing: _billing, ...unsettled } = claudeStreaming
+    const view = costDetailsView(cliRunCost(unsettled))
+    expect(view?.chargeReasons).toEqual([
+      "Claude Code has not reported how many output tokens it used yet, so that work's charge is not known yet.",
+    ])
+    expect(view?.notes).toEqual([COST_NOTE_UNRECORDED_BILLING])
+    const { billing: _b, usage: _u, ...silent } = claudeStreaming
+    expect(
+      costDetailsView(cliRunCost({ ...silent, tokensNotReported: true }))?.chargeReasons,
+    ).toEqual([
+      'Claude Code has not reported token counts for this turn yet, so its charge is not known yet.',
+    ])
+  })
+
+  it('lists every reason a charge is unknown, never one standing for the rest', () => {
+    const codexTurn: RunRecord = {
+      cli: { tool: 'codex', version: '0.130.0' },
+      status: 'aborted',
+      modelId: 'gpt-5.5-codex',
+      billing: 'metered',
+      tokensNotReported: true,
+    }
+    const cutOff = cliRunCost({
+      ...claudeCutShort,
+      billing: 'metered',
+      modelUsage: [claudeCutShortMetered],
+    })
+    const silent = costDetailsView(addCost(cutOff, cliRunCost(codexTurn)))
+    expect(silent?.chargeReasons).toEqual([
+      'Codex did not report token counts for this turn, so its charge is unknown.',
+      CLAUDE_OUTPUT_CHARGE_UNKNOWN,
+    ])
+    expect(silent?.notes).not.toContain(COST_NOTE_UNPRICED)
+    const unpriced = costDetailsView(
+      cliRunCost({
+        ...claudeCutShort,
+        billing: 'metered',
+        modelUsage: [claudeCutShortMetered, codexUnpriced],
+      }),
+    )
+    expect(unpriced?.chargeReasons).toEqual([
+      'No known price for gpt-5.5-codex (131,194 tokens), so its charge is unknown.',
+      CLAUDE_OUTPUT_CHARGE_UNKNOWN,
+    ])
   })
 
   it("opens a Cursor resident turn that reported no tokens: its model, its plan, and 'not reported by Cursor' where the counts would be", () => {
     const view = costDetailsView(cliRunCost(cursorAcpTurn))
-    expect(view?.charged).toBe('Unknown (subscription)')
+    expect(view?.charged).toBe('$?')
     expect(view?.summary).toEqual([
-      { label: 'Charged', value: 'Unknown (subscription)' },
+      { label: 'Charged', value: 'Unknown' },
       { label: 'Total tokens', value: 'Not reported by Cursor' },
     ])
     expect(view?.rows).toEqual([
@@ -1047,12 +1180,13 @@ describe('costDetailsView', () => {
         billing: 'subscription',
         billingLabel: 'Included in your Cursor subscription',
         tokens: [{ label: 'Tokens', value: 'Not reported by Cursor' }],
-        charged: 'Unknown (subscription)',
+        charged: 'Unknown',
         listValue: 'Unknown: its tokens were not reported',
       },
     ])
     expect(view?.rows[0]).not.toHaveProperty('chargedUsd')
-    expect(view?.notes).toEqual([COST_NOTE_AUTO, COST_NOTE_OVERAGE, CURSOR_TURN_NOT_REPORTED])
+    expect(view?.chargeReasons).toEqual([CURSOR_PLAN_REASON])
+    expect(view?.notes).toEqual([COST_NOTE_AUTO, CURSOR_TURN_NOT_REPORTED])
     expect(view?.notes).not.toContain(COST_NOTE_NO_MODELS)
   })
 
@@ -1063,6 +1197,7 @@ describe('costDetailsView', () => {
       value: '14,701 + not reported by Cursor',
     })
     expect(view?.totalTokens).toBe(14_701)
+    expect(view?.chargeReasons).toEqual([CURSOR_PLAN_REASON])
     expect(view?.notes).toContain(CURSOR_TURN_NOT_REPORTED)
   })
 
@@ -1165,7 +1300,7 @@ describe('costDetailsView', () => {
   it('opens a turn cut off before its output was reported: real input and cache counts, the output not reported — never 0', () => {
     const view = costDetailsView(cliRunCost(claudeCutShort))
     expect(view?.summary).toEqual([
-      { label: 'Charged', value: 'Unknown (subscription)' },
+      { label: 'Charged', value: 'Unknown' },
       { label: 'Included tokens', value: '41,932' },
       { label: 'Total tokens', value: '41,932 + not reported by Claude Code' },
     ])
@@ -1178,14 +1313,15 @@ describe('costDetailsView', () => {
     ])
     expect(row).not.toHaveProperty('outputTokens')
     expect(row.inputTokens).toBe(2)
-    expect(row.charged).toBe('Unknown (subscription)')
+    expect(row.charged).toBe('Unknown')
     expect(row.listValue).toBe('Unknown: its output was not reported')
-    expect(view?.notes).toEqual([COST_NOTE_OVERAGE, CLAUDE_OUTPUT_NOT_REPORTED])
+    expect(view?.chargeReasons).toEqual([CLAUDE_PLAN_REASON])
+    expect(view?.notes).toEqual([CLAUDE_OUTPUT_NOT_REPORTED])
   })
 
   it('opens a metered Claude Code run still streaming as a run still going — its output still to come, never stopped', () => {
     const view = costDetailsView(cliRunCost(claudeStreaming))
-    expect(view?.charged).toBe('Charge pending')
+    expect(view?.charged).toBe('$?')
     expect(view?.summary).toEqual([
       { label: 'Charged', value: 'Pending' },
       { label: 'Total tokens', value: '41,932 + not reported yet' },
@@ -1199,20 +1335,22 @@ describe('costDetailsView', () => {
     ])
     expect(row).not.toHaveProperty('outputTokens')
     expect(row).toMatchObject({ charged: 'Pending', listValue: 'Priced when the run ends' })
-    expect(view?.notes).toEqual([COST_NOTE_PENDING, CLAUDE_OUTPUT_PENDING])
+    expect(view?.chargeReasons).toEqual([COST_NOTE_PENDING])
+    expect(view?.notes).toEqual([CLAUDE_OUTPUT_PENDING])
   })
 
   it('opens a subscription Claude Code run still streaming with its charge unknown, its output still to come', () => {
     const view = costDetailsView(cliRunCost({ ...claudeStreaming, billing: 'subscription' }))
-    expect(view?.charged).toBe('Unknown (subscription)')
+    expect(view?.charged).toBe('$?')
     expect(view?.summary).toEqual([
-      { label: 'Charged', value: 'Unknown (subscription)' },
+      { label: 'Charged', value: 'Unknown' },
       { label: 'Included tokens', value: '41,932' },
       { label: 'Total tokens', value: '41,932 + not reported yet' },
     ])
     expect(view?.rows[0].tokens).toContainEqual({ label: 'Output', value: 'Not reported yet' })
     expect(view?.rows[0].listValue).toBe('Priced when the run ends')
-    expect(view?.notes).toEqual([COST_NOTE_OVERAGE, CLAUDE_OUTPUT_PENDING])
+    expect(view?.chargeReasons).toEqual([CLAUDE_PLAN_REASON])
+    expect(view?.notes).toEqual([CLAUDE_OUTPUT_PENDING])
   })
 
   it('keeps a streaming turn apart from one cut off before reporting its output, and says which is which', () => {
@@ -1227,20 +1365,18 @@ describe('costDetailsView', () => {
       label: 'Total tokens',
       value: '83,864 + not reported by Claude Code + not reported yet',
     })
-    expect(view?.notes).toEqual([
-      COST_NOTE_PENDING,
-      CLAUDE_OUTPUT_NOT_REPORTED,
-      CLAUDE_OUTPUT_PENDING,
-    ])
+    expect(view?.chargeReasons).toEqual([COST_NOTE_PENDING, CLAUDE_OUTPUT_CHARGE_UNKNOWN])
+    expect(view?.notes).toEqual([CLAUDE_OUTPUT_PENDING])
   })
 
   it('never calls a metered turn whose output went unreported unpriced for want of a price', () => {
     const view = costDetailsView(
       cliRunCost({ ...claudeCutShort, billing: 'metered', modelUsage: [claudeCutShortMetered] }),
     )
-    expect(view?.charged).toBe('Not reported')
+    expect(view?.charged).toBe('$?')
     expect(view?.rows[0].charged).toBe('Unknown')
-    expect(view?.notes).toEqual([CLAUDE_OUTPUT_NOT_REPORTED])
+    expect(view?.chargeReasons).toEqual([CLAUDE_OUTPUT_CHARGE_UNKNOWN])
+    expect(view?.notes).toEqual([])
   })
 
   it('states a list value that covers only part of the tokens as that part', () => {
@@ -1286,7 +1422,7 @@ describe('costDetailsView', () => {
 
   it('opens a metered run in flight as a charge still to come', () => {
     const view = costDetailsView(cliRunCost(claudeInFlight))
-    expect(view?.charged).toBe('Charge pending')
+    expect(view?.charged).toBe('$?')
     expect(view?.summary).toEqual([
       { label: 'Charged', value: 'Pending' },
       { label: 'Total tokens', value: '1,308,171' },
@@ -1296,7 +1432,8 @@ describe('costDetailsView', () => {
       charged: 'Pending',
       listValue: 'Priced when the run ends',
     })
-    expect(view?.notes).toEqual([COST_NOTE_PENDING])
+    expect(view?.chargeReasons).toEqual([COST_NOTE_PENDING])
+    expect(view?.notes).toEqual([])
   })
 
   it('keeps every row it lists under its own key, even two the record kept apart', () => {
@@ -1438,7 +1575,7 @@ describe('messageUsageCost', () => {
     const view = costDetailsView(messageUsageCost(usage, 'cli-agent/cursor-agent/composer-2.5'))
     expect(view?.rows.map((r) => r.billingLabel)).toEqual(['Included in your Cursor subscription'])
     expect(view?.rows.map((r) => r.model)).toEqual(['Composer 2.5'])
-    expect(view?.charged).toBe('Unknown (subscription)')
+    expect(view?.charged).toBe('$?')
   })
 
   it("names the row after the message's model over an older turn's model kept on its usage", () => {

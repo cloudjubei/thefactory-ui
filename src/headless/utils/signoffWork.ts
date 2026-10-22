@@ -224,8 +224,8 @@ const runsWord = (n: number) => `${n} agent ${n === 1 ? 'run' : 'runs'}`
 const sentenceCase = (words: string) => words.charAt(0).toUpperCase() + words.slice(1)
 
 /**
- * What the Cost tile says: what was billed (a subscription's share unknown, so
- * not "billed" at all), how it was billed, its list price,
+ * What the Cost tile says: what was billed (a charge not known reads `$?`, never
+ * "billed", and its breakdown says why), how it was billed, its list price,
  * and the agent runs and models behind it — then the list price by agent role
  * on the priciest role's scale, or, for a single agent run, its model and how
  * its tokens split. Undefined when no cost was measured. Pure.
@@ -246,10 +246,11 @@ export function signoffCostView(work: SignoffWork): SignoffCostView | undefined 
       : uniqueRunModels((work.cost.byModel ?? []).map((s) => spendOnlyModel(s)))
   const single = work.agentRuns === 1 && details.rows.length === 1
   const top = Math.max(0, ...work.roles.map((r) => listOf(r.cost)))
+  const charged = costChipLabel(work.cost) ?? details.charged
   return {
-    headline: (work.cost.byModel ?? []).some((s) => s.billing === 'subscription')
-      ? (costChipLabel(work.cost) ?? details.charged)
-      : `${costChipLabel(work.cost) ?? details.charged} ${SIGNOFF_COST_BILLED_SUFFIX}`,
+    headline:
+      details.chargeReasons.length > 0 ? charged : `${charged} ${SIGNOFF_COST_BILLED_SUFFIX}`,
+    reasons: details.chargeReasons,
     billing:
       [billingWords, list ? `list price ${list}` : undefined].filter(Boolean).join(' · ') ||
       undefined,

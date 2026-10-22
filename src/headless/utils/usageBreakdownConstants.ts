@@ -11,7 +11,7 @@ export const USAGE_TABLE_COLUMNS: ReadonlyArray<{
   label: string
   cell: Exclude<
     keyof UsageTableRow,
-    'key' | 'total' | 'cacheRatio' | 'notReportedBy' | 'incomplete'
+    'key' | 'total' | 'cacheRatio' | 'notReportedBy' | 'incomplete' | 'chargeReason'
   >
 }> = [
   { label: 'Group', cell: 'label' },
@@ -41,9 +41,9 @@ export const USAGE_LIST_PARTIAL = '(known prices only)'
 
 /** What the usage modal's numbers mean, said under its tables on both clients. */
 export const USAGE_FOOTNOTES = [
-  "Charged is what was billed; a plan's share reads unknown (subscription) — a plan can bill overage — never $0. Included counts tokens a plan or a free model covered. Unpriced counts metered tokens with no known price: their cost is unknown, not $0.",
+  "Charged is what was billed; a charge that is not known reads $?, never $0, and its row says why — a plan's share (a plan includes usage up to its allowance and may bill beyond it) or tokens with no known price. Included counts tokens a plan or a free model covered. Unpriced counts metered tokens with no known price: their cost is unknown, not $0.",
   `List value is what the same tokens cost at list prices, where a price is known; ${USAGE_LIST_PARTIAL} marks one that leaves out tokens with no known price or counts that were not reported.`,
-  'Charge says how sure the charged figure is: Confirmed was billed per token at a known rate; In plan cost nothing extra; Unknown has no stated charge — a plan can bill overage, a price may be missing, or the counts are short — so it is not a confirmed $0.',
+  'Charge says how sure the charged figure is: Confirmed was billed per token at a known rate; In plan cost nothing extra; Unknown has no stated charge — its Charged figure reads $? because a plan can bill overage, a price is missing, or the counts are short — so it is not a confirmed $0.',
   'Not reported: the CLI named under the row ran those turns but did not report those counts — they are unknown, not zero.',
   "A message with no stored charge is estimated from its model's current price (marked ≈).",
   "Durable totals are computed from the persisted cost ledger for this 'chatKey' and do not decrease if you clear/restart/delete a chat.",
@@ -75,6 +75,15 @@ export const USAGE_INCOMPLETE_REASON_LABELS: Record<UsageCompletenessReason, str
   'output-not-reported': 'Output not reported',
   'cache-not-reported': 'Cache not reported',
 }
+
+/** Leads a `$?` row's reason when some of it ran on a plan: "On your Claude subscription". */
+export const USAGE_REASON_PLAN = 'on your'
+
+/** Leads a `$?` row's reason when some of its tokens have no known price. */
+export const USAGE_REASON_NO_PRICE = 'no known price for'
+
+/** Between the reasons a `$?` row's charge is unknown. */
+export const USAGE_REASON_SEPARATOR = '; '
 
 /** Between the reasons a row's counts fall short. */
 export const USAGE_INCOMPLETE_SEPARATOR = ' · '

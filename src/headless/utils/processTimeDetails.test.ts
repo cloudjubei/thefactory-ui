@@ -169,7 +169,7 @@ describe('processTimeDetailsView — the agent manager', () => {
         byModel: [spend({ billing: 'subscription', costUsd: 0 })],
       }),
     )
-    expect(view?.manager?.value).toBe('Unknown (subscription) · 3m 00s')
+    expect(view?.manager?.value).toBe('$? · 3m 00s')
   })
 
   it('says a cost with no known price is unknown', () => {
@@ -178,7 +178,7 @@ describe('processTimeDetailsView — the agent manager', () => {
       OVERALL_MS,
       manager({ unpricedTokens: 1_200, byModel: [spend({})] }),
     )
-    expect(view?.manager?.value).toBe('No known price · 3m 00s')
+    expect(view?.manager?.value).toBe('$? · 3m 00s')
   })
 
   it('gives only the time when its turns measured no cost', () => {

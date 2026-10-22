@@ -6065,6 +6065,8 @@ export type RestartableMessage = {
     turnLimit?: number
     repeats?: number
   }
+  openChangesCard?: unknown
+  cliRunId?: string
 }
 
 export type TokenizableMessage = {
@@ -38318,6 +38320,7 @@ export type ListCliCapabilityScorecardsResponses = {
       detail: string
       latencyMs: number
       costUSD?: number
+      costUnknown?: true
       cases: Array<{
         input: string
         expected: string
@@ -38330,6 +38333,7 @@ export type ListCliCapabilityScorecardsResponses = {
     applicable: number
     p50LatencyMs: number
     totalCostUSD?: number
+    costUnknown?: true
     error?: string
   }>
 }
@@ -38380,6 +38384,7 @@ export type RunCliCapabilityCheckResponses = {
       detail: string
       latencyMs: number
       costUSD?: number
+      costUnknown?: true
       cases: Array<{
         input: string
         expected: string
@@ -38392,6 +38397,7 @@ export type RunCliCapabilityCheckResponses = {
     applicable: number
     p50LatencyMs: number
     totalCostUSD?: number
+    costUnknown?: true
     error?: string
   }
 }

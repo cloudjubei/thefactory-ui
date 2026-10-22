@@ -43,6 +43,18 @@ export default function CostDetailsBody({ view }: CostDetailsBodyProps) {
   return (
     <View style={{ gap: nativeSpace[3] }}>
       <Lines lines={view.summary} />
+      {view.chargeReasons.length > 0 ? (
+        <View style={{ gap: nativeSpace[2] }}>
+          {view.chargeReasons.map((reason) => (
+            <Text
+              key={reason}
+              style={{ fontSize: 12, lineHeight: 16, color: theme.text.secondary }}
+            >
+              {reason}
+            </Text>
+          ))}
+        </View>
+      ) : null}
       {view.rows.map((row) => (
         <View key={row.key} style={[divider, { gap: nativeSpace[2] }]}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
