@@ -588,7 +588,8 @@ function filedBy(
 ): EvidenceTile[] {
   const review = attempt.review
   if (!review) return []
-  const filedUnder = new Set([review.reviewedRunId, ...(review.earlierRunIds ?? [])])
+  const earlier = review.earlierRunIds ?? []
+  const filedUnder = new Set([review.reviewedRunId, ...earlier])
   return evidenceFiledWithin(
     tiles.filter((t) => filedUnder.has(t.ref.runId)),
     {

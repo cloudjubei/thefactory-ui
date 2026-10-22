@@ -86,6 +86,7 @@ import GroupWorkLaunchPanel from './GroupWorkLaunchPanel'
 import ActivityStopApprovalPanel from './ActivityStopApprovalPanel'
 import GitChangeApprovalPanel from './GitChangeApprovalPanel'
 import RunProposalApprovalPanel from './RunProposalApprovalPanel'
+import type { ResourceLink } from 'thefactory-tools/types'
 import { TurnLimitField } from '../TurnLimitField'
 import SegmentedControl from '../../primitives/SegmentedControl'
 import LaunchSuggestionPanel from './LaunchSuggestionPanel'
@@ -130,6 +131,10 @@ export type ApprovalPanelProps = {
   onDecideLater: () => void
   /** The ask was decided on its card — what the card folds to. */
   onDecided?: (line: ToolAskDecidedLine) => void
+  /** The name of the chat this dock is in — the sender an agent-to-agent message names. */
+  chatTitle?: string
+  /** Route an in-app `overseer://…` link on the card (a message's target chat). */
+  onResourceLink?: (link: ResourceLink) => void
 }
 
 const TIP = 'max-w-[300px] text-xs text-(--text-primary)'
@@ -211,6 +216,8 @@ export default function ApprovalPanel(props: ApprovalPanelProps) {
       grant={props.grant}
       onDecideLater={props.onDecideLater}
       {...(props.onDecided ? { onDecided: props.onDecided } : {})}
+      {...(props.chatTitle ? { chatTitle: props.chatTitle } : {})}
+      {...(props.onResourceLink ? { onResourceLink: props.onResourceLink } : {})}
     />
   )
 }

@@ -24,6 +24,11 @@ import {
 import { toolResultResourceLinks } from '../../../../headless/utils/toolResultLinks'
 import { runProposalView } from '../../../../headless/utils/runProposalView'
 import { RUN_PROPOSAL_TOOL_NAMES } from '../../../../headless/utils/runProposalViewConstants'
+import {
+  isSendChatMessageTool,
+  sendChatMessageView,
+} from '../../../../headless/utils/sendChatMessageView'
+import SendChatMessageCard from '../SendChatMessageCard'
 import { featureRequestBriefOfToolArgs } from '../../../../headless/utils/featureRequestView'
 import FeatureRequestBriefCard from '../../FeatureRequestBriefCard'
 import { parseResourceLink } from 'thefactory-tools/utils'
@@ -230,6 +235,7 @@ export const RECOGNIZED_TOOL_PREVIEW_NAMES: ReadonlySet<string> = new Set([
   'recommendTrainingExperiments',
   'queryProjectData',
   'updateProjectRecord',
+  'sendChatMessage',
   ...RUN_PROPOSAL_TOOL_NAMES,
 ])
 
@@ -278,6 +284,11 @@ export function renderToolPreview({
   const args = (toolCall?.arguments as Record<string, unknown>) ?? {}
   const isInFlight =
     resultType === 'pending' || resultType === 'running' || resultType === 'require_confirmation'
+
+  // ---- a message into another chat: its own card, outcome included ----
+  if (isSendChatMessageTool(toolCall?.name)) {
+    return renderSendChatMessagePreview(toolCall, result, resultType, hooks)
+  }
 
   if (resultType === 'errored') {
     const msg = tryString(
@@ -1791,6 +1802,25 @@ export function renderToolPreview({
   // Fallback: dump result (or arguments) as JSON, capped so a huge unrecognised result can't freeze the UI.
   const str = result != null ? safePreviewString(result).text : safePreviewString(args).text
   return <Code language="json" code={str} />
+}
+
+function renderSendChatMessagePreview(
+  toolCall: ToolCall,
+  result: unknown,
+  resultType: ToolResultType | undefined,
+  hooks: ToolPreviewHooks | undefined,
+): ReactNode {
+  const view = sendChatMessageView({
+    args: toolCall?.arguments,
+    result,
+    ...(resultType !== undefined ? { resultType } : {}),
+  })
+  return (
+    <SendChatMessageCard
+      view={view}
+      {...(hooks?.onResourceLink ? { onResourceLink: hooks.onResourceLink } : {})}
+    />
+  )
 }
 
 function coerceStoriesList(raw: unknown): StoryShape[] {

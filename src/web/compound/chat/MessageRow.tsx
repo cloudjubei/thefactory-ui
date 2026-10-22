@@ -181,6 +181,8 @@ export type MessageRowProps = {
   /** Route an in-app `overseer://…` resource link the assistant emitted (F.2). Host wires this to
    * its `navigateToResource`; omitted ⇒ such links open externally like any other. */
   onResourceLink?: (link: ResourceLink) => void
+  /** This chat's display name — the sender of a message an agent sends from it. */
+  chatTitle?: string
   /** Render the workspace-diff panel for a CLI-agent reply (`msg.cliRunId`).
    * Host binds it to the chat's project (e.g. `CliRunArtifactPanel`). */
   renderCliRunArtifact?: (runId: string) => ReactNode
@@ -250,6 +252,7 @@ function MessageRow({
   onResolveFile,
   renderReference,
   onResourceLink,
+  chatTitle,
   renderCliRunArtifact,
   renderProcessRun,
   renderProcessGroupRun,
@@ -703,6 +706,8 @@ function MessageRow({
                 {...(toolGrantCovers ? { grantCovers: toolGrantCovers } : {})}
                 {...(toolAlwaysAllowScope ? { alwaysAllowScope: toolAlwaysAllowScope } : {})}
                 onAlwaysAllow={onAlwaysAllowTool}
+                {...(onResourceLink ? { onResourceLink } : {})}
+                {...(chatTitle ? { sourceChatTitle: chatTitle } : {})}
               />
               {msg.subagentMessages?.length ? (
                 <SubagentSteps
@@ -711,6 +716,7 @@ function MessageRow({
                   getToolHeaderPath={getToolHeaderPath}
                   renderReference={renderReference}
                   onResourceLink={onResourceLink}
+                  {...(chatTitle ? { chatTitle } : {})}
                 />
               ) : null}
             </div>

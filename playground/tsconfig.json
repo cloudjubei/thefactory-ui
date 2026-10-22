@@ -4,7 +4,9 @@
     "baseUrl": ".",
     "paths": {
       "thefactory-ui/web": ["../src/web/index.ts"],
-      "thefactory-ui/headless": ["../src/headless/index.ts"]
+      "thefactory-ui/web/icons": ["../src/web/icons/index.ts"],
+      "thefactory-ui/headless": ["../src/headless/index.ts"],
+      "thefactory-ui/headless/api": ["../src/headless/api/index.ts"]
     }
   },
   "include": [".", "../src/css.d.ts"],

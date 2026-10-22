@@ -38,6 +38,7 @@ import { REGENERATED_MERGE_SCENES } from '../scenes/regeneratedMerge'
 import { RUNNING_TONE_SCENES } from '../scenes/runningTone'
 import { SIBLING_STABLE_BRANCH_SCENES } from '../scenes/siblingStableBranch'
 import { RUN_TIME_DETAILS_SCENES } from '../scenes/runTimeDetails'
+import { SEND_CHAT_MESSAGE_SCENES } from '../scenes/sendChatMessage'
 import { STORY_CHANGE_ERROR_SCENES } from '../scenes/storyChangeErrors'
 import { STORY_WORK_SCENES } from '../scenes/storyWork'
 import { UI_IMPACT_SCENES } from '../scenes/uiImpact'
@@ -61,6 +62,7 @@ import type { Scene, SceneGroup, SceneState } from './types'
 export const SCENES: readonly Scene[] = [
   ...CHAT_SCENES,
   ...CHAT_LIST_CLOSED_SCENES,
+  ...SEND_CHAT_MESSAGE_SCENES,
   ...FILE_SUGGESTION_SCENES,
   ...MODEL_EFFORT_SCENES,
   ...CHAT_STOP_SCENES,

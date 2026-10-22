@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { getChatContextKey } from 'thefactory-tools/utils'
 import {
   MessageRow,
   ThinkingRow,
@@ -253,15 +254,30 @@ const FETCH = grant(
   { trustableSite: 'vitejs.dev' },
 )
 
+const MESSAGE_TARGET_PROJECT = 'thefactory-backend'
+const MESSAGE_TARGET_CHAT = getChatContextKey({
+  type: 'PROJECT',
+  projectId: MESSAGE_TARGET_PROJECT,
+} as never)
 const MESSAGE = grant(
   'sendChatMessage',
   {
-    chatId: 'chat-release',
+    chatId: MESSAGE_TARGET_CHAT,
+    projectId: MESSAGE_TARGET_PROJECT,
     awaitReply: true,
     reason: 'The release chat owns the changelog.',
     message: 'The showcase landed. Please add **component showcase** to the release notes.',
   },
-  { detail: { detail: { targetLabel: 'Release planning' } } },
+  {
+    detail: {
+      detail: {
+        targetChatId: MESSAGE_TARGET_CHAT,
+        targetProjectId: MESSAGE_TARGET_PROJECT,
+        targetTitle: 'Release prep',
+        targetLabel: `chat "Release prep" in project ${MESSAGE_TARGET_PROJECT}`,
+      },
+    },
+  },
 )
 
 const WRITE = grant('writeProjectFile', {

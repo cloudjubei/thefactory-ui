@@ -4,6 +4,7 @@
 
 import type { WorkLaunchMode } from 'thefactory-tools/types'
 import { grantDetailView } from './approvalGrant'
+import { cleanCliToolName } from './cliRunner'
 import { evaluationLaunchAskView } from './evaluationLaunchAskView'
 import { EVALUATE_KNOWLEDGE_TOOL } from './evaluationLaunchAskViewConstants'
 import { LAUNCH_FEATURE_PICK_NONE } from './launchFeaturePickConstants'
@@ -342,7 +343,9 @@ export function featureQuestionAnswerProblem(value: string): string | undefined 
  */
 export function toolAskCardView(grant: GrantLike): ToolAskCardView {
   const payload = record(grant.detail)
-  const tool = grant.toolName ?? text(payload.tool) ?? grant.label
+  // MCP-prefixed names (`mcp__thefactory__sendChatMessage`) match the bare tool.
+  const rawTool = grant.toolName ?? text(payload.tool) ?? grant.label
+  const tool = cleanCliToolName(rawTool ?? '')
   const args = grant.args !== undefined ? record(grant.args) : record(payload.args)
   const { headline: sentence, detail } = grantDetailView(grant.detail)
   const why = text(args.reason)
@@ -423,9 +426,30 @@ export function toolAskCardView(grant: GrantLike): ToolAskCardView {
     }
   }
   if (tool === 'sendChatMessage') {
-    const target = record(payload.detail)
-    const label = text(target.targetLabel) ?? text(args.chatId) ?? 'another chat'
-    const targetProjectId = text(target.targetProjectId)
+    // Real backend shape: args chatId|projectId, message, awaitReply; detail
+    // targetChatId, targetProjectId, targetTitle, targetLabel.
+    const enriched = record(payload.detail)
+    const targetChatId = text(enriched.targetChatId) ?? text(args.chatId)
+    const targetProjectId = text(enriched.targetProjectId) ?? text(args.projectId)
+    const targetTitle = text(enriched.targetTitle)
+    const label =
+      text(enriched.targetLabel) ?? targetTitle ?? targetChatId ?? targetProjectId ?? 'another chat'
+    const message = typeof args.message === 'string' ? args.message : ''
+    const incomplete =
+      message === '' ||
+      (!targetChatId && !targetProjectId && !text(enriched.targetLabel) && !targetTitle)
+    let raw: string | undefined
+    if (incomplete) {
+      try {
+        raw = JSON.stringify(
+          { args, detail: Object.keys(enriched).length > 0 ? enriched : undefined },
+          null,
+          2,
+        )
+      } catch {
+        raw = String(grant.detail ?? grant.args ?? '')
+      }
+    }
     return {
       ...base,
       icon: 'message',
@@ -437,8 +461,11 @@ export function toolAskCardView(grant: GrantLike): ToolAskCardView {
         kind: 'message',
         target: label,
         ...(targetProjectId ? { targetProjectId } : {}),
-        message: typeof args.message === 'string' ? args.message : '',
+        ...(targetChatId ? { targetChatId } : {}),
+        ...(targetTitle ? { targetTitle } : {}),
+        message,
         awaitReply: args.awaitReply === true,
+        ...(incomplete ? { incomplete: true, ...(raw !== undefined ? { raw } : {}) } : {}),
       },
     }
   }

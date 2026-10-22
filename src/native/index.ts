@@ -402,6 +402,14 @@ export {
   type ToolCallCardProps,
 } from './compound/chat/ToolCall/ToolCallCard'
 export {
+  default as SendChatMessagePreview,
+  type SendChatMessagePreviewProps,
+} from './compound/chat/SendChatMessagePreview'
+export {
+  default as SendChatMessageCard,
+  type SendChatMessageCardProps,
+} from './compound/chat/SendChatMessageCard'
+export {
   default as ToolPreviewSheet,
   type ToolPreviewSheetProps,
 } from './compound/chat/ToolCall/ToolPreviewSheet'

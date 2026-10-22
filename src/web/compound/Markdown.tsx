@@ -245,11 +245,21 @@ export type MarkdownProps = {
   typedReferences?: boolean
   /** Text inside a line — a table cell, a list row: paragraphs render as spans, with no block margins. */
   inline?: boolean
+  /**
+   * Text on an accent (user) bubble: fenced/inline code and links use inverted
+   * chrome so they stay readable on `--accent-primary` (peer of native `onAccent`).
+   */
+  onAccent?: boolean
 }
 
 const INLINE_PARAGRAPH: Partial<Components> = {
   p: ({ children }) => <span>{children}</span>,
 }
+
+const ACCENT_LINK = 'text-(--text-inverted) underline decoration-white/50 hover:decoration-white'
+const ACCENT_CODE_INLINE =
+  'inline align-baseline px-1 py-px rounded text-[0.9em] font-mono break-words bg-white/20 text-(--text-inverted)'
+const ACCENT_PRE = 'p-4 rounded-md overflow-x-auto my-4 bg-black/25 text-(--text-inverted)'
 
 export default function Markdown({
   text,
@@ -258,6 +268,7 @@ export default function Markdown({
   renderReference: ownRenderReference,
   typedReferences = false,
   inline = false,
+  onAccent = false,
 }: MarkdownProps) {
   const renderReference = useEffectiveReferenceRenderer(ownRenderReference, typedReferences)
   const rehypePlugins = useMemo(() => {
@@ -288,16 +299,52 @@ export default function Markdown({
   const appOrigin = typeof window !== 'undefined' ? window.location.origin : ''
 
   const activeComponents = useMemo<Partial<Components>>(() => {
-    const base: Partial<Components> = renderReference
+    const linkClass = onAccent ? ACCENT_LINK : 'text-(--accent-primary) hover:underline'
+    const themed: Partial<Components> = onAccent
       ? {
           ...components,
+          pre: ({ children, ...props }) => (
+            <pre className={ACCENT_PRE} {...props}>
+              {children}
+            </pre>
+          ),
           code: (props) => {
-            const inline = !/language-(\w+)/.exec(props.className || '')
+            const { children, className, ...rest } = props
+            if (/language-(\w+)/.exec(className || '')) {
+              // Inverted text — never text-primary, which washes out on the accent.
+              return (
+                <code className={`${className ?? ''} text-(--text-inverted)!`} {...rest}>
+                  {children}
+                </code>
+              )
+            }
+            return (
+              <code className={[ACCENT_CODE_INLINE, className].filter(Boolean).join(' ')} {...rest}>
+                {children}
+              </code>
+            )
+          },
+          a: ({ children, ...props }) =>
+            props.href ? (
+              <a className={ACCENT_LINK} target="_blank" rel="noreferrer" {...props}>
+                {children}
+              </a>
+            ) : (
+              <span>{children}</span>
+            ),
+        }
+      : components
+    const base: Partial<Components> = renderReference
+      ? {
+          ...themed,
+          code: (props) => {
+            const inlineCode = !/language-(\w+)/.exec(props.className || '')
             const token = typeof props.children === 'string' ? props.children : undefined
-            const parsed = inline && token !== undefined ? parseReferenceToken(token) : undefined
+            const parsed =
+              inlineCode && token !== undefined ? parseReferenceToken(token) : undefined
             const chip = parsed ? renderReference(parsed) : undefined
             if (chip !== undefined) return <>{chip}</>
-            const Code = components.code as FC<typeof props>
+            const Code = themed.code as FC<typeof props>
             return <Code {...props} />
           },
           a: (props) => {
@@ -308,11 +355,11 @@ export default function Markdown({
                 : undefined
             const chip = link ? renderReference({ type: 'link', link }) : undefined
             if (chip !== undefined) return <>{chip}</>
-            const A = components.a as FC<typeof props>
+            const A = themed.a as FC<typeof props>
             return <A {...props} />
           },
         }
-      : components
+      : themed
     if (!onResourceLink) return base
     return {
       ...base,
@@ -327,7 +374,7 @@ export default function Markdown({
         if (link) {
           return (
             <a
-              className="text-(--accent-primary) hover:underline cursor-pointer"
+              className={`${linkClass} cursor-pointer`}
               href={href}
               onClick={(e) => {
                 e.preventDefault()
@@ -341,19 +388,13 @@ export default function Markdown({
         }
         if (!href) return <span>{children}</span>
         return (
-          <a
-            className="text-(--accent-primary) hover:underline"
-            href={href}
-            target="_blank"
-            rel="noreferrer"
-            {...props}
-          >
+          <a className={linkClass} href={href} target="_blank" rel="noreferrer" {...props}>
             {children}
           </a>
         )
       },
     }
-  }, [onResourceLink, renderReference, appOrigin])
+  }, [onResourceLink, renderReference, appOrigin, onAccent])
 
   const shownComponents = useMemo(
     () => (inline ? { ...activeComponents, ...INLINE_PARAGRAPH } : activeComponents),

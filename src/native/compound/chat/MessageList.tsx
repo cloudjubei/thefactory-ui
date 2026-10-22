@@ -148,6 +148,8 @@ export interface MessageListProps {
   onResolveFile?: (token: string) => UikitFileMeta | null
   /** Route an in-app `overseer://…` resource link. Forwarded to MessageRow's Markdown (F.2). */
   onResourceLink?: (link: ResourceLink) => void
+  /** This chat's display name — the sender of a message an agent sends from it. Forwarded to MessageRow. */
+  chatTitle?: string
   /** Shows the images sent with a message as thumbnails that open full size. */
   attachmentImages?: NativeAttachmentImages
   renderReference?: (target: ReferenceTarget) => ReactNode | undefined
@@ -208,6 +210,7 @@ export default function MessageList({
   previewTool,
   onResolveFile,
   onResourceLink,
+  chatTitle,
   attachmentImages,
   renderReference,
   renderCliRunArtifact,
@@ -540,6 +543,7 @@ export default function MessageList({
                 <CliRunMessages
                   runId={msg.cliRunId}
                   onResourceLink={onResourceLink}
+                  {...(chatTitle ? { chatTitle } : {})}
                   model={messageModelTag(msg.model)}
                   baseIndex={i}
                   renderToolCall={renderToolCall}
@@ -576,6 +580,7 @@ export default function MessageList({
                   prevUserMessagesLen={prevUserCount}
                   enhancedTotalLength={windowed.length}
                   renderToolCall={renderToolCall}
+                  {...(chatTitle ? { chatTitle } : {})}
                   toolPreview={
                     msg.role === 'tool' && msg.toolCall?.toolCallId
                       ? toolPreviewById[String(msg.toolCall.toolCallId)]
@@ -653,6 +658,7 @@ export default function MessageList({
             <CliRunMessages
               runId={pendingCliRunId}
               onResourceLink={onResourceLink}
+              {...(chatTitle ? { chatTitle } : {})}
               model={pendingCliModel}
               baseIndex={windowed.length}
               renderToolCall={renderToolCall}

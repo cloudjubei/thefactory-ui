@@ -14,6 +14,8 @@ export type SubagentStepsProps = {
   getToolHeaderPath?: (toolCall: ToolCall) => string | undefined
   renderReference?: (target: ReferenceTarget) => ReactNode | undefined
   onResourceLink?: (link: ResourceLink) => void
+  /** The chat the steps ran in, by name — the sender of a message one of them sends. */
+  chatTitle?: string
 }
 
 /** What a subagent said and called, folded under the call that started it. */
@@ -23,6 +25,7 @@ function SubagentSteps({
   getToolHeaderPath,
   renderReference,
   onResourceLink,
+  chatTitle,
 }: SubagentStepsProps) {
   const [open, setOpen] = useState(false)
   return (
@@ -57,6 +60,8 @@ function SubagentSteps({
                   {...(m.startedAt !== undefined ? { startedAt: m.startedAt } : {})}
                   renderResult={renderResult}
                   headerPath={getToolHeaderPath?.(m.toolCall)}
+                  {...(onResourceLink ? { onResourceLink } : {})}
+                  {...(chatTitle ? { sourceChatTitle: chatTitle } : {})}
                 />
                 {m.subagentMessages ? (
                   <SubagentStepsMemo
@@ -65,6 +70,7 @@ function SubagentSteps({
                     getToolHeaderPath={getToolHeaderPath}
                     renderReference={renderReference}
                     onResourceLink={onResourceLink}
+                    {...(chatTitle ? { chatTitle } : {})}
                   />
                 ) : null}
               </div>

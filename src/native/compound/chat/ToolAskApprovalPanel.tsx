@@ -2,7 +2,6 @@ import { useState, type ReactNode } from 'react'
 import type { WorkLaunchMode } from 'thefactory-tools/types'
 import { Text, View } from 'react-native'
 
-import { Switch } from '../../primitives/Switch'
 import { Textarea } from '../../primitives/Textarea'
 import RichText from '../files/RichText'
 import ToolAskCard, { ToolAskScopeChoice } from './ToolAskCard'
@@ -27,8 +26,10 @@ import {
 } from '../../../headless/utils/toolAskCardConstants'
 import type { ToolAskBody, ToolAskDecidedLine } from '../../../headless/utils/toolAskCardTypes'
 import type { PendingToolGrant, PendingToolGrantDecision } from '../../../headless/utils/chatTypes'
+import type { ResourceLink } from 'thefactory-tools/types'
 import DesignAskBox from '../design/DesignAskBox'
 import EvaluationLaunchAskBody from './EvaluationLaunchAskBody'
+import MessageAskBody from './MessageAskBody'
 import WorkLaunchChooser from '../WorkLaunchChooser'
 import { useFeatureRequestRecord } from '../../../headless/hooks/useCrossProjectRequests'
 import { featureRequestSummary } from '../../../headless/utils/featureRequestView'
@@ -38,6 +39,10 @@ export type ToolAskApprovalPanelProps = {
   grant: PendingToolGrant
   onDecideLater: () => void
   onDecided?: (line: ToolAskDecidedLine) => void
+  /** The chat this dock is in — labels the sender on a sendChatMessage ask. */
+  chatTitle?: string
+  /** Route an in-app `overseer://…` link on a sendChatMessage ask. */
+  onResourceLink?: (link: ResourceLink) => void
 }
 
 const MONO = { fontFamily: 'Menlo' }
@@ -250,6 +255,8 @@ export default function ToolAskApprovalPanel({
   grant,
   onDecideLater,
   onDecided,
+  chatTitle,
+  onResourceLink,
 }: ToolAskApprovalPanelProps) {
   const { theme, status } = useNativeTheme()
   const view = toolAskCardView(grant)
@@ -320,20 +327,14 @@ export default function ToolAskApprovalPanel({
             </Text>
           </Boxed>
         ) : body.kind === 'message' ? (
-          <>
-            <Text style={{ fontSize: 12.5, color: theme.text.secondary }}>
-              {`${TOOL_ASK_COPY.to} ${body.target}`}
-            </Text>
-            <Boxed>
-              <RichText text={body.message} textColor={theme.text.primary} />
-            </Boxed>
-            <Switch
-              checked={awaitReply}
-              onCheckedChange={setAwaitReply}
-              disabled={busy}
-              label={TOOL_ASK_COPY.waitForReply}
-            />
-          </>
+          <MessageAskBody
+            body={body}
+            {...(chatTitle ? { sourceChatTitle: chatTitle } : {})}
+            awaitReply={awaitReply}
+            onAwaitReply={setAwaitReply}
+            busy={busy}
+            {...(onResourceLink ? { onResourceLink } : {})}
+          />
         ) : body.kind === 'write' ? (
           <NewFilePreview body={body} />
         ) : body.kind === 'delete-story' ? (

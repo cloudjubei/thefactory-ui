@@ -40,7 +40,8 @@ export function useVerifyAttemptEvidence(
 ): UseVerifyAttemptEvidence {
   const run = useReviewEvidence(projectId, { runId: review.reviewedRunId })
   const storyId = useMemo(() => run.refs.find((r) => r.storyId)?.storyId, [run.refs])
-  const carriesOn = (review.earlierRunIds?.length ?? 0) > 0
+  const earlier = review.earlierRunIds
+  const carriesOn = (earlier?.length ?? 0) > 0
   const widen = useMemo(
     () =>
       storyId !== undefined && (carriesOn || missingEvidenceIds(entry.proof, run.refs).length > 0),

@@ -94,6 +94,11 @@ export function useProjects(): ProjectsContextValue {
   return ctx
 }
 
+/** The projects, or `null` outside a `ProjectsProvider` — for a surface that only enriches with them. */
+export function useProjectsOptional(): ProjectsContextValue | null {
+  return useContext(ProjectsContext)
+}
+
 export function useActiveProject() {
   const { activeProjectId, activeProject } = useProjects()
   return { projectId: activeProjectId, project: activeProject }

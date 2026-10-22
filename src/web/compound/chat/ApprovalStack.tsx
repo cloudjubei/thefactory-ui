@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import type { ResourceLink } from 'thefactory-tools/types'
 import type { PendingToolGrant } from '../../../headless'
 import { shownQuestionId } from '../../../headless/utils/agentQuestions'
 import type { ToolAskDecidedLine } from '../../../headless/utils/toolAskCardTypes'
@@ -10,6 +11,10 @@ export type ApprovalStackProps = {
   grants: PendingToolGrant[]
   projectId?: string
   groupId?: string
+  /** The chat's display name — forwarded to a sendChatMessage approval card. */
+  chatTitle?: string
+  /** Route an in-app `overseer://…` link on a sendChatMessage card. */
+  onResourceLink?: (link: ResourceLink) => void
   /** Puts the whole set aside until a new approval arrives. */
   onDecideLater: () => void
   onDecided?: (grantId: string, line: ToolAskDecidedLine) => void
@@ -26,6 +31,8 @@ export default function ApprovalStack({
   grants,
   projectId,
   groupId,
+  chatTitle,
+  onResourceLink,
   onDecideLater,
   onDecided,
   renderModelChip,
@@ -49,6 +56,8 @@ export default function ApprovalStack({
         grant={shown}
         {...(projectId ? { projectId } : {})}
         {...(groupId ? { groupId } : {})}
+        {...(chatTitle ? { chatTitle } : {})}
+        {...(onResourceLink ? { onResourceLink } : {})}
         onDecideLater={onDecideLater}
         {...(onDecided
           ? { onDecided: (line: ToolAskDecidedLine) => onDecided(shown.id, line) }

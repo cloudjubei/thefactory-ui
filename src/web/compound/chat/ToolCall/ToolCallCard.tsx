@@ -24,6 +24,12 @@ import AlwaysAllowControl from '../AlwaysAllowControl'
 import { alwaysAllowChoiceView } from '../../../../headless/utils/alwaysAllow'
 import type { AlwaysAllowScope, GrantCovers } from '../../../../headless/utils/chatTypes'
 import type { ToolCall, ToolResultType } from './types'
+import {
+  isSendChatMessageTool,
+  sendChatMessageView,
+} from '../../../../headless/utils/sendChatMessageView'
+import SendChatMessageCard from '../SendChatMessageCard'
+import type { ResourceLink } from 'thefactory-tools/types'
 
 // Web small-screen breakpoint mirrors the rest of the package
 // (`FileSelector`, `CollapsibleSidebar`) so a single CSS-media-query value
@@ -93,6 +99,10 @@ export type ToolCallCardProps = {
   alwaysAllowScope?: AlwaysAllowScope
   /** Mark "Always allow" in `scope`, or (`undefined`) unmark — offered beside the toggle. */
   onAlwaysAllow?: (scope: AlwaysAllowScope | undefined) => void
+  /** Route an in-app `overseer://…` link on the row (a sent message's target chat). */
+  onResourceLink?: (link: ResourceLink) => void
+  /** The chat this row is in, by name — the sender of a message the call sends to another chat. */
+  sourceChatTitle?: string
 }
 
 const CHAT_ONLY: readonly AlwaysAllowScope[] = ['chat']
@@ -117,6 +127,8 @@ function ToolCallCardInner({
   grantCovers = 'tool',
   alwaysAllowScope,
   onAlwaysAllow,
+  onResourceLink,
+  sourceChatTitle,
 }: ToolCallCardProps) {
   const [argsOpen, setArgsOpen] = useState(false)
   const [resultOpen, setResultOpen] = useState(false)
@@ -247,6 +259,28 @@ function ToolCallCardInner({
       </div>
 
       {milestone ? <ToolRowMilestoneLine milestone={milestone} /> : null}
+
+      {/* A message into another chat speaks for the person there: what goes
+          where is read on the row itself, before and after the decision —
+          never only in a hover. */}
+      {isSendChatMessageTool(toolCall.name) ? (
+        <div
+          className="border-t border-(--border-subtle) bg-(--surface-base) px-3 py-2.5"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {renderResult?.({ toolCall, result, resultType }) ?? (
+            <SendChatMessageCard
+              view={sendChatMessageView({
+                args: toolCall.arguments,
+                result,
+                ...(resultType !== undefined ? { resultType } : {}),
+              })}
+              {...(onResourceLink ? { onResourceLink } : {})}
+              {...(sourceChatTitle ? { sourceChatTitle } : {})}
+            />
+          )}
+        </div>
+      ) : null}
 
       {toolCall.decisionNote ? (
         <div className="px-3 pb-1.5 text-[11px] text-(--text-secondary)">

@@ -145,6 +145,8 @@ export type MessageListProps = {
   renderReference?: (target: ReferenceTarget) => ReactNode | undefined
   /** Route an in-app `overseer://…` resource link. Forwarded to MessageRow's Markdown (F.2). */
   onResourceLink?: (link: ResourceLink) => void
+  /** This chat's display name — the sender of a message an agent sends from it. Forwarded to MessageRow. */
+  chatTitle?: string
   /** Renders what a CLI-agent reply changed — `ChatBody` passes the turn's changes marker. Forwarded to MessageRow. */
   renderCliRunArtifact?: (runId: string) => ReactNode
   /** Forwarded to each row: the live process run an announcement message launched. */
@@ -223,6 +225,7 @@ export default function MessageList({
   onResolveFile,
   renderReference,
   onResourceLink,
+  chatTitle,
   renderCliRunArtifact,
   renderProcessRun,
   renderProcessGroupRun,
@@ -746,6 +749,7 @@ export default function MessageList({
                 <CliRunMessages
                   runId={msg.cliRunId}
                   onResourceLink={onResourceLink}
+                  {...(chatTitle ? { chatTitle } : {})}
                   model={messageModelTag(msg.model)}
                   baseIndex={globalIndex}
                   renderToolResult={renderToolResult}
@@ -793,6 +797,7 @@ export default function MessageList({
                   onResolveFile={onResolveFile}
                   renderReference={renderReference}
                   onResourceLink={onResourceLink}
+                  {...(chatTitle ? { chatTitle } : {})}
                   renderCliRunArtifact={renderCliRunArtifact}
                   renderProcessRun={renderProcessRun}
                   renderProcessGroupRun={renderProcessGroupRun}
@@ -836,6 +841,7 @@ export default function MessageList({
             <CliRunMessages
               runId={pendingCliRunId}
               onResourceLink={onResourceLink}
+              {...(chatTitle ? { chatTitle } : {})}
               model={pendingCliModel}
               baseIndex={messagesToDisplay.length}
               renderToolResult={renderToolResult}
@@ -866,6 +872,8 @@ export default function MessageList({
             getToolHeaderPath={getToolHeaderPath}
             onResolveFile={onResolveFile}
             renderReference={renderReference}
+            onResourceLink={onResourceLink}
+            {...(chatTitle ? { chatTitle } : {})}
           />
         ) : null}
         {turnInFlight && !pending && !pendingCliRunId ? (

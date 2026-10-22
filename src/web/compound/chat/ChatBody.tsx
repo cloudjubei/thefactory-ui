@@ -2,6 +2,8 @@ import type { ReferenceTarget } from 'thefactory-tools/types'
 import type { ToolPreviewResult } from '../../../headless/api/sdkTypes'
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import type { LaunchModelChipSlot } from '../../../headless/utils/launchAgentPickTypes'
+import { useProjectsOptional } from '../../../headless/contexts/ProjectsContext'
+import { chatTitleFromContextId } from '../../../headless/utils/sendChatMessageView'
 import Alert from '../../primitives/Alert'
 import AgentQuestionCard from './AgentQuestionCard'
 import RemedyCard from './RemedyCard'
@@ -68,6 +70,8 @@ export type ChatBodyProps = {
   projectId?: string
   /** The chat's group, forwarded to a launch across the group's projects. */
   groupId?: string
+  /** The chat's display name — the sender an agent's message into another chat is labelled with. */
+  chatTitle?: string
   /**
    * The app's own model chip for THIS chat, rendered inside a launch approval so
    * the model can be picked before the work starts. A host slot because the
@@ -251,6 +255,7 @@ export default function ChatBody({
   renderProcessRun,
   renderProcessGroupRun,
   projectId,
+  chatTitle: chatTitleProp,
   groupId,
   onSend,
   onAbort,
@@ -278,6 +283,15 @@ export default function ChatBody({
   pendingQueue,
 }: ChatBodyProps) {
   const { isSending, pendingAssistant } = liveState
+  // Hosts rarely pass chatTitle; derive it from this chat's context id so
+  // sendChatMessage cards name the sender instead of "an agent".
+  const projects = useProjectsOptional()?.projects
+  const chatTitle = useMemo(
+    () =>
+      chatTitleProp ??
+      chatTitleFromContextId(chatId, (id) => projects?.find((p) => p.id === id)?.title),
+    [chatTitleProp, chatId, projects],
+  )
   // While a CLI run streams, show the live Agent-run panel for its runId rather
   // than the raw-text pending bubble (which popped in blocks and then flashed
   // into the final message). The panel renders the streaming transcript with the
@@ -466,6 +480,7 @@ export default function ChatBody({
               onResolveFile={onResolveFile}
               renderReference={renderReference}
               onResourceLink={onResourceLink}
+              {...(chatTitle ? { chatTitle } : {})}
               renderCliRunArtifact={renderChanges}
               renderProcessRun={renderProcessRun}
               renderProcessGroupRun={renderProcessGroupRun}
@@ -574,6 +589,8 @@ export default function ChatBody({
               grants={approvalGrants}
               {...(projectId ? { projectId } : {})}
               {...(groupId ? { groupId } : {})}
+              {...(chatTitle ? { chatTitle } : {})}
+              {...(onResourceLink ? { onResourceLink } : {})}
               onDecideLater={() => setApprovalDismissedKey(approvalKey)}
               onDecided={addDecidedLine}
               {...(renderApprovalModelChip ? { renderModelChip: renderApprovalModelChip } : {})}

@@ -2,6 +2,7 @@ import { memo, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { slowToolLabel } from '../../../../headless/utils/backgroundJobs'
 import { TOOL_SLOW_TICK_MS } from '../../../../headless/utils/backgroundJobsConstants'
 import { Pressable, Text, View } from 'react-native'
+import type { ResourceLink } from 'thefactory-tools/types'
 import Code from '../../Code'
 import { Switch } from '../../../primitives/Switch'
 import { IconChevronDown, IconChevronRight } from '../../../icons'
@@ -17,7 +18,12 @@ import type {
   ToolResultTypeLike,
 } from '../../../../headless/utils/chatTypes'
 import { alwaysAllowChoiceView } from '../../../../headless/utils/alwaysAllow'
+import {
+  isSendChatMessageTool,
+  sendChatMessageView,
+} from '../../../../headless/utils/sendChatMessageView'
 import AlwaysAllowControl from '../AlwaysAllowControl'
+import SendChatMessageCard from '../SendChatMessageCard'
 import { nativePalette, nativeRadii, nativeSpace } from '../../../../tokens/native'
 import { useNativeTheme } from '../../../hooks/useNativeTheme'
 import { StatusChip, StatusIcon, statusVisual } from './StatusIcon'
@@ -73,6 +79,10 @@ export type ToolCallCardProps = {
   alwaysAllowScope?: AlwaysAllowScope
   /** Mark "Always allow" in `scope`, or (`undefined`) unmark — offered beside the toggle. */
   onAlwaysAllow?: (scope: AlwaysAllowScope | undefined) => void
+  /** Route an in-app `overseer://…` link on the row (a sent message's target chat). */
+  onResourceLink?: (link: ResourceLink) => void
+  /** The chat this row is in, by name — the sender of a message the call sends to another chat. */
+  sourceChatTitle?: string
 }
 
 const CHAT_ONLY: readonly AlwaysAllowScope[] = ['chat']
@@ -101,6 +111,8 @@ function ToolCallCardInner({
   grantCovers = 'tool',
   alwaysAllowScope,
   onAlwaysAllow,
+  onResourceLink,
+  sourceChatTitle,
 }: ToolCallCardProps) {
   const { theme } = useNativeTheme()
   const [argsOpen, setArgsOpen] = useState(false)
@@ -160,7 +172,11 @@ function ToolCallCardInner({
             }
           : null
 
-  const custom = renderResult ? renderResult({ toolCall, result, resultType }) : null
+  // sendChatMessage already surfaces its preview (or a host renderResult) above.
+  const custom =
+    !isSendChatMessageTool(toolCall.name) && renderResult
+      ? renderResult({ toolCall, result, resultType })
+      : null
 
   // Inner padding — `nativeSpace[4]` = 8px — applied uniformly across the
   // header / status row / args / result blocks so each section reads with
@@ -256,6 +272,31 @@ function ToolCallCardInner({
       </View>
 
       {milestone ? <ToolRowMilestoneLine milestone={milestone} /> : null}
+
+      {isSendChatMessageTool(toolCall.name) ? (
+        <View
+          style={{
+            paddingHorizontal: PAD,
+            paddingTop: PAD,
+            paddingBottom: PAD,
+            borderTopWidth: 1,
+            borderTopColor: theme.border.subtle,
+            backgroundColor: theme.surface.base,
+          }}
+        >
+          {renderResult?.({ toolCall, result, resultType }) ?? (
+            <SendChatMessageCard
+              view={sendChatMessageView({
+                args: toolCall.arguments,
+                result,
+                ...(resultType !== undefined ? { resultType } : {}),
+              })}
+              {...(onResourceLink ? { onResourceLink } : {})}
+              {...(sourceChatTitle ? { sourceChatTitle } : {})}
+            />
+          )}
+        </View>
+      ) : null}
 
       {toolCall.decisionNote ? (
         <Text

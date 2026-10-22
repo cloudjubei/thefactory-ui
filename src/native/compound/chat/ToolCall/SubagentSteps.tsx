@@ -8,12 +8,14 @@ import { describeSubagentSteps } from '../../../../headless/utils/cliRunActivity
 import { nativeSpace } from '../../../../tokens/native'
 import { useNativeTheme } from '../../../hooks/useNativeTheme'
 import type { NativeToolCallRenderArgs } from '../chatNativeTypes'
+import ToolCallCard from './ToolCallCard'
 
 export type SubagentStepsProps = {
   messages: ChatMessageLike[]
   renderToolCall?: (args: NativeToolCallRenderArgs) => ReactNode
   renderReference?: (target: ReferenceTarget) => ReactNode | undefined
   onResourceLink?: (link: ResourceLink) => void
+  chatTitle?: string
 }
 
 /** What a subagent said and called, folded under the call that started it. */
@@ -22,6 +24,7 @@ function SubagentSteps({
   renderToolCall,
   renderReference,
   onResourceLink,
+  chatTitle,
 }: SubagentStepsProps) {
   const { theme } = useNativeTheme()
   const [open, setOpen] = useState(false)
@@ -69,9 +72,15 @@ function SubagentSteps({
                     ...(m.startedAt !== undefined ? { startedAt: m.startedAt } : {}),
                   })
                 ) : (
-                  <Text style={{ fontFamily: 'Menlo', fontSize: 12, color: theme.text.primary }}>
-                    {m.toolCall.name}
-                  </Text>
+                  <ToolCallCard
+                    toolCall={m.toolCall}
+                    result={m.toolResult?.result}
+                    resultType={m.toolResult?.type}
+                    durationMs={m.toolResult?.durationMs ?? m.durationMs}
+                    {...(m.startedAt !== undefined ? { startedAt: m.startedAt } : {})}
+                    {...(onResourceLink ? { onResourceLink } : {})}
+                    {...(chatTitle ? { sourceChatTitle: chatTitle } : {})}
+                  />
                 )}
                 {m.subagentMessages ? (
                   <SubagentStepsMemo
@@ -79,6 +88,7 @@ function SubagentSteps({
                     renderToolCall={renderToolCall}
                     renderReference={renderReference}
                     onResourceLink={onResourceLink}
+                    {...(chatTitle ? { chatTitle } : {})}
                   />
                 ) : null}
               </View>

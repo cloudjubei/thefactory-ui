@@ -1,6 +1,8 @@
 import type { ReferenceTarget } from 'thefactory-tools/types'
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import type { LaunchModelChipSlot } from '../../../headless/utils/launchAgentPickTypes'
+import { useProjectsOptional } from '../../../headless/contexts/ProjectsContext'
+import { chatTitleFromContextId } from '../../../headless/utils/sendChatMessageView'
 import { Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native'
 import Alert from '../../primitives/Alert'
 import { IconChevronLeft, IconChevronRight } from '../../icons'
@@ -68,6 +70,8 @@ export interface ChatBodyProps {
   projectId?: string
   /** The chat's group, forwarded to a launch across the group's projects. */
   groupId?: string
+  /** The chat's display name — the sender an agent's message into another chat is labelled with. */
+  chatTitle?: string
   /**
    * The app's own model chip for THIS chat, rendered inside a launch approval so
    * the model can be picked before the work starts. A host slot because the
@@ -240,6 +244,7 @@ export default function ChatBody({
   renderProcessGroupRun,
   projectId,
   groupId,
+  chatTitle: chatTitleProp,
   renderApprovalModelChip,
   onShowUsage,
   emptyStateContent,
@@ -266,6 +271,15 @@ export default function ChatBody({
 }: ChatBodyProps) {
   const { theme } = useNativeTheme()
   const { height: windowHeight } = useWindowDimensions()
+  // Hosts rarely pass chatTitle; derive it from this chat's context id so
+  // sendChatMessage cards name the sender instead of "an agent".
+  const projects = useProjectsOptional()?.projects
+  const chatTitle = useMemo(
+    () =>
+      chatTitleProp ??
+      chatTitleFromContextId(chatId, (id) => projects?.find((p) => p.id === id)?.title),
+    [chatTitleProp, chatId, projects],
+  )
   // A capture is only actionable when the host wired both resolutions, so an
   // unwired ChatBody shows no form rather than one that cannot be answered.
   const answerableCaptures = useMemo(
@@ -482,6 +496,7 @@ export default function ChatBody({
             onResolveFile={onResolveFile}
             renderReference={renderReference}
             onResourceLink={onResourceLink}
+            {...(chatTitle ? { chatTitle } : {})}
             attachmentImages={inputProps?.attachmentImages}
             renderCliRunArtifact={renderChanges}
             renderProcessRun={renderProcessRun}
@@ -602,6 +617,8 @@ export default function ChatBody({
                 grant={shownApproval}
                 {...(projectId ? { projectId } : {})}
                 {...(groupId ? { groupId } : {})}
+                {...(chatTitle ? { chatTitle } : {})}
+                {...(onResourceLink ? { onResourceLink } : {})}
                 onDecideLater={() => setApprovalDismissedKey(approvalKey)}
                 onDecided={(line) => addDecidedLine(shownApproval.id, line)}
                 {...(renderApprovalModelChip ? { renderModelChip: renderApprovalModelChip } : {})}

@@ -33,6 +33,7 @@ import {
   shortCliModelLabel,
 } from '../../../headless/utils/cliRunner'
 import type { NativeAttachmentImages, NativeToolCallRenderArgs } from './chatNativeTypes'
+import ToolCallCard from './ToolCall/ToolCallCard'
 import SubagentSteps from './ToolCall/SubagentSteps'
 import BackgroundResultsRow from './BackgroundResultsRow'
 import { ManagerCardView } from './ManagerCards'
@@ -178,9 +179,13 @@ export interface MessageRowProps {
   prevUserMessagesLen: number
   enhancedTotalLength: number
 
-  /** Render the tool-call card. RN's `ToolCallCard` peer isn't shipped yet —
-   * pass a host renderer here to surface tool calls until it lands. */
+  /**
+   * Optional host override for the tool-call card. Omitted ⇒ the shared
+   * `ToolCallCard` peer is used (parity with web).
+   */
   renderToolCall?: (args: NativeToolCallRenderArgs) => ReactNode
+  /** This chat's display name — the sender of a message an agent sends from it. */
+  chatTitle?: string
   /** The proposed result of a call waiting on an approval, once its preview has loaded. */
   toolPreview?: unknown
   /** When true, the tool card shows a toggle in a batch awaiting approval. */
@@ -307,6 +312,7 @@ function MessageRow({
   isLast,
   isThinking,
   renderToolCall,
+  chatTitle,
   toolPreview,
   toolSelectable,
   toolSelected,
@@ -806,26 +812,23 @@ function MessageRow({
                   : {}),
               })
             ) : (
-              <View
-                style={{
-                  paddingHorizontal: nativeSpace[6],
-                  paddingVertical: nativeSpace[4],
-                  borderRadius: nativeRadii[2],
-                  borderWidth: 1,
-                  borderColor: theme.border.subtle,
-                  backgroundColor: theme.surface.muted,
-                }}
-              >
-                <Text
-                  style={{
-                    fontFamily: 'Menlo',
-                    fontSize: 12,
-                    color: theme.text.primary,
-                  }}
-                >
-                  {msg.toolCall.name}
-                </Text>
-              </View>
+              <ToolCallCard
+                toolCall={msg.toolCall}
+                result={msg.toolResult?.result}
+                resultType={msg.toolResult?.type ?? (msg.error ? 'errored' : undefined)}
+                durationMs={msg.toolResult?.durationMs ?? msg.durationMs}
+                {...(msg.startedAt !== undefined ? { startedAt: msg.startedAt } : {})}
+                {...(toolPreview !== undefined ? { previewResult: toolPreview } : {})}
+                selectable={toolSelectable === true}
+                selected={toolSelected === true}
+                onToggleSelect={onToggleToolSelect}
+                {...(toolAlwaysAllowScopes ? { alwaysAllowScopes: toolAlwaysAllowScopes } : {})}
+                {...(toolGrantCovers ? { grantCovers: toolGrantCovers } : {})}
+                {...(toolAlwaysAllowScope ? { alwaysAllowScope: toolAlwaysAllowScope } : {})}
+                onAlwaysAllow={onAlwaysAllowTool}
+                {...(onResourceLink ? { onResourceLink } : {})}
+                {...(chatTitle ? { sourceChatTitle: chatTitle } : {})}
+              />
             )}
             {msg.subagentMessages?.length ? (
               <SubagentSteps
@@ -833,6 +836,7 @@ function MessageRow({
                 renderToolCall={renderToolCall}
                 renderReference={renderReference}
                 onResourceLink={onResourceLink}
+                {...(chatTitle ? { chatTitle } : {})}
               />
             ) : null}
           </View>

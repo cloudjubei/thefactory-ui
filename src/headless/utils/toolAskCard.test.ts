@@ -122,6 +122,7 @@ describe('toolAskCardView — chats, files and deletes', () => {
         kind: 'message',
         target: 'Backend · Project chat',
         targetProjectId: 'p2',
+        targetChatId: 'k1',
         message: 'Can you add the field?',
         awaitReply: true,
       },
@@ -134,7 +135,40 @@ describe('toolAskCardView — chats, files and deletes', () => {
       toolName: 'sendChatMessage',
       args: { chatId: 'k9', message: 'hi' },
     })
-    expect(view.body).toMatchObject({ kind: 'message', target: 'k9', awaitReply: false })
+    expect(view.body).toMatchObject({
+      kind: 'message',
+      target: 'k9',
+      targetChatId: 'k9',
+      awaitReply: false,
+    })
+  })
+
+  it('reads sendChatMessage when the grant names it with an MCP prefix', () => {
+    const view = toolAskCardView({
+      label: 'sendChatMessage',
+      toolName: 'mcp__thefactory__sendChatMessage',
+      args: { chatId: 'k1', message: 'hi', awaitReply: true },
+      detail: {
+        tool: 'sendChatMessage',
+        args: {},
+        detail: { targetLabel: 'Release planning', targetProjectId: 'p2' },
+      },
+    })
+    expect(view.body).toMatchObject({
+      kind: 'message',
+      target: 'Release planning',
+      awaitReply: true,
+    })
+  })
+
+  it('marks a sendChatMessage ask incomplete when the message or target is missing', () => {
+    const view = toolAskCardView({
+      label: 'sendChatMessage',
+      toolName: 'sendChatMessage',
+      args: { note: 'nothing useful' },
+    })
+    expect(view.body).toMatchObject({ kind: 'message', incomplete: true })
+    expect((view.body as { raw?: string }).raw).toContain('nothing useful')
   })
 
   it('shows a new file with its path and its line count', () => {

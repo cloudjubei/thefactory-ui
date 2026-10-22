@@ -27,10 +27,18 @@ export type ToolAskBody =
   | { kind: 'fetch'; url: string }
   | {
       kind: 'message'
+      /** Host label for the target (`targetLabel`), else its title or id. */
       target: string
       targetProjectId?: string
+      targetChatId?: string
+      /** The target chat's title (`targetTitle` on the approval detail). */
+      targetTitle?: string
       message: string
       awaitReply: boolean
+      /** True when the target or message could not be read — show `raw`. */
+      incomplete?: boolean
+      /** The payload as JSON when `incomplete`. */
+      raw?: string
     }
   | { kind: 'write'; projectId?: string; path: string; content: string; lines: number }
   | { kind: 'delete-story'; storyId: string; featureId?: string }

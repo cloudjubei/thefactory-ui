@@ -12,7 +12,12 @@ import {
 import type { ReferenceTarget, ResourceLink } from 'thefactory-tools/types'
 import { useEffectiveReferenceRenderer } from '../../headless/contexts/ReferenceRenderingContext'
 
-import { nativeRadii, nativeSpace, type NativeSemanticTheme } from '../../tokens/native'
+import {
+  nativeAlpha,
+  nativeRadii,
+  nativeSpace,
+  type NativeSemanticTheme,
+} from '../../tokens/native'
 import { useNativeTheme } from '../hooks/useNativeTheme'
 
 export type MarkdownProps = {
@@ -38,6 +43,11 @@ export type MarkdownProps = {
   inline?: boolean
   /** The body text's size and colour, for text set inside a smaller or muted line. */
   textStyle?: Pick<TextStyle, 'fontSize' | 'lineHeight' | 'color' | 'fontWeight'>
+  /**
+   * Code chrome for text on an accent (user) bubble: translucent white/black
+   * instead of muted surface, matching web's `[&_code]:bg-white/20`.
+   */
+  onAccent?: boolean
 }
 
 /**
@@ -57,6 +67,7 @@ export default function Markdown({
   typedReferences = false,
   inline = false,
   textStyle,
+  onAccent = false,
 }: MarkdownProps) {
   const renderReference = useEffectiveReferenceRenderer(ownRenderReference, typedReferences)
   const { theme } = useNativeTheme()
@@ -65,8 +76,8 @@ export default function Markdown({
   const color = textStyle?.color
   const fontWeight = textStyle?.fontWeight
   const styles = useMemo(
-    () => makeStyles(theme, inline, { fontSize, lineHeight, color, fontWeight }),
-    [theme, inline, fontSize, lineHeight, color, fontWeight],
+    () => makeStyles(theme, inline, { fontSize, lineHeight, color, fontWeight }, onAccent),
+    [theme, inline, fontSize, lineHeight, color, fontWeight, onAccent],
   )
 
   const onLinkPress = useMemo<DisplayProps['onLinkPress']>(
@@ -118,10 +129,22 @@ export default function Markdown({
   )
 }
 
-function makeStyles(t: NativeSemanticTheme, inline: boolean, body: MarkdownProps['textStyle']) {
+function makeStyles(
+  t: NativeSemanticTheme,
+  inline: boolean,
+  body: MarkdownProps['textStyle'],
+  onAccent: boolean,
+) {
   const bodyOverride = Object.fromEntries(
     Object.entries(body ?? {}).filter(([, value]) => value !== undefined),
   )
+  // On an accent bubble, muted surface chrome washes out — match web's
+  // `[&_code]:bg-white/20` / `[&_pre]:bg-black/25` with inverted text.
+  const codeInlineBg = onAccent ? nativeAlpha('#ffffff', 0.2) : t.surface.muted
+  const codeBlockBg = onAccent ? nativeAlpha('#000000', 0.25) : t.surface.muted
+  const codeColorStyle = onAccent
+    ? { color: body?.color ?? t.text.inverted }
+    : ({} as { color?: string })
   // Sizes mirror web's Tailwind classes: text-2xl (24) for h1, text-xl (20)
   // for h2 + h3, text-lg (18) for h4, text-base (16) for h5, text-sm (14) for
   // h6. Paragraph rhythm uses `marginVertical: nativeSpace[1]` (~4px) to
@@ -181,7 +204,10 @@ function makeStyles(t: NativeSemanticTheme, inline: boolean, body: MarkdownProps
     },
     strong: { fontWeight: '600' },
     em: { fontStyle: 'italic' },
-    link: { color: t.accent.primary, textDecorationLine: 'underline' },
+    link: {
+      color: onAccent ? (body?.color ?? t.text.inverted) : t.accent.primary,
+      textDecorationLine: 'underline',
+    },
     blockquote: {
       borderLeftWidth: 4,
       borderLeftColor: t.border.default,
@@ -200,23 +226,26 @@ function makeStyles(t: NativeSemanticTheme, inline: boolean, body: MarkdownProps
       paddingHorizontal: 4,
       paddingVertical: 1,
       borderRadius: nativeRadii[2],
-      backgroundColor: t.surface.muted,
+      backgroundColor: codeInlineBg,
+      ...codeColorStyle,
     },
     code_block: {
       fontFamily: 'Menlo',
       fontSize: 13,
       padding: nativeSpace[3],
       borderRadius: nativeRadii[3],
-      backgroundColor: t.surface.muted,
+      backgroundColor: codeBlockBg,
       marginVertical: nativeSpace[3],
+      ...codeColorStyle,
     },
     fence: {
       fontFamily: 'Menlo',
       fontSize: 13,
       padding: nativeSpace[3],
       borderRadius: nativeRadii[3],
-      backgroundColor: t.surface.muted,
+      backgroundColor: codeBlockBg,
       marginVertical: nativeSpace[3],
+      ...codeColorStyle,
     },
     table: {
       borderWidth: 1,

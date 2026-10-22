@@ -64,6 +64,8 @@ export type CliRunMessagesProps = {
   stopNotice?: ChatStopNotice
   /** Route an in-app `overseer://…` link (or a link into this app) the agent wrote, in place. */
   onResourceLink?: (link: ResourceLink) => void
+  /** This chat's display name — forwarded to tool rows for sendChatMessage sender labels. */
+  chatTitle?: string
   /**
    * What THIS run is waiting on the human for, from the chat's unified grant
    * feed. Drives the blocked activity line and re-types the tool row the run is
@@ -122,6 +124,7 @@ export default function CliRunMessages({
   storedReply,
   stopNotice,
   onResourceLink,
+  chatTitle,
   blockedOn,
   cliAsks,
   decidedAsks,
@@ -260,6 +263,7 @@ export default function CliRunMessages({
               {...approvals.rowProps(m)}
               msg={{ ...m, showModel, isFirstInGroup: true }}
               onResourceLink={onResourceLink}
+              {...(chatTitle ? { chatTitle } : {})}
               globalIndex={baseIndex + i}
               totalMessages={total}
               isThinking={false}

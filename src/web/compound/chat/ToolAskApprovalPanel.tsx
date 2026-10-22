@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import type { WorkLaunchMode } from 'thefactory-tools/types'
-import { Switch } from '../../primitives/Switch'
 import { Textarea } from '../../primitives/Textarea'
 import RichText from '../files/RichText'
 import ToolAskCard, { ToolAskScopeChoice } from './ToolAskCard'
@@ -23,8 +22,10 @@ import {
 } from '../../../headless/utils/toolAskCardConstants'
 import type { ToolAskBody, ToolAskDecidedLine } from '../../../headless/utils/toolAskCardTypes'
 import type { PendingToolGrant, PendingToolGrantDecision } from '../../../headless/utils/chatTypes'
+import type { ResourceLink } from 'thefactory-tools/types'
 import DesignAskBox from '../design/DesignAskBox'
 import EvaluationLaunchAskBody from './EvaluationLaunchAskBody'
+import MessageAskBody from './MessageAskBody'
 import WorkLaunchChooser from '../WorkLaunchChooser'
 import { useFeatureRequestRecord } from '../../../headless/hooks/useCrossProjectRequests'
 import { featureRequestSummary } from '../../../headless/utils/featureRequestView'
@@ -36,6 +37,10 @@ export type ToolAskApprovalPanelProps = {
   onDecideLater: () => void
   /** The card was decided — what its one line says. */
   onDecided?: (line: ToolAskDecidedLine) => void
+  /** The chat this dock is in — labels the sender on a sendChatMessage ask. */
+  chatTitle?: string
+  /** Route an in-app `overseer://…` link on a sendChatMessage ask. */
+  onResourceLink?: (link: ResourceLink) => void
 }
 
 function DeleteStoryBox({ storyId, featureId }: { storyId: string; featureId?: string }) {
@@ -211,6 +216,8 @@ export default function ToolAskApprovalPanel({
   grant,
   onDecideLater,
   onDecided,
+  chatTitle,
+  onResourceLink,
 }: ToolAskApprovalPanelProps) {
   const view = toolAskCardView(grant)
   const scopes = toolAskScopeOptions(
@@ -278,23 +285,14 @@ export default function ToolAskApprovalPanel({
           {body.kind === 'network' ? body.host : body.url}
         </div>
       ) : body.kind === 'message' ? (
-        <>
-          <div className="flex flex-wrap items-center gap-2 text-[12.5px] text-(--text-secondary)">
-            {TOOL_ASK_COPY.to}
-            <span className="inline-flex h-7 items-center rounded-md border border-(--border-default) px-2.5 text-(--text-primary)">
-              {body.target}
-            </span>
-          </div>
-          <div className="rounded-lg border border-(--border-subtle) bg-(--surface-base) px-3 py-2.5 text-[13.5px] leading-relaxed whitespace-pre-wrap wrap-break-word">
-            <RichText text={body.message} />
-          </div>
-          <Switch
-            checked={awaitReply}
-            onCheckedChange={setAwaitReply}
-            disabled={busy}
-            label={TOOL_ASK_COPY.waitForReply}
-          />
-        </>
+        <MessageAskBody
+          body={body}
+          {...(chatTitle ? { sourceChatTitle: chatTitle } : {})}
+          awaitReply={awaitReply}
+          onAwaitReply={setAwaitReply}
+          busy={busy}
+          {...(onResourceLink ? { onResourceLink } : {})}
+        />
       ) : body.kind === 'write' ? (
         <NewFilePreview body={body} />
       ) : body.kind === 'delete-story' ? (

@@ -2338,6 +2338,7 @@ export {
   ProjectsProvider,
   useActiveProject,
   useProjects,
+  useProjectsOptional,
   type ProjectsContextValue,
 } from './contexts/ProjectsContext'
 
@@ -3684,6 +3685,21 @@ export {
   withDiscardWarnings,
 } from './utils/chatChangesView'
 export { CHAT_CHANGES_COPY } from './utils/chatChangesViewConstants'
+export {
+  SEND_CHAT_MESSAGE_COPY,
+  SEND_CHAT_MESSAGE_OUTCOME_LABEL,
+  chatTitleFromContextId,
+  collapsedMessage,
+  isSendChatMessageTool,
+  sendChatMessageTargetLink,
+  sendChatMessageView,
+} from './utils/sendChatMessageView'
+export type {
+  SendChatMessageInput,
+  SendChatMessageOutcome,
+  SendChatMessageOutcomeStatus,
+  SendChatMessageView,
+} from './utils/sendChatMessageView'
 export { useProcessCleanup, type UseProcessCleanup } from './hooks/useProcessCleanup'
 export {
   processCleanupEditable,

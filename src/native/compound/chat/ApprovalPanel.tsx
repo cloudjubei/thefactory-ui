@@ -100,7 +100,7 @@ import {
   launchSuggestionRows,
   workLaunchOptions,
 } from '../../../headless/utils/workLaunchView'
-import type { WorkLaunchMode } from 'thefactory-tools/types'
+import type { ResourceLink, WorkLaunchMode } from 'thefactory-tools/types'
 
 export type ApprovalPanelProps = {
   grant: PendingToolGrant
@@ -123,6 +123,10 @@ export type ApprovalPanelProps = {
   onDecideLater: () => void
   /** The ask was decided on its card — what the card folds to. */
   onDecided?: (line: ToolAskDecidedLine) => void
+  /** The chat this dock is in — labels the sender on a sendChatMessage ask. */
+  chatTitle?: string
+  /** Route an in-app `overseer://…` link on a sendChatMessage ask. */
+  onResourceLink?: (link: ResourceLink) => void
 }
 
 /**
@@ -194,6 +198,8 @@ export default function ApprovalPanel(props: ApprovalPanelProps) {
       grant={props.grant}
       onDecideLater={props.onDecideLater}
       {...(props.onDecided ? { onDecided: props.onDecided } : {})}
+      {...(props.chatTitle ? { chatTitle: props.chatTitle } : {})}
+      {...(props.onResourceLink ? { onResourceLink: props.onResourceLink } : {})}
     />
   )
 }
