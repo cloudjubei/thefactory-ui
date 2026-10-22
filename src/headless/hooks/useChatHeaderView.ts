@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { ChatContext } from 'thefactory-tools/types'
-import { processRunIdOfChatContext } from 'thefactory-tools/utils'
+import { isChatArchivedFromList, processRunIdOfChatContext } from 'thefactory-tools/utils'
 
 import { useChats } from '../contexts/createChatsContext'
 import { useProjects } from '../contexts/ProjectsContext'
@@ -42,7 +42,7 @@ export function useChatHeaderView(
       ? getFeature(context.storyId, context.featureId)
       : undefined
   const chatTitle = chat?.title ?? undefined
-  const listHidden = Boolean(chat?.listHiddenAt)
+  const listHidden = chat ? isChatArchivedFromList(chat) : false
   return useMemo(
     () =>
       chatHeaderView({

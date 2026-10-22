@@ -120,7 +120,7 @@ export default function AssistantConversationList({
   )
 }
 
-function AssistantConversationRow({
+export function AssistantConversationRow({
   row,
   active,
   look,

@@ -5,6 +5,7 @@ import { BACKEND_CONNECTION_SCENES } from '../scenes/backendConnection'
 import { APP_BRIDGE_ASK_SCENES } from '../scenes/appBridgeAsks'
 import { APP_FEATURE_REQUEST_SCENES } from '../scenes/appFeatureRequest'
 import { CHAT_SCENES } from '../scenes/chat'
+import { CHAT_LIST_CLOSED_SCENES } from '../scenes/chatListClosed'
 import { CHAT_STOP_SCENES } from '../scenes/chatStop'
 import { CIRCLING_SCENES } from '../scenes/circling'
 import { CHAT_CHANGES_SCENES } from '../scenes/chatChanges'
@@ -58,6 +59,7 @@ import type { Scene, SceneGroup, SceneState } from './types'
  */
 export const SCENES: readonly Scene[] = [
   ...CHAT_SCENES,
+  ...CHAT_LIST_CLOSED_SCENES,
   ...FILE_SUGGESTION_SCENES,
   ...MODEL_EFFORT_SCENES,
   ...CHAT_STOP_SCENES,

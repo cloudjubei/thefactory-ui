@@ -9,7 +9,7 @@ export type AssistantChat = ChatListChat
 /** What reaches the person of one conversation, at its notification level. */
 export type AssistantRowStatus = Pick<
   ChatRowStatus,
-  'isThinking' | 'unreadCount' | 'needsYou' | 'muted'
+  'isThinking' | 'unreadCount' | 'needsYou' | 'muted' | 'retired'
 >
 
 /** One conversation as the Assistant lists it. */
@@ -27,7 +27,7 @@ export type AssistantRow = {
   needsYou: number
   /** An agent is replying in it. */
   running: boolean
-  /** The person archived it from the list. */
+  /** Out of the list: the person archived it, or it is closed with nothing calling them back. */
   hidden: boolean
   /** The person set it to tell them nothing. */
   muted: boolean

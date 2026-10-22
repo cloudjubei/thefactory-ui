@@ -4093,6 +4093,7 @@ export type {
   UiEvaluateResult,
   UiFormField,
   UiHostBoundOptions,
+  UiImpactDecision,
   UiImpactJudgement,
   UiImpactReport,
   UiImpactStance,

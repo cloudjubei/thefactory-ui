@@ -4038,7 +4038,7 @@ export const hideChatFromList = <ThrowOnError extends boolean = false>(
   })
 
 /**
- * Show a chat hidden from the list in it again.
+ * Show a chat hidden from the list, or closed, in it again. A closed chat stays closed.
  */
 export const showChatInList = <ThrowOnError extends boolean = false>(
   options: Options<ShowChatInListData, ThrowOnError>,

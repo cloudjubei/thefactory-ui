@@ -30,6 +30,7 @@ const QUIET = {
   unreadCount: 0,
   needsYou: 0,
   muted: false,
+  retired: false,
 }
 const LOOK = inkBadgeLook(DEFAULT_APP_SETTINGS.userPreferences)
 const BADGE_COLORS = DEFAULT_APP_SETTINGS.notifications.badgeColors

@@ -53,6 +53,15 @@ export type ChatMessagesShape = {
   needsYouTimes?: readonly (string | null)[]
 }
 
+/**
+ * What a chat's news is read from: its messages' times, when it was closed
+ * (`archivedAt`) and when the person last put it back in their list (`listShownAt`).
+ */
+export type ChatNewsShape = ChatMessagesShape & {
+  archivedAt?: string | null
+  listShownAt?: string | null
+}
+
 /** How many messages the chat has, loaded or not. */
 export function chatMessageCount(entry: ChatMessagesShape): number {
   return entry.messages?.length ?? entry.messageCount ?? 0

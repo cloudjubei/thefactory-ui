@@ -257,6 +257,7 @@ export {
   isChatLoaded,
   type ChatListEntry,
   type ChatMessagesShape,
+  type ChatNewsShape,
 } from './utils/chatListEntry'
 export { chatAsksNewsSince, chatNewsSince } from './utils/chatNews'
 export type { ChatNewsCheck, ChatNewsEntry, ChatNewsMarks } from './utils/chatNewsTypes'
@@ -3734,6 +3735,7 @@ export type {
   ChatListChat,
   ChatListFilter,
   ChatListNotice,
+  ChatListPlacement,
   ChatListRow,
   ChatListRowInput,
   ChatListScope,
@@ -3741,7 +3743,12 @@ export type {
   ChatListWork,
 } from './utils/chatListTypes'
 export { useChatList } from './hooks/useChatList'
-export { chatReturnsToList, isChatHiddenFromList } from 'thefactory-tools/utils'
+export {
+  chatReturnsToList,
+  isChatArchivedFromList,
+  isChatClosedToList,
+  isChatHiddenFromList,
+} from 'thefactory-tools/utils'
 export { listDropSide, listReorderToIndex } from './utils/listReorder'
 export {
   listDragSlot,

@@ -15,6 +15,7 @@ const QUIET: AssistantRowStatus = {
   unreadCount: 0,
   needsYou: 0,
   muted: false,
+  retired: false,
 }
 
 const general = (timestamp: string): ChatContext => ({ type: 'GENERAL', timestamp })
@@ -102,24 +103,41 @@ describe('assistantConversationRows', () => {
 
   it('carries what reaches the person: news, what waits on them, an agent replying', () => {
     const busy = conversation('1000')
-    const status = () => ({ isThinking: true, unreadCount: 2, needsYou: 1, muted: false })
+    const status = () => ({ ...QUIET, isThinking: true, unreadCount: 2, needsYou: 1 })
     expect(rows([busy], { status })[0]).toMatchObject({ fresh: true, needsYou: 1, running: true })
   })
 
   it('counts nothing waiting in a conversation set to tell the person nothing', () => {
     const muted = conversation('1000')
-    const status = () => ({ isThinking: false, unreadCount: 0, needsYou: 3, muted: true })
+    const status = () => ({ ...QUIET, needsYou: 3, muted: true })
     expect(rows([muted], { status })[0]).toMatchObject({ needsYou: 0, muted: true })
   })
 
   it('keeps the archived view quiet', () => {
     const hidden = conversation('1000', { listHiddenAt: '2026-10-01T00:00:00.000Z' })
-    const status = () => ({ isThinking: true, unreadCount: 2, needsYou: 1, muted: false })
+    const status = () => ({ ...QUIET, isThinking: true, unreadCount: 2, needsYou: 1 })
     expect(rows([hidden], { archived: true, status })[0]).toMatchObject({
       fresh: false,
       needsYou: 0,
       running: false,
     })
+  })
+
+  it('moves a closed conversation nothing calls the person back to into the archived view', () => {
+    const closed = conversation('1000', { archivedAt: '2026-10-20T00:00:00.000Z' })
+    const open = conversation('2000')
+    const status = (chat: AssistantChat) => ({ ...QUIET, retired: chat === closed })
+    expect(rows([closed, open], { status }).map((r) => r.context)).toEqual([open.context])
+    expect(rows([closed, open], { archived: true, status })).toMatchObject([
+      { context: closed.context, hidden: true },
+    ])
+  })
+
+  it('keeps a closed conversation an ask waits in in the list, with what waits', () => {
+    const asking = conversation('1000', { archivedAt: '2026-10-20T00:00:00.000Z' })
+    const status = () => ({ ...QUIET, needsYou: 1 })
+    expect(rows([asking], { status })).toMatchObject([{ needsYou: 1, hidden: false }])
+    expect(rows([asking], { archived: true, status })).toEqual([])
   })
 
   it('puts the conversation being started at the top before anything is written in it', () => {

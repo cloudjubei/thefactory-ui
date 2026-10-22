@@ -1,5 +1,7 @@
+import { isChatClosedToList } from 'thefactory-tools/utils'
+
 import type { ChatContextLike } from './chatTypes'
-import { chatMessageTimes, chatNeedsYouTimesOf, type ChatMessagesShape } from './chatListEntry'
+import { chatMessageTimes, chatNeedsYouTimesOf, type ChatNewsShape } from './chatListEntry'
 import { chatNotifyNews } from './chatNotify'
 import type { ChatNotifyCounts, ChatNotifyLevel } from './chatNotifyTypes'
 import { formatBadgeCount } from './badgeAggregation'
@@ -22,6 +24,12 @@ export type ChatRowStatus = {
   needsYou: number
   /** The person set the chat to tell them nothing. */
   muted: boolean
+  /**
+   * The chat is closed (`archivedAt`), the person has not put it back in their
+   * list since (`listShownAt`), and nothing in it calls them back: no ask,
+   * nothing needing them since it was closed. It is history.
+   */
+  retired: boolean
 }
 
 /**
@@ -68,19 +76,28 @@ export function chatUnreadMessages(
 /**
  * What a chat holds for the person since it was last seen — its unread
  * messages, those of them that need the person, and its asks — before its
- * notification level says how much reaches them. Pure.
+ * notification level says how much reaches them. Closing a chat (`archivedAt`)
+ * settles what came before it: a closed chat holds only what calls the person
+ * back — its asks, which never lapse, and what needs them since it was closed —
+ * with the news since then; without those, nothing. Pure.
  */
 export function chatNotifyCountsOf(
-  chat: ChatMessagesShape,
+  chat: ChatNewsShape,
   seenAt: string | undefined,
   pendingAsks: number,
 ): ChatNotifyCounts {
+  const closedAt = chat.archivedAt
+  const readTo = closedAt && (!seenAt || closedAt > seenAt) ? closedAt : seenAt
   const times = chatMessageTimes(chat)
   const latest = times[times.length - 1] ?? undefined
-  const unread = latest !== undefined && (!seenAt || latest > seenAt)
+  const unread = latest !== undefined && (!readTo || latest > readTo)
+  const unreadNeedsYou = chatUnreadMessages(chatNeedsYouTimesOf(chat), readTo)
+  if (closedAt && unreadNeedsYou + pendingAsks === 0) {
+    return { unreadMessages: 0, unreadNeedsYou: 0, pendingAsks: 0 }
+  }
   return {
-    unreadMessages: unread ? chatUnreadMessages(times, seenAt) : 0,
-    unreadNeedsYou: chatUnreadMessages(chatNeedsYouTimesOf(chat), seenAt),
+    unreadMessages: unread ? chatUnreadMessages(times, readTo) : 0,
+    unreadNeedsYou,
     pendingAsks,
   }
 }
@@ -97,7 +114,7 @@ export function chatNotifyCountsOf(
 export function computeChatRowStatus(input: {
   context: ChatContextLike
   contextKey: string
-  chat: (ChatMessagesShape & { state?: string }) | null | undefined
+  chat: (ChatNewsShape & { state?: string }) | null | undefined
   isSending: boolean
   seen: ChatsSeenMap
   /** Asks this chat has waiting on the user — news even once every message is read. */
@@ -122,6 +139,7 @@ export function computeChatRowStatus(input: {
     isAgentRunning,
     needsYou: level === 'nothing' ? 0 : counts.unreadNeedsYou + pendingAsks,
     muted: level === 'nothing',
+    retired: isChatClosedToList(chat ?? {}) && counts.unreadNeedsYou + counts.pendingAsks === 0,
   }
 }
 

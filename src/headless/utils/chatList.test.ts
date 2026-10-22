@@ -16,7 +16,15 @@ import {
   withChatListHidden,
 } from './chatList'
 import { CHAT_LIST_COPY, chatListShownNotice } from './chatListConstants'
-import type { ChatListRow, ChatListRowInput, ChatListScope } from './chatListTypes'
+import type {
+  ChatListChat,
+  ChatListFilter,
+  ChatListPlacement,
+  ChatListRow,
+  ChatListRowInput,
+  ChatListScope,
+} from './chatListTypes'
+import { computeChatRowStatus } from './chatRowStatus'
 
 const QUIET = {
   isThinking: false,
@@ -24,6 +32,7 @@ const QUIET = {
   unreadCount: 0,
   needsYou: 0,
   muted: false,
+  retired: false,
 }
 
 function run(over: Partial<ProcessRun> = {}): ProcessRun {
@@ -292,6 +301,18 @@ describe('chatListRow — what a row shows of its state', () => {
     expect(row({ chat: { context: TOPIC, listHiddenAt: null } }).hidden).toBe(false)
   })
 
+  it('is retired while it is closed with nothing calling the person back', () => {
+    const closed = { context: REQUEST, archivedAt: '2026-10-20T14:00:00Z' }
+    expect(row({ chat: closed, status: { ...QUIET, retired: true } }).retired).toBe(true)
+    expect(row({ chat: closed, status: { ...QUIET, needsYou: 1 } }).retired).toBe(false)
+  })
+
+  it('keeps a run chat retired though what waits in it is told on its run', () => {
+    expect(
+      row({ chat: { context: RUN_CHAT }, run: run(), status: { ...QUIET, retired: true } }).retired,
+    ).toBe(true)
+  })
+
   it('reads its last activity from its messages, else its own times', () => {
     expect(
       row({
@@ -319,6 +340,7 @@ function listRow(over: Partial<ChatListRow>): ChatListRow {
     fresh: false,
     hidden: false,
     muted: false,
+    retired: false,
     projectId: 'p1',
     ...over,
   }
@@ -549,19 +571,39 @@ describe('chatListBackNotice', () => {
 })
 
 describe('withChatListHidden', () => {
-  type Entry = { context: ChatContext; listHiddenAt?: string }
+  type Entry = ChatListPlacement & { context: ChatContext }
+  const AT = '2026-10-21T08:00:00Z'
 
   it('stamps the time the chat left the list', () => {
     const entry: Entry = { context: TOPIC }
-    expect(withChatListHidden(entry, '2026-10-12T00:00:00Z')).toEqual({
-      context: TOPIC,
-      listHiddenAt: '2026-10-12T00:00:00Z',
+    expect(withChatListHidden(entry, true, AT)).toEqual({ context: TOPIC, listHiddenAt: AT })
+  })
+
+  it('drops when the person last put a closed chat back, once they hide it', () => {
+    const entry: Entry = {
+      context: REQUEST,
+      archivedAt: '2026-10-20T14:00:00Z',
+      listShownAt: '2026-10-20T15:00:00Z',
+    }
+    expect(withChatListHidden(entry, true, AT)).toEqual({
+      context: REQUEST,
+      archivedAt: '2026-10-20T14:00:00Z',
+      listHiddenAt: AT,
     })
   })
 
   it('drops the stamp when the chat is back in the list', () => {
     const entry: Entry = { context: TOPIC, listHiddenAt: '2026-10-12T00:00:00Z' }
-    expect(withChatListHidden(entry, undefined)).toEqual({ context: TOPIC })
+    expect(withChatListHidden(entry, false, AT)).toEqual({ context: TOPIC })
+  })
+
+  it('stamps a closed chat the person puts back, so it stays in the list', () => {
+    const entry: Entry = { context: REQUEST, archivedAt: '2026-10-20T14:00:00Z' }
+    expect(withChatListHidden(entry, false, AT)).toEqual({
+      context: REQUEST,
+      archivedAt: '2026-10-20T14:00:00Z',
+      listShownAt: AT,
+    })
   })
 })
 
@@ -591,6 +633,44 @@ describe('chatListPool', () => {
     expect(
       chatListPool(rows, { kind: 'project', projectId: 'p1' }, true).map((r) => r.key),
     ).toEqual(['out'])
+  })
+
+  it('draws the closed chats nothing calls back into the archived view, beside the hidden', () => {
+    const rows = [
+      listRow({ key: 'live' }),
+      listRow({ key: 'closed', kind: 'request', context: REQUEST, retired: true }),
+      listRow({ key: 'hidden', hidden: true }),
+      listRow({ key: 'both', retired: true, hidden: true }),
+    ]
+    const project: ChatListScope = { kind: 'project', projectId: 'p1' }
+    expect(chatListPool(rows, project, false).map((r) => r.key)).toEqual(['live'])
+    expect(chatListPool(rows, project, true).map((r) => r.key)).toEqual([
+      'closed',
+      'hidden',
+      'both',
+    ])
+  })
+
+  it('leaves a closed chat of a group’s project out of both the group’s views', () => {
+    const closed = listRow({ key: 'closed', retired: true, kind: 'run', context: RUN_CHAT })
+    expect(chatListPool([groupMain, closed], group, false).map((r) => r.key)).toEqual(['general'])
+    expect(chatListPool([groupMain, closed], group, true)).toEqual([])
+  })
+
+  it('draws a group’s own closed chat into the group’s archived view', () => {
+    const closedTopic = listRow({
+      key: 'closed-topic',
+      kind: 'group',
+      context: GROUP_TOPIC,
+      projectId: undefined,
+      retired: true,
+    })
+    expect(chatListPool([groupMain, closedTopic], group, false).map((r) => r.key)).toEqual([
+      'general',
+    ])
+    expect(chatListPool([groupMain, closedTopic], group, true).map((r) => r.key)).toEqual([
+      'closed-topic',
+    ])
   })
 
   it('leaves a quiet chat of a group’s project out of the group’s list', () => {
@@ -655,5 +735,107 @@ describe('isChatInScopePool — which chats a scope can list at all', () => {
           expect(isChatInScopePool(pooled.context, scope)).toBe(true)
       }
     }
+  })
+})
+
+describe('the chat list — closed chats, from the chats as stored', () => {
+  const CLOSED_AT = '2026-10-20T14:00:00Z'
+  const project: ChatListScope = { kind: 'project', projectId: 'p1' }
+  const REQUEST_2: ChatContext = {
+    type: 'FEATURE_REQUEST',
+    projectId: 'p1',
+    featureRequestId: 'r2',
+  }
+  const handedOverRequest: ChatListChat = {
+    context: REQUEST,
+    title: 'Incoming request',
+    archivedAt: CLOSED_AT,
+    messageTimes: ['2026-10-15T09:00:00Z', '2026-10-15T12:00:00Z'],
+    needsYouTimes: ['2026-10-15T12:00:00Z'],
+  }
+  const hiddenTopic: ChatListChat = {
+    context: TOPIC,
+    listHiddenAt: '2026-10-18T00:00:00Z',
+    messageTimes: ['2026-10-17T10:00:00Z'],
+  }
+  const closedWithAsk: ChatListChat = {
+    context: REQUEST_2,
+    archivedAt: CLOSED_AT,
+    messageTimes: ['2026-10-19T10:00:00Z'],
+  }
+  const liveStory: ChatListChat = {
+    context: STORY,
+    messageTimes: ['2026-10-21T10:00:00Z'],
+    needsYouTimes: ['2026-10-21T10:00:00Z'],
+  }
+  const finishedRun: ChatListChat = {
+    context: RUN_CHAT,
+    archivedAt: CLOSED_AT,
+    messageTimes: ['2026-10-19T10:00:00Z'],
+  }
+  const ASKS = new Map([[getChatContextKey(REQUEST_2), 1]])
+
+  const rowsOf = (chats: ChatListChat[], asks: ReadonlyMap<string, number> = ASKS) =>
+    chats.map((chat) => {
+      const key = getChatContextKey(chat.context)
+      return chatListRow({
+        chat,
+        status: computeChatRowStatus({
+          context: chat.context,
+          contextKey: key,
+          chat,
+          isSending: false,
+          seen: {},
+          pendingAsks: asks.get(key) ?? 0,
+        }),
+        now: NOW,
+        ...(chat.context === RUN_CHAT ? { run: run({ status: 'succeeded' }) } : {}),
+      })
+    })
+  const rows = rowsOf([handedOverRequest, hiddenTopic, closedWithAsk, liveStory, finishedRun])
+  const keysOf = (archived: boolean, filter: ChatListFilter = 'all') =>
+    chatListSections({ rows, scope: project, filter, archived }).flatMap((s) =>
+      s.rows.map((r) => r.context),
+    )
+
+  it('leaves a handed-over request and a finished run’s chat out of the list', () => {
+    expect(keysOf(false)).toEqual([STORY, REQUEST_2])
+    expect(keysOf(false, 'runs')).toEqual([])
+  })
+
+  it('keeps a closed chat an ask waits in, under Needs you, until it is answered', () => {
+    expect(keysOf(false, 'needs-you')).toEqual([STORY, REQUEST_2])
+    const settled = rowsOf([closedWithAsk], new Map())
+    expect(chatListPool(settled, project, false)).toEqual([])
+    expect(chatListPool(settled, project, true).map((r) => r.context)).toEqual([REQUEST_2])
+  })
+
+  it('shows the closed and the hidden together in the archived view, quiet', () => {
+    const archived = chatListSections({ rows, scope: project, filter: 'all', archived: true })
+    expect(archived.flatMap((s) => s.rows.map((r) => r.context))).toEqual([
+      RUN_CHAT,
+      TOPIC,
+      REQUEST,
+    ])
+    expect(archived[0]?.rows.every((r) => r.needsYou === 0 && !r.running && !r.fresh)).toBe(true)
+  })
+
+  it('lists a closed chat the person put back, quiet, until they archive it again', () => {
+    const putBack = rowsOf([{ ...handedOverRequest, listShownAt: '2026-10-21T08:00:00Z' }])
+    expect(chatListPool(putBack, project, false).map((r) => r.context)).toEqual([REQUEST])
+    expect(putBack[0]).toMatchObject({ needsYou: 0, fresh: false, retired: false })
+    const archivedAgain = rowsOf([{ ...handedOverRequest, listHiddenAt: '2026-10-21T09:00:00Z' }])
+    expect(chatListPool(archivedAgain, project, true).map((r) => r.context)).toEqual([REQUEST])
+  })
+
+  it('counts on its chips only what the list shows', () => {
+    expect(chatListFilterCounts(chatListPool(rows, project, false))).toEqual({
+      all: 2,
+      'needs-you': 2,
+      running: 0,
+      runs: 0,
+      stories: 1,
+    })
+    expect(chatListPool(rows, project, true)).toHaveLength(3)
   })
 })

@@ -1358,15 +1358,16 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
 
     const [chatListNotice, setChatListNotice] = useState<ChatListNotice | null>(null)
     const dismissChatListNotice = useCallback(() => setChatListNotice(null), [])
-    const setListHidden = useCallback(async (ctx: ChatCtx, listHiddenAt: string | undefined) => {
+    const setListHidden = useCallback(async (ctx: ChatCtx, hidden: boolean) => {
       const before = chatsRef.current.find((c) => sameContext(c.context, ctx))
+      const at = new Date().toISOString()
       setChats((prev) =>
-        prev.map((c) => (sameContext(c.context, ctx) ? withChatListHidden(c, listHiddenAt) : c)),
+        prev.map((c) => (sameContext(c.context, ctx) ? withChatListHidden(c, hidden, at) : c)),
       )
       try {
         const body = { body: { context: ctx }, throwOnError: true } as const
-        if (listHiddenAt === undefined) await showChatInListApi(body)
-        else await hideChatFromListApi(body)
+        if (hidden) await hideChatFromListApi(body)
+        else await showChatInListApi(body)
       } catch (err) {
         if (before) {
           setChats((prev) => prev.map((c) => (sameContext(c.context, ctx) ? before : c)))
@@ -1377,14 +1378,14 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
     }, [])
     const hideChatFromList = useCallback(
       async (ctx: ChatCtx) => {
-        const before = await setListHidden(ctx, new Date().toISOString())
+        const before = await setListHidden(ctx, true)
         setChatListNotice(chatListHiddenNotice(ctx, before?.title?.trim() || undefined))
       },
       [setListHidden],
     )
     const showChatInList = useCallback(
       async (ctx: ChatCtx) => {
-        const before = await setListHidden(ctx, undefined)
+        const before = await setListHidden(ctx, false)
         setChatListNotice(chatListBackNotice(ctx, before?.title?.trim() || undefined))
       },
       [setListHidden],

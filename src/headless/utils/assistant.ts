@@ -16,13 +16,15 @@ function rowTitle(chat: AssistantChat, isNew: boolean): string {
 
 /**
  * The Assistant's list: its conversations newest first — those archived from
- * it only in the archived view, which stays quiet — each with its title, when
+ * it, and the closed ones nothing calls the person back to (`retired`), only in
+ * the archived view, which stays quiet — each with its title, when
  * it last had a message, and what reaches the person of it. The conversation
  * being started is listed at the top until something is written in it. Pure.
  */
 export function assistantConversationRows(input: AssistantRowsInput): AssistantRow[] {
   const { archived, open } = input
-  const rows = globalChatConversations(input.chats, archived).map((chat): AssistantRow => {
+  const retired = (chat: AssistantChat) => input.statusOf(chat).retired
+  const rows = globalChatConversations(input.chats, archived, retired).map((chat): AssistantRow => {
     const status = input.statusOf(chat)
     const isNew = chatMessageCount(chat) === 0
     const at = chatLastActivityAt(chat)

@@ -1,5 +1,6 @@
 import type { ChatContext, ProcessRun } from 'thefactory-tools/types'
 import {
+  chatShownInList,
   getChatContextKey,
   isAgentRunChatContext,
   isChatHiddenFromList,
@@ -21,6 +22,7 @@ import { chatLastActivityAt } from './chatListEntry'
 import type {
   ChatListFilter,
   ChatListNotice,
+  ChatListPlacement,
   ChatListRow,
   ChatListRowInput,
   ChatListScope,
@@ -41,6 +43,7 @@ const QUIET_STATUS: ChatListRowInput['status'] = {
   unreadCount: 0,
   needsYou: 0,
   muted: false,
+  retired: false,
 }
 
 function isRunWorking(run: ProcessRun | undefined): boolean {
@@ -116,9 +119,10 @@ function rowPill(input: ChatListRowInput, kind: ChatKind): ChatListRow['pill'] {
  * One chat as the list shows it: its kind, title and the line under it, the
  * status pill of the run, story or feature it is about, how much waits on the
  * person in it (its own asks and needs-you messages), whether something works
- * in it, unread news and whether the person hid it from the list. A chat that
- * counts on Processes (`chatChannelOf`) — a process run's — shows none of that:
- * what waits, runs or is unread in it is told on its run. Pure.
+ * in it, unread news, and whether the person hid it from the list or it is
+ * closed with nothing calling them back to it. A chat that counts on Processes
+ * (`chatChannelOf`) — a process run's — shows none of that: what waits, runs or
+ * is unread in it is told on its run. Pure.
  */
 export function chatListRow(input: ChatListRowInput): ChatListRow {
   const { chat, run } = input
@@ -143,6 +147,7 @@ export function chatListRow(input: ChatListRowInput): ChatListRow {
     ...(lastActivityAt ? { lastActivityAt } : {}),
     hidden: isChatHiddenFromList({ listHiddenAt: chat.listHiddenAt ?? undefined }),
     muted: input.status.muted,
+    retired: input.status.retired,
     ...(chat.context.projectId ? { projectId: chat.context.projectId } : {}),
     ...(input.projectName ? { projectName: input.projectName } : {}),
     ...(input.projectIcon ? { projectIcon: input.projectIcon } : {}),
@@ -216,8 +221,9 @@ function isGroupsOwn(row: ChatListRow, groupId: string): boolean {
  * The rows a scope's list draws from, before a filter: a project's chats, or a
  * group's own chats with whatever needs the person or runs in its projects,
  * and its projects' process run chats (only Runs shows them).
- * The archived view draws from the chats hidden from the list — a group's own
- * only — and the current view from the rest. Pure.
+ * The archived view draws from the chats hidden from the list and the closed
+ * ones nothing calls the person back to — a group's own only — and the current
+ * view from the rest. Pure.
  */
 export function chatListPool(
   rows: readonly ChatListRow[],
@@ -225,7 +231,7 @@ export function chatListPool(
   archived: boolean,
 ): ChatListRow[] {
   return rows.filter((row) => {
-    if (row.hidden !== archived) return false
+    if ((row.hidden || row.retired) !== archived) return false
     if (scope.kind === 'project') return row.projectId === scope.projectId
     if (isGroupsOwn(row, scope.groupId)) return true
     if (archived || row.projectId === undefined) return false
@@ -304,11 +310,17 @@ export function chatListBackNotice(context: ChatContext, title?: string): ChatLi
   }
 }
 
-/** A chat as the list holds it once it left the list (`listHiddenAt`) or came back (`undefined`). Pure. */
-export function withChatListHidden<T extends { listHiddenAt?: string | null }>(
+/**
+ * A chat as the list holds it once the person hid it from the list at `at`
+ * (dropping when they last put it back), or put it back in the list at `at` —
+ * a closed one stamped so it stays (thefactory-tools `chatShownInList`). Pure.
+ */
+export function withChatListHidden<T extends ChatListPlacement>(
   entry: T,
-  listHiddenAt: string | undefined,
+  hidden: boolean,
+  at: string,
 ): T {
-  const { listHiddenAt: _listHiddenAt, ...rest } = entry
-  return (listHiddenAt === undefined ? rest : { ...rest, listHiddenAt }) as T
+  if (!hidden) return chatShownInList(entry, at)
+  const { listShownAt: _listShownAt, ...rest } = entry
+  return { ...rest, listHiddenAt: at } as T
 }

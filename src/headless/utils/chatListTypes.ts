@@ -1,7 +1,7 @@
 import type { ChatContext, ProcessRun } from 'thefactory-tools/types'
 
 import type { ChatKind } from './chatHeaderTypes'
-import type { ChatTimesShape } from './chatListEntry'
+import type { ChatNewsShape, ChatTimesShape } from './chatListEntry'
 import type { ChatRowStatus } from './chatRowStatus'
 import type { ProcessStatusTone } from './processView'
 
@@ -14,10 +14,18 @@ export type ChatListScope =
   | { kind: 'group'; groupId: string; projectIds: readonly string[] }
 
 /** What the list reads of a chat — a summary or a loaded chat. */
-export type ChatListChat = ChatTimesShape & {
-  context: ChatContext
-  title?: string | null
+export type ChatListChat = ChatTimesShape &
+  ChatNewsShape & {
+    context: ChatContext
+    title?: string | null
+    listHiddenAt?: string | null
+  }
+
+/** Where a chat stands with the person's list: hidden, closed, put back. */
+export type ChatListPlacement = {
   listHiddenAt?: string | null
+  archivedAt?: string | null
+  listShownAt?: string | null
 }
 
 /** The story or feature a chat is about, as the list names it. */
@@ -33,7 +41,7 @@ export type ChatListRowInput = {
   chat: ChatListChat
   status: Pick<
     ChatRowStatus,
-    'isThinking' | 'isAgentRunning' | 'unreadCount' | 'needsYou' | 'muted'
+    'isThinking' | 'isAgentRunning' | 'unreadCount' | 'needsYou' | 'muted' | 'retired'
   >
   /** The process run a run chat belongs to, once it is read. */
   run?: ProcessRun
@@ -66,6 +74,8 @@ export type ChatListRow = {
   lastActivityAt?: string
   /** The person hid it from their list. */
   hidden: boolean
+  /** It is closed and nothing in it calls the person back: it sits with the archived chats. */
+  retired: boolean
   /** The person set it to tell them nothing: no number, no dot. */
   muted: boolean
   projectId?: string

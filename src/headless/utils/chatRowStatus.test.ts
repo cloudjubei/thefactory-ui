@@ -92,6 +92,7 @@ describe('chatRowBadge', () => {
     isAgentRunning: false,
     needsYou: 0,
     muted: false,
+    retired: false,
     ...over,
   })
 
@@ -306,5 +307,144 @@ describe('chatNotifyCountsOf', () => {
     expect(
       chatNotifyCountsOf({ messageTimes: ['2026-10-02T10:00:00Z', null] }, undefined, 0),
     ).toMatchObject({ unreadMessages: 0 })
+  })
+})
+
+describe('chatNotifyCountsOf — a closed chat', () => {
+  const CLOSED_AT = '2026-10-20T14:00:00Z'
+  const closed = (over: object = {}) => ({
+    archivedAt: CLOSED_AT,
+    messageTimes: ['2026-10-15T09:00:00Z', '2026-10-15T12:00:00Z'],
+    needsYouTimes: ['2026-10-15T12:00:00Z'],
+    ...over,
+  })
+  const NOTHING = { unreadMessages: 0, unreadNeedsYou: 0, pendingAsks: 0 }
+
+  it('counts nothing that came before it was closed, even never seen', () => {
+    expect(chatNotifyCountsOf(closed(), undefined, 0)).toEqual(NOTHING)
+    expect(chatNotifyCountsOf(closed(), '2026-10-01T00:00:00Z', 0)).toEqual(NOTHING)
+  })
+
+  it('counts nothing for a reply since it was closed that does not need the person', () => {
+    const loaded = {
+      archivedAt: CLOSED_AT,
+      messages: [
+        { role: 'assistant', completedAt: '2026-10-15T12:00:00Z' },
+        { role: 'assistant', completedAt: '2026-10-21T08:00:00Z' },
+      ],
+    }
+    expect(chatNotifyCountsOf(loaded, undefined, 0)).toEqual(NOTHING)
+  })
+
+  it('counts its asks, which never lapse, with the news since it was closed', () => {
+    const later = closed({ messageTimes: ['2026-10-15T09:00:00Z', '2026-10-21T08:00:00Z'] })
+    expect(chatNotifyCountsOf(later, undefined, 2)).toEqual({
+      unreadMessages: 1,
+      unreadNeedsYou: 0,
+      pendingAsks: 2,
+    })
+    expect(chatNotifyCountsOf(closed(), undefined, 1)).toEqual({
+      unreadMessages: 0,
+      unreadNeedsYou: 0,
+      pendingAsks: 1,
+    })
+  })
+
+  it('counts what needs the person since it was closed, until it is seen', () => {
+    const called = closed({
+      messageTimes: ['2026-10-15T12:00:00Z', '2026-10-21T08:00:00Z'],
+      needsYouTimes: ['2026-10-15T12:00:00Z', '2026-10-21T08:00:00Z'],
+    })
+    expect(chatNotifyCountsOf(called, undefined, 0)).toEqual({
+      unreadMessages: 1,
+      unreadNeedsYou: 1,
+      pendingAsks: 0,
+    })
+    expect(chatNotifyCountsOf(called, '2026-10-21T09:00:00Z', 0)).toEqual(NOTHING)
+  })
+
+  it('reads a closing time with nothing in it as open', () => {
+    expect(chatNotifyCountsOf(closed({ archivedAt: '' }), undefined, 0)).toEqual({
+      unreadMessages: 2,
+      unreadNeedsYou: 1,
+      pendingAsks: 0,
+    })
+    expect(chatNotifyCountsOf(closed({ archivedAt: null }), undefined, 0)).toEqual({
+      unreadMessages: 2,
+      unreadNeedsYou: 1,
+      pendingAsks: 0,
+    })
+  })
+})
+
+describe('computeChatRowStatus — a closed chat', () => {
+  const statusOf = (chat: object, pendingAsks = 0, level?: 'nothing') =>
+    computeChatRowStatus({
+      context: { type: 'FEATURE_REQUEST', projectId: 'p', featureRequestId: 'r' } as never,
+      contextKey: 'req',
+      chat,
+      isSending: false,
+      seen: {},
+      pendingAsks,
+      ...(level ? { level } : {}),
+    })
+  const handedOver = {
+    archivedAt: '2026-10-20T14:00:00Z',
+    messageTimes: ['2026-10-15T12:00:00Z'],
+    needsYouTimes: ['2026-10-15T12:00:00Z'],
+  }
+
+  it('is retired and quiet once handed over, with nothing calling the person back', () => {
+    expect(statusOf(handedOver)).toMatchObject({
+      retired: true,
+      needsYou: 0,
+      unreadCount: 0,
+      isUnread: false,
+    })
+  })
+
+  it('is not retired while an ask waits in it', () => {
+    expect(statusOf(handedOver, 1)).toMatchObject({
+      retired: false,
+      needsYou: 1,
+      awaitingAnswer: true,
+    })
+  })
+
+  it('is not retired while an ask waits in it, though muted and telling nothing', () => {
+    expect(statusOf(handedOver, 1, 'nothing')).toMatchObject({
+      retired: false,
+      needsYou: 0,
+      muted: true,
+    })
+  })
+
+  it('is never retired while open', () => {
+    expect(statusOf({ messageTimes: ['2026-10-15T12:00:00Z'] })).toMatchObject({
+      retired: false,
+      unreadCount: 1,
+    })
+    expect(statusOf({ ...handedOver, archivedAt: undefined })).toMatchObject({
+      retired: false,
+      needsYou: 1,
+    })
+  })
+
+  it('is not retired once the person put it back in their list, and stays quiet', () => {
+    expect(statusOf({ ...handedOver, listShownAt: '2026-10-21T08:00:00Z' })).toMatchObject({
+      retired: false,
+      needsYou: 0,
+      unreadCount: 0,
+    })
+  })
+
+  it('is retired again when it was closed after the person last put it back', () => {
+    expect(statusOf({ ...handedOver, listShownAt: '2026-10-19T08:00:00Z' })).toMatchObject({
+      retired: true,
+    })
+  })
+
+  it('is retired for a closed chat with no messages', () => {
+    expect(statusOf({ archivedAt: '2026-10-20T14:00:00Z' })).toMatchObject({ retired: true })
   })
 })

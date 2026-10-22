@@ -2362,6 +2362,7 @@ export type Chat = {
   effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
   archivedAt?: string
   listHiddenAt?: string
+  listShownAt?: string
   notifyLevel?: 'everything' | 'needs-me' | 'nothing'
   createdAt?: string
   updatedAt?: string
@@ -2424,6 +2425,7 @@ export type ChatSummary = {
   }
   archivedAt?: string
   listHiddenAt?: string
+  listShownAt?: string
   notifyLevel?: 'everything' | 'needs-me' | 'nothing'
   createdAt: string
   updatedAt: string
@@ -2764,6 +2766,7 @@ export type ChatUpdate = {
     }
     archivedAt?: string
     listHiddenAt?: string
+    listShownAt?: string
     notifyLevel?: 'everything' | 'needs-me' | 'nothing'
     createdAt: string
     updatedAt: string
@@ -3478,6 +3481,8 @@ export type GlobalChatLike = {
     timestamp?: string
   }
   listHiddenAt?: string | unknown
+  archivedAt?: string | unknown
+  listShownAt?: string | unknown
   createdAt?: string | unknown
 }
 
@@ -12197,6 +12202,7 @@ export type ProcessIntegrationLandedBy = {
         toolName: string
         chatContextId: string
       }
+  byRunId?: string
 }
 
 export type ProcessBaseMoved = {
@@ -12259,6 +12265,7 @@ export type ProcessRunIntegration = {
           toolName: string
           chatContextId: string
         }
+    byRunId?: string
   }
   pullRequestUrl?: string
   compareUrl?: string
@@ -12292,6 +12299,7 @@ export type ProcessRunIntegration = {
     }
   }
   regenerated?: Array<string>
+  broughtInRunIds?: Array<string>
   at: number
 }
 
@@ -12430,6 +12438,7 @@ export type ProcessRunReopening = {
             toolName: string
             chatContextId: string
           }
+      byRunId?: string
     }
     pullRequestUrl?: string
     compareUrl?: string
@@ -12463,6 +12472,7 @@ export type ProcessRunReopening = {
       }
     }
     regenerated?: Array<string>
+    broughtInRunIds?: Array<string>
     at: number
   }
 }
@@ -12557,6 +12567,7 @@ export type ProcessPlanAmendment = {
               toolName: string
               chatContextId: string
             }
+        byRunId?: string
       }
       pullRequestUrl?: string
       compareUrl?: string
@@ -12590,6 +12601,7 @@ export type ProcessPlanAmendment = {
         }
       }
       regenerated?: Array<string>
+      broughtInRunIds?: Array<string>
       at: number
     }
   }
@@ -13452,7 +13464,14 @@ export type ProofKindUnavailable = {
 
 export type ChangeScreensNeed = 'required' | 'not-required' | 'unknown'
 
-export type ChangeScreensBasis = 'plan' | 'review' | 'judgement' | 'files' | 'work' | 'nothing'
+export type ChangeScreensBasis =
+  | 'plan'
+  | 'person'
+  | 'review'
+  | 'judgement'
+  | 'files'
+  | 'work'
+  | 'nothing'
 
 export type ChangeScreensDecision = {
   need: ChangeScreensNeed
@@ -13592,6 +13611,7 @@ export type ProcessRun = {
             toolName: string
             chatContextId: string
           }
+      byRunId?: string
     }
     pullRequestUrl?: string
     compareUrl?: string
@@ -13625,6 +13645,7 @@ export type ProcessRun = {
       }
     }
     regenerated?: Array<string>
+    broughtInRunIds?: Array<string>
     at: number
   }
   alreadyMet?: {
@@ -15228,6 +15249,10 @@ export type ProofPlanReviewFact = {
   outcome: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
   summary?: string
   verdict?: 'approved' | 'changes-requested' | 'rejected'
+  accepted?: {
+    by?: 'person' | 'agent' | 'manager'
+    note?: string
+  }
 }
 
 export type ProofPlanProverFact = {
@@ -15263,6 +15288,10 @@ export type ProofPlanFacts = {
     outcome: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
     summary?: string
     verdict?: 'approved' | 'changes-requested' | 'rejected'
+    accepted?: {
+      by?: 'person' | 'agent' | 'manager'
+      note?: string
+    }
   }
   proof?: {
     outcome: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
@@ -15324,6 +15353,13 @@ export type UiImpactJudgement = UiImpactStance & {
   by?: 'developer' | 'developer-verifier' | 'fixer' | 'verifier'
 }
 
+export type UiImpactDecision = {
+  visible: boolean
+  reason: string
+  by?: 'person' | 'agent' | 'manager'
+  at: number
+}
+
 export type ChangeScreensInput = {
   plan?: {
     kinds: Array<ProofKind>
@@ -15343,6 +15379,12 @@ export type ChangeScreensInput = {
     visible: boolean
     reason: string
   }
+  decision?: {
+    visible: boolean
+    reason: string
+    by?: 'person' | 'agent' | 'manager'
+    at: number
+  }
 }
 
 export type RunUiImpact = {
@@ -15355,6 +15397,12 @@ export type RunUiImpact = {
   challenge?: {
     visible: boolean
     reason: string
+  }
+  decision?: {
+    visible: boolean
+    reason: string
+    by?: 'person' | 'agent' | 'manager'
+    at: number
   }
 }
 
@@ -18583,6 +18631,7 @@ export type ToolName =
   | 'archiveChat'
   | 'hideChatFromList'
   | 'showChatInList'
+  | 'returnChatToList'
   | 'raiseChatOpenChanges'
   | 'updateDynamicContext'
   | 'deleteChat'
@@ -20018,6 +20067,7 @@ export type ProofChangeRun = {
   }
   status?: 'pending' | 'running' | 'parked' | 'succeeded' | 'failed' | 'cancelled'
   proofUnavailable?: Array<ProofKindUnavailable>
+  changeUiPaths?: Array<string>
 }
 
 export type RecheckRun = {
@@ -20192,6 +20242,7 @@ export type ClosureRun = {
             toolName: string
             chatContextId: string
           }
+      byRunId?: string
     }
     pullRequestUrl?: string
     compareUrl?: string
@@ -20225,6 +20276,7 @@ export type ClosureRun = {
       }
     }
     regenerated?: Array<string>
+    broughtInRunIds?: Array<string>
     at: number
   }
 }
@@ -20636,6 +20688,7 @@ export type ProcessRunChatState = {
               toolName: string
               chatContextId: string
             }
+        byRunId?: string
       }
       pullRequestUrl?: string
       compareUrl?: string
@@ -20669,6 +20722,7 @@ export type ProcessRunChatState = {
         }
       }
       regenerated?: Array<string>
+      broughtInRunIds?: Array<string>
       at: number
     }
     alreadyMet?: {
@@ -21004,6 +21058,7 @@ export type ProcessRunChatState = {
           toolName: string
           chatContextId: string
         }
+    byRunId?: string
   }
   workspaceBranch?: {
     name: string
@@ -21219,6 +21274,7 @@ export type ProcessIntegrationOptions = {
           toolName: string
           chatContextId: string
         }
+    byRunId?: string
   }
 }
 
@@ -21314,6 +21370,7 @@ export type ProcessIntegrationOutcome = {
           toolName: string
           chatContextId: string
         }
+    byRunId?: string
   }
   pullRequestUrl?: string
   compareUrl?: string
@@ -21347,6 +21404,7 @@ export type ProcessIntegrationOutcome = {
     }
   }
   regenerated?: Array<string>
+  broughtInRunIds?: Array<string>
 }
 
 export type ProcessWorkBranchReplay = {
@@ -21429,6 +21487,7 @@ export type ProcessRunSummary = {
             toolName: string
             chatContextId: string
           }
+      byRunId?: string
     }
     pullRequestUrl?: string
     compareUrl?: string
@@ -21462,6 +21521,7 @@ export type ProcessRunSummary = {
       }
     }
     regenerated?: Array<string>
+    broughtInRunIds?: Array<string>
     at: number
   }
   alreadyMet?: {
@@ -31326,6 +31386,7 @@ export type ListChatSummariesResponses = {
     effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
     archivedAt?: string
     listHiddenAt?: string
+    listShownAt?: string
     notifyLevel?: 'everything' | 'needs-me' | 'nothing'
     createdAt?: string
     updatedAt?: string
@@ -31400,6 +31461,7 @@ export type GetChatSummaryResponses = {
     effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
     archivedAt?: string
     listHiddenAt?: string
+    listShownAt?: string
     notifyLevel?: 'everything' | 'needs-me' | 'nothing'
     createdAt?: string
     updatedAt?: string
