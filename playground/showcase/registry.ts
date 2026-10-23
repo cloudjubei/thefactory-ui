@@ -24,6 +24,7 @@ import { FEATURE_REQUEST_CARD_SCENES } from '../scenes/featureRequestCard'
 import { FEATURE_REQUEST_WAIT_CYCLE_SCENES } from '../scenes/featureRequestWaitCycle'
 import { FILE_SUGGESTION_SCENES } from '../scenes/fileSuggestions'
 import { GIT_STASH_SCENES } from '../scenes/gitStash'
+import { KNOWLEDGE_SCENES } from '../scenes/knowledge'
 import { KNOWLEDGE_EVALUATION_SCENES } from '../scenes/knowledgeEvaluation'
 import { LAND_NOTICE_SCENES } from '../scenes/landNotice'
 import { LAUNCH_MODEL_CHIP_SCENES } from '../scenes/launchModelChip'
@@ -105,6 +106,7 @@ export const SCENES: readonly Scene[] = [
   ...FEATURE_POOL_SCENES,
   ...AGENT_TYPE_SCENES,
   ...WORKFLOW_GUARD_SCENES,
+  ...KNOWLEDGE_SCENES,
   ...DESIGN_SCENES,
   ...LEAVE_GUARD_SCENES,
   ...APP_BRIDGE_ASK_SCENES,
@@ -120,6 +122,7 @@ export const SCENES: readonly Scene[] = [
 export const SCENE_GROUPS: readonly SceneGroup[] = [
   'Chat',
   'Process',
+  'Project',
   'Design',
   'Settings',
   'Primitives',

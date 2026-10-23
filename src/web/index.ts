@@ -778,6 +778,14 @@ export { default as GitCredentialsSettings } from './compound/settings/GitCreden
 export type { GitCredentialsSettingsProps } from './compound/settings/GitCredentialsSettings'
 export { default as ProjectNotesSettings } from './compound/settings/ProjectNotesSettings'
 export type { ProjectNotesSettingsProps } from './compound/settings/ProjectNotesSettings'
+export {
+  default as ProjectKnowledgeView,
+  type ProjectKnowledgeViewProps,
+} from './compound/knowledge/ProjectKnowledgeView'
+export {
+  default as ProjectKnowledgeViewConnected,
+  type ProjectKnowledgeViewConnectedProps,
+} from './compound/knowledge/ProjectKnowledgeViewConnected'
 // Search — a project's files, stories, features and notes in one search.
 export {
   default as ProjectSearchView,

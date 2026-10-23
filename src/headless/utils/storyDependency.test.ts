@@ -262,19 +262,25 @@ describe('featureShownStatus', () => {
   const lost = { id: 'x', code: 'STORY_NOT_FOUND', message: 'no' } as DependencyResolution
 
   it('shows a pending feature blocked while anything it or its story waits on is not done', () => {
-    expect(featureShownStatus('pending', [featureRef('in_progress')], [])).toBe('blocked')
-    expect(featureShownStatus('pending', [], [storyRef('in_progress')])).toBe('blocked')
+    expect(featureShownStatus('pending', [featureRef('in_progress')], [], 's9')).toBe('blocked')
+    expect(featureShownStatus('pending', [], [storyRef('in_progress')], 's9')).toBe('blocked')
   })
 
-  it('shows its own status once what it waits on is reviewable or done', () => {
-    expect(featureShownStatus('pending', [featureRef('reviewable')], [storyRef('done')])).toBe(
+  it('shows a pending feature blocked while work in another story is only reviewable', () => {
+    expect(featureShownStatus('pending', [featureRef('reviewable')], [], 's9')).toBe('blocked')
+    expect(featureShownStatus('pending', [], [storyRef('reviewable')], 's9')).toBe('blocked')
+  })
+
+  it('shows its own status once what it waits on is done, or reviewable in its own story', () => {
+    expect(featureShownStatus('pending', [featureRef('done')], [storyRef('done')], 's9')).toBe(
       'pending',
     )
+    expect(featureShownStatus('pending', [featureRef('reviewable')], [], 's21')).toBe('pending')
   })
 
   it('never changes a status past pending, and reads a blocker it cannot resolve as nothing', () => {
-    expect(featureShownStatus('in_progress', [featureRef('pending')], [])).toBe('in_progress')
-    expect(featureShownStatus('done', [], [storyRef('pending')])).toBe('done')
-    expect(featureShownStatus('pending', [lost], [])).toBe('pending')
+    expect(featureShownStatus('in_progress', [featureRef('pending')], [], 's9')).toBe('in_progress')
+    expect(featureShownStatus('done', [], [storyRef('pending')], 's9')).toBe('done')
+    expect(featureShownStatus('pending', [lost], [], 's9')).toBe('pending')
   })
 })

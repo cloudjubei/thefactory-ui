@@ -4785,18 +4785,9 @@ export type PerCliRunnerExtra = {
     workspaceBaseline?: unknown
     heldBehindReview?: string
   }
-  seed?: {
-    parent?: {
-      runId: string
-      via: 'resume' | 'fork'
-      notes?: string
-    }
-    transcript?: Array<CliRunTranscriptEntry>
-    artifacts?: Array<FilesEmittedArtifact>
-    retryState?: {
-      attempts: number
-      history: Array<CliRunRetryHistoryEntry>
-    }
+  retryState?: {
+    attempts: number
+    history: Array<CliRunRetryHistoryEntry>
   }
 }
 
@@ -7267,6 +7258,25 @@ export type DataSort = {
   numeric?: boolean
 }
 
+export type ModelChoice =
+  | {
+      runner: 'api'
+      llmConfigId: string
+      effort?: string
+    }
+  | {
+      runner: 'cli'
+      cli: string
+      model?: string
+      effort?: string
+      authCredentialId?: string
+      apiKeyCredentialId?: string
+    }
+
+export type ProjectOverviewModelSetting = {
+  model: ModelChoice | unknown
+}
+
 export type ResearchVerdictStatus =
   | 'confirmed'
   | 'implied'
@@ -8747,6 +8757,10 @@ export type FeatureRequestCandidate = {
   targetProjectId: string
 }
 
+export type EditArgs = {
+  [key: string]: unknown
+}
+
 export type ReadableFileKind = 'text' | 'pdf' | 'binary'
 
 export type AgentReadableFile = {
@@ -8974,6 +8988,23 @@ export type DependencyLinkRepoint = {
   found: Array<{
     copyPath: string
     target: string
+  }>
+}
+
+export type MemberFileEditToolName =
+  | 'writeFile'
+  | 'writeExactReplaces'
+  | 'renamePaths'
+  | 'deletePaths'
+
+export type MemberFileEditPreview = {
+  projectId: string
+  toolName: MemberFileEditToolName
+  changes: Array<{
+    path: string
+    before: string | unknown
+    after: string | unknown
+    diff: string
   }>
 }
 
@@ -41794,6 +41825,219 @@ export type PutKnowledgeEvaluationDefaultsResponses = {
 
 export type PutKnowledgeEvaluationDefaultsResponse =
   PutKnowledgeEvaluationDefaultsResponses[keyof PutKnowledgeEvaluationDefaultsResponses]
+
+export type GetProjectKnowledgeOverviewData = {
+  body?: never
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/knowledge/overview'
+}
+
+export type GetProjectKnowledgeOverviewErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetProjectKnowledgeOverviewError =
+  GetProjectKnowledgeOverviewErrors[keyof GetProjectKnowledgeOverviewErrors]
+
+export type GetProjectKnowledgeOverviewResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    overview?: {
+      formatVersion: number
+      projectId: string
+      purpose: {
+        text: string
+        label: 'observed' | 'derived' | 'ranked-guess' | 'abstain'
+        citations: Array<string>
+      }
+      purposeModelWritten?: {
+        refreshedAt: string
+        stale: boolean
+      }
+      capabilities: Array<{
+        id: string
+        name: string
+        claim: {
+          text: string
+          label: 'observed' | 'derived' | 'ranked-guess' | 'abstain'
+          citations: Array<string>
+        }
+        modelWritten?: {
+          refreshedAt: string
+          stale: boolean
+        }
+      }>
+      modules: Array<{
+        id: string
+        name: string
+        claim: {
+          text: string
+          label: 'observed' | 'derived' | 'ranked-guess' | 'abstain'
+          citations: Array<string>
+        }
+        modelWritten?: {
+          refreshedAt: string
+          stale: boolean
+        }
+      }>
+      recordedWork?: {
+        stories: Array<{
+          id: string
+          name: string
+          claim: {
+            text: string
+            label: 'observed' | 'derived' | 'ranked-guess' | 'abstain'
+            citations: Array<string>
+          }
+          modelWritten?: {
+            refreshedAt: string
+            stale: boolean
+          }
+          status: string
+          features: Array<{
+            id: string
+            name: string
+            claim: {
+              text: string
+              label: 'observed' | 'derived' | 'ranked-guess' | 'abstain'
+              citations: Array<string>
+            }
+            modelWritten?: {
+              refreshedAt: string
+              stale: boolean
+            }
+            status: string
+          }>
+          openFeatures: number
+        }>
+        openStories: number
+        totalStories: number
+      }
+      documentWork: Array<{
+        id: string
+        name: string
+        claim: {
+          text: string
+          label: 'observed' | 'derived' | 'ranked-guess' | 'abstain'
+          citations: Array<string>
+        }
+        modelWritten?: {
+          refreshedAt: string
+          stale: boolean
+        }
+        parentId?: string
+        source: {
+          attachmentId: string
+          reference?: string
+          line?: number
+        }
+      }>
+      documentWorkStatus: {
+        text: string
+        label: 'observed' | 'derived' | 'ranked-guess' | 'abstain'
+        citations: Array<string>
+      }
+      omitted?: {
+        capabilities: number
+        modules: number
+        documentWork: number
+      }
+      citations?: {
+        [key: string]: {
+          itemId: string
+          name: string
+          level: number
+          path?: string
+          line?: number
+          summary?: string
+          score?: number
+          files?: Array<string>
+          filesTruncated?: {
+            shown: number
+            total: number
+          }
+          hierarchyPath: Array<string>
+          sourceKind?: 'code' | 'attachment' | 'recorded-work'
+        }
+      }
+      sections?: {
+        purpose?: {
+          refreshedAt: string
+          contentKey: string
+          currentContentKey: string
+          stale: boolean
+        }
+        capabilities?: {
+          refreshedAt: string
+          contentKey: string
+          currentContentKey: string
+          stale: boolean
+        }
+        modules?: {
+          refreshedAt: string
+          contentKey: string
+          currentContentKey: string
+          stale: boolean
+        }
+        recordedWork?: {
+          refreshedAt: string
+          contentKey: string
+          currentContentKey: string
+          stale: boolean
+        }
+        documentWork?: {
+          refreshedAt: string
+          contentKey: string
+          currentContentKey: string
+          stale: boolean
+        }
+      }
+      provenance: {
+        source: 'llm' | 'heuristic' | 'error'
+        refreshedAt: string
+        contentKey: string
+      }
+    }
+    map?: {
+      projectId: string
+      state: 'queued' | 'building' | 'idle' | 'failed'
+      queuePosition?: number
+      startedAt?: string
+      elapsedMs?: number
+      percent?: number
+      stage?: string
+      expectedMs?: number
+      lastOutcome?: 'built' | 'refreshed' | 'fresh' | 'kept-llm-map'
+      lastFinishedAt?: string
+      lastDurationMs?: number
+      lastError?: string
+    }
+    hasCheckout: boolean
+  }
+}
+
+export type GetProjectKnowledgeOverviewResponse =
+  GetProjectKnowledgeOverviewResponses[keyof GetProjectKnowledgeOverviewResponses]
 
 export type RunTrainerToolData = {
   body: {

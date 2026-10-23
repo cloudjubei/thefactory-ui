@@ -478,6 +478,30 @@ export {
   useKnowledgeEvaluationSettings,
 } from './hooks/useKnowledgeEvaluationSettings'
 export type { UseKnowledgeEvaluationSettings } from './hooks/useKnowledgeEvaluationSettings'
+export * from './utils/knowledgeOverviewConstants'
+export { knowledgeTextParts, knowledgeView } from './utils/knowledgeOverviewView'
+export type {
+  KnowledgeClaimRow,
+  KnowledgeEmptyReason,
+  KnowledgeLook,
+  KnowledgeMapStatus,
+  KnowledgeModelMark,
+  KnowledgeNote,
+  KnowledgePlannedRow,
+  KnowledgeSectionId,
+  KnowledgeSectionView,
+  KnowledgeSource,
+  KnowledgeTextPart,
+  KnowledgeView,
+  KnowledgeViewFormat,
+  KnowledgeViewInput,
+  KnowledgeWorkRow,
+  KnowledgeWorkStory,
+  ProjectKnowledgeOverview,
+  ProjectOverviewData,
+} from './utils/knowledgeOverviewTypes'
+export { readProjectKnowledgeOverview, useProjectKnowledge } from './hooks/useProjectKnowledge'
+export type { UseProjectKnowledge } from './hooks/useProjectKnowledge'
 export { evaluationLaunchAskView } from './utils/evaluationLaunchAskView'
 export * from './utils/evaluationLaunchAskViewConstants'
 export type {

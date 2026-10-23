@@ -477,6 +477,9 @@ import type {
   GetProjectDesignErrors,
   GetProjectDesignResponses,
   GetProjectErrors,
+  GetProjectKnowledgeOverviewData,
+  GetProjectKnowledgeOverviewErrors,
+  GetProjectKnowledgeOverviewResponses,
   GetProjectResponses,
   GetProjectsGroupData,
   GetProjectsGroupErrors,
@@ -6998,6 +7001,23 @@ export const putKnowledgeEvaluationDefaults = <ThrowOnError extends boolean = fa
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  })
+
+/**
+ * The project's stored overview — purpose, capabilities, main modules, recorded work and work planned in its documents, each part with its refresh time and staleness, model-written entries marked — with the map upkeep's status for the project and whether it has a checkout here.
+ */
+export const getProjectKnowledgeOverview = <ThrowOnError extends boolean = false>(
+  options: Options<GetProjectKnowledgeOverviewData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetProjectKnowledgeOverviewResponses,
+    GetProjectKnowledgeOverviewErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/knowledge/overview',
+    ...options,
   })
 
 export const runTrainerTool = <ThrowOnError extends boolean = false>(

@@ -14,6 +14,7 @@ export type NavIconKey =
   | 'files'
   | 'design'
   | 'notes'
+  | 'knowledge'
   | 'chat'
   | 'git'
   | 'tests'
@@ -31,6 +32,7 @@ export type ShellTabKey =
   | 'files'
   | 'design'
   | 'notes'
+  | 'knowledge'
   | 'chat'
   | 'git'
   | 'tests'
@@ -61,6 +63,7 @@ export const SHELL_TAB_DEFS: readonly ShellTabDef[] = [
   { key: 'files', label: 'Files', icon: 'files' },
   { key: 'design', label: 'Design', icon: 'design' },
   { key: 'notes', label: 'Notes', icon: 'notes' },
+  { key: 'knowledge', label: 'Knowledge', icon: 'knowledge' },
   { key: 'chat', label: 'Chat', icon: 'chat' },
   { key: 'git', label: 'Git', icon: 'git' },
   { key: 'tests', label: 'Tests', icon: 'tests' },

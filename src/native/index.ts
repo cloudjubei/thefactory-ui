@@ -678,6 +678,14 @@ export {
   type ProjectNotesSettingsProps,
 } from './compound/settings/ProjectNotesSettings'
 export {
+  default as ProjectKnowledgeView,
+  type ProjectKnowledgeViewProps,
+} from './compound/knowledge/ProjectKnowledgeView'
+export {
+  default as ProjectKnowledgeViewConnected,
+  type ProjectKnowledgeViewConnectedProps,
+} from './compound/knowledge/ProjectKnowledgeViewConnected'
+export {
   default as GroupNotesSettings,
   type GroupNotesSettingsProps,
 } from './compound/settings/GroupNotesSettings'

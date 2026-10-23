@@ -168,20 +168,24 @@ export function dependencyChipOf(resolution: DependencyResolution): ResolvedDepe
 
 /**
  * The status a feature shows: a pending feature reads as blocked while anything
- * it, or its story, waits on is not done yet — reviewable or done — so a
- * feature waiting on a blocker never looks ready to work. Any other status
- * shows as it is; a blocker that cannot be resolved counts as nothing. Pure.
+ * it, or its story `storyId`, waits on is not done yet, so a feature waiting on
+ * a blocker never looks ready to work. Work elsewhere is done only once it is
+ * merged; a feature of its own story counts once reviewable, since the story's
+ * run builds on it. Any other status shows as it is; a blocker that cannot be
+ * resolved counts as nothing. Pure.
  */
 export function featureShownStatus(
   status: StoryStatus,
   featureBlockers: readonly DependencyResolution[],
   storyBlockers: readonly DependencyResolution[],
+  storyId: string,
 ): StoryStatus {
   if (status !== 'pending') return status
   const waits = [...featureBlockers, ...storyBlockers].some((b) => {
     if (!('kind' in b)) return false
-    const blockerStatus = b.kind === 'feature' ? b.feature.status : b.story.status
-    return blockerStatus !== 'done' && blockerStatus !== 'reviewable'
+    if (b.kind === 'story') return b.story.status !== 'done'
+    if (b.feature.status === 'done') return false
+    return !(b.feature.status === 'reviewable' && b.storyId === storyId)
   })
   return waits ? 'blocked' : status
 }

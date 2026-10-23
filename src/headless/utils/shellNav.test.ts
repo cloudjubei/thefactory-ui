@@ -29,6 +29,7 @@ describe('SHELL_TAB_DEFS', () => {
       'files',
       'design',
       'notes',
+      'knowledge',
       'chat',
       'git',
       'tests',
@@ -63,6 +64,17 @@ describe('SHELL_TAB_DEFS', () => {
     })
     expect(isShellTabKey('search')).toBe(true)
     expect(projectShowsShellTab('search', { isUiApp: false, hasApp: false })).toBe(true)
+  })
+
+  it('puts Knowledge right after Notes, with its own icon, on every project', () => {
+    expect(SHELL_TAB_DEFS.find((t) => t.key === 'knowledge')).toEqual({
+      key: 'knowledge',
+      label: 'Knowledge',
+      icon: 'knowledge',
+    })
+    expect(isShellTabKey('knowledge')).toBe(true)
+    expect(projectShowsShellTab('knowledge', { isUiApp: false, hasApp: false })).toBe(true)
+    expect(projectTabToGroupTab('knowledge')).toBe('home')
   })
 
   it('gives each tab an icon key', () => {
