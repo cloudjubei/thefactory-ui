@@ -20,6 +20,14 @@ export type ModelChipLabelInput = {
   editable?: boolean
   /** The CLI's sign-in needs renewing — said in the title. */
   reauthMessage?: string
+  /** The chip is switched off: it names no model at all. */
+  off?: boolean
+}
+
+/** A chip that can be switched off — a model for a job that may run on none: whether it is, and how to. */
+export type ModelChipOff = {
+  selected: boolean
+  onPick: () => void
 }
 
 /** A model chip's two lines and the whole of what it shows, for its tooltip and accessible label. */

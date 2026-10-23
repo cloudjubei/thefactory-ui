@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   agentExchangeLayout,
   agentExchangeLine,
+  agentExchangeRowEnd,
   agentExchangeStartOf,
   agentExchangeWindowStart,
 } from './agentExchanges'
@@ -162,6 +163,21 @@ describe('agentExchangeLayout — hidden', () => {
     })
     expect(layout.hidden.size).toBe(0)
   })
+
+  it('draws an exchange that ends the chat in full, so its last message can be deleted', () => {
+    const messages = [person(0), brief, handled, managerReply]
+    const layout = agentExchangeLayout(messages, 'hidden')
+    expect(layout.hidden.size).toBe(0)
+    expect(agentExchangeRowEnd(layout, messages.length - 1)).toBe(messages.length)
+  })
+
+  it('still hides an earlier exchange when the one ending the chat is drawn', () => {
+    const layout = agentExchangeLayout(
+      [person(0), brief, handled, person(1), brief, managerReply],
+      'hidden',
+    )
+    expect([...layout.hidden]).toEqual([1, 2])
+  })
 })
 
 describe('agentExchangeLine', () => {
@@ -221,6 +237,29 @@ describe('agentExchangeStartOf', () => {
   it('keeps a message drawn on its own, and nothing as nothing', () => {
     expect(agentExchangeStartOf(layout, 4)).toBe(4)
     expect(agentExchangeStartOf(layout, null)).toBeNull()
+  })
+})
+
+describe('agentExchangeRowEnd', () => {
+  it('ends a folded exchange’s row after its last message, so the row ending the chat is last', () => {
+    const messages = [person(0), reply(1), brief, managerReply, handled]
+    const layout = agentExchangeLayout(messages, 'collapsed')
+    expect(agentExchangeRowEnd(layout, 2)).toBe(messages.length)
+  })
+
+  it('ends a folded exchange the person answered after at the exchange, not the chat', () => {
+    const layout = agentExchangeLayout([person(0), brief, managerReply, reply(1)], 'collapsed')
+    expect(agentExchangeRowEnd(layout, 1)).toBe(3)
+    expect(agentExchangeRowEnd(layout, 3)).toBe(4)
+  })
+
+  it('ends a row drawn on its own after itself, whatever the display', () => {
+    const messages = [person(0), brief, managerReply]
+    for (const display of ['full', 'hidden'] as const) {
+      const layout = agentExchangeLayout(messages, display)
+      expect(agentExchangeRowEnd(layout, 0), display).toBe(1)
+    }
+    expect(agentExchangeRowEnd(agentExchangeLayout(messages, 'full'), 2)).toBe(3)
   })
 })
 

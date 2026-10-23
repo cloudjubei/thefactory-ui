@@ -132,6 +132,27 @@ export {
   readAcceptanceLayer,
   resolveAcceptance,
 } from './utils/crossProjectSettings'
+export {
+  readProjectOverviewModelSetting,
+  useProjectOverviewModelSetting,
+  writeProjectOverviewModelSetting,
+  type ProjectOverviewModelSettingState,
+} from './hooks/useProjectOverviewModelSetting'
+export { useProjectOverviewModelChip } from './hooks/useProjectOverviewModelChip'
+export {
+  projectOverviewApiChoice,
+  projectOverviewCliChoice,
+  projectOverviewCliModelChoice,
+  projectOverviewEffortChoice,
+  projectOverviewModelView,
+  projectOverviewSwitch,
+} from './utils/projectOverviewModel'
+export { PROJECT_OVERVIEW_MODEL_TEXT } from './utils/projectOverviewModelConstants'
+export type {
+  ProjectOverviewModelChipWiring,
+  ProjectOverviewModelConfig,
+  ProjectOverviewModelView,
+} from './utils/projectOverviewModelTypes'
 export { useChatToolCatalog } from './hooks/useChatToolCatalog'
 export {
   applyChatToolApprovalMode,
@@ -297,6 +318,7 @@ export {
 export {
   agentExchangeLayout,
   agentExchangeLine,
+  agentExchangeRowEnd,
   agentExchangeStartOf,
 } from './utils/agentExchanges'
 export * from './utils/agentExchangesConstants'
@@ -1022,6 +1044,7 @@ export type {
   ModelChipConfigLike,
   ModelChipLabel,
   ModelChipLabelInput,
+  ModelChipOff,
   ChatChipCliInput,
   ChatChipCliSelection,
 } from './utils/modelChipTypes'

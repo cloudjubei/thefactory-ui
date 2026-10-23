@@ -114,6 +114,36 @@ describe('showcase registry', () => {
     expect(person).not.toMatch(/waited over/)
   })
 
+  it('offers the delete on whatever row ends the chat, and Try again where it is the agent’s input', () => {
+    const states = SCENES.find((s) => s.id === 'chat-last-row-controls')?.states ?? []
+    const markup = (id: string) =>
+      renderToStaticMarkup(<>{states.find((s) => s.id === id)?.render()}</>)
+    const deletes = (html: string) => html.split('aria-label="Delete last message"').length - 1
+    const retries = (html: string) => html.split('>Try again<').length - 1
+    expect(states.map((s) => s.id)).toEqual([
+      'person-message-last',
+      'background-results-last',
+      'background-results-delete-hover',
+      'stop-last',
+      'agent-exchange-last',
+      'agent-exchange-last-hidden',
+    ])
+    for (const state of states) {
+      const html = markup(state.id)
+      expect(deletes(html), state.id).toBe(1)
+      expect(retries(html), state.id).toBe(state.id.startsWith('agent-exchange-last') ? 0 : 1)
+    }
+    expect(markup('agent-exchange-last')).toMatch(/Verifier sent it back/)
+    const hidden = markup('agent-exchange-last-hidden')
+    expect(hidden).not.toMatch(/Verifier sent it back/)
+    expect(hidden).toMatch(/Added chapter 12 to the answer\./)
+    expect(markup('background-results-last')).toMatch(/Background results/)
+    const hovered = markup('background-results-delete-hover')
+    expect(hovered.split('data-delete-preview="true"').length - 1).toBe(1)
+    expect(hovered).toMatch(/opacity-100"><button[^>]*aria-label="Delete last message"/)
+    expect(markup('background-results-last')).not.toMatch(/data-delete-preview/)
+  })
+
   it('shows the stash dialog leaving untracked files out and taking them', () => {
     const stash = SCENES.find((s) => s.id === 'git-stash')
     expect(stash?.states.map((s) => s.id)).toEqual(['tracked-only', 'include-untracked'])

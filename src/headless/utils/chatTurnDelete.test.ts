@@ -41,6 +41,16 @@ describe('lastMessageDeleteFromIndex', () => {
     expect(lastMessageDeleteFromIndex(msgs('tool'))).toBe(0)
   })
 
+  it('takes only the background results the host posted after a tool tail, never the tail', () => {
+    const results = {
+      role: 'user',
+      backgroundResults: [{ jobId: 'job-1', toolName: 'askKnowledge', status: 'succeeded' }],
+    }
+    const chat = [...msgs('user', 'assistant', 'tool'), results]
+    expect(lastMessageDeleteFromIndex(chat)).toBe(3)
+    expect(lastMessageDeleteFromIndex(chat.slice(0, 3))).toBe(1)
+  })
+
   describe('under messages no client draws', () => {
     const card = { role: 'assistant', openChangesCard: { kind: 'waiting' } }
 

@@ -6,6 +6,7 @@ import { APP_BRIDGE_ASK_SCENES } from '../scenes/appBridgeAsks'
 import { APP_FEATURE_REQUEST_SCENES } from '../scenes/appFeatureRequest'
 import { CHAT_SCENES } from '../scenes/chat'
 import { CHAT_HIDDEN_TAIL_SCENES } from '../scenes/chatHiddenTail'
+import { CHAT_LAST_ROW_SCENES } from '../scenes/chatLastRow'
 import { CHAT_LIST_CLOSED_SCENES } from '../scenes/chatListClosed'
 import { CHAT_STOP_SCENES } from '../scenes/chatStop'
 import { CIRCLING_SCENES } from '../scenes/circling'
@@ -35,6 +36,7 @@ import { PROCESS_SCENES } from '../scenes/process'
 import { PROCESS_CHECKS_SCENES } from '../scenes/processChecks'
 import { PROCESS_FEATURE_SCENES } from '../scenes/processFeatures'
 import { PROCESS_MODEL_SCENES } from '../scenes/processModel'
+import { PROJECT_OVERVIEW_MODEL_SCENES } from '../scenes/projectOverviewModel'
 import { PROOF_CHANGE_SCENES } from '../scenes/proofChange'
 import { REGENERATED_MERGE_SCENES } from '../scenes/regeneratedMerge'
 import { RUNNING_TONE_SCENES } from '../scenes/runningTone'
@@ -69,6 +71,7 @@ export const SCENES: readonly Scene[] = [
   ...MODEL_EFFORT_SCENES,
   ...CHAT_STOP_SCENES,
   ...CHAT_HIDDEN_TAIL_SCENES,
+  ...CHAT_LAST_ROW_SCENES,
   ...ACTIVITY_STOP_SCENES,
   ...CHAT_CHANGES_SCENES,
   ...CHAT_CHANGES_DOCK_SCENES,
@@ -110,6 +113,7 @@ export const SCENES: readonly Scene[] = [
   ...USAGE_SCENES,
   ...CLI_CAPABILITY_CARD_SCENES,
   ...BACKEND_CONNECTION_SCENES,
+  ...PROJECT_OVERVIEW_MODEL_SCENES,
   ...PRIMITIVE_SCENES,
 ]
 

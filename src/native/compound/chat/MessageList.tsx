@@ -17,6 +17,7 @@ import { useAppSettings } from '../../../headless/contexts/AppSettingsContext'
 import {
   agentExchangeLayout,
   agentExchangeStartOf,
+  agentExchangeRowEnd,
   agentExchangeWindowStart,
 } from '../../../headless/utils/agentExchanges'
 import { formatDurationMs, useInlineApprovals } from '../../../headless'
@@ -28,6 +29,7 @@ import type { UikitFileMeta } from '../files/FileDisplay'
 import type { ResourceLink } from 'thefactory-tools/types'
 import type { ChatMessageLike, PendingToolGrant } from '../../../headless/utils/chatTypes'
 import { describeLastMessageDelete } from '../../../headless/utils/chatMessageDelete'
+import { CardRowFrame } from './MessageRowControls'
 import { chatShownMessages } from '../../../headless/utils/chatShownMessages'
 import { isInDeleteRange, lastMessageDeleteFromIndex } from '../../../headless/utils/chatTurnDelete'
 import { describeLastUserMessageRestart } from '../../../headless/utils/chatMessageRestart'
@@ -504,13 +506,17 @@ export default function MessageList({
             msg.role === 'assistant' && prevIso && curIso
               ? formatDurationMs(new Date(curIso).getTime() - new Date(prevIso).getTime())
               : undefined
+          // A folded exchange is drawn as one row: it is the last row when it
+          // holds the chat's last message, and its delete takes that message.
+          const rowEnd = agentExchangeRowEnd(exchanges, startIndex + i) - startIndex
+          const lastOfRow = windowed[rowEnd - 1] ?? msg
           const deleteControl = describeLastMessageDelete({
             hasDeleteAction: !!onDeleteLastMessage,
-            isLast: i === lastIndex,
+            isLast: rowEnd - 1 === lastIndex,
             // NOT `|| isDeleting`: a live agent HIDES the control, but our own
             // delete landing must keep it on screen to show the spinner.
             turnInFlight,
-            runId: msg.cliRunId,
+            runId: lastOfRow.cliRunId,
             historyLocked,
           })
           const restartControl = describeLastUserMessageRestart({
@@ -522,12 +528,26 @@ export default function MessageList({
             turnInFlight,
           })
           const row = exchange ? (
-            <AgentExchangeBlock
+            <CardRowFrame
               key={`exchange-${startIndex + i}`}
-              exchange={exchange}
-              links={{ renderReference, onResourceLink }}
-              renderProcessRun={renderProcessRun}
-            />
+              deleteBinding={
+                onDeleteLastMessage && deleteControl
+                  ? {
+                      control: deleteControl,
+                      onDelete: onDeleteLastMessage,
+                      preview: isInDeleteRange(rowEnd - 1, deleteFromIndex, deletePreview),
+                      onPreviewChange: setDeletePreview,
+                      deleting: isDeleting,
+                    }
+                  : undefined
+              }
+            >
+              <AgentExchangeBlock
+                exchange={exchange}
+                links={{ renderReference, onResourceLink }}
+                renderProcessRun={renderProcessRun}
+              />
+            </CardRowFrame>
           ) : (
             // A CLI-run message keys on its runId so the live (trailing) and
             // persisted (inline) blocks share ONE key — React moves the mounted

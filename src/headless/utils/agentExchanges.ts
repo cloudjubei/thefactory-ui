@@ -64,9 +64,11 @@ function exchangeOf(
 /**
  * How a conversation draws the agents' own exchange: `collapsed`, each run of
  * it as one exchange at its first message; `full`, every message on its own;
- * `hidden`, none of it but the cards that need the person. With `openTail`, a
- * run that ends the conversation — a turn still under way, or asks waiting in
- * it — is drawn in full whatever the display, so nothing it asks is hidden. Pure.
+ * `hidden`, none of it but the cards that need the person — save a run that
+ * ends the conversation, drawn in full so its last message can be retried or
+ * deleted. With `openTail`, a run that ends the conversation — a turn still
+ * under way, or asks waiting in it — is drawn in full whatever the display, so
+ * nothing it asks is hidden. Pure.
  */
 export function agentExchangeLayout(
   messages: readonly ChatMessageLike[],
@@ -77,7 +79,7 @@ export function agentExchangeLayout(
   const hidden = new Set<number>()
   if (display === 'full') return { starts, hidden }
   for (const [start, end] of agentRuns(messages)) {
-    if (options.openTail && end === messages.length) continue
+    if ((options.openTail || display === 'hidden') && end === messages.length) continue
     if (display === 'collapsed') starts.set(start, exchangeOf(messages, start, end))
     for (let i = start; i < end; i++) {
       if (display === 'collapsed' ? i > start : !isNeedsYouMessage(messages[i]!)) hidden.add(i)
@@ -100,6 +102,16 @@ export function agentExchangeStartOf(
     if (index >= exchange.start && index < exchange.end) return exchange.start
   }
   return index
+}
+
+/**
+ * Where the row drawn at `index` ends (exclusive): after the last message of
+ * the exchange folded into it, else after itself. The row ending the chat is
+ * the one whose end is the chat's length — the row that carries the delete of
+ * the chat's last message, even when that message is folded into it. Pure.
+ */
+export function agentExchangeRowEnd(layout: AgentExchangeLayout, index: number): number {
+  return layout.starts.get(index)?.end ?? index + 1
 }
 
 /**

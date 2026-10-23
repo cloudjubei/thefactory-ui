@@ -1,4 +1,9 @@
-import { listProcessRuns, listStories, type GetStoryResponse } from './generated'
+import {
+  listFeatureRequests,
+  listProcessRuns,
+  listStories,
+  type GetStoryResponse,
+} from './generated'
 import { bridgeMessageName, type BridgeRequest } from '../utils/appBridge'
 import { compareRunsNewestFirst } from '../utils/processRunOrder'
 
@@ -8,14 +13,17 @@ type StorySource = {
   loadError: Error | null
 }
 
-/** Read-only work summaries. Unowned messages pass through; credentials stay in the host. */
+/**
+ * Read-only work summaries — the project's stories, its runs, and the feature requests it sent.
+ * Unowned messages pass through; credentials stay in the host.
+ */
 export async function dispatchWorkBridge(
   projectId: string | undefined,
   req: BridgeRequest,
   storySource?: StorySource,
 ): Promise<unknown> {
   const name = bridgeMessageName(req.type)
-  if (name !== 'stories.list' && name !== 'runs.list') return undefined
+  if (name !== 'stories.list' && name !== 'runs.list' && name !== 'requests.list') return undefined
   if (!projectId) return []
 
   try {
@@ -31,6 +39,21 @@ export async function dispatchWorkBridge(
         title,
         status,
         features: features.map(({ id, title, status }) => ({ id, title, status })),
+      }))
+    }
+
+    if (name === 'requests.list') {
+      const { data } = await listFeatureRequests({
+        query: { fromProjectId: projectId },
+        throwOnError: true,
+      })
+      return (data ?? []).map(({ id, title, targetProjectId, status, references, updatedAt }) => ({
+        id,
+        title,
+        targetProjectId,
+        status,
+        references: references ?? [],
+        updatedAt,
       }))
     }
 

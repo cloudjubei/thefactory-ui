@@ -8,7 +8,7 @@ import type { ResourceLink } from 'thefactory-tools/types'
 import FileDisplay, { type UikitFileMeta } from '../files/FileDisplay'
 import { isImageAttachment } from '../../../headless/utils/chatDrop'
 import SentImageAttachment from './SentImageAttachment'
-import { IconDelete, IconRefreshChat, IconToolbox } from '../../icons'
+import { IconToolbox } from '../../icons'
 import type {
   AlwaysAllowScope,
   ChatMessageLike,
@@ -16,7 +16,6 @@ import type {
 } from '../../../headless/utils/chatTypes'
 import type { MessageDeleteControl } from '../../../headless/utils/chatMessageDeleteTypes'
 import type { MessageRestartControl } from '../../../headless/utils/chatMessageRestartTypes'
-import { MESSAGE_RESTART_ACTION_LABEL } from '../../../headless/utils/chatMessageRestartConstants'
 import {
   nativeAlpha,
   nativePalette,
@@ -44,6 +43,13 @@ import { answeredQuestionOf } from '../../../headless/utils/agentQuestions'
 import OpenQuestionsCard from './OpenQuestionsCard'
 import ChatStopCard from './ChatStopCard'
 import { chatStopRestart } from '../../../headless/utils/chatStopNotice'
+import {
+  CardRowFrame,
+  MessageDeleteButton,
+  RestartTurnButton,
+  type MessageDeleteBinding,
+  type MessageRestartBinding,
+} from './MessageRowControls'
 
 function formatFriendlyTimestamp(iso: string): string {
   const d = new Date(iso)
@@ -341,41 +347,60 @@ function MessageRow({
   decidedAsk,
 }: MessageRowProps) {
   const { theme } = useNativeTheme()
-  // ABOVE any early return: a hook that runs on only some renders crashes.
-  const [confirmingDelete, setConfirmingDelete] = useState(false)
   const role = msg.role
+  const deleteBinding: MessageDeleteBinding | undefined =
+    onDeleteLastMessage && deleteControl
+      ? {
+          control: deleteControl,
+          onDelete: onDeleteLastMessage,
+          preview: deletePreview,
+          onPreviewChange: onDeletePreviewChange,
+          deleting,
+        }
+      : undefined
+  const restartBinding: MessageRestartBinding | undefined =
+    onRestartTurn && restartControl
+      ? { control: restartControl, onRestart: onRestartTurn }
+      : undefined
+  // The agent's input, as a person's message is: it runs again in place.
   if (role === 'user' && msg.backgroundResults?.length) {
     const at = messageIso(msg)
     return (
-      <BackgroundResultsRow
-        results={msg.backgroundResults}
-        content={msg.content}
-        {...(at ? { timestamp: formatFriendlyTimestamp(at) } : {})}
-      />
+      <CardRowFrame deleteBinding={deleteBinding} restartBinding={restartBinding}>
+        <BackgroundResultsRow
+          results={msg.backgroundResults}
+          content={msg.content}
+          {...(at ? { timestamp: formatFriendlyTimestamp(at) } : {})}
+        />
+      </CardRowFrame>
     )
   }
   const openQuestionsCard = role === 'assistant' ? msg.openQuestionsCard : undefined
   if (openQuestionsCard) {
     const at = messageIso(msg)
     return (
-      <OpenQuestionsCard
-        card={openQuestionsCard}
-        {...(at ? { at: formatFriendlyTimestamp(at) } : {})}
-      />
+      <CardRowFrame deleteBinding={deleteBinding}>
+        <OpenQuestionsCard
+          card={openQuestionsCard}
+          {...(at ? { at: formatFriendlyTimestamp(at) } : {})}
+        />
+      </CardRowFrame>
     )
   }
   const managerCard = role === 'assistant' ? msg.managerCard : undefined
   if (managerCard && managerCard.kind !== 'brief') {
     const at = messageIso(msg)
     return (
-      <ManagerCardView
-        card={managerCard}
-        {...(msg.processRunId ? { processRunId: msg.processRunId } : {})}
-        {...(at ? { at: formatFriendlyTimestamp(at) } : {})}
-        links={{ renderReference, onResourceLink }}
-      >
-        {msg.processRunId && renderProcessRun ? renderProcessRun(msg.processRunId) : null}
-      </ManagerCardView>
+      <CardRowFrame deleteBinding={deleteBinding}>
+        <ManagerCardView
+          card={managerCard}
+          {...(msg.processRunId ? { processRunId: msg.processRunId } : {})}
+          {...(at ? { at: formatFriendlyTimestamp(at) } : {})}
+          links={{ renderReference, onResourceLink }}
+        >
+          {msg.processRunId && renderProcessRun ? renderProcessRun(msg.processRunId) : null}
+        </ManagerCardView>
+      </CardRowFrame>
     )
   }
   const answeredQuestion = msg.toolCall
@@ -387,7 +412,13 @@ function MessageRow({
         ...(decidedAsk ? { decided: decidedAsk } : {}),
       })
     : undefined
-  if (answeredQuestion) return <AnsweredQuestionBubble view={answeredQuestion} />
+  if (answeredQuestion) {
+    return (
+      <CardRowFrame deleteBinding={deleteBinding}>
+        <AnsweredQuestionBubble view={answeredQuestion} />
+      </CardRowFrame>
+    )
+  }
   const isSystem = role === 'system'
   const isUser = role === 'user'
   const isAssistant = role === 'assistant'
@@ -403,70 +434,72 @@ function MessageRow({
   // One card for a stop, drawn from its notice — never also the error box or the message's text.
   if (msg.stopNotice) {
     const restart = chatStopRestart({
-      ...(onRestartTurn && restartControl ? { restart: restartControl } : {}),
+      ...(restartBinding ? { restart: restartBinding.control } : {}),
       hasRetry: !!onRetry,
       isLast,
       isThinking,
     })
     return (
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: nativeSpace[3] }}>
-        <Avatar kind="ai" />
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <ChatStopCard
-            notice={msg.stopNotice}
-            {...(restart
-              ? {
-                  restart,
-                  onRestart: () => (restart.via === 'restart' ? onRestartTurn?.() : onRetry?.()),
-                }
-              : {})}
-            {...(msg.cliRunId ? { runId: msg.cliRunId } : {})}
-          />
+      <CardRowFrame deleteBinding={deleteBinding}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: nativeSpace[3] }}>
+          <Avatar kind="ai" />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <ChatStopCard
+              notice={msg.stopNotice}
+              {...(restart
+                ? {
+                    restart,
+                    onRestart: () => (restart.via === 'restart' ? onRestartTurn?.() : onRetry?.()),
+                  }
+                : {})}
+              {...(msg.cliRunId ? { runId: msg.cliRunId } : {})}
+            />
+          </View>
         </View>
-      </View>
+      </CardRowFrame>
     )
   }
 
   if (msg.error) {
     return (
-      <View
-        accessibilityRole="alert"
-        style={{ flexDirection: 'row', alignItems: 'flex-start', gap: nativeSpace[3] }}
-      >
-        <Avatar kind="ai" />
+      <CardRowFrame deleteBinding={deleteBinding}>
         <View
-          style={{
-            flex: 1,
-            maxWidth: '72%',
-            minWidth: 80,
-            paddingHorizontal: nativeSpace[6],
-            paddingVertical: nativeSpace[4],
-            borderRadius: nativeRadii[2],
-            borderWidth: 1,
-            borderColor: nativePalette.red[500],
-            backgroundColor: nativePalette.red[50],
-          }}
+          accessibilityRole="alert"
+          style={{ flexDirection: 'row', alignItems: 'flex-start', gap: nativeSpace[3] }}
         >
-          <Text style={{ fontSize: 14, color: nativePalette.red[700] }}>{String(msg.error)}</Text>
-          {onRestartTurn && restartControl ? (
-            <RestartTurnButton control={restartControl} onRestart={onRestartTurn} />
-          ) : null}
-        </View>
-        {onRetry && isLast && (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Retry the last action"
-            onPress={onRetry}
-            disabled={isThinking}
-            style={({ pressed }) => ({
-              padding: nativeSpace[4],
-              opacity: pressed ? 0.5 : isThinking ? 0.5 : 1,
-            })}
+          <Avatar kind="ai" />
+          <View
+            style={{
+              flex: 1,
+              maxWidth: '72%',
+              minWidth: 80,
+              paddingHorizontal: nativeSpace[6],
+              paddingVertical: nativeSpace[4],
+              borderRadius: nativeRadii[2],
+              borderWidth: 1,
+              borderColor: nativePalette.red[500],
+              backgroundColor: nativePalette.red[50],
+            }}
           >
-            <Text style={{ fontSize: 18, color: theme.text.secondary }}>↻</Text>
-          </Pressable>
-        )}
-      </View>
+            <Text style={{ fontSize: 14, color: nativePalette.red[700] }}>{String(msg.error)}</Text>
+            {restartBinding ? <RestartTurnButton binding={restartBinding} /> : null}
+          </View>
+          {onRetry && isLast && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Retry the last action"
+              onPress={onRetry}
+              disabled={isThinking}
+              style={({ pressed }) => ({
+                padding: nativeSpace[4],
+                opacity: pressed ? 0.5 : isThinking ? 0.5 : 1,
+              })}
+            >
+              <Text style={{ fontSize: 18, color: theme.text.secondary }}>↻</Text>
+            </Pressable>
+          )}
+        </View>
+      </CardRowFrame>
     )
   }
 
@@ -512,49 +545,7 @@ function MessageRow({
           kind={isUser ? 'user' : isTool ? 'tool' : 'ai'}
           {...(isHandoff ? { handoffInitial: handoffLabel.charAt(0) } : {})}
         />
-        {onDeleteLastMessage && deleteControl && (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={
-              confirmingDelete ? 'Tap again to delete — cannot be undone' : deleteControl.label
-            }
-            onPress={() => {
-              // Two deliberate acts: the first press arms, the second commits.
-              if (!confirmingDelete) {
-                setConfirmingDelete(true)
-                return
-              }
-              setConfirmingDelete(false)
-              onDeletePreviewChange?.(false)
-              onDeleteLastMessage?.()
-            }}
-            onPressIn={() => onDeletePreviewChange?.(true)}
-            onPressOut={() => onDeletePreviewChange?.(confirmingDelete)}
-            // Blocked while a delete lands: the rows are gone locally but the
-            // server has not agreed yet.
-            disabled={deleteControl.disabled || deleting}
-            hitSlop={4}
-            style={({ pressed }) => ({
-              width: 24,
-              height: 24,
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: nativeRadii[1],
-              borderWidth: 1,
-              borderColor: theme.border.subtle,
-              backgroundColor: pressed ? theme.surface.muted : theme.surface.raised,
-              // A locked row is not merely unavailable — keep it legible, since
-              // "this history is deliberately kept" is the message it carries.
-              opacity: deleteControl.locked ? 0.85 : deleteControl.disabled ? 0.4 : 1,
-            })}
-          >
-            {deleteControl.locked ? (
-              <Text style={{ fontSize: 11 }}>🔒</Text>
-            ) : (
-              <IconDelete size={12} color={theme.text.secondary} />
-            )}
-          </Pressable>
-        )}
+        {deleteBinding ? <MessageDeleteButton binding={deleteBinding} /> : null}
       </View>
 
       <View
@@ -874,52 +865,9 @@ function MessageRow({
           </View>
         )}
 
-        {onRestartTurn && restartControl && (
-          <RestartTurnButton control={restartControl} onRestart={onRestartTurn} alignEnd={isUser} />
-        )}
+        {restartBinding ? <RestartTurnButton binding={restartBinding} alignEnd={isUser} /> : null}
       </View>
     </View>
-  )
-}
-
-/** The control that runs the agent again on the chat's last turn. */
-function RestartTurnButton({
-  control,
-  onRestart,
-  alignEnd = false,
-}: {
-  control: MessageRestartControl
-  onRestart: () => void
-  alignEnd?: boolean
-}) {
-  const { theme } = useNativeTheme()
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={control.label}
-      onPress={onRestart}
-      disabled={control.disabled}
-      hitSlop={4}
-      style={({ pressed }) => ({
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: nativeSpace[2],
-        alignSelf: alignEnd ? 'flex-end' : 'flex-start',
-        marginTop: nativeSpace[2],
-        height: 24,
-        paddingHorizontal: nativeSpace[4],
-        borderRadius: nativeRadii[1],
-        borderWidth: 1,
-        borderColor: theme.border.subtle,
-        backgroundColor: pressed ? theme.surface.muted : theme.surface.raised,
-        opacity: control.disabled ? 0.4 : 1,
-      })}
-    >
-      <IconRefreshChat size={12} color={theme.text.secondary} />
-      <Text style={{ fontSize: 11, color: theme.text.secondary }}>
-        {MESSAGE_RESTART_ACTION_LABEL}
-      </Text>
-    </Pressable>
   )
 }
 

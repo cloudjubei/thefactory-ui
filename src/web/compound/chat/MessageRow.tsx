@@ -8,7 +8,7 @@ import FileDisplay, { type UikitFileMeta } from '../files/FileDisplay'
 import { isImageAttachment } from '../../../headless/utils/chatDrop'
 import SentImageAttachment from './SentImageAttachment'
 import Tooltip from '../../primitives/Tooltip'
-import { IconDelete, IconRefresh, IconRefreshChat, IconToolbox } from '../../icons'
+import { IconRefresh, IconToolbox } from '../../icons'
 import { SubagentSteps, ToolCallCard, type ToolCall, type ToolResultType } from './ToolCall'
 import BackgroundResultsRow from './BackgroundResultsRow'
 import { backgroundJobAnchorOf } from '../../../headless/utils/backgroundJobs'
@@ -19,7 +19,6 @@ import type {
 } from '../../../headless/utils/chatTypes'
 import type { MessageDeleteControl } from '../../../headless/utils/chatMessageDeleteTypes'
 import type { MessageRestartControl } from '../../../headless/utils/chatMessageRestartTypes'
-import { MESSAGE_RESTART_ACTION_LABEL } from '../../../headless/utils/chatMessageRestartConstants'
 import {
   cliDotColor,
   cliLabel,
@@ -36,6 +35,13 @@ import { answeredQuestionOf } from '../../../headless/utils/agentQuestions'
 import OpenQuestionsCard from './OpenQuestionsCard'
 import ChatStopCard from './ChatStopCard'
 import { chatStopRestart } from '../../../headless/utils/chatStopNotice'
+import {
+  CardRowFrame,
+  MessageDeleteButton,
+  RestartTurnButton,
+  type MessageDeleteBinding,
+  type MessageRestartBinding,
+} from './MessageRowControls'
 
 function formatFriendlyTimestamp(iso: string): string {
   try {
@@ -270,91 +276,107 @@ function MessageRow({
   decidedAsk,
 }: MessageRowProps) {
   const role = msg.role
-  // ABOVE the early returns: a hook that runs on only some renders is the
-  // "rendered more hooks" crash.
-  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const deleteBinding: MessageDeleteBinding | undefined =
+    onDeleteLastMessage && deleteControl
+      ? {
+          control: deleteControl,
+          onDelete: onDeleteLastMessage,
+          preview: deletePreview,
+          onPreviewChange: onDeletePreviewChange,
+          deleting,
+        }
+      : undefined
+  const restartBinding: MessageRestartBinding | undefined =
+    onRestartTurn && restartControl
+      ? { control: restartControl, onRestart: onRestartTurn }
+      : undefined
+  const frame = {
+    index: globalIndex,
+    rowRef: isLast ? setLastMessageRef : undefined,
+    deleteBinding,
+  }
 
   // One card for a stop, drawn from its notice — never also the error box or the message's text.
   if (msg.stopNotice) {
     const restart = chatStopRestart({
-      ...(onRestartTurn && restartControl ? { restart: restartControl } : {}),
+      ...(restartBinding ? { restart: restartBinding.control } : {}),
       hasRetry: !!onRetry,
       isLast,
       isThinking,
     })
     return (
-      <div
-        data-msg-idx={globalIndex}
-        ref={isLast ? setLastMessageRef : undefined}
-        className="flex items-start gap-2"
-      >
-        <div
-          className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold bg-[color-mix(in_srgb,var(--accent-primary)_14%,transparent)] text-(--text-primary) border border-(--border-subtle)"
-          aria-hidden
-        >
-          AI
+      <CardRowFrame {...frame}>
+        <div className="flex items-start gap-2">
+          <div
+            className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold bg-[color-mix(in_srgb,var(--accent-primary)_14%,transparent)] text-(--text-primary) border border-(--border-subtle)"
+            aria-hidden
+          >
+            AI
+          </div>
+          <div className="min-w-0 flex-1">
+            <ChatStopCard
+              notice={msg.stopNotice}
+              {...(restart
+                ? {
+                    restart,
+                    onRestart: () => (restart.via === 'restart' ? onRestartTurn?.() : onRetry?.()),
+                  }
+                : {})}
+              {...(msg.cliRunId ? { runId: msg.cliRunId } : {})}
+            />
+          </div>
         </div>
-        <div className="min-w-0 flex-1">
-          <ChatStopCard
-            notice={msg.stopNotice}
-            {...(restart
-              ? {
-                  restart,
-                  onRestart: () => (restart.via === 'restart' ? onRestartTurn?.() : onRetry?.()),
-                }
-              : {})}
-            {...(msg.cliRunId ? { runId: msg.cliRunId } : {})}
-          />
-        </div>
-      </div>
+      </CardRowFrame>
     )
   }
 
   if (msg.error) {
     const showRetry = !!onRetry && isLast
-    const errorRestart = onRestartTurn ? restartControl : undefined
     return (
-      <div data-msg-idx={globalIndex} className="flex items-start gap-2">
-        <div
-          className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold bg-[color-mix(in_srgb,var(--accent-primary)_14%,transparent)] text-(--text-primary) border border-(--border-subtle)"
-          aria-hidden
-        >
-          AI
-        </div>
-        <div className="flex-1 max-w-[72%] min-w-[80px]">
-          <div className="rounded-md border border-(--color-red-500) bg-(--color-red-50) dark:bg-(--color-red-900)/20 px-3 py-2 text-sm text-(--color-red-700) dark:text-(--color-red-300)">
-            {String(msg.error)}
+      <CardRowFrame {...frame}>
+        <div className="flex items-start gap-2">
+          <div
+            className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold bg-[color-mix(in_srgb,var(--accent-primary)_14%,transparent)] text-(--text-primary) border border-(--border-subtle)"
+            aria-hidden
+          >
+            AI
           </div>
-          {errorRestart ? (
-            <RestartTurnButton control={errorRestart} onRestart={() => onRestartTurn?.()} />
+          <div className="flex-1 max-w-[72%] min-w-[80px]">
+            <div className="rounded-md border border-(--color-red-500) bg-(--color-red-50) dark:bg-(--color-red-900)/20 px-3 py-2 text-sm text-(--color-red-700) dark:text-(--color-red-300)">
+              {String(msg.error)}
+            </div>
+            {restartBinding ? (
+              <RestartTurnButton binding={restartBinding} className="mt-1.5" />
+            ) : null}
+          </div>
+          {showRetry ? (
+            <button
+              type="button"
+              onClick={() => onRetry?.()}
+              disabled={isThinking}
+              className="inline-flex items-center justify-center w-8 h-8 rounded hover:bg-(--surface-hover)"
+              aria-label="Retry the last action"
+              title={isThinking ? 'Please wait…' : 'Retry the last action'}
+            >
+              <IconRefresh className="w-5 h-5 mt-4" />
+            </button>
           ) : null}
         </div>
-        {showRetry ? (
-          <button
-            type="button"
-            onClick={() => onRetry?.()}
-            disabled={isThinking}
-            className="inline-flex items-center justify-center w-8 h-8 rounded hover:bg-(--surface-hover)"
-            aria-label="Retry the last action"
-            title={isThinking ? 'Please wait…' : 'Retry the last action'}
-          >
-            <IconRefresh className="w-5 h-5 mt-4" />
-          </button>
-        ) : null}
-      </div>
+      </CardRowFrame>
     )
   }
 
+  // The agent's input, as a person's message is: it runs again in place.
   if (role === 'user' && msg.backgroundResults?.length) {
     const at = messageIso(msg)
     return (
-      <div data-msg-idx={globalIndex} className="flex w-full">
+      <CardRowFrame {...frame} restartBinding={restartBinding}>
         <BackgroundResultsRow
           results={msg.backgroundResults}
           content={msg.content}
           {...(at ? { timestamp: formatFriendlyTimestamp(at) } : {})}
         />
-      </div>
+      </CardRowFrame>
     )
   }
 
@@ -362,16 +384,12 @@ function MessageRow({
   if (openQuestionsCard) {
     const at = messageIso(msg)
     return (
-      <div
-        data-msg-idx={globalIndex}
-        ref={isLast ? setLastMessageRef : undefined}
-        className="w-full"
-      >
+      <CardRowFrame {...frame}>
         <OpenQuestionsCard
           card={openQuestionsCard}
           {...(at ? { at: formatFriendlyTimestamp(at) } : {})}
         />
-      </div>
+      </CardRowFrame>
     )
   }
 
@@ -379,11 +397,7 @@ function MessageRow({
   if (managerCard && managerCard.kind !== 'brief') {
     const at = messageIso(msg)
     return (
-      <div
-        data-msg-idx={globalIndex}
-        ref={isLast ? setLastMessageRef : undefined}
-        className="w-full"
-      >
+      <CardRowFrame {...frame}>
         <ManagerCardView
           card={managerCard}
           {...(msg.processRunId ? { processRunId: msg.processRunId } : {})}
@@ -392,7 +406,7 @@ function MessageRow({
         >
           {msg.processRunId && renderProcessRun ? renderProcessRun(msg.processRunId) : null}
         </ManagerCardView>
-      </div>
+      </CardRowFrame>
     )
   }
 
@@ -421,8 +435,6 @@ function MessageRow({
   const isNewUserBubble =
     isUser && globalIndex === enhancedTotalLength - 1 && globalIndex >= prevUserMessagesLen
 
-  const deleteAffordance = onDeleteLastMessage ? deleteControl : undefined
-  const restartAffordance = onRestartTurn ? restartControl : undefined
   const iso = messageIso(msg)
   const ts = iso ? formatFriendlyTimestamp(iso) : ''
   const rawModel = msg.usage?.model ?? msg.model
@@ -470,7 +482,7 @@ function MessageRow({
         {/* `isolate` + an opaque own background keeps this column — and the
             delete control in it — clear of the row's danger tint: a wash over
             the control made it read as disabled. */}
-        <div className="isolate flex flex-col items-center group">
+        <div className="isolate flex flex-col items-center group/msg">
           <div
             className={[
               'shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold',
@@ -495,74 +507,7 @@ function MessageRow({
             )}
           </div>
 
-          {deleteAffordance ? (
-            <span
-              className={
-                deleteAffordance.locked
-                  ? // A locked row states itself: it is not a hover-only nicety,
-                    // because "this history is deliberately kept" is the message.
-                    'mt-1'
-                  : `mt-1 transition-opacity group-hover:opacity-100 focus-within:opacity-100 ${
-                      deletePreview || confirmingDelete ? 'opacity-100' : 'opacity-0'
-                    }`
-              }
-            >
-              {confirmingDelete ? (
-                // Irreversible, with no undo — so it takes TWO deliberate acts.
-                <span className="inline-flex items-center gap-1">
-                  <button
-                    type="button"
-                    aria-label="Confirm delete"
-                    className="h-6 rounded border border-(--color-red-500) bg-(--color-red-500) px-1.5 text-[10px] font-medium text-white"
-                    onClick={() => {
-                      setConfirmingDelete(false)
-                      onDeletePreviewChange?.(false)
-                      onDeleteLastMessage?.()
-                    }}
-                  >
-                    Delete
-                  </button>
-                  <button
-                    type="button"
-                    aria-label="Cancel delete"
-                    className="h-6 rounded px-1 text-[10px] text-(--text-secondary) hover:text-(--text-primary)"
-                    onClick={() => {
-                      setConfirmingDelete(false)
-                      onDeletePreviewChange?.(false)
-                    }}
-                  >
-                    Cancel
-                  </button>
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  title={deleteAffordance.label}
-                  aria-label={deleteAffordance.label}
-                  className="inline-flex items-center justify-center w-6 h-6 rounded border border-(--border-subtle) bg-(--surface-raised) hover:bg-(--surface-hover) text-(--text-primary) disabled:cursor-not-allowed disabled:text-(--text-secondary) disabled:hover:bg-(--surface-raised)"
-                  onClick={() => setConfirmingDelete(true)}
-                  onMouseEnter={() => onDeletePreviewChange?.(true)}
-                  onMouseLeave={() => onDeletePreviewChange?.(false)}
-                  onFocus={() => onDeletePreviewChange?.(true)}
-                  onBlur={() => onDeletePreviewChange?.(false)}
-                  disabled={deleteAffordance.disabled || deleting}
-                >
-                  {deleting ? (
-                    <span
-                      aria-hidden
-                      className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"
-                    />
-                  ) : deleteAffordance.locked ? (
-                    <span aria-hidden className="text-[11px] leading-none">
-                      🔒
-                    </span>
-                  ) : (
-                    <IconDelete className="w-3.5 h-3.5" />
-                  )}
-                </button>
-              )}
-            </span>
-          ) : null}
+          {deleteBinding ? <MessageDeleteButton binding={deleteBinding} className="mt-1" /> : null}
         </div>
 
         <div
@@ -754,35 +699,12 @@ function MessageRow({
             </div>
           ) : null}
 
-          {restartAffordance ? (
-            <RestartTurnButton control={restartAffordance} onRestart={() => onRestartTurn?.()} />
+          {restartBinding ? (
+            <RestartTurnButton binding={restartBinding} className="mt-1.5" />
           ) : null}
         </div>
       </div>
     </div>
-  )
-}
-
-/** The control that runs the agent again on the chat's last turn. */
-function RestartTurnButton({
-  control,
-  onRestart,
-}: {
-  control: MessageRestartControl
-  onRestart: () => void
-}) {
-  return (
-    <button
-      type="button"
-      title={control.label}
-      aria-label={control.label}
-      className="mt-1.5 inline-flex items-center gap-1.5 h-6 px-2 rounded border border-(--border-subtle) bg-(--surface-raised) hover:bg-(--surface-hover) text-[11px] text-(--text-secondary) disabled:cursor-not-allowed disabled:hover:bg-(--surface-raised)"
-      onClick={onRestart}
-      disabled={control.disabled}
-    >
-      <IconRefreshChat className="w-3.5 h-3.5" />
-      <span>{MESSAGE_RESTART_ACTION_LABEL}</span>
-    </button>
   )
 }
 

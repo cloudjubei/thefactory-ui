@@ -10,6 +10,8 @@ import {
   type CliAuthWarning,
 } from '../../headless/utils/cliRunner'
 import { modelChipLabel } from '../../headless/utils/modelChip'
+import { MODEL_CHIP_OFF } from '../../headless/utils/modelChipConstants'
+import type { ModelChipOff } from '../../headless/utils/modelChipTypes'
 import { effortDefaultLabel, effortLevelLabel } from '../../headless/utils/modelEffort'
 import { EFFORT_SWITCH_LABEL } from '../../headless/utils/modelEffortConstants'
 import type { ModelEffortSwitch } from '../../headless/utils/modelEffortTypes'
@@ -68,6 +70,8 @@ export type ModelChipProps = {
   defaultOpen?: boolean
   /** The selected model's effort switch; hidden when the model offers no levels. */
   effort?: ModelEffortSwitch
+  /** A model for a job that may run on none: adds Off beside API and CLI. */
+  off?: ModelChipOff
 }
 
 function providerDotClasses(p?: string) {
@@ -231,6 +235,7 @@ function Picker({
   authWarning,
   note,
   effort,
+  off,
 }: {
   anchorEl: HTMLElement
   onClose: () => void
@@ -255,7 +260,9 @@ function Picker({
   authWarning?: CliAuthWarning
   note?: string
   effort?: ModelEffortSwitch
+  off?: ModelChipOff
 }) {
+  const offSelected = !!off?.selected
   const panelRef = useRef<HTMLDivElement | null>(null)
   const [coords, setCoords] = useState<{
     top: number
@@ -342,7 +349,7 @@ function Picker({
         onClose()
         return
       }
-      if (useCli) return
+      if (useCli || offSelected) return
       if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
         e.preventDefault()
         setActiveIndex((i) => (i + 1) % Math.max(1, recents.length + 1))
@@ -367,7 +374,7 @@ function Picker({
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [activeIndex, onClose, recents, onPickConfigId, onOpenSettings, useCli])
+  }, [activeIndex, onClose, recents, onPickConfigId, onOpenSettings, useCli, offSelected])
 
   if (!coords) return null
 
@@ -398,19 +405,38 @@ function Picker({
       )}
       {onToggleUseCli && (
         <div className="flex items-center gap-1 px-2 pt-1 pb-2" role="group" aria-label="Backend">
+          {off && (
+            <button
+              type="button"
+              role="radio"
+              aria-checked={offSelected}
+              className={[
+                'flex-1 rounded-md px-2 py-1 text-[11px] font-medium',
+                offSelected
+                  ? 'bg-[color-mix(in_srgb,var(--accent-primary)_16%,transparent)] text-[var(--text-primary)]'
+                  : 'text-[var(--text-secondary)] hover:bg-[color-mix(in_srgb,var(--accent-primary)_8%,transparent)]',
+              ].join(' ')}
+              onClick={(e) => {
+                e.stopPropagation()
+                if (!offSelected) off.onPick()
+              }}
+            >
+              {MODEL_CHIP_OFF}
+            </button>
+          )}
           <button
             type="button"
             role="radio"
-            aria-checked={!useCli}
+            aria-checked={!offSelected && !useCli}
             className={[
               'flex-1 rounded-md px-2 py-1 text-[11px] font-medium',
-              !useCli
+              !offSelected && !useCli
                 ? 'bg-[color-mix(in_srgb,var(--accent-primary)_16%,transparent)] text-[var(--text-primary)]'
                 : 'text-[var(--text-secondary)] hover:bg-[color-mix(in_srgb,var(--accent-primary)_8%,transparent)]',
             ].join(' ')}
             onClick={(e) => {
               e.stopPropagation()
-              if (useCli) onToggleUseCli(false)
+              if (offSelected || useCli) onToggleUseCli(false)
             }}
           >
             API
@@ -418,21 +444,21 @@ function Picker({
           <button
             type="button"
             role="radio"
-            aria-checked={!!useCli}
+            aria-checked={!offSelected && !!useCli}
             disabled={cliDisabled}
             title={cliDisabled ? cliDisabledReason : undefined}
             className={[
               'flex-1 rounded-md px-2 py-1 text-[11px] font-medium',
               cliDisabled
                 ? 'cursor-not-allowed text-[var(--text-tertiary)] opacity-50'
-                : useCli
+                : !offSelected && useCli
                   ? 'bg-[color-mix(in_srgb,var(--accent-primary)_16%,transparent)] text-[var(--text-primary)]'
                   : 'text-[var(--text-secondary)] hover:bg-[color-mix(in_srgb,var(--accent-primary)_8%,transparent)]',
             ].join(' ')}
             onClick={(e) => {
               e.stopPropagation()
               if (cliDisabled) return
-              if (!useCli) onToggleUseCli(true)
+              if (offSelected || !useCli) onToggleUseCli(true)
             }}
           >
             CLI
@@ -449,7 +475,7 @@ function Picker({
           {cliSwitchError}
         </div>
       )}
-      {useCli && (
+      {!offSelected && useCli && (
         <div className="flex flex-col">
           {(recentCliModels ?? []).length > 0 && (
             <>
@@ -573,7 +599,8 @@ function Picker({
           </button>
         </div>
       )}
-      {!useCli &&
+      {!offSelected &&
+        !useCli &&
         recents.map((cfg, i) => {
           const isActive = cfg.id === selectedConfigId
           const dot = providerDotClasses(cfg.provider)
@@ -615,8 +642,10 @@ function Picker({
             </button>
           )
         })}
-      {!useCli && effort && effort.levels.length > 0 && <EffortRow effort={effort} />}
-      {!useCli && (
+      {!offSelected && !useCli && effort && effort.levels.length > 0 && (
+        <EffortRow effort={effort} />
+      )}
+      {!offSelected && !useCli && (
         <button
           role="menuitem"
           className="standard-picker__item"
@@ -663,10 +692,12 @@ export function ModelChip({
   note,
   defaultOpen = false,
   effort,
+  off,
 }: ModelChipProps) {
   const [anchor, setAnchor] = useState<HTMLSpanElement | null>(null)
   const [open, setOpen] = useState(defaultOpen)
-  const needsReauth = !!useCli && !!authWarning?.needsReauth
+  const offSelected = !!off?.selected
+  const needsReauth = !offSelected && !!useCli && !!authWarning?.needsReauth
 
   const cliEnabled = onToggleUseCli != null
 
@@ -679,10 +710,11 @@ export function ModelChip({
     ...(cliModels !== undefined ? { cliModels } : {}),
     ...(editable !== undefined ? { editable } : {}),
     ...(needsReauth ? { reauthMessage: authWarning?.message ?? '' } : {}),
+    ...(offSelected ? { off: true } : {}),
   })
   const title = label.title
 
-  if (editable && !cliEnabled && !useCli && (!configs || configs.length === 0)) {
+  if (editable && !off && !cliEnabled && !useCli && (!configs || configs.length === 0)) {
     return (
       <button
         type="button"
@@ -726,7 +758,7 @@ export function ModelChip({
       }}
     >
       <span className="flex flex-col items-center gap-0.5 shrink-0">
-        {cliEnabled && (
+        {cliEnabled && !offSelected && (
           <span
             className={[
               'rounded-sm px-1 text-[9px] font-semibold uppercase tracking-wide',
@@ -738,14 +770,16 @@ export function ModelChip({
             {useCli ? 'CLI' : 'API'}
           </span>
         )}
-        <span
-          aria-hidden
-          className={[
-            'inline-block w-1.5 h-1.5 rounded-full',
-            useCli ? '' : providerDotClasses(activeConfig?.provider),
-          ].join(' ')}
-          style={useCli ? { backgroundColor: cliDotColor(activeCli) } : undefined}
-        />
+        {!offSelected && (
+          <span
+            aria-hidden
+            className={[
+              'inline-block w-1.5 h-1.5 rounded-full',
+              useCli ? '' : providerDotClasses(activeConfig?.provider),
+            ].join(' ')}
+            style={useCli ? { backgroundColor: cliDotColor(activeCli) } : undefined}
+          />
+        )}
         {needsReauth && (
           <span
             aria-hidden
@@ -756,9 +790,11 @@ export function ModelChip({
         )}
       </span>
       <span className="flex min-w-0 max-w-[96px] flex-col px-1 text-center leading-tight">
-        <span className="block w-full truncate text-[10px] uppercase tracking-wide text-neutral-700 dark:text-neutral-300">
-          {label.provider}
-        </span>
+        {label.provider && (
+          <span className="block w-full truncate text-[10px] uppercase tracking-wide text-neutral-700 dark:text-neutral-300">
+            {label.provider}
+          </span>
+        )}
         {label.model && (
           <span className="block w-full truncate text-xs font-medium">{label.model}</span>
         )}
@@ -794,6 +830,7 @@ export function ModelChip({
           authWarning={authWarning}
           note={note}
           effort={effort}
+          off={off}
         />
       )}
     </>

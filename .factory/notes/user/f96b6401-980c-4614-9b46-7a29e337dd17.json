@@ -1,0 +1,11 @@
+{
+  "label": "Serving the playground from a sandbox copy",
+  "value": "uiTestServeApp builds the playground (factory.webApp) from the sandbox copy, where node_modules/thefactory-tools (a relative file:../thefactory-tools link) points at nothing. playground/vite.config.ts then looks for thefactory-tools in THEFACTORY_TOOLS_DIR, beside the checkout, and beside the main checkout of a git worktree — so worktree builds resolve it by themselves. Only in a sandbox copy where none of those exist, write a git-ignored /workspace/.env.local containing THEFACTORY_TOOLS_DIR=<host path to thefactory-tools> before serving; the path is shown in runProjectCheck's dependencyRevisions, e.g. /Users/cloud/Documents/Work/thefactory-tools. The sandbox itself can't run vite build (no Rollup native binary for linux), so build on the host via uiTestServeApp/runProjectCheck.",
+  "description": "Before calling uiTestServeApp on thefactory-ui",
+  "kind": "note",
+  "access": "open",
+  "author": "user",
+  "id": "f96b6401-980c-4614-9b46-7a29e337dd17",
+  "createdAt": "2026-10-12T20:35:20.675Z",
+  "updatedAt": "2026-10-22T14:04:25.449Z"
+}

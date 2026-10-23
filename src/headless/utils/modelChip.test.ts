@@ -29,6 +29,18 @@ describe('modelChipLabel', () => {
     ).toEqual({ provider: 'OpenAI', model: 'gpt-6.1-sol', title: 'OpenAI · gpt-6.1-sol' })
   })
 
+  it('says Off for a chip switched off, whatever it was on before', () => {
+    expect(
+      modelChipLabel({
+        off: true,
+        activeConfig: { provider: 'openai', model: 'gpt-6.1-sol' },
+        useCli: true,
+        activeCli: 'codex',
+        editable: true,
+      }),
+    ).toEqual({ provider: '', model: 'Off', title: 'Off' })
+  })
+
   it('prefers the provider and model the caller names', () => {
     expect(
       modelChipLabel({

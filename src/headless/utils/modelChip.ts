@@ -1,5 +1,6 @@
 import { cliLabel, shortCliModelLabel } from './cliRunner'
 import {
+  MODEL_CHIP_OFF,
   MODEL_CHIP_PICK_MODEL,
   MODEL_CHIP_PICK_PROVIDER,
   MODEL_CHIP_PICK_TITLE,
@@ -25,9 +26,10 @@ export function modelChipProviderLabel(provider?: string): string {
 /**
  * What a model chip says, the same on every client: the provider (or CLI) and
  * the model on two short lines, and both in full as its title — the lines are
- * cut to the chip's width, the title never is.
+ * cut to the chip's width, the title never is. A chip switched off says Off.
  */
 export function modelChipLabel(input: ModelChipLabelInput): ModelChipLabel {
+  if (input.off) return { provider: '', model: MODEL_CHIP_OFF, title: MODEL_CHIP_OFF }
   let provider = modelChipProviderLabel(input.provider)
   let model = input.model ?? ''
   if ((!provider || !model) && input.activeConfig) {

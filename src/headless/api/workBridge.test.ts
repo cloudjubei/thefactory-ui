@@ -1,8 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { dispatchWorkBridge } from './workBridge'
-import { listProcessRuns, listStories, type GetStoryResponse, type ProcessRun } from './generated'
+import {
+  listFeatureRequests,
+  listProcessRuns,
+  listStories,
+  type GetStoryResponse,
+  type ProcessRun,
+} from './generated'
 
-vi.mock('./generated', () => ({ listStories: vi.fn(), listProcessRuns: vi.fn() }))
+vi.mock('./generated', () => ({
+  listStories: vi.fn(),
+  listProcessRuns: vi.fn(),
+  listFeatureRequests: vi.fn(),
+}))
 
 const story = {
   id: 's1',
@@ -101,21 +111,74 @@ describe('dispatchWorkBridge', () => {
     expect(listed.map((r) => r.id)).toEqual(['pending', 'new', 'old'])
   })
 
-  it.each(['stories.list', 'runs.list'])('returns [] without a project for %s', async (type) => {
-    expect(
-      await dispatchWorkBridge(
-        undefined,
-        { type },
+  it('returns the requests the project sent, as summaries', async () => {
+    vi.mocked(listFeatureRequests).mockResolvedValueOnce({
+      data: [
         {
-          stories: [story],
-          isLoaded: true,
-          loadError: null,
+          id: 'fr1',
+          title: 'Explorer subagent',
+          targetProjectId: 'thefactory-knowledge',
+          status: 'completed',
+          references: ['@thefactory-references:refs/fastcontext.md'],
+          description: 'not exposed',
+          requestedBy: { fromProjectId: 'p1' },
+          createdAt: '2026-10-20T00:00:00.000Z',
+          updatedAt: '2026-10-21T00:00:00.000Z',
         },
-      ),
-    ).toEqual([])
-    expect(listStories).not.toHaveBeenCalled()
-    expect(listProcessRuns).not.toHaveBeenCalled()
+        {
+          id: 'fr2',
+          title: 'No references',
+          targetProjectId: 'thefactory-tools',
+          status: 'pending',
+          requestedBy: { fromProjectId: 'p1' },
+          createdAt: '2026-10-20T00:00:00.000Z',
+          updatedAt: '2026-10-20T00:00:00.000Z',
+        },
+      ],
+    } as never)
+    expect(await dispatchWorkBridge('p1', { type: 'requests.list' })).toEqual([
+      {
+        id: 'fr1',
+        title: 'Explorer subagent',
+        targetProjectId: 'thefactory-knowledge',
+        status: 'completed',
+        references: ['@thefactory-references:refs/fastcontext.md'],
+        updatedAt: '2026-10-21T00:00:00.000Z',
+      },
+      {
+        id: 'fr2',
+        title: 'No references',
+        targetProjectId: 'thefactory-tools',
+        status: 'pending',
+        references: [],
+        updatedAt: '2026-10-20T00:00:00.000Z',
+      },
+    ])
+    expect(listFeatureRequests).toHaveBeenCalledWith({
+      query: { fromProjectId: 'p1' },
+      throwOnError: true,
+    })
   })
+
+  it.each(['stories.list', 'runs.list', 'requests.list'])(
+    'returns [] without a project for %s',
+    async (type) => {
+      expect(
+        await dispatchWorkBridge(
+          undefined,
+          { type },
+          {
+            stories: [story],
+            isLoaded: true,
+            loadError: null,
+          },
+        ),
+      ).toEqual([])
+      expect(listStories).not.toHaveBeenCalled()
+      expect(listProcessRuns).not.toHaveBeenCalled()
+      expect(listFeatureRequests).not.toHaveBeenCalled()
+    },
+  )
 
   it.each(['projects.list', 'data.read', 'stories.create', 'runs.start'])(
     'passes through %s',
@@ -127,12 +190,13 @@ describe('dispatchWorkBridge', () => {
     },
   )
 
-  it.each(['stories.list', 'runs.list'])(
+  it.each(['stories.list', 'runs.list', 'requests.list'])(
     'surfaces readable backend errors for %s',
     async (type) => {
       const error = { response: { data: { error: 'Project is unavailable' } }, message: 'HTTP 404' }
       vi.mocked(listStories).mockRejectedValueOnce(error)
       vi.mocked(listProcessRuns).mockRejectedValueOnce(error)
+      vi.mocked(listFeatureRequests).mockRejectedValueOnce(error)
       await expect(dispatchWorkBridge('p1', { type })).rejects.toThrow('Project is unavailable')
     },
   )

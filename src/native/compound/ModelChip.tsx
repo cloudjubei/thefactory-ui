@@ -9,6 +9,8 @@ import {
   type CliAuthWarning,
 } from '../../headless/utils/cliRunner'
 import { modelChipLabel, modelChipProviderLabel } from '../../headless/utils/modelChip'
+import { MODEL_CHIP_OFF } from '../../headless/utils/modelChipConstants'
+import type { ModelChipOff } from '../../headless/utils/modelChipTypes'
 import { effortDefaultLabel, effortLevelLabel } from '../../headless/utils/modelEffort'
 import { EFFORT_SWITCH_LABEL } from '../../headless/utils/modelEffortConstants'
 import type { ModelEffortSwitch } from '../../headless/utils/modelEffortTypes'
@@ -74,6 +76,8 @@ export interface ModelChipProps {
   note?: string
   /** The selected model's effort switch; hidden when the model offers no levels. */
   effort?: ModelEffortSwitch
+  /** A model for a job that may run on none: adds Off beside API and CLI. */
+  off?: ModelChipOff
 }
 
 const PROVIDER_DOTS: Record<string, string> = {
@@ -248,6 +252,7 @@ export function ModelChip({
   authWarning,
   note,
   effort,
+  off,
 }: ModelChipProps) {
   const { theme, status: tones } = useNativeTheme()
   const [open, setOpen] = useState(false)
@@ -256,7 +261,8 @@ export function ModelChip({
   >({})
 
   const cliEnabled = onToggleUseCli != null
-  const needsReauth = !!useCli && !!authWarning?.needsReauth
+  const offSelected = !!off?.selected
+  const needsReauth = !offSelected && !!useCli && !!authWarning?.needsReauth
 
   const label = modelChipLabel({
     ...(provider !== undefined ? { provider } : {}),
@@ -267,6 +273,7 @@ export function ModelChip({
     ...(cliModels !== undefined ? { cliModels } : {}),
     ...(editable !== undefined ? { editable } : {}),
     ...(needsReauth ? { reauthMessage: authWarning?.message ?? '' } : {}),
+    ...(offSelected ? { off: true } : {}),
   })
   const title = label.title
   const dotColor = providerDot(provider ?? activeConfig?.provider)
@@ -302,7 +309,7 @@ export function ModelChip({
     }
   }, [open, recents, getPrice])
 
-  if (editable && (!configs || configs.length === 0)) {
+  if (editable && !off && (!configs || configs.length === 0)) {
     return (
       <Pressable
         className={className}
@@ -349,7 +356,7 @@ export function ModelChip({
               : theme.surface.muted,
       }}
     >
-      {cliEnabled && (
+      {cliEnabled && !offSelected && (
         <View
           style={{
             paddingHorizontal: nativeSpace[2],
@@ -370,14 +377,16 @@ export function ModelChip({
           </Text>
         </View>
       )}
-      <View
-        style={{
-          width: 8,
-          height: 8,
-          borderRadius: 4,
-          backgroundColor: useCli ? cliDotColor(activeCli) : dotColor,
-        }}
-      />
+      {!offSelected && (
+        <View
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: 4,
+            backgroundColor: useCli ? cliDotColor(activeCli) : dotColor,
+          }}
+        />
+      )}
       {needsReauth && (
         <View
           style={{
@@ -395,19 +404,21 @@ export function ModelChip({
         </View>
       )}
       <View style={{ flexShrink: 1, minWidth: 0, maxWidth: 96 }}>
-        <Text
-          numberOfLines={1}
-          ellipsizeMode="tail"
-          style={{
-            textAlign: 'center',
-            fontSize: 9,
-            letterSpacing: 0.5,
-            textTransform: 'uppercase',
-            color: theme.text.secondary,
-          }}
-        >
-          {label.provider}
-        </Text>
+        {label.provider ? (
+          <Text
+            numberOfLines={1}
+            ellipsizeMode="tail"
+            style={{
+              textAlign: 'center',
+              fontSize: 9,
+              letterSpacing: 0.5,
+              textTransform: 'uppercase',
+              color: theme.text.secondary,
+            }}
+          >
+            {label.provider}
+          </Text>
+        ) : null}
         {label.model ? (
           <Text
             numberOfLines={1}
@@ -474,42 +485,46 @@ export function ModelChip({
                 backgroundColor: theme.surface.muted,
               }}
             >
-              {(['API', 'CLI'] as const).map((segment) => {
-                const segUseCli = segment === 'CLI'
-                const segActive = segUseCli === !!useCli
-                const segDisabled = segUseCli && !!cliDisabled
-                return (
-                  <Pressable
-                    key={segment}
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected: segActive, disabled: segDisabled }}
-                    disabled={segDisabled}
-                    onPress={() => {
-                      if (segActive || segDisabled) return
-                      onToggleUseCli(segUseCli)
-                    }}
-                    style={{
-                      flex: 1,
-                      minHeight: 36,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      borderRadius: nativeRadii[2],
-                      backgroundColor: segActive ? theme.surface.raised : 'transparent',
-                      opacity: segDisabled ? 0.5 : 1,
-                    }}
-                  >
-                    <Text
+              {(off ? (['Off', 'API', 'CLI'] as const) : (['API', 'CLI'] as const)).map(
+                (segment) => {
+                  const segOff = segment === 'Off'
+                  const segUseCli = segment === 'CLI'
+                  const segActive = segOff ? offSelected : !offSelected && segUseCli === !!useCli
+                  const segDisabled = segUseCli && !!cliDisabled
+                  return (
+                    <Pressable
+                      key={segment}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: segActive, disabled: segDisabled }}
+                      disabled={segDisabled}
+                      onPress={() => {
+                        if (segActive || segDisabled) return
+                        if (segOff) off?.onPick()
+                        else onToggleUseCli(segUseCli)
+                      }}
                       style={{
-                        fontSize: 12,
-                        fontWeight: segActive ? '600' : '400',
-                        color: segActive ? theme.text.primary : theme.text.secondary,
+                        flex: 1,
+                        minHeight: 36,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderRadius: nativeRadii[2],
+                        backgroundColor: segActive ? theme.surface.raised : 'transparent',
+                        opacity: segDisabled ? 0.5 : 1,
                       }}
                     >
-                      {segment}
-                    </Text>
-                  </Pressable>
-                )
-              })}
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontWeight: segActive ? '600' : '400',
+                          color: segActive ? theme.text.primary : theme.text.secondary,
+                        }}
+                      >
+                        {segOff ? MODEL_CHIP_OFF : segment}
+                      </Text>
+                    </Pressable>
+                  )
+                },
+              )}
             </View>
           )}
           {onToggleUseCli && cliDisabled && cliDisabledReason && (
@@ -539,7 +554,7 @@ export function ModelChip({
             </Text>
           ) : null}
 
-          {useCli ? (
+          {offSelected ? null : useCli ? (
             <>
               {(recentCliModels ?? []).length > 0 && (
                 <>

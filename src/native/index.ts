@@ -727,6 +727,10 @@ export {
 } from './compound/settings/LLMConfigForm'
 export { default as CliConfigForm } from './compound/settings/CliConfigForm'
 export {
+  default as ProjectOverviewModelField,
+  type ProjectOverviewModelFieldProps,
+} from './compound/settings/ProjectOverviewModelField'
+export {
   default as CliAddCredentialForm,
   type CliAddCredentialFormProps,
 } from './compound/settings/CliAddCredentialForm'

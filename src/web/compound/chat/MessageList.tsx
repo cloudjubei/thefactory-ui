@@ -16,10 +16,12 @@ import MessageRow from './MessageRow'
 import CliRunMessages from './CliRunMessages'
 import ToolApprovalFooter from './ToolApprovalFooter'
 import AgentExchangeBlock from './AgentExchangeBlock'
+import { CardRowFrame } from './MessageRowControls'
 import { useAppSettings } from '../../../headless/contexts/AppSettingsContext'
 import {
   agentExchangeLayout,
   agentExchangeStartOf,
+  agentExchangeRowEnd,
   agentExchangeWindowStart,
 } from '../../../headless/utils/agentExchanges'
 import type { UikitFileMeta } from '../files/FileDisplay'
@@ -242,6 +244,9 @@ export default function MessageList({
   const messageListRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const lastMessageRef = useRef<HTMLDivElement | null>(null)
+  const setLastMessageRef = useCallback((el: HTMLDivElement | null) => {
+    lastMessageRef.current = el
+  }, [])
 
   // An API turn's stored rows show their asks exactly as a CLI turn's do. An
   // ask leaves the pending list the moment it is decided here, before its
@@ -678,18 +683,11 @@ export default function MessageList({
           if (exchanges.hidden.has(globalIndex)) return null
           const showCutoff = cutoffIndexInWindow !== null && index === cutoffIndexInWindow
           const exchange = exchanges.starts.get(globalIndex)
-          if (exchange) {
-            return (
-              <div key={`exchange-${globalIndex}`} data-msg-anchor={globalIndex}>
-                <AgentExchangeBlock
-                  exchange={exchange}
-                  links={{ renderReference, onResourceLink }}
-                  renderProcessRun={renderProcessRun}
-                />
-              </div>
-            )
-          }
-          const isLast = globalIndex === messagesToDisplay.length - 1
+          // A folded exchange is drawn as one row: it is the last row when it
+          // holds the chat's last message, and its delete takes that message.
+          const rowEnd = agentExchangeRowEnd(exchanges, globalIndex)
+          const lastOfRow = messagesToDisplay[rowEnd - 1] ?? msg
+          const isLast = rowEnd === messagesToDisplay.length
           const deleteControl = describeLastMessageDelete({
             hasDeleteAction: !!onDeleteLastMessage,
             isLast,
@@ -697,9 +695,36 @@ export default function MessageList({
             // delete landing must keep it on screen to show the spinner. The
             // second press is refused by the control's own `deleting` flag.
             turnInFlight,
-            runId: msg.cliRunId,
+            runId: lastOfRow.cliRunId,
             historyLocked,
           })
+          if (exchange) {
+            return (
+              <div key={`exchange-${globalIndex}`} data-msg-anchor={globalIndex}>
+                <CardRowFrame
+                  index={globalIndex}
+                  rowRef={isLast ? setLastMessageRef : undefined}
+                  deleteBinding={
+                    onDeleteLastMessage && deleteControl
+                      ? {
+                          control: deleteControl,
+                          onDelete: onDeleteLastMessage,
+                          preview: isInDeleteRange(rowEnd - 1, deleteFromIndex, deletePreview),
+                          onPreviewChange: setDeletePreview,
+                          deleting,
+                        }
+                      : undefined
+                  }
+                >
+                  <AgentExchangeBlock
+                    exchange={exchange}
+                    links={{ renderReference, onResourceLink }}
+                    renderProcessRun={renderProcessRun}
+                  />
+                </CardRowFrame>
+              </div>
+            )
+          }
           const restartControl = describeLastUserMessageRestart({
             hasRestartAction: !!onRestartTurn,
             isLast,
@@ -808,9 +833,7 @@ export default function MessageList({
                       : undefined
                   }
                   thinkingLabel={thinkingLabel}
-                  setLastMessageRef={(el) => {
-                    lastMessageRef.current = el
-                  }}
+                  setLastMessageRef={setLastMessageRef}
                   {...(msg.role === 'tool' && msg.toolResult?.actionId !== undefined
                     ? { decidedAsk: decidedById.get(msg.toolResult.actionId) }
                     : {})}

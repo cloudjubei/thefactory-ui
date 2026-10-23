@@ -19,3 +19,6 @@ export const MODEL_CHIP_PICK_TITLE = 'Select model'
 export const MODEL_CHIP_UNKNOWN_PROVIDER = '—'
 export const MODEL_CHIP_UNKNOWN_TITLE = 'Unknown model'
 export const MODEL_CHIP_REAUTH_FALLBACK = 'sign-in expired'
+
+/** What a chip that can be switched off says, and its picker's segment, while it is off. */
+export const MODEL_CHIP_OFF = 'Off'

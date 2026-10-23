@@ -109,6 +109,19 @@ describe('isRestartableChatTail', () => {
     ).toBe(false)
   })
 
+  it('accepts background results the host gave the agent, and the failure notice under them', () => {
+    const results = {
+      role: 'user',
+      content: 'Background results — calls you made earlier have finished',
+      backgroundResults: [{ jobId: 'job-1' }],
+    }
+    const tail = [{ role: 'assistant' }, { role: 'tool' }, results]
+    expect(isRestartableChatTail(tail)).toBe(true)
+    expect(isRestartableChatTail([...tail, { role: 'system', content: 'Error', error: 'x' }])).toBe(
+      true,
+    )
+  })
+
   it('refuses an empty conversation', () => {
     expect(isRestartableChatTail([])).toBe(false)
   })

@@ -383,6 +383,10 @@ export {
 } from './compound/settings/BackendConnectionPanel'
 export { default as CrossProjectSettings } from './compound/settings/CrossProjectSettings'
 export {
+  default as ProjectOverviewModelField,
+  type ProjectOverviewModelFieldProps,
+} from './compound/settings/ProjectOverviewModelField'
+export {
   default as SavedRulesSettings,
   type SavedRulesSettingsProps,
 } from './compound/rules/SavedRulesSettings'
