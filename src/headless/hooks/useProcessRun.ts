@@ -25,10 +25,13 @@ import {
   setProcessRunModel,
   setProcessRunTurnLimit,
   startProcessRunChanges,
+  uploadChatAttachment,
   withdrawProcessRunChange,
 } from '../api'
 import { extractErrorMessage, useApi, useAuth } from '../api'
 import type { ChatContext } from '../api'
+import { processRunChatContext } from 'thefactory-tools/utils'
+import { loadProjectFilePaths } from '../contexts/FilesContext'
 import { cachedProcessRun, processRunCache } from './processViewCache'
 import type { ProcessRetryPick } from '../utils/processTurnLimitViewTypes'
 import type { ProofChangeDraft } from '../utils/processProofChangeViewTypes'
@@ -71,7 +74,15 @@ export type UseProcessRun = {
     integration?: ProcessIntegrationDecision,
     requestedProof?: readonly ProofKind[],
     retry?: ProcessRetryPick,
+    files?: readonly string[],
   ) => Promise<boolean>
+  /**
+   * Upload a file to hand the run's waiting agent with an answer — kept with the
+   * run's chat attachments — resolving the project path the answer names it by.
+   */
+  uploadAnswerFile: (name: string, contentBase64: string) => Promise<string>
+  /** The run's project files, to pick ones to hand the waiting agent with an answer. */
+  loadAnswerProjectFiles: () => Promise<string[]>
   /**
    * Change what proves the stopped feature for the rest of the run — the
    * stop's "Change what proves it" — saving it onto the feature when asked.
@@ -264,6 +275,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       integration?: ProcessIntegrationDecision,
       requestedProof?: readonly ProofKind[],
       retry?: ProcessRetryPick,
+      files?: readonly string[],
     ) => {
       if (!runId) return false
       setActionError(null)
@@ -280,6 +292,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
               : {}),
             ...(retry?.retryMode ? { retryMode: retry.retryMode } : {}),
             ...(retry?.turnLimit ? { turnLimit: retry.turnLimit } : {}),
+            ...(files && files.length > 0 ? { files: [...files] } : {}),
           },
           throwOnError: true,
         })
@@ -291,6 +304,29 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       }
     },
     [runId, client, setRun],
+  )
+
+  const projectId = run?.projectId
+  const uploadAnswerFile = useCallback(
+    async (name: string, contentBase64: string) => {
+      if (!runId || !projectId) throw new Error('The run is not loaded yet.')
+      const { data } = await uploadChatAttachment({
+        path: { projectId },
+        body: {
+          context: processRunChatContext({ id: runId, projectId }),
+          name,
+          contentBase64,
+        },
+        throwOnError: true,
+      })
+      return data.path
+    },
+    [runId, projectId],
+  )
+
+  const loadAnswerProjectFiles = useCallback(
+    async () => (projectId ? loadProjectFilePaths(projectId) : []),
+    [projectId],
   )
 
   const changeProof = useCallback(
@@ -586,6 +622,8 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       run,
       refresh,
       resume,
+      uploadAnswerFile,
+      loadAnswerProjectFiles,
       changeProof,
       answerWaitingRequest,
       setTurnLimit,
@@ -611,6 +649,8 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       run,
       refresh,
       resume,
+      uploadAnswerFile,
+      loadAnswerProjectFiles,
       changeProof,
       answerWaitingRequest,
       setTurnLimit,

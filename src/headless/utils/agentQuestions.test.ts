@@ -181,6 +181,14 @@ describe('answerDecision', () => {
       metadata: { answer: 'use postgres' },
     })
   })
+
+  it('carries the files handed over with the answer, and no list without any', () => {
+    expect(answerDecision('see the log', ['logs/run.txt']).metadata).toEqual({
+      answer: 'see the log',
+      files: ['logs/run.txt'],
+    })
+    expect(answerDecision('no files', []).metadata).toEqual({ answer: 'no files' })
+  })
 })
 
 describe('declineDecision', () => {

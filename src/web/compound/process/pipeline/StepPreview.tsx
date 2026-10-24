@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 
 import {
+  STEP_REPORT_AUTHORS,
   codeReviewPreview,
   codeReviewVerdictBadge,
   codeReviewView,
@@ -186,7 +187,7 @@ function ReportPreview({
   state: ProcessStepState
   onOpen: () => void
 }) {
-  const { tile } = useStepFiling(run, state.latest, ['final-report', 'feature-report'])
+  const { tile } = useStepFiling(run, state.latest, STEP_REPORT_AUTHORS)
   const sections = tile ? reportSectionsOf(tile) : undefined
   if (!sections) {
     return (

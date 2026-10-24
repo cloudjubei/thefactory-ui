@@ -9,6 +9,7 @@ import {
   parkNoteCounter,
   parkNoteToSend,
   toggleRequestedProof,
+  type AnswerFilesSource,
   type ParkNoteCopy,
   type ProofKind,
   type RequestProofChoice,
@@ -19,6 +20,8 @@ import { Button } from '../../primitives/Button'
 import { Switch } from '../../primitives/Switch'
 import { useCanonicalizeReferences } from '../../../headless/contexts/ReferenceRenderingContext'
 import ReferenceTextarea from '../files/ReferenceTextarea'
+import AnswerFiles from './AnswerFiles'
+import type { PickedAnswerFile } from './answerFilesNativeTypes'
 
 export type ParkNoteComposerProps = {
   /** The composer's words, when they are not a gate's — an answer to a waiting agent. */
@@ -29,7 +32,13 @@ export type ParkNoteComposerProps = {
   proofChoices?: readonly RequestProofChoice[]
   /** The proof switched on to start with. */
   proofPreset?: readonly ProofKind[]
-  onSend: (note: string | undefined, requestedProof?: ProofKind[]) => void
+  /** Where files handed to the waiting agent with the answer come from — offered only when given. */
+  answerFiles?: AnswerFilesSource
+  /** The files handed over to start with. */
+  initialFiles?: readonly string[]
+  /** The app's file picker, for files attached from this device. */
+  pickAnswerFiles?: () => Promise<PickedAnswerFile[]>
+  onSend: (note: string | undefined, requestedProof?: ProofKind[], files?: string[]) => void
   onCancel: () => void
 }
 
@@ -39,11 +48,15 @@ export default function ParkNoteComposer({
   required = false,
   proofChoices,
   proofPreset,
+  answerFiles,
+  initialFiles,
+  pickAnswerFiles,
   onSend,
   onCancel,
 }: ParkNoteComposerProps) {
   const { theme, status } = useNativeTheme()
   const [draft, setDraft] = useState('')
+  const [files, setFiles] = useState<string[]>(() => [...(initialFiles ?? [])])
   const [proof, setProof] = useState<ProofKind[]>(() => [...(proofPreset ?? [])])
   const copy = givenCopy ?? PARK_NOTE_COPY
   const counter = parkNoteCounter(draft)
@@ -60,6 +73,14 @@ export default function ParkNoteComposer({
         placeholder={copy.prompt}
         textInputProps={{ maxLength: PARK_NOTE_MAX_LENGTH, accessibilityLabel: copy.prompt }}
       />
+      {answerFiles ? (
+        <AnswerFiles
+          source={answerFiles}
+          {...(pickAnswerFiles ? { pickDeviceFiles: pickAnswerFiles } : {})}
+          files={files}
+          onChange={setFiles}
+        />
+      ) : null}
       {proofChoices && proofChoices.length > 0 ? (
         <View style={{ gap: nativeSpace[2] }}>
           <Text
@@ -102,6 +123,7 @@ export default function ParkNoteComposer({
             onSend(
               note === undefined ? undefined : canonicalize(note),
               proofChoices ? proof : undefined,
+              answerFiles && files.length > 0 ? files : undefined,
             )
           }
         >

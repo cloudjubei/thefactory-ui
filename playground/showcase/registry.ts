@@ -1,6 +1,7 @@
 import { ACCEPTED_UNCHECKED_SCENES } from '../scenes/acceptedUnchecked'
 import { ACTIVITY_STOP_SCENES } from '../scenes/activityStop'
 import { AGENT_TYPE_SCENES } from '../scenes/agentTypes'
+import { ANSWER_FILES_SCENES } from '../scenes/answerFiles'
 import { BACKEND_CONNECTION_SCENES } from '../scenes/backendConnection'
 import { APP_BRIDGE_ASK_SCENES } from '../scenes/appBridgeAsks'
 import { APP_FEATURE_REQUEST_SCENES } from '../scenes/appFeatureRequest'
@@ -18,6 +19,7 @@ import { COMMIT_RECEIPT_SCENES } from '../scenes/commitReceipt'
 import { COST_CHIP_SCENES } from '../scenes/costChip'
 import { CHAT_PAUSED_RUN_SCENES } from '../scenes/chatPausedRun'
 import { DESIGN_SCENES } from '../scenes/design'
+import { DOCUMENT_REPORT_SCENES } from '../scenes/documentReport'
 import { DROPPED_CHANGE_SCENES } from '../scenes/droppedChange'
 import { FEATURE_POOL_SCENES } from '../scenes/featurePool'
 import { FEATURE_REQUEST_CARD_SCENES } from '../scenes/featureRequestCard'
@@ -92,6 +94,7 @@ export const SCENES: readonly Scene[] = [
   ...PROCESS_FEATURE_SCENES,
   ...PROCESS_MODEL_SCENES,
   ...PROOF_CHANGE_SCENES,
+  ...ANSWER_FILES_SCENES,
   ...UI_IMPACT_SCENES,
   ...PARK_CLOSING_SCENES,
   ...DROPPED_CHANGE_SCENES,
@@ -111,6 +114,7 @@ export const SCENES: readonly Scene[] = [
   ...LEAVE_GUARD_SCENES,
   ...APP_BRIDGE_ASK_SCENES,
   ...APP_FEATURE_REQUEST_SCENES,
+  ...DOCUMENT_REPORT_SCENES,
   ...GIT_STASH_SCENES,
   ...USAGE_SCENES,
   ...CLI_CAPABILITY_CARD_SCENES,

@@ -73,6 +73,8 @@ import {
   useProjects,
   useStories,
   waitingNoteCopy,
+  answerTakesFiles,
+  type AnswerFilesSource,
   type ProcessIntegrationDecision,
   type ProofChangeDraft,
   type ProofKind,
@@ -229,7 +231,13 @@ export default function ProcessPipeline({
     resolveNeedsYou,
     startChanges,
     withdrawChange,
+    uploadAnswerFile,
+    loadAnswerProjectFiles,
   } = useProcessRun(currentId)
+  const answerFiles = useMemo<AnswerFilesSource>(
+    () => ({ upload: uploadAnswerFile, loadProjectFiles: loadAnswerProjectFiles }),
+    [uploadAnswerFile, loadAnswerProjectFiles],
+  )
   const modelChip = useRunModelChip(run, setModel)
   const { settings } = useAppSettings()
   const showDiagnostics = settings.userPreferences.showRunDiagnostics === true
@@ -384,7 +392,8 @@ export default function ProcessPipeline({
     integration?: ProcessIntegrationDecision,
     requestedProof?: readonly ProofKind[],
     retry?: ProcessRetryPick,
-  ) => resume(choice, note, integration, requestedProof, retry)
+    files?: readonly string[],
+  ) => resume(choice, note, integration, requestedProof, retry, files)
   const alreadyMerged: ProcessAlreadyMergedAction | undefined = parkAlreadyLanded.offer
     ? {
         offer: parkAlreadyLanded.offer,
@@ -503,6 +512,7 @@ export default function ProcessPipeline({
                   addedTag={amendments.addedSteps[state.step.id]}
                   resolveDependency={resolveDependency}
                   onChoose={choose}
+                  answerFiles={answerFiles}
                   onChangeProof={(draft) => void changeProof(draft)}
                   onAnswerRequest={(actionId, choice) =>
                     void answerWaitingRequest(actionId, choice)
@@ -956,6 +966,7 @@ export function PipelineNode({
   addedTag,
   resolveDependency,
   onChoose,
+  answerFiles,
   onChangeProof,
   onAnswerRequest,
   onDelegate,
@@ -984,7 +995,11 @@ export function PipelineNode({
     note?: string,
     integration?: ProcessIntegrationDecision,
     requestedProof?: readonly ProofKind[],
+    retry?: ProcessRetryPick,
+    files?: readonly string[],
   ) => Promise<boolean>
+  /** Where files handed to a waiting agent with an answer come from. */
+  answerFiles?: AnswerFilesSource
   /** Change what proves the stopped feature. */
   onChangeProof: (draft: ProofChangeDraft) => void
   /** Decide one of several requests a waiting agent left open. */
@@ -1122,6 +1137,7 @@ export function PipelineNode({
             run={run}
             root={root}
             managerLine={managerLine}
+            answerFiles={answerFiles}
             {...(alreadyMerged ? { alreadyMerged } : {})}
             onChoose={onChoose}
             onChangeProof={onChangeProof}
@@ -1149,6 +1165,7 @@ export function ParkBlock({
   root,
   managerLine,
   alreadyMerged,
+  answerFiles,
   onChoose,
   onChangeProof,
   onAnswerRequest,
@@ -1159,6 +1176,8 @@ export function ParkBlock({
   onDrill,
 }: {
   run: ProcessRun
+  /** Where files handed to a waiting agent with an answer come from; without it an answer carries words only. */
+  answerFiles?: AnswerFilesSource
   /** The top-level run that keeps the agent manager's record — `run` itself when omitted. */
   root?: ProcessRun | undefined
   /** What the agent manager is doing on the stop, while it has it — said in place of what waits on the person. */
@@ -1171,6 +1190,7 @@ export function ParkBlock({
     integration?: ProcessIntegrationDecision,
     requestedProof?: readonly ProofKind[],
     retry?: ProcessRetryPick,
+    files?: readonly string[],
   ) => void
   onChangeProof: (draft: ProofChangeDraft) => void
   onAnswerRequest: (actionId: string, choice: ProcessWaitingItemChoice) => void
@@ -1209,6 +1229,7 @@ export function ParkBlock({
         <WaitingCard
           view={waiting}
           managerLine={managerLine}
+          {...(answerFiles ? { answerFiles } : {})}
           {...(retryChoice?.retry
             ? {
                 retry: {
@@ -1472,6 +1493,7 @@ function WaitingRequestRow({
 function WaitingCard({
   view,
   managerLine,
+  answerFiles,
   retry,
   onChoose,
   onChangeProof,
@@ -1483,6 +1505,8 @@ function WaitingCard({
   view: ProcessWaitingView
   /** What the agent manager is doing on the ask, while it has it — said in place of the ask's heading. */
   managerLine: string | undefined
+  /** Where files handed over with an answer come from. */
+  answerFiles?: AnswerFilesSource
   /** How "Try again" starts the step's agent, where its agent could not go on. */
   retry?: {
     offer: ProcessRetryOffer
@@ -1495,6 +1519,7 @@ function WaitingCard({
     integration?: ProcessIntegrationDecision,
     requestedProof?: readonly ProofKind[],
     retry?: ProcessRetryPick,
+    files?: readonly string[],
   ) => void
   /** Change what proves the work, where the agent's block is proof the run cannot give. */
   onChangeProof: (draft: ProofChangeDraft) => void
@@ -1575,7 +1600,10 @@ function WaitingCard({
         <ParkNoteComposer
           copy={waitingNoteCopy(view.kind)}
           required={parkNoteRequired(noteFor)}
-          onSend={(note) => onChoose(noteFor, note)}
+          {...(answerFiles && answerTakesFiles(noteFor) ? { answerFiles } : {})}
+          onSend={(note, _proof, files) =>
+            onChoose(noteFor, note, undefined, undefined, undefined, files)
+          }
           onCancel={() => setNoteFor(undefined)}
         />
       ) : changingProof && proofChange ? (

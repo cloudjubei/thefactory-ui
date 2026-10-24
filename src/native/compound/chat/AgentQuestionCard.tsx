@@ -23,6 +23,8 @@ import type { PendingQuestionGrant } from '../../../headless/utils/chatTypes'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import QuestionPicker, { AgentsPickPill } from './QuestionPicker'
+import AnswerFiles from '../process/AnswerFiles'
+import type { PickedAnswerFile } from '../process/answerFilesNativeTypes'
 
 export interface AgentQuestionCardProps {
   /** The parked `askUser` action — its parsed question and its answer channel. */
@@ -33,6 +35,10 @@ export interface AgentQuestionCardProps {
   onPark?: () => void
   /** The pager over several open asks, shown in the header. */
   pager?: ReactNode
+  /** The app's file picker, for files handed over from this device with an answer. */
+  pickAnswerFiles?: () => Promise<PickedAnswerFile[]>
+  /** An answer in the person's own words to open the card with — its box shown, its files attached. */
+  initialOwnAnswer?: { text: string; files: readonly string[] }
 }
 
 const LONG_CONTEXT = 180
@@ -110,11 +116,14 @@ export default function AgentQuestionCard({
   disabled,
   onPark,
   pager,
+  pickAnswerFiles,
+  initialOwnAnswer,
 }: AgentQuestionCardProps) {
   const { theme, status } = useNativeTheme()
   const { question, context, options, answerKind, raw } = grant.question
-  const [answer, setAnswer] = useState('')
-  const [otherOpen, setOtherOpen] = useState(false)
+  const [answer, setAnswer] = useState(initialOwnAnswer?.text ?? '')
+  const [files, setFiles] = useState<string[]>(() => [...(initialOwnAnswer?.files ?? [])])
+  const [otherOpen, setOtherOpen] = useState(initialOwnAnswer !== undefined)
   const [contextOpen, setContextOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -131,7 +140,8 @@ export default function AgentQuestionCard({
       setBusy(false)
     }
   }
-  const send = (text: string) => void run(() => grant.answer(canonicalize(text, asked)))
+  const send = (text: string, handed: readonly string[] = []) =>
+    void run(() => grant.answer(canonicalize(text, asked), handed))
 
   const locked = busy || disabled === true
   const renderOption = (option: AgentQuestionOption) => (
@@ -223,12 +233,20 @@ export default function AgentQuestionCard({
                 disabled={locked}
                 textInputProps={{ accessibilityLabel: question }}
               />
+              {grant.answerFiles ? (
+                <AnswerFiles
+                  source={grant.answerFiles}
+                  {...(pickAnswerFiles ? { pickDeviceFiles: pickAnswerFiles } : {})}
+                  files={files}
+                  onChange={setFiles}
+                />
+              ) : null}
               <View style={{ flexDirection: 'row' }}>
                 <Button
                   size="sm"
                   loading={busy}
                   disabled={locked || !canSubmitAnswer(answer)}
-                  onPress={() => send(answer)}
+                  onPress={() => send(answer, files)}
                 >
                   {QUESTION_SUBMIT_LABEL}
                 </Button>

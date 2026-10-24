@@ -3,6 +3,7 @@ import { Pressable, Text, View } from 'react-native'
 import type { ProcessStepState } from 'thefactory-tools/types'
 
 import {
+  STEP_REPORT_AUTHORS,
   codeReviewPreview,
   codeReviewVerdictBadge,
   codeReviewView,
@@ -199,7 +200,7 @@ function ReportPreview({
   onOpen: () => void
 }) {
   const { theme, status } = useNativeTheme()
-  const { tile } = useStepFiling(run, state.latest, ['final-report', 'feature-report'])
+  const { tile } = useStepFiling(run, state.latest, STEP_REPORT_AUTHORS)
   const sections = tile ? reportSectionsOf(tile) : undefined
   if (!sections) {
     return (

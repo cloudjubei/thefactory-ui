@@ -23,6 +23,8 @@ export type ReportAuthor =
   | 'feature-report'
   /** The developer's own account of the checks it ran before handing over. */
   | 'developer-checks'
+  /** A report step that shows the documents the run wrote, as they are. */
+  | 'document-report'
 
 /** One evidence item ready to render, with its bytes resolved when it is an image. */
 export type EvidenceTile = {

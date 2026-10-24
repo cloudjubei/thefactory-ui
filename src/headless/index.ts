@@ -1034,7 +1034,11 @@ export {
   reportProvenance,
   runReports,
 } from './utils/reviewEvidenceView'
-export { REPORT_PROVENANCE, REVIEWER_VERDICT_LABEL } from './utils/reviewEvidenceViewConstants'
+export {
+  REPORT_PROVENANCE,
+  REVIEWER_VERDICT_LABEL,
+  STEP_REPORT_AUTHORS,
+} from './utils/reviewEvidenceViewConstants'
 export type { DecisionExplainer } from './utils/checkMethodConstants'
 export type {
   EvidenceGroup,
@@ -2813,6 +2817,8 @@ export {
   PROCESS_SPEND_TITLE,
 } from './utils/processViewConstants'
 export {
+  addAnswerFiles,
+  answerTakesFiles,
   choiceTakesNote,
   parkNoteCopy,
   parkNoteCounter,
@@ -2827,6 +2833,9 @@ export {
 export { requestChangesProofPreset, uiChangeScopeOf } from 'thefactory-tools/utils'
 export {
   ACCEPT_DROPPED_NOTE_COPY,
+  ANSWER_FILES_CHOICES,
+  ANSWER_FILES_COPY,
+  ANSWER_FILES_MAX,
   PARK_NOTE_CANCEL,
   PARK_NOTE_CHOICES,
   PARK_NOTE_COPY,
@@ -2851,7 +2860,11 @@ export type {
   ProcessWaitingRequestView,
   ProcessWaitingView,
 } from './utils/processWaitingViewTypes'
-export type { ParkNoteCopy, RequestProofChoice } from './utils/processParkNoteTypes'
+export type {
+  AnswerFilesSource,
+  ParkNoteCopy,
+  RequestProofChoice,
+} from './utils/processParkNoteTypes'
 export {
   processCirclingRecommendation,
   processCirclingView,

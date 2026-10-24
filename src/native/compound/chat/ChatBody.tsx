@@ -58,6 +58,7 @@ import {
 import { useChatOpenChanges } from '../../../headless/hooks/useChatOpenChanges'
 import { ChatChangesBarConnected } from './ChatChangesBarConnected'
 import { ChatChangesMarkerConnected } from './ChatChangesMarkerConnected'
+import type { PickedAnswerFile } from '../process/answerFilesNativeTypes'
 
 export interface ChatBodyProps {
   /**
@@ -70,6 +71,8 @@ export interface ChatBodyProps {
   projectId?: string
   /** The chat's group, forwarded to a launch across the group's projects. */
   groupId?: string
+  /** The app's file picker, for files handed over with an answer to the agent's question. */
+  pickAnswerFiles?: () => Promise<PickedAnswerFile[]>
   /** The chat's display name — the sender an agent's message into another chat is labelled with. */
   chatTitle?: string
   /**
@@ -222,6 +225,7 @@ const NO_IDS: ReadonlySet<string> = new Set()
 
 export default function ChatBody({
   chatId,
+  pickAnswerFiles,
   header,
   sendError,
   inputOverride,
@@ -589,6 +593,7 @@ export default function ChatBody({
                 grant={shownAsk.grant}
                 onPark={() => setAskParked(shownAsk.id, true)}
                 {...(openAsks.length > 1 ? { pager: askPager } : {})}
+                {...(pickAnswerFiles ? { pickAnswerFiles } : {})}
               />
             ) : (
               <>

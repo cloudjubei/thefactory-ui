@@ -53,8 +53,6 @@ The semantic theme uses CSS-shaped strings (`color-mix(...)`, `var(--...)`) for 
 - `web/compound/diff/`: DiffViewer (single-file widget with selectable hunks / intra-line modes / partial-apply), `parseUnifiedDiff` / `generateSelectedPatch` / `generateHunkPatch`, StructuredUnifiedDiff, InlineTextDiff, SimpleUnifiedDiff, SimpleSplitText
 - `web/compound/files/`: FileDisplay (with `UikitFileMeta` shape and `onReadPreview`/`onNavigate` callbacks)
 
-What's _not_ here yet — file-input forms (FileMentionsTextarea / FileSelector / RichText / TypewriterText) — is tracked in [docs/implementation-plan.md §B](../../docs/implementation-plan.md#b-pending-tasks).
-
 ## Extraction plan
 
 When the package is extracted to its own repo:

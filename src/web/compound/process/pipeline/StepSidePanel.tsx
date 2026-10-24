@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 
 import {
+  STEP_REPORT_AUTHORS,
   agentNeverStartedNote,
   attemptUiImpactNote,
   processAttemptLeaf,
@@ -239,7 +240,7 @@ function ReviewOutput({ run, entry }: { run: ProcessRun; entry: ProcessLedgerEnt
 }
 
 function ReportOutput({ run, entry }: { run: ProcessRun; entry: ProcessLedgerEntry | undefined }) {
-  const { tile, loaded } = useStepFiling(run, entry, ['final-report', 'feature-report'])
+  const { tile, loaded } = useStepFiling(run, entry, STEP_REPORT_AUTHORS)
   return (
     <div className="px-4 pb-4">
       {tile ? (

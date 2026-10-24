@@ -59,3 +59,20 @@ export const WAITING_NOTE_COPY: Record<ProcessWaitingKind, ParkNoteCopy> = {
   permission: { prompt: 'What should the agent know?', submitLabel: 'Send and continue' },
   blocker: { prompt: 'What should the agent know?', submitLabel: 'Send and continue' },
 }
+
+/** The park choices whose answer can hand the waiting agent files. */
+export const ANSWER_FILES_CHOICES: ReadonlySet<ProcessParkAction> = new Set(['more-info'])
+
+/** The most files one answer hands over — the backend refuses more. */
+export const ANSWER_FILES_MAX = 10
+
+/** The words around the files an answer hands over. */
+export const ANSWER_FILES_COPY = {
+  attach: 'Attach file',
+  fromProject: 'From project',
+  pickerTitle: 'Files from the project',
+  remove: (name: string) => `Remove ${name}`,
+  uploading: (name: string) => `Uploading ${name}…`,
+  full: `Up to ${ANSWER_FILES_MAX} files`,
+  uploadFailed: (name: string) => `${name} could not be uploaded.`,
+} as const

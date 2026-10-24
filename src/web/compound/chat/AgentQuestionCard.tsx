@@ -18,6 +18,7 @@ import {
 import type { AgentQuestionOption } from '../../../headless/utils/agentQuestionTypes'
 import type { PendingQuestionGrant } from '../../../headless/utils/chatTypes'
 import QuestionPicker, { AgentsPickPill } from './QuestionPicker'
+import AnswerFiles from '../process/AnswerFiles'
 
 export type AgentQuestionCardProps = {
   /** The parked `askUser` action — its parsed question and its answer channel. */
@@ -28,6 +29,8 @@ export type AgentQuestionCardProps = {
   onPark?: () => void
   /** The pager over several open asks, shown in the header. */
   pager?: ReactNode
+  /** An answer in the person's own words to open the card with — its box shown, its files attached. */
+  initialOwnAnswer?: { text: string; files: readonly string[] }
 }
 
 const LONG_CONTEXT = 180
@@ -87,10 +90,12 @@ export default function AgentQuestionCard({
   disabled,
   onPark,
   pager,
+  initialOwnAnswer,
 }: AgentQuestionCardProps) {
   const { question, context, options, answerKind, raw } = grant.question
-  const [answer, setAnswer] = useState('')
-  const [otherOpen, setOtherOpen] = useState(false)
+  const [answer, setAnswer] = useState(initialOwnAnswer?.text ?? '')
+  const [files, setFiles] = useState<string[]>(() => [...(initialOwnAnswer?.files ?? [])])
+  const [otherOpen, setOtherOpen] = useState(initialOwnAnswer !== undefined)
   const [contextOpen, setContextOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -107,7 +112,8 @@ export default function AgentQuestionCard({
       setBusy(false)
     }
   }
-  const send = (text: string) => void run(() => grant.answer(canonicalize(text, asked)))
+  const send = (text: string, handed: readonly string[] = []) =>
+    void run(() => grant.answer(canonicalize(text, asked), handed))
 
   const locked = busy || disabled === true
   const renderOption = (option: AgentQuestionOption) => (
@@ -169,25 +175,30 @@ export default function AgentQuestionCard({
         <div className="flex flex-col gap-1.5">
           {(loose ?? []).map(renderOption)}
           {otherOpen ? (
-            <div className="flex items-end gap-2 rounded-lg border border-(--accent-primary) p-2 pl-3">
-              <div className="min-w-0 flex-1">
-                <ReferenceTextarea
-                  rows={2}
-                  value={answer}
-                  onChange={setAnswer}
-                  placeholder={QUESTION_ANSWER_PLACEHOLDER}
-                  ariaLabel={question}
-                  disabled={locked}
-                />
+            <div className="flex flex-col gap-2 rounded-lg border border-(--accent-primary) p-2 pl-3">
+              <div className="flex items-end gap-2">
+                <div className="min-w-0 flex-1">
+                  <ReferenceTextarea
+                    rows={2}
+                    value={answer}
+                    onChange={setAnswer}
+                    placeholder={QUESTION_ANSWER_PLACEHOLDER}
+                    ariaLabel={question}
+                    disabled={locked}
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  loading={busy}
+                  disabled={locked || !canSubmitAnswer(answer)}
+                  onClick={() => send(answer, files)}
+                >
+                  {QUESTION_SUBMIT_LABEL}
+                </Button>
               </div>
-              <Button
-                size="sm"
-                loading={busy}
-                disabled={locked || !canSubmitAnswer(answer)}
-                onClick={() => send(answer)}
-              >
-                {QUESTION_SUBMIT_LABEL}
-              </Button>
+              {grant.answerFiles ? (
+                <AnswerFiles source={grant.answerFiles} files={files} onChange={setFiles} />
+              ) : null}
             </div>
           ) : (
             <button

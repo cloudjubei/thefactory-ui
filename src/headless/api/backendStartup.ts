@@ -14,8 +14,8 @@ import type {
 /**
  * While the backend runs its initial search-index pass it serves nothing: every route answers 503
  * `{ status: 'starting', searchIndex, knowledgeMaps }`. `GET /health/startup` reports
- * `{ serving, ready, searchIndex, knowledgeMaps }`; `ready` waits for the knowledge maps' startup pass as
- * well. The apps hold their data layer behind a loading screen until it is ready.
+ * `{ serving, ready, searchIndex, knowledgeMaps }`; `ready` comes with serving, while the knowledge maps'
+ * startup pass may still build. The apps hold their data layer behind a loading screen until it is ready.
  */
 
 type Body = Record<string, unknown>

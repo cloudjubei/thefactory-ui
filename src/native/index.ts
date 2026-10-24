@@ -73,6 +73,7 @@ export {
   default as ProcessPipeline,
   type ProcessPipelineProps,
 } from './compound/process/ProcessPipeline'
+export type { NativeAnswerFiles, PickedAnswerFile } from './compound/process/answerFilesNativeTypes'
 export { default as StepsStrip, type StepsStripProps } from './compound/process/StepsStrip'
 export {
   default as ProcessRunChip,

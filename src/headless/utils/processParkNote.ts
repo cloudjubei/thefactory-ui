@@ -8,6 +8,8 @@ import { canonicalProofKinds } from 'thefactory-tools/utils'
 
 import {
   ACCEPT_DROPPED_NOTE_COPY,
+  ANSWER_FILES_CHOICES,
+  ANSWER_FILES_MAX,
   PARK_NOTE_CHOICES,
   PARK_NOTE_COUNTER_FROM,
   PARK_NOTE_MAX_LENGTH,
@@ -74,4 +76,14 @@ export function requestProofChoices(
 export function parkNoteToSend(draft: string): string | undefined {
   const note = draft.trim().slice(0, PARK_NOTE_MAX_LENGTH)
   return note === '' ? undefined : note
+}
+
+/** Whether answering with this choice can hand the waiting agent files. */
+export function answerTakesFiles(choice: ProcessParkAction): boolean {
+  return ANSWER_FILES_CHOICES.has(choice)
+}
+
+/** The files an answer hands over after adding `picked`: each once, in order, at most {@link ANSWER_FILES_MAX}. */
+export function addAnswerFiles(current: readonly string[], picked: readonly string[]): string[] {
+  return [...new Set([...current, ...picked])].slice(0, ANSWER_FILES_MAX)
 }

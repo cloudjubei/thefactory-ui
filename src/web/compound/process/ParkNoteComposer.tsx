@@ -8,6 +8,7 @@ import {
   parkNoteCounter,
   parkNoteToSend,
   toggleRequestedProof,
+  type AnswerFilesSource,
   type ParkNoteCopy,
   type ProofKind,
   type RequestProofChoice,
@@ -16,6 +17,7 @@ import { useCanonicalizeReferences } from '../../../headless/contexts/ReferenceR
 import { Button } from '../../primitives/Button'
 import { Switch } from '../../primitives/Switch'
 import ReferenceTextarea from '../files/ReferenceTextarea'
+import AnswerFiles from './AnswerFiles'
 
 export type ParkNoteComposerProps = {
   /** The composer's words, when they are not a gate's — an answer to a waiting agent. */
@@ -26,7 +28,11 @@ export type ParkNoteComposerProps = {
   proofChoices?: readonly RequestProofChoice[]
   /** The proof switched on to start with. */
   proofPreset?: readonly ProofKind[]
-  onSend: (note: string | undefined, requestedProof?: ProofKind[]) => void
+  /** Where files handed to the waiting agent with the answer come from — offered only when given. */
+  answerFiles?: AnswerFilesSource
+  /** The files handed over to start with. */
+  initialFiles?: readonly string[]
+  onSend: (note: string | undefined, requestedProof?: ProofKind[], files?: string[]) => void
   onCancel: () => void
 }
 
@@ -73,10 +79,13 @@ export default function ParkNoteComposer({
   required = false,
   proofChoices,
   proofPreset,
+  answerFiles,
+  initialFiles,
   onSend,
   onCancel,
 }: ParkNoteComposerProps) {
   const [draft, setDraft] = useState('')
+  const [files, setFiles] = useState<string[]>(() => [...(initialFiles ?? [])])
   const [proof, setProof] = useState<ProofKind[]>(() => [...(proofPreset ?? [])])
   const copy = givenCopy ?? PARK_NOTE_COPY
   const counter = parkNoteCounter(draft)
@@ -95,6 +104,7 @@ export default function ParkNoteComposer({
         ariaLabel={copy.prompt}
         className="text-[12.5px]"
       />
+      {answerFiles ? <AnswerFiles source={answerFiles} files={files} onChange={setFiles} /> : null}
       {proofChoices && proofChoices.length > 0 ? (
         <RequestProofSwitches
           choices={proofChoices}
@@ -111,6 +121,7 @@ export default function ParkNoteComposer({
             onSend(
               note === undefined ? undefined : canonicalize(note),
               proofChoices ? proof : undefined,
+              answerFiles && files.length > 0 ? files : undefined,
             )
           }
         >

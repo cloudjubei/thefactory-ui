@@ -45,7 +45,8 @@ export type AgentQuestionDecision = {
   outcome: 'approved' | 'denied'
   /** A question is answered on its own card. */
   decidedVia: 'card'
-  metadata: { answer: string }
+  /** The answer, and the project files handed over with it, project-relative. */
+  metadata: { answer: string; files?: string[] }
 }
 
 /** One item a question's picker offers — a branch, a file, a story, … */

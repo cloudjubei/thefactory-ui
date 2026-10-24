@@ -10,6 +10,8 @@ import {
   requestProofChoices,
   toggleRequestedProof,
   waitingNoteCopy,
+  addAnswerFiles,
+  answerTakesFiles,
 } from './processParkNote'
 import {
   ACCEPT_DROPPED_NOTE_COPY,
@@ -188,5 +190,29 @@ describe('requestProofChoices', () => {
       ['unit-tests', undefined],
       ['live-backend', undefined],
     ])
+  })
+})
+
+describe('answerTakesFiles', () => {
+  it('lets an answer in words hand over files, and no other choice', () => {
+    expect(answerTakesFiles('more-info')).toBe(true)
+    for (const choice of ['request-changes', 'send-to-developer', 'accept-dropped-change'] as const)
+      expect(answerTakesFiles(choice)).toBe(false)
+  })
+})
+
+describe('addAnswerFiles', () => {
+  it('adds each picked file once, after the ones already there', () => {
+    expect(addAnswerFiles(['a.txt'], ['b.txt', 'a.txt', 'c.txt'])).toEqual([
+      'a.txt',
+      'b.txt',
+      'c.txt',
+    ])
+  })
+
+  it('stops at the most files one answer hands over', () => {
+    const many = Array.from({ length: 12 }, (_, i) => `f${i}`)
+    expect(addAnswerFiles(['first'], many)).toHaveLength(10)
+    expect(addAnswerFiles(['first'], many)[0]).toBe('first')
   })
 })

@@ -2,6 +2,7 @@ import {
   CAPTURE_RECORD_NOT_THE_TOOLS_REASON,
   CODE_REVIEW_APPROACH,
   DEVELOPER_CHECKS_APPROACH,
+  DOCUMENT_REPORT_APPROACH,
   EVIDENCE_FILE_CHANGED_REASON,
   EVIDENCE_RECORD_UNVOUCHED_REASON,
   FEATURE_REPORT_APPROACH,
@@ -653,6 +654,9 @@ describe('reportAuthor', () => {
     expect(reportAuthor(ref({ kind: 'report', approach: DEVELOPER_CHECKS_APPROACH }))).toBe(
       'developer-checks',
     )
+    expect(reportAuthor(ref({ kind: 'report', approach: DOCUMENT_REPORT_APPROACH }))).toBe(
+      'document-report',
+    )
   })
 
   it('reads every other report as the verifier’s — as every report was before', () => {
@@ -780,6 +784,9 @@ describe('orderReports', () => {
     expect(
       orderReports([tile('ver', 5), tile('final', 1, FINAL_REPORT_APPROACH)]).map((t) => t.ref.id),
     ).toEqual(['final', 'ver'])
+    expect(
+      orderReports([tile('ver', 5), tile('doc', 1, DOCUMENT_REPORT_APPROACH)]).map((t) => t.ref.id),
+    ).toEqual(['doc', 'ver'])
   })
 
   it('keeps plain newest-first order when no step filed a report', () => {

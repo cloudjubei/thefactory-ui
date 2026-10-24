@@ -9,8 +9,7 @@ import DataLocationPanel, { type DataLocation } from './DataLocationPanel'
  * `setProjectDataLocation` route) drives the refresh — never optimistic.
  *
  * The `'inProject'` option requires the project to have a linked git repo
- * (`repo_url` non-empty); the panel disables that radio otherwise. See the
- * locked decisions in A' (`docs/implementation-plan.md`).
+ * (`repo_url` non-empty); the panel disables that radio otherwise.
  */
 export default function DataLocationSettingsPanel() {
   const { projectId, project } = useActiveProject()

@@ -7,6 +7,7 @@
 // the tools package this one already peers on, so a cost reads the same here
 // as in every ledger and run record.
 
+import type { AnswerFilesSource } from './processParkNoteTypes'
 import type {
   BillingBasis,
   ChatBackgroundJobResult,
@@ -293,8 +294,8 @@ export type PendingToolGrant = PendingToolGrantData & {
     metadata?: Record<string, unknown>,
     via?: PendingToolGrantDecisionVia,
   ) => Promise<void>
-  /** Resolve a question grant with the user's typed answer. Question grants only. */
-  answer?: (answer: string) => Promise<void>
+  /** Resolve a question grant with the user's typed answer, and any files handed over with it. Question grants only. */
+  answer?: (answer: string, files?: readonly string[]) => Promise<void>
   /**
    * Withdraw the question instead of answering it, handing the composer back.
    * Question grants only.
@@ -316,7 +317,10 @@ export type PendingToolGrant = PendingToolGrantData & {
 /** A grant the question card can render: a parsed question plus a text answer channel. */
 export type PendingQuestionGrant = PendingToolGrant & {
   question: AgentQuestion
-  answer: (answer: string) => Promise<void>
+  /** Send the answer, with any project files handed over with it. */
+  answer: (answer: string, files?: readonly string[]) => Promise<void>
+  /** Where files handed over with an answer in the person's own words come from. */
+  answerFiles?: AnswerFilesSource
 }
 
 /**

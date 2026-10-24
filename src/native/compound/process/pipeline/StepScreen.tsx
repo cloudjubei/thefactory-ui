@@ -3,6 +3,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 import type { ProcessLedgerEntry, ProcessStepState } from 'thefactory-tools/types'
 
 import {
+  STEP_REPORT_AUTHORS,
   agentNeverStartedNote,
   attemptUiImpactNote,
   processAttemptLeaf,
@@ -274,7 +275,7 @@ function ReviewOutput({
 
 function ReportOutput({ run, entry }: { run: ProcessRun; entry: ProcessLedgerEntry | undefined }) {
   const { theme } = useNativeTheme()
-  const { tile, loaded } = useStepFiling(run, entry, ['final-report', 'feature-report'])
+  const { tile, loaded } = useStepFiling(run, entry, STEP_REPORT_AUTHORS)
   if (tile)
     return <SignoffReportPanel view={{ tiles: [], ...reportBodyView(tile, []) }} hideTiles />
   return (

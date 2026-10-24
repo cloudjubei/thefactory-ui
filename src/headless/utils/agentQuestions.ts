@@ -114,9 +114,16 @@ export function canSubmitAnswer(answer: string): boolean {
   return answer.trim().length > 0
 }
 
-/** Decision body carrying the user's typed answer back to the waiting agent. */
-export function answerDecision(answer: string): AgentQuestionDecision {
-  return { outcome: 'approved', decidedVia: 'card', metadata: { answer: answer.trim() } }
+/** Decision body carrying the user's typed answer — and any files handed over with it — back to the waiting agent. */
+export function answerDecision(
+  answer: string,
+  files: readonly string[] = [],
+): AgentQuestionDecision {
+  return {
+    outcome: 'approved',
+    decidedVia: 'card',
+    metadata: { answer: answer.trim(), ...(files.length > 0 ? { files: [...files] } : {}) },
+  }
 }
 
 /** Decision body for a declined question — the agent proceeds on its own judgement. */

@@ -853,6 +853,10 @@ export {
   default as ProcessPipeline,
   type ProcessPipelineProps,
 } from './compound/process/ProcessPipeline'
+export {
+  default as SignoffReportPanel,
+  type SignoffReportPanelProps,
+} from './compound/process/signoff/SignoffReportPanel'
 export { default as StepsStrip, type StepsStripProps } from './compound/process/StepsStrip'
 export { default as HeaderBar, type HeaderBarProps } from './compound/HeaderBar'
 export { default as ToneBadge, type ToneBadgeProps } from './compound/chips/ToneBadge'

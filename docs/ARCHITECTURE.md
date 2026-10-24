@@ -20,6 +20,13 @@ When a new pattern surfaces in a consumer, it earns its keep in this package as 
 
 Desktop and mobile _stem from_ web: a big-screen behaviour built on web is translated to desktop, a small-screen behaviour to mobile. `thefactory-ui` is the shared layer that makes those translations cheap — tokens, headless logic, and the `web/` + `native/` primitive pairs are written once here so each consumer is mostly data wiring. When adding to this package, prefer additive, optional props so a change made for one client never breaks another.
 
+The three clients mirror each other as closely as each host platform allows, and this package is what holds them together:
+
+- **Tokens, headless hooks/stores, business logic, badge math, sanitisers and form state machines all live here.** Logic two clients need lives in `src/headless/` (or `src/tokens/` for visual primitives), never duplicated in a client.
+- **`src/web/` and `src/native/` are presentation peers with identical public APIs** — same component name, same prop surface, same headless hook underneath, modulo platform-required differences (native `Modal` vs DOM `Modal`, etc.).
+- **A shared piece lands here first, then clients pull it in.** Once a real second consumer exists, lifting is mandatory — but don't lift speculatively; a lift waiting on its second consumer is filed as a deferred feature naming that trigger.
+- **Drift between clients is a bug in this package** — a diverging `useFoo` is a missing `src/headless/useFoo.ts`.
+
 ## Layer split
 
 Four sub-layers, enforced by [scripts/check-uikit-boundaries.sh](../scripts/check-uikit-boundaries.sh) as `prebuild` and `pretest`. A future React Native client imports `tokens/` and `headless/` verbatim and only writes its own `native/` peer to `web/`.
@@ -412,7 +419,11 @@ Three components, each with a `web/` + `native/` peer:
   full page through `onOpenAgentRun`, ✕ closes) and a pushed step screen on
   native (`StepScreen`, "‹ Pipeline" + ↗, the system back closes it). A step's
   filing is found by `stepFilingOf` (`useStepFiling`): the newest report of its
-  author filed while its attempt ran. Drilling into a feature's own pipeline
+  author filed while its attempt ran. A report step reads `STEP_REPORT_AUTHORS`:
+  its writer's final or feature report, or — for a step that names `documents`
+  — the `document-report` the host filed from the run's own files (their front
+  matter as a field table, then the body), shown as its markdown (showcase
+  `document-report`). Drilling into a feature's own pipeline
   stays in-component with a breadcrumb (the stages row's ↗). There are no "Open
   the …" text links. The run head keeps words off its actions: a Group chip
   (`IconGroup`, tooltip `SIGNOFF_GROUP_CHIP_TITLE`) for a group's leg, an
@@ -664,7 +675,13 @@ each button with its one line (`allow` "Allow <host> and continue", `resolved`
 agent could not go on (`ask.agentFailed`) "Try again" leads, with
 `RetryChoiceOptions` to carry its agent on or start fresh. "Provide more info" and "Answer" open `ParkNoteComposer`
 with `waitingNoteCopy(kind)` and `required` (`parkNoteRequired`): the words ARE
-the answer, so it will not send blank. "Delegate to another agent" calls
+the answer, so it will not send blank. That answer can also hand the agent files
+(`answerTakesFiles`; `AnswerFiles`, web + native, under the note): "Attach file"
+uploads through `useProcessRun().uploadAnswerFile` (the run chat's attachments)
+— on native through the app's own picker (`ProcessPipeline`'s `pickAnswerFiles`,
+mobile's `pickFilesAsBase64`) — and "From project" picks from
+`loadAnswerProjectFiles` in `FileSelector`; up to `ANSWER_FILES_MAX`, each a
+chip, sent as `resume(…, files)`. The question card in a chat takes them too, with an answer in the person's own words (`AgentQuestionCard`, web + native; the agent's options stay one click): `usePendingToolGrants` gives each question grant an `answerFiles` source for its chat (the chat's attachments; "From project" only where the chat has a project) and `grant.answer(text, files)` sends them in the decision's `metadata.files` (`answerDecision`); native's picker comes from the host (`ChatBody`'s `pickAnswerFiles`). Showcase: `playground/scenes/answerFiles.tsx` (`answer-files`, `question-card-files`). "Delegate to another agent" calls
 `useProcessRun().delegate()` (`POST /process-runs/:runId/delegate`); the run
 stays parked and the card then offers "Delegated to another agent — open the
 chat", opened through the host's `onOpenChat(context)` — a prop on
@@ -1361,7 +1378,7 @@ thefactory-ui/
 ├── README.md                           # quick start + pointers
 ├── docs/
 │   ├── ARCHITECTURE.md                 # this file
-│   └── implementation-plan.md          # open tasks
+│   └── stop-activity-coordination.md   # who owns a run's stop
 ├── .github/workflows/
 │   ├── ci.yml                          # PR gate
 │   └── release.yml                     # auto bump + tag + publish on PR merge to main

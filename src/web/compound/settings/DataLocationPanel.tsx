@@ -5,8 +5,7 @@ import { Surface } from '../..'
 
 /**
  * Documented schema for the per-project data-location switch. Mirrors
- * `ProjectDataLocation` from `thefactory-tools` (block A in
- * docs/implementation-plan.md). Parents pass `project.dataLocation ?? 'central'`
+ * `ProjectDataLocation` from `thefactory-tools`. Parents pass `project.dataLocation ?? 'central'`
  * here directly — this string-literal union does not need an `@api/types` alias.
  */
 export type DataLocation = 'central' | 'inProject'
@@ -39,8 +38,7 @@ export type DataLocationPanelProps = {
   /**
    * Whether this project has a linked git repository (i.e. `repo_url` is
    * non-empty). The `'inProject'` option requires one — the radio is disabled
-   * with an explanatory tooltip until the project is linked. See A'2 in
-   * docs/implementation-plan.md.
+   * with an explanatory tooltip until the project is linked.
    */
   hasRepo: boolean
   /**

@@ -15,3 +15,14 @@ export interface ParkNoteCopy {
   /** The button that sends the choice with the note. */
   submitLabel: string
 }
+
+/**
+ * Where an answer's files come from: an upload from this device, kept with the
+ * run's chat attachments, or a pick from the run's project files. Each resolves
+ * the project path the answer hands over.
+ */
+export interface AnswerFilesSource {
+  upload: (name: string, contentBase64: string) => Promise<string>
+  /** The project's files to pick from — absent where there is no project, as in a group's chat. */
+  loadProjectFiles?: () => Promise<string[]>
+}

@@ -7,12 +7,16 @@ import {
   listCliAgentRunSummaries,
   listPendingCliAgentActions,
   trustSite,
+  uploadAnyChatAttachment,
+  uploadChatAttachment,
   type ChatContext,
   type ChatContextAgentRunStory,
   type PendingAction,
 } from '../api/generated'
 import { useApi } from '../api'
 import { pendingChatActionsCache } from './chatAsksCache'
+import { loadProjectFilePaths } from '../contexts/FilesContext'
+import type { AnswerFilesSource } from '../utils/processParkNoteTypes'
 import type {
   PendingToolGrant,
   PendingToolGrantDecision,
@@ -291,11 +295,11 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
   )
 
   const answerCli = useCallback(
-    async (actionId: string, answer: string) => {
+    async (actionId: string, answer: string, files?: readonly string[]) => {
       try {
         await decideCliAgentAction({
           path: { actionId },
-          body: answerDecision(answer),
+          body: answerDecision(answer, files),
           throwOnError: true,
         })
         setCliActions((prev) => prev.filter((a) => a.id !== actionId))
@@ -341,6 +345,21 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
     [loadCliActions, setCliActions],
   )
 
+  const projectId = 'projectId' in ctx ? ctx.projectId : undefined
+  const answerFiles = useMemo<AnswerFilesSource>(
+    () => ({
+      upload: async (name, contentBase64) => {
+        const body = { context: ctx, name, contentBase64 }
+        const { data } = projectId
+          ? await uploadChatAttachment({ path: { projectId }, body, throwOnError: true })
+          : await uploadAnyChatAttachment({ body, throwOnError: true })
+        return data.path
+      },
+      ...(projectId ? { loadProjectFiles: () => loadProjectFilePaths(projectId) } : {}),
+    }),
+    [ctx, projectId],
+  )
+
   const grants = useMemo<PendingToolGrant[]>(
     () =>
       cliActions.map<PendingToolGrant>((action) => {
@@ -350,7 +369,9 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
           decide: (decision, metadata, via) => decideCli(action, decision, metadata, via),
           ...(data.question
             ? {
-                answer: (text: string) => answerCli(action.id, text),
+                answer: (text: string, files?: readonly string[]) =>
+                  answerCli(action.id, text, files),
+                answerFiles,
                 cancel: () => cancelCli(action.id),
               }
             : {}),
@@ -363,7 +384,7 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
             : {}),
         }
       }),
-    [cliActions, decideCli, answerCli, cancelCli, resolveRemedyCli],
+    [cliActions, decideCli, answerCli, cancelCli, resolveRemedyCli, answerFiles],
   )
 
   return {

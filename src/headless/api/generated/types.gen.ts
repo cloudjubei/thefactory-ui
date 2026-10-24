@@ -12101,7 +12101,6 @@ export type ProcessManagerPolicyInput = {
   autonomy: ProcessManagerAutonomy
   signature: string
   permissionPreApproved?: boolean
-  attemptMaxTurns?: number
   attemptAgentNotStarted?: boolean
   attemptCircling?: {
     summary: string
@@ -12370,6 +12369,7 @@ export type ProcessStep = {
   expand?: 'features'
   onlyWhenSentBack?: boolean
   produces?: Array<string>
+  documents?: Array<string>
 }
 
 export type ProcessSubject = {
@@ -12392,6 +12392,7 @@ export type ProcessPlanStep = {
   expand?: 'features'
   onlyWhenSentBack?: boolean
   produces?: Array<string>
+  documents?: Array<string>
   subject?: {
     kind: 'feature'
     id: string
@@ -13100,10 +13101,12 @@ export type ProcessLedgerEntry = {
     agentFailed?: true
   }
   continues?: string
+  rechecks?: string
   override?: {
     choice: ProcessResumeChoice
     at: number
     note?: string
+    files?: Array<string>
     integration?: 'merge' | 'squash' | 'pull-request'
     landing?: {
       identity?: {
@@ -13206,6 +13209,7 @@ export type ProcessLedgerEntry = {
     sha: string
   }
   checkedSha?: string
+  checkedTree?: string
   checkedEnvironment?: string
   reusedChecksOf?: string
   siblingFallback?: {
@@ -13312,6 +13316,7 @@ export type ProcessPendingEntry = {
   continuesEntryId?: string
   retryMode?: 'continue' | 'fresh'
   resumesEntryId?: string
+  rechecksEntryId?: string
 }
 
 export type ProcessPark = {
@@ -13326,6 +13331,7 @@ export type ProcessPark = {
     continuesEntryId?: string
     retryMode?: 'continue' | 'fresh'
     resumesEntryId?: string
+    rechecksEntryId?: string
   }
   ask?: {
     kind: ProcessWaitingKind
@@ -13767,6 +13773,7 @@ export type ProcessRun = {
       continuesEntryId?: string
       retryMode?: 'continue' | 'fresh'
       resumesEntryId?: string
+      rechecksEntryId?: string
     }
     ask?: {
       kind: ProcessWaitingKind
@@ -14010,6 +14017,7 @@ export type ProcessManagerCardStandingRun = {
       continuesEntryId?: string
       retryMode?: 'continue' | 'fresh'
       resumesEntryId?: string
+      rechecksEntryId?: string
     }
     ask?: {
       kind: ProcessWaitingKind
@@ -15094,6 +15102,94 @@ export type ProjectCheckAlreadyMetReport = {
   checks: Array<ProjectCheckKind>
   evidence: string
   reportedAt: number
+}
+
+export type ProjectCommandParamType = 'string' | 'number' | 'boolean'
+
+export type ProjectCommandParam = {
+  flag: string
+  type: ProjectCommandParamType
+  min?: number
+  max?: number
+  required?: boolean
+  description?: string
+}
+
+export type ProjectCommandDeclaration = {
+  argv: Array<string>
+  cwd?: string
+  timeoutMs?: number
+  stopGraceMs?: number
+  env?: {
+    [key: string]: string
+  }
+  params?: {
+    [key: string]: ProjectCommandParam
+  }
+  recordTypes: Array<string>
+  label?: string
+  description?: string
+}
+
+export type ProjectCommandDeclarations = {
+  commands: {
+    [key: string]: ProjectCommandDeclaration
+  }
+  problems: Array<string>
+}
+
+export type ProjectCommandProgress = {
+  done: number
+  total: number
+  label?: string
+}
+
+export type ProjectCommandRecord = {
+  type: string
+  key: string
+  content: {
+    [key: string]: unknown
+  }
+}
+
+export type ProjectCommandLogLevel = 'info' | 'warn' | 'error'
+
+export type ProjectCommandMessage =
+  | ({
+      kind: 'progress'
+    } & ProjectCommandProgress)
+  | ({
+      kind: 'record'
+    } & ProjectCommandRecord)
+  | {
+      kind: 'log'
+      level: ProjectCommandLogLevel
+      text: string
+    }
+  | {
+      kind: 'text'
+      text: string
+    }
+  | {
+      kind: 'invalid'
+      text: string
+      problem: string
+    }
+
+export type ProjectCommandRunIds = {
+  projectId: string
+  activityId: string
+}
+
+export type ProjectCommandLaunch = {
+  name: string
+  argv: Array<string>
+  cwd: string
+  env: {
+    [key: string]: string
+  }
+  timeoutMs?: number
+  stopGraceMs: number
 }
 
 export type StoredProjectNoteEntry = {
@@ -19925,6 +20021,7 @@ export type CloseRun = {
       continuesEntryId?: string
       retryMode?: 'continue' | 'fresh'
       resumesEntryId?: string
+      rechecksEntryId?: string
     }
     ask?: {
       kind: ProcessWaitingKind
@@ -20028,6 +20125,7 @@ export type ProofChangeRun = {
       continuesEntryId?: string
       retryMode?: 'continue' | 'fresh'
       resumesEntryId?: string
+      rechecksEntryId?: string
     }
     ask?: {
       kind: ProcessWaitingKind
@@ -20118,6 +20216,7 @@ export type RecheckRun = {
       continuesEntryId?: string
       retryMode?: 'continue' | 'fresh'
       resumesEntryId?: string
+      rechecksEntryId?: string
     }
     ask?: {
       kind: ProcessWaitingKind
@@ -20322,6 +20421,11 @@ export type ChainLink = {
   viaLoopId?: string
 } & {
   stepId?: string
+}
+
+export type ProcessReportDocument = {
+  path: string
+  text: string
 }
 
 export type ProcessSignOff = 'person' | 'automatic'
@@ -20844,6 +20948,7 @@ export type ProcessRunChatState = {
         continuesEntryId?: string
         retryMode?: 'continue' | 'fresh'
         resumesEntryId?: string
+        rechecksEntryId?: string
       }
       ask?: {
         kind: ProcessWaitingKind
@@ -21445,6 +21550,13 @@ export type ProcessWorkBranchReplay = {
   commits: Array<GitReplayedCommit>
 }
 
+export type ProcessWorkBranchChecksTarget = {
+  ref: string
+  tip?: string
+  tree?: string
+  seams: Array<string>
+}
+
 export type PushProcessWorkBranchInput = {
   workBranch: ProcessWorkBranch
   identity?: {
@@ -21641,6 +21753,7 @@ export type ProcessRunSummary = {
       continuesEntryId?: string
       retryMode?: 'continue' | 'fresh'
       resumesEntryId?: string
+      rechecksEntryId?: string
     }
     ask?: {
       kind: ProcessWaitingKind
@@ -21902,6 +22015,7 @@ export type ProcessTransition =
       continuesEntryId?: string
       retryMode?: 'continue' | 'fresh'
       resumesEntryId?: string
+      rechecksEntryId?: string
     }
   | {
       kind: 'finished'
@@ -21917,6 +22031,7 @@ export type ProcessTransition =
         continuesEntryId?: string
         retryMode?: 'continue' | 'fresh'
         resumesEntryId?: string
+        rechecksEntryId?: string
       }
       message?: string
       waitingOn?: Array<string>
@@ -21958,6 +22073,7 @@ export type ProcessStepContinuation = {
   ask: ProcessWaitingAsk
   choice: ProcessContinueChoice | 'update-base'
   note?: string
+  files?: Array<string>
   baseUpdate?: {
     baseRef: string
     baseSha: string
@@ -21983,6 +22099,7 @@ export type ProcessWaitingAnswer = {
   ask: ProcessWaitingAsk
   choice: ProcessResumeChoice | 'decline'
   note?: string
+  files?: Array<string>
 }
 
 export type ProcessStepResult = {
@@ -22047,6 +22164,7 @@ export type ProcessStepResult = {
     sha: string
   }
   checkedSha?: string
+  checkedTree?: string
   checkedEnvironment?: string
   reusedChecksOf?: string
   siblingFallback?: {
@@ -22304,10 +22422,12 @@ export type ProcessStepState = {
       agentFailed?: true
     }
     continues?: string
+    rechecks?: string
     override?: {
       choice: ProcessResumeChoice
       at: number
       note?: string
+      files?: Array<string>
       integration?: 'merge' | 'squash' | 'pull-request'
       landing?: {
         identity?: {
@@ -22410,6 +22530,7 @@ export type ProcessStepState = {
       sha: string
     }
     checkedSha?: string
+    checkedTree?: string
     checkedEnvironment?: string
     reusedChecksOf?: string
     siblingFallback?: {
@@ -22616,6 +22737,7 @@ export type ProcessResumeOptions = {
     notes?: string
   }
   saveProofPlan?: boolean
+  files?: Array<string>
 }
 
 export type ProcessGroupLegStatus =
@@ -23087,6 +23209,7 @@ export type ParkChoicesRun = {
       continuesEntryId?: string
       retryMode?: 'continue' | 'fresh'
       resumesEntryId?: string
+      rechecksEntryId?: string
     }
     ask?: {
       kind: ProcessWaitingKind
@@ -26004,6 +26127,10 @@ export type ResumeProcessRunData = {
      * With change-proof: also write the plan onto the feature, so later runs start from it.
      */
     saveProofPlan?: boolean
+    /**
+     * With an answer to a waiting agent (more-info, resolved): project files to hand it, project-relative — an uploaded chat attachment or any file in the checkout. Staged into its workspace at the same paths.
+     */
+    files?: Array<string>
   }
   path: {
     runId: string
