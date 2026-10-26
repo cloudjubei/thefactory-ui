@@ -22,18 +22,18 @@ export function proposalFeatureProcessId(
 }
 
 /**
- * The way the approval shows as chosen: the person's pick, else the one the
- * story process nests when it is one of those offered — `undefined` for a
- * process that works no features one by one, or nests one not offered.
+ * The way the approval shows as chosen, from `own` — the process the story
+ * process nests on its own — and the person's pick: the pick, else `own`. The
+ * choice is offered only when `own` is one of the ways offered: a story process
+ * that nests one of its own (a project's specialised intake) keeps it whatever
+ * was picked, and one that works no features one by one has none.
  */
 export function featureProcessChoice(
-  proposal: ProcessProposal | undefined,
+  own: string | undefined,
   picked: string | undefined,
 ): string | undefined {
-  const nested = proposalFeatureProcessId(proposal)
-  if (!nested) return undefined
-  if (picked) return picked
-  return PROCESS_FEATURE_PROCESS_IDS.includes(nested) ? nested : undefined
+  if (!own || !PROCESS_FEATURE_PROCESS_IDS.includes(own)) return undefined
+  return picked ?? own
 }
 
 /** The approval's metadata for `choice`, or `undefined` when nothing offered is chosen. */

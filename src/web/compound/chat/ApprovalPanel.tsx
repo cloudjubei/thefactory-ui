@@ -283,7 +283,17 @@ function ToolApprovalPanel({
       : summary.featureIds
   // How each feature is worked — the person's pick, never the agent's. Until
   // they pick, the story process's own; the proposal nests whichever is picked.
+  // Only a story process that nests one of the ways offered can be given one.
   const [featureProcessPick, setFeatureProcessPick] = useState<string | undefined>(undefined)
+  // The story process's own way of working features, as first proposed — the
+  // one marked default once the person picks another.
+  const defaultFeatureProcessRef = useRef<string | undefined>(undefined)
+  const featureProcessSent = featureProcessChoice(
+    defaultFeatureProcessRef.current,
+    featureProcessPick,
+  )
+    ? featureProcessPick
+    : undefined
   // The resolved plan the user reads before approving — the whole path the run
   // will take, per feature, not just the feature list. Fetched only for a launch
   // grant that names a story; a miss falls back to the plain feature list below.
@@ -295,18 +305,15 @@ function ToolApprovalPanel({
     projectId,
     storyId: isLaunch ? summary.storyId : undefined,
     ...(processPick ? { processId: processPick } : {}),
-    ...(featureProcessPick ? { featureProcessId: featureProcessPick } : {}),
+    ...(featureProcessSent ? { featureProcessId: featureProcessSent } : {}),
     ...(previewFeatureIds ? { featureIds: previewFeatureIds } : {}),
     ...(summary.agentTypeSlots ? { agentTypeSlots: summary.agentTypeSlots } : {}),
   })
-  const featureProcess = featureProcessChoice(proposal, featureProcessPick)
-  // The story process's own way of working features, as first proposed — the
-  // one marked default once the person picks another.
-  const defaultFeatureProcessRef = useRef<string | undefined>(undefined)
   if (defaultFeatureProcessRef.current === undefined && featureProcessPick === undefined) {
     defaultFeatureProcessRef.current = proposalFeatureProcessId(proposal)
   }
   const defaultFeatureProcess = defaultFeatureProcessRef.current
+  const featureProcess = featureProcessChoice(defaultFeatureProcess, featureProcessPick)
   const proposalView = proposal ? processProposalView(proposal) : undefined
   // The story's open work — a run still going, or finished and not merged. The
   // launch waits for the person to choose how to proceed over it; the choice is
@@ -536,7 +543,7 @@ function ToolApprovalPanel({
             {LAUNCH_HOW_IT_RUNS_HEADING}
           </span>
           <div className="flex flex-wrap items-center gap-2">
-            {!inChat && proposalFeatureProcessId(proposal) !== undefined ? (
+            {!inChat && featureProcess !== undefined ? (
               <FeatureProcessChooser
                 choice={featureProcess}
                 {...(defaultFeatureProcess !== undefined

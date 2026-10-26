@@ -63,21 +63,22 @@ describe('proposalFeatureProcessId', () => {
 
 describe('featureProcessChoice', () => {
   it('shows the story process’s own feature process until the person picks', () => {
-    expect(featureProcessChoice(proposal('feature-default'), undefined)).toBe('feature-default')
+    expect(featureProcessChoice('feature-default', undefined)).toBe('feature-default')
   })
 
   it('shows the person’s pick over it', () => {
-    expect(featureProcessChoice(proposal('feature-default'), 'feature-self-verified')).toBe(
+    expect(featureProcessChoice('feature-default', 'feature-self-verified')).toBe(
       'feature-self-verified',
     )
   })
 
-  it('shows nothing chosen for a nested process not offered, until the person picks', () => {
-    expect(featureProcessChoice(proposal('feature-android-fork'), undefined)).toBeUndefined()
+  it('offers no choice for a story process that nests one of its own, whatever was picked', () => {
+    expect(featureProcessChoice('reference-gather', undefined)).toBeUndefined()
+    expect(featureProcessChoice('reference-gather', 'feature-self-verified')).toBeUndefined()
   })
 
   it('offers no choice at all for a process that works no features one by one', () => {
-    expect(featureProcessChoice(proposal(undefined), 'feature-self-verified')).toBeUndefined()
+    expect(featureProcessChoice(undefined, 'feature-self-verified')).toBeUndefined()
   })
 })
 

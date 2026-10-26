@@ -12433,6 +12433,7 @@ export type ProcessStep = {
   onlyWhenSentBack?: boolean
   produces?: Array<string>
   documents?: Array<string>
+  documentSection?: Array<string>
 }
 
 export type ProcessSubject = {
@@ -12456,6 +12457,7 @@ export type ProcessPlanStep = {
   onlyWhenSentBack?: boolean
   produces?: Array<string>
   documents?: Array<string>
+  documentSection?: Array<string>
   subject?: {
     kind: 'feature'
     id: string
