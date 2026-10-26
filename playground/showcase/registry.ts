@@ -5,6 +5,7 @@ import { ANSWER_FILES_SCENES } from '../scenes/answerFiles'
 import { BACKEND_CONNECTION_SCENES } from '../scenes/backendConnection'
 import { APP_BRIDGE_ASK_SCENES } from '../scenes/appBridgeAsks'
 import { APP_FEATURE_REQUEST_SCENES } from '../scenes/appFeatureRequest'
+import { APP_UNREAD_SCENES } from '../scenes/appUnread'
 import { CHAT_SCENES } from '../scenes/chat'
 import { CHAT_HIDDEN_TAIL_SCENES } from '../scenes/chatHiddenTail'
 import { CHAT_LAST_ROW_SCENES } from '../scenes/chatLastRow'
@@ -26,6 +27,7 @@ import { FEATURE_REQUEST_CARD_SCENES } from '../scenes/featureRequestCard'
 import { FEATURE_REQUEST_WAIT_CYCLE_SCENES } from '../scenes/featureRequestWaitCycle'
 import { FILE_SUGGESTION_SCENES } from '../scenes/fileSuggestions'
 import { GIT_STASH_SCENES } from '../scenes/gitStash'
+import { GROUP_STORY_SCENES } from '../scenes/groupStories'
 import { KNOWLEDGE_SCENES } from '../scenes/knowledge'
 import { KNOWLEDGE_EVALUATION_SCENES } from '../scenes/knowledgeEvaluation'
 import { LAND_NOTICE_SCENES } from '../scenes/landNotice'
@@ -110,10 +112,12 @@ export const SCENES: readonly Scene[] = [
   ...AGENT_TYPE_SCENES,
   ...WORKFLOW_GUARD_SCENES,
   ...KNOWLEDGE_SCENES,
+  ...GROUP_STORY_SCENES,
   ...DESIGN_SCENES,
   ...LEAVE_GUARD_SCENES,
   ...APP_BRIDGE_ASK_SCENES,
   ...APP_FEATURE_REQUEST_SCENES,
+  ...APP_UNREAD_SCENES,
   ...DOCUMENT_REPORT_SCENES,
   ...GIT_STASH_SCENES,
   ...USAGE_SCENES,

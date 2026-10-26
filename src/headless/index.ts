@@ -61,6 +61,7 @@ export {
   useSeedActivities,
   type ProjectActivitiesState,
 } from './hooks/useProjectActivities'
+export { useAppUnreadCounts } from './hooks/useAppUnreadCounts'
 export {
   useCrossProjectRequests,
   type CrossProjectRequestsState,
@@ -2519,6 +2520,44 @@ export {
 } from './utils/design'
 export type { DesignShown, DesignViewKind } from './utils/designTypes'
 export { useGroupNotes } from './hooks/useGroupNotes'
+export { useGroupStories, type UseGroupStories } from './hooks/useGroupStories'
+export { useGroupStory, type UseGroupStory } from './hooks/useGroupStory'
+export { useGroupStoryRun, type UseGroupStoryRun } from './hooks/useGroupStoryRun'
+export { useStoryGroupStories } from './hooks/useStoryGroupStories'
+export {
+  useGroupStoryRunPreview,
+  type UseGroupStoryRunPreview,
+} from './hooks/useGroupStoryRunPreview'
+export {
+  useGroupProjectStories,
+  type GroupProjectStoryOption,
+} from './hooks/useGroupProjectStories'
+export { useProcessGroupRunChat, type UseProcessGroupRunChat } from './hooks/useProcessGroupRunChat'
+export {
+  groupStoryFormFor,
+  groupStoryFormProblems,
+  groupStoryFormRequest,
+  groupStoryNeedOptions,
+  groupStoryNeedTitles,
+  groupStoryProgress,
+  groupStoryRunBlockedReason,
+  groupStoryStepColumns,
+  isLiveGroupStoryRun,
+} from './utils/groupStoryView'
+export type {
+  GroupStoryForm,
+  GroupStoryFormRow,
+  GroupStoryMemberProject,
+  GroupStoryMembership,
+  GroupStoryPartChoice,
+  GroupStoryPartView,
+  GroupStoryRunBody,
+  GroupStoryRunPreview,
+  GroupStoryRunSummary,
+  GroupStoryStepColumn,
+  GroupStoryView,
+  GroupStoryWriteBody,
+} from './utils/groupStoryTypes'
 export { referenceGroupId } from './utils/referenceScope'
 export { useProjectNoteTexts } from './hooks/useProjectNoteTexts'
 export {

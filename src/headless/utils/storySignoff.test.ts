@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   CODE_REVIEW_APPROACH,
   DEVELOPER_CHECKS_APPROACH,
+  DOCUMENT_REPORT_APPROACH,
   EVIDENCE_RECORD_UNVOUCHED_REASON,
   FEATURE_REPORT_APPROACH,
   FINAL_REPORT_APPROACH,
@@ -1685,6 +1686,18 @@ describe('buildStorySignoff — the latest run of each feature', () => {
     expect(shown).toEqual(['new-report', 'new-walkthrough', 'f2-report'])
   })
 
+  it('keeps what the process runs themselves filed, with no agent run behind it', () => {
+    const own = [
+      ev({ id: 'new-documents', runId: 'root-new', kind: 'report', createdAt: T_NEW }),
+      ev({ id: 'old-documents', runId: 'root-old', kind: 'report', createdAt: T_OLD }),
+    ]
+    const shown = signoffEvidence(
+      signoff('root-new'),
+      own.map((ref) => ({ ref })),
+    ).map((t) => t.ref.id)
+    expect(shown).toEqual(['new-documents'])
+  })
+
   it('shows every filing when no process run scopes the story', () => {
     const cliOnly = buildStorySignoff({
       features: [{ id: 'f1', title: 'One' }],
@@ -3308,6 +3321,15 @@ describe('signoffSections', () => {
       createdAt: T - 5,
       ...over,
     })
+  const documents = (over: Partial<ReviewEvidenceRef> = {}) =>
+    tileOf({
+      id: 'docs',
+      runId: 'docs-run',
+      kind: 'report',
+      approach: DOCUMENT_REPORT_APPROACH,
+      createdAt: T - 2,
+      ...over,
+    })
   const review = (over: Partial<ReviewEvidenceRef> = {}) =>
     tileOf({
       id: 'cr',
@@ -3325,6 +3347,15 @@ describe('signoffSections', () => {
         '',
       )
       expect(ids(overall?.reports ?? [])).toEqual(['final', 'ver'])
+      expect(overall?.leadTab).toBe('report')
+    })
+
+    it('leads with the documents its report step shows, as it would a final report', () => {
+      const overall = signoffSections(story, [
+        verifierReport({ createdAt: T + 9 }),
+        documents(),
+      ]).get('')
+      expect(ids(overall?.reports ?? [])).toEqual(['docs', 'ver'])
       expect(overall?.leadTab).toBe('report')
     })
 
@@ -3358,6 +3389,14 @@ describe('signoffSections', () => {
       ]).get('f1')
       expect(ids(f1?.reports ?? [])).toEqual(['feat', 'ver-new'])
       expect(f1?.leadTab).toBeUndefined()
+    })
+
+    it('leads with the documents its report step shows, the verifier’s newest after them', () => {
+      const f1 = signoffSections(story, [
+        verifierReport({ featureId: 'f1' }),
+        documents({ featureId: 'f1' }),
+      ]).get('f1')
+      expect(ids(f1?.reports ?? [])).toEqual(['docs', 'ver'])
     })
 
     it('shows its own code review in its Code review tab, with its verdict as a note', () => {

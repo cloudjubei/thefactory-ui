@@ -16,9 +16,11 @@ export type BadgeState = {
   /**
    * Background activities for the scope: `running` = live (spinner), `paused` =
    * a `running` run that isn't live in the server process (resumable; paused icon),
-   * `unseen` = runs that finished since the user last opened this project's app tab.
+   * `unseen` = runs that finished since the user last opened this project's app tab,
+   * `unread` = what the project's app holds unread — work it started that came
+   * into the project, until the person opens what it made.
    */
-  activity: { running: number; paused: number; unseen: number }
+  activity: { running: number; paused: number; unseen: number; unread: number }
   process: ProcessTally
   /** The expired sign-ins the scope's live agent work uses, by name — something broke: red. */
   signIn: { expired: readonly string[] }

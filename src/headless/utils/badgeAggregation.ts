@@ -17,7 +17,7 @@ export const EMPTY_BADGE_STATE: BadgeState = {
   chat_messages: { unread: 0, waiting: 0, thinking: false },
   git: { incoming: 0, uncommitted: 0 },
   tests: { failing: 0 },
-  activity: { running: 0, paused: 0, unseen: 0 },
+  activity: { running: 0, paused: 0, unseen: 0, unread: 0 },
   process: { running: 0, waiting: 0, failed: 0, unread: 0 },
   signIn: { expired: [] },
 }
@@ -94,7 +94,7 @@ export function aggregateGroupBadgeState(
     chat_messages: { unread: 0, waiting: 0, thinking: false },
     git: { incoming: 0, uncommitted: 0 },
     tests: { failing: 0 },
-    activity: { running: 0, paused: 0, unseen: 0 },
+    activity: { running: 0, paused: 0, unseen: 0, unread: 0 },
     process: { running: 0, waiting: 0, failed: 0, unread: 0 },
     signIn: { expired: [] },
   }
@@ -111,6 +111,7 @@ export function aggregateGroupBadgeState(
     agg.activity.running += st.activity.running
     agg.activity.paused += st.activity.paused
     agg.activity.unseen += st.activity.unseen
+    agg.activity.unread += st.activity.unread
     agg.process.running += st.process.running
     agg.process.waiting += st.process.waiting
     agg.process.failed += st.process.failed
@@ -133,6 +134,7 @@ export function hasAnyBadge(s: BadgeState): boolean {
     s.activity.running > 0 ||
     s.activity.paused > 0 ||
     s.activity.unseen > 0 ||
+    s.activity.unread > 0 ||
     s.process.running > 0 ||
     s.process.waiting > 0 ||
     s.process.failed > 0 ||

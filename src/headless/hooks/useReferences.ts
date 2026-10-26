@@ -39,8 +39,10 @@ import {
 } from '../utils/mention'
 import {
   isLazyReferenceScope,
+  isWantedReferenceProject,
   referenceGroupId,
   referencedProjectId,
+  referenceProjectsReached,
   referenceProjectsToLoad,
 } from '../utils/referenceScope'
 import { afterPrimaryLoads } from '../utils/afterPrimaryLoads'
@@ -281,39 +283,43 @@ export function useReferences({
   const lazy = isLazyReferenceScope(scope)
   const [wanted, setWanted] = useState<ReadonlySet<string>>(NO_PROJECTS)
   const wantedRef = useRef(new Set<string>())
+  const knownProjectIds = useMemo(() => projects.map((p) => p.id), [projects])
   const want = useCallback(
     (ids: readonly (string | undefined)[]) => {
-      if (!lazy) return
       let added = false
       for (const id of ids) {
-        if (!id || wantedRef.current.has(id) || !scopeIds.includes(id)) continue
+        if (!id || wantedRef.current.has(id)) continue
+        if (!isWantedReferenceProject(id, scopeIds, lazy, knownProjectIds)) continue
         wantedRef.current.add(id)
         added = true
       }
       if (added) setTimeout(() => setWanted(new Set(wantedRef.current)), 0)
     },
-    [lazy, scopeIds],
+    [lazy, scopeIds, knownProjectIds],
   )
   const loadIds = useMemo(
     () => referenceProjectsToLoad(scopeIds, lazy, wanted),
     [scopeIds, lazy, wanted],
   )
+  // The scope's own projects and the ones its chips name from outside it.
+  const reached = useMemo(() => referenceProjectsReached(scopeIds, wanted), [scopeIds, wanted])
+  const reachedKey = reached.join('\n')
 
   const { ws } = useApi()
   const [version, setVersion] = useState(0)
   useEffect(() => {
     const listener = (projectId: string) => {
-      if (scopeKey.split('\n').includes(projectId)) setVersion((v) => v + 1)
+      if (reachedKey.split('\n').includes(projectId)) setVersion((v) => v + 1)
     }
     referenceListeners.add(listener)
     return () => {
       referenceListeners.delete(listener)
     }
-  }, [scopeKey])
+  }, [reachedKey])
   useEffect(() => {
     const refetch = (data: unknown) => {
       const projectId = (data as { projectId?: unknown } | undefined)?.projectId
-      if (typeof projectId !== 'string' || !scopeKey.split('\n').includes(projectId)) return
+      if (typeof projectId !== 'string' || !reachedKey.split('\n').includes(projectId)) return
       loadedStories.delete(projectId)
       loadedExtras.delete(projectId)
       setVersion((v) => v + 1)
@@ -324,7 +330,7 @@ export function useReferences({
       offStories()
       offDesign()
     }
-  }, [ws, scopeKey])
+  }, [ws, reachedKey])
 
   // The group whose notes this chat reaches — the same one its agents read.
   const notesGroupId = hasScope ? referenceGroupId(scope, projects) : undefined
@@ -382,7 +388,7 @@ export function useReferences({
   const index = useMemo<ReferenceIndex>(() => {
     const names = new Map(projects.map((p) => [p.id, p.title]))
     const byId = new Map<string, ReferenceProject>()
-    for (const id of scopeIds) {
+    for (const id of reached) {
       const loaded = fetched.get(id)
       const live =
         id === activeProjectId && (!lazy || loaded) ? stories.map(referenceStoryOf) : undefined
@@ -396,7 +402,7 @@ export function useReferences({
         ...(loaded?.processes ? { processes: loaded.processes } : {}),
       })
     }
-    const loading = new Set(scopeIds.filter((id) => !byId.has(id) && !answered.has(id)))
+    const loading = new Set(reached.filter((id) => !byId.has(id) && !answered.has(id)))
     const group =
       notesGroupId && groupNotes?.groupId === notesGroupId
         ? {
@@ -413,7 +419,7 @@ export function useReferences({
       ...(loading.size > 0 ? { loading } : {}),
     }
   }, [
-    scopeIds,
+    reached,
     fetched,
     answered,
     activeProjectId,

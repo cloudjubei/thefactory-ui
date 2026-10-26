@@ -142,10 +142,13 @@ export const SIGNOFF_SOURCE_WORDS: readonly (readonly [keyof SignoffSources, str
   ['checks', 'checks'],
 ]
 
-/** The report a section's own report step files — the story's, or the feature's. */
-export const SECTION_STEP_REPORT: Record<'story' | 'feature', ReportAuthor> = {
-  story: 'final-report',
-  feature: 'feature-report',
+/**
+ * The reports a section's own report step files — the story's, or the feature's: the account it
+ * writes, or the documents it shows when the step shows the run's documents instead.
+ */
+export const SECTION_STEP_REPORTS: Record<'story' | 'feature', readonly ReportAuthor[]> = {
+  story: ['final-report', 'document-report'],
+  feature: ['feature-report', 'document-report'],
 }
 
 /** A section nothing in scope was filed for. */

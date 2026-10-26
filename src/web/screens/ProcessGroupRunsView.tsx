@@ -140,6 +140,7 @@ export default function ProcessGroupRunsView({
           key={selectedGroupRunId}
           groupRunId={selectedGroupRunId}
           onOpenLegRun={(runId) => setOpenLeg({ groupRunId: selectedGroupRunId, runId })}
+          {...(onOpenChat ? { onOpenChat: (opened) => onOpenChat(opened.context) } : {})}
         />
       </div>
     )

@@ -16,9 +16,11 @@ import {
   useDurationTimer,
   useProcessGroupRebuildPlans,
   useProcessGroupRun,
+  useProcessGroupRunChat,
   type ProcessGroupLeg,
   type ProcessGroupLegRow,
   type ProcessRunBranch,
+  type ProcessRunChatOpened,
   type ProcessStatusTone,
 } from '../../../headless'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
@@ -30,11 +32,14 @@ import CostChip from '../chips/CostChip'
 import DurationChip from '../chips/DurationChip'
 import ProcessGroupLegLandingDialog from './ProcessGroupLegLandingDialog'
 import ProcessGroupParkReview from './ProcessGroupParkReview'
+import ProcessGroupRunChatButton from './ProcessGroupRunChatButton'
 
 export type ProcessGroupPipelineProps = {
   groupRunId: string
   /** Open one project's own pipeline — where it is signed off and its asks are answered. */
   onOpenLegRun: (runId: string, projectId: string) => void
+  /** Open a chat for the whole group on the run; no Chat button without it. */
+  onOpenChat?: (opened: ProcessRunChatOpened) => void
 }
 
 const ENDED = ['succeeded', 'failed', 'cancelled']
@@ -54,8 +59,10 @@ const ENDED = ['succeeded', 'failed', 'cancelled']
 export default function ProcessGroupPipeline({
   groupRunId,
   onOpenLegRun,
+  onOpenChat,
 }: ProcessGroupPipelineProps) {
   const { theme, status } = useNativeTheme()
+  const chat = useProcessGroupRunChat(groupRunId)
   const {
     isLoaded,
     loadError,
@@ -168,6 +175,16 @@ export default function ProcessGroupPipeline({
         {spend ? (
           <CostChip label={spend} cost={group.totals} title="Every project, summed" />
         ) : null}
+        {onOpenChat ? (
+          <ProcessGroupRunChatButton
+            busy={chat.busy}
+            onOpen={() => {
+              void chat.open().then((opened) => {
+                if (opened) onOpenChat(opened)
+              })
+            }}
+          />
+        ) : null}
         {resumeView?.canResume ? (
           <Button size="sm" variant="primary" onPress={() => setConfirmResume(true)}>
             {PROCESS_GROUP_RESUME_LABEL}
@@ -184,6 +201,11 @@ export default function ProcessGroupPipeline({
         )}
       </View>
 
+      {chat.error ? (
+        <View style={{ marginHorizontal: nativeSpace[3], marginTop: nativeSpace[3] }}>
+          <Alert variant="error">{chat.error}</Alert>
+        </View>
+      ) : null}
       {actionError ? (
         <View
           accessibilityRole="alert"

@@ -14,6 +14,14 @@ export const DATA_CHANGED_MESSAGE = 'data.changed'
 
 export const USER_CURRENT_MESSAGE = 'user.current'
 
+/** `overseer:toolCalls.slips`: the tool calls agents got wrong, newest first. */
+export const TOOL_CALL_SLIPS_MESSAGE = 'toolCalls.slips'
+
+/** `overseer:toolCalls.stats`: those calls counted overall and per tool. */
+export const TOOL_CALL_SLIP_STATS_MESSAGE = 'toolCalls.stats'
+
+export const TOOL_CALL_SLIP_KINDS = ['invalid-args', 'unknown-tool', 'failed', 'corrected'] as const
+
 export const WORK_START_MESSAGE = 'work.start'
 
 export const FEATURE_REQUEST_MESSAGE = 'feature.request'

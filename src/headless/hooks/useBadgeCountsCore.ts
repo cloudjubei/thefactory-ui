@@ -34,6 +34,8 @@ export type BadgeCounts = {
   activityPaused: boolean
   /** Runs that finished since the user last opened this scope's app tab (unseen-results badge). */
   activityUnseen: number
+  /** What the scope's app holds unread — work it started that came in, not opened yet (a dot). */
+  appUnread: number
   /** Root process runs pending or running — drives the Processes tab spinner. */
   processesRunning: number
   /** Root process runs parked on the user (sign-off gate or any park) — the Processes count. */
@@ -58,6 +60,7 @@ export const ZERO_BADGE_COUNTS: BadgeCounts = {
   activityWorking: false,
   activityPaused: false,
   activityUnseen: 0,
+  appUnread: 0,
   processesRunning: 0,
   processesWaiting: 0,
   processesFailed: 0,
@@ -83,6 +86,8 @@ export type BadgeActivityInput = {
   isPaused?: boolean
   /** Runs finished since the app tab was last opened (the unseen-results count). */
   unseenCount?: number
+  /** What the app holds unread (`app-unread` records) — work it started, not opened yet. */
+  unreadCount?: number
 }
 
 export type GitBadgeSubToggles = {
@@ -203,6 +208,7 @@ export function computeBadgeCounts(input: UseBadgeCountsCoreInput): BadgeCounts 
     out.activityWorking = input.activity.isWorking
     out.activityPaused = input.activity.isPaused ?? false
     out.activityUnseen = input.activity.unseenCount ?? 0
+    out.appUnread = input.activity.unreadCount ?? 0
   }
 
   if (enabled.processes && input.processes) {

@@ -86,6 +86,7 @@ describe('GROUP_TAB_DEFS', () => {
   it('lists only the group-scope surfaces', () => {
     expect(GROUP_TAB_DEFS.map((t) => t.key)).toEqual([
       'home',
+      'stories',
       'chat',
       'notes',
       'tools',
@@ -148,6 +149,10 @@ describe('projectTabToGroupTab', () => {
 })
 
 describe('groupTabToProjectTab', () => {
+  it('takes the group’s stories to the project’s stories', () => {
+    expect(groupTabToProjectTab('stories')).toBe('stories')
+  })
+
   it('carries shared surfaces across scopes', () => {
     expect(groupTabToProjectTab('chat')).toBe('chat')
     expect(groupTabToProjectTab('tools')).toBe('tools')

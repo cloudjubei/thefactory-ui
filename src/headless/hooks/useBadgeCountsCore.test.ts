@@ -57,6 +57,26 @@ describe('computeBadgeCounts — processes channel', () => {
   })
 })
 
+describe('computeBadgeCounts — the app channel', () => {
+  const activity = { runningCount: 0, isWorking: false, unseenCount: 1, unreadCount: 2 }
+
+  it('carries what the app holds unread beside its new results, off with the channel', () => {
+    expect(computeBadgeCounts({ chats: [], activity })).toMatchObject({
+      activityUnseen: 1,
+      appUnread: 2,
+    })
+    expect(
+      computeBadgeCounts({ chats: [], activity, enabled: { activity: false } }).appUnread,
+    ).toBe(0)
+  })
+
+  it('holds nothing unread when the app says nothing of it', () => {
+    expect(
+      computeBadgeCounts({ chats: [], activity: { runningCount: 0, isWorking: false } }).appUnread,
+    ).toBe(0)
+  })
+})
+
 describe('computeBadgeCounts — a chat waiting on the user', () => {
   it('counts a chat whose only news is a pending ask as unread and as waiting', () => {
     const counts = computeBadgeCounts({

@@ -155,6 +155,9 @@ import type {
   CreateGroupNoteData,
   CreateGroupNoteErrors,
   CreateGroupNoteResponses,
+  CreateGroupStoryData,
+  CreateGroupStoryErrors,
+  CreateGroupStoryResponses,
   CreateLlmConfigData,
   CreateLlmConfigErrors,
   CreateLlmConfigResponses,
@@ -248,6 +251,9 @@ import type {
   DeleteGroupNoteData,
   DeleteGroupNoteErrors,
   DeleteGroupNoteResponses,
+  DeleteGroupStoryData,
+  DeleteGroupStoryErrors,
+  DeleteGroupStoryResponses,
   DeleteLastChatMessageData,
   DeleteLastChatMessageErrors,
   DeleteLastChatMessageResponses,
@@ -411,6 +417,9 @@ import type {
   GetGitTextRecoveryData,
   GetGitTextRecoveryErrors,
   GetGitTextRecoveryResponses,
+  GetGroupStoryData,
+  GetGroupStoryErrors,
+  GetGroupStoryResponses,
   GetKnowledgeEvaluationSettingsData,
   GetKnowledgeEvaluationSettingsErrors,
   GetKnowledgeEvaluationSettingsResponses,
@@ -504,6 +513,9 @@ import type {
   GetStoryData,
   GetStoryErrors,
   GetStoryResponses,
+  GetToolCallSlipStatsData,
+  GetToolCallSlipStatsErrors,
+  GetToolCallSlipStatsResponses,
   GetUserSettingData,
   GetUserSettingErrors,
   GetUserSettingResponses,
@@ -666,6 +678,9 @@ import type {
   ListGroupNotesData,
   ListGroupNotesErrors,
   ListGroupNotesResponses,
+  ListGroupStoriesData,
+  ListGroupStoriesErrors,
+  ListGroupStoriesResponses,
   ListLlmConfigsData,
   ListLlmConfigsResponses,
   ListLlmModelsData,
@@ -723,6 +738,9 @@ import type {
   ListSourceRecordsResponses,
   ListStoriesData,
   ListStoriesResponses,
+  ListStoryGroupStoriesData,
+  ListStoryGroupStoriesErrors,
+  ListStoryGroupStoriesResponses,
   ListStoryNotesData,
   ListStoryNotesErrors,
   ListStoryNotesResponses,
@@ -735,6 +753,9 @@ import type {
   ListTestsData,
   ListTestsErrors,
   ListTestsResponses,
+  ListToolCallSlipsData,
+  ListToolCallSlipsErrors,
+  ListToolCallSlipsResponses,
   ListToolsData,
   ListToolsErrors,
   ListToolsResponses,
@@ -767,6 +788,9 @@ import type {
   OpenCredentialCaptureData,
   OpenCredentialCaptureErrors,
   OpenCredentialCaptureResponses,
+  OpenProcessGroupRunChatData,
+  OpenProcessGroupRunChatErrors,
+  OpenProcessGroupRunChatResponses,
   OpenProcessRunChatData,
   OpenProcessRunChatErrors,
   OpenProcessRunChatResponses,
@@ -800,6 +824,9 @@ import type {
   PreviewDesignTidyPlanData,
   PreviewDesignTidyPlanErrors,
   PreviewDesignTidyPlanResponses,
+  PreviewGroupStoryRunData,
+  PreviewGroupStoryRunErrors,
+  PreviewGroupStoryRunResponses,
   PreviewProcessData,
   PreviewProcessErrors,
   PreviewProcessGroupRunData,
@@ -958,6 +985,9 @@ import type {
   RunCoverageData,
   RunCoverageErrors,
   RunCoverageResponses,
+  RunGroupStoryData,
+  RunGroupStoryErrors,
+  RunGroupStoryResponses,
   RunTestsData,
   RunTestsErrors,
   RunTestsResponses,
@@ -1161,6 +1191,9 @@ import type {
   UpdateGroupNoteData,
   UpdateGroupNoteErrors,
   UpdateGroupNoteResponses,
+  UpdateGroupStoryData,
+  UpdateGroupStoryErrors,
+  UpdateGroupStoryResponses,
   UpdateLlmConfigData,
   UpdateLlmConfigErrors,
   UpdateLlmConfigResponses,
@@ -2407,6 +2440,20 @@ export const getProcessGroupRun = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/process-group-runs/{groupRunId}',
+    ...options,
+  })
+
+export const openProcessGroupRunChat = <ThrowOnError extends boolean = false>(
+  options: Options<OpenProcessGroupRunChatData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    OpenProcessGroupRunChatResponses,
+    OpenProcessGroupRunChatErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-group-runs/{groupRunId}/chat',
     ...options,
   })
 
@@ -5271,6 +5318,40 @@ export const getCostsByChat = <ThrowOnError extends boolean = false>(
     ...options,
   })
 
+/**
+ * Tool calls agents got wrong over the last `sinceDays` days (default 7), newest first: arguments the schema refused, tools that do not exist, tools that failed, and calls that ran only once their arguments were corrected.
+ */
+export const listToolCallSlips = <ThrowOnError extends boolean = false>(
+  options?: Options<ListToolCallSlipsData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    ListToolCallSlipsResponses,
+    ListToolCallSlipsErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/tool-call-slips',
+    ...options,
+  })
+
+/**
+ * The same slips counted overall, per kind, per agent and model, and per tool with its commonest reasons and the fields agents sent.
+ */
+export const getToolCallSlipStats = <ThrowOnError extends boolean = false>(
+  options?: Options<GetToolCallSlipStatsData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    GetToolCallSlipStatsResponses,
+    GetToolCallSlipStatsErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/tool-call-slips/stats',
+    ...options,
+  })
+
 export const getDailyUsage = <ThrowOnError extends boolean = false>(
   options: Options<GetDailyUsageData, ThrowOnError>,
 ) =>
@@ -6540,6 +6621,116 @@ export const revealGroupNote = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/groups/{groupId}/notes/{noteId}/reveal',
+    ...options,
+  })
+
+export const listGroupStories = <ThrowOnError extends boolean = false>(
+  options: Options<ListGroupStoriesData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<ListGroupStoriesResponses, ListGroupStoriesErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/group-stories',
+    ...options,
+  })
+
+export const createGroupStory = <ThrowOnError extends boolean = false>(
+  options: Options<CreateGroupStoryData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<CreateGroupStoryResponses, CreateGroupStoryErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/group-stories',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const deleteGroupStory = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteGroupStoryData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<
+    DeleteGroupStoryResponses,
+    DeleteGroupStoryErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/group-stories/{groupStoryId}',
+    ...options,
+  })
+
+export const getGroupStory = <ThrowOnError extends boolean = false>(
+  options: Options<GetGroupStoryData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<GetGroupStoryResponses, GetGroupStoryErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/group-stories/{groupStoryId}',
+    ...options,
+  })
+
+export const updateGroupStory = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateGroupStoryData, ThrowOnError>,
+) =>
+  (options.client ?? client).patch<UpdateGroupStoryResponses, UpdateGroupStoryErrors, ThrowOnError>(
+    {
+      responseType: 'json',
+      security: [{ scheme: 'bearer', type: 'http' }],
+      url: '/api/v1/groups/{groupId}/group-stories/{groupStoryId}',
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    },
+  )
+
+export const previewGroupStoryRun = <ThrowOnError extends boolean = false>(
+  options: Options<PreviewGroupStoryRunData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    PreviewGroupStoryRunResponses,
+    PreviewGroupStoryRunErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/group-stories/{groupStoryId}/run-preview',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const runGroupStory = <ThrowOnError extends boolean = false>(
+  options: Options<RunGroupStoryData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<RunGroupStoryResponses, RunGroupStoryErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/group-stories/{groupStoryId}/run',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const listStoryGroupStories = <ThrowOnError extends boolean = false>(
+  options: Options<ListStoryGroupStoriesData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ListStoryGroupStoriesResponses,
+    ListStoryGroupStoriesErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/stories/{storyId}/group-stories',
     ...options,
   })
 

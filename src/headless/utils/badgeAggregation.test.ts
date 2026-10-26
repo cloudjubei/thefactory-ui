@@ -16,7 +16,7 @@ function makeState(over: Record<string, any> = {}): BadgeState {
     chat_messages: { unread: 0, waiting: 0, thinking: false, ...(over.chat_messages || {}) },
     git: { incoming: 0, uncommitted: 0, ...(over.git || {}) },
     tests: { failing: 0, ...(over.tests || {}) },
-    activity: { running: 0, paused: 0, unseen: 0, ...(over.activity || {}) },
+    activity: { running: 0, paused: 0, unseen: 0, unread: 0, ...(over.activity || {}) },
     process: { running: 0, waiting: 0, failed: 0, ...(over.process || {}) },
     signIn: { expired: [], ...(over.signIn || {}) },
   }
@@ -77,7 +77,7 @@ describe('EMPTY_BADGE_STATE', () => {
       chat_messages: { unread: 0, waiting: 0, thinking: false },
       git: { incoming: 0, uncommitted: 0 },
       tests: { failing: 0 },
-      activity: { running: 0, paused: 0, unseen: 0 },
+      activity: { running: 0, paused: 0, unseen: 0, unread: 0 },
       process: { running: 0, waiting: 0, failed: 0, unread: 0 },
       signIn: { expired: [] },
     })
@@ -96,6 +96,7 @@ describe('hasAnyBadge', () => {
     expect(hasAnyBadge(makeState({ activity: { running: 1, paused: 0 } }))).toBe(true)
     expect(hasAnyBadge(makeState({ activity: { running: 0, paused: 1 } }))).toBe(true)
     expect(hasAnyBadge(makeState({ activity: { running: 0, paused: 0, unseen: 2 } }))).toBe(true)
+    expect(hasAnyBadge(makeState({ activity: { unread: 1 } }))).toBe(true)
   })
 
   it('badges a running process and a waiting process independently', () => {
@@ -358,12 +359,14 @@ describe('aggregateGroupBadgeState', () => {
         chat_messages: { unread: 3, waiting: 1, thinking: false },
         git: { incoming: 1, uncommitted: 4 },
         tests: { failing: 1 },
+        activity: { unseen: 1, unread: 2 },
         process: { running: 2, waiting: 1, failed: 1, unread: 1 },
       }),
       b: makeState({
         chat_messages: { unread: 5, waiting: 2, thinking: true },
         git: { incoming: 2, uncommitted: 6 },
         tests: { failing: 2 },
+        activity: { unread: 3 },
         process: { running: 0, waiting: 3, failed: 2, unread: 2 },
       }),
     }
@@ -372,7 +375,7 @@ describe('aggregateGroupBadgeState', () => {
       chat_messages: { unread: 8, waiting: 3, thinking: true },
       git: { incoming: 3, uncommitted: 10 },
       tests: { failing: 3 },
-      activity: { running: 0, paused: 0, unseen: 0 },
+      activity: { running: 0, paused: 0, unseen: 1, unread: 5 },
       process: { running: 2, waiting: 4, failed: 3, unread: 3 },
       signIn: { expired: [] },
     })

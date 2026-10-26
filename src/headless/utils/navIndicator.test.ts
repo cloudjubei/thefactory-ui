@@ -18,7 +18,7 @@ function state(
     chat_messages: { unread: 0, waiting: 0, thinking: false, ...over.chat_messages },
     git: { incoming: 0, uncommitted: 0, ...over.git },
     tests: { failing: 0, ...over.tests },
-    activity: { running: 0, paused: 0, unseen: 0, ...over.activity },
+    activity: { running: 0, paused: 0, unseen: 0, unread: 0, ...over.activity },
     process: { running: 0, waiting: 0, failed: 0, unread: 0, ...over.process },
     signIn: { expired: [], ...over.signIn },
   }
@@ -232,7 +232,7 @@ describe('inkBadgeTitle', () => {
 
   it('names what runs', () => {
     expect(inkBadgeTitle([], 'processes')).toBe('a run is working')
-    expect(inkBadgeTitle([], 'activity')).toBe('a run is working')
+    expect(inkBadgeTitle([], 'activity')).toBe('the app is working')
     expect(inkBadgeTitle([], 'chat')).toBe('an agent is replying')
     expect(inkBadgeTitle([], 'git')).toBe('something is running')
   })
@@ -284,14 +284,28 @@ describe('scopeRowIndicator — a project or group row', () => {
     })
   })
 
-  it('a running run or activity runs in the processes channel', () => {
-    for (const s of [state({ process: { running: 1 } }), state({ activity: { running: 2 } })]) {
-      expect(scopeRowIndicator(s)).toEqual({
-        kind: 'ink',
-        badge: { parts: [], running: 'processes', rollup: true },
-        title: 'a run is working',
-      })
-    }
+  it('a working agent run runs in the processes channel', () => {
+    expect(scopeRowIndicator(state({ process: { running: 1 } }))).toEqual({
+      kind: 'ink',
+      badge: { parts: [], running: 'processes', rollup: true },
+      title: 'a run is working',
+    })
+  })
+
+  it("a working app activity runs in the activity channel, as on the App tab, not in the agents' processes channel", () => {
+    expect(scopeRowIndicator(state({ activity: { running: 2 } }))).toEqual({
+      kind: 'ink',
+      badge: { parts: [], running: 'activity', rollup: true },
+      title: 'the app is working',
+    })
+  })
+
+  it('a working agent run comes before a working app activity', () => {
+    expect(
+      scopeRowIndicator(state({ process: { running: 1 }, activity: { running: 1 } })),
+    ).toMatchObject({
+      badge: { running: 'processes' },
+    })
   })
 
   it('a replying agent runs in the chat channel, but a working run comes first', () => {
@@ -318,6 +332,17 @@ describe('scopeRowIndicator — a project or group row', () => {
     ).toEqual({
       kind: 'dot',
       title: '2 chats have news · 1 new result',
+    })
+  })
+
+  it('what the project’s app holds unread is news like new results, a dot', () => {
+    expect(scopeRowIndicator(state({ activity: { unread: 2, unseen: 1 } }))).toEqual({
+      kind: 'dot',
+      title: '3 new results',
+    })
+    expect(scopeRowIndicator(state({ activity: { unread: 1 } }))).toEqual({
+      kind: 'dot',
+      title: '1 new result',
     })
   })
 
@@ -496,7 +521,7 @@ describe('shellTabIndicator — the other tabs keep their own channel', () => {
     ).toEqual({
       kind: 'ink',
       badge: { parts: [{ channel: 'activity', count: 2 }], running: 'activity', rollup: false },
-      title: '2 new results · a run is working',
+      title: '2 new results · the app is working',
     })
   })
 
@@ -505,6 +530,33 @@ describe('shellTabIndicator — the other tabs keep their own channel', () => {
       kind: 'paused',
       title: 'Paused activity — resumes when you open it',
     })
+  })
+
+  it('App: what it holds unread is a dot, as an unread chat is', () => {
+    expect(shellTabIndicator('app', counts({ appUnread: 2 }), { viewing: false })).toEqual({
+      kind: 'dot',
+      title: '2 new results',
+    })
+  })
+
+  it('App: new results and a live activity outrank what it holds unread', () => {
+    expect(
+      shellTabIndicator('app', counts({ activityUnseen: 2, appUnread: 1 }), { viewing: false }),
+    ).toEqual({
+      kind: 'ink',
+      badge: { parts: [{ channel: 'activity', count: 2 }], rollup: false },
+      title: '2 new results',
+    })
+  })
+
+  it('App: keeps what it holds unread while the person is viewing it, until each is opened', () => {
+    expect(
+      shellTabIndicator(
+        'app',
+        counts({ activityWorking: true, activityPaused: true, activityUnseen: 3, appUnread: 1 }),
+        { viewing: true },
+      ),
+    ).toEqual({ kind: 'dot', title: '1 new result' })
   })
 
   it('App: shows nothing while the person is viewing it', () => {
@@ -529,6 +581,7 @@ describe('shellTabIndicator — the other tabs keep their own channel', () => {
         activity: 1,
         activityWorking: true,
         activityUnseen: 1,
+        appUnread: 1,
         processesRunning: 1,
         processesWaiting: 1,
         processesFailed: 1,

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { DOCUMENT_REPORT_APPROACH } from 'thefactory-tools/constants'
 import type { ReportSections } from 'thefactory-tools/types'
 
 import {
@@ -56,6 +57,15 @@ describe('reportSectionsOf', () => {
       ref: {},
     })
     expect(parsed?.needsYou).toEqual([])
+  })
+
+  it('reads no sections into the documents a report step shows, whatever their headings', () => {
+    expect(
+      reportSectionsOf({
+        text: '# Claude Code\n\n## Versions\n- 2.1.88\n\n## Verdict\nstudy — keep it.\n',
+        ref: { approach: DOCUMENT_REPORT_APPROACH },
+      }),
+    ).toBeUndefined()
   })
 
   it('reads an older report from its markdown', () => {
@@ -494,6 +504,18 @@ describe('reportBodyView', () => {
       body: [],
       attention: false,
     })
+  })
+
+  it('shows the documents a report step shows whole, as they were written', () => {
+    const text = '# Claude Code\n\n## Versions\n- 2.1.88\n\n## Verdict\nstudy — keep it.\n'
+    expect(reportBodyView({ text, ref: { approach: DOCUMENT_REPORT_APPROACH } }, [])).toMatchObject(
+      {
+        outcome: undefined,
+        decisions: undefined,
+        needsYou: undefined,
+        fallbackMarkdown: text,
+      },
+    )
   })
 
   it('has nothing to lay out without a report', () => {

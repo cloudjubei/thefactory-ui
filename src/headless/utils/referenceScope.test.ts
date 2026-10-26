@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   isLazyReferenceScope,
+  isWantedReferenceProject,
   referenceGroupId,
   referencedProjectId,
+  referenceProjectsReached,
   referenceProjectsToLoad,
 } from './referenceScope'
 
@@ -54,6 +56,44 @@ describe('referenceProjectsToLoad', () => {
       'p3',
     ])
     expect(referenceProjectsToLoad(scope, true, new Set())).toEqual([])
+  })
+
+  it('also loads another project a chip of a project or group scope names', () => {
+    expect(referenceProjectsToLoad(['p1'], false, new Set(['p9']))).toEqual(['p1', 'p9'])
+    expect(referenceProjectsToLoad(scope, false, new Set(['p2', 'p9']))).toEqual([
+      'p1',
+      'p2',
+      'p3',
+      'p9',
+    ])
+  })
+})
+
+describe('referenceProjectsReached', () => {
+  it('is the scope, then the projects named from outside it', () => {
+    expect(referenceProjectsReached(['p1'], new Set(['p9', 'p1']))).toEqual(['p1', 'p9'])
+    expect(referenceProjectsReached(['p1', 'p2'], new Set())).toEqual(['p1', 'p2'])
+    expect(referenceProjectsReached([], new Set(['p9']))).toEqual(['p9'])
+  })
+})
+
+describe('isWantedReferenceProject', () => {
+  const known = ['p1', 'p2', 'p3', 'p9']
+
+  it('wants a lazy scope’s own project once one of its chips shows', () => {
+    expect(isWantedReferenceProject('p2', ['p1', 'p2', 'p3'], true, known)).toBe(true)
+    expect(isWantedReferenceProject('p9', ['p1', 'p2', 'p3'], true, known)).toBe(false)
+  })
+
+  it('wants a project a project or group scope names from outside it', () => {
+    expect(isWantedReferenceProject('p9', ['p1'], false, known)).toBe(true)
+    expect(isWantedReferenceProject('p1', ['p1'], false, known)).toBe(false)
+  })
+
+  it('never wants a project that does not exist, or no project', () => {
+    expect(isWantedReferenceProject('gone', ['p1'], false, known)).toBe(false)
+    expect(isWantedReferenceProject(undefined, ['p1'], false, known)).toBe(false)
+    expect(isWantedReferenceProject('', [], true, known)).toBe(false)
   })
 })
 

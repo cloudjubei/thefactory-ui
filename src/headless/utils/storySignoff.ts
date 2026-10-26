@@ -81,7 +81,7 @@ import {
   FEATURE_REVIEW_ACCEPTED_SUFFIX,
   FEATURE_REVIEW_TURNED_BACK,
   OVERALL_STATUS,
-  SECTION_STEP_REPORT,
+  SECTION_STEP_REPORTS,
   STORY_STEP_KINDS,
   STORY_STEP_METHODS,
   STORY_STEP_NOT_RUN,
@@ -276,8 +276,10 @@ function ledgerOwners(processRuns: readonly StorySignoffProcessRun[]): Map<strin
 }
 
 /**
- * The runs whose filings the sign-off shows: every run the scope's process runs
- * launched, whichever runner ran it, and every CLI run kept in scope.
+ * The runs whose filings the sign-off shows: the scope's process runs themselves
+ * (a report step that shows the run's documents files under its process run, no
+ * agent behind it), every run they launched, whichever runner ran it, and every
+ * CLI run kept in scope.
  */
 function scopedRunIds(
   scope: SignoffScope,
@@ -287,6 +289,7 @@ function scopedRunIds(
   const ids = new Set(cliRuns.map((r) => r.id))
   for (const p of processRuns) {
     if (!scope.processRunIds.has(p.id)) continue
+    ids.add(p.id)
     for (const entry of p.ledger) {
       const runId = entry.runRef?.runId
       if (runId) ids.add(runId)
@@ -1393,8 +1396,8 @@ function signoffSection(sectionId: string, tiles: readonly EvidenceTile[]): Sign
   const isStory = sectionId === ''
   const reports = tiles.filter((t) => t.ref.kind === 'report')
   const stepReport = newestOnly(
-    reports.filter(
-      (t) => reportAuthor(t.ref) === SECTION_STEP_REPORT[isStory ? 'story' : 'feature'],
+    reports.filter((t) =>
+      SECTION_STEP_REPORTS[isStory ? 'story' : 'feature'].includes(reportAuthor(t.ref)),
     ),
   )
   const reviews = tiles.filter((t) => isCodeReview(t.ref))

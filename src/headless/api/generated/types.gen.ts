@@ -607,6 +607,7 @@ export type ToolResult = {
   result: unknown
   type: ToolResultType
   durationMs: number
+  note?: string
   actionId?: string
 }
 
@@ -2213,6 +2214,7 @@ export type CompletionToolMessage = {
     result: unknown
     type: ToolResultType
     durationMs: number
+    note?: string
     actionId?: string
   }
   providerState?: {
@@ -7226,6 +7228,14 @@ export type DataRecord = {
   updatedAt: string
 }
 
+export type AppUnreadContent = {
+  storyId: string
+  runId: string
+  title: string
+  files: Array<string>
+  at: string
+}
+
 export type DataRecordInput = {
   scope: string
   type: string
@@ -10126,6 +10136,57 @@ export type GroupNoteSummary = {
   groupId: string
 }
 
+export type GroupStoryPart = {
+  projectId: string
+  storyId: string
+}
+
+export type GroupStory = {
+  id: string
+  groupId: string
+  title: string
+  description: string
+  parts: Array<GroupStoryPart>
+  createdAt: string
+  updatedAt: string
+}
+
+export type GroupStoryCreateInput = {
+  groupId: string
+  title: string
+  description?: string
+  parts: Array<GroupStoryPart>
+}
+
+export type GroupStoryUpdateInput = {
+  title?: string
+  description?: string
+  parts?: Array<GroupStoryPart>
+}
+
+export type GroupStoryPartStory = {
+  projectId: string
+  storyId: string
+  story?: {
+    id: string
+    title: string
+    blockers?: Array<string>
+  } & {
+    features: Array<{
+      status: Status
+    }>
+  }
+}
+
+export type GroupStoryPlan = {
+  steps: Array<Array<string>>
+  needs: {
+    [key: string]: Array<string>
+  }
+  problems: Array<string>
+  status?: 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
+}
+
 export type HostFileSample = {
   freeVnodes: number
   maxVnodes: number
@@ -12676,6 +12737,7 @@ export type ProcessPlan = {
   frozenAt: number
   amendments?: Array<ProcessPlanAmendment>
   signOff?: 'automatic'
+  unreadWhenDone?: true
   features?: Array<ProcessSubject>
 }
 
@@ -14510,6 +14572,8 @@ export type TestFrameworksByLanguage = {
   swift: Array<SwiftTestFramework>
   other: [unknown]
 }
+
+export type ProjectAppSharedFile = 'bridge.js' | 'locale.js'
 
 export type ProjectAppBridgeRequest = {
   id?: string
@@ -18705,6 +18769,86 @@ export type TestConfigDeclaration = {
   env?: Array<TestConfigEnvVar>
 }
 
+export type ToolCallSlipKind = 'invalid-args' | 'unknown-tool' | 'failed' | 'corrected'
+
+export type ToolCallRoute = 'mcp' | 'api'
+
+export type ToolCallSlipDraft = {
+  toolName: string
+  kind: ToolCallSlipKind
+  reason: string
+  sentFields: Array<string>
+  ranFields?: Array<string>
+}
+
+export type ToolCallSlip = {
+  toolName: string
+  kind: 'invalid-args' | 'unknown-tool' | 'failed' | 'corrected'
+  reason: string
+  sentFields: Array<string>
+  ranFields?: Array<string>
+  at: number
+  route: 'mcp' | 'api'
+  agent?: string
+  model?: string
+  projectId?: string
+  runId?: string
+  chatContextId?: string
+}
+
+export type ToolCallSlipInput = {
+  toolName: string
+  sent: unknown
+  parameters?: {
+    [key: string]: unknown
+  }
+  failure?: string
+}
+
+export type ToolCallSlipQuery = {
+  sinceDays?: number
+  toolName?: string
+  kind?: 'invalid-args' | 'unknown-tool' | 'failed' | 'corrected'
+  agent?: string
+  limit?: number
+}
+
+export type ToolCallSlipCount = {
+  key: string
+  count: number
+}
+
+export type ToolCallSlipKindCount = {
+  key: ToolCallSlipKind
+  count: number
+}
+
+export type ToolCallSlipToolStats = {
+  toolName: string
+  total: number
+  byKind: Array<ToolCallSlipKindCount>
+  reasons: Array<ToolCallSlipCount>
+  sentFields: Array<ToolCallSlipCount>
+  agents: Array<ToolCallSlipCount>
+}
+
+export type ToolCallSlipStats = {
+  since: number
+  until: number
+  total: number
+  byKind: Array<ToolCallSlipKindCount>
+  agents: Array<ToolCallSlipCount>
+  tools: Array<ToolCallSlipToolStats>
+}
+
+export type ToolCallCorrection = {
+  changed: boolean
+  ran: {
+    [key: string]: unknown
+  }
+  ignored: Array<string>
+}
+
 export type ToolName =
   | 'getToolNamesForAgent'
   | 'callTool'
@@ -18786,6 +18930,7 @@ export type ToolName =
   | 'checkCliAuthStatus'
   | 'startCliReauth'
   | 'abortCliAgentRun'
+  | 'stageCliAgentRunFiles'
   | 'listPendingCliAgentActions'
   | 'listCliAgentRunActions'
   | 'listDecidedCliAgentActions'
@@ -19014,6 +19159,11 @@ export type ToolName =
   | 'addGroupNote'
   | 'updateGroupNote'
   | 'removeGroupNote'
+  | 'listGroupStories'
+  | 'getGroupStory'
+  | 'createGroupStory'
+  | 'updateGroupStory'
+  | 'deleteGroupStory'
   | 'ingestProject'
   | 'ingestAll'
   | 'startIngestProject'
@@ -20446,6 +20596,7 @@ export type ProcessDefinition = {
     autonomy?: 'observe' | 'recommend' | 'act'
   }
   signOff?: 'person' | 'automatic'
+  unreadWhenDone?: boolean
 }
 
 export type ProcessLaunchContext = {
@@ -23096,6 +23247,7 @@ export type ProcessGroupRun = {
   groupId: string
   title: string
   chatContextId?: string
+  groupStoryId?: string
   input?: {
     [key: string]: unknown
   }
@@ -23143,6 +23295,7 @@ export type StartProcessGroupRunInput = {
   groupId: string
   title: string
   chatContextId?: string
+  groupStoryId?: string
   input?: {
     [key: string]: unknown
   }
@@ -23162,6 +23315,7 @@ export type ProcessGroupRunQuery = {
   groupId?: string
   status?: 'pending' | 'running' | 'parked' | 'succeeded' | 'failed' | 'cancelled'
   chatContextId?: string
+  groupStoryId?: string
   limit?: number
 }
 
@@ -27534,6 +27688,7 @@ export type ListProcessGroupRunsData = {
     groupId?: string
     status?: 'pending' | 'running' | 'parked' | 'succeeded' | 'failed' | 'cancelled'
     chatContextId?: string
+    groupStoryId?: string
     limit?: number
   }
   url: '/api/v1/process-group-runs'
@@ -27628,6 +27783,61 @@ export type GetProcessGroupRunResponses = {
 
 export type GetProcessGroupRunResponse =
   GetProcessGroupRunResponses[keyof GetProcessGroupRunResponses]
+
+export type OpenProcessGroupRunChatData = {
+  body?: never
+  path: {
+    groupRunId: string
+  }
+  query?: never
+  url: '/api/v1/process-group-runs/{groupRunId}/chat'
+}
+
+export type OpenProcessGroupRunChatErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type OpenProcessGroupRunChatError =
+  OpenProcessGroupRunChatErrors[keyof OpenProcessGroupRunChatErrors]
+
+export type OpenProcessGroupRunChatResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    /**
+     * The chat’s context key.
+     */
+    chatContextId: string
+    context: ChatContext
+  }
+}
+
+export type OpenProcessGroupRunChatResponse =
+  OpenProcessGroupRunChatResponses[keyof OpenProcessGroupRunChatResponses]
 
 export type PreviewProcessGroupRunData = {
   body: {
@@ -36314,6 +36524,77 @@ export type GetCostsByChatResponses = {
 
 export type GetCostsByChatResponse = GetCostsByChatResponses[keyof GetCostsByChatResponses]
 
+export type ListToolCallSlipsData = {
+  body?: never
+  path?: never
+  query?: {
+    sinceDays?: number
+    toolName?: string
+    kind?: 'invalid-args' | 'unknown-tool' | 'failed' | 'corrected'
+    agent?: string
+    limit?: number
+  }
+  url: '/api/v1/tool-call-slips'
+}
+
+export type ListToolCallSlipsErrors = {
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ListToolCallSlipsError = ListToolCallSlipsErrors[keyof ListToolCallSlipsErrors]
+
+export type ListToolCallSlipsResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<ToolCallSlip>
+}
+
+export type ListToolCallSlipsResponse = ListToolCallSlipsResponses[keyof ListToolCallSlipsResponses]
+
+export type GetToolCallSlipStatsData = {
+  body?: never
+  path?: never
+  query?: {
+    sinceDays?: number
+    toolName?: string
+    kind?: 'invalid-args' | 'unknown-tool' | 'failed' | 'corrected'
+    agent?: string
+    limit?: number
+  }
+  url: '/api/v1/tool-call-slips/stats'
+}
+
+export type GetToolCallSlipStatsErrors = {
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetToolCallSlipStatsError = GetToolCallSlipStatsErrors[keyof GetToolCallSlipStatsErrors]
+
+export type GetToolCallSlipStatsResponses = {
+  /**
+   * Default Response
+   */
+  200: ToolCallSlipStats
+}
+
+export type GetToolCallSlipStatsResponse =
+  GetToolCallSlipStatsResponses[keyof GetToolCallSlipStatsResponses]
+
 export type GetDailyUsageData = {
   body?: never
   path?: never
@@ -40252,6 +40533,635 @@ export type RevealGroupNoteResponses = {
 }
 
 export type RevealGroupNoteResponse = RevealGroupNoteResponses[keyof RevealGroupNoteResponses]
+
+export type ListGroupStoriesData = {
+  body?: never
+  path: {
+    groupId: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/group-stories'
+}
+
+export type ListGroupStoriesErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ListGroupStoriesError = ListGroupStoriesErrors[keyof ListGroupStoriesErrors]
+
+export type ListGroupStoriesResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    id: string
+    groupId: string
+    title: string
+    description: string
+    parts: Array<GroupStoryPart>
+    createdAt: string
+    updatedAt: string
+    groupTitle?: string
+    partViews: Array<{
+      projectId: string
+      projectTitle: string
+      storyId: string
+      storyTitle?: string
+      status?: 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
+      featuresDone: number
+      featuresTotal: number
+      needs: Array<string>
+      /**
+       * The step it runs in, 1 first.
+       */
+      step?: number
+    }>
+    steps: Array<Array<string>>
+    problems: Array<string>
+    status?: 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
+    latestRun?: {
+      groupRunId: string
+      title: string
+      status: ProcessRunStatus
+      waitingOn?: string
+      startedAt: number
+    }
+  }>
+}
+
+export type ListGroupStoriesResponse = ListGroupStoriesResponses[keyof ListGroupStoriesResponses]
+
+export type CreateGroupStoryData = {
+  body: {
+    title?: string
+    description?: string
+    /**
+     * Every part, one per project. Parts left out stop being parts; their stories stay.
+     */
+    parts?: Array<{
+      /**
+       * A project of the group.
+       */
+      projectId: string
+      /**
+       * The project’s story this part is; absent to make a new one.
+       */
+      storyId?: string
+      /**
+       * The new story’s title; the group story’s own when absent.
+       */
+      newStoryTitle?: string
+    }>
+    /**
+     * For each part’s project, the parts’ projects it needs first — written as its story’s blockers on theirs.
+     */
+    needs?: {
+      [key: string]: Array<string>
+    }
+  }
+  path: {
+    groupId: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/group-stories'
+}
+
+export type CreateGroupStoryErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type CreateGroupStoryError = CreateGroupStoryErrors[keyof CreateGroupStoryErrors]
+
+export type CreateGroupStoryResponses = {
+  /**
+   * Default Response
+   */
+  201: {
+    id: string
+    groupId: string
+    title: string
+    description: string
+    parts: Array<GroupStoryPart>
+    createdAt: string
+    updatedAt: string
+    groupTitle?: string
+    partViews: Array<{
+      projectId: string
+      projectTitle: string
+      storyId: string
+      storyTitle?: string
+      status?: 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
+      featuresDone: number
+      featuresTotal: number
+      needs: Array<string>
+      /**
+       * The step it runs in, 1 first.
+       */
+      step?: number
+    }>
+    steps: Array<Array<string>>
+    problems: Array<string>
+    status?: 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
+    latestRun?: {
+      groupRunId: string
+      title: string
+      status: ProcessRunStatus
+      waitingOn?: string
+      startedAt: number
+    }
+  }
+}
+
+export type CreateGroupStoryResponse = CreateGroupStoryResponses[keyof CreateGroupStoryResponses]
+
+export type DeleteGroupStoryData = {
+  body?: never
+  path: {
+    groupId: string
+    groupStoryId: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/group-stories/{groupStoryId}'
+}
+
+export type DeleteGroupStoryErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type DeleteGroupStoryError = DeleteGroupStoryErrors[keyof DeleteGroupStoryErrors]
+
+export type DeleteGroupStoryResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    deleted: boolean
+  }
+}
+
+export type DeleteGroupStoryResponse = DeleteGroupStoryResponses[keyof DeleteGroupStoryResponses]
+
+export type GetGroupStoryData = {
+  body?: never
+  path: {
+    groupId: string
+    groupStoryId: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/group-stories/{groupStoryId}'
+}
+
+export type GetGroupStoryErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetGroupStoryError = GetGroupStoryErrors[keyof GetGroupStoryErrors]
+
+export type GetGroupStoryResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    id: string
+    groupId: string
+    title: string
+    description: string
+    parts: Array<GroupStoryPart>
+    createdAt: string
+    updatedAt: string
+    groupTitle?: string
+    partViews: Array<{
+      projectId: string
+      projectTitle: string
+      storyId: string
+      storyTitle?: string
+      status?: 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
+      featuresDone: number
+      featuresTotal: number
+      needs: Array<string>
+      /**
+       * The step it runs in, 1 first.
+       */
+      step?: number
+    }>
+    steps: Array<Array<string>>
+    problems: Array<string>
+    status?: 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
+    latestRun?: {
+      groupRunId: string
+      title: string
+      status: ProcessRunStatus
+      waitingOn?: string
+      startedAt: number
+    }
+  }
+}
+
+export type GetGroupStoryResponse = GetGroupStoryResponses[keyof GetGroupStoryResponses]
+
+export type UpdateGroupStoryData = {
+  body: {
+    title?: string
+    description?: string
+    /**
+     * Every part, one per project. Parts left out stop being parts; their stories stay.
+     */
+    parts?: Array<{
+      /**
+       * A project of the group.
+       */
+      projectId: string
+      /**
+       * The project’s story this part is; absent to make a new one.
+       */
+      storyId?: string
+      /**
+       * The new story’s title; the group story’s own when absent.
+       */
+      newStoryTitle?: string
+    }>
+    /**
+     * For each part’s project, the parts’ projects it needs first — written as its story’s blockers on theirs.
+     */
+    needs?: {
+      [key: string]: Array<string>
+    }
+  }
+  path: {
+    groupId: string
+    groupStoryId: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/group-stories/{groupStoryId}'
+}
+
+export type UpdateGroupStoryErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type UpdateGroupStoryError = UpdateGroupStoryErrors[keyof UpdateGroupStoryErrors]
+
+export type UpdateGroupStoryResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    id: string
+    groupId: string
+    title: string
+    description: string
+    parts: Array<GroupStoryPart>
+    createdAt: string
+    updatedAt: string
+    groupTitle?: string
+    partViews: Array<{
+      projectId: string
+      projectTitle: string
+      storyId: string
+      storyTitle?: string
+      status?: 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
+      featuresDone: number
+      featuresTotal: number
+      needs: Array<string>
+      /**
+       * The step it runs in, 1 first.
+       */
+      step?: number
+    }>
+    steps: Array<Array<string>>
+    problems: Array<string>
+    status?: 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
+    latestRun?: {
+      groupRunId: string
+      title: string
+      status: ProcessRunStatus
+      waitingOn?: string
+      startedAt: number
+    }
+  }
+}
+
+export type UpdateGroupStoryResponse = UpdateGroupStoryResponses[keyof UpdateGroupStoryResponses]
+
+export type PreviewGroupStoryRunData = {
+  body: {
+    baseBranches?: {
+      [key: string]: string
+    }
+  }
+  path: {
+    groupId: string
+    groupStoryId: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/group-stories/{groupStoryId}/run-preview'
+}
+
+export type PreviewGroupStoryRunErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type PreviewGroupStoryRunError = PreviewGroupStoryRunErrors[keyof PreviewGroupStoryRunErrors]
+
+export type PreviewGroupStoryRunResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    groupId: string
+    groupTitle?: string
+    legs: Array<{
+      projectId: string
+      projectTitle: string
+      storyId: string
+      storyTitle?: string
+      dependsOn: Array<string>
+      processId?: string
+      /**
+       * How many of the story’s features the leg would work.
+       */
+      features: number
+      /**
+       * Another leg needs this one merged first, so its early merge is asked about.
+       */
+      isPrerequisite: boolean
+      baseBranches?: {
+        current?: string
+        preselected?: string
+        branches: Array<string>
+      }
+      /**
+       * The branch the leg would work off — the one asked for, else the preselected one.
+       */
+      baseBranch?: string
+      /**
+       * Why this leg cannot start.
+       */
+      problem?: string
+      /**
+       * The story’s open run that keeps this leg from starting.
+       */
+      openRunId?: string
+      /**
+       * The features an earlier run already delivered, one line per run.
+       */
+      alreadyDone?: Array<string>
+    }>
+    /**
+     * Leg ids by dependency level: each level starts once the one before is merged.
+     */
+    waves: Array<Array<string>>
+    problems: Array<string>
+  }
+}
+
+export type PreviewGroupStoryRunResponse =
+  PreviewGroupStoryRunResponses[keyof PreviewGroupStoryRunResponses]
+
+export type RunGroupStoryData = {
+  body: {
+    runner?: 'api' | 'cli'
+    cliTool?: string
+    cliModel?: string
+    cliCredentialId?: string
+    effort?: string
+    /**
+     * A spending cap for EACH part, in dollars.
+     */
+    spendCapUsd?: number
+    /**
+     * What every part’s agent should know beyond its story.
+     */
+    note?: string
+    proofRequired?: boolean
+    turnLimit?: {
+      limitTurns: boolean
+      maxTurns: number
+    }
+    /**
+     * The branch each part’s project works off, by project id; its preselected one when absent.
+     */
+    baseBranches?: {
+      [key: string]: string
+    }
+  }
+  path: {
+    groupId: string
+    groupStoryId: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/group-stories/{groupStoryId}/run'
+}
+
+export type RunGroupStoryErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type RunGroupStoryError = RunGroupStoryErrors[keyof RunGroupStoryErrors]
+
+export type RunGroupStoryResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    groupRunId: string
+    message: string
+  }
+}
+
+export type RunGroupStoryResponse = RunGroupStoryResponses[keyof RunGroupStoryResponses]
+
+export type ListStoryGroupStoriesData = {
+  body?: never
+  path: {
+    projectId: string
+    storyId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/stories/{storyId}/group-stories'
+}
+
+export type ListStoryGroupStoriesErrors = {
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ListStoryGroupStoriesError =
+  ListStoryGroupStoriesErrors[keyof ListStoryGroupStoriesErrors]
+
+export type ListStoryGroupStoriesResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    groupId: string
+    groupTitle: string
+    groupStoryId: string
+    title: string
+  }>
+}
+
+export type ListStoryGroupStoriesResponse =
+  ListStoryGroupStoriesResponses[keyof ListStoryGroupStoriesResponses]
 
 export type IngestAllData = {
   body?: never

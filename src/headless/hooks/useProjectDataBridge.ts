@@ -8,6 +8,7 @@ import { dispatchRunnersBridge } from '../api/runnersBridge'
 import { dispatchProjectsBridge } from '../api/projectsBridge'
 import { dispatchWorkBridge } from '../api/workBridge'
 import { dispatchUserBridge } from '../api/userBridge'
+import { dispatchToolCallsBridge } from '../api/toolCallsBridge'
 import { useStories } from '../contexts/StoriesContext'
 import { useProjects } from '../contexts/ProjectsContext'
 import { useLLMConfigs } from '../contexts/LLMConfigsContext'
@@ -76,6 +77,8 @@ export function useProjectDataBridge(
       if (projects !== undefined) return projects
       const user = await dispatchUserBridge(req)
       if (user !== undefined) return user
+      const toolCalls = await dispatchToolCallsBridge(req)
+      if (toolCalls !== undefined) return toolCalls
       const work = await dispatchWorkBridge(
         projectId,
         req,

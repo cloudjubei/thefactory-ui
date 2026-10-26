@@ -26,13 +26,42 @@ export function isLazyReferenceScope(
   return scope !== undefined && !scope.projectId && !scope.groupId
 }
 
-/** The projects of a scope whose references to read: all of them, or a lazy scope's wanted ones. */
+/**
+ * The projects whose references a scope reads: its own, then any other project
+ * one of its chips names — a story in one repo pointing at its part in another.
+ */
+export function referenceProjectsReached(
+  scopeIds: readonly string[],
+  wanted: ReadonlySet<string>,
+): string[] {
+  return [...scopeIds, ...[...wanted].filter((id) => !scopeIds.includes(id))]
+}
+
+/**
+ * The projects of a scope whose references to read: a lazy scope's wanted ones,
+ * or every project of any other scope and the projects its chips name.
+ */
 export function referenceProjectsToLoad(
   scopeIds: readonly string[],
   lazy: boolean,
   wanted: ReadonlySet<string>,
 ): string[] {
-  return lazy ? scopeIds.filter((id) => wanted.has(id)) : [...scopeIds]
+  return lazy ? scopeIds.filter((id) => wanted.has(id)) : referenceProjectsReached(scopeIds, wanted)
+}
+
+/**
+ * Whether a chip naming this project should load it: a lazy scope reads its own
+ * projects as their chips show; any other scope already reads its own, and reads
+ * another existing project only when a chip names it.
+ */
+export function isWantedReferenceProject(
+  projectId: string | undefined,
+  scopeIds: readonly string[],
+  lazy: boolean,
+  knownProjectIds: readonly string[],
+): boolean {
+  if (!projectId || !knownProjectIds.includes(projectId)) return false
+  return lazy === scopeIds.includes(projectId)
 }
 
 /** The project a reference or link names, if it names one. */

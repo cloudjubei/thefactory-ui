@@ -1,3 +1,4 @@
+import { DOCUMENT_REPORT_APPROACH } from 'thefactory-tools/constants'
 import { parseReportSections, processNeedsYouDecisions } from 'thefactory-tools/utils'
 import type { ReportProofSource, ReportProofStatus, ReportSections } from 'thefactory-tools/types'
 
@@ -29,10 +30,14 @@ import type { ReviewTabId } from './checkMethodTypes'
 import { clipLine, plainMarkdownLine } from './textLine'
 import { signoffCostView, signoffTimeView } from './signoffWork'
 
-type ReportSource = { text?: string; ref: { reportSections?: ReportSections } }
+type ReportSource = { text?: string; ref: { reportSections?: ReportSections; approach?: string } }
 
-/** The report's sections as filed, else read from its markdown; absent when neither gives them. */
+/**
+ * The report's sections as filed, else read from its markdown; absent when neither gives them, and
+ * for the documents a report step shows: those are the work as written, never a report's sections.
+ */
 export function reportSectionsOf(report: ReportSource): ReportSections | undefined {
+  if (report.ref.approach === DOCUMENT_REPORT_APPROACH) return undefined
   const sections =
     report.ref.reportSections ?? (report.text ? parseReportSections(report.text) : undefined)
   return sections && { ...sections, needsYou: processNeedsYouDecisions(sections.needsYou) }

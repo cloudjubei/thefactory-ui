@@ -48,8 +48,9 @@ function freshPhrase(part: InkPart): string {
 function runningPhrase(channel: InkChannel): string {
   switch (channel) {
     case 'processes':
-    case 'activity':
       return 'a run is working'
+    case 'activity':
+      return 'the app is working'
     case 'chat':
       return 'an agent is replying'
     default:
@@ -110,17 +111,20 @@ export function navRowIndicator(signals: NavRowSignals): NavRowIndicator {
 /**
  * A project or group row: ONE total of everything waiting on the person —
  * failed merges, expired sign-ins its agents use, runs, chats with an ask, git
- * changes — moving while a run works or an agent replies; unread news alone —
+ * changes — moving while a run works (an agent run in its own colour, else the
+ * project app's activity in the App tab's colour) or an agent replies; unread news alone —
  * in a chat, in a run's own chat, or new results — is a dot. Failing tests
  * stay on the Tests tab. Pure.
  */
 export function scopeRowIndicator(state: BadgeState): NavRowIndicator {
-  const runWorking = state.process.running > 0 || state.activity.running > 0
-  const running: InkChannel | undefined = runWorking
-    ? 'processes'
-    : state.chat_messages.thinking
-      ? 'chat'
-      : undefined
+  const running: InkChannel | undefined =
+    state.process.running > 0
+      ? 'processes'
+      : state.activity.running > 0
+        ? 'activity'
+        : state.chat_messages.thinking
+          ? 'chat'
+          : undefined
   return navRowIndicator({
     parts: [
       { channel: 'failed', count: state.process.failed },
@@ -133,7 +137,7 @@ export function scopeRowIndicator(state: BadgeState): NavRowIndicator {
     fresh: [
       { channel: 'chat', count: state.chat_messages.unread },
       { channel: 'processes', count: state.process.unread },
-      { channel: 'activity', count: state.activity.unseen },
+      { channel: 'activity', count: state.activity.unseen + state.activity.unread },
     ],
     broke: state.signIn.expired.map(signInExpiredTitle),
     rollup: true,
@@ -173,14 +177,17 @@ export function shellTabIndicator(
         rollup: false,
       })
     }
-    case 'app':
-      if (viewing) return { kind: 'none' }
+    case 'app': {
+      const fresh = [{ channel: 'activity' as const, count: counts.appUnread }]
+      if (viewing) return navRowIndicator({ parts: [], fresh, rollup: false })
       return navRowIndicator({
         parts: [{ channel: 'activity', count: counts.activityUnseen }],
         running: counts.activityWorking ? 'activity' : undefined,
         paused: counts.activityPaused,
+        fresh,
         rollup: false,
       })
+    }
     default:
       return { kind: 'none' }
   }
