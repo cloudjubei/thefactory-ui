@@ -7616,6 +7616,7 @@ export type DesignTidyMoveKind =
   | 'merge-screens'
   | 'fold-history'
   | 'remove-duplicate'
+  | 'fold-versions'
 
 export type DesignTidyTarget = {
   id?: string
@@ -7762,6 +7763,7 @@ export type DesignTidyPreview = {
   screensAfter: number
   accepted: number
   moves: number
+  summary: Array<string>
   problem?: string
 }
 

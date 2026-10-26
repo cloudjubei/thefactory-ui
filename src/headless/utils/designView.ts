@@ -258,13 +258,23 @@ function nameOf(index: DesignIndex, id: string, kind: DesignTidyMove['kind']): s
   return version ? designShownOfVersion(index, version).name : id
 }
 
+function targetName(index: DesignIndex, move: DesignTidyMove): string {
+  const { id, name, screenId } = move.to
+  if (move.kind === 'fold-versions' && id) {
+    const found = findDesignState(index, id)
+    const variant = currentDesignVersion(index, id, name ?? '')?.variant ?? name ?? ''
+    return found ? `${found.screen.name} › ${found.state.name} · ${variant}` : `${id} · ${variant}`
+  }
+  if (id) return nameOf(index, id, move.kind)
+  if (move.kind === 'fold-history' && screenId) {
+    return `${findDesignScreen(index, screenId)?.screen.name ?? screenId} › ${name ?? ''}`
+  }
+  return name ?? ''
+}
+
 /** A tidy-up move in names: what it moves, and where to. Pure. */
 export function designTidyMoveView(index: DesignIndex, move: DesignTidyMove): DesignTidyMoveView {
-  const to = move.to.id
-    ? nameOf(index, move.to.id, move.kind)
-    : move.kind === 'fold-history' && move.to.screenId
-      ? `${findDesignScreen(index, move.to.screenId)?.screen.name ?? move.to.screenId} › ${move.to.name ?? ''}`
-      : (move.to.name ?? '')
+  const to = targetName(index, move)
   return {
     move,
     kindLabel: DESIGN_TIDY_KIND_LABELS[move.kind],

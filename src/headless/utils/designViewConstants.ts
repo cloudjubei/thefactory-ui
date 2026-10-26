@@ -53,6 +53,7 @@ export const DESIGN_TIDY_KIND_LABELS: Record<DesignTidyMoveKind, string> = {
   'merge-screens': 'Merge screens',
   'fold-history': 'Fold into history',
   'remove-duplicate': 'Remove a duplicate',
+  'fold-versions': 'Older images as history',
 }
 
 /** The words the Design tab shows, the same on every client. */

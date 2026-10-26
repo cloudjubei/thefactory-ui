@@ -69,6 +69,13 @@ export default function DesignTidy({ index, plan, onDecide, onApply, onDismiss }
           </span>
         </div>
       </div>
+      {preview.summary.length > 0 ? (
+        <ul className="flex flex-col gap-1 text-[12.5px] text-(--text-secondary)">
+          {preview.summary.map((line, i) => (
+            <li key={`${i}:${line}`}>{line}</li>
+          ))}
+        </ul>
+      ) : null}
       {preview.problem ? (
         <p
           className="rounded-md border px-3 py-2 text-[12.5px]"

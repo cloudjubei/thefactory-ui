@@ -323,6 +323,26 @@ describe('designTidyMoveView', () => {
     })
     expect(view({ ...base, kind: 'merge-screens', from: [], to: {} }).to).toBe('')
   })
+
+  it('names the versions a fold takes and the variant they become history of', () => {
+    const view = (to: { id?: string; name?: string }) =>
+      designTidyMoveView(design(), {
+        id: 'm',
+        title: 't',
+        why: 'w',
+        kind: 'fold-versions',
+        from: ['v3', 'gone'],
+        to,
+      })
+    expect(view({ id: 'st1', name: 'light' })).toEqual({
+      move: expect.objectContaining({ kind: 'fold-versions' }),
+      kindLabel: 'Older images as history',
+      from: ['Army setup › Empty army · Dark · v1', 'gone'],
+      to: 'Army setup › Empty army · Light',
+    })
+    expect(view({ id: 'st2', name: 'Phone' }).to).toBe('Army setup › Full army · Phone')
+    expect(view({ id: 'nope', name: 'Phone' }).to).toBe('nope · Phone')
+  })
 })
 
 describe('filing, components and previews', () => {

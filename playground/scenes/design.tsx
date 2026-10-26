@@ -331,6 +331,57 @@ const TIDY: DesignTidyPlan = {
   ...at(8),
 }
 
+/**
+ * A re-capture drew 'Army loaded' as Desktop · Visual and Phone · Visual, beside the old captures'
+ * labels and the same state filed again at phone width.
+ */
+function recaptured(): DesignIndex {
+  const index = sample()
+  return {
+    ...index,
+    states: [
+      ...index.states,
+      { id: 'loaded-phone', screenId: 'setup', name: 'Army loaded — phone width', ...at(3) },
+    ],
+    versions: [
+      ...index.versions,
+      version('v-old-web', 'loaded', 'web:app:.', 1, 'setup-web.png', 2),
+      version('v-old-default', 'loaded', 'Default', 1, 'setup-default.png', 3),
+      version('v-old-phone', 'loaded-phone', 'Default', 1, 'setup-phone.png', 3),
+      version('v-visual', 'loaded', 'Desktop · Visual', 1, 'setup-visual.png', 9),
+      version('v-visual-phone', 'loaded', 'Phone · Visual', 1, 'setup-visual-phone.png', 9),
+    ],
+    tidyPlans: [
+      {
+        id: 'tidy-recapture',
+        origin: { by: 'agent', chatContextId: 'chat' },
+        status: 'open',
+        moves: [
+          {
+            id: 'f1',
+            kind: 'fold-versions',
+            title: 'Old captures of Army loaded',
+            from: ['v-old-web', 'v-old-default'],
+            to: { id: 'loaded', name: 'Desktop · Visual' },
+            why: 'The re-capture drew this state as Desktop · Visual; the old labels’ images are its history.',
+            decision: 'accept',
+          },
+          {
+            id: 'f2',
+            kind: 'fold-versions',
+            title: 'Army loaded, filed again at phone width',
+            from: ['v-old-phone'],
+            to: { id: 'loaded', name: 'Phone · Visual' },
+            why: 'The same state at phone width; the empty state goes once its image moves.',
+            decision: 'accept',
+          },
+        ],
+        ...at(9),
+      },
+    ],
+  }
+}
+
 /** WarGames' army builder: three screens, a shared component, versions, and proposals waiting. */
 function sample(over: Partial<DesignIndex> = {}): DesignIndex {
   return {
@@ -745,6 +796,13 @@ export const DESIGN_SCENES: Scene[] = [
         id: 'plan',
         title: 'Moves to decide',
         render: () => page(sample({ tidyPlans: [TIDY] }), { appId: 'army', tab: 'tidy' }),
+      },
+      {
+        id: 'older-images',
+        title: 'Older images as history',
+        description:
+          'After a re-capture: the old labels’ images, and a state filed again at phone width, become history of the new variants.',
+        render: () => page(recaptured(), { appId: 'army', tab: 'tidy' }),
       },
       {
         id: 'cannot-apply',
