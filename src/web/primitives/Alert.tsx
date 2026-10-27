@@ -14,12 +14,12 @@ export type AlertProps = {
 
 const VARIANT_STYLE: Record<AlertVariant, { background: string; color: string }> = {
   error: {
-    background: 'var(--color-red-50)',
-    color: 'var(--color-red-700)',
+    background: 'var(--status-stuck-soft-bg)',
+    color: 'var(--status-stuck-soft-fg)',
   },
   info: {
-    background: 'var(--color-blue-50)',
-    color: 'var(--color-blue-700)',
+    background: 'var(--accent-soft-bg)',
+    color: 'var(--accent-soft-fg)',
   },
 }
 

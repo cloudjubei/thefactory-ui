@@ -24,18 +24,7 @@ export default function ProjectStableBranchField({
 }: ProjectStableBranchFieldProps) {
   const field = projectStableBranchField(value)
   return (
-    <Field
-      label={PROJECT_STABLE_BRANCH_LABEL}
-      hint={
-        field.error ? (
-          <span role="alert" className="text-(--status-stuck-soft-fg)">
-            {field.error}
-          </span>
-        ) : (
-          field.hint
-        )
-      }
-    >
+    <Field label={PROJECT_STABLE_BRANCH_LABEL} hint={field.hint} error={field.error}>
       <Input
         value={field.value}
         placeholder={PROJECT_STABLE_BRANCH_PLACEHOLDER}

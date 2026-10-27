@@ -4,7 +4,7 @@ export const OPEN_QUESTIONS_COPY = {
   answered: 'All answered.',
   loading: 'Reading the questions…',
   on: (featureTitle: string) => `on ${featureTitle}`,
-  placeholder: 'Your answer — this unblocks the feature',
+  placeholder: 'Your answer',
   answer: 'Answer',
   sending: 'Sending…',
   failed: 'That answer was not saved. Try again.',

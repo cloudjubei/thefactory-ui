@@ -46,13 +46,15 @@ export default function SiblingFallbackNotice({
             <li
               key={chip.path}
               title={chip.path}
-              className="flex items-baseline gap-1 rounded-full border border-(--border-strong) px-2 text-[11px] text-(--text-secondary)"
+              className="flex max-w-full flex-wrap items-baseline gap-x-1 rounded-[10px] border border-(--border-strong) px-2 text-[11px] text-(--text-secondary) [&>span]:whitespace-nowrap"
             >
               <span className="font-medium text-(--text-primary)">{chip.name}</span>
               <span className="tabular-nums">{chip.live}</span>
               {chip.pending ? <span>· {SIBLING_FALLBACK_PENDING_LABEL}</span> : null}
-              <span aria-hidden>→</span>
-              <span className="tabular-nums">{chip.stable}</span>
+              <span className="tabular-nums">
+                <span aria-hidden>→ </span>
+                {chip.stable}
+              </span>
             </li>
           ))}
         </ul>

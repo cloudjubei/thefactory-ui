@@ -66,7 +66,11 @@ function runCard(standing: string): () => ReactNode {
 }
 
 function frame(children: ReactNode): ReactNode {
-  return <div className="flex w-[520px] flex-col gap-2 bg-(--surface-base) p-3">{children}</div>
+  return (
+    <div className="flex w-[520px] max-w-full flex-col gap-2 bg-(--surface-base) p-3">
+      {children}
+    </div>
+  )
 }
 
 export const OPEN_RUN_SCENES: Scene[] = [

@@ -24,8 +24,8 @@ export type ProcessCheckListProps = {
 /**
  * Under a checks step's node: each command its newest attempt ran — build,
  * type check, lint, format, unit tests — with how it came out, whether it was
- * only advisory, where it ran (sandbox or host, the reason and the code outside
- * the checkout it built against on hover), whether its failure already fails at
+ * only advisory, where it ran (sandbox or host, with the reason on hover), the
+ * code outside the checkout it built against, whether its failure already fails at
  * the change's base, and how long it took. While the step waits its turn behind
  * another check run of the project, that wait and how long it has lasted. An
  * attempt that ran again with out-of-tree code at its stable branch leads with
@@ -52,8 +52,8 @@ export default function ProcessCheckList({ step, latest, now }: ProcessCheckList
         className="m-0 flex min-w-0 items-baseline gap-2 px-1.5 pt-1 text-[12px]"
         style={{ color: 'var(--status-queued-soft-fg)' }}
       >
-        <span className="min-w-0 truncate">{waiting.reason}</span>
-        <span className="ml-auto shrink-0 tabular-nums text-[11px] text-(--text-muted)">
+        <span className="min-w-0 break-words">{waiting.reason}</span>
+        <span className="ml-auto shrink-0 whitespace-nowrap tabular-nums text-[11px] text-(--text-muted)">
           {waiting.waited}
         </span>
       </p>
@@ -65,12 +65,12 @@ export default function ProcessCheckList({ step, latest, now }: ProcessCheckList
       {rows.map((row) => (
         <li
           key={row.id}
-          className="flex min-w-0 items-baseline gap-2 text-[12px]"
+          className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 pl-5 text-[12px]"
           title={row.summary}
         >
           <span
             aria-hidden
-            className="w-3 shrink-0 text-center font-semibold"
+            className="-ml-5 w-3 shrink-0 text-center font-semibold"
             style={{ color: `var(--status-${row.tone}-soft-fg)` }}
           >
             {row.mark}
@@ -90,7 +90,7 @@ export default function ProcessCheckList({ step, latest, now }: ProcessCheckList
           {row.ranInLabel ? (
             <span
               className="shrink-0 rounded-full border border-(--border-strong) px-1.5 text-[10px] text-(--text-secondary)"
-              title={[row.ranInDetail, row.dependencyDetail].filter(Boolean).join(' · ')}
+              title={row.ranInDetail}
             >
               {row.ranInLabel}
             </span>
@@ -112,11 +112,16 @@ export default function ProcessCheckList({ step, latest, now }: ProcessCheckList
             </span>
           ) : null}
           {row.status !== 'passed' && row.summary ? (
-            <span className="min-w-0 truncate text-(--text-secondary)">{row.summary}</span>
+            <span className="min-w-0 break-words text-(--text-secondary)">{row.summary}</span>
           ) : null}
           {row.durationLabel ? (
-            <span className="ml-auto shrink-0 tabular-nums text-[11px] text-(--text-muted)">
+            <span className="ml-auto shrink-0 whitespace-nowrap tabular-nums text-[11px] text-(--text-muted)">
               {row.durationLabel}
+            </span>
+          ) : null}
+          {row.dependencyDetail ? (
+            <span className="basis-full text-[11px] text-(--text-muted)">
+              {row.dependencyDetail}
             </span>
           ) : null}
         </li>

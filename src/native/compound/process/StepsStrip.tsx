@@ -5,6 +5,9 @@ import {
   PROCESS_ACCEPTED_UNCHECKED_COUNT,
   PROCESS_ACCEPTED_UNCHECKED_TONE,
   STEPS_STRIP_COPY,
+  stepsStripFolds,
+  stepsStripMeasureKey,
+  stepsStripShrink,
   stepsStripView,
   type StepsStripEntry,
   type StepsStripModel,
@@ -15,7 +18,10 @@ import BottomSheet from '../../primitives/BottomSheet'
 
 export interface StepsStripProps {
   model: StepsStripModel
-  /** A narrow strip folds always: `✓ N/M`, the current step, `+N`. */
+  /**
+   * A narrow strip folds always: `✓ N/M`, the current step, `+N`. Any other
+   * strip folds the same way once its steps do not fit.
+   */
   narrow?: boolean
 }
 
@@ -78,7 +84,7 @@ function Step({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 5,
-        flexShrink: emphasis ? 1 : 2,
+        flexShrink: stepsStripShrink(entry, emphasis, narrow),
         maxWidth: emphasis && !narrow ? 280 : 170,
         minWidth: 0,
         borderRadius: 999,
@@ -111,24 +117,31 @@ function Step({
  */
 export default function StepsStrip({ model, narrow = false }: StepsStripProps) {
   const { theme, status } = useNativeTheme()
-  const view = useMemo(() => stepsStripView(model.entries, { narrow }), [model.entries, narrow])
   const [open, setOpen] = useState(false)
+  const measureKey = useMemo(() => stepsStripMeasureKey(model.entries), [model.entries])
+  const [room, setRoom] = useState<number>()
+  const [full, setFull] = useState<{ key: string; width: number }>()
+  const folds = stepsStripFolds({
+    narrow,
+    ...(room !== undefined ? { room } : {}),
+    ...(full?.key === measureKey ? { fullWidth: full.width } : {}),
+  })
+  const view = useMemo(
+    () => stepsStripView(model.entries, { narrow: folds }),
+    [model.entries, folds],
+  )
   if (view.items.length === 0) return null
   const doneTone = (accepted: number) =>
     status[accepted > 0 ? PROCESS_ACCEPTED_UNCHECKED_TONE : 'done']
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        paddingHorizontal: nativeSpace[3],
-        paddingVertical: nativeSpace[2],
-        borderBottomWidth: 1,
-        borderBottomColor: theme.border.subtle,
-        backgroundColor: theme.surface.raised,
-      }}
-    >
+  const row = {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
+    paddingHorizontal: nativeSpace[3],
+    paddingVertical: nativeSpace[2],
+  }
+  const content = (
+    <>
       <Text
         style={{
           marginRight: 4,
@@ -145,7 +158,7 @@ export default function StepsStrip({ model, narrow = false }: StepsStripProps) {
         <Fragment key={item.key}>
           {i > 0 ? <Text style={{ color: theme.text.muted }}>—</Text> : null}
           {item.kind === 'step' ? (
-            <Step entry={item.entry} emphasis={item.emphasis} narrow={narrow} />
+            <Step entry={item.entry} emphasis={item.emphasis} narrow={folds} />
           ) : (
             <Pressable
               accessibilityRole="button"
@@ -183,6 +196,29 @@ export default function StepsStrip({ model, narrow = false }: StepsStripProps) {
           )}
         </Fragment>
       ))}
+    </>
+  )
+  return (
+    <View
+      onLayout={(e) => setRoom(e.nativeEvent.layout.width)}
+      style={{
+        borderBottomWidth: 1,
+        borderBottomColor: theme.border.subtle,
+        backgroundColor: theme.surface.raised,
+      }}
+    >
+      {folds ? (
+        <View style={{ ...row, flexWrap: 'wrap', rowGap: 4 }}>{content}</View>
+      ) : (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={row}
+          onContentSizeChange={(width) => setFull({ key: measureKey, width })}
+        >
+          {content}
+        </ScrollView>
+      )}
       <BottomSheet isOpen={open} onClose={() => setOpen(false)} title={model.label}>
         <ScrollView contentContainerStyle={{ gap: 2, paddingBottom: nativeSpace[3] }}>
           {model.entries.map((entry) => {

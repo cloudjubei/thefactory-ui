@@ -54,6 +54,7 @@ export type {
 } from './backendStartupTypes'
 export * from './generated'
 export * from './sdkTypes'
+export { revealStoredGitToken, revealStoredLlmKey, revealStoredWebSearchKey } from './secretReveals'
 
 // Chat archival — hand-written until the route lands in the generated SDK.
 

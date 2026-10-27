@@ -202,7 +202,7 @@ export default function FeatureRequestDecision(props: FeatureRequestDecisionProp
             gap: nativeSpace[2],
           }}
         >
-          <IconCheckCircle size={18} color={status.done.fg} />
+          <IconCheckCircle size={18} color={status.done.softFg} />
           <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text.primary }}>
             Accepted
           </Text>
@@ -238,7 +238,7 @@ export default function FeatureRequestDecision(props: FeatureRequestDecisionProp
               gap: nativeSpace[2],
             }}
           >
-            <IconXCircle size={18} color={status.stuck.fg} />
+            <IconXCircle size={18} color={status.stuck.softFg} />
             <Text style={{ flexShrink: 1, fontSize: 13, color: theme.text.secondary }}>
               <Text style={{ fontWeight: '700', color: theme.text.primary }}>Rejected</Text> ·{' '}
               {featureRequestRejectedLine(fromLabel)}
@@ -252,6 +252,9 @@ export default function FeatureRequestDecision(props: FeatureRequestDecisionProp
           ) : null}
         </View>
       )}
+      {phase === 'accepted' && request.status === 'blocked' && request.statusReason ? (
+        <Text style={{ fontSize: 12, color: tone.softFg }}>{request.statusReason}</Text>
+      ) : null}
       {props.onStartWork && canStartFeatureRequestWork(request) ? (
         <FeatureRequestStartWork
           onStartWork={props.onStartWork}
@@ -281,7 +284,7 @@ export default function FeatureRequestDecision(props: FeatureRequestDecisionProp
           initialMode={props.initialSettleMode}
         />
       ) : null}
-      {error ? <Text style={{ fontSize: 12, color: status.stuck.fg }}>{error}</Text> : null}
+      {error ? <Text style={{ fontSize: 12, color: status.stuck.softFg }}>{error}</Text> : null}
     </>
   )
 }

@@ -10,6 +10,7 @@ import {
   safePreviewString,
   toolArgDisplay,
   toolNotRunReason,
+  toolRowReason,
 } from '../../../../headless/utils/toolPreview'
 import type {
   AlwaysAllowScope,
@@ -30,7 +31,7 @@ import { StatusChip, StatusIcon, statusVisual } from './StatusIcon'
 import ToolArgInline from './ToolArgInline'
 import ToolOriginBadge from './ToolOriginBadge'
 import ToolRowMilestoneLine from './ToolRowMilestoneLine'
-import { toolRowMilestone } from '../../../../headless/utils/gitSetupApproval'
+import { toolRowFellShort, toolRowMilestone } from '../../../../headless/utils/gitSetupApproval'
 import { commitReceiptView } from '../../../../headless/utils/gitChangeApproval'
 import { CommitReceiptConnected } from '../CommitReceipt'
 
@@ -114,7 +115,7 @@ function ToolCallCardInner({
   onResourceLink,
   sourceChatTitle,
 }: ToolCallCardProps) {
-  const { theme } = useNativeTheme()
+  const { theme, status: statusTokens } = useNativeTheme()
   const [argsOpen, setArgsOpen] = useState(false)
   const [resultOpen, setResultOpen] = useState(false)
   // A running call's row counts how long it has waited; nothing else re-renders
@@ -133,8 +134,9 @@ function ToolCallCardInner({
     return Object.keys(a as object).length > 0
   }, [toolCall.arguments])
 
-  // Compact one-line args shown inline next to the name (paths render with the
-  // nice dir+filename display, a command/pattern as a monospace snippet); the
+  // Compact one-line args on their own line under the name, as web's narrow row
+  // (paths render with the nice dir+filename display, a command/pattern as a
+  // monospace snippet); the
   // full args expand under the chevron. Falls back to a JSON one-liner when no
   // single field stands in for the call.
   const argDisplay = useMemo(() => {
@@ -159,12 +161,13 @@ function ToolCallCardInner({
 
   const status = statusVisual(resultType)
   const isRequireConfirm = resultType === 'require_confirmation'
+  const reason = toolRowReason(resultType, result)
   const detail =
     resultType === 'errored'
       ? { code: jsonString(result), language: 'text' as const, label: 'View error' }
       : resultType === 'success'
         ? { code: jsonString(result), language: 'json' as const, label: 'View result' }
-        : resultType === 'not_allowed' && result !== undefined
+        : resultType === 'not_allowed' && result !== undefined && reason === undefined
           ? {
               code: toolNotRunReason(result),
               language: 'text' as const,
@@ -216,15 +219,21 @@ function ToolCallCardInner({
           paddingBottom: PAD,
         }}
       >
-        {status ? <StatusIcon kind={status.kind} color={status.iconColor} /> : null}
+        {status ? (
+          toolRowFellShort(resultType, milestone) ? (
+            <StatusIcon kind="fell_short" color={nativePalette.gold[600]} />
+          ) : (
+            <StatusIcon kind={status.kind} color={status.iconColor} />
+          )
+        ) : null}
         <Text
-          style={{ fontSize: 13, fontWeight: '600', color: theme.text.primary }}
+          style={{ flexShrink: 1, fontSize: 13, fontWeight: '600', color: theme.text.primary }}
           numberOfLines={1}
         >
           {toolCall.name}
         </Text>
         <ToolOriginBadge origin={toolCall.origin} />
-        <ToolArgInline display={argDisplay} />
+        <View style={{ flex: 1 }} />
         <StatusChip
           resultType={resultType}
           timeLabel={timeLabel}
@@ -270,6 +279,35 @@ function ToolCallCardInner({
           </Pressable>
         ) : null}
       </View>
+
+      {argDisplay ? (
+        <View
+          style={{
+            flexDirection: 'row',
+            marginTop: -nativeSpace[2],
+            paddingHorizontal: PAD,
+            paddingBottom: PAD,
+          }}
+        >
+          <ToolArgInline display={argDisplay} />
+        </View>
+      ) : null}
+
+      {reason ? (
+        <Text
+          numberOfLines={3}
+          style={{
+            marginTop: -nativeSpace[2],
+            paddingHorizontal: PAD,
+            paddingBottom: PAD,
+            fontSize: 12,
+            lineHeight: 16,
+            color: resultType === 'errored' ? statusTokens.stuck.softFg : theme.text.secondary,
+          }}
+        >
+          {reason}
+        </Text>
+      ) : null}
 
       {milestone ? <ToolRowMilestoneLine milestone={milestone} /> : null}
 

@@ -144,3 +144,31 @@ export type DesignPlaygroundSceneGroup = {
 }
 
 export type DesignPlaygroundDevice = 'desktop' | 'phone'
+
+/** The build the Playground's frame opened on, and when it last moved to a newer one (epoch ms). */
+export type DesignPlaygroundFrame = { build?: string; refreshedAt?: number }
+
+/** What the Playground says above a frame it keeps showing. */
+export type DesignPlaygroundBar =
+  | { kind: 'rebuilding'; label: string }
+  | { kind: 'rebuild-failed'; label: string; error: string }
+  /** The frame moved to the newer build built `at` (epoch ms); `fading` as it is about to go. */
+  | { kind: 'updated'; label: string; at: number; fading: boolean }
+
+/**
+ * What the Playground shows: nothing, its first build running, why it failed,
+ * or the frame on a build with what happens behind it. `ticking` while what it
+ * says changes with time.
+ */
+export type DesignPlaygroundView =
+  | { kind: 'none' }
+  | { kind: 'building'; label: string; ticking: boolean }
+  | { kind: 'failed'; error: string }
+  | {
+      kind: 'ready'
+      build: string
+      bar?: DesignPlaygroundBar
+      /** Said beside "Save as a state" while a save would wait for a build. */
+      saveHint?: string
+      ticking: boolean
+    }

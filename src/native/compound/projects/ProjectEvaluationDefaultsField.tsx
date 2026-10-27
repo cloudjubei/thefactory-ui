@@ -123,7 +123,7 @@ export default function ProjectEvaluationDefaultsField({
   value,
   onChange,
 }: ProjectEvaluationDefaultsFieldProps) {
-  const { theme, status } = useNativeTheme()
+  const { theme } = useNativeTheme()
   const [pickedModel, setPickedModel] = useState<EvaluationModelKind>(() =>
     evaluationModelKind(value, 'host'),
   )
@@ -173,15 +173,8 @@ export default function ProjectEvaluationDefaultsField({
       <ChoiceField choice={view.buildMode} onChange={choose('buildMode')} />
       <Field
         label={view.concurrency.label}
-        hint={
-          view.concurrency.error ? (
-            <Text accessibilityRole="alert" style={{ color: status.stuck.softFg }}>
-              {view.concurrency.error}
-            </Text>
-          ) : (
-            view.concurrency.hint
-          )
-        }
+        hint={view.concurrency.hint}
+        error={view.concurrency.error}
       >
         <Input
           keyboardType="number-pad"

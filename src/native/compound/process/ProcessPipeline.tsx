@@ -105,6 +105,7 @@ import {
   type ProcessWaitingRequestView,
   type ProcessWaitingView,
   isProcessRunAtSignOff,
+  processWaitingTitleLine,
 } from '../../../headless'
 import type { ChatContext } from '../../../headless/api'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
@@ -1230,7 +1231,7 @@ function PipelineNode({
           </View>
           {row.result ? (
             <Text
-              numberOfLines={1}
+              numberOfLines={2}
               style={{
                 fontSize: 12.5,
                 fontWeight: row.waitingOnYou ? '600' : '400',
@@ -1654,6 +1655,7 @@ function WaitingCard({
   const proofChange = view.choices.find((c) => c.choice === 'change-proof')?.proofChange
   const [delegating, setDelegating] = useState(false)
   const variant = managerLine ? status[PROCESS_LIVE_TONE] : status.on_hold
+  const titleLine = processWaitingTitleLine(view.title, managerLine ?? view.heading)
   const transcript = view.transcript
   const delegated = view.delegated
   const delegate = () => {
@@ -1677,7 +1679,9 @@ function WaitingCard({
         <Text style={{ fontSize: 14, fontWeight: '600', color: variant.softFg }}>
           {managerLine ?? view.heading}
         </Text>
-        <Text style={{ fontSize: 12, color: theme.text.secondary }}>{view.title}</Text>
+        {titleLine ? (
+          <Text style={{ fontSize: 12, color: theme.text.secondary }}>{titleLine}</Text>
+        ) : null}
       </View>
       <View
         style={{

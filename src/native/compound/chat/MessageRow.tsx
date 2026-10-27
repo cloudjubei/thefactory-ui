@@ -25,12 +25,8 @@ import {
 } from '../../../tokens/native'
 import { messageUsageCost } from '../../../headless/utils/costDetails'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
-import {
-  cliDotColor,
-  cliLabel,
-  parseCliAgentModelTag,
-  shortCliModelLabel,
-} from '../../../headless/utils/cliRunner'
+import { cliDotColor, cliLabel, parseCliAgentModelTag } from '../../../headless/utils/cliRunner'
+import { modelDisplayName } from '../../../headless/utils/runModel'
 import type { NativeAttachmentImages, NativeToolCallRenderArgs } from './chatNativeTypes'
 import ToolCallCard from './ToolCall/ToolCallCard'
 import SubagentSteps from './ToolCall/SubagentSteps'
@@ -285,7 +281,7 @@ function Avatar({
       : isTool
         ? theme.surface.overlay
         : nativePalette.blue[50]
-  const fg = isHandoff ? theme.accent.softFg : isUser ? theme.text.inverted : theme.text.primary
+  const fg = isHandoff ? theme.accent.softFg : isUser ? theme.text.onAccent : theme.text.primary
   return (
     <View
       accessibilityElementsHidden
@@ -516,9 +512,9 @@ function MessageRow({
       : undefined
   const modelLabel = cliTag
     ? cliModelId
-      ? shortCliModelLabel(cliModelId)
+      ? modelDisplayName(cliModelId)
       : cliLabel(cliTag.cli)
-    : rawModelStr
+    : rawModelStr && modelDisplayName(rawModelStr)
   const modelDotColor = cliTag ? cliDotColor(cliTag.cli) : theme.accent.primary
   const files = (msg as { files?: string[] }).files
 
@@ -725,15 +721,13 @@ function MessageRow({
             ]}
           >
             <CollapsibleContent maxHeight={600}>
-              {isUser ? (
+              {isUser && !isHandoff ? (
                 <RichText
                   text={msg.content}
                   onResolveFile={onResolveFile}
                   renderReference={renderReference}
                   typedReferences
-                  // User bubble is blue → text must be white to read against it.
-                  // A hand-off bubble is accent-soft, so its text takes that fg.
-                  textColor={isHandoff ? theme.accent.softFg : theme.text.inverted}
+                  textColor={theme.text.onAccent}
                 />
               ) : (
                 <Markdown
@@ -741,6 +735,7 @@ function MessageRow({
                   onResourceLink={onResourceLink}
                   renderReference={renderReference}
                   typedReferences
+                  {...(isHandoff ? { textStyle: { color: theme.accent.softFg } } : {})}
                 />
               )}
             </CollapsibleContent>

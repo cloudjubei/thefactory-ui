@@ -63,6 +63,28 @@ describe('modelChipLabel', () => {
     ).toEqual({ provider: 'Claude Code', model: 'Opus latest', title: 'Claude Code · Opus latest' })
   })
 
+  it('names an API model by its display name, keeping the provider', () => {
+    expect(
+      modelChipLabel({ activeConfig: { provider: 'anthropic', model: 'claude-opus-5-5' } }),
+    ).toEqual({ provider: 'Anthropic', model: 'Opus 5.5', title: 'Anthropic · Opus 5.5' })
+  })
+
+  it('names an API model by the catalogue label when one lists its id', () => {
+    expect(
+      modelChipLabel({
+        model: 'claude-sonnet-5-5',
+        provider: 'anthropic',
+        cliModels: [{ id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5 (fast)' }],
+      }).model,
+    ).toBe('Sonnet 5.5')
+  })
+
+  it('names a CLI model the catalogue does not list by its display name', () => {
+    expect(
+      modelChipLabel({ useCli: true, activeCli: 'claude-code', model: 'claude-opus-5-5' }).model,
+    ).toBe('Opus 5.5')
+  })
+
   it('names a CLI model the catalogue does not list by its id', () => {
     expect(modelChipLabel({ useCli: true, activeCli: 'codex', model: 'gpt-5.5' }).model).toBe(
       'gpt-5.5',

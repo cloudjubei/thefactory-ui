@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
-import { nativePalette, nativeRadii, nativeSpace } from '../../tokens/native'
+import { nativeRadii, nativeSpace } from '../../tokens/native'
+import { useNativeTheme } from '../hooks/useNativeTheme'
 import { IconClose } from '../icons'
 
 export type AlertVariant = 'error' | 'info'
@@ -15,11 +16,6 @@ export interface AlertProps {
   onDismiss?: () => void
 }
 
-const VARIANT_STYLE: Record<AlertVariant, { backgroundColor: string; color: string }> = {
-  error: { backgroundColor: nativePalette.red[50], color: nativePalette.red[700] },
-  info: { backgroundColor: nativePalette.blue[50], color: nativePalette.blue[700] },
-}
-
 export default function Alert({
   variant = 'error',
   children,
@@ -27,7 +23,11 @@ export default function Alert({
   style,
   onDismiss,
 }: AlertProps) {
-  const v = VARIANT_STYLE[variant]
+  const { theme, status } = useNativeTheme()
+  const v =
+    variant === 'error'
+      ? { backgroundColor: status.stuck.softBg, color: status.stuck.softFg }
+      : { backgroundColor: theme.accent.softBg, color: theme.accent.softFg }
   const content =
     typeof children === 'string' ? (
       <Text style={{ fontSize: 14, color: v.color }}>{children}</Text>

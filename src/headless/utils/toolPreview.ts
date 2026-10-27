@@ -220,7 +220,7 @@ export type ToolArgDisplay =
 const COMMAND_ARG_FIELDS = ['command', 'cmd', 'script']
 const PATH_ARG_FIELDS = ['path', 'file_path', 'filePath', 'filename', 'file']
 const PATTERN_ARG_FIELDS = ['globPattern', 'pattern', 'glob']
-const TEXT_ARG_FIELDS = ['query', 'search', 'q', 'prompt', ...PATTERN_ARG_FIELDS]
+const TEXT_ARG_FIELDS = ['query', 'search', 'q', 'prompt', ...PATTERN_ARG_FIELDS, 'answer']
 // Native search tools whose headline is the pattern, not a path (our `grepFile`,
 // which also carries a `path`, is intentionally NOT here — it shows its path).
 const PATTERN_FIRST_TOOLS = new Set(['glob', 'grep', 'ripgrep', 'search'])
@@ -316,6 +316,31 @@ export function toolNotRunReason(result: unknown): string {
   if (typeof body?.reason === 'string') return body.reason
   if (typeof body?.agentInstruction === 'string') return body.agentInstruction
   return safePreviewString(result).text
+}
+
+function failureWords(result: unknown): string | undefined {
+  if (typeof result === 'string') return result
+  const body = asRecord(result)
+  const error = body.error
+  if (typeof error === 'string') return error
+  const nested = asRecord(error).message
+  if (typeof nested === 'string') return nested
+  for (const key of ['message', 'reason', 'agentInstruction'] as const) {
+    const value = body[key]
+    if (typeof value === 'string') return value
+  }
+  return undefined
+}
+
+/**
+ * Why a failed or refused call ended as it did, as one line its row shows in
+ * place — the failure's own words, whitespace folded. Undefined for any other
+ * call, or a failure with no words to read. Pure.
+ */
+export function toolRowReason(resultType: string | undefined, result: unknown): string | undefined {
+  if (resultType !== 'errored' && resultType !== 'not_allowed') return undefined
+  const words = failureWords(result)?.replace(/\s+/g, ' ').trim()
+  return words ? words : undefined
 }
 
 function searchHitLine(hit: unknown): string | undefined {

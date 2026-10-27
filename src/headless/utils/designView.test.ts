@@ -343,6 +343,27 @@ describe('designTidyMoveView', () => {
     expect(view({ id: 'st2', name: 'Phone' }).to).toBe('Army setup › Full army · Phone')
     expect(view({ id: 'nope', name: 'Phone' }).to).toBe('nope · Phone')
   })
+
+  it('names old captures filed under a build key by the app they show', () => {
+    const base = design()
+    const index: DesignIndex = {
+      ...base,
+      versions: [...base.versions, version('vb', 'st1', 'web:app:.', 1, 'b')],
+    }
+    expect(
+      designTidyMoveView(index, {
+        id: 'm',
+        title: 't',
+        why: 'w',
+        kind: 'fold-versions',
+        from: ['vb'],
+        to: { id: 'st1', name: 'web:app:.' },
+      }),
+    ).toMatchObject({
+      from: ['Army setup › Empty army · Web app · v1'],
+      to: 'Army setup › Empty army · Web app',
+    })
+  })
 })
 
 describe('filing, components and previews', () => {

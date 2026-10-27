@@ -6,6 +6,7 @@ import {
   LAUNCH_SUGGEST_DISMISS,
   LAUNCH_SUGGEST_LABEL,
 } from '../../../headless/utils/workLaunchViewConstants'
+import { launchSuggestionSigner } from '../../../headless/utils/workLaunchView'
 import { nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { Button } from '../../primitives/Button'
@@ -43,7 +44,7 @@ export default function LaunchSuggestionPanel({
             {busy ? LAUNCH_SUGGEST_BUSY : LAUNCH_SUGGEST_LABEL}
           </Button>
         </View>
-        {error ? <Text style={{ fontSize: 12, color: status.stuck.fg }}>{error}</Text> : null}
+        {error ? <Text style={{ fontSize: 12, color: status.stuck.softFg }}>{error}</Text> : null}
       </View>
     )
   }
@@ -74,7 +75,7 @@ export default function LaunchSuggestionPanel({
         </Button>
         {answeredBy ? (
           <Text style={{ marginLeft: 'auto', fontSize: 11, color: theme.text.muted }}>
-            by {answeredBy}
+            by {launchSuggestionSigner(answeredBy)}
           </Text>
         ) : null}
       </View>

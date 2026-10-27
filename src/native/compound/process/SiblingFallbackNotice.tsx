@@ -55,10 +55,12 @@ export default function SiblingFallbackNotice({
               accessibilityLabel={`${chip.name} ${chip.live}${chip.pending ? `, ${SIBLING_FALLBACK_PENDING_LABEL}` : ''}, stable ${chip.stable}`}
               style={{
                 flexDirection: 'row',
-                gap: 4,
+                flexWrap: 'wrap',
+                columnGap: 4,
+                maxWidth: '100%',
                 borderWidth: 1,
                 borderColor: theme.border.strong,
-                borderRadius: 999,
+                borderRadius: 10,
                 paddingHorizontal: 8,
               }}
             >

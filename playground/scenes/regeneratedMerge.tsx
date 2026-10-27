@@ -81,7 +81,7 @@ function frame(children: ReactNode): ReactNode {
     <AuthProvider storage={NO_TOKEN}>
       <ApiProvider apiBaseUrl={null} wsBaseUrl={null} client="web">
         <MemoryRouter>
-          <div className="w-[560px] bg-(--surface-base) py-3">{children}</div>
+          <div className="w-[560px] max-w-full bg-(--surface-base) py-3">{children}</div>
         </MemoryRouter>
       </ApiProvider>
     </AuthProvider>

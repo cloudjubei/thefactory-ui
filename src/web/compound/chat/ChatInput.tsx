@@ -554,9 +554,9 @@ export default function ChatInput({
       : 'You can compose a message and reference files (@), stories/features (#) and notes/attachments (&) even before configuring. Configure LLM to send.')
 
   const defaultLeftHints = [
-    'Use @ for file references',
-    'Use # for stories & features',
-    ...(onSearchHandles ? ['Use & for notes & attachments'] : []),
+    '@ for files',
+    '# for stories & features',
+    ...(onSearchHandles ? ['& for notes & attachments'] : []),
   ]
   const defaultRightHints = [`${modifierSymbol} + Enter to send`]
   const lh = leftHints === null ? [] : (leftHints ?? defaultLeftHints)
@@ -564,21 +564,23 @@ export default function ChatInput({
 
   const showHints = lh.length > 0 || rh.length > 0
   const renderHintsGrid = () => (
-    <div className="grid grid-cols-2 grid-rows-2 gap-x-4 text-[12px] text-(--text-muted)">
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] grid-rows-2 gap-x-4 text-[12px] text-(--text-muted)">
       {lh.length <= 1 ? (
-        <div className="col-start-1 row-span-2 self-center truncate">{lh[0] ?? ''}</div>
+        <div className="col-start-1 row-span-2 self-center break-words">{lh[0] ?? ''}</div>
       ) : (
         <>
-          <div className="col-start-1 row-start-1 truncate">{lh[0]}</div>
-          <div className="col-start-1 row-start-2 truncate">{lh.slice(1).join(' · ')}</div>
+          <div className="col-start-1 row-start-1 break-words">{lh[0]}</div>
+          <div className="col-start-1 row-start-2 break-words">{lh.slice(1).join(' · ')}</div>
         </>
       )}
       {rh.length <= 1 ? (
-        <div className="col-start-2 row-span-2 self-center text-right truncate">{rh[0] ?? ''}</div>
+        <div className="col-start-2 row-span-2 self-center text-right whitespace-nowrap">
+          {rh[0] ?? ''}
+        </div>
       ) : (
         <>
-          <div className="col-start-2 row-start-1 text-right truncate">{rh[0]}</div>
-          <div className="col-start-2 row-start-2 text-right truncate">{rh[1]}</div>
+          <div className="col-start-2 row-start-1 text-right whitespace-nowrap">{rh[0]}</div>
+          <div className="col-start-2 row-start-2 text-right whitespace-nowrap">{rh[1]}</div>
         </>
       )}
     </div>

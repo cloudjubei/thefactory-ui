@@ -75,7 +75,10 @@ export function ChatReviewPanel({
     window.addEventListener('pointerup', end)
   }
 
-  const branch = header.branch ? <RefChip kind="branch" value={header.branch} /> : null
+  const branch = header.branch ? (
+    <RefChip kind="branch" value={header.branch} className="min-w-0 max-w-full shrink" />
+  ) : null
+  const titleClass = `min-w-0 truncate text-[14px] font-semibold text-(--text-primary)${branch ? ' shrink-0' : ''}`
   const body = <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
 
   if (layout === 'sheet') {
@@ -96,10 +99,8 @@ export function ChatReviewPanel({
             <IconChevronLeft className="h-4 w-4" />
             {CHAT_CHANGES_DOCK_COPY.backToChat}
           </button>
-          <span className="min-w-0 truncate text-[14px] font-semibold text-(--text-primary)">
-            {header.title}
-          </span>
-          {branch ? <span className="ml-auto min-w-0 shrink truncate">{branch}</span> : null}
+          <span className={titleClass}>{header.title}</span>
+          {branch ? <span className="ml-auto flex min-w-0 shrink">{branch}</span> : null}
         </div>
         {body}
       </div>
@@ -120,9 +121,7 @@ export function ChatReviewPanel({
         onResizeStart={onResizeStart}
       />
       <div className="flex shrink-0 items-center gap-2 border-b border-(--border-subtle) px-4 py-2.5">
-        <span className="min-w-0 truncate text-[14px] font-semibold text-(--text-primary)">
-          {header.title}
-        </span>
+        <span className={titleClass}>{header.title}</span>
         {branch}
         <button
           type="button"

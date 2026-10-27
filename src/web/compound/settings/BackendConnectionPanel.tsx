@@ -80,7 +80,7 @@ export default function BackendConnectionPanel({
       <Surface as="dl" className="flex flex-col gap-2 p-4">
         <Row label="Backend URL">
           {baseUrl ? (
-            <code className="text-xs">{baseUrl}</code>
+            <code className="min-w-0 text-xs break-all">{baseUrl}</code>
           ) : (
             <span className="text-sm opacity-70">Not set</span>
           )}
@@ -91,7 +91,7 @@ export default function BackendConnectionPanel({
         </Row>
         <Row label="Bearer token">
           {token ? (
-            <code className="text-xs opacity-70">{maskSecret(token)}</code>
+            <code className="min-w-0 text-xs break-all opacity-70">{maskSecret(token)}</code>
           ) : (
             <span className="text-sm opacity-70">Not set</span>
           )}
@@ -224,7 +224,7 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex items-center gap-3">
       <dt className="text-xs uppercase tracking-wide opacity-60 w-28 shrink-0">{label}</dt>
-      <dd className="flex items-center gap-2 min-w-0">{children}</dd>
+      <dd className="flex min-w-0 flex-1 items-center gap-2">{children}</dd>
     </div>
   )
 }

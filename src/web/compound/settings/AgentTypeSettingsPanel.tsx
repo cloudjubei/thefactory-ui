@@ -75,9 +75,11 @@ function Tag({ children }: { children: string }) {
 function TypeRow({ row, onOpen }: { row: AgentTypeRowView; onOpen?: () => void }) {
   const body = (
     <>
-      <span className="flex min-w-0 items-center gap-1.5">
-        <span className="min-w-0 truncate text-sm font-medium">{row.label}</span>
-        <span className="font-mono text-[11px] text-(--text-muted)">{row.id}</span>
+      <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
+        <span className="max-w-full min-w-0 truncate text-sm font-medium">{row.label}</span>
+        <span className="min-w-0 font-mono text-[11px] break-all text-(--text-muted)">
+          {row.id}
+        </span>
         <Tag>{capitalized(row.roleLabel)}</Tag>
         {row.notProving ? <Tag>{AGENT_TYPE_NOT_PROVING_TAG}</Tag> : null}
       </span>
@@ -160,7 +162,7 @@ export default function AgentTypeSettingsPanel({
               {AGENT_TYPE_SLOT_DEFAULTS_NOTE}
             </span>
             {view.slots.map((slot) => (
-              <div key={slot.slot} className="flex items-center gap-3">
+              <div key={slot.slot} className="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <span className="w-28 shrink-0 text-sm">{slot.slotLabel}</span>
                 <NativeSelect
                   size="sm"
@@ -168,7 +170,7 @@ export default function AgentTypeSettingsPanel({
                   value={slot.value ?? ''}
                   disabled={busy}
                   onChange={(e) => setSlot(slot.slot, e.target.value)}
-                  className="max-w-xs"
+                  className="max-w-xs min-w-48 flex-1"
                 >
                   <option value="">{slot.fallbackLabel}</option>
                   {slot.options.map((option) => (

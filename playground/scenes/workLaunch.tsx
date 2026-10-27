@@ -52,7 +52,7 @@ const PENDING: FeatureRequest = {
   updatedAt: '2026-10-18T09:00:00.000Z',
 }
 
-const column = (node: ReactNode) => <div className="w-[480px]">{node}</div>
+const column = (node: ReactNode) => <div className="w-[480px] max-w-full">{node}</div>
 
 upsertFeatureRequest(PENDING)
 

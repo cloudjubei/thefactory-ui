@@ -43,6 +43,20 @@ export function processWaitingHeading(
   return `${agent} ${WAITING_PERMISSION_HEADINGS[kind] ?? WAITING_PERMISSION_HEADING}`
 }
 
+/**
+ * The ask's own title under the card's heading, or `undefined` where it only
+ * says the heading again ("The fixer is blocked" under "The fixer is blocked").
+ */
+export function processWaitingTitleLine(title: string, heading: string): string | undefined {
+  const plain = (text: string) =>
+    text
+      .trim()
+      .replace(/[.!:;\s]+$/u, '')
+      .toLowerCase()
+  const line = title.trim()
+  return line && plain(line) !== plain(heading) ? line : undefined
+}
+
 /** What exactly the agent asked for, one line each. */
 export function processWaitingDetails(
   ask: Pick<ProcessWaitingAsk, 'request'>,

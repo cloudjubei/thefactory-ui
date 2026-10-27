@@ -102,12 +102,12 @@ export default function GroupStoryPage({
           </div>
         ) : null}
 
-        <div className="flex gap-3 overflow-x-auto pb-1">
+        <div className="flex flex-wrap gap-3 pb-1">
           {columns.map((column) => (
             <section
               key={column.step}
               aria-label={`Step ${column.step}`}
-              className="flex w-64 shrink-0 flex-col gap-2"
+              className="flex min-w-0 max-w-80 flex-[1_1_14rem] flex-col gap-2"
             >
               <h2 className="text-[10.5px] font-semibold uppercase tracking-wider text-(--text-muted)">
                 Step {column.step}
@@ -124,7 +124,10 @@ export default function GroupStoryPage({
             </section>
           ))}
           {looping.length > 0 ? (
-            <section aria-label="Cannot start" className="flex w-64 shrink-0 flex-col gap-2">
+            <section
+              aria-label="Cannot start"
+              className="flex min-w-0 max-w-80 flex-[1_1_14rem] flex-col gap-2"
+            >
               <h2 className="text-[10.5px] font-semibold uppercase tracking-wider text-(--status-stuck-soft-fg)">
                 Cannot start
               </h2>

@@ -15,9 +15,9 @@ export default function ProcessGroupRunChatButton({
   busy = false,
 }: ProcessGroupRunChatButtonProps) {
   return (
-    <Button size="sm" variant="secondary" loading={busy} onClick={onOpen}>
+    <Button size="sm" variant="secondary" disabled={busy} onClick={onOpen}>
       <IconChat className="size-3.5" />
-      Chat
+      {busy ? 'Opening chat…' : 'Chat'}
     </Button>
   )
 }

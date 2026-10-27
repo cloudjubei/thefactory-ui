@@ -444,7 +444,7 @@ export const ACCEPTED_UNCHECKED_SCENES: Scene[] = [
         id: 'steps-strip-accepted',
         title: 'Steps strip — Fix accepted unchecked',
         description:
-          'The Fix step’s dot amber on the wide strip; on the narrow one the fold that holds it turns amber, “1 accepted unchecked” on its hover.',
+          'The Fix step’s dot amber on the wide strip; on the narrow one the fold that holds it turns amber, “1 accepted unchecked” on its hover. Where the steps do not fit, as on a phone, the wide strip folds the same way.',
         render: () => <Strip run={STORY_ACCEPTED_BY_BOTH} />,
       },
       {

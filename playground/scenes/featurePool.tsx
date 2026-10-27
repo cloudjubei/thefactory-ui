@@ -81,7 +81,7 @@ function LaunchCard({
   )
 }
 
-const frame = (node: ReactNode) => <div className="w-[460px]">{node}</div>
+const frame = (node: ReactNode) => <div className="w-[460px] max-w-full">{node}</div>
 
 export const FEATURE_POOL_SCENES: Scene[] = [
   {
@@ -121,7 +121,7 @@ export const FEATURE_POOL_SCENES: Scene[] = [
           <LaunchCard
             picked={['f2', 'f3']}
             refusal={
-              'Cannot start "Hot-seat turn handover": blocker s21.f1 is not done and is not earlier in this run.'
+              'Cannot start "Hot-seat turn handover": blocker "Turn engine hook" is not done and is not earlier in this run.'
             }
           />
         ),
@@ -143,7 +143,7 @@ export const FEATURE_POOL_SCENES: Scene[] = [
         title: 'Worked in this chat',
         description:
           'Paired with Two of three picked: the same pick when the chat’s agent does the work — no plan, only the features.',
-        render: () => <LaunchCard picked={['f2']} inChat />,
+        render: () => <LaunchCard picked={['f1', 'f2']} inChat />,
       },
     ],
   },

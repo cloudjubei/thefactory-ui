@@ -102,7 +102,7 @@ const withReferences = (node: ReactNode) => (
   <ReferenceRenderingContext.Provider value={REFERENCES}>{node}</ReferenceRenderingContext.Provider>
 )
 
-const column = (node: ReactNode) => <div className="w-[420px]">{node}</div>
+const column = (node: ReactNode) => <div className="w-[420px] max-w-full">{node}</div>
 
 /** The feature editor's kind field, drawn as web and desktop draw it. */
 function KindField({ kind }: { kind: FeatureKind }) {

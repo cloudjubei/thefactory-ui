@@ -26,7 +26,7 @@ export type SiblingFallbackView = {
   chips: SiblingFallbackChip[]
   /** What failed, under its heading — none for a dependency that could not be checked at all. */
   failures: { label: string; lines: string[] } | undefined
-  /** "lib: it has no main or dev branch …" — each dependency that could not be checked at its stable branch. */
+  /** "lib: it has no main or dev branch …" — each dependency that could not be checked at its stable branch, unless the message already says why. */
   notReplaced: string[]
 }
 

@@ -163,3 +163,11 @@
 .story-form input[type='number'] {
   -moz-appearance: textfield;
 }
+
+/* A field's error line: the soft red reads on a light surface but washes out on a dark one. */
+.field-error {
+  color: var(--status-stuck-soft-fg);
+}
+[data-theme='dark'] .field-error {
+  color: var(--color-red-400);
+}

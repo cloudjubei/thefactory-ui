@@ -12,6 +12,7 @@ import type {
   DesignVersion,
   StorageUsageStanding,
 } from '../api'
+import { DESIGN_BUILD_ROOT_DIR, DESIGN_BUILD_VARIANT_NAMES } from './designConstants'
 import type { DesignShown, DesignViewKind } from './designTypes'
 
 /** What the `&` dropdown and the chips need of a project's design. Pure. */
@@ -43,6 +44,32 @@ export function findDesignState(
   return state && found ? { ...found, state } : undefined
 }
 
+/**
+ * A variant as people read it. Old captures were filed under their build key —
+ * `web:app:.`, `web:app:site`, `android:app:debug`, `ios:Covision/DevDebug` —
+ * and read as the platform and the app or build it names; any other variant
+ * reads as it is. Pure.
+ */
+export function designVariantName(variant: string): string {
+  const names = DESIGN_BUILD_VARIANT_NAMES
+  const webApp = /^web:app:(.*)$/.exec(variant)
+  if (webApp) {
+    const dir = webApp[1]!.replace(/^\.\/|\/$/g, '')
+    return dir === '' || dir === DESIGN_BUILD_ROOT_DIR ? names.webApp : `${names.webApp} · ${dir}`
+  }
+  const web = /^web:(.+)$/.exec(variant)
+  if (web) return `${names.web} · ${web[1]}`
+  const android = /^android:([^:/]+):(.+)$/.exec(variant)
+  if (android) {
+    const [, module, build] = android
+    return module === 'app'
+      ? `${names.android} · ${build}`
+      : `${names.android} · ${module} · ${build}`
+  }
+  const ios = /^ios:(.+)$/.exec(variant)
+  return ios ? `${names.ios} · ${ios[1]}` : variant
+}
+
 /** A version as a viewer shows it, named by its screen, state, variant and number. Pure. */
 export function designShownOfVersion(index: DesignIndex, version: DesignVersion): DesignShown {
   const found = findDesignState(index, version.stateId)
@@ -51,7 +78,7 @@ export function designShownOfVersion(index: DesignIndex, version: DesignVersion)
     ref: { versionId: version.id },
     source: version.source,
     ...(version.caseQuery ? { caseQuery: version.caseQuery } : {}),
-    name: `${where}${version.variant} · v${version.number}`,
+    name: `${where}${designVariantName(version.variant)} · v${version.number}`,
   }
 }
 
@@ -65,7 +92,7 @@ export function designShownOfEntry(
     ref: { proposalId: proposal.id, entryId: entry.id },
     source: entry.source,
     ...(entry.caseQuery ? { caseQuery: entry.caseQuery } : {}),
-    name: `${where ? `${where} · ` : ''}${entry.variant} — ${proposal.title}`,
+    name: `${where ? `${where} · ` : ''}${designVariantName(entry.variant)} — ${proposal.title}`,
   }
 }
 

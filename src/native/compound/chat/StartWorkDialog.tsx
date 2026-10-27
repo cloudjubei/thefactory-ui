@@ -71,7 +71,7 @@ export default function StartWorkDialog({
         busy={busy}
       />
       {error ? (
-        <Text style={{ marginTop: 8, fontSize: 12, color: status.stuck.fg }}>{error}</Text>
+        <Text style={{ marginTop: 8, fontSize: 12, color: status.stuck.softFg }}>{error}</Text>
       ) : null}
     </Modal>
   )

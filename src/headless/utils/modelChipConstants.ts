@@ -22,3 +22,6 @@ export const MODEL_CHIP_REAUTH_FALLBACK = 'sign-in expired'
 
 /** What a chip that can be switched off says, and its picker's segment, while it is off. */
 export const MODEL_CHIP_OFF = 'Off'
+
+/** The picker's price line for a model whose price is not known. */
+export const MODEL_CHIP_PRICE_UNKNOWN = 'Price unknown'

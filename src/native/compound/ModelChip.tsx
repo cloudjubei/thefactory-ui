@@ -403,7 +403,7 @@ export function ModelChip({
           </Text>
         </View>
       )}
-      <View style={{ flexShrink: 1, minWidth: 0, maxWidth: 96 }}>
+      <View style={{ flexShrink: 1, minWidth: 0, maxWidth: 160 }}>
         {label.provider ? (
           <Text
             numberOfLines={1}

@@ -18,7 +18,7 @@ const CHECK_STEP = { kind: 'check' as const }
 
 function frame(children: ReactNode): ReactNode {
   return (
-    <div className="w-[420px] rounded-md border border-(--border-subtle) bg-(--surface-base) p-3">
+    <div className="w-[420px] max-w-full rounded-md border border-(--border-subtle) bg-(--surface-base) p-3">
       {children}
     </div>
   )

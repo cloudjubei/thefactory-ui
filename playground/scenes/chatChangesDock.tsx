@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import {
   ChatChangesBar,
   ChatChangesMarker,
@@ -10,16 +10,17 @@ import {
   chatChangesBarView,
   chatChangesMarkerView,
   chatReviewHeader,
+  chatReviewLayout,
   checkMethodRows,
   signoffVerdict,
   type ChatChangesMarkerInput,
   type ChatChangesVerdictInput,
-  type ChatReviewLayout,
   type PendingToolGrant,
 } from 'thefactory-ui/headless'
 // Not on the package's public surface: the chat renders it itself. The showcase reaches into the
 // source for it, as the playground renders the library from source anyway.
 import ApprovalStack from '../../src/web/compound/chat/ApprovalStack'
+import { useElementSize } from '../../src/web/compound/chat/signoff/useElementSize'
 import type { ChangeFile } from '../../src/web/compound/chat/signoff'
 import type { ChatOpenChanges, RunVerification } from '../../src/headless/api/generated'
 import type { Scene } from '../showcase/types'
@@ -145,11 +146,12 @@ type BarSetup = {
 
 function Bar({
   open = OPEN,
-  verification = VERIFICATION,
   checked = true,
   compact = false,
   narrow = false,
+  ...rest
 }: BarSetup & { compact?: boolean; narrow?: boolean }) {
+  const verification = 'verification' in rest ? rest.verification : VERIFICATION
   const view = chatChangesBarView(
     { openChanges: open, ...(checked ? { verdict: verdictOf(verification) } : {}) },
     NOW,
@@ -230,11 +232,11 @@ const APPROVAL: PendingToolGrant = {
 }
 
 type ChatSetup = BarSetup & {
-  /** Open the review: beside the chat, or over it. */
-  review?: ChatReviewLayout
+  /** Open the review: beside the chat, or over it when the chat is narrow, as `ChatBody` picks. */
+  review?: boolean
   /** An approval holds the message box; the bar waits above it, one line. */
   underApproval?: boolean
-  /** The chat's whole width, in px. */
+  /** The chat's whole width, in px, at most the screen's. */
   width?: number
   height?: number
   phone?: boolean
@@ -249,12 +251,16 @@ function Chat({
   ...bar
 }: ChatSetup) {
   const reviewHeader = chatReviewHeader({ fileCount: FILES.length, review: { branch: BRANCH } })
+  const [rootEl, setRootEl] = useState<HTMLDivElement | null>(null)
+  const chatWidth = useElementSize(rootEl)?.w ?? width
+  const reviewLayout = chatReviewLayout(chatWidth)
   return (
     <div
+      ref={setRootEl}
       className={`relative flex overflow-hidden border border-(--border-default) bg-(--surface-base) ${
         phone ? 'rounded-[34px]' : 'rounded-xl'
       }`}
-      style={{ height, ...(width ? { width } : {}) }}
+      style={{ height, ...(width ? { width, maxWidth: '100%' } : {}) }}
     >
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {phone ? (
@@ -277,14 +283,14 @@ function Chat({
           <Row msg={USER} i={2} />
           <Row msg={AI_3} i={3} />
         </div>
-        <Bar {...bar} compact={underApproval} narrow={width !== undefined && width < 768} />
+        <Bar {...bar} compact={underApproval} narrow={reviewLayout === 'sheet'} />
         {underApproval ? <ApprovalStack grants={[APPROVAL]} onDecideLater={noop} /> : <Composer />}
       </div>
       {review ? (
         <ChatReviewPanel
-          layout={review}
+          layout={reviewLayout}
           header={reviewHeader}
-          {...(width ? { chatWidth: width } : {})}
+          {...(chatWidth !== undefined ? { chatWidth } : {})}
           onClose={noop}
         >
           <ChangeCard
@@ -300,7 +306,7 @@ function Chat({
 }
 
 function Phone({ children }: { children: ReactNode }) {
-  return <div className="mx-auto w-[390px]">{children}</div>
+  return <div className="mx-auto w-[390px] max-w-full">{children}</div>
 }
 
 export const CHAT_CHANGES_DOCK_SCENES: Scene[] = [
@@ -430,13 +436,13 @@ export const CHAT_CHANGES_DOCK_SCENES: Scene[] = [
         id: 'side-panel',
         title: 'Review beside the chat',
         description: 'Dragged wider or narrower at its edge; the chat keeps its own room.',
-        render: () => <Chat open={WAITED} review="side" width={1100} height={760} />,
+        render: () => <Chat open={WAITED} review width={1100} height={760} />,
       },
       {
         id: 'narrow-sheet',
         title: 'Review over a narrow chat',
         description: 'Below 768 px the review covers the chat, with “‹ Chat” back.',
-        render: () => <Chat open={WAITED} review="sheet" width={600} height={760} />,
+        render: () => <Chat open={WAITED} review width={600} height={760} />,
       },
       {
         id: 'phone',
@@ -453,7 +459,7 @@ export const CHAT_CHANGES_DOCK_SCENES: Scene[] = [
         title: 'On a phone — the review',
         render: () => (
           <Phone>
-            <Chat open={WAITED} review="sheet" width={390} height={844} phone />
+            <Chat open={WAITED} review width={390} height={844} phone />
           </Phone>
         ),
       },

@@ -28,14 +28,14 @@ const COLUMN_WIDTH = '112px'
 function UsageTable({ rows }: { rows: UsageTableRow[] }) {
   return (
     <div className="overflow-hidden rounded-md border border-[var(--border-subtle)]">
-      <div className="overflow-x-auto">
+      <div className="scroll-x-hint">
         <table className="min-w-full table-fixed text-sm">
           <colgroup>
             {USAGE_TABLE_COLUMNS.map((c) => (
               <col key={c.cell} style={{ width: COLUMN_WIDTH }} />
             ))}
           </colgroup>
-          <thead className="bg-[var(--surface-raised)] text-[var(--text-secondary)]">
+          <thead className="text-[var(--text-secondary)]">
             <tr>
               {USAGE_TABLE_COLUMNS.map((c) => (
                 <th

@@ -5,10 +5,10 @@ import type { Scene } from '../showcase/types'
 const noop = () => {}
 
 const DEFER_REFUSED =
-  'Cannot defer "Totals dashboard" while it is in a live run and already started. Settle it when the run ends (close-features), or withdraw the work from the run first.'
+  'Cannot defer "Totals dashboard" while it is in a live run and already started. Settle it when the run ends, or withdraw the work from the run first.'
 
 const DELETE_REFUSED =
-  'Cannot delete "Totals dashboard" while it is in a live run and already started. Settle it when the run ends (close-features), or withdraw the work from the run first.'
+  'Cannot delete "Totals dashboard" while it is in a live run and already started. Settle it when the run ends, or withdraw the work from the run first.'
 
 function StoryPageTop({ message }: { message: string }) {
   return (

@@ -6,6 +6,7 @@ import {
   launchSuggestionPicks,
   launchSuggestionProofEdits,
   launchSuggestionRows,
+  launchSuggestionSigner,
   workLaunchChatAgent,
   workLaunchOptions,
   launchDecisionMetadata,
@@ -269,5 +270,22 @@ describe('startWorkChatContext', () => {
     expect(
       startWorkChatContext({ projectId: 'p', storyId: 's', request: { id: 'r', again: false } }),
     ).toEqual({ type: 'FEATURE_REQUEST', projectId: 'p', featureRequestId: 'r' })
+  })
+})
+
+describe('launchSuggestionSigner', () => {
+  it('names an API model by its name', () => {
+    expect(launchSuggestionSigner('claude-fable-5')).toBe('Fable 5')
+    expect(launchSuggestionSigner('claude-opus-5-5')).toBe('Opus 5.5')
+  })
+
+  it('names a CLI and its model', () => {
+    expect(launchSuggestionSigner('claude-code · opus')).toBe('Claude Code · Opus')
+    expect(launchSuggestionSigner('codex · gpt-5.3-codex')).toBe('Codex · gpt-5.3-codex')
+  })
+
+  it('keeps a name it does not know as given', () => {
+    expect(launchSuggestionSigner('gpt-5.3-codex')).toBe('gpt-5.3-codex')
+    expect(launchSuggestionSigner('my-cli · Composer 2.5')).toBe('my-cli · Composer 2.5')
   })
 })

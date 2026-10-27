@@ -25,7 +25,7 @@ export default function RefChip({ value, kind, className, title }: RefChipProps)
       title={title ?? value}
     >
       <Glyph className="ref-chip__glyph" />
-      {display}
+      <span className="ref-chip__label">{display}</span>
     </span>
   )
 }

@@ -3,6 +3,7 @@ import {
   IconError,
   IconHourglass,
   IconStopCircle,
+  IconWarningTriangle,
   IconXCircle,
 } from '../../../icons'
 import { TOOL_AWAITING_DECISION_LABEL } from '../../../../headless'
@@ -75,8 +76,16 @@ export function StatusChip({
   return null
 }
 
-export default function StatusIcon({ resultType }: { resultType?: ToolResultType }) {
+export default function StatusIcon({
+  resultType,
+  fellShort = false,
+}: {
+  resultType?: ToolResultType
+  /** It ran, but did not do what it was asked: warn instead of ticking. */
+  fellShort?: boolean
+}) {
   const cls = 'w-4 h-4'
+  if (fellShort) return <IconWarningTriangle className={`${cls} text-amber-500`} />
   switch (resultType) {
     case 'errored':
       return <IconError className={`${cls} text-red-500`} />

@@ -84,8 +84,8 @@ export default function DesignPage({
   const go = (tab: DesignTab) => onNavigate({ ...(appId ? { app: appId } : {}), tab })
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-      <aside className="shrink-0 overflow-auto border-b border-(--border-subtle) p-3 md:w-64 md:border-r md:border-b-0">
+    <div className="flex min-h-0 flex-1 flex-col overflow-auto md:flex-row md:overflow-visible">
+      <aside className="shrink-0 border-b border-(--border-subtle) p-3 md:w-64 md:overflow-auto md:border-r md:border-b-0">
         <DesignSidebar
           index={index}
           appId={appId}
@@ -98,14 +98,14 @@ export default function DesignPage({
           run={run}
         />
       </aside>
-      <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto">
+      <main className="flex min-w-0 flex-col md:min-h-0 md:flex-1 md:overflow-auto">
         {nav ? (
           <>
             <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-(--border-subtle) px-4 py-2">
               <div
                 role="tablist"
                 aria-label={nav.app.name}
-                className="flex gap-1 rounded-lg bg-(--surface-muted) p-0.5"
+                className="flex flex-wrap gap-1 rounded-lg bg-(--surface-muted) p-0.5"
               >
                 {tabs.map((t) => (
                   <button
@@ -115,7 +115,7 @@ export default function DesignPage({
                     aria-selected={selection.tab === t}
                     onClick={() => go(t)}
                     className={[
-                      'flex items-center gap-1.5 rounded-md px-3 py-1 text-[13px]',
+                      'flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1 text-[13px]',
                       selection.tab === t
                         ? 'bg-(--surface-raised) font-semibold text-(--text-primary) shadow-sm'
                         : 'text-(--text-secondary) hover:text-(--text-primary)',

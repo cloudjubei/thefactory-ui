@@ -1,9 +1,12 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import {
   PROCESS_ACCEPTED_UNCHECKED_COUNT,
   PROCESS_ACCEPTED_UNCHECKED_TONE,
   STEPS_STRIP_COPY,
+  stepsStripFolds,
+  stepsStripMeasureKey,
+  stepsStripShrink,
   stepsStripView,
   type ProcessStatusTone,
   type StepsStripEntry,
@@ -13,9 +16,14 @@ import { IconChevronDown } from '../../icons'
 
 export type StepsStripProps = {
   model: StepsStripModel
-  /** A narrow strip folds always: `✓ N/M`, the current step, `+N`. */
+  /**
+   * A narrow strip folds always: `✓ N/M`, the current step, `+N`. Any other
+   * strip folds the same way once its steps do not fit.
+   */
   narrow?: boolean
 }
+
+type StripFit = { key: string; fullWidth: number; room: number }
 
 function Dot({ entry }: { entry: StepsStripEntry }) {
   const color = `var(--status-${entry.tone}-bg)`
@@ -56,8 +64,9 @@ function Step({
   return (
     <span
       title={stepTitle(entry)}
-      className={`inline-flex min-w-0 items-center gap-1.5 rounded-full ${emphasis ? 'shrink py-px pl-1 pr-2 font-semibold' : 'shrink-[2]'}`}
+      className={`inline-flex min-w-0 items-center gap-1.5 rounded-full ${emphasis ? 'py-px pl-1 pr-2 font-semibold' : ''}`}
       style={{
+        flexShrink: stepsStripShrink(entry, emphasis, narrow),
         maxWidth: emphasis && !narrow ? 280 : 170,
         ...(emphasis
           ? {
@@ -89,9 +98,37 @@ function doneChipStyle(tone: ProcessStatusTone) {
  * rest into `+N more` — and either chip opens the whole list.
  */
 export default function StepsStrip({ model, narrow = false }: StepsStripProps) {
-  const view = useMemo(() => stepsStripView(model.entries, { narrow }), [model.entries, narrow])
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement | null>(null)
+  const measureKey = useMemo(() => stepsStripMeasureKey(model.entries), [model.entries])
+  const [fit, setFit] = useState<StripFit>()
+  const measured = fit?.key === measureKey ? fit : undefined
+  const folds = stepsStripFolds({
+    narrow,
+    ...(measured ? { fullWidth: measured.fullWidth, room: measured.room } : {}),
+  })
+  const view = useMemo(
+    () => stepsStripView(model.entries, { narrow: folds }),
+    [model.entries, folds],
+  )
+
+  useLayoutEffect(() => {
+    const el = rootRef.current
+    if (!el || narrow) return
+    const measure = () =>
+      setFit((prev) => {
+        const kept = prev?.key === measureKey ? prev : undefined
+        const fullWidth = folds && kept ? kept.fullWidth : el.scrollWidth
+        const room = el.clientWidth
+        return kept && kept.fullWidth === fullWidth && kept.room === room
+          ? kept
+          : { key: measureKey, fullWidth, room }
+      })
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [narrow, folds, measureKey])
 
   useEffect(() => {
     if (!open) return
@@ -114,7 +151,7 @@ export default function StepsStrip({ model, narrow = false }: StepsStripProps) {
   return (
     <div
       ref={rootRef}
-      className="relative flex min-w-0 shrink-0 flex-nowrap items-center gap-1.5 border-b border-(--border-subtle) bg-(--surface-raised) px-3.5 py-2 text-[12px]"
+      className={`relative flex min-w-0 shrink-0 ${folds ? 'flex-wrap gap-y-1' : 'flex-nowrap'} items-center gap-x-1.5 border-b border-(--border-subtle) bg-(--surface-raised) px-3.5 py-2 text-[12px]`}
     >
       <span className="mr-1 shrink-0 text-[10.5px] font-semibold uppercase tracking-wider text-(--text-muted)">
         {model.label}
@@ -127,7 +164,7 @@ export default function StepsStrip({ model, narrow = false }: StepsStripProps) {
             </span>
           ) : null}
           {item.kind === 'step' ? (
-            <Step entry={item.entry} emphasis={item.emphasis} narrow={narrow} />
+            <Step entry={item.entry} emphasis={item.emphasis} narrow={folds} />
           ) : (
             <button
               type="button"

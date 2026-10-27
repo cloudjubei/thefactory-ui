@@ -5,6 +5,7 @@ import {
   DESIGN_TEXT,
   designShownOfEntry,
   designShownOfVersion,
+  designVariantName,
   formatDateShort,
   type DesignShown,
 } from '../../../headless'
@@ -143,7 +144,7 @@ export default function DesignScreenGrid({
                     : 'border-(--border-subtle) text-(--text-muted)',
                 ].join(' ')}
               >
-                {v}
+                {designVariantName(v)}
               </button>
             )
           })}
@@ -168,7 +169,7 @@ export default function DesignScreenGrid({
                       key={v}
                       className="text-left text-[12px] font-medium text-(--text-secondary)"
                     >
-                      {v}
+                      {designVariantName(v)}
                     </th>
                   ))}
                 </tr>
@@ -196,7 +197,7 @@ export default function DesignScreenGrid({
                             <button
                               type="button"
                               aria-pressed={on}
-                              aria-label={`${r.name} · ${c.variant}: ${DESIGN_CELL_STATUS_LABELS[c.status]}`}
+                              aria-label={`${r.name} · ${designVariantName(c.variant)}: ${DESIGN_CELL_STATUS_LABELS[c.status]}`}
                               onClick={() => onSelect(ref)}
                               className={[
                                 'flex w-full min-w-36 flex-col gap-1.5 rounded-lg border p-1.5 text-left',
@@ -239,7 +240,7 @@ export default function DesignScreenGrid({
                   {screen.name} › {row.name}
                 </span>
                 <span className="flex items-center gap-2 text-[12px] text-(--text-secondary)">
-                  {cell.variant}
+                  {designVariantName(cell.variant)}
                   <DesignPill tone={CELL_TONES[cell.status]}>
                     {DESIGN_CELL_STATUS_LABELS[cell.status]}
                   </DesignPill>

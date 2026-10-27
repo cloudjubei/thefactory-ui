@@ -10,7 +10,7 @@ import {
   type CliAuthWarning,
 } from '../../headless/utils/cliRunner'
 import { modelChipLabel } from '../../headless/utils/modelChip'
-import { MODEL_CHIP_OFF } from '../../headless/utils/modelChipConstants'
+import { MODEL_CHIP_OFF, MODEL_CHIP_PRICE_UNKNOWN } from '../../headless/utils/modelChipConstants'
 import type { ModelChipOff } from '../../headless/utils/modelChipTypes'
 import { effortDefaultLabel, effortLevelLabel } from '../../headless/utils/modelEffort'
 import { EFFORT_SWITCH_LABEL } from '../../headless/utils/modelEffortConstants'
@@ -107,7 +107,7 @@ function clamp(n: number, min: number, max: number) {
 }
 
 function formatUSD(n?: number) {
-  if (n == null || Number.isNaN(n)) return '?'
+  if (n == null || Number.isNaN(n)) return '—'
   const fixed = n.toFixed(4)
   const trimmed = fixed.replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1')
   return `$${trimmed}`
@@ -471,7 +471,7 @@ function Picker({
         </div>
       )}
       {cliSwitchError && (
-        <div className="px-3 pb-2 -mt-1 text-[10px] leading-snug text-[var(--status-danger)]">
+        <div className="px-3 pb-2 -mt-1 text-[10px] leading-snug text-[var(--status-stuck-soft-fg)]">
           {cliSwitchError}
         </div>
       )}
@@ -606,12 +606,15 @@ function Picker({
           const dot = providerDotClasses(cfg.provider)
           const priceKey = cfg.provider && cfg.model ? `${cfg.provider}::${cfg.model}` : undefined
           const p = priceKey ? pricesByKey[priceKey] : undefined
-          const inStr = p ? formatUSD(p.inputPerMTokensUSD) : '?'
-          const outStr = p ? formatUSD(p.outputPerMTokensUSD) : '?'
-          const cacheStr =
-            p && p.cacheReadInputPerMTokensUSD != null
-              ? formatUSD(p.cacheReadInputPerMTokensUSD)
-              : '?'
+          const priceLine = p
+            ? [
+                `In ${formatUSD(p.inputPerMTokensUSD)}`,
+                `Out ${formatUSD(p.outputPerMTokensUSD)}`,
+                ...(p.cacheReadInputPerMTokensUSD != null
+                  ? [`Cache ${formatUSD(p.cacheReadInputPerMTokensUSD)}`]
+                  : []),
+              ].join(' · ')
+            : MODEL_CHIP_PRICE_UNKNOWN
 
           return (
             <button
@@ -636,7 +639,7 @@ function Picker({
                   {cfg.model || '—'}
                 </span>
                 <span className="truncate text-[10px] text-[var(--text-secondary)]">
-                  In {inStr} · Out {outStr} · Cache {cacheStr}
+                  {priceLine}
                 </span>
               </span>
             </button>
@@ -789,7 +792,7 @@ export function ModelChip({
           </span>
         )}
       </span>
-      <span className="flex min-w-0 max-w-[96px] flex-col px-1 text-center leading-tight">
+      <span className="flex min-w-0 max-w-[160px] flex-col px-1 text-center leading-tight">
         {label.provider && (
           <span className="block w-full truncate text-[10px] uppercase tracking-wide text-neutral-700 dark:text-neutral-300">
             {label.provider}

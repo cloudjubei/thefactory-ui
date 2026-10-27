@@ -138,7 +138,7 @@ export default function DecisionBar({
       {menuOpen ? (
         <div
           role="menu"
-          className="absolute bottom-[calc(100%+6px)] left-0 z-30 min-w-[300px] rounded-md border border-(--border-default) bg-(--surface-overlay) py-1 shadow-lg"
+          className="absolute bottom-[calc(100%+6px)] left-0 z-30 min-w-[300px] max-w-[calc(100vw-32px)] rounded-md border border-(--border-default) bg-(--surface-overlay) py-1 shadow-lg"
         >
           <div className="px-3 pb-1 pt-1.5 text-[10px] font-semibold uppercase tracking-wider text-(--text-muted)">
             {earned.menuHead}

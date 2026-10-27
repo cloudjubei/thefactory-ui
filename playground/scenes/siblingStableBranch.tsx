@@ -23,7 +23,9 @@ const DB_PATH = '/Users/me/Work/shared-db'
 
 function frame(children: ReactNode, width = 'w-[440px]'): ReactNode {
   return (
-    <div className={`${width} rounded-md border border-(--border-subtle) bg-(--surface-base) p-3`}>
+    <div
+      className={`${width} max-w-full rounded-md border border-(--border-subtle) bg-(--surface-base) p-3`}
+    >
       {children}
     </div>
   )
@@ -200,14 +202,17 @@ const PLAN = {
   ],
 }
 
+/** The host's message as the middle of a sentence: its own closing full stop dropped. */
+const clause = (message: string) => message.replace(/\.+$/, '')
+
 function chatNotice(ledger: ProcessLedgerEntry[]): ReactNode {
   const notice = siblingFallbackNoticeState({ plan: PLAN, ledger }, 'checks-1')
   if (notice.state === 'unknown') return null
   return frame(
     <div className="flex flex-col gap-1.5">
       <p className="m-0 text-[13px] text-(--text-primary)">
-        The checks: {STABLE_PASSED.message}. The run goes on; fix those pending changes before
-        relying on this work with them.
+        The checks: {clause(STABLE_PASSED.message)}. The run goes on; fix those pending changes
+        before relying on this work with them.
       </p>
       <SiblingFallbackNotice
         view={notice.view}
@@ -227,7 +232,7 @@ const MERGE_BASE: MergeChecks = {
 
 const MERGE_FLAGGED: MergeChecks = {
   ...MERGE_BASE,
-  summary: `The merged result 91e4ba5 builds and type-checks. ${STABLE_PASSED.message}.`,
+  summary: `The merged result 91e4ba5 builds and type-checks. ${clause(STABLE_PASSED.message)}.`,
   siblingFallback: STABLE_PASSED,
 }
 
@@ -270,7 +275,7 @@ export const SIBLING_STABLE_BRANCH_SCENES: Scene[] = [
       {
         id: 'clean-copy-row',
         title: 'A check built against a clean copy',
-        description: 'Hover the host chip: “shared-db main at 3161c83 (a clean copy)”.',
+        description: 'Under each row: “Built against shared-db main at 3161c83 (a clean copy)”.',
         render: () =>
           frame(<ProcessCheckList step={CHECK_STEP} latest={attempt({ checks: AT_STABLE })} />),
       },

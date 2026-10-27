@@ -390,6 +390,12 @@ const apiTurn: UsageModalMessage = {
   },
 }
 
+const knownApiTurn: UsageModalMessage = {
+  role: 'assistant',
+  model: { provider: 'openai', model: 'gpt-5.5' },
+  usage: { promptTokens: 3_200, completionTokens: 410, cost: 0.0094 },
+}
+
 const planTurn: UsageModalMessage = {
   role: 'assistant',
   usage: {
@@ -471,7 +477,7 @@ export const USAGE_SCENES: Scene[] = [
         description:
           'The look-alike the $? states differ from: a stated charge in dollars, no reason under the row.',
         render: () => (
-          <UsageModal isOpen onClose={() => {}} messages={[apiTurn]} getPrice={noPrice} />
+          <UsageModal isOpen onClose={() => {}} messages={[knownApiTurn]} getPrice={noPrice} />
         ),
       },
       {

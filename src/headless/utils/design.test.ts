@@ -6,6 +6,7 @@ import {
   designShownOfVersion,
   designSourceFileName,
   designSourceMediaType,
+  designVariantName,
   designViewKind,
   findDesignScreen,
   findDesignState,
@@ -112,6 +113,37 @@ describe('design', () => {
       'Phone — Faction cards',
     )
     expect(designShownOfEntry(proposal, { ...entry, caseQuery: '?x=1' }).caseQuery).toBe('?x=1')
+  })
+
+  it('reads a build key as the platform and the app or build it names', () => {
+    expect(designVariantName('web:app:.')).toBe('Web app')
+    expect(designVariantName('web:app:')).toBe('Web app')
+    expect(designVariantName('web:app:./')).toBe('Web app')
+    expect(designVariantName('web:app:packages/site/')).toBe('Web app · packages/site')
+    expect(designVariantName('web:vite')).toBe('Web · vite')
+    expect(designVariantName('android:app:onsite/debug')).toBe('Android · onsite/debug')
+    expect(designVariantName('android:wear:debug')).toBe('Android · wear · debug')
+    expect(designVariantName('ios:Covision/DevDebug')).toBe('iOS · Covision/DevDebug')
+  })
+
+  it('reads any other variant as it is', () => {
+    for (const v of ['Desktop · Visual', 'Default', '', 'web', 'android:app', 'ios:', 'Web: app'])
+      expect(designVariantName(v)).toBe(v)
+  })
+
+  it('names images filed under a build key by the app they show', () => {
+    const version = { ...index.versions[1]!, variant: 'web:app:.' }
+    expect(designShownOfVersion(index, version).name).toBe('Web app · v1')
+    const proposal = { id: 'p', title: 'Faction cards' } as DesignProposal
+    const entry = {
+      id: 'e',
+      variant: 'ios:Game/Debug',
+      source: blob('image/png'),
+      target: {},
+      links: [],
+      pieces: [],
+    }
+    expect(designShownOfEntry(proposal, entry).name).toBe('iOS · Game/Debug — Faction cards')
   })
 
   it('serves a version or an entry, with the view token and a case’s address', () => {

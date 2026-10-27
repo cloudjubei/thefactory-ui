@@ -69,7 +69,7 @@ export default function StartWorkDialog({
         onCancel={close}
         busy={busy}
       />
-      {error ? <p className="mt-2 text-[12px] text-(--status-stuck-fg)">{error}</p> : null}
+      {error ? <p className="mt-2 text-[12px] text-(--status-stuck-soft-fg)">{error}</p> : null}
     </Modal>
   )
 }

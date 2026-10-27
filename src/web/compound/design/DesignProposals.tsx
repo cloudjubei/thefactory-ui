@@ -10,7 +10,9 @@ import {
   designProposalGroups,
   designShownOfEntry,
   designShownOfVersion,
+  designVariantName,
   formatDateShort,
+  type DesignCaseMatrix,
   type DesignFileTarget,
   type DesignShown,
 } from '../../../headless'
@@ -218,7 +220,9 @@ function CompareRow({
     <div className="grid grid-cols-1 gap-3 border-b border-(--border-subtle) pb-3 @2xl:grid-cols-[minmax(130px,180px)_1fr_1fr] @2xl:items-start">
       <div className="flex flex-col gap-1">
         <span className="text-[13px] font-semibold text-(--text-primary)">{where || '—'}</span>
-        <span className="text-[12px] text-(--text-secondary)">{entry.variant}</span>
+        <span className="text-[12px] text-(--text-secondary)">
+          {designVariantName(entry.variant)}
+        </span>
         <DesignPill tone={MARK_TONES[row.mark]}>{DESIGN_COMPARE_MARK_LABELS[row.mark]}</DesignPill>
         {entry.accepted ? (
           <DesignPill tone="done">{DESIGN_PROPOSAL_STATUS_LABELS.accepted}</DesignPill>
@@ -369,7 +373,75 @@ function ClickThrough({
   )
 }
 
-/** The answers to the proposal's question as a draft's cases: a row per choice, a column per variant. */
+type CaseRow = DesignCaseMatrix['rows'][number]
+
+/** A choice's name, opening it, and where it stands: chosen, kept, sent back, or a button to choose it. */
+function CaseChoice({
+  row,
+  isChosen,
+  kept,
+  props,
+}: {
+  row: CaseRow
+  isChosen: boolean
+  kept: boolean
+  props: DesignProposalsProps
+}) {
+  const { proposal } = row
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => props.onSelect(proposal.id)}
+        className="text-left text-[13px] font-semibold text-(--text-primary) hover:underline"
+      >
+        {proposal.title}
+      </button>
+      <div className="mt-1">
+        {proposal.status === 'accepted' ? (
+          <DesignPill tone="done">{DESIGN_PROPOSAL_STATUS_LABELS.accepted}</DesignPill>
+        ) : isChosen ? (
+          <DesignPill tone="done">✓ {DESIGN_TEXT.chosen}</DesignPill>
+        ) : kept ? (
+          <DesignPill tone="empty">{DESIGN_TEXT.keptAsAlternative}</DesignPill>
+        ) : proposal.status === 'sent-back' ? (
+          <DesignPill tone="on_hold">{DESIGN_PROPOSAL_STATUS_LABELS['sent-back']}</DesignPill>
+        ) : (
+          <Button size="sm" variant="secondary" onClick={() => void props.onChoose(proposal.id)}>
+            {DESIGN_TEXT.chooseDirection}
+          </Button>
+        )}
+      </div>
+    </>
+  )
+}
+
+/** One choice's image in one variant, opening it; a dash where the choice has none. */
+function CaseCell({
+  row,
+  cell,
+  width,
+  props,
+}: {
+  row: CaseRow
+  cell: CaseRow['cells'][number]
+  width: number
+  props: DesignProposalsProps
+}) {
+  if (!cell) return <span className="text-[12px] text-(--text-muted)">—</span>
+  const shown = designShownOfEntry(row.proposal, cell)
+  return (
+    <button type="button" onClick={() => props.onOpen(shown)}>
+      <DesignFileThumb shown={shown} src={props.srcOf(shown)} width={width} />
+    </button>
+  )
+}
+
+/**
+ * The answers to the proposal's question as a draft's cases: a row per choice,
+ * a column per variant. Too narrow for the table, each choice stacks with its
+ * images, each named by its variant.
+ */
 function Cases({
   index,
   proposal,
@@ -388,78 +460,69 @@ function Cases({
   )
   const settled =
     matrix.rows.filter((r) => r.proposal.status === 'alternative').length === matrix.rows.length - 1
+  const standing = (r: CaseRow) => ({
+    isChosen: settled && chosen?.proposal.id === r.proposal.id,
+    kept: settled && r.proposal.status === 'alternative',
+  })
   return (
-    <div className="overflow-x-auto rounded-lg border border-(--border-subtle) p-2">
-      <table className="border-separate border-spacing-2">
-        <thead>
-          <tr>
-            <th />
-            {matrix.variants.map((v) => (
-              <th key={v} className="text-left text-[12px] font-medium text-(--text-secondary)">
-                {v}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {matrix.rows.map((r) => {
-            const isChosen = settled && chosen?.proposal.id === r.proposal.id
-            const kept = settled && r.proposal.status === 'alternative'
-            return (
-              <tr key={r.proposal.id} style={kept ? { opacity: 0.55 } : undefined}>
-                <td className="max-w-48 align-top">
-                  <button
-                    type="button"
-                    onClick={() => props.onSelect(r.proposal.id)}
-                    className="text-left text-[13px] font-semibold text-(--text-primary) hover:underline"
-                  >
-                    {r.proposal.title}
-                  </button>
-                  <div className="mt-1">
-                    {r.proposal.status === 'accepted' ? (
-                      <DesignPill tone="done">{DESIGN_PROPOSAL_STATUS_LABELS.accepted}</DesignPill>
-                    ) : isChosen ? (
-                      <DesignPill tone="done">✓ {DESIGN_TEXT.chosen}</DesignPill>
-                    ) : kept ? (
-                      <DesignPill tone="empty">{DESIGN_TEXT.keptAsAlternative}</DesignPill>
-                    ) : r.proposal.status === 'sent-back' ? (
-                      <DesignPill tone="on_hold">
-                        {DESIGN_PROPOSAL_STATUS_LABELS['sent-back']}
-                      </DesignPill>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => void props.onChoose(r.proposal.id)}
-                      >
-                        {DESIGN_TEXT.chooseDirection}
-                      </Button>
-                    )}
-                  </div>
-                </td>
-                {r.cells.map((e, i) => (
-                  <td key={i} className="align-top">
-                    {e ? (
-                      <button
-                        type="button"
-                        onClick={() => props.onOpen(designShownOfEntry(r.proposal, e))}
-                      >
-                        <DesignFileThumb
-                          shown={designShownOfEntry(r.proposal, e)}
-                          src={props.srcOf(designShownOfEntry(r.proposal, e))}
-                          width={160}
-                        />
-                      </button>
-                    ) : (
-                      <span className="text-[12px] text-(--text-muted)">—</span>
-                    )}
+    <div className="rounded-lg border border-(--border-subtle) p-2">
+      <div className="scroll-x-hint hidden @xl:block">
+        <table className="border-separate border-spacing-2">
+          <thead>
+            <tr>
+              <th />
+              {matrix.variants.map((v) => (
+                <th key={v} className="text-left text-[12px] font-medium text-(--text-secondary)">
+                  {designVariantName(v)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {matrix.rows.map((r) => {
+              const { isChosen, kept } = standing(r)
+              return (
+                <tr key={r.proposal.id} style={kept ? { opacity: 0.55 } : undefined}>
+                  <td className="max-w-48 align-top">
+                    <CaseChoice row={r} isChosen={isChosen} kept={kept} props={props} />
                   </td>
+                  {r.cells.map((cell, i) => (
+                    <td key={i} className="align-top">
+                      <CaseCell row={r} cell={cell} width={160} props={props} />
+                    </td>
+                  ))}
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+      <ul className="flex flex-col divide-y divide-(--border-subtle) @xl:hidden">
+        {matrix.rows.map((r) => {
+          const { isChosen, kept } = standing(r)
+          return (
+            <li
+              key={r.proposal.id}
+              className="flex flex-col gap-2 p-1.5 py-2.5"
+              style={kept ? { opacity: 0.55 } : undefined}
+            >
+              <div>
+                <CaseChoice row={r} isChosen={isChosen} kept={kept} props={props} />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {r.cells.map((cell, i) => (
+                  <figure key={matrix.variants[i]} className="flex flex-col gap-1">
+                    <figcaption className="text-[12px] font-medium text-(--text-secondary)">
+                      {designVariantName(matrix.variants[i]!)}
+                    </figcaption>
+                    <CaseCell row={r} cell={cell} width={128} props={props} />
+                  </figure>
                 ))}
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
+              </div>
+            </li>
+          )
+        })}
+      </ul>
     </div>
   )
 }

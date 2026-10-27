@@ -45,9 +45,9 @@ const STATUS_TONE: Record<DailyUsageStatus, string> = {
 
 function ModelTable({ rows }: { rows: DailyUsageModelRow[] }) {
   return (
-    <div className="overflow-x-auto rounded-md border border-(--border-subtle)">
+    <div className="scroll-x-hint rounded-md border border-(--border-subtle)">
       <table className="min-w-full text-sm tabular-nums">
-        <thead className="bg-(--surface-raised) text-(--text-secondary)">
+        <thead className="text-(--text-secondary)">
           <tr>
             {MODEL_COLUMNS.map((c) => (
               <th key={c.cell} className="px-2 py-1.5 text-left font-medium whitespace-nowrap">

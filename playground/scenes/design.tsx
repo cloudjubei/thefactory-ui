@@ -466,7 +466,7 @@ function sample(over: Partial<DesignIndex> = {}): DesignIndex {
 
 function Frame({ children }: { children: ReactNode }) {
   return (
-    <div className="flex h-[820px] min-h-0 flex-col rounded-lg border border-(--border-subtle)">
+    <div className="flex min-h-0 flex-col rounded-lg border border-(--border-subtle) md:h-[820px]">
       {children}
     </div>
   )
@@ -532,6 +532,25 @@ const PLAY_INDEX: DesignIndex = {
   tidyPlans: [],
 }
 
+/** The fixed time the Playground's states are shown at. */
+const PLAY_NOW = T0 + 5 * DAY
+const PLAY_READY = {
+  status: 'ready',
+  sha: 'abc1234',
+  dirty: true,
+  build: 'served-1:tree-1',
+  builtAt: PLAY_NOW - 90_000,
+} as const
+const PLAY_BUILD_ERROR = [
+  'src/web/compound/RunHeader.tsx:42:7 - error TS2322:',
+  "  Type 'string | undefined' is not assignable to type 'string'.",
+  '',
+  '42       title={run.title}',
+  '         ~~~~~',
+  '',
+  'Found 1 error in src/web/compound/RunHeader.tsx:42',
+].join('\n')
+
 /** The Design tab on its Playground, framing this very showcase's play pages. */
 function playground(over: Partial<DesignPlaygroundProps> = {}) {
   const scenes = parseDesignPlaygroundManifest(playgroundMessage())!.scenes
@@ -553,12 +572,13 @@ function playground(over: Partial<DesignPlaygroundProps> = {}) {
           <DesignPlayground
             index={PLAY_INDEX}
             appId="ui"
-            status={{ status: 'ready', sha: 'abc1234', dirty: false }}
+            status={PLAY_READY}
             frameSrc={(address, theme) => designPlaygroundUrl('', address ?? '', theme)}
             scenes={scenes}
             initial={{ address: 'scene=run-header&level=nested&unread=true' }}
+            clock={{ now: PLAY_NOW }}
             onRetry={noop}
-            onSave={async () => undefined}
+            onSave={async () => ({ ...LOOSE, id: 'saved' }) satisfies DesignProposal}
             onOpenProposal={noop}
             {...over}
           />
@@ -752,7 +772,7 @@ export const DESIGN_SCENES: Scene[] = [
         id: 'draft-cases',
         title: 'An HTML draft’s directions to choose between',
         description:
-          'Each direction a row, each variant a column; choosing one keeps the others as alternatives.',
+          'Each direction a row, each variant a column; choosing one keeps the others as alternatives. On a phone each direction stacks with its images, each named by its variant.',
         render: () => proposals(sample({ proposals: DIRECTIONS() }), 'dir-console'),
       },
       {
@@ -801,7 +821,7 @@ export const DESIGN_SCENES: Scene[] = [
         id: 'older-images',
         title: 'Older images as history',
         description:
-          'After a re-capture: the old labels’ images, and a state filed again at phone width, become history of the new variants.',
+          'After a re-capture: the old labels’ images, and a state filed again at phone width, become history of the new variants. An old capture filed under its build key (`web:app:.`) reads as the app it shows: Web app.',
         render: () => page(recaptured(), { appId: 'army', tab: 'tidy' }),
       },
       {
@@ -902,8 +922,80 @@ export const DESIGN_SCENES: Scene[] = [
       {
         id: 'building',
         title: 'Building',
-        description: 'The playground is built from the checkout the first time it is opened.',
-        render: () => playground({ status: { status: 'building' } }),
+        description:
+          'The first time it is opened the playground is built from the checkout as it stands — saying so, and for how long.',
+        render: () => playground({ status: { status: 'building', startedAt: PLAY_NOW - 14_000 } }),
+      },
+      {
+        id: 'rebuilding',
+        title: 'Rebuilding behind the frame',
+        description:
+          'A newer build of your latest changes runs: the frame keeps the build before it, live and usable, under a slim bar saying so and for how long; a save waits for the rebuild and says so.',
+        render: () =>
+          playground({
+            status: { ...PLAY_READY, rebuilding: true, rebuildStartedAt: PLAY_NOW - 23_000 },
+          }),
+      },
+      {
+        id: 'updated',
+        title: 'Updated to the new build',
+        description:
+          'The rebuild is done: the frame reloads on the new build at the same scene and controls, and a short note says so with the time, fading after a few seconds.',
+        render: () =>
+          playground({
+            status: { ...PLAY_READY, build: 'served-2:tree-2', builtAt: PLAY_NOW - 1_000 },
+            clock: { now: PLAY_NOW, refreshedAt: PLAY_NOW - 500 },
+          }),
+      },
+      {
+        id: 'rebuild-failed',
+        title: 'The rebuild failed',
+        description:
+          'The newest build failed while the one before it is still shown: a warning says so, why in the build’s own words, and a way to try again.',
+        render: () =>
+          playground({
+            status: { ...PLAY_READY, lastError: PLAY_BUILD_ERROR },
+            initialShowWhy: true,
+          }),
+      },
+      {
+        id: 'saving-build-first',
+        title: 'Saving — building first',
+        description:
+          'A save serves the checkout as it stands first: while that build runs the save says it waits for it.',
+        overlay: true,
+        render: () =>
+          playground({
+            status: { ...PLAY_READY, rebuilding: true, rebuildStartedAt: PLAY_NOW - 4_000 },
+            initial: { address: 'scene=run-header&level=nested&unread=false' },
+            initialSaveState: 'saving',
+          }),
+      },
+      {
+        id: 'saving-capturing',
+        title: 'Saving — capturing',
+        description: 'The build is done: the save captures light and dark, desktop and phone.',
+        overlay: true,
+        render: () =>
+          playground({
+            initial: { address: 'scene=run-header&level=nested&unread=false' },
+            initialSaveState: 'saving',
+          }),
+      },
+      {
+        id: 'save-refused',
+        title: 'Save refused — the build failed',
+        description:
+          'The build a save waits for failed: nothing is captured, and the dialog says why in the build’s own words so it can be fixed and saved again.',
+        overlay: true,
+        render: () =>
+          playground({
+            status: { ...PLAY_READY, lastError: PLAY_BUILD_ERROR },
+            initial: { address: 'scene=run-header&level=nested&unread=false' },
+            initialSaveState: {
+              error: `The playground could not be built, so nothing was saved: ${PLAY_BUILD_ERROR}`,
+            },
+          }),
       },
       {
         id: 'failed',

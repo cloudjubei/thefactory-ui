@@ -118,7 +118,7 @@ export default function MessageAskBody({
         <div
           className={[
             'max-w-full overflow-x-auto rounded-2xl rounded-br-md bg-(--accent-primary) px-3 py-1.5',
-            'text-(--text-inverted) shadow break-words',
+            'text-(--text-on-accent) shadow break-words',
           ].join(' ')}
         >
           {shown ? (

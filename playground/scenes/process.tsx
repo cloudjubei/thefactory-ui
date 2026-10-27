@@ -6,6 +6,7 @@ import {
   ChatSettingsMenu,
   MessageRow,
   ModelChip,
+  useIsNarrowViewport,
   type ChatMessageLike,
 } from 'thefactory-ui/web'
 import {
@@ -279,30 +280,39 @@ function RunPage({ run, depth }: { run: ProcessRun; depth: number }) {
   )
 }
 
-function dockState(
-  id: string,
-  title: string,
-  description: string,
-  dock: { run: ProcessRun; depth: number; narrow?: boolean; initialWidth?: number; open?: boolean },
-) {
+type DockSetup = {
+  run: ProcessRun
+  depth: number
+  narrow?: boolean
+  initialWidth?: number
+  open?: boolean
+}
+
+/** The run page with its chat, narrowed to the sheet on a small screen as the Processes tab does. */
+function DockedRunPage({ dock }: { dock: DockSetup }) {
+  const narrow = useIsNarrowViewport() || dock.narrow === true
+  return (
+    <div className="fixed inset-0 bg-(--surface-base)">
+      <RunChatDock
+        open={dock.open ?? true}
+        chat={<DockedRunChat />}
+        onClose={noop}
+        {...(narrow ? { narrow: true } : {})}
+        {...(dock.initialWidth !== undefined ? { initialWidth: dock.initialWidth } : {})}
+      >
+        <RunPage run={dock.run} depth={dock.depth} />
+      </RunChatDock>
+    </div>
+  )
+}
+
+function dockState(id: string, title: string, description: string, dock: DockSetup) {
   return {
     id,
     title,
     description,
     overlay: true,
-    render: (): ReactNode => (
-      <div className="fixed inset-0 bg-(--surface-base)">
-        <RunChatDock
-          open={dock.open ?? true}
-          chat={<DockedRunChat />}
-          onClose={noop}
-          {...(dock.narrow ? { narrow: true } : {})}
-          {...(dock.initialWidth !== undefined ? { initialWidth: dock.initialWidth } : {})}
-        >
-          <RunPage run={dock.run} depth={dock.depth} />
-        </RunChatDock>
-      </div>
-    ),
+    render: (): ReactNode => <DockedRunPage dock={dock} />,
   }
 }
 
@@ -330,7 +340,10 @@ function DockedHeader({ slim = false, width = 380 }: { slim?: boolean; width?: n
         now: NOW,
       })
   return (
-    <div className="overflow-hidden rounded-lg border border-(--border-subtle)" style={{ width }}>
+    <div
+      className="max-w-full overflow-hidden rounded-lg border border-(--border-subtle)"
+      style={{ width }}
+    >
       <ChatHeader
         view={view}
         narrow

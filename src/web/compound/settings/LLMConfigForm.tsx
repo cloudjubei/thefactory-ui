@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { BillingBasis } from 'thefactory-tools/types'
-import { listLlmModels, extractErrorMessage } from '../../../headless/api'
+import { listLlmModels, extractErrorMessage, revealStoredLlmKey } from '../../../headless/api'
 import type {
   GetLlmConfigResponse,
   LlmConfigCreateInput,
@@ -113,8 +113,8 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
   const [name, setName] = useState(initial?.name ?? '')
   const [provider, setProvider] = useState<Provider>(initial?.provider ?? 'openai')
   const [model, setModel] = useState(initial?.model ?? '')
-  // The stored key never comes back from the backend: on edit the field starts
-  // blank, and blank means "keep the stored key".
+  // The stored key never comes back with the config (the eye fetches it when
+  // asked): on edit the field starts blank, and blank means "keep the stored key".
   const [apiKey, setApiKey] = useState('')
   const hasStoredKey = initial?.hasApiKey === true
   const canListModels = (key: string) => key.trim().length > 0 || hasStoredKey
@@ -394,6 +394,7 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
                 : 'sk-...'
           }
           revealConfirmDescription="The API key will be visible until you leave this page."
+          {...(initial && hasStoredKey ? { onReveal: () => revealStoredLlmKey(initial.id) } : {})}
         />
       </Field>
       <Field label="API URL override (optional)" hint="Only for self-hosted or proxy endpoints">

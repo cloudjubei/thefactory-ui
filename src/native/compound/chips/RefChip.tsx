@@ -37,6 +37,7 @@ export default function RefChip({ value, kind, style }: RefChipProps) {
           borderWidth: 1,
           borderColor: branch ? status.on_hold.softBorder : theme.border.default,
           backgroundColor: branch ? status.on_hold.softBg : theme.surface.base,
+          maxWidth: '100%',
         },
         style,
       ]}
@@ -46,7 +47,7 @@ export default function RefChip({ value, kind, style }: RefChipProps) {
       </View>
       <Text
         numberOfLines={1}
-        style={{ fontFamily: nativeFontFamilies.mono, fontSize: 11, color: fg }}
+        style={{ flexShrink: 1, fontFamily: nativeFontFamilies.mono, fontSize: 11, color: fg }}
       >
         {display}
       </Text>

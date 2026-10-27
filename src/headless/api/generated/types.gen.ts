@@ -5670,6 +5670,7 @@ export type CodeIntelUpdate = {
 
 export type CodeIntelToolsOptions = {
   persistCatalogue?: boolean
+  scanOnFirstUse?: boolean
   includeGlobs?: Array<string>
   ignoreGlobs?: Array<string>
   autoExternalDependencies?: boolean
@@ -29897,7 +29898,7 @@ export type GetDesignPlaygroundData = {
 
 export type GetDesignPlaygroundResponses = {
   /**
-   * Where the project's design playground is: none declared, not served yet, building, ready with the code it shows, or failed with why.
+   * Where the project's design playground is: none declared, not served yet, building its first build, ready with the build it shows — and whether a newer one is building or failed behind it — or failed with why.
    */
   200:
     | {
@@ -29908,11 +29909,35 @@ export type GetDesignPlaygroundResponses = {
       }
     | {
         status: 'building'
+        /**
+         * Epoch ms the build began.
+         */
+        startedAt: number
       }
     | {
         status: 'ready'
         sha: string
         dirty: boolean
+        /**
+         * Names the build shown: another build — another tree served — names another.
+         */
+        build: string
+        /**
+         * Epoch ms the build shown was built.
+         */
+        builtAt: number
+        /**
+         * A newer build runs behind the one shown.
+         */
+        rebuilding?: true
+        /**
+         * Epoch ms the build behind it began, while rebuilding.
+         */
+        rebuildStartedAt?: number
+        /**
+         * Why the newest build failed, while the one before it is still shown.
+         */
+        lastError?: string
       }
     | {
         status: 'failed'
@@ -29934,7 +29959,7 @@ export type ServeDesignPlaygroundData = {
 
 export type ServeDesignPlaygroundResponses = {
   /**
-   * Where the project's design playground is: none declared, not served yet, building, ready with the code it shows, or failed with why.
+   * Where the project's design playground is: none declared, not served yet, building its first build, ready with the build it shows — and whether a newer one is building or failed behind it — or failed with why.
    */
   200:
     | {
@@ -29945,11 +29970,35 @@ export type ServeDesignPlaygroundResponses = {
       }
     | {
         status: 'building'
+        /**
+         * Epoch ms the build began.
+         */
+        startedAt: number
       }
     | {
         status: 'ready'
         sha: string
         dirty: boolean
+        /**
+         * Names the build shown: another build — another tree served — names another.
+         */
+        build: string
+        /**
+         * Epoch ms the build shown was built.
+         */
+        builtAt: number
+        /**
+         * A newer build runs behind the one shown.
+         */
+        rebuilding?: true
+        /**
+         * Epoch ms the build behind it began, while rebuilding.
+         */
+        rebuildStartedAt?: number
+        /**
+         * Why the newest build failed, while the one before it is still shown.
+         */
+        lastError?: string
       }
     | {
         status: 'failed'
@@ -30180,6 +30229,40 @@ export type UpdateLlmConfigResponses = {
 
 export type UpdateLlmConfigResponse = UpdateLlmConfigResponses[keyof UpdateLlmConfigResponses]
 
+export type RevealLlmConfigKeyData = {
+  body?: never
+  path: {
+    id: string
+  }
+  query?: never
+  url: '/api/v1/llm-configs/{id}/reveal'
+}
+
+export type RevealLlmConfigKeyErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type RevealLlmConfigKeyError = RevealLlmConfigKeyErrors[keyof RevealLlmConfigKeyErrors]
+
+export type RevealLlmConfigKeyResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    value: string
+  }
+}
+
+export type RevealLlmConfigKeyResponse =
+  RevealLlmConfigKeyResponses[keyof RevealLlmConfigKeyResponses]
+
 export type ListLlmModelsData = {
   body: {
     provider: LlmProvider
@@ -30342,6 +30425,41 @@ export type UpdateGitCredentialResponses = {
 
 export type UpdateGitCredentialResponse =
   UpdateGitCredentialResponses[keyof UpdateGitCredentialResponses]
+
+export type RevealGitCredentialTokenData = {
+  body?: never
+  path: {
+    id: string
+  }
+  query?: never
+  url: '/api/v1/git-credentials/{id}/reveal'
+}
+
+export type RevealGitCredentialTokenErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type RevealGitCredentialTokenError =
+  RevealGitCredentialTokenErrors[keyof RevealGitCredentialTokenErrors]
+
+export type RevealGitCredentialTokenResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    value: string
+  }
+}
+
+export type RevealGitCredentialTokenResponse =
+  RevealGitCredentialTokenResponses[keyof RevealGitCredentialTokenResponses]
 
 export type ListProviderConnectionsData = {
   body?: never
@@ -37613,6 +37731,48 @@ export type UpdateWebSearchKeysResponses = {
 
 export type UpdateWebSearchKeysResponse =
   UpdateWebSearchKeysResponses[keyof UpdateWebSearchKeysResponses]
+
+export type RevealWebSearchKeyData = {
+  body?: never
+  path: {
+    provider: string
+  }
+  query?: never
+  url: '/api/v1/web-search-keys/{provider}/reveal'
+}
+
+export type RevealWebSearchKeyErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type RevealWebSearchKeyError = RevealWebSearchKeyErrors[keyof RevealWebSearchKeyErrors]
+
+export type RevealWebSearchKeyResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    value: string
+  }
+}
+
+export type RevealWebSearchKeyResponse =
+  RevealWebSearchKeyResponses[keyof RevealWebSearchKeyResponses]
 
 export type DeleteWebSearchKeyData = {
   body?: never

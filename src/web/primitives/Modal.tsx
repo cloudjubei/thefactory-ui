@@ -185,7 +185,7 @@ export function Modal({
         sidePanel
           ? `${SIZE_WIDTH[size]} shrink-0 rounded-l-lg border`
           : `z-10 w-full ${SIZE_CLASS[size]} rounded-lg border shadow-xl`,
-        'max-h-[90vh] flex flex-col outline-none',
+        'max-h-[calc(100dvh-1.5rem)] sm:max-h-[90vh] flex flex-col outline-none',
         panelClassName,
       ]
         .filter(Boolean)

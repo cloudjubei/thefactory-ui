@@ -46,7 +46,7 @@ export const USAGE_FOOTNOTES = [
   'Charge says how sure the charged figure is: Confirmed was billed per token at a known rate; In plan cost nothing extra; Unknown has no stated charge — its Charged figure reads $? because a plan can bill overage, a price is missing, or the counts are short — so it is not a confirmed $0.',
   'Not reported: the CLI named under the row ran those turns but did not report those counts — they are unknown, not zero.',
   "A message with no stored charge is estimated from its model's current price (marked ≈).",
-  "Durable totals are computed from the persisted cost ledger for this 'chatKey' and do not decrease if you clear/restart/delete a chat.",
+  'Ledger totals come from the saved cost ledger and never drop when a chat is cleared, restarted or deleted.',
 ] as const
 
 export const USAGE_LEDGER_TITLE = 'Ledger totals (durable)'

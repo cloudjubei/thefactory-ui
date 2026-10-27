@@ -5,10 +5,10 @@ import { nativeRadii } from '../../../../tokens/native'
 import { useNativeTheme } from '../../../hooks/useNativeTheme'
 
 /**
- * Native peer of web's `ToolArgInline`: the collapsed one-line tool input shown
- * between the tool name and the time chip. A file path (or list of paths)
- * renders with the shared dir+filename `PathDisplay`; a command / search pattern
- * renders as a compact monospace snippet. Occupies the row's flexible slot.
+ * Native peer of web's `ToolArgInline`: the collapsed one-line tool input, on
+ * its own line under the tool name as on web's narrow row. A file path (or list
+ * of paths) renders with the shared dir+filename `PathDisplay`; a command /
+ * search pattern renders as a compact monospace snippet.
  */
 export default function ToolArgInline({ display }: { display: ToolArgDisplay | null }) {
   const { theme } = useNativeTheme()
@@ -36,7 +36,12 @@ export default function ToolArgInline({ display }: { display: ToolArgDisplay | n
         {display.paths.map((p, i) => (
           <View
             key={`${i}-${p}`}
-            style={{ maxWidth: 200, marginRight: i < display.paths.length - 1 ? 10 : 0 }}
+            style={{
+              flexShrink: 1,
+              minWidth: 0,
+              maxWidth: 200,
+              marginRight: i < display.paths.length - 1 ? 10 : 0,
+            }}
           >
             <PathDisplay path={p} />
           </View>

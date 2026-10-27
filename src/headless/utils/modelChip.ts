@@ -16,6 +16,7 @@ import type {
   ModelChipLabel,
   ModelChipLabelInput,
 } from './modelChipTypes'
+import { modelDisplayName } from './runModel'
 
 /** A provider key as a person reads it: `openai` → `OpenAI`; an unknown one as given. */
 export function modelChipProviderLabel(provider?: string): string {
@@ -25,22 +26,24 @@ export function modelChipProviderLabel(provider?: string): string {
 
 /**
  * What a model chip says, the same on every client: the provider (or CLI) and
- * the model on two short lines, and both in full as its title — the lines are
+ * the model by its name (`claude-opus-5-5` → `Opus 5.5`) on two short lines,
+ * and both in full as its title — the lines are
  * cut to the chip's width, the title never is. A chip switched off says Off.
  */
 export function modelChipLabel(input: ModelChipLabelInput): ModelChipLabel {
   if (input.off) return { provider: '', model: MODEL_CHIP_OFF, title: MODEL_CHIP_OFF }
   let provider = modelChipProviderLabel(input.provider)
-  let model = input.model ?? ''
-  if ((!provider || !model) && input.activeConfig) {
+  let id = input.model ?? ''
+  if ((!provider || !id) && input.activeConfig) {
     provider = modelChipProviderLabel(input.activeConfig.provider)
-    model = input.activeConfig.model ?? ''
+    id = input.activeConfig.model ?? ''
   }
   if (input.useCli) {
     provider = cliLabel(input.activeCli)
-    const named = input.cliModels?.find((m) => m.id === input.model)
-    model = shortCliModelLabel(named?.label ?? input.model ?? '')
+    id = input.model ?? ''
   }
+  const named = id ? input.cliModels?.find((m) => m.id === id)?.label : undefined
+  const model = named ? shortCliModelLabel(named) : id ? modelDisplayName(id) : ''
   const shown = [provider, model].filter(Boolean).join(' · ')
   const base = shown || (input.editable ? MODEL_CHIP_PICK_TITLE : MODEL_CHIP_UNKNOWN_TITLE)
   return {

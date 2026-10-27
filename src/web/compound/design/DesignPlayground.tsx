@@ -8,11 +8,18 @@ import {
 } from 'thefactory-tools/utils'
 import {
   DESIGN_TEXT,
+  designPlaygroundFrameNext,
   designPlaygroundPresetName,
+  designPlaygroundSaveLabel,
   designPlaygroundSavedAt,
   designPlaygroundSaveTargets,
   designPlaygroundSceneGroups,
+  designPlaygroundView,
+  extractErrorMessage,
+  useDurationTimer,
+  type DesignPlaygroundBar,
   type DesignPlaygroundDevice,
+  type DesignPlaygroundFrame,
   type DesignPlaygroundStatus,
 } from '../../../headless'
 import type {
@@ -23,6 +30,7 @@ import type {
   DesignPlaygroundTheme,
   DesignProposal,
 } from '../../../headless/api'
+import { IconCheck, IconWarningTriangle } from '../../icons'
 import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
 import Field from '../../primitives/Field'
@@ -57,19 +65,101 @@ export type DesignPlaygroundProps = {
   /** Told every move, to keep the page's address. */
   onChange?: (at: DesignPlaygroundAt) => void
   onRetry: () => void
-  /** Save the address as a state; resolves the proposal, or `undefined` when it was refused. */
-  onSave: (input: {
-    target: DesignEntryTarget
-    address: string
-  }) => Promise<DesignProposal | undefined>
+  /** Save the address as a state; resolves the proposal, or rejects with why it was refused. */
+  onSave: (input: { target: DesignEntryTarget; address: string }) => Promise<DesignProposal>
   onOpenProposal: (proposalId: string) => void
   /** Open with the save dialog showing. */
   initialSaveOpen?: boolean
+  /** Open with the save dialog saving, or refused with why. */
+  initialSaveState?: DesignPlaygroundSaveState
   /** Open with a save just made. */
   initialSaved?: DesignPlaygroundSaved
+  /** Open with why the rebuild failed shown. */
+  initialShowWhy?: boolean
+  /** A fixed clock — and when the frame last moved to a newer build — in place of the live ones. */
+  clock?: { now: number; refreshedAt?: number }
 }
 
+/** Where the save dialog is: saving, or refused with why. */
+export type DesignPlaygroundSaveState = 'saving' | { error: string }
+
 const PILL = 'rounded-full border px-2.5 py-1 text-[12px] font-medium transition-colors'
+const BAR =
+  'flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-lg px-3 py-1.5 text-[12.5px]'
+
+function clockTime(at: number): string {
+  return new Date(at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+}
+
+function PlaygroundBar({
+  bar,
+  onRetry,
+  initialShowWhy,
+}: {
+  bar: DesignPlaygroundBar
+  onRetry: () => void
+  initialShowWhy: boolean
+}) {
+  const [why, setWhy] = useState(initialShowWhy)
+  if (bar.kind === 'rebuilding') {
+    return (
+      <div
+        role="status"
+        className={BAR}
+        style={{
+          background: 'var(--status-running-soft-bg)',
+          color: 'var(--status-running-soft-fg)',
+        }}
+      >
+        <Spinner size={14} />
+        <span className="min-w-0">{bar.label}</span>
+      </div>
+    )
+  }
+  if (bar.kind === 'updated') {
+    return (
+      <div
+        role="status"
+        className={cn(BAR, 'transition-opacity duration-1000', bar.fading && 'opacity-0')}
+        style={{ background: 'var(--status-done-soft-bg)', color: 'var(--status-done-soft-fg)' }}
+      >
+        <IconCheck className="h-3.5 w-3.5 shrink-0" />
+        <span className="min-w-0">{bar.label}</span>
+        <span className="opacity-80">· {clockTime(bar.at)}</span>
+      </div>
+    )
+  }
+  return (
+    <div
+      role="alert"
+      className="flex min-w-0 flex-col gap-2 rounded-lg px-3 py-2 text-[12.5px]"
+      style={{
+        background: 'var(--status-working-soft-bg)',
+        color: 'var(--status-working-soft-fg)',
+      }}
+    >
+      <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
+        <span className="flex min-w-0 flex-1 items-center gap-2 font-medium">
+          <IconWarningTriangle className="h-3.5 w-3.5 shrink-0" />
+          <span className="min-w-0">{bar.label}</span>
+        </span>
+        <span className="flex shrink-0 items-center gap-2">
+          <Button size="sm" variant="ghost" aria-expanded={why} onClick={() => setWhy(!why)}>
+            {why ? DESIGN_TEXT.playgroundHideWhy : DESIGN_TEXT.playgroundShowWhy}
+          </Button>
+          <Button size="sm" variant="secondary" onClick={onRetry}>
+            {DESIGN_TEXT.playgroundRetry}
+          </Button>
+        </span>
+      </div>
+      {why ? (
+        <pre className="max-h-48 overflow-auto rounded-md bg-(--surface-raised) p-2 font-mono text-[12px] whitespace-pre-wrap text-(--text-primary)">
+          {bar.error}
+        </pre>
+      ) : null}
+    </div>
+  )
+}
 const PILL_ON = 'border-(--accent-primary) bg-(--accent-primary)/10 text-(--accent-primary)'
 const PILL_OFF =
   'border-(--border-subtle) bg-(--surface-raised) text-(--text-secondary) hover:text-(--text-primary)'
@@ -132,7 +222,10 @@ export default function DesignPlayground({
   onSave,
   onOpenProposal,
   initialSaveOpen = false,
+  initialSaveState,
   initialSaved,
+  initialShowWhy = false,
+  clock,
 }: DesignPlaygroundProps) {
   const opening = useMemo(
     () => (initial?.address ? parseDesignPlaygroundAddress(initial.address) : undefined),
@@ -144,8 +237,10 @@ export default function DesignPlayground({
   const [values, setValues] = useState<Record<string, string>>(opening?.values ?? {})
   const [theme, setTheme] = useState<DesignPlaygroundTheme>(initial?.theme ?? 'light')
   const [device, setDevice] = useState<DesignPlaygroundDevice>(initial?.device ?? 'desktop')
-  const [saveOpen, setSaveOpen] = useState(initialSaveOpen)
+  const [saveOpen, setSaveOpen] = useState(initialSaveOpen || initialSaveState !== undefined)
   const [saved, setSaved] = useState(initialSaved)
+  const [ticking, setTicking] = useState(false)
+  const liveNow = useDurationTimer(ticking)
   const frame = useRef<HTMLIFrameElement>(null)
 
   const scenes = givenScenes ?? posted
@@ -154,18 +249,26 @@ export default function DesignPlayground({
     ? designPlaygroundValues(scene, designPlaygroundAddress(scene, values))
     : {}
   const address = scene ? designPlaygroundAddress(scene, shownValues) : undefined
-  const build = status?.status === 'ready' ? `${status.sha}:${status.dirty}` : undefined
+  const build = status?.status === 'ready' ? status.build : undefined
   const firstSrc = build ? frameSrc(address, theme) : undefined
   const [src, setSrc] = useState<string | undefined>(undefined)
-  const openedFor = useRef<string | undefined>(undefined)
+  const [opened, setOpened] = useState<DesignPlaygroundFrame>({})
+  const view = designPlaygroundView(
+    status,
+    clock?.refreshedAt !== undefined ? { ...opened, refreshedAt: clock.refreshedAt } : opened,
+    clock?.now ?? liveNow,
+  )
+  const viewTicking = !clock && 'ticking' in view && view.ticking
 
-  // The frame opens once per build; every later move is posted to it.
+  useEffect(() => setTicking(viewTicking), [viewTicking])
+
+  // The frame opens once per build, at the address it is on; every later move is posted to it.
   useEffect(() => {
-    if (!build || !firstSrc || openedFor.current === build) return
-    openedFor.current = build
+    if (!build || !firstSrc || opened.build === build) return
+    setOpened(designPlaygroundFrameNext(opened, build, Date.now()))
     setReady(false)
     setSrc(firstSrc)
-  }, [build, firstSrc])
+  }, [build, firstSrc, opened])
 
   useEffect(() => {
     if (!src) return
@@ -202,20 +305,23 @@ export default function DesignPlayground({
     setSaved(undefined)
   }
 
-  if (!status || status.status === 'stopped' || status.status === 'building') {
+  if (view.kind === 'building') {
     return (
-      <div className="flex items-center gap-2 py-10 text-[13px] text-(--text-secondary)">
-        <Spinner size={16} /> {DESIGN_TEXT.playgroundBuilding}
+      <div
+        role="status"
+        className="flex items-center gap-2 py-10 text-[13px] text-(--text-secondary)"
+      >
+        <Spinner size={16} /> {view.label}
       </div>
     )
   }
-  if (status.status === 'failed') {
+  if (view.kind === 'failed') {
     return (
       <Alert>
         <div className="flex flex-col gap-2">
           <span className="font-semibold">{DESIGN_TEXT.playgroundFailed}</span>
           <pre className="max-h-48 overflow-auto font-mono text-[12px] whitespace-pre-wrap">
-            {status.error}
+            {view.error}
           </pre>
           <Button size="sm" variant="secondary" className="self-start" onClick={onRetry}>
             {DESIGN_TEXT.playgroundRetry}
@@ -224,7 +330,7 @@ export default function DesignPlayground({
       </Alert>
     )
   }
-  if (status.status === 'none') return null
+  if (view.kind === 'none') return null
 
   const groups = designPlaygroundSceneGroups(scenes ?? [])
   const existing = address ? designPlaygroundSavedAt(index, appId, address) : undefined
@@ -285,7 +391,7 @@ export default function DesignPlayground({
 
       <section className="flex min-w-0 flex-col gap-3">
         <div className="flex flex-wrap items-start gap-3">
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <div className="flex min-w-[min(100%,18rem)] flex-1 flex-col gap-1">
             <h3 className="text-[15px] font-semibold text-(--text-primary)">
               {scene?.name ?? DESIGN_TEXT.playgroundPick}
             </h3>
@@ -293,10 +399,23 @@ export default function DesignPlayground({
               {DESIGN_TEXT.playgroundIntro}
             </p>
           </div>
-          <Button size="sm" disabled={!address} onClick={() => setSaveOpen(true)}>
-            {DESIGN_TEXT.saveAsState}
-          </Button>
+          <div className="flex flex-col items-end gap-1">
+            <Button size="sm" disabled={!address} onClick={() => setSaveOpen(true)}>
+              {DESIGN_TEXT.saveAsState}
+            </Button>
+            {view.saveHint ? (
+              <span className="text-[12px] text-(--text-muted)">{view.saveHint}</span>
+            ) : null}
+          </div>
         </div>
+        {view.bar ? (
+          <PlaygroundBar
+            key={view.bar.kind}
+            bar={view.bar}
+            onRetry={onRetry}
+            initialShowWhy={initialShowWhy}
+          />
+        ) : null}
         {saved ? (
           <div className="flex flex-col gap-1 rounded-lg border border-(--border-subtle) bg-(--surface-raised) px-3 py-2 text-[12.5px]">
             <span className="flex flex-wrap items-center gap-2">
@@ -322,6 +441,7 @@ export default function DesignPlayground({
         >
           {src ? (
             <iframe
+              key={opened.build}
               ref={frame}
               src={src}
               title={scene?.name ?? DESIGN_TEXT.playgroundPick}
@@ -428,9 +548,10 @@ export default function DesignPlayground({
           scene={scene}
           existing={existing}
           suggestedName={designPlaygroundPresetName(scene, shownValues) ?? ''}
+          status={status}
+          initialState={initialSaveState}
           onSave={async (target, where) => {
             const made = await onSave({ target, address })
-            if (!made) return
             setSaveOpen(false)
             setSaved({ proposalId: made.id, where })
           }}
@@ -448,6 +569,8 @@ function SaveDialog({
   scene,
   existing,
   suggestedName,
+  status,
+  initialState,
   onSave,
 }: {
   isOpen: boolean
@@ -457,12 +580,18 @@ function SaveDialog({
   scene: DesignPlaygroundScene
   existing: ReturnType<typeof designPlaygroundSavedAt>
   suggestedName: string
+  status: DesignPlaygroundStatus | undefined
+  initialState: DesignPlaygroundSaveState | undefined
   onSave: (target: DesignEntryTarget, where: string) => Promise<void>
 }) {
   const targets = designPlaygroundSaveTargets(index, appId, scene)
   const [name, setName] = useState(suggestedName)
   const [whereKey, setWhereKey] = useState(targets[0]!.key)
-  const [saving, setSaving] = useState(false)
+  const [saving, setSaving] = useState(initialState === 'saving')
+  const [waited, setWaited] = useState(false)
+  const [error, setError] = useState(
+    typeof initialState === 'object' ? initialState.error : undefined,
+  )
 
   const where = targets.find((t) => t.key === whereKey) ?? targets[0]!
   const existingWhere = existing
@@ -471,12 +600,16 @@ function SaveDialog({
   const canSave = !saving && (existing !== undefined || name.trim() !== '')
   const save = async () => {
     setSaving(true)
+    setWaited(status?.status === 'ready' && status.rebuilding === true)
+    setError(undefined)
     try {
       if (existing) {
         await onSave({ screenId: existing.screen.id, stateId: existing.state.id }, existingWhere!)
       } else {
         await onSave({ ...where.target, stateName: name.trim() }, where.label)
       }
+    } catch (err) {
+      setError(extractErrorMessage(err, DESIGN_TEXT.saveFailed))
     } finally {
       setSaving(false)
     }
@@ -529,10 +662,20 @@ function SaveDialog({
             </NativeSelect>
           )}
         </Field>
-        <p className="text-[12.5px] text-(--text-secondary)">
+        {error && !saving ? (
+          <Alert>
+            <div className="flex min-w-0 flex-col gap-1">
+              <span className="font-semibold">{DESIGN_TEXT.saveFailed}</span>
+              <pre className="max-h-40 overflow-auto font-mono text-[12px] whitespace-pre-wrap">
+                {error}
+              </pre>
+            </div>
+          </Alert>
+        ) : null}
+        <p className="text-[12.5px] text-(--text-secondary)" role={saving ? 'status' : undefined}>
           {saving ? (
             <span className="flex items-center gap-2">
-              <Spinner size={14} /> {DESIGN_TEXT.saving}
+              <Spinner size={14} /> {designPlaygroundSaveLabel(status, waited)}
             </span>
           ) : (
             DESIGN_TEXT.saveVariantsNote

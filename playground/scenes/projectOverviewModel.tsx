@@ -171,7 +171,7 @@ export const PROJECT_OVERVIEW_MODEL_SCENES: Scene[] = [
       state(
         'loading',
         'Reading the setting',
-        'Not editable until the stored choice is read, so it cannot be written over.',
+        'No chip until the stored choice is read, so it cannot be written over.',
         wiring({ loading: true }),
       ),
       state(

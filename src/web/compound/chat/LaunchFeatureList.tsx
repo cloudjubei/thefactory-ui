@@ -144,34 +144,34 @@ export default function LaunchFeatureList({
               key={row.featureId}
               className={`flex flex-col gap-1.5 px-2.5 py-1.5 ${i > 0 ? 'border-t border-(--border-subtle)' : ''}`}
             >
-              <div className="flex min-h-[26px] items-center gap-2">
+              <div className="flex min-h-[26px] flex-wrap items-center gap-x-2 gap-y-1">
                 {pickBox(item)}
                 {storyId ? (
                   <DependencyBullet dependency={`${storyId}.${row.featureId}`} interactive />
                 ) : null}
-                <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-(--text-primary)">
+                <span className="min-w-[10rem] flex-1 truncate text-[12.5px] font-medium text-(--text-primary)">
                   {row.title}
                 </span>
-                {proof && !open ? (
-                  <span className="flex shrink-0 flex-wrap justify-end gap-1">
-                    {row.proofLabels.length > 0 ? (
-                      row.proofLabels.map((label) => (
-                        <span
-                          key={label}
-                          className="rounded-full bg-(--accent-primary)/10 px-2 py-px text-[11px] text-(--text-primary)"
-                        >
-                          {label}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="text-[11px] text-(--text-muted)">
-                        {PROOF_PLAN_EMPTY_SHORT}
-                      </span>
-                    )}
-                  </span>
-                ) : null}
                 {proof ? (
-                  <>
+                  <span className="ml-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-x-2 gap-y-1">
+                    {!open ? (
+                      <span className="flex min-w-0 flex-wrap justify-end gap-1">
+                        {row.proofLabels.length > 0 ? (
+                          row.proofLabels.map((label) => (
+                            <span
+                              key={label}
+                              className="rounded-full bg-(--accent-primary)/10 px-2 py-px text-[11px] text-(--text-primary)"
+                            >
+                              {label}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-[11px] text-(--text-muted)">
+                            {PROOF_PLAN_EMPTY_SHORT}
+                          </span>
+                        )}
+                      </span>
+                    ) : null}
                     <span
                       className={`shrink-0 text-[10.5px] ${proof.source === 'suggested' && !proof.edited ? 'text-(--status-review-soft-fg)' : 'text-(--text-muted)'}`}
                     >
@@ -187,7 +187,7 @@ export default function LaunchFeatureList({
                     >
                       {open ? 'Done' : 'Edit'}
                     </button>
-                  </>
+                  </span>
                 ) : null}
               </div>
 

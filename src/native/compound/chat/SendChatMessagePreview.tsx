@@ -146,10 +146,10 @@ export default function SendChatMessagePreview({
             <Markdown
               text={shown}
               onAccent
-              textStyle={{ color: theme.text.inverted, fontSize: 13.5 }}
+              textStyle={{ color: theme.text.onAccent, fontSize: 13.5 }}
             />
           ) : (
-            <Text style={{ fontSize: 13.5, fontStyle: 'italic', color: theme.text.inverted }}>
+            <Text style={{ fontSize: 13.5, fontStyle: 'italic', color: theme.text.onAccent }}>
               {TOOL_ASK_COPY.noMessage}
             </Text>
           )}

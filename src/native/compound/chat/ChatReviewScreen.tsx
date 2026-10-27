@@ -51,12 +51,17 @@ export function ChatReviewScreen({ header, onBack, children }: ChatReviewScreenP
         </Pressable>
         <Text
           numberOfLines={1}
-          style={{ flexShrink: 1, fontSize: 15, fontWeight: '600', color: theme.text.primary }}
+          style={{
+            flexShrink: header.branch ? 0 : 1,
+            fontSize: 15,
+            fontWeight: '600',
+            color: theme.text.primary,
+          }}
         >
           {header.title}
         </Text>
         {header.branch ? (
-          <View style={{ marginLeft: 'auto', flexShrink: 1 }}>
+          <View style={{ marginLeft: 'auto', flexShrink: 1, minWidth: 0 }}>
             <RefChip kind="branch" value={header.branch} />
           </View>
         ) : null}

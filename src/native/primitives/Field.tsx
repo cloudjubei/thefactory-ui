@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Text, View } from 'react-native'
+import { red } from '../../tokens/colors'
 import { nativeSpace } from '../../tokens/native'
 import { useNativeTheme } from '../hooks/useNativeTheme'
 
@@ -9,6 +10,8 @@ export interface FieldProps {
    *  affordance for a list-shaped input). */
   labelTrailing?: ReactNode
   hint?: ReactNode
+  /** Why the value cannot be saved as it is; shown in place of the hint. */
+  error?: ReactNode
   children: ReactNode
 }
 
@@ -18,8 +21,8 @@ export interface FieldProps {
 // Label typography mirrors web's `<label>` in `Field.tsx`: a `text-sm
 // font-medium` heading (14px / 500) above the input. The hint sits underneath
 // at `text-xs`, dimmed.
-export default function Field({ label, labelTrailing, hint, children }: FieldProps) {
-  const { theme } = useNativeTheme()
+export default function Field({ label, labelTrailing, hint, error, children }: FieldProps) {
+  const { theme, status, colorScheme } = useNativeTheme()
   return (
     <View style={{ gap: nativeSpace[2] }}>
       <View
@@ -34,7 +37,16 @@ export default function Field({ label, labelTrailing, hint, children }: FieldPro
         {labelTrailing}
       </View>
       {children}
-      {hint && <Text style={{ fontSize: 12, color: theme.text.muted, opacity: 0.85 }}>{hint}</Text>}
+      {error ? (
+        <Text
+          accessibilityRole="alert"
+          style={{ fontSize: 12, color: colorScheme === 'dark' ? red[400] : status.stuck.softFg }}
+        >
+          {error}
+        </Text>
+      ) : hint ? (
+        <Text style={{ fontSize: 12, color: theme.text.muted, opacity: 0.85 }}>{hint}</Text>
+      ) : null}
     </View>
   )
 }

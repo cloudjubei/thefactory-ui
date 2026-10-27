@@ -25,6 +25,7 @@ export interface SemanticTheme {
     secondary: string
     muted: string
     inverted: string
+    onAccent: string
   }
 
   border: {
@@ -87,6 +88,7 @@ export const lightTheme: SemanticTheme = {
     secondary: gray[700],
     muted: gray[600],
     inverted: '#ffffff',
+    onAccent: '#ffffff',
   },
 
   border: {
@@ -190,6 +192,7 @@ export const darkTheme: SemanticTheme = {
     secondary: '#c8d0da',
     muted: '#96a1ae',
     inverted: '#0b0f14',
+    onAccent: '#ffffff',
   },
 
   border: {

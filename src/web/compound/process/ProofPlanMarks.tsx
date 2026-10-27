@@ -46,13 +46,13 @@ export default function ProofPlanMarks({ rows }: ProofPlanMarksProps) {
             >
               <KindMark tone={row.tone} />
             </span>
-            <span className="shrink-0 font-semibold text-(--text-primary)">{row.label}</span>
-            <span className={`shrink-0 font-medium ${TONE_TEXT[row.tone]}`}>{row.word}</span>
             <span
-              className="line-clamp-2 min-w-0 max-w-[72ch] text-(--text-secondary)"
+              className="line-clamp-3 min-w-0 max-w-[90ch] flex-1 text-(--text-secondary)"
               title={row.detail}
             >
-              {row.detail}
+              <span className="font-semibold text-(--text-primary)">{row.label}</span>{' '}
+              <span className={`ml-1 font-medium ${TONE_TEXT[row.tone]}`}>{row.word}</span>{' '}
+              <span className="ml-1">{row.detail}</span>
             </span>
           </li>
         ))}

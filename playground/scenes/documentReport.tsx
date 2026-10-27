@@ -1,5 +1,6 @@
 import { SignoffReportPanel } from 'thefactory-ui/web'
 import { reportBodyView } from 'thefactory-ui/headless'
+import { DOCUMENT_REPORT_APPROACH } from 'thefactory-tools/constants'
 import { processDocumentReportMarkdown } from 'thefactory-tools/utils'
 import type { Scene } from '../showcase/types'
 
@@ -57,7 +58,10 @@ function DocumentReport({ documents }: { documents: { path: string; text: string
   return (
     <div className="max-w-2xl px-4 pb-4">
       <SignoffReportPanel
-        view={{ tiles: [], ...reportBodyView({ text, ref: {} }, []) }}
+        view={{
+          tiles: [],
+          ...reportBodyView({ text, ref: { approach: DOCUMENT_REPORT_APPROACH } }, []),
+        }}
         hideTiles
       />
     </div>

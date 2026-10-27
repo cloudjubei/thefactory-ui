@@ -11,6 +11,8 @@ import type { ChatContext, CliReasoningEffort } from '../api'
 import type { ActivityCliModel } from '../contexts/LLMConfigsContext'
 import type { PendingToolGrantDecision } from './chatTypes'
 import type { LaunchProofPlanEdits } from './proofPlanViewTypes'
+import { cliLabel } from './cliRunner'
+import { modelDisplayName } from './runModel'
 import { FEATURE_PROCESS_WORDS, LAUNCH_SUGGESTION_LABELS } from './workLaunchViewConstants'
 import type {
   LaunchSuggestionBody,
@@ -63,6 +65,16 @@ export function launchSuggestionRows(
   if (s.model) add('model', s.model.value, s.model.reason)
   if (s.baseBranch) add('baseBranch', s.baseBranch.value, s.baseBranch.reason)
   return rows
+}
+
+/**
+ * Who suggested a setup, as a person reads it: `claude-fable-5` → `Fable 5`,
+ * `claude-code · opus` → `Claude Code · Opus`. Pure.
+ */
+export function launchSuggestionSigner(answeredBy: string): string {
+  const [first, ...rest] = answeredBy.split(' · ').map((part) => part.trim())
+  if (rest.length === 0) return modelDisplayName(first ?? '')
+  return [cliLabel(first), modelDisplayName(rest.join(' · '))].filter(Boolean).join(' · ')
 }
 
 /** The launch card's own picks a suggestion sets, each only when it suggested one. Pure. */

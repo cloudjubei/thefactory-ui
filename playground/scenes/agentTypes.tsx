@@ -11,8 +11,8 @@ import type { Scene } from '../showcase/types'
 const noop = () => {}
 const kept = async () => true
 
-const column = (node: ReactNode) => <div className="w-[420px]">{node}</div>
-const page = (node: ReactNode) => <div className="w-[720px] p-4">{node}</div>
+const column = (node: ReactNode) => <div className="w-[420px] max-w-full">{node}</div>
+const page = (node: ReactNode) => <div className="w-[720px] max-w-full p-4">{node}</div>
 
 const builtin = (role: ResolvedAgentType['baseRole']): ResolvedAgentType => ({
   id: role,

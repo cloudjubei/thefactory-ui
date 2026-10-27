@@ -14,7 +14,12 @@ import type {
   ProjectStorageUsage,
   StorageUsageStanding,
 } from '../api'
-import { designShownOfVersion, findDesignScreen, findDesignState } from './design'
+import {
+  designShownOfVersion,
+  designVariantName,
+  findDesignScreen,
+  findDesignState,
+} from './design'
 import type { DesignShown } from './designTypes'
 import {
   DESIGN_TEXT,
@@ -262,7 +267,9 @@ function targetName(index: DesignIndex, move: DesignTidyMove): string {
   const { id, name, screenId } = move.to
   if (move.kind === 'fold-versions' && id) {
     const found = findDesignState(index, id)
-    const variant = currentDesignVersion(index, id, name ?? '')?.variant ?? name ?? ''
+    const variant = designVariantName(
+      currentDesignVersion(index, id, name ?? '')?.variant ?? name ?? '',
+    )
     return found ? `${found.screen.name} › ${found.state.name} · ${variant}` : `${id} · ${variant}`
   }
   if (id) return nameOf(index, id, move.kind)

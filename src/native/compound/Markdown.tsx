@@ -139,11 +139,11 @@ function makeStyles(
     Object.entries(body ?? {}).filter(([, value]) => value !== undefined),
   )
   // On an accent bubble, muted surface chrome washes out — match web's
-  // `[&_code]:bg-white/20` / `[&_pre]:bg-black/25` with inverted text.
+  // `[&_code]:bg-white/20` / `[&_pre]:bg-black/25` with on-accent text.
   const codeInlineBg = onAccent ? nativeAlpha('#ffffff', 0.2) : t.surface.muted
   const codeBlockBg = onAccent ? nativeAlpha('#000000', 0.25) : t.surface.muted
   const codeColorStyle = onAccent
-    ? { color: body?.color ?? t.text.inverted }
+    ? { color: body?.color ?? t.text.onAccent }
     : ({} as { color?: string })
   // Sizes mirror web's Tailwind classes: text-2xl (24) for h1, text-xl (20)
   // for h2 + h3, text-lg (18) for h4, text-base (16) for h5, text-sm (14) for
@@ -205,7 +205,7 @@ function makeStyles(
     strong: { fontWeight: '600' },
     em: { fontStyle: 'italic' },
     link: {
-      color: onAccent ? (body?.color ?? t.text.inverted) : t.accent.primary,
+      color: onAccent ? (body?.color ?? t.text.onAccent) : t.accent.primary,
       textDecorationLine: 'underline',
     },
     blockquote: {

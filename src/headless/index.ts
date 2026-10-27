@@ -1681,6 +1681,9 @@ export type {
 export {
   featureStripEntries,
   processRunStripEntries,
+  stepsStripFolds,
+  stepsStripMeasureKey,
+  stepsStripShrink,
   stepsStripView,
   storyStatusTone,
   storyStripEntries,
@@ -1688,10 +1691,12 @@ export {
 export {
   STEPS_STRIP_COPY,
   STEPS_STRIP_FULL_MAX,
+  STEPS_STRIP_WHOLE_LABEL_MAX,
   STEPS_STRIP_LABELS,
 } from './utils/stepsStripConstants'
 export type {
   StepsStripEntry,
+  StepsStripFitInput,
   StepsStripItem,
   StepsStripModel,
   StepsStripOptions,
@@ -2423,11 +2428,16 @@ export { useDesignPreview, type UseDesignPreview } from './hooks/useDesignPrevie
 export { useDesignViewToken } from './hooks/useDesignViewToken'
 export { useDesignPlayground, type UseDesignPlayground } from './hooks/useDesignPlayground'
 export {
+  designPlaygroundElapsed,
+  designPlaygroundFrameNext,
   designPlaygroundFrameUrl,
+  designPlaygroundPollMs,
   designPlaygroundPresetName,
+  designPlaygroundSaveLabel,
   designPlaygroundSavedAt,
   designPlaygroundSaveTargets,
   designPlaygroundSceneGroups,
+  designPlaygroundView,
 } from './utils/designPlayground'
 export { useStorageUsage } from './hooks/useStorageUsage'
 export {
@@ -2478,7 +2488,10 @@ export {
   DESIGN_APP_KIND_LABELS,
   DESIGN_CELL_STATUS_LABELS,
   DESIGN_COMPARE_MARK_LABELS,
+  DESIGN_PLAYGROUND_FADE_MS,
+  DESIGN_PLAYGROUND_IDLE_POLL_MS,
   DESIGN_PLAYGROUND_POLL_MS,
+  DESIGN_PLAYGROUND_UPDATED_MS,
   DESIGN_PROPOSAL_STATUS_LABELS,
   DESIGN_TAB_LABELS,
   DESIGN_TEXT,
@@ -2494,9 +2507,12 @@ export type {
   DesignFileTarget,
   DesignHistoryScreen,
   DesignNavScreen,
+  DesignPlaygroundBar,
   DesignPlaygroundDevice,
+  DesignPlaygroundFrame,
   DesignPlaygroundSaveTarget,
   DesignPlaygroundSceneGroup,
+  DesignPlaygroundView,
   DesignProposalGroup,
   DesignProposalListItem,
   DesignSelection,
@@ -2512,12 +2528,14 @@ export {
   designShownOfVersion,
   designSourceFileName,
   designSourceMediaType,
+  designVariantName,
   designViewKind,
   findDesignScreen,
   findDesignState,
   referenceDesignOf,
   storageUsageFraction,
 } from './utils/design'
+export { DESIGN_BUILD_ROOT_DIR, DESIGN_BUILD_VARIANT_NAMES } from './utils/designConstants'
 export type { DesignShown, DesignViewKind } from './utils/designTypes'
 export { useGroupNotes } from './hooks/useGroupNotes'
 export { useGroupStories, type UseGroupStories } from './hooks/useGroupStories'
@@ -2890,6 +2908,7 @@ export {
   isResumeParkChoice,
   processWaitingDetails,
   processWaitingHeading,
+  processWaitingTitleLine,
   processWaitingView,
 } from './utils/processWaitingView'
 export { WAITING_DELEGATED_LABEL } from './utils/processWaitingViewConstants'
@@ -3700,6 +3719,8 @@ export {
   activityStopMilestone,
   isActivityStopGrant,
 } from './utils/activityStopApproval'
+export { featureQuestionAnswerMilestone } from './utils/featureQuestionAnswerRow'
+export { FEATURE_QUESTION_ANSWER_ROW_COPY } from './utils/featureQuestionAnswerRowConstants'
 export {
   ACTIVITY_STOP_COPY,
   ACTIVITY_STOP_OUTCOME_COPY,

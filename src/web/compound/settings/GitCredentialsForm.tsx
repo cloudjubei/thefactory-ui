@@ -7,6 +7,7 @@ import type {
 } from '../../../headless/api'
 import {
   pollGitCredentialGithubDevice,
+  revealStoredGitToken,
   startGitCredentialGithubDevice,
   startGitCredentialGithubRedirect,
 } from '../../../headless/api'
@@ -103,10 +104,13 @@ export default function GitCredentialsForm({
   const [name, setName] = useState(initial?.name ?? '')
   const [username, setUsername] = useState(initial?.username ?? '')
   const [email, setEmail] = useState(initial?.email ?? '')
-  // The stored token never comes back from the backend: on edit the field
-  // starts blank, and blank means "keep the stored token".
+  // The stored token never comes back with the credential (the eye fetches it
+  // when asked): on edit the field starts blank, and blank means "keep the
+  // stored token".
   const [token, setToken] = useState('')
   const hasStoredToken = initial?.hasToken === true
+  const storedTokenReveal =
+    initial && hasStoredToken ? { onReveal: () => revealStoredGitToken(initial.id) } : {}
   const [host, setHost] = useState(initial?.host ?? '')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -329,6 +333,7 @@ export default function GitCredentialsForm({
             autoComplete="off"
             spellCheck={false}
             revealConfirmDescription="The token will be visible until you leave this page."
+            {...storedTokenReveal}
           />
         </Field>
         <div className="flex justify-end pt-2">
@@ -476,6 +481,7 @@ export default function GitCredentialsForm({
                   autoComplete="off"
                   spellCheck={false}
                   revealConfirmDescription="The token will be visible until you leave this page."
+                  {...storedTokenReveal}
                 />
               </Field>
               <div className="flex justify-end gap-2 pt-1">

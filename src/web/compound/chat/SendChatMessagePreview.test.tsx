@@ -49,7 +49,7 @@ describe('SendChatMessagePreview', () => {
     expect(html).toContain('<code')
     // onAccent keeps fenced/inline code readable on the accent bubble.
     expect(html).toContain('bg-white/20')
-    expect(html).toContain('text-(--text-inverted)')
+    expect(html).toContain('text-(--text-on-accent)')
     expect(html).toContain('Sent by the agent in Group planning, on your behalf')
 
     const withLink = render(

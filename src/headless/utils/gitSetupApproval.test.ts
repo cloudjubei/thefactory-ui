@@ -6,6 +6,7 @@ import {
   gitSetupMilestone,
   gitSetupPlan,
   isGitSetupGrant,
+  toolRowFellShort,
   toolRowMilestone,
 } from './gitSetupApproval'
 
@@ -162,8 +163,36 @@ describe('toolRowMilestone', () => {
     })
   })
 
+  it('gives a submitFeatureQuestionAnswer row what the saved answer did', () => {
+    const result = { answered: true, storyId: 's1', questionId: 'q1', carriedOn: true }
+    expect(toolRowMilestone('submitFeatureQuestionAnswer', result, 'success', false)).toEqual({
+      tone: 'success',
+      title: 'Answer saved',
+      detail: 'The work carried on',
+    })
+  })
+
   it('gives a tool with no line none', () => {
     expect(toolRowMilestone('readFile', { outcome: 'stopped' }, 'success', false)).toBeUndefined()
     expect(toolRowMilestone(undefined, { outcome: 'stopped' }, 'success', false)).toBeUndefined()
+  })
+})
+
+describe('toolRowFellShort', () => {
+  it('warns on a call that ran but whose milestone says it fell short', () => {
+    expect(toolRowFellShort('success', { tone: 'warning', title: 'Not stopped' })).toBe(true)
+    expect(toolRowFellShort('success', { tone: 'error', title: 'Failed' })).toBe(true)
+  })
+
+  it('keeps the tick for a milestone that did what was asked, or none', () => {
+    expect(toolRowFellShort('success', { tone: 'success', title: 'Stopped' })).toBe(false)
+    expect(toolRowFellShort('success', { tone: 'neutral', title: 'Already done' })).toBe(false)
+    expect(toolRowFellShort('success', { tone: 'waiting', title: 'Waiting' })).toBe(false)
+    expect(toolRowFellShort('success', undefined)).toBe(false)
+  })
+
+  it('leaves every other status to its own icon', () => {
+    expect(toolRowFellShort('errored', { tone: 'warning', title: 'Not stopped' })).toBe(false)
+    expect(toolRowFellShort(undefined, { tone: 'error', title: 'Failed' })).toBe(false)
   })
 })

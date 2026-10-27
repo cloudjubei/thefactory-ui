@@ -63,7 +63,9 @@ export function siblingFallbackView(fallback: VerificationSiblingFallback): Sibl
       fallback.outcome !== 'unavailable' && lines.length > 0
         ? { label: SIBLING_FALLBACK_FAILURES_LABELS[fallback.outcome], lines }
         : undefined,
-    notReplaced: (fallback.notReplaced ?? []).map((n) => `${n.name}: ${n.reason}`),
+    notReplaced: (fallback.notReplaced ?? [])
+      .filter((n) => !fallback.message.includes(n.reason))
+      .map((n) => `${n.name}: ${n.reason}`),
   }
 }
 

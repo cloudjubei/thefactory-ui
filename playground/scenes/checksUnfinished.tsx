@@ -222,7 +222,7 @@ function HandOff() {
 /** The review pushed as a phone's screen: it scrolls, its decision pinned at the bottom. */
 function PhoneReview({ children }: { children?: ReactNode }) {
   return (
-    <div className="mx-auto flex h-[680px] w-[390px] flex-col overflow-hidden rounded-[34px] border border-(--border-default) bg-(--surface-base)">
+    <div className="mx-auto flex h-[680px] w-[390px] max-w-full flex-col overflow-hidden rounded-[34px] border border-(--border-default) bg-(--surface-base)">
       <div className="h-9 shrink-0 px-6 pt-2 text-[13px] font-semibold">9:41</div>
       <div className="flex shrink-0 items-center gap-1.5 border-b border-(--border-subtle) px-2 py-2">
         <span className="px-1 text-[15px] text-(--accent-primary)">‹ Chat</span>

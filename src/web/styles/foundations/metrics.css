@@ -8,3 +8,9 @@
   --sidebar-w: 260px;
   --sidebar-w-collapsed: 64px;
 }
+
+/* Long unbroken text — a file path, a token, a hash — breaks at its box's edge
+   instead of spilling past it. Text set to one line (`truncate`) is untouched. */
+body {
+  overflow-wrap: break-word;
+}

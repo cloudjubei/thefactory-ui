@@ -1392,6 +1392,13 @@ describe('charge status and missing counts', () => {
     expect(USAGE_FOOTNOTES.join(' ')).not.toMatch(/unknown \(subscription\)/)
   })
 
+  it('names no internal key in the footnotes', () => {
+    expect(USAGE_FOOTNOTES.join(' ')).not.toMatch(/chatKey|'[a-z]+[A-Z]\w*'/)
+    expect(USAGE_FOOTNOTES.at(-1)).toBe(
+      'Ledger totals come from the saved cost ledger and never drop when a chat is cleared, restarted or deleted.',
+    )
+  })
+
   it('says under a $? row why its charge is unknown: the plan it ran on, the tokens with no known price', () => {
     const rows = ledgerUsageRows(aggregate)
     const reason = Object.fromEntries(rows.map((row) => [row.label, row.chargeReason]))

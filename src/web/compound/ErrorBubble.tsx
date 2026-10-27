@@ -28,7 +28,7 @@ export default function ErrorBubble({ error }: ErrorBubbleProps) {
 
   return (
     <div className="relative w-full">
-      <div className="flex items-start gap-1 p-2 rounded-lg bg-red-100 border border-red-400 text-red-800">
+      <div className="flex items-start gap-1 p-2 rounded-lg border border-(--status-stuck-soft-border) bg-(--status-stuck-soft-bg) text-(--status-stuck-soft-fg)">
         <button
           onClick={() => setShowDetails((v) => !v)}
           className="btn-icon"
@@ -45,7 +45,7 @@ export default function ErrorBubble({ error }: ErrorBubbleProps) {
           </div>
 
           {showDetails ? (
-            <div className="mt-2 text-xs bg-white/70 border border-red-300 text-red-900 rounded p-2 overflow-auto max-h-52">
+            <div className="mt-2 text-xs rounded border border-(--status-stuck-soft-border) bg-(--surface-raised) text-(--text-primary) p-2 overflow-auto max-h-52">
               <div className="mb-2 break-words break-all">{String(message)}</div>
               <pre className="whitespace-pre-wrap break-all">
                 {(() => {

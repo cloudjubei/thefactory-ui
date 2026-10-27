@@ -12,6 +12,7 @@ import {
   searchResultLines,
   toolArgDisplay,
   toolNotRunReason,
+  toolRowReason,
 } from './toolPreview'
 
 describe('safePreviewString', () => {
@@ -124,6 +125,12 @@ describe('toolArgDisplay', () => {
       kind: 'text',
       text: 'needle',
     })
+    expect(
+      toolArgDisplay({
+        name: 'submitFeatureQuestionAnswer',
+        arguments: { storyId: 's1', questionId: 'q1', answer: 'Yes, build it.' },
+      }),
+    ).toEqual({ kind: 'text', text: 'Yes, build it.' })
     expect(toolArgDisplay({ name: 'x', arguments: 'raw' })).toEqual({ kind: 'text', text: 'raw' })
     expect(toolArgDisplay({ name: 'x', arguments: { startLine: 1, endLine: 2 } })).toBeNull()
     expect(toolArgDisplay({ name: 'x', arguments: undefined })).toBeNull()
@@ -367,5 +374,31 @@ describe('reorderedFeatureId', () => {
     expect(reorderedFeatureId({ payload: { toIndex: 9 } }, order)).toBeUndefined()
     expect(reorderedFeatureId({ payload: { toIndex: 0 } }, ['f2'])).toBeUndefined()
     expect(reorderedFeatureId({ payload: { toIndex: 0 } }, [{ id: 7 }])).toBeUndefined()
+  })
+})
+
+describe('toolRowReason', () => {
+  it("reads a failed call's error in its own words", () => {
+    expect(toolRowReason('errored', { error: 'Search text not found.' })).toBe(
+      'Search text not found.',
+    )
+    expect(toolRowReason('errored', { error: { message: 'Boom.' } })).toBe('Boom.')
+    expect(toolRowReason('errored', { message: 'Timed out.' })).toBe('Timed out.')
+    expect(toolRowReason('errored', '  Plain failure\n  text ')).toBe('Plain failure text')
+  })
+
+  it('reads why a refused call did not run', () => {
+    expect(toolRowReason('not_allowed', { reason: 'You declined this.' })).toBe(
+      'You declined this.',
+    )
+  })
+
+  it('says nothing when the failure carries no words, or the call did not fail', () => {
+    expect(toolRowReason('errored', { code: 7 })).toBeUndefined()
+    expect(toolRowReason('errored', { error: '   ' })).toBeUndefined()
+    expect(toolRowReason('errored', undefined)).toBeUndefined()
+    expect(toolRowReason('not_allowed', undefined)).toBeUndefined()
+    expect(toolRowReason('success', { error: 'not read' })).toBeUndefined()
+    expect(toolRowReason(undefined, { error: 'not read' })).toBeUndefined()
   })
 })

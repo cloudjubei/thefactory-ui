@@ -156,15 +156,8 @@ export default function ProjectEvaluationDefaultsField({
         <ChoiceField choice={view.buildMode} onChange={choose('buildMode')} />
         <Field
           label={view.concurrency.label}
-          hint={
-            view.concurrency.error ? (
-              <span role="alert" className="text-(--status-stuck-soft-fg)">
-                {view.concurrency.error}
-              </span>
-            ) : (
-              view.concurrency.hint
-            )
-          }
+          hint={view.concurrency.hint}
+          error={view.concurrency.error}
         >
           <Input
             inputMode="numeric"

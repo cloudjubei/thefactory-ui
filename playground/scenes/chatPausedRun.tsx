@@ -221,7 +221,7 @@ const ANSWERED_MEANWHILE: ToolCallCardProps = {
     arguments: { storyId: 's1', questionId: 'q1', answer: 'Yes — build against the sibling.' },
   },
   resultType: 'errored',
-  result: { error: 'That question is answered already: “No, stub them.”. Nothing was sent.' },
+  result: { error: 'That question is answered already (“No, stub them.”); nothing was sent.' },
   durationMs: 52,
 }
 
@@ -232,7 +232,7 @@ const ANSWER_SENT: ToolCallCardProps = {
     name: 'submitFeatureQuestionAnswer',
     arguments: { storyId: 's1', questionId: 'q1', answer: 'Yes — build against the sibling.' },
   },
-  resultType: 'succeeded',
+  resultType: 'success',
   result: { answered: true, storyId: 's1', featureId: 'f1', questionId: 'q1', carriedOn: true },
   durationMs: 310,
 }

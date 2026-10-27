@@ -398,6 +398,27 @@
   border-color: var(--color-red-800);
 }
 
+.dark .chip.story,
+[data-theme='dark'] .chip.story {
+  border-color: var(--color-blue-400);
+  background: color-mix(in srgb, var(--color-blue-400) 14%, transparent);
+  color: var(--color-blue-200);
+}
+.dark .chip.story.chip--blocks,
+[data-theme='dark'] .chip.story.chip--blocks {
+  border-color: var(--color-purple-400);
+}
+.dark .chip.feature,
+[data-theme='dark'] .chip.feature {
+  border-color: var(--color-green-400);
+  background: color-mix(in srgb, var(--color-green-400) 14%, transparent);
+  color: var(--color-green-200);
+}
+.dark .chip.feature.chip--blocks,
+[data-theme='dark'] .chip.feature.chip--blocks {
+  border-color: var(--color-red-400);
+}
+
 /* Close button for inline-removable chips. Spacing comes from `.chip`'s
  * `gap` — no extra margin so the X sits tight against the label. */
 .chip__close {

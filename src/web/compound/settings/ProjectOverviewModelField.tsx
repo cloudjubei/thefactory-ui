@@ -1,6 +1,7 @@
 import { PROJECT_OVERVIEW_MODEL_TEXT } from '../../../headless'
 import type { ProjectOverviewModelChipWiring } from '../../../headless'
 import { getPrice } from '../../../headless/api'
+import Spinner from '../../primitives/Spinner'
 import { ModelChip, type ModelChipProps } from '../ModelChip'
 
 export interface ProjectOverviewModelFieldProps {
@@ -26,29 +27,33 @@ export default function ProjectOverviewModelField({
 }: ProjectOverviewModelFieldProps) {
   return (
     <div className="space-y-1.5">
-      <ModelChip
-        editable={!wiring.loading}
-        mode="activity"
-        {...(wiring.useCli && wiring.cliModelId ? { model: wiring.cliModelId } : {})}
-        activeConfig={wiring.activeConfig}
-        recents={wiring.configs}
-        configs={wiring.configs}
-        onPick={wiring.onPickConfig}
-        onOpenSettings={onOpenSettings}
-        getPrice={priceOf}
-        useCli={wiring.useCli}
-        onToggleUseCli={wiring.onToggleUseCli}
-        enabledClis={wiring.enabledClis}
-        activeCli={wiring.activeCli}
-        onPickCli={wiring.onPickCli}
-        cliModels={wiring.cliModels}
-        onPickCliModel={wiring.onPickCliModel}
-        authWarning={wiring.authWarning}
-        effort={wiring.effort}
-        cliSwitchError={wiring.switchError}
-        off={{ selected: wiring.off, onPick: wiring.onPickOff }}
-        {...(defaultOpen ? { defaultOpen } : {})}
-      />
+      {wiring.loading ? (
+        <Spinner size={14} label={PROJECT_OVERVIEW_MODEL_TEXT.loading} />
+      ) : (
+        <ModelChip
+          editable
+          mode="activity"
+          {...(wiring.useCli && wiring.cliModelId ? { model: wiring.cliModelId } : {})}
+          activeConfig={wiring.activeConfig}
+          recents={wiring.configs}
+          configs={wiring.configs}
+          onPick={wiring.onPickConfig}
+          onOpenSettings={onOpenSettings}
+          getPrice={priceOf}
+          useCli={wiring.useCli}
+          onToggleUseCli={wiring.onToggleUseCli}
+          enabledClis={wiring.enabledClis}
+          activeCli={wiring.activeCli}
+          onPickCli={wiring.onPickCli}
+          cliModels={wiring.cliModels}
+          onPickCliModel={wiring.onPickCliModel}
+          authWarning={wiring.authWarning}
+          effort={wiring.effort}
+          cliSwitchError={wiring.switchError}
+          off={{ selected: wiring.off, onPick: wiring.onPickOff }}
+          {...(defaultOpen ? { defaultOpen } : {})}
+        />
+      )}
       <p className="text-xs text-(--text-secondary)">{PROJECT_OVERVIEW_MODEL_TEXT.help}</p>
     </div>
   )

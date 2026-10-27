@@ -94,6 +94,7 @@ import {
   type RunModelChipSlot,
   type RunModelChipView,
   isProcessRunAtSignOff,
+  processWaitingTitleLine,
 } from '../../../headless'
 import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
@@ -1038,18 +1039,18 @@ export function PipelineNode({
 
   return (
     <li
-      className={`border-b border-(--border-subtle) last:border-b-0 ${row.waitingOnYou && signoffGate ? 'bg-(--accent-primary)/5' : ''}`}
+      className={`@container border-b border-(--border-subtle) last:border-b-0 ${row.waitingOnYou && signoffGate ? 'bg-(--accent-primary)/5' : ''}`}
     >
       <div
-        className={`grid grid-cols-[22px_minmax(0,auto)_minmax(0,1fr)_auto_28px] items-center gap-3 px-4 py-2.5 sm:px-5 ${row.inert ? 'text-(--text-muted)' : ''}`}
+        className={`grid grid-cols-[22px_minmax(0,auto)_minmax(0,1fr)_auto_28px] items-center gap-x-3 gap-y-0.5 px-4 py-2.5 sm:px-5 ${row.inert ? 'text-(--text-muted)' : ''}`}
       >
         <Marker look={look} />
-        <span className="flex min-w-0 items-center gap-1.5">
+        <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
           {featureRef && resolves ? (
             <DependencyBullet dependency={featureRef} interactive />
           ) : (
             <span
-              className={`truncate text-[13.5px] ${row.inert ? '' : 'font-semibold text-(--text-primary)'}`}
+              className={`max-w-full min-w-0 truncate text-[13.5px] ${row.inert ? '' : 'font-semibold text-(--text-primary)'}`}
             >
               {state.step.name}
             </span>
@@ -1079,12 +1080,12 @@ export function PipelineNode({
           ) : null}
         </span>
         <span
-          className={`min-w-0 truncate text-[12.5px] ${row.waitingOnYou ? 'font-semibold text-(--accent-primary)' : row.inert ? '' : 'text-(--text-secondary)'}`}
+          className={`min-w-0 truncate text-[12.5px] ${row.result ? '@max-md:col-span-3 @max-md:col-start-2 @max-md:row-start-2 @max-md:line-clamp-2 @max-md:whitespace-normal' : ''} ${row.waitingOnYou ? 'font-semibold text-(--accent-primary)' : row.inert ? '' : 'text-(--text-secondary)'}`}
           title={state.latest?.summary}
         >
           {row.result ?? ''}
         </span>
-        <span className="flex items-center gap-1.5">
+        <span className="flex items-center gap-1.5 @max-md:col-start-4 @max-md:row-start-1">
           {!row.inert && stepModel ? <RunModelChip model={stepModel} /> : null}
           {!row.inert && duration ? (
             <DurationChip
@@ -1107,14 +1108,14 @@ export function PipelineNode({
             aria-label={open ? `Hide ${state.step.name}` : `Preview ${state.step.name}`}
             aria-expanded={open}
             onClick={() => setOpen((v) => !v)}
-            className="inline-flex size-7 items-center justify-center rounded-md text-(--text-secondary) hover:bg-(--surface-hover)"
+            className="inline-flex size-7 items-center justify-center rounded-md text-(--text-secondary) hover:bg-(--surface-hover) @max-md:col-start-5 @max-md:row-start-1"
           >
             <IconChevronRight
               className={`size-3.5 transition-transform ${open ? 'rotate-90' : ''}`}
             />
           </button>
         ) : (
-          <span />
+          <span className="@max-md:col-start-5 @max-md:row-start-1" />
         )}
       </div>
 
@@ -1535,6 +1536,7 @@ function WaitingCard({
   const transcript = view.transcript
   const delegated = view.delegated
   const tone = managerLine ? PROCESS_LIVE_TONE : 'on_hold'
+  const titleLine = processWaitingTitleLine(view.title, managerLine ?? view.heading)
   const delegate = () => {
     setDelegating(true)
     void onDelegate().finally(() => setDelegating(false))
@@ -1555,7 +1557,7 @@ function WaitingCard({
         >
           {managerLine ?? view.heading}
         </div>
-        <div className="text-[12px] text-(--text-secondary)">{view.title}</div>
+        {titleLine ? <div className="text-[12px] text-(--text-secondary)">{titleLine}</div> : null}
       </div>
       <blockquote className="m-0 whitespace-pre-wrap rounded-md border-l-2 border-(--border-strong) bg-(--surface-base) px-2.5 py-1.5 text-[12.5px] leading-relaxed text-(--text-primary)">
         {view.words}

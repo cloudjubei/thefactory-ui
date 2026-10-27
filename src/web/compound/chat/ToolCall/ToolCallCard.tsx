@@ -8,9 +8,10 @@ import {
   safePreviewString,
   toolArgDisplay,
   toolNotRunReason,
+  toolRowReason,
 } from '../../../../headless/utils/toolPreview'
 import { formatDurationMs } from '../../../../headless/utils/time'
-import { toolRowMilestone } from '../../../../headless/utils/gitSetupApproval'
+import { toolRowFellShort, toolRowMilestone } from '../../../../headless/utils/gitSetupApproval'
 import { commitReceiptView } from '../../../../headless/utils/gitChangeApproval'
 import { slowToolLabel } from '../../../../headless/utils/backgroundJobs'
 import { TOOL_SLOW_TICK_MS } from '../../../../headless/utils/backgroundJobsConstants'
@@ -176,12 +177,13 @@ function ToolCallCardInner({
 
   const hasPopup = resultType !== 'aborted'
   const isRequireConfirm = resultType === 'require_confirmation'
+  const reason = toolRowReason(resultType, result)
   const detail =
     resultType === 'errored'
       ? { code: jsonString(result), language: 'text' as const, label: 'View error' }
       : resultType === 'success'
         ? { code: jsonString(result), language: 'json' as const, label: 'View result' }
-        : resultType === 'not_allowed' && result !== undefined
+        : resultType === 'not_allowed' && result !== undefined && reason === undefined
           ? {
               code: toolNotRunReason(result),
               language: 'text' as const,
@@ -200,63 +202,87 @@ function ToolCallCardInner({
   const body = (
     <>
       {/* Row 1: status icon · tool name · compact input · time chip · chevron.
-          The status icon (left) conveys outcome, so no separate status pill. */}
-      <div className="flex items-center gap-2 px-3 py-2 min-w-0">
-        <StatusIcon resultType={resultType} />
-        <span className="font-semibold shrink-0">{toolCall.name}</span>
-        <ToolOriginBadge origin={toolCall.origin} />
-        <ToolArgInline display={argDisplay} />
-        <StatusChip
-          resultType={resultType}
-          timeLabel={timeLabel}
-          awaitingDecision={toolCall.awaitingDecision === true}
-          slowLabel={
-            resultType === 'running'
-              ? slowToolLabel({
-                  ...(toolCall.origin !== undefined ? { origin: toolCall.origin } : {}),
-                  ...(startedAt !== undefined ? { startedAt } : {}),
-                  nowMs: Date.now(),
-                })
-              : undefined
-          }
-        />
-        {/* The grant toggle shows ONLY for genuinely confirmable tools awaiting
-            the user's approval — never for auto-call / already-running tools. */}
-        {selectable && onAlwaysAllow ? (
-          <AlwaysAllowControl
-            view={alwaysAllowChoiceView({
-              scopes: alwaysAllowScopes,
-              toolName: toolCall.name,
-              covers: grantCovers,
-              ...(alwaysAllowScope ? { marked: alwaysAllowScope } : {}),
-            })}
-            toolName={toolCall.name}
-            onChoose={onAlwaysAllow}
+          The status icon (left) conveys outcome, so no separate status pill. On a
+          narrow row the input drops to a line of its own, readable in full width. */}
+      <div className="@container">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2">
+          <StatusIcon resultType={resultType} fellShort={toolRowFellShort(resultType, milestone)} />
+          <span className="min-w-0 truncate font-semibold">{toolCall.name}</span>
+          <ToolOriginBadge origin={toolCall.origin} />
+          {argDisplay ? (
+            <>
+              <ToolArgInline
+                display={argDisplay}
+                className="@max-md:order-last @max-md:basis-full"
+              />
+              <span className="hidden flex-1 @max-md:block" aria-hidden />
+            </>
+          ) : (
+            <span className="flex-1" />
+          )}
+          <StatusChip
+            resultType={resultType}
+            timeLabel={timeLabel}
+            awaitingDecision={toolCall.awaitingDecision === true}
+            slowLabel={
+              resultType === 'running'
+                ? slowToolLabel({
+                    ...(toolCall.origin !== undefined ? { origin: toolCall.origin } : {}),
+                    ...(startedAt !== undefined ? { startedAt } : {}),
+                    nowMs: Date.now(),
+                  })
+                : undefined
+            }
           />
-        ) : null}
-        {selectable ? (
-          <span onClick={(e) => e.stopPropagation()}>
-            <Switch checked={!!selected} onCheckedChange={() => onToggleSelect?.()} />
-          </span>
-        ) : null}
-        {hasArgs ? (
-          <button
-            type="button"
-            className="p-1 rounded hover:bg-(--surface-raised) shrink-0"
-            onClick={(e) => {
-              e.stopPropagation()
-              setArgsOpen((v) => !v)
-            }}
-            aria-expanded={argsOpen}
-            aria-label="Toggle arguments"
-          >
-            <IconChevron
-              className="w-4 h-4 transition-transform"
-              style={{ transform: `rotate(${argsOpen ? 90 : 0}deg)` }}
+          {/* The grant toggle shows ONLY for genuinely confirmable tools awaiting
+            the user's approval — never for auto-call / already-running tools. */}
+          {selectable && onAlwaysAllow ? (
+            <AlwaysAllowControl
+              view={alwaysAllowChoiceView({
+                scopes: alwaysAllowScopes,
+                toolName: toolCall.name,
+                covers: grantCovers,
+                ...(alwaysAllowScope ? { marked: alwaysAllowScope } : {}),
+              })}
+              toolName={toolCall.name}
+              onChoose={onAlwaysAllow}
             />
-          </button>
-        ) : null}
+          ) : null}
+          {selectable ? (
+            <span onClick={(e) => e.stopPropagation()}>
+              <Switch checked={!!selected} onCheckedChange={() => onToggleSelect?.()} />
+            </span>
+          ) : null}
+          {hasArgs ? (
+            <button
+              type="button"
+              className="p-1 rounded hover:bg-(--surface-raised) shrink-0"
+              onClick={(e) => {
+                e.stopPropagation()
+                setArgsOpen((v) => !v)
+              }}
+              aria-expanded={argsOpen}
+              aria-label="Toggle arguments"
+            >
+              <IconChevron
+                className="w-4 h-4 transition-transform"
+                style={{ transform: `rotate(${argsOpen ? 90 : 0}deg)` }}
+              />
+            </button>
+          ) : null}
+        </div>
       </div>
+
+      {reason ? (
+        <div className="-mt-1 px-3 pb-2">
+          <p
+            className={`line-clamp-3 text-xs leading-snug break-words ${resultType === 'errored' ? 'text-(--status-stuck-soft-fg)' : 'text-(--text-secondary)'}`}
+            title={reason}
+          >
+            {reason}
+          </p>
+        </div>
+      ) : null}
 
       {milestone ? <ToolRowMilestoneLine milestone={milestone} /> : null}
 

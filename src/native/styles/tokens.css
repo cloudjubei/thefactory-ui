@@ -143,6 +143,7 @@
   --text-secondary: #374151;
   --text-muted: #4b5563;
   --text-inverted: #ffffff;
+  --text-on-accent: #ffffff;
 
   /* Borders */
   --border-subtle: #e5e7eb;
@@ -198,6 +199,7 @@
   --text-secondary: #c8d0da;
   --text-muted: #96a1ae;
   --text-inverted: #0b0f14;
+  --text-on-accent: #ffffff;
 
   /* Borders */
   --border-subtle: #202937;

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useWebSearchKeys, useWebSearchBrowserSetting } from '../../../headless'
+import { revealStoredWebSearchKey } from '../../../headless/api'
 import { Alert, Button, SecretInput, Switch } from '../..'
 
 // Three fixed providers we surface (same set as `overseer-local`'s
@@ -20,9 +21,9 @@ export default function WebSearchSettings() {
     setHeaded,
   } = useWebSearchBrowserSetting()
 
-  // Keys never come back from the backend — only whether one is stored. A
-  // field therefore starts blank; typing a key and leaving the field saves it,
-  // and Remove deletes the stored one.
+  // Keys never come back in the listing — only whether one is stored. A field
+  // therefore starts blank, its eye fetches the stored key when asked; typing a
+  // key and leaving the field saves it, and Remove deletes the stored one.
   const stored = useMemo(
     () => new Set(keys.filter((k) => k.hasApiKey).map((k) => k.provider)),
     [keys],
@@ -69,6 +70,9 @@ export default function WebSearchSettings() {
                   autoComplete="off"
                   spellCheck={false}
                   revealConfirmDescription={`The ${p.label} will be visible until you leave this page.`}
+                  {...(stored.has(p.key)
+                    ? { onReveal: () => revealStoredWebSearchKey(p.key) }
+                    : {})}
                 />
                 {stored.has(p.key) ? (
                   <Button variant="outline" size="sm" onClick={() => void deleteKey(p.key)}>

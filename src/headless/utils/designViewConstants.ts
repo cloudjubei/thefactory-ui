@@ -137,7 +137,14 @@ export const DESIGN_TEXT = {
   notPreviewable: 'This file cannot be shown here.',
   playgroundIntro:
     'Moving the controls changes nothing — it is a sandbox. Save as a state adds what you see to the design record: it is captured in light and dark, desktop and phone, waits for your approval, and every later sign-off captures it again so you see if it changes.',
-  playgroundBuilding: 'Building the playground from the checkout…',
+  playgroundBuilding: 'Building the playground…',
+  playgroundBuildingFor: (elapsed: string) => `Building the playground… ${elapsed}`,
+  playgroundRebuilding: (elapsed: string) => `Rebuilding with your latest changes… ${elapsed}`,
+  playgroundUpdated: 'Updated to your latest changes',
+  playgroundRebuildFailed: 'The rebuild failed — showing the previous build',
+  playgroundShowWhy: 'Show why',
+  playgroundHideWhy: 'Hide why',
+  playgroundSavesAfterRebuild: 'Saves after the rebuild',
   playgroundFailed: 'The playground could not be built',
   playgroundRetry: 'Try again',
   playgroundListing: 'Waiting for the playground to list its scenes…',
@@ -164,6 +171,9 @@ export const DESIGN_TEXT = {
   save: 'Save',
   cancel: 'Cancel',
   saving: 'Capturing light and dark, desktop and phone…',
+  savingBuildFirst: 'Saving… building first',
+  savingAfterRebuild: 'Saving after the rebuild…',
+  saveFailed: 'Not saved',
   savedTo: (where: string) => `Saved to ${where}`,
   savedNote: 'Captured in four variants, it waits for your approval like any other proposal.',
   openThere: 'Open it there',
@@ -182,5 +192,14 @@ export const STORAGE_WARNING_TEXT = {
 /** The tag every storage notification shares, so a later one replaces the one before. */
 export const STORAGE_WARNING_TAG = 'storage:usage-warning'
 
-/** How often an open Playground asks again while its playground builds. */
+/** How often an open Playground asks again while its playground builds, or a save waits on a build. */
 export const DESIGN_PLAYGROUND_POLL_MS = 1_500
+
+/** How often an open, ready Playground looks in — a build an agent's save started shows too. */
+export const DESIGN_PLAYGROUND_IDLE_POLL_MS = 5_000
+
+/** How long the Playground says its frame moved to the newer build. */
+export const DESIGN_PLAYGROUND_UPDATED_MS = 4_000
+
+/** The end of that while, in which it fades. */
+export const DESIGN_PLAYGROUND_FADE_MS = 1_000

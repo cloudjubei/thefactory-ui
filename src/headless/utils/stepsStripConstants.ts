@@ -1,6 +1,9 @@
 /** Up to this many steps show in full on a wide strip; more fold into chips. */
 export const STEPS_STRIP_FULL_MAX = 6
 
+/** A plain step label this short is never cut: whole it costs little room, cut it says nothing. */
+export const STEPS_STRIP_WHOLE_LABEL_MAX = 12
+
 /** The heading each kind of strip carries. */
 export const STEPS_STRIP_LABELS = {
   steps: 'Steps',

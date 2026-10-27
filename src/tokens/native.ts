@@ -149,7 +149,7 @@ export const nativeShadows: Record<0 | 1 | 2 | 3 | 4, NativeShadow> = {
 export interface NativeSemanticTheme {
   colorScheme: 'light' | 'dark'
   surface: { base: string; raised: string; overlay: string; muted: string; hover: string }
-  text: { primary: string; secondary: string; muted: string; inverted: string }
+  text: { primary: string; secondary: string; muted: string; inverted: string; onAccent: string }
   border: { subtle: string; default: string; strong: string; focus: string }
   accent: {
     primary: string
@@ -178,6 +178,7 @@ export const nativeLightTheme: NativeSemanticTheme = {
     secondary: gray[700],
     muted: gray[600],
     inverted: '#ffffff',
+    onAccent: '#ffffff',
   },
   border: {
     subtle: gray[200],
@@ -211,6 +212,7 @@ export const nativeDarkTheme: NativeSemanticTheme = {
     secondary: '#c8d0da',
     muted: '#96a1ae',
     inverted: '#0b0f14',
+    onAccent: '#ffffff',
   },
   border: {
     subtle: '#202937',

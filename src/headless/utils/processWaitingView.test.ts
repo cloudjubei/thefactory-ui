@@ -5,6 +5,7 @@ import {
   isResumeParkChoice,
   processWaitingDetails,
   processWaitingHeading,
+  processWaitingTitleLine,
   processWaitingView,
 } from './processWaitingView'
 import {
@@ -65,6 +66,34 @@ function parked(
     },
   }
 }
+
+describe('processWaitingTitleLine', () => {
+  it('keeps a title that says more than the heading', () => {
+    expect(
+      processWaitingTitleLine(
+        'The verifier needs network access to api.example.com',
+        'The verifier needs network access',
+      ),
+    ).toBe('The verifier needs network access to api.example.com')
+  })
+
+  it('drops a title that only repeats the heading, whatever its case or end mark', () => {
+    expect(processWaitingTitleLine('The fixer is blocked', 'The fixer is blocked')).toBeUndefined()
+    expect(
+      processWaitingTitleLine('  the fixer is BLOCKED.  ', 'The fixer is blocked'),
+    ).toBeUndefined()
+  })
+
+  it('drops a blank title', () => {
+    expect(processWaitingTitleLine('   ', 'The fixer is blocked')).toBeUndefined()
+  })
+
+  it('keeps the title when the heading shown is something else', () => {
+    expect(processWaitingTitleLine('The fixer is blocked', 'The agent manager is on it')).toBe(
+      'The fixer is blocked',
+    )
+  })
+})
 
 describe('processWaitingHeading', () => {
   it('names what a permission is for, by the kind of request', () => {

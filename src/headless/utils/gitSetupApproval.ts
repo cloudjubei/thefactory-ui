@@ -8,6 +8,8 @@ import { GIT_CHANGE_TOOL_NAMES } from './gitChangeApprovalConstants'
 import { gitChangeMilestone } from './gitChangeApproval'
 import { activityStopMilestone } from './activityStopApproval'
 import { STOP_ACTIVITY_TOOL_NAME } from './activityStopApprovalConstants'
+import { featureQuestionAnswerMilestone } from './featureQuestionAnswerRow'
+import { FEATURE_QUESTION_TOOL } from './toolAskCardConstants'
 import type { GitSetupForm, GitSetupPlan, ToolRowMilestone } from './gitSetupApprovalTypes'
 
 type GrantLike = { toolName?: string; args?: unknown; detail?: unknown }
@@ -159,6 +161,7 @@ const MILESTONES: Record<
   [GIT_SETUP_TOOL_NAME]: gitSetupMilestone,
   ...Object.fromEntries(GIT_CHANGE_TOOL_NAMES.map((name) => [name, gitChangeMilestone])),
   [STOP_ACTIVITY_TOOL_NAME]: activityStopMilestone,
+  [FEATURE_QUESTION_TOOL]: featureQuestionAnswerMilestone,
 }
 
 /**
@@ -174,4 +177,15 @@ export function toolRowMilestone(
 ): ToolRowMilestone | undefined {
   const milestone = toolName ? MILESTONES[toolName] : undefined
   return milestone?.(result, resultType, awaitingDecision, execution)
+}
+
+/**
+ * A call that ran but whose milestone says it did not do what it was asked — a stop refused, a
+ * setup that failed: its row's icon warns instead of showing a success tick. Pure.
+ */
+export function toolRowFellShort(
+  resultType: string | undefined,
+  milestone: ToolRowMilestone | undefined,
+): boolean {
+  return resultType === 'success' && (milestone?.tone === 'warning' || milestone?.tone === 'error')
 }

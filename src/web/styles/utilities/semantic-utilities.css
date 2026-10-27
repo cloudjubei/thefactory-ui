@@ -53,6 +53,32 @@
   height: 0;
 }
 
+/* A box that scrolls sideways in place (a wide table) and shows it: a shade on
+ * the side with more to see, gone once scrolled to that end. The `local` covers
+ * scroll with the content and hide the fixed shades at either end, so it needs
+ * an opaque background of its own. */
+.scroll-x-hint {
+  overflow-x: auto;
+  background:
+    linear-gradient(to right, var(--surface-raised) 40%, transparent) left / 32px 100% no-repeat
+      local,
+    linear-gradient(to left, var(--surface-raised) 40%, transparent) right / 32px 100% no-repeat
+      local,
+    radial-gradient(
+        farthest-side at 0 50%,
+        color-mix(in srgb, var(--text-primary) 22%, transparent),
+        transparent
+      )
+      left / 12px 100% no-repeat scroll,
+    radial-gradient(
+        farthest-side at 100% 50%,
+        color-mix(in srgb, var(--text-primary) 22%, transparent),
+        transparent
+      )
+      right / 12px 100% no-repeat scroll,
+    var(--surface-raised);
+}
+
 /* Strip scroll arrows. Shown wherever there is a POINTER that can hover — a
  * narrow desktop window still overflows and still has a mouse, so a viewport
  * breakpoint hid the controls exactly where they were needed. Touch gets the

@@ -117,7 +117,7 @@ function JobRow({
         </div>
       )}
       {job.error && (
-        <p className="text-xs" style={{ color: 'var(--color-red-700)' }}>
+        <p className="text-xs" style={{ color: 'var(--status-stuck-soft-fg)' }}>
           {job.error}
         </p>
       )}
@@ -152,22 +152,22 @@ const STATUS_STYLE: Record<IngestionJobState['status'], { label: string; bg: str
     },
     running: {
       label: 'Running',
-      bg: 'var(--color-brand-50)',
-      fg: 'var(--color-brand-700)',
+      bg: 'var(--status-running-soft-bg)',
+      fg: 'var(--status-running-soft-fg)',
     },
     finished: {
       label: 'Done',
-      bg: 'var(--color-green-50)',
-      fg: 'var(--color-green-700)',
+      bg: 'var(--status-done-soft-bg)',
+      fg: 'var(--status-done-soft-fg)',
     },
     partial: {
       label: 'Done (errors)',
-      bg: 'var(--color-orange-50)',
-      fg: 'var(--color-orange-700)',
+      bg: 'var(--status-working-soft-bg)',
+      fg: 'var(--status-working-soft-fg)',
     },
     error: {
       label: 'Failed',
-      bg: 'var(--color-red-50)',
-      fg: 'var(--color-red-700)',
+      bg: 'var(--status-stuck-soft-bg)',
+      fg: 'var(--status-stuck-soft-fg)',
     },
   }

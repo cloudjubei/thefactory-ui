@@ -36,9 +36,23 @@ export const ACTIVITY_STOP_OUTCOME_COPY = {
   noop: (status: string) => `Already ${status} — nothing changed`,
   notStopped: (status: string) => `Not stopped — it is ${status}`,
   failed: 'Couldn’t confirm it stopped — it may still be running',
-  refused: (code: string) => `Not stopped — ${code}`,
+  refused: (reason: string) => `Not stopped — ${reason}`,
+  refusedReason: 'nothing was touched',
   childrenAllStopped: (n: number) => `Also stopped ${n} it started`,
   childrenStopped: (stopped: number, n: number) => `Stopped ${stopped} of ${n} it started`,
   childrenEnded: (n: number) => `${n} had already ended`,
   childrenUnconfirmed: (n: number) => `${n} may still be running`,
 } as const
+
+/** Why a stop was refused before anything was touched, by the code it returned. */
+export const ACTIVITY_STOP_REFUSAL_REASONS: Readonly<Record<string, string>> = {
+  'approval-replayed': 'that approval was already used',
+  'approval-denied': 'you declined it',
+  'approval-required': 'it needs your approval',
+  'approval-invalid': 'the approval didn’t match this stop',
+  'target-changed': 'the activity changed since you approved',
+  'not-found': 'no such activity',
+  'invalid-request': 'no activity was named',
+  'project-required': 'no project was given',
+  'untrusted-context': 'this chat can’t stop it',
+}

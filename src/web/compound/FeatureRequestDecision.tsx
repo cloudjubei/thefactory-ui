@@ -173,7 +173,7 @@ export default function FeatureRequestDecision(props: FeatureRequestDecisionProp
         <Pending {...props} />
       ) : phase === 'accepted' ? (
         <div className="flex flex-wrap items-center gap-2.5 text-[13px]">
-          <IconCheckCircle className="h-4.5 w-4.5 text-(--status-done-fg)" />
+          <IconCheckCircle className="h-4.5 w-4.5 text-(--status-done-soft-fg)" />
           <span className="font-semibold text-(--text-primary)">Accepted</span>
           {placedOn ? (
             <>
@@ -202,7 +202,7 @@ export default function FeatureRequestDecision(props: FeatureRequestDecisionProp
       ) : (
         <div className="flex flex-col gap-1.5 text-[13px] text-(--text-secondary)">
           <div className="flex flex-wrap items-center gap-2.5">
-            <IconXCircle className="h-4.5 w-4.5 text-(--status-stuck-fg)" />
+            <IconXCircle className="h-4.5 w-4.5 text-(--status-stuck-soft-fg)" />
             <span>
               <b className="text-(--text-primary)">Rejected</b> ·{' '}
               {featureRequestRejectedLine(fromLabel)}
@@ -214,6 +214,14 @@ export default function FeatureRequestDecision(props: FeatureRequestDecisionProp
           ) : null}
         </div>
       )}
+      {phase === 'accepted' && request.status === 'blocked' && request.statusReason ? (
+        <div
+          className="text-[12px] leading-normal"
+          style={{ color: `var(--status-${status.tone}-soft-fg)` }}
+        >
+          {request.statusReason}
+        </div>
+      ) : null}
       {props.onStartWork && canStartFeatureRequestWork(request) ? (
         <FeatureRequestStartWork
           onStartWork={props.onStartWork}
@@ -243,7 +251,7 @@ export default function FeatureRequestDecision(props: FeatureRequestDecisionProp
           initialMode={props.initialSettleMode}
         />
       ) : null}
-      {error ? <div className="text-[12px] text-(--status-stuck-fg)">{error}</div> : null}
+      {error ? <div className="text-[12px] text-(--status-stuck-soft-fg)">{error}</div> : null}
     </>
   )
 }

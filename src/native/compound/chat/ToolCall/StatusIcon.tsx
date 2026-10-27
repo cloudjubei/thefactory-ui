@@ -4,6 +4,7 @@ import {
   IconError,
   IconHourglass,
   IconStopCircle,
+  IconWarningTriangle,
   IconXCircle,
 } from '../../../icons'
 import { TOOL_AWAITING_DECISION_LABEL } from '../../../../headless/utils/gitSetupApprovalConstants'
@@ -112,7 +113,14 @@ export function StatusChip({
  * label choices 1:1 so success / errored / aborted / pending read the same
  * across clients.
  */
-export type StatusKind = 'success' | 'errored' | 'aborted' | 'not_allowed' | 'pending' | 'confirm'
+export type StatusKind =
+  | 'success'
+  | 'fell_short'
+  | 'errored'
+  | 'aborted'
+  | 'not_allowed'
+  | 'pending'
+  | 'confirm'
 
 export type StatusVisual = {
   kind: StatusKind
@@ -191,6 +199,8 @@ export function StatusIcon({
   switch (kind) {
     case 'success':
       return <IconCheckmarkCircle size={size} color={color} />
+    case 'fell_short':
+      return <IconWarningTriangle size={size} color={color} />
     case 'errored':
       return <IconError size={size} color={color} />
     case 'aborted':

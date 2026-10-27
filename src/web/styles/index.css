@@ -23,3 +23,5 @@
 @import './screens/board.css';
 @import './screens/docs.css';
 @import './screens/settings.css';
+
+@custom-variant dark (&:where(.dark, .dark *));

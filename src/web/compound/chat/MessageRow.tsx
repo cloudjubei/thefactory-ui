@@ -19,12 +19,8 @@ import type {
 } from '../../../headless/utils/chatTypes'
 import type { MessageDeleteControl } from '../../../headless/utils/chatMessageDeleteTypes'
 import type { MessageRestartControl } from '../../../headless/utils/chatMessageRestartTypes'
-import {
-  cliDotColor,
-  cliLabel,
-  parseCliAgentModelTag,
-  shortCliModelLabel,
-} from '../../../headless/utils/cliRunner'
+import { cliDotColor, cliLabel, parseCliAgentModelTag } from '../../../headless/utils/cliRunner'
+import { modelDisplayName } from '../../../headless/utils/runModel'
 import { costDetailsView, messageUsageCost } from '../../../headless/utils/costDetails'
 import CostDetailsPanel from '../chips/CostDetailsPanel'
 import { ManagerCardView } from './ManagerCards'
@@ -441,7 +437,7 @@ function MessageRow({
   const rawModelStr = typeof rawModel === 'string' ? rawModel : rawModel?.model
   // CLI-agent messages persist their model as `cli-agent/<cli>/<modelId>`; show
   // the CLI brand dot + the model name (matching the model chip) rather than the
-  // raw tag. API messages keep the accent dot + raw model id.
+  // raw tag. API messages keep the accent dot, with the model by its name too.
   const cliTag = parseCliAgentModelTag(rawModelStr)
   // Legacy tags (pre-model-id) put the auth mode in the last segment; treat
   // those as "no model" so old messages show the CLI label, not "auth-cache".
@@ -451,9 +447,9 @@ function MessageRow({
       : undefined
   const modelLabel = cliTag
     ? cliModelId
-      ? shortCliModelLabel(cliModelId)
+      ? modelDisplayName(cliModelId)
       : cliLabel(cliTag.cli)
-    : rawModelStr
+    : rawModelStr && modelDisplayName(rawModelStr)
   const modelDotColor = cliTag ? cliDotColor(cliTag.cli) : undefined
 
   return (
@@ -489,7 +485,7 @@ function MessageRow({
               isHandoff
                 ? 'bg-(--accent-soft-bg) text-(--accent-soft-fg) border border-(--accent-soft-border)'
                 : isUser
-                  ? 'bg-(--accent-primary) text-(--text-inverted)'
+                  ? 'bg-(--accent-primary) text-(--text-on-accent)'
                   : isSystem || isTool
                     ? 'bg-(--surface-overlay) text-(--text-primary) border border-(--border-subtle)'
                     : 'bg-[color-mix(in_srgb,var(--accent-primary)_14%,transparent)] text-(--text-primary) border border-(--border-subtle)',
@@ -577,7 +573,7 @@ function MessageRow({
                 isHandoff
                   ? 'bg-(--accent-soft-bg) text-(--accent-soft-fg) border border-(--accent-soft-border) rounded-br-md'
                   : isUser
-                    ? 'bg-(--accent-primary) text-(--text-inverted) rounded-br-md'
+                    ? 'bg-(--accent-primary) text-(--text-on-accent) rounded-br-md'
                     : isSystem
                       ? 'border bg-(--surface-overlay) text-(--text-primary) border-(--border-subtle)'
                       : 'bg-(--surface-raised) text-(--text-primary) border border-(--border-subtle) rounded-bl-md',
@@ -586,7 +582,7 @@ function MessageRow({
                 msg.cliRunId ? 'mt-2' : '',
               ].join(' ')}
             >
-              {isUser ? (
+              {isUser && !isHandoff ? (
                 <CollapsibleContent maxHeight={600}>
                   <RichText
                     text={msg.content}

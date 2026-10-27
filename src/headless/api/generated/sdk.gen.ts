@@ -961,12 +961,21 @@ import type {
   RevealDatabaseCredentialsData,
   RevealDatabaseCredentialsErrors,
   RevealDatabaseCredentialsResponses,
+  RevealGitCredentialTokenData,
+  RevealGitCredentialTokenErrors,
+  RevealGitCredentialTokenResponses,
   RevealGroupNoteData,
   RevealGroupNoteErrors,
   RevealGroupNoteResponses,
+  RevealLlmConfigKeyData,
+  RevealLlmConfigKeyErrors,
+  RevealLlmConfigKeyResponses,
   RevealProjectNoteData,
   RevealProjectNoteErrors,
   RevealProjectNoteResponses,
+  RevealWebSearchKeyData,
+  RevealWebSearchKeyErrors,
+  RevealWebSearchKeyResponses,
   ReviveProcessRunData,
   ReviveProcessRunErrors,
   ReviveProcessRunResponses,
@@ -3184,7 +3193,7 @@ export const serveDesignPlayground = <ThrowOnError extends boolean = false>(
   })
 
 /**
- * Save what the playground shows at an address as a state: captured light and dark, desktop and phone, and proposed — it waits for approval. Every later approved sign-off captures it again.
+ * Save what the playground shows at an address as a state: the checkout is served as it stands first (an unchanged build is reused at once), then captured light and dark, desktop and phone, once that build is done, and proposed — it waits for approval. A build that fails refuses the save with its reason. Every later approved sign-off captures it again.
  */
 export const captureDesignPlayground = <ThrowOnError extends boolean = false>(
   options: Options<CaptureDesignPlaygroundData, ThrowOnError>,
@@ -3273,6 +3282,20 @@ export const updateLlmConfig = <ThrowOnError extends boolean = false>(
     },
   })
 
+export const revealLlmConfigKey = <ThrowOnError extends boolean = false>(
+  options: Options<RevealLlmConfigKeyData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    RevealLlmConfigKeyResponses,
+    RevealLlmConfigKeyErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/llm-configs/{id}/reveal',
+    ...options,
+  })
+
 export const listLlmModels = <ThrowOnError extends boolean = false>(
   options: Options<ListLlmModelsData, ThrowOnError>,
 ) =>
@@ -3350,6 +3373,20 @@ export const updateGitCredential = <ThrowOnError extends boolean = false>(
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  })
+
+export const revealGitCredentialToken = <ThrowOnError extends boolean = false>(
+  options: Options<RevealGitCredentialTokenData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    RevealGitCredentialTokenResponses,
+    RevealGitCredentialTokenErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/git-credentials/{id}/reveal',
+    ...options,
   })
 
 export const listProviderConnections = <ThrowOnError extends boolean = false>(
@@ -5667,6 +5704,20 @@ export const updateWebSearchKeys = <ThrowOnError extends boolean = false>(
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  })
+
+export const revealWebSearchKey = <ThrowOnError extends boolean = false>(
+  options: Options<RevealWebSearchKeyData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    RevealWebSearchKeyResponses,
+    RevealWebSearchKeyErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/web-search-keys/{provider}/reveal',
+    ...options,
   })
 
 export const deleteWebSearchKey = <ThrowOnError extends boolean = false>(

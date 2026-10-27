@@ -109,6 +109,21 @@ describe('siblingFallbackView', () => {
       notReplaced: ['lib: it has no main branch'],
     })
   })
+
+  it('leaves out a dependency whose reason the message already gives', () => {
+    const view = siblingFallbackView(
+      fallback({
+        outcome: 'unavailable',
+        siblings: [],
+        message: 'Not checked against a stable lib: it has no main branch',
+        notReplaced: [
+          { name: 'lib', label: 'lib', path: '/w/lib', reason: 'it has no main branch' },
+          { name: 'db', label: 'db', path: '/w/db', reason: 'its stable branch is missing' },
+        ],
+      }),
+    )
+    expect(view.notReplaced).toEqual(['db: its stable branch is missing'])
+  })
 })
 
 describe('siblingFallbackCheckSets', () => {

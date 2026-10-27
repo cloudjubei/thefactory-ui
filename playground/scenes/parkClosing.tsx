@@ -27,7 +27,7 @@ const CONFLICT = {
 }
 
 const STALL_MESSAGE =
-  'The fixer changed nothing and the same checks still fail at eed6586: Unit tests: src/cliAgentRunner/cliAgentRunnerHelpers.test.ts › landCliRunOnBranch — stacked on a work branch > commits only the run’s own change on the tip (and 23 more).'
+  'The fixer changed nothing and the same checks still fail at eed6586: Unit tests: src/cliAgentRunner/cliAgentRunnerHelpers.test.ts › mergeCliRunOntoBranch — stacked on a work branch > commits only the run’s own change on the tip (and 23 more).'
 
 /** A fixer attempt after the checks failed; every one but the last was tried again. */
 const fixer = (iteration: number, retried: boolean): ProcessLedgerEntry => ({

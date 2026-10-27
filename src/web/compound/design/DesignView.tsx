@@ -19,7 +19,7 @@ import {
   type DesignShown,
   type ShellTabProjectFlags,
 } from '../../../headless'
-import type { DesignEntryTarget, DesignProposal } from '../../../headless/api'
+import type { DesignEntryTarget } from '../../../headless/api'
 import Alert from '../../primitives/Alert'
 import Spinner from '../../primitives/Spinner'
 import { IconClose, IconPalette } from '../../icons'
@@ -352,16 +352,11 @@ export default function DesignView({ projectId, onOpenResource }: DesignViewProp
                     }}
                     onChange={onPlaygroundMove}
                     onRetry={playground.retry}
-                    onSave={async (input) => {
-                      let made: DesignProposal | undefined
-                      await run(async () => {
-                        made = await design.savePlaygroundState({
-                          appId: selection.appId!,
-                          ...input,
-                        })
-                      })
-                      return made
-                    }}
+                    onSave={(input) =>
+                      playground.whileSaving(
+                        design.savePlaygroundState({ appId: selection.appId!, ...input }),
+                      )
+                    }
                     onOpenProposal={(proposal) =>
                       navigate({ app: selection.appId!, tab: 'proposals', proposal })
                     }

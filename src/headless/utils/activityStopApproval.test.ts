@@ -195,8 +195,24 @@ describe('activityStopMilestone', () => {
     [
       { activityId: 'a', outcome: 'refused', code: 'not-found' },
       'warning',
-      'Not stopped — not-found',
+      'Not stopped — no such activity',
     ],
+    [
+      { activityId: 'a', outcome: 'refused', code: 'target-changed' },
+      'warning',
+      'Not stopped — the activity changed since you approved',
+    ],
+    [
+      { activityId: 'a', outcome: 'refused', code: 'some-new-code' },
+      'warning',
+      'Not stopped — nothing was touched',
+    ],
+    [
+      { activityId: 'a', outcome: 'refused', code: 'constructor' },
+      'warning',
+      'Not stopped — nothing was touched',
+    ],
+    [{ activityId: 'a', outcome: 'refused' }, 'warning', 'Not stopped — nothing was touched'],
   ])('says %j plainly on its row', (result, tone, title) => {
     expect(activityStopMilestone(result, 'success', false)).toEqual({ tone, title })
     expect(activityStopMilestone(JSON.stringify(result), 'success', false)).toEqual({ tone, title })
@@ -307,7 +323,7 @@ describe('activityStopMilestone', () => {
     })
     expect(activityStopMilestone('Error: boom', 'errored', false, recorded)).toEqual({
       tone: 'warning',
-      title: 'Not stopped — approval-replayed',
+      title: 'Not stopped — that approval was already used',
     })
   })
 })

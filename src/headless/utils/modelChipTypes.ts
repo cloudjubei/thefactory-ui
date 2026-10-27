@@ -8,13 +8,13 @@ export type ModelChipConfigLike = {
 export type ModelChipLabelInput = {
   /** The provider the caller names, ahead of the active config's. */
   provider?: string
-  /** The model the caller names — a CLI model id when {@link useCli}. */
+  /** The model id the caller names — a CLI model id when {@link useCli}. */
   model?: string
   activeConfig?: ModelChipConfigLike | null
   /** The chat runs on a CLI agent rather than an API model. */
   useCli?: boolean
   activeCli?: string | null
-  /** The CLI's models, to name {@link model} by its label. */
+  /** Models with labels, to name {@link model} by its label rather than its id. */
   cliModels?: readonly { id: string; label?: string }[]
   /** The chip opens a picker: an empty one invites a choice instead of saying "unknown". */
   editable?: boolean

@@ -19,14 +19,14 @@ export default function TimeDetailsPanel({ view, title }: TimeDetailsPanelProps)
     <div className="flex min-h-0 w-[280px] max-w-full flex-col gap-2 overflow-y-auto text-xs text-(--text-primary)">
       <div className="flex items-baseline justify-between gap-3">
         <span className="font-semibold">{title ?? 'Time worked'}</span>
-        <span className="font-semibold tabular-nums">{view.total}</span>
+        <span className="shrink-0 whitespace-nowrap font-semibold tabular-nums">{view.total}</span>
       </div>
       <ul className="flex flex-col gap-1.5">
         {view.rows.map((row) => (
           <li key={row.key} className="flex flex-col gap-0.5" title={row.hint}>
             <div className="flex items-baseline justify-between gap-3">
               <span className="text-(--text-secondary)">{row.label}</span>
-              <span className="tabular-nums">
+              <span className="shrink-0 whitespace-nowrap tabular-nums">
                 {row.value}
                 <span className="ml-1.5 inline-block w-9 text-right text-(--text-muted)">
                   {row.share}
@@ -49,7 +49,7 @@ export default function TimeDetailsPanel({ view, title }: TimeDetailsPanelProps)
             {view.tools.map((tool) => (
               <div key={tool.label} className="contents">
                 <dt className="min-w-0 truncate text-(--text-secondary)">{tool.label}</dt>
-                <dd className="text-right tabular-nums">{tool.value}</dd>
+                <dd className="text-right whitespace-nowrap tabular-nums">{tool.value}</dd>
               </div>
             ))}
           </dl>
@@ -58,19 +58,19 @@ export default function TimeDetailsPanel({ view, title }: TimeDetailsPanelProps)
       {view.manager ? (
         <div className="flex items-baseline justify-between gap-3 border-t border-(--border-subtle) pt-2">
           <span className="text-(--text-secondary)">{view.manager.label}</span>
-          <span className="tabular-nums">{view.manager.value}</span>
+          <span className="shrink-0 whitespace-nowrap tabular-nums">{view.manager.value}</span>
         </div>
       ) : null}
       {view.waiting ? (
         <div className="flex items-baseline justify-between gap-3 border-t border-(--border-subtle) pt-2 text-(--text-muted)">
           <span>{PROCESS_TIME_WAITING_LABEL}</span>
-          <span className="tabular-nums">{view.waiting}</span>
+          <span className="shrink-0 whitespace-nowrap tabular-nums">{view.waiting}</span>
         </div>
       ) : null}
       {view.queued ? (
         <div className="flex items-baseline justify-between gap-3 border-t border-(--border-subtle) pt-2 text-(--text-muted)">
           <span>{PROCESS_TIME_QUEUED_LABEL}</span>
-          <span className="tabular-nums">{view.queued}</span>
+          <span className="shrink-0 whitespace-nowrap tabular-nums">{view.queued}</span>
         </div>
       ) : null}
     </div>

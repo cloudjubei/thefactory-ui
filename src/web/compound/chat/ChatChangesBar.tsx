@@ -168,7 +168,7 @@ export function ChatChangesBar({
           </div>
         ) : null}
         {view.error ? (
-          <span className="text-[12px] text-(--status-stuck-fg)">{view.error}</span>
+          <span className="text-[12px] text-(--status-stuck-soft-fg)">{view.error}</span>
         ) : null}
       </div>
     </div>

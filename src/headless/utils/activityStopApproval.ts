@@ -8,6 +8,7 @@ import { isActivityStopCard } from 'thefactory-tools/validations'
 import {
   ACTIVITY_STOP_COPY,
   ACTIVITY_STOP_OUTCOME_COPY,
+  ACTIVITY_STOP_REFUSAL_REASONS,
   STOP_ACTIVITY_TOOL_NAME,
 } from './activityStopApprovalConstants'
 import type { ActivityStopApprovalView, ActivityStopFact } from './activityStopApprovalTypes'
@@ -171,6 +172,14 @@ function stopResultOf(value: unknown): ActivityStopResult | undefined {
     : undefined
 }
 
+function refusalReason(code: string | undefined): string {
+  const known = code !== undefined && Object.hasOwn(ACTIVITY_STOP_REFUSAL_REASONS, code)
+  return (
+    (known ? ACTIVITY_STOP_REFUSAL_REASONS[code] : undefined) ??
+    ACTIVITY_STOP_OUTCOME_COPY.refusedReason
+  )
+}
+
 function outcomeLine(result: ActivityStopResult): ToolRowMilestone {
   const status = result.status ?? 'unknown'
   switch (result.outcome) {
@@ -185,7 +194,7 @@ function outcomeLine(result: ActivityStopResult): ToolRowMilestone {
     case 'refused':
       return {
         tone: 'warning',
-        title: ACTIVITY_STOP_OUTCOME_COPY.refused(result.code ?? 'refused'),
+        title: ACTIVITY_STOP_OUTCOME_COPY.refused(refusalReason(result.code)),
       }
   }
 }

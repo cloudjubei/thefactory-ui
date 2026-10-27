@@ -4,11 +4,14 @@ import type { ProcessLedgerEntry, ProcessRun } from 'thefactory-tools/types'
 import {
   featureStripEntries,
   processRunStripEntries,
+  stepsStripFolds,
+  stepsStripMeasureKey,
+  stepsStripShrink,
   stepsStripView,
   storyStatusTone,
   storyStripEntries,
 } from './stepsStrip'
-import { STEPS_STRIP_FULL_MAX } from './stepsStripConstants'
+import { STEPS_STRIP_FULL_MAX, STEPS_STRIP_WHOLE_LABEL_MAX } from './stepsStripConstants'
 import type { StepsStripEntry, StepsStripPhase } from './stepsStripTypes'
 
 function entries(phases: readonly StepsStripPhase[]): StepsStripEntry[] {
@@ -391,5 +394,94 @@ describe('storyStatusTone', () => {
   it('maps the on-hold status to the package’s on_hold tone', () => {
     expect(storyStatusTone('deferred')).toBe('on_hold')
     expect(storyStatusTone('in_progress')).toBe('working')
+  })
+})
+
+describe('stepsStripShrink', () => {
+  const step = (label: string): StepsStripEntry => ({
+    key: 'k',
+    label,
+    phase: 'upcoming',
+    tone: 'queued',
+  })
+  const short = 'x'.repeat(STEPS_STRIP_WHOLE_LABEL_MAX)
+  const long = 'x'.repeat(STEPS_STRIP_WHOLE_LABEL_MAX + 1)
+
+  it('never cuts a short step beside the emphasised one, folded or not', () => {
+    for (const folded of [false, true]) {
+      expect(stepsStripShrink(step('Sign-off'), false, folded)).toBe(0)
+      expect(stepsStripShrink(step(short), false, folded)).toBe(0)
+    }
+  })
+
+  it('cuts a long plain step ahead of the emphasised one, folded or not', () => {
+    expect(stepsStripShrink(step(long), false, false)).toBe(2)
+    expect(stepsStripShrink(step(long), false, true)).toBe(2)
+  })
+
+  it('never cuts a short emphasised step, folded or not', () => {
+    for (const folded of [false, true]) {
+      expect(stepsStripShrink(step('Implement'), true, folded)).toBe(0)
+      expect(stepsStripShrink(step(short), true, folded)).toBe(0)
+    }
+  })
+
+  it('keeps a long emphasised step whole until the strip folds, then lets it give way', () => {
+    expect(stepsStripShrink(step(long), true, false)).toBe(0)
+    expect(stepsStripShrink(step(long), true, true)).toBe(1)
+  })
+})
+
+describe('stepsStripFolds', () => {
+  it('folds a narrow strip whatever its room', () => {
+    expect(stepsStripFolds({ narrow: true })).toBe(true)
+    expect(stepsStripFolds({ narrow: true, fullWidth: 100, room: 900 })).toBe(true)
+  })
+
+  it('shows every step until the strip is measured', () => {
+    expect(stepsStripFolds({ narrow: false })).toBe(false)
+    expect(stepsStripFolds({ narrow: false, fullWidth: 900 })).toBe(false)
+    expect(stepsStripFolds({ narrow: false, room: 300 })).toBe(false)
+  })
+
+  it('folds once the steps in full are wider than the room', () => {
+    expect(stepsStripFolds({ narrow: false, fullWidth: 520, room: 342 })).toBe(true)
+    expect(stepsStripFolds({ narrow: false, fullWidth: 342, room: 342 })).toBe(false)
+  })
+
+  it('does not fold over a sub-pixel difference', () => {
+    expect(stepsStripFolds({ narrow: false, fullWidth: 342.6, room: 342 })).toBe(false)
+    expect(stepsStripFolds({ narrow: false, fullWidth: 343.5, room: 342 })).toBe(true)
+  })
+})
+
+describe('stepsStripMeasureKey', () => {
+  const base: StepsStripEntry[] = [
+    { key: 'plan', label: 'Plan', phase: 'done', tone: 'done' },
+    { key: 'fix', label: 'Fix', phase: 'current', tone: 'working', attempt: 'attempt 2 of 3' },
+  ]
+
+  it('stays the same for the same steps', () => {
+    expect(stepsStripMeasureKey(base)).toBe(stepsStripMeasureKey(base.map((e) => ({ ...e }))))
+  })
+
+  it('changes when a step’s text, phase or attempt does', () => {
+    const key = stepsStripMeasureKey(base)
+    expect(stepsStripMeasureKey([base[0]!, { ...base[1]!, label: 'Fix again' }])).not.toBe(key)
+    expect(stepsStripMeasureKey([{ ...base[0]!, phase: 'current' }, base[1]!])).not.toBe(key)
+    expect(stepsStripMeasureKey([base[0]!, { ...base[1]!, attempt: undefined }])).not.toBe(key)
+    expect(stepsStripMeasureKey([base[0]!])).not.toBe(key)
+  })
+
+  it('is not fooled by text that runs across two steps', () => {
+    const a: StepsStripEntry[] = [
+      { key: 'a', label: 'b c', phase: 'done', tone: 'done' },
+      { key: 'd', label: 'e', phase: 'done', tone: 'done' },
+    ]
+    const b: StepsStripEntry[] = [
+      { key: 'a', label: 'b', phase: 'done', tone: 'done' },
+      { key: 'c d', label: 'e', phase: 'done', tone: 'done' },
+    ]
+    expect(stepsStripMeasureKey(a)).not.toBe(stepsStripMeasureKey(b))
   })
 })

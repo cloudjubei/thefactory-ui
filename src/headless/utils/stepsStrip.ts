@@ -6,9 +6,10 @@ import { processNodeBadge, processNodeState, processNodeTone } from './processVi
 import type { ProcessStatusTone } from './processView'
 import { acceptanceCriteriaLines } from './signoffPage'
 import { statusKey, type StatusSemanticKey, type StoryStatus } from './status'
-import { STEPS_STRIP_FULL_MAX } from './stepsStripConstants'
+import { STEPS_STRIP_FULL_MAX, STEPS_STRIP_WHOLE_LABEL_MAX } from './stepsStripConstants'
 import type {
   StepsStripEntry,
+  StepsStripFitInput,
   StepsStripItem,
   StepsStripOptions,
   StepsStripPhase,
@@ -22,6 +23,39 @@ const STATUS_TONE: Record<StatusSemanticKey, ProcessStatusTone> = {
   stuck: 'stuck',
   onhold: 'on_hold',
   review: 'review',
+}
+
+/**
+ * How readily a step on a strip too narrow for it gives up room, as a flex
+ * shrink factor: a short step never does, emphasised or not, and a long plain
+ * one goes first. A long emphasised step keeps its name until the strip has
+ * folded — before that the strip folds instead — and only then gives way. Pure.
+ */
+export function stepsStripShrink(
+  entry: StepsStripEntry,
+  emphasis: boolean,
+  folded: boolean,
+): 0 | 1 | 2 {
+  if (entry.label.length <= STEPS_STRIP_WHOLE_LABEL_MAX) return 0
+  if (emphasis) return folded ? 1 : 0
+  return 2
+}
+
+/**
+ * Whether a steps strip folds: always when narrow, else once its steps in full
+ * were measured wider than the room it has — a phone never cuts a step. Pure.
+ */
+export function stepsStripFolds(input: StepsStripFitInput): boolean {
+  if (input.narrow) return true
+  if (input.fullWidth === undefined || input.room === undefined) return false
+  return input.fullWidth > input.room + 1
+}
+
+/** What a strip's measured width belongs to: a change to any step's text measures it again. Pure. */
+export function stepsStripMeasureKey(entries: readonly StepsStripEntry[]): string {
+  return entries
+    .map((e) => [e.key, e.label, e.phase, e.attempt ?? ''].join('\u0001'))
+    .join('\u0002')
 }
 
 /** The tone a story or feature status is drawn in. Pure. */

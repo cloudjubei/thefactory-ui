@@ -105,7 +105,7 @@ const components: Partial<Components> = {
   ),
   td: ({ children, ...props }) => (
     <td
-      className="p-3 border-b border-r border-(--border-subtle) text-left last:border-r-0"
+      className="p-3 border-b border-r border-(--border-subtle) min-w-24 text-left wrap-anywhere last:border-r-0"
       {...props}
     >
       {children}
@@ -246,7 +246,7 @@ export type MarkdownProps = {
   /** Text inside a line — a table cell, a list row: paragraphs render as spans, with no block margins. */
   inline?: boolean
   /**
-   * Text on an accent (user) bubble: fenced/inline code and links use inverted
+   * Text on an accent (user) bubble: fenced/inline code and links use on-accent
    * chrome so they stay readable on `--accent-primary` (peer of native `onAccent`).
    */
   onAccent?: boolean
@@ -256,10 +256,10 @@ const INLINE_PARAGRAPH: Partial<Components> = {
   p: ({ children }) => <span>{children}</span>,
 }
 
-const ACCENT_LINK = 'text-(--text-inverted) underline decoration-white/50 hover:decoration-white'
+const ACCENT_LINK = 'text-(--text-on-accent) underline decoration-white/50 hover:decoration-white'
 const ACCENT_CODE_INLINE =
-  'inline align-baseline px-1 py-px rounded text-[0.9em] font-mono break-words bg-white/20 text-(--text-inverted)'
-const ACCENT_PRE = 'p-4 rounded-md overflow-x-auto my-4 bg-black/25 text-(--text-inverted)'
+  'inline align-baseline px-1 py-px rounded text-[0.9em] font-mono break-words bg-white/20 text-(--text-on-accent)'
+const ACCENT_PRE = 'p-4 rounded-md overflow-x-auto my-4 bg-black/25 text-(--text-on-accent)'
 
 export default function Markdown({
   text,
@@ -313,7 +313,7 @@ export default function Markdown({
             if (/language-(\w+)/.exec(className || '')) {
               // Inverted text — never text-primary, which washes out on the accent.
               return (
-                <code className={`${className ?? ''} text-(--text-inverted)!`} {...rest}>
+                <code className={`${className ?? ''} text-(--text-on-accent)!`} {...rest}>
                   {children}
                 </code>
               )

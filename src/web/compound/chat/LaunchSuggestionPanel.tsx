@@ -5,6 +5,7 @@ import {
   LAUNCH_SUGGEST_DISMISS,
   LAUNCH_SUGGEST_LABEL,
 } from '../../../headless/utils/workLaunchViewConstants'
+import { launchSuggestionSigner } from '../../../headless/utils/workLaunchView'
 import { Button } from '../../primitives/Button'
 
 export type LaunchSuggestionPanelProps = {
@@ -42,7 +43,7 @@ export default function LaunchSuggestionPanel({
         <Button size="sm" variant="secondary" onClick={onAsk} disabled={busy || disabled}>
           {busy ? LAUNCH_SUGGEST_BUSY : LAUNCH_SUGGEST_LABEL}
         </Button>
-        {error ? <span className="text-[12px] text-(--status-stuck-fg)">{error}</span> : null}
+        {error ? <span className="text-[12px] text-(--status-stuck-soft-fg)">{error}</span> : null}
       </div>
     )
   }
@@ -65,7 +66,9 @@ export default function LaunchSuggestionPanel({
           {LAUNCH_SUGGEST_DISMISS}
         </Button>
         {answeredBy ? (
-          <span className="ml-auto text-[11px] text-(--text-muted)">by {answeredBy}</span>
+          <span className="ml-auto text-[11px] text-(--text-muted)">
+            by {launchSuggestionSigner(answeredBy)}
+          </span>
         ) : null}
       </div>
     </div>

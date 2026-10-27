@@ -44,7 +44,7 @@ function Frame({ children }: { children: ReactNode }) {
           <ProjectsProvider>
             <FilesProvider>
               <MemoryRouter>
-                <div className="w-[420px] rounded-xl border border-(--border-subtle) bg-(--surface-raised) p-3">
+                <div className="w-[420px] max-w-full rounded-xl border border-(--border-subtle) bg-(--surface-raised) p-3">
                   {children}
                 </div>
               </MemoryRouter>

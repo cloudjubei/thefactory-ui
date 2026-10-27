@@ -3,6 +3,7 @@ import {
   DESIGN_TEXT,
   designHistory,
   designShownOfVersion,
+  designVariantName,
   formatDateShort,
   type DesignShown,
 } from '../../../headless'
@@ -68,7 +69,7 @@ export default function DesignHistory({
                               v{version.number}
                             </span>
                             <span className="text-[11.5px] text-(--text-secondary)">
-                              {version.variant}
+                              {designVariantName(version.variant)}
                             </span>
                             <DesignPill tone={current ? 'done' : 'empty'}>
                               {current ? DESIGN_TEXT.current : DESIGN_TEXT.earlier}

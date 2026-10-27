@@ -266,7 +266,7 @@ const MESSAGE = grant(
     projectId: MESSAGE_TARGET_PROJECT,
     awaitReply: true,
     reason: 'The release chat owns the changelog.',
-    message: 'The showcase landed. Please add **component showcase** to the release notes.',
+    message: 'The showcase is in. Please add **component showcase** to the release notes.',
   },
   {
     detail: {

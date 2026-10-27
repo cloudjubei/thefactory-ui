@@ -26,8 +26,8 @@ export type ProcessCheckListProps = {
 /**
  * Native peer of the web `ProcessCheckList`: under a checks step's node, each
  * command its newest attempt ran, how it came out, whether it was only
- * advisory, where it ran (sandbox or host, the reason and the code outside the
- * checkout it built against read aloud), whether its failure already fails at
+ * advisory, where it ran (sandbox or host, with the reason read aloud), the code
+ * outside the checkout it built against, whether its failure already fails at
  * the change's base, and how long it took. While the step waits its turn behind
  * another check run of the project, that wait and how long it has lasted. An
  * attempt that ran again with out-of-tree code at its stable branch leads with
@@ -55,10 +55,7 @@ export default function ProcessCheckList({ step, latest, now }: ProcessCheckList
         accessibilityLabel={`${waiting.reason}, ${waiting.waited}`}
         style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, paddingTop: 4, minWidth: 0 }}
       >
-        <Text
-          numberOfLines={1}
-          style={{ flexShrink: 1, fontSize: 12, color: status.queued.softFg }}
-        >
+        <Text style={{ flexShrink: 1, fontSize: 12, color: status.queued.softFg }}>
           {waiting.reason}
         </Text>
         <Text
@@ -94,10 +91,25 @@ export default function ProcessCheckList({ step, latest, now }: ProcessCheckList
             ]
               .filter(Boolean)
               .join(', ')}
-            style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, minWidth: 0 }}
+            style={{
+              flexDirection: 'row',
+              flexWrap: 'wrap',
+              alignItems: 'baseline',
+              columnGap: 6,
+              rowGap: 2,
+              minWidth: 0,
+              paddingLeft: 18,
+            }}
           >
             <Text
-              style={{ width: 12, textAlign: 'center', fontSize: 12, fontWeight: '600', color: fg }}
+              style={{
+                marginLeft: -18,
+                width: 12,
+                textAlign: 'center',
+                fontSize: 12,
+                fontWeight: '600',
+                color: fg,
+              }}
             >
               {row.mark}
             </Text>
@@ -169,16 +181,18 @@ export default function ProcessCheckList({ step, latest, now }: ProcessCheckList
               </View>
             ) : null}
             {row.status !== 'passed' && row.summary ? (
-              <Text
-                numberOfLines={1}
-                style={{ flexShrink: 1, fontSize: 12, color: theme.text.secondary }}
-              >
+              <Text style={{ flexShrink: 1, fontSize: 12, color: theme.text.secondary }}>
                 {row.summary}
               </Text>
             ) : null}
             <View style={{ flex: 1 }} />
             {row.durationLabel ? (
               <Text style={{ fontSize: 11, color: theme.text.muted }}>{row.durationLabel}</Text>
+            ) : null}
+            {row.dependencyDetail ? (
+              <Text style={{ width: '100%', fontSize: 11, color: theme.text.muted }}>
+                {row.dependencyDetail}
+              </Text>
             ) : null}
           </View>
         )

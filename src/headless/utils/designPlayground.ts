@@ -10,9 +10,22 @@ import type {
   DesignScreen,
   DesignScreenKind,
   DesignState,
+  GetDesignPlaygroundResponse,
 } from '../api'
-import { DESIGN_TEXT } from './designViewConstants'
-import type { DesignPlaygroundSaveTarget, DesignPlaygroundSceneGroup } from './designViewTypes'
+import {
+  DESIGN_PLAYGROUND_FADE_MS,
+  DESIGN_PLAYGROUND_IDLE_POLL_MS,
+  DESIGN_PLAYGROUND_POLL_MS,
+  DESIGN_PLAYGROUND_UPDATED_MS,
+  DESIGN_TEXT,
+} from './designViewConstants'
+import type {
+  DesignPlaygroundBar,
+  DesignPlaygroundFrame,
+  DesignPlaygroundSaveTarget,
+  DesignPlaygroundSceneGroup,
+  DesignPlaygroundView,
+} from './designViewTypes'
 
 function kindLabel(kind: DesignScreenKind): string {
   return kind === 'component' ? DESIGN_TEXT.components : DESIGN_TEXT.screens
@@ -93,4 +106,115 @@ export function designPlaygroundSceneGroups(
     else groups.push({ group: name, scenes: [scene] })
   }
   return groups
+}
+
+/** A build's running time: `12s`, `1m 05s`. Pure. */
+export function designPlaygroundElapsed(ms: number): string {
+  const seconds = Math.max(0, Math.floor(ms / 1000))
+  if (seconds < 60) return `${seconds}s`
+  return `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, '0')}s`
+}
+
+/**
+ * The frame once `build` is served: kept on the build it shows; moved to a
+ * newer one — reloaded at the address it is on — saying when. Pure.
+ */
+export function designPlaygroundFrameNext(
+  frame: DesignPlaygroundFrame,
+  build: string,
+  now: number,
+): DesignPlaygroundFrame {
+  if (frame.build === build) return frame
+  return frame.build ? { build, refreshedAt: now } : { build }
+}
+
+function shownBar(
+  status: Extract<GetDesignPlaygroundResponse, { status: 'ready' }>,
+  frame: DesignPlaygroundFrame,
+  now: number,
+): DesignPlaygroundBar | undefined {
+  if (status.rebuilding) {
+    return {
+      kind: 'rebuilding',
+      label: DESIGN_TEXT.playgroundRebuilding(
+        designPlaygroundElapsed(now - (status.rebuildStartedAt ?? now)),
+      ),
+    }
+  }
+  if (status.lastError) {
+    return {
+      kind: 'rebuild-failed',
+      label: DESIGN_TEXT.playgroundRebuildFailed,
+      error: status.lastError,
+    }
+  }
+  if (frame.refreshedAt === undefined) return undefined
+  const since = now - frame.refreshedAt
+  if (since >= DESIGN_PLAYGROUND_UPDATED_MS) return undefined
+  return {
+    kind: 'updated',
+    label: DESIGN_TEXT.playgroundUpdated,
+    at: status.builtAt,
+    fading: since >= DESIGN_PLAYGROUND_UPDATED_MS - DESIGN_PLAYGROUND_FADE_MS,
+  }
+}
+
+/**
+ * What the Playground shows for its status, the frame it holds and the time:
+ * the first build running and for how long; the frame kept while a newer
+ * build runs behind it, or after that build failed; a short note once the
+ * frame moved to the newer build. Pure.
+ */
+export function designPlaygroundView(
+  status: GetDesignPlaygroundResponse | undefined,
+  frame: DesignPlaygroundFrame,
+  now: number,
+): DesignPlaygroundView {
+  if (!status || status.status === 'stopped') {
+    return { kind: 'building', label: DESIGN_TEXT.playgroundBuilding, ticking: false }
+  }
+  if (status.status === 'building') {
+    return {
+      kind: 'building',
+      label: DESIGN_TEXT.playgroundBuildingFor(designPlaygroundElapsed(now - status.startedAt)),
+      ticking: true,
+    }
+  }
+  if (status.status === 'failed') return { kind: 'failed', error: status.error }
+  if (status.status === 'none') return { kind: 'none' }
+  const bar = shownBar(status, frame, now)
+  return {
+    kind: 'ready',
+    build: status.build,
+    ...(bar ? { bar } : {}),
+    ...(status.rebuilding ? { saveHint: DESIGN_TEXT.playgroundSavesAfterRebuild } : {}),
+    ticking: bar?.kind === 'rebuilding' || bar?.kind === 'updated',
+  }
+}
+
+/**
+ * When an open Playground asks for its status again: soon while a build runs
+ * or a save waits on one, now and then while ready, never for no playground
+ * or a failed first build. Pure.
+ */
+export function designPlaygroundPollMs(
+  status: GetDesignPlaygroundResponse,
+  saving: boolean,
+): number | undefined {
+  if (status.status === 'none' || status.status === 'failed') return undefined
+  if (saving || status.status !== 'ready' || status.rebuilding) return DESIGN_PLAYGROUND_POLL_MS
+  return DESIGN_PLAYGROUND_IDLE_POLL_MS
+}
+
+/**
+ * What a save says while it runs: waiting for the build — one already running
+ * when it was asked (`waitedOnRebuild`), or the one it started — then
+ * capturing. Pure.
+ */
+export function designPlaygroundSaveLabel(
+  status: GetDesignPlaygroundResponse | undefined,
+  waitedOnRebuild: boolean,
+): string {
+  if (status?.status === 'ready' && !status.rebuilding) return DESIGN_TEXT.saving
+  return waitedOnRebuild ? DESIGN_TEXT.savingAfterRebuild : DESIGN_TEXT.savingBuildFirst
 }

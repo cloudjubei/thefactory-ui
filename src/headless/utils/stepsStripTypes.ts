@@ -57,6 +57,15 @@ export type StepsStripOptions = {
   narrow?: boolean
 }
 
+/** What decides whether a strip not marked narrow folds: its steps in full against its room. */
+export type StepsStripFitInput = {
+  narrow: boolean
+  /** The width the steps in full were measured at, with the strip's padding. */
+  fullWidth?: number
+  /** The width the strip has. */
+  room?: number
+}
+
 /** A strip with its heading — `Steps`, `Features`, `Done when` — and what it lists. */
 export type StepsStripModel = {
   label: string
