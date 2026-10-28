@@ -5,11 +5,13 @@ import MarkdownDisplay, {
   type RenderRules,
 } from 'react-native-markdown-display'
 import {
+  parseAppUrlAsResourceLink,
   parseReferenceToken,
   parseResourceLink,
   withReferencesAsCode,
 } from 'thefactory-tools/utils'
 import type { ReferenceTarget, ResourceLink } from 'thefactory-tools/types'
+import { useOptionalApi } from '../../headless/api/ApiContext'
 import { useEffectiveReferenceRenderer } from '../../headless/contexts/ReferenceRenderingContext'
 
 import {
@@ -25,12 +27,12 @@ export type MarkdownProps = {
   /** Allow raw HTML in the source. Matches the web peer's prop surface;
    *  ignored on native (react-native-markdown-display strips HTML by default). */
   allowHtml?: boolean
-  /** Route an in-app `overseer://…` resource link here instead of opening it externally (F.2). */
+  /** Route an in-app `overseer://…` or same-origin app URL here instead of opening it externally. */
   onResourceLink?: (link: ResourceLink) => void
   /**
    * Shows what the text points at as chips: a reference token (`#<storyId>`,
    * `&<noteId>`, `@path`, or a backticked project path) and an `overseer://`
-   * link. Returning `undefined` leaves it as code or a plain link.
+   * or same-origin app link. Returning `undefined` leaves it as code or a plain link.
    */
   renderReference?: (target: ReferenceTarget) => ReactNode | undefined
   /**
@@ -57,8 +59,10 @@ export type MarkdownProps = {
  * weights, list indentation, code-block chrome. Styles route through the
  * runtime-reactive `useNativeTheme` hook for parity with sibling compounds.
  *
- * External links open via `Linking.openURL`. With `renderReference`, the
- * references in the text and its `overseer://` links show as chips.
+ * External links open via `Linking.openURL`. Same-origin app URLs (the
+ * configured API base) map to a `ResourceLink` like web's Markdown, so they
+ * navigate in place instead of opening a browser. With `renderReference`, the
+ * references in the text and its `overseer://` / same-origin links show as chips.
  */
 export default function Markdown({
   text,
@@ -71,6 +75,9 @@ export default function Markdown({
 }: MarkdownProps) {
   const renderReference = useEffectiveReferenceRenderer(ownRenderReference, typedReferences)
   const { theme } = useNativeTheme()
+  // Mobile has no `window.location`; the configured backend/app origin from
+  // ApiProvider is the same-origin base web uses `window.location.origin` for.
+  const appOrigin = useOptionalApi()?.apiBaseUrl ?? ''
   const fontSize = textStyle?.fontSize
   const lineHeight = textStyle?.lineHeight
   const color = textStyle?.color
@@ -82,7 +89,9 @@ export default function Markdown({
 
   const onLinkPress = useMemo<DisplayProps['onLinkPress']>(
     () => (url) => {
-      const link = onResourceLink ? parseResourceLink(url) : undefined
+      const link = onResourceLink
+        ? (parseResourceLink(url) ?? parseAppUrlAsResourceLink(url, appOrigin))
+        : undefined
       if (link) {
         onResourceLink!(link)
         return false
@@ -90,7 +99,7 @@ export default function Markdown({
       void Linking.openURL(url).catch(() => undefined)
       return false
     },
-    [onResourceLink],
+    [onResourceLink, appOrigin],
   )
 
   const rules = useMemo<RenderRules | undefined>(() => {
@@ -108,7 +117,7 @@ export default function Markdown({
       },
       link: (node, children, _parent, ruleStyles) => {
         const href = String(node.attributes.href ?? '')
-        const link = parseResourceLink(href)
+        const link = parseResourceLink(href) ?? parseAppUrlAsResourceLink(href, appOrigin)
         const chip = link ? renderReference({ type: 'link', link }) : undefined
         if (chip !== undefined) return <Text key={node.key}>{chip}</Text>
         return (
@@ -118,7 +127,7 @@ export default function Markdown({
         )
       },
     }
-  }, [renderReference, onLinkPress])
+  }, [renderReference, onLinkPress, appOrigin])
 
   return (
     <View>

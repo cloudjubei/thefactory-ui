@@ -43,6 +43,12 @@ export type LaunchFeatureListProps = {
   onNotesChange: (featureId: string, notes: string) => void
   onSaveChange: (save: boolean) => void
   /**
+   * Open a feature's dependency bullet — the host's resource-link handler.
+   * Absent: bullets stay inert (a control that looks tappable and does nothing
+   * is worse than a plain marker).
+   */
+  onOpenDependency?: (resolved: ResolvedDependency) => void
+  /**
    * The story's open features to pick from — every one listed, those left out
    * dimmed, each ticked in or out. Absent: the launch works the rows as they are.
    */
@@ -69,6 +75,7 @@ export default function LaunchFeatureList({
   onToggleKind,
   onNotesChange,
   onSaveChange,
+  onOpenDependency,
   pick,
 }: LaunchFeatureListProps) {
   const { theme, status } = useNativeTheme()
@@ -181,7 +188,8 @@ export default function LaunchFeatureList({
                 <DependencyBullet
                   resolved={resolveBullet(`${storyId}.${item.featureId}`)}
                   dependency={`${storyId}.${item.featureId}`}
-                  interactive={false}
+                  interactive={onOpenDependency !== undefined}
+                  {...(onOpenDependency ? { onPress: onOpenDependency } : {})}
                 />
               ) : null}
               <Text
@@ -208,7 +216,8 @@ export default function LaunchFeatureList({
                 <DependencyBullet
                   resolved={resolveBullet(`${storyId}.${row.featureId}`)}
                   dependency={`${storyId}.${row.featureId}`}
-                  interactive={false}
+                  interactive={onOpenDependency !== undefined}
+                  {...(onOpenDependency ? { onPress: onOpenDependency } : {})}
                 />
               ) : null}
               <Text

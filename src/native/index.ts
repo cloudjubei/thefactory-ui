@@ -633,6 +633,19 @@ export {
   type GitCredentialErrorModalProps,
   type GitCredentialErrorOp,
 } from './compound/git/GitCredentialErrorModal'
+export {
+  default as DiffOptionsToolbar,
+  type DiffOptionsToolbarProps,
+} from './compound/git/DiffOptionsToolbar'
+export {
+  default as GitFileDiffView,
+  type GitFileDiffSource,
+  type GitFileDiffViewProps,
+} from './compound/git/GitFileDiffView'
+export {
+  default as MergeConflictResolver,
+  type MergeConflictResolverProps,
+} from './compound/git/MergeConflictResolver'
 
 // Tests screen compounds
 export { default as CoverageTable, type CoverageTableProps } from './compound/tests/CoverageTable'

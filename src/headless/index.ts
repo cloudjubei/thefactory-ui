@@ -637,6 +637,19 @@ export {
   type GraphNode,
 } from './utils/gitCommitGraph'
 
+// Git conflict-marker parse / serialise / resolve — shared by web + native
+// merge-conflict resolvers (lifted from mobile's standalone module).
+export {
+  hasConflictMarkers,
+  parseConflictSegments,
+  resolveConflict,
+  serializeSegments,
+  type BothOrder,
+  type Segment,
+  type SegmentConflict,
+  type SegmentText,
+} from './utils/conflictMarkers'
+
 // Time / duration helpers
 export {
   formatDate,

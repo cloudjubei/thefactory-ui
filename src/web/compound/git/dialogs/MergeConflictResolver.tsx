@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useActiveProject } from '../../../../headless'
 import { useGit } from '../../../../headless'
+import {
+  hasConflictMarkers,
+  parseConflictSegments,
+  resolveConflict,
+  serializeSegments,
+  type BothOrder,
+  type Segment,
+} from '../../../../headless/utils/conflictMarkers'
 import { readFile as readFileSdk, writeFile as writeFileSdk } from '../../../../headless/api'
 import type { GitConflictEntry } from '../../../../headless/api'
 import { Alert, Button, Modal, Spinner } from '../../..'
@@ -14,83 +22,6 @@ export type MergeConflictResolverProps = {
   /** The conflicted file to open first; defaults to the first one. */
   initialPath?: string
 }
-
-type SegmentText = { type: 'text'; text: string }
-type SegmentConflict = {
-  type: 'conflict'
-  oursLabel: string
-  theirsLabel: string
-  ours: string
-  theirs: string
-}
-type Segment = SegmentText | SegmentConflict
-
-function hasConflictMarkers(s: string): boolean {
-  return /<<<<<<< |>>>>>>> |=======/.test(s)
-}
-
-function parseConflictSegments(raw: string): Segment[] {
-  const text = (raw || '').replace(/\r\n/g, '\n')
-  const segments: Segment[] = []
-  let i = 0
-  while (i < text.length) {
-    const startIdx = text.indexOf('<<<<<<< ', i)
-    if (startIdx === -1) {
-      segments.push({ type: 'text', text: text.slice(i) })
-      break
-    }
-    if (startIdx > i) segments.push({ type: 'text', text: text.slice(i, startIdx) })
-
-    const lineEnd = text.indexOf('\n', startIdx)
-    const oursHeader = text.slice(
-      startIdx + '<<<<<<< '.length,
-      lineEnd === -1 ? text.length : lineEnd,
-    )
-
-    const sepNeedle = '\n=======\n'
-    const sepIdx = text.indexOf(sepNeedle, lineEnd === -1 ? startIdx : lineEnd + 1)
-    if (sepIdx === -1) {
-      segments.push({ type: 'text', text: text.slice(startIdx) })
-      break
-    }
-
-    const oursContent = text.slice(lineEnd === -1 ? startIdx : lineEnd + 1, sepIdx)
-    const endMarker = '\n>>>>>>>'
-    const endIdx = text.indexOf(endMarker, sepIdx + sepNeedle.length)
-    if (endIdx === -1) {
-      segments.push({ type: 'text', text: text.slice(startIdx) })
-      break
-    }
-    const theirsHeaderLineEnd = text.indexOf('\n', endIdx + endMarker.length)
-    const theirsHeader = text.slice(
-      endIdx + endMarker.length + 1,
-      theirsHeaderLineEnd === -1 ? text.length : theirsHeaderLineEnd,
-    )
-    const theirsContent = text.slice(sepIdx + sepNeedle.length, endIdx)
-
-    segments.push({
-      type: 'conflict',
-      oursLabel: oursHeader || 'ours',
-      theirsLabel: theirsHeader || 'theirs',
-      ours: oursContent,
-      theirs: theirsContent,
-    })
-    i = theirsHeaderLineEnd === -1 ? text.length : theirsHeaderLineEnd + 1
-  }
-  return segments
-}
-
-function joinSegments(segments: Segment[]): string {
-  return segments
-    .map((seg) =>
-      seg.type === 'text'
-        ? seg.text
-        : `<<<<<<< ${seg.oursLabel}\n${seg.ours}\n=======\n${seg.theirs}\n>>>>>>> ${seg.theirsLabel}\n`,
-    )
-    .join('')
-}
-
-type BothOrder = 'ours-then-theirs' | 'theirs-then-ours'
 
 /**
  * Visual side-by-side editor for merging the conflict markers git wrote into
@@ -225,16 +156,8 @@ export default function MergeConflictResolver({
       const next = [...prev]
       const seg = next[index]
       if (!seg || seg.type !== 'conflict') return prev
-      let replacement = ''
-      if (choice === 'ours') replacement = seg.ours
-      else if (choice === 'theirs') replacement = seg.theirs
-      else {
-        const first = bothOrder === 'ours-then-theirs' ? seg.ours : seg.theirs
-        const second = bothOrder === 'ours-then-theirs' ? seg.theirs : seg.ours
-        replacement = first + (first && second ? '\n' : '') + second
-      }
-      next.splice(index, 1, { type: 'text', text: replacement })
-      const joined = joinSegments(next)
+      next.splice(index, 1, { type: 'text', text: resolveConflict(seg, choice, bothOrder) })
+      const joined = serializeSegments(next)
       setDirty(true)
       setContent(joined)
       return next
@@ -245,13 +168,9 @@ export default function MergeConflictResolver({
     setSegments((prev) => {
       const next: Segment[] = prev.map((seg) => {
         if (seg.type !== 'conflict') return seg
-        if (choice === 'ours') return { type: 'text', text: seg.ours }
-        if (choice === 'theirs') return { type: 'text', text: seg.theirs }
-        const first = bothOrder === 'ours-then-theirs' ? seg.ours : seg.theirs
-        const second = bothOrder === 'ours-then-theirs' ? seg.theirs : seg.ours
-        return { type: 'text', text: first + (first && second ? '\n' : '') + second }
+        return { type: 'text', text: resolveConflict(seg, choice, bothOrder) }
       })
-      const joined = joinSegments(next)
+      const joined = serializeSegments(next)
       setDirty(true)
       setContent(joined)
       return next

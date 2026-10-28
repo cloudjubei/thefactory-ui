@@ -33,6 +33,7 @@ import { runProposalArgs } from '../../../headless/utils/runProposalView'
 import { processProposalView } from '../../../headless/utils/processProposalView'
 import { dependencyChipOf } from '../../../headless/utils/storyDependency'
 import {
+  dependencyResourceLink,
   launchOverlapView,
   agentTypeSlotRows,
   agentTypeSlotsMetadata,
@@ -211,6 +212,7 @@ function ToolApprovalPanel({
   onDecided,
   renderModelChip,
   renderProcessRun,
+  onResourceLink,
 }: ApprovalPanelProps) {
   const { theme, status } = useNativeTheme()
   const isLaunch = isStartFeatureWorkGrant(grant)
@@ -393,6 +395,16 @@ function ToolApprovalPanel({
   const resolvedBullet = (dep: string): ResolvedDependency =>
     dependencyChipOf(resolveDependency(dep)) ?? { kind: 'missing', display: dep }
 
+  // Same seam as StorySignoffReview's onOpenStory: open a dependency through
+  // the host's resource-link handler (mobile routes it to the story screen).
+  const onOpenDependency = onResourceLink
+    ? (resolved: ResolvedDependency) => {
+        if (resolved.kind === 'loading' || resolved.kind === 'missing') return
+        const link = dependencyResourceLink(resolved, resolved.projectId ?? projectId)
+        if (link) onResourceLink(link)
+      }
+    : undefined
+
   const decide = (decision: PendingToolGrantDecision) => {
     setBusy(true)
     setError(null)
@@ -524,9 +536,8 @@ function ToolApprovalPanel({
             <DependencyBullet
               resolved={resolvedBullet(summary.storyId)}
               dependency={summary.storyId}
-              // Not pressable: this panel has no navigation seam — a control that
-              // looks tappable and does nothing is worse than a plain marker.
-              interactive={false}
+              interactive={onOpenDependency !== undefined}
+              {...(onOpenDependency ? { onPress: onOpenDependency } : {})}
             />
             <Text
               numberOfLines={1}
@@ -666,6 +677,7 @@ function ToolApprovalPanel({
             tail={inChat ? [] : (proposalView?.tail ?? [])}
             {...(proposalView && !inChat ? { agentStepCount: proposalView.agentStepCount } : {})}
             {...(pickRows ? { pick: { rows: pickRows, onToggle: togglePick } } : {})}
+            {...(onOpenDependency ? { onOpenDependency } : {})}
             save={saveProofPlans}
             joinsOpenRun={joinsOpenRun}
             busy={busy}
@@ -692,7 +704,8 @@ function ToolApprovalPanel({
                     <DependencyBullet
                       resolved={resolvedBullet(`${summary.storyId}.${feature.id}`)}
                       dependency={`${summary.storyId}.${feature.id}`}
-                      interactive={false}
+                      interactive={onOpenDependency !== undefined}
+                      {...(onOpenDependency ? { onPress: onOpenDependency } : {})}
                     />
                   ) : null}
                   <Text
