@@ -1,7 +1,10 @@
+import { NO_GROUP_STORIES } from './groupStoryConstants'
 import type {
   GroupStoryForm,
   GroupStoryFormRow,
   GroupStoryMemberProject,
+  GroupStoryMembership,
+  GroupStoryMembershipsByStory,
   GroupStoryPartView,
   GroupStoryRunSummary,
   GroupStoryStepColumn,
@@ -141,4 +144,12 @@ export function groupStoryNeedOptions(
   return takingPart(form)
     .filter((r) => r.projectId !== projectId)
     .map((r) => ({ id: r.projectId, title: r.projectTitle }))
+}
+
+/** The group stories a listed story is a part of; none, always the same list, for a story that is no part. */
+export function groupStoriesOfStory(
+  byStory: GroupStoryMembershipsByStory,
+  storyId: string,
+): readonly GroupStoryMembership[] {
+  return byStory[storyId] ?? NO_GROUP_STORIES
 }

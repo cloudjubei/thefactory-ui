@@ -73,6 +73,22 @@ describe('launchFeaturePreviewIds — what the plan is read for', () => {
   it('reads the whole story while nothing is picked — the card asks for a pick instead', () => {
     expect(launchFeaturePreviewIds(pool, [])).toBeUndefined()
   })
+
+  it('reads what the agent named while the pick is still theirs — the plan read before the story loaded stands', () => {
+    expect(launchFeaturePreviewIds(pool, ['f1', 'f2', 'f3'], ['f3', 'f1', 'f2'])).toEqual([
+      'f3',
+      'f1',
+      'f2',
+    ])
+    expect(launchFeaturePreviewIds(pool.slice(0, 1), ['f1'], ['f1'])).toEqual(['f1'])
+  })
+
+  it('reads the pick once it differs from what the agent named', () => {
+    expect(launchFeaturePreviewIds(pool, ['f1', 'f2', 'f3'], ['f1'])).toBeUndefined()
+    expect(launchFeaturePreviewIds(pool, ['f2'], ['f1', 'f2'])).toEqual(['f2'])
+    expect(launchFeaturePreviewIds(pool, ['f1', 'f2'], ['f1', 'f2', 'gone'])).toEqual(['f1', 'f2'])
+    expect(launchFeaturePreviewIds(pool, ['f1', 'f2'], ['f1', 'gone'])).toEqual(['f1', 'f2'])
+  })
 })
 
 describe('launchFeaturePickMetadata — what the decision carries', () => {

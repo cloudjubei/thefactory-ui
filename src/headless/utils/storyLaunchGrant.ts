@@ -1,5 +1,5 @@
 import type { PendingToolGrant, PendingToolGrantDecision } from './chatTypes'
-import { START_FEATURE_WORK_TOOL_NAME } from './approvalGrant'
+import { START_FEATURE_WORK_TOOL_NAME } from './pendingToolGrantsConstants'
 
 /** A story's launch opened from its page rather than asked for by an agent. */
 export interface StoryLaunchGrantInput {

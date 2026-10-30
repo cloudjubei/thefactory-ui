@@ -1,17 +1,14 @@
 import type { AgentTypeSlotMap, WorkLaunchMode } from 'thefactory-tools/types'
 import { partitionGrants } from './agentQuestions'
 import { agentTypeSlotsOf } from './agentTypeSlotChoice'
+import { cleanCliToolName } from './cliRunner'
 import type { ApprovalPanelHold, PendingToolGrant } from './chatTypes'
 import type { GrantDetailView } from './approvalGrantTypes'
-import { START_GROUP_WORK_TOOL_NAME } from './processGroupLaunchConstants'
-import { ACCEPT_REQUEST_TOOL } from './toolAskCardConstants'
-
-/**
- * The tool that launches an isolated feature-work run. Kept as a named constant
- * so the approval surface can recognise it and present a launch affordance
- * rather than a generic "the agent wants to run a tool" prompt.
- */
-export const START_FEATURE_WORK_TOOL_NAME = 'startFeatureWork'
+import {
+  COMPOSER_LAUNCH_TOOL_NAMES,
+  START_FEATURE_WORK_TOOL_NAME,
+  USER_INPUT_TOOL_NAMES,
+} from './pendingToolGrantsConstants'
 
 /**
  * Longest note the launch approval accepts. Mirrors the backend's
@@ -34,17 +31,16 @@ export function isStartFeatureWorkGrant(grant: Pick<PendingToolGrant, 'toolName'
 }
 
 /**
- * Whether a tool call's ask is decided on the row that shows it. A feature-work
- * or group launch is not, though it is gated like any tool call: approving it starts a
- * separate run, and the panel is where its launch options are chosen. Nor is
- * accepting a feature request: its card is where the way its work starts is picked.
+ * Whether a tool call's ask is decided on the row that shows it — every tool's
+ * is, its card opening from the row, except the named few that keep the
+ * composer's place: a launch (`COMPOSER_LAUNCH_TOOL_NAMES`), whose card is
+ * where the way the work starts is chosen, and a tool whose ask is the
+ * person's answer (`USER_INPUT_TOOL_NAMES`). A tool nobody named goes to its row. Pure.
  */
 export function isToolAskDecidedOnRow(toolName: string | undefined): boolean {
-  return (
-    toolName !== START_FEATURE_WORK_TOOL_NAME &&
-    toolName !== START_GROUP_WORK_TOOL_NAME &&
-    toolName !== ACCEPT_REQUEST_TOOL
-  )
+  if (toolName === undefined) return true
+  const tool = cleanCliToolName(toolName)
+  return !COMPOSER_LAUNCH_TOOL_NAMES.includes(tool) && !USER_INPUT_TOOL_NAMES.includes(tool)
 }
 
 export type StartFeatureWorkRunner = 'cli' | 'api'
@@ -221,11 +217,11 @@ export function pendingApprovalGrants(grants?: PendingToolGrant[]): PendingToolG
 }
 
 /**
- * The approvals the bottom panel shows: requests of their own kind (a launch, a
- * sandbox boundary, a credential), plus any ordinary tool ask no row on screen
- * has claimed — an ask must never go unseen. An ordinary ask a row is showing
- * is decided there, whichever agent raised it; one whose rows are still on
- * their way (`hold`) waits for them rather than flashing up here first.
+ * The approvals the bottom panel shows: a launch, which keeps the composer's
+ * place, plus any ask decided on a row that no row on screen has claimed — an
+ * ask must never go unseen. An ask a row is showing is decided there, whichever
+ * agent raised it; one whose rows are still on their way (`hold`) waits for
+ * them rather than flashing up here first.
  */
 export function panelApprovalGrants(
   grants: PendingToolGrant[] | undefined,

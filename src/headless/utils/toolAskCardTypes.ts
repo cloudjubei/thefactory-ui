@@ -127,3 +127,15 @@ export type ToolAskDecidedLine = { tone: 'done' | 'declined'; text: string }
 
 /** Whether a launch can start as it stands, and the reason it cannot when there is one to name. */
 export type ToolAskLaunchCheck = { ready: boolean; problem?: string }
+
+/**
+ * A waiting ask as its call's row reads it, compact: the card's headline —
+ * what it acts on, in the host's words — and, for one that throws something
+ * away for good, the tag that says so.
+ */
+export type ToolAskRowView = {
+  headline: string
+  tone: ToolAskTone
+  /** "Cannot be undone", on an ask that throws something away for good. */
+  tag?: string
+}

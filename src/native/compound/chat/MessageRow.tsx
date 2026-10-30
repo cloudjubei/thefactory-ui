@@ -13,6 +13,7 @@ import type {
   AlwaysAllowScope,
   ChatMessageLike,
   GrantCovers,
+  PendingToolGrant,
 } from '../../../headless/utils/chatTypes'
 import type { MessageDeleteControl } from '../../../headless/utils/chatMessageDeleteTypes'
 import type { MessageRestartControl } from '../../../headless/utils/chatMessageRestartTypes'
@@ -203,6 +204,8 @@ export interface MessageRowProps {
   toolAlwaysAllowScope?: AlwaysAllowScope
   /** Mark "Always allow" in a place, or unmark — offered beside the toggle when the ask allows it. */
   onAlwaysAllowTool?: (scope: AlwaysAllowScope | undefined) => void
+  /** The ask the row decides — its compact line and the card it opens to. */
+  toolAsk?: PendingToolGrant
 
   onDeleteLastMessage?: () => void
   /**
@@ -323,6 +326,7 @@ function MessageRow({
   toolGrantCovers,
   toolAlwaysAllowScope,
   onAlwaysAllowTool,
+  toolAsk,
   onDeleteLastMessage,
   deleteControl,
   deletePreview = false,
@@ -782,6 +786,7 @@ function MessageRow({
                       selectable: true,
                       selected: toolSelected === true,
                       ...(onToggleToolSelect ? { onToggleSelect: onToggleToolSelect } : {}),
+                      ...(toolAsk ? { ask: toolAsk } : {}),
                       ...(onAlwaysAllowTool
                         ? {
                             onAlwaysAllow: onAlwaysAllowTool,
@@ -812,6 +817,7 @@ function MessageRow({
                 {...(toolGrantCovers ? { grantCovers: toolGrantCovers } : {})}
                 {...(toolAlwaysAllowScope ? { alwaysAllowScope: toolAlwaysAllowScope } : {})}
                 onAlwaysAllow={onAlwaysAllowTool}
+                {...(toolAsk ? { ask: toolAsk } : {})}
                 {...(onResourceLink ? { onResourceLink } : {})}
                 {...(chatTitle ? { sourceChatTitle: chatTitle } : {})}
               />

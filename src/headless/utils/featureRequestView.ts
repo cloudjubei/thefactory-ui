@@ -132,6 +132,7 @@ export function featureRequestViaLabel(context: ChatContext): string {
       return 'a feature chat'
     case 'AGENT_RUN_STORY':
     case 'AGENT_RUN_FEATURE':
+    case 'AGENT_RUN_TASK':
       return 'an agent run'
     case 'FEATURE_REQUEST':
       return 'a request it took on'

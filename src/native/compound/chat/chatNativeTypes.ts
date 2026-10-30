@@ -1,6 +1,7 @@
 import type {
   AlwaysAllowScope,
   GrantCovers,
+  PendingToolGrant,
   ToolCallLike,
   ToolResultTypeLike,
 } from '../../../headless/utils/chatTypes'
@@ -27,6 +28,8 @@ export type NativeToolCallRenderArgs = {
   alwaysAllowScope?: AlwaysAllowScope
   /** Mark "Always allow" in `scope`, or (`undefined`) unmark — offered beside the toggle. */
   onAlwaysAllow?: (scope: AlwaysAllowScope | undefined) => void
+  /** The ask the call's row decides — its compact line and the card it opens to. */
+  ask?: PendingToolGrant
 }
 
 /**

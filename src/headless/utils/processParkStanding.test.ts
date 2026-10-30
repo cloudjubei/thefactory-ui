@@ -237,6 +237,19 @@ describe('processParkClosure', () => {
     )
   })
 
+  it('says the person accepted the review with its follow-ups filed', () => {
+    const holder = run({
+      ledger: [
+        entry({
+          override: { choice: 'accept-with-follow-ups', at: ANSWERED, decidedBy: 'person' },
+        }),
+      ],
+    })
+    expect(processParkClosure(token, holder).line).toBe(
+      `Handled — you accepted it with the follow-ups filed · ${at(ANSWERED)}`,
+    )
+  })
+
   it('counts an answer given at the very moment the run parked', () => {
     const holder = run({ ledger: [entry({ override: { choice: 'retry', at: PARKED } })] })
     expect(processParkClosure(token, holder)).toEqual({

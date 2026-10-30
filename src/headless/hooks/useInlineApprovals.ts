@@ -20,6 +20,8 @@ export type InlineApprovalRowProps = {
   toolAlwaysAllowScope?: AlwaysAllowScope
   /** Mark the row "Always allow" in `scope`, or (`undefined`) unmark it. */
   onAlwaysAllowTool?: (scope: AlwaysAllowScope | undefined) => void
+  /** The ask the row decides — what its compact line reads and its card opens to. */
+  toolAsk?: PendingToolGrant
 }
 
 /**
@@ -45,7 +47,8 @@ export type UseInlineApprovals = {
  * Deciding a turn's tool asks on their own rows — an API turn's stored rows and
  * a CLI turn's transcript rows alike: a toggle per row, "Always allow" where
  * the ask permits a standing grant (marks the row; Resume grants it
- * permanently), and one Resume that approves the toggled asks and declines the
+ * permanently), the ask itself for the row's compact line and the card it
+ * opens to, and one Resume that approves the toggled asks and declines the
  * rest.
  *
  * Reports the asks it shows through `onClaimAsks` (and `[]` when it unmounts)
@@ -107,6 +110,7 @@ export function useInlineApprovals(
       if (id === undefined) return {}
       const grant = grants.get(id)
       return {
+        ...(grant ? { toolAsk: grant } : {}),
         toolSelectable: true,
         toolSelected: selected.includes(id),
         onToggleToolSelect: () =>

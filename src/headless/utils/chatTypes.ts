@@ -245,9 +245,9 @@ export type PendingToolGrantData = {
    */
   toolName?: string
   /**
-   * An ordinary tool call awaiting approval — decided on the call's own row
-   * (toggle + Resume), not in the approval panel, which is kept for requests of
-   * their own kind (a launch, a sandbox boundary, a credential).
+   * Decided on the call's own row (toggle + Resume, its card opening from the
+   * row) — every ask but a launch and an answer the person gives, which keep
+   * the composer's place (see `isActionDecidedOnRow`).
    */
   inline?: boolean
   /** The call's arguments, so its row can be told apart from another call of the same tool. */

@@ -344,13 +344,13 @@ export default function ChatBody({
       lines: [...decidedLines.filter((l) => l.id !== id), { id, line }],
     })
   const remedyGrants = useMemo(() => partitionGrants(grants).remedies, [grants])
-  // EVERY pending approval takes the composer's place so the asks are unmissable
+  // An approval no row decides takes the composer's place so it is unmissable
   // while the conversation stays visible. They stack: an ask outlives the turn
   // that raised it, so a later turn's ask can arrive on top of an unanswered one
   // — that pile-up used to fall back to a modal covering the chat. `Decide later`
   // dismisses the current set back to the composer WITHOUT deciding; a NEW ask
   // (changing the id set) re-shows it, because the dismissed key no longer matches.
-  // Ordinary tool asks are decided on the rows that show them — a CLI turn's
+  // Every ask but a launch is decided on the row that shows it — a CLI turn's
   // and an API turn's alike; each reports which asks it shows, and the panel
   // keeps only the rest.
   const { claimedAskIds, unsettledRunIds, onClaimAsks } = useClaimedAsks()
@@ -427,8 +427,15 @@ export default function ChatBody({
     [onInputChange, reviewLayout],
   )
   const chatActions = useMemo<ChatActions>(
-    () => ({ openReview, draftMessage, ...(projectId ? { projectId } : {}) }),
-    [openReview, draftMessage, projectId],
+    () => ({
+      openReview,
+      draftMessage,
+      ...(projectId ? { projectId } : {}),
+      ...(groupId ? { groupId } : {}),
+      ...(chatTitle ? { chatTitle } : {}),
+      ...(onResourceLink ? { onResourceLink } : {}),
+    }),
+    [openReview, draftMessage, projectId, groupId, chatTitle, onResourceLink],
   )
   const receiptShas = useMemo(() => commitReceiptShas(decidedAsks), [decidedAsks])
   const renderChanges = useMemo(

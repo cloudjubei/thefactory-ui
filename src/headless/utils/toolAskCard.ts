@@ -31,6 +31,8 @@ import {
   GIT_CHANGE_VERB,
   GIT_SETUP_ASK,
   GROUP_WORK_ASK,
+  HOST_FILE_READ_ASK,
+  HOST_FILE_READ_TOOL,
   RUN_PROPOSAL_ASK,
   TOOL_ASK_COPY,
   TOOL_ASK_SCOPE,
@@ -397,6 +399,21 @@ export function toolAskCardView(grant: GrantLike): ToolAskCardView {
       consequence: 'Its package registry opens to the agent’s sandbox, for this package only.',
       verb: 'Install',
       body: { kind: 'package', ecosystem, name, ...(version ? { version } : {}) },
+    }
+  }
+  if (tool === HOST_FILE_READ_TOOL) {
+    const read = record(payload.detail)
+    const path = text(read.path) ?? text(args.path) ?? ''
+    const facts = [text(read.size), text(read.lines)].filter((f): f is string => f !== undefined)
+    return {
+      ...base,
+      icon: 'file',
+      ask: HOST_FILE_READ_ASK.ask,
+      tag: HOST_FILE_READ_ASK.tag,
+      headline: HOST_FILE_READ_ASK.headline(path),
+      consequence: HOST_FILE_READ_ASK.consequence,
+      verb: HOST_FILE_READ_ASK.verb,
+      body: { kind: 'details', ...(facts.length > 0 ? { text: facts.join(' · ') } : {}) },
     }
   }
   if (tool === 'requestNetworkUnlock') {

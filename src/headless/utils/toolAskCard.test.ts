@@ -26,6 +26,7 @@ import {
   GIT_CHANGE_VERB,
   GIT_SETUP_ASK,
   GROUP_WORK_ASK,
+  HOST_FILE_READ_ASK,
   RUN_PROPOSAL_ASK,
   TOOL_ASK_COPY,
   TOOL_ASK_SCOPE,
@@ -82,6 +83,35 @@ describe('toolAskCardView — sandbox requests', () => {
       verb: 'Allow',
       body: { kind: 'network', host: 'pypi.org' },
     })
+  })
+
+  it('shows a host file read as the file it opens, with its size and lines', () => {
+    expect(
+      toolAskCardView({
+        label: 'requestHostFileRead',
+        toolName: 'requestHostFileRead',
+        args: { path: '~/a.log', reason: 'r' },
+        detail: {
+          tool: 'requestHostFileRead',
+          args: { path: '~/a.log' },
+          detail: { path: '/Users/me/a.log', size: '4 KB', lines: 'lines 1–40' },
+        },
+      }),
+    ).toMatchObject({
+      icon: 'file',
+      ask: HOST_FILE_READ_ASK.ask,
+      headline: 'Read /Users/me/a.log',
+      why: 'r',
+      verb: HOST_FILE_READ_ASK.verb,
+      body: { kind: 'details', text: '4 KB · lines 1–40' },
+    })
+    expect(
+      toolAskCardView({
+        label: 'requestHostFileRead',
+        toolName: 'requestHostFileRead',
+        args: { path: '~/a.log' },
+      }),
+    ).toMatchObject({ headline: 'Read ~/a.log', body: { kind: 'details' } })
   })
 
   it('shows a fetch as the address it reads', () => {

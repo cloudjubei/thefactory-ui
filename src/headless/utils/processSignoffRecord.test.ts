@@ -115,6 +115,16 @@ describe('processSignoffRecord', () => {
     })
   })
 
+  it('says a review accepted with its follow-ups filed as such', () => {
+    const accepted = entry('e6', { override: { choice: 'accept-with-follow-ups', at: 6 } })
+    expect(
+      processSignoffRecord({ ...ids, workBranch }, { entries: [accepted] })?.latest,
+    ).toMatchObject({
+      label: 'Accepted — follow-ups filed',
+      tone: 'empty',
+    })
+  })
+
   describe('who decided', () => {
     const run = { ...ids, workBranch }
     const decided = (override: Partial<NonNullable<ProcessLedgerEntry['override']>>) =>

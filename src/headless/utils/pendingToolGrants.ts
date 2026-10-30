@@ -7,7 +7,7 @@ import type { ChatContextAgentRunStory } from '../api/generated'
 import { isQuestionAction, parseQuestionPayload } from './agentQuestions'
 import { isToolAskDecidedOnRow } from './approvalGrant'
 import { gitChangeCard } from './gitChangeApproval'
-import { ROW_DECIDED_ACTION_KINDS, SITE_ASK_KINDS } from './pendingToolGrantsConstants'
+import { SITE_ASK_KINDS, USER_INPUT_ACTION_KINDS } from './pendingToolGrantsConstants'
 import { isRemedyAction, parseRemedyPayload } from './agentRemedy'
 import type { PendingToolGrantData, PendingToolGrantDecision } from './chatTypes'
 import type { CliDecidedAsk, CliPendingAsk } from './cliRunActivityTypes'
@@ -252,6 +252,17 @@ export function trustableSiteOf(
 const whenSite = (site: string | undefined) => (site ? { trustableSite: site } : {})
 
 /**
+ * Whether an ask is decided on its call's own row — every ask is, whatever its
+ * kind, except one answered rather than approved (`USER_INPUT_ACTION_KINDS`)
+ * and a tool named to keep the composer's place (see
+ * {@link isToolAskDecidedOnRow}). An ask no row claims still reaches the
+ * approval panel. Pure.
+ */
+export function isActionDecidedOnRow(kind: string, toolName: string | undefined): boolean {
+  return !USER_INPUT_ACTION_KINDS.includes(kind) && isToolAskDecidedOnRow(toolName)
+}
+
+/**
  * Map a CLI gated `PendingAction` to a grant (id = actionId), labelling from the
  * tool it names — the kind (`inspect-host-path`) groups permanent grants and is
  * only the fallback. An `askUser` question additionally carries its parsed
@@ -272,9 +283,7 @@ export function cliPendingActionToGrant(action: CliPendingActionLike): PendingTo
     grantCovers: grantCoversOf(action.grantPayload ?? action.payload),
     ...(action.chatContextId ? { chatContextId: action.chatContextId } : {}),
     ...(toolName ? { toolName } : {}),
-    ...(ROW_DECIDED_ACTION_KINDS.includes(action.kind) && isToolAskDecidedOnRow(toolName)
-      ? { inline: true }
-      : {}),
+    ...(isActionDecidedOnRow(action.kind, toolName) ? { inline: true } : {}),
     ...(args !== undefined ? { args } : {}),
   }
   if (isQuestionAction(action)) grant.question = parseQuestionPayload(action.payload)
@@ -292,7 +301,7 @@ function pendingActionArgs(action: CliPendingActionLike): unknown {
 /**
  * The asks a row can be tied to — a CLI turn's transcript row or an API turn's
  * stored one: every one, so the row of a call waiting on a question or a launch
- * reads as waiting too — only the ordinary tool asks are decided on the row.
+ * reads as waiting too — only those `inline` are decided on the row.
  */
 export function cliRowAsks(grants: readonly PendingToolGrantData[] | undefined): CliPendingAsk[] {
   const asks: CliPendingAsk[] = []

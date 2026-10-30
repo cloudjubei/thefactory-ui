@@ -30,7 +30,15 @@ import {
   sendChatMessageView,
 } from '../../../../headless/utils/sendChatMessageView'
 import SendChatMessageCard from '../SendChatMessageCard'
+import StoredSecretCard from '../StoredSecretCard'
+import {
+  isShowStoredSecretTool,
+  storedSecretView,
+} from '../../../../headless/utils/storedSecretView'
+import ToolAskRowCard from '../ToolAskRowCard'
 import type { ResourceLink } from 'thefactory-tools/types'
+import type { PendingToolGrant } from '../../../../headless/utils/chatTypes'
+import { toolAskRowView } from '../../../../headless/utils/toolAskRow'
 
 // Web small-screen breakpoint mirrors the rest of the package
 // (`FileSelector`, `CollapsibleSidebar`) so a single CSS-media-query value
@@ -104,6 +112,14 @@ export type ToolCallCardProps = {
   onResourceLink?: (link: ResourceLink) => void
   /** The chat this row is in, by name — the sender of a message the call sends to another chat. */
   sourceChatTitle?: string
+  /**
+   * The ask this row decides. Where its card says more than the row, the row
+   * reads compact — the card's headline, "Cannot be undone" where it is — and
+   * opens to that card on click.
+   */
+  ask?: PendingToolGrant
+  /** Start with the ask's card open. */
+  askOpen?: boolean
 }
 
 const CHAT_ONLY: readonly AlwaysAllowScope[] = ['chat']
@@ -130,8 +146,15 @@ function ToolCallCardInner({
   onAlwaysAllow,
   onResourceLink,
   sourceChatTitle,
+  ask,
+  askOpen = false,
 }: ToolCallCardProps) {
   const [argsOpen, setArgsOpen] = useState(false)
+  const askView = useMemo(
+    () => (ask && selectable ? toolAskRowView(ask) : undefined),
+    [ask, selectable],
+  )
+  const [cardOpen, setCardOpen] = useState(askOpen)
   const [resultOpen, setResultOpen] = useState(false)
   // A running call's row counts how long it has waited; nothing else re-renders
   // a memoised card while its call is open.
@@ -143,6 +166,13 @@ function ToolCallCardInner({
   }, [resultType, startedAt])
   const [sheetOpen, setSheetOpen] = useState(false)
   const isSmallScreen = useIsSmallScreen()
+  const storedSecret = useMemo(
+    () =>
+      isShowStoredSecretTool(toolCall.name)
+        ? storedSecretView({ args: toolCall.arguments, result, resultType })
+        : undefined,
+    [toolCall.name, toolCall.arguments, result, resultType],
+  )
 
   const hasArgs = useMemo(() => {
     const a = toolCall.arguments
@@ -209,7 +239,17 @@ function ToolCallCardInner({
           <StatusIcon resultType={resultType} fellShort={toolRowFellShort(resultType, milestone)} />
           <span className="min-w-0 truncate font-semibold">{toolCall.name}</span>
           <ToolOriginBadge origin={toolCall.origin} />
-          {argDisplay ? (
+          {askView ? (
+            <>
+              <span
+                className="min-w-0 flex-1 truncate text-(--text-secondary) @max-md:order-last @max-md:basis-full"
+                title={askView.headline}
+              >
+                {askView.headline}
+              </span>
+              <span className="hidden flex-1 @max-md:block" aria-hidden />
+            </>
+          ) : argDisplay ? (
             <>
               <ToolArgInline
                 display={argDisplay}
@@ -236,24 +276,47 @@ function ToolCallCardInner({
           />
           {/* The grant toggle shows ONLY for genuinely confirmable tools awaiting
             the user's approval — never for auto-call / already-running tools. */}
+          {askView?.tag ? (
+            <span className="shrink-0 rounded-full bg-(--status-blocked-soft-bg) px-2 py-0.5 text-[11px] font-semibold text-(--status-blocked-soft-fg)">
+              {askView.tag}
+            </span>
+          ) : null}
           {selectable && onAlwaysAllow ? (
-            <AlwaysAllowControl
-              view={alwaysAllowChoiceView({
-                scopes: alwaysAllowScopes,
-                toolName: toolCall.name,
-                covers: grantCovers,
-                ...(alwaysAllowScope ? { marked: alwaysAllowScope } : {}),
-              })}
-              toolName={toolCall.name}
-              onChoose={onAlwaysAllow}
-            />
+            <span onClick={(e) => e.stopPropagation()}>
+              <AlwaysAllowControl
+                view={alwaysAllowChoiceView({
+                  scopes: alwaysAllowScopes,
+                  toolName: toolCall.name,
+                  covers: grantCovers,
+                  ...(alwaysAllowScope ? { marked: alwaysAllowScope } : {}),
+                })}
+                toolName={toolCall.name}
+                onChoose={onAlwaysAllow}
+              />
+            </span>
           ) : null}
           {selectable ? (
             <span onClick={(e) => e.stopPropagation()}>
               <Switch checked={!!selected} onCheckedChange={() => onToggleSelect?.()} />
             </span>
           ) : null}
-          {hasArgs ? (
+          {askView ? (
+            <button
+              type="button"
+              className="p-1 rounded hover:bg-(--surface-raised) shrink-0"
+              onClick={(e) => {
+                e.stopPropagation()
+                setCardOpen((v) => !v)
+              }}
+              aria-expanded={cardOpen}
+              aria-label={cardOpen ? 'Hide details' : 'Show details'}
+            >
+              <IconChevron
+                className="w-4 h-4 transition-transform"
+                style={{ transform: `rotate(${cardOpen ? 90 : 0}deg)` }}
+              />
+            </button>
+          ) : hasArgs ? (
             <button
               type="button"
               className="p-1 rounded hover:bg-(--surface-raised) shrink-0"
@@ -308,6 +371,17 @@ function ToolCallCardInner({
         </div>
       ) : null}
 
+      {/* A stored secret the agent showed the person: revealed on the row, by
+          them alone — the agent is told only which one it was. */}
+      {storedSecret ? (
+        <div
+          className="border-t border-(--border-subtle) bg-(--surface-base) px-3 py-2.5"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <StoredSecretCard secret={storedSecret} />
+        </div>
+      ) : null}
+
       {toolCall.decisionNote ? (
         <div className="px-3 pb-1.5 text-[11px] text-(--text-secondary)">
           {toolCall.decisionNote}
@@ -341,8 +415,38 @@ function ToolCallCardInner({
           ) : null}
         </div>
       ) : null}
+
+      {ask && askView && cardOpen ? (
+        <div
+          className="cursor-auto border-t border-(--border-subtle) bg-(--surface-base) p-2"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <ToolAskRowCard grant={ask} onClose={() => setCardOpen(false)} />
+        </div>
+      ) : null}
     </>
   )
+
+  if (askView) {
+    return (
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={cardOpen}
+        className={`${anchorClassName} cursor-pointer`}
+        onClick={() => setCardOpen((v) => !v)}
+        onKeyDown={(e) => {
+          if (e.target !== e.currentTarget) return
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            setCardOpen((v) => !v)
+          }
+        }}
+      >
+        {body}
+      </div>
+    )
+  }
 
   if (!hasPopup) {
     return <div className={anchorClassName}>{body}</div>

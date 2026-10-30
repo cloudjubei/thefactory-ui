@@ -32,6 +32,8 @@ export type MergeBranchSheetProps = {
   projectId: string | undefined
   /** The branch to merge in, picked already — a long-pressed branch's local or remote name. */
   initialSource?: string
+  /** The local branch to merge into when it is not the checked-out one — "Merge in". */
+  into?: string
   /** Called once git has merged, fast-forwarded, staged or stopped on conflicts; a refusal stays in the sheet. */
   onMerged: (outcome: GitMergeBranchResult) => void
 }
@@ -39,19 +41,23 @@ export type MergeBranchSheetProps = {
 /**
  * Native peer of web's `MergeBranchSheet`: pick a branch (local or remote) to
  * merge into the current one, say how, and merge. A long-press "Merge X into
- * Y" opens the same sheet with X picked. The result can be built and
- * type-checked before the branch moves — on by default into the default branch.
+ * Y" opens the same sheet with X picked; "Merge in" opens it with `into` set,
+ * merging into that branch, never checked out, and committing right away. The
+ * result can be built and type-checked before the branch moves — on by default
+ * into the default branch.
  */
 export default function MergeBranchSheet({
   isOpen,
   onClose,
   projectId,
   initialSource,
+  into,
   onMerged,
 }: MergeBranchSheetProps) {
   const { theme } = useNativeTheme()
   const { branches, status, mergeBranch } = useGit()
   const current = branches.find((b) => b.current)?.name
+  const target = into ?? current
   const [query, setQuery] = useState('')
   const [source, setSource] = useState<string | undefined>(initialSource)
   const [noFastForward, setNoFastForward] = useState(false)
@@ -75,12 +81,17 @@ export default function MergeBranchSheet({
   }, [isOpen, initialSource])
 
   const options = useMemo(
-    () => mergeSourceOptions(branches, current, query),
-    [branches, current, query],
+    () => mergeSourceOptions(branches, current, query, into),
+    [branches, current, query, into],
   )
-  const blocked = mergeBlockedReason({ current, merging: !!status?.merging, source })
-  const bringIn = useCommitsToBringIn(isOpen ? projectId : undefined, current, source)
-  const checkFirstByDefault = mergeChecksOnByDefault(branches, commitNow)
+  const blocked = mergeBlockedReason({
+    current,
+    merging: !!status?.merging,
+    source,
+    ...(into ? { into } : {}),
+  })
+  const bringIn = useCommitsToBringIn(isOpen ? projectId : undefined, target, source)
+  const checkFirstByDefault = mergeChecksOnByDefault(branches, commitNow, into)
   const checkFirst = commitNow && (checkFirstPick ?? checkFirstByDefault)
 
   const onMerge = async () => {
@@ -90,7 +101,13 @@ export default function MergeBranchSheet({
     setError(null)
     setFailedChecks(null)
     try {
-      const outcome = await mergeBranch({ source, noFastForward, commit: commitNow, checkFirst })
+      const outcome = await mergeBranch({
+        source,
+        ...(into ? { into } : {}),
+        noFastForward,
+        commit: commitNow,
+        checkFirst,
+      })
       if (outcome.status === 'refused') {
         setError(outcome.reason ?? outcome.message)
         setFailedChecks(outcome.checks?.status === 'failed' ? outcome.checks : null)
@@ -109,7 +126,7 @@ export default function MergeBranchSheet({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Merge into the current branch"
+      title={into ? GIT_MERGE_TEXT.sheetTitleInto(into) : GIT_MERGE_TEXT.sheetTitle}
       size="lg"
       footer={
         <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: nativeSpace[2] }}>
@@ -175,7 +192,9 @@ export default function MergeBranchSheet({
                   </View>
                   <View style={{ flex: 1 }} />
                   {o.disabledReason ? (
-                    <Text style={{ fontSize: 11, color: theme.text.muted }}>Current</Text>
+                    <Text style={{ fontSize: 11, color: theme.text.muted }}>
+                      {into ? 'Target' : 'Current'}
+                    </Text>
                   ) : null}
                   <BranchChip type={o.kind} size="xs" />
                 </Pressable>
@@ -184,9 +203,9 @@ export default function MergeBranchSheet({
           )}
         </ScrollView>
 
-        {source && current ? (
+        {source && target ? (
           <View
-            accessibilityLabel={mergeSentence(source, current)}
+            accessibilityLabel={mergeSentence(source, target)}
             style={{
               gap: 4,
               padding: nativeSpace[3],
@@ -198,7 +217,7 @@ export default function MergeBranchSheet({
               <Text style={{ fontSize: 14, color: theme.text.primary }}>Merge</Text>
               <RefChip kind="branch" value={source} />
               <Text style={{ fontSize: 14, color: theme.text.primary }}>into</Text>
-              <RefChip kind="branch" value={current} />
+              <RefChip kind="branch" value={target} />
             </View>
             {bringIn.status === 'ready' ? (
               <Text style={{ fontSize: 12, color: theme.text.muted }}>
@@ -214,11 +233,17 @@ export default function MergeBranchSheet({
           onCheckedChange={setNoFastForward}
           label="Create a merge commit even if fast-forward is possible"
         />
-        <Switch
-          checked={commitNow}
-          onCheckedChange={setCommitNow}
-          label="Commit the merge right away"
-        />
+        {into ? (
+          <Text style={{ fontSize: 12, color: theme.text.muted }}>
+            {GIT_MERGE_TEXT.committedInto(into)}
+          </Text>
+        ) : (
+          <Switch
+            checked={commitNow}
+            onCheckedChange={setCommitNow}
+            label="Commit the merge right away"
+          />
+        )}
         {!commitNow ? (
           <Text style={{ fontSize: 12, color: theme.text.muted }}>
             The merge is staged and left for you to commit, with its message prefilled.
@@ -233,17 +258,17 @@ export default function MergeBranchSheet({
         <Text style={{ fontSize: 12, color: theme.text.muted }}>
           {!commitNow
             ? GIT_MERGE_TEXT.checkFirstNeedsCommit
-            : current
+            : target
               ? [
-                  GIT_MERGE_TEXT.checkFirstHint(current),
-                  checkFirstByDefault ? GIT_MERGE_TEXT.checkFirstDefault(current) : '',
+                  GIT_MERGE_TEXT.checkFirstHint(target),
+                  checkFirstByDefault ? GIT_MERGE_TEXT.checkFirstDefault(target) : '',
                 ]
                   .filter(Boolean)
                   .join(' ')
               : ''}
         </Text>
 
-        {submitting && checkFirst && current ? (
+        {submitting && checkFirst && target ? (
           <View
             style={{
               flexDirection: 'row',
@@ -256,14 +281,14 @@ export default function MergeBranchSheet({
           >
             <Spinner size={14} />
             <Text style={{ flex: 1, fontSize: 12, color: theme.text.secondary }}>
-              {GIT_MERGE_TEXT.checking(current)}
+              {GIT_MERGE_TEXT.checking(target)}
             </Text>
             <Text style={{ fontSize: 12, color: theme.text.muted }}>
               {formatDurationMs(Math.max(0, now - startedAt))}
             </Text>
           </View>
         ) : null}
-        {blocked && (source || !current || status?.merging) ? (
+        {blocked && (source || (!into && (!current || status?.merging))) ? (
           <Alert variant="info">{blocked}</Alert>
         ) : null}
         {error ? <Alert variant="error">{error}</Alert> : null}

@@ -6,6 +6,13 @@ export const GIT_MERGE_COUNT_LIMIT = 100
 
 export const GIT_MERGE_TEXT = {
   currentBranch: 'This is the current branch.',
+  pushBranch: (branch: string, ahead: number) =>
+    ahead > 0 ? `Push ${branch} (${ahead} commit${ahead === 1 ? '' : 's'})` : `Push ${branch}`,
+  targetBranch: 'This is the branch being merged into.',
+  sheetTitle: 'Merge into the current branch',
+  sheetTitleInto: (into: string) => `Merge into ${into}`,
+  committedInto: (into: string) =>
+    `Committed right away: ${into} is not checked out. A merge that would conflict is refused — check out ${into} to resolve it there.`,
   detached: 'HEAD is detached. Check out a branch to merge into.',
   inProgress: 'A merge is in progress. Commit it or abort it first.',
   pickSource: 'Pick the branch to merge.',

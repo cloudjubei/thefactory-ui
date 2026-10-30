@@ -488,6 +488,11 @@ export type AgentRunType =
   | 'designer'
   | 'fixer'
 
+export type StandaloneTask = {
+  prompt: string
+  contextFiles?: Array<string>
+}
+
 export type AgentTypeId = string
 
 export type ChatContextAgentRun = {
@@ -511,6 +516,12 @@ export type ChatContextAgentRunFeature = {
   featureId: string
 }
 
+export type ChatContextAgentRunTask = {
+  type: 'AGENT_RUN_TASK'
+  projectId: string
+  agentRunId: string
+}
+
 export type GithubCredentials = {
   name: string
   username: string
@@ -529,7 +540,11 @@ export type GitWorkBranch = {
 
 export type AgentRunParams = {
   agentType: AgentTypeId
-  chatContext: ChatContextAgentRunStory | ChatContextAgentRunFeature
+  chatContext: ChatContextAgentRunStory | ChatContextAgentRunFeature | ChatContextAgentRunTask
+  standaloneTask?: {
+    prompt: string
+    contextFiles?: Array<string>
+  }
   llmConfig: LlmConfig
   githubCredentials: GithubCredentials
   webSearchApiKeys?: {
@@ -1020,6 +1035,7 @@ export type ProcessStepRetry = {
   kind: string
   reason: string
   delayMs: number
+  afterHostSleep?: true
 }
 
 export type AgentRunRetryEvent = {
@@ -1039,6 +1055,7 @@ export type CliRunFailureKind =
   | 'tool-protocol'
   | 'native-tool-used'
   | 'launch-failed'
+  | 'sandbox-unavailable'
   | 'unknown'
 
 export type CliRunFailure = {
@@ -1360,6 +1377,7 @@ export type ChatContextType =
   | 'FEATURE'
   | 'AGENT_RUN_STORY'
   | 'AGENT_RUN_FEATURE'
+  | 'AGENT_RUN_TASK'
   | 'PROJECT_TOPIC'
   | 'FEATURE_REQUEST'
 
@@ -1419,6 +1437,7 @@ export type ChatContext = {
     | 'FEATURE'
     | 'AGENT_RUN_STORY'
     | 'AGENT_RUN_FEATURE'
+    | 'AGENT_RUN_TASK'
     | 'PROJECT_TOPIC'
     | 'FEATURE_REQUEST'
   groupId?: string
@@ -1806,6 +1825,7 @@ export type ProcessResumeChoice =
   | 'recheck'
   | 'close-unmerged'
   | 'accept-dropped-change'
+  | 'accept-with-follow-ups'
 
 export type ProcessParkAction = ProcessResumeChoice | 'delegate'
 
@@ -1956,6 +1976,36 @@ export type CompletionImage = {
   url?: string
 }
 
+export type ChatAppSelectionCoordSpace = 'app-viewport'
+
+export type ChatAppSelectionRect = {
+  x: number
+  y: number
+  width: number
+  height: number
+  space: ChatAppSelectionCoordSpace
+}
+
+export type ChatAppSelection = {
+  id: string
+  projectId: string
+  view?: string
+  params?: {
+    [key: string]: string
+  }
+  comment: string
+  selector: string
+  outerHtml: string
+  rect?: {
+    x: number
+    y: number
+    width: number
+    height: number
+    space: ChatAppSelectionCoordSpace
+  }
+  screenshotFile?: string
+}
+
 export type ChatBackgroundJobResult = {
   jobId: string
   toolName: string
@@ -2002,6 +2052,7 @@ export type CompletionUserMessage = {
   }
   files?: Array<string>
   images?: Array<CompletionImage>
+  appSelections?: Array<ChatAppSelection>
   handoffFrom?: string
   backgroundResults?: Array<ChatBackgroundJobResult>
   restartedAfter?: {
@@ -2152,6 +2203,8 @@ export type CompletionAssistantMessage = {
   }
   suggestedActions?: Array<string>
   thinking?: string
+  toolsAttached?: number
+  turnToolNames?: Array<string>
   cliRunId?: string
   featureRequestId?: string
   processRunId?: string
@@ -2282,6 +2335,8 @@ export type Chat = {
     }
     suggestedActions?: Array<string>
     thinking?: string
+    toolsAttached?: number
+    turnToolNames?: Array<string>
     cliRunId?: string
     featureRequestId?: string
     processRunId?: string
@@ -2289,6 +2344,25 @@ export type Chat = {
     processRunChecksEntryId?: string
     processGroupRunId?: string
     handoffFrom?: string
+    appSelections?: Array<{
+      id: string
+      projectId: string
+      view?: string
+      params?: {
+        [key: string]: string
+      }
+      comment: string
+      selector: string
+      outerHtml: string
+      rect?: {
+        x: number
+        y: number
+        width: number
+        height: number
+        space: 'app-viewport'
+      }
+      screenshotFile?: string
+    }>
     answersHandoffFrom?: string
     backgroundResults?: Array<{
       jobId: string
@@ -2501,6 +2575,8 @@ export type ChatCreateInput = {
     }
     suggestedActions?: Array<string>
     thinking?: string
+    toolsAttached?: number
+    turnToolNames?: Array<string>
     cliRunId?: string
     featureRequestId?: string
     processRunId?: string
@@ -2508,6 +2584,25 @@ export type ChatCreateInput = {
     processRunChecksEntryId?: string
     processGroupRunId?: string
     handoffFrom?: string
+    appSelections?: Array<{
+      id: string
+      projectId: string
+      view?: string
+      params?: {
+        [key: string]: string
+      }
+      comment: string
+      selector: string
+      outerHtml: string
+      rect?: {
+        x: number
+        y: number
+        width: number
+        height: number
+        space: 'app-viewport'
+      }
+      screenshotFile?: string
+    }>
     answersHandoffFrom?: string
     backgroundResults?: Array<{
       jobId: string
@@ -2621,6 +2716,8 @@ export type ChatEditInput = {
     }
     suggestedActions?: Array<string>
     thinking?: string
+    toolsAttached?: number
+    turnToolNames?: Array<string>
     cliRunId?: string
     featureRequestId?: string
     processRunId?: string
@@ -2628,6 +2725,25 @@ export type ChatEditInput = {
     processRunChecksEntryId?: string
     processGroupRunId?: string
     handoffFrom?: string
+    appSelections?: Array<{
+      id: string
+      projectId: string
+      view?: string
+      params?: {
+        [key: string]: string
+      }
+      comment: string
+      selector: string
+      outerHtml: string
+      rect?: {
+        x: number
+        y: number
+        width: number
+        height: number
+        space: 'app-viewport'
+      }
+      screenshotFile?: string
+    }>
     answersHandoffFrom?: string
     backgroundResults?: Array<{
       jobId: string
@@ -2797,6 +2913,12 @@ export type TicketConnectionBinding = {
   projectKeys?: Array<string>
 }
 
+export type CapabilitySettings = {
+  connectorWriteBack?: boolean
+  autoMerge?: boolean
+  autoFollowUp?: boolean
+}
+
 export type ProjectsGroup = {
   id: string
   title: string
@@ -2807,6 +2929,11 @@ export type ProjectsGroup = {
     connectionId: string
     access: TicketConnectionAccess
     projectKeys?: Array<string>
+  }
+  capabilities?: {
+    connectorWriteBack?: boolean
+    autoMerge?: boolean
+    autoFollowUp?: boolean
   }
   createdAt: string
   updatedAt: string
@@ -3041,6 +3168,18 @@ export type ProcessManagerSettingsInput = {
 
 export type WorkLaunchMode = 'process' | 'chat'
 
+export type ProjectCheckEnvSecretRef = {
+  name: string
+  noteId: string
+}
+
+export type ProjectCheckEnvSetting = {
+  values?: {
+    [key: string]: string
+  }
+  secrets?: Array<ProjectCheckEnvSecretRef>
+}
+
 export type ProjectRegistryMetadata = {
   githubCredentialsId?: string
   ticketConnection?: TicketConnectionBinding | 'none'
@@ -3054,6 +3193,17 @@ export type ProjectRegistryMetadata = {
     autonomy?: 'observe' | 'recommend' | 'act'
   }
   workLaunchMode?: 'process' | 'chat'
+  capabilities?: {
+    connectorWriteBack?: boolean
+    autoMerge?: boolean
+    autoFollowUp?: boolean
+  }
+  checkEnv?: {
+    values?: {
+      [key: string]: string
+    }
+    secrets?: Array<ProjectCheckEnvSecretRef>
+  }
   [key: string]: unknown
 }
 
@@ -3082,6 +3232,17 @@ export type ProjectRegistryEntry = {
       autonomy?: 'observe' | 'recommend' | 'act'
     }
     workLaunchMode?: 'process' | 'chat'
+    capabilities?: {
+      connectorWriteBack?: boolean
+      autoMerge?: boolean
+      autoFollowUp?: boolean
+    }
+    checkEnv?: {
+      values?: {
+        [key: string]: string
+      }
+      secrets?: Array<ProjectCheckEnvSecretRef>
+    }
     [key: string]: unknown
   }
   createdAt: string
@@ -3181,6 +3342,7 @@ export type ChatContextArguments = {
     | 'FEATURE'
     | 'AGENT_RUN_STORY'
     | 'AGENT_RUN_FEATURE'
+    | 'AGENT_RUN_TASK'
     | 'PROJECT_TOPIC'
     | 'FEATURE_REQUEST'
   groupId?: string
@@ -3201,6 +3363,11 @@ export type ChatContextArguments = {
       connectionId: string
       access: TicketConnectionAccess
       projectKeys?: Array<string>
+    }
+    capabilities?: {
+      connectorWriteBack?: boolean
+      autoMerge?: boolean
+      autoFollowUp?: boolean
     }
     createdAt: string
     updatedAt: string
@@ -3278,6 +3445,11 @@ export type ChatContextArgumentsGroup = {
       access: TicketConnectionAccess
       projectKeys?: Array<string>
     }
+    capabilities?: {
+      connectorWriteBack?: boolean
+      autoMerge?: boolean
+      autoFollowUp?: boolean
+    }
     createdAt: string
     updatedAt: string
   }
@@ -3297,6 +3469,11 @@ export type ChatContextArgumentsGroupTopic = {
       connectionId: string
       access: TicketConnectionAccess
       projectKeys?: Array<string>
+    }
+    capabilities?: {
+      connectorWriteBack?: boolean
+      autoMerge?: boolean
+      autoFollowUp?: boolean
     }
     createdAt: string
     updatedAt: string
@@ -3571,6 +3748,9 @@ export type VerificationCheckBaseline = {
   verdict: VerificationBaselineVerdict
   preExistingLines?: Array<string>
   reason?: string
+  ranAt?: number
+  reused?: boolean
+  freshRounds?: number
 }
 
 export type VerificationTestReportMissingCause =
@@ -3627,6 +3807,9 @@ export type VerificationCheckResult = {
     verdict: VerificationBaselineVerdict
     preExistingLines?: Array<string>
     reason?: string
+    ranAt?: number
+    reused?: boolean
+    freshRounds?: number
   }
   testReportMissing?: {
     cause: VerificationTestReportMissingCause
@@ -3636,6 +3819,8 @@ export type VerificationCheckResult = {
   rerunReason?: string
   environmentNote?: string
   flakyTests?: Array<VerificationFlakyTest>
+  knownFlakeFailures?: Array<string>
+  failedAgainAlone?: Array<string>
   rewrittenFiles?: Array<string>
 }
 
@@ -4214,6 +4399,7 @@ export type CliRun = {
     tool: CliTool
     version: string
   }
+  toolNames?: Array<string>
   cliSessionId?: string
   modelId?: string
   effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
@@ -4479,6 +4665,7 @@ export type CliRunSummary = {
     tool: CliTool
     version: string
   }
+  toolNames?: Array<string>
   cliSessionId?: string
   modelId?: string
   effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
@@ -4685,6 +4872,7 @@ export type CliRunFailurePolicy = {
   rateLimited?: 'retry' | 'pause' | 'abort'
   authExpired?: 'pause' | 'abort'
   networkUnreachable?: 'retry' | 'abort'
+  sandboxUnavailable?: 'retry' | 'abort'
   toolProtocol?: 'retry' | 'abort'
   nativeToolUsed?: 'retry' | 'abort'
   quotaExceeded?: 'pause' | 'abort'
@@ -5132,6 +5320,7 @@ export type CliRunApproveResult = {
       tool: CliTool
       version: string
     }
+    toolNames?: Array<string>
     cliSessionId?: string
     modelId?: string
     effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
@@ -7918,6 +8107,10 @@ export type ProposeRunCapturesInput = {
   captures: Array<DesignRunCaptureInput>
 }
 
+export type ApplyDesignTidyOptions = {
+  acceptUndecided?: boolean
+}
+
 export type ProposeDesignTidyInput = {
   moves: Array<{
     kind: DesignTidyMoveKind
@@ -8116,6 +8309,22 @@ export type RunDiagnostics = {
   projectId: string
   events: Array<RunDiagnosticsEvent>
   truncated: boolean
+}
+
+export type EventLoopBlockedReport = {
+  blockedMs: number
+  from: number
+  to: number
+  cpuMs: number
+  asleep: boolean | unknown
+  loadAverage: number
+  rssBytes: number
+}
+
+export type LateTickInput = {
+  lastTickAt: number
+  now: number
+  tickMs: number
 }
 
 export type VoterPopulation = {
@@ -8548,6 +8757,15 @@ export type FeatureRequestHandover = {
   at: string
 }
 
+export type AccessRecord = {
+  who: string
+  what: string
+  targetProjectId: string
+  tool: string
+  why: string
+  at: number
+}
+
 export type FeatureRequest = {
   title: string
   summary?: string
@@ -8624,6 +8842,7 @@ export type FeatureRequest = {
   resumeToken?: {
     [key: string]: unknown
   }
+  accessRecords?: Array<AccessRecord>
   createdAt: string
   updatedAt: string
 }
@@ -8772,6 +8991,27 @@ export type FeatureRequestCandidate = {
 
 export type EditArgs = {
   [key: string]: unknown
+}
+
+export type TreeCloneEntryKind = 'dir' | 'file' | 'symlink' | 'other'
+
+export type TreeCloneStep =
+  | {
+      kind: 'clone'
+      rel: string
+    }
+  | {
+      kind: 'mkdir'
+      rel: string
+    }
+  | {
+      kind: 'copy'
+      rel: string
+    }
+
+export type ClonePair = {
+  source: string
+  destination: string
 }
 
 export type ReadableFileKind = 'text' | 'pdf' | 'binary'
@@ -10256,6 +10496,18 @@ export type SuspendedGapInput = {
   thresholdMs: number
 }
 
+export type HostRelaunchReadiness = {
+  failureKind: string
+  probeHost?: string
+  abortSignal?: unknown
+}
+
+export type SleptMsSinceInput = {
+  since: number
+  lastSleepAt?: number
+  lastWakeAt?: number
+}
+
 export type ImageDiffResult = {
   png: unknown
   changedPixels: number
@@ -11170,6 +11422,7 @@ export type MergeBranchWithChecksOptions = {
   noFastForward?: boolean
   commit?: boolean
   checkFirst?: boolean
+  into?: string
 }
 
 export type MergeBranchWithChecksOutcome = {
@@ -13059,6 +13312,7 @@ export type ProcessReviewVerdict = {
     visible: boolean
     reason: string
   }
+  followUps?: Array<string>
 }
 
 export type ProcessAlreadyMet = {
@@ -13257,6 +13511,7 @@ export type ProcessLedgerEntry = {
       visible: boolean
       reason: string
     }
+    followUps?: Array<string>
   }
   outsideScope?: Array<string>
   alreadyMet?: {
@@ -13327,6 +13582,7 @@ export type ProcessLedgerEntry = {
   startedAt: number
   endedAt?: number
   suspendedMs?: number
+  retriedAfterHostSleep?: true
   waitedMs?: number
   waitingSince?: number
   model?: {
@@ -13669,6 +13925,10 @@ export type ProcessRun = {
   input?: {
     [key: string]: unknown
   }
+  standaloneTask?: {
+    prompt: string
+    contextFiles?: Array<string>
+  }
   workBranch?: {
     name: string
     baseSha: string
@@ -13973,6 +14233,7 @@ export type ProcessRun = {
   reruns?: Array<ProcessStepRerun>
   pendingChanges?: Array<ProcessRunPendingChange>
   workBranchChanges?: Array<ProcessWorkBranchChange>
+  accessRecords?: Array<AccessRecord>
   cleanup?: {
     items: Array<ProcessCleanupItem>
     choices?: {
@@ -14450,6 +14711,17 @@ export type ProjectSpecCreateInput = {
       autonomy?: 'observe' | 'recommend' | 'act'
     }
     workLaunchMode?: 'process' | 'chat'
+    capabilities?: {
+      connectorWriteBack?: boolean
+      autoMerge?: boolean
+      autoFollowUp?: boolean
+    }
+    checkEnv?: {
+      values?: {
+        [key: string]: string
+      }
+      secrets?: Array<ProjectCheckEnvSecretRef>
+    }
     [key: string]: unknown
   }
   active?: boolean
@@ -14517,6 +14789,17 @@ export type ProjectSpecEditInput = {
       autonomy?: 'observe' | 'recommend' | 'act'
     }
     workLaunchMode?: 'process' | 'chat'
+    capabilities?: {
+      connectorWriteBack?: boolean
+      autoMerge?: boolean
+      autoFollowUp?: boolean
+    }
+    checkEnv?: {
+      values?: {
+        [key: string]: string
+      }
+      secrets?: Array<ProjectCheckEnvSecretRef>
+    }
     [key: string]: unknown
   }
   active?: boolean
@@ -14592,6 +14875,48 @@ export type ProjectAppBridgeResponse = {
   ok: boolean
   result?: unknown
   error?: string
+}
+
+export type ProjectAppCaptureHtmlRequest = {
+  id: string
+  type: string
+  payload?: unknown
+}
+
+export type ProjectAppCaptureHtmlResult = {
+  html: string
+}
+
+export type ProjectAppPickSetPayload = {
+  active: boolean
+}
+
+export type ProjectAppPickSetMessage = {
+  type: string
+  payload: ProjectAppPickSetPayload
+}
+
+export type ProjectAppPickRect = {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+export type ProjectAppPickSelectedPayload = {
+  selector: string
+  outerHtml: string
+  rect?: {
+    x: number
+    y: number
+    width: number
+    height: number
+  }
+}
+
+export type ProjectAppPickSelectedMessage = {
+  type: string
+  payload: ProjectAppPickSelectedPayload
 }
 
 export type ProjectAppDataPut = {
@@ -14673,6 +14998,21 @@ export type ProjectCheckHostTreeOptions = {
 }
 
 export type ProjectCheckBaselineCache = unknown
+
+export type ProjectCheckBaselineCacheEntry = {
+  results: Array<VerificationCheckResult>
+  ranAt: number
+}
+
+export type ProjectCheckBaselineStamp = {
+  ranAt: number
+  reused: boolean
+}
+
+export type ProjectCheckFreshRounds = {
+  head: Array<Array<string>>
+  base: Array<Array<string>>
+}
 
 export type ProjectCheckQueueScope = 'project' | 'host'
 
@@ -15144,6 +15484,15 @@ export type RunProjectCheckInput = {
   tests?: Array<string>
 }
 
+export type LiveProjectCheckEnv = {
+  values: {
+    [key: string]: string
+  }
+  secrets: {
+    [key: string]: string
+  }
+}
+
 export type ProjectCheckRunResult = {
   check: ProjectCheckKind
   status: 'passed' | 'failed' | 'error' | 'skipped' | 'not-detected' | 'refused' | 'running'
@@ -15532,6 +15881,7 @@ export type ProofPlanCapacity = {
   proverStep: boolean
   screensUnavailable?: string
   detectedChecks?: Array<ProjectCheckKind>
+  liveCheckEnv?: boolean
 }
 
 export type UiChangeScope = {
@@ -16475,6 +16825,9 @@ export type Product = {
     matchedOn?: 'brand' | 'name'
     checkedAt: string
   }
+  /**
+   * @deprecated
+   */
   offerDiagnosis?: {
     candidates: number
     kept: number
@@ -16531,6 +16884,25 @@ export type ProductUserOverlay = {
   }
 }
 
+export type ProductMarketFacts = {
+  availability?: string
+  priceLow?: number
+  currency?: string
+  offerDiagnosis?: {
+    candidates: number
+    kept: number
+    dropped: {
+      [key: string]: number
+    }
+  }
+  variantPrices?: {
+    [key: string]: {
+      price?: number
+      currency?: string
+    }
+  }
+}
+
 export type DecomposedItem = {
   product: Product
   offers: Array<ProductOffer>
@@ -16540,6 +16912,24 @@ export type DecomposedItem = {
     note?: string
     criteria?: {
       [key: string]: CriterionVerdict
+    }
+  }
+  marketFacts?: {
+    availability?: string
+    priceLow?: number
+    currency?: string
+    offerDiagnosis?: {
+      candidates: number
+      kept: number
+      dropped: {
+        [key: string]: number
+      }
+    }
+    variantPrices?: {
+      [key: string]: {
+        price?: number
+        currency?: string
+      }
     }
   }
 }
@@ -16835,7 +17225,7 @@ export type DiscoveredSupplier = {
 export type DiscoverSuppliersParams = {
   scope: string
   spec: ProductTypeSpec
-  market: string
+  market?: string
   region?: string
   language?: string
   model: ModelSelection
@@ -16870,7 +17260,7 @@ export type FindMoreReviewsParams = {
   scope: string
   recordType: string
   key: string
-  market: string
+  market?: string
   region?: string
   language?: string
   model: ModelSelection
@@ -17076,7 +17466,8 @@ export type StockFromLibraryParams = {
   scope: string
   recordType: string
   spec: ProductTypeSpec
-  market: string
+  market?: string
+  region?: string
   model: ModelSelection
   categoryPaths?: Array<Array<string>>
   limit?: number
@@ -17204,7 +17595,8 @@ export type GetMaterialParams = {
 export type VerifyProductImageryParams = {
   scope: string
   recordType: string
-  market: string
+  market?: string
+  region?: string
   criterionId: string
   model: ModelSelection
   visionModel?:
@@ -17237,7 +17629,8 @@ export type VerifyProductImageryResult = {
 export type GetCatalogHealthParams = {
   scope: string
   recordType: string
-  market: string
+  market?: string
+  region?: string
 }
 
 export type EscalationTransition = {
@@ -17268,7 +17661,8 @@ export type GetEscalationReportParams = {
   scope: string
   recordType: string
   criterionId: string
-  market: string
+  market?: string
+  region?: string
 }
 
 export type ListRulingProposalsParams = {
@@ -17750,11 +18144,18 @@ export type CodeReviewVerdictSection = {
 
 export type CodeReviewFindingSeverity = 'blocker' | 'major' | 'minor' | 'nit'
 
+export type CodeReviewFindingStanding = 'change' | 'base' | 'outside'
+
+export type CodeReviewFindingOrigin = 'unfixed' | 'introduced' | 'new'
+
 export type CodeReviewFinding = {
   severity: CodeReviewFindingSeverity
   where?: string
   title?: string
   text: string
+  standing?: 'change' | 'base' | 'outside'
+  origin?: 'unfixed' | 'introduced' | 'new'
+  reverses?: string
 }
 
 export type CodeReviewCriterionStatus = 'met' | 'partly' | 'not-met'
@@ -17942,6 +18343,12 @@ export type CaptureSessionPlan = {
   store: string
   session: string
   verdict: CaptureSessionVerdict
+}
+
+export type CodeReviewFindingsJudgement = {
+  blocking: Array<CodeReviewFinding>
+  followUps: Array<CodeReviewFinding>
+  reversals: Array<CodeReviewFinding>
 }
 
 export type VisualProofAssessment = {
@@ -18141,6 +18548,10 @@ export type SandboxScriptOptions = {
 export type SandboxProxyForRunOptions = {
   runId: string
   policy: SandboxPolicy
+  testOnlyFixture?: {
+    port: number
+    proxyImage: string
+  }
 }
 
 export type SandboxProxyTarget = {
@@ -18153,6 +18564,7 @@ export type SandboxProxySidecarOptions = {
   allowlist?: Array<string>
   imageName?: string
   readyTimeoutMs?: number
+  testOnlyFixturePort?: number
 }
 
 export type SearchRecordAudience = 'person' | 'agent'
@@ -19550,6 +19962,26 @@ export type UiStopAppResult = {
   stopped: boolean
 }
 
+export type UiProjectAppCaptureLiveness = {
+  mounted: boolean
+  consoleErrors: Array<string>
+}
+
+export type UiProjectAppCaptureAssert = {
+  mounted?: boolean
+  noConsoleErrors?: boolean
+}
+
+export type UiProjectAppCaptureResult = {
+  ok: boolean
+  html: string
+  screenshotPath?: string
+  htmlPath?: string
+  origin: string
+  liveness: UiProjectAppCaptureLiveness
+  error?: string
+}
+
 export type UiTreeSnapshot = {
   head: string
   commit: string
@@ -20458,6 +20890,89 @@ export type RetryRun = {
   workBranchChanges?: Array<ProcessWorkBranchChange>
 }
 
+export type FollowUpsRun = {
+  park?: {
+    reason: ProcessParkReason
+    stepId?: string
+    loopId?: string
+    message: string
+    parkedAt: number
+    pending?: {
+      cursor: ProcessRunCursor
+      viaLoopId?: string
+      continuesEntryId?: string
+      retryMode?: 'continue' | 'fresh'
+      resumesEntryId?: string
+      rechecksEntryId?: string
+    }
+    ask?: {
+      kind: ProcessWaitingKind
+      agent: string
+      title: string
+      detail: string
+      request?: {
+        actionId: string
+        actionKind: string
+        toolName?: string
+        host?: string
+        packageName?: string
+        ecosystem?: string
+        url?: string
+        args?: {
+          [key: string]: unknown
+        }
+      }
+      items?: Array<ProcessWaitingItem>
+      featureQuestionId?: string
+      runRef?: {
+        runId: string
+        agentRunId?: string
+        chatContextId?: string
+        runner?: 'api' | 'cli'
+      }
+      delegatedTo?: {
+        chatContextId: string
+        topicId: string
+        at: number
+      }
+      agentFailed?: true
+    }
+    stepInFlight?: boolean
+    childRunId?: string
+    baseConflict?: {
+      baseRef: string
+      baseSha: string
+      commits: number
+      paths: Array<string>
+      workSha?: string
+      keptOneSide?: Array<ProcessKeptOneSide>
+      lostExports?: Array<CodeIntelExportedSymbol>
+    }
+    waitingOn?: Array<string>
+    circling?: {
+      summary: string
+      signals: Array<ProcessCirclingSignal>
+      ranOut: boolean
+      turnsUsed?: number
+      maxTurns?: number
+      changed?: boolean
+      repeatedActions?: Array<ProcessCirclingRepeat>
+      flipFlopFiles?: Array<string>
+      sameFailures?: Array<string>
+      streak: number
+      afterRaise?: true
+      afterRetry?: true
+      afterManager?: true
+      tip?: string
+      at: number
+    }
+  }
+  plan: ProcessPlan
+  ledger: Array<ProcessLedgerEntry>
+} & {
+  storyId?: string
+}
+
 export type ClosureRun = {
   id: string
   status: ProcessRunStatus
@@ -20933,6 +21448,10 @@ export type ProcessRunChatState = {
     input?: {
       [key: string]: unknown
     }
+    standaloneTask?: {
+      prompt: string
+      contextFiles?: Array<string>
+    }
     workBranch?: {
       name: string
       baseSha: string
@@ -21237,6 +21756,7 @@ export type ProcessRunChatState = {
     reruns?: Array<ProcessStepRerun>
     pendingChanges?: Array<ProcessRunPendingChange>
     workBranchChanges?: Array<ProcessWorkBranchChange>
+    accessRecords?: Array<AccessRecord>
     cleanup?: {
       items: Array<ProcessCleanupItem>
       choices?: {
@@ -21740,6 +22260,10 @@ export type ProcessRunSummary = {
   input?: {
     [key: string]: unknown
   }
+  standaloneTask?: {
+    prompt: string
+    contextFiles?: Array<string>
+  }
   workBranch?: {
     name: string
     baseSha: string
@@ -22154,6 +22678,7 @@ export type ProcessRunDecision =
         | 'recheck'
         | 'close-unmerged'
         | 'accept-dropped-change'
+        | 'accept-with-follow-ups'
       note?: string
     }
   | {
@@ -22301,6 +22826,7 @@ export type ProcessStepResult = {
       visible: boolean
       reason: string
     }
+    followUps?: Array<string>
   }
   outsideScope?: Array<string>
   alreadyMet?: {
@@ -22454,6 +22980,10 @@ export type StartProcessRunInput = {
   }
   input?: {
     [key: string]: unknown
+  }
+  standaloneTask?: {
+    prompt: string
+    contextFiles?: Array<string>
   }
   workBranch?: {
     name: string
@@ -22667,6 +23197,7 @@ export type ProcessStepState = {
         visible: boolean
         reason: string
       }
+      followUps?: Array<string>
     }
     outsideScope?: Array<string>
     alreadyMet?: {
@@ -22737,6 +23268,7 @@ export type ProcessStepState = {
     startedAt: number
     endedAt?: number
     suspendedMs?: number
+    retriedAfterHostSleep?: true
     waitedMs?: number
     waitingSince?: number
     model?: {
@@ -23822,6 +24354,8 @@ export type AddMessagesInput = {
     }
     suggestedActions?: Array<string>
     thinking?: string
+    toolsAttached?: number
+    turnToolNames?: Array<string>
     cliRunId?: string
     featureRequestId?: string
     processRunId?: string
@@ -23829,6 +24363,25 @@ export type AddMessagesInput = {
     processRunChecksEntryId?: string
     processGroupRunId?: string
     handoffFrom?: string
+    appSelections?: Array<{
+      id: string
+      projectId: string
+      view?: string
+      params?: {
+        [key: string]: string
+      }
+      comment: string
+      selector: string
+      outerHtml: string
+      rect?: {
+        x: number
+        y: number
+        width: number
+        height: number
+        space: 'app-viewport'
+      }
+      screenshotFile?: string
+    }>
     answersHandoffFrom?: string
     backgroundResults?: Array<{
       jobId: string
@@ -26249,6 +26802,7 @@ export type ResumeProcessRunData = {
       | 'recheck'
       | 'close-unmerged'
       | 'accept-dropped-change'
+      | 'accept-with-follow-ups'
     /**
      * The app the person decided on — recorded on the decision with `decidedBy: person`. Required: a decision nobody can attribute is refused.
      */
@@ -33449,6 +34003,7 @@ export type GitCommitResponse = GitCommitResponses[keyof GitCommitResponses]
 export type GitMergeBranchData = {
   body: {
     source: string
+    into?: string
     noFastForward?: boolean
     commit?: boolean
     checkFirst?: boolean
@@ -35724,6 +36279,8 @@ export type SendCompletionWithToolsResponses = {
           }
           suggestedActions?: Array<string>
           thinking?: string
+          toolsAttached?: number
+          turnToolNames?: Array<string>
           cliRunId?: string
           featureRequestId?: string
           processRunId?: string
@@ -35731,6 +36288,25 @@ export type SendCompletionWithToolsResponses = {
           processRunChecksEntryId?: string
           processGroupRunId?: string
           handoffFrom?: string
+          appSelections?: Array<{
+            id: string
+            projectId: string
+            view?: string
+            params?: {
+              [key: string]: string
+            }
+            comment: string
+            selector: string
+            outerHtml: string
+            rect?: {
+              x: number
+              y: number
+              width: number
+              height: number
+              space: 'app-viewport'
+            }
+            screenshotFile?: string
+          }>
           answersHandoffFrom?: string
           backgroundResults?: Array<{
             jobId: string
@@ -35862,6 +36438,8 @@ export type SendChatCompletionWithToolsData = {
       }
       suggestedActions?: Array<string>
       thinking?: string
+      toolsAttached?: number
+      turnToolNames?: Array<string>
       cliRunId?: string
       featureRequestId?: string
       processRunId?: string
@@ -35869,6 +36447,25 @@ export type SendChatCompletionWithToolsData = {
       processRunChecksEntryId?: string
       processGroupRunId?: string
       handoffFrom?: string
+      appSelections?: Array<{
+        id: string
+        projectId: string
+        view?: string
+        params?: {
+          [key: string]: string
+        }
+        comment: string
+        selector: string
+        outerHtml: string
+        rect?: {
+          x: number
+          y: number
+          width: number
+          height: number
+          space: 'app-viewport'
+        }
+        screenshotFile?: string
+      }>
       answersHandoffFrom?: string
       backgroundResults?: Array<{
         jobId: string
@@ -36004,6 +36601,8 @@ export type SendChatCompletionWithToolsResponses = {
           }
           suggestedActions?: Array<string>
           thinking?: string
+          toolsAttached?: number
+          turnToolNames?: Array<string>
           cliRunId?: string
           featureRequestId?: string
           processRunId?: string
@@ -36011,6 +36610,25 @@ export type SendChatCompletionWithToolsResponses = {
           processRunChecksEntryId?: string
           processGroupRunId?: string
           handoffFrom?: string
+          appSelections?: Array<{
+            id: string
+            projectId: string
+            view?: string
+            params?: {
+              [key: string]: string
+            }
+            comment: string
+            selector: string
+            outerHtml: string
+            rect?: {
+              x: number
+              y: number
+              width: number
+              height: number
+              space: 'app-viewport'
+            }
+            screenshotFile?: string
+          }>
           answersHandoffFrom?: string
           backgroundResults?: Array<{
             jobId: string
@@ -36142,6 +36760,8 @@ export type SendChatWithCliData = {
       }
       suggestedActions?: Array<string>
       thinking?: string
+      toolsAttached?: number
+      turnToolNames?: Array<string>
       cliRunId?: string
       featureRequestId?: string
       processRunId?: string
@@ -36149,6 +36769,25 @@ export type SendChatWithCliData = {
       processRunChecksEntryId?: string
       processGroupRunId?: string
       handoffFrom?: string
+      appSelections?: Array<{
+        id: string
+        projectId: string
+        view?: string
+        params?: {
+          [key: string]: string
+        }
+        comment: string
+        selector: string
+        outerHtml: string
+        rect?: {
+          x: number
+          y: number
+          width: number
+          height: number
+          space: 'app-viewport'
+        }
+        screenshotFile?: string
+      }>
       answersHandoffFrom?: string
       backgroundResults?: Array<{
         jobId: string
@@ -36408,6 +37047,8 @@ export type ResumeCompletionResponses = {
           }
           suggestedActions?: Array<string>
           thinking?: string
+          toolsAttached?: number
+          turnToolNames?: Array<string>
           cliRunId?: string
           featureRequestId?: string
           processRunId?: string
@@ -36415,6 +37056,25 @@ export type ResumeCompletionResponses = {
           processRunChecksEntryId?: string
           processGroupRunId?: string
           handoffFrom?: string
+          appSelections?: Array<{
+            id: string
+            projectId: string
+            view?: string
+            params?: {
+              [key: string]: string
+            }
+            comment: string
+            selector: string
+            outerHtml: string
+            rect?: {
+              x: number
+              y: number
+              width: number
+              height: number
+              space: 'app-viewport'
+            }
+            screenshotFile?: string
+          }>
           answersHandoffFrom?: string
           backgroundResults?: Array<{
             jobId: string
@@ -37843,6 +38503,25 @@ export type ListChatToolCatalogData = {
      * Which transport the chat runs on. Defaults to 'api'.
      */
     runner?: 'api' | 'cli'
+    type?:
+      | 'GENERAL'
+      | 'GROUP'
+      | 'GROUP_TOPIC'
+      | 'PROJECT'
+      | 'STORY'
+      | 'FEATURE'
+      | 'AGENT_RUN_STORY'
+      | 'AGENT_RUN_FEATURE'
+      | 'AGENT_RUN_TASK'
+      | 'PROJECT_TOPIC'
+      | 'FEATURE_REQUEST'
+    groupId?: string
+    projectId?: string
+    storyId?: string
+    featureId?: string
+    agentRunId?: string
+    topicId?: string
+    featureRequestId?: string
   }
   url: '/api/v1/tools/chat-catalog'
 }
@@ -41326,6 +42005,46 @@ export type ListStoryGroupStoriesResponses = {
 
 export type ListStoryGroupStoriesResponse =
   ListStoryGroupStoriesResponses[keyof ListStoryGroupStoriesResponses]
+
+export type ListProjectGroupStoriesData = {
+  body?: never
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/group-stories'
+}
+
+export type ListProjectGroupStoriesErrors = {
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ListProjectGroupStoriesError =
+  ListProjectGroupStoriesErrors[keyof ListProjectGroupStoriesErrors]
+
+export type ListProjectGroupStoriesResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    [key: string]: Array<{
+      groupId: string
+      groupTitle: string
+      groupStoryId: string
+      title: string
+    }>
+  }
+}
+
+export type ListProjectGroupStoriesResponse =
+  ListProjectGroupStoriesResponses[keyof ListProjectGroupStoriesResponses]
 
 export type IngestAllData = {
   body?: never

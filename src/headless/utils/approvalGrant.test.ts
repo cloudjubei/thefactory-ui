@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  START_FEATURE_WORK_TOOL_NAME,
   formatGrantDetail,
   grantDetailView,
   isStartFeatureWorkGrant,
@@ -13,6 +12,7 @@ import {
   panelApprovalGrants,
 } from './approvalGrant'
 import type { PendingToolGrant } from './chatTypes'
+import { START_FEATURE_WORK_TOOL_NAME } from './pendingToolGrantsConstants'
 
 function grant(over: Partial<PendingToolGrant> = {}): PendingToolGrant {
   return {
@@ -352,6 +352,26 @@ describe('isToolAskDecidedOnRow', () => {
   it('leaves accepting a feature request to its own card, where the way its work starts is picked', () => {
     expect(isToolAskDecidedOnRow('acceptProjectFeatureRequest')).toBe(false)
     expect(isToolAskDecidedOnRow('rejectProjectFeatureRequest')).toBe(true)
+  })
+
+  it('decides a host tool with a card of its own on its row', () => {
+    expect(isToolAskDecidedOnRow('requestHostFileRead')).toBe(true)
+    expect(isToolAskDecidedOnRow('commitGitChanges')).toBe(true)
+    expect(isToolAskDecidedOnRow('applyDesignTidy')).toBe(true)
+  })
+
+  it('leaves a question or a form the person answers to the composer', () => {
+    expect(isToolAskDecidedOnRow('askUser')).toBe(false)
+    expect(isToolAskDecidedOnRow('requestCliSignIn')).toBe(false)
+  })
+
+  it('reads an MCP-prefixed name as the bare tool', () => {
+    expect(isToolAskDecidedOnRow('mcp__thefactory__startGroupWork')).toBe(false)
+    expect(isToolAskDecidedOnRow('mcp__thefactory__addStory')).toBe(true)
+  })
+
+  it('decides an ask naming no tool on its row', () => {
+    expect(isToolAskDecidedOnRow(undefined)).toBe(true)
   })
 })
 

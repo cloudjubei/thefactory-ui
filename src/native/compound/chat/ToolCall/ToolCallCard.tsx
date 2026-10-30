@@ -15,9 +15,12 @@ import {
 import type {
   AlwaysAllowScope,
   GrantCovers,
+  PendingToolGrant,
   ToolCallLike,
   ToolResultTypeLike,
 } from '../../../../headless/utils/chatTypes'
+import { toolAskRowView } from '../../../../headless/utils/toolAskRow'
+import ToolAskRowCard from '../ToolAskRowCard'
 import { alwaysAllowChoiceView } from '../../../../headless/utils/alwaysAllow'
 import {
   isSendChatMessageTool,
@@ -25,6 +28,11 @@ import {
 } from '../../../../headless/utils/sendChatMessageView'
 import AlwaysAllowControl from '../AlwaysAllowControl'
 import SendChatMessageCard from '../SendChatMessageCard'
+import StoredSecretCard from '../StoredSecretCard'
+import {
+  isShowStoredSecretTool,
+  storedSecretView,
+} from '../../../../headless/utils/storedSecretView'
 import { nativePalette, nativeRadii, nativeSpace } from '../../../../tokens/native'
 import { useNativeTheme } from '../../../hooks/useNativeTheme'
 import { StatusChip, StatusIcon, statusVisual } from './StatusIcon'
@@ -84,6 +92,14 @@ export type ToolCallCardProps = {
   onResourceLink?: (link: ResourceLink) => void
   /** The chat this row is in, by name — the sender of a message the call sends to another chat. */
   sourceChatTitle?: string
+  /**
+   * The ask this row decides. Where its card says more than the row, the row
+   * reads compact — the card's headline, "Cannot be undone" where it is — and
+   * opens to that card on tap, in place of the preview.
+   */
+  ask?: PendingToolGrant
+  /** Start with the ask's card open. */
+  askOpen?: boolean
 }
 
 const CHAT_ONLY: readonly AlwaysAllowScope[] = ['chat']
@@ -114,9 +130,23 @@ function ToolCallCardInner({
   onAlwaysAllow,
   onResourceLink,
   sourceChatTitle,
+  ask,
+  askOpen = false,
 }: ToolCallCardProps) {
   const { theme, status: statusTokens } = useNativeTheme()
   const [argsOpen, setArgsOpen] = useState(false)
+  const askView = useMemo(
+    () => (ask && selectable ? toolAskRowView(ask) : undefined),
+    [ask, selectable],
+  )
+  const [cardOpen, setCardOpen] = useState(askOpen)
+  const storedSecret = useMemo(
+    () =>
+      isShowStoredSecretTool(toolCall.name)
+        ? storedSecretView({ args: toolCall.arguments, result, resultType })
+        : undefined,
+    [toolCall.name, toolCall.arguments, result, resultType],
+  )
   const [resultOpen, setResultOpen] = useState(false)
   // A running call's row counts how long it has waited; nothing else re-renders
   // a memoised card while its call is open.
@@ -193,12 +223,21 @@ function ToolCallCardInner({
   // pressable for any tap), so tapping near either of those does NOT
   // bubble to the card-level preview handler — matches the user's spec
   // for item 7.
+  const onPress = askView ? () => setCardOpen((v) => !v) : onPreview
   return (
     <Pressable
-      onPress={onPreview}
-      disabled={!onPreview}
-      accessibilityRole={onPreview ? 'button' : undefined}
-      accessibilityLabel={onPreview ? `Show preview for ${toolCall.name}` : undefined}
+      onPress={onPress}
+      disabled={!onPress}
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityLabel={
+        askView
+          ? cardOpen
+            ? 'Hide details'
+            : 'Show details'
+          : onPreview
+            ? `Show preview for ${toolCall.name}`
+            : undefined
+      }
       style={{
         borderRadius: nativeRadii[2],
         borderWidth: 1,
@@ -248,6 +287,24 @@ function ToolCallCardInner({
               : undefined
           }
         />
+        {askView?.tag ? (
+          <Text
+            numberOfLines={1}
+            style={{
+              flexShrink: 0,
+              borderRadius: nativeRadii.round,
+              overflow: 'hidden',
+              paddingHorizontal: nativeSpace[3],
+              paddingVertical: 1,
+              fontSize: 11,
+              fontWeight: '600',
+              color: statusTokens.blocked.softFg,
+              backgroundColor: statusTokens.blocked.softBg,
+            }}
+          >
+            {askView.tag}
+          </Text>
+        ) : null}
         {selectable && onAlwaysAllow ? (
           <AlwaysAllowControl
             view={alwaysAllowChoiceView({
@@ -263,7 +320,21 @@ function ToolCallCardInner({
         {selectable ? (
           <Switch checked={selected} onCheckedChange={() => onToggleSelect?.()} />
         ) : null}
-        {hasArgs ? (
+        {askView ? (
+          <Pressable
+            onPress={() => setCardOpen((v) => !v)}
+            accessibilityRole="button"
+            accessibilityLabel={cardOpen ? 'Hide details' : 'Show details'}
+            hitSlop={8}
+            style={{ padding: 2 }}
+          >
+            {cardOpen ? (
+              <IconChevronDown size={14} color={theme.text.secondary} />
+            ) : (
+              <IconChevronRight size={14} color={theme.text.secondary} />
+            )}
+          </Pressable>
+        ) : hasArgs ? (
           <Pressable
             onPress={() => setArgsOpen((v) => !v)}
             accessibilityRole="button"
@@ -280,7 +351,20 @@ function ToolCallCardInner({
         ) : null}
       </View>
 
-      {argDisplay ? (
+      {askView ? (
+        <Text
+          numberOfLines={1}
+          style={{
+            marginTop: -nativeSpace[2],
+            paddingHorizontal: PAD,
+            paddingBottom: PAD,
+            fontSize: 13,
+            color: theme.text.secondary,
+          }}
+        >
+          {askView.headline}
+        </Text>
+      ) : argDisplay ? (
         <View
           style={{
             flexDirection: 'row',
@@ -333,6 +417,21 @@ function ToolCallCardInner({
               {...(sourceChatTitle ? { sourceChatTitle } : {})}
             />
           )}
+        </View>
+      ) : null}
+
+      {storedSecret ? (
+        <View
+          style={{
+            paddingHorizontal: PAD,
+            paddingTop: PAD,
+            paddingBottom: PAD,
+            borderTopWidth: 1,
+            borderTopColor: theme.border.subtle,
+            backgroundColor: theme.surface.base,
+          }}
+        >
+          <StoredSecretCard secret={storedSecret} />
         </View>
       ) : null}
 
@@ -417,6 +516,21 @@ function ToolCallCardInner({
             </Pressable>
           ) : null}
         </View>
+      ) : null}
+
+      {ask && askView && cardOpen ? (
+        <Pressable
+          onPress={() => {}}
+          accessible={false}
+          style={{
+            padding: PAD,
+            borderTopWidth: 1,
+            borderTopColor: theme.border.subtle,
+            backgroundColor: theme.surface.base,
+          }}
+        >
+          <ToolAskRowCard grant={ask} onClose={() => setCardOpen(false)} />
+        </Pressable>
       ) : null}
     </Pressable>
   )

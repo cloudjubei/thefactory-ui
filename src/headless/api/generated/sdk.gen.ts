@@ -716,6 +716,9 @@ import type {
   ListProjectDataSubscriptionsData,
   ListProjectDataSubscriptionsErrors,
   ListProjectDataSubscriptionsResponses,
+  ListProjectGroupStoriesData,
+  ListProjectGroupStoriesErrors,
+  ListProjectGroupStoriesResponses,
   ListProjectNotesData,
   ListProjectNotesErrors,
   ListProjectNotesResponses,
@@ -6782,6 +6785,20 @@ export const listStoryGroupStories = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/projects/{projectId}/stories/{storyId}/group-stories',
+    ...options,
+  })
+
+export const listProjectGroupStories = <ThrowOnError extends boolean = false>(
+  options: Options<ListProjectGroupStoriesData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ListProjectGroupStoriesResponses,
+    ListProjectGroupStoriesErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/group-stories',
     ...options,
   })
 

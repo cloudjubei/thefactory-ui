@@ -9,6 +9,7 @@ import {
   groupStoryNeedTitles,
   groupStoryProgress,
   groupStoryRunBlockedReason,
+  groupStoriesOfStory,
   groupStoryStepColumns,
   isLiveGroupStoryRun,
 } from './groupStoryView'
@@ -287,5 +288,24 @@ describe('groupStoryNeedOptions', () => {
       ],
     }
     expect(groupStoryNeedOptions(form, 'ui')).toEqual([{ id: 'backend', title: 'Backend' }])
+  })
+})
+
+describe('groupStoriesOfStory', () => {
+  const membership = {
+    groupId: 'factory',
+    groupTitle: 'TheFactory',
+    groupStoryId: 'gs1',
+    title: 'Knowledge in every run',
+  }
+
+  it('is the group stories a listed story is a part of', () => {
+    expect(groupStoriesOfStory({ s1: [membership] }, 's1')).toEqual([membership])
+  })
+
+  it('is none, the same list every time, for a story that is no part', () => {
+    const none = groupStoriesOfStory({ s1: [membership] }, 's2')
+    expect(none).toEqual([])
+    expect(groupStoriesOfStory({}, 's3')).toBe(none)
   })
 })

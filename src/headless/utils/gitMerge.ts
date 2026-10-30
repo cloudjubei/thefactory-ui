@@ -27,13 +27,16 @@ export function mergeSourceRef(
 
 /**
  * The branches the "Merge…" sheet offers: local ones, then remote ones, those
- * matching `query`, the current branch disabled.
+ * matching `query`, the branch merged into disabled — `into`, or the current one.
  */
 export function mergeSourceOptions(
   branches: readonly GitUnifiedBranch[],
   current: string | undefined,
   query: string,
+  into?: string,
 ): GitMergeSourceOption[] {
+  const target = into ?? current
+  const targetReason = into ? GIT_MERGE_TEXT.targetBranch : GIT_MERGE_TEXT.currentBranch
   const needle = query.trim().toLowerCase()
   const options: GitMergeSourceOption[] = [
     ...branches
@@ -46,18 +49,24 @@ export function mergeSourceOptions(
   return options
     .filter((o) => !needle || o.ref.toLowerCase().includes(needle))
     .map((o) =>
-      o.kind === 'local' && o.ref === current
-        ? { ...o, disabledReason: GIT_MERGE_TEXT.currentBranch }
-        : o,
+      o.kind === 'local' && o.ref === target ? { ...o, disabledReason: targetReason } : o,
     )
 }
 
-/** Why `source` cannot be merged into `current` now; `undefined` when it can. */
+/**
+ * Why `source` cannot be merged into `current` now — or into `into`, a branch not
+ * checked out, which the checkout's state does not touch; `undefined` when it can.
+ */
 export function mergeBlockedReason(input: {
   current: string | undefined
   merging: boolean
   source: string | undefined
+  into?: string
 }): string | undefined {
+  if (input.into) {
+    if (!input.source) return GIT_MERGE_TEXT.pickSource
+    return input.source === input.into ? GIT_MERGE_TEXT.targetBranch : undefined
+  }
   if (!input.current) return GIT_MERGE_TEXT.detached
   if (input.merging) return GIT_MERGE_TEXT.inProgress
   if (!input.source) return GIT_MERGE_TEXT.pickSource
@@ -70,7 +79,10 @@ export function mergeSentence(source: string, into: string): string {
   return `Merge '${source}' into '${into}'`
 }
 
-/** A branch row's context menu: merge it into the current branch, plus what the Git view already does with a branch. */
+/**
+ * A branch row's context menu: merge it into the current branch, merge the
+ * current branch into a local one, plus what the Git view already does with a branch.
+ */
 export function branchMenuItems(input: GitBranchMenuInput): GitBranchMenuItem[] {
   const { branch, section, current, merging } = input
   const ref = mergeSourceRef(branch, section)
@@ -86,6 +98,12 @@ export function branchMenuItems(input: GitBranchMenuInput): GitBranchMenuItem[] 
     },
   ]
   if (isCurrent) return items
+  if (section === 'local' && current) {
+    items.push({ action: 'merge-in', label: `Merge ${current} into ${branch.name}` })
+  }
+  if (section === 'local' && canPushBranch(branch)) {
+    items.push({ action: 'push', label: GIT_MERGE_TEXT.pushBranch(branch.name, branch.ahead ?? 0) })
+  }
   if (section === 'local') {
     const checkoutReason = merging
       ? GIT_MERGE_TEXT.inProgress
@@ -103,6 +121,16 @@ export function branchMenuItems(input: GitBranchMenuInput): GitBranchMenuItem[] 
   }
   items.push({ action: 'delete', label: `Delete ${branch.name}…`, destructive: true })
   return items
+}
+
+/**
+ * Whether a branch has something to push without checking it out: a local
+ * branch with commits its remote lacks, or one the remote has never had.
+ */
+export function canPushBranch(
+  branch: Pick<GitUnifiedBranch, 'isLocal' | 'isRemote' | 'ahead'>,
+): boolean {
+  return branch.isLocal && ((branch.ahead ?? 0) > 0 || !branch.isRemote)
 }
 
 /** What the Git view says once a merge returns — and, under it, how its result's checks went. */
@@ -165,14 +193,16 @@ export function commitsToBringInLabel(count: number, capped: boolean): string {
 
 /**
  * Whether the "Merge…" sheet starts with the result built and type-checked
- * first: for a merge committed right away into the repository's default branch.
+ * first: for a merge committed right away into the repository's default branch —
+ * `into`, or the current branch.
  */
 export function mergeChecksOnByDefault(
   branches: readonly Pick<GitUnifiedBranch, 'name' | 'current' | 'isDefault'>[],
   commit: boolean,
+  into?: string,
 ): boolean {
   return mergeChecksDefault({
-    into: branches.find((b) => b.current)?.name,
+    into: into ?? branches.find((b) => b.current)?.name,
     defaultBranch: branches.find((b) => b.isDefault)?.name,
     commit,
   })

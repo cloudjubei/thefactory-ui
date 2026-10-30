@@ -1,6 +1,7 @@
 import type {
   CreateGroupStoryData,
   ListGroupStoriesResponses,
+  ListProjectGroupStoriesResponses,
   ListStoryGroupStoriesResponses,
   PreviewGroupStoryRunResponses,
   RunGroupStoryData,
@@ -17,6 +18,9 @@ export type GroupStoryRunSummary = NonNullable<GroupStoryView['latestRun']>
 
 /** A group story a story is a part of — what the story's header links back to. */
 export type GroupStoryMembership = ListStoryGroupStoriesResponses[200][number]
+
+/** The group stories each of a project's stories is a part of, by story id — what a story list's rows show. */
+export type GroupStoryMembershipsByStory = ListProjectGroupStoriesResponses[200]
 
 /** What creating or changing a group story sends. */
 export type GroupStoryWriteBody = NonNullable<CreateGroupStoryData['body']>

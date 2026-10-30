@@ -440,6 +440,15 @@ export {
   projectStableBranchOf,
 } from './utils/projectStableBranch'
 export * from './utils/projectStableBranchConstants'
+export {
+  projectCheckEnvError,
+  projectCheckEnvFromRows,
+  projectCheckEnvOf,
+  projectCheckEnvRowErrors,
+  projectCheckEnvRows,
+} from './utils/projectCheckEnv'
+export * from './utils/projectCheckEnvConstants'
+export type * from './utils/projectCheckEnvTypes'
 export { projectMetadataCarried } from './utils/projectFormMetadata'
 export * from './utils/projectFormMetadataConstants'
 export {
@@ -860,8 +869,13 @@ export {
   formatChangeRequestMessage,
 } from './utils/runReview'
 export {
-  LAUNCH_NOTE_MAX_CHARS,
+  COMPOSER_LAUNCH_TOOL_NAMES,
   START_FEATURE_WORK_TOOL_NAME,
+  USER_INPUT_ACTION_KINDS,
+  USER_INPUT_TOOL_NAMES,
+} from './utils/pendingToolGrantsConstants'
+export {
+  LAUNCH_NOTE_MAX_CHARS,
   formatGrantDetail,
   grantDetailView,
   launchRefusalMessage,
@@ -2261,6 +2275,7 @@ export {
   toolAskDecidedLinesAwaitingRows,
   toolAskScopeOptions,
 } from './utils/toolAskCard'
+export { toolAskRowView } from './utils/toolAskRow'
 export {
   FEATURE_WORK_ASK,
   GIT_SETUP_ASK,
@@ -2273,6 +2288,7 @@ export {
 export type {
   ToolAskBody,
   ToolAskCardView,
+  ToolAskRowView,
   ToolAskDecidedLine,
   ToolAskIcon,
   ToolAskLaunchCheck,
@@ -2555,6 +2571,7 @@ export { useGroupStories, type UseGroupStories } from './hooks/useGroupStories'
 export { useGroupStory, type UseGroupStory } from './hooks/useGroupStory'
 export { useGroupStoryRun, type UseGroupStoryRun } from './hooks/useGroupStoryRun'
 export { useStoryGroupStories } from './hooks/useStoryGroupStories'
+export { useProjectGroupStories } from './hooks/useProjectGroupStories'
 export {
   useGroupStoryRunPreview,
   type UseGroupStoryRunPreview,
@@ -2572,6 +2589,7 @@ export {
   groupStoryNeedTitles,
   groupStoryProgress,
   groupStoryRunBlockedReason,
+  groupStoriesOfStory,
   groupStoryStepColumns,
   isLiveGroupStoryRun,
 } from './utils/groupStoryView'
@@ -2580,6 +2598,7 @@ export type {
   GroupStoryFormRow,
   GroupStoryMemberProject,
   GroupStoryMembership,
+  GroupStoryMembershipsByStory,
   GroupStoryPartChoice,
   GroupStoryPartView,
   GroupStoryRunBody,
@@ -3790,6 +3809,7 @@ export type { GitCommitLinkResolution } from './utils/gitCommitLinkTypes'
 export { useGitCommitLink } from './hooks/useGitCommitLink'
 export {
   branchMenuItems,
+  canPushBranch,
   commitsToBringInLabel,
   mergeBannerTitle,
   mergeBlockedReason,

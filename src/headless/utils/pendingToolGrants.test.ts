@@ -1,4 +1,10 @@
-import { MCP_TOOL_CALL_ACTION_KIND } from 'thefactory-tools/constants'
+import {
+  CLI_AGENT_BLOCKER_KIND,
+  CLI_AGENT_QUESTION_KIND,
+  CLI_AGENT_REMEDY_KIND,
+  CLI_AGENT_UNFILTERABLE_MCP_TOOL_NAMES,
+  MCP_TOOL_CALL_ACTION_KIND,
+} from 'thefactory-tools/constants'
 import { describe, it, expect } from 'vitest'
 import {
   cliDecideOutcome,
@@ -19,7 +25,13 @@ import {
   isAskOutcomeEvent,
   cliActionEventConcernsChat,
   cliRunLifecycleConcernsChat,
+  isActionDecidedOnRow,
 } from './pendingToolGrants'
+import {
+  COMPOSER_LAUNCH_TOOL_NAMES,
+  USER_INPUT_ACTION_KINDS,
+  USER_INPUT_TOOL_NAMES,
+} from './pendingToolGrantsConstants'
 import type { ChatContextAgentRunStory } from '../api/generated'
 
 describe('pendingActionToolName', () => {
@@ -80,40 +92,39 @@ describe('cliPendingActionToGrant — ordinary tool asks are decided on their ro
     ).toBe('run-3')
   })
 
-  it.each(['project-note-read'])(
-    'decides a host tool’s ask raised as %s on its row, as an MCP tool call',
-    (kind) => {
-      expect(
-        cliPendingActionToGrant({
-          id: 'a-6',
-          kind,
-          payload: { tool: 'sendChatMessage', args: { message: 'hi' } },
-        }),
-      ).toMatchObject({ inline: true, toolName: 'sendChatMessage', args: { message: 'hi' } })
+  it.each([
+    ['requestHostFileRead', 'host-file-read'],
+    ['requestNetworkUnlock', 'network-unlock'],
+    ['inspectProjectPath', 'inspect-host-path'],
+    ['answerRunPark', 'process-run-chat:answerRunPark'],
+    ['sendChatMessage', 'chat-message-send'],
+    ['writeProjectFile', 'project-file-write'],
+    ['commitGitChanges', 'project-git-change:commitGitChanges'],
+    ['deleteDesignApp', 'design:deleteDesignApp'],
+  ])('decides %s, raised under a kind of its own (%s), on its row', (tool, kind) => {
+    expect(
+      cliPendingActionToGrant({ id: 'a-6', kind, payload: { tool, args: { x: 1 } } }),
+    ).toMatchObject({ inline: true, toolName: tool, args: { x: 1 } })
+  })
+
+  it.each(['startFeatureWork', 'startGroupWork', 'acceptProjectFeatureRequest'])(
+    'keeps the launch %s in the composer’s place',
+    (tool) => {
+      const grant = cliPendingActionToGrant({
+        id: 'a-8',
+        kind: MCP_TOOL_CALL_ACTION_KIND,
+        payload: { tool, args: { storyId: 's' } },
+      })
+      expect(grant.inline).toBeUndefined()
     },
   )
 
   it.each([
-    'network-unlock',
-    'inspect-host-path',
-    'process-run-chat:answerRunPark',
-    'chat-message-send',
-    'project-file-write',
-  ])('leaves a boundary or a request with a card of its own (%s) for the panel', (kind) => {
-    const grant = cliPendingActionToGrant({
-      id: 'a-5',
-      kind,
-      payload: { tool: 'answerRunPark', args: {} },
-    })
-    expect(grant.inline).toBeUndefined()
-  })
-
-  it('leaves a request of its own kind for the approval panel', () => {
-    const grant = cliPendingActionToGrant({
-      id: 'a-8',
-      kind: 'start-feature-work',
-      payload: { tool: 'startFeatureWork', args: { storyId: 's' } },
-    })
+    ['askUser', 'question'],
+    ['reportBlocked', 'blocker'],
+    ['fixDevice', 'remedy'],
+  ])('leaves %s, answered rather than approved (%s), off the row', (tool, kind) => {
+    const grant = cliPendingActionToGrant({ id: 'a-4', kind, payload: { tool, args: {} } })
     expect(grant.inline).toBeUndefined()
   })
 })
@@ -220,6 +231,7 @@ describe('cliPendingActionToGrant', () => {
       detail: { host: 'x' },
       alwaysAllowScopes: ['everywhere'],
       grantCovers: 'exact-call',
+      inline: true,
     })
   })
 
@@ -877,5 +889,299 @@ describe('cliActionEventConcernsChat', () => {
     expect(cliActionEventConcernsChat(event(undefined), 'chat-1')).toBe(true)
     expect(cliActionEventConcernsChat(event({ id: 'a1', chatContextId: 7 }), 'chat-1')).toBe(true)
     expect(cliActionEventConcernsChat(null, 'chat-1')).toBe(true)
+  })
+})
+
+/**
+ * Every ask the backend can raise in a chat — each chat scope's gated host
+ * tools, the tools that ask under the MCP tool-call kind, and thefactory-tools'
+ * gated CLI tools — as `[tool, kind]`, read off the backend's chat tool bundles
+ * for a project, story, feature, topic, run, feature-request, agent-run, group
+ * and general chat.
+ */
+const BACKEND_ASKS: ReadonlyArray<readonly [string, string]> = [
+  ['abortGitMerge', 'project-git-change:abortGitMerge'],
+  ['acceptDesignProposal', 'design:acceptDesignProposal'],
+  ['acceptProjectFeatureRequest', 'tool-call'],
+  ['addDesignApp', 'tool-call'],
+  ['addDesignScreen', 'tool-call'],
+  ['addDesignState', 'tool-call'],
+  ['addFeature', 'group-planning:addFeature'],
+  ['addFeature', 'tool-call'],
+  ['addStory', 'group-planning:addStory'],
+  ['addStory', 'tool-call'],
+  ['addStoryNote', 'group-planning:addStoryNote'],
+  ['addStoryNote', 'tool-call'],
+  ['answerGroupRunPark', 'process-group-run-action:answerGroupRunPark'],
+  ['answerRunPark', 'process-run-action:answerRunPark'],
+  ['answerRunPark', 'process-run-chat:answerRunPark'],
+  ['applyDesignTidy', 'design:applyDesignTidy'],
+  ['applyGitMergePlan', 'project-git-change:applyGitMergePlan'],
+  ['applyGitPatch', 'project-git-change:applyGitPatch'],
+  ['applyGitStash', 'project-git-change:applyGitStash'],
+  ['archiveChatFromList', 'tool-call'],
+  ['askUser', 'question'],
+  ['astEditNode', 'tool-call'],
+  ['astRenameSymbol', 'tool-call'],
+  ['blockFeature', 'tool-call'],
+  ['blockStory', 'tool-call'],
+  ['chooseAgentLlmConfig', 'tool-call'],
+  ['chooseAgentRunner', 'tool-call'],
+  ['chooseDesignProposal', 'tool-call'],
+  ['cloneIntoProject', 'project-admin:cloneIntoProject'],
+  ['cloneProjectFromGit', 'clone-into-host-path'],
+  ['closeRunFeatures', 'process-run-action:closeRunFeatures'],
+  ['closeRunFeatures', 'process-run-chat:closeRunFeatures'],
+  ['commitGitChanges', 'project-git-change:commitGitChanges'],
+  ['completeAssignment', 'tool-call'],
+  ['createGitBranch', 'project-git-change:createGitBranch'],
+  ['createGroupStory', 'tool-call'],
+  ['createLiveDataSource', 'tool-call'],
+  ['createNewProject', 'tool-call'],
+  ['createProjectFromTemplate', 'tool-call'],
+  ['createProjectGroup', 'tool-call'],
+  ['createProjectRecord', 'project-data:createProjectRecord'],
+  ['decideChatOpenChanges', 'chat-open-changes:decideChatOpenChanges'],
+  ['decideDesignTidyMove', 'tool-call'],
+  ['decideRunGate', 'process-run-action:decideRunGate'],
+  ['decideRunGate', 'process-run-chat:decideRunGate'],
+  ['deleteAgentNote', 'tool-call'],
+  ['deleteAgentType', 'agent-type-admin:deleteAgentType'],
+  ['deleteAssistantConversation', 'chat-delete'],
+  ['deleteDesignApp', 'design:deleteDesignApp'],
+  ['deleteDesignProposal', 'design:deleteDesignProposal'],
+  ['deleteDesignScreen', 'design:deleteDesignScreen'],
+  ['deleteDesignState', 'design:deleteDesignState'],
+  ['deleteFeature', 'group-planning:deleteFeature'],
+  ['deleteFeature', 'tool-call'],
+  ['deleteGitBranch', 'project-git-change:deleteGitBranch'],
+  ['deleteGroupAgentType', 'agent-type-admin:deleteGroupAgentType'],
+  ['deleteGroupNote', 'tool-call'],
+  ['deleteGroupStory', 'group-work:deleteGroupStory'],
+  ['deleteLiveDataSource', 'live-data:deleteLiveDataSource'],
+  ['deleteMemberPaths', 'member-file-edit:deleteMemberPaths'],
+  ['deletePaths', 'tool-call'],
+  ['deleteRuns', 'tool-call'],
+  ['deleteStory', 'group-planning:deleteStory'],
+  ['deleteStory', 'tool-call'],
+  ['discardChatOpenChanges', 'chat-open-changes:discardChatOpenChanges'],
+  ['discardGitChanges', 'project-git-change:discardGitChanges'],
+  ['dismissDesignTidy', 'tool-call'],
+  ['dropGitStash', 'project-git-change:dropGitStash'],
+  ['editCliSettings', 'tool-call'],
+  ['editGitCredential', 'tool-call'],
+  ['editLlmConfig', 'tool-call'],
+  ['editProject', 'tool-call'],
+  ['editProjectGroup', 'tool-call'],
+  ['editTicketConnection', 'tool-call'],
+  ['escalateRunPark', 'process-run-chat:escalateRunPark'],
+  ['evaluateKnowledge', 'knowledge-evaluation:evaluateKnowledge'],
+  ['fetchGitRemote', 'project-git-change:fetchGitRemote'],
+  ['fileDesignProposalEntry', 'tool-call'],
+  ['fileSignOffPreRead', 'process-run-chat:fileSignOffPreRead'],
+  ['handOverProjectFeatureRequest', 'tool-call'],
+  ['holdRun', 'process-run-chat:holdRun'],
+  ['importProjectFromPath', 'tool-call'],
+  ['inspectProjectPath', 'inspect-host-path'],
+  ['keepDesignProposalAsAlternative', 'tool-call'],
+  ['markGroupLegLanded', 'process-group-run-action:markGroupLegLanded'],
+  ['markProjectFeatureRequestDelivered', 'tool-call'],
+  ['mergeGitBranch', 'project-git-change:mergeGitBranch'],
+  ['mobileTestAdb', 'device-command'],
+  ['mobileTestIdb', 'device-command'],
+  ['moveGitBranch', 'project-git-change:moveGitBranch'],
+  ['moveProjectData', 'tool-call'],
+  ['openGitPullRequest', 'project-git-change:openGitPullRequest'],
+  ['proposeDesign', 'tool-call'],
+  ['proposeDesignDraft', 'tool-call'],
+  ['proposeDesignTidy', 'tool-call'],
+  ['proposeFeatureChange', 'process-run-chat:proposeFeatureChange'],
+  ['proposeRunFeature', 'process-run-chat:proposeRunFeature'],
+  ['proposeRunStart', 'process-run-chat:proposeRunStart'],
+  ['proposeStepRerun', 'process-run-chat:proposeStepRerun'],
+  ['pullGitBranch', 'project-git-change:pullGitBranch'],
+  ['pushGitBranch', 'project-git-change:pushGitBranch'],
+  ['readGroupNote', 'group-note-read'],
+  ['readProjectNote', 'project-note-read'],
+  ['rebuildChatOpenChanges', 'chat-open-changes:rebuildChatOpenChanges'],
+  ['recommendTrainingExperiments', 'tool-call'],
+  ['recordReviewEvidence', 'tool-call'],
+  ['recoverGitText', 'project-git-change:recoverGitText'],
+  ['registerCleanupItem', 'tool-call'],
+  ['rejectProjectFeatureRequest', 'tool-call'],
+  ['removeActionRule', 'action-rules:removeActionRule'],
+  ['removeBlocker', 'tool-call'],
+  ['removeCliLogin', 'credential-admin:removeCliLogin'],
+  ['removeLlmConfig', 'credential-admin:removeLlmConfig'],
+  ['removeProcess', 'process-definition:removeProcess'],
+  ['removeProcessGroupRun', 'process-group-run-action:removeProcessGroupRun'],
+  ['removeProcessRun', 'process-run-action:removeProcessRun'],
+  ['removeProcessRun', 'process-run-chat:removeProcessRun'],
+  ['removeProject', 'project-admin:removeProject'],
+  ['removeProjectGroup', 'project-admin:removeProjectGroup'],
+  ['removeStoredGitCredential', 'credential-admin:removeStoredGitCredential'],
+  ['removeStoredWebSearchKey', 'credential-admin:removeStoredWebSearchKey'],
+  ['removeStoryNote', 'group-planning:removeStoryNote'],
+  ['removeStoryNote', 'tool-call'],
+  ['removeTicketConnection', 'project-admin:removeTicketConnection'],
+  ['renameCliLogin', 'tool-call'],
+  ['renameMemberPaths', 'member-file-edit:renameMemberPaths'],
+  ['renamePaths', 'tool-call'],
+  ['reorderFeature', 'group-planning:reorderFeature'],
+  ['reorderFeature', 'tool-call'],
+  ['reorderProjectGroups', 'tool-call'],
+  ['reorderProjectInGroup', 'tool-call'],
+  ['reorderStory', 'group-planning:reorderStory'],
+  ['reorderStory', 'tool-call'],
+  ['replaceMemberFileText', 'member-file-edit:replaceMemberFileText'],
+  ['reportBlocked', 'blocker'],
+  ['requestExternalFetch', 'external-fetch'],
+  ['requestHostFileRead', 'host-file-read'],
+  ['requestInstallPackage', 'install-package'],
+  ['requestNetworkUnlock', 'network-unlock'],
+  ['requestProjectFeature', 'tool-call'],
+  ['requestWorkspaceLimitRaise', 'workspace-limit-raise'],
+  ['resetGitChanges', 'project-git-change:resetGitChanges'],
+  ['resolveChatOpenChangesToBase', 'chat-open-changes:resolveChatOpenChangesToBase'],
+  ['resolveGitMergeConflicts', 'project-git-change:resolveGitMergeConflicts'],
+  ['resolveNeedsYouItem', 'process-run-chat:resolveNeedsYouItem'],
+  ['resolveRunIntegrationConflict', 'process-run-action:resolveRunIntegrationConflict'],
+  ['resolveRunIntegrationConflict', 'process-run-chat:resolveRunIntegrationConflict'],
+  ['restartProjectFeatureRequest', 'tool-call'],
+  ['restoreDesignVersions', 'tool-call'],
+  ['resumeEndedGroupRun', 'process-group-run-action:resumeEndedGroupRun'],
+  ['retryRunIntegration', 'process-run-action:retryRunIntegration'],
+  ['retryRunIntegration', 'process-run-chat:retryRunIntegration'],
+  ['reviveProcessRun', 'process-run-action:reviveProcessRun'],
+  ['reviveProcessRun', 'process-run-chat:reviveProcessRun'],
+  ['runMemberProjectCheck', 'member-project:runMemberProjectCheck'],
+  ['saveAgentNote', 'tool-call'],
+  ['saveAgentType', 'tool-call'],
+  ['saveAgentTypeSlotDefaults', 'tool-call'],
+  ['saveDesignPlaygroundState', 'tool-call'],
+  ['saveGroupAgentType', 'tool-call'],
+  ['saveGroupAgentTypeSlotDefaults', 'tool-call'],
+  ['saveGroupNote', 'tool-call'],
+  ['saveMemberAgentNote', 'member-project:saveMemberAgentNote'],
+  ['saveProcess', 'tool-call'],
+  ['sendBackDesignProposal', 'tool-call'],
+  ['sendChatMessage', 'chat-message-send'],
+  ['sendRunBackForChanges', 'process-run-action:sendRunBackForChanges'],
+  ['sendRunBackForChanges', 'process-run-chat:sendRunBackForChanges'],
+  ['setCrossProjectAcceptance', 'tool-call'],
+  ['setFeatureStatus', 'tool-call'],
+  ['setGroupTicketConnection', 'tool-call'],
+  ['setLiveDataSchedule', 'tool-call'],
+  ['setProcessCleanupItem', 'process-cleanup:setProcessCleanupItem'],
+  ['setProcessCleanupOff', 'process-cleanup:setProcessCleanupOff'],
+  ['setProjectOverviewModel', 'tool-call'],
+  ['setProjectTicketConnection', 'tool-call'],
+  ['setRunManager', 'process-run-action:setRunManager'],
+  ['setRunManager', 'process-run-chat:setRunManager'],
+  ['setRunModel', 'process-run-action:setRunModel'],
+  ['setRunModel', 'process-run-chat:setRunModel'],
+  ['setRunTurnLimit', 'process-run-action:setRunTurnLimit'],
+  ['setRunTurnLimit', 'process-run-chat:setRunTurnLimit'],
+  ['settleRunAlreadyLanded', 'process-run-action:settleRunAlreadyLanded'],
+  ['settleRunAlreadyLanded', 'process-run-chat:settleRunAlreadyLanded'],
+  ['setupProjectGitRepo', 'project-git-setup'],
+  ['showChatInListAgain', 'tool-call'],
+  ['spawnAgent', 'tool-call'],
+  ['stageGitChanges', 'project-git-change:stageGitChanges'],
+  ['startAssistantConversation', 'tool-call'],
+  ['startFeatureWork', 'tool-call'],
+  ['startGroupWork', 'tool-call'],
+  ['startMemberProcess', 'member-project:startMemberProcess'],
+  ['startProjectActivity', 'project-data:startProjectActivity'],
+  ['startTrainerActivity', 'tool-call'],
+  ['stashGitChanges', 'project-git-change:stashGitChanges'],
+  ['stopActivity', 'activity:stopActivity'],
+  ['stopProcessGroupRun', 'process-group-run-action:stopProcessGroupRun'],
+  ['stopProcessRun', 'process-run-action:stopProcessRun'],
+  ['stopProcessRun', 'process-run-chat:stopProcessRun'],
+  ['submitFeatureQuestionAnswer', 'feature-question:submitFeatureQuestionAnswer'],
+  ['subscribeLiveDataSource', 'tool-call'],
+  ['switchGitBranch', 'project-git-change:switchGitBranch'],
+  ['trustSite', 'action-rules:trustSite'],
+  ['uiTestEvaluate', 'browser-script'],
+  ['uiTestEvaluateMain', 'browser-script'],
+  ['unstageGitChanges', 'project-git-change:unstageGitChanges'],
+  ['unsubscribeLiveDataSource', 'tool-call'],
+  ['updateCliAgentImage', 'update-cli-image'],
+  ['updateDesignEntry', 'tool-call'],
+  ['updateFeature', 'group-planning:updateFeature'],
+  ['updateFeature', 'tool-call'],
+  ['updateGroupStory', 'tool-call'],
+  ['updateLiveDataSource', 'tool-call'],
+  ['updateProjectRecord', 'project-data:updateProjectRecord'],
+  ['updateStory', 'group-planning:updateStory'],
+  ['updateStory', 'tool-call'],
+  ['updateStoryNote', 'group-planning:updateStoryNote'],
+  ['updateStoryNote', 'tool-call'],
+  ['withdrawRunChange', 'process-run-chat:withdrawRunChange'],
+  ['writeExactReplaces', 'tool-call'],
+  ['writeFile', 'tool-call'],
+  ['writeMemberFile', 'member-file-edit:writeMemberFile'],
+  ['writeProjectFile', 'project-file-write'],
+]
+
+const ROW_EXCEPTIONS = [
+  'acceptProjectFeatureRequest',
+  'askUser',
+  'reportBlocked',
+  'startFeatureWork',
+  'startGroupWork',
+]
+
+describe('which asks are decided on their row', () => {
+  it('decides every ask the backend raises on its row, but the named exceptions', () => {
+    const offRow = BACKEND_ASKS.filter(([tool, kind]) => !isActionDecidedOnRow(kind, tool))
+      .map(([tool]) => tool)
+      .sort()
+    expect(offRow).toEqual(ROW_EXCEPTIONS)
+  })
+
+  it('marks each of those asks inline exactly when it is decided on its row', () => {
+    for (const [tool, kind] of BACKEND_ASKS) {
+      const grant = cliPendingActionToGrant({ id: tool, kind, payload: { tool, args: {} } })
+      expect(grant.inline, `${tool} (${kind})`).toBe(
+        ROW_EXCEPTIONS.includes(tool) ? undefined : true,
+      )
+    }
+  })
+
+  it('knows every gated tool thefactory-tools registers on a CLI run', () => {
+    const known = new Set(BACKEND_ASKS.map(([tool]) => tool))
+    for (const tool of CLI_AGENT_UNFILTERABLE_MCP_TOOL_NAMES) expect(known, tool).toContain(tool)
+  })
+
+  it('reads the answered kinds as thefactory-tools raises them', () => {
+    expect([...USER_INPUT_ACTION_KINDS].sort()).toEqual(
+      [CLI_AGENT_QUESTION_KIND, CLI_AGENT_BLOCKER_KIND, CLI_AGENT_REMEDY_KIND].sort(),
+    )
+  })
+
+  it('names as launches only tools the backend raises', () => {
+    const known = new Set(BACKEND_ASKS.map(([tool]) => tool))
+    for (const tool of COMPOSER_LAUNCH_TOOL_NAMES) expect(known, tool).toContain(tool)
+  })
+
+  it.each(USER_INPUT_TOOL_NAMES)('keeps %s, an answer the person gives, off the row', (tool) => {
+    expect(isActionDecidedOnRow(MCP_TOOL_CALL_ACTION_KIND, tool)).toBe(false)
+  })
+
+  it('decides an ask nobody named on its row, whatever its kind', () => {
+    expect(isActionDecidedOnRow('brand-new-family:doSomething', 'doSomething')).toBe(true)
+    expect(isActionDecidedOnRow(MCP_TOOL_CALL_ACTION_KIND, 'brandNewTool')).toBe(true)
+  })
+
+  it('decides an ask that names no tool on its row — the panel takes it when no row claims it', () => {
+    expect(isActionDecidedOnRow('workspace-limit-raise', undefined)).toBe(true)
+  })
+
+  it('reads a launch by its MCP-prefixed name as the launch', () => {
+    expect(
+      isActionDecidedOnRow(MCP_TOOL_CALL_ACTION_KIND, 'mcp__thefactory__startFeatureWork'),
+    ).toBe(false)
   })
 })

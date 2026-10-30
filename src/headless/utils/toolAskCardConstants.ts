@@ -263,3 +263,15 @@ export const STORY_DECISION_ASK = {
     body: (work: string, blocker: string) => `${work} no longer waits on #${blocker}`,
   },
 }
+
+/** The host tool that reads one file outside the project for the agent. */
+export const HOST_FILE_READ_TOOL = 'requestHostFileRead'
+
+/** How reading a file on this computer reads. */
+export const HOST_FILE_READ_ASK = {
+  ask: 'The agent wants to read a file on this computer',
+  tag: 'Host',
+  headline: (path: string) => `Read ${path}`,
+  consequence: 'Only this file, read-only.',
+  verb: 'Read it',
+} as const

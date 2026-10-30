@@ -8,4 +8,5 @@ export const PROJECT_FORM_METADATA_KEYS: readonly string[] = [
   'ticketConnection',
   'processManager',
   'stableBranch',
+  'checkEnv',
 ]

@@ -29,6 +29,7 @@ import {
   PROCESS_MANAGER_PROJECT_DETAIL,
   PROCESS_MANAGER_PROJECT_LABEL,
   projectManagerSettingsOf,
+  projectCheckEnvOf,
   projectMetadataCarried,
   projectStableBranchOf,
   readEvaluationDefaults,
@@ -38,10 +39,12 @@ import {
   withEvaluationDefaults,
   type ProcessManagerAutonomy,
 } from '../../../headless'
+import ProjectCheckEnvField from './ProjectCheckEnvField'
 import ProjectCodeInfoModal, { type CodeInfoValue } from './ProjectCodeInfoModal'
 import ProjectEvaluationDefaultsField from './ProjectEvaluationDefaultsField'
 import ProjectStableBranchField from './ProjectStableBranchField'
 import TicketConnectionPicker from './TicketConnectionPicker'
+import type { ProjectCheckEnvSetting } from 'thefactory-tools/types'
 
 export type ProjectFormState = {
   id: string
@@ -62,6 +65,8 @@ export type ProjectFormState = {
     processManager?: { enabled: boolean; autonomy: ProcessManagerAutonomy }
     /** The branch other projects are checked against when this one's pending changes break them. */
     stableBranch?: string
+    /** The values and secrets a live check runs with. */
+    checkEnv?: ProjectCheckEnvSetting
     /** Every other key the project's metadata holds, carried through a save untouched. */
     [key: string]: unknown
   }
@@ -97,6 +102,7 @@ export function projectToFormState(p: GetProjectResponse): ProjectFormState {
   const appDir = typeof md.appDir === 'string' && md.appDir.trim() ? md.appDir : undefined
   const ticketConnection = readTicketConnection(md.ticketConnection)
   const stableBranch = projectStableBranchOf(md)
+  const checkEnv = projectCheckEnvOf(md)
   const anyP = p as unknown as Record<string, unknown>
   return {
     id: p.id,
@@ -114,6 +120,7 @@ export function projectToFormState(p: GetProjectResponse): ProjectFormState {
       ...(ticketConnection ? { ticketConnection } : {}),
       processManager: projectManagerSettingsOf(md),
       ...(stableBranch ? { stableBranch } : {}),
+      ...(checkEnv ? { checkEnv } : {}),
     },
     codeInfo: anyP.codeInfo as ProjectFormState['codeInfo'],
     mainGroupId: typeof anyP.mainGroupId === 'string' ? (anyP.mainGroupId as string) : undefined,
@@ -399,6 +406,17 @@ export function ProjectEditorForm({
           setForm((s) => {
             const { stableBranch: _was, ...metadata } = s.metadata
             return { ...s, metadata: stableBranch ? { ...metadata, stableBranch } : metadata }
+          })
+        }
+      />
+
+      <ProjectCheckEnvField
+        projectId={mode === 'edit' ? form.id : undefined}
+        value={form.metadata.checkEnv}
+        onChange={(checkEnv) =>
+          setForm((s) => {
+            const { checkEnv: _was, ...metadata } = s.metadata
+            return { ...s, metadata: checkEnv ? { ...metadata, checkEnv } : metadata }
           })
         }
       />

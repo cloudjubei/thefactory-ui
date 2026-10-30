@@ -2,6 +2,7 @@ import { ACCEPTED_UNCHECKED_SCENES } from '../scenes/acceptedUnchecked'
 import { ACTIVITY_STOP_SCENES } from '../scenes/activityStop'
 import { AGENT_TYPE_SCENES } from '../scenes/agentTypes'
 import { ANSWER_FILES_SCENES } from '../scenes/answerFiles'
+import { ASK_ROW_SCENES } from '../scenes/askRows'
 import { BACKEND_CONNECTION_SCENES } from '../scenes/backendConnection'
 import { APP_BRIDGE_ASK_SCENES } from '../scenes/appBridgeAsks'
 import { APP_FEATURE_REQUEST_SCENES } from '../scenes/appFeatureRequest'
@@ -70,6 +71,7 @@ import type { Scene, SceneGroup, SceneState } from './types'
  */
 export const SCENES: readonly Scene[] = [
   ...CHAT_SCENES,
+  ...ASK_ROW_SCENES,
   ...CHAT_LIST_CLOSED_SCENES,
   ...SEND_CHAT_MESSAGE_SCENES,
   ...FILE_SUGGESTION_SCENES,

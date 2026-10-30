@@ -264,6 +264,7 @@ function ToolApprovalPanel({
       ? launchFeaturePreviewIds(
           features,
           launchFeaturePicked(features, summary.featureIds, featurePick),
+          summary.featureIds,
         )
       : summary.featureIds
   // How each feature is worked — the person's pick, never the agent's. Until

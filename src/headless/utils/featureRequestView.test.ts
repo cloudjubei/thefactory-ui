@@ -142,6 +142,7 @@ describe('featureRequestViaLabel', () => {
     [{ type: 'FEATURE', projectId: 'a', storyId: 's', featureId: 'f' }, 'a feature chat'],
     [{ type: 'AGENT_RUN_STORY', projectId: 'a', storyId: 's' }, 'an agent run'],
     [{ type: 'AGENT_RUN_FEATURE', projectId: 'a', storyId: 's', featureId: 'f' }, 'an agent run'],
+    [{ type: 'AGENT_RUN_TASK', projectId: 'a', agentRunId: 'r' }, 'an agent run'],
     [{ type: 'FEATURE_REQUEST', projectId: 'a', featureRequestId: 'r' }, 'a request it took on'],
     [{ type: 'GROUP', groupId: 'g' }, 'a group chat'],
     [{ type: 'GROUP_TOPIC', groupId: 'g', topicId: 't' }, 'a group chat'],

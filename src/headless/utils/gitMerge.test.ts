@@ -3,6 +3,7 @@ import type { GitMergeBranchOutcome, GitUnifiedBranch } from '../api'
 import type { MergeChecks, VerificationCheckResult } from 'thefactory-tools/types'
 import {
   branchMenuItems,
+  canPushBranch,
   commitsToBringInLabel,
   mergeBannerTitle,
   mergeBlockedReason,
@@ -91,12 +92,40 @@ describe('branchMenuItems', () => {
     canCreatePullRequest: false,
   }
 
-  it('offers merging, checking out and deleting another local branch', () => {
+  it('offers merging either way, checking out and deleting another local branch', () => {
     expect(branchMenuItems({ ...base, branch: branches[1]!, section: 'local' })).toEqual([
       { action: 'merge', label: 'Merge dev into feature/x' },
+      { action: 'merge-in', label: 'Merge feature/x into dev' },
       { action: 'checkout', label: 'Check out dev' },
       { action: 'delete', label: 'Delete dev…', destructive: true },
     ])
+  })
+
+  it('offers pushing another local branch with commits its remote lacks, without checking it out', () => {
+    const ahead = branch({ name: 'dev', isLocal: true, isRemote: true, ahead: 2 })
+    expect(branchMenuItems({ ...base, branch: ahead, section: 'local' })).toEqual([
+      { action: 'merge', label: 'Merge dev into feature/x' },
+      { action: 'merge-in', label: 'Merge feature/x into dev' },
+      { action: 'push', label: 'Push dev (2 commits)' },
+      { action: 'checkout', label: 'Check out dev' },
+      { action: 'delete', label: 'Delete dev…', destructive: true },
+    ])
+  })
+
+  it('offers pushing a local branch the remote has never had', () => {
+    expect(
+      branchMenuItems({ ...base, branch: branches[2]!, section: 'local' }).find(
+        (item) => item.action === 'push',
+      ),
+    ).toEqual({ action: 'push', label: 'Push main' })
+  })
+
+  it('offers no push for a branch the remote already has in full, or one shown as remote', () => {
+    const ahead = branch({ name: 'dev', isLocal: true, isRemote: true, ahead: 1 })
+    const actions = (b: GitUnifiedBranch, section: 'local' | 'remote') =>
+      branchMenuItems({ ...base, branch: b, section }).map((item) => item.action)
+    expect(actions(branches[1]!, 'local')).not.toContain('push')
+    expect(actions(ahead, 'remote')).not.toContain('push')
   })
 
   it('merges a remote branch by its remote name and offers no checkout of it', () => {
@@ -165,8 +194,77 @@ describe('branchMenuItems', () => {
       branch: branches[1]!,
       section: 'local',
     })
-    expect(items.map((i) => i.action)).toEqual(['merge', 'checkout', 'pull-request', 'delete'])
-    expect(items[2]).toEqual({ action: 'pull-request', label: 'Create pull request for dev' })
+    expect(items.map((i) => i.action)).toEqual([
+      'merge',
+      'merge-in',
+      'checkout',
+      'pull-request',
+      'delete',
+    ])
+    expect(items[3]).toEqual({ action: 'pull-request', label: 'Create pull request for dev' })
+  })
+})
+
+describe('branchMenuItems — merging the current branch in', () => {
+  const base = { current: 'feature/x', isDirty: false, canCreatePullRequest: false }
+
+  it('offers it on a local branch even while a merge is in progress in the checkout', () => {
+    const items = branchMenuItems({
+      ...base,
+      merging: true,
+      branch: branches[1]!,
+      section: 'local',
+    })
+    expect(items.find((i) => i.action === 'merge-in')).toEqual({
+      action: 'merge-in',
+      label: 'Merge feature/x into dev',
+    })
+  })
+
+  it('offers it on no remote branch, the current one, or a detached HEAD', () => {
+    const actions = (input: Parameters<typeof branchMenuItems>[0]) =>
+      branchMenuItems(input).map((i) => i.action)
+    expect(
+      actions({ ...base, merging: false, branch: branches[1]!, section: 'remote' }),
+    ).not.toContain('merge-in')
+    expect(
+      actions({ ...base, merging: false, branch: branches[0]!, section: 'local' }),
+    ).not.toContain('merge-in')
+    expect(
+      actions({
+        ...base,
+        current: undefined,
+        merging: false,
+        branch: branches[1]!,
+        section: 'local',
+      }),
+    ).not.toContain('merge-in')
+  })
+})
+
+describe('mergeBlockedReason — into a branch that is not checked out', () => {
+  it('needs only a source other than that branch: a detached HEAD or a merge in progress do not matter', () => {
+    expect(
+      mergeBlockedReason({ current: undefined, merging: true, source: 'dev', into: 'main' }),
+    ).toBeUndefined()
+    expect(
+      mergeBlockedReason({ current: 'dev', merging: false, source: undefined, into: 'main' }),
+    ).toBe('Pick the branch to merge.')
+    expect(
+      mergeBlockedReason({ current: 'dev', merging: false, source: 'main', into: 'main' }),
+    ).toBe('This is the branch being merged into.')
+  })
+})
+
+describe('mergeSourceOptions — into a branch that is not checked out', () => {
+  it('disables that branch, not the current one', () => {
+    const options = mergeSourceOptions(branches, 'feature/x', '', 'main')
+    expect(options.find((o) => o.kind === 'local' && o.ref === 'main')?.disabledReason).toBe(
+      'This is the branch being merged into.',
+    )
+    expect(
+      options.find((o) => o.kind === 'local' && o.ref === 'feature/x')?.disabledReason,
+    ).toBeUndefined()
   })
 })
 
@@ -320,6 +418,15 @@ describe('mergeChecksOnByDefault', () => {
   it('is off for a merge into any other branch', () => {
     expect(mergeChecksOnByDefault(branches, true)).toBe(false)
   })
+
+  it('judges by the branch merged into when that is not the checked-out one', () => {
+    expect(mergeChecksOnByDefault(on, true, 'dev')).toBe(false)
+    const devOut = [
+      branch({ name: 'main', isLocal: true, isDefault: true }),
+      branch({ name: 'dev', isLocal: true, current: true }),
+    ]
+    expect(mergeChecksOnByDefault(devOut, true, 'main')).toBe(true)
+  })
 })
 
 describe('mergeChecksView', () => {
@@ -363,5 +470,20 @@ describe('mergeChecksView', () => {
   it('has no failing output when nothing failed, and no chips when nothing ran', () => {
     const view = mergeChecksView({ status: 'skipped', summary: 'Not built.', checks: [] })
     expect(view).toEqual({ status: 'skipped', summary: 'Not built.', chips: [] })
+  })
+})
+
+describe('canPushBranch', () => {
+  it('pushes a local branch ahead of its remote, or one the remote has never had', () => {
+    expect(canPushBranch(branch({ name: 'a', isLocal: true, isRemote: true, ahead: 1 }))).toBe(true)
+    expect(canPushBranch(branch({ name: 'b', isLocal: true }))).toBe(true)
+  })
+
+  it('has nothing to push for a branch level with its remote, or one that is only remote', () => {
+    expect(canPushBranch(branch({ name: 'a', isLocal: true, isRemote: true, ahead: 0 }))).toBe(
+      false,
+    )
+    expect(canPushBranch(branch({ name: 'a', isLocal: true, isRemote: true }))).toBe(false)
+    expect(canPushBranch(branch({ name: 'r', isRemote: true, ahead: 3 }))).toBe(false)
   })
 })

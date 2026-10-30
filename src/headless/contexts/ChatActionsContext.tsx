@@ -1,4 +1,5 @@
 import { createContext, useContext, type ReactNode } from 'react'
+import type { ResourceLink } from 'thefactory-tools/types'
 
 /** What a card inside a chat's timeline can ask of the chat around it. */
 export type ChatActions = {
@@ -8,6 +9,12 @@ export type ChatActions = {
   draftMessage: (text: string) => void
   /** The project the chat's runs work in — what a card reads a run's proof and commits from. */
   projectId?: string
+  /** The chat's group, for a chat over a group's projects. */
+  groupId?: string
+  /** The chat's display name — the sender a card for a message to another chat names. */
+  chatTitle?: string
+  /** Route an in-app `overseer://…` link on a card. */
+  onResourceLink?: (link: ResourceLink) => void
 }
 
 const ChatActionsContext = createContext<ChatActions | undefined>(undefined)

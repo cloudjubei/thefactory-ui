@@ -14,8 +14,17 @@ export type GitMergeSourceOption = {
   disabledReason?: string
 }
 
-/** The actions a branch's context menu offers — each one the Git view already has. */
-export type GitBranchMenuAction = 'merge' | 'checkout' | 'pull-request' | 'delete'
+/**
+ * The actions a branch's context menu offers — each one the Git view already has:
+ * `merge` brings the branch into the current one, `merge-in` brings the current one into it.
+ */
+export type GitBranchMenuAction =
+  | 'merge'
+  | 'merge-in'
+  | 'push'
+  | 'checkout'
+  | 'pull-request'
+  | 'delete'
 
 export type GitBranchMenuItem = {
   action: GitBranchMenuAction
@@ -46,7 +55,10 @@ export type GitMergeChecksView = {
 }
 
 export type GitBranchMenuInput = {
-  branch: Pick<GitUnifiedBranch, 'name' | 'remoteName' | 'current'>
+  branch: Pick<
+    GitUnifiedBranch,
+    'name' | 'remoteName' | 'current' | 'isLocal' | 'isRemote' | 'ahead'
+  >
   section: GitBranchSection
   /** The checked-out branch; absent on a detached HEAD. */
   current?: string

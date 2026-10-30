@@ -139,7 +139,7 @@ function PlaygroundBar({
       }}
     >
       <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
-        <span className="flex min-w-0 flex-1 items-center gap-2 font-medium">
+        <span className="flex min-w-[min(100%,16rem)] flex-1 items-center gap-2 font-medium">
           <IconWarningTriangle className="h-3.5 w-3.5 shrink-0" />
           <span className="min-w-0">{bar.label}</span>
         </span>

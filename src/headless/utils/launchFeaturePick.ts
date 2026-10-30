@@ -50,14 +50,20 @@ export function launchFeaturePickOffered(
 }
 
 /**
- * The features the launch plan is read for: only the pick when it leaves some
- * out, the whole story when it takes every one — or none, which the card asks
+ * The features the launch plan is read for: what the agent named while the pick
+ * is still exactly that — the plan the card read before the story loaded, not
+ * read again for the same features — else only the pick when it leaves some
+ * out, the whole story when it takes every one, or none, which the card asks
  * to be fixed rather than previewed. Pure.
  */
 export function launchFeaturePreviewIds(
   candidates: readonly LaunchFeaturePickCandidate[],
   picked: readonly string[],
+  named?: readonly string[],
 ): string[] | undefined {
+  if (named && named.length === picked.length && named.every((id) => picked.includes(id))) {
+    return [...named]
+  }
   if (picked.length === 0 || picked.length === candidates.length) return undefined
   return [...picked]
 }

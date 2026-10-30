@@ -729,6 +729,10 @@ export {
   type ProjectStableBranchFieldProps,
 } from './compound/projects/ProjectStableBranchField'
 export {
+  default as ProjectCheckEnvField,
+  type ProjectCheckEnvFieldProps,
+} from './compound/projects/ProjectCheckEnvField'
+export {
   default as ProjectEvaluationDefaultsField,
   type ProjectEvaluationDefaultsFieldProps,
 } from './compound/projects/ProjectEvaluationDefaultsField'
