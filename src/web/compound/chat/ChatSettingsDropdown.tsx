@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CHAT_TOOLS_HINT } from '../../../headless/utils/chatToolTogglesConstants'
+import {
+  CHAT_TOOLS_HINT,
+  CHAT_TOOLS_LOAD_ERROR,
+  CHAT_TOOLS_LOAD_RETRY,
+} from '../../../headless/utils/chatToolTogglesConstants'
 import {
   CHAT_TURN_LIMIT_HINT,
   CHAT_TURN_LIMIT_MAX,
@@ -66,6 +70,13 @@ export type ChatSettingsDropdownProps = {
   toggleAvailable: (tool: ToolToggle) => Promise<void> | void
   /** Puts the chat's tools and approval switch back to its chat type's — on every model. */
   onResetTools: () => Promise<void> | void
+  /**
+   * Catalogue fetch failed — show "Couldn't load tools" with Retry instead of
+   * treating an empty list as "no tools for this context".
+   */
+  loadError?: Error | null
+  /** Re-fetch the tools catalogue after a load failure. Hidden when absent. */
+  onRetry?: () => void
   /** The chat-wide "run tools without asking" switch — one on every transport. Hidden when absent. */
   toolApproval?: { auto: boolean }
   onToolApprovalChange?: (auto: boolean) => Promise<void> | void
@@ -102,6 +113,8 @@ export default function ChatSettingsDropdown({
   tools,
   toggleAvailable,
   onResetTools,
+  loadError = null,
+  onRetry,
   toolApproval,
   onToolApprovalChange,
   rulesChatContextId,
@@ -309,11 +322,22 @@ export default function ChatSettingsDropdown({
         />
         <div className="rounded-md border border-(--border-subtle) divide-y divide-(--border-subtle)">
           {visibleToolGroups.length === 0 ? (
-            <div className="text-xs text-(--text-secondary) px-2 py-3">
-              {tools.length === 0
-                ? 'No tools available for this context.'
-                : 'No tools match that filter.'}
-            </div>
+            loadError && tools.length === 0 ? (
+              <div className="flex flex-col items-start gap-2 px-2 py-3">
+                <div className="text-xs text-(--text-secondary)">{CHAT_TOOLS_LOAD_ERROR}</div>
+                {onRetry ? (
+                  <Button variant="secondary" size="sm" onClick={onRetry}>
+                    {CHAT_TOOLS_LOAD_RETRY}
+                  </Button>
+                ) : null}
+              </div>
+            ) : (
+              <div className="text-xs text-(--text-secondary) px-2 py-3">
+                {tools.length === 0
+                  ? 'No tools available for this context.'
+                  : 'No tools match that filter.'}
+              </div>
+            )
           ) : (
             visibleToolGroups.map(({ category, tools: groupTools }) => (
               <div key={category}>
