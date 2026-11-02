@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ProcessGroupLeg, ProcessGroupRun } from 'thefactory-tools/types'
 import {
   processGroupBadge,
+  processGroupLiveState,
   processGroupCardView,
   processGroupLandingCheckView,
   processGroupLegRows,
@@ -37,6 +38,35 @@ const group = (over: Partial<ProcessGroupRun> = {}): ProcessGroupRun => ({
   ...over,
 })
 
+describe('processGroupLiveState', () => {
+  it.each([
+    ['its own stop', group({ status: 'parked' }), 'needs-you'],
+    [
+      'a project at its sign-off',
+      group({ legs: [leg('a', { status: 'at-sign-off' })] }),
+      'sign-off',
+    ],
+    ['a project’s ask', group({ legs: [leg('a', { status: 'needs-you' })] }), 'needs-you'],
+    [
+      'projects only waiting on other work',
+      group({ legs: [leg('a', { status: 'waiting' }), leg('b', { status: 'blocked' })] }),
+      'waiting',
+    ],
+    [
+      'a project working beside a waiting one',
+      group({ legs: [leg('a', { status: 'waiting' }), leg('b', { status: 'integrating' })] }),
+      'running',
+    ],
+    ['projects working', group({ legs: [leg('a', { status: 'running' })] }), 'running'],
+  ] as const)('reads %s', (_label, g, state) => {
+    expect(processGroupLiveState(g)).toBe(state)
+  })
+
+  it('reads an ended group run as not live', () => {
+    expect(processGroupLiveState(group({ status: 'succeeded' }))).toBeUndefined()
+  })
+})
+
 describe('processGroupBadge', () => {
   it('reads the group run’s own stop as needing you', () => {
     expect(processGroupBadge(group({ status: 'parked' }))).toEqual({
@@ -62,6 +92,37 @@ describe('processGroupBadge', () => {
     expect(
       processGroupBadge(group({ legs: [leg('tools', { status: 'manager-on-it' })] })).label,
     ).toBe(PROCESS_RUN_STATUS_VIEW.running.label)
+  })
+
+  it('reads a running group whose only moving project waits on another story as waiting', () => {
+    expect(
+      processGroupBadge(
+        group({
+          legs: [
+            leg('tools', { status: 'integrated' }),
+            leg('backend', { status: 'waiting' }),
+            leg('ui', { status: 'blocked' }),
+          ],
+        }),
+      ),
+    ).toEqual({ label: 'Waiting', tone: 'queued' })
+  })
+
+  it('reads a running group as running while another project still works beside the waiting one', () => {
+    expect(
+      processGroupBadge(
+        group({
+          legs: [leg('backend', { status: 'waiting' }), leg('tools', { status: 'running' })],
+        }),
+      ).label,
+    ).toBe(PROCESS_RUN_STATUS_VIEW.running.label)
+  })
+
+  it('reads a group from its legs’ statuses alone, as a group story’s row has them', () => {
+    expect(processGroupBadge({ status: 'running', legs: [{ status: 'needs-you' }] })).toEqual({
+      label: 'Needs you',
+      tone: 'on_hold',
+    })
   })
 
   it('reads a running group with nothing for you by its status', () => {
@@ -217,6 +278,21 @@ describe('processGroupLegRows', () => {
       ['backend', true],
       ['ui', true],
     ])
+  })
+
+  it('says a leg follows the run its story already had open, and says nothing of one it started', () => {
+    const [followed, own] = processGroupLegRows(
+      group({
+        legs: [
+          leg('backend', { status: 'running', runId: 'fr-run', followsOpenRun: true }),
+          leg('ui', { status: 'running', runId: 'own-run' }),
+        ],
+      }),
+    ).flat()
+    expect(followed?.follows).toBe(
+      'Follows the run its story already had open — started outside this group.',
+    )
+    expect(own).not.toHaveProperty('follows')
   })
 
   it('says how a leg marked as landed got there', () => {

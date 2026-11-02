@@ -6,7 +6,11 @@ import { processNodeBadge, processNodeState, processNodeTone } from './processVi
 import type { ProcessStatusTone } from './processView'
 import { acceptanceCriteriaLines } from './signoffPage'
 import { statusKey, type StatusSemanticKey, type StoryStatus } from './status'
-import { STEPS_STRIP_FULL_MAX, STEPS_STRIP_WHOLE_LABEL_MAX } from './stepsStripConstants'
+import {
+  RUN_STEPS_CARD_COPY,
+  STEPS_STRIP_FULL_MAX,
+  STEPS_STRIP_WHOLE_LABEL_MAX,
+} from './stepsStripConstants'
 import type {
   StepsStripEntry,
   StepsStripFitInput,
@@ -159,6 +163,11 @@ export function processRunStripEntries(
       ...(accepted ? { acceptedUnchecked: accepted.line } : {}),
     }
   })
+}
+
+/** The Steps card's line: how many of a run's steps are done — "10 of 11 done". Pure. */
+export function runStepsLine(entries: readonly Pick<StepsStripEntry, 'phase'>[]): string {
+  return RUN_STEPS_CARD_COPY.line(entries.filter((e) => e.phase === 'done').length, entries.length)
 }
 
 /**

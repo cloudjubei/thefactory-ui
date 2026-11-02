@@ -15,6 +15,7 @@ import {
   judgeAcceptance,
   overlayPairsFor,
   processAlreadyOnBaseSignOff,
+  processParkAnswersView,
   ranReviewChecks,
   requestChangesProofPreset,
   requestProofChoices,
@@ -40,11 +41,7 @@ import {
   sumAcceptanceJudgements,
   EMPTY_SIGNOFF_SECTION,
   SIGNOFF_APPROVE_LABEL,
-  SIGNOFF_CANCEL_LABEL,
-  SIGNOFF_DECISION_LABEL,
   SIGNOFF_LOAD_FAILED,
-  SIGNOFF_REJECT_CONFIRM,
-  SIGNOFF_REJECT_CONFIRM_LABEL,
   SIGNOFF_SECTION_TITLES,
   uiChangeScopeOf,
   useProjects,
@@ -60,6 +57,8 @@ import {
   type ProcessIntegrationDecision,
   type ProcessIntegrationMode,
   type ProcessDroppedChangeAcceptedRow,
+  type ParkAnswerView,
+  type ProcessManagerEscalationView,
   type ProcessParkChoice,
   type ProcessResumeChoice,
   type SignoffMergeHold,
@@ -74,6 +73,7 @@ import {
   type SignoffStepTarget,
   type StorySignoff,
   type UseReviewEvidence,
+  useRunNeedsYou,
 } from '../../../headless'
 import type { ProjectChecksListing } from '../../../headless/api'
 import { Button } from '../../primitives/Button'
@@ -93,12 +93,13 @@ import ProjectFlakesList from './ProjectFlakesList'
 import DependencyBullet from '../stories/DependencyBullet'
 import FeatureReviewSection from './FeatureReviewSection'
 import IntegrationChooser from './IntegrationChooser'
+import ParkAnswers from './ParkAnswers'
 import ParkNoteComposer from './ParkNoteComposer'
+import RunNeedsYouCard, { ManagerLine } from './RunNeedsYouCard'
 import ProofPlanMarks from './ProofPlanMarks'
 import ScreensDecisionNote from './ScreensDecisionNote'
 import OutsideScopeNote from './signoff/OutsideScopeNote'
 import CodeReviewPanel from './signoff/CodeReviewPanel'
-import ProcessCleanupCard from './signoff/ProcessCleanupCard'
 import SignoffDecisionList from './signoff/SignoffDecisionList'
 import SignoffReportPanel from './signoff/SignoffReportPanel'
 import StorySpecCard from './signoff/StorySpecCard'
@@ -144,6 +145,16 @@ export type StorySignoffReviewProps = {
   changeScreensDecision?: ChangeScreensDecision
   /** Each change the run accepted as dropped on purpose (`processDroppedChangeRows`), listed with what needs a look. */
   droppedAccepted?: readonly ProcessDroppedChangeAcceptedRow[]
+  /** The manager's card when it handed the sign-off over: its word on it and the answers it prepared. */
+  manager?: ProcessManagerEscalationView
+  /** Open the run's chat to ask the manager about the decision. */
+  onAskManager?: () => void
+  /** What bringing the work in came to — shown inside the decision. */
+  integration?: ReactNode
+  /** The run's steps, folded under their line — right below the decision. */
+  steps?: ReactNode
+  /** "More about this run" — last. */
+  details?: ReactNode
 }
 
 const TEST_METHODS: readonly CheckMethodId[] = ['tests']
@@ -180,14 +191,18 @@ export default function StorySignoffReview(props: StorySignoffReviewProps) {
   )
   if (!signoff) {
     return (
-      <SignoffFrame
-        storyId={storyId}
-        line={
-          status === 'failed'
-            ? `${SIGNOFF_LOAD_FAILED}${error ? ` — ${error}` : ''}`
-            : signoffLoadingLabel(sources)
-        }
-      />
+      <div className="flex flex-col gap-4">
+        <SignoffFrame
+          storyId={storyId}
+          line={
+            status === 'failed'
+              ? `${SIGNOFF_LOAD_FAILED}${error ? ` — ${error}` : ''}`
+              : signoffLoadingLabel(sources)
+          }
+        />
+        {props.steps}
+        {props.details}
+      </div>
     )
   }
   return (
@@ -230,7 +245,7 @@ function SignoffFrame({ storyId, line }: { storyId: string; line: string }) {
   )
 }
 
-type DecisionStep = 'idle' | 'note' | 'integration' | 'reject'
+type DecisionStep = 'idle' | 'note' | 'integration'
 
 function StorySignoffPanel({
   projectId,
@@ -248,6 +263,11 @@ function StorySignoffPanel({
   changeUiPaths,
   changeScreensDecision,
   droppedAccepted = [],
+  manager,
+  onAskManager,
+  integration,
+  steps,
+  details,
   signoff,
   evidence,
   evidenceState,
@@ -271,6 +291,7 @@ function StorySignoffPanel({
   const [openRows, setOpenRows] = useState<ReadonlySet<string>>(new Set())
   const [focusRow, setFocusRow] = useState<string | undefined>()
   const [chipKey, setChipKey] = useState<string | undefined>()
+  const [selected, setSelected] = useState<string | undefined>()
   const rowRefs = useRef(new Map<string, HTMLDivElement>())
   const soleMode = workBranch?.shadow
     ? soleIntegrationMode(workBranch, integrationModes)
@@ -555,6 +576,11 @@ function StorySignoffPanel({
     const chip = evidenceChipForTab(chips, tab)
     if (chip) setChipKey(chip.key)
   }
+  const needsYouFocus = useRunNeedsYou()?.focus
+  const reportChipKey = evidenceChipForTab(chips, 'report')?.key
+  useEffect(() => {
+    if (needsYouFocus && reportChipKey) setChipKey(reportChipKey)
+  }, [needsYouFocus, reportChipKey])
 
   const criteriaCount = features.reduce(
     (n, f) => n + acceptanceCriteriaLines(f.acceptance).length,
@@ -616,20 +642,36 @@ function StorySignoffPanel({
   const offered = (choices ?? [])
     .filter(isResumeParkChoice)
     .filter((c) => !(mergeHold && c.choice === 'approve'))
+    .map((c) =>
+      c.choice === 'approve'
+        ? { ...c, label: alreadyOnBase?.approveLabel ?? SIGNOFF_APPROVE_LABEL }
+        : c,
+    )
   const canDecide = offered.length > 0 && onChoose !== undefined
   const headline = signoff.headline?.title ?? signoff.verdict.title
+  const answers = processParkAnswersView(offered, manager, selected)
+  const send = (answer: ParkAnswerView, note: string | undefined) => {
+    if (answer.choice === 'approve' && workBranch) {
+      if (alreadyOnBase) return decide('approve', note, alreadyOnBase.decision)
+      if (soleMode) return decide('approve', note, { mode: soleMode })
+      return setStep('integration')
+    }
+    if (answer.choice === 'request-changes') {
+      return note ? decide('request-changes', note, undefined, proofPreset) : setStep('note')
+    }
+    if (!note && choiceTakesNote(answer.choice)) return setStep('note')
+    decide(answer.choice as ProcessResumeChoice, note)
+  }
 
   return (
     <div className="flex flex-col gap-4">
-      <section
-        aria-label="Decision"
-        className="flex flex-wrap items-center gap-4 rounded-xl border border-(--border-subtle) bg-(--surface-raised) px-5 py-4"
+      <RunNeedsYouCard
+        className=""
+        tone="review"
+        where={<VerdictBadge verdict={signoff.verdict} tally={signoff.digest.tally} />}
+        {...(onAskManager ? { onAskManager } : {})}
       >
-        <div className="flex min-w-0 flex-[1_1_420px] flex-col gap-1.5">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <VerdictBadge verdict={signoff.verdict} tally={signoff.digest.tally} />
-            <span className="text-[12px] text-(--text-secondary)">{SIGNOFF_DECISION_LABEL}</span>
-          </div>
+        <div className="flex min-w-0 flex-col gap-1.5">
           <div className="text-[17px] font-semibold leading-snug text-(--text-primary)">
             {headline}
           </div>
@@ -648,62 +690,42 @@ function StorySignoffPanel({
           />
         </div>
 
+        {integration}
+
         {alreadyOnBase ? (
           <div
             role="note"
-            className="flex-[1_1_100%] rounded-lg border border-(--status-done-soft-border) bg-(--status-done-soft-bg) px-3 py-2.5 text-[13px] text-(--text-primary)"
+            className="rounded-lg border border-(--status-done-soft-border) bg-(--status-done-soft-bg) px-3 py-2.5 text-[13px] text-(--text-primary)"
           >
             {alreadyOnBase.notice}
           </div>
         ) : null}
 
+        {manager ? <ManagerLine view={manager} /> : null}
+
         {canDecide && step === 'idle' ? (
-          <div className="flex flex-wrap items-center gap-2">
-            {offered.map((c) => (
-              <Button
-                key={c.choice}
-                size="md"
-                variant={c.primary ? 'primary' : c.choice === 'reject' ? 'ghost' : 'secondary'}
-                className={c.choice === 'reject' ? 'text-(--status-stuck-soft-fg)' : undefined}
-                title={c.detail}
-                disabled={busy}
-                onClick={() =>
-                  c.choice === 'approve' && workBranch
-                    ? alreadyOnBase
-                      ? decide('approve', undefined, alreadyOnBase.decision)
-                      : soleMode
-                        ? decide('approve', undefined, { mode: soleMode })
-                        : setStep('integration')
-                    : c.choice === 'reject'
-                      ? setStep('reject')
-                      : choiceTakesNote(c.choice)
-                        ? setStep('note')
-                        : decide(c.choice)
-                }
-              >
-                {c.choice === 'approve'
-                  ? (alreadyOnBase?.approveLabel ?? SIGNOFF_APPROVE_LABEL)
-                  : c.label}
-              </Button>
-            ))}
-          </div>
+          <ParkAnswers
+            view={answers}
+            busy={busy}
+            onSelect={setSelected}
+            onSend={send}
+            onOwnAnswer={() => setStep('note')}
+          />
         ) : null}
 
         {canDecide && step === 'note' ? (
-          <div className="flex-[1_1_100%]">
-            <ParkNoteComposer
-              proofChoices={requestProofChoices(proofUnavailable)}
-              proofPreset={proofPreset}
-              onSend={(note, requestedProof) =>
-                decide('request-changes', note, undefined, requestedProof)
-              }
-              onCancel={() => setStep('idle')}
-            />
-          </div>
+          <ParkNoteComposer
+            proofChoices={requestProofChoices(proofUnavailable)}
+            proofPreset={proofPreset}
+            onSend={(note, requestedProof) =>
+              decide('request-changes', note, undefined, requestedProof)
+            }
+            onCancel={() => setStep('idle')}
+          />
         ) : null}
 
         {canDecide && step === 'integration' && workBranch ? (
-          <div className="flex-[1_1_100%] rounded-lg border border-(--status-review-soft-border) bg-(--status-review-soft-bg) p-3">
+          <div className="rounded-lg border border-(--status-review-soft-border) bg-(--status-review-soft-bg) p-3">
             <IntegrationChooser
               runId={storyRunId}
               workBranch={workBranch}
@@ -715,22 +737,10 @@ function StorySignoffPanel({
           </div>
         ) : null}
 
-        {canDecide && step === 'reject' ? (
-          <div className="flex flex-[1_1_100%] flex-wrap items-center gap-2.5 rounded-lg border border-(--status-stuck-soft-border) bg-(--status-stuck-soft-bg) p-3 text-(--status-stuck-soft-fg)">
-            <span className="flex-[1_1_300px] text-[13px]">{SIGNOFF_REJECT_CONFIRM}</span>
-            <Button size="sm" variant="secondary" disabled={busy} onClick={() => setStep('idle')}>
-              {SIGNOFF_CANCEL_LABEL}
-            </Button>
-            <Button size="sm" variant="danger" disabled={busy} onClick={() => decide('reject')}>
-              {SIGNOFF_REJECT_CONFIRM_LABEL}
-            </Button>
-          </div>
-        ) : null}
-
         {mergeHold ? (
           <div
             role="note"
-            className="flex flex-[1_1_100%] flex-wrap items-center gap-2 rounded-lg border border-(--status-review-soft-border) bg-(--status-review-soft-bg) px-3 py-2.5 text-[13px] text-(--text-primary)"
+            className="flex flex-wrap items-center gap-2 rounded-lg border border-(--status-review-soft-border) bg-(--status-review-soft-bg) px-3 py-2.5 text-[13px] text-(--text-primary)"
           >
             <span className="font-medium">{mergeHold.reason}</span>
             {mergeHold.waitingOn.map((leg) => (
@@ -759,14 +769,90 @@ function StorySignoffPanel({
         {error ? (
           <div
             role="alert"
-            className="flex-[1_1_100%] rounded-lg border border-(--status-stuck-soft-border) bg-(--status-stuck-soft-bg) px-3 py-2 text-[12.5px] text-(--status-stuck-soft-fg)"
+            className="rounded-lg border border-(--status-stuck-soft-border) bg-(--status-stuck-soft-bg) px-3 py-2 text-[12.5px] text-(--status-stuck-soft-fg)"
           >
             {error}
           </div>
         ) : null}
-      </section>
+      </RunNeedsYouCard>
 
-      <ProcessCleanupCard runId={storyRunId} />
+      {steps}
+
+      {overall && chips.length > 0 ? (
+        <section
+          aria-label={SIGNOFF_SECTION_TITLES.evidence}
+          className="overflow-hidden rounded-xl border border-(--border-subtle) bg-(--surface-raised)"
+        >
+          <div
+            role="tablist"
+            className="flex flex-wrap items-center gap-2 border-b border-(--border-subtle) px-5 py-3.5"
+          >
+            {chips.map((chip) => (
+              <CheckChip
+                key={chip.key}
+                row={chip.row}
+                role="tab"
+                selected={isEvidenceChipSelected(chip, chipKey, chips)}
+                onClick={() => setChipKey(chip.key)}
+              />
+            ))}
+          </div>
+          <div className="flex flex-col px-5 pb-5 pt-2">
+            {current?.target.kind === 'missing' ? (
+              <div className="flex max-w-[70ch] flex-col items-start gap-2.5 pt-3">
+                <span className="text-[13.5px] font-semibold text-(--text-primary)">
+                  {current.target.title}
+                </span>
+                <span className="text-[13px] text-(--text-secondary)">{current.target.text}</span>
+                {missingSetUp ? <SetUpWithAgentButton onClick={missingSetUp} /> : null}
+              </div>
+            ) : current?.target.tab === 'report' ? (
+              <SignoffReportPanel view={reportView} onOpenTab={openTab} />
+            ) : current?.target.tab === 'screens' ? (
+              <div className="pt-3">
+                <ScreensTab
+                  pairs={requestPairs}
+                  onOpen={setOpenPairKey}
+                  capturedLabel={undefined}
+                  onRequestImage={evidence.requestImage}
+                />
+              </div>
+            ) : current?.target.tab === 'tests' ? (
+              <div className="flex flex-col gap-2 pt-3">
+                <ChecksTab
+                  methods={overall.rows.filter((r) => TEST_METHODS.includes(r.id))}
+                  checks={testChecks}
+                  branch={undefined}
+                  busyId={undefined}
+                />
+                {projectChecks?.knownFlakes ? (
+                  <ProjectFlakesList flakes={projectChecks.knownFlakes} />
+                ) : null}
+              </div>
+            ) : current?.target.tab === 'build' ? (
+              <div className="pt-3">
+                <ChecksTab
+                  methods={overall.rows.filter((r) => BUILD_METHODS.includes(r.id))}
+                  checks={buildChecks}
+                  branch={undefined}
+                  busyId={undefined}
+                />
+              </div>
+            ) : current?.target.tab === 'code-review' && storyReview ? (
+              <div className="pt-3">
+                <CodeReviewPanel
+                  review={storyReview}
+                  {...(storyReviewVerdict ? { verdict: storyReviewVerdict } : {})}
+                />
+              </div>
+            ) : current?.target.tab === 'walkthrough' ? (
+              <div className="pt-3">
+                <WalkthroughTab projectId={projectId} recordings={overallSection.recordings} />
+              </div>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
 
       <section
         aria-label={SIGNOFF_SECTION_TITLES.what}
@@ -900,81 +986,7 @@ function StorySignoffPanel({
 
       {screensNote ? <ScreensDecisionNote note={screensNote} /> : null}
 
-      {overall && chips.length > 0 ? (
-        <section
-          aria-label={SIGNOFF_SECTION_TITLES.evidence}
-          className="overflow-hidden rounded-xl border border-(--border-subtle) bg-(--surface-raised)"
-        >
-          <div
-            role="tablist"
-            className="flex flex-wrap items-center gap-2 border-b border-(--border-subtle) px-5 py-3.5"
-          >
-            {chips.map((chip) => (
-              <CheckChip
-                key={chip.key}
-                row={chip.row}
-                role="tab"
-                selected={isEvidenceChipSelected(chip, chipKey, chips)}
-                onClick={() => setChipKey(chip.key)}
-              />
-            ))}
-          </div>
-          <div className="flex flex-col px-5 pb-5 pt-2">
-            {current?.target.kind === 'missing' ? (
-              <div className="flex max-w-[70ch] flex-col items-start gap-2.5 pt-3">
-                <span className="text-[13.5px] font-semibold text-(--text-primary)">
-                  {current.target.title}
-                </span>
-                <span className="text-[13px] text-(--text-secondary)">{current.target.text}</span>
-                {missingSetUp ? <SetUpWithAgentButton onClick={missingSetUp} /> : null}
-              </div>
-            ) : current?.target.tab === 'report' ? (
-              <SignoffReportPanel view={reportView} onOpenTab={openTab} />
-            ) : current?.target.tab === 'screens' ? (
-              <div className="pt-3">
-                <ScreensTab
-                  pairs={requestPairs}
-                  onOpen={setOpenPairKey}
-                  capturedLabel={undefined}
-                  onRequestImage={evidence.requestImage}
-                />
-              </div>
-            ) : current?.target.tab === 'tests' ? (
-              <div className="flex flex-col gap-2 pt-3">
-                <ChecksTab
-                  methods={overall.rows.filter((r) => TEST_METHODS.includes(r.id))}
-                  checks={testChecks}
-                  branch={undefined}
-                  busyId={undefined}
-                />
-                {projectChecks?.knownFlakes ? (
-                  <ProjectFlakesList flakes={projectChecks.knownFlakes} />
-                ) : null}
-              </div>
-            ) : current?.target.tab === 'build' ? (
-              <div className="pt-3">
-                <ChecksTab
-                  methods={overall.rows.filter((r) => BUILD_METHODS.includes(r.id))}
-                  checks={buildChecks}
-                  branch={undefined}
-                  busyId={undefined}
-                />
-              </div>
-            ) : current?.target.tab === 'code-review' && storyReview ? (
-              <div className="pt-3">
-                <CodeReviewPanel
-                  review={storyReview}
-                  {...(storyReviewVerdict ? { verdict: storyReviewVerdict } : {})}
-                />
-              </div>
-            ) : current?.target.tab === 'walkthrough' ? (
-              <div className="pt-3">
-                <WalkthroughTab projectId={projectId} recordings={overallSection.recordings} />
-              </div>
-            ) : null}
-          </div>
-        </section>
-      ) : null}
+      {details}
 
       <ComparisonOverlay
         pairs={overlayPairs}

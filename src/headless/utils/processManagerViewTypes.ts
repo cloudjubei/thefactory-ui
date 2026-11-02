@@ -1,15 +1,8 @@
-import type { ProcessManagerParkStatus } from 'thefactory-tools/types'
-
-import type { ProcessStatusTone } from './processView'
-
-/** One line of a run's "Handled for you": what the manager did, why, and how it came out. */
-export interface ProcessManagerHandledLineView {
-  key: string
-  what: string
-  why: string
-  result: string
-  tone: ProcessStatusTone
-}
+import type {
+  ProcessManagerAnswer,
+  ProcessManagerMoreTries,
+  ProcessManagerParkStatus,
+} from 'thefactory-tools/types'
 
 /** The manager's card for a park it handed to the person. */
 export interface ProcessManagerEscalationView {
@@ -22,6 +15,12 @@ export interface ProcessManagerEscalationView {
   recommendation: string
   /** The park's answer it recommends, when it named one. */
   recommendedChoice?: string
+  /** The run whose stop it handed over — a feature's own run for a feature's stop. */
+  runId: string
+  /** The answers it prepared, best first — filtered against the stop's choices where shown. */
+  answers: ProcessManagerAnswer[]
+  /** At a spent limit: whether more of the same would finish the work, with its evidence. */
+  moreTries?: ProcessManagerMoreTries
 }
 
 /** The manager's read of a sign-off it never decides. */
@@ -39,6 +38,5 @@ export interface ProcessRunManagerView {
   /** What it is doing on the park the run waits at. */
   status?: { state: ProcessManagerParkStatus; text: string }
   escalation?: ProcessManagerEscalationView
-  handled: { title: string; lines: ProcessManagerHandledLineView[] }
   preRead?: ProcessManagerPreReadView
 }

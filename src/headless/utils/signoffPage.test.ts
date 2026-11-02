@@ -194,11 +194,66 @@ describe('signoffEvidenceChips', () => {
       ['tests', 'tests', 'tests'],
     ])
   })
+
+  it('folds the build, type, lint and format checks into one Checks chip at their worst state', () => {
+    const chips = signoffEvidenceChips(
+      [
+        row({ id: 'report', action: { kind: 'open-proof', tab: 'report' } }),
+        row({ id: 'types' }),
+        row({ id: 'lint', state: 'flagged' }),
+        row({ id: 'format' }),
+        row({ id: 'build' }),
+        row({ id: 'uitests' }),
+      ],
+      [tab('report'), tab('build')],
+      order,
+    )
+    expect(chips.map((c) => [c.key, c.row.id, c.row.label, c.row.state])).toEqual([
+      ['report', 'report', 'report', 'passed'],
+      ['checks', 'build', 'Checks', 'flagged'],
+      ['uitests', 'uitests', 'uitests', 'passed'],
+    ])
+    expect(chips[1].target).toEqual({ kind: 'tab', tab: 'build' })
+  })
+
+  it('takes a failed check over an unfinished one when folding', () => {
+    const chips = signoffEvidenceChips(
+      [row({ id: 'build', state: 'unfinished' }), row({ id: 'types', state: 'failed' })],
+      [tab('build')],
+      order,
+    )
+    expect(chips.map((c) => [c.key, c.row.state])).toEqual([['checks', 'failed']])
+  })
+
+  it('keeps a lone build check under its own name', () => {
+    const chips = signoffEvidenceChips([row({ id: 'lint' })], [tab('build')], order)
+    expect(chips.map((c) => [c.key, c.row.label])).toEqual([['lint', 'lint']])
+  })
+
+  it('leaves a build check that did not run as its own missing chip', () => {
+    const chips = signoffEvidenceChips(
+      [
+        row({ id: 'types' }),
+        row({ id: 'build' }),
+        row({
+          id: 'lint',
+          state: 'unconfigured',
+          action: { kind: 'request', purpose: 'setup', approachId: undefined },
+        }),
+      ],
+      [tab('build')],
+      order,
+    )
+    expect(chips.map((c) => [c.key, c.target.kind])).toEqual([
+      ['checks', 'tab'],
+      ['lint', 'missing'],
+    ])
+  })
 })
 
 describe('isEvidenceChipSelected', () => {
   const chips = signoffEvidenceChips(
-    [row({ id: 'build' }), row({ id: 'types' }), row({ id: 'lint', state: 'unconfigured' })],
+    [row({ id: 'build' }), row({ id: 'uitests' }), row({ id: 'lint', state: 'unconfigured' })],
     [tab('build')],
     ['build'],
   )

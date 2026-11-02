@@ -298,7 +298,7 @@ export const PROCESS_KIND_BLURB: Record<ProcessStepKind, string> = {
   gate: 'Stop and wait for a person to decide.',
   process: 'A nested process, one level down.',
   cleanup:
-    'Any process can end with it: after you approve its sign-off, removes what is on the run’s cleanup list — hand-over notes, captures, temporary files — before the work is brought in. No agent.',
+    'Any process can end with it: after you approve its sign-off, removes what is on the run’s cleanup list — hand-over notes, captures, temporary files — once the work is merged. No agent.',
 }
 
 /** Where a definition came from, as the list row says it. */

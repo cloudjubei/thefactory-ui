@@ -2,15 +2,19 @@ import { NO_GROUP_STORIES } from './groupStoryConstants'
 import type {
   GroupStoryForm,
   GroupStoryFormRow,
+  GroupStoryListFilter,
   GroupStoryMemberProject,
   GroupStoryMembership,
   GroupStoryMembershipsByStory,
   GroupStoryPartView,
+  GroupStoryRunState,
   GroupStoryRunSummary,
   GroupStoryStepColumn,
   GroupStoryView,
   GroupStoryWriteBody,
 } from './groupStoryTypes'
+import { processGroupLiveState } from './processGroupView'
+import { STATUS_ORDER, type StoryStatus } from './status'
 
 const LIVE_RUN_STATUSES: readonly string[] = ['pending', 'running', 'parked']
 
@@ -152,4 +156,81 @@ export function groupStoriesOfStory(
   storyId: string,
 ): readonly GroupStoryMembership[] {
   return byStory[storyId] ?? NO_GROUP_STORIES
+}
+
+/** What a group story's latest run is doing: a sign-off counts as needing you. */
+export function groupStoryRunState(view: GroupStoryView): GroupStoryRunState {
+  const live = view.latestRun ? processGroupLiveState(view.latestRun) : undefined
+  if (live === undefined) return 'not-running'
+  return live === 'sign-off' ? 'needs-you' : live
+}
+
+/** The projects the group stories have parts in, each once, in the order they first show. */
+export function groupStoryListProjects(
+  views: readonly GroupStoryView[],
+): GroupStoryMemberProject[] {
+  const seen = new Map<string, string>()
+  for (const view of views) {
+    for (const part of view.partViews) {
+      if (!seen.has(part.projectId)) seen.set(part.projectId, part.projectTitle)
+    }
+  }
+  return [...seen].map(([id, title]) => ({ id, title }))
+}
+
+function storyStatus(view: GroupStoryView): StoryStatus {
+  return view.status ?? 'pending'
+}
+
+function matchesGroupStoryQuery(view: GroupStoryView, position: number, query: string): boolean {
+  const q = query.trim().toLowerCase()
+  if (!q) return true
+  return [
+    String(position),
+    view.title,
+    view.description,
+    ...view.partViews.flatMap((p) => [p.projectTitle, p.projectId, p.storyTitle ?? '']),
+  ].some((text) => text.toLowerCase().includes(q))
+}
+
+/**
+ * The group stories the Stories tab shows for its filter, in its order — the
+ * way a project's stories list filters and sorts, a group story's position in
+ * the group's order standing for a story's number.
+ */
+export function filterGroupStories(
+  views: readonly GroupStoryView[],
+  filter: GroupStoryListFilter,
+): GroupStoryView[] {
+  const position = new Map(views.map((v, i) => [v.id, i + 1]))
+  const at = (v: GroupStoryView) => position.get(v.id) ?? 0
+  const rank = (v: GroupStoryView) => STATUS_ORDER.indexOf(storyStatus(v))
+  const shown = views.filter((v) => {
+    const status = storyStatus(v)
+    const byStatus =
+      filter.status === 'all' ||
+      (filter.status === 'not-done' ? status !== 'done' : status === filter.status)
+    return (
+      byStatus &&
+      (filter.projectId === undefined ||
+        v.partViews.some((p) => p.projectId === filter.projectId)) &&
+      (filter.run === 'all' || groupStoryRunState(v) === filter.run) &&
+      matchesGroupStoryQuery(v, at(v), filter.query)
+    )
+  })
+  switch (filter.sortBy) {
+    case 'order_desc':
+      return shown.sort((a, b) => at(b) - at(a))
+    case 'status_asc':
+      return shown.sort((a, b) => rank(a) - rank(b) || at(a) - at(b))
+    case 'status_desc':
+      return shown.sort((a, b) => rank(b) - rank(a) || at(b) - at(a))
+    case 'order_asc':
+      return shown.sort((a, b) => at(a) - at(b))
+  }
+}
+
+/** How many group stories the Stories tab shows, of how many. */
+export function groupStoryListCount(shown: number, total: number): string {
+  return `Showing ${shown} of ${total} group ${total === 1 ? 'story' : 'stories'}`
 }

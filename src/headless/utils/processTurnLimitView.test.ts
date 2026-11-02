@@ -77,6 +77,15 @@ describe('processRetryPickStart', () => {
     })
   })
 
+  it('keeps the limit as it was when the manager says more tries won’t help', () => {
+    const verdict = { verdict: 'pointless' as const, why: 'It goes round.' }
+    expect(processRetryPickStart(retry, verdict).turnLimit).toEqual(retry.turnLimit?.current)
+    expect(processRetryPickStart(retry, { ...verdict, verdict: 'helps' }).turnLimit).toEqual({
+      limitTurns: true,
+      maxTurns: 100,
+    })
+  })
+
   it('picks nothing a retry does not offer', () => {
     expect(processRetryPickStart({ choice: 'retry', label: 'Try again', detail: 'd' })).toEqual({})
   })

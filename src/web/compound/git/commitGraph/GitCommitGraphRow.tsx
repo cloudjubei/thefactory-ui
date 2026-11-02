@@ -129,7 +129,7 @@ export default function GitCommitGraphRow({
         onClick={onClick}
       >
         <div className="shrink-0" style={{ width: graphWidth, height: rowH }}>
-          {!isUncommitted && (
+          {
             <svg width={graphWidth} height={rowH}>
               {incomingLanes.map((hash, i) => {
                 if (hash === commit.hash) {
@@ -193,13 +193,13 @@ export default function GitCommitGraphRow({
                 cx={nodeLane * laneW + laneW}
                 cy={halfH}
                 r={RADIUS}
-                fill={getColor(nodeLane)}
-                stroke="#fff"
+                fill={isUncommitted ? 'var(--surface-raised)' : getColor(nodeLane)}
+                stroke={isUncommitted ? getColor(nodeLane) : '#fff'}
                 strokeWidth="2"
-                className="dark:stroke-neutral-900"
+                className={isUncommitted ? undefined : 'dark:stroke-neutral-900'}
               />
             </svg>
-          )}
+          }
         </div>
 
         {isUncommitted ? (
@@ -243,7 +243,7 @@ export default function GitCommitGraphRow({
     >
       {/* Graph canvas — fixed width, matches header */}
       <div className="shrink-0" style={{ width: colWidths.graph, height: ROW_HEIGHT }}>
-        {!isUncommitted && (
+        {
           <svg width="100%" height="100%">
             {incomingLanes.map((hash, i) => {
               if (hash === commit.hash) {
@@ -309,13 +309,13 @@ export default function GitCommitGraphRow({
               cx={nodeLane * LANE_WIDTH + LANE_WIDTH}
               cy={halfH}
               r={RADIUS}
-              fill={getColor(nodeLane)}
-              stroke="#fff"
+              fill={isUncommitted ? 'var(--surface-raised)' : getColor(nodeLane)}
+              stroke={isUncommitted ? getColor(nodeLane) : '#fff'}
               strokeWidth="2"
-              className="dark:stroke-neutral-900"
+              className={isUncommitted ? undefined : 'dark:stroke-neutral-900'}
             />
           </svg>
-        )}
+        }
       </div>
 
       {isUncommitted ? (

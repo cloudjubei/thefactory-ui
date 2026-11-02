@@ -73,6 +73,8 @@ import { wsEventConcernsProject } from '../utils/wsEventProject'
 import { afterPrimaryLoads } from '../utils/afterPrimaryLoads'
 import { gitBundleQuery, gitBundleShows, nextGitBundle } from '../utils/gitBundle'
 import type { GitBundle } from '../utils/gitBundleTypes'
+import { commitThenPush } from '../utils/gitCommitPush'
+import type { GitCommitPushPhase } from '../utils/gitCommitPushTypes'
 
 /** SWR cache keyed by projectId — instant render on switch back to a
  *  previously-seen project (no spinner while git status / branches / log /
@@ -91,6 +93,11 @@ export type LocalDiff = {
   staged: LocalDiffEntry[]
   unstaged: LocalDiffEntry[]
   conflicts: string[]
+}
+
+export type GitCommitAndPushOptions = {
+  push: boolean
+  onPhase?: (phase: GitCommitPushPhase) => void
 }
 
 export type MergePreferences = {
@@ -136,6 +143,12 @@ export type GitContextValue = {
 
   commit: (input: CommitInput) => Promise<GitCommitResponse>
   push: (input?: PushInput) => Promise<GitPushResponse>
+  /**
+   * Commit, then push the current branch at once when asked — neither waits on
+   * the graph reload. A push that fails after the commit throws
+   * `GitPushAfterCommitError`.
+   */
+  commitAndPush: (input: CommitInput, options: GitCommitAndPushOptions) => Promise<void>
   pull: (input?: PullInput) => Promise<GitPullResponse>
   fetch: (input?: FetchInput) => Promise<GitFetchResponse>
   getFileContent: (path: string, ref: string) => Promise<string>
@@ -660,7 +673,7 @@ export function GitProvider({ children, storage }: GitProviderProps) {
     [requireProject, refresh],
   )
 
-  const push = useCallback(
+  const pushRequest = useCallback(
     async (input: PushInput = {}) => {
       const id = requireProject()
       try {
@@ -669,7 +682,6 @@ export function GitProvider({ children, storage }: GitProviderProps) {
           body: input,
           throwOnError: true,
         })
-        await refresh()
         return data
       } catch (err) {
         if (isGitCredentialError(err)) {
@@ -682,7 +694,32 @@ export function GitProvider({ children, storage }: GitProviderProps) {
         throw err
       }
     },
-    [requireProject, refresh, project?.repo_url],
+    [requireProject, project?.repo_url],
+  )
+
+  const push = useCallback(
+    async (input: PushInput = {}) => {
+      const data = await pushRequest(input)
+      await refresh()
+      return data
+    },
+    [pushRequest, refresh],
+  )
+
+  const commitAndPush = useCallback(
+    async (input: CommitInput, options: GitCommitAndPushOptions) => {
+      const id = requireProject()
+      await commitThenPush(
+        {
+          commit: () => gitCommit({ path: { projectId: id }, body: input, throwOnError: true }),
+          push: () => pushRequest(),
+          reload: refresh,
+          ...(options.onPhase ? { onPhase: options.onPhase } : {}),
+        },
+        { push: options.push },
+      )
+    },
+    [requireProject, pushRequest, refresh],
   )
 
   const pull = useCallback(
@@ -1017,6 +1054,7 @@ export function GitProvider({ children, storage }: GitProviderProps) {
       setMergePreferences,
       commit,
       push,
+      commitAndPush,
       pull,
       fetch: fetchOp,
       getFileContent,
@@ -1066,6 +1104,7 @@ export function GitProvider({ children, storage }: GitProviderProps) {
       setMergePreferences,
       commit,
       push,
+      commitAndPush,
       pull,
       fetchOp,
       getFileContent,

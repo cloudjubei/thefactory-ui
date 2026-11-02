@@ -28,6 +28,17 @@ describe('resolveResourceNav', () => {
     })
   })
 
+  it('opens a “Needs you” item link on its run’s page at the item', () => {
+    expect(
+      resolveResourceNav({
+        kind: 'run',
+        projectId: 'p1',
+        runId: 'r1',
+        needsYouItemId: 'ny-1a2b3c4d',
+      }),
+    ).toEqual({ type: 'path', path: '/projects/p1/process-runs/r1?needsYou=ny-1a2b3c4d' })
+  })
+
   it('hands a process link to the client, whose process library lives at its own route', () => {
     expect(
       resolveResourceNav({ kind: 'process', projectId: 'p1', processId: 'story-default' }),

@@ -15,6 +15,7 @@ import {
   judgeAcceptance,
   overlayPairsFor,
   processAlreadyOnBaseSignOff,
+  processParkAnswersView,
   ranReviewChecks,
   requestChangesProofPreset,
   requestProofChoices,
@@ -40,11 +41,7 @@ import {
   sumAcceptanceJudgements,
   EMPTY_SIGNOFF_SECTION,
   SIGNOFF_APPROVE_LABEL,
-  SIGNOFF_CANCEL_LABEL,
-  SIGNOFF_DECISION_LABEL,
   SIGNOFF_LOAD_FAILED,
-  SIGNOFF_REJECT_CONFIRM,
-  SIGNOFF_REJECT_CONFIRM_LABEL,
   SIGNOFF_SECTION_TITLES,
   uiChangeScopeOf,
   useProjects,
@@ -60,6 +57,8 @@ import {
   type ProcessIntegrationDecision,
   type ProcessIntegrationMode,
   type ProcessDroppedChangeAcceptedRow,
+  type ParkAnswerView,
+  type ProcessManagerEscalationView,
   type ProcessParkChoice,
   type ProcessResumeChoice,
   type SignoffMergeHold,
@@ -74,6 +73,7 @@ import {
   type SignoffStepTarget,
   type StorySignoff,
   type UseReviewEvidence,
+  useRunNeedsYou,
 } from '../../../headless'
 import { useReferenceRendering } from '../../../headless/contexts/ReferenceRenderingContext'
 import { nativeRadii } from '../../../tokens/native'
@@ -97,13 +97,14 @@ import ProjectFlakesList from './ProjectFlakesList'
 import DependencyRef from '../stories/DependencyRef'
 import FeatureReviewSection from './FeatureReviewSection'
 import IntegrationChooser from './IntegrationChooser'
+import ParkAnswers from './ParkAnswers'
 import ParkNoteComposer from './ParkNoteComposer'
+import RunNeedsYouCard, { ManagerLine } from './RunNeedsYouCard'
 import ProofPlanMarks from './ProofPlanMarks'
 import ScreensDecisionNote from './ScreensDecisionNote'
 import CodeReviewPanel from './signoff/CodeReviewPanel'
 import Pill from './signoff/Pill'
 import SignoffDecisionList from './signoff/SignoffDecisionList'
-import ProcessCleanupCard from './signoff/ProcessCleanupCard'
 import SignoffReportPanel from './signoff/SignoffReportPanel'
 import StorySpecCard from './signoff/StorySpecCard'
 
@@ -146,18 +147,30 @@ export type StorySignoffReviewProps = {
   changeScreensDecision?: ChangeScreensDecision
   /** Each change the run accepted as dropped on purpose (`processDroppedChangeRows`), listed with what needs a look. */
   droppedAccepted?: readonly ProcessDroppedChangeAcceptedRow[]
+  /** The manager's card when it handed the sign-off over: its word on it and the answers it prepared. */
+  manager?: ProcessManagerEscalationView
+  /** Open the run's chat to ask the manager about the decision. */
+  onAskManager?: () => void
+  /** What bringing the work in came to — shown inside the decision. */
+  integration?: ReactNode
+  /** The run's steps, folded under their line — right below the decision. */
+  steps?: ReactNode
+  /** "More about this run" — last. */
+  details?: ReactNode
 }
 
 const TEST_METHODS: readonly CheckMethodId[] = ['tests']
 const BUILD_METHODS: readonly CheckMethodId[] = ['types', 'lint', 'format', 'build', 'uitests']
 
 /**
- * Native peer of web's `StorySignoffReview`: the decision (verdict, the three
- * decisions, only what needs a look), "What this is" (the story and each
- * feature with its proof plan, criteria and own evidence on demand), and the
- * story-wide evidence behind chips that are its tabs. Until the runs, the
- * story and the evidence have all loaded only its frame is drawn — the
- * features and what is still being read, never a verdict.
+ * Native peer of web's `StorySignoffReview`: the decision as the run's "Needs
+ * you" card (verdict, the three decisions, only what needs a look, the
+ * manager's word and the answers), the run's steps, the story-wide evidence
+ * behind chips that are its tabs, "What this is" (the story and each feature
+ * with its proof plan, criteria and own evidence on demand), and "More about
+ * this run". Until the runs, the story and the evidence have all loaded only
+ * its frame is drawn — the features and what is still being read, never a
+ * verdict — with the steps and details under it.
  * What approving offers is read alongside the sources, not after them, so the
  * decision has it when the panel draws.
  */
@@ -179,15 +192,19 @@ export default function StorySignoffReview(props: StorySignoffReviewProps) {
   )
   if (!signoff) {
     return (
-      <SignoffFrame
-        projectId={projectId}
-        storyId={storyId}
-        line={
-          status === 'failed'
-            ? `${SIGNOFF_LOAD_FAILED}${error ? ` — ${error}` : ''}`
-            : signoffLoadingLabel(sources)
-        }
-      />
+      <View style={{ gap: 14 }}>
+        <SignoffFrame
+          projectId={projectId}
+          storyId={storyId}
+          line={
+            status === 'failed'
+              ? `${SIGNOFF_LOAD_FAILED}${error ? ` — ${error}` : ''}`
+              : signoffLoadingLabel(sources)
+          }
+        />
+        {props.steps}
+        {props.details}
+      </View>
     )
   }
   return (
@@ -245,7 +262,7 @@ function SignoffFrame({
   )
 }
 
-type DecisionStep = 'idle' | 'note' | 'integration' | 'reject'
+type DecisionStep = 'idle' | 'note' | 'integration'
 
 function StorySignoffPanel({
   projectId,
@@ -264,6 +281,11 @@ function StorySignoffPanel({
   changeUiPaths,
   changeScreensDecision,
   droppedAccepted = [],
+  manager,
+  onAskManager,
+  integration,
+  steps,
+  details,
   signoff,
   evidence,
   evidenceState,
@@ -288,6 +310,7 @@ function StorySignoffPanel({
   const [openRows, setOpenRows] = useState<ReadonlySet<string>>(new Set())
   const [focusRow, setFocusRow] = useState<string | undefined>()
   const [chipKey, setChipKey] = useState<string | undefined>()
+  const [selected, setSelected] = useState<string | undefined>()
   const soleMode = workBranch?.shadow
     ? soleIntegrationMode(workBranch, integrationModes)
     : undefined
@@ -572,6 +595,11 @@ function StorySignoffPanel({
     const chip = evidenceChipForTab(chips, tab)
     if (chip) setChipKey(chip.key)
   }
+  const needsYouFocus = useRunNeedsYou()?.focus
+  const reportChipKey = evidenceChipForTab(chips, 'report')?.key
+  useEffect(() => {
+    if (needsYouFocus && reportChipKey) setChipKey(reportChipKey)
+  }, [needsYouFocus, reportChipKey])
 
   const criteriaCount = features.reduce(
     (n, f) => n + acceptanceCriteriaLines(f.acceptance).length,
@@ -633,8 +661,26 @@ function StorySignoffPanel({
   const offered = (choices ?? [])
     .filter(isResumeParkChoice)
     .filter((c) => !(mergeHold && c.choice === 'approve'))
+    .map((c) =>
+      c.choice === 'approve'
+        ? { ...c, label: alreadyOnBase?.approveLabel ?? SIGNOFF_APPROVE_LABEL }
+        : c,
+    )
   const canDecide = offered.length > 0 && onChoose !== undefined
   const headline = signoff.headline?.title ?? signoff.verdict.title
+  const answers = processParkAnswersView(offered, manager, selected)
+  const send = (answer: ParkAnswerView, note: string | undefined) => {
+    if (answer.choice === 'approve' && workBranch) {
+      if (alreadyOnBase) return decide('approve', note, alreadyOnBase.decision)
+      if (soleMode) return decide('approve', note, { mode: soleMode })
+      return setStep('integration')
+    }
+    if (answer.choice === 'request-changes') {
+      return note ? decide('request-changes', note, undefined, proofPreset) : setStep('note')
+    }
+    if (!note && choiceTakesNote(answer.choice)) return setStep('note')
+    decide(answer.choice as ProcessResumeChoice, note)
+  }
   const card = {
     gap: 12,
     padding: 14,
@@ -654,14 +700,13 @@ function StorySignoffPanel({
 
   return (
     <View style={{ gap: 14 }}>
-      <View accessibilityLabel="Decision" style={card}>
+      <RunNeedsYouCard
+        style={{ marginHorizontal: 0, marginTop: 0 }}
+        tone="review"
+        where={<VerdictBadge verdict={signoff.verdict} tally={signoff.digest.tally} />}
+        {...(onAskManager ? { onAskManager } : {})}
+      >
         <View style={{ gap: 6 }}>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-            <VerdictBadge verdict={signoff.verdict} tally={signoff.digest.tally} />
-            <Text style={{ fontSize: 12, color: theme.text.secondary }}>
-              {SIGNOFF_DECISION_LABEL}
-            </Text>
-          </View>
           <Text style={{ fontSize: 16, fontWeight: '600', color: theme.text.primary }}>
             {headline}
           </Text>
@@ -685,6 +730,8 @@ function StorySignoffPanel({
           />
         </View>
 
+        {integration}
+
         {alreadyOnBase ? (
           <View
             accessibilityRole="summary"
@@ -700,35 +747,16 @@ function StorySignoffPanel({
           </View>
         ) : null}
 
+        {manager ? <ManagerLine view={manager} /> : null}
+
         {canDecide && step === 'idle' ? (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            {offered.map((c) => (
-              <Button
-                key={c.choice}
-                size="md"
-                variant={c.primary ? 'primary' : c.choice === 'reject' ? 'ghost' : 'secondary'}
-                accessibilityHint={c.detail}
-                disabled={busy}
-                onPress={() =>
-                  c.choice === 'approve' && workBranch
-                    ? alreadyOnBase
-                      ? decide('approve', undefined, alreadyOnBase.decision)
-                      : soleMode
-                        ? decide('approve', undefined, { mode: soleMode })
-                        : setStep('integration')
-                    : c.choice === 'reject'
-                      ? setStep('reject')
-                      : choiceTakesNote(c.choice)
-                        ? setStep('note')
-                        : decide(c.choice)
-                }
-              >
-                {c.choice === 'approve'
-                  ? (alreadyOnBase?.approveLabel ?? SIGNOFF_APPROVE_LABEL)
-                  : c.label}
-              </Button>
-            ))}
-          </View>
+          <ParkAnswers
+            view={answers}
+            busy={busy}
+            onSelect={setSelected}
+            onSend={send}
+            onOwnAnswer={() => setStep('note')}
+          />
         ) : null}
 
         {canDecide && step === 'note' ? (
@@ -751,31 +779,6 @@ function StorySignoffPanel({
             onChoose={(decision) => decide('approve', undefined, decision)}
             onCancel={() => setStep('idle')}
           />
-        ) : null}
-
-        {canDecide && step === 'reject' ? (
-          <View
-            style={{
-              gap: 10,
-              padding: 12,
-              borderRadius: nativeRadii[2],
-              borderWidth: 1,
-              borderColor: status.stuck.softBorder,
-              backgroundColor: status.stuck.softBg,
-            }}
-          >
-            <Text style={{ fontSize: 13, color: status.stuck.softFg }}>
-              {SIGNOFF_REJECT_CONFIRM}
-            </Text>
-            <View style={{ flexDirection: 'row', gap: 8, justifyContent: 'flex-end' }}>
-              <Button size="sm" variant="secondary" disabled={busy} onPress={() => setStep('idle')}>
-                {SIGNOFF_CANCEL_LABEL}
-              </Button>
-              <Button size="sm" variant="danger" disabled={busy} onPress={() => decide('reject')}>
-                {SIGNOFF_REJECT_CONFIRM_LABEL}
-              </Button>
-            </View>
-          </View>
         ) : null}
 
         {mergeHold ? (
@@ -839,9 +842,82 @@ function StorySignoffPanel({
             <Text style={{ fontSize: 12.5, color: status.stuck.softFg }}>{error}</Text>
           </View>
         ) : null}
-      </View>
+      </RunNeedsYouCard>
 
-      <ProcessCleanupCard runId={storyRunId} />
+      {steps}
+
+      {overall && chips.length > 0 ? (
+        <View accessibilityLabel={SIGNOFF_SECTION_TITLES.evidence} style={card}>
+          <View
+            accessibilityRole="tablist"
+            style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}
+          >
+            {chips.map((chip) => (
+              <CheckChip
+                key={chip.key}
+                row={chip.row}
+                selected={isEvidenceChipSelected(chip, chipKey, chips)}
+                onPress={() => setChipKey(chip.key)}
+              />
+            ))}
+          </View>
+          {current?.target.kind === 'missing' ? (
+            <View style={{ gap: 8 }}>
+              <Text style={{ fontSize: 13.5, fontWeight: '600', color: theme.text.primary }}>
+                {current.target.title}
+              </Text>
+              <Text style={{ fontSize: 13, color: theme.text.secondary }}>
+                {current.target.text}
+              </Text>
+              {missingSetUp ? (
+                <View style={{ alignItems: 'flex-start' }}>
+                  <SetUpWithAgentButton onPress={missingSetUp} />
+                </View>
+              ) : null}
+            </View>
+          ) : current?.target.tab === 'report' ? (
+            <SignoffReportPanel view={reportView} onOpenTab={openTab} />
+          ) : current?.target.tab === 'screens' ? (
+            <ScreensTab
+              pairs={requestPairs}
+              onOpen={setOpenPairKey}
+              capturedLabel={undefined}
+              onRequestImage={evidence.requestImage}
+            />
+          ) : current?.target.tab === 'tests' ? (
+            <View style={{ gap: 8 }}>
+              <ChecksTab
+                methods={overall.rows.filter((r) => TEST_METHODS.includes(r.id))}
+                checks={testChecks}
+                branch={undefined}
+                busyId={undefined}
+              />
+              {projectChecks?.knownFlakes ? (
+                <ProjectFlakesList flakes={projectChecks.knownFlakes} />
+              ) : null}
+            </View>
+          ) : current?.target.tab === 'build' ? (
+            <ChecksTab
+              methods={overall.rows.filter((r) => BUILD_METHODS.includes(r.id))}
+              checks={buildChecks}
+              branch={undefined}
+              busyId={undefined}
+            />
+          ) : current?.target.tab === 'code-review' && storyReview ? (
+            <CodeReviewPanel
+              review={storyReview}
+              {...(storyReviewVerdict ? { verdict: storyReviewVerdict } : {})}
+              {...save}
+            />
+          ) : current?.target.tab === 'walkthrough' ? (
+            <WalkthroughTab
+              projectId={projectId}
+              recordings={overallSection.recordings}
+              {...save}
+            />
+          ) : null}
+        </View>
+      ) : null}
 
       <View accessibilityLabel={SIGNOFF_SECTION_TITLES.what} style={card}>
         <StorySpecCard
@@ -971,78 +1047,7 @@ function StorySignoffPanel({
 
       {screensNote ? <ScreensDecisionNote note={screensNote} /> : null}
 
-      {overall && chips.length > 0 ? (
-        <View accessibilityLabel={SIGNOFF_SECTION_TITLES.evidence} style={card}>
-          <View
-            accessibilityRole="tablist"
-            style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}
-          >
-            {chips.map((chip) => (
-              <CheckChip
-                key={chip.key}
-                row={chip.row}
-                selected={isEvidenceChipSelected(chip, chipKey, chips)}
-                onPress={() => setChipKey(chip.key)}
-              />
-            ))}
-          </View>
-          {current?.target.kind === 'missing' ? (
-            <View style={{ gap: 8 }}>
-              <Text style={{ fontSize: 13.5, fontWeight: '600', color: theme.text.primary }}>
-                {current.target.title}
-              </Text>
-              <Text style={{ fontSize: 13, color: theme.text.secondary }}>
-                {current.target.text}
-              </Text>
-              {missingSetUp ? (
-                <View style={{ alignItems: 'flex-start' }}>
-                  <SetUpWithAgentButton onPress={missingSetUp} />
-                </View>
-              ) : null}
-            </View>
-          ) : current?.target.tab === 'report' ? (
-            <SignoffReportPanel view={reportView} onOpenTab={openTab} />
-          ) : current?.target.tab === 'screens' ? (
-            <ScreensTab
-              pairs={requestPairs}
-              onOpen={setOpenPairKey}
-              capturedLabel={undefined}
-              onRequestImage={evidence.requestImage}
-            />
-          ) : current?.target.tab === 'tests' ? (
-            <View style={{ gap: 8 }}>
-              <ChecksTab
-                methods={overall.rows.filter((r) => TEST_METHODS.includes(r.id))}
-                checks={testChecks}
-                branch={undefined}
-                busyId={undefined}
-              />
-              {projectChecks?.knownFlakes ? (
-                <ProjectFlakesList flakes={projectChecks.knownFlakes} />
-              ) : null}
-            </View>
-          ) : current?.target.tab === 'build' ? (
-            <ChecksTab
-              methods={overall.rows.filter((r) => BUILD_METHODS.includes(r.id))}
-              checks={buildChecks}
-              branch={undefined}
-              busyId={undefined}
-            />
-          ) : current?.target.tab === 'code-review' && storyReview ? (
-            <CodeReviewPanel
-              review={storyReview}
-              {...(storyReviewVerdict ? { verdict: storyReviewVerdict } : {})}
-              {...save}
-            />
-          ) : current?.target.tab === 'walkthrough' ? (
-            <WalkthroughTab
-              projectId={projectId}
-              recordings={overallSection.recordings}
-              {...save}
-            />
-          ) : null}
-        </View>
-      ) : null}
+      {details}
 
       <ComparisonOverlay
         pairs={overlayPairs}

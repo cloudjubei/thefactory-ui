@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { ComponentType, ReactNode } from 'react'
 import type { ReferenceDescription, ResourceLink } from 'thefactory-tools/types'
 import { referencePreview, type ReferencePreview } from '../../../headless'
 import Tooltip from '../../primitives/Tooltip'
@@ -16,6 +16,8 @@ export type ReferenceChipProps = {
   status?: ReferencePreview['status']
   /** The preview card, in place of the one its description makes — a run's, live. */
   card?: ReactNode
+  /** The glyph, in place of its kind's — a "Needs you" item's. */
+  glyph?: ComponentType<{ className?: string }>
 }
 
 /**
@@ -31,8 +33,9 @@ export default function ReferenceChip({
   preview,
   status,
   card,
+  glyph,
 }: ReferenceChipProps) {
-  const Glyph = referenceGlyph(description)
+  const Glyph = glyph ?? referenceGlyph(description)
   const view = referencePreview(description)
   const pill = status ?? view.status
   const link = description.missing || description.loading ? undefined : description.link

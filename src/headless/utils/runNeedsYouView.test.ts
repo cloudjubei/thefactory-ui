@@ -2,12 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { processNeedsYouItemId } from 'thefactory-tools/utils'
 import type { ProcessNeedsYouResolution } from 'thefactory-tools/types'
 
-import { runNeedsYouDiscussDraft, runNeedsYouView } from './runNeedsYouView'
+import { runNeedsYouDiscussDraft, runNeedsYouTriageBrief, runNeedsYouView } from './runNeedsYouView'
 import {
   NEEDS_YOU_ALL_DECIDED,
   NEEDS_YOU_FINE_OUTCOME,
   NEEDS_YOU_NOTHING,
   NEEDS_YOU_QUOTE_HEADING,
+  NEEDS_YOU_TRIAGE_BRIEF,
 } from './runNeedsYouViewConstants'
 
 const VERIFY = 'Sign-off despite Verify failing — decide whether the logs are enough.'
@@ -142,5 +143,35 @@ describe('runNeedsYouDiscussDraft', () => {
     expect(runNeedsYouDiscussDraft('one\ntwo')).toBe(
       `> **${NEEDS_YOU_QUOTE_HEADING}**\n> one\n> two\n\n`,
     )
+  })
+})
+
+describe('runNeedsYouTriageBrief', () => {
+  const RUN = '66666666-6666-4666-8666-666666666666'
+  const card = (text: string, open = true) => ({ id: processNeedsYouItemId(text), text, open })
+
+  it('asks the manager to weigh every open item and propose what to do, each item by its reference', () => {
+    const brief = runNeedsYouTriageBrief(
+      [card('First item.'), card('Second\nover two lines.')],
+      RUN,
+    )
+    expect(brief.startsWith(NEEDS_YOU_TRIAGE_BRIEF.lead)).toBe(true)
+    for (const line of NEEDS_YOU_TRIAGE_BRIEF.courses) expect(brief).toContain(line)
+    expect(brief).toContain(NEEDS_YOU_TRIAGE_BRIEF.ask)
+    expect(
+      brief.endsWith(
+        `1. &run/${RUN}/${processNeedsYouItemId('First item.')}\n2. &run/${RUN}/${processNeedsYouItemId('Second\nover two lines.')}`,
+      ),
+    ).toBe(true)
+  })
+
+  it('tells the manager to name each item by its reference too', () => {
+    expect(NEEDS_YOU_TRIAGE_BRIEF.ask).toMatch(/by its reference/)
+  })
+
+  it('leaves out the items already settled', () => {
+    const brief = runNeedsYouTriageBrief([card('Settled.', false), card('Open one.')], RUN)
+    expect(brief).not.toContain(processNeedsYouItemId('Settled.'))
+    expect(brief.endsWith(`1. &run/${RUN}/${processNeedsYouItemId('Open one.')}`)).toBe(true)
   })
 })

@@ -30,6 +30,8 @@ export type IntegrationResultProps = {
   onResolve: () => Promise<boolean>
   /** Why the last retry was refused. */
   error?: string | null
+  /** Inside the sign-off's decision card, which draws the frame. */
+  embedded?: boolean
 }
 
 /**
@@ -48,6 +50,7 @@ export default function IntegrationResult({
   onRetry,
   onResolve,
   error,
+  embedded = false,
 }: IntegrationResultProps) {
   const { theme, status } = useNativeTheme()
   const [choosing, setChoosing] = useState<{ mode?: ProcessIntegrationMode } | null>(null)
@@ -73,16 +76,27 @@ export default function IntegrationResult({
   return (
     <View
       accessibilityLiveRegion="polite"
-      style={{
-        marginHorizontal: nativeSpace[4],
-        marginBottom: nativeSpace[3],
-        gap: nativeSpace[2],
-        borderRadius: nativeRadii[3],
-        padding: nativeSpace[3],
-        backgroundColor: variant.softBg,
-        borderWidth: 1,
-        borderColor: variant.softBorder,
-      }}
+      style={
+        embedded
+          ? {
+              gap: nativeSpace[2],
+              borderRadius: nativeRadii[3],
+              padding: nativeSpace[3],
+              backgroundColor: theme.surface.raised,
+              borderWidth: 1,
+              borderColor: theme.border.subtle,
+            }
+          : {
+              marginHorizontal: nativeSpace[3],
+              marginTop: nativeSpace[3],
+              gap: nativeSpace[2],
+              borderRadius: nativeRadii[4],
+              padding: nativeSpace[3],
+              backgroundColor: variant.softBg,
+              borderWidth: 1,
+              borderColor: variant.softBorder,
+            }
+      }
     >
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
         <Text style={{ fontSize: 13, fontWeight: '600', color: variant.softFg }}>{view.title}</Text>

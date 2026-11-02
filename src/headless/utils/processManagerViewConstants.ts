@@ -1,9 +1,4 @@
-import type {
-  ProcessManagerAutonomy,
-  ProcessManagerInterventionOutcome,
-} from 'thefactory-tools/types'
-
-import type { ProcessStatusTone } from './processView'
+import type { ProcessManagerAutonomy } from 'thefactory-tools/types'
 
 export const PROCESS_MANAGER_SWITCH_ON = 'Manager on'
 export const PROCESS_MANAGER_SWITCH_OFF = 'Manager off'
@@ -14,26 +9,11 @@ export const PROCESS_MANAGER_SWITCH_DETAIL_OFF =
 export const PROCESS_MANAGER_SWITCH_DETAIL_REVERSED =
   'Off because you undid one of its actions — it never repeats that. Switch it on again to let it look at the next stop.'
 
-export const PROCESS_MANAGER_HANDLED_TITLE = (count: number): string => `Handled for you: ${count}`
-export const PROCESS_MANAGER_NEEDS_YOU_TITLE = 'The manager needs you'
 export const PROCESS_MANAGER_FOUND_LABEL = 'What it found'
 export const PROCESS_MANAGER_TRIED_LABEL = 'What it tried'
 export const PROCESS_MANAGER_RECOMMENDS_LABEL = 'What it recommends'
 export const PROCESS_MANAGER_PRE_READ_TITLE = 'The manager’s pre-read'
-export const PROCESS_MANAGER_DISCUSS_LABEL = 'Talk it over in the run’s chat'
 export const PROCESS_MANAGER_OPEN_CHAT_LABEL = 'Open the run’s chat'
-export const PROCESS_MANAGER_WHY_LABEL = 'because'
-
-/** How each outcome colours its line. */
-export const PROCESS_MANAGER_OUTCOME_TONES: Record<
-  ProcessManagerInterventionOutcome,
-  ProcessStatusTone
-> = {
-  pending: 'working',
-  settled: 'done',
-  failed: 'stuck',
-  reversed: 'empty',
-}
 
 /** The project setting's label and what it means. */
 export const PROCESS_MANAGER_PROJECT_LABEL = 'Agent manager'

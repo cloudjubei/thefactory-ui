@@ -30,3 +30,9 @@ export {
   type ReferencePreviewCardProps,
 } from './ReferencePreviewCard'
 export { default as RunReferenceChip, type RunReferenceChipProps } from './RunReferenceChip'
+export {
+  default as NeedsYouReferenceChip,
+  NeedsYouReferenceChipView,
+  type NeedsYouReferenceChipProps,
+  type NeedsYouReferenceChipViewProps,
+} from './NeedsYouReferenceChip'

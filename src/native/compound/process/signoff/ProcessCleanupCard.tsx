@@ -4,6 +4,7 @@ import {
   processCleanupHeadline,
   processCleanupRows,
   useProcessCleanup,
+  type UseProcessCleanup,
 } from '../../../../headless'
 import { PROCESS_CLEANUP_COPY } from '../../../../headless/utils/processCleanupViewConstants'
 import Alert from '../../../primitives/Alert'
@@ -23,12 +24,11 @@ export interface ProcessCleanupCardProps {
  * cleanup step ran, what it removed. Hidden while there is nothing to show.
  */
 export default function ProcessCleanupCard({ runId }: ProcessCleanupCardProps) {
-  const { theme, status } = useNativeTheme()
-  const { list, loadError, actionError, busy, setItemSelected, setOff } = useProcessCleanup(runId)
+  const { theme } = useNativeTheme()
+  const cleanup = useProcessCleanup(runId)
+  const { list, loadError } = cleanup
   if (loadError) return <Alert variant="error">{PROCESS_CLEANUP_COPY.loadError}</Alert>
   if (!list || (list.items.length === 0 && !list.report)) return null
-  const editable = processCleanupEditable(list)
-  const rows = processCleanupRows(list)
 
   return (
     <View
@@ -49,17 +49,35 @@ export default function ProcessCleanupCard({ runId }: ProcessCleanupCardProps) {
         <Text style={{ fontSize: 13, color: theme.text.secondary }}>
           {processCleanupHeadline(list)}
         </Text>
-        {editable ? (
-          <Text style={{ fontSize: 12, color: theme.text.muted }}>{PROCESS_CLEANUP_COPY.hint}</Text>
-        ) : null}
       </View>
+      <ProcessCleanupBody cleanup={cleanup} />
+    </View>
+  )
+}
+
+/**
+ * The cleanup list itself — while it can still change, the hint and the switch
+ * to clean up nothing, then each item with why and what came of it.
+ */
+export function ProcessCleanupBody({ cleanup }: { cleanup: UseProcessCleanup }) {
+  const { theme, status } = useNativeTheme()
+  const { list, actionError, busy, setItemSelected, setOff } = cleanup
+  if (!list) return null
+  const editable = processCleanupEditable(list)
+  const rows = processCleanupRows(list)
+
+  return (
+    <View style={{ gap: nativeSpace[3] }}>
       {editable ? (
-        <Switch
-          checked={!list.off}
-          onCheckedChange={(on) => void setOff(!on)}
-          label={PROCESS_CLEANUP_COPY.switchLabel}
-          disabled={busy}
-        />
+        <View style={{ gap: nativeSpace[2] }}>
+          <Text style={{ fontSize: 12, color: theme.text.muted }}>{PROCESS_CLEANUP_COPY.hint}</Text>
+          <Switch
+            checked={!list.off}
+            onCheckedChange={(on) => void setOff(!on)}
+            label={PROCESS_CLEANUP_COPY.switchLabel}
+            disabled={busy}
+          />
+        </View>
       ) : null}
       {actionError ? <Alert variant="error">{actionError}</Alert> : null}
       <View

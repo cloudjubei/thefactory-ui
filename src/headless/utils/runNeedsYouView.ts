@@ -1,4 +1,8 @@
-import { processNeedsYouItems, processNeedsYouOpenCount } from 'thefactory-tools/utils'
+import {
+  formatReference,
+  processNeedsYouItems,
+  processNeedsYouOpenCount,
+} from 'thefactory-tools/utils'
 import type { ProcessNeedsYouItem, ProcessNeedsYouResolution } from 'thefactory-tools/types'
 
 import {
@@ -9,11 +13,12 @@ import {
   NEEDS_YOU_QUOTE_HEADING,
   NEEDS_YOU_TITLE_MAX_CHARS,
   NEEDS_YOU_TITLE_SEPARATORS,
+  NEEDS_YOU_TRIAGE_BRIEF,
 } from './runNeedsYouViewConstants'
 import type { NeedsYouCard, NeedsYouCardsView } from './runNeedsYouViewTypes'
 
-/** An item's leading phrase as its title, when one comes first and short enough. */
-function splitItem(text: string): { title: string; body: string | undefined } {
+/** An item's leading phrase as its title, when one comes first and short enough; else the whole item. Pure. */
+export function runNeedsYouItemParts(text: string): { title: string; body: string | undefined } {
   let cut: { at: number; length: number } | undefined
   for (const separator of NEEDS_YOU_TITLE_SEPARATORS) {
     const at = text.indexOf(separator)
@@ -49,7 +54,7 @@ function cardOf(item: ProcessNeedsYouItem): NeedsYouCard {
   return {
     id: item.id,
     text: item.text,
-    ...splitItem(item.text),
+    ...runNeedsYouItemParts(item.text),
     open: !item.resolution,
     outcome: item.resolution ? runNeedsYouOutcome(item.resolution) : undefined,
   }
@@ -82,4 +87,26 @@ export function runNeedsYouDiscussDraft(text: string): string {
     .map((line) => `> ${line}`)
     .join('\n')
   return `> **${NEEDS_YOU_QUOTE_HEADING}**\n${quoted}\n\n`
+}
+
+/**
+ * What "Sort these out with the manager" sends to the run's chat: weigh every
+ * open item, say how serious it is, and propose fixing it in this run, filing
+ * it as a follow-up, or settling it as fine — then act once agreed. The open
+ * items follow, numbered, each as its reference, so the message shows each one
+ * as the item and the manager reads which it is. Pure.
+ */
+export function runNeedsYouTriageBrief(
+  cards: readonly Pick<NeedsYouCard, 'id' | 'open'>[],
+  runId: string,
+): string {
+  const items = cards
+    .filter((c) => c.open)
+    .map((c, i) => `${i + 1}. ${formatReference({ kind: 'run', runId, needsYouItemId: c.id })}`)
+  return [
+    NEEDS_YOU_TRIAGE_BRIEF.lead,
+    NEEDS_YOU_TRIAGE_BRIEF.courses.join('\n'),
+    NEEDS_YOU_TRIAGE_BRIEF.ask,
+    items.join('\n'),
+  ].join('\n\n')
 }

@@ -45,12 +45,19 @@ export type GraphNode = {
  *   - Replace the node's lane with its first parent; any additional parents
  *     spawn new lanes (merge commits).
  *   - Trailing `null`s are trimmed so `maxLanes` stays minimal.
+ *
+ * With `uncommitted`, the working tree's changes lead as their own row, hung
+ * off the checked-out commit.
  */
-export function computeCommitGraph(commits: GitLogCommitLike[]): GraphNode[] {
+export function computeCommitGraph(
+  commits: GitLogCommitLike[],
+  options?: { uncommitted?: boolean },
+): GraphNode[] {
   const nodes: GraphNode[] = []
   let currentLanes: (string | null)[] = []
+  const rows = options?.uncommitted ? [uncommittedCommit(commits), ...commits] : commits
 
-  for (const commit of commits) {
+  for (const commit of rows) {
     const incomingLanes = [...currentLanes]
     const outgoingLanes = [...currentLanes]
 
@@ -105,6 +112,31 @@ export function computeCommitGraph(commits: GitLogCommitLike[]): GraphNode[] {
 
   return nodes
 }
+
+/**
+ * The working tree's changes as a commit atop the log: its parent is the
+ * checked-out commit — the one carrying HEAD — so its line runs down to the
+ * branch the changes are on, never to whichever commit is newest. With HEAD
+ * not in the loaded log it has no parent and draws no line.
+ */
+function uncommittedCommit(commits: readonly GitLogCommitLike[]): GitLogCommitLike {
+  const head = commits.find((c) => c.refs.some((r) => r.type === 'HEAD'))
+  return {
+    hash: UNCOMMITTED_COMMIT_HASH,
+    parents: head ? [head.hash] : [],
+    subject: UNCOMMITTED_COMMIT_SUBJECT,
+    authorName: '',
+    authorEmail: '',
+    authorDate: 0,
+    refs: [],
+  }
+}
+
+/** The hash the uncommitted-changes row goes by — what selecting it reports. */
+export const UNCOMMITTED_COMMIT_HASH = 'UNCOMMITTED'
+
+/** What the uncommitted-changes row says. */
+export const UNCOMMITTED_COMMIT_SUBJECT = 'Uncommitted changes'
 
 /** Color palette used by both renderers, indexed `lane % LANE_COLORS.length`. */
 export const LANE_COLORS = [

@@ -12,6 +12,7 @@ import {
   RunChatDraftProvider,
   RunNeedsYouProvider,
   runNeedsYouDiscussDraft,
+  runNeedsYouTriageBrief,
   useChats,
   usePendingAsksByChat,
   fileNameSlug,
@@ -56,6 +57,7 @@ import {
   processTimeDetailsView,
   processStepStates,
   processRunStripEntries,
+  runStepsLine,
   STEPS_STRIP_LABELS,
   processWaitingView,
   signoffMergeHold,
@@ -66,6 +68,7 @@ import {
   useAppSettings,
   useDurationTimer,
   useProcessGroupRun,
+  useProcessCleanup,
   useProcessRun,
   useRunModelChip,
   useProcessRunChat,
@@ -84,6 +87,11 @@ import {
   type ProcessRetryPick,
   type ProcessRun,
   type ProcessRunManagerView,
+  type ProcessManagerEscalationView,
+  type ParkAnswerView,
+  PARK_ANSWERS_COPY,
+  parkOwnAnswerChoice,
+  processParkAnswersView,
   type ProcessRunStopHolder,
   type ProcessTurnLimit,
   type ProcessWaitingDetail,
@@ -91,6 +99,7 @@ import {
   type ProcessWaitingRequestView,
   type ProcessWaitingView,
   type RunNeedsYouActions,
+  type RunNeedsYouFocus,
   type RunModelChipSlot,
   type RunModelChipView,
   isProcessRunAtSignOff,
@@ -129,11 +138,15 @@ import { CirclingChip, CirclingNotice } from './CirclingNotice'
 import ParkNoteComposer from './ParkNoteComposer'
 import ProofChangeComposer from './ProofChangeComposer'
 import RetryChoiceOptions from './RetryChoiceOptions'
+import ParkAnswers from './ParkAnswers'
+import RunDetails from './RunDetails'
+import RunManagerBar from './RunManagerBar'
+import RunStepsCard from './RunStepsCard'
+import RunNeedsYouCard, { ManagerLine, RUN_NEEDS_YOU_CARD_ID } from './RunNeedsYouCard'
 import RunClosurePanel from './RunClosurePanel'
 import RunTurnLimitChip from './RunTurnLimitChip'
 import RunModelControl from './RunModelControl'
 import { RunManagerChip } from './RunManagerChip'
-import RunManagerPanel from './RunManagerPanel'
 import RunDiagnosticsView from './RunDiagnosticsView'
 import RunChatButton, { type RunChatButtonProps } from './RunChatButton'
 import RunChatDock from './RunChatDock'
@@ -141,6 +154,7 @@ import { readChatsSeen, useChatsSeen, writeChatsSeen } from '../notifications/ch
 import StorySignoffReview from './StorySignoffReview'
 import StepPreview from './pipeline/StepPreview'
 import StepSidePanel, { type StepPanelTarget } from './pipeline/StepSidePanel'
+import NeedsYouLinkParam from './signoff/NeedsYouLinkParam'
 import { type ProcessRunBranch } from '../../../headless'
 import type { ChatContext } from '../../../headless/api'
 import { getChatContextKey } from 'thefactory-tools/utils'
@@ -207,20 +221,23 @@ export default function ProcessPipeline({
   const [stack, setStack] = useState<string[]>([])
   const [panel, setPanel] = useState<StepPanelTarget | null>(null)
   const [reportText, setReportText] = useState<string | undefined>()
+  const [needsYouFocus, setNeedsYouFocus] = useState<RunNeedsYouFocus | undefined>()
+  const focusNeedsYou = useCallback(
+    (itemId: string) => setNeedsYouFocus((prev) => ({ itemId, seq: (prev?.seq ?? 0) + 1 })),
+    [],
+  )
   const { resolveDependency } = useStories()
   const currentId = stack[stack.length - 1] ?? runId
+  const own = useProcessRun(currentId)
   const {
     isLoaded,
     loadError,
     actionError: runActionError,
     run,
     resume,
-    changeProof,
-    answerWaitingRequest,
     setTurnLimit,
     setManager,
     setModel,
-    delegate,
     retryIntegration,
     resolveIntegrationConflict,
     sendBack,
@@ -234,10 +251,17 @@ export default function ProcessPipeline({
     withdrawChange,
     uploadAnswerFile,
     loadAnswerProjectFiles,
-  } = useProcessRun(currentId)
+  } = own
   const answerFiles = useMemo<AnswerFilesSource>(
     () => ({ upload: uploadAnswerFile, loadProjectFiles: loadAnswerProjectFiles }),
     [uploadAnswerFile, loadAnswerProjectFiles],
+  )
+  const nestedStopId = run?.park && isReflectedPark(run.park) ? run.park.childRunId : undefined
+  const nested = useProcessRun(nestedStopId)
+  const cleanup = useProcessCleanup(stack.length === 0 ? runId : undefined)
+  const nestedAnswerFiles = useMemo<AnswerFilesSource>(
+    () => ({ upload: nested.uploadAnswerFile, loadProjectFiles: nested.loadAnswerProjectFiles }),
+    [nested.uploadAnswerFile, nested.loadAnswerProjectFiles],
   )
   const modelChip = useRunModelChip(run, setModel)
   const { settings } = useAppSettings()
@@ -245,7 +269,7 @@ export default function ProcessPipeline({
   const { group } = useProcessGroupRun(run?.groupRunId)
   const integrationModes = run ? processRunIntegrationModes(run, group) : undefined
   const { projects } = useProjects()
-  const { getChat, setDraft } = useChats()
+  const { getChat, setDraft, sendMessage } = useChats()
   const [chat, setChat] = useState<{ context: ChatContext; version: number } | null>(null)
   const [chatOpening, setChatOpening] = useState(false)
   const [chatWidth, setChatWidth] = useState<number | undefined>()
@@ -295,6 +319,17 @@ export default function ProcessPipeline({
       showRunChat(opened.context)
     },
     [openTreeChat, setDraft, showRunChat],
+  )
+  const sendToRunChat = useCallback(
+    async (text: string) => {
+      setChatOpening(true)
+      const opened = await openTreeChat()
+      setChatOpening(false)
+      if (!opened) return
+      showRunChat(opened.context)
+      void sendMessage(opened.context, text).catch(() => {})
+    },
+    [openTreeChat, showRunChat, sendMessage],
   )
   const askAgentAboutStep = useCallback(async () => {
     setChatOpening(true)
@@ -368,6 +403,8 @@ export default function ProcessPipeline({
           resolutions: run.needsYouResolutions,
           onDiscuss: (card) => void openRunChat(runNeedsYouDiscussDraft(card.text)),
           onResolve: (card) => void resolveNeedsYou(card.id),
+          onTriage: (cards) => void sendToRunChat(runNeedsYouTriageBrief(cards, run.id)),
+          ...(needsYouFocus ? { focus: needsYouFocus } : {}),
         }
       : undefined
   const states = processStepStates(run)
@@ -403,6 +440,71 @@ export default function ProcessPipeline({
         onSettle: () => void parkAlreadyLanded.settle(),
       }
     : undefined
+
+  const stopRun = nested.run ?? run
+  const stopActions = nested.run ? nested : own
+  const escalation = managerView?.escalation
+  const stopManager =
+    escalation && (escalation.runId === stopRun.id || escalation.runId === run.id)
+      ? escalation
+      : undefined
+  const stopPark = stopRun.park
+  const stopState = stopPark
+    ? processStepStates(stopRun).find((st) => st.step.id === stopPark.stepId)
+    : undefined
+  const stopStepName = stopState?.step.name
+  const featureStep = nested.run
+    ? states.find((st) => st.step.id === run.park?.stepId)?.step
+    : undefined
+  const stopFeatureRef =
+    featureStep?.subject?.kind === 'feature' && run.storyId
+      ? `${run.storyId}.${featureStep.subject.id}`
+      : undefined
+  const stopTone = stopPark?.reason === 'gate' ? 'review' : 'on_hold'
+  const showStopCard =
+    run.status === 'parked' &&
+    !signoff &&
+    stopHolder !== 'manager' &&
+    !!stopPark &&
+    (!nestedStopId || !!nested.run)
+  const managerStatus =
+    stopHolder === 'manager' && managerView?.status && managerView.status.state !== 'escalated'
+      ? managerView.status
+      : undefined
+  const stripEntries = processRunStripEntries(run, stopHolder)
+  const stepsCard = (className?: string) => (
+    <RunStepsCard
+      line={runStepsLine(stripEntries)}
+      total={stripEntries.length}
+      defaultOpen={stack.length > 0 || run.status === 'running'}
+      {...(className !== undefined ? { className } : {})}
+    >
+      <ol className="m-0 flex list-none flex-col p-0">
+        {states.map((state) => (
+          <PipelineNode
+            key={state.step.id}
+            run={run}
+            state={state}
+            now={now}
+            stopHolder={stopHolder}
+            managerLine={managerLine}
+            addedTag={amendments.addedSteps[state.step.id]}
+            resolveDependency={resolveDependency}
+            onDrill={drillTo}
+            onOpenPanel={setPanel}
+          />
+        ))}
+      </ol>
+    </RunStepsCard>
+  )
+  const runDetails = (className?: string) => (
+    <RunDetails
+      {...(managerView?.preRead ? { preRead: managerView.preRead } : {})}
+      workAdded={amendments.notes}
+      {...(stack.length === 0 ? { cleanup } : {})}
+      {...(className !== undefined ? { className } : {})}
+    />
+  )
 
   return (
     <RunChatDraftScope open={canChat ? (draft) => void openRunChat(draft) : undefined}>
@@ -470,90 +572,95 @@ export default function ProcessPipeline({
           {signoff ? null : <BaseMovedNote run={run} onChoose={(choice) => choose(choice)} />}
           <WorkBranchChangesNote run={run} />
           <DroppedChangesNote run={run} />
-          {managerView ? (
-            <RunManagerPanel
-              view={managerView}
+
+          {showStopCard && stopRun.park ? (
+            <RunNeedsYouCard
+              where={
+                <>
+                  {stopFeatureRef ? (
+                    <DependencyBullet dependency={stopFeatureRef} interactive />
+                  ) : null}
+                  {stopStepName ? <ToneBadge tone={stopTone}>{stopStepName}</ToneBadge> : null}
+                </>
+              }
+              tone={stopTone}
+              {...(canChat ? { onAskManager: () => void openRunChat() } : {})}
+            >
+              <ParkBlock
+                run={stopRun}
+                root={run}
+                managerLine={undefined}
+                {...(stopManager ? { manager: stopManager } : {})}
+                embedded
+                answerFiles={nested.run ? nestedAnswerFiles : answerFiles}
+                {...(alreadyMerged && !nested.run ? { alreadyMerged } : {})}
+                onChoose={(choice, note, integration, requestedProof, retry, files) =>
+                  void stopActions.resume(choice, note, integration, requestedProof, retry, files)
+                }
+                onChangeProof={(draft) => void stopActions.changeProof(draft)}
+                onAnswerRequest={(actionId, choice) =>
+                  void stopActions.answerWaitingRequest(actionId, choice)
+                }
+                onDelegate={(note) => stopActions.delegate(note).then(() => undefined)}
+                {...(canChat && atTop && !nested.run ? { onAskAgent: askAgentAboutStep } : {})}
+                {...(onOpenChat ? { onOpenChat } : {})}
+                onDrill={drillTo}
+                {...(renderAgentRun && stopState
+                  ? {
+                      onOpenTranscript: (ref: ProcessNodeRunRef) =>
+                        setPanel({
+                          runId: stopRun.id,
+                          stepId: stopState.step.id,
+                          entryId: entryIdOf(stopState, ref),
+                        }),
+                    }
+                  : {})}
+              />
+            </RunNeedsYouCard>
+          ) : managerStatus ? (
+            <RunManagerBar
+              status={managerStatus}
+              {...(stopRun.park ? { headline: stopRun.park.message } : {})}
               {...(canChat ? { onOpenChat: () => void openRunChat() } : {})}
             />
           ) : null}
+
+          {signoff ? null : (
+            <IntegrationResult
+              run={run}
+              {...(integrationModes ? { modes: integrationModes } : {})}
+              onRetry={retryIntegration}
+              onResolve={resolveIntegrationConflict}
+              error={actionError}
+            />
+          )}
 
           {stack.length === 0 ? (
             <RunPendingChanges run={run} onStart={startChanges} onRemove={withdrawChange} />
           ) : null}
 
-          {amendments.notes.length > 0 ? (
-            <div className="mx-3 mt-3 flex flex-col gap-1 rounded-md border border-(--border-subtle) bg-(--surface-base) px-2.5 py-2">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-(--text-muted)">
-                Work added to this run
-              </span>
-              {amendments.notes.map((note) => (
-                <p key={note} className="text-[11.5px] leading-relaxed text-(--text-secondary)">
-                  {note}
-                </p>
-              ))}
-            </div>
-          ) : null}
-
-          <div
-            className={
-              signoff ? 'mx-auto w-full max-w-[1120px] px-3 pb-4 pt-4 sm:px-6' : 'px-3 pb-4 pt-3'
-            }
-          >
-            <ol className="m-0 flex list-none flex-col rounded-xl border border-(--border-subtle) bg-(--surface-raised) p-0 py-1.5">
-              {states.map((state) => (
-                <PipelineNode
-                  key={state.step.id}
-                  run={run}
-                  root={stopRoot}
-                  state={state}
-                  now={now}
-                  stopHolder={stopHolder}
-                  managerLine={managerLine}
-                  {...(alreadyMerged ? { alreadyMerged } : {})}
-                  addedTag={amendments.addedSteps[state.step.id]}
-                  resolveDependency={resolveDependency}
-                  onChoose={choose}
-                  answerFiles={answerFiles}
-                  onChangeProof={(draft) => void changeProof(draft)}
-                  onAnswerRequest={(actionId, choice) =>
-                    void answerWaitingRequest(actionId, choice)
-                  }
-                  onDelegate={() => delegate().then(() => undefined)}
-                  {...(canChat && atTop ? { onAskAgent: askAgentAboutStep } : {})}
-                  {...(onOpenChat ? { onOpenChat } : {})}
-                  onDrill={drillTo}
-                  onOpenPanel={setPanel}
-                  {...(renderAgentRun
-                    ? {
-                        onOpenTranscript: (ref: ProcessNodeRunRef) =>
-                          setPanel({
-                            runId: run.id,
-                            stepId: state.step.id,
-                            entryId: entryIdOf(state, ref),
-                          }),
-                      }
-                    : {})}
-                />
-              ))}
-            </ol>
-          </div>
-
-          <IntegrationResult
-            run={run}
-            {...(integrationModes ? { modes: integrationModes } : {})}
-            onRetry={retryIntegration}
-            onResolve={resolveIntegrationConflict}
-            error={signoff ? null : actionError}
-          />
-
           {signoff ? (
-            <div className="mx-auto w-full max-w-[1120px] px-3 pb-4 sm:px-6">
+            <div className="mx-auto w-full max-w-[1120px] px-3 pb-4 pt-3 sm:px-6">
+              <NeedsYouLinkParam onItem={focusNeedsYou} />
               <NeedsYouScope value={needsYouActions}>
                 <StorySignoffReview
                   projectId={run.projectId}
                   storyId={run.storyId as string}
                   storyRunId={run.id}
                   choices={processRunParkChoices(run)}
+                  {...(stopManager ? { manager: stopManager } : {})}
+                  {...(canChat ? { onAskManager: () => void openRunChat() } : {})}
+                  integration={
+                    <IntegrationResult
+                      run={run}
+                      embedded
+                      {...(integrationModes ? { modes: integrationModes } : {})}
+                      onRetry={retryIntegration}
+                      onResolve={resolveIntegrationConflict}
+                    />
+                  }
+                  steps={stepsCard('')}
+                  details={runDetails('')}
                   droppedAccepted={processDroppedChangeRows(run)}
                   {...(run.proofUnavailable ? { proofUnavailable: run.proofUnavailable } : {})}
                   {...(run.changeUiPaths ? { changeUiPaths: run.changeUiPaths } : {})}
@@ -581,7 +688,12 @@ export default function ProcessPipeline({
                 />
               </NeedsYouScope>
             </div>
-          ) : null}
+          ) : (
+            <>
+              {stepsCard()}
+              {runDetails()}
+            </>
+          )}
 
           <RunDiagnosticsView runId={currentId} enabled={showDiagnostics} />
 
@@ -958,60 +1070,27 @@ function Marker({ look }: { look: ProcessNodeLook }) {
  */
 export function PipelineNode({
   run,
-  root,
   state,
   now,
   stopHolder,
   managerLine,
-  alreadyMerged,
   addedTag,
   resolveDependency,
-  onChoose,
-  answerFiles,
-  onChangeProof,
-  onAnswerRequest,
-  onDelegate,
-  onAskAgent,
-  onOpenChat,
   onDrill,
   onOpenPanel,
-  onOpenTranscript,
 }: {
   run: ProcessRun
-  /** The top-level run that keeps the agent manager's record. */
-  root: ProcessRun | undefined
   state: ReturnType<typeof processStepStates>[number]
   now: number
   /** Who has the stop the run waits at — its agent manager, or the person. */
   stopHolder: ProcessRunStopHolder | undefined
   /** What the manager is doing on the stop, while it has it. */
   managerLine: string | undefined
-  /** Finishing the run as already merged from its stop, when its base already holds the work. */
-  alreadyMerged?: ProcessAlreadyMergedAction
   addedTag: string | undefined
   /** Whether a feature's reference resolves to a story the app has loaded. */
   resolveDependency: ReturnType<typeof useStories>['resolveDependency']
-  onChoose: (
-    choice: ProcessResumeChoice,
-    note?: string,
-    integration?: ProcessIntegrationDecision,
-    requestedProof?: readonly ProofKind[],
-    retry?: ProcessRetryPick,
-    files?: readonly string[],
-  ) => Promise<boolean>
-  /** Where files handed to a waiting agent with an answer come from. */
-  answerFiles?: AnswerFilesSource
-  /** Change what proves the stopped feature. */
-  onChangeProof: (draft: ProofChangeDraft) => void
-  /** Decide one of several requests a waiting agent left open. */
-  onAnswerRequest: (actionId: string, choice: ProcessWaitingItemChoice) => void
-  onDelegate: () => Promise<void>
-  /** Ask an agent about the step the run stopped at, in the run's own chat. */
-  onAskAgent?: () => Promise<void>
-  onOpenChat?: (context: ChatContext) => void
   onDrill: (childRunId: string) => void
   onOpenPanel: (target: StepPanelTarget) => void
-  onOpenTranscript?: (ref: ProcessNodeRunRef) => void
 }) {
   const parkStepId = run.park?.stepId
   const parked = parkStepId === state.step.id
@@ -1133,22 +1212,32 @@ export function PipelineNode({
       ) : null}
 
       {parked && !signoffGate ? (
-        <div className="px-4 pb-3.5 sm:pl-[58px] sm:pr-5">
-          <ParkBlock
-            run={run}
-            root={root}
-            managerLine={managerLine}
-            answerFiles={answerFiles}
-            {...(alreadyMerged ? { alreadyMerged } : {})}
-            onChoose={onChoose}
-            onChangeProof={onChangeProof}
-            onAnswerRequest={onAnswerRequest}
-            onDelegate={onDelegate}
-            {...(onAskAgent ? { onAskAgent } : {})}
-            {...(onOpenChat ? { onOpenChat } : {})}
-            onDrill={onDrill}
-            {...(onOpenTranscript ? { onOpenTranscript } : {})}
-          />
+        <div className="px-4 pb-3 sm:pl-[58px] sm:pr-5">
+          <div
+            className="flex flex-wrap items-center gap-2 rounded-lg px-3 py-2 text-[12.5px]"
+            style={{
+              background: `var(--status-${managerLine ? PROCESS_LIVE_TONE : 'on_hold'}-soft-bg)`,
+              border: `1px solid var(--status-${managerLine ? PROCESS_LIVE_TONE : 'on_hold'}-soft-border)`,
+              color: `var(--status-${managerLine ? PROCESS_LIVE_TONE : 'on_hold'}-soft-fg)`,
+            }}
+          >
+            <span className="min-w-0 flex-[1_1_220px]">
+              {managerLine ?? PARK_ANSWERS_COPY.stoppedHere}
+            </span>
+            {managerLine ? null : (
+              <button
+                type="button"
+                className="font-medium text-(--accent-primary) hover:underline"
+                onClick={() =>
+                  document
+                    .getElementById(RUN_NEEDS_YOU_CARD_ID)
+                    ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                }
+              >
+                {PARK_ANSWERS_COPY.chooseAtTop}
+              </button>
+            )}
+          </div>
         </div>
       ) : null}
     </li>
@@ -1165,6 +1254,8 @@ export function ParkBlock({
   run,
   root,
   managerLine,
+  manager,
+  embedded = false,
   alreadyMerged,
   answerFiles,
   onChoose,
@@ -1177,6 +1268,10 @@ export function ParkBlock({
   onDrill,
 }: {
   run: ProcessRun
+  /** The manager's card when it handed this stop over: its word on it and the answers it prepared. */
+  manager?: ProcessManagerEscalationView
+  /** Inside the "Needs you" card, which draws the frame. */
+  embedded?: boolean
   /** Where files handed to a waiting agent with an answer come from; without it an answer carries words only. */
   answerFiles?: AnswerFilesSource
   /** The top-level run that keeps the agent manager's record — `run` itself when omitted. */
@@ -1195,7 +1290,8 @@ export function ParkBlock({
   ) => void
   onChangeProof: (draft: ProofChangeDraft) => void
   onAnswerRequest: (actionId: string, choice: ProcessWaitingItemChoice) => void
-  onDelegate: () => Promise<void>
+  /** Hand a waiting agent's ask to another agent, with the brief it starts from. */
+  onDelegate: (note?: string) => Promise<void>
   onAskAgent?: () => Promise<void>
   onOpenChat?: (context: ChatContext) => void
   /** Open the agent run that is waiting, to read its transcript. */
@@ -1207,9 +1303,13 @@ export function ParkBlock({
   const [asking, setAsking] = useState(false)
   const retryChoice = processRetryChoiceOf(run.park ? processRunParkChoices(run) : [])
   const [retryPick, setRetryPick] = useState<ProcessRetryPick | undefined>()
+  const [selected, setSelected] = useState<string | undefined>()
   const [confirmingClose, setConfirmingClose] = useState(false)
   const parkedAt = run.park?.parkedAt
-  useEffect(() => setRetryPick(undefined), [parkedAt])
+  useEffect(() => {
+    setRetryPick(undefined)
+    setSelected(undefined)
+  }, [parkedAt])
   const park = run.park
   if (!park) return null
   const choose: typeof onChoose = (choice, ...rest) =>
@@ -1230,6 +1330,8 @@ export function ParkBlock({
         <WaitingCard
           view={waiting}
           managerLine={managerLine}
+          {...(manager ? { manager } : {})}
+          embedded={embedded}
           {...(answerFiles ? { answerFiles } : {})}
           {...(retryChoice?.retry
             ? {
@@ -1256,16 +1358,49 @@ export function ParkBlock({
   const proofChange = choices.find((c) => c.choice === 'change-proof')?.proofChange
   const circling = processParkCirclingView(run, root ?? run)
   const tone = managerLine ? PROCESS_LIVE_TONE : park.reason === 'gate' ? 'review' : 'on_hold'
+  const offered = choices
+    .filter(isResumeParkChoice)
+    .map((c) =>
+      c.choice === 'retry' && c.turnLimit && manager?.moreTries?.verdict === 'pointless'
+        ? { ...c, detail: PARK_ANSWERS_COPY.retryAsIs }
+        : c,
+    )
+  const answers = processParkAnswersView(offered, manager, selected)
+  const ownChoice = parkOwnAnswerChoice(offered)
+  const pick =
+    retryPick ?? (retryChoice ? processRetryPickStart(retryChoice, manager?.moreTries) : undefined)
+  const send = (answer: ParkAnswerView, note: string | undefined) => {
+    if (answer.choice === 'change-proof') return setChangingProof(true)
+    if (answer.choice === 'close-unmerged') return setConfirmingClose(true)
+    if (!note && choiceTakesNote(answer.choice)) {
+      return setNoteFor(answer.choice as ProcessResumeChoice)
+    }
+    if (answer.choice === 'retry' && pick) {
+      return onChoose('retry', note, undefined, undefined, pick)
+    }
+    onChoose(answer.choice as ProcessResumeChoice, note)
+  }
 
   return (
     <div
-      className="mt-2 flex flex-col gap-2 rounded-lg p-3"
-      style={{
-        background: `var(--status-${tone}-soft-bg)`,
-        border: `1px solid var(--status-${tone}-soft-border)`,
-      }}
+      className={embedded ? 'flex flex-col gap-2.5' : 'mt-2 flex flex-col gap-2 rounded-lg p-3'}
+      style={
+        embedded
+          ? undefined
+          : {
+              background: `var(--status-${tone}-soft-bg)`,
+              border: `1px solid var(--status-${tone}-soft-border)`,
+            }
+      }
     >
-      <div className="text-[13px] font-semibold" style={{ color: `var(--status-${tone}-soft-fg)` }}>
+      <div
+        className={
+          embedded
+            ? 'text-[17px] font-semibold leading-snug text-(--text-primary)'
+            : 'text-[13px] font-semibold'
+        }
+        style={embedded ? undefined : { color: `var(--status-${tone}-soft-fg)` }}
+      >
         <RichText text={managerLine ?? park.message} />
       </div>
       {circling ? <CirclingNotice view={circling} /> : null}
@@ -1278,6 +1413,7 @@ export function ParkBlock({
           {managerLine ? PROCESS_NESTED_RUN_OPEN.quiet : PROCESS_NESTED_RUN_OPEN.decide}
         </button>
       ) : null}
+      {manager && !reflected ? <ManagerLine view={manager} /> : null}
       {noteFor ? (
         <ParkNoteComposer
           copy={parkNoteCopy(noteFor)}
@@ -1285,7 +1421,11 @@ export function ParkBlock({
           {...(noteFor === 'request-changes'
             ? { proofChoices: requestProofChoices(run.proofUnavailable) }
             : {})}
-          onSend={(note, requestedProof) => onChoose(noteFor, note, undefined, requestedProof)}
+          onSend={(note, requestedProof) =>
+            noteFor === 'retry' && pick
+              ? onChoose('retry', note, undefined, undefined, pick)
+              : onChoose(noteFor, note, undefined, requestedProof)
+          }
           onCancel={() => setNoteFor(undefined)}
         />
       ) : changingProof && proofChange ? (
@@ -1299,51 +1439,36 @@ export function ParkBlock({
         />
       ) : (
         <div className="flex flex-col gap-2">
-          {retryChoice && !reflected ? (
-            <RetryChoiceOptions
-              {...(retryChoice.retry ? { retry: retryChoice.retry } : {})}
-              {...(retryChoice.turnLimit
+          {reflected ? null : (
+            <ParkAnswers
+              view={answers}
+              onSelect={setSelected}
+              onSend={send}
+              {...(ownChoice
+                ? { onOwnAnswer: () => setNoteFor(ownChoice as ProcessResumeChoice) }
+                : {})}
+              {...(retryChoice && pick && answers.lead?.choice === 'retry'
                 ? {
-                    turnLimitView: processRetryTurnLimitView(
-                      run,
-                      (retryPick ?? processRetryPickStart(retryChoice)).turnLimit ??
-                        retryChoice.turnLimit.current,
+                    leadExtra: (
+                      <RetryChoiceOptions
+                        {...(retryChoice.retry ? { retry: retryChoice.retry } : {})}
+                        {...(retryChoice.turnLimit
+                          ? {
+                              turnLimitView: processRetryTurnLimitView(
+                                run,
+                                pick.turnLimit ?? retryChoice.turnLimit.current,
+                              ),
+                            }
+                          : {})}
+                        pick={pick}
+                        onPick={setRetryPick}
+                      />
                     ),
                   }
                 : {})}
-              pick={retryPick ?? processRetryPickStart(retryChoice)}
-              onPick={setRetryPick}
             />
-          ) : null}
+          )}
           <div className="flex flex-wrap gap-3">
-            {choices.filter(isResumeParkChoice).map((choice) => (
-              <div key={choice.choice} className="flex flex-col gap-0.5">
-                <Button
-                  size="sm"
-                  variant={choice.primary ? 'primary' : 'secondary'}
-                  onClick={() =>
-                    choice.choice === 'change-proof'
-                      ? setChangingProof(true)
-                      : choiceTakesNote(choice.choice)
-                        ? setNoteFor(choice.choice)
-                        : choice.choice === 'retry' && retryChoice
-                          ? onChoose(
-                              'retry',
-                              undefined,
-                              undefined,
-                              undefined,
-                              retryPick ?? processRetryPickStart(retryChoice),
-                            )
-                          : choose(choice.choice)
-                  }
-                >
-                  {choice.label}
-                </Button>
-                <span className="max-w-48 text-[10px] text-(--text-secondary)">
-                  {choice.detail}
-                </span>
-              </div>
-            ))}
             {onAskAgent && processParkAskableStepId(run) ? (
               <div className="flex flex-col gap-0.5">
                 <Button
@@ -1494,6 +1619,8 @@ function WaitingRequestRow({
 function WaitingCard({
   view,
   managerLine,
+  manager,
+  embedded = false,
   answerFiles,
   retry,
   onChoose,
@@ -1506,6 +1633,10 @@ function WaitingCard({
   view: ProcessWaitingView
   /** What the agent manager is doing on the ask, while it has it — said in place of the ask's heading. */
   managerLine: string | undefined
+  /** The manager's card when it handed the ask over: its word on it and the answers it prepared. */
+  manager?: ProcessManagerEscalationView
+  /** Inside the "Needs you" card, which draws the frame. */
+  embedded?: boolean
   /** Where files handed over with an answer come from. */
   answerFiles?: AnswerFilesSource
   /** How "Try again" starts the step's agent, where its agent could not go on. */
@@ -1525,35 +1656,57 @@ function WaitingCard({
   /** Change what proves the work, where the agent's block is proof the run cannot give. */
   onChangeProof: (draft: ProofChangeDraft) => void
   onAnswerRequest: (actionId: string, choice: ProcessWaitingItemChoice) => void
-  onDelegate: () => Promise<void>
+  onDelegate: (note?: string) => Promise<void>
   onOpenChat?: (context: ChatContext) => void
   onOpenTranscript?: (ref: ProcessNodeRunRef) => void
 }) {
   const [noteFor, setNoteFor] = useState<ProcessResumeChoice | undefined>()
   const [changingProof, setChangingProof] = useState(false)
+  const [selected, setSelected] = useState<string | undefined>()
   const proofChange = view.choices.find((c) => c.choice === 'change-proof')?.proofChange
   const [delegating, setDelegating] = useState(false)
   const transcript = view.transcript
   const delegated = view.delegated
   const tone = managerLine ? PROCESS_LIVE_TONE : 'on_hold'
   const titleLine = processWaitingTitleLine(view.title, managerLine ?? view.heading)
-  const delegate = () => {
-    setDelegating(true)
-    void onDelegate().finally(() => setDelegating(false))
+  const answers = processParkAnswersView(view.choices, manager, selected)
+  const ownChoice = parkOwnAnswerChoice(view.choices)
+  const send = (answer: ParkAnswerView, note: string | undefined) => {
+    if (answer.choice === 'delegate') {
+      setDelegating(true)
+      void onDelegate(note).finally(() => setDelegating(false))
+      return
+    }
+    if (answer.choice === 'change-proof') return setChangingProof(true)
+    if (!note && choiceTakesNote(answer.choice)) {
+      return setNoteFor(answer.choice as ProcessResumeChoice)
+    }
+    if (answer.choice === 'retry' && retry) {
+      return onChoose('retry', note, undefined, undefined, retry.pick)
+    }
+    onChoose(answer.choice as ProcessResumeChoice, note)
   }
 
   return (
     <div
-      className="mt-2 flex flex-col gap-2.5 rounded-lg p-3"
-      style={{
-        background: `var(--status-${tone}-soft-bg)`,
-        border: `1px solid var(--status-${tone}-soft-border)`,
-      }}
+      className={embedded ? 'flex flex-col gap-2.5' : 'mt-2 flex flex-col gap-2.5 rounded-lg p-3'}
+      style={
+        embedded
+          ? undefined
+          : {
+              background: `var(--status-${tone}-soft-bg)`,
+              border: `1px solid var(--status-${tone}-soft-border)`,
+            }
+      }
     >
       <div className="flex flex-col gap-0.5">
         <div
-          className="text-[13.5px] font-semibold"
-          style={{ color: `var(--status-${tone}-soft-fg)` }}
+          className={
+            embedded
+              ? 'text-[17px] font-semibold leading-snug text-(--text-primary)'
+              : 'text-[13.5px] font-semibold'
+          }
+          style={embedded ? undefined : { color: `var(--status-${tone}-soft-fg)` }}
         >
           {managerLine ?? view.heading}
         </div>
@@ -1598,6 +1751,7 @@ function WaitingCard({
           )
         ) : null}
       </div>
+      {manager ? <ManagerLine view={manager} /> : null}
       {noteFor ? (
         <ParkNoteComposer
           copy={waitingNoteCopy(view.kind)}
@@ -1618,36 +1772,22 @@ function WaitingCard({
           onCancel={() => setChangingProof(false)}
         />
       ) : (
-        <div className="flex flex-col gap-2">
-          {retry ? (
-            <RetryChoiceOptions retry={retry.offer} pick={retry.pick} onPick={retry.onPick} />
-          ) : null}
-          <div className="flex flex-wrap gap-3">
-            {view.choices.map((choice) => (
-              <div key={choice.choice} className="flex flex-col gap-0.5">
-                <Button
-                  size="sm"
-                  variant={choice.primary ? 'primary' : 'secondary'}
-                  disabled={choice.choice === 'delegate' && delegating}
-                  onClick={() => {
-                    if (!isResumeParkChoice(choice)) return delegate()
-                    if (choice.choice === 'change-proof') return setChangingProof(true)
-                    if (choiceTakesNote(choice.choice)) return setNoteFor(choice.choice)
-                    if (choice.choice === 'retry' && retry) {
-                      return onChoose('retry', undefined, undefined, undefined, retry.pick)
-                    }
-                    onChoose(choice.choice)
-                  }}
-                >
-                  {choice.label}
-                </Button>
-                <span className="max-w-48 text-[10px] text-(--text-secondary)">
-                  {choice.detail}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <ParkAnswers
+          view={answers}
+          busy={delegating}
+          onSelect={setSelected}
+          onSend={send}
+          {...(ownChoice
+            ? { onOwnAnswer: () => setNoteFor(ownChoice as ProcessResumeChoice) }
+            : {})}
+          {...(retry && answers.lead?.choice === 'retry'
+            ? {
+                leadExtra: (
+                  <RetryChoiceOptions retry={retry.offer} pick={retry.pick} onPick={retry.onPick} />
+                ),
+              }
+            : {})}
+        />
       )}
     </div>
   )

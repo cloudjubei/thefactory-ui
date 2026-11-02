@@ -17,6 +17,16 @@ import BottomSheet from '../primitives/BottomSheet'
 export type { StoryStatus, StatusSemanticKey }
 export { STATUS_LABELS, STATUS_ORDER, statusKey, statusLabel }
 
+/** A status's dot colour — what a status filter's options show, matching the web status pill. */
+export const STATUS_DOT_COLOR: Record<StatusSemanticKey, string> = {
+  queued: nativePalette.gray[500],
+  working: nativePalette.orange[500],
+  done: nativePalette.green[500],
+  stuck: nativePalette.red[500],
+  onhold: nativePalette.purple[500],
+  review: nativePalette.blue[500],
+}
+
 export interface StatusControlProps {
   status: StoryStatus | string
   /** When set, the badge becomes a pressable that opens a status picker. */

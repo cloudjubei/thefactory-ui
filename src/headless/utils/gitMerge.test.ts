@@ -9,6 +9,7 @@ import {
   mergeBlockedReason,
   mergeChecksOnByDefault,
   mergeChecksView,
+  mergeLeftBranchToPush,
   mergeOutcomeLine,
   mergeSentence,
   mergeSourceOptions,
@@ -485,5 +486,18 @@ describe('canPushBranch', () => {
     )
     expect(canPushBranch(branch({ name: 'a', isLocal: true, isRemote: true }))).toBe(false)
     expect(canPushBranch(branch({ name: 'r', isRemote: true, ahead: 3 }))).toBe(false)
+  })
+})
+
+describe('mergeLeftBranchToPush', () => {
+  it.each([
+    ['merged', true],
+    ['fast-forward', true],
+    ['up-to-date', true],
+    ['staged', false],
+    ['conflicts', false],
+    ['refused', false],
+  ] as const)('a %s merge leaves its branch to push: %s', (status, pushable) => {
+    expect(mergeLeftBranchToPush({ status })).toBe(pushable)
   })
 })

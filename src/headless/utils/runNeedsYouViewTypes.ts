@@ -26,6 +26,9 @@ export type NeedsYouCardsView = {
   attention: boolean
 }
 
+/** The item a "Needs you" link opened the run on: brought into view and lit once per `seq`. */
+export type RunNeedsYouFocus = { itemId: string; seq: number }
+
 /** What a run's sign-off lets its "Needs you" cards do — given by the pipeline that shows them. */
 export type RunNeedsYouActions = {
   /** How a person settled the items, by id — the run's own record. */
@@ -34,4 +37,8 @@ export type RunNeedsYouActions = {
   onDiscuss: (card: NeedsYouCard) => void
   /** Mark the item fine as it is. */
   onResolve: (card: NeedsYouCard) => void
+  /** Hand every open item to the manager in the run's chat, to weigh and propose a course for each. */
+  onTriage?: (cards: readonly NeedsYouCard[]) => void
+  /** The item a link opened the run on: the report is shown and the item brought into view, lit. */
+  focus?: RunNeedsYouFocus
 }

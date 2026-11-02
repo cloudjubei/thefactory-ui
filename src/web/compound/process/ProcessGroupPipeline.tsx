@@ -380,6 +380,7 @@ function LegCard({
       <div className="truncate text-[11.5px] text-(--text-secondary)">{leg.title}</div>
       {row.waitsFor ? <div className="text-[11px] text-(--text-muted)">{row.waitsFor}</div> : null}
       {row.landed ? <div className="text-[11px] text-(--text-muted)">{row.landed}</div> : null}
+      {row.follows ? <div className="text-[11px] text-(--text-muted)">{row.follows}</div> : null}
       {row.error ? (
         <div
           className="rounded-md px-2 py-1 text-[11px]"

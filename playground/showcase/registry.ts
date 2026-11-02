@@ -17,6 +17,7 @@ import { CLI_CAPABILITY_CARD_SCENES } from '../scenes/cliCapabilityCard'
 import { CHAT_CHANGES_SCENES } from '../scenes/chatChanges'
 import { CHAT_CHANGES_DOCK_SCENES } from '../scenes/chatChangesDock'
 import { CHECKS_UNFINISHED_SCENES } from '../scenes/checksUnfinished'
+import { COMMIT_CHECKS_SCENES } from '../scenes/commitChecks'
 import { COMMIT_RECEIPT_SCENES } from '../scenes/commitReceipt'
 import { COST_CHIP_SCENES } from '../scenes/costChip'
 import { CHAT_PAUSED_RUN_SCENES } from '../scenes/chatPausedRun'
@@ -27,6 +28,8 @@ import { FEATURE_POOL_SCENES } from '../scenes/featurePool'
 import { FEATURE_REQUEST_CARD_SCENES } from '../scenes/featureRequestCard'
 import { FEATURE_REQUEST_WAIT_CYCLE_SCENES } from '../scenes/featureRequestWaitCycle'
 import { FILE_SUGGESTION_SCENES } from '../scenes/fileSuggestions'
+import { GIT_GRAPH_UNCOMMITTED_SCENES } from '../scenes/gitGraphUncommitted'
+import { GIT_PUSH_AFTER_SCENES } from '../scenes/gitPushAfter'
 import { GIT_STASH_SCENES } from '../scenes/gitStash'
 import { GROUP_STORY_SCENES } from '../scenes/groupStories'
 import { KNOWLEDGE_SCENES } from '../scenes/knowledge'
@@ -45,6 +48,8 @@ import { PROCESS_MODEL_SCENES } from '../scenes/processModel'
 import { PROJECT_OVERVIEW_MODEL_SCENES } from '../scenes/projectOverviewModel'
 import { PROOF_CHANGE_SCENES } from '../scenes/proofChange'
 import { REGENERATED_MERGE_SCENES } from '../scenes/regeneratedMerge'
+import { NEEDS_YOU_REFERENCE_SCENES } from '../scenes/needsYouReferences'
+import { RUN_NEEDS_YOU_SCENES } from '../scenes/runNeedsYou'
 import { RUNNING_TONE_SCENES } from '../scenes/runningTone'
 import { SIBLING_STABLE_BRANCH_SCENES } from '../scenes/siblingStableBranch'
 import { RUN_TIME_DETAILS_SCENES } from '../scenes/runTimeDetails'
@@ -104,6 +109,8 @@ export const SCENES: readonly Scene[] = [
   ...DROPPED_CHANGE_SCENES,
   ...CIRCLING_SCENES,
   ...REGENERATED_MERGE_SCENES,
+  ...RUN_NEEDS_YOU_SCENES,
+  ...NEEDS_YOU_REFERENCE_SCENES,
   ...RUNNING_TONE_SCENES,
   ...STORY_WORK_SCENES,
   ...STORY_CHANGE_ERROR_SCENES,
@@ -121,7 +128,10 @@ export const SCENES: readonly Scene[] = [
   ...APP_FEATURE_REQUEST_SCENES,
   ...APP_UNREAD_SCENES,
   ...DOCUMENT_REPORT_SCENES,
+  ...GIT_GRAPH_UNCOMMITTED_SCENES,
   ...GIT_STASH_SCENES,
+  ...COMMIT_CHECKS_SCENES,
+  ...GIT_PUSH_AFTER_SCENES,
   ...USAGE_SCENES,
   ...CLI_CAPABILITY_CARD_SCENES,
   ...BACKEND_CONNECTION_SCENES,

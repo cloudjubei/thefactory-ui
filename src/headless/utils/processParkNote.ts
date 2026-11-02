@@ -16,6 +16,7 @@ import {
   PARK_NOTE_COPY,
   PARK_NOTE_REQUIRED_CHOICES,
   REQUEST_PROOF_CHOICES,
+  RETRY_NOTE_COPY,
   SEND_TO_DEVELOPER_NOTE_COPY,
   WAITING_NOTE_COPY,
 } from './processParkNoteConstants'
@@ -26,10 +27,11 @@ export function choiceTakesNote(choice: ProcessParkAction): boolean {
   return PARK_NOTE_CHOICES.has(choice)
 }
 
-/** The composer's words for a park choice that takes a note: sending work back to the developer, accepting a dropped change, else a request for changes. */
+/** The composer's words for a park choice that takes a note: sending work back to the developer, accepting a dropped change, trying again, else a request for changes. */
 export function parkNoteCopy(choice: ProcessParkAction): ParkNoteCopy {
   if (choice === 'send-to-developer') return SEND_TO_DEVELOPER_NOTE_COPY
   if (choice === 'accept-dropped-change') return ACCEPT_DROPPED_NOTE_COPY
+  if (choice === 'retry') return RETRY_NOTE_COPY
   return PARK_NOTE_COPY
 }
 

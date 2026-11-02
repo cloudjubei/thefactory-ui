@@ -4,6 +4,7 @@ import type { ProcessLedgerEntry, ProcessRun } from 'thefactory-tools/types'
 import {
   featureStripEntries,
   processRunStripEntries,
+  runStepsLine,
   stepsStripFolds,
   stepsStripMeasureKey,
   stepsStripShrink,
@@ -483,5 +484,15 @@ describe('stepsStripMeasureKey', () => {
       { key: 'c d', label: 'e', phase: 'done', tone: 'done' },
     ]
     expect(stepsStripMeasureKey(a)).not.toBe(stepsStripMeasureKey(b))
+  })
+})
+
+describe('runStepsLine', () => {
+  it('counts the steps done out of all of them', () => {
+    expect(runStepsLine(entries(['done', 'done', 'current', 'upcoming']))).toBe('2 of 4 done')
+  })
+
+  it('says none are done before anything finished', () => {
+    expect(runStepsLine(entries(['current', 'upcoming']))).toBe('0 of 2 done')
   })
 })

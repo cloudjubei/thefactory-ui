@@ -7,6 +7,7 @@ import {
   useGroupStories,
   useGroupStory,
   useGroupStoryRun,
+  useGroupStoryListFilter,
   useGroupStoryRunPreview,
   type GroupStoryMemberProject,
   type GroupStoryRunBody,
@@ -84,12 +85,15 @@ export function GroupStoriesScreen({
   const storiesByProject = useMemberStories(members, creating)
   const runner = useGroupStoryRun(groupId, runTarget?.groupStoryId, refresh)
   const initialForm = useMemo(() => groupStoryFormFor(members), [members])
+  const [filter, changeFilter] = useGroupStoryListFilter(groupId)
 
   return (
     <ScrollView>
       {loadError ? <Alert variant="error">{loadError.message}</Alert> : null}
       <GroupStoriesList
         stories={stories}
+        filter={filter}
+        onFilterChange={changeFilter}
         loading={!isLoaded}
         onOpenStory={onOpenStory}
         onOpenRun={onOpenRun}

@@ -133,6 +133,19 @@ export function canPushBranch(
   return branch.isLocal && ((branch.ahead ?? 0) > 0 || !branch.isRemote)
 }
 
+/**
+ * Whether a merge left its branch where pushing it makes sense: merged,
+ * fast-forwarded or already up to date. A staged, stopped or refused merge
+ * moved nothing to push.
+ */
+export function mergeLeftBranchToPush(outcome: Pick<GitMergeBranchResult, 'status'>): boolean {
+  return (
+    outcome.status === 'merged' ||
+    outcome.status === 'fast-forward' ||
+    outcome.status === 'up-to-date'
+  )
+}
+
 /** What the Git view says once a merge returns — and, under it, how its result's checks went. */
 export function mergeOutcomeLine(outcome: GitMergeBranchResult): GitMergeOutcomeLine {
   const line = outcomeLine(outcome)

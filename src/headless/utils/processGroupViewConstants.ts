@@ -12,6 +12,7 @@ export const PROCESS_GROUP_LEG_STATUS_VIEW: Record<
   'start-failed': { label: 'Could not start', tone: 'stuck' },
   running: { label: PROCESS_RUN_WORDS.running, tone: 'running' },
   'needs-you': { label: PROCESS_RUN_WORDS.needsYou, tone: 'on_hold' },
+  waiting: { label: 'Waiting on other work', tone: 'queued' },
   'manager-on-it': { label: PROCESS_RUN_WORDS.managerOnIt, tone: 'running' },
   'at-sign-off': { label: PROCESS_RUN_WORDS.signOff, tone: 'review' },
   integrating: { label: PROCESS_RUN_WORDS.merging, tone: 'working' },
@@ -25,11 +26,24 @@ export const PROCESS_GROUP_LEG_STATUS_VIEW: Record<
   skipped: { label: 'Skipped', tone: 'empty' },
 }
 
+/** Where a leg stands while its project's work moves on by itself: a group with one is not just waiting. */
+export const PROCESS_GROUP_MOVING_LEG_STATUSES: readonly ProcessGroupLegStatus[] = [
+  'starting',
+  'running',
+  'manager-on-it',
+  'integrating',
+  'rebuilding',
+]
+
 /** What opening a leg's own run is for, by where the leg stands; anything else just opens it. */
 export const PROCESS_GROUP_LEG_OPEN_LABELS: Partial<Record<ProcessGroupLegStatus, string>> = {
   'at-sign-off': 'Sign it off',
   'needs-you': 'Answer it',
 }
+
+/** What a leg says when it follows the run its story already had open. */
+export const PROCESS_GROUP_LEG_FOLLOWS_OPEN_RUN =
+  'Follows the run its story already had open — started outside this group.'
 
 /** The label for opening a leg's own run when it waits on nothing of yours. */
 export const PROCESS_GROUP_LEG_OPEN_LABEL = 'Open its pipeline'

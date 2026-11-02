@@ -4,15 +4,21 @@ import { useReferences, type References } from '../../headless/hooks/useReferenc
 import { useReferenceRendering } from '../../headless/contexts/ReferenceRenderingContext'
 import { useFiles } from '../../headless/contexts/FilesContext'
 import ReferenceChip from '../compound/chips/ReferenceChip'
+import NeedsYouReferenceChip from '../compound/chips/NeedsYouReferenceChip'
 import RunReferenceChip from '../compound/chips/RunReferenceChip'
 import DesignReferenceChip from '../compound/design/DesignReferenceChip'
 import FileDisplay, { type UikitFileMeta } from '../compound/files/FileDisplay'
-import { referencedRunId, storyChipLabel } from '../../headless/utils/referenceTargets'
+import {
+  referencedNeedsYouItem,
+  referencedRunId,
+  storyChipLabel,
+} from '../../headless/utils/referenceTargets'
 
 /**
  * The chip a chat shows for each thing its messages point at: a project file
  * the project has, with its preview on hover; a process run as a live
- * {@link RunReferenceChip}; any other reference or in-app link — a folder, a
+ * {@link RunReferenceChip}, one of its "Needs you" items as a live
+ * {@link NeedsYouReferenceChip}; any other reference or in-app link — a folder, a
  * process — as a {@link ReferenceChip} that opens it. `undefined` — so the token
  * reads as text or code — for a file the project does not have, or a
  * reference that resolves to nothing.
@@ -59,6 +65,17 @@ export function useReferenceRenderer({
       }
       const description = target.type === 'link' ? describeLink(target.link) : describe(target)
       if (!description) return undefined
+      const item = referencedNeedsYouItem(target)
+      if (item) {
+        return (
+          <NeedsYouReferenceChip
+            runId={item.runId}
+            needsYouItemId={item.needsYouItemId}
+            description={description}
+            {...(onOpen ? { onOpen } : {})}
+          />
+        )
+      }
       const runId = referencedRunId(target)
       if (runId) {
         return (

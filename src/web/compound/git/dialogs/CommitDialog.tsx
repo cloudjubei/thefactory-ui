@@ -1,20 +1,86 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
-import { useGit } from '../../../../headless'
-import { Alert, Button, Field, Modal, Textarea } from '../../..'
+import type { ChatContext } from 'thefactory-tools/types'
+import {
+  GIT_COMMIT_PUSH_TEXT,
+  GitPushAfterCommitError,
+  commitButtonLabel,
+  extractErrorMessage,
+  gitHookRejection,
+  useFixCommitChecks,
+  useGit,
+  type GitCommitAndPushOptions,
+  type GitCommitPushPhase,
+} from '../../../../headless'
+import type { GitStatus } from '../../../../headless/api'
+import { Alert, Button, Field, Modal, TerminalOutput, Textarea } from '../../..'
 
 export type CommitDialogProps = {
   isOpen: boolean
   onClose: () => void
+  /** Opens a chat — offered as "Fix with an agent" when the commit checks stop a commit. */
+  onOpenChat?: (context: ChatContext) => void
 }
 
-export default function CommitDialog({ isOpen, onClose }: CommitDialogProps) {
-  const { commit, push, status } = useGit()
-  const [message, setMessage] = useState('')
+export type CommitDialogViewProps = {
+  isOpen: boolean
+  onClose: () => void
+  status: GitStatus | null
+  /** Commits, then pushes at once when asked; a push that fails after the commit throws `GitPushAfterCommitError`. */
+  onCommit: (
+    input: { message: string; amend: boolean },
+    options: GitCommitAndPushOptions,
+  ) => Promise<unknown>
+  /** Pushes again after a commit whose push failed. */
+  onPush: () => Promise<unknown>
+  /** Starts an agent on what the commit checks reported; offered only when given. */
+  onFixWithAgent?: (input: {
+    output: string
+    stagedFiles: readonly string[]
+    message: string
+  }) => Promise<void>
+  initial?: { message?: string; hookOutput?: string; pushError?: string }
+}
+
+export default function CommitDialog({ isOpen, onClose, onOpenChat }: CommitDialogProps) {
+  const { commitAndPush, push, status } = useGit()
+  const fixCommitChecks = useFixCommitChecks()
+  return (
+    <CommitDialogView
+      isOpen={isOpen}
+      onClose={onClose}
+      status={status}
+      onCommit={commitAndPush}
+      onPush={() => push()}
+      {...(onOpenChat
+        ? { onFixWithAgent: async (input) => onOpenChat(await fixCommitChecks(input)) }
+        : {})}
+    />
+  )
+}
+
+export function CommitDialogView({
+  isOpen,
+  onClose,
+  status,
+  onCommit,
+  onPush,
+  onFixWithAgent,
+  initial,
+}: CommitDialogViewProps) {
+  const [fixing, setFixing] = useState(false)
+  const [message, setMessage] = useState(initial?.message ?? '')
   const [amend, setAmend] = useState(false)
   const [pushAfter, setPushAfter] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [phase, setPhase] = useState<GitCommitPushPhase | undefined>(undefined)
+  const [pushError, setPushError] = useState<string | null>(initial?.pushError ?? null)
   const [error, setError] = useState<string | null>(null)
+  const [hookOutput, setHookOutput] = useState<string | null>(initial?.hookOutput ?? null)
+
+  useEffect(() => {
+    if (!isOpen) setPushError(null)
+  }, [isOpen])
 
   const merging = status?.merging
   const mergeMessage = merging?.message
@@ -30,31 +96,76 @@ export default function CommitDialog({ isOpen, onClose }: CommitDialogProps) {
   // its conflicts are resolved; left empty, its message is the one git prepared.
   const canSubmit =
     !submitting &&
-    (merging
-      ? merging.conflictedFiles.length === 0
-      : amend
-        ? true
-        : stagedCount > 0 && trimmed.length > 0)
+    (pushError !== null ||
+      (merging
+        ? merging.conflictedFiles.length === 0
+        : amend
+          ? true
+          : stagedCount > 0 && trimmed.length > 0))
+
+  const finish = () => {
+    setMessage('')
+    setAmend(false)
+    setPushAfter(false)
+    setPushError(null)
+    onClose()
+  }
+
+  const onPushAgain = async () => {
+    setSubmitting(true)
+    setPhase('pushing')
+    try {
+      await onPush()
+      finish()
+    } catch (err) {
+      setPushError(extractErrorMessage(err, 'Failed to push'))
+    } finally {
+      setPhase(undefined)
+      setSubmitting(false)
+    }
+  }
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (!canSubmit) return
+    if (pushError !== null) return void (await onPushAgain())
     setSubmitting(true)
     setError(null)
+    setHookOutput(null)
     try {
-      await commit({ message: trimmed, amend: merging ? false : amend })
-      // Chained client-side so a push failure surfaces independently from the
-      // already-successful commit — backend's contract intentionally omits
-      // upstream's `pushToOrigin` shortcut.
-      if (pushAfter) await push()
-      setMessage('')
-      setAmend(false)
-      setPushAfter(false)
+      await onCommit(
+        { message: trimmed, amend: merging ? false : amend },
+        { push: pushAfter, onPhase: setPhase },
+      )
+      finish()
+    } catch (err) {
+      const rejection = gitHookRejection(err)
+      if (err instanceof GitPushAfterCommitError) {
+        setMessage('')
+        setAmend(false)
+        setPushError(extractErrorMessage(err.cause, 'Failed to push'))
+      } else if (rejection !== undefined) setHookOutput(rejection)
+      else setError(extractErrorMessage(err, 'Failed to commit'))
+    } finally {
+      setPhase(undefined)
+      setSubmitting(false)
+    }
+  }
+
+  const onFixChecks = async () => {
+    if (hookOutput === null || !onFixWithAgent) return
+    setFixing(true)
+    try {
+      await onFixWithAgent({
+        output: hookOutput,
+        stagedFiles: status?.staged ?? [],
+        message: trimmed,
+      })
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to commit')
+      setError(extractErrorMessage(err, 'Could not start the chat'))
     } finally {
-      setSubmitting(false)
+      setFixing(false)
     }
   }
 
@@ -74,6 +185,25 @@ export default function CommitDialog({ isOpen, onClose }: CommitDialogProps) {
     >
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         {error && <Alert>{error}</Alert>}
+        {pushError !== null ? <Alert>{GIT_COMMIT_PUSH_TEXT.pushFailed(pushError)}</Alert> : null}
+        {hookOutput !== null ? (
+          <div className="flex flex-col gap-2">
+            <Alert>The commit checks stopped this commit. Nothing was committed.</Alert>
+            <TerminalOutput text={hookOutput} label="Commit checks" />
+            {onFixWithAgent ? (
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  loading={fixing}
+                  onClick={() => void onFixChecks()}
+                >
+                  Fix with an agent
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         <Field label="Commit message">
           <Textarea
             autoFocus
@@ -105,7 +235,7 @@ export default function CommitDialog({ isOpen, onClose }: CommitDialogProps) {
               checked={pushAfter}
               onChange={(e) => setPushAfter(e.target.checked)}
             />
-            Push to origin after commit
+            {GIT_COMMIT_PUSH_TEXT.pushAfter}
           </label>
         </div>
         <div className="flex items-center justify-between gap-2">
@@ -113,8 +243,9 @@ export default function CommitDialog({ isOpen, onClose }: CommitDialogProps) {
             {stagedCount} file{stagedCount === 1 ? '' : 's'} staged
           </div>
           <Button type="submit" loading={submitting} disabled={!canSubmit}>
-            {amend ? 'Amend' : 'Commit'}
-            {pushAfter ? ' & Push' : ''}
+            {pushError !== null && !phase
+              ? GIT_COMMIT_PUSH_TEXT.pushAgain
+              : commitButtonLabel({ amend, merging: !!merging, push: pushAfter, phase })}
           </Button>
         </div>
       </form>

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
-import { useRunDiagnostics, type RunDiagnosticsEvent } from '../../../headless'
+import { RUN_DETAILS_COPY, useRunDiagnostics, type RunDiagnosticsEvent } from '../../../headless'
+import { IconChevronRight } from '../../icons'
 
 export type RunDiagnosticsViewProps = {
   /** The run whose flight recorder to show. */
@@ -21,36 +22,49 @@ const LEVEL_TONE: Record<RunDiagnosticsEvent['level'], string> = {
 }
 
 /**
- * The per-run flight recorder, rendered as a compact timeline: pre-launch
+ * The per-run flight recorder, folded to one line until opened: pre-launch
  * checks, the launch summary, each step's outcome, and the reason behind a
  * parked/errored step — the detail a transcript buries. Read-only; it grows live
- * as the run progresses. Shown only when the viewer has Debug mode on.
+ * as the run progresses, and is fetched only once opened. Shown only when the
+ * viewer has Debug mode on.
  */
 export default function RunDiagnosticsView({ runId, enabled }: RunDiagnosticsViewProps) {
+  const [open, setOpen] = useState(false)
   if (!enabled) return null
-  return <RunDiagnosticsPanel runId={runId} />
+  return (
+    <section className="mx-3 mt-3 mb-4 rounded-xl border border-dashed border-(--border-subtle) bg-(--surface-base)">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="flex min-h-10 w-full items-center gap-2 px-4 py-2 text-left"
+      >
+        <IconChevronRight
+          className={`size-3.5 shrink-0 text-(--text-muted) transition-transform ${open ? 'rotate-90' : ''}`}
+        />
+        <span className="text-[10.5px] font-semibold uppercase tracking-wider text-(--text-muted)">
+          {RUN_DETAILS_COPY.debug}
+        </span>
+      </button>
+      {open ? <RunDiagnosticsPanel runId={runId} /> : null}
+    </section>
+  )
 }
 
 function RunDiagnosticsPanel({ runId }: { runId: string }) {
   const { diagnostics, isLoaded, loadError } = useRunDiagnostics(runId, { enabled: true })
   const events = diagnostics?.events ?? []
   return (
-    <section className="mx-3 mb-4 rounded-md border border-(--border-subtle) bg-(--surface-base)">
-      <header className="flex items-center gap-2 border-b border-(--border-subtle) px-3 py-2">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-(--text-muted)">
-          Debug · flight recorder
-        </span>
-        <span className="text-[10px] text-(--text-muted)">
-          {events.length} event{events.length === 1 ? '' : 's'}
-          {diagnostics?.truncated ? ' · older trimmed' : ''}
-        </span>
-      </header>
+    <div className="border-t border-(--border-subtle)">
+      <p className="m-0 px-4 py-1.5 text-[10.5px] text-(--text-muted)">
+        {RUN_DETAILS_COPY.events(events.length, diagnostics?.truncated === true)}
+      </p>
       {loadError ? (
-        <p className="px-3 py-2 text-[11px] text-(--status-blocked-soft-fg)">{loadError.message}</p>
+        <p className="px-4 py-2 text-[11px] text-(--status-blocked-soft-fg)">{loadError.message}</p>
       ) : !isLoaded ? (
-        <p className="px-3 py-2 text-[11px] text-(--text-muted)">Loading diagnostics…</p>
+        <p className="px-4 py-2 text-[11px] text-(--text-muted)">Loading diagnostics…</p>
       ) : events.length === 0 ? (
-        <p className="px-3 py-2 text-[11px] text-(--text-muted)">
+        <p className="px-4 py-2 text-[11px] text-(--text-muted)">
           No diagnostics recorded for this run.
         </p>
       ) : (
@@ -60,7 +74,7 @@ function RunDiagnosticsPanel({ runId }: { runId: string }) {
           ))}
         </ol>
       )}
-    </section>
+    </div>
   )
 }
 
@@ -69,7 +83,7 @@ function EventRow({ event }: { event: RunDiagnosticsEvent }) {
   const tone = LEVEL_TONE[event.level] ?? 'queued'
   const hasData = event.data !== undefined && Object.keys(event.data).length > 0
   return (
-    <li className="border-b border-(--border-subtle) px-3 py-1.5 last:border-b-0">
+    <li className="border-t border-(--border-subtle) px-4 py-1.5">
       <button
         type="button"
         disabled={!hasData}

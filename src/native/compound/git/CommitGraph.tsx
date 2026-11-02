@@ -34,8 +34,9 @@ export type CommitGraphProps = {
   commits: GitLogCommitLike[]
   selectedCommitSha?: string
   /**
-   * When true, prepends a stub `UNCOMMITTED` row pointing at the tip commit —
-   * matches desktop's pattern of showing pending changes in the same timeline.
+   * When true, the working tree's changes lead the timeline as their own row,
+   * its line running down to the checked-out commit — never to whichever
+   * commit is newest.
    */
   uncommittedChanges?: boolean
   /** SHA to scroll into view (e.g. when the user picks a branch elsewhere). */
@@ -81,28 +82,10 @@ export function CommitGraph({
   const listRef = useRef<FlatList<GraphNode>>(null)
   const lastScrolledShaRef = useRef<string | null>(null)
 
-  const graphNodes = useMemo(() => {
-    let nodes = computeCommitGraph(commits)
-    if (uncommittedChanges) {
-      const stub: GraphNode = {
-        commit: {
-          hash: 'UNCOMMITTED',
-          parents: commits.length > 0 ? [commits[0].hash] : [],
-          subject: 'Uncommitted changes',
-          authorName: '',
-          authorEmail: '',
-          authorDate: Date.now(),
-          refs: [],
-        },
-        nodeLane: 0,
-        maxLanes: 0,
-        incomingLanes: [],
-        outgoingLanes: [],
-      }
-      nodes = [stub, ...nodes]
-    }
-    return nodes
-  }, [commits, uncommittedChanges])
+  const graphNodes = useMemo(
+    () => computeCommitGraph(commits, { uncommitted: !!uncommittedChanges }),
+    [commits, uncommittedChanges],
+  )
 
   // Auto-select a sensible default whenever the parent clears
   // `selectedCommitSha`. `autoSelectedRef` tracks our last auto-pick — a
@@ -269,78 +252,76 @@ function CommitGraphRow({
       })}
     >
       <View style={{ width: graphWidth, height: ROW_HEIGHT }}>
-        {!isUncommitted ? (
-          <Svg width={graphWidth} height={ROW_HEIGHT}>
-            {incomingLanes.map((hash, i) => {
-              if (hash === commit.hash) {
+        <Svg width={graphWidth} height={ROW_HEIGHT}>
+          {incomingLanes.map((hash, i) => {
+            if (hash === commit.hash) {
+              return (
+                <Path
+                  key={`in-${i}`}
+                  d={`M ${i * LANE_WIDTH + LANE_WIDTH} 0 Q ${i * LANE_WIDTH + LANE_WIDTH} ${halfH} ${
+                    nodeLane * LANE_WIDTH + LANE_WIDTH
+                  } ${halfH}`}
+                  fill="none"
+                  stroke={getColor(i)}
+                  strokeWidth={2}
+                />
+              )
+            } else if (hash !== null) {
+              return (
+                <Line
+                  key={`in-${i}`}
+                  x1={i * LANE_WIDTH + LANE_WIDTH}
+                  y1={0}
+                  x2={i * LANE_WIDTH + LANE_WIDTH}
+                  y2={halfH}
+                  stroke={getColor(i)}
+                  strokeWidth={2}
+                />
+              )
+            }
+            return null
+          })}
+
+          {outgoingLanes.map((hash, i) => {
+            if (hash !== null) {
+              const isParent = commit.parents.includes(hash)
+              if (isParent) {
                 return (
                   <Path
-                    key={`in-${i}`}
-                    d={`M ${i * LANE_WIDTH + LANE_WIDTH} 0 Q ${i * LANE_WIDTH + LANE_WIDTH} ${halfH} ${
-                      nodeLane * LANE_WIDTH + LANE_WIDTH
-                    } ${halfH}`}
+                    key={`out-${i}`}
+                    d={`M ${nodeLane * LANE_WIDTH + LANE_WIDTH} ${halfH} Q ${
+                      i * LANE_WIDTH + LANE_WIDTH
+                    } ${halfH} ${i * LANE_WIDTH + LANE_WIDTH} ${ROW_HEIGHT}`}
                     fill="none"
                     stroke={getColor(i)}
                     strokeWidth={2}
                   />
                 )
-              } else if (hash !== null) {
-                return (
-                  <Line
-                    key={`in-${i}`}
-                    x1={i * LANE_WIDTH + LANE_WIDTH}
-                    y1={0}
-                    x2={i * LANE_WIDTH + LANE_WIDTH}
-                    y2={halfH}
-                    stroke={getColor(i)}
-                    strokeWidth={2}
-                  />
-                )
               }
-              return null
-            })}
+              return (
+                <Line
+                  key={`out-${i}`}
+                  x1={i * LANE_WIDTH + LANE_WIDTH}
+                  y1={halfH}
+                  x2={i * LANE_WIDTH + LANE_WIDTH}
+                  y2={ROW_HEIGHT}
+                  stroke={getColor(i)}
+                  strokeWidth={2}
+                />
+              )
+            }
+            return null
+          })}
 
-            {outgoingLanes.map((hash, i) => {
-              if (hash !== null) {
-                const isParent = commit.parents.includes(hash)
-                if (isParent) {
-                  return (
-                    <Path
-                      key={`out-${i}`}
-                      d={`M ${nodeLane * LANE_WIDTH + LANE_WIDTH} ${halfH} Q ${
-                        i * LANE_WIDTH + LANE_WIDTH
-                      } ${halfH} ${i * LANE_WIDTH + LANE_WIDTH} ${ROW_HEIGHT}`}
-                      fill="none"
-                      stroke={getColor(i)}
-                      strokeWidth={2}
-                    />
-                  )
-                }
-                return (
-                  <Line
-                    key={`out-${i}`}
-                    x1={i * LANE_WIDTH + LANE_WIDTH}
-                    y1={halfH}
-                    x2={i * LANE_WIDTH + LANE_WIDTH}
-                    y2={ROW_HEIGHT}
-                    stroke={getColor(i)}
-                    strokeWidth={2}
-                  />
-                )
-              }
-              return null
-            })}
-
-            <Circle
-              cx={nodeLane * LANE_WIDTH + LANE_WIDTH}
-              cy={halfH}
-              r={RADIUS}
-              fill={getColor(nodeLane)}
-              stroke="#ffffff"
-              strokeWidth={2}
-            />
-          </Svg>
-        ) : null}
+          <Circle
+            cx={nodeLane * LANE_WIDTH + LANE_WIDTH}
+            cy={halfH}
+            r={RADIUS}
+            fill={isUncommitted ? theme.surface.raised : getColor(nodeLane)}
+            stroke={isUncommitted ? getColor(nodeLane) : '#ffffff'}
+            strokeWidth={2}
+          />
+        </Svg>
       </View>
 
       {isUncommitted ? (

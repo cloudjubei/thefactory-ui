@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useState, type ComponentType, type ReactNode } from 'react'
 import { Text } from 'react-native'
 import type { ReferenceDescription, ResourceLink } from 'thefactory-tools/types'
 import { referencePreview, type ReferencePreview } from '../../../headless'
@@ -21,6 +21,8 @@ export type ReferenceChipProps = {
   secondary?: { label: string; onSelect: () => void }
   /** More to show in its preview — a design's miniature. */
   children?: ReactNode
+  /** Its preview's glyph, in place of its kind's — a "Needs you" item's. */
+  glyph?: ComponentType<{ size?: number; color?: string }>
 }
 
 /**
@@ -38,6 +40,7 @@ export default function ReferenceChip({
   preview,
   secondary,
   children,
+  glyph,
 }: ReferenceChipProps) {
   const { theme, status: tones } = useNativeTheme()
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -76,7 +79,7 @@ export default function ReferenceChip({
           isOpen={sheetOpen}
           onClose={() => setSheetOpen(false)}
           view={view}
-          glyph={referenceGlyph(description)}
+          glyph={glyph ?? referenceGlyph(description)}
           {...(onOpen ? { onOpen } : {})}
           {...(secondary ? { secondary } : {})}
         >

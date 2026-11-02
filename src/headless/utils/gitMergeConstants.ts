@@ -29,6 +29,11 @@ export const GIT_MERGE_TEXT = {
     `The merge is made in a scratch copy and the project's build and type check run on it; ${into} moves only if they pass.`,
   checkFirstDefault: (into: string) => `On by default: ${into} is the default branch.`,
   checkFirstNeedsCommit: 'Only a merge committed right away can be built first.',
+  pushAfterInto: (into: string) => `Push ${into} to origin afterwards`,
+  pushInto: (into: string) => `Push ${into}`,
+  pushingInto: (into: string) => `Pushing ${into}…`,
+  pushFailedAfterMerge: (into: string, reason: string) =>
+    `Merged into ${into}. The push failed: ${reason}`,
   checking: (into: string) =>
     `Merging in a scratch copy, then building and type-checking the result — ${into} moves only if they pass.`,
 } as const

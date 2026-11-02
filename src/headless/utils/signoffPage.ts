@@ -11,6 +11,9 @@ import {
   SIGNOFF_ATTENTION_ACCEPTED,
   SIGNOFF_ATTENTION_ACTION,
   SIGNOFF_ATTENTION_DRY,
+  SIGNOFF_FOLDED_CHECKS,
+  SIGNOFF_FOLDED_CHECKS_CHIP,
+  SIGNOFF_FOLDED_STATE_RANK,
   SIGNOFF_PROOF_MARK,
   SIGNOFF_PROOF_TONE,
   SIGNOFF_REQUEST_MET,
@@ -118,10 +121,29 @@ export function signoffEvidenceChips(
         target: { kind: 'tab', tab: id },
       }),
     )
-  const opened = [...chips.filter((c) => c.target.kind === 'tab'), ...extra].sort(
+  const opened = foldChecks([...chips.filter((c) => c.target.kind === 'tab'), ...extra]).sort(
     (a, b) => tabRank(a, tabOrder) - tabRank(b, tabOrder),
   )
   return [...opened, ...chips.filter((c) => c.target.kind === 'missing')]
+}
+
+/** Two or more of the build, type, lint and format checks read as one "Checks" chip, at the worst of their states. */
+function foldChecks(chips: SignoffEvidenceChip[]): SignoffEvidenceChip[] {
+  const folded = chips.filter((c) => SIGNOFF_FOLDED_CHECKS.includes(c.row.id))
+  if (folded.length < 2) return chips
+  const state = folded
+    .map((c) => c.row.state)
+    .reduce((worst, s) =>
+      SIGNOFF_FOLDED_STATE_RANK[s] < SIGNOFF_FOLDED_STATE_RANK[worst] ? s : worst,
+    )
+  const chip: SignoffEvidenceChip = {
+    key: SIGNOFF_FOLDED_CHECKS_CHIP.key,
+    row: { id: SIGNOFF_FOLDED_CHECKS_CHIP.id, label: SIGNOFF_FOLDED_CHECKS_CHIP.label, state },
+    target: folded[0].target,
+  }
+  const at = chips.indexOf(folded[0])
+  const rest = chips.filter((c) => !folded.includes(c))
+  return [...rest.slice(0, at), chip, ...rest.slice(at)]
 }
 
 function tabRank(chip: SignoffEvidenceChip, tabOrder: readonly ReviewTabId[]): number {

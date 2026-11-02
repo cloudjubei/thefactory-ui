@@ -35,6 +35,12 @@ export const SEND_TO_DEVELOPER_NOTE_COPY: ParkNoteCopy = {
   submitLabel: 'Send back',
 }
 
+/** The composer's words when a person tries a step again with a note of their own. */
+export const RETRY_NOTE_COPY: ParkNoteCopy = {
+  prompt: 'What should the agent do differently this time?',
+  submitLabel: 'Try again',
+}
+
 /** The composer's words when a person accepts that an earlier merge dropped a change on purpose. */
 export const ACCEPT_DROPPED_NOTE_COPY: ParkNoteCopy = {
   prompt: 'Why was dropping it right?',

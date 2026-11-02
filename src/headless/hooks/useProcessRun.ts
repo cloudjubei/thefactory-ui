@@ -133,10 +133,11 @@ export type UseProcessRun = {
   revive: () => Promise<void>
   /**
    * Hand what the waiting agent asked for to another agent — a chat opened with
-   * the whole ask. The run keeps waiting. Resolves to the chat's topic, or
-   * `undefined` when it was refused (the reason is in `actionError`).
+   * the whole ask, with the person's brief when given. The run keeps waiting.
+   * Resolves to the chat's topic, or `undefined` when it was refused (the
+   * reason is in `actionError`).
    */
-  delegate: () => Promise<ProcessRunDelegation | undefined>
+  delegate: (note?: string) => Promise<ProcessRunDelegation | undefined>
   cancel: () => Promise<void>
   /**
    * Ask an agent about the step the run stopped at, in the run's own chat: its
@@ -434,23 +435,30 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
     }
   }, [runId, setRun])
 
-  const delegate = useCallback(async (): Promise<ProcessRunDelegation | undefined> => {
-    if (!runId) return undefined
-    setActionError(null)
-    try {
-      const { data } = await delegateProcessRunAsk({ path: { runId }, throwOnError: true })
-      const result = data as { run: ProcessRun } & ProcessRunDelegation
-      setRun(result.run)
-      return {
-        chatContextId: result.chatContextId,
-        topicId: result.topicId,
-        turnStarted: result.turnStarted,
+  const delegate = useCallback(
+    async (note?: string): Promise<ProcessRunDelegation | undefined> => {
+      if (!runId) return undefined
+      setActionError(null)
+      try {
+        const { data } = await delegateProcessRunAsk({
+          path: { runId },
+          body: note?.trim() ? { note: note.trim() } : {},
+          throwOnError: true,
+        })
+        const result = data as { run: ProcessRun } & ProcessRunDelegation
+        setRun(result.run)
+        return {
+          chatContextId: result.chatContextId,
+          topicId: result.topicId,
+          turnStarted: result.turnStarted,
+        }
+      } catch (err) {
+        setActionError(extractErrorMessage(err, 'The ask could not be handed on.'))
+        return undefined
       }
-    } catch (err) {
-      setActionError(extractErrorMessage(err, 'The ask could not be handed on.'))
-      return undefined
-    }
-  }, [runId, setRun])
+    },
+    [runId, setRun],
+  )
 
   const setTurnLimit = useCallback(
     async (limit: ProcessTurnLimit) => {

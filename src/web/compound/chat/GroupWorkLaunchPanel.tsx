@@ -170,7 +170,10 @@ export default function GroupWorkLaunchPanel({
                         {processGroupLegWaitsFor(preview, leg.dependsOn)}
                       </span>
                     ) : null}
-                    {(leg.alreadyDone ?? []).map((line) => (
+                    {[
+                      ...(leg.alreadyDone ?? []),
+                      ...(leg.followsOpenRun ? [leg.followsOpenRun] : []),
+                    ].map((line) => (
                       <span key={line} className="text-[11px] text-(--status-review-soft-fg)">
                         {line}
                       </span>

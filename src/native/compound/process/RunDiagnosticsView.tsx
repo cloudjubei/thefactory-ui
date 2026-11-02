@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
-import { useRunDiagnostics, type RunDiagnosticsEvent } from '../../../headless'
+import { RUN_DETAILS_COPY, useRunDiagnostics, type RunDiagnosticsEvent } from '../../../headless'
 import type { ProcessStatusTone } from '../../../headless'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
+import { IconChevronRight } from '../../icons'
 
 export type RunDiagnosticsViewProps = {
   /** The run whose flight recorder to show. */
@@ -22,75 +23,89 @@ const LEVEL_TONE: Record<RunDiagnosticsEvent['level'], ProcessStatusTone> = {
 /**
  * Native peer of
  * [web's `RunDiagnosticsView`](../../../web/compound/process/RunDiagnosticsView.tsx).
- * The per-run flight recorder as a compact timeline; shown only in Debug mode.
+ * The per-run flight recorder, folded to one line until opened and fetched only
+ * once opened; shown only in Debug mode.
  */
 export default function RunDiagnosticsView({ runId, enabled }: RunDiagnosticsViewProps) {
-  if (!enabled) return null
-  return <RunDiagnosticsPanel runId={runId} />
-}
-
-function RunDiagnosticsPanel({ runId }: { runId: string }) {
   const { theme } = useNativeTheme()
-  const { diagnostics, isLoaded, loadError } = useRunDiagnostics(runId, { enabled: true })
-  const events = diagnostics?.events ?? []
+  const [open, setOpen] = useState(false)
+  if (!enabled) return null
   return (
     <View
       style={{
         marginHorizontal: nativeSpace[3],
+        marginTop: nativeSpace[3],
         marginBottom: nativeSpace[4],
-        borderRadius: nativeRadii[2],
+        borderRadius: nativeRadii[4],
         borderWidth: 1,
+        borderStyle: 'dashed',
         borderColor: theme.border.subtle,
         backgroundColor: theme.surface.base,
       }}
     >
-      <View
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        onPress={() => setOpen((v) => !v)}
         style={{
+          minHeight: 40,
           flexDirection: 'row',
           alignItems: 'center',
           gap: nativeSpace[2],
-          borderBottomWidth: 1,
-          borderBottomColor: theme.border.subtle,
-          paddingHorizontal: nativeSpace[3],
+          paddingHorizontal: nativeSpace[4],
           paddingVertical: nativeSpace[2],
         }}
       >
+        <View style={{ transform: [{ rotate: open ? '90deg' : '0deg' }] }}>
+          <IconChevronRight size={14} color={theme.text.muted} />
+        </View>
         <Text
           style={{
-            fontSize: 10,
+            fontSize: 10.5,
             fontWeight: '600',
             letterSpacing: 0.8,
             textTransform: 'uppercase',
             color: theme.text.muted,
           }}
         >
-          Debug · flight recorder
+          {RUN_DETAILS_COPY.debug}
         </Text>
-        <Text style={{ fontSize: 10, color: theme.text.muted }}>
-          {events.length} event{events.length === 1 ? '' : 's'}
-          {diagnostics?.truncated ? ' · older trimmed' : ''}
-        </Text>
-      </View>
+      </Pressable>
+      {open ? <RunDiagnosticsPanel runId={runId} /> : null}
+    </View>
+  )
+}
+
+function RunDiagnosticsPanel({ runId }: { runId: string }) {
+  const { theme } = useNativeTheme()
+  const { diagnostics, isLoaded, loadError } = useRunDiagnostics(runId, { enabled: true })
+  const events = diagnostics?.events ?? []
+  const pad = { paddingHorizontal: nativeSpace[4], paddingVertical: nativeSpace[2] }
+  return (
+    <View style={{ borderTopWidth: 1, borderTopColor: theme.border.subtle }}>
+      <Text
+        style={{ ...pad, paddingVertical: nativeSpace[1], fontSize: 10.5, color: theme.text.muted }}
+      >
+        {RUN_DETAILS_COPY.events(events.length, diagnostics?.truncated === true)}
+      </Text>
       {loadError ? (
-        <Text style={{ padding: nativeSpace[2], fontSize: 11, color: theme.text.secondary }}>
+        <Text style={{ ...pad, fontSize: 11, color: theme.text.secondary }}>
           {loadError.message}
         </Text>
       ) : !isLoaded ? (
-        <Text style={{ padding: nativeSpace[2], fontSize: 11, color: theme.text.muted }}>
-          Loading diagnostics…
-        </Text>
+        <Text style={{ ...pad, fontSize: 11, color: theme.text.muted }}>Loading diagnostics…</Text>
       ) : events.length === 0 ? (
-        <Text style={{ padding: nativeSpace[2], fontSize: 11, color: theme.text.muted }}>
+        <Text style={{ ...pad, fontSize: 11, color: theme.text.muted }}>
           No diagnostics recorded for this run.
         </Text>
       ) : (
-        events.map((event, i) => <EventRow key={i} event={event} last={i === events.length - 1} />)
+        events.map((event, i) => <EventRow key={i} event={event} />)
       )}
     </View>
   )
 }
 
-function EventRow({ event, last }: { event: RunDiagnosticsEvent; last: boolean }) {
+function EventRow({ event }: { event: RunDiagnosticsEvent }) {
   const { theme, status } = useNativeTheme()
   const [open, setOpen] = useState(false)
   const tone = status[LEVEL_TONE[event.level] ?? 'queued']
@@ -98,9 +113,9 @@ function EventRow({ event, last }: { event: RunDiagnosticsEvent; last: boolean }
   return (
     <View
       style={{
-        borderBottomWidth: last ? 0 : 1,
-        borderBottomColor: theme.border.subtle,
-        paddingHorizontal: nativeSpace[3],
+        borderTopWidth: 1,
+        borderTopColor: theme.border.subtle,
+        paddingHorizontal: nativeSpace[4],
         paddingVertical: nativeSpace[1],
       }}
     >

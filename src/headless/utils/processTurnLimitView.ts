@@ -10,7 +10,12 @@ import {
   processTurnLimitHint,
   processTurnLimitProblem,
 } from 'thefactory-tools/utils'
-import type { ProcessParkChoice, ProcessRun, ProcessTurnLimit } from 'thefactory-tools/types'
+import type {
+  ProcessManagerMoreTries,
+  ProcessParkChoice,
+  ProcessRun,
+  ProcessTurnLimit,
+} from 'thefactory-tools/types'
 
 import { PROCESS_TURN_LIMIT_SLIDER_LABEL } from './processTurnLimitViewConstants'
 import type { ProcessRetryPick, ProcessTurnLimitView } from './processTurnLimitViewTypes'
@@ -68,12 +73,25 @@ export function processRetryChoiceOf(
   return choices.find((c) => c.choice === 'retry' && (c.retry || c.turnLimit))
 }
 
-/** What a retry starts from before the person changes anything: the step's default and the offered limit. */
-export function processRetryPickStart(choice: ProcessParkChoice): ProcessRetryPick {
+/**
+ * What a retry starts from before the person changes anything: the step's
+ * default and the offered limit — or the limit as it was, when the manager
+ * says more tries won't help.
+ */
+export function processRetryPickStart(
+  choice: ProcessParkChoice,
+  moreTries?: ProcessManagerMoreTries,
+): ProcessRetryPick {
+  const limit = choice.turnLimit
   return {
     ...(choice.retry ? { retryMode: choice.retry.defaultMode } : {}),
-    ...(choice.turnLimit
-      ? { turnLimit: { limitTurns: true, maxTurns: choice.turnLimit.suggested } }
+    ...(limit
+      ? {
+          turnLimit:
+            moreTries?.verdict === 'pointless'
+              ? limit.current
+              : { limitTurns: true, maxTurns: limit.suggested },
+        }
       : {}),
   }
 }

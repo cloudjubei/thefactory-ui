@@ -32,6 +32,8 @@ import {
   CHANGE_REQUEST_MESSAGE_PREFIX,
   LAND_FAILURE_LEAD,
   LAND_FAILURE_TITLE,
+  ON_UNCOMMITTED_WORK_MESSAGE,
+  ON_UNCOMMITTED_WORK_TITLE,
   NO_SOURCE_CHANGES_TITLE,
   MERGE_BLOCKED_FALLBACK,
   MERGE_FAILED_FALLBACK,
@@ -339,6 +341,19 @@ describe('landFailureSummary', () => {
     expect(landFailureSummary({ ...base, reason: 'error' }).message).toBe(
       failed('the review branch could not be created'),
     )
+  })
+
+  it('offers a change made on uncommitted work to apply to the checkout, not as a failure', () => {
+    const summary = landFailureSummary({
+      ...base,
+      reason: 'on-uncommitted-work',
+      message: 'Made on uncommitted work in README.md.',
+    })
+    expect(summary).toEqual({
+      tone: 'neutral',
+      title: ON_UNCOMMITTED_WORK_TITLE,
+      message: ON_UNCOMMITTED_WORK_MESSAGE,
+    })
   })
 
   it('titles a run that only touched ignored files as nothing to review', () => {

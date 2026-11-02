@@ -27,6 +27,8 @@ export type IntegrationResultProps = {
   onResolve: () => Promise<boolean>
   /** Why the last retry was refused. */
   error?: string | null
+  /** Inside the sign-off's decision card, which draws the frame. */
+  embedded?: boolean
 }
 
 /**
@@ -44,6 +46,7 @@ export default function IntegrationResult({
   onRetry,
   onResolve,
   error,
+  embedded = false,
 }: IntegrationResultProps) {
   const [choosing, setChoosing] = useState<{ mode?: ProcessIntegrationMode } | null>(null)
   const [sending, setSending] = useState(false)
@@ -66,11 +69,19 @@ export default function IntegrationResult({
   return (
     <div
       role="status"
-      className="mx-4 mb-3 flex flex-col gap-2 rounded-lg p-3"
-      style={{
-        background: `var(--status-${view.tone}-soft-bg)`,
-        border: `1px solid var(--status-${view.tone}-soft-border)`,
-      }}
+      className={
+        embedded
+          ? 'flex flex-col gap-2 rounded-lg border border-(--border-subtle) bg-(--surface-raised) p-3'
+          : 'mx-3 mt-3 flex flex-col gap-2 rounded-xl p-3'
+      }
+      style={
+        embedded
+          ? undefined
+          : {
+              background: `var(--status-${view.tone}-soft-bg)`,
+              border: `1px solid var(--status-${view.tone}-soft-border)`,
+            }
+      }
     >
       <div className="flex flex-wrap items-center gap-2">
         <span

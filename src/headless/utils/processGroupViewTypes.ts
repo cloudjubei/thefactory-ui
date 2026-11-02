@@ -1,10 +1,20 @@
 import type {
   ProcessGroupLeg,
   ProcessGroupParkChoice,
+  ProcessGroupRun,
   ProcessIntegrationMode,
   ProcessRunTotals,
 } from 'thefactory-tools/types'
 import type { ProcessStatusTone } from './processView'
+
+/** What a group run's one-word state is read from: its status and where each leg stands. */
+export interface ProcessGroupBadgeInput {
+  status: ProcessGroupRun['status']
+  legs: readonly Pick<ProcessGroupLeg, 'status'>[]
+}
+
+/** Where a live group run stands: what a group story's row is filtered by. */
+export type ProcessGroupLiveState = 'sign-off' | 'needs-you' | 'waiting' | 'running'
 
 /** One leg as the group pipeline draws it. */
 export interface ProcessGroupLegRow {
@@ -25,6 +35,8 @@ export interface ProcessGroupLegRow {
   canMarkLanded: boolean
   /** How its work landed outside its run, once a person marked it. */
   landed?: string
+  /** Its run was started outside the group — from a feature request or by a person — and the leg follows it. */
+  follows?: string
 }
 
 /** Resuming an ended group run: what it starts, or why it cannot yet. */

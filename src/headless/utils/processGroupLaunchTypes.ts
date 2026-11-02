@@ -25,8 +25,10 @@ export interface ProcessGroupLaunchLeg {
   baseBranches?: ProcessBaseBranchOptions
   /** The branch the leg would work off — the one asked for, else the preselected one. */
   baseBranch?: string
-  /** The story's open run that keeps this leg from starting, when one does. */
+  /** The story's open run, started elsewhere: the leg follows it instead of starting another. */
   openRunId?: string
+  /** What the launch card says of that run. */
+  followsOpenRun?: string
   /** The features an earlier run already delivered, one line per run. */
   alreadyDone?: string[]
 }

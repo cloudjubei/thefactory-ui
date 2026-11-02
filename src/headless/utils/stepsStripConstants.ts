@@ -11,6 +11,14 @@ export const STEPS_STRIP_LABELS = {
   doneWhen: 'Done when',
 } as const
 
+/** The run page's Steps card, folded to its line until opened. */
+export const RUN_STEPS_CARD_COPY = {
+  title: 'Steps',
+  line: (done: number, total: number): string => `${done} of ${total} done`,
+  show: (total: number): string => `Show all ${total}`,
+  hide: 'Hide steps',
+} as const
+
 /** What the folded chips and the full list say. */
 export const STEPS_STRIP_COPY = {
   listTitle: 'All steps',

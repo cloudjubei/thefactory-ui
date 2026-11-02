@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
-import { useActiveProject, useGit } from '../../../headless'
+import {
+  GIT_COMMIT_PUSH_TEXT,
+  GitPushAfterCommitError,
+  useActiveProject,
+  useGit,
+} from '../../../headless'
 import {
   hasConflictMarkers,
   parseConflictSegments,
@@ -56,7 +61,7 @@ export default function MergeConflictResolver({
   initialPath,
 }: MergeConflictResolverProps) {
   const { projectId } = useActiveProject()
-  const { stage, commit, push, resetAll, abortMerge, getFileContent, status } = useGit()
+  const { stage, commitAndPush, resetAll, abortMerge, getFileContent, status } = useGit()
   const mergeMessage = status?.merging?.message
   const firstPath = initialPath ?? conflicts[0]?.path ?? null
 
@@ -262,18 +267,16 @@ export default function MergeConflictResolver({
         // Best-effort; if a file is missing, commit fails loudly below.
       }
       const message = finalizeMsg.trim() || `Merge branch ${branch}`
-      await commit({ message })
-      if (pushImmediately) {
-        try {
-          await push()
-        } catch (pushErr) {
-          setError(pushErr instanceof Error ? pushErr.message : 'Push failed')
-          return
-        }
-      }
+      await commitAndPush({ message }, { push: pushImmediately })
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to finalize merge')
+      setError(
+        err instanceof GitPushAfterCommitError
+          ? GIT_COMMIT_PUSH_TEXT.pushFailed(err.message)
+          : err instanceof Error
+            ? err.message
+            : 'Failed to finalize merge',
+      )
     } finally {
       setFinalizing(false)
     }

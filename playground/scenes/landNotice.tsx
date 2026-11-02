@@ -94,6 +94,22 @@ export const LAND_NOTICE_SCENES: Scene[] = [
           />
         ),
       },
+      {
+        id: 'on-uncommitted-work',
+        title: 'Made on uncommitted work',
+        description:
+          'A chat changed files that hold work not yet committed — say a “Fix with an agent” on stopped commit checks. No branch holds that work, so nothing failed: the change waits for Apply to project, which writes it into those files and stages again the ones that were staged.',
+        render: () => (
+          <Notice
+            failure={{
+              reason: 'on-uncommitted-work',
+              message:
+                'Made on uncommitted work in src/workflow/ProcessGroupDriver.test.ts, src/agent/AgentTools.test.ts.',
+              at: AT,
+            }}
+          />
+        ),
+      },
     ],
   },
 ]

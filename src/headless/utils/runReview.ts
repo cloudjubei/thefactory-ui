@@ -25,6 +25,8 @@ import {
   LAND_FAILURE_REASON_LABELS,
   LAND_FAILURE_TITLE,
   NO_SOURCE_CHANGES_TITLE,
+  ON_UNCOMMITTED_WORK_MESSAGE,
+  ON_UNCOMMITTED_WORK_TITLE,
   MERGE_BLOCKED_FALLBACK,
   MERGE_FAILED_FALLBACK,
   SHADOW_MERGE_BLOCKED_FALLBACK,
@@ -223,8 +225,15 @@ export function landFailureSummary(failure: CliRunLandFailure): ReviewLandFailur
       message: ALREADY_ON_BASE_MESSAGE,
     }
   }
-  const reason = LAND_FAILURE_REASON_LABELS[failure.reason] ?? failure.reason
+  if (failure.reason === 'on-uncommitted-work') {
+    return {
+      tone: 'neutral',
+      title: ON_UNCOMMITTED_WORK_TITLE,
+      message: ON_UNCOMMITTED_WORK_MESSAGE,
+    }
+  }
   const detail = trimmedOrUndefined(failure.message)
+  const reason = LAND_FAILURE_REASON_LABELS[failure.reason] ?? failure.reason
   return {
     tone: 'warning',
     title: failure.reason === 'no-source-changes' ? NO_SOURCE_CHANGES_TITLE : LAND_FAILURE_TITLE,

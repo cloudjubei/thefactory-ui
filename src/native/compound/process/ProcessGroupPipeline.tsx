@@ -451,6 +451,9 @@ function LegCard({
       {row.landed ? (
         <Text style={{ fontSize: 11, color: theme.text.muted }}>{row.landed}</Text>
       ) : null}
+      {row.follows ? (
+        <Text style={{ fontSize: 11, color: theme.text.muted }}>{row.follows}</Text>
+      ) : null}
       {row.error ? (
         <View
           style={{

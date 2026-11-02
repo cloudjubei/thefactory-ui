@@ -187,6 +187,7 @@ export {
 } from './compound/NotificationBadge'
 export {
   default as StatusControl,
+  STATUS_DOT_COLOR,
   STATUS_LABELS,
   STATUS_ORDER,
   statusKey,
@@ -245,6 +246,12 @@ export {
   default as RunReferenceChip,
   type RunReferenceChipProps,
 } from './compound/chips/RunReferenceChip'
+export {
+  default as NeedsYouReferenceChip,
+  NeedsYouReferenceChipView,
+  type NeedsYouReferenceChipProps,
+  type NeedsYouReferenceChipViewProps,
+} from './compound/chips/NeedsYouReferenceChip'
 export {
   default as RunActionButton,
   type RunActionButtonProps,

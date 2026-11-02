@@ -200,7 +200,10 @@ export default function GroupWorkLaunchPanel({
                       {waitsFor ? (
                         <Text style={{ fontSize: 11, color: theme.text.muted }}>{waitsFor}</Text>
                       ) : null}
-                      {(leg.alreadyDone ?? []).map((line) => (
+                      {[
+                        ...(leg.alreadyDone ?? []),
+                        ...(leg.followsOpenRun ? [leg.followsOpenRun] : []),
+                      ].map((line) => (
                         <Text key={line} style={{ fontSize: 11, color: status.review.softFg }}>
                           {line}
                         </Text>

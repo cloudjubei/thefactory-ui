@@ -30,16 +30,20 @@ import {
   PROCESS_GROUP_CARD_CTA,
   PROCESS_GROUP_LANDED_RESUME_NEXT,
   PROCESS_GROUP_LANDING_FEATURES_DONE,
+  PROCESS_GROUP_LEG_FOLLOWS_OPEN_RUN,
   PROCESS_GROUP_LEG_OPEN_LABEL,
   PROCESS_GROUP_LEG_OPEN_LABELS,
   PROCESS_GROUP_LEG_STATUS_VIEW,
+  PROCESS_GROUP_MOVING_LEG_STATUSES,
   PROCESS_GROUP_PARTLY_DONE_BADGE,
   PROCESS_GROUP_RESUME_AGENT,
 } from './processGroupViewConstants'
 import type {
+  ProcessGroupBadgeInput,
   ProcessGroupCardView,
   ProcessGroupLandingCheckView,
   ProcessGroupLegRow,
+  ProcessGroupLiveState,
   ProcessGroupParkView,
   ProcessGroupResumeView,
 } from './processGroupViewTypes'
@@ -57,23 +61,40 @@ const andList = (names: readonly string[]): string =>
     : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
 
 /**
- * How a group run reads in one word: a project ready for its own sign-off is
- * "Sign off", the group's own stop or a project's ask "Needs you", and one
- * that ended with only some projects merged "Partly done".
+ * Where a live group run stands, by its legs: a project ready for its own
+ * sign-off, the group's own stop or a project's ask, every project still
+ * moving waiting on work elsewhere, or working. `undefined` once it ended.
  */
-export function processGroupBadge(group: Pick<ProcessGroupRun, 'status' | 'legs'>): {
+export function processGroupLiveState(
+  group: ProcessGroupBadgeInput,
+): ProcessGroupLiveState | undefined {
+  if (group.status === 'parked') return 'needs-you'
+  if (group.status !== 'running' && group.status !== 'pending') return undefined
+  if (group.legs.some((l) => l.status === 'at-sign-off')) return 'sign-off'
+  if (group.legs.some((l) => l.status === 'needs-you')) return 'needs-you'
+  if (
+    group.legs.some((l) => l.status === 'waiting') &&
+    !group.legs.some((l) => PROCESS_GROUP_MOVING_LEG_STATUSES.includes(l.status))
+  ) {
+    return 'waiting'
+  }
+  return 'running'
+}
+
+/**
+ * How a group run reads in one word: a project ready for its own sign-off is
+ * "Sign off", the group's own stop or a project's ask "Needs you", projects
+ * that only wait on other work "Waiting", and one that ended with only some
+ * projects merged "Partly done".
+ */
+export function processGroupBadge(group: ProcessGroupBadgeInput): {
   label: string
   tone: ProcessStatusTone
 } {
-  if (group.status === 'parked') return { label: PROCESS_RUN_WORDS.needsYou, tone: 'on_hold' }
-  if (group.status === 'running' || group.status === 'pending') {
-    if (group.legs.some((l) => l.status === 'at-sign-off')) {
-      return { label: PROCESS_RUN_WORDS.signOff, tone: 'review' }
-    }
-    if (group.legs.some((l) => l.status === 'needs-you')) {
-      return { label: PROCESS_RUN_WORDS.needsYou, tone: 'on_hold' }
-    }
-  }
+  const live = processGroupLiveState(group)
+  if (live === 'sign-off') return { label: PROCESS_RUN_WORDS.signOff, tone: 'review' }
+  if (live === 'needs-you') return { label: PROCESS_RUN_WORDS.needsYou, tone: 'on_hold' }
+  if (live === 'waiting') return { label: PROCESS_RUN_WORDS.waiting, tone: 'queued' }
   if (group.status === 'failed' && group.legs.some((l) => MERGED.includes(l.status))) {
     return PROCESS_GROUP_PARTLY_DONE_BADGE
   }
@@ -119,6 +140,7 @@ export function processGroupLegRows(group: ProcessGroupRun): ProcessGroupLegRow[
           ...(leg.rebuildError ? { error: leg.rebuildError } : {}),
           canMarkLanded: !processGroupLegLandingRefusal(group, leg.id),
           ...(leg.landedBy ? { landed: landedText(leg.landedBy) } : {}),
+          ...(leg.followsOpenRun ? { follows: PROCESS_GROUP_LEG_FOLLOWS_OPEN_RUN } : {}),
         },
       ]
     }),

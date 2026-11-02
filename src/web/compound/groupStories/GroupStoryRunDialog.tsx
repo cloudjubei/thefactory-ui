@@ -184,7 +184,10 @@ export default function GroupStoryRunDialog({
                         {waits ? (
                           <span className="text-[11px] text-(--text-muted)">{waits}</span>
                         ) : null}
-                        {(leg.alreadyDone ?? []).map((line) => (
+                        {[
+                          ...(leg.alreadyDone ?? []),
+                          ...(leg.followsOpenRun ? [leg.followsOpenRun] : []),
+                        ].map((line) => (
                           <span key={line} className="text-[11px] text-(--status-review-soft-fg)">
                             {line}
                           </span>

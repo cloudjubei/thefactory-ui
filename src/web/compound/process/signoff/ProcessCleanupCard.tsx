@@ -3,6 +3,7 @@ import {
   processCleanupHeadline,
   processCleanupRows,
   useProcessCleanup,
+  type UseProcessCleanup,
 } from '../../../../headless'
 import { PROCESS_CLEANUP_COPY } from '../../../../headless/utils/processCleanupViewConstants'
 import { Alert, Switch } from '../../..'
@@ -19,38 +20,52 @@ export type ProcessCleanupCardProps = {
  * cleanup step ran, what it removed. Hidden while there is nothing to show.
  */
 export default function ProcessCleanupCard({ runId }: ProcessCleanupCardProps) {
-  const { list, loadError, actionError, busy, setItemSelected, setOff } = useProcessCleanup(runId)
+  const cleanup = useProcessCleanup(runId)
+  const { list, loadError } = cleanup
   if (loadError) return <Alert variant="error">{PROCESS_CLEANUP_COPY.loadError}</Alert>
   if (!list || (list.items.length === 0 && !list.report)) return null
-  const editable = processCleanupEditable(list)
-  const rows = processCleanupRows(list)
 
   return (
     <section
       aria-label={PROCESS_CLEANUP_COPY.title}
       className="flex flex-col gap-3 rounded-xl border border-(--border-subtle) bg-(--surface-raised) px-5 py-4"
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-col gap-1">
-          <div className="text-[14px] font-semibold text-(--text-primary)">
-            {PROCESS_CLEANUP_COPY.title}
-          </div>
-          <div className="text-[12.5px] text-(--text-secondary)">
-            {processCleanupHeadline(list)}
-          </div>
-          {editable ? (
-            <div className="text-[12px] text-(--text-tertiary)">{PROCESS_CLEANUP_COPY.hint}</div>
-          ) : null}
+      <div className="flex min-w-0 flex-col gap-1">
+        <div className="text-[14px] font-semibold text-(--text-primary)">
+          {PROCESS_CLEANUP_COPY.title}
         </div>
-        {editable ? (
+        <div className="text-[12.5px] text-(--text-secondary)">{processCleanupHeadline(list)}</div>
+      </div>
+      <ProcessCleanupBody cleanup={cleanup} />
+    </section>
+  )
+}
+
+/**
+ * The cleanup list itself — while it can still change, the hint and the switch
+ * to clean up nothing, then each item with why and what came of it.
+ */
+export function ProcessCleanupBody({ cleanup }: { cleanup: UseProcessCleanup }) {
+  const { list, actionError, busy, setItemSelected, setOff } = cleanup
+  if (!list) return null
+  const editable = processCleanupEditable(list)
+  const rows = processCleanupRows(list)
+
+  return (
+    <div className="flex flex-col gap-3">
+      {editable ? (
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 flex-[1_1_240px] text-[12px] text-(--text-tertiary)">
+            {PROCESS_CLEANUP_COPY.hint}
+          </div>
           <Switch
             checked={!list.off}
             onCheckedChange={(on) => void setOff(!on)}
             label={PROCESS_CLEANUP_COPY.switchLabel}
             disabled={busy}
           />
-        ) : null}
-      </div>
+        </div>
+      ) : null}
       {actionError ? <Alert variant="error">{actionError}</Alert> : null}
       <ul className="flex flex-col divide-y divide-(--border-subtle) rounded-lg border border-(--border-subtle)">
         {rows.map((row) => (
@@ -88,6 +103,6 @@ export default function ProcessCleanupCard({ runId }: ProcessCleanupCardProps) {
           </li>
         ))}
       </ul>
-    </section>
+    </div>
   )
 }

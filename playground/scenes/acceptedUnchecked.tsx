@@ -24,8 +24,6 @@ import StepPreview, { StageChips } from '../../src/web/compound/process/pipeline
 import type { Scene } from '../showcase/types'
 
 const noop = () => {}
-const chosen = async () => true
-const resolved = async () => {}
 const NOW = Date.parse('2026-10-20T09:00:00Z')
 const unresolved = (id: string): DependencyResolution => ({
   id,
@@ -287,17 +285,12 @@ function Rows({ run }: { run: ProcessRun }) {
           <PipelineNode
             key={state.step.id}
             run={run}
-            root={run}
             state={state}
             now={NOW}
             stopHolder={undefined}
             managerLine={undefined}
             addedTag={undefined}
             resolveDependency={unresolved}
-            onChoose={chosen}
-            onChangeProof={noop}
-            onAnswerRequest={noop}
-            onDelegate={resolved}
             onDrill={noop}
             onOpenPanel={noop}
           />

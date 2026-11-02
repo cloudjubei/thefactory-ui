@@ -1,6 +1,7 @@
 import type { ChatContext, ResourceLink } from 'thefactory-tools/types'
 import { FEATURE_LINK_PARAM } from './featureLinkConstants'
 import { fileLocationPath } from './fileLocation'
+import { NEEDS_YOU_LINK_PARAM } from './needsYouReferenceConstants'
 import { NOTE_LINK_PARAM } from './projectNotesConstants'
 
 /**
@@ -56,11 +57,15 @@ export function resolveResourceNav(link: ResourceLink): ResourceNav {
       const base = `/projects/${enc(link.projectId)}/design`
       return { type: 'path', path: query ? `${base}?${query}` : base }
     }
-    case 'run':
+    case 'run': {
+      const path = `/projects/${enc(link.projectId)}/process-runs/${enc(link.runId)}`
       return {
         type: 'path',
-        path: `/projects/${enc(link.projectId)}/process-runs/${enc(link.runId)}`,
+        path: link.needsYouItemId
+          ? `${path}?${NEEDS_YOU_LINK_PARAM}=${enc(link.needsYouItemId)}`
+          : path,
       }
+    }
     case 'process':
       return { type: 'process', projectId: link.projectId, processId: link.processId }
     case 'chat':

@@ -7,6 +7,21 @@ export function referencedRunId(target: ReferenceTarget): string | undefined {
   return undefined
 }
 
+/** The run and "Needs you" item a reference or an in-app link points at, when it points at one. */
+export function referencedNeedsYouItem(
+  target: ReferenceTarget,
+): { runId: string; needsYouItemId: string } | undefined {
+  const run =
+    target.type === 'link'
+      ? target.link.kind === 'run'
+        ? target.link
+        : undefined
+      : target.type === 'reference' && target.reference.kind === 'run'
+        ? target.reference
+        : undefined
+  return run?.needsYouItemId ? { runId: run.runId, needsYouItemId: run.needsYouItemId } : undefined
+}
+
 /** A story as its chip reads — `#8 Fixture rework` — or `undefined` where the chat cannot name it. */
 export function storyChipLabel(
   describe: (parsed: ParsedReference) => ReferenceDescription | undefined,

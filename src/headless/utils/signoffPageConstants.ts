@@ -1,4 +1,4 @@
-import type { CheckMethodId, ReviewTabId } from './checkMethodTypes'
+import type { CheckMethodId, CheckMethodState, ReviewTabId } from './checkMethodTypes'
 import type { CodeReviewTone } from './signoffCodeReviewTypes'
 import type { StoryStepTone } from './storySignoffTypes'
 
@@ -16,6 +16,22 @@ export const SIGNOFF_TAB_METHOD: Record<ReviewTabId, CheckMethodId> = {
   report: 'report',
   'code-review': 'diff',
   changes: 'diff',
+}
+
+/** The checks a sign-off folds into one chip: the commands that build the work and keep it tidy. */
+export const SIGNOFF_FOLDED_CHECKS: readonly CheckMethodId[] = ['build', 'types', 'lint', 'format']
+
+/** The one chip they fold into. */
+export const SIGNOFF_FOLDED_CHECKS_CHIP = { key: 'checks', id: 'build', label: 'Checks' } as const
+
+/** Which of several folded states the chip shows: the worst of them. */
+export const SIGNOFF_FOLDED_STATE_RANK: Record<CheckMethodState, number> = {
+  failed: 0,
+  unfinished: 1,
+  flagged: 2,
+  unchecked: 3,
+  unconfigured: 4,
+  passed: 5,
 }
 
 export const SIGNOFF_PROOF_MARK: Record<StoryStepTone, string> = {

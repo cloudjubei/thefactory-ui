@@ -137,6 +137,8 @@ export {
   ReferencePreviewCard,
   RunActionButton,
   RunReferenceChip,
+  NeedsYouReferenceChip,
+  NeedsYouReferenceChipView,
   SetUpWithAgentButton,
   StatusChip,
   StatusIcon,
@@ -157,6 +159,8 @@ export {
   type ReferencePreviewCardProps,
   type RunActionButtonProps,
   type RunReferenceChipProps,
+  type NeedsYouReferenceChipProps,
+  type NeedsYouReferenceChipViewProps,
   type SetUpWithAgentButtonProps,
   type StatusChipProps,
 } from './compound/chips'

@@ -22,13 +22,13 @@ export const PROCESS_CLEANUP_OUTCOME_LABELS: Record<ProcessCleanupOutcomeStatus,
 /** The words of the cleanup card, shared by web and native. */
 export const PROCESS_CLEANUP_COPY = {
   title: 'Cleanup after sign-off',
-  hint: 'Removed once you approve this sign-off, before the work is brought in. Untick anything to keep it.',
+  hint: 'Removed once you approve this sign-off and the work is merged. Untick anything to keep it.',
   switchLabel: 'Clean up after sign-off',
   off: 'Cleanup is switched off for this run — nothing will be removed.',
   empty: 'Nothing is registered for cleanup.',
   noStep: 'This run’s process has no cleanup step, so nothing on this list is removed.',
   willRemove: (selected: number, total: number) =>
-    `${selected} of ${total} item${total === 1 ? '' : 's'} will be removed once you approve.`,
+    `${selected} of ${total} item${total === 1 ? '' : 's'} will be removed once you approve and the work is merged.`,
   keepLabel: (label: string) => `Remove ${label} once you approve`,
   loadError: 'The cleanup list could not be loaded.',
 } as const

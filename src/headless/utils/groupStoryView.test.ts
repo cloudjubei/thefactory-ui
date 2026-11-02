@@ -1,14 +1,19 @@
 import { describe, expect, it } from 'vitest'
 
 import type { GroupStoryForm, GroupStoryPartView, GroupStoryView } from './groupStoryTypes'
+import { GROUP_STORY_LIST_FILTER_DEFAULT } from './groupStoryConstants'
 import {
+  filterGroupStories,
   groupStoryFormFor,
   groupStoryFormProblems,
   groupStoryFormRequest,
+  groupStoryListCount,
+  groupStoryListProjects,
   groupStoryNeedOptions,
   groupStoryNeedTitles,
   groupStoryProgress,
   groupStoryRunBlockedReason,
+  groupStoryRunState,
   groupStoriesOfStory,
   groupStoryStepColumns,
   isLiveGroupStoryRun,
@@ -96,11 +101,15 @@ describe('groupStoryNeedTitles', () => {
 
 describe('isLiveGroupStoryRun', () => {
   it.each(['pending', 'running', 'parked'] as const)('reads a %s run as live', (status) => {
-    expect(isLiveGroupStoryRun({ groupRunId: 'r', title: 't', status, startedAt: 0 })).toBe(true)
+    expect(
+      isLiveGroupStoryRun({ groupRunId: 'r', title: 't', status, legs: [], startedAt: 0 }),
+    ).toBe(true)
   })
 
   it.each(['succeeded', 'failed', 'cancelled'] as const)('reads a %s run as over', (status) => {
-    expect(isLiveGroupStoryRun({ groupRunId: 'r', title: 't', status, startedAt: 0 })).toBe(false)
+    expect(
+      isLiveGroupStoryRun({ groupRunId: 'r', title: 't', status, legs: [], startedAt: 0 }),
+    ).toBe(false)
   })
 
   it('reads no run as no live run', () => {
@@ -123,7 +132,7 @@ describe('groupStoryRunBlockedReason', () => {
     expect(
       groupStoryRunBlockedReason(
         view([part('ui')], {
-          latestRun: { groupRunId: 'r', title: 't', status: 'running', startedAt: 0 },
+          latestRun: { groupRunId: 'r', title: 't', status: 'running', legs: [], startedAt: 0 },
         }),
       ),
     ).toBe('It is running now.')
@@ -307,5 +316,122 @@ describe('groupStoriesOfStory', () => {
     const none = groupStoriesOfStory({ s1: [membership] }, 's2')
     expect(none).toEqual([])
     expect(groupStoriesOfStory({}, 's3')).toBe(none)
+  })
+})
+
+describe('groupStoryRunState', () => {
+  const run = (
+    status: NonNullable<GroupStoryView['latestRun']>['status'],
+    legs: NonNullable<GroupStoryView['latestRun']>['legs'] = [],
+  ) =>
+    view([part('ui')], { latestRun: { groupRunId: 'r', title: 't', status, legs, startedAt: 0 } })
+
+  it('reads no run, and an ended one, as not running', () => {
+    expect(groupStoryRunState(view([part('ui')]))).toBe('not-running')
+    expect(groupStoryRunState(run('succeeded'))).toBe('not-running')
+  })
+
+  it('reads a stopped run, a project’s ask and a sign-off as needing you', () => {
+    expect(groupStoryRunState(run('parked'))).toBe('needs-you')
+    expect(groupStoryRunState(run('running', [{ projectId: 'ui', status: 'needs-you' }]))).toBe(
+      'needs-you',
+    )
+    expect(groupStoryRunState(run('running', [{ projectId: 'ui', status: 'at-sign-off' }]))).toBe(
+      'needs-you',
+    )
+  })
+
+  it('reads projects only waiting on other work as waiting, and working ones as running', () => {
+    expect(groupStoryRunState(run('running', [{ projectId: 'ui', status: 'waiting' }]))).toBe(
+      'waiting',
+    )
+    expect(groupStoryRunState(run('running', [{ projectId: 'ui', status: 'running' }]))).toBe(
+      'running',
+    )
+  })
+})
+
+describe('groupStoryListProjects', () => {
+  it('names each project a part is in once, in the order they first show', () => {
+    expect(
+      groupStoryListProjects([
+        view([part('backend'), part('ui')]),
+        view([part('ui'), part('web')], { id: 'gs2' }),
+      ]),
+    ).toEqual([
+      { id: 'backend', title: 'BACKEND' },
+      { id: 'ui', title: 'UI' },
+      { id: 'web', title: 'WEB' },
+    ])
+  })
+})
+
+describe('filterGroupStories', () => {
+  const editing = view([part('backend'), part('ui')], {
+    id: 'a',
+    title: 'Conflict-safe editing',
+    status: 'in_progress',
+    latestRun: {
+      groupRunId: 'r',
+      title: 't',
+      status: 'running',
+      legs: [{ projectId: 'backend', status: 'waiting' }],
+      startedAt: 0,
+    },
+  })
+  const folders = view([part('ui', { storyTitle: 'Show empty folders in the tree' })], {
+    id: 'b',
+    title: 'Files tree',
+    description: 'Empty folders show',
+  })
+  const knowledge = view([part('web')], {
+    id: 'c',
+    title: 'Knowledge in every run',
+    status: 'done',
+  })
+  const loose = view([part('web')], { id: 'd', title: 'No status yet', status: undefined })
+  const all = [editing, folders, knowledge, loose]
+  const ids = (filter: Partial<typeof GROUP_STORY_LIST_FILTER_DEFAULT>) =>
+    filterGroupStories(all, { ...GROUP_STORY_LIST_FILTER_DEFAULT, ...filter }).map((s) => s.id)
+
+  it('shows every group story in the group’s order by default', () => {
+    expect(ids({})).toEqual(['a', 'b', 'c', 'd'])
+  })
+
+  it('searches the position, title, description, and the parts’ projects and stories', () => {
+    expect(ids({ query: '3' })).toEqual(['c'])
+    expect(ids({ query: 'CONFLICT' })).toEqual(['a'])
+    expect(ids({ query: 'empty folders show' })).toEqual(['b'])
+    expect(ids({ query: 'in the tree' })).toEqual(['b'])
+    expect(ids({ query: 'backend' })).toEqual(['a'])
+  })
+
+  it('filters by status, reading a group story with none as pending', () => {
+    expect(ids({ status: 'done' })).toEqual(['c'])
+    expect(ids({ status: 'not-done' })).toEqual(['a', 'b', 'd'])
+    expect(ids({ status: 'pending' })).toEqual(['b', 'd'])
+  })
+
+  it('keeps the group stories with a part in the project picked', () => {
+    expect(ids({ projectId: 'web' })).toEqual(['c', 'd'])
+  })
+
+  it('filters by what the latest run is doing', () => {
+    expect(ids({ run: 'waiting' })).toEqual(['a'])
+    expect(ids({ run: 'not-running' })).toEqual(['b', 'c', 'd'])
+    expect(ids({ run: 'needs-you' })).toEqual([])
+  })
+
+  it('orders last first, or by status with the group’s order between equals', () => {
+    expect(ids({ sortBy: 'order_desc' })).toEqual(['d', 'c', 'b', 'a'])
+    expect(ids({ sortBy: 'status_asc' })).toEqual(['b', 'd', 'a', 'c'])
+    expect(ids({ sortBy: 'status_desc' })).toEqual(['c', 'a', 'd', 'b'])
+  })
+})
+
+describe('groupStoryListCount', () => {
+  it('says how many it shows of how many', () => {
+    expect(groupStoryListCount(3, 25)).toBe('Showing 3 of 25 group stories')
+    expect(groupStoryListCount(1, 1)).toBe('Showing 1 of 1 group story')
   })
 })

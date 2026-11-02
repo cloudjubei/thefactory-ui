@@ -38,10 +38,17 @@ export const LAND_FAILURE_REASON_LABELS: Record<CliRunLandFailureReason, string>
   'already-on-base': 'every change is already on the branch it was for',
   'changes-not-applied':
     'part of the run’s change could not be applied, so none of it was committed',
+  'on-uncommitted-work': 'the change was made on uncommitted work in the checkout',
   error: 'the review branch could not be created',
 }
 
 export const LAND_FAILURE_TITLE = 'Changes were not committed for review'
+
+/** A change made on uncommitted work did not fail: no branch holds that work, so it goes straight into the checkout. */
+export const ON_UNCOMMITTED_WORK_TITLE = 'Ready to apply to your checkout'
+
+export const ON_UNCOMMITTED_WORK_MESSAGE =
+  'It changes files you have not committed yet, so it goes straight into them. Staged files stay staged.'
 
 /** What a land failure's details open with, before its reason. */
 export const LAND_FAILURE_LEAD =

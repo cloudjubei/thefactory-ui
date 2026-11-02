@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import {
+  GROUP_STORY_LIST_FILTER_DEFAULT,
   groupStoryFormFor,
   type GroupProjectStoryOption,
   type GroupStoryForm,
+  type GroupStoryListFilter,
   type GroupStoryMembership,
   type GroupStoryPartView,
   type GroupStoryRunPreview,
@@ -98,6 +100,10 @@ const CONFLICT_SAFE = story(
       groupRunId: 'run-1',
       title: 'Conflict-safe editing',
       status: 'running',
+      legs: [
+        { projectId: 'thefactory-backend', status: 'running' },
+        { projectId: 'thefactory-ui', status: 'blocked' },
+      ],
       startedAt: STARTED_AT,
     },
   },
@@ -142,6 +148,10 @@ const KNOWLEDGE_DONE = story(
       groupRunId: 'run-0',
       title: 'Knowledge in every run',
       status: 'succeeded',
+      legs: [
+        { projectId: 'thefactory-backend', status: 'integrated' },
+        { projectId: 'thefactory-ui', status: 'integrated' },
+      ],
       startedAt: STARTED_AT,
     },
   },
@@ -154,9 +164,105 @@ const WAITING = story('gs-waiting', 'Conflict-safe editing', CONFLICT_SAFE.partV
     title: 'Conflict-safe editing',
     status: 'parked',
     waitingOn: 'TheFactory Backend is waiting on you: its sign-off.',
+    legs: [{ projectId: 'thefactory-backend', status: 'start-failed' }],
     startedAt: STARTED_AT,
   },
 })
+
+const OVERSIGHT_WAITING = story(
+  'gs-oversight',
+  'Oversight: condensed chats and the group cockpit',
+  [
+    part('thefactory-tools', { status: 'done', featuresDone: 2, featuresTotal: 2 }),
+    part('thefactory-backend', {
+      step: 2,
+      needs: ['thefactory-tools'],
+      status: 'in_progress',
+      featuresDone: 1,
+      featuresTotal: 3,
+    }),
+    part('thefactory-ui', { step: 3, needs: ['thefactory-backend'], featuresTotal: 2 }),
+  ],
+  {
+    status: 'in_progress',
+    latestRun: {
+      groupRunId: 'run-3',
+      title: 'Oversight: condensed chats and the group cockpit',
+      status: 'running',
+      legs: [
+        { projectId: 'thefactory-tools', status: 'integrated' },
+        { projectId: 'thefactory-backend', status: 'waiting' },
+        { projectId: 'thefactory-ui', status: 'blocked' },
+      ],
+      startedAt: STARTED_AT,
+    },
+  },
+)
+
+const MOBILE_ASKS = story(
+  'gs-mobile',
+  'Mobile parity gaps',
+  [
+    part('thefactory-ui', { status: 'done', featuresDone: 3, featuresTotal: 3 }),
+    part('thefactory-overseer-mobile', {
+      step: 2,
+      needs: ['thefactory-ui'],
+      status: 'in_progress',
+      featuresDone: 2,
+      featuresTotal: 5,
+    }),
+  ],
+  {
+    status: 'in_progress',
+    latestRun: {
+      groupRunId: 'run-4',
+      title: 'Mobile parity gaps',
+      status: 'running',
+      legs: [
+        { projectId: 'thefactory-ui', status: 'integrated' },
+        { projectId: 'thefactory-overseer-mobile', status: 'needs-you' },
+      ],
+      startedAt: STARTED_AT,
+    },
+  },
+)
+
+const LIST = [
+  CONFLICT_SAFE,
+  WAITING,
+  OVERSIGHT_WAITING,
+  MOBILE_ASKS,
+  EMPTY_FOLDERS,
+  HARDENING_LOOP,
+  KNOWLEDGE_DONE,
+]
+
+function ListState({
+  stories = LIST,
+  start = {},
+  loading = false,
+}: {
+  stories?: GroupStoryView[]
+  start?: Partial<GroupStoryListFilter>
+  loading?: boolean
+}) {
+  const [filter, setFilter] = useState<GroupStoryListFilter>({
+    ...GROUP_STORY_LIST_FILTER_DEFAULT,
+    ...start,
+  })
+  return (
+    <GroupStoriesList
+      stories={stories}
+      filter={filter}
+      onFilterChange={(change) => setFilter((f) => ({ ...f, ...change }))}
+      loading={loading}
+      onOpenStory={noop}
+      onRun={noop}
+      onOpenRun={noop}
+      onNew={noop}
+    />
+  )
+}
 
 const STORIES_BY_PROJECT: Record<string, GroupProjectStoryOption[]> = {
   'thefactory-tools': [
@@ -264,11 +370,16 @@ const NEEDS_BRANCH_PREVIEW: GroupStoryRunPreview = {
   ],
 }
 
-const PROBLEM_PREVIEW: GroupStoryRunPreview = {
+const FOLLOWS_PREVIEW: GroupStoryRunPreview = {
   ...READY_PREVIEW,
-  legs: [READY_PREVIEW.legs[0]!, { ...READY_PREVIEW.legs[1]!, openRunId: 'run-9' }],
-  problems: [
-    'Show empty folders in the files tree (thefactory-ui) already has a run working on it — finish or stop it first.',
+  legs: [
+    READY_PREVIEW.legs[0]!,
+    {
+      ...READY_PREVIEW.legs[1]!,
+      openRunId: 'run-9',
+      followsOpenRun:
+        'Follows its open run “Show empty folders in the files tree”, still running — no second run starts.',
+    },
   ],
 }
 
@@ -339,47 +450,44 @@ export const GROUP_STORY_SCENES: Scene[] = [
     kind: 'screen',
     wide: true,
     description:
-      'A project group’s Stories tab: each group story keeps one feature’s stories across the group’s projects, one row each like a project’s stories — status, title, features done across its parts, the parts in the order they run (→ between steps) and Run; while a run is going the row shows where it stands instead. A row opens the group story.',
+      'A project group’s Stories tab, filtered and laid out like a project’s Home: each group story keeps one feature’s stories across the group’s projects, one row each — its place in the group’s order, status, title, features done across its parts, the parts in the order they run (→ between steps) and Run; while a run is going the row shows where it stands instead. A row opens the group story.',
     states: [
       {
         id: 'mixed',
-        title: 'Running, waiting on you, ready, blocked and done',
-        render: () => (
-          <GroupStoriesList
-            stories={[CONFLICT_SAFE, WAITING, EMPTY_FOLDERS, HARDENING_LOOP, KNOWLEDGE_DONE]}
-            onOpenStory={noop}
-            onRun={noop}
-            onOpenRun={noop}
-            onNew={noop}
-          />
-        ),
+        title: 'Running, waiting, needing you, ready, blocked and done',
+        description:
+          'The toolbar of a project’s Home: search, status, project and run filters, the order, how many show and List / Board. A row’s pill reads its run’s projects: “Waiting” while every project still moving waits on other work, “Needs you” while one asks — even though the group run itself is still going.',
+        render: () => <ListState />,
+      },
+      {
+        id: 'filtered',
+        title: 'One project’s group stories that are not done',
+        render: () => <ListState start={{ status: 'not-done', projectId: 'thefactory-ui' }} />,
+      },
+      {
+        id: 'run-waiting',
+        title: 'Only runs waiting on other work',
+        render: () => <ListState start={{ run: 'waiting' }} />,
+      },
+      {
+        id: 'board',
+        title: 'Board — columns by status',
+        render: () => <ListState start={{ layout: 'board' }} />,
+      },
+      {
+        id: 'no-match',
+        title: 'Nothing matches the filters',
+        render: () => <ListState start={{ query: 'payments' }} />,
       },
       {
         id: 'empty',
         title: 'No group stories yet',
-        render: () => (
-          <GroupStoriesList
-            stories={[]}
-            onOpenStory={noop}
-            onRun={noop}
-            onOpenRun={noop}
-            onNew={noop}
-          />
-        ),
+        render: () => <ListState stories={[]} />,
       },
       {
         id: 'loading',
         title: 'Loading',
-        render: () => (
-          <GroupStoriesList
-            stories={[]}
-            loading
-            onOpenStory={noop}
-            onRun={noop}
-            onOpenRun={noop}
-            onNew={noop}
-          />
-        ),
+        render: () => <ListState stories={[]} loading />,
       },
     ],
   },
@@ -522,10 +630,12 @@ export const GROUP_STORY_SCENES: Scene[] = [
         render: () => <RunDialogState preview={NEEDS_BRANCH_PREVIEW} />,
       },
       {
-        id: 'problems',
-        title: 'A part’s story has a run already',
+        id: 'follows-open-run',
+        title: 'A part’s story has a run open already — the part follows it',
+        description:
+          'A story run started elsewhere — from a feature request or by a person — is not refused: the part follows it, and the parts that need it wait for it to merge.',
         overlay: true,
-        render: () => <RunDialogState preview={PROBLEM_PREVIEW} />,
+        render: () => <RunDialogState preview={FOLLOWS_PREVIEW} />,
       },
       {
         id: 'loading',

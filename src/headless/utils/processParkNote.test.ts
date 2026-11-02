@@ -19,6 +19,7 @@ import {
   PARK_NOTE_COUNTER_FROM,
   PARK_NOTE_MAX_LENGTH,
   REQUEST_PROOF_CHOICES,
+  RETRY_NOTE_COPY,
   SEND_TO_DEVELOPER_NOTE_COPY,
 } from './processParkNoteConstants'
 
@@ -62,6 +63,11 @@ describe('parkNoteCopy', () => {
       prompt: 'What should the developer do? Optional — the checks’ findings go with it.',
       submitLabel: 'Send back',
     })
+  })
+
+  it('asks what to do differently when a step is tried again with a note', () => {
+    expect(parkNoteCopy('retry')).toBe(RETRY_NOTE_COPY)
+    expect(RETRY_NOTE_COPY.submitLabel).toBe('Try again')
   })
 
   it('keeps the gate’s words for a request for changes', () => {

@@ -699,6 +699,9 @@ import type {
   ListProcessGroupRunsResponses,
   ListProcessRunBranchesData,
   ListProcessRunBranchesResponses,
+  ListProcessRunNeedsYouItemsData,
+  ListProcessRunNeedsYouItemsErrors,
+  ListProcessRunNeedsYouItemsResponses,
   ListProcessRunsData,
   ListProcessRunsResponses,
   ListProjectAgentTypesData,
@@ -1999,6 +2002,10 @@ export const delegateProcessRunAsk = <ThrowOnError extends boolean = false>(
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/process-runs/{runId}/delegate',
     ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
   })
 
 export const openProcessRunChat = <ThrowOnError extends boolean = false>(
@@ -2026,6 +2033,20 @@ export const askAgentAboutProcessRunPark = <ThrowOnError extends boolean = false
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/process-runs/{runId}/ask-agent',
+    ...options,
+  })
+
+export const listProcessRunNeedsYouItems = <ThrowOnError extends boolean = false>(
+  options: Options<ListProcessRunNeedsYouItemsData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ListProcessRunNeedsYouItemsResponses,
+    ListProcessRunNeedsYouItemsErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/needs-you',
     ...options,
   })
 

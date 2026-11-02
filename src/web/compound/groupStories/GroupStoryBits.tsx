@@ -34,7 +34,7 @@ export function GroupStoryRunStatus({
   run: GroupStoryRunSummary
   onOpen: (groupRunId: string) => void
 }) {
-  const badge = processGroupBadge({ status: run.status, legs: [] })
+  const badge = processGroupBadge(run)
   return (
     <button
       type="button"

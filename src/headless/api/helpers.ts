@@ -4,6 +4,7 @@
 
 import type { CoverageResult, TestsResult } from './generated'
 import type { GrepHit, GrepResult, LastCoverageRaw, LastTestsRunRaw } from './sdkTypes'
+import { GIT_HOOK_REJECTED_ERROR_CODE } from 'thefactory-tools/constants'
 import { GIT_REF_UNAVAILABLE_CODE } from '../utils/commitDetailsConstants'
 
 /** True when a `last-*` test endpoint returned a real run (not the empty placeholder). */
@@ -104,6 +105,12 @@ export function extractServerError(err: unknown, fallback = 'Request failed'): S
  */
 export function isGitRefUnavailableResponse(err: unknown): boolean {
   return extractServerError(err, '').code === GIT_REF_UNAVAILABLE_CODE
+}
+
+/** What the commit hook printed, when a git hook — not git — stopped the operation. */
+export function gitHookRejection(err: unknown): string | undefined {
+  const se = extractServerError(err, '')
+  return se.code === GIT_HOOK_REJECTED_ERROR_CODE ? se.message : undefined
 }
 
 /**

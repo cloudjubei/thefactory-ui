@@ -2,11 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import Spinner from '../../../primitives/Spinner'
 import type { GitLogCommitLike } from '../types'
-import {
-  computeCommitGraph,
-  type GitLogRefLike,
-  type GraphNode,
-} from '../../../../headless/utils/gitCommitGraph'
+import { computeCommitGraph, type GitLogRefLike } from '../../../../headless/utils/gitCommitGraph'
 import GitCommitGraphRow from './GitCommitGraphRow'
 import GitCommitGraphHeader from './GitCommitGraphHeader'
 
@@ -17,8 +13,9 @@ export type GitCommitGraphProps = {
   error?: string
   selectedCommitSha?: string
   /**
-   * When true, prepends a stub `UNCOMMITTED` row pointing at the tip commit —
-   * matches desktop's pattern of showing pending changes in the same timeline.
+   * When true, the working tree's changes lead the timeline as their own row,
+   * its line running down to the checked-out commit — never to whichever
+   * commit is newest.
    */
   uncommittedChanges?: boolean
   /** SHA to scroll into view (e.g. when the user picks a branch elsewhere). */
@@ -188,28 +185,10 @@ export function GitCommitGraph({
     return () => window.clearTimeout(id)
   }, [scrollToSha, commits, hasMore, onLoadMore, loadingMore])
 
-  const graphNodes = useMemo(() => {
-    let nodes = computeCommitGraph(commits)
-    if (uncommittedChanges) {
-      const stub: GraphNode = {
-        commit: {
-          hash: 'UNCOMMITTED',
-          parents: commits.length > 0 ? [commits[0].hash] : [],
-          subject: 'Uncommitted changes',
-          authorName: '',
-          authorEmail: '',
-          authorDate: Date.now(),
-          refs: [],
-        },
-        nodeLane: 0,
-        maxLanes: 0,
-        incomingLanes: [],
-        outgoingLanes: [],
-      }
-      nodes = [stub, ...nodes]
-    }
-    return nodes
-  }, [commits, uncommittedChanges])
+  const graphNodes = useMemo(
+    () => computeCommitGraph(commits, { uncommitted: !!uncommittedChanges }),
+    [commits, uncommittedChanges],
+  )
 
   const colLayout = {
     graph: graphWidth,

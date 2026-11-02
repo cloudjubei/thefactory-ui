@@ -37,12 +37,11 @@ function run(over: Partial<ProcessRun> = {}, manager?: ProcessRunManager): Proce
 const turn = { runId: 'run-1', parkedAt: 1, signature: 's', startedAt: 100, chatContextId: 'c' }
 
 describe('processRunManagerView', () => {
-  it('is on by default, doing nothing yet, with nothing handled', () => {
+  it('is on by default, doing nothing yet', () => {
     expect(processRunManagerView(run(), 200)).toEqual({
       enabled: true,
       switchLabel: 'Manager on',
       switchDetail: PROCESS_MANAGER_SWITCH_DETAIL_ON,
-      handled: { title: 'Handled for you: 0', lines: [] },
     })
   })
 
@@ -95,6 +94,8 @@ describe('processRunManagerView', () => {
             tried: ['Retried fresh — Did not help'],
             recommendation: 'File it there.',
             recommendedChoice: 'continue',
+            answers: [{ choice: 'continue', why: 'The rest belongs elsewhere.' }],
+            moreTries: { verdict: 'pointless', why: 'Each round finds a new regression.' },
           },
         },
       ),
@@ -111,72 +112,41 @@ describe('processRunManagerView', () => {
       tried: ['Retried fresh — Did not help'],
       recommendation: 'File it there.',
       recommendedChoice: 'continue',
+      runId: 'run-1',
+      answers: [{ choice: 'continue', why: 'The rest belongs elsewhere.' }],
+      moreTries: { verdict: 'pointless', why: 'Each round finds a new regression.' },
     })
+  })
+
+  it('hands over no answers when the manager wrote none', () => {
+    const view = processRunManagerView(
+      run(
+        {},
+        {
+          escalation: {
+            runId: 'feature-run',
+            parkedAt: 1,
+            at: 1,
+            signature: 's',
+            why: 'judgement',
+            what: 'Waiting for your decision.',
+            found: 'f',
+            tried: [],
+            recommendation: 'r',
+          },
+        },
+      ),
+      200,
+    )
+    expect(view.escalation).toMatchObject({ runId: 'feature-run', answers: [] })
+    expect(view.escalation?.recommendedChoice).toBeUndefined()
+    expect(view.escalation).not.toHaveProperty('moreTries')
   })
 
   it('shows nothing of a park once the run is at work again', () => {
     const view = processRunManagerView(run({ status: 'running' }, { turn }), 200)
     expect(view.status).toBeUndefined()
     expect(view.escalation).toBeUndefined()
-  })
-
-  it('lists what it handled, coloured by how each came out', () => {
-    const view = processRunManagerView(
-      run(
-        {},
-        {
-          interventions: [
-            {
-              id: 'i1',
-              at: 5,
-              runId: 'run-1',
-              parkedAt: 1,
-              signature: 's',
-              tool: 'answerRunPark',
-              move: 'answer-park',
-              what: 'Tried “Implement” again with a fresh agent',
-              why: 'it ran out of turns',
-              result: 'The run moved on.',
-              outcome: 'settled',
-              actionKey: 'k',
-              targetKey: 't',
-            },
-            {
-              id: 'i2',
-              at: 6,
-              runId: 'run-1',
-              parkedAt: 1,
-              signature: 's',
-              tool: 'proposeStepRerun',
-              move: 'stage-rerun',
-              what: 'Put a re-run on the run',
-              why: 'w',
-              outcome: 'reversed',
-              actionKey: 'k2',
-              targetKey: 't2',
-            },
-          ],
-        },
-      ),
-      200,
-    )
-    expect(view.handled.title).toBe('Handled for you: 2')
-    expect(view.handled.lines).toEqual([
-      {
-        key: '5-0',
-        what: 'Tried “Implement” again with a fresh agent',
-        why: 'it ran out of turns',
-        result: 'The run moved on.',
-        tone: 'done',
-      },
-      {
-        key: '6-1',
-        what: 'Put a re-run on the run',
-        why: 'w',
-        result: 'You undid it',
-        tone: 'empty',
-      },
-    ])
   })
 
   it('shows its pre-read only while the run waits at its sign-off', () => {

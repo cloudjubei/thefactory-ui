@@ -6,6 +6,7 @@ import type {
   PreviewGroupStoryRunResponses,
   RunGroupStoryData,
 } from '../api'
+import type { StatusPickerValue } from './status'
 
 /** A group story with its parts read now: what the group's Stories tab and its page show. */
 export type GroupStoryView = ListGroupStoriesResponses[200][number]
@@ -65,4 +66,28 @@ export interface GroupStoryForm {
 export interface GroupStoryMemberProject {
   id: string
   title: string
+}
+
+/** What a group story's latest run is doing, as the Stories tab filters by it. */
+export type GroupStoryRunState = 'running' | 'needs-you' | 'waiting' | 'not-running'
+
+/** The Stories tab's run filter: any run, or one state. */
+export type GroupStoryRunFilter = 'all' | GroupStoryRunState
+
+/** How the Stories tab orders its group stories: the group's own order, or by status. */
+export type GroupStorySorting = 'order_asc' | 'order_desc' | 'status_asc' | 'status_desc'
+
+/** How the Stories tab lays its group stories out: rows, or columns by status. */
+export type GroupStoryListLayout = 'list' | 'board'
+
+/** What the Stories tab shows: its search, status, project and run filters, its order and its layout. */
+export interface GroupStoryListFilter {
+  /** Matched against the position, title, description, and each part's project and story. */
+  query: string
+  status: StatusPickerValue
+  /** Only group stories with a part in this project; every one when absent. */
+  projectId?: string
+  run: GroupStoryRunFilter
+  sortBy: GroupStorySorting
+  layout: GroupStoryListLayout
 }

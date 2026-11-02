@@ -1,8 +1,11 @@
+import { useEffect, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
 import {
   NEEDS_YOU_DISCUSS_LABEL,
   NEEDS_YOU_FINE_LABEL,
+  NEEDS_YOU_FOCUS_LIT_MS,
+  NEEDS_YOU_TRIAGE_LABEL,
   runNeedsYouView,
   useRunNeedsYou,
   type NeedsYouCardsView,
@@ -21,8 +24,9 @@ export type NeedsYouSectionProps = {
 
 /**
  * Native peer of web's `NeedsYouSection`: at a run's sign-off the report's
- * "Needs you" items are cards to discuss or settle, with how many decisions
- * are left; anywhere else, the report's plain list.
+ * "Needs you" items are cards to discuss or settle — or all handed to the
+ * manager at once — with how many decisions are left; anywhere else, the
+ * report's plain list.
  */
 export default function NeedsYouSection({ section }: NeedsYouSectionProps) {
   const { theme } = useNativeTheme()
@@ -74,13 +78,45 @@ function NeedsYouCards({
   actions: RunNeedsYouActions
 }) {
   const { theme, status } = useNativeTheme()
+  const [lit, setLit] = useState<string | undefined>()
+  const focus = actions.focus
+  useEffect(() => {
+    if (!focus) return
+    setLit(focus.itemId)
+    const timer = setTimeout(() => setLit(undefined), NEEDS_YOU_FOCUS_LIT_MS)
+    return () => clearTimeout(timer)
+  }, [focus])
   if (view.cards.length === 0) {
     return (
       <Text style={{ fontSize: 13, color: theme.text.secondary }}>Nothing is left for you.</Text>
     )
   }
+  const onTriage = view.openCount > 0 ? actions.onTriage : undefined
   return (
     <View style={{ gap: 8 }}>
+      {onTriage ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => onTriage(view.cards)}
+          style={({ pressed }) => ({
+            flexDirection: 'row',
+            alignItems: 'center',
+            alignSelf: 'flex-start',
+            gap: 6,
+            minHeight: 36,
+            paddingHorizontal: 12,
+            borderRadius: nativeRadii[2],
+            borderWidth: 2,
+            borderColor: theme.accent.primary,
+            backgroundColor: pressed ? theme.surface.muted : theme.surface.raised,
+          })}
+        >
+          <IconChat size={14} color={theme.accent.primary} />
+          <Text style={{ fontSize: 13, fontWeight: '500', color: theme.text.primary }}>
+            {NEEDS_YOU_TRIAGE_LABEL}
+          </Text>
+        </Pressable>
+      ) : null}
       {view.cards.map((card) => (
         <View
           key={card.id}
@@ -88,8 +124,13 @@ function NeedsYouCards({
             gap: 8,
             padding: 10,
             borderRadius: nativeRadii[3],
-            borderWidth: 1,
-            borderColor: card.open ? status.working.softBorder : theme.border.subtle,
+            borderWidth: lit === card.id ? 2 : 1,
+            borderColor:
+              lit === card.id
+                ? theme.accent.primary
+                : card.open
+                  ? status.working.softBorder
+                  : theme.border.subtle,
             backgroundColor: card.open ? status.working.softBg : theme.surface.base,
             opacity: card.open ? 1 : 0.8,
           }}

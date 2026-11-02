@@ -6,6 +6,7 @@ import {
   formatDurationMs,
   mergeBlockedReason,
   mergeChecksOnByDefault,
+  mergeLeftBranchToPush,
   mergeSentence,
   mergeSourceOptions,
   useCommitsToBringIn,
@@ -36,6 +37,8 @@ export type MergeBranchSheetProps = {
   into?: string
   /** Called once git has merged, fast-forwarded, staged or stopped on conflicts; a refusal stays in the sheet. */
   onMerged: (outcome: GitMergeBranchResult) => void
+  /** Opens with the push already picked, or already failed after the merge — for the showcase. */
+  initial?: { pushAfter?: boolean; pushError?: string }
 }
 
 /**
@@ -53,9 +56,10 @@ export default function MergeBranchSheet({
   initialSource,
   into,
   onMerged,
+  initial,
 }: MergeBranchSheetProps) {
   const { theme } = useNativeTheme()
-  const { branches, status, mergeBranch } = useGit()
+  const { branches, status, mergeBranch, push } = useGit()
   const current = branches.find((b) => b.current)?.name
   const target = into ?? current
   const [query, setQuery] = useState('')
@@ -63,6 +67,9 @@ export default function MergeBranchSheet({
   const [noFastForward, setNoFastForward] = useState(false)
   const [commitNow, setCommitNow] = useState(true)
   const [checkFirstPick, setCheckFirstPick] = useState<boolean | undefined>(undefined)
+  const [pushAfter, setPushAfter] = useState(initial?.pushAfter ?? false)
+  const [pushing, setPushing] = useState(false)
+  const [pushError, setPushError] = useState<string | null>(initial?.pushError ?? null)
   const [submitting, setSubmitting] = useState(false)
   const [startedAt, setStartedAt] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -76,9 +83,11 @@ export default function MergeBranchSheet({
     setNoFastForward(false)
     setCommitNow(true)
     setCheckFirstPick(undefined)
+    setPushAfter(initial?.pushAfter ?? false)
+    setPushError(initial?.pushError ?? null)
     setError(null)
     setFailedChecks(null)
-  }, [isOpen, initialSource])
+  }, [isOpen, initialSource, initial?.pushAfter, initial?.pushError])
 
   const options = useMemo(
     () => mergeSourceOptions(branches, current, query, into),
@@ -94,7 +103,25 @@ export default function MergeBranchSheet({
   const checkFirstByDefault = mergeChecksOnByDefault(branches, commitNow, into)
   const checkFirst = commitNow && (checkFirstPick ?? checkFirstByDefault)
 
+  const pushInto = async (branch: string): Promise<boolean> => {
+    setPushing(true)
+    setPushError(null)
+    try {
+      await push({ branch })
+      return true
+    } catch (err) {
+      setPushError(extractServerError(err, 'The push failed').message)
+      return false
+    } finally {
+      setPushing(false)
+    }
+  }
+
   const onMerge = async () => {
+    if (into && pushError !== null) {
+      if (await pushInto(into)) onClose()
+      return
+    }
     if (!source || blocked) return
     setSubmitting(true)
     setStartedAt(Date.now())
@@ -114,6 +141,7 @@ export default function MergeBranchSheet({
         return
       }
       onMerged(outcome)
+      if (into && pushAfter && mergeLeftBranchToPush(outcome) && !(await pushInto(into))) return
       onClose()
     } catch (err) {
       setError(extractServerError(err, 'The merge failed').message)
@@ -133,13 +161,19 @@ export default function MergeBranchSheet({
           <Button variant="secondary" onPress={onClose}>
             Cancel
           </Button>
-          <Button
-            loading={submitting}
-            disabled={!!blocked || submitting}
-            onPress={() => void onMerge()}
-          >
-            Merge
-          </Button>
+          {into && pushError !== null ? (
+            <Button loading={pushing} disabled={pushing} onPress={() => void onMerge()}>
+              {GIT_MERGE_TEXT.pushInto(into)}
+            </Button>
+          ) : (
+            <Button
+              loading={submitting}
+              disabled={!!blocked || submitting}
+              onPress={() => void onMerge()}
+            >
+              {pushing && into ? GIT_MERGE_TEXT.pushingInto(into) : 'Merge'}
+            </Button>
+          )}
         </View>
       }
     >
@@ -234,9 +268,17 @@ export default function MergeBranchSheet({
           label="Create a merge commit even if fast-forward is possible"
         />
         {into ? (
-          <Text style={{ fontSize: 12, color: theme.text.muted }}>
-            {GIT_MERGE_TEXT.committedInto(into)}
-          </Text>
+          <>
+            <Text style={{ fontSize: 12, color: theme.text.muted }}>
+              {GIT_MERGE_TEXT.committedInto(into)}
+            </Text>
+            <Switch
+              checked={pushAfter}
+              disabled={submitting || pushError !== null}
+              onCheckedChange={setPushAfter}
+              label={GIT_MERGE_TEXT.pushAfterInto(into)}
+            />
+          </>
         ) : (
           <Switch
             checked={commitNow}
@@ -292,6 +334,9 @@ export default function MergeBranchSheet({
           <Alert variant="info">{blocked}</Alert>
         ) : null}
         {error ? <Alert variant="error">{error}</Alert> : null}
+        {into && pushError !== null ? (
+          <Alert variant="error">{GIT_MERGE_TEXT.pushFailedAfterMerge(into, pushError)}</Alert>
+        ) : null}
         {failedChecks ? <MergeChecksResult checks={failedChecks} /> : null}
       </View>
     </Modal>

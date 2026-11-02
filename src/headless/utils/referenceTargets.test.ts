@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ParsedReference, ReferenceDescription } from 'thefactory-tools/types'
-import { referencedRunId, storyChipLabel } from './referenceTargets'
+import { referencedNeedsYouItem, referencedRunId, storyChipLabel } from './referenceTargets'
 
 describe('referencedRunId', () => {
   it('reads the run a run reference or a run link points at, and nothing else', () => {
@@ -18,6 +18,32 @@ describe('referencedRunId', () => {
     ).toBeUndefined()
     expect(
       referencedRunId({ type: 'typed', typed: { kind: 'position', story: 1 } }),
+    ).toBeUndefined()
+  })
+})
+
+describe('referencedNeedsYouItem', () => {
+  it('reads the run and item a “Needs you” item reference or link points at, and nothing else', () => {
+    expect(
+      referencedNeedsYouItem({
+        type: 'reference',
+        reference: { kind: 'run', runId: 'r1', needsYouItemId: 'ny-1a2b3c4d' },
+      }),
+    ).toEqual({ runId: 'r1', needsYouItemId: 'ny-1a2b3c4d' })
+    expect(
+      referencedNeedsYouItem({
+        type: 'link',
+        link: { kind: 'run', projectId: 'p', runId: 'r2', needsYouItemId: 'ny-00ff00ff' },
+      }),
+    ).toEqual({ runId: 'r2', needsYouItemId: 'ny-00ff00ff' })
+    expect(
+      referencedNeedsYouItem({ type: 'reference', reference: { kind: 'run', runId: 'r1' } }),
+    ).toBeUndefined()
+    expect(
+      referencedNeedsYouItem({ type: 'link', link: { kind: 'project', projectId: 'p' } }),
+    ).toBeUndefined()
+    expect(
+      referencedNeedsYouItem({ type: 'typed', typed: { kind: 'position', story: 1 } }),
     ).toBeUndefined()
   })
 })

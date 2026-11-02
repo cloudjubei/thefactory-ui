@@ -5,7 +5,6 @@ import {
 import {
   processManagerDependencyLabel,
   processManagerEscalationLabel,
-  processManagerHandledSummary,
   processManagerSettingsProblem,
   processManagerWaitingText,
   processRunManagerParkState,
@@ -19,8 +18,6 @@ import type {
 } from 'thefactory-tools/types'
 
 import {
-  PROCESS_MANAGER_HANDLED_TITLE,
-  PROCESS_MANAGER_OUTCOME_TONES,
   PROCESS_MANAGER_SWITCH_DETAIL_OFF,
   PROCESS_MANAGER_SWITCH_DETAIL_ON,
   PROCESS_MANAGER_SWITCH_DETAIL_REVERSED,
@@ -33,14 +30,12 @@ import type { ProcessRunManagerView } from './processManagerViewTypes'
  * What a run's page shows of its agent manager, read off the run's top-level
  * record: the switch, what it is doing on the park the run waits at — looking,
  * waiting on a card it raised, holding until something lands, or handed to you
- * with its card — its pre-read of a sign-off, and every intervention it made
- * ("Handled for you").
+ * with its card and the answers it prepared — and its pre-read of a sign-off.
  */
 export function processRunManagerView(run: ProcessRun, now: number): ProcessRunManagerView {
   const settings = processRunManagerSettings(run)
   const manager = run.manager
   const state = processRunManagerParkState(run, now)
-  const handled = processManagerHandledSummary(manager)
   const escalation = state === 'escalated' ? manager?.escalation : undefined
   const hold = state === 'holding' ? manager?.hold : undefined
   const preRead =
@@ -80,22 +75,15 @@ export function processRunManagerView(run: ProcessRun, now: number): ProcessRunM
             found: escalation.found,
             tried: escalation.tried,
             recommendation: escalation.recommendation,
+            runId: escalation.runId,
+            answers: escalation.answers ?? [],
+            ...(escalation.moreTries ? { moreTries: escalation.moreTries } : {}),
             ...(escalation.recommendedChoice
               ? { recommendedChoice: escalation.recommendedChoice }
               : {}),
           },
         }
       : {}),
-    handled: {
-      title: PROCESS_MANAGER_HANDLED_TITLE(handled.count),
-      lines: handled.lines.map((line, i) => ({
-        key: `${line.at}-${i}`,
-        what: line.what,
-        why: line.why,
-        result: line.result,
-        tone: PROCESS_MANAGER_OUTCOME_TONES[line.outcome],
-      })),
-    },
     ...(preRead ? { preRead: { summary: preRead.summary, items: preRead.items } } : {}),
   }
 }

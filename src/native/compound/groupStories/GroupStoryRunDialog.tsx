@@ -188,6 +188,14 @@ export default function GroupStoryRunDialog({
                           />
                         ) : null}
                         {waits ? <Text style={muted}>{waits}</Text> : null}
+                        {[
+                          ...(leg.alreadyDone ?? []),
+                          ...(leg.followsOpenRun ? [leg.followsOpenRun] : []),
+                        ].map((line) => (
+                          <Text key={line} style={{ fontSize: 11, color: status.review.softFg }}>
+                            {line}
+                          </Text>
+                        ))}
                       </View>
                     )
                   })}
