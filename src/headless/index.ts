@@ -423,27 +423,6 @@ export type {
 } from './utils/processParkStandingTypes'
 export { useProcessParkStanding } from './hooks/useProcessParkStanding'
 export {
-  newestChecksEntryId,
-  siblingFallbackCheckSets,
-  siblingFallbackNoticeState,
-  siblingFallbackView,
-} from './utils/siblingFallbackView'
-export * from './utils/siblingFallbackViewConstants'
-export type {
-  SiblingFallbackCheckSet,
-  SiblingFallbackCheckSetId,
-  SiblingFallbackChip,
-  SiblingFallbackNoticeState,
-  SiblingFallbackView,
-} from './utils/siblingFallbackViewTypes'
-export { useSiblingFallbackNotice } from './hooks/useSiblingFallbackNotice'
-export {
-  projectStableBranchError,
-  projectStableBranchField,
-  projectStableBranchOf,
-} from './utils/projectStableBranch'
-export * from './utils/projectStableBranchConstants'
-export {
   projectCheckEnvError,
   projectCheckEnvFromRows,
   projectCheckEnvOf,
@@ -3419,6 +3398,7 @@ export type {
   RunProposalEditState,
 } from './utils/runProposalViewTypes'
 export { processBaseMovedView } from './utils/processBaseMovedView'
+export { PROCESS_BASE_MOVED_COPY } from './utils/processBaseMovedViewConstants'
 export type { ProcessBaseMovedView } from './utils/processBaseMovedViewTypes'
 export { isAgentRunChatContext } from 'thefactory-tools/utils'
 export { agentNeverStartedNote, isAgentRunChatKey } from './utils/agentRunTranscript'

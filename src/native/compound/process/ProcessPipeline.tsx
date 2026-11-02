@@ -57,6 +57,7 @@ import {
   processRunChatContext,
   processRunModelChipView,
   processRunManagerLine,
+  processBaseMovedView,
   processRunManagerView,
   processRunStopHolderOf,
   PROCESS_LIVE_TONE,
@@ -123,7 +124,6 @@ import Alert from '../../primitives/Alert'
 import ActionMenu, { type ActionMenuItem } from '../ActionMenu'
 import RichText from '../files/RichText'
 import AlreadyMergedOffer from './AlreadyMergedOffer'
-import BaseMovedNote from './BaseMovedNote'
 import CloseUnmergedConfirm from './CloseUnmergedConfirm'
 import WorkBranchChangesNote from './WorkBranchChangesNote'
 import DroppedChangesNote from './DroppedChangesNote'
@@ -532,11 +532,14 @@ export default function ProcessPipeline({
       ))}
     </RunStepsCard>
   )
+  const baseView = signoff ? undefined : processBaseMovedView(run)
   const runDetails = (style?: typeof flush) => (
     <RunDetails
       {...(managerView?.preRead ? { preRead: managerView.preRead } : {})}
       workAdded={amendments.notes}
       {...(stack.length === 0 ? { cleanup } : {})}
+      {...(baseView ? { base: baseView } : {})}
+      onChooseBase={(choice) => void resume(choice)}
       {...(style ? { style } : {})}
     />
   )
@@ -602,7 +605,6 @@ export default function ProcessPipeline({
             <Text style={{ fontSize: 12, color: status.stuck.softFg }}>{actionError}</Text>
           </View>
         ) : null}
-        {signoff ? null : <BaseMovedNote run={run} onChoose={(choice) => void resume(choice)} />}
         <WorkBranchChangesNote run={run} />
         <DroppedChangesNote run={run} />
         <View

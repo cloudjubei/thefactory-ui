@@ -4,6 +4,10 @@ import type { ProcessParkChoice, ProcessResumeChoice } from 'thefactory-tools/ty
 export type ProcessBaseMovedView = {
   /** "main has 2 new commits" — while the base has commits the work branch lacks. */
   note: string | undefined
+  /** The section's one folded line: the note, else "Brought in main" (· "2 times"). */
+  headline: string
+  /** "The work branch does not have them yet." — beside the note. */
+  meaning: string | undefined
   /** The park choice that brings them in and re-checks, while the run's park offers it. */
   choice: (ProcessParkChoice & { choice: ProcessResumeChoice }) | undefined
   /** "Brought in main (2 commits) — the work branch is now at 1a2b3c4." — the newest time it was. */

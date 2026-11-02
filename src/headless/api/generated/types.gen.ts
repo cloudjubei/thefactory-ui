@@ -2075,7 +2075,6 @@ export type CompletionAssistantMessage = {
   featureRequestId?: string
   processRunId?: string
   processRunParkedAt?: number
-  processRunChecksEntryId?: string
   processGroupRunId?: string
 }
 
@@ -2511,7 +2510,6 @@ export type Chat = {
     featureRequestId?: string
     processRunId?: string
     processRunParkedAt?: number
-    processRunChecksEntryId?: string
     processGroupRunId?: string
     handoffFrom?: string
     appSelections?: Array<{
@@ -2753,7 +2751,6 @@ export type ChatCreateInput = {
     featureRequestId?: string
     processRunId?: string
     processRunParkedAt?: number
-    processRunChecksEntryId?: string
     processGroupRunId?: string
     handoffFrom?: string
     appSelections?: Array<{
@@ -2895,7 +2892,6 @@ export type ChatEditInput = {
     featureRequestId?: string
     processRunId?: string
     processRunParkedAt?: number
-    processRunChecksEntryId?: string
     processGroupRunId?: string
     handoffFrom?: string
     appSelections?: Array<{
@@ -3363,7 +3359,6 @@ export type ProjectRegistryMetadata = {
   appDir?: string
   isUiApp?: boolean
   workspaceIncludes?: Array<string>
-  stableBranch?: string
   processManager?: {
     enabled?: boolean
     autonomy?: 'observe' | 'recommend' | 'act'
@@ -3402,7 +3397,6 @@ export type ProjectRegistryEntry = {
     appDir?: string
     isUiApp?: boolean
     workspaceIncludes?: Array<string>
-    stableBranch?: string
     processManager?: {
       enabled?: boolean
       autonomy?: 'observe' | 'recommend' | 'act'
@@ -3864,18 +3858,8 @@ export type VerificationDependencyRevision = {
   branch?: string
   dirtyHash?: string
   snapshot?: boolean
-}
-
-export type VerificationSiblingSnapshot = {
-  name: string
-  label: string
-  path: string
-  liveBranch?: string
-  liveSha: string
-  dirty: boolean
-  dirtyHash?: string
-  stableBranch: string
-  stableSha: string
+  uncommittedLeftOut?: boolean
+  uncommittedReason?: string
 }
 
 export type VerificationSiblingNotReplaced = {
@@ -3884,42 +3868,6 @@ export type VerificationSiblingNotReplaced = {
   path: string
   reason: string
 }
-
-export type VerificationSiblingFallbackOutcome = 'stable-passed' | 'stable-failed' | 'unavailable'
-
-export type VerificationStatus = 'passed' | 'failed' | 'error' | 'unchecked'
-
-export type VerificationTestCount = {
-  total: number
-  passed: number
-  failed: number
-  skipped: number
-}
-
-export type VerificationUnfinishedTestFile = {
-  path: string
-  reason: string
-  timedOutAfterMs?: number
-  outputTail?: string
-}
-
-export type VerificationTestFailure = {
-  name: string
-  message?: string
-}
-
-export type VerificationTestSuite = {
-  name: string
-  module?: string
-  tests: number
-  passed: number
-  failed: number
-  skipped: number
-  durationMs?: number
-  failures?: Array<VerificationTestFailure>
-}
-
-export type ProjectCheckKind = 'build' | 'lint' | 'typecheck' | 'format' | 'test'
 
 export type VerificationBaselineVerdict =
   | 'pre-existing'
@@ -3938,6 +3886,72 @@ export type VerificationCheckBaseline = {
   freshRounds?: number
 }
 
+export type VerificationStatus = 'passed' | 'failed' | 'error' | 'unchecked'
+
+export type VerificationPolicy = 'require' | 'warn' | 'off'
+
+export type ProjectCheckKind = 'build' | 'lint' | 'typecheck' | 'format' | 'test'
+
+export type VerificationCheck = {
+  id: string
+  label: string
+  kind: VerificationCheckKind
+  command?: string
+  paths?: Array<string>
+  tier?: string
+  timeoutMs?: number
+  requiredEnv?: Array<string>
+  optional?: boolean
+  requires?: Array<string>
+  source?: 'declared' | 'derived'
+  derivedFrom?: string
+  category?: 'build' | 'lint' | 'typecheck' | 'format' | 'test'
+}
+
+export type VerificationTestCount = {
+  total: number
+  passed: number
+  failed: number
+  skipped: number
+}
+
+export type VerificationTestFailure = {
+  name: string
+  message?: string
+}
+
+export type VerificationFlakyTest = {
+  suite: string
+  module?: string
+  name?: string
+  message?: string
+}
+
+export type VerificationTestSuite = {
+  name: string
+  module?: string
+  tests: number
+  passed: number
+  failed: number
+  skipped: number
+  durationMs?: number
+  failures?: Array<VerificationTestFailure>
+}
+
+export type VerificationTestReport = {
+  count: VerificationTestCount
+  suites: Array<VerificationTestSuite>
+  suitesOmitted: number
+  failingSuites?: Array<string>
+}
+
+export type VerificationUnfinishedTestFile = {
+  path: string
+  reason: string
+  timedOutAfterMs?: number
+  outputTail?: string
+}
+
 export type VerificationTestReportMissingCause =
   | 'absent'
   | 'too-large'
@@ -3949,13 +3963,6 @@ export type VerificationTestReportMissing = {
   cause: VerificationTestReportMissingCause
   signal?: string
   lastErrorLine?: string
-}
-
-export type VerificationFlakyTest = {
-  suite: string
-  module?: string
-  name?: string
-  message?: string
 }
 
 export type VerificationCheckResult = {
@@ -4009,44 +4016,6 @@ export type VerificationCheckResult = {
   rewrittenFiles?: Array<string>
 }
 
-export type VerificationSiblingFallback = {
-  outcome: VerificationSiblingFallbackOutcome
-  siblings: Array<VerificationSiblingSnapshot>
-  notReplaced?: Array<VerificationSiblingNotReplaced>
-  liveStatus: VerificationStatus
-  liveFailures: Array<string>
-  liveChecks?: Array<VerificationCheckResult>
-  stableStatus?: 'passed' | 'failed' | 'error' | 'unchecked'
-  stableFailures?: Array<string>
-  stableChecks?: Array<VerificationCheckResult>
-  message: string
-}
-
-export type VerificationPolicy = 'require' | 'warn' | 'off'
-
-export type VerificationCheck = {
-  id: string
-  label: string
-  kind: VerificationCheckKind
-  command?: string
-  paths?: Array<string>
-  tier?: string
-  timeoutMs?: number
-  requiredEnv?: Array<string>
-  optional?: boolean
-  requires?: Array<string>
-  source?: 'declared' | 'derived'
-  derivedFrom?: string
-  category?: 'build' | 'lint' | 'typecheck' | 'format' | 'test'
-}
-
-export type VerificationTestReport = {
-  count: VerificationTestCount
-  suites: Array<VerificationTestSuite>
-  suitesOmitted: number
-  failingSuites?: Array<string>
-}
-
 export type VerificationUncheckedReason = {
   kind: 'policy-off' | 'nothing-declared' | 'no-applicable-checks' | 'all-skipped' | 'only-optional'
   summary: string
@@ -4070,18 +4039,6 @@ export type RunVerification = {
   finishedAt: number
   sha?: string
   environmentFingerprint?: string
-  siblingFallback?: {
-    outcome: VerificationSiblingFallbackOutcome
-    siblings: Array<VerificationSiblingSnapshot>
-    notReplaced?: Array<VerificationSiblingNotReplaced>
-    liveStatus: VerificationStatus
-    liveFailures: Array<string>
-    liveChecks?: Array<VerificationCheckResult>
-    stableStatus?: 'passed' | 'failed' | 'error' | 'unchecked'
-    stableFailures?: Array<string>
-    stableChecks?: Array<VerificationCheckResult>
-    message: string
-  }
   changedPaths?: Array<string>
 }
 
@@ -4720,18 +4677,6 @@ export type CliRun = {
     finishedAt: number
     sha?: string
     environmentFingerprint?: string
-    siblingFallback?: {
-      outcome: VerificationSiblingFallbackOutcome
-      siblings: Array<VerificationSiblingSnapshot>
-      notReplaced?: Array<VerificationSiblingNotReplaced>
-      liveStatus: VerificationStatus
-      liveFailures: Array<string>
-      liveChecks?: Array<VerificationCheckResult>
-      stableStatus?: 'passed' | 'failed' | 'error' | 'unchecked'
-      stableFailures?: Array<string>
-      stableChecks?: Array<VerificationCheckResult>
-      message: string
-    }
     changedPaths?: Array<string>
   }
   verdict?: {
@@ -4980,18 +4925,6 @@ export type CliRunSummary = {
     finishedAt: number
     sha?: string
     environmentFingerprint?: string
-    siblingFallback?: {
-      outcome: VerificationSiblingFallbackOutcome
-      siblings: Array<VerificationSiblingSnapshot>
-      notReplaced?: Array<VerificationSiblingNotReplaced>
-      liveStatus: VerificationStatus
-      liveFailures: Array<string>
-      liveChecks?: Array<VerificationCheckResult>
-      stableStatus?: 'passed' | 'failed' | 'error' | 'unchecked'
-      stableFailures?: Array<string>
-      stableChecks?: Array<VerificationCheckResult>
-      message: string
-    }
     changedPaths?: Array<string>
   }
   verdict?: {
@@ -5165,6 +5098,15 @@ export type WorkspaceCapReading = {
   usedBytes: number
   capBytes: number
   fraction: number
+}
+
+export type WorkspaceMonitorRaisePayload = {
+  source: 'monitor'
+  observedUsedBytes: number
+  currentCapBytes: number
+  startUsedBytes?: number
+  headroomBytes: number
+  ignoredGrowthBytes?: number
 }
 
 export type CliVersionSupportOutcome = {
@@ -5663,18 +5605,6 @@ export type CliRunApproveResult = {
       finishedAt: number
       sha?: string
       environmentFingerprint?: string
-      siblingFallback?: {
-        outcome: VerificationSiblingFallbackOutcome
-        siblings: Array<VerificationSiblingSnapshot>
-        notReplaced?: Array<VerificationSiblingNotReplaced>
-        liveStatus: VerificationStatus
-        liveFailures: Array<string>
-        liveChecks?: Array<VerificationCheckResult>
-        stableStatus?: 'passed' | 'failed' | 'error' | 'unchecked'
-        stableFailures?: Array<string>
-        stableChecks?: Array<VerificationCheckResult>
-        message: string
-      }
       changedPaths?: Array<string>
     }
     verdict?: {
@@ -10792,6 +10722,12 @@ export type SuspendedGapInput = {
   thresholdMs: number
 }
 
+export type SuspendedGapVerdictInput = {
+  suspendedMs: number
+  cpuMs: number
+  woke: boolean | unknown
+}
+
 export type HostRelaunchReadiness = {
   failureKind: string
   probeHost?: string
@@ -11716,18 +11652,6 @@ export type MergeChecks = {
   summary: string
   sha?: string
   checks: Array<VerificationCheckResult>
-  siblingFallback?: {
-    outcome: VerificationSiblingFallbackOutcome
-    siblings: Array<VerificationSiblingSnapshot>
-    notReplaced?: Array<VerificationSiblingNotReplaced>
-    liveStatus: VerificationStatus
-    liveFailures: Array<string>
-    liveChecks?: Array<VerificationCheckResult>
-    stableStatus?: 'passed' | 'failed' | 'error' | 'unchecked'
-    stableFailures?: Array<string>
-    stableChecks?: Array<VerificationCheckResult>
-    message: string
-  }
 }
 
 export type MergeBranchWithChecksOptions = {
@@ -11750,18 +11674,6 @@ export type MergeBranchWithChecksOutcome = {
     summary: string
     sha?: string
     checks: Array<VerificationCheckResult>
-    siblingFallback?: {
-      outcome: VerificationSiblingFallbackOutcome
-      siblings: Array<VerificationSiblingSnapshot>
-      notReplaced?: Array<VerificationSiblingNotReplaced>
-      liveStatus: VerificationStatus
-      liveFailures: Array<string>
-      liveChecks?: Array<VerificationCheckResult>
-      stableStatus?: 'passed' | 'failed' | 'error' | 'unchecked'
-      stableFailures?: Array<string>
-      stableChecks?: Array<VerificationCheckResult>
-      message: string
-    }
   }
 }
 
@@ -12364,6 +12276,35 @@ export type ProcessManagerHold = {
   until: number
 }
 
+export type ProcessManagerWorkspaceFacts = {
+  usedBytes: number
+  capBytes: number
+  startBytes: number
+  headroomBytes: number
+  ignoredGrowthBytes: number
+}
+
+export type ProcessManagerWorkspaceHandOn = 'unmeasured' | 'not-the-work' | 'raised-before'
+
+export type ProcessManagerWorkspaceRaise =
+  | {
+      grant: true
+      capBytes: number
+      facts: ProcessManagerWorkspaceFacts
+    }
+  | {
+      grant: false
+      why: ProcessManagerWorkspaceHandOn
+      facts: {
+        usedBytes?: number
+        capBytes?: number
+        startBytes?: number
+        headroomBytes?: number
+        ignoredGrowthBytes?: number
+      }
+      askedBytes?: number
+    }
+
 export type ProcessManagerLastEscalation = {
   signature: string
   at: number
@@ -12582,6 +12523,10 @@ export type ProcessRunManager = {
     signature: string
     at: number
   }
+  relooked?: {
+    runId: string
+    parkedAt: number
+  }
   turnCosts?: Array<ProcessManagerTurnCost>
   preRead?: {
     runId: string
@@ -12717,6 +12662,10 @@ export type ProcessManagerRun = {
     lastEscalated?: {
       signature: string
       at: number
+    }
+    relooked?: {
+      runId: string
+      parkedAt: number
     }
     turnCosts?: Array<ProcessManagerTurnCost>
     preRead?: {
@@ -12956,18 +12905,6 @@ export type ProcessRunIntegration = {
     summary: string
     sha?: string
     checks: Array<VerificationCheckResult>
-    siblingFallback?: {
-      outcome: VerificationSiblingFallbackOutcome
-      siblings: Array<VerificationSiblingSnapshot>
-      notReplaced?: Array<VerificationSiblingNotReplaced>
-      liveStatus: VerificationStatus
-      liveFailures: Array<string>
-      liveChecks?: Array<VerificationCheckResult>
-      stableStatus?: 'passed' | 'failed' | 'error' | 'unchecked'
-      stableFailures?: Array<string>
-      stableChecks?: Array<VerificationCheckResult>
-      message: string
-    }
   }
   regenerated?: Array<string>
   broughtInRunIds?: Array<string>
@@ -13133,18 +13070,6 @@ export type ProcessRunReopening = {
       summary: string
       sha?: string
       checks: Array<VerificationCheckResult>
-      siblingFallback?: {
-        outcome: VerificationSiblingFallbackOutcome
-        siblings: Array<VerificationSiblingSnapshot>
-        notReplaced?: Array<VerificationSiblingNotReplaced>
-        liveStatus: VerificationStatus
-        liveFailures: Array<string>
-        liveChecks?: Array<VerificationCheckResult>
-        stableStatus?: 'passed' | 'failed' | 'error' | 'unchecked'
-        stableFailures?: Array<string>
-        stableChecks?: Array<VerificationCheckResult>
-        message: string
-      }
     }
     regenerated?: Array<string>
     broughtInRunIds?: Array<string>
@@ -13262,18 +13187,6 @@ export type ProcessPlanAmendment = {
         summary: string
         sha?: string
         checks: Array<VerificationCheckResult>
-        siblingFallback?: {
-          outcome: VerificationSiblingFallbackOutcome
-          siblings: Array<VerificationSiblingSnapshot>
-          notReplaced?: Array<VerificationSiblingNotReplaced>
-          liveStatus: VerificationStatus
-          liveFailures: Array<string>
-          liveChecks?: Array<VerificationCheckResult>
-          stableStatus?: 'passed' | 'failed' | 'error' | 'unchecked'
-          stableFailures?: Array<string>
-          stableChecks?: Array<VerificationCheckResult>
-          message: string
-        }
       }
       regenerated?: Array<string>
       broughtInRunIds?: Array<string>
@@ -13538,6 +13451,10 @@ export type ProcessProofPlanChange = {
 
 export type ProcessDecidedBy = 'person' | 'agent' | 'manager'
 
+export type ProcessHostDecision = {
+  because: string
+}
+
 export type ProcessDecidedVia = ProcessPersonDecisionVia | 'tool' | 'manager'
 
 export type ProcessAcceptedUnchecked = {
@@ -13788,6 +13705,9 @@ export type ProcessLedgerEntry = {
       }
     }
     decidedBy?: 'person' | 'agent' | 'manager'
+    byHost?: {
+      because: string
+    }
     decidedVia?: ProcessPersonDecisionVia | 'tool' | 'manager'
     toolName?: string
     chatContextId?: string
@@ -13856,18 +13776,6 @@ export type ProcessLedgerEntry = {
   checkedTree?: string
   checkedEnvironment?: string
   reusedChecksOf?: string
-  siblingFallback?: {
-    outcome: VerificationSiblingFallbackOutcome
-    siblings: Array<VerificationSiblingSnapshot>
-    notReplaced?: Array<VerificationSiblingNotReplaced>
-    liveStatus: VerificationStatus
-    liveFailures: Array<string>
-    liveChecks?: Array<VerificationCheckResult>
-    stableStatus?: 'passed' | 'failed' | 'error' | 'unchecked'
-    stableFailures?: Array<string>
-    stableChecks?: Array<VerificationCheckResult>
-    message: string
-  }
   notCaused?: Array<ProjectCheckNotCausedReport>
   baseUpdate?: {
     baseRef: string
@@ -14319,18 +14227,6 @@ export type ProcessRun = {
       summary: string
       sha?: string
       checks: Array<VerificationCheckResult>
-      siblingFallback?: {
-        outcome: VerificationSiblingFallbackOutcome
-        siblings: Array<VerificationSiblingSnapshot>
-        notReplaced?: Array<VerificationSiblingNotReplaced>
-        liveStatus: VerificationStatus
-        liveFailures: Array<string>
-        liveChecks?: Array<VerificationCheckResult>
-        stableStatus?: 'passed' | 'failed' | 'error' | 'unchecked'
-        stableFailures?: Array<string>
-        stableChecks?: Array<VerificationCheckResult>
-        message: string
-      }
     }
     regenerated?: Array<string>
     broughtInRunIds?: Array<string>
@@ -14641,6 +14537,10 @@ export type ProcessRun = {
       signature: string
       at: number
     }
+    relooked?: {
+      runId: string
+      parkedAt: number
+    }
     turnCosts?: Array<ProcessManagerTurnCost>
     preRead?: {
       runId: string
@@ -14814,6 +14714,10 @@ export type ProcessManagerCardStandingRun = {
       signature: string
       at: number
     }
+    relooked?: {
+      runId: string
+      parkedAt: number
+    }
     turnCosts?: Array<ProcessManagerTurnCost>
     preRead?: {
       runId: string
@@ -14914,6 +14818,10 @@ export type ProcessManagerBriefInput = {
       lastEscalated?: {
         signature: string
         at: number
+      }
+      relooked?: {
+        runId: string
+        parkedAt: number
       }
       turnCosts?: Array<ProcessManagerTurnCost>
       preRead?: {
@@ -15042,7 +14950,6 @@ export type ProjectSpecCreateInput = {
     appDir?: string
     isUiApp?: boolean
     workspaceIncludes?: Array<string>
-    stableBranch?: string
     processManager?: {
       enabled?: boolean
       autonomy?: 'observe' | 'recommend' | 'act'
@@ -15120,7 +15027,6 @@ export type ProjectSpecEditInput = {
     appDir?: string
     isUiApp?: boolean
     workspaceIncludes?: Array<string>
-    stableBranch?: string
     processManager?: {
       enabled?: boolean
       autonomy?: 'observe' | 'recommend' | 'act'
@@ -15324,8 +15230,9 @@ export type ProjectCheckMirrorPlan = {
 export type ProjectCheckSiblingSnapshot = {
   path: string
   root: string
-  branch: string
+  branch?: string
   sha: string
+  uncommittedLeftOut?: boolean
 }
 
 export type ProjectCheckHostTreeOptions = {
@@ -15507,46 +15414,15 @@ export type ProjectCheckPlacementDecision =
       }
     }
 
-export type ProjectCheckStableBranch = {
-  branch: string
-  ref: string
-  sha: string
-}
-
-export type ProjectCheckStableBranchMissing = {
+export type ProjectCheckSnapshotNotMade = {
   reason: string
 }
 
-export type ProjectCheckStableBranchCandidates = {
-  configured?: string
-  branches: Array<string>
-  remoteBranches: Array<string>
-  remoteDefault?: string
+export type ProjectCheckSnapshotCommit = {
+  branch?: string
+  sha: string
+  uncommittedLeftOut?: boolean
 }
-
-export type ProjectCheckSiblingState = {
-  revision: VerificationDependencyRevision
-  stable: ProjectCheckStableBranch | ProjectCheckStableBranchMissing
-}
-
-export type ProjectCheckSiblingReplacement = {
-  revision: VerificationDependencyRevision
-  stable: ProjectCheckStableBranch
-}
-
-export type ProjectCheckSiblingFallbackDecision =
-  | {
-      kind: 'none'
-    }
-  | {
-      kind: 'fallback'
-      replace: Array<ProjectCheckSiblingReplacement>
-      notReplaced: Array<VerificationSiblingNotReplaced>
-    }
-  | {
-      kind: 'unavailable'
-      notReplaced: Array<VerificationSiblingNotReplaced>
-    }
 
 export type ProjectCheckTestReportFormat =
   | 'junit-xml'
@@ -21455,18 +21331,6 @@ export type ClosureRun = {
       summary: string
       sha?: string
       checks: Array<VerificationCheckResult>
-      siblingFallback?: {
-        outcome: VerificationSiblingFallbackOutcome
-        siblings: Array<VerificationSiblingSnapshot>
-        notReplaced?: Array<VerificationSiblingNotReplaced>
-        liveStatus: VerificationStatus
-        liveFailures: Array<string>
-        liveChecks?: Array<VerificationCheckResult>
-        stableStatus?: 'passed' | 'failed' | 'error' | 'unchecked'
-        stableFailures?: Array<string>
-        stableChecks?: Array<VerificationCheckResult>
-        message: string
-      }
     }
     regenerated?: Array<string>
     broughtInRunIds?: Array<string>
@@ -22016,18 +21880,6 @@ export type ProcessRunChatState = {
         summary: string
         sha?: string
         checks: Array<VerificationCheckResult>
-        siblingFallback?: {
-          outcome: VerificationSiblingFallbackOutcome
-          siblings: Array<VerificationSiblingSnapshot>
-          notReplaced?: Array<VerificationSiblingNotReplaced>
-          liveStatus: VerificationStatus
-          liveFailures: Array<string>
-          liveChecks?: Array<VerificationCheckResult>
-          stableStatus?: 'passed' | 'failed' | 'error' | 'unchecked'
-          stableFailures?: Array<string>
-          stableChecks?: Array<VerificationCheckResult>
-          message: string
-        }
       }
       regenerated?: Array<string>
       broughtInRunIds?: Array<string>
@@ -22338,6 +22190,10 @@ export type ProcessRunChatState = {
         signature: string
         at: number
       }
+      relooked?: {
+        runId: string
+        parkedAt: number
+      }
       turnCosts?: Array<ProcessManagerTurnCost>
       preRead?: {
         runId: string
@@ -22465,6 +22321,11 @@ export type ProcessWorkBranchHostLinkRepair =
       sha: string
       paths: Array<string>
     }
+
+export type ProcessHostRecheck = {
+  choice: 'retry' | 'update-base'
+  because: string
+}
 
 export type ProcessWorkBranchStanding = {
   tip?: string
@@ -22705,18 +22566,6 @@ export type ProcessIntegrationOutcome = {
     summary: string
     sha?: string
     checks: Array<VerificationCheckResult>
-    siblingFallback?: {
-      outcome: VerificationSiblingFallbackOutcome
-      siblings: Array<VerificationSiblingSnapshot>
-      notReplaced?: Array<VerificationSiblingNotReplaced>
-      liveStatus: VerificationStatus
-      liveFailures: Array<string>
-      liveChecks?: Array<VerificationCheckResult>
-      stableStatus?: 'passed' | 'failed' | 'error' | 'unchecked'
-      stableFailures?: Array<string>
-      stableChecks?: Array<VerificationCheckResult>
-      message: string
-    }
   }
   regenerated?: Array<string>
   broughtInRunIds?: Array<string>
@@ -22833,18 +22682,6 @@ export type ProcessRunSummary = {
       summary: string
       sha?: string
       checks: Array<VerificationCheckResult>
-      siblingFallback?: {
-        outcome: VerificationSiblingFallbackOutcome
-        siblings: Array<VerificationSiblingSnapshot>
-        notReplaced?: Array<VerificationSiblingNotReplaced>
-        liveStatus: VerificationStatus
-        liveFailures: Array<string>
-        liveChecks?: Array<VerificationCheckResult>
-        stableStatus?: 'passed' | 'failed' | 'error' | 'unchecked'
-        stableFailures?: Array<string>
-        stableChecks?: Array<VerificationCheckResult>
-        message: string
-      }
     }
     regenerated?: Array<string>
     broughtInRunIds?: Array<string>
@@ -23144,6 +22981,10 @@ export type ProcessRunSummary = {
       signature: string
       at: number
     }
+    relooked?: {
+      runId: string
+      parkedAt: number
+    }
     turnCosts?: Array<ProcessManagerTurnCost>
     preRead?: {
       runId: string
@@ -23355,18 +23196,6 @@ export type ProcessStepResult = {
   checkedTree?: string
   checkedEnvironment?: string
   reusedChecksOf?: string
-  siblingFallback?: {
-    outcome: VerificationSiblingFallbackOutcome
-    siblings: Array<VerificationSiblingSnapshot>
-    notReplaced?: Array<VerificationSiblingNotReplaced>
-    liveStatus: VerificationStatus
-    liveFailures: Array<string>
-    liveChecks?: Array<VerificationCheckResult>
-    stableStatus?: 'passed' | 'failed' | 'error' | 'unchecked'
-    stableFailures?: Array<string>
-    stableChecks?: Array<VerificationCheckResult>
-    message: string
-  }
   notCaused?: Array<ProjectCheckNotCausedReport>
   baseUpdate?: {
     baseRef: string
@@ -23662,6 +23491,9 @@ export type ProcessStepState = {
         }
       }
       decidedBy?: 'person' | 'agent' | 'manager'
+      byHost?: {
+        because: string
+      }
       decidedVia?: ProcessPersonDecisionVia | 'tool' | 'manager'
       toolName?: string
       chatContextId?: string
@@ -23730,18 +23562,6 @@ export type ProcessStepState = {
     checkedTree?: string
     checkedEnvironment?: string
     reusedChecksOf?: string
-    siblingFallback?: {
-      outcome: VerificationSiblingFallbackOutcome
-      siblings: Array<VerificationSiblingSnapshot>
-      notReplaced?: Array<VerificationSiblingNotReplaced>
-      liveStatus: VerificationStatus
-      liveFailures: Array<string>
-      liveChecks?: Array<VerificationCheckResult>
-      stableStatus?: 'passed' | 'failed' | 'error' | 'unchecked'
-      stableFailures?: Array<string>
-      stableChecks?: Array<VerificationCheckResult>
-      message: string
-    }
     notCaused?: Array<ProjectCheckNotCausedReport>
     baseUpdate?: {
       baseRef: string
@@ -23921,6 +23741,9 @@ export type ProcessResumeOptions = {
         toolName: string
         chatContextId: string
       }
+  byHost?: {
+    because: string
+  }
   retryMode?: 'continue' | 'fresh'
   turnLimit?: {
     limitTurns: boolean
@@ -24873,7 +24696,6 @@ export type AddMessagesInput = {
     featureRequestId?: string
     processRunId?: string
     processRunParkedAt?: number
-    processRunChecksEntryId?: string
     processGroupRunId?: string
     handoffFrom?: string
     appSelections?: Array<{
@@ -36869,7 +36691,6 @@ export type SendCompletionWithToolsResponses = {
           featureRequestId?: string
           processRunId?: string
           processRunParkedAt?: number
-          processRunChecksEntryId?: string
           processGroupRunId?: string
           handoffFrom?: string
           appSelections?: Array<{
@@ -37029,7 +36850,6 @@ export type SendChatCompletionWithToolsData = {
       featureRequestId?: string
       processRunId?: string
       processRunParkedAt?: number
-      processRunChecksEntryId?: string
       processGroupRunId?: string
       handoffFrom?: string
       appSelections?: Array<{
@@ -37193,7 +37013,6 @@ export type SendChatCompletionWithToolsResponses = {
           featureRequestId?: string
           processRunId?: string
           processRunParkedAt?: number
-          processRunChecksEntryId?: string
           processGroupRunId?: string
           handoffFrom?: string
           appSelections?: Array<{
@@ -37353,7 +37172,6 @@ export type SendChatWithCliData = {
       featureRequestId?: string
       processRunId?: string
       processRunParkedAt?: number
-      processRunChecksEntryId?: string
       processGroupRunId?: string
       handoffFrom?: string
       appSelections?: Array<{
@@ -37641,7 +37459,6 @@ export type ResumeCompletionResponses = {
           featureRequestId?: string
           processRunId?: string
           processRunParkedAt?: number
-          processRunChecksEntryId?: string
           processGroupRunId?: string
           handoffFrom?: string
           appSelections?: Array<{

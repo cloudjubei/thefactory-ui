@@ -10,7 +10,6 @@ describe('projectMetadataCarried', () => {
     expect(
       projectMetadataCarried({
         icon: 'rocket',
-        stableBranch: 'main',
         evaluationDefaults,
         workspaceIncludes,
         futureFlag: false,

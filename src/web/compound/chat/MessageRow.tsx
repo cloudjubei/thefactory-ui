@@ -26,7 +26,6 @@ import { costDetailsView, messageUsageCost } from '../../../headless/utils/costD
 import CostDetailsPanel from '../chips/CostDetailsPanel'
 import { ManagerCardView } from './ManagerCards'
 import { RunParkClosure } from './ParkClosureLine'
-import { RunSiblingFallbackNotice } from '../process/SiblingFallbackNotice'
 import AnsweredQuestionBubble from './AnsweredQuestionBubble'
 import { answeredQuestionOf } from '../../../headless/utils/agentQuestions'
 import OpenQuestionsCard from './OpenQuestionsCard'
@@ -613,14 +612,6 @@ function MessageRow({
           {isAssistant && msg.processRunId && msg.processRunParkedAt !== undefined ? (
             <div className="mt-1.5 flex w-full">
               <RunParkClosure runId={msg.processRunId} parkedAt={msg.processRunParkedAt} />
-            </div>
-          ) : null}
-          {isAssistant && msg.processRunId && msg.processRunChecksEntryId ? (
-            <div className="mt-1.5 flex w-full">
-              <RunSiblingFallbackNotice
-                runId={msg.processRunId}
-                entryId={msg.processRunChecksEntryId}
-              />
             </div>
           ) : null}
           {isAssistant && msg.processRunId && renderProcessRun ? (

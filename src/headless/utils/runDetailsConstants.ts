@@ -2,6 +2,7 @@
 export const RUN_DETAILS_COPY = {
   title: 'More about this run',
   preReadMeta: 'Before sign-off',
+  baseBranch: 'Base branch',
   workAdded: 'Work added to this run',
   additions: (count: number): string => `${count} addition${count === 1 ? '' : 's'}`,
   debug: 'Debug · flight recorder',

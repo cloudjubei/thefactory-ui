@@ -7,6 +7,5 @@ export const PROJECT_FORM_METADATA_KEYS: readonly string[] = [
   'isUiApp',
   'ticketConnection',
   'processManager',
-  'stableBranch',
   'checkEnv',
 ]

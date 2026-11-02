@@ -39,6 +39,7 @@ import {
   processRunChatContext,
   processRunModelChipView,
   processRunManagerLine,
+  processBaseMovedView,
   processRunManagerView,
   processRunPersonEnding,
   processRunStopHolderOf,
@@ -129,7 +130,6 @@ import RunModelChip from '../chat/signoff/RunModelChip'
 import DependencyBullet from '../stories/DependencyBullet'
 import RunPendingChanges from './RunPendingChanges'
 import AlreadyMergedOffer from './AlreadyMergedOffer'
-import BaseMovedNote from './BaseMovedNote'
 import CloseUnmergedConfirm from './CloseUnmergedConfirm'
 import WorkBranchChangesNote from './WorkBranchChangesNote'
 import DroppedChangesNote from './DroppedChangesNote'
@@ -497,11 +497,14 @@ export default function ProcessPipeline({
       </ol>
     </RunStepsCard>
   )
+  const baseView = signoff ? undefined : processBaseMovedView(run)
   const runDetails = (className?: string) => (
     <RunDetails
       {...(managerView?.preRead ? { preRead: managerView.preRead } : {})}
       workAdded={amendments.notes}
       {...(stack.length === 0 ? { cleanup } : {})}
+      {...(baseView ? { base: baseView } : {})}
+      onChooseBase={(choice) => choose(choice)}
       {...(className !== undefined ? { className } : {})}
     />
   )
@@ -569,7 +572,6 @@ export default function ProcessPipeline({
             </div>
           ) : null}
 
-          {signoff ? null : <BaseMovedNote run={run} onChoose={(choice) => choose(choice)} />}
           <WorkBranchChangesNote run={run} />
           <DroppedChangesNote run={run} />
 

@@ -51,7 +51,6 @@ import { REGENERATED_MERGE_SCENES } from '../scenes/regeneratedMerge'
 import { NEEDS_YOU_REFERENCE_SCENES } from '../scenes/needsYouReferences'
 import { RUN_NEEDS_YOU_SCENES } from '../scenes/runNeedsYou'
 import { RUNNING_TONE_SCENES } from '../scenes/runningTone'
-import { SIBLING_STABLE_BRANCH_SCENES } from '../scenes/siblingStableBranch'
 import { RUN_TIME_DETAILS_SCENES } from '../scenes/runTimeDetails'
 import { SEND_CHAT_MESSAGE_SCENES } from '../scenes/sendChatMessage'
 import { STORY_CHANGE_ERROR_SCENES } from '../scenes/storyChangeErrors'
@@ -99,7 +98,6 @@ export const SCENES: readonly Scene[] = [
   ...COST_CHIP_SCENES,
   ...PROCESS_CHECKS_SCENES,
   ...ACCEPTED_UNCHECKED_SCENES,
-  ...SIBLING_STABLE_BRANCH_SCENES,
   ...PROCESS_FEATURE_SCENES,
   ...PROCESS_MODEL_SCENES,
   ...PROOF_CHANGE_SCENES,

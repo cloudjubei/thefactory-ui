@@ -6,13 +6,16 @@ import {
   PROCESS_MANAGER_RECOMMENDS_LABEL,
   RUN_DETAILS_COPY,
   processCleanupHeadline,
+  type ProcessBaseMovedView,
   type ProcessManagerPreReadView,
+  type ProcessResumeChoice,
   type UseProcessCleanup,
 } from '../../../headless'
 import { PROCESS_CLEANUP_COPY } from '../../../headless/utils/processCleanupViewConstants'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { IconChevronRight } from '../../icons'
+import { Button } from '../../primitives/Button'
 import { ProcessCleanupBody } from './signoff/ProcessCleanupCard'
 
 export type RunDetailsProps = {
@@ -22,6 +25,10 @@ export type RunDetailsProps = {
   workAdded: readonly string[]
   /** The run's cleanup list, as `useProcessCleanup` keeps it. */
   cleanup?: UseProcessCleanup
+  /** What the run says about its base branch, as `processBaseMovedView` lays it out. */
+  base?: ProcessBaseMovedView
+  /** Takes the base section's choice — bringing the base in and re-checking. */
+  onChooseBase?: (choice: ProcessResumeChoice) => void
   /** Laid over the card's own style — the sign-off places it flush in its column. */
   style?: StyleProp<ViewStyle>
 }
@@ -30,14 +37,23 @@ export type RunDetailsProps = {
  * Native peer of
  * [web's `RunDetails`](../../../web/compound/process/RunDetails.tsx).
  * "More about this run": what matters less than the decision and the report,
- * each folded to one line until opened — the manager's pre-read, the work
- * added to the run, and its cleanup list. Nothing when there is none of it.
+ * each folded to one line until opened — its base branch once that moved on,
+ * the manager's pre-read, the work added to the run, and its cleanup list.
+ * Nothing when there is none of it.
  */
-export default function RunDetails({ preRead, workAdded, cleanup, style }: RunDetailsProps) {
+export default function RunDetails({
+  preRead,
+  workAdded,
+  cleanup,
+  base,
+  onChooseBase,
+  style,
+}: RunDetailsProps) {
   const { theme } = useNativeTheme()
   const list = cleanup?.list
   const hasCleanup = !!list && (list.items.length > 0 || !!list.report)
-  if (!preRead && workAdded.length === 0 && !hasCleanup) return null
+  if (!base && !preRead && workAdded.length === 0 && !hasCleanup) return null
+  const baseChoice = onChooseBase ? base?.choice : undefined
   const body = { fontSize: 12.5, lineHeight: 18, color: theme.text.secondary } as const
   return (
     <View
@@ -67,6 +83,24 @@ export default function RunDetails({ preRead, workAdded, cleanup, style }: RunDe
       >
         {RUN_DETAILS_COPY.title}
       </Text>
+      {base ? (
+        <Disclosure title={RUN_DETAILS_COPY.baseBranch} meta={base.headline}>
+          {base.meaning ? <Text style={body}>{base.meaning}</Text> : null}
+          {base.lastUpdate ? <Text style={body}>{base.lastUpdate}</Text> : null}
+          {baseChoice && onChooseBase ? (
+            <View style={{ alignSelf: 'flex-start', gap: 2 }}>
+              <Button
+                size="sm"
+                variant={baseChoice.primary ? 'primary' : 'secondary'}
+                onPress={() => onChooseBase(baseChoice.choice)}
+              >
+                {baseChoice.label}
+              </Button>
+              <Text style={{ fontSize: 11, color: theme.text.secondary }}>{baseChoice.detail}</Text>
+            </View>
+          ) : null}
+        </Disclosure>
+      ) : null}
       {preRead ? (
         <Disclosure title={PROCESS_MANAGER_PRE_READ_TITLE} meta={RUN_DETAILS_COPY.preReadMeta}>
           <Text style={body}>{preRead.summary}</Text>

@@ -5,11 +5,14 @@ import {
   PROCESS_MANAGER_RECOMMENDS_LABEL,
   RUN_DETAILS_COPY,
   processCleanupHeadline,
+  type ProcessBaseMovedView,
   type ProcessManagerPreReadView,
+  type ProcessResumeChoice,
   type UseProcessCleanup,
 } from '../../../headless'
 import { PROCESS_CLEANUP_COPY } from '../../../headless/utils/processCleanupViewConstants'
 import { IconChevronRight } from '../../icons'
+import { Button } from '../../primitives/Button'
 import { ProcessCleanupBody } from './signoff/ProcessCleanupCard'
 
 export type RunDetailsProps = {
@@ -19,23 +22,31 @@ export type RunDetailsProps = {
   workAdded: readonly string[]
   /** The run's cleanup list, as `useProcessCleanup` keeps it. */
   cleanup?: UseProcessCleanup
+  /** What the run says about its base branch, as `processBaseMovedView` lays it out. */
+  base?: ProcessBaseMovedView
+  /** Takes the base section's choice — bringing the base in and re-checking. */
+  onChooseBase?: (choice: ProcessResumeChoice) => void
   className?: string
 }
 
 /**
  * "More about this run": what matters less than the decision and the report,
- * each folded to one line until opened — the manager's pre-read, the work
- * added to the run, and its cleanup list. Nothing when there is none of it.
+ * each folded to one line until opened — its base branch once that moved on,
+ * the manager's pre-read, the work added to the run, and its cleanup list.
+ * Nothing when there is none of it.
  */
 export default function RunDetails({
   preRead,
   workAdded,
   cleanup,
+  base,
+  onChooseBase,
   className = 'mx-3 mt-3',
 }: RunDetailsProps) {
   const list = cleanup?.list
   const hasCleanup = !!list && (list.items.length > 0 || !!list.report)
-  if (!preRead && workAdded.length === 0 && !hasCleanup) return null
+  if (!base && !preRead && workAdded.length === 0 && !hasCleanup) return null
+  const baseChoice = onChooseBase ? base?.choice : undefined
   return (
     <section
       aria-label={RUN_DETAILS_COPY.title}
@@ -44,6 +55,32 @@ export default function RunDetails({
       <h3 className="m-0 py-2 text-[14px] font-semibold text-(--text-primary)">
         {RUN_DETAILS_COPY.title}
       </h3>
+      {base ? (
+        <Disclosure title={RUN_DETAILS_COPY.baseBranch} meta={base.headline}>
+          {base.meaning ? (
+            <p className="m-0 text-[12.5px] leading-relaxed text-(--text-secondary)">
+              {base.meaning}
+            </p>
+          ) : null}
+          {base.lastUpdate ? (
+            <p className="m-0 text-[12.5px] leading-relaxed text-(--text-secondary)">
+              {base.lastUpdate}
+            </p>
+          ) : null}
+          {baseChoice && onChooseBase ? (
+            <div className="flex flex-col items-start gap-1">
+              <Button
+                size="sm"
+                variant={baseChoice.primary ? 'primary' : 'secondary'}
+                onClick={() => onChooseBase(baseChoice.choice)}
+              >
+                {baseChoice.label}
+              </Button>
+              <span className="text-[11px] text-(--text-secondary)">{baseChoice.detail}</span>
+            </div>
+          ) : null}
+        </Disclosure>
+      ) : null}
       {preRead ? (
         <Disclosure title={PROCESS_MANAGER_PRE_READ_TITLE} meta={RUN_DETAILS_COPY.preReadMeta}>
           <p className="m-0 text-[12.5px] leading-relaxed text-(--text-secondary)">
@@ -102,7 +139,7 @@ function Disclosure({
         <IconChevronRight
           className={`size-3.5 shrink-0 text-(--text-muted) transition-transform ${open ? 'rotate-90' : ''}`}
         />
-        <span className="text-[13px] font-semibold text-(--text-primary)">{title}</span>
+        <span className="shrink-0 text-[13px] font-semibold text-(--text-primary)">{title}</span>
         <span className="ml-auto min-w-0 truncate text-right text-[12px] text-(--text-muted)">
           {meta}
         </span>

@@ -696,10 +696,6 @@ export {
   type TicketConnectionPickerValue,
 } from './compound/projects/TicketConnectionPicker'
 export {
-  default as ProjectStableBranchField,
-  type ProjectStableBranchFieldProps,
-} from './compound/projects/ProjectStableBranchField'
-export {
   default as ProjectCheckEnvField,
   type ProjectCheckEnvFieldProps,
 } from './compound/projects/ProjectCheckEnvField'
@@ -711,11 +707,6 @@ export {
   default as EvaluationLaunchAskBody,
   type EvaluationLaunchAskBodyProps,
 } from './compound/chat/EvaluationLaunchAskBody'
-export {
-  default as SiblingFallbackNotice,
-  RunSiblingFallbackNotice,
-  type SiblingFallbackNoticeProps,
-} from './compound/process/SiblingFallbackNotice'
 export {
   default as ProjectTicketSettings,
   type ProjectTicketSettingsProps,

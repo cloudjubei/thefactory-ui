@@ -463,7 +463,7 @@ hover (web) or accessibility label (native) says why a host run could not use th
 sandbox (`ranInLabel` / `ranInDetail`) and, for a host run, which revision of
 each dependency outside the checkout it built against, on which branch ("Built
 against thefactory-tools on dev at 1a2b3c4 with uncommitted changes", or "main at
-5d6e7f8 (a clean copy)" for a stable-branch snapshot, `dependencyDetail`) — a
+5d6e7f8 (a clean copy)" for a snapshot of its commit, `dependencyDetail`) — a
 dashed "pre-existing" / "partly pre-existing" chip on a failure the change's base
 shares, its hover or label saying how it compared (`baselineLabel` /
 `baselineDetail`) — and its duration. The sign-off's check
@@ -508,28 +508,6 @@ tools' `processVerifyReview` reads it (`PROVING_AGENT_TYPES`) — and, when it
 carried earlier attempts on, under theirs too (`earlierRunIds`, which also
 loads the story's evidence in `useVerifyAttemptEvidence`). Every surface that
 names a role does it through `agentRoleLabel` ("developer + verifier").
-
-**Checks against a sibling's stable branch.** When the checks failed against
-out-of-tree code with pending changes and ran again at that code's stable branch,
-the attempt carries `siblingFallback` (`stable-passed` / `stable-failed` /
-`unavailable`). `ProcessCheckList` (web + native) leads with `SiblingFallbackNotice`
-— its heading and tone, the host's sentence ("Passed against shared-db@3161c83;
-your pending changes in shared-db break it: …"), a chip per dependency (its
-working tree, "pending changes", → the stable branch@commit used), what failed
-(collapsed) and why a dependency could not be checked — and a `SegmentedControl`
-between the attempt's two runs ("Stable branch" / "Your pending changes",
-`siblingFallbackCheckSets`); all from `headless/utils/siblingFallbackView.ts`. The
-run's chat gets a host message carrying `processRunChecksEntryId`;
-`RunSiblingFallbackNotice` reads that attempt live off the run
-(`useSiblingFallbackNotice` → `siblingFallbackNoticeState`) and marks it history
-once a newer checks attempt ran ("Checked again since — this no longer applies" /
-"… see the newer notice"). `MergeChecksResult` shows the same notice under its
-summary (which already carries the sentence). The project editor's "Stable
-branch" field (`ProjectStableBranchField`, web + native; `projectStableBranchField`
-/ `projectStableBranchError` in `headless/utils/projectStableBranch.ts`) trims the
-value, drops the key when blank and says inline when git would not take it as a
-branch. Showcase: `checks-stable-branch`, `run-chat-stable-branch-notice`,
-`merge-result-stable-branch`, `project-stable-branch-field`.
 
 **The process the agent chose.** `startFeatureWork` may name a `processId`;
 `startFeatureWorkGrantSummary` reads it (trimmed, on either transport) and both
@@ -672,10 +650,14 @@ from thefactory-tools' `processStepStates`; `processNodeState` → a dashed, que
 marker, never the red of a failure) and its line says "Try again ran the checks
 first — branch changed (597e5bd9)" (`PROCESS_STEP_RECHECKED`, the commit the
 checks ran on) instead of the old attempt's error.
-`BaseMovedNote` (web + native, laid out by
-`processBaseMovedView(run)`) says "main has 2 new commits" above the pipeline,
-with the same choice while the park offers it, and the newest time the base was
-brought in.
+The run page does not say this at its top: "More about this run" (`RunDetails`,
+web + native) leads with a folded "Base branch" line, laid out by
+`processBaseMovedView(run)` and shown only once the base moved on or was brought
+in. Its headline is "main has 2 new commits" (else "Brought in main · 2 times",
+`PROCESS_BASE_MOVED_COPY`); opened, it says the work branch does not have them
+yet, the newest time the base was brought in, and the same choice while the
+park offers it (`onChooseBase` → the pipeline's resume). Hidden at a sign-off,
+as before. `RunDetails` renders for this section alone.
 
 **An agent waiting on you** (`step-waiting`, the ask on `park.ask`) gets its own
 card in `ParkBlock` (web + native `WaitingCard`), laid out by

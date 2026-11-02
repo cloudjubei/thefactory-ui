@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import type { ProcessLedgerEntry, ProcessPlan, ProcessRun } from 'thefactory-tools/types'
-import { runNeedsYouView } from 'thefactory-ui/headless'
+import { processBaseMovedView, runNeedsYouView } from 'thefactory-ui/headless'
 import type {
+  ProcessBaseMovedView,
   ProcessManagerEscalationView,
   ProcessRunManagerView,
   RunNeedsYouActions,
@@ -367,7 +368,35 @@ const STEP_ROWS = [
   'Confirm the merge · needs you',
 ]
 
-const folds = (stepsOpen: boolean) =>
+const BASE_MOVED = {
+  baseRef: 'main',
+  baseSha: '89dc2ff022c6b0c67d36a6098bb7444d6d7bc787',
+  commits: 8,
+}
+
+/** A run parked on its checks while main moved on 8 commits: bringing main in is offered. */
+const BASE_MOVED_PARKED = processBaseMovedView({ ...CHECKS_FAILED, baseMoved: BASE_MOVED })
+
+/** A running run whose main moved on 8 commits: nothing to choose until it stops. */
+const BASE_MOVED_RUNNING = processBaseMovedView(
+  featureRun({ status: 'running', baseMoved: BASE_MOVED }),
+)
+
+/** A run that brought main in twice and has not fallen behind since. */
+const BASE_BROUGHT_IN = processBaseMovedView(
+  featureRun({
+    status: 'running',
+    baseUpdates: [
+      { ...BASE_MOVED, commits: 3, sha: '4c1e9a0b7d2f3e5a6b8c9d0e1f2a3b4c5d6e7f80', at: 2 },
+      { ...BASE_MOVED, sha: '7d2f3e5a6b8c9d0e1f2a3b4c5d6e7f804c1e9a0b', at: 4 },
+    ],
+  }),
+)
+
+const baseOnly = (base: ProcessBaseMovedView | undefined) =>
+  frame(<RunDetails workAdded={[]} {...(base ? { base } : {})} onChooseBase={noop} />)
+
+const folds = (stepsOpen: boolean, base?: ProcessBaseMovedView) =>
   frame(
     <>
       <RunStepsCard line="10 of 11 done" total={STEP_ROWS.length} defaultOpen={stepsOpen}>
@@ -393,6 +422,8 @@ const folds = (stepsOpen: boolean) =>
           'Added 1 Nov 2026: Review the resolution. Resolving the conflict changed code the review had approved, so it is reviewed.',
         ]}
         cleanup={CLEANUP}
+        {...(base ? { base } : {})}
+        onChooseBase={noop}
       />
     </>,
   )
@@ -510,7 +541,7 @@ export const RUN_NEEDS_YOU_SCENES: Scene[] = [
     component: 'RunStepsCard · RunDetails',
     group: 'Process',
     description:
-      'Below the decision and the report, the run keeps the rest one click away: its steps under one line of how far it got, and “More about this run” — the manager’s pre-read, the work added to the run, and its cleanup list — each folded to a line. “Handled for you” is gone, and Debug stays folded.',
+      'Below the decision and the report, the run keeps the rest one click away: its steps under one line of how far it got, and “More about this run” — its base branch once that moved on, the manager’s pre-read, the work added to the run, and its cleanup list — each folded to a line. “Handled for you” is gone, and Debug stays folded. “main has 8 new commits” no longer sits at the top of the run page: it is the “Base branch” line here, and opening it shows what that means and, while the run’s stop offers it, the choice to bring main in and re-check.',
     states: [
       {
         id: 'folded',
@@ -521,6 +552,27 @@ export const RUN_NEEDS_YOU_SCENES: Scene[] = [
         id: 'steps-open',
         title: 'Steps shown',
         render: () => folds(true),
+      },
+      {
+        id: 'base-moved',
+        title: 'main moved on',
+        description:
+          '“Base branch · main has 8 new commits” leads “More about this run”. Opened, it says the work branch does not have them yet and, as the run is stopped on its checks, offers “Bring in main (8 new commits) and re-check”.',
+        render: () => folds(false, BASE_MOVED_PARKED),
+      },
+      {
+        id: 'base-moved-only',
+        title: 'main moved on, nothing else to show',
+        description:
+          'A running run with no pre-read, no added work and no cleanup still shows “More about this run” for its base branch alone. Nothing to choose until the run stops.',
+        render: () => baseOnly(BASE_MOVED_RUNNING),
+      },
+      {
+        id: 'base-brought-in',
+        title: 'main brought in',
+        description:
+          'Once main was brought in and has not moved on since, the line says “Brought in main · 2 times”; opened, it names the newest time and the commit the work branch is now at.',
+        render: () => baseOnly(BASE_BROUGHT_IN),
       },
     ],
   },
