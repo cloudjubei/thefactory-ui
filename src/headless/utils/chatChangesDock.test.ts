@@ -8,6 +8,7 @@ import {
   chatChangesVerdictTag,
   chatReviewHeader,
   chatReviewLayout,
+  chatReviewTarget,
   chatReviewPanelWidth,
 } from './chatChangesDock'
 import type { ChatChangesMarkerInput } from './chatChangesDockTypes'
@@ -322,6 +323,26 @@ describe('chatReviewHeader', () => {
     expect(chatReviewHeader({ landFailed: true }).title).toBe('Changes not committed')
     expect(chatReviewHeader({ reportOnly: true }).title).toBe('Stage report')
     expect(chatReviewHeader({}).title).toBe('Changes')
+  })
+})
+
+describe('chatReviewTarget', () => {
+  it('opens the named turn’s changes over the chat’s open ones', () => {
+    expect(chatReviewTarget({ runId: 'turn', openRunId: 'open', reviewable: true })).toBe('turn')
+  })
+
+  it('opens the chat’s open changes when no turn is named', () => {
+    expect(chatReviewTarget({ openRunId: 'open', reviewable: true })).toBe('open')
+  })
+
+  it('has nothing to open when the chat changed nothing', () => {
+    expect(chatReviewTarget({ reviewable: true })).toBeUndefined()
+  })
+
+  it('has nothing to open where the chat cannot show a review', () => {
+    expect(
+      chatReviewTarget({ runId: 'turn', openRunId: 'open', reviewable: false }),
+    ).toBeUndefined()
   })
 })
 

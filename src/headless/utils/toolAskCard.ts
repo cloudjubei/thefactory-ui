@@ -33,6 +33,8 @@ import {
   GROUP_WORK_ASK,
   HOST_FILE_READ_ASK,
   HOST_FILE_READ_TOOL,
+  PROJECT_SCRIPT_ASK,
+  PROJECT_SCRIPT_TOOL,
   RUN_PROPOSAL_ASK,
   TOOL_ASK_COPY,
   TOOL_ASK_SCOPE,
@@ -414,6 +416,22 @@ export function toolAskCardView(grant: GrantLike): ToolAskCardView {
       consequence: HOST_FILE_READ_ASK.consequence,
       verb: HOST_FILE_READ_ASK.verb,
       body: { kind: 'details', ...(facts.length > 0 ? { text: facts.join(' · ') } : {}) },
+    }
+  }
+  if (tool === PROJECT_SCRIPT_TOOL) {
+    const passed = Array.isArray(args.args)
+      ? args.args.filter((a): a is string => typeof a === 'string' && a.length > 0)
+      : []
+    const line = [text(args.script), ...passed].filter((part) => part !== undefined).join(' ')
+    return {
+      ...base,
+      icon: 'run',
+      ask: PROJECT_SCRIPT_ASK.ask,
+      tag: PROJECT_SCRIPT_ASK.tag,
+      headline: PROJECT_SCRIPT_ASK.headline(line),
+      consequence: PROJECT_SCRIPT_ASK.consequence,
+      verb: PROJECT_SCRIPT_ASK.verb,
+      body: { kind: 'details' },
     }
   }
   if (tool === 'requestNetworkUnlock') {

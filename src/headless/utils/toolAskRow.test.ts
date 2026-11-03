@@ -25,6 +25,16 @@ describe('toolAskRowView', () => {
     ).toEqual({ headline: 'Commit 2 files to work', tone: 'ask' })
   })
 
+  it('reads a project script by the command it runs, even with no host sentence', () => {
+    expect(
+      toolAskRowView({
+        label: 'runProjectScript',
+        toolName: 'runProjectScript',
+        args: { script: 'monitor:sources', args: ['--accept-revision=r4'] },
+      }),
+    ).toEqual({ headline: 'Run monitor:sources --accept-revision=r4', tone: 'ask' })
+  })
+
   it('marks a git change that throws work away as one that cannot be undone', () => {
     expect(
       toolAskRowView({

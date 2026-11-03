@@ -2,6 +2,7 @@ import { Fragment, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 
 import {
   filterGroupStories,
+  GROUP_STORY_ACTION_LABELS,
   GROUP_STORY_ALL_PROJECTS,
   GROUP_STORY_RUN_FILTER_OPTIONS,
   GROUP_STORY_SORT_OPTIONS,
@@ -338,7 +339,7 @@ function GroupStoryRunAction({
       size="sm"
       variant="run"
       disabled={blocked !== undefined}
-      title={blocked ?? 'Run every part as one group run'}
+      title={blocked ?? GROUP_STORY_ACTION_LABELS.run}
       onClick={(e) => {
         e.stopPropagation()
         onRun()

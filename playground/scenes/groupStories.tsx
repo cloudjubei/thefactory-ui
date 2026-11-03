@@ -3,6 +3,7 @@ import {
   GROUP_STORY_LIST_FILTER_DEFAULT,
   groupStoryFormFor,
   type GroupProjectStoryOption,
+  type GroupStoryFolds,
   type GroupStoryForm,
   type GroupStoryListFilter,
   type GroupStoryMembership,
@@ -227,6 +228,77 @@ const MOBILE_ASKS = story(
   },
 )
 
+const CONTEXT_DESCRIPTION = [
+  '**Status: design proposed, still in discussion.** Features are drafted from the proposal below. Do not start work until the open questions at the end are settled.',
+  '',
+  '## How it works today',
+  '',
+  'API chats limit their own context. Only the last `numberMessagesToSend` messages are sent, and the model keeps `dynamicContext` current through its structured reply.',
+  '',
+  'CLI chats do none of that. A CLI chat turn gets its history in one of three ways:',
+  '',
+  '1. **Live process ("resident", the default).** Every turn is fed into one running CLI; it compacts the conversation itself.',
+  '2. **The CLI’s saved session.** Each turn starts a new container with `--resume <session id>`, the id held only in memory.',
+  '3. **Full replay.** The whole chat is sent as text with no size limit — after 20 minutes idle, a restart or a switch of CLI.',
+  '',
+  '## What is wrong',
+  '',
+  '1. **The replay has no size limit.** A long chat can overflow the model’s context window, and nothing detects it.',
+  '2. **The host does not track how full a session is.** Compaction events (`compact_boundary`) are not read.',
+  '3. **A model switch is ignored on both CLI paths (bug).** The session key is `chatContextId::cli::credential::tools` — no model or effort in it.',
+  '4. **Tool guidance is re-sent every turn (bug).** About 6 KB is prefixed to every prompt.',
+  '',
+  '## Proposed design',
+  '',
+  'Keep the CLI’s own session as the working memory, because it holds the tool results. Treat the chat as the source of truth.',
+  '',
+  '- **Freshness check.** Store the last chat message each session saw; catch it up, or rebuild it after an edit or delete.',
+  '  - Only new messages since: send them in as a catch-up.',
+  '  - The chat was edited: rebuild the session.',
+  '- **Bounded rebuild.** The system prompt, `dynamicContext` and the last `numberMessagesToSend` messages, under a size ceiling.',
+  '- **Fix the two bugs.** Model and effort in both session keys; tool guidance only when a session starts.',
+  '',
+  '## Update 2026-10-08: what changed, and concerns',
+  '',
+  '### Already changed since this design was written',
+  '- Every chat turn runs in the chat’s resident session, on every CLI.',
+  '- A cold resident session is seeded with the same `numberMessagesToSend` window an API request gets.',
+  '',
+  '### Concerns with the current feature design',
+  '1. **The stale catch-up summary contradicts the design’s own reasoning.** Ask the live session to checkpoint before it is dropped.',
+  '2. **A size ceiling is still needed** on top of `numberMessagesToSend`: one huge message can overflow the window.',
+].join('\n')
+
+const CONTEXT_FRESH = story(
+  'gs-context',
+  'CLI agents: keep conversation context fresh and bounded (design in discussion)',
+  [
+    part('thefactory-tools', {
+      storyTitle: 'Chats: shared context plan for API and CLI (design settled, not started)',
+      status: 'in_progress',
+      featuresDone: 4,
+      featuresTotal: 5,
+    }),
+    part('thefactory-backend', {
+      storyTitle: 'Unified API+CLI context — backend slices for workstreams B, C, D',
+      status: 'blocked',
+      step: 2,
+      needs: ['thefactory-tools'],
+      featuresTotal: 3,
+    }),
+    part('thefactory-ui', {
+      storyTitle: 'CLI agents: keep conversation context fresh and bounded',
+      step: 3,
+      needs: ['thefactory-backend'],
+      featuresTotal: 6,
+    }),
+  ],
+  { description: CONTEXT_DESCRIPTION, status: 'in_progress' },
+)
+
+/** The same group story under its own id per state, so each state's folds start as it says. */
+const contextFresh = (id: string): GroupStoryView => ({ ...CONTEXT_FRESH, id: `gs-context-${id}` })
+
 const LIST = [
   CONFLICT_SAFE,
   WAITING,
@@ -441,6 +513,29 @@ function RunDialogState({
   )
 }
 
+function PageState({
+  story,
+  withBack = true,
+  folds,
+}: {
+  story: GroupStoryView
+  withBack?: boolean
+  folds?: Partial<GroupStoryFolds>
+}) {
+  return (
+    <GroupStoryPage
+      story={story}
+      onRun={noop}
+      onOpenRun={noop}
+      onEdit={noop}
+      onDelete={asyncNoop}
+      onOpenPartStory={noop}
+      {...(withBack ? { onBack: noop } : {})}
+      {...(folds ? { initialFolds: folds } : {})}
+    />
+  )
+}
+
 export const GROUP_STORY_SCENES: Scene[] = [
   {
     id: 'group-stories-list',
@@ -493,71 +588,83 @@ export const GROUP_STORY_SCENES: Scene[] = [
   },
   {
     id: 'group-story-page',
-    title: 'Group story — its parts by step',
+    title: 'Group story — Parts and Overview',
     component: 'GroupStoryPage',
     group: 'Project',
     kind: 'screen',
     wide: true,
     description:
-      'One group story: its parts in step columns — parts in one step run side by side, each step after the ones it needs (the part stories’ blockers on each other). Each part shows its project, its story (opening it), status, features done and what it needs. Run, Edit and Delete (confirmed; the part stories stay).',
+      'One group story, laid out like a story page: its Parts first, then its Overview, each a panel that folds to its heading and one line — Parts to the projects in the order they run (a status dot each, → between steps), Overview to the description’s first line. Parts sit in step columns — parts in one step run side by side, each step after the ones it needs (the part stories’ blockers on each other); each part shows its project, its story (opening it), status, features done and what it needs. The Overview folds the description at its headings: the text before the first heading always shows, then one row per heading with its first line and how much it holds (“4 points”, “2 subsections”), opening to its text; a heading’s subsections open the same way, and Expand all / Collapse all open or fold every one. What is open is kept per group story for the session. The header starts with the back button to the group’s Stories, as a story page’s does, and ends with Run, Edit and Delete as the icon buttons a story has: Run the filled play button (turned off, saying why on hover, while it cannot run; gone while a run is going and its status shows instead), Edit the pencil and Delete the red bin (confirmed; the part stories stay). The page lays itself out by its own width: below 768 px the title takes its own lines and the parts count leaves the header for the Parts heading, the panels run edge to edge, the steps stack, every heading row is at least 44 px tall and a section’s size moves in front of its summary.',
     states: [
       {
         id: 'ready',
         title: 'Ready to run',
-        render: () => (
-          <GroupStoryPage
-            story={EMPTY_FOLDERS}
-            onRun={noop}
-            onOpenRun={noop}
-            onEdit={noop}
-            onDelete={asyncNoop}
-            onOpenPartStory={noop}
-          />
-        ),
+        render: () => <PageState story={EMPTY_FOLDERS} />,
       },
       {
         id: 'running',
         title: 'Running — three steps, three parts side by side',
-        render: () => (
-          <GroupStoryPage
-            story={CONFLICT_SAFE}
-            onRun={noop}
-            onOpenRun={noop}
-            onEdit={noop}
-            onDelete={asyncNoop}
-            onOpenPartStory={noop}
-          />
-        ),
+        description: 'No Run while the run is going: its status pill opens it.',
+        render: () => <PageState story={CONFLICT_SAFE} />,
       },
       {
         id: 'loop',
         title: 'Parts that need each other',
         description:
-          'Neither can start: the problem says why and the parts sit under Cannot start.',
-        render: () => (
-          <GroupStoryPage
-            story={HARDENING_LOOP}
-            onRun={noop}
-            onOpenRun={noop}
-            onEdit={noop}
-            onDelete={asyncNoop}
-            onOpenPartStory={noop}
-          />
-        ),
+          'Neither can start: the problem says why, the parts sit under Cannot start and Run is turned off.',
+        render: () => <PageState story={HARDENING_LOOP} />,
       },
       {
         id: 'done',
         title: 'Every part done',
+        description: 'Run is turned off: every part is done.',
+        render: () => <PageState story={KNOWLEDGE_DONE} />,
+      },
+      {
+        id: 'long-description',
+        title: 'A long description — folded at its headings',
+        description:
+          'The text before the first heading shows; each heading is one row with its first line and size, opening on click. A description with no headings shows whole.',
+        render: () => <PageState story={contextFresh('folded-sections')} />,
+      },
+      {
+        id: 'sections-open',
+        title: 'Sections opened — one with its subsections',
+        description:
+          'An open heading shows its text; the update’s subsections open one at a time. Expand all becomes Collapse all once every one is open.',
         render: () => (
-          <GroupStoryPage
-            story={KNOWLEDGE_DONE}
-            onRun={noop}
-            onOpenRun={noop}
-            onEdit={noop}
-            onDelete={asyncNoop}
-            onOpenPartStory={noop}
+          <PageState
+            story={contextFresh('open-sections')}
+            folds={{ sections: ['1', '3', '3.1'] }}
           />
         ),
+      },
+      {
+        id: 'folded',
+        title: 'Parts and Overview folded',
+        description:
+          'Folded, Parts shows its projects in run order with a status dot each, Overview its first line.',
+        render: () => (
+          <PageState story={contextFresh('folded')} folds={{ parts: false, overview: false }} />
+        ),
+      },
+      {
+        id: 'phone',
+        title: 'At a phone’s width',
+        description:
+          '390 px wide: the title on its own lines, panels edge to edge, steps stacked, 44 px heading rows, each folded heading’s size before its summary. The mobile app draws the same page natively.',
+        render: () => (
+          <div style={{ width: 390, height: 844, border: '1px solid var(--border-default)' }}>
+            <PageState story={contextFresh('phone')} withBack={false} folds={{ sections: ['1'] }} />
+          </div>
+        ),
+      },
+      {
+        id: 'small-screen',
+        title: 'On a small screen — back is the app bar’s',
+        description:
+          'Below the desktop width the page has no back button of its own: the app bar’s back arrow returns to the group’s Stories, as on a story page.',
+        render: () => <PageState story={EMPTY_FOLDERS} withBack={false} />,
       },
     ],
   },

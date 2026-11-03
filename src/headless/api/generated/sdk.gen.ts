@@ -490,9 +490,15 @@ import type {
   GetProjectKnowledgeOverviewErrors,
   GetProjectKnowledgeOverviewResponses,
   GetProjectResponses,
+  GetProjectsGroupConstellationData,
+  GetProjectsGroupConstellationErrors,
+  GetProjectsGroupConstellationResponses,
   GetProjectsGroupData,
   GetProjectsGroupErrors,
   GetProjectsGroupResponses,
+  GetProjectsGroupStatusData,
+  GetProjectsGroupStatusErrors,
+  GetProjectsGroupStatusResponses,
   GetProjectStorageUsageData,
   GetProjectStorageUsageErrors,
   GetProjectStorageUsageResponses,
@@ -1549,6 +1555,40 @@ export const createProjectsGroup = <ThrowOnError extends boolean = false>(
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  })
+
+/**
+ * Roll-up of each member: running and parked runs, open group runs, story progress, failing checks, git divergence, open feature requests, and last activity. Refetch when `projects-group:status-updated` arrives.
+ */
+export const getProjectsGroupStatus = <ThrowOnError extends boolean = false>(
+  options: Options<GetProjectsGroupStatusData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetProjectsGroupStatusResponses,
+    GetProjectsGroupStatusErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects-groups/{id}/status',
+    ...options,
+  })
+
+/**
+ * Dependency constellation of this group’s members: each member project and the package edges among them. A member with no checkout is still listed and contributes no edges. Nothing is rebuilt to answer this.
+ */
+export const getProjectsGroupConstellation = <ThrowOnError extends boolean = false>(
+  options: Options<GetProjectsGroupConstellationData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetProjectsGroupConstellationResponses,
+    GetProjectsGroupConstellationErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects-groups/{id}/constellation',
+    ...options,
   })
 
 export const deleteProjectsGroup = <ThrowOnError extends boolean = false>(

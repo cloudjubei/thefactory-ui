@@ -1,8 +1,26 @@
 import {
+  GROUP_STORY_ACTION_LABELS,
   processGroupBadge,
   type GroupStoryRunSummary,
   type ProcessStatusTone,
 } from '../../../headless'
+import { IconBack } from '../../icons'
+import { Button } from '../../primitives/Button'
+
+/** Back to the group's Stories, as a story page's back button. */
+export function GroupStoryBackButton({ onBack }: { onBack: () => void }) {
+  return (
+    <Button
+      variant="secondary"
+      size="icon"
+      onClick={onBack}
+      aria-label={GROUP_STORY_ACTION_LABELS.back}
+      title={GROUP_STORY_ACTION_LABELS.back}
+    >
+      <IconBack className="w-4 h-4" />
+    </Button>
+  )
+}
 
 /** A group run's state as a soft status pill, the group run page's own badge. */
 export function GroupStoryToneBadge({
@@ -76,10 +94,10 @@ export function GroupStoryStoryChip({
         e.stopPropagation()
         onOpen?.()
       }}
-      className="chip story chip--ok max-w-full truncate"
+      className="chip story chip--ok min-w-0 max-w-full"
       title={title}
     >
-      {title}
+      <span className="min-w-0 truncate">{title}</span>
     </button>
   )
 }

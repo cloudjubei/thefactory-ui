@@ -74,6 +74,16 @@ describe('makeAppWork', () => {
     ])
   })
 
+  it('makes the story with the files that go with it, so they are kept as they are now', async () => {
+    const files = ['.cache/monitor/latest-proposal.json', '.cache/downloads/a.pdf']
+    await makeAppWork('p1', { ...draft, files }, {}, () => {})
+    expect(createStory).toHaveBeenCalledWith({
+      path: { projectId: 'p1' },
+      body: { title: draft.title, description: draft.description, files },
+      throwOnError: true,
+    })
+  })
+
   it('works a request with no features as one feature named for the work', async () => {
     asMock(createFeature)
       .mockReset()

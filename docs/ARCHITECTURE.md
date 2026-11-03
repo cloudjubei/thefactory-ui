@@ -69,7 +69,7 @@ comes from `useProjectAppView`, which mints a short-lived **view token** and poi
 host route `…/projects/<id>/view/<file>?viewToken=…`. The host serves the project's `metadata.appDir`
 (falling back to the checkout root) with `Cache-Control: no-store`. The app talks back to the host only
 through the **`OverseerBridge` postMessage protocol** (`headless/utils/appBridge.ts`; the `data.*` / `settings.*` payloads are read by thefactory-tools' `projectAppDataQueryOf` / `projectAppDataPutOf` / `projectAppDataRefOf` / `projectAppSettings*Of`, the same readers the backend's App capture harness answers with) — `data.*`,
-`activities.*`, `settings.*`, `live-data.*`, `user.current`, `toolCalls.*`, `work.start`, `nav.*`, `run.open`, `chat.discuss`/`chat.requestSidebar`,
+`activities.*`, `settings.*`, `live-data.*`, `user.current`, `toolCalls.*`, `work.start`, `nav.*`, `run.read`, `run.open`, `chat.discuss`/`chat.requestSidebar`,
 `story.create`, etc.; the host holds every credential, the app never does.
 
 ### Unsaved changes (`overseer:app.dirty`)
@@ -126,7 +126,7 @@ id matches **and** whose `projectId` is this project. Answers name the source by
 | `live-data.schedule` | `{ sourceId, autoUpdate, freshnessMs? }` | `{ autoUpdate, freshnessMs }` as stored. Sends only `{ autoUpdate, freshness? }`, the fields a task source accepts; a backend 400 comes back as the request's error. |
 | `user.current` | — | `{ name, email?, username? }` from the stored git credentials (`GET /git-credentials`, redacted): the connected GitHub account (`tokenSource: 'oauth'`) first, else the first credential that names someone. `name` is the username — a credential's own `name` is its label ("GitHub OAuth (login)") and is used only when it has no username. None: error `No account connected`. (`utils/appUser.ts`, `api/userBridge.ts`.) |
 | `toolCalls.slips` / `toolCalls.stats` | `{ sinceDays?, toolName?, kind?, agent?, limit? }` (fields of the wrong kind dropped) | The tool calls agents got wrong across every project (`GET /tool-call-slips`, newest first) or their counts overall, per kind, per agent · model and per tool (`GET /tool-call-slips/stats`) — `headless/api/toolCallsBridge.ts`. thefactory-tools' own App reads them on its Tool calls page. |
-| `work.start` | `{ title, description, features?: [{ title, description }] }` | Shown to the person over the App view (`useAppWorkStart` → web `AppWorkStartDialog`, native `AppWorkStartSheet`): title, description and features, editable until Start makes the story. **Start** makes a story, one feature per asked feature (none asked: the work as one feature, since a run works features), then `start-work` with `mode: 'process'` on exactly those features → `{ status: 'started', storyId, runId? }`. **Cancel** / X / dismissing the sheet → `{ status: 'declined' }`. It waits as long as the person takes (no ask expires); asks queue first come first shown (`AppWorkStartStore`). A failed Start keeps its progress (`startAppWork` carries on from the story it made, never a second one) and shows the error for another Start. When the App view unmounts or remounts (`mountKey`), every open ask is declined with `reason: 'The app was closed before an answer.'` — the page that asked is gone. |
+| `work.start` | `{ title, description, features?: [{ title, description }], processId?, files?: string[] }` | Shown to the person over the App view (`useAppWorkStart` → web `AppWorkStartDialog`, native `AppWorkStartSheet`): title, description and features, editable until Start makes the story, and the `files` that go with it listed in full (`WorkFilesList`, web + native). `files` are project-relative paths, git-ignored ones too, at most `STORY_FILES_MAX` (24); a path that is absolute, has a `..` or `\\` part, or a list over the limit is refused before anything shows. **Start** makes the story with them (`createStory` body `files`): the backend checks each against the checkout as an answer's files are (`.git`, notes, logins, `.env*` refused; ≤ 50 MB each, ≤ 200 MB together) and keeps a copy in `.factory/story-files/<storyId>/`, so every step agent of its runs — API and CLI alike — is handed exactly those bytes at the same paths, however the originals change later. A refused or missing file fails Start before the story is made, naming the file. **Start** makes a story, one feature per asked feature (none asked: the work as one feature, since a run works features), then `start-work` with `mode: 'process'` on exactly those features → `{ status: 'started', storyId, runId? }`. **Cancel** / X / dismissing the sheet → `{ status: 'declined' }`. It waits as long as the person takes (no ask expires); asks queue first come first shown (`AppWorkStartStore`). A failed Start keeps its progress (`startAppWork` carries on from the story it made, never a second one) and shows the error for another Start. When the App view unmounts or remounts (`mountKey`), every open ask is declined with `reason: 'The app was closed before an answer.'` — the page that asked is gone. |
 | `nav.current` | — | The deep-link as before, plus `appUrl`: the absolute Overseer URL of the app's route (web / desktop `window.location.href`; mobile `Linking.createURL('projects/<id>/app', { queryParams })`, the `thefactory-overseer://` scheme). Without a deep-link the answer is `{ appUrl }` alone (apps already ignore an answer without `view`). |
 
 **Pushes** (host → page, no `id`, `buildBridgePush`), delivered by `ProjectAppView`'s `pushes` channel
@@ -139,6 +139,10 @@ id matches **and** whose `projectId` is this project. Answers name the source by
 - `overseer:data.changed { collection }` on the WS `data:updated` (DataStorage record upsert / delete) of
   this project's records (`scope === projectId`); `collection` is the record `type` — what `data.*` calls
   `type`. The app's own `data.put` / `data.delete` produce one too.
+- `overseer:run.changed { runId, storyId?, parentRunId? }` on the WS `process:run-update` of one of this
+  project's runs, the first time it is seen and then only when its status, step, stop, ask or who holds
+  the stop changes — never for a cost or clock tick (`AppRunChangeFilter`); once for a deleted run already
+  pushed. A nested run names its parent, so an app following the top run reads it again with `run.read`.
 
 **`overseer:nav.changed { view, params }`** (page notification). The app says where it is; the host
 mirrors it in its own URL with the same encoding `nav.open` / `appDeepLinkFromParams` read
@@ -172,7 +176,17 @@ created the first time) — beside the app on web / desktop, as the chat sheet o
 into it when given (without waiting for the reply, as `chat.discuss` sends its seed) and answers
 `{ context }`; without one it shows the project's chat as before and a `message` is dropped.
 
-**`overseer:run.open { runId }`** (request, web and mobile `ProjectAppTab`). Opens the page of one of
+**`overseer:run.read { runId }` or `{ storyId }`** (request, `dispatchRunBridge`). Where a run of the
+app's own project stands, read live: `{ id, storyId?, title, state, step?, ask?, updatedAt }`, or `null`
+once the run is gone or the story has none (a story's newest top run). `state` is `queued` (not started, or
+waiting on other work), `running` (at work, or its agent manager holds the stop), `waiting` (on the person;
+`ask` is the ask's title, `Sign off` at the sign-off gate, else the stop's message), `done`, `failed` or
+`stopped`. `step` reads down the nested runs the current step is working, joined with ` · `
+("Apply source revision r4 · Implement"); absent once it ended. Another project's run is refused
+(`appRunStateOf`, `headless/utils/appRunState.ts`). The person-facing pages already show all of it, and a
+chat agent reads runs with `getProcessRun`, so there is no new agent tool.
+
+**`overseer:run.open { runId }`** (request, web, desktop and mobile `ProjectAppTab`). Opens the page of one of
 the project's process runs, `/projects/<id>/process-runs/<runId>`: the host navigates (web) or pushes
 the screen (mobile) and answers `{ ok: true }`; without a `runId` it answers an error. An app's run
 rows open the run this way; its chat is one step further, on the run's page.
@@ -185,7 +199,8 @@ suggestion never changes the process) and launches with it whatever the card sen
 agent. (The launch card needs the app's providers, so it has no showcase scene.)
 
 Showcase: `app-feature-request` (`from-reference`, `minimal`, `sending`, `send-failed`),
-`app-work-start` (`features`, `no-features`, `start-failed`), `live-data-task-source`
+`app-work-start` (`features`, `no-features`, `files`, `file-missing`, `start-failed`), `tool-call-ask-rows`
+(`start-feature-work-files`: the agent's `startFeatureWork` with `files`), `live-data-task-source`
 (`schedule`). The Live data edit form of a task source (`sourceToForm` → `adapterKind: 'task'`) shows its
 name and script read-only and saves only `{ freshness, autoUpdate }` (`formToSourcePatch`,
 `LiveDataTaskSourceFields` web + native).

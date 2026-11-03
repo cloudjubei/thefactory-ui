@@ -14,6 +14,11 @@ export interface AppWorkStartDraft {
    * process or in the chat, and the launch card keeps this process: they pick only the agent.
    */
   processId?: string
+  /**
+   * Project-relative files that go with the work — git-ignored ones too. They are kept with the
+   * story as they are when it is made, and every agent that works it gets them at the same paths.
+   */
+  files?: string[]
 }
 
 /** The `work.start` answer: the work started, or the person declined it. */

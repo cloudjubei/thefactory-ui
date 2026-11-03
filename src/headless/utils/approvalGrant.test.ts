@@ -65,6 +65,14 @@ describe('launchRunnerLabel', () => {
 })
 
 describe('startFeatureWorkGrantSummary', () => {
+  it('reads the files the work hands over, each a non-blank path', () => {
+    const of = (files: unknown) =>
+      startFeatureWorkGrantSummary(grant({ detail: { args: { storyId: 's', files } } })).files
+    expect(of(['.cache/a.json', '', 7, 'docs/b.pdf'])).toEqual(['.cache/a.json', 'docs/b.pdf'])
+    expect(of([])).toBeUndefined()
+    expect(of('a.json')).toBeUndefined()
+  })
+
   it('reads nothing from a payload that does not wrap the arguments — every ask is the broker’s `{ tool, args }`', () => {
     const summary = startFeatureWorkGrantSummary(
       grant({ detail: { storyId: 's9', note: 'mind the cache', proofRequired: false } }),

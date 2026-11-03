@@ -1,3 +1,5 @@
+import { STORY_FILES_MAX } from 'thefactory-tools/constants'
+
 export const APP_WORK_START_HEADING = 'Start work?'
 
 export const APP_WORK_START_HINT = 'The app asks to start work in this project.'
@@ -30,3 +32,7 @@ export const APP_WORK_START_CLOSED = 'The app was closed before an answer.'
 export const APP_WORK_START_NO_PROJECT = 'No active project to start work in.'
 
 export const APP_WORK_START_FEATURE_MISSING = 'A feature was made but could not be found.'
+
+export const APP_WORK_START_FILES_INVALID = 'files must be a list of project-relative file paths.'
+
+export const APP_WORK_START_FILES_TOO_MANY = `At most ${STORY_FILES_MAX} files can go with the work.`

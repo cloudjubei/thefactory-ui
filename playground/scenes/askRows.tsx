@@ -12,7 +12,7 @@ import {
   type PendingToolGrant,
   type SyncKVStorage,
 } from 'thefactory-ui/headless'
-import { ToolCallCard, type ToolCallCardProps } from 'thefactory-ui/web'
+import { ToolCallCard, renderToolPreview, type ToolCallCardProps } from 'thefactory-ui/web'
 // Not on the package's public surface: the chat renders them itself. The showcase reaches into
 // the source for them, as the playground renders the library from source anyway.
 import AgentQuestionCard from '../../src/web/compound/chat/AgentQuestionCard'
@@ -178,6 +178,37 @@ const COMMIT = ask(
   },
 )
 
+const PROJECT_SCRIPT_ARGS = { script: 'monitor:sources', args: ['--adopt-proposal=r4'] }
+
+const PROJECT_SCRIPT = ask('project-script', 'runProjectScript', PROJECT_SCRIPT_ARGS, undefined)
+
+/** The same call once it ran: its row reads as a shell command's does, whichever agent ran it. */
+const PROJECT_SCRIPT_RAN: ToolCallCardProps = {
+  toolCall: {
+    toolCallId: 't-project-script-ran',
+    name: 'runProjectScript',
+    arguments: PROJECT_SCRIPT_ARGS,
+  },
+  resultType: 'success',
+  durationMs: 12_400,
+  result: {
+    script: 'monitor:sources',
+    status: 'passed',
+    summary:
+      'npm run monitor:sources -- --adopt-proposal=r4 exited 0 after 12s. 2 files changed in your workspace.',
+    command: 'npm run monitor:sources -- --adopt-proposal=r4',
+    exitCode: 0,
+    durationMs: 12_400,
+    stdout: 'Adopting proposal r4…\nWrote games/starcraft-tmg/sources/revisions.json\nDone.\n',
+    stderr: '',
+    changedFiles: [
+      'games/starcraft-tmg/sources/revisions.json',
+      'games/starcraft-tmg/sources/report.md',
+    ],
+  },
+  renderResult: (args) => renderToolPreview(args),
+}
+
 const STOP_RUN = ask(
   'stop-run',
   'stopProcessRun',
@@ -236,6 +267,22 @@ const LAUNCH: PendingToolGrant = {
   decide: never,
 }
 
+const LAUNCH_WITH_FILES_ARGS = {
+  mode: 'process',
+  files: [
+    '.cache/starcraft-tmg/monitor/latest-source-status.json',
+    '.cache/starcraft-tmg/monitor/latest-proposal.json',
+    '.cache/starcraft-tmg/downloads/StarCraft-Zerg-Zagara_EN.pdf',
+  ],
+}
+
+const LAUNCH_WITH_FILES: PendingToolGrant = {
+  ...LAUNCH,
+  id: 'launch-files',
+  args: LAUNCH_WITH_FILES_ARGS,
+  detail: { tool: 'startFeatureWork', args: LAUNCH_WITH_FILES_ARGS },
+}
+
 /** Sized like the dock it replaces the composer in. */
 function Dock({ children }: { children: ReactNode }) {
   return (
@@ -273,6 +320,25 @@ export const ASK_ROW_SCENES: Scene[] = [
         id: 'network-unlock-open',
         title: 'Reach a host — opened, with Trust this site',
         render: () => <Rows rows={[row(NETWORK, true)]} />,
+      },
+      {
+        id: 'project-script',
+        title: 'Run a project command',
+        description:
+          'An agent with no shell of its own (an API model) runs the project’s declared scripts with runProjectScript; in a chat it asks first, unless the chat is on auto.',
+        render: () => <Rows rows={[row(PROJECT_SCRIPT)]} />,
+      },
+      {
+        id: 'project-script-open',
+        title: 'Run a project command — opened',
+        render: () => <Rows rows={[row(PROJECT_SCRIPT, true)]} />,
+      },
+      {
+        id: 'project-script-ran',
+        title: 'Run a project command — ran',
+        description:
+          'Once run, its row opens to the command line and what it printed, as a CLI agent’s shell command does.',
+        render: () => <Rows rows={[PROJECT_SCRIPT_RAN]} />,
       },
       { id: 'git-commit', title: 'Commit', render: () => <Rows rows={[row(COMMIT)]} /> },
       {
@@ -357,6 +423,19 @@ export const ASK_ROW_SCENES: Scene[] = [
           <Offline>
             <Dock>
               <ApprovalPanel grant={LAUNCH} onDecideLater={noop} />
+            </Dock>
+          </Offline>
+        ),
+      },
+      {
+        id: 'start-feature-work-files',
+        title: 'Start feature work with files',
+        description:
+          'The agent hands files over with the work: each path is listed in full on the card, so the person sees what every agent of the run gets before approving.',
+        render: () => (
+          <Offline>
+            <Dock>
+              <ApprovalPanel grant={LAUNCH_WITH_FILES} onDecideLater={noop} />
             </Dock>
           </Offline>
         ),

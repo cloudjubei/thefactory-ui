@@ -1,8 +1,11 @@
 import { bridgeMessageName, type BridgeRequest } from './appBridge'
 import { WORK_START_MESSAGE } from './appBridgeConstants'
+import { STORY_FILES_MAX } from 'thefactory-tools/constants'
 import {
   APP_WORK_START_FEATURE_TITLE_REQUIRED,
   APP_WORK_START_FEATURES_INVALID,
+  APP_WORK_START_FILES_INVALID,
+  APP_WORK_START_FILES_TOO_MANY,
   APP_WORK_START_PROCESS_INVALID,
   APP_WORK_START_TITLE_REQUIRED,
 } from './appWorkStartConstants'
@@ -29,9 +32,31 @@ function text(value: unknown): string {
 
 const PROCESS_ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
 
+/** A project-relative file path as an app names it, tidied, or `null` when it is not one. */
+function projectFilePath(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const path = value.trim().replace(/^(\.\/)+/, '')
+  if (!path || path.includes('\\') || /^[A-Za-z]:/.test(path)) return null
+  const parts = path.split('/')
+  return parts.some((part) => part === '..' || part === '') ? null : path
+}
+
+/** The files that go with the work, each once, or why they cannot. */
+function workStartFiles(raw: unknown): string[] | { error: string } {
+  if (raw === undefined) return []
+  if (!Array.isArray(raw)) return { error: APP_WORK_START_FILES_INVALID }
+  const files: string[] = []
+  for (const entry of raw) {
+    const path = projectFilePath(entry)
+    if (!path) return { error: APP_WORK_START_FILES_INVALID }
+    if (!files.includes(path)) files.push(path)
+  }
+  return files.length > STORY_FILES_MAX ? { error: APP_WORK_START_FILES_TOO_MANY } : files
+}
+
 /**
- * The work an app asks to start (`work.start {title, description, features?, processId?}`), or
- * why it cannot be shown.
+ * The work an app asks to start (`work.start {title, description, features?, processId?,
+ * files?}`), or why it cannot be shown.
  */
 export function parseWorkStartPayload(payload: unknown): AppWorkStartDraft | { error: string } {
   const rec = asRecord(payload)
@@ -51,11 +76,14 @@ export function parseWorkStartPayload(payload: unknown): AppWorkStartDraft | { e
   if (rec.processId !== undefined && !PROCESS_ID.test(processId)) {
     return { error: APP_WORK_START_PROCESS_INVALID }
   }
+  const files = workStartFiles(rec.files)
+  if ('error' in files) return files
   return {
     title,
     description: text(rec.description),
     features,
     ...(processId ? { processId } : {}),
+    ...(files.length ? { files } : {}),
   }
 }
 

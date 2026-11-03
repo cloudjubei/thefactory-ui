@@ -12,6 +12,7 @@ import Field from '../primitives/Field'
 import { Input } from '../primitives/Input'
 import { Modal } from '../primitives/Modal'
 import { Textarea } from '../primitives/Textarea'
+import WorkFilesList from './WorkFilesList'
 
 export type AppWorkStartDialogProps = {
   /** The app's `work.start` ask (`useAppWorkStart().ask`); nothing shows while `null`. */
@@ -24,7 +25,8 @@ export type AppWorkStartDialogProps = {
 
 /**
  * The person's confirmation of work an embedded app asks to start, drawn over the App view: its
- * title, description and features, editable until Start makes the story. Purely presentational.
+ * title, description and features, editable until Start makes the story, and the files that go
+ * with it. Purely presentational.
  */
 export default function AppWorkStartDialog({
   ask,
@@ -106,6 +108,7 @@ export default function AppWorkStartDialog({
             ))
           )}
         </div>
+        <WorkFilesList files={draft.files} />
       </div>
     </Modal>
   )

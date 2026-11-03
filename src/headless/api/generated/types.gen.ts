@@ -1378,6 +1378,10 @@ export type ContextFillUsage = {
   cacheCreationTokens?: number
 }
 
+export type CostLedgerOutputStrategy =
+  | 'native_tools_only'
+  | 'three_phase_structured_native_tools_structured'
+
 export type CompletionHistorySummarization = {
   enabled: boolean
   keepLastTurns?: number
@@ -1406,6 +1410,7 @@ export type CompletionSettings = {
   finishTurnOnErrors: boolean
   allowNoCallResponses: boolean
   allowErrorResponses: boolean
+  outputStrategy?: 'native_tools_only' | 'three_phase_structured_native_tools_structured'
   historySummarization?: {
     enabled: boolean
     keepLastTurns?: number
@@ -2451,6 +2456,11 @@ export type ChatApiTurn = {
 
 export type ChatNotifyLevel = 'everything' | 'needs-me' | 'nothing'
 
+export type ChatAboutRun = {
+  projectId: string
+  runId: string
+}
+
 export type Chat = {
   title?: string
   dynamicContext?: {
@@ -2608,6 +2618,10 @@ export type Chat = {
   listHiddenAt?: string
   listShownAt?: string
   notifyLevel?: 'everything' | 'needs-me' | 'nothing'
+  aboutRun?: {
+    projectId: string
+    runId: string
+  }
   createdAt?: string
   updatedAt?: string
 }
@@ -2672,6 +2686,10 @@ export type ChatSummary = {
   listHiddenAt?: string
   listShownAt?: string
   notifyLevel?: 'everything' | 'needs-me' | 'nothing'
+  aboutRun?: {
+    projectId: string
+    runId: string
+  }
   createdAt: string
   updatedAt: string
 } & {
@@ -2980,6 +2998,10 @@ export type ChatTopicCreateInput = {
   type: 'group' | 'project'
   entityId: string
   title?: string
+  aboutRun?: {
+    projectId: string
+    runId: string
+  }
 }
 
 export type ChatUpdateType = 'add' | 'change' | 'delete'
@@ -3056,6 +3078,10 @@ export type ChatUpdate = {
     listHiddenAt?: string
     listShownAt?: string
     notifyLevel?: 'everything' | 'needs-me' | 'nothing'
+    aboutRun?: {
+      projectId: string
+      runId: string
+    }
     createdAt: string
     updatedAt: string
   }
@@ -9301,6 +9327,7 @@ export type FileMeta = {
   relativePath?: string
   absolutePath: string
   name: string
+  isDir?: boolean
   ext?: string
   size: number
   mtime: number
@@ -11199,6 +11226,13 @@ export type PricingConfig = {
   }
 }
 
+export type CostLedgerPhase = 'starter' | 'tool_loop' | 'finalizer' | 'single'
+
+export type CostLedgerAttribution = {
+  outputStrategy?: 'native_tools_only' | 'three_phase_structured_native_tools_structured'
+  phase?: 'starter' | 'tool_loop' | 'finalizer' | 'single'
+}
+
 export type LlmCostLedgerEntryContent = {
   costUSD?: number
   listCostUSD?: number
@@ -11215,6 +11249,8 @@ export type LlmCostLedgerEntryContent = {
   chatContext: ChatContext
   source: LlmCostSourceKind
   sourceExtra?: string
+  outputStrategy?: 'native_tools_only' | 'three_phase_structured_native_tools_structured'
+  phase?: 'starter' | 'tool_loop' | 'finalizer' | 'single'
   chatKeys: Array<string>
   recordedAt: number
   originId?: string
@@ -11251,8 +11287,20 @@ export type LlmCostLedgerEntryContent = {
 }
 
 export type CostLedgerPlacement = {
-  chatContext: ChatContext
-  source: LlmCostSourceKind
+  outputStrategy?: 'native_tools_only' | 'three_phase_structured_native_tools_structured'
+  phase?: 'starter' | 'tool_loop' | 'finalizer' | 'single'
+  chatContext: {
+    type: ChatContextType
+    groupId?: string
+    projectId?: string
+    storyId?: string
+    featureId?: string
+    agentRunId?: string
+    topicId?: string
+    featureRequestId?: string
+    timestamp?: string
+  }
+  source: 'api' | 'cli'
   sourceExtra?: string
   chatKeys: Array<string>
   recordedAt: number
@@ -11692,6 +11740,7 @@ export type ProjectFilesRegeneration =
       passed: boolean
       summary: string
       rewritten: Array<string>
+      ranIn?: 'sandbox' | 'host'
     }
   | {
       ran: false
@@ -12837,6 +12886,11 @@ export type ProcessKeptOneSide = {
   kept: 'work' | 'base'
 }
 
+export type ProcessNotRebuilt = {
+  paths: Array<string>
+  reason: string
+}
+
 export type ProcessBaseConflict = {
   baseRef: string
   baseSha: string
@@ -12845,6 +12899,10 @@ export type ProcessBaseConflict = {
   workSha?: string
   keptOneSide?: Array<ProcessKeptOneSide>
   lostExports?: Array<CodeIntelExportedSymbol>
+  notRebuilt?: {
+    paths: Array<string>
+    reason: string
+  }
 }
 
 export type ProcessRunIntegration = {
@@ -12899,6 +12957,10 @@ export type ProcessRunIntegration = {
     workSha?: string
     keptOneSide?: Array<ProcessKeptOneSide>
     lostExports?: Array<CodeIntelExportedSymbol>
+    notRebuilt?: {
+      paths: Array<string>
+      reason: string
+    }
   }
   checks?: {
     status: MergeChecksStatus
@@ -13064,6 +13126,10 @@ export type ProcessRunReopening = {
       workSha?: string
       keptOneSide?: Array<ProcessKeptOneSide>
       lostExports?: Array<CodeIntelExportedSymbol>
+      notRebuilt?: {
+        paths: Array<string>
+        reason: string
+      }
     }
     checks?: {
       status: MergeChecksStatus
@@ -13181,6 +13247,10 @@ export type ProcessPlanAmendment = {
         workSha?: string
         keptOneSide?: Array<ProcessKeptOneSide>
         lostExports?: Array<CodeIntelExportedSymbol>
+        notRebuilt?: {
+          paths: Array<string>
+          reason: string
+        }
       }
       checks?: {
         status: MergeChecksStatus
@@ -13201,6 +13271,10 @@ export type ProcessPlanAmendment = {
     workSha?: string
     keptOneSide?: Array<ProcessKeptOneSide>
     lostExports?: Array<CodeIntelExportedSymbol>
+    notRebuilt?: {
+      paths: Array<string>
+      reason: string
+    }
   }
   resolutionReview?: {
     conflict: ProcessBaseConflict
@@ -13793,6 +13867,10 @@ export type ProcessLedgerEntry = {
     workSha?: string
     keptOneSide?: Array<ProcessKeptOneSide>
     lostExports?: Array<CodeIntelExportedSymbol>
+    notRebuilt?: {
+      paths: Array<string>
+      reason: string
+    }
   }
   cost?: {
     costUsd?: number
@@ -13928,6 +14006,10 @@ export type ProcessPark = {
     workSha?: string
     keptOneSide?: Array<ProcessKeptOneSide>
     lostExports?: Array<CodeIntelExportedSymbol>
+    notRebuilt?: {
+      paths: Array<string>
+      reason: string
+    }
   }
   waitingOn?: Array<string>
   circling?: {
@@ -14221,6 +14303,10 @@ export type ProcessRun = {
       workSha?: string
       keptOneSide?: Array<ProcessKeptOneSide>
       lostExports?: Array<CodeIntelExportedSymbol>
+      notRebuilt?: {
+        paths: Array<string>
+        reason: string
+      }
     }
     checks?: {
       status: MergeChecksStatus
@@ -14362,6 +14448,10 @@ export type ProcessRun = {
       workSha?: string
       keptOneSide?: Array<ProcessKeptOneSide>
       lostExports?: Array<CodeIntelExportedSymbol>
+      notRebuilt?: {
+        paths: Array<string>
+        reason: string
+      }
     }
     waitingOn?: Array<string>
     circling?: {
@@ -14616,6 +14706,10 @@ export type ProcessManagerCardStandingRun = {
       workSha?: string
       keptOneSide?: Array<ProcessKeptOneSide>
       lostExports?: Array<CodeIntelExportedSymbol>
+      notRebuilt?: {
+        paths: Array<string>
+        reason: string
+      }
     }
     waitingOn?: Array<string>
     circling?: {
@@ -15936,6 +16030,78 @@ export type LegacyNoteStorePlan = {
         files: Array<string>
         reason: string
       }
+}
+
+export type ProjectScript = {
+  name: string
+  body: string
+  command: string
+  source: string
+}
+
+export type ProjectScriptsListing = {
+  scripts: Array<ProjectScript>
+  runner?: 'npm' | 'pnpm' | 'yarn' | 'bun'
+  notes: Array<string>
+}
+
+export type ProjectScriptRunStatus =
+  | 'passed'
+  | 'failed'
+  | 'timed-out'
+  | 'stopped'
+  | 'refused'
+  | 'error'
+
+export type ProjectScriptKeptOutFile = {
+  path: string
+  reason: string
+}
+
+export type ProjectScriptRunResult = {
+  script: string
+  status: ProjectScriptRunStatus
+  summary: string
+  command?: string
+  exitCode?: number
+  durationMs: number
+  stdout: string
+  stderr: string
+  trimmed?: {
+    stdout: number
+    stderr: number
+  }
+  changedFiles?: Array<string>
+  deletedFiles?: Array<string>
+  keptOut?: Array<ProjectScriptKeptOutFile>
+}
+
+export type ProjectScriptFileStamp = {
+  size: number
+  mtimeMs: number
+}
+
+export type ProjectScriptTreeChanges = {
+  changed: Array<string>
+  deleted: Array<string>
+}
+
+export type ProjectScriptCarryPlan = {
+  copy: Array<string>
+  remove: Array<string>
+  keptOut: Array<ProjectScriptKeptOutFile>
+}
+
+export type ProjectScriptCarryLimits = {
+  maxFiles: number
+  maxFileBytes: number
+  maxTotalBytes: number
+}
+
+export type ProjectScriptCarryOutcome = {
+  copied: Array<string>
+  removed: Array<string>
+  failed: Array<ProjectScriptKeptOutFile>
 }
 
 export type ProjectGroupMembershipChange = {
@@ -19925,6 +20091,8 @@ export type ToolName =
   | 'addProjectNote'
   | 'updateProjectNote'
   | 'removeProjectNote'
+  | 'listProjectScripts'
+  | 'runProjectScript'
   | 'getProjectsGroups'
   | 'getProjectsGroup'
   | 'createProjectsGroup'
@@ -20919,6 +21087,10 @@ export type CloseRun = {
       workSha?: string
       keptOneSide?: Array<ProcessKeptOneSide>
       lostExports?: Array<CodeIntelExportedSymbol>
+      notRebuilt?: {
+        paths: Array<string>
+        reason: string
+      }
     }
     waitingOn?: Array<string>
     circling?: {
@@ -21023,6 +21195,10 @@ export type ProofChangeRun = {
       workSha?: string
       keptOneSide?: Array<ProcessKeptOneSide>
       lostExports?: Array<CodeIntelExportedSymbol>
+      notRebuilt?: {
+        paths: Array<string>
+        reason: string
+      }
     }
     waitingOn?: Array<string>
     circling?: {
@@ -21114,6 +21290,10 @@ export type RecheckRun = {
       workSha?: string
       keptOneSide?: Array<ProcessKeptOneSide>
       lostExports?: Array<CodeIntelExportedSymbol>
+      notRebuilt?: {
+        paths: Array<string>
+        reason: string
+      }
     }
     waitingOn?: Array<string>
     circling?: {
@@ -21214,6 +21394,10 @@ export type FollowUpsRun = {
       workSha?: string
       keptOneSide?: Array<ProcessKeptOneSide>
       lostExports?: Array<CodeIntelExportedSymbol>
+      notRebuilt?: {
+        paths: Array<string>
+        reason: string
+      }
     }
     waitingOn?: Array<string>
     circling?: {
@@ -21325,6 +21509,10 @@ export type ClosureRun = {
       workSha?: string
       keptOneSide?: Array<ProcessKeptOneSide>
       lostExports?: Array<CodeIntelExportedSymbol>
+      notRebuilt?: {
+        paths: Array<string>
+        reason: string
+      }
     }
     checks?: {
       status: MergeChecksStatus
@@ -21874,6 +22062,10 @@ export type ProcessRunChatState = {
         workSha?: string
         keptOneSide?: Array<ProcessKeptOneSide>
         lostExports?: Array<CodeIntelExportedSymbol>
+        notRebuilt?: {
+          paths: Array<string>
+          reason: string
+        }
       }
       checks?: {
         status: MergeChecksStatus
@@ -22015,6 +22207,10 @@ export type ProcessRunChatState = {
         workSha?: string
         keptOneSide?: Array<ProcessKeptOneSide>
         lostExports?: Array<CodeIntelExportedSymbol>
+        notRebuilt?: {
+          paths: Array<string>
+          reason: string
+        }
       }
       waitingOn?: Array<string>
       circling?: {
@@ -22560,6 +22756,10 @@ export type ProcessIntegrationOutcome = {
     workSha?: string
     keptOneSide?: Array<ProcessKeptOneSide>
     lostExports?: Array<CodeIntelExportedSymbol>
+    notRebuilt?: {
+      paths: Array<string>
+      reason: string
+    }
   }
   checks?: {
     status: MergeChecksStatus
@@ -22676,6 +22876,10 @@ export type ProcessRunSummary = {
       workSha?: string
       keptOneSide?: Array<ProcessKeptOneSide>
       lostExports?: Array<CodeIntelExportedSymbol>
+      notRebuilt?: {
+        paths: Array<string>
+        reason: string
+      }
     }
     checks?: {
       status: MergeChecksStatus
@@ -22815,6 +23019,10 @@ export type ProcessRunSummary = {
       workSha?: string
       keptOneSide?: Array<ProcessKeptOneSide>
       lostExports?: Array<CodeIntelExportedSymbol>
+      notRebuilt?: {
+        paths: Array<string>
+        reason: string
+      }
     }
     waitingOn?: Array<string>
     circling?: {
@@ -23213,6 +23421,10 @@ export type ProcessStepResult = {
     workSha?: string
     keptOneSide?: Array<ProcessKeptOneSide>
     lostExports?: Array<CodeIntelExportedSymbol>
+    notRebuilt?: {
+      paths: Array<string>
+      reason: string
+    }
   }
   cost?: {
     costUsd?: number
@@ -23579,6 +23791,10 @@ export type ProcessStepState = {
       workSha?: string
       keptOneSide?: Array<ProcessKeptOneSide>
       lostExports?: Array<CodeIntelExportedSymbol>
+      notRebuilt?: {
+        paths: Array<string>
+        reason: string
+      }
     }
     cost?: {
       costUsd?: number
@@ -24279,6 +24495,10 @@ export type ParkChoicesRun = {
       workSha?: string
       keptOneSide?: Array<ProcessKeptOneSide>
       lostExports?: Array<CodeIntelExportedSymbol>
+      notRebuilt?: {
+        paths: Array<string>
+        reason: string
+      }
     }
     waitingOn?: Array<string>
     circling?: {
@@ -24810,6 +25030,7 @@ export type UpdateCompletionSettingsInput = {
       finishTurnOnErrors: boolean
       allowNoCallResponses: boolean
       allowErrorResponses: boolean
+      outputStrategy?: 'native_tools_only' | 'three_phase_structured_native_tools_structured'
       historySummarization?: {
         enabled: boolean
         keepLastTurns?: number
@@ -25948,6 +26169,252 @@ export type CreateProjectsGroupResponses = {
 export type CreateProjectsGroupResponse =
   CreateProjectsGroupResponses[keyof CreateProjectsGroupResponses]
 
+export type GetProjectsGroupStatusData = {
+  body?: never
+  path: {
+    id: string
+  }
+  query?: never
+  url: '/api/v1/projects-groups/{id}/status'
+}
+
+export type GetProjectsGroupStatusErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetProjectsGroupStatusError =
+  GetProjectsGroupStatusErrors[keyof GetProjectsGroupStatusErrors]
+
+export type GetProjectsGroupStatusResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    groupId: string
+    /**
+     * ISO-8601 time this roll-up was read.
+     */
+    generatedAt: string
+    members: Array<{
+      projectId: string
+      runs: {
+        /**
+         * Ids of runs whose status is running.
+         */
+        running: Array<string>
+        /**
+         * Ids of runs whose status is parked.
+         */
+        parked: Array<string>
+      }
+      /**
+       * Group runs of this group that are still open (pending, running, or parked) and include this project as a leg.
+       */
+      groupRuns: Array<{
+        id: string
+        title: string
+        status: 'pending' | 'running' | 'parked'
+        /**
+         * ISO-8601 time the group run was last updated.
+         */
+        updatedAt: string
+      }>
+      storyProgress: {
+        stories: {
+          pending: number
+          in_progress: number
+          reviewable: number
+          done: number
+          blocked: number
+          deferred: number
+        }
+        features: {
+          pending: number
+          in_progress: number
+          reviewable: number
+          done: number
+          blocked: number
+          deferred: number
+        }
+      }
+      /**
+       * Checks whose last recorded run failed or errored. Nothing is run to answer this.
+       */
+      failingChecks: Array<{
+        kind: ProjectCheckKind
+        status: 'failed' | 'error'
+        summary: string
+        /**
+         * ISO-8601 time this check last ran.
+         */
+        ranAt: string
+      }>
+      git: {
+        /**
+         * False when the checkout could not be read. True when git answered.
+         */
+        available: boolean
+        /**
+         * The branch that is checked out.
+         */
+        branch?: string
+        /**
+         * Commits the branch is ahead of its upstream.
+         */
+        ahead?: number
+        /**
+         * Commits the branch is behind its upstream.
+         */
+        behind?: number
+      }
+      /**
+       * Feature requests aimed at this project that are still open.
+       */
+      openRequests: Array<{
+        id: string
+        title: string
+        status: 'pending' | 'accepted' | 'in_progress' | 'in_review' | 'blocked'
+        /**
+         * ISO-8601 time the request was last updated.
+         */
+        updatedAt: string
+      }>
+      lastActivity?: {
+        /**
+         * ISO-8601 time of the newest signal on this member.
+         */
+        at: string
+        kind: 'run' | 'group-run' | 'story' | 'check' | 'request' | 'activity'
+        /**
+         * Id of the run, group run, story, request, or activity. The check kind when kind is check.
+         */
+        id: string
+      }
+    }>
+  }
+}
+
+export type GetProjectsGroupStatusResponse =
+  GetProjectsGroupStatusResponses[keyof GetProjectsGroupStatusResponses]
+
+export type GetProjectsGroupConstellationData = {
+  body?: never
+  path: {
+    id: string
+  }
+  query?: never
+  url: '/api/v1/projects-groups/{id}/constellation'
+}
+
+export type GetProjectsGroupConstellationErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetProjectsGroupConstellationError =
+  GetProjectsGroupConstellationErrors[keyof GetProjectsGroupConstellationErrors]
+
+export type GetProjectsGroupConstellationResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    groupId: string
+    title: string
+    /**
+     * The group’s members, in group order. A repeated id is listed once.
+     */
+    projects: Array<{
+      projectId: string
+      /**
+       * Checkout on this host. Empty when the member has no checkout and contributes no edges.
+       */
+      projectRoot: string
+      /**
+       * Persisted L4 of the member’s latest analysed map, or null when that map does not exist. Nothing is rebuilt.
+       */
+      systemLevel:
+        | {
+            level: number
+            name: string
+            items: Array<{
+              id: string
+              name: string
+              level: number
+              description: string
+              children: Array<string>
+              parent?: string
+              metadata: {
+                [key: string]: JsonValue
+              }
+              summary?: {
+                summary: string
+                purpose: string
+                keyResponsibilities: Array<string>
+                provenance?: {
+                  source: 'heuristic' | 'llm' | 'error'
+                  provider?: string
+                  model?: string
+                  runId?: string
+                  runLabel?: string
+                  sourceHash?: string
+                  formatVersion?: number
+                }
+              }
+              summaryRuns?: Array<{
+                runId: string
+                label: string
+                summary: {
+                  summary: string
+                  purpose: string
+                  keyResponsibilities: Array<string>
+                  provenance?: {
+                    source: 'heuristic' | 'llm' | 'error'
+                    provider?: string
+                    model?: string
+                    runId?: string
+                    runLabel?: string
+                    sourceHash?: string
+                    formatVersion?: number
+                  }
+                }
+              }>
+            }>
+          }
+        | unknown
+    }>
+    /**
+     * Edges among those members: package.json dependencies, enriched with analysed imports when a map is on disk.
+     */
+    dependencies: Array<{
+      sourceProjectId: string
+      targetProjectId: string
+      /**
+       * How the edge is expressed: dependency, devDependency, file:, link:, workspace:, or import.
+       */
+      mechanism: string
+      specifiers?: Array<string>
+      importCount?: number
+    }>
+  }
+}
+
+export type GetProjectsGroupConstellationResponse =
+  GetProjectsGroupConstellationResponses[keyof GetProjectsGroupConstellationResponses]
+
 export type DeleteProjectsGroupData = {
   body?: never
   path: {
@@ -26191,7 +26658,23 @@ export type ListStoriesResponses = {
 export type ListStoriesResponse = ListStoriesResponses[keyof ListStoriesResponses]
 
 export type CreateStoryData = {
-  body: StoryCreateInput
+  body: {
+    title: string
+    description: string
+    blockers?: Array<string>
+    rejection?: string
+    externalIds?: Array<ExternalRef>
+    proofPlan?: {
+      kinds: Array<
+        'unit-tests' | 'checks' | 'code-review' | 'ui-before-after' | 'live-backend' | 'manual'
+      >
+      notes?: string
+    }
+    /**
+     * Project-relative files handed over with the story, kept as they are now; every agent that works it gets them at the same paths.
+     */
+    files?: Array<string>
+  }
   path: {
     projectId: string
   }
@@ -26204,6 +26687,14 @@ export type CreateStoryErrors = {
    * Default Response
    */
   400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
     error: string
     code?: string
     requestId?: string
@@ -26996,9 +27487,28 @@ export type ListProcessRunsData = {
   body?: never
   path?: never
   query?: {
+    /**
+     * Only runs in this project.
+     */
     projectId?: string
+    /**
+     * Only runs in one of these projects — the members of a group, read together. With projectId, both apply. An empty list matches nothing.
+     */
+    projectIds?: Array<string>
+    /**
+     * Only runs for this story.
+     */
     storyId?: string
     chatContextId?: string
+    /**
+     * Only the legs of this group run.
+     */
+    groupRunId?: string
+    status?: 'pending' | 'running' | 'parked' | 'succeeded' | 'failed' | 'cancelled'
+    /**
+     * Only runs left this way. A run still going, one that failed on its own, one whose work was brought in, and one closed without merging that was not taken back up match neither value. One taken back up after that close and then stopped is abandoned.
+     */
+    ending?: 'abandoned' | 'unmerged'
     /**
      * Only top-level runs — the ones a chat launched.
      */
@@ -32823,6 +33333,10 @@ export type ListChatSummariesResponses = {
     listHiddenAt?: string
     listShownAt?: string
     notifyLevel?: 'everything' | 'needs-me' | 'nothing'
+    aboutRun?: {
+      projectId: string
+      runId: string
+    }
     createdAt?: string
     updatedAt?: string
     messageCount: number
@@ -32898,6 +33412,10 @@ export type GetChatSummaryResponses = {
     listHiddenAt?: string
     listShownAt?: string
     notifyLevel?: 'everything' | 'needs-me' | 'nothing'
+    aboutRun?: {
+      projectId: string
+      runId: string
+    }
     createdAt?: string
     updatedAt?: string
     messageCount: number

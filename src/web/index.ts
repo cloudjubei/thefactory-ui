@@ -964,6 +964,7 @@ export {
   default as AppWorkStartDialog,
   type AppWorkStartDialogProps,
 } from './compound/AppWorkStartDialog'
+export { default as WorkFilesList, type WorkFilesListProps } from './compound/WorkFilesList'
 export {
   default as AppFeatureRequestDialog,
   type AppFeatureRequestDialogProps,

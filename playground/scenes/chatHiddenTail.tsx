@@ -10,7 +10,11 @@ import type { Scene } from '../showcase/types'
 
 const noop = () => {}
 const MEMORY: SyncKVStorage = { get: () => null, set: noop }
-const ACTIONS: ChatActions = { openReview: noop, draftMessage: noop }
+const ACTIONS: ChatActions = {
+  openReview: noop,
+  reviewTargetOf: (runId) => runId ?? 'turn-1',
+  draftMessage: noop,
+}
 
 const STOP: ChatStopNotice = {
   cause: 'overseer',

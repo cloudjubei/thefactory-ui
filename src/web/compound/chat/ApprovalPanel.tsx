@@ -99,6 +99,7 @@ import {
   workLaunchOptions,
 } from '../../../headless/utils/workLaunchView'
 import type { WorkLaunchMode } from 'thefactory-tools/types'
+import WorkFilesList from '../WorkFilesList'
 
 export type ApprovalPanelProps = {
   /** The lone pending permission grant this panel decides. */
@@ -664,6 +665,8 @@ function ToolApprovalPanel({
             )}
           </div>
         ) : null}
+
+        {isLaunch ? <WorkFilesList files={summary.files} /> : null}
 
         <div className="flex flex-col gap-1.5">
           {flaggedNotes.length > 0 ? (

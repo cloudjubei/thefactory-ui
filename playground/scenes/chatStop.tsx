@@ -6,7 +6,14 @@ import type { Scene } from '../showcase/types'
 const noop = () => {}
 
 /** What a chat body provides its cards; the showcase's do nothing. */
-const ACTIONS: ChatActions = { openReview: noop, draftMessage: noop }
+const ACTIONS: ChatActions = {
+  openReview: noop,
+  reviewTargetOf: (runId) => runId ?? 'turn-1',
+  draftMessage: noop,
+}
+
+/** A chat whose turns changed no files: nothing for Open the changes to open. */
+const NO_CHANGES: ChatActions = { ...ACTIONS, reviewTargetOf: () => undefined }
 
 const FEATURE = 'Detect deterministic refusal repetition with a small bounded shared retry policy'
 
@@ -56,7 +63,15 @@ const BEFORE: ChatMessageLike = {
 }
 
 /** The notice as the chat lays it out: the last row, with the chat's retry and its actions. */
-function StopRow({ notice, actions = true }: { notice: ChatStopNotice; actions?: boolean }) {
+function StopRow({
+  notice,
+  actions = true,
+  chatActions = ACTIONS,
+}: {
+  notice: ChatStopNotice
+  actions?: boolean
+  chatActions?: ChatActions
+}) {
   const messages: ChatMessageLike[] = [
     BEFORE,
     { id: 'stop', role: 'system', content: 'Error', error: notice.raw, stopNotice: notice },
@@ -78,7 +93,7 @@ function StopRow({ notice, actions = true }: { notice: ChatStopNotice; actions?:
       ))}
     </div>
   )
-  return actions ? <ChatActionsProvider value={ACTIONS}>{rows}</ChatActionsProvider> : rows
+  return actions ? <ChatActionsProvider value={chatActions}>{rows}</ChatActionsProvider> : rows
 }
 
 /** The card on its own, as a set of controls or a state asks. */
@@ -117,6 +132,13 @@ export const CHAT_STOP_SCENES: Scene[] = [
         description:
           'Overseer’s own fault, not the agent’s: an amber pill, Try again and Open the changes.',
         render: () => <StopRow notice={OVERSEER} />,
+      },
+      {
+        id: 'no-changes',
+        title: 'A chat that changed no files',
+        description:
+          'Its turns wrote nothing, so there is nothing to open: no Open the changes button, only what does something.',
+        render: () => <StopRow notice={OVERSEER} chatActions={NO_CHANGES} />,
       },
       {
         id: 'provider',

@@ -8,8 +8,9 @@ import {
 import type { AppWorkStartDraft, AppWorkStartProgress } from '../utils/appWorkStartTypes'
 
 /**
- * Make the work an app asked for, once the person said Start: a story in the project and one
- * feature per asked feature (or the work as one). How it is worked is the person's next choice,
+ * Make the work an app asked for, once the person said Start: a story in the project — with the
+ * files that go with it, kept as they are now — and one feature per asked feature (or the work
+ * as one). How it is worked is the person's next choice,
  * the same one every Run offers. Each step reports its progress, and a call given that progress
  * carries on from there, so Start after a failure never makes a second story.
  */
@@ -24,7 +25,11 @@ export async function makeAppWork(
     if (!storyId) {
       const { data } = await createStory({
         path: { projectId },
-        body: { title: draft.title.trim(), description: draft.description.trim() },
+        body: {
+          title: draft.title.trim(),
+          description: draft.description.trim(),
+          ...(draft.files?.length ? { files: draft.files } : {}),
+        },
         throwOnError: true,
       })
       storyId = data.id

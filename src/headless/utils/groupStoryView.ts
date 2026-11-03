@@ -1,5 +1,6 @@
-import { NO_GROUP_STORIES } from './groupStoryConstants'
+import { GROUP_STORY_ACTION_LABELS, NO_GROUP_STORIES } from './groupStoryConstants'
 import type {
+  GroupStoryFolds,
   GroupStoryForm,
   GroupStoryFormRow,
   GroupStoryListFilter,
@@ -7,6 +8,7 @@ import type {
   GroupStoryMembership,
   GroupStoryMembershipsByStory,
   GroupStoryPartView,
+  GroupStoryRunButton,
   GroupStoryRunState,
   GroupStoryRunSummary,
   GroupStoryStepColumn,
@@ -49,6 +51,22 @@ export function groupStoryProgress(view: GroupStoryView): {
   return { done, total, text: total === 0 ? 'No features yet' : `${done}/${total} done` }
 }
 
+/** How many parts it has and their features done, as its header and Parts heading say it. */
+export function groupStoryPartsText(view: GroupStoryView): string {
+  const count = view.partViews.length
+  return `${count} part${count === 1 ? '' : 's'} · ${groupStoryProgress(view).text}`
+}
+
+/** The page's folds with one Overview section opened, or folded again when it was open. */
+export function groupStoryToggledFold(folds: GroupStoryFolds, key: string): GroupStoryFolds {
+  return {
+    ...folds,
+    sections: folds.sections.includes(key)
+      ? folds.sections.filter((k) => k !== key)
+      : [...folds.sections, key],
+  }
+}
+
 /** The projects of the parts a part needs, by title. */
 export function groupStoryNeedTitles(part: GroupStoryPartView, view: GroupStoryView): string[] {
   return part.needs.map((id) => view.partViews.find((p) => p.projectId === id)?.projectTitle ?? id)
@@ -65,6 +83,15 @@ export function groupStoryRunBlockedReason(view: GroupStoryView): string | undef
   if (view.problems.length > 0) return view.problems.join(' ')
   if (view.status === 'done') return 'Every part is done.'
   return undefined
+}
+
+/** A group story's Run button, or `undefined` while a run is going and its status shows instead. */
+export function groupStoryRunButton(view: GroupStoryView): GroupStoryRunButton | undefined {
+  if (isLiveGroupStoryRun(view.latestRun)) return undefined
+  const blocked = groupStoryRunBlockedReason(view)
+  return blocked === undefined
+    ? { disabled: false, label: GROUP_STORY_ACTION_LABELS.run }
+    : { disabled: true, label: blocked }
 }
 
 /** The form for a new group story — every member project taking no part — or for changing one. */

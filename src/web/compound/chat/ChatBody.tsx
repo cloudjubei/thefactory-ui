@@ -43,7 +43,7 @@ import {
   type ChatActions,
 } from '../../../headless/contexts/ChatActionsContext'
 import { useChatOpenChanges } from '../../../headless/hooks/useChatOpenChanges'
-import { chatReviewLayout } from '../../../headless/utils/chatChangesDock'
+import { chatReviewLayout, chatReviewTarget } from '../../../headless/utils/chatChangesDock'
 import type { ChatReviewActions } from '../../../headless/utils/chatChangesDockTypes'
 import { ChatChangesBarConnected } from './ChatChangesBarConnected'
 import { ChatChangesMarkerConnected } from './ChatChangesMarkerConnected'
@@ -411,12 +411,16 @@ export default function ChatBody({
   const openRunId = openChanges.openChanges?.runId
   const [review, setReview] = useState<{ chatId?: string; runId: string }>()
   const reviewRunId = review && review.chatId === chatId ? review.runId : undefined
+  const reviewTargetOf = useCallback(
+    (runId?: string) => chatReviewTarget({ runId, openRunId, reviewable: !!reviewProjectId }),
+    [openRunId, reviewProjectId],
+  )
   const openReview = useCallback(
     (runId?: string) => {
-      const target = runId ?? openRunId
-      if (target && reviewProjectId) setReview({ ...(chatId ? { chatId } : {}), runId: target })
+      const target = reviewTargetOf(runId)
+      if (target) setReview({ ...(chatId ? { chatId } : {}), runId: target })
     },
-    [openRunId, reviewProjectId, chatId],
+    [reviewTargetOf, chatId],
   )
   const closeReview = useCallback(() => setReview(undefined), [])
   const draftMessage = useCallback(
@@ -429,13 +433,14 @@ export default function ChatBody({
   const chatActions = useMemo<ChatActions>(
     () => ({
       openReview,
+      reviewTargetOf,
       draftMessage,
       ...(projectId ? { projectId } : {}),
       ...(groupId ? { groupId } : {}),
       ...(chatTitle ? { chatTitle } : {}),
       ...(onResourceLink ? { onResourceLink } : {}),
     }),
-    [openReview, draftMessage, projectId, groupId, chatTitle, onResourceLink],
+    [openReview, reviewTargetOf, draftMessage, projectId, groupId, chatTitle, onResourceLink],
   )
   const receiptShas = useMemo(() => commitReceiptShas(decidedAsks), [decidedAsks])
   const renderChanges = useMemo(

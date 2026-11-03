@@ -267,6 +267,19 @@ export const STORY_DECISION_ASK = {
 /** The host tool that reads one file outside the project for the agent. */
 export const HOST_FILE_READ_TOOL = 'requestHostFileRead'
 
+/** The tool that runs one of the project's declared scripts on this computer. */
+export const PROJECT_SCRIPT_TOOL = 'runProjectScript'
+
+/** How running a project script reads. */
+export const PROJECT_SCRIPT_ASK = {
+  ask: 'The agent wants to run a project command',
+  tag: 'Command',
+  headline: (line: string) => (line ? `Run ${line}` : 'Run a project script'),
+  consequence:
+    'It runs on this computer in a copy of the chat’s files, without your secrets. What it changes comes back to them.',
+  verb: 'Run',
+} as const
+
 /** How reading a file on this computer reads. */
 export const HOST_FILE_READ_ASK = {
   ask: 'The agent wants to read a file on this computer',

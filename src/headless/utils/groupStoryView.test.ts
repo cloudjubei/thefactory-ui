@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { GroupStoryForm, GroupStoryPartView, GroupStoryView } from './groupStoryTypes'
-import { GROUP_STORY_LIST_FILTER_DEFAULT } from './groupStoryConstants'
+import { GROUP_STORY_ACTION_LABELS, GROUP_STORY_LIST_FILTER_DEFAULT } from './groupStoryConstants'
 import {
   filterGroupStories,
   groupStoryFormFor,
@@ -11,8 +11,11 @@ import {
   groupStoryListProjects,
   groupStoryNeedOptions,
   groupStoryNeedTitles,
+  groupStoryPartsText,
   groupStoryProgress,
+  groupStoryToggledFold,
   groupStoryRunBlockedReason,
+  groupStoryRunButton,
   groupStoryRunState,
   groupStoriesOfStory,
   groupStoryStepColumns,
@@ -92,6 +95,36 @@ describe('groupStoryProgress', () => {
   })
 })
 
+describe('groupStoryPartsText', () => {
+  it('counts the parts and their features done', () => {
+    expect(
+      groupStoryPartsText(view([part('ui'), part('web', { featuresDone: 3, featuresTotal: 3 })])),
+    ).toBe('2 parts · 4/5 done')
+  })
+
+  it('names one part in the singular, with nothing to do yet', () => {
+    expect(groupStoryPartsText(view([part('ui', { featuresDone: 0, featuresTotal: 0 })]))).toBe(
+      '1 part · No features yet',
+    )
+  })
+})
+
+describe('groupStoryToggledFold', () => {
+  const folds = { parts: true, overview: true, sections: ['0'] }
+
+  it('opens a folded section and folds an open one', () => {
+    expect(groupStoryToggledFold(folds, '1').sections).toEqual(['0', '1'])
+    expect(groupStoryToggledFold(folds, '0').sections).toEqual([])
+  })
+
+  it('leaves Parts and Overview as they were', () => {
+    expect(groupStoryToggledFold({ ...folds, parts: false }, '2')).toMatchObject({
+      parts: false,
+      overview: true,
+    })
+  })
+})
+
 describe('groupStoryNeedTitles', () => {
   it('names the parts a part needs by their project', () => {
     const v = view([part('backend'), part('ui', { needs: ['backend'] })])
@@ -143,6 +176,50 @@ describe('groupStoryRunBlockedReason', () => {
       groupStoryRunBlockedReason(view([part('ui', { status: 'done' })], { status: 'done' })),
     ).toBe('Every part is done.')
   })
+})
+
+describe('groupStoryRunButton', () => {
+  it('offers Run when nothing stops it', () => {
+    expect(groupStoryRunButton(view([part('ui')]))).toEqual({
+      disabled: false,
+      label: GROUP_STORY_ACTION_LABELS.run,
+    })
+  })
+
+  it('keeps Run turned off, saying why, while its parts cannot run', () => {
+    expect(
+      groupStoryRunButton(view([part('ui')], { problems: ['ui and web need each other.'] })),
+    ).toEqual({ disabled: true, label: 'ui and web need each other.' })
+  })
+
+  it('keeps Run turned off once every part is done', () => {
+    expect(groupStoryRunButton(view([part('ui', { status: 'done' })], { status: 'done' }))).toEqual(
+      { disabled: true, label: 'Every part is done.' },
+    )
+  })
+
+  it('offers Run again after the last run is over', () => {
+    expect(
+      groupStoryRunButton(
+        view([part('ui')], {
+          latestRun: { groupRunId: 'r', title: 't', status: 'failed', legs: [], startedAt: 0 },
+        }),
+      ),
+    ).toEqual({ disabled: false, label: GROUP_STORY_ACTION_LABELS.run })
+  })
+
+  it.each(['pending', 'running', 'parked'] as const)(
+    'has no Run while a %s run is going',
+    (status) => {
+      expect(
+        groupStoryRunButton(
+          view([part('ui')], {
+            latestRun: { groupRunId: 'r', title: 't', status, legs: [], startedAt: 0 },
+          }),
+        ),
+      ).toBeUndefined()
+    },
+  )
 })
 
 describe('groupStoryFormFor', () => {

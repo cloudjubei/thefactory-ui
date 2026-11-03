@@ -111,6 +111,8 @@ export type StartFeatureWorkGrantSummary = {
    * sanctions the run to read — the ids resolve to labels where they render.
    */
   relevantNoteIds?: string[]
+  /** The project files the work hands its agents, kept with the story when it starts. */
+  files?: string[]
   /**
    * The process the agent chose to run instead of the story's own — what the
    * launch preview must resolve, so the plan read before approving is the one
@@ -170,12 +172,16 @@ export function startFeatureWorkGrantSummary(
   const relevantNoteIds = Array.isArray(record.relevantNoteIds)
     ? record.relevantNoteIds.filter((x): x is string => typeof x === 'string' && x.length > 0)
     : []
+  const files = Array.isArray(record.files)
+    ? record.files.filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+    : []
   return {
     ...(typeof storyId === 'string' && storyId.length > 0 ? { storyId } : {}),
     ...(typeof note === 'string' && note.length > 0 ? { note } : {}),
     proofRequired: record.proofRequired !== false,
     ...(runner === 'cli' || runner === 'api' ? { runner } : {}),
     ...(relevantNoteIds.length > 0 ? { relevantNoteIds } : {}),
+    ...(files.length > 0 ? { files } : {}),
     ...(processId.length > 0 ? { processId } : {}),
     ...(record.turnLimit !== undefined ? { turnLimit: record.turnLimit } : {}),
     ...(baseBranch.length > 0 ? { baseBranch } : {}),

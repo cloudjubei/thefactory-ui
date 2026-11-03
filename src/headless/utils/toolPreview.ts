@@ -1,4 +1,5 @@
 import type { ToolPreviewResult } from '../api/sdkTypes'
+import { PROJECT_SCRIPT_TOOL } from './toolAskCardConstants'
 
 /**
  * Defensive accessors used by the tool-call preview registry on both web
@@ -260,7 +261,10 @@ export function toolArgDisplay(toolCall: {
   const record = args as Record<string, unknown>
 
   const command = firstStringField(record, COMMAND_ARG_FIELDS)
-  if (command) return { kind: 'command', text: command }
+  if (command) {
+    const passed = record.script === command ? nonEmptyStringArray(record.args) : null
+    return { kind: 'command', text: passed ? [command, ...passed].join(' ') : command }
+  }
 
   const paths = nonEmptyStringArray(record.paths) ?? pathsFromQueries(record.queries)
   if (paths) return { kind: 'paths', paths }
@@ -277,6 +281,41 @@ export function toolArgDisplay(toolCall: {
   if (text) return { kind: 'text', text }
 
   return null
+}
+
+const SHELL_TOOL_NAMES: ReadonlySet<string> = new Set(['bash', 'runShellCommand', 'shell'])
+
+/** What a shell-like call's expanded row shows. */
+export interface ShellToolPreview {
+  command: string
+  stdout: string
+  stderr: string
+}
+
+/**
+ * A shell-like call as its expanded row shows it — the command line and what
+ * it printed: a CLI agent's own shell, or a project script any agent ran on
+ * the host, which reads the same whichever agent ran it. A script not run yet
+ * is named by its name and arguments. `undefined` for any other tool. Pure.
+ */
+export function shellToolPreview(
+  name: string,
+  args: unknown,
+  result: unknown,
+): ShellToolPreview | undefined {
+  const output = {
+    stdout: tryString(extract(result, ['stdout'])) || '',
+    stderr: tryString(extract(result, ['stderr'])) || '',
+  }
+  if (SHELL_TOOL_NAMES.has(name)) {
+    return { command: tryString(extract(args, ['command'])) || '', ...output }
+  }
+  if (name !== PROJECT_SCRIPT_TOOL) return undefined
+  const ran = extract(result, ['command'])
+  if (typeof ran === 'string' && ran) return { command: ran, ...output }
+  const record = asRecord(args)
+  const script = typeof record.script === 'string' ? [record.script] : []
+  return { command: [...script, ...(nonEmptyStringArray(record.args) ?? [])].join(' '), ...output }
 }
 
 /**

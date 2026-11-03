@@ -16,7 +16,11 @@ const AGENTS_HIDDEN: SyncKVStorage = {
   get: () => JSON.stringify({ notifications: { agentMessages: 'hidden' } }),
   set: noop,
 }
-const ACTIONS: ChatActions = { openReview: noop, draftMessage: noop }
+const ACTIONS: ChatActions = {
+  openReview: noop,
+  reviewTargetOf: (runId) => runId ?? 'turn-1',
+  draftMessage: noop,
+}
 
 const PERSON: ChatMessageLike = {
   id: 'person',

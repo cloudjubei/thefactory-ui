@@ -14,6 +14,7 @@ import {
 } from '../../../headless'
 import Alert from '../../primitives/Alert'
 import GroupStoriesList from './GroupStoriesList'
+import { GroupStoryBackButton } from './GroupStoryBits'
 import { GroupStoryFormDialog } from './GroupStoryForm'
 import GroupStoryPage from './GroupStoryPage'
 import GroupStoryRunDialog, { type GroupStoryRunStarted } from './GroupStoryRunDialog'
@@ -131,6 +132,8 @@ export type GroupStoryScreenProps = {
   onOpenRun: (groupRunId: string) => void
   /** After it was deleted — back to the group's Stories. */
   onDeleted: () => void
+  /** Back to the group's Stories from the header; no back button when unset. */
+  onBack?: () => void
   renderModelChip?: (picked: LaunchModelChipSlot) => ReactNode
 }
 
@@ -142,6 +145,7 @@ export function GroupStoryScreen({
   onOpenPartStory,
   onOpenRun,
   onDeleted,
+  onBack,
   renderModelChip,
 }: GroupStoryScreenProps) {
   const { story, isLoaded, loadError, updateStory, deleteStory, run } = useGroupStory(
@@ -153,9 +157,24 @@ export function GroupStoryScreen({
   const storiesByProject = useMemberStories(members, editing)
   const initialForm = useMemo(() => groupStoryFormFor(members, story), [members, story])
 
-  if (loadError) return <Alert variant="error">{loadError.message}</Alert>
-  if (!isLoaded) return <div className="p-4 text-sm text-(--text-secondary)">Loading…</div>
-  if (!story) return <Alert variant="error">This group story no longer exists.</Alert>
+  if (loadError || !isLoaded || !story) {
+    return (
+      <div className="flex flex-col gap-2 p-4">
+        {onBack ? (
+          <div>
+            <GroupStoryBackButton onBack={onBack} />
+          </div>
+        ) : null}
+        {loadError ? (
+          <Alert variant="error">{loadError.message}</Alert>
+        ) : !isLoaded ? (
+          <div className="text-sm text-(--text-secondary)">Loading…</div>
+        ) : (
+          <Alert variant="error">This group story no longer exists.</Alert>
+        )}
+      </div>
+    )
+  }
 
   return (
     <>
@@ -169,6 +188,7 @@ export function GroupStoryScreen({
           onDeleted()
         }}
         onOpenPartStory={onOpenPartStory}
+        {...(onBack ? { onBack } : {})}
       />
       <GroupStoryFormDialog
         isOpen={editing}

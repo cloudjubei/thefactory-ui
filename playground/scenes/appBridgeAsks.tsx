@@ -44,6 +44,38 @@ const NO_FEATURES: AppWorkStartAsk = {
   },
 }
 
+const WITH_FILES: AppWorkStartAsk = {
+  ...WITH_FEATURES,
+  draft: {
+    title: 'Official sources: apply r4',
+    description: DESCRIPTION,
+    features: [
+      {
+        title: 'Apply source revision r4',
+        description: 'Adopt r4, accept it, copy the report and note it — file edits only.',
+      },
+    ],
+    files: [
+      '.cache/starcraft-tmg/monitor/latest-source-status.json',
+      '.cache/starcraft-tmg/monitor/latest-proposal.json',
+      '.cache/starcraft-tmg/monitor/latest-observations.json',
+      '.cache/starcraft-tmg/monitor/latest-downloads-manifest.json',
+      '.cache/starcraft-tmg/downloads/StarCraft-Protoss-High-Templar_EN.pdf',
+      '.cache/starcraft-tmg/downloads/StarCraft-Protoss-Tassadar_EN.pdf',
+      '.cache/starcraft-tmg/downloads/StarCraft-Terran-Nova-Terra_EN.pdf',
+      '.cache/starcraft-tmg/downloads/StarCraft-Terran-Raven_EN.pdf',
+      '.cache/starcraft-tmg/downloads/StarCraft-Zerg-Defiler_EN.pdf',
+      '.cache/starcraft-tmg/downloads/StarCraft-Zerg-Zagara_EN.pdf',
+    ],
+  },
+}
+
+const MISSING_FILE: AppWorkStartAsk = {
+  ...WITH_FILES,
+  error:
+    '.cache/starcraft-tmg/downloads/StarCraft-Zerg-Zagara_EN.pdf is not in the project any more.',
+}
+
 const FAILED: AppWorkStartAsk = {
   ...WITH_FEATURES,
   progress: { storyId: 's1', featureIds: ['f1', 'f2'] },
@@ -116,7 +148,7 @@ export const APP_BRIDGE_ASK_SCENES: Scene[] = [
     component: 'AppWorkStartDialog',
     group: 'Process',
     description:
-      'An embedded app’s `overseer:work.start`, confirmed over the App view before anything is made: title, description and features, editable until Start makes the story. Start then offers the choice every Run offers — a process run (its launch card) or in this chat; closing that choice comes back here. Cancel or X declines. It waits as long as the person takes.',
+      'An embedded app’s `overseer:work.start`, confirmed over the App view before anything is made: title, description and features, editable until Start makes the story, and the files that go with it, listed in full. Start then offers the choice every Run offers — a process run (its launch card) or in this chat; closing that choice comes back here. Cancel or X declines. It waits as long as the person takes.',
     states: [
       {
         id: 'features',
@@ -131,6 +163,22 @@ export const APP_BRIDGE_ASK_SCENES: Scene[] = [
         description: 'The app named none, so the work runs as one feature.',
         overlay: true,
         render: () => <WorkStartDemo initial={NO_FEATURES} />,
+      },
+      {
+        id: 'files',
+        title: 'With files',
+        description:
+          'The app hands files over with the work — here a check’s report and the new PDFs, git-ignored. Each path is listed in full; they are kept with the story when Start makes it, so every agent gets exactly these.',
+        overlay: true,
+        render: () => <WorkStartDemo initial={WITH_FILES} />,
+      },
+      {
+        id: 'file-missing',
+        title: 'A file is missing',
+        description:
+          'Start refused before anything was made: the error names the file. Cancel, or Start again once it is back.',
+        overlay: true,
+        render: () => <WorkStartDemo initial={MISSING_FILE} />,
       },
       {
         id: 'start-failed',

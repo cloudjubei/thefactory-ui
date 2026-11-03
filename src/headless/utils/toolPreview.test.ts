@@ -10,6 +10,7 @@ import {
   storyAfterPatch,
   safePreviewString,
   searchResultLines,
+  shellToolPreview,
   toolArgDisplay,
   toolNotRunReason,
   toolRowReason,
@@ -52,7 +53,68 @@ describe('safePreviewString', () => {
   })
 })
 
+describe('shellToolPreview', () => {
+  it('shows a CLI shell call as its command and output', () => {
+    expect(shellToolPreview('bash', { command: 'ls' }, { stdout: 'a\n', stderr: 'warn' })).toEqual({
+      command: 'ls',
+      stdout: 'a\n',
+      stderr: 'warn',
+    })
+    expect(shellToolPreview('shell', {}, undefined)).toEqual({
+      command: '',
+      stdout: '',
+      stderr: '',
+    })
+    expect(shellToolPreview('runShellCommand', { command: 'x' }, {})?.command).toBe('x')
+  })
+
+  it('shows a project script the same way, as the command line that ran', () => {
+    expect(
+      shellToolPreview(
+        'runProjectScript',
+        { script: 'monitor:sources', args: ['--adopt-proposal=r4'] },
+        {
+          command: 'npm run monitor:sources -- --adopt-proposal=r4',
+          stdout: 'adopted r4\n',
+          stderr: '',
+        },
+      ),
+    ).toEqual({
+      command: 'npm run monitor:sources -- --adopt-proposal=r4',
+      stdout: 'adopted r4\n',
+      stderr: '',
+    })
+  })
+
+  it('names a project script that has not run yet by its name and arguments', () => {
+    expect(
+      shellToolPreview('runProjectScript', { script: 'build', args: ['--x', 3] }, undefined),
+    ).toEqual({ command: 'build --x', stdout: '', stderr: '' })
+    expect(shellToolPreview('runProjectScript', {}, undefined)?.command).toBe('')
+  })
+
+  it('is nothing for any other tool', () => {
+    expect(shellToolPreview('readPaths', { command: 'x' }, {})).toBeUndefined()
+  })
+})
+
 describe('toolArgDisplay', () => {
+  it('shows a script with the arguments it is passed', () => {
+    expect(
+      toolArgDisplay({
+        name: 'runProjectScript',
+        arguments: { script: 'monitor:sources', args: ['--adopt-proposal=r4'] },
+      }),
+    ).toEqual({ kind: 'command', text: 'monitor:sources --adopt-proposal=r4' })
+    expect(
+      toolArgDisplay({ name: 'runProjectScript', arguments: { script: 'build', args: [] } }),
+    ).toEqual({ kind: 'command', text: 'build' })
+    expect(toolArgDisplay({ name: 'x', arguments: { command: 'make', args: ['all'] } })).toEqual({
+      kind: 'command',
+      text: 'make',
+    })
+  })
+
   it('returns the command for a command-execution tool', () => {
     expect(
       toolArgDisplay({ name: 'command_execution', arguments: { command: '/bin/bash -lc "x"' } }),

@@ -176,6 +176,19 @@ export function chatReviewHeader(input: ChatReviewHeaderInput): ChatReviewHeader
   return { title, ...(branch ? { branch } : {}) }
 }
 
+/**
+ * The run a chat's review would open for a card: the turn it names, else the
+ * chat's open changes — nothing when the chat changed nothing or cannot show a
+ * review, so the card offers no button that would do nothing. Pure.
+ */
+export function chatReviewTarget(input: {
+  runId?: string | undefined
+  openRunId?: string | undefined
+  reviewable: boolean
+}): string | undefined {
+  return input.reviewable ? (input.runId ?? input.openRunId) : undefined
+}
+
 /** Whether a chat this wide opens a review beside itself or over itself. Pure. */
 export function chatReviewLayout(chatWidth: number | undefined): ChatReviewLayout {
   return chatWidth === undefined || chatWidth >= CHAT_REVIEW_SIDE_MIN_WIDTH ? 'side' : 'sheet'

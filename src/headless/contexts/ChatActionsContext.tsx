@@ -5,6 +5,8 @@ import type { ResourceLink } from 'thefactory-tools/types'
 export type ChatActions = {
   /** Opens the review of a turn's changes, or of the chat's open changes when no run is named. */
   openReview: (runId?: string) => void
+  /** The run `openReview(runId)` would open, or `undefined` when there is nothing to open. */
+  reviewTargetOf: (runId?: string) => string | undefined
   /** Puts a draft in the chat's message box, for the person to edit and send. */
   draftMessage: (text: string) => void
   /** The project the chat's runs work in — what a card reads a run's proof and commits from. */

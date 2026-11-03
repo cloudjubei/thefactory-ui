@@ -7,6 +7,7 @@ import { dispatchAppSettingsBridge } from '../api/appSettingsBridge'
 import { dispatchRunnersBridge } from '../api/runnersBridge'
 import { dispatchProjectsBridge } from '../api/projectsBridge'
 import { dispatchWorkBridge } from '../api/workBridge'
+import { dispatchRunBridge } from '../api/runBridge'
 import { dispatchUserBridge } from '../api/userBridge'
 import { dispatchToolCallsBridge } from '../api/toolCallsBridge'
 import { useStories } from '../contexts/StoriesContext'
@@ -18,7 +19,8 @@ import { bridgeMessageName, type BridgeRequest } from '../utils/appBridge'
  * Build the `onBridgeMessage` handler that services an embedded app's
  * `overseer:data.*` (read/write the project's own records), `live-data.*` (read its
  * subscribed live data; read, refresh and schedule its own declared sources),
- * `user.current` (who the person is), `analysis.*` (run an analysis job), `activities.*`
+ * `user.current` (who the person is), `run.read` (where a run of the project stands),
+ * `analysis.*` (run an analysis job), `activities.*`
  * (start/observe a detached background activity), and `settings.*` (read/write
  * layered user-global + per-app settings) requests against the active project.
  * Each dispatcher returns `undefined` for messages it doesn't own; an unhandled
@@ -87,6 +89,8 @@ export function useProjectDataBridge(
           : undefined,
       )
       if (work !== undefined) return work
+      const run = await dispatchRunBridge(projectId, req)
+      if (run !== undefined) return run
       return undefined
     },
     [

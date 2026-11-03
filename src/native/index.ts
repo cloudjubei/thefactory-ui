@@ -834,6 +834,7 @@ export {
   default as AppWorkStartSheet,
   type AppWorkStartSheetProps,
 } from './compound/AppWorkStartSheet'
+export { default as WorkFilesList, type WorkFilesListProps } from './compound/WorkFilesList'
 export {
   default as AppFeatureRequestSheet,
   type AppFeatureRequestSheetProps,

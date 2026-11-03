@@ -16,7 +16,7 @@ export type ChatStopCardProps = {
   /** The restart its primary button runs; absent where the row offers none. */
   restart?: ChatStopRestart
   onRestart?: () => void
-  /** The turn whose changes "Open the changes" opens; the chat's open changes when absent. */
+  /** The turn whose changes "Open the changes" opens; the chat's open changes when absent, no button when it has none. */
   runId?: string
   /** Opens with the raw error shown. */
   defaultShowDetails?: boolean
@@ -39,7 +39,8 @@ export default function ChatStopCard({
   const view = chatStopCardView(notice)
   const tone = status[view.tone]
   const askAgentDraft = actions ? view.askAgentDraft : undefined
-  const hasActions = !!(restart && onRestart) || !!actions || !!view.details
+  const reviewTarget = actions?.reviewTargetOf(runId)
+  const hasActions = !!(restart && onRestart) || !!askAgentDraft || !!reviewTarget || !!view.details
   return (
     <View
       accessibilityRole="summary"
@@ -148,8 +149,8 @@ export default function ChatStopCard({
               {CHAT_STOP_COPY.askAgent}
             </Button>
           ) : null}
-          {actions ? (
-            <Button size="sm" variant="secondary" onPress={() => actions.openReview(runId)}>
+          {actions && reviewTarget ? (
+            <Button size="sm" variant="secondary" onPress={() => actions.openReview(reviewTarget)}>
               {CHAT_STOP_COPY.openChanges}
             </Button>
           ) : null}

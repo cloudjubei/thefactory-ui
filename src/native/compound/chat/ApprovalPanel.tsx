@@ -102,6 +102,7 @@ import {
   workLaunchOptions,
 } from '../../../headless/utils/workLaunchView'
 import type { ResourceLink, WorkLaunchMode } from 'thefactory-tools/types'
+import WorkFilesList from '../WorkFilesList'
 
 export type ApprovalPanelProps = {
   grant: PendingToolGrant
@@ -720,6 +721,8 @@ function ToolApprovalPanel({
             )}
           </View>
         ) : null}
+
+        {isLaunch ? <WorkFilesList files={summary.files} /> : null}
 
         {flaggedNotes.length > 0 ? (
           // Which stored notes this launch lets the run read (a login, a key).

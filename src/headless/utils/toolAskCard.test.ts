@@ -32,6 +32,7 @@ import {
   TOOL_ASK_SCOPE,
   TOOL_ASK_SCOPE_DONE,
   TOOL_ASK_SITE_HINT,
+  PROJECT_SCRIPT_ASK,
 } from './toolAskCardConstants'
 import type { GitChangeCardView } from './gitChangeApprovalTypes'
 import type { RunProposalView } from './runProposalViewTypes'
@@ -83,6 +84,34 @@ describe('toolAskCardView — sandbox requests', () => {
       verb: 'Allow',
       body: { kind: 'network', host: 'pypi.org' },
     })
+  })
+
+  it('shows a project script as the command it runs, asked to run in the chat’s copy', () => {
+    expect(
+      toolAskCardView(
+        sandbox('runProjectScript', { script: 'monitor:sources', args: ['--adopt-proposal=r4'] }),
+      ),
+    ).toEqual({
+      tone: 'ask',
+      icon: 'run',
+      ask: PROJECT_SCRIPT_ASK.ask,
+      tag: PROJECT_SCRIPT_ASK.tag,
+      headline: 'Run monitor:sources --adopt-proposal=r4',
+      consequence: PROJECT_SCRIPT_ASK.consequence,
+      verb: PROJECT_SCRIPT_ASK.verb,
+      body: { kind: 'details' },
+    })
+  })
+
+  it('names a project script with no arguments, or none it can read', () => {
+    expect(toolAskCardView(sandbox('runProjectScript', { script: 'build' })).headline).toBe(
+      'Run build',
+    )
+    expect(
+      toolAskCardView(sandbox('runProjectScript', { script: 'build', args: ['a', 3, ''] }))
+        .headline,
+    ).toBe('Run build a')
+    expect(toolAskCardView(sandbox('runProjectScript', {})).headline).toBe('Run a project script')
   })
 
   it('shows a host file read as the file it opens, with its size and lines', () => {

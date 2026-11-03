@@ -25,3 +25,12 @@ export const TOOL_CALL_SLIP_KINDS = ['invalid-args', 'unknown-tool', 'failed', '
 export const WORK_START_MESSAGE = 'work.start'
 
 export const FEATURE_REQUEST_MESSAGE = 'feature.request'
+
+/** `overseer:run.read`: where a run of the app's project stands, by its id or its story's. */
+export const RUN_READ_MESSAGE = 'run.read'
+
+/** `overseer:run.changed`: a push that a run of the app's project changed state, step or ask. */
+export const RUN_CHANGED_MESSAGE = 'run.changed'
+
+/** `overseer:run.open`: open a run of the app's project in Overseer. */
+export const RUN_OPEN_MESSAGE = 'run.open'

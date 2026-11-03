@@ -3,12 +3,14 @@ import { useApi } from '../api/ApiContext'
 import type { DataUpdatedEvent, LiveDataUpdatedEvent } from '../api/sdkTypes'
 import { dataChangedPush, liveDataChangedPush } from '../utils/appLiveData'
 import { AppPushChannel } from '../utils/appPushChannel'
+import { AppRunChangeFilter } from '../utils/appRunState'
 
 /**
  * The pushes an embedded app gets about its project: `overseer:live-data.changed` when one of the
  * project's own sources starts, finishes or fails a refresh (WS `liveData:updated`), and
- * `overseer:data.changed` when the project's records change (WS `data:updated`). Hand the channel
- * to `ProjectAppView`'s `pushes`.
+ * `overseer:data.changed` when the project's records change (WS `data:updated`), and
+ * `overseer:run.changed` when one of its runs changes state, step or ask (WS
+ * `process:run-update`). Hand the channel to `ProjectAppView`'s `pushes`.
  */
 export function useAppBridgePushes(projectId: string | undefined): AppPushChannel {
   const { ws } = useApi()
@@ -26,9 +28,15 @@ export function useAppBridgePushes(projectId: string | undefined): AppPushChanne
       const push = dataChangedPush(projectId, event)
       if (push) channel.post(push)
     })
+    const runs = new AppRunChangeFilter()
+    const offRuns = ws.on('process:run-update', (event: unknown) => {
+      const push = runs.next(projectId, event, Date.now())
+      if (push) channel.post(push)
+    })
     return () => {
       offLiveData()
       offData()
+      offRuns()
     }
   }, [ws, projectId, channel])
 

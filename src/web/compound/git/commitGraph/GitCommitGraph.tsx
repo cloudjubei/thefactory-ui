@@ -20,6 +20,12 @@ export type GitCommitGraphProps = {
   uncommittedChanges?: boolean
   /** SHA to scroll into view (e.g. when the user picks a branch elsewhere). */
   scrollToSha?: string
+  /**
+   * Bumped by the caller for each request to show `scrollToSha` — a new value
+   * scrolls to it again even when the SHA is unchanged (the same branch
+   * picked again after scrolling away).
+   */
+  scrollKey?: number
   onSelectCommit?: (sha: string) => void
   /**
    * Fired with the commit's SHA when it's the tip of a branch — lets the
@@ -66,6 +72,7 @@ export function GitCommitGraph({
   selectedCommitSha,
   uncommittedChanges,
   scrollToSha,
+  scrollKey,
   onSelectCommit,
   onSelectBranchBySha,
   onLoadMore,
@@ -87,7 +94,7 @@ export function GitCommitGraph({
     },
     [],
   )
-  // Track the last SHA we've scrolled to so we don't re-scroll every time
+  // Track the last request (SHA + scrollKey) we've scrolled to so we don't re-scroll every time
   // `commits` updates (pagination is the common case). The user's scroll
   // position should be preserved after each appended page.
   const lastScrolledShaRef = useRef<string | null>(null)
@@ -165,15 +172,16 @@ export function GitCommitGraph({
 
   useEffect(() => {
     if (!scrollToSha) return
-    // Already scrolled to this SHA in a previous render — don't yank the
+    // Already scrolled to this request in a previous render — don't yank the
     // user's scroll position around just because more commits were
-    // appended via pagination.
-    if (lastScrolledShaRef.current === scrollToSha) return
+    // appended via pagination. A new `scrollKey` is a new request.
+    const request = `${scrollToSha}#${scrollKey ?? 0}`
+    if (lastScrolledShaRef.current === request) return
     const id = window.setTimeout(() => {
       const el = rowRefsMap.current.get(scrollToSha)
       if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-        lastScrolledShaRef.current = scrollToSha
+        lastScrolledShaRef.current = request
         return
       }
       // SHA isn't in the loaded window yet — pull another page. Subsequent
@@ -183,7 +191,7 @@ export function GitCommitGraph({
       if (hasMore && onLoadMore && !loadingMore) onLoadMore()
     }, 50)
     return () => window.clearTimeout(id)
-  }, [scrollToSha, commits, hasMore, onLoadMore, loadingMore])
+  }, [scrollToSha, scrollKey, commits, hasMore, onLoadMore, loadingMore])
 
   const graphNodes = useMemo(
     () => computeCommitGraph(commits, { uncommitted: !!uncommittedChanges }),

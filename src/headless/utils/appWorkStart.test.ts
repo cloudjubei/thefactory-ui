@@ -8,9 +8,12 @@ import {
   workStartFeatures,
   workStartStarted,
 } from './appWorkStart'
+import { STORY_FILES_MAX } from 'thefactory-tools/constants'
 import {
   APP_WORK_START_FEATURE_TITLE_REQUIRED,
   APP_WORK_START_FEATURES_INVALID,
+  APP_WORK_START_FILES_INVALID,
+  APP_WORK_START_FILES_TOO_MANY,
   APP_WORK_START_PROCESS_INVALID,
   APP_WORK_START_TITLE_REQUIRED,
 } from './appWorkStartConstants'
@@ -82,6 +85,60 @@ describe('parseWorkStartPayload', () => {
   it.each([' ', '../x', 'a b', 7])('refuses a process id that is not one: %j', (processId) => {
     expect(parseWorkStartPayload({ title: 'T', processId })).toEqual({
       error: APP_WORK_START_PROCESS_INVALID,
+    })
+  })
+
+  it('reads the files that go with the work, trimmed, each once', () => {
+    expect(
+      parseWorkStartPayload({
+        title: 'T',
+        files: [
+          ' .cache/monitor/latest-proposal.json ',
+          './.cache/downloads/a.pdf',
+          '.cache/monitor/latest-proposal.json',
+        ],
+      }),
+    ).toEqual({
+      title: 'T',
+      description: '',
+      features: [],
+      files: ['.cache/monitor/latest-proposal.json', '.cache/downloads/a.pdf'],
+    })
+  })
+
+  it('reads an empty list of files as none', () => {
+    expect(parseWorkStartPayload({ title: 'T', files: [] })).toEqual({
+      title: 'T',
+      description: '',
+      features: [],
+    })
+  })
+
+  it.each([
+    'a.pdf',
+    {},
+    [7],
+    [''],
+    ['  '],
+    ['/etc/passwd'],
+    ['../outside.txt'],
+    ['a/../../b'],
+    ['C:\\x'],
+    ['C:/x'],
+    ['docs\\a.pdf'],
+  ])('refuses files that are not project paths: %j', (files) => {
+    expect(parseWorkStartPayload({ title: 'T', files })).toEqual({
+      error: APP_WORK_START_FILES_INVALID,
+    })
+  })
+
+  it('refuses more files than work takes', () => {
+    const files = Array.from({ length: STORY_FILES_MAX + 1 }, (_, i) => `f${i}.pdf`)
+    expect(parseWorkStartPayload({ title: 'T', files })).toEqual({
+      error: APP_WORK_START_FILES_TOO_MANY,
+    })
+    expect(parseWorkStartPayload({ title: 'T', files: files.slice(1) })).toMatchObject({
+      files: files.slice(1),
     })
   })
 

@@ -18,6 +18,9 @@ export type RunAgentButtonProps = {
    * into its own menu / list so it matches the surrounding rows.
    */
   triggerClassName?: string
+  /** What it says on hover and to a screen reader; "Run Agent" when unset. */
+  title?: string
+  disabled?: boolean
 }
 
 export default function RunAgentButton({
@@ -25,11 +28,14 @@ export default function RunAgentButton({
   onClick,
   label,
   triggerClassName,
+  title = 'Run Agent',
+  disabled = false,
 }: RunAgentButtonProps) {
   const triggerProps = {
     type: 'button' as const,
-    'aria-label': 'Run Agent',
-    title: 'Run Agent',
+    'aria-label': title,
+    title,
+    disabled,
     style: { touchAction: 'manipulation', userSelect: 'none' } as React.CSSProperties,
     onPointerDown: (e: React.PointerEvent<HTMLButtonElement>) => e.stopPropagation(),
     onClick: () => onClick(),

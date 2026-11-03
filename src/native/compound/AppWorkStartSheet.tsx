@@ -14,6 +14,7 @@ import { Button } from '../primitives/Button'
 import Field from '../primitives/Field'
 import { Input } from '../primitives/Input'
 import { Textarea } from '../primitives/Textarea'
+import WorkFilesList from './WorkFilesList'
 
 export type AppWorkStartSheetProps = {
   /** The app's `work.start` ask (`useAppWorkStart().ask`); nothing shows while `null`. */
@@ -27,7 +28,7 @@ export type AppWorkStartSheetProps = {
 /**
  * Native peer of `AppWorkStartDialog`: the person's confirmation of work an embedded app asks to
  * start, as a bottom sheet over the App view — title, description and features, editable until
- * Start makes the story. Purely presentational.
+ * Start makes the story, and the files that go with it. Purely presentational.
  */
 export default function AppWorkStartSheet({
   ask,
@@ -119,6 +120,7 @@ export default function AppWorkStartSheet({
             ))
           )}
         </View>
+        <WorkFilesList files={draft.files} />
       </View>
     </BottomSheet>
   )

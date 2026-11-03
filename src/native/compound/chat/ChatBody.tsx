@@ -16,6 +16,7 @@ import PendingMessagesStack from './PendingMessagesStack'
 import HeldAgentMessagesStack from './HeldAgentMessagesStack'
 import type { ChatPendingQueue } from '../../../headless/hooks/useChatComposer'
 import { usePendingAutoDispatch } from '../../../headless/hooks/usePendingAutoDispatch'
+import { chatReviewTarget } from '../../../headless/utils/chatChangesDock'
 import type { UikitFileMeta } from '../files/FileDisplay'
 import type { ResourceLink } from 'thefactory-tools/types'
 import {
@@ -411,23 +412,28 @@ export default function ChatBody({
       : undefined,
   )
   const openRunId = openChanges.openChanges?.runId
+  const reviewTargetOf = useCallback(
+    (runId?: string) => chatReviewTarget({ runId, openRunId, reviewable: !!onOpenReview }),
+    [openRunId, onOpenReview],
+  )
   const openReview = useCallback(
     (runId?: string) => {
-      const target = runId ?? openRunId
+      const target = reviewTargetOf(runId)
       if (target && onOpenReview) onOpenReview(target)
     },
-    [openRunId, onOpenReview],
+    [reviewTargetOf, onOpenReview],
   )
   const chatActions = useMemo<ChatActions>(
     () => ({
       openReview,
+      reviewTargetOf,
       draftMessage: onInputChange,
       ...(projectId ? { projectId } : {}),
       ...(groupId ? { groupId } : {}),
       ...(chatTitle ? { chatTitle } : {}),
       ...(onResourceLink ? { onResourceLink } : {}),
     }),
-    [openReview, onInputChange, projectId, groupId, chatTitle, onResourceLink],
+    [openReview, reviewTargetOf, onInputChange, projectId, groupId, chatTitle, onResourceLink],
   )
   const receiptShas = useMemo(() => commitReceiptShas(decidedAsks), [decidedAsks])
   const renderChanges = useMemo(

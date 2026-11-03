@@ -381,6 +381,7 @@ export {
   chatReviewHeader,
   chatReviewLayout,
   chatReviewPanelWidth,
+  chatReviewTarget,
 } from './utils/chatChangesDock'
 export {
   CHAT_CHANGES_DOCK_COPY,
@@ -627,6 +628,7 @@ export {
   type GitLogRefLike,
   type GraphNode,
 } from './utils/gitCommitGraph'
+export { gitBranchTipSha } from './utils/gitBranchTip'
 
 // Git conflict-marker parse / serialise / resolve — shared by web + native
 // merge-conflict resolvers (lifted from mobile's standalone module).
@@ -1451,6 +1453,13 @@ export type {
   ProcessStepRowView,
 } from './utils/processStepRowTypes'
 export { clipLine, firstSentence, plainMarkdownLine } from './utils/textLine'
+export {
+  markdownSectionKeys,
+  markdownSections,
+  markdownSummaryLine,
+} from './utils/markdownSections'
+export { MARKDOWN_SECTION_SUMMARY_MAX } from './utils/markdownSectionsConstants'
+export type { MarkdownSection, MarkdownSections } from './utils/markdownSectionsTypes'
 export type { ChatCloseAction } from './utils/chatCloseAction'
 export type { ChatClosure } from './utils/chatClosure'
 export type { OpenFeatureQuestion } from './utils/featureQuestions'
@@ -2556,6 +2565,7 @@ export type { DesignShown, DesignViewKind } from './utils/designTypes'
 export { useGroupNotes } from './hooks/useGroupNotes'
 export { useGroupStories, type UseGroupStories } from './hooks/useGroupStories'
 export { useGroupStoryListFilter } from './hooks/useGroupStoryListFilter'
+export { useGroupStoryFolds } from './hooks/useGroupStoryFolds'
 export { useGroupStory, type UseGroupStory } from './hooks/useGroupStory'
 export { useGroupStoryRun, type UseGroupStoryRun } from './hooks/useGroupStoryRun'
 export { useStoryGroupStories } from './hooks/useStoryGroupStories'
@@ -2578,20 +2588,28 @@ export {
   groupStoryListProjects,
   groupStoryNeedOptions,
   groupStoryNeedTitles,
+  groupStoryPartsText,
   groupStoryProgress,
   groupStoryRunBlockedReason,
+  groupStoryRunButton,
   groupStoryRunState,
   groupStoriesOfStory,
   groupStoryStepColumns,
+  groupStoryToggledFold,
   isLiveGroupStoryRun,
 } from './utils/groupStoryView'
 export {
+  GROUP_STORY_ACTION_LABELS,
   GROUP_STORY_ALL_PROJECTS,
+  GROUP_STORY_FOLDS_DEFAULT,
   GROUP_STORY_LIST_FILTER_DEFAULT,
+  GROUP_STORY_PAGE_LABELS,
   GROUP_STORY_RUN_FILTER_OPTIONS,
   GROUP_STORY_SORT_OPTIONS,
 } from './utils/groupStoryConstants'
 export type {
+  GroupStoryFoldControls,
+  GroupStoryFolds,
   GroupStoryForm,
   GroupStoryFormRow,
   GroupStoryListFilter,
@@ -2602,6 +2620,7 @@ export type {
   GroupStoryPartChoice,
   GroupStoryPartView,
   GroupStoryRunBody,
+  GroupStoryRunButton,
   GroupStoryRunFilter,
   GroupStoryRunPreview,
   GroupStoryRunState,
@@ -3283,6 +3302,7 @@ export {
   processNeedsYouOpenCount,
   processRunChatContext,
   processRunIdOfChatContext,
+  chatProcessRunId,
 } from 'thefactory-tools/utils'
 export type { ProcessNeedsYouItem, ProcessNeedsYouResolution } from 'thefactory-tools/types'
 export {
@@ -3561,6 +3581,21 @@ export {
   workStartStarted,
 } from './utils/appWorkStart'
 export * from './utils/appWorkStartConstants'
+export { workFilesHeading } from './utils/workFiles'
+export {
+  AppRunChangeFilter,
+  appRunQueryOf,
+  appRunStateOf,
+  openChildRunId,
+} from './utils/appRunState'
+export * from './utils/appRunStateConstants'
+export type {
+  AppRunChangedPayload,
+  AppRunQuery,
+  AppRunState,
+  AppRunStateKind,
+} from './utils/appRunStateTypes'
+export * from './utils/workFilesConstants'
 export { AppWorkStartStore } from './utils/appWorkStartStore'
 export type {
   AppWorkFeatureDraft,

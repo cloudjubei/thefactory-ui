@@ -19,6 +19,7 @@ import {
   safePreviewString,
   searchResultLines,
   storyAfterPatch,
+  shellToolPreview,
   tryString,
 } from '../../../../headless/utils/toolPreview'
 import { toolResultResourceLinks } from '../../../../headless/utils/toolResultLinks'
@@ -228,6 +229,7 @@ export const RECOGNIZED_TOOL_PREVIEW_NAMES: ReadonlySet<string> = new Set([
   'bash',
   'runShellCommand',
   'shell',
+  'runProjectScript',
   'requestProjectFeature',
   'acceptProjectFeatureRequest',
   'rejectProjectFeatureRequest',
@@ -1678,10 +1680,9 @@ export function renderToolPreview({
       </div>
     )
   }
-  if (name === 'bash' || name === 'runShellCommand' || name === 'shell') {
-    const cmd = tryString(extract(args, ['command'])) || ''
-    const stdout = tryString(extract(result, ['stdout'])) || ''
-    const stderr = tryString(extract(result, ['stderr'])) || ''
+  const shell = shellToolPreview(name, args, result)
+  if (shell) {
+    const { command: cmd, stdout, stderr } = shell
     return (
       <div className="text-xs space-y-2">
         <div>

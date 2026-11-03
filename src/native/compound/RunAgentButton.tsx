@@ -27,6 +27,8 @@ export interface RunAgentButtonProps {
   /** Optional text label beside the play glyph; icon-only when omitted. */
   label?: string
   disabled?: boolean
+  /** What a screen reader says; "Run agent" when unset. */
+  accessibilityLabel?: string
 }
 
 function PlayGlyph({ color }: { color: string }) {
@@ -47,14 +49,20 @@ function PlayGlyph({ color }: { color: string }) {
   )
 }
 
-export default function RunAgentButton({ onSelect, label, disabled = false }: RunAgentButtonProps) {
+export default function RunAgentButton({
+  onSelect,
+  label,
+  disabled = false,
+  accessibilityLabel = 'Run agent',
+}: RunAgentButtonProps) {
   const { theme } = useNativeTheme()
   const accent = theme.accent.primary
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Run agent"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={() => onSelect('developer')}
       hitSlop={6}

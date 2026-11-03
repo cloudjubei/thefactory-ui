@@ -6,6 +6,7 @@ import {
   reorderedFeatureId,
   searchResultLines,
   storyAfterPatch,
+  shellToolPreview,
   tryString,
 } from '../../../../headless/utils/toolPreview'
 import { toolResultResourceLinks } from '../../../../headless/utils/toolResultLinks'
@@ -188,6 +189,7 @@ export const RECOGNIZED_TOOL_PREVIEW_NAMES: ReadonlySet<string> = new Set([
   'bash',
   'runShellCommand',
   'shell',
+  'runProjectScript',
   'requestProjectFeature',
   'acceptProjectFeatureRequest',
   'rejectProjectFeatureRequest',
@@ -1657,10 +1659,9 @@ export function renderToolPreviewNative({
       </View>
     )
   }
-  if (name === 'bash' || name === 'runShellCommand' || name === 'shell') {
-    const cmd = tryString(extract(args, ['command'])) || ''
-    const stdout = tryString(extract(result, ['stdout'])) || ''
-    const stderr = tryString(extract(result, ['stderr'])) || ''
+  const shell = shellToolPreview(name, args, result)
+  if (shell) {
+    const { command: cmd, stdout, stderr } = shell
     return (
       <View style={{ gap: nativeSpace[2] }}>
         <View>

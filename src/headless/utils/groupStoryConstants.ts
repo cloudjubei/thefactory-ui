@@ -1,4 +1,5 @@
 import type {
+  GroupStoryFolds,
   GroupStoryListFilter,
   GroupStoryMembership,
   GroupStoryRunFilter,
@@ -40,3 +41,26 @@ export const GROUP_STORY_RUN_FILTER_OPTIONS: ReadonlyArray<{
 
 /** The project filter's label while no project is picked. */
 export const GROUP_STORY_ALL_PROJECTS = 'All projects'
+
+/** The group story page's header buttons, as a screen reader says them and as they read on hover. */
+export const GROUP_STORY_ACTION_LABELS = {
+  back: 'Back to Stories',
+  run: 'Run every part as one group run',
+  edit: 'Edit group story',
+  delete: 'Delete group story',
+} as const
+
+/** A group story page as first opened: Parts and Overview open, every Overview section folded. */
+export const GROUP_STORY_FOLDS_DEFAULT: GroupStoryFolds = {
+  parts: true,
+  overview: true,
+  sections: [],
+}
+
+/** The group story page's section headings and controls. */
+export const GROUP_STORY_PAGE_LABELS = {
+  parts: 'Parts',
+  overview: 'Overview',
+  expandAll: 'Expand all',
+  collapseAll: 'Collapse all',
+} as const

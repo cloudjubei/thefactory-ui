@@ -82652,6 +82652,7 @@
           "thefactory-ui/headless/GROUP_STORY_LIST_FILTER_DEFAULT",
           "thefactory-ui/headless/groupStoryFormFor",
           "thefactory-ui/headless/type GroupProjectStoryOption",
+          "thefactory-ui/headless/type GroupStoryFolds",
           "thefactory-ui/headless/type GroupStoryForm",
           "thefactory-ui/headless/type GroupStoryListFilter",
           "thefactory-ui/headless/type GroupStoryMembership",
@@ -102135,22 +102136,6 @@
         "path": "headless/utils/processBaseBranchTypes.ts",
         "description": "One branch the launch card offers to work off.",
         "dependencies": []
-      },
-      "BaseMovedNote": {
-        "path": "web/compound/process/BaseMovedNote.tsx",
-        "description": "What a run says about its base branch beside its pipeline: that it has moved",
-        "dependencies": [
-          "BaseMovedNoteProps"
-        ]
-      },
-      "BaseMovedNoteProps": {
-        "path": "native/compound/process/BaseMovedNote.tsx",
-        "dependencies": [
-          "ProcessResumeChoice",
-          "ProcessRun",
-          "react-native/Text",
-          "react-native/View"
-        ]
       },
       "BeautyContestResult": {
         "path": "headless/api/generated/types.gen.ts",
@@ -128439,10 +128424,22 @@
           "GrepHit"
         ]
       },
+      "GROUP_STORY_ACTION_LABELS": {
+        "path": "headless/utils/groupStoryConstants.ts",
+        "description": "The group story page's header buttons, as a screen reader says them and as they read on hover.",
+        "dependencies": []
+      },
       "GROUP_STORY_ALL_PROJECTS": {
         "path": "headless/utils/groupStoryConstants.ts",
         "description": "The project filter's label while no project is picked.",
         "dependencies": []
+      },
+      "GROUP_STORY_FOLDS_DEFAULT": {
+        "path": "headless/utils/groupStoryConstants.ts",
+        "description": "A group story page as first opened: Parts and Overview open, every Overview section folded.",
+        "dependencies": [
+          "GroupStoryFolds"
+        ]
       },
       "GROUP_STORY_LIST_FILTER_DEFAULT": {
         "path": "headless/utils/groupStoryConstants.ts",
@@ -128450,6 +128447,11 @@
         "dependencies": [
           "GroupStoryListFilter"
         ]
+      },
+      "GROUP_STORY_PAGE_LABELS": {
+        "path": "headless/utils/groupStoryConstants.ts",
+        "description": "The group story page's section headings and controls.",
+        "dependencies": []
       },
       "GROUP_STORY_RUN_FILTER_OPTIONS": {
         "path": "headless/utils/groupStoryConstants.ts",
@@ -128725,6 +128727,14 @@
           "Array"
         ]
       },
+      "GroupStoryBackButton": {
+        "path": "web/compound/groupStories/GroupStoryBits.tsx",
+        "description": "Back to the group's Stories, as a story page's back button.",
+        "dependencies": [
+          "Button",
+          "IconBack"
+        ]
+      },
       "GroupStoryChip": {
         "path": "native/compound/groupStories/GroupStoryBits.tsx",
         "description": "The chip recipe — 24 px pill, 12 px text — as web's `.chip`, `.chip--ok`,",
@@ -128750,6 +128760,18 @@
           "GroupStoryPart",
           "Array"
         ]
+      },
+      "GroupStoryFoldControls": {
+        "path": "headless/utils/groupStoryTypes.ts",
+        "description": "A group story page's folds and the ways to change them.",
+        "dependencies": [
+          "GroupStoryFolds"
+        ]
+      },
+      "GroupStoryFolds": {
+        "path": "headless/utils/groupStoryTypes.ts",
+        "description": "Which parts of a group story's page are open: its Parts, its Overview and the Overview's sections by key.",
+        "dependencies": []
       },
       "GroupStoryForm": {
         "path": "headless/utils/groupStoryTypes.ts",
@@ -128911,18 +128933,27 @@
       },
       "GroupStoryPage": {
         "path": "web/compound/groupStories/GroupStoryPage.tsx",
-        "description": "One group story: its parts by the step they run in — parts in one step run",
+        "description": "One group story, laid out like a story page: its Parts first — by the step",
         "dependencies": [
           "GroupStoryPageProps",
-          "react/useState"
+          "react/Fragment",
+          "react/useId",
+          "react/useMemo",
+          "react/useState",
+          "react/type ReactNode"
         ]
       },
       "GroupStoryPageProps": {
         "path": "native/compound/groupStories/GroupStoryPage.tsx",
         "dependencies": [
+          "GroupStoryFolds",
+          "Partial",
           "Promise",
           "GroupStoryView",
+          "react/useMemo",
           "react/useState",
+          "react/type ReactNode",
+          "react-native/Pressable",
           "react-native/ScrollView",
           "react-native/Text",
           "react-native/View"
@@ -128936,6 +128967,13 @@
         "path": "headless/utils/groupStoryTypes.ts",
         "description": "How a project takes part, on the new group story form.",
         "dependencies": []
+      },
+      "groupStoryPartsText": {
+        "path": "headless/utils/groupStoryView.ts",
+        "description": "How many parts it has and their features done, as its header and Parts heading say it.",
+        "dependencies": [
+          "GroupStoryView"
+        ]
       },
       "GroupStoryPartStory": {
         "path": "headless/api/generated/types.gen.ts",
@@ -128978,6 +129016,19 @@
           "RunGroupStoryData",
           "NonNullable"
         ]
+      },
+      "groupStoryRunButton": {
+        "path": "headless/utils/groupStoryView.ts",
+        "description": "A group story's Run button, or `undefined` while a run is going and its status shows instead.",
+        "dependencies": [
+          "GroupStoryRunButton",
+          "GroupStoryView"
+        ]
+      },
+      "GroupStoryRunButton": {
+        "path": "headless/utils/groupStoryTypes.ts",
+        "description": "A group story's Run button: whether it can be pressed and what it says, or why not.",
+        "dependencies": []
       },
       "GroupStoryRunDialog": {
         "path": "web/compound/groupStories/GroupStoryRunDialog.tsx",
@@ -129114,6 +129165,13 @@
         "path": "web/compound/groupStories/GroupStoryBits.tsx",
         "description": "A part's story, as the story chip recipe, opening it. A story that is gone says so.",
         "dependencies": []
+      },
+      "groupStoryToggledFold": {
+        "path": "headless/utils/groupStoryView.ts",
+        "description": "The page's folds with one Overview section opened, or folded again when it was open.",
+        "dependencies": [
+          "GroupStoryFolds"
+        ]
       },
       "GroupStoryToneBadge": {
         "path": "web/compound/groupStories/GroupStoryBits.tsx",
@@ -137593,6 +137651,11 @@
           "react/type Ref"
         ]
       },
+      "MARKDOWN_SECTION_SUMMARY_MAX": {
+        "path": "headless/utils/markdownSectionsConstants.ts",
+        "description": "The longest a folded section's summary line runs, in characters.",
+        "dependencies": []
+      },
       "MarkdownEditor": {
         "path": "web/compound/MarkdownEditor.tsx",
         "dependencies": [
@@ -137646,6 +137709,37 @@
           "thefactory-tools/utils",
           "thefactory-tools/types"
         ]
+      },
+      "MarkdownSection": {
+        "path": "headless/utils/markdownSectionsTypes.ts",
+        "description": "One heading and what follows it, up to the next heading of its level.",
+        "dependencies": []
+      },
+      "markdownSectionKeys": {
+        "path": "headless/utils/markdownSections.ts",
+        "description": "Every section's and subsection's key, in document order.",
+        "dependencies": [
+          "MarkdownSection"
+        ]
+      },
+      "markdownSections": {
+        "path": "headless/utils/markdownSections.ts",
+        "description": "A markdown document split at its shallowest heading level, each section",
+        "dependencies": [
+          "MarkdownSections"
+        ]
+      },
+      "MarkdownSections": {
+        "path": "headless/utils/markdownSectionsTypes.ts",
+        "description": "A markdown document split at its headings, for showing each part folded.",
+        "dependencies": [
+          "MarkdownSection"
+        ]
+      },
+      "markdownSummaryLine": {
+        "path": "headless/utils/markdownSections.ts",
+        "description": "The first line of readable text in some markdown, plain and cut to one line; empty when there is none.",
+        "dependencies": []
       },
       "markFeatureRequestDelivered": {
         "path": "headless/api/generated/sdk.gen.ts",
@@ -139380,6 +139474,13 @@
         "dependencies": [
           "NavCurrentReply",
           "AppDeepLink"
+        ]
+      },
+      "NavCurrentReply": {
+        "path": "headless/utils/appDeepLinkTypes.ts",
+        "description": "What `nav.current` answers: the App tab's deep-link, when it has one, and the absolute Overseer URL of the app's route.",
+        "dependencies": [
+          "Record"
         ]
       },
       "NavDrawer": {
@@ -143363,6 +143464,11 @@
         "description": "What finishing a run as already landed does, after where the work already is.",
         "dependencies": []
       },
+      "PROCESS_BASE_MOVED_COPY": {
+        "path": "headless/utils/processBaseMovedViewConstants.ts",
+        "description": "What a run's \"Base branch\" section in \"More about this run\" says.",
+        "dependencies": []
+      },
       "PROCESS_CHECK_ADVISORY_LABEL": {
         "path": "headless/utils/processChecksViewConstants.ts",
         "dependencies": []
@@ -144629,7 +144735,7 @@
       },
       "processBaseMovedView": {
         "path": "headless/utils/processBaseMovedView.ts",
-        "description": "What a run shows about its base branch, beside its pipeline: that the base",
+        "description": "What a run's \"Base branch\" section in \"More about this run\" shows: its",
         "dependencies": [
           "ProcessBaseMovedView",
           "thefactory-tools/types/ProcessRun",
@@ -158194,6 +158300,8 @@
         "dependencies": [
           "ViewStyle",
           "StyleProp",
+          "ProcessResumeChoice",
+          "ProcessBaseMovedView",
           "UseProcessCleanup",
           "ProcessManagerPreReadView",
           "react/useState",
@@ -172927,6 +173035,17 @@
           "Omit",
           "react/useCallback",
           "react/useMemo"
+        ]
+      },
+      "useGroupStoryFolds": {
+        "path": "headless/hooks/useGroupStoryFolds.ts",
+        "description": "What is open on a group story's page, kept per group story for the session:",
+        "dependencies": [
+          "GroupStoryFolds",
+          "GroupStoryFoldControls",
+          "Partial",
+          "react/useCallback",
+          "react/useState"
         ]
       },
       "useGroupStoryListFilter": {

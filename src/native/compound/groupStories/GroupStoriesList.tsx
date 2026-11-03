@@ -3,6 +3,7 @@ import { Pressable, Text, View } from 'react-native'
 
 import {
   filterGroupStories,
+  GROUP_STORY_ACTION_LABELS,
   GROUP_STORY_ALL_PROJECTS,
   GROUP_STORY_RUN_FILTER_OPTIONS,
   GROUP_STORY_SORT_OPTIONS,
@@ -338,7 +339,7 @@ function GroupStoryRunAction({
       size="sm"
       variant="run"
       disabled={blocked !== undefined}
-      accessibilityLabel={blocked ?? 'Run every part as one group run'}
+      accessibilityLabel={blocked ?? GROUP_STORY_ACTION_LABELS.run}
       onPress={onRun}
     >
       Run

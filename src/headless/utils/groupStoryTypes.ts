@@ -91,3 +91,26 @@ export interface GroupStoryListFilter {
   sortBy: GroupStorySorting
   layout: GroupStoryListLayout
 }
+
+/** A group story's Run button: whether it can be pressed and what it says, or why not. */
+export interface GroupStoryRunButton {
+  disabled: boolean
+  label: string
+}
+
+/** Which parts of a group story's page are open: its Parts, its Overview and the Overview's sections by key. */
+export interface GroupStoryFolds {
+  parts: boolean
+  overview: boolean
+  sections: readonly string[]
+}
+
+/** A group story page's folds and the ways to change them. */
+export interface GroupStoryFoldControls {
+  folds: GroupStoryFolds
+  toggleParts: () => void
+  toggleOverview: () => void
+  toggleSection: (key: string) => void
+  /** Open exactly these Overview sections, folding the rest — Expand all / Collapse all. */
+  setSections: (keys: readonly string[]) => void
+}
