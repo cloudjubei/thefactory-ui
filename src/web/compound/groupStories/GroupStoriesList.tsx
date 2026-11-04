@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { Fragment, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 
 import {
   filterGroupStories,
@@ -11,6 +11,7 @@ import {
   groupStoryProgress,
   groupStoryRunBlockedReason,
   groupStoryStepColumns,
+  groupStoryTicketChip,
   isLiveGroupStoryRun,
   STATUS_LABELS,
   STATUS_ORDER,
@@ -24,6 +25,7 @@ import {
 import { Button } from '../../primitives/Button'
 import SegmentedControl from '../../primitives/SegmentedControl'
 import { IconBoard, IconList, IconPlus } from '../../icons'
+import TicketChip from '../chips/TicketChip'
 import { OptionPicker } from '../OptionPicker'
 import StatusControl, { StatusPicker } from '../StatusControl'
 import { GroupStoryRunStatus } from './GroupStoryBits'
@@ -43,13 +45,20 @@ export type GroupStoriesListProps = {
   onNew?: () => void
   /** Still reading them: nothing is listed yet. */
   loading?: boolean
+  /** Each sprint ticket's status by key, for a row's ticket chip. */
+  ticketStatuses?: Readonly<Record<string, string>>
+  /** Shown under the tab's heading, above the filters: Take next ticket. */
+  ticketPanel?: ReactNode
 }
 
 type RowActions = {
   onOpen: () => void
   onRun: () => void
   onOpenRun: (groupRunId: string) => void
+  ticketStatuses: Readonly<Record<string, string>>
 }
+
+const NO_TICKET_STATUSES: Readonly<Record<string, string>> = {}
 
 /**
  * A group's group stories the way a project's Home lists its stories: search,
@@ -67,6 +76,8 @@ export default function GroupStoriesList({
   onOpenRun,
   onNew,
   loading = false,
+  ticketStatuses = NO_TICKET_STATUSES,
+  ticketPanel,
 }: GroupStoriesListProps) {
   const shown = useMemo(() => filterGroupStories(stories, filter), [stories, filter])
   const position = useMemo(() => new Map(stories.map((s, i) => [s.id, i + 1])), [stories])
@@ -74,6 +85,7 @@ export default function GroupStoriesList({
     onOpen: () => onOpenStory(story.id),
     onRun: () => onRun(story.id),
     onOpenRun,
+    ticketStatuses,
   })
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -102,6 +114,7 @@ export default function GroupStoriesList({
           ) : null}
         </div>
       </div>
+      {ticketPanel}
       <GroupStoriesToolbar stories={stories} filter={filter} onFilterChange={onFilterChange} />
       <div className="stories-toolbar shrink-0">
         <div className="left">
@@ -294,10 +307,18 @@ function PickerControl({
   )
 }
 
-function GroupStoryParts({ story }: { story: GroupStoryView }) {
+function GroupStoryParts({
+  story,
+  ticketStatuses,
+}: {
+  story: GroupStoryView
+  ticketStatuses: Readonly<Record<string, string>>
+}) {
   const { columns, looping } = groupStoryStepColumns(story)
+  const ticket = groupStoryTicketChip(story, ticketStatuses)
   return (
     <div className="flex flex-wrap items-center gap-1.5">
+      {ticket ? <TicketChip view={ticket} /> : null}
       {columns.map((column, i) => (
         <Fragment key={column.step}>
           {i > 0 ? (
@@ -329,7 +350,7 @@ function GroupStoryRunAction({
   story,
   onRun,
   onOpenRun,
-}: { story: GroupStoryView } & Omit<RowActions, 'onOpen'>) {
+}: { story: GroupStoryView } & Pick<RowActions, 'onRun' | 'onOpenRun'>) {
   const blocked = groupStoryRunBlockedReason(story)
   if (isLiveGroupStoryRun(story.latestRun) && story.latestRun) {
     return <GroupStoryRunStatus run={story.latestRun} onOpen={onOpenRun} />
@@ -365,6 +386,7 @@ function GroupStoryRow({
   onOpen,
   onRun,
   onOpenRun,
+  ticketStatuses,
 }: { story: GroupStoryView; position: number | undefined } & RowActions) {
   const progress = groupStoryProgress(story)
   return (
@@ -387,7 +409,7 @@ function GroupStoryRow({
           <span className="truncate text-[13px] font-medium text-(--text-primary)">
             {story.title}
           </span>
-          <GroupStoryParts story={story} />
+          <GroupStoryParts story={story} ticketStatuses={ticketStatuses} />
         </div>
         <div className="flex items-center justify-end">
           <GroupStoryRunAction story={story} onRun={onRun} onOpenRun={onOpenRun} />
@@ -448,6 +470,7 @@ function GroupStoryCard({
   onOpen,
   onRun,
   onOpenRun,
+  ticketStatuses,
 }: { story: GroupStoryView; position: number | undefined } & RowActions) {
   const progress = groupStoryProgress(story)
   return (
@@ -465,7 +488,7 @@ function GroupStoryCard({
             {story.title}
           </span>
         </div>
-        <GroupStoryParts story={story} />
+        <GroupStoryParts story={story} ticketStatuses={ticketStatuses} />
         <div className="flex items-center justify-between gap-2">
           <span className="chips-sub__label" title="Features done across every part">
             {progress.text}

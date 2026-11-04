@@ -509,6 +509,7 @@ export default function ChatBody({
               onRestartTurn={onRestartTurn ? () => void onRestartTurn() : undefined}
               previewTool={previewTool}
               getAttachmentPreviewUrl={inputProps?.getAttachmentPreviewUrl}
+              videoAttachments={inputProps?.videoAttachments}
               isSending={isSending}
               isDeleting={liveState.isDeleting === true}
               emptyStateContent={emptyStateContent}

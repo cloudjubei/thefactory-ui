@@ -1,4 +1,4 @@
-import { useMemo, type KeyboardEvent, type MouseEvent } from 'react'
+import { useMemo, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 
 import { costDetailsView, type CostSource } from '../../../headless'
 import Tooltip from '../../primitives/Tooltip'
@@ -6,12 +6,17 @@ import CostDetailsPanel from './CostDetailsPanel'
 import { CHIP_PILL_NEUTRAL } from './pillStyles'
 
 export type CostChipProps = {
-  /** The chip's words: the charge in dollars (`$1.25`, `$0.00`, `$1.50 of $5.00`) — never tokens. */
+  /**
+   * The chip's words: the charge in dollars (`$1.25`, `$0.00`, `$1.50 of $5.00`) — never tokens,
+   * unless `details` says what they stand for instead.
+   */
   label: string
   /** The cost behind the label. The chip opens its details whenever there are any. */
   cost?: CostSource
   /** What the cost is of, heading its details — "Spent against the cap". */
   title?: string
+  /** The details to open in place of a charge's, for a cost no model has priced yet. */
+  details?: ReactNode
   /** `pill` — the neutral cost chip; `text` — muted inline text, for a meta line. */
   appearance?: 'pill' | 'text'
   /**
@@ -46,6 +51,7 @@ export default function CostChip({
   label,
   cost,
   title,
+  details,
   appearance = 'pill',
   nested = false,
 }: CostChipProps) {
@@ -59,7 +65,8 @@ export default function CostChip({
     ) : (
       <span className="tabular-nums">{label}</span>
     )
-  if (!view) return face
+  const content = details ?? (view ? <CostDetailsPanel view={view} title={title} /> : null)
+  if (!content) return face
   return (
     <span
       className="inline-flex"
@@ -67,7 +74,7 @@ export default function CostChip({
       onKeyDown={nested ? keepActivationToChip : undefined}
     >
       <Tooltip
-        content={<CostDetailsPanel view={view} title={title} />}
+        content={content}
         placement="bottom"
         allowedPlacements={['bottom', 'top']}
         sideAlign="end"

@@ -42,6 +42,7 @@ export const REMOVE_PROCESS_RUN_TOOL_NAME = 'removeProcessRun'
 
 /** Answer a group run's park. */
 export const ANSWER_GROUP_RUN_PARK_TOOL_NAME = 'answerGroupRunPark'
+export const SIGN_OFF_GROUP_RUN_TOOL_NAME = 'signOffGroupRun'
 
 /** Stop a group run and every leg still working. */
 export const STOP_PROCESS_GROUP_RUN_TOOL_NAME = 'stopProcessGroupRun'
@@ -86,6 +87,7 @@ export const RUN_PROPOSAL_TOOL_NAMES: readonly string[] = [
   REVIVE_PROCESS_RUN_TOOL_NAME,
   REMOVE_PROCESS_RUN_TOOL_NAME,
   ANSWER_GROUP_RUN_PARK_TOOL_NAME,
+  SIGN_OFF_GROUP_RUN_TOOL_NAME,
   STOP_PROCESS_GROUP_RUN_TOOL_NAME,
   REMOVE_PROCESS_GROUP_RUN_TOOL_NAME,
   MARK_GROUP_LEG_LANDED_TOOL_NAME,
@@ -225,6 +227,19 @@ export const RUN_PROPOSAL_GROUP_PARK = {
   effect: (choice: string): string =>
     `Answers why the group run waits with “${choice}”, as its page would — it acts at once.`,
   approveLabel: 'Answer',
+} as const
+
+export const RUN_PROPOSAL_GROUP_SIGN_OFF = {
+  kindLabel: 'Sign off the ticket',
+  effect: 'Records the decision for every repo in this group run.',
+  approveLabels: {
+    approve: 'Approve and open the PRs',
+    'request-changes': 'Send it back',
+    reject: 'Reject the work',
+  } as Readonly<Record<string, string>>,
+  approveLabel: 'Decide',
+  tickets: 'Ticket',
+  goingLive: 'Going live',
 } as const
 
 export const RUN_PROPOSAL_GROUP_STOP = {

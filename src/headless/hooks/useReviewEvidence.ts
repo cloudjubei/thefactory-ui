@@ -15,7 +15,7 @@ import {
   REVIEW_EVIDENCE_LINGER_MS,
 } from '../utils/processViewCacheConstants'
 import type { ReviewEvidenceSnapshot } from '../utils/processViewCacheTypes'
-import { toEvidenceTile } from '../utils/reviewEvidenceView'
+import { isProofFiling, toEvidenceTile } from '../utils/reviewEvidenceView'
 import {
   isChatUpdateForProject,
   isRunStateUpdate,
@@ -79,7 +79,7 @@ const evidenceContent = new EvidenceContentCache(
 async function readEvidenceListing(key: string): Promise<ReviewEvidenceSnapshot> {
   const { projectId, query } = evidenceQueryOfKey(key)
   const { data } = await listReviewEvidence({ path: { projectId }, query, throwOnError: true })
-  const refs = data ?? []
+  const refs = (data ?? []).filter(isProofFiling)
   return { refs, notes: await evidenceContent.noteTexts(projectId, refs) }
 }
 

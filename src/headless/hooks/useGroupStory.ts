@@ -3,6 +3,7 @@ import { previewGroupStoryRun } from '../api'
 import type {
   GroupStoryRunBody,
   GroupStoryRunPreview,
+  GroupStoryRunStartedAnswer,
   GroupStoryView,
 } from '../utils/groupStoryTypes'
 import { useGroupStories, type UseGroupStories } from './useGroupStories'
@@ -14,7 +15,7 @@ export interface UseGroupStory extends Omit<UseGroupStories, 'stories'> {
   /** What running it would start, on the branches asked for. */
   previewRun: (baseBranches?: Record<string, string>) => Promise<GroupStoryRunPreview>
   /** Run it; resolves with the group run started. Rejects with why it did not start. */
-  run: (body: GroupStoryRunBody) => Promise<{ groupRunId: string; message: string }>
+  run: (body: GroupStoryRunBody) => Promise<GroupStoryRunStartedAnswer>
   running: boolean
 }
 

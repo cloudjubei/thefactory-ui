@@ -2,7 +2,7 @@
 // the thing itself, the agent's reason and the verb on its button — read from
 // the ask the host raised, never from the agent's own description of it.
 
-import type { WorkLaunchMode } from 'thefactory-tools/types'
+import type { ProcessGroupBuildMode, WorkLaunchMode } from 'thefactory-tools/types'
 import { grantDetailView } from './approvalGrant'
 import { cleanCliToolName } from './cliRunner'
 import { evaluationLaunchAskView } from './evaluationLaunchAskView'
@@ -11,7 +11,10 @@ import { LAUNCH_FEATURE_PICK_NONE } from './launchFeaturePickConstants'
 import type { AlwaysAllowScope, GrantCovers, PendingToolGrantDecision } from './chatTypes'
 import type { GitChangeCardView } from './gitChangeApprovalTypes'
 import type { GitSetupPlan } from './gitSetupApprovalTypes'
-import { PROCESS_GROUP_LAUNCH_BLURB } from './processGroupLaunchConstants'
+import {
+  PROCESS_GROUP_LAUNCH_BLURB,
+  PROCESS_GROUP_ON_BRANCH_BLURB,
+} from './processGroupLaunchConstants'
 import type { StartGroupWorkGrantSummary } from './processGroupLaunchTypes'
 import type { RunProposalView } from './runProposalViewTypes'
 import {
@@ -785,6 +788,7 @@ export function featureWorkLaunchCheck(input: {
 export function groupWorkAskView(
   summary: Pick<StartGroupWorkGrantSummary, 'legs' | 'title'>,
   args: unknown,
+  buildMode?: ProcessGroupBuildMode,
 ): ToolAskCardView {
   const count = summary.legs.length
   return {
@@ -794,7 +798,8 @@ export function groupWorkAskView(
     tag: GROUP_WORK_ASK.projects(count),
     headline: summary.title ?? GROUP_WORK_ASK.headline(count),
     ...reasonOf(args),
-    consequence: PROCESS_GROUP_LAUNCH_BLURB,
+    consequence:
+      buildMode === 'on-branch' ? PROCESS_GROUP_ON_BRANCH_BLURB : PROCESS_GROUP_LAUNCH_BLURB,
     verb: GROUP_WORK_ASK.verb,
     body: { kind: 'launch' },
   }

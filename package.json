@@ -52,6 +52,9 @@
     "./native/styles": "./dist/native/styles/tokens.css",
     "./package.json": "./package.json"
   },
+  "bin": {
+    "thefactory-fake-backend": "./dist/fake-backend/cli.js"
+  },
   "files": [
     "dist"
   ],

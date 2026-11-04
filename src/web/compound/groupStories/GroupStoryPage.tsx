@@ -17,10 +17,12 @@ import {
   type GroupStoryPartView,
   type GroupStoryView,
   type MarkdownSection,
+  type TicketChipView,
 } from '../../../headless'
 import { IconChevron, IconDelete, IconEdit } from '../../icons'
 import { Button } from '../../primitives/Button'
 import { ConfirmDialog } from '../../primitives/Modal'
+import TicketChip from '../chips/TicketChip'
 import Markdown from '../Markdown'
 import RunAgentButton from '../RunAgentButton'
 import StatusControl from '../StatusControl'
@@ -41,6 +43,8 @@ export type GroupStoryPageProps = {
   onBack?: () => void
   /** What is open the first time this group story is shown; later visits find it as it was left. */
   initialFolds?: Partial<GroupStoryFolds>
+  /** The ticket it works, opening it in Jira. */
+  ticket?: TicketChipView
 }
 
 /**
@@ -59,6 +63,7 @@ export default function GroupStoryPage({
   onOpenPartStory,
   onBack,
   initialFolds,
+  ticket,
 }: GroupStoryPageProps) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const { folds, toggleParts, toggleOverview, toggleSection, setSections } = useGroupStoryFolds(
@@ -81,6 +86,7 @@ export default function GroupStoryPage({
         <h1 className="min-w-0 truncate text-[14px] font-semibold text-(--text-primary) @max-3xl:order-first @max-3xl:line-clamp-2 @max-3xl:basis-full @max-3xl:whitespace-normal @max-3xl:text-[15px]">
           {story.title}
         </h1>
+        {ticket ? <TicketChip view={ticket} /> : null}
         <span className="text-[11.5px] text-(--text-muted) @max-3xl:hidden">{partsText}</span>
         <span className="grow" />
         {story.latestRun ? <GroupStoryRunStatus run={story.latestRun} onOpen={onOpenRun} /> : null}

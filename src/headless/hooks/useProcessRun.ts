@@ -25,10 +25,9 @@ import {
   setProcessRunModel,
   setProcessRunTurnLimit,
   startProcessRunChanges,
-  uploadChatAttachment,
   withdrawProcessRunChange,
 } from '../api'
-import { extractErrorMessage, useApi, useAuth } from '../api'
+import { extractErrorMessage, useApi, useAuth, type ChatAttachmentFile } from '../api'
 import type { ChatContext } from '../api'
 import { processRunChatContext } from 'thefactory-tools/utils'
 import { loadProjectFilePaths } from '../contexts/FilesContext'
@@ -80,7 +79,7 @@ export type UseProcessRun = {
    * Upload a file to hand the run's waiting agent with an answer — kept with the
    * run's chat attachments — resolving the project path the answer names it by.
    */
-  uploadAnswerFile: (name: string, contentBase64: string) => Promise<string>
+  uploadAnswerFile: (file: ChatAttachmentFile) => Promise<string>
   /** The run's project files, to pick ones to hand the waiting agent with an answer. */
   loadAnswerProjectFiles: () => Promise<string[]>
   /**
@@ -206,7 +205,7 @@ function cachedHeldRun(runId: string | undefined): HeldRun {
  */
 export function useProcessRun(runId: string | undefined): UseProcessRun {
   const { token } = useAuth()
-  const { ws, client } = useApi()
+  const { ws, client, uploadChatFile } = useApi()
   const [held, setHeld] = useState<HeldRun>(() => cachedHeldRun(runId))
   const [loadError, setLoadError] = useState<Error | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -309,20 +308,11 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
 
   const projectId = run?.projectId
   const uploadAnswerFile = useCallback(
-    async (name: string, contentBase64: string) => {
+    async (file: ChatAttachmentFile) => {
       if (!runId || !projectId) throw new Error('The run is not loaded yet.')
-      const { data } = await uploadChatAttachment({
-        path: { projectId },
-        body: {
-          context: processRunChatContext({ id: runId, projectId }),
-          name,
-          contentBase64,
-        },
-        throwOnError: true,
-      })
-      return data.path
+      return uploadChatFile(processRunChatContext({ id: runId, projectId }), file)
     },
-    [runId, projectId],
+    [runId, projectId, uploadChatFile],
   )
 
   const loadAnswerProjectFiles = useCallback(

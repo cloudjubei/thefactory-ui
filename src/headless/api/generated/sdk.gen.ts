@@ -36,6 +36,12 @@ import type {
   AddDatabaseData,
   AddDatabaseErrors,
   AddDatabaseResponses,
+  AddGroupMcpServerData,
+  AddGroupMcpServerErrors,
+  AddGroupMcpServerResponses,
+  AddProjectMcpServerData,
+  AddProjectMcpServerErrors,
+  AddProjectMcpServerResponses,
   AddStoryNoteData,
   AddStoryNoteErrors,
   AddStoryNoteResponses,
@@ -63,6 +69,12 @@ import type {
   AttachChatCliRunnerData,
   AttachChatCliRunnerErrors,
   AttachChatCliRunnerResponses,
+  AttachRunWalkthroughFileData,
+  AttachRunWalkthroughFileErrors,
+  AttachRunWalkthroughFileResponses,
+  AttachRunWalkthroughLinkData,
+  AttachRunWalkthroughLinkErrors,
+  AttachRunWalkthroughLinkResponses,
   CancelCliAgentActionData,
   CancelCliAgentActionErrors,
   CancelCliAgentActionResponses,
@@ -308,15 +320,26 @@ import type {
   DismissDesignTidyPlanData,
   DismissDesignTidyPlanErrors,
   DismissDesignTidyPlanResponses,
+  DownloadVideoSetupModelsData,
+  DownloadVideoSetupModelsResponses,
   EditCodeData,
   EditCodeErrors,
   EditCodeResponses,
+  EditGroupMcpServerData,
+  EditGroupMcpServerErrors,
+  EditGroupMcpServerResponses,
+  EditProjectMcpServerData,
+  EditProjectMcpServerErrors,
+  EditProjectMcpServerResponses,
   ExecuteToolData,
   ExecuteToolErrors,
   ExecuteToolResponses,
   FileDesignProposalEntryData,
   FileDesignProposalEntryErrors,
   FileDesignProposalEntryResponses,
+  FinishMcpServerSignInData,
+  FinishMcpServerSignInErrors,
+  FinishMcpServerSignInResponses,
   GetActiveCliStateData,
   GetActiveCliStateResponses,
   GetActiveRunnerKindData,
@@ -327,6 +350,9 @@ import type {
   GetAllFileStatsData,
   GetAllFileStatsErrors,
   GetAllFileStatsResponses,
+  GetChatAttachmentDigestData,
+  GetChatAttachmentDigestErrors,
+  GetChatAttachmentDigestResponses,
   GetChatData,
   GetChatErrors,
   GetChatOpenChangesData,
@@ -462,9 +488,15 @@ import type {
   GetProcessCapabilitiesResponses,
   GetProcessData,
   GetProcessErrors,
+  GetProcessGroupOutputData,
+  GetProcessGroupOutputErrors,
+  GetProcessGroupOutputResponses,
   GetProcessGroupRunData,
   GetProcessGroupRunErrors,
   GetProcessGroupRunResponses,
+  GetProcessGroupSignOffData,
+  GetProcessGroupSignOffErrors,
+  GetProcessGroupSignOffResponses,
   GetProcessResponses,
   GetProcessRunCleanupData,
   GetProcessRunCleanupErrors,
@@ -525,6 +557,8 @@ import type {
   GetUserSettingData,
   GetUserSettingErrors,
   GetUserSettingResponses,
+  GetVideoSetupData,
+  GetVideoSetupResponses,
   GitAbortMergeData,
   GitAbortMergeErrors,
   GitAbortMergeResponses,
@@ -616,6 +650,8 @@ import type {
   InitializeRepoData,
   InitializeRepoErrors,
   InitializeRepoResponses,
+  InstallVideoSetupToolData,
+  InstallVideoSetupToolResponses,
   KeepDesignProposalAsAlternativeData,
   KeepDesignProposalAsAlternativeErrors,
   KeepDesignProposalAsAlternativeResponses,
@@ -681,12 +717,21 @@ import type {
   ListGroupAgentTypesData,
   ListGroupAgentTypesErrors,
   ListGroupAgentTypesResponses,
+  ListGroupMcpServersData,
+  ListGroupMcpServersErrors,
+  ListGroupMcpServersResponses,
+  ListGroupMcpServerStatusData,
+  ListGroupMcpServerStatusErrors,
+  ListGroupMcpServerStatusResponses,
   ListGroupNotesData,
   ListGroupNotesErrors,
   ListGroupNotesResponses,
   ListGroupStoriesData,
   ListGroupStoriesErrors,
   ListGroupStoriesResponses,
+  ListGroupTicketsData,
+  ListGroupTicketsErrors,
+  ListGroupTicketsResponses,
   ListLlmConfigsData,
   ListLlmConfigsResponses,
   ListLlmModelsData,
@@ -728,6 +773,12 @@ import type {
   ListProjectGroupStoriesData,
   ListProjectGroupStoriesErrors,
   ListProjectGroupStoriesResponses,
+  ListProjectMcpServersData,
+  ListProjectMcpServersErrors,
+  ListProjectMcpServersResponses,
+  ListProjectMcpServerStatusData,
+  ListProjectMcpServerStatusErrors,
+  ListProjectMcpServerStatusResponses,
   ListProjectNotesData,
   ListProjectNotesErrors,
   ListProjectNotesResponses,
@@ -745,6 +796,9 @@ import type {
   ListReviewEvidenceTextsResponses,
   ListRunnersData,
   ListRunnersResponses,
+  ListRunWalkthroughItemsData,
+  ListRunWalkthroughItemsErrors,
+  ListRunWalkthroughItemsResponses,
   ListSourceRecordsData,
   ListSourceRecordsErrors,
   ListSourceRecordsResponses,
@@ -806,9 +860,15 @@ import type {
   OpenProcessRunChatData,
   OpenProcessRunChatErrors,
   OpenProcessRunChatResponses,
+  OpenVideoSetupChatData,
+  OpenVideoSetupChatErrors,
+  OpenVideoSetupChatResponses,
   PairRunnerData,
   PairRunnerErrors,
   PairRunnerResponses,
+  PlanGroupTicketData,
+  PlanGroupTicketErrors,
+  PlanGroupTicketResponses,
   PlanProcessGroupLegRebuildData,
   PlanProcessGroupLegRebuildErrors,
   PlanProcessGroupLegRebuildResponses,
@@ -905,8 +965,14 @@ import type {
   RemoveActionRuleData,
   RemoveActionRuleErrors,
   RemoveActionRuleResponses,
+  RemoveGroupMcpServerData,
+  RemoveGroupMcpServerErrors,
+  RemoveGroupMcpServerResponses,
   RemoveOverseerRemoteData,
   RemoveOverseerRemoteResponses,
+  RemoveProjectMcpServerData,
+  RemoveProjectMcpServerErrors,
+  RemoveProjectMcpServerResponses,
   RemoveRunnerData,
   RemoveRunnerResponses,
   RemoveStoryNoteData,
@@ -967,6 +1033,9 @@ import type {
   ResumeProcessRunData,
   ResumeProcessRunErrors,
   ResumeProcessRunResponses,
+  RetryProcessGroupPullRequestsData,
+  RetryProcessGroupPullRequestsErrors,
+  RetryProcessGroupPullRequestsResponses,
   RetryProcessRunIntegrationData,
   RetryProcessRunIntegrationErrors,
   RetryProcessRunIntegrationResponses,
@@ -1084,6 +1153,9 @@ import type {
   SetCliRunFileViewedData,
   SetCliRunFileViewedErrors,
   SetCliRunFileViewedResponses,
+  SetGroupMcpServerTokenData,
+  SetGroupMcpServerTokenErrors,
+  SetGroupMcpServerTokenResponses,
   SetOverseerRemoteData,
   SetOverseerRemoteResponses,
   SetProcessRunCleanupItemData,
@@ -1107,12 +1179,18 @@ import type {
   SetProjectDataLocationData,
   SetProjectDataLocationErrors,
   SetProjectDataLocationResponses,
+  SetProjectMcpServerTokenData,
+  SetProjectMcpServerTokenErrors,
+  SetProjectMcpServerTokenResponses,
   SettleProcessRunAlreadyLandedData,
   SettleProcessRunAlreadyLandedErrors,
   SettleProcessRunAlreadyLandedResponses,
   ShowChatInListData,
   ShowChatInListErrors,
   ShowChatInListResponses,
+  SignOffProcessGroupRunData,
+  SignOffProcessGroupRunErrors,
+  SignOffProcessGroupRunResponses,
   StartCliAuthLoginData,
   StartCliAuthLoginErrors,
   StartCliAuthLoginResponses,
@@ -1140,12 +1218,18 @@ import type {
   StartGitCredentialGithubRedirectData,
   StartGitCredentialGithubRedirectErrors,
   StartGitCredentialGithubRedirectResponses,
+  StartGroupMcpServerSignInData,
+  StartGroupMcpServerSignInErrors,
+  StartGroupMcpServerSignInResponses,
   StartOverseerGithubDeviceFlowData,
   StartOverseerGithubDeviceFlowErrors,
   StartOverseerGithubDeviceFlowResponses,
   StartProcessRunChangesData,
   StartProcessRunChangesErrors,
   StartProcessRunChangesResponses,
+  StartProjectMcpServerSignInData,
+  StartProjectMcpServerSignInErrors,
+  StartProjectMcpServerSignInResponses,
   StartStoryWorkData,
   StartStoryWorkErrors,
   StartStoryWorkResponses,
@@ -1158,6 +1242,8 @@ import type {
   StopActivityData,
   StopActivityErrors,
   StopActivityResponses,
+  StopVideoSetupJobData,
+  StopVideoSetupJobResponses,
   SubmitCliAuthLoginInputData,
   SubmitCliAuthLoginInputErrors,
   SubmitCliAuthLoginInputResponses,
@@ -1170,6 +1256,12 @@ import type {
   SuggestLaunchSetupData,
   SuggestLaunchSetupErrors,
   SuggestLaunchSetupResponses,
+  TestGroupMcpServerData,
+  TestGroupMcpServerErrors,
+  TestGroupMcpServerResponses,
+  TestProjectMcpServerData,
+  TestProjectMcpServerErrors,
+  TestProjectMcpServerResponses,
   TrustSiteData,
   TrustSiteErrors,
   TrustSiteResponses,
@@ -1218,6 +1310,9 @@ import type {
   UpdateLlmConfigData,
   UpdateLlmConfigErrors,
   UpdateLlmConfigResponses,
+  UpdateProcessGroupOutputData,
+  UpdateProcessGroupOutputErrors,
+  UpdateProcessGroupOutputResponses,
   UpdateProjectCodeInfoData,
   UpdateProjectCodeInfoErrors,
   UpdateProjectCodeInfoResponses,
@@ -1663,6 +1758,307 @@ export const reorderProjectsGroups = <ThrowOnError extends boolean = false>(
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  })
+
+/**
+ * The servers that reach this group or project. A project’s list includes those it gets from its main group (`source: "group"`); change those on the group.
+ */
+export const listGroupMcpServers = <ThrowOnError extends boolean = false>(
+  options: Options<ListGroupMcpServersData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ListGroupMcpServersResponses,
+    ListGroupMcpServersErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects-groups/{id}/mcp-servers',
+    ...options,
+  })
+
+export const addGroupMcpServer = <ThrowOnError extends boolean = false>(
+  options: Options<AddGroupMcpServerData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    AddGroupMcpServerResponses,
+    AddGroupMcpServerErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects-groups/{id}/mcp-servers',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * How each server stands and what it offers agents. Reuses recent answers and takes at most 5s; `POST …/test` asks a server now.
+ */
+export const listGroupMcpServerStatus = <ThrowOnError extends boolean = false>(
+  options: Options<ListGroupMcpServerStatusData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ListGroupMcpServerStatusResponses,
+    ListGroupMcpServerStatusErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects-groups/{id}/mcp-servers/status',
+    ...options,
+  })
+
+export const removeGroupMcpServer = <ThrowOnError extends boolean = false>(
+  options: Options<RemoveGroupMcpServerData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<
+    RemoveGroupMcpServerResponses,
+    RemoveGroupMcpServerErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects-groups/{id}/mcp-servers/{serverId}',
+    ...options,
+  })
+
+/**
+ * A new `url` or `authType` removes the stored credential, so the server needs signing in again.
+ */
+export const editGroupMcpServer = <ThrowOnError extends boolean = false>(
+  options: Options<EditGroupMcpServerData, ThrowOnError>,
+) =>
+  (options.client ?? client).patch<
+    EditGroupMcpServerResponses,
+    EditGroupMcpServerErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects-groups/{id}/mcp-servers/{serverId}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const setGroupMcpServerToken = <ThrowOnError extends boolean = false>(
+  options: Options<SetGroupMcpServerTokenData, ThrowOnError>,
+) =>
+  (options.client ?? client).put<
+    SetGroupMcpServerTokenResponses,
+    SetGroupMcpServerTokenErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects-groups/{id}/mcp-servers/{serverId}/token',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Open the `authorizationUrl` in a browser. When the sign-in finishes, `mcpServers:updated` arrives with `action: "signed-in"`.
+ */
+export const startGroupMcpServerSignIn = <ThrowOnError extends boolean = false>(
+  options: Options<StartGroupMcpServerSignInData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    StartGroupMcpServerSignInResponses,
+    StartGroupMcpServerSignInErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects-groups/{id}/mcp-servers/{serverId}/sign-in',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Ask the server for its tools now. Takes up to 5s when it is down.
+ */
+export const testGroupMcpServer = <ThrowOnError extends boolean = false>(
+  options: Options<TestGroupMcpServerData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    TestGroupMcpServerResponses,
+    TestGroupMcpServerErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects-groups/{id}/mcp-servers/{serverId}/test',
+    ...options,
+  })
+
+/**
+ * The servers that reach this group or project. A project’s list includes those it gets from its main group (`source: "group"`); change those on the group.
+ */
+export const listProjectMcpServers = <ThrowOnError extends boolean = false>(
+  options: Options<ListProjectMcpServersData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ListProjectMcpServersResponses,
+    ListProjectMcpServersErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{id}/mcp-servers',
+    ...options,
+  })
+
+export const addProjectMcpServer = <ThrowOnError extends boolean = false>(
+  options: Options<AddProjectMcpServerData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    AddProjectMcpServerResponses,
+    AddProjectMcpServerErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{id}/mcp-servers',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * How each server stands and what it offers agents. Reuses recent answers and takes at most 5s; `POST …/test` asks a server now.
+ */
+export const listProjectMcpServerStatus = <ThrowOnError extends boolean = false>(
+  options: Options<ListProjectMcpServerStatusData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ListProjectMcpServerStatusResponses,
+    ListProjectMcpServerStatusErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{id}/mcp-servers/status',
+    ...options,
+  })
+
+export const removeProjectMcpServer = <ThrowOnError extends boolean = false>(
+  options: Options<RemoveProjectMcpServerData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<
+    RemoveProjectMcpServerResponses,
+    RemoveProjectMcpServerErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{id}/mcp-servers/{serverId}',
+    ...options,
+  })
+
+/**
+ * A new `url` or `authType` removes the stored credential, so the server needs signing in again.
+ */
+export const editProjectMcpServer = <ThrowOnError extends boolean = false>(
+  options: Options<EditProjectMcpServerData, ThrowOnError>,
+) =>
+  (options.client ?? client).patch<
+    EditProjectMcpServerResponses,
+    EditProjectMcpServerErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{id}/mcp-servers/{serverId}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const setProjectMcpServerToken = <ThrowOnError extends boolean = false>(
+  options: Options<SetProjectMcpServerTokenData, ThrowOnError>,
+) =>
+  (options.client ?? client).put<
+    SetProjectMcpServerTokenResponses,
+    SetProjectMcpServerTokenErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{id}/mcp-servers/{serverId}/token',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Open the `authorizationUrl` in a browser. When the sign-in finishes, `mcpServers:updated` arrives with `action: "signed-in"`.
+ */
+export const startProjectMcpServerSignIn = <ThrowOnError extends boolean = false>(
+  options: Options<StartProjectMcpServerSignInData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    StartProjectMcpServerSignInResponses,
+    StartProjectMcpServerSignInErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{id}/mcp-servers/{serverId}/sign-in',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Ask the server for its tools now. Takes up to 5s when it is down.
+ */
+export const testProjectMcpServer = <ThrowOnError extends boolean = false>(
+  options: Options<TestProjectMcpServerData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    TestProjectMcpServerResponses,
+    TestProjectMcpServerErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{id}/mcp-servers/{serverId}/test',
+    ...options,
+  })
+
+/**
+ * Where an authorization server sends the browser back to. Needs no bearer token, and answers a page telling the person to go back to the app.
+ */
+export const finishMcpServerSignIn = <ThrowOnError extends boolean = false>(
+  options: Options<FinishMcpServerSignInData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    FinishMcpServerSignInResponses,
+    FinishMcpServerSignInErrors,
+    ThrowOnError
+  >({
+    responseType: 'text',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/mcp-servers/oauth/callback',
+    ...options,
   })
 
 export const listStories = <ThrowOnError extends boolean = false>(
@@ -2562,6 +2958,84 @@ export const resumeProcessGroupRun = <ThrowOnError extends boolean = false>(
     },
   })
 
+export const getProcessGroupSignOff = <ThrowOnError extends boolean = false>(
+  options: Options<GetProcessGroupSignOffData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetProcessGroupSignOffResponses,
+    GetProcessGroupSignOffErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-group-runs/{groupRunId}/sign-off',
+    ...options,
+  })
+
+export const signOffProcessGroupRun = <ThrowOnError extends boolean = false>(
+  options: Options<SignOffProcessGroupRunData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    SignOffProcessGroupRunResponses,
+    SignOffProcessGroupRunErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-group-runs/{groupRunId}/sign-off',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const retryProcessGroupPullRequests = <ThrowOnError extends boolean = false>(
+  options: Options<RetryProcessGroupPullRequestsData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    RetryProcessGroupPullRequestsResponses,
+    RetryProcessGroupPullRequestsErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-group-runs/{groupRunId}/sign-off/retry',
+    ...options,
+  })
+
+export const getProcessGroupOutput = <ThrowOnError extends boolean = false>(
+  options: Options<GetProcessGroupOutputData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetProcessGroupOutputResponses,
+    GetProcessGroupOutputErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-group-runs/{groupRunId}/outputs/{evidenceId}',
+    ...options,
+  })
+
+export const updateProcessGroupOutput = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateProcessGroupOutputData, ThrowOnError>,
+) =>
+  (options.client ?? client).put<
+    UpdateProcessGroupOutputResponses,
+    UpdateProcessGroupOutputErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-group-runs/{groupRunId}/outputs/{evidenceId}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
 export const checkProcessGroupLegLanding = <ThrowOnError extends boolean = false>(
   options: Options<CheckProcessGroupLegLandingData, ThrowOnError>,
 ) =>
@@ -2752,6 +3226,66 @@ export const getReviewEvidenceDiff = <ThrowOnError extends boolean = false>(
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/projects/{projectId}/review-evidence/diff',
     ...options,
+  })
+
+/**
+ * What a person has to record for a run, step by step, and what they attached so far.
+ */
+export const listRunWalkthroughItems = <ThrowOnError extends boolean = false>(
+  options: Options<ListRunWalkthroughItemsData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ListRunWalkthroughItemsResponses,
+    ListRunWalkthroughItemsErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/walkthrough',
+    ...options,
+  })
+
+/**
+ * Attach a link as what a person recorded for an item, standing over what came before.
+ */
+export const attachRunWalkthroughLink = <ThrowOnError extends boolean = false>(
+  options: Options<AttachRunWalkthroughLinkData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    AttachRunWalkthroughLinkResponses,
+    AttachRunWalkthroughLinkErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/walkthrough/{itemId}/link',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Attach a video or other file as what a person recorded for an item, standing over what came before. The file is the raw body.
+ */
+export const attachRunWalkthroughFile = <ThrowOnError extends boolean = false>(
+  options: Options<AttachRunWalkthroughFileData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    AttachRunWalkthroughFileResponses,
+    AttachRunWalkthroughFileErrors,
+    ThrowOnError
+  >({
+    bodySerializer: null,
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/walkthrough/{itemId}/file',
+    ...options,
+    headers: {
+      'Content-Type': 'application/octet-stream',
+      ...options.headers,
+    },
   })
 
 /**
@@ -4255,6 +4789,19 @@ export const updateChatDynamicContext = <ThrowOnError extends boolean = false>(
     },
   })
 
+export const getChatsSettings = <ThrowOnError extends boolean = false>(
+  options?: Options<GetChatsSettingsData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<GetChatsSettingsResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/chats/settings',
+    ...options,
+  })
+
+/**
+ * Attach a file to one of the project’s chats: the file is the raw body.
+ */
 export const uploadChatAttachment = <ThrowOnError extends boolean = false>(
   options: Options<UploadChatAttachmentData, ThrowOnError>,
 ) =>
@@ -4263,18 +4810,19 @@ export const uploadChatAttachment = <ThrowOnError extends boolean = false>(
     UploadChatAttachmentErrors,
     ThrowOnError
   >({
+    bodySerializer: null,
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/projects/{projectId}/chat-attachments',
     ...options,
     headers: {
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/octet-stream',
       ...options.headers,
     },
   })
 
 /**
- * Attach a file to any chat — a project chat keeps it in its project, a group chat in its group workspace, the general chat in the global chat workspace.
+ * Attach a file to any chat — a project chat keeps it in its project, a group chat in its group workspace, the general chat in the global chat workspace. The file is the raw body.
  */
 export const uploadAnyChatAttachment = <ThrowOnError extends boolean = false>(
   options: Options<UploadAnyChatAttachmentData, ThrowOnError>,
@@ -4284,23 +4832,31 @@ export const uploadAnyChatAttachment = <ThrowOnError extends boolean = false>(
     UploadAnyChatAttachmentErrors,
     ThrowOnError
   >({
+    bodySerializer: null,
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/chat-attachments',
     ...options,
     headers: {
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/octet-stream',
       ...options.headers,
     },
   })
 
-export const getChatsSettings = <ThrowOnError extends boolean = false>(
-  options?: Options<GetChatsSettingsData, ThrowOnError>,
+/**
+ * How the digest of a chat’s video stands. Live changes come as `chatAttachments:digest` on the socket; this reads what the digest wrote, so it holds across a restart, and takes up a digest a restart cut off.
+ */
+export const getChatAttachmentDigest = <ThrowOnError extends boolean = false>(
+  options: Options<GetChatAttachmentDigestData, ThrowOnError>,
 ) =>
-  (options?.client ?? client).get<GetChatsSettingsResponses, unknown, ThrowOnError>({
+  (options.client ?? client).get<
+    GetChatAttachmentDigestResponses,
+    GetChatAttachmentDigestErrors,
+    ThrowOnError
+  >({
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/v1/chats/settings',
+    url: '/api/v1/chat-attachments/digest',
     ...options,
   })
 
@@ -5479,6 +6035,83 @@ export const recomputeDailyUsage = <ThrowOnError extends boolean = false>(
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  })
+
+/**
+ * What this machine can do with a video, how to fix what it cannot, and what is being installed or downloaded now.
+ */
+export const getVideoSetup = <ThrowOnError extends boolean = false>(
+  options?: Options<GetVideoSetupData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<GetVideoSetupResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/video/setup',
+    ...options,
+  })
+
+/**
+ * Install ffmpeg or whisper.cpp with a fixed command, in the background; its output comes on `videoSetup:progress`.
+ */
+export const installVideoSetupTool = <ThrowOnError extends boolean = false>(
+  options: Options<InstallVideoSetupToolData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<InstallVideoSetupToolResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/video/setup/install',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Download the speech models this machine lacks, in the background; progress comes on `videoSetup:progress`.
+ */
+export const downloadVideoSetupModels = <ThrowOnError extends boolean = false>(
+  options?: Options<DownloadVideoSetupModelsData, ThrowOnError>,
+) =>
+  (options?.client ?? client).post<DownloadVideoSetupModelsResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/video/setup/models',
+    ...options,
+  })
+
+/**
+ * Stop a running install or the models download; its end comes on `videoSetup:progress` with `stopped`. A job that is not running is left alone, answering `stopped: false`.
+ */
+export const stopVideoSetupJob = <ThrowOnError extends boolean = false>(
+  options: Options<StopVideoSetupJobData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<StopVideoSetupJobResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/video/setup/stop',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Open a chat whose agent goes through the whole setup with the person, on the model they run agents on. 409, opening nothing, when they have neither an API model nor a CLI login.
+ */
+export const openVideoSetupChat = <ThrowOnError extends boolean = false>(
+  options?: Options<OpenVideoSetupChatData, ThrowOnError>,
+) =>
+  (options?.client ?? client).post<
+    OpenVideoSetupChatResponses,
+    OpenVideoSetupChatErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/video/setup/agent-chat',
+    ...options,
   })
 
 export const listTemplates = <ThrowOnError extends boolean = false>(
@@ -6861,6 +7494,36 @@ export const listProjectGroupStories = <ThrowOnError extends boolean = false>(
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/projects/{projectId}/group-stories',
     ...options,
+  })
+
+/**
+ * The tickets assigned to the person in the open sprint, in board order, within the group’s Jira binding, each marked with the group story already working it.
+ */
+export const listGroupTickets = <ThrowOnError extends boolean = false>(
+  options: Options<ListGroupTicketsData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<ListGroupTicketsResponses, ListGroupTicketsErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/tickets',
+    ...options,
+  })
+
+/**
+ * Open the ticket’s planning chat: its agent reads the ticket in full, comments and attachments included, and proposes the group story for the person to approve. A ticket planned before goes back to its chat.
+ */
+export const planGroupTicket = <ThrowOnError extends boolean = false>(
+  options: Options<PlanGroupTicketData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<PlanGroupTicketResponses, PlanGroupTicketErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/tickets/{ticketKey}/plan',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
   })
 
 export const ingestAll = <ThrowOnError extends boolean = false>(

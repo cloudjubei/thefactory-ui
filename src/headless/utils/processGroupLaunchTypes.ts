@@ -1,4 +1,5 @@
-import type { ProcessBaseBranchOptions } from 'thefactory-tools/types'
+import type { ProcessBaseBranchOptions, ProcessGroupBuildMode } from 'thefactory-tools/types'
+import type { TicketLaunchMove } from './groupTicketTypes'
 
 /** One project's part of a group run, as a launch asks for it. */
 export interface ProcessGroupLegRequest {
@@ -40,6 +41,10 @@ export interface ProcessGroupLaunchPreview {
   legs: ProcessGroupLaunchLeg[]
   waves: string[][]
   problems: string[]
+  /** What launching would do to the group story's ticket. */
+  ticketMove?: TicketLaunchMove
+  /** How its legs build on each other; absent, each merges before the next starts. */
+  buildMode?: ProcessGroupBuildMode
 }
 
 /** What the launch card shows of a `startGroupWork` ask. */
@@ -47,6 +52,8 @@ export interface StartGroupWorkGrantSummary {
   /** The group the ask names — the general chat's launch names one; a group chat's is its own. */
   groupId?: string
   title?: string
+  /** The group story the launch runs: its ticket is what the card offers to move. */
+  groupStoryId?: string
   legs: ProcessGroupLegRequest[]
   note?: string
   proofRequired: boolean

@@ -44,6 +44,7 @@ import {
 import { cliRowAsks, withAsksAwaitingOutcome } from '../../../headless/utils/pendingToolGrants'
 import { nativeRadii, nativeShadows, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
+import type { ChatVideoAttachments } from '../../../headless/utils/videoAttachmentTypes'
 import type { NativeAttachmentImages, NativeToolCallRenderArgs } from './chatNativeTypes'
 import { firstUnreadMessageIndex } from '../../../headless/utils/chatUnread'
 import { AGENT_RUN_TRANSCRIPT_EMPTY } from '../../../headless/utils/agentRunTranscriptConstants'
@@ -154,6 +155,7 @@ export interface MessageListProps {
   chatTitle?: string
   /** Shows the images sent with a message as thumbnails that open full size. */
   attachmentImages?: NativeAttachmentImages
+  videoAttachments?: ChatVideoAttachments
   renderReference?: (target: ReferenceTarget) => ReactNode | undefined
   /** Renders what a CLI-agent reply changed — `ChatBody` passes the turn's changes marker. Forwarded to MessageRow. */
   renderCliRunArtifact?: (runId: string) => ReactNode
@@ -214,6 +216,7 @@ export default function MessageList({
   onResourceLink,
   chatTitle,
   attachmentImages,
+  videoAttachments,
   renderReference,
   renderCliRunArtifact,
   renderProcessRun,
@@ -618,6 +621,7 @@ export default function MessageList({
                   renderReference={renderReference}
                   onResourceLink={onResourceLink}
                   attachmentImages={attachmentImages}
+                  videoAttachments={videoAttachments}
                   renderCliRunArtifact={renderCliRunArtifact}
                   renderProcessRun={renderProcessRun}
                   renderProcessGroupRun={renderProcessGroupRun}

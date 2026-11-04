@@ -13,6 +13,8 @@ import {
   processGrantTurnLimitView,
   processTurnLimitOfView,
   startGroupWorkGrantSummary,
+  ticketMoveDecisionOf,
+  ticketMoveField,
   useProcessGroupLaunchPreview,
   type PendingToolGrant,
 } from '../../../headless'
@@ -24,6 +26,7 @@ import { Textarea } from '../../primitives/Textarea'
 import { IconChevron } from '../../icons'
 import { TurnLimitField } from '../TurnLimitField'
 import BaseBranchChooser from './BaseBranchChooser'
+import TicketMoveField from './TicketMoveField'
 import ToolAskCard from './ToolAskCard'
 
 export type GroupWorkLaunchPanelProps = {
@@ -61,8 +64,10 @@ export default function GroupWorkLaunchPanel({
   const { preview, isLoaded, loadError } = useProcessGroupLaunchPreview({
     groupId: launchGroupId,
     legs: summary.legs,
+    groupStoryId: summary.groupStoryId,
   })
   const [note, setNote] = useState('')
+  const [moveTicket, setMoveTicket] = useState(true)
   const [noteOpen, setNoteOpen] = useState(false)
   const [agentNoteOpen, setAgentNoteOpen] = useState(false)
   // The agent this WORK runs on — the API or a CLI, a model — seeded from the
@@ -86,7 +91,9 @@ export default function GroupWorkLaunchPanel({
 
   const problems = preview?.problems ?? []
   const canStart = isLoaded && preview !== undefined && problems.length === 0
-  const view = groupWorkAskView(summary, runProposalArgs(grant))
+  const view = groupWorkAskView(summary, runProposalArgs(grant), preview?.buildMode)
+  const ticket = ticketMoveField(preview?.ticketMove)
+  const ticketMove = ticketMoveDecisionOf(ticket, moveTicket)
 
   const decide = (decision: 'once' | 'deny') => {
     setBusy(true)
@@ -101,6 +108,7 @@ export default function GroupWorkLaunchPanel({
               turnLimit: processTurnLimitOfView(turnLimit),
               ...launchAgentPickMetadata(agentPick),
               ...(baseBranchMeta ?? {}),
+              ...(ticketMove ? { ticketMove } : {}),
             }
           : undefined,
       )
@@ -126,6 +134,14 @@ export default function GroupWorkLaunchPanel({
         onDeny={() => decide('deny')}
         onLater={onDecideLater}
       >
+        {ticket ? (
+          <TicketMoveField
+            field={ticket}
+            ticked={moveTicket}
+            onToggle={setMoveTicket}
+            disabled={busy}
+          />
+        ) : null}
         <div className="flex flex-col gap-2 rounded-md border border-(--border-subtle) bg-(--surface-base) px-2.5 py-2">
           {!isLoaded ? (
             <span className="text-[12px] text-(--text-secondary)">Reading the projects…</span>

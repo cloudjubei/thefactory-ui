@@ -17,10 +17,12 @@ import {
   RUN_PROPOSAL_GROUP_DELETE,
   RUN_PROPOSAL_GROUP_LANDED,
   RUN_PROPOSAL_GROUP_PARK,
+  RUN_PROPOSAL_GROUP_SIGN_OFF,
   RUN_PROPOSAL_GROUP_RESUME,
   RUN_PROPOSAL_GROUP_STOP,
   RUN_PROPOSAL_LANDING_MODE_LABELS,
   RUN_PROPOSAL_REMOVE_PROCESS,
+  SIGN_OFF_GROUP_RUN_TOOL_NAME,
   STOP_PROCESS_GROUP_RUN_TOOL_NAME,
   DECIDE_RUN_GATE_TOOL_NAME,
   REMOVE_PROCESS_RUN_TOOL_NAME,
@@ -742,6 +744,49 @@ function groupAndDefinitionView(
       ],
       effect: effect ?? RUN_PROPOSAL_GROUP_PARK.effect(choice),
       approveLabel: label ?? RUN_PROPOSAL_GROUP_PARK.approveLabel,
+    }
+  }
+  if (toolName === SIGN_OFF_GROUP_RUN_TOOL_NAME) {
+    const choice = text(args, 'choice') ?? ''
+    const leg = record(hostDetail.leg)
+    const legLine = text(leg, 'projectId')
+    const tickets = strings(hostDetail.tickets)
+    const repos = Array.isArray(hostDetail.repos) ? hostDetail.repos.map(record) : []
+    return {
+      ...base,
+      kind: 'group-sign-off',
+      kindLabel: RUN_PROPOSAL_GROUP_SIGN_OFF.kindLabel,
+      tone: choice === 'reject' ? 'stuck' : 'done',
+      title: groupTitle,
+      sections: [
+        ...wordsSection('tickets', RUN_PROPOSAL_GROUP_SIGN_OFF.tickets, tickets.join(', ')),
+        ...repos.flatMap((repo) => {
+          const projectId = text(repo, 'projectId')
+          const summary = text(repo, 'leftOut') ?? text(repo, 'title') ?? text(repo, 'pullRequest')
+          return projectId && summary
+            ? [{ key: `repo-${projectId}`, label: projectId, summary }]
+            : []
+        }),
+        ...wordsSection(
+          'goingLive',
+          RUN_PROPOSAL_GROUP_SIGN_OFF.goingLive,
+          text(hostDetail, 'goingLive'),
+        ),
+        ...(legLine
+          ? [
+              {
+                key: 'leg',
+                label: RUN_PROPOSAL_LINE_LABELS.leg,
+                summary: `${legLine}${text(leg, 'title') ? ` · ${text(leg, 'title')}` : ''}`,
+              },
+            ]
+          : []),
+        ...wordsSection('note', RUN_PROPOSAL_LINE_LABELS.note, text(args, 'note')),
+      ],
+      effect: effect ?? RUN_PROPOSAL_GROUP_SIGN_OFF.effect,
+      approveLabel:
+        RUN_PROPOSAL_GROUP_SIGN_OFF.approveLabels[choice] ??
+        RUN_PROPOSAL_GROUP_SIGN_OFF.approveLabel,
     }
   }
   if (toolName === STOP_PROCESS_GROUP_RUN_TOOL_NAME) {

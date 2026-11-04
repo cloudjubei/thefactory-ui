@@ -3,15 +3,22 @@ import { ScrollView, Text, View } from 'react-native'
 
 import {
   extractErrorMessage,
+  groupRunStartedWords,
   launchAgentPickMetadata,
   launchAgentPickRunner,
+  PROCESS_GROUP_ON_BRANCH_LINE,
   processGroupLegWaitsFor,
   processLaunchTurnLimitView,
   processTurnLimitOfView,
+  ticketMoveDecisionOf,
+  ticketMoveField,
+  TICKET_MOVE_DEFAULT_LAYOUT,
   useLaunchAgentPick,
   type GroupStoryRunBody,
   type GroupStoryRunPreview,
+  type GroupStoryRunStartedAnswer,
   type LaunchModelChipSlot,
+  type TicketMoveLayout,
 } from '../../../headless'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
@@ -20,9 +27,10 @@ import { Button } from '../../primitives/Button'
 import { Input } from '../../primitives/Input'
 import { Modal } from '../../primitives/Modal'
 import BaseBranchChooser from '../chat/BaseBranchChooser'
+import TicketMoveField from '../chat/TicketMoveField'
 import { TurnLimitField } from '../TurnLimitField'
 
-export type GroupStoryRunStarted = { groupRunId: string; message: string }
+export type GroupStoryRunStarted = GroupStoryRunStartedAnswer
 
 export type GroupStoryRunDialogProps = {
   isOpen: boolean
@@ -37,6 +45,7 @@ export type GroupStoryRunDialogProps = {
   onStart: (body: GroupStoryRunBody) => Promise<GroupStoryRunStarted>
   onOpenRun: (groupRunId: string) => void
   started?: GroupStoryRunStarted
+  ticketMoveLayout?: TicketMoveLayout
 }
 
 /**
@@ -58,6 +67,7 @@ export default function GroupStoryRunDialog({
   onStart,
   onOpenRun,
   started: startedShown,
+  ticketMoveLayout = TICKET_MOVE_DEFAULT_LAYOUT,
 }: GroupStoryRunDialogProps) {
   const { theme, status } = useNativeTheme()
   const { pick, slot } = useLaunchAgentPick()
@@ -69,11 +79,13 @@ export default function GroupStoryRunDialog({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [started, setStarted] = useState<GroupStoryRunStarted | undefined>(startedShown)
+  const [moveTicket, setMoveTicket] = useState(true)
   const wasOpen = useRef(false)
   useEffect(() => {
     if (isOpen && !wasOpen.current) {
       setError(null)
       setStarted(startedShown)
+      setMoveTicket(true)
     }
     wasOpen.current = isOpen
   }, [isOpen, startedShown])
@@ -86,6 +98,12 @@ export default function GroupStoryRunDialog({
   const legsByStep = (preview?.waves ?? []).map((wave) =>
     wave.flatMap((id) => preview?.legs.filter((l) => l.projectId === id) ?? []),
   )
+  const ticket = ticketMoveField(preview?.ticketMove)
+  const ticketMove = ticketMoveDecisionOf(ticket, moveTicket)
+  const startedWords = started ? groupRunStartedWords(started) : undefined
+  const ticketField = ticket ? (
+    <TicketMoveField field={ticket} ticked={moveTicket} onToggle={setMoveTicket} disabled={busy} />
+  ) : null
   const start = () => {
     setBusy(true)
     setError(null)
@@ -94,6 +112,7 @@ export default function GroupStoryRunDialog({
       turnLimit: processTurnLimitOfView(turnLimit),
       ...(cap.trim() ? { spendCapUsd: capUsd } : {}),
       ...(Object.keys(basePicks).length > 0 ? { baseBranches: { ...basePicks } } : {}),
+      ...(ticketMove ? { ticketMove } : {}),
     })
       .then(setStarted)
       .catch((err: unknown) => setError(extractErrorMessage(err, 'The run did not start.')))
@@ -125,9 +144,10 @@ export default function GroupStoryRunDialog({
         </View>
       }
     >
-      {started ? (
+      {startedWords ? (
         <View style={{ gap: nativeSpace[2] }}>
-          <Text style={{ fontSize: 13, color: theme.text.secondary }}>{started.message}</Text>
+          <Text style={{ fontSize: 13, color: theme.text.secondary }}>{startedWords.message}</Text>
+          {startedWords.notMoved ? <Alert variant="info">{startedWords.notMoved}</Alert> : null}
           <Text style={{ fontSize: 13, color: theme.text.secondary }}>
             Follow it on the group’s Processes page and in Needs you.
           </Text>
@@ -135,6 +155,10 @@ export default function GroupStoryRunDialog({
       ) : (
         <ScrollView contentContainerStyle={{ gap: nativeSpace[3] }}>
           {error ? <Alert variant="error">{error}</Alert> : null}
+          {ticketMoveLayout === 'top' ? ticketField : null}
+          {preview?.buildMode === 'on-branch' ? (
+            <Text style={muted}>{PROCESS_GROUP_ON_BRANCH_LINE}</Text>
+          ) : null}
           <View
             style={{
               gap: nativeSpace[2],
@@ -222,6 +246,7 @@ export default function GroupStoryRunDialog({
               ))}
             </View>
           ) : null}
+          {ticketMoveLayout === 'settings' ? ticketField : null}
           {renderModelChip ? (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: nativeSpace[2] }}>
               {renderModelChip(slot)}

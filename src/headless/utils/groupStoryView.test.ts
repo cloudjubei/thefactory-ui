@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import type { GroupStoryForm, GroupStoryPartView, GroupStoryView } from './groupStoryTypes'
+import type {
+  GroupStoryForm,
+  GroupStoryPartView,
+  GroupStoryRunSummary,
+  GroupStoryView,
+} from './groupStoryTypes'
 import { GROUP_STORY_ACTION_LABELS, GROUP_STORY_LIST_FILTER_DEFAULT } from './groupStoryConstants'
 import {
   filterGroupStories,
@@ -21,6 +26,8 @@ import {
   groupStoryStepColumns,
   isLiveGroupStoryRun,
 } from './groupStoryView'
+import { processGroupBadge } from './processGroupView'
+import { PROCESS_RUN_WORDS } from './processViewConstants'
 
 function part(projectId: string, over: Partial<GroupStoryPartView> = {}): GroupStoryPartView {
   return {
@@ -425,6 +432,52 @@ describe('groupStoryRunState', () => {
     expect(groupStoryRunState(run('running', [{ projectId: 'ui', status: 'running' }]))).toBe(
       'running',
     )
+  })
+})
+
+describe('groupStoryRunState on a run built on branches', () => {
+  const onBranch = (latestRun: object) =>
+    view([part('ui')], {
+      latestRun: {
+        groupRunId: 'r',
+        title: 't',
+        startedAt: 0,
+        buildMode: 'on-branch',
+        ...latestRun,
+      } as unknown as GroupStoryRunSummary,
+    })
+
+  it('reads one project finished and another working as running, not needing you', () => {
+    const legs = [
+      { projectId: 'ui', status: 'at-sign-off' },
+      { projectId: 'web', status: 'running' },
+    ]
+    expect(groupStoryRunState(onBranch({ status: 'running', legs }))).toBe('running')
+  })
+
+  it('reads the same legs on a run with its own sign-offs as needing you', () => {
+    const legs = [
+      { projectId: 'ui', status: 'at-sign-off' },
+      { projectId: 'web', status: 'running' },
+    ]
+    expect(
+      groupStoryRunState(onBranch({ status: 'running', legs, buildMode: 'merge-first' })),
+    ).toBe('needs-you')
+  })
+
+  it.each(['sign-off', 'sign-off-failed'])('reads a run stopped at %s as needing you', (reason) => {
+    const legs = [{ projectId: 'ui', status: 'at-sign-off' }]
+    expect(groupStoryRunState(onBranch({ status: 'parked', legs, park: { reason } }))).toBe(
+      'needs-you',
+    )
+  })
+
+  it('names the one sign-off on the row’s badge from its stop', () => {
+    const legs = [{ projectId: 'ui', status: 'at-sign-off' }]
+    const badgeOf = (reason: string) =>
+      processGroupBadge(onBranch({ status: 'parked', legs, park: { reason } }).latestRun!).label
+    expect(badgeOf('sign-off')).toBe(PROCESS_RUN_WORDS.signOff)
+    expect(badgeOf('sign-off-failed')).toBe(PROCESS_RUN_WORDS.needsYou)
   })
 })
 

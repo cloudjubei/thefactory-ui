@@ -1173,6 +1173,55 @@ describe('reviewTabs', () => {
   })
 })
 
+describe('reviewTabs › a Loom walkthrough', () => {
+  const base = {
+    screens: 0,
+    walkthroughs: 0,
+    reports: 1,
+    testCount: 0,
+    testChecks: 1,
+    buildChecks: 1,
+    changedFiles: undefined,
+  }
+
+  it('has no tab for a run with nothing to record', () => {
+    expect(reviewTabs(base).map((t) => t.id)).not.toContain('loom')
+    expect(reviewTabs({ ...base, loom: { total: 0, left: 0 } }).map((t) => t.id)).not.toContain(
+      'loom',
+    )
+  })
+
+  it('stands with the proof, counting what is left to record', () => {
+    const tabs = reviewTabs({ ...base, loom: { total: 3, left: 2 } })
+    expect(tabs.map((t) => t.id)).toEqual(['loom', 'tests', 'build', 'report'])
+    expect(tabs[0]).toEqual({
+      id: 'loom',
+      label: 'Loom walkthrough',
+      count: 2,
+      chip: {
+        label: 'Loom walkthrough · 2 to record',
+        state: 'unchecked',
+        available: { commands: [] },
+      },
+    })
+  })
+
+  it('counts nothing and reads as passed once all of it is recorded', () => {
+    const [tab] = reviewTabs({ ...base, loom: { total: 3, left: 0 } })
+    expect(tab).toEqual({
+      id: 'loom',
+      label: 'Loom walkthrough',
+      count: undefined,
+      chip: { label: 'Loom walkthrough', state: 'passed' },
+    })
+  })
+
+  it('leaves every other tab without a chip of its own', () => {
+    const tabs = reviewTabs({ ...base, loom: { total: 1, left: 1 } })
+    expect(tabs.filter((t) => t.chip).map((t) => t.id)).toEqual(['loom'])
+  })
+})
+
 describe('reviewTabOrder', () => {
   it('is the tab order, with a lead tab moved to the front', () => {
     expect(reviewTabOrder()).toEqual(REVIEW_TAB_ORDER)

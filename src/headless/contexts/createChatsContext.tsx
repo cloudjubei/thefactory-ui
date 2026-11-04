@@ -21,8 +21,6 @@ import {
   setChatNotifyLevel as setChatNotifyLevelApi,
   showChatInList as showChatInListApi,
   updateChat,
-  uploadAnyChatAttachment,
-  uploadChatAttachment,
 } from '../api'
 import type {
   ChatContext as ChatCtx,
@@ -33,7 +31,8 @@ import type {
   SendCompletionWithToolsData,
   UpdateChatData,
 } from '../api'
-import { useApi, useAuth } from '../api'
+import { useApi, useAuth, type UploadChatFile } from '../api'
+import { ChatAttachmentUploadStore } from '../utils/chatAttachmentUploads'
 import { errorStatus } from '../api/errorMessage'
 import {
   chatRestartMessages,
@@ -241,11 +240,13 @@ export type ChatsContextValue = {
    * Keep a file attached to a chat in its attachment store — a project chat's
    * in its project, a group chat's in its group workspace, the general chat's in
    * the global chat workspace — for the chat's agent to read when it needs it.
-   * The bytes go base64-encoded, so a binary file arrives intact. Resolves to
+   * The file streams as the raw request body, so its size is no matter. Resolves to
    * the path to send in the message's `attachments`. The store is temporary: it
    * goes with the chat, or after 30 days unused.
    */
-  uploadAttachment: (ctx: ChatCtx, name: string, contentBase64: string) => Promise<string>
+  uploadAttachment: UploadChatFile
+  /** Every chat's uploads, which go on across chat switches. A composer drives its own through `useChatComposer`. */
+  attachmentUploads: ChatAttachmentUploadStore
   /**
    * Cancel the in-flight chat completion for `ctx`. No-op when nothing is
    * in flight. The HTTP call resolves with `resultType: 'aborted'` rather
@@ -392,7 +393,9 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
   const ChatsContext = createContext<ChatsContextValue | null>(null)
 
   function ChatsProvider({ children, draftStorage, subscribeAppHidden }: ChatsProviderProps) {
-    const { ws, wsState } = useApi()
+    const { ws, wsState, uploadChatFile: uploadAttachment } = useApi()
+    const uploadChatFileRef = useRef(uploadAttachment)
+    uploadChatFileRef.current = uploadAttachment
     const { token } = useAuth()
     const { projectId, project } = useActiveProject()
     const { configs: llmConfigs, activeChatConfig } = useLLMConfigs()
@@ -995,7 +998,6 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
 
     const sendMessage = useCallback(
       async (ctx: ChatCtx, content: string, attachments?: string[]): Promise<boolean> => {
-        if (!activeLLMConfig) throw new Error('Configure an LLM before sending messages')
         const trimmed = content.trim()
         if (trimmed.length === 0 && (!attachments || attachments.length === 0)) return false
 
@@ -1046,7 +1048,6 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
               sendChatWithCli({
                 body: {
                   chatContext: ctx,
-                  llmConfig: activeLLMConfig,
                   message: userMessage,
                   settings,
                   ...(systemPrompt ? { systemPrompt } : {}),
@@ -1080,6 +1081,8 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
             await reloadChat(ctx)
             return delivered
           }
+
+          if (!activeLLMConfig) throw new Error('Configure an LLM before sending messages')
 
           // Optimistically show the user's message immediately (mirrors the CLI
           // path) so the list never flashes empty / the system-prompt bubble in
@@ -1157,7 +1160,6 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
 
     const restartLastTurn = useCallback(
       async (ctx: ChatCtx) => {
-        if (!activeLLMConfig) throw new Error('Configure an LLM before restarting a turn')
         // The turn being re-run is the one already stored. Nothing is appended
         // here and nothing is appended server-side, so the user's message stays
         // single — that is the whole difference from `sendMessage`.
@@ -1201,7 +1203,6 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
               restartChatWithCli({
                 body: {
                   chatContext: ctx,
-                  llmConfig: activeLLMConfig,
                   settings,
                   ...(systemPrompt ? { systemPrompt } : {}),
                   runner: 'cli',
@@ -1216,6 +1217,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
             return
           }
 
+          if (!activeLLMConfig) throw new Error('Configure an LLM before restarting a turn')
           await sendCompletionWithTools({
             body: {
               request: {
@@ -1415,20 +1417,11 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
       setChats((prev) => prev.filter((c) => !sameContext(c.context, ctx)))
     }, [])
 
-    const uploadAttachment = useCallback(
-      async (ctx: ChatCtx, name: string, contentBase64: string): Promise<string> => {
-        const body = { context: ctx, name, contentBase64 }
-        const { data } = ctx.projectId
-          ? await uploadChatAttachment({
-              path: { projectId: ctx.projectId },
-              body,
-              throwOnError: true,
-            })
-          : await uploadAnyChatAttachment({ body, throwOnError: true })
-        return data.path
-      },
-      [],
+    const attachmentUploadsRef = useRef<ChatAttachmentUploadStore | null>(null)
+    attachmentUploadsRef.current ??= new ChatAttachmentUploadStore((ctx, file, options) =>
+      uploadChatFileRef.current(ctx, file, options),
     )
+    const attachmentUploads = attachmentUploadsRef.current
 
     const deleteLastMessage = useCallback(
       async (ctx: ChatCtx) => {
@@ -1618,6 +1611,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         deleteChat,
         deleteLastMessage,
         uploadAttachment,
+        attachmentUploads,
         createProjectTopic,
         createGroupTopic,
         getEffectiveChatSettings,
@@ -1655,6 +1649,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         deleteChat,
         deleteLastMessage,
         uploadAttachment,
+        attachmentUploads,
         createProjectTopic,
         createGroupTopic,
         getEffectiveChatSettings,

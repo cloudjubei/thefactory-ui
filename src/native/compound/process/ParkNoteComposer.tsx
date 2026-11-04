@@ -21,7 +21,7 @@ import { Switch } from '../../primitives/Switch'
 import { useCanonicalizeReferences } from '../../../headless/contexts/ReferenceRenderingContext'
 import ReferenceTextarea from '../files/ReferenceTextarea'
 import AnswerFiles from './AnswerFiles'
-import type { PickedAnswerFile } from './answerFilesNativeTypes'
+import type { ChatAttachmentFile } from '../../../headless/api'
 
 export type ParkNoteComposerProps = {
   /** The composer's words, when they are not a gate's — an answer to a waiting agent. */
@@ -37,7 +37,7 @@ export type ParkNoteComposerProps = {
   /** The files handed over to start with. */
   initialFiles?: readonly string[]
   /** The app's file picker, for files attached from this device. */
-  pickAnswerFiles?: () => Promise<PickedAnswerFile[]>
+  pickAnswerFiles?: () => Promise<ChatAttachmentFile[]>
   onSend: (note: string | undefined, requestedProof?: ProofKind[], files?: string[]) => void
   onCancel: () => void
 }

@@ -28,6 +28,7 @@ export type RunProposalKind =
   | 'revive'
   | 'delete'
   | 'group-park'
+  | 'group-sign-off'
   | 'group-stop'
   | 'group-delete'
   | 'group-landed'

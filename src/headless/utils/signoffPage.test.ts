@@ -11,6 +11,7 @@ import {
   signoffEvidenceChips,
   signoffFeatureRow,
   signoffFeaturesDelivered,
+  signoffGroupHold,
   signoffMergeHold,
   signoffProofChips,
   signoffRequestOutcome,
@@ -154,6 +155,30 @@ describe('signoffEvidenceChips', () => {
       title: 'UI tests — not set up',
       text: 'No UI tests.',
     })
+  })
+
+  it('gives a tab that has its own chip words and state, and opens it', () => {
+    const left = {
+      label: 'Loom walkthrough · 2 to record',
+      state: 'unchecked' as const,
+      available: { commands: [] },
+    }
+    const chips = signoffEvidenceChips(
+      [row({ id: 'tests', action: { kind: 'open-proof', tab: 'tests' } })],
+      [{ ...tab('loom'), chip: left }, tab('tests')],
+      ['loom', 'tests'],
+    )
+    expect(chips.map((c) => c.key)).toEqual(['tab-loom', 'tests'])
+    expect(chips[0]).toEqual({
+      key: 'tab-loom',
+      row: { id: 'walkthrough', ...left },
+      target: { kind: 'tab', tab: 'loom' },
+    })
+  })
+
+  it('still reads a tab with no chip of its own as passed', () => {
+    const [chip] = signoffEvidenceChips([], [tab('report')], ['report'])
+    expect(chip?.row).toEqual({ id: 'report', label: 'Report', state: 'passed' })
   })
 
   it('opens the code review for a reviewed change when there is a Code review tab', () => {
@@ -495,5 +520,15 @@ describe('signoffMergeHold', () => {
     const hold = signoffMergeHold(group, 'ui', nameOf)
     expect(hold?.reason).toBe('Merges after thefactory-a and thefactory-b are merged')
     expect(hold?.waitingOn.map((l) => l.status)).toEqual(['waiting on another project', 'sign off'])
+  })
+})
+
+describe('signoffGroupHold', () => {
+  it('takes Approve away and says where it is decided, with nothing to wait on', () => {
+    expect(signoffGroupHold()).toEqual({
+      reason: 'Decided once for all repos, at the group sign-off',
+      waitingOn: [],
+      openLabel: 'Open the group sign-off',
+    })
   })
 })

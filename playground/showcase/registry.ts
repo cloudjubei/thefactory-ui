@@ -31,12 +31,14 @@ import { FILE_SUGGESTION_SCENES } from '../scenes/fileSuggestions'
 import { GIT_GRAPH_UNCOMMITTED_SCENES } from '../scenes/gitGraphUncommitted'
 import { GIT_PUSH_AFTER_SCENES } from '../scenes/gitPushAfter'
 import { GIT_STASH_SCENES } from '../scenes/gitStash'
+import { GROUP_SIGN_OFF_SCENES } from '../scenes/groupSignOff'
 import { GROUP_STORY_SCENES } from '../scenes/groupStories'
 import { KNOWLEDGE_SCENES } from '../scenes/knowledge'
 import { KNOWLEDGE_EVALUATION_SCENES } from '../scenes/knowledgeEvaluation'
 import { LAND_NOTICE_SCENES } from '../scenes/landNotice'
 import { LAUNCH_MODEL_CHIP_SCENES } from '../scenes/launchModelChip'
 import { LEAVE_GUARD_SCENES } from '../scenes/leaveGuard'
+import { MCP_SERVER_SCENES } from '../scenes/mcpServers'
 import { MODEL_EFFORT_SCENES } from '../scenes/modelEffort'
 import { OPEN_RUN_SCENES } from '../scenes/openRun'
 import { PRIMITIVE_SCENES } from '../scenes/primitives'
@@ -55,8 +57,11 @@ import { RUN_TIME_DETAILS_SCENES } from '../scenes/runTimeDetails'
 import { SEND_CHAT_MESSAGE_SCENES } from '../scenes/sendChatMessage'
 import { STORY_CHANGE_ERROR_SCENES } from '../scenes/storyChangeErrors'
 import { STORY_WORK_SCENES } from '../scenes/storyWork'
+import { TICKET_SCENES } from '../scenes/ticketFlow'
 import { UI_IMPACT_SCENES } from '../scenes/uiImpact'
 import { USAGE_SCENES } from '../scenes/usage'
+import { VIDEO_ATTACHMENT_SCENES } from '../scenes/videoAttachments'
+import { VIDEO_SETTINGS_SCENES } from '../scenes/videoSettings'
 import { WORK_LAUNCH_SCENES } from '../scenes/workLaunch'
 import { WORKFLOW_GUARD_SCENES } from '../scenes/workflowGuards'
 import {
@@ -79,6 +84,7 @@ export const SCENES: readonly Scene[] = [
   ...CHAT_LIST_CLOSED_SCENES,
   ...SEND_CHAT_MESSAGE_SCENES,
   ...FILE_SUGGESTION_SCENES,
+  ...VIDEO_ATTACHMENT_SCENES,
   ...MODEL_EFFORT_SCENES,
   ...CHAT_STOP_SCENES,
   ...CHAT_HIDDEN_TAIL_SCENES,
@@ -102,6 +108,7 @@ export const SCENES: readonly Scene[] = [
   ...PROCESS_MODEL_SCENES,
   ...PROOF_CHANGE_SCENES,
   ...ANSWER_FILES_SCENES,
+  ...VIDEO_SETTINGS_SCENES,
   ...UI_IMPACT_SCENES,
   ...PARK_CLOSING_SCENES,
   ...DROPPED_CHANGE_SCENES,
@@ -117,9 +124,12 @@ export const SCENES: readonly Scene[] = [
   ...KNOWLEDGE_EVALUATION_SCENES,
   ...FEATURE_POOL_SCENES,
   ...AGENT_TYPE_SCENES,
+  ...MCP_SERVER_SCENES,
   ...WORKFLOW_GUARD_SCENES,
   ...KNOWLEDGE_SCENES,
   ...GROUP_STORY_SCENES,
+  ...TICKET_SCENES,
+  ...GROUP_SIGN_OFF_SCENES,
   ...DESIGN_SCENES,
   ...LEAVE_GUARD_SCENES,
   ...APP_BRIDGE_ASK_SCENES,

@@ -4,6 +4,8 @@ import { Pressable, ScrollView, Switch, Text, View } from 'react-native'
 import {
   costChipLabel,
   formatProcessDuration,
+  isGroupSignOffPark,
+  isProcessGroupOnBranch,
   processGroupBadge,
   processGroupLegRows,
   processGroupProgress,
@@ -24,7 +26,9 @@ import {
   type ProcessStatusTone,
 } from '../../../headless'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
+import type { ChatAttachmentFile } from '../../../headless/api'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
+import type { SaveFileHandler } from '../chat/signoff'
 import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
@@ -33,6 +37,7 @@ import DurationChip from '../chips/DurationChip'
 import ProcessGroupLegLandingDialog from './ProcessGroupLegLandingDialog'
 import ProcessGroupParkReview from './ProcessGroupParkReview'
 import ProcessGroupRunChatButton from './ProcessGroupRunChatButton'
+import GroupSignOffSection from './signoff/GroupSignOffSection'
 
 export type ProcessGroupPipelineProps = {
   groupRunId: string
@@ -40,6 +45,12 @@ export type ProcessGroupPipelineProps = {
   onOpenLegRun: (runId: string, projectId: string) => void
   /** Open a chat for the whole group on the run; no Chat button without it. */
   onOpenChat?: (opened: ProcessRunChatOpened) => void
+  /** Puts a file where the user can reach it; the group sign-off's downloads stay hidden without it. */
+  onSaveFile?: SaveFileHandler
+  /** The app's clipboard; without it the group sign-off's text stays selectable. */
+  onCopy?: (text: string) => unknown
+  /** The app's file picker, for a Loom walkthrough's video; without it a step takes a link alone. */
+  pickLoomVideo?: () => Promise<ChatAttachmentFile[]>
 }
 
 const ENDED = ['succeeded', 'failed', 'cancelled']
@@ -49,7 +60,8 @@ const ENDED = ['succeeded', 'failed', 'cancelled']
  * [web's `ProcessGroupPipeline`](../../../web/compound/process/ProcessGroupPipeline.tsx).
  * One group run: every project's leg, drawn by dependency level — what needs
  * nothing first, then what builds on it — with where each stands, what it
- * waits for and what it has cost. Each project is signed off and merged in its
+ * waits for and what it has cost. A run built on branches has one sign-off here
+ * for all its projects. Otherwise each project is signed off and merged in its
  * own pipeline, one tap away — a project only once the ones it builds on are
  * merged; only what the group alone can answer (a project that stopped, a
  * merged project that does not build, a failed merge) is answered here — and a
@@ -60,6 +72,9 @@ export default function ProcessGroupPipeline({
   groupRunId,
   onOpenLegRun,
   onOpenChat,
+  onSaveFile,
+  onCopy,
+  pickLoomVideo,
 }: ProcessGroupPipelineProps) {
   const { theme, status } = useNativeTheme()
   const chat = useProcessGroupRunChat(groupRunId)
@@ -237,9 +252,21 @@ export default function ProcessGroupPipeline({
         </Text>
       ) : null}
 
-      {group.park ? (
+      {group.park && !isGroupSignOffPark(group.park) ? (
         <View style={{ marginHorizontal: nativeSpace[3], marginTop: nativeSpace[3] }}>
           <ProcessGroupParkReview key={group.park.parkedAt} group={group} onResume={resume} />
+        </View>
+      ) : null}
+
+      {isProcessGroupOnBranch(group) ? (
+        <View style={{ marginHorizontal: nativeSpace[3], marginTop: nativeSpace[3] }}>
+          <GroupSignOffSection
+            group={group}
+            onOpenLegRun={onOpenLegRun}
+            {...(onSaveFile ? { onSaveFile } : {})}
+            {...(onCopy ? { onCopy } : {})}
+            {...(pickLoomVideo ? { pickLoomVideo } : {})}
+          />
         </View>
       ) : null}
 

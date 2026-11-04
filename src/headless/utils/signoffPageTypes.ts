@@ -70,7 +70,12 @@ export type SignoffMergeHoldLeg = {
 }
 
 /** Why a group leg cannot merge yet, and the legs it waits on — Approve is not offered. */
-export type SignoffMergeHold = { reason: string; waitingOn: SignoffMergeHoldLeg[] }
+export type SignoffMergeHold = {
+  reason: string
+  waitingOn: SignoffMergeHoldLeg[]
+  /** What the way to the group says, when it is more than a look at the group. */
+  openLabel?: string
+}
 
 /** Whether the newest fix pass met what the person asked at sign-off, and the pairs that show it. */
 export type SignoffRequestOutcome = {

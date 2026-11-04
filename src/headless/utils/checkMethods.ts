@@ -56,6 +56,7 @@ import {
   VERDICT_BEARING_METHODS,
   VERDICT_FLAGGED_NOTE,
 } from './checkMethodConstants'
+import { LOOM_WALKTHROUGH_TEXT } from './runWalkthroughConstants'
 import type {
   CheckActionHost,
   CheckActionOffer,
@@ -706,6 +707,7 @@ export function reviewTabs(input: ReviewTabsInput): ReviewTab[] {
   const counts: Record<ReviewTabId, number | undefined> = {
     screens: input.screensProof ?? input.screens,
     walkthrough: undefined,
+    loom: input.loom && input.loom.left > 0 ? input.loom.left : undefined,
     tests: input.testCount > 0 ? input.testCount : undefined,
     build: undefined,
     report: undefined,
@@ -715,6 +717,7 @@ export function reviewTabs(input: ReviewTabsInput): ReviewTab[] {
   const present: Record<ReviewTabId, boolean> = {
     screens: input.screens > 0,
     walkthrough: input.walkthroughs > 0,
+    loom: (input.loom?.total ?? 0) > 0,
     tests: input.testChecks > 0,
     build: input.buildChecks > 0,
     report: input.reports > 0,
@@ -727,7 +730,16 @@ export function reviewTabs(input: ReviewTabsInput): ReviewTab[] {
       id,
       label: REVIEW_TAB_LABELS[id],
       count: counts[id],
+      ...(id === 'loom' && input.loom ? { chip: loomTabChip(input.loom.left) } : {}),
     }))
+}
+
+/** The walkthrough's chip: what is left to record until nothing is. */
+function loomTabChip(left: number): NonNullable<ReviewTab['chip']> {
+  const { label, chipLeft } = LOOM_WALKTHROUGH_TEXT
+  return left > 0
+    ? { label: `${label} · ${chipLeft(left)}`, state: 'unchecked', available: { commands: [] } }
+    : { label, state: 'passed' }
 }
 
 export type CheckRowLayout = {

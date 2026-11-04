@@ -16,6 +16,7 @@ import type {
   ProcessIntegrationMode,
 } from 'thefactory-tools/types'
 import {
+  isProcessGroupOnBranch,
   processGroupLegIntegrationModes,
   processGroupLegLandingRefusal,
   processGroupLegMergeGate,
@@ -26,6 +27,7 @@ import {
   processGroupReopenRefusal,
   processGroupStartWords,
 } from 'thefactory-tools/utils'
+import { GROUP_SIGN_OFF_TEXT } from './groupSignOffConstants'
 import {
   PROCESS_GROUP_CARD_CTA,
   PROCESS_GROUP_LANDED_RESUME_NEXT,
@@ -60,6 +62,33 @@ const andList = (names: readonly string[]): string =>
     ? (names[0] ?? '')
     : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
 
+/** Whether a group run's stop is its one sign-off, which the sign-off itself answers. Pure. */
+export function isGroupSignOffPark(
+  park: Pick<NonNullable<ProcessGroupRun['park']>, 'reason'>,
+): boolean {
+  return park.reason === 'sign-off' || park.reason === 'sign-off-failed'
+}
+
+/** Whether a group run waits on the person at its one sign-off, or to try its decision again. Pure. */
+export function isGroupRunAtSignOff(run: Pick<ProcessGroupRun, 'status' | 'park'>): boolean {
+  return run.status === 'parked' && run.park !== undefined && isGroupSignOffPark(run.park)
+}
+
+/**
+ * The group runs waiting at their one sign-off, by group: one each, however many
+ * legs it has. A leg held for it counts nowhere (`isHeldForGroupSignOff`), so this
+ * is the only count of that decision. A group with none is absent. Pure.
+ */
+export function groupSignOffCounts(
+  runs: ReadonlyArray<Pick<ProcessGroupRun, 'groupId' | 'status' | 'park'>>,
+): ReadonlyMap<string, number> {
+  const out = new Map<string, number>()
+  for (const run of runs) {
+    if (isGroupRunAtSignOff(run)) out.set(run.groupId, (out.get(run.groupId) ?? 0) + 1)
+  }
+  return out
+}
+
 /**
  * Where a live group run stands, by its legs: a project ready for its own
  * sign-off, the group's own stop or a project's ask, every project still
@@ -68,9 +97,10 @@ const andList = (names: readonly string[]): string =>
 export function processGroupLiveState(
   group: ProcessGroupBadgeInput,
 ): ProcessGroupLiveState | undefined {
-  if (group.status === 'parked') return 'needs-you'
+  if (group.status === 'parked') return group.park?.reason === 'sign-off' ? 'sign-off' : 'needs-you'
   if (group.status !== 'running' && group.status !== 'pending') return undefined
-  if (group.legs.some((l) => l.status === 'at-sign-off')) return 'sign-off'
+  const ownSignOffs = !isProcessGroupOnBranch(group)
+  if (ownSignOffs && group.legs.some((l) => l.status === 'at-sign-off')) return 'sign-off'
   if (group.legs.some((l) => l.status === 'needs-you')) return 'needs-you'
   if (
     group.legs.some((l) => l.status === 'waiting') &&
@@ -125,16 +155,21 @@ export function processGroupLegRows(group: ProcessGroupRun): ProcessGroupLegRow[
     wave.flatMap((id) => {
       const leg = byId.get(id)
       if (!leg) return []
-      const view = PROCESS_GROUP_LEG_STATUS_VIEW[leg.status]
+      const held = leg.status === 'at-sign-off' && isProcessGroupOnBranch(group)
+      const view = held
+        ? { label: GROUP_SIGN_OFF_TEXT.finished, tone: 'review' as const }
+        : PROCESS_GROUP_LEG_STATUS_VIEW[leg.status]
       const totals = group.totals?.legs[leg.id]
-      const waitsFor = legWaitsFor(group, leg)
+      const waitsFor = held ? GROUP_SIGN_OFF_TEXT.heldLine : legWaitsFor(group, leg)
       return [
         {
           leg,
           label: view.label,
           tone: view.tone,
-          openLabel: PROCESS_GROUP_LEG_OPEN_LABELS[leg.status] ?? PROCESS_GROUP_LEG_OPEN_LABEL,
-          readyForSignOff: leg.status === 'at-sign-off',
+          openLabel:
+            (held ? undefined : PROCESS_GROUP_LEG_OPEN_LABELS[leg.status]) ??
+            PROCESS_GROUP_LEG_OPEN_LABEL,
+          readyForSignOff: leg.status === 'at-sign-off' && !held,
           ...(waitsFor ? { waitsFor } : {}),
           ...(totals ? { totals } : {}),
           ...(leg.rebuildError ? { error: leg.rebuildError } : {}),
@@ -153,8 +188,9 @@ function legWaitsFor(group: ProcessGroupRun, leg: ProcessGroupLeg): string | und
     return gate.canMerge ? undefined : gate.reason
   }
   if (leg.status !== 'blocked') return undefined
+  const met = isProcessGroupOnBranch(group) ? ['integrated', 'at-sign-off'] : ['integrated']
   const waiting = leg.dependsOn.filter(
-    (d) => group.legs.find((l) => l.id === d)?.status !== 'integrated',
+    (d) => !met.includes(group.legs.find((l) => l.id === d)?.status ?? ''),
   )
   return waiting.length > 0
     ? `Waits for ${waiting.map((d) => legTitle(group, d)).join(' and ')}`
@@ -197,7 +233,7 @@ function cardBody(
     return { body: { text: group.error, tone: 'stuck' } }
   }
   const ready = group.legs.filter((l) => l.status === 'at-sign-off').map((l) => l.projectId)
-  if (ready.length > 0) {
+  if (ready.length > 0 && !isProcessGroupOnBranch(group)) {
     return {
       body: {
         text: `${andList(ready)} ${ready.length === 1 ? 'is' : 'are'} ready for sign-off`,

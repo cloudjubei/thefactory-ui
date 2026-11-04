@@ -28,6 +28,7 @@ import type { UikitFileMeta } from '../files/FileDisplay'
 import type { ResourceLink } from 'thefactory-tools/types'
 import type { ToolCall, ToolResultType } from './ToolCall'
 import type { ChatMessageLike, PendingToolGrant } from '../../../headless/utils/chatTypes'
+import type { ChatVideoAttachments } from '../../../headless/utils/videoAttachmentTypes'
 import { describeLastMessageDelete } from '../../../headless/utils/chatMessageDelete'
 import { chatShownMessages } from '../../../headless/utils/chatShownMessages'
 import { firstUnreadMessageIndex } from '../../../headless/utils/chatUnread'
@@ -161,6 +162,7 @@ export type MessageListProps = {
    * thumbnail that opens full size. Omit where files cannot be read back.
    */
   getAttachmentPreviewUrl?: (path: string) => Promise<string | null>
+  videoAttachments?: ChatVideoAttachments
   /** Host-supplied tool-preview fetcher — called for each call waiting on
    * an ask decided on its row, so the user sees the proposed diff/patch inside
    * the hover card before approving. Result is cached internally per
@@ -233,6 +235,7 @@ export default function MessageList({
   renderProcessGroupRun,
   previewTool,
   getAttachmentPreviewUrl,
+  videoAttachments,
   isSending = false,
   isDeleting = false,
   isBusy,
@@ -827,6 +830,7 @@ export default function MessageList({
                   renderProcessRun={renderProcessRun}
                   renderProcessGroupRun={renderProcessGroupRun}
                   getAttachmentPreviewUrl={getAttachmentPreviewUrl}
+                  videoAttachments={videoAttachments}
                   toolPreview={
                     msg.role === 'tool' && msg.toolCall?.toolCallId
                       ? toolPreviewById[String(msg.toolCall.toolCallId)]

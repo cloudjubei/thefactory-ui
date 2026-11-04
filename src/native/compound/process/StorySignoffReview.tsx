@@ -49,6 +49,7 @@ import {
   useProjectChecks,
   useReviewEvidence,
   useRunChatDraft,
+  useRunWalkthrough,
   useStories,
   useStorySignoff,
   type AcceptanceJudgement,
@@ -61,6 +62,7 @@ import {
   type ProcessManagerEscalationView,
   type ProcessParkChoice,
   type ProcessResumeChoice,
+  type SignoffEvidenceChip,
   type SignoffMergeHold,
   type ProcessWorkBranch,
   type ProofKind,
@@ -80,7 +82,7 @@ import { nativeRadii } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { Button } from '../../primitives/Button'
 import { IconChevronRight } from '../../icons'
-import type { ProjectChecksListing } from '../../../headless/api'
+import type { ChatAttachmentFile, ProjectChecksListing } from '../../../headless/api'
 import CheckChip from '../chips/CheckChip'
 import SetUpWithAgentButton from '../chips/SetUpWithAgentButton'
 import {
@@ -103,6 +105,7 @@ import RunNeedsYouCard, { ManagerLine } from './RunNeedsYouCard'
 import ProofPlanMarks from './ProofPlanMarks'
 import ScreensDecisionNote from './ScreensDecisionNote'
 import CodeReviewPanel from './signoff/CodeReviewPanel'
+import LoomWalkthroughPanel from './signoff/LoomWalkthroughPanel'
 import Pill from './signoff/Pill'
 import SignoffDecisionList from './signoff/SignoffDecisionList'
 import SignoffReportPanel from './signoff/SignoffReportPanel'
@@ -110,6 +113,13 @@ import StorySpecCard from './signoff/StorySpecCard'
 
 /** A group leg that cannot merge yet, and the way to its group run. */
 export type StorySignoffMergeHold = SignoffMergeHold & { onOpenGroup?: () => void }
+
+/** A chip set after the evidence chips, and what opens behind it: a group's output. */
+export type StorySignoffExtraChip = {
+  key: string
+  row: SignoffEvidenceChip['row']
+  content: ReactNode
+}
 
 export type StorySignoffReviewProps = {
   projectId: string
@@ -137,6 +147,8 @@ export type StorySignoffReviewProps = {
   onReportText?: (text: string | undefined) => void
   /** Puts a file where the user can reach it; downloads stay hidden without it. */
   onSaveFile?: SaveFileHandler
+  /** The app's file picker, for a Loom walkthrough's video; without it a step takes a link alone. */
+  pickLoomVideo?: () => Promise<ChatAttachmentFile[]>
   /** Open a step's output on its own screen — the fix pass chip's target. */
   onOpenStep?: (target: SignoffStepTarget) => void
   /** What proof the run cannot produce here: never preset for a request for changes, and never choosable. */
@@ -157,6 +169,10 @@ export type StorySignoffReviewProps = {
   steps?: ReactNode
   /** "More about this run" — last. */
   details?: ReactNode
+  /** Chips set beside the evidence chips, each with what it opens. */
+  extraChips?: readonly StorySignoffExtraChip[]
+  /** The evidence card alone, for a page that decides elsewhere. */
+  evidenceCardOnly?: boolean
 }
 
 const TEST_METHODS: readonly CheckMethodId[] = ['tests']
@@ -276,6 +292,7 @@ function StorySignoffPanel({
   mergeHold,
   onReportText,
   onSaveFile,
+  pickLoomVideo,
   onOpenStep,
   proofUnavailable,
   changeUiPaths,
@@ -286,6 +303,8 @@ function StorySignoffPanel({
   integration,
   steps,
   details,
+  extraChips = [],
+  evidenceCardOnly = false,
   signoff,
   evidence,
   evidenceState,
@@ -296,6 +315,7 @@ function StorySignoffPanel({
   evidenceState: EvidenceLoadState
   projectChecks: ProjectChecksListing | undefined
 }) {
+  const loom = useRunWalkthrough(storyRunId)
   const onSetUp = capabilitySetupHandler(useRunChatDraft(), {
     ...(projectChecks ? { projectChecks } : {}),
     inRun: true,
@@ -378,7 +398,7 @@ function StorySignoffPanel({
 
   const hasSignoff =
     signoff.features.length > 0 || signoff.fixes.length > 0 || signoff.overall !== undefined
-  if (!hasSignoff && evidence.tiles.length === 0) {
+  if (!hasSignoff && evidence.tiles.length === 0 && extraChips.length === 0) {
     return (
       <Text style={{ fontSize: 12, color: theme.text.secondary }}>
         No evidence was filed for this story’s features.
@@ -567,22 +587,25 @@ function StorySignoffPanel({
   const overall = signoff.overall
   const { tests: testChecks, build: buildChecks } = reviewCheckGroups(overall?.verification)
   const testTotals = aggregateTestCounts(testChecks)
-  const tabs = overall
-    ? reviewTabs({
-        screens: requestPairs.length,
-        walkthroughs: overallSection.recordings.length,
-        reports: overallSection.reports.length,
-        testCount: testTotals?.total ?? 0,
-        testChecks: ranReviewChecks(testChecks).length,
-        buildChecks: ranReviewChecks(buildChecks).length,
-        changedFiles: undefined,
-        codeReviews: overallSection.codeReviews.length,
-        ...(overallSection.leadTab ? { lead: overallSection.leadTab } : {}),
-      })
-    : []
+  const overallRows = overall?.rows ?? []
+  const tabs = reviewTabs({
+    screens: overall ? requestPairs.length : 0,
+    walkthroughs: overall ? overallSection.recordings.length : 0,
+    reports: overall ? overallSection.reports.length : 0,
+    testCount: testTotals?.total ?? 0,
+    testChecks: ranReviewChecks(testChecks).length,
+    buildChecks: ranReviewChecks(buildChecks).length,
+    changedFiles: undefined,
+    codeReviews: overall ? overallSection.codeReviews.length : 0,
+    ...(overallSection.leadTab ? { lead: overallSection.leadTab } : {}),
+    ...(loom.view ? { loom: { total: loom.view.rows.length, left: loom.view.left } } : {}),
+  })
   const tabOrder = reviewTabOrder(overallSection.leadTab ?? 'report')
-  const chips = overall ? signoffEvidenceChips(overall.rows, tabs, tabOrder) : []
-  const current = chips.find((c) => c.key === chipKey) ?? chips.find((c) => c.target.kind === 'tab')
+  const chips = signoffEvidenceChips(overallRows, tabs, tabOrder)
+  const extraChip = extraChips.find((c) => c.key === chipKey)
+  const current = extraChip
+    ? undefined
+    : (chips.find((c) => c.key === chipKey) ?? chips.find((c) => c.target.kind === 'tab'))
   const missingRow =
     current?.target.kind === 'missing'
       ? overall?.rows.find((r) => r.id === current.row.id)
@@ -697,6 +720,113 @@ function StorySignoffPanel({
     color: theme.text.muted,
   } as const
   const openStory = () => rendering?.onOpen?.({ kind: 'story', projectId, storyId })
+
+  const evidenceCard =
+    chips.length > 0 || extraChips.length > 0 ? (
+      <View accessibilityLabel={SIGNOFF_SECTION_TITLES.evidence} style={card}>
+        <View
+          accessibilityRole="tablist"
+          style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}
+        >
+          {chips.map((chip) => (
+            <CheckChip
+              key={chip.key}
+              row={chip.row}
+              selected={!extraChip && isEvidenceChipSelected(chip, chipKey, chips)}
+              onPress={() => setChipKey(chip.key)}
+            />
+          ))}
+          {extraChips.map((chip) => (
+            <CheckChip
+              key={chip.key}
+              row={chip.row}
+              selected={chip === extraChip}
+              onPress={() => setChipKey(chip.key)}
+            />
+          ))}
+        </View>
+        {extraChip ? (
+          extraChip.content
+        ) : current?.target.kind === 'missing' ? (
+          <View style={{ gap: 8 }}>
+            <Text style={{ fontSize: 13.5, fontWeight: '600', color: theme.text.primary }}>
+              {current.target.title}
+            </Text>
+            <Text style={{ fontSize: 13, color: theme.text.secondary }}>{current.target.text}</Text>
+            {missingSetUp ? (
+              <View style={{ alignItems: 'flex-start' }}>
+                <SetUpWithAgentButton onPress={missingSetUp} />
+              </View>
+            ) : null}
+          </View>
+        ) : current?.target.tab === 'report' ? (
+          <SignoffReportPanel view={reportView} onOpenTab={openTab} />
+        ) : current?.target.tab === 'screens' ? (
+          <ScreensTab
+            pairs={requestPairs}
+            onOpen={setOpenPairKey}
+            capturedLabel={undefined}
+            onRequestImage={evidence.requestImage}
+          />
+        ) : current?.target.tab === 'tests' ? (
+          <View style={{ gap: 8 }}>
+            <ChecksTab
+              methods={overallRows.filter((r) => TEST_METHODS.includes(r.id))}
+              checks={testChecks}
+              branch={undefined}
+              busyId={undefined}
+            />
+            {projectChecks?.knownFlakes ? (
+              <ProjectFlakesList flakes={projectChecks.knownFlakes} />
+            ) : null}
+          </View>
+        ) : current?.target.tab === 'build' ? (
+          <ChecksTab
+            methods={overallRows.filter((r) => BUILD_METHODS.includes(r.id))}
+            checks={buildChecks}
+            branch={undefined}
+            busyId={undefined}
+          />
+        ) : current?.target.tab === 'code-review' && storyReview ? (
+          <CodeReviewPanel
+            review={storyReview}
+            {...(storyReviewVerdict ? { verdict: storyReviewVerdict } : {})}
+            {...save}
+          />
+        ) : current?.target.tab === 'walkthrough' ? (
+          <WalkthroughTab projectId={projectId} recordings={overallSection.recordings} {...save} />
+        ) : current?.target.tab === 'loom' && loom.view ? (
+          <LoomWalkthroughPanel
+            view={loom.view}
+            attachLink={loom.attachLink}
+            attachFile={loom.attachFile}
+            {...(pickLoomVideo ? { pickVideo: pickLoomVideo } : {})}
+          />
+        ) : null}
+      </View>
+    ) : null
+
+  const overlay = (
+    <ComparisonOverlay
+      pairs={overlayPairs}
+      openKey={openPairKey}
+      onClose={() => setOpenPairKey(undefined)}
+      baseSha={undefined}
+      headSha={undefined}
+      onRequestImage={evidence.requestImage}
+      {...save}
+      projectId={projectId}
+    />
+  )
+
+  if (evidenceCardOnly) {
+    return (
+      <>
+        {evidenceCard}
+        {overlay}
+      </>
+    )
+  }
 
   return (
     <View style={{ gap: 14 }}>
@@ -819,10 +949,10 @@ function StorySignoffPanel({
               <Button
                 size="sm"
                 variant="secondary"
-                accessibilityLabel="Open the group run"
+                accessibilityLabel={mergeHold.openLabel ?? 'Open the group run'}
                 onPress={mergeHold.onOpenGroup}
               >
-                Group
+                {mergeHold.openLabel ?? 'Group'}
               </Button>
             ) : null}
           </View>
@@ -846,78 +976,7 @@ function StorySignoffPanel({
 
       {steps}
 
-      {overall && chips.length > 0 ? (
-        <View accessibilityLabel={SIGNOFF_SECTION_TITLES.evidence} style={card}>
-          <View
-            accessibilityRole="tablist"
-            style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}
-          >
-            {chips.map((chip) => (
-              <CheckChip
-                key={chip.key}
-                row={chip.row}
-                selected={isEvidenceChipSelected(chip, chipKey, chips)}
-                onPress={() => setChipKey(chip.key)}
-              />
-            ))}
-          </View>
-          {current?.target.kind === 'missing' ? (
-            <View style={{ gap: 8 }}>
-              <Text style={{ fontSize: 13.5, fontWeight: '600', color: theme.text.primary }}>
-                {current.target.title}
-              </Text>
-              <Text style={{ fontSize: 13, color: theme.text.secondary }}>
-                {current.target.text}
-              </Text>
-              {missingSetUp ? (
-                <View style={{ alignItems: 'flex-start' }}>
-                  <SetUpWithAgentButton onPress={missingSetUp} />
-                </View>
-              ) : null}
-            </View>
-          ) : current?.target.tab === 'report' ? (
-            <SignoffReportPanel view={reportView} onOpenTab={openTab} />
-          ) : current?.target.tab === 'screens' ? (
-            <ScreensTab
-              pairs={requestPairs}
-              onOpen={setOpenPairKey}
-              capturedLabel={undefined}
-              onRequestImage={evidence.requestImage}
-            />
-          ) : current?.target.tab === 'tests' ? (
-            <View style={{ gap: 8 }}>
-              <ChecksTab
-                methods={overall.rows.filter((r) => TEST_METHODS.includes(r.id))}
-                checks={testChecks}
-                branch={undefined}
-                busyId={undefined}
-              />
-              {projectChecks?.knownFlakes ? (
-                <ProjectFlakesList flakes={projectChecks.knownFlakes} />
-              ) : null}
-            </View>
-          ) : current?.target.tab === 'build' ? (
-            <ChecksTab
-              methods={overall.rows.filter((r) => BUILD_METHODS.includes(r.id))}
-              checks={buildChecks}
-              branch={undefined}
-              busyId={undefined}
-            />
-          ) : current?.target.tab === 'code-review' && storyReview ? (
-            <CodeReviewPanel
-              review={storyReview}
-              {...(storyReviewVerdict ? { verdict: storyReviewVerdict } : {})}
-              {...save}
-            />
-          ) : current?.target.tab === 'walkthrough' ? (
-            <WalkthroughTab
-              projectId={projectId}
-              recordings={overallSection.recordings}
-              {...save}
-            />
-          ) : null}
-        </View>
-      ) : null}
+      {evidenceCard}
 
       <View accessibilityLabel={SIGNOFF_SECTION_TITLES.what} style={card}>
         <StorySpecCard
@@ -1049,16 +1108,7 @@ function StorySignoffPanel({
 
       {details}
 
-      <ComparisonOverlay
-        pairs={overlayPairs}
-        openKey={openPairKey}
-        onClose={() => setOpenPairKey(undefined)}
-        baseSha={undefined}
-        headSha={undefined}
-        onRequestImage={evidence.requestImage}
-        {...save}
-        projectId={projectId}
-      />
+      {overlay}
     </View>
   )
 }

@@ -59,7 +59,7 @@ import {
 import { useChatOpenChanges } from '../../../headless/hooks/useChatOpenChanges'
 import { ChatChangesBarConnected } from './ChatChangesBarConnected'
 import { ChatChangesMarkerConnected } from './ChatChangesMarkerConnected'
-import type { PickedAnswerFile } from '../process/answerFilesNativeTypes'
+import type { ChatAttachmentFile } from '../../../headless/api'
 
 export interface ChatBodyProps {
   /**
@@ -73,7 +73,7 @@ export interface ChatBodyProps {
   /** The chat's group, forwarded to a launch across the group's projects. */
   groupId?: string
   /** The app's file picker, for files handed over with an answer to the agent's question. */
-  pickAnswerFiles?: () => Promise<PickedAnswerFile[]>
+  pickAnswerFiles?: () => Promise<ChatAttachmentFile[]>
   /** The chat's display name — the sender an agent's message into another chat is labelled with. */
   chatTitle?: string
   /**
@@ -515,6 +515,7 @@ export default function ChatBody({
             onResourceLink={onResourceLink}
             {...(chatTitle ? { chatTitle } : {})}
             attachmentImages={inputProps?.attachmentImages}
+            videoAttachments={inputProps?.videoAttachments}
             renderCliRunArtifact={renderChanges}
             renderProcessRun={renderProcessRun}
             renderProcessGroupRun={renderProcessGroupRun}

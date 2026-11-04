@@ -1,11 +1,13 @@
 import type { ReferenceTarget } from 'thefactory-tools/types'
-import { attachmentDisplayName } from 'thefactory-tools/utils'
+import { attachmentDisplayName, isVideoPath } from 'thefactory-tools/utils'
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import Markdown from '../Markdown'
 import type { ResourceLink } from 'thefactory-tools/types'
 import RichText from '../files/RichText'
 import FileDisplay, { type UikitFileMeta } from '../files/FileDisplay'
 import { isImageAttachment } from '../../../headless/utils/chatDrop'
+import type { ChatVideoAttachments } from '../../../headless/utils/videoAttachmentTypes'
+import ChatVideoAttachment from './ChatVideoAttachment'
 import SentImageAttachment from './SentImageAttachment'
 import Tooltip from '../../primitives/Tooltip'
 import { IconRefresh, IconToolbox } from '../../icons'
@@ -210,6 +212,8 @@ export type MessageRowProps = {
    * thumbnail that opens full size. Omit where files cannot be read back.
    */
   getAttachmentPreviewUrl?: (path: string) => Promise<string | null>
+  /** Where this chat's videos read how they stand. */
+  videoAttachments?: ChatVideoAttachments
 
   // ----- Inline tool-confirmation flow (forwarded to ToolCallCard) -----
   /** Pre-applied preview (if any) for `require_confirmation` write tools. */
@@ -261,6 +265,7 @@ function MessageRow({
   renderProcessRun,
   renderProcessGroupRun,
   getAttachmentPreviewUrl,
+  videoAttachments,
   toolPreview,
   toolSelectable,
   toolSelected,
@@ -680,11 +685,22 @@ function MessageRow({
                   )
                 }
                 const name = attachmentDisplayName(path)
-                return (
+                const file = (
                   <FileDisplay
                     key={key}
                     file={{ name, absolutePath: path, relativePath: path }}
                     density="compact"
+                  />
+                )
+                if (!videoAttachments || !isVideoPath(path)) return file
+                return (
+                  <ChatVideoAttachment
+                    key={key}
+                    path={path}
+                    chat={videoAttachments}
+                    place="sent"
+                    getPreviewUrl={getAttachmentPreviewUrl}
+                    fallback={file}
                   />
                 )
               })}

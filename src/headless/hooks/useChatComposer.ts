@@ -12,6 +12,7 @@ import {
   takePending,
   type ChatDraftTake,
 } from '../utils/chatDraft'
+import type { ChatUploads } from '../utils/chatAttachmentUploadTypes'
 import type {
   ChatDraft,
   OutgoingChatMessage,
@@ -46,6 +47,8 @@ export type UseChatComposer = {
    * the upload finishes after the person moved to another chat.
    */
   addAttachment: (path: string) => void
+  /** Files on their way into this chat's composer, kept above it so they go on across chat switches. */
+  uploads: ChatUploads
   /**
    * Send what the composer holds — after anything still queued, as one
    * message. A send that does not reach the server is put back.
@@ -77,7 +80,14 @@ export function useChatComposer(
   context: ChatContext,
   options: UseChatComposerOptions = {},
 ): UseChatComposer {
-  const { getDraftState, updateDraftState, subscribeDraft, sendMessage, getChat } = useChats()
+  const {
+    getDraftState,
+    updateDraftState,
+    subscribeDraft,
+    sendMessage,
+    getChat,
+    attachmentUploads,
+  } = useChats()
   const contextKey = getChatContextKey(context)
   const contextRef = useRef(context)
   contextRef.current = context
@@ -119,6 +129,12 @@ export function useChatComposer(
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [updateDraftState, contextKey],
+  )
+
+  const uploads = useMemo(
+    () => attachmentUploads.forChat(context, addAttachment),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [attachmentUploads, addAttachment, contextKey],
   )
 
   const dispatch = useCallback(
@@ -181,6 +197,7 @@ export function useChatComposer(
     setText,
     setAttachments,
     addAttachment,
+    uploads,
     send,
     queue,
   }

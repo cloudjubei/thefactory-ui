@@ -885,3 +885,56 @@ describe('runProposalStepName', () => {
     expect(runProposalStepName({ detail: { tool: 'proposeStepRerun', args: {} } })).toBeUndefined()
   })
 })
+
+describe('runProposalView — the group sign-off', () => {
+  const detail = {
+    groupRunTitle: 'ENG-7',
+    choice: 'approve',
+    tickets: ['ENG-7', 'ENG-8'],
+    repos: [
+      { projectId: 'api', pullRequest: 'to-open', title: 'Add the export' },
+      { projectId: 'docs', pullRequest: 'left-out', leftOut: 'Only generated files changed.' },
+    ],
+    goingLive: 'Merge api first, then web.',
+    effect: 'Opens a pull request in api.',
+  }
+
+  it('names the ticket, each repo, the order and what comes of it', () => {
+    const view = runProposalView(
+      'signOffGroupRun',
+      { groupRunId: 'g1', choice: 'approve' },
+      undefined,
+      detail,
+    )
+    expect(view).toMatchObject({
+      kind: 'group-sign-off',
+      title: 'ENG-7',
+      effect: 'Opens a pull request in api.',
+      approveLabel: 'Approve and open the PRs',
+    })
+    const lines = Object.fromEntries(view!.sections.map((s) => [s.key, s.summary]))
+    expect(lines.tickets).toBe('ENG-7, ENG-8')
+    expect(lines['repo-api']).toBe('Add the export')
+    expect(lines['repo-docs']).toBe('Only generated files changed.')
+    expect(lines.goingLive).toBe('Merge api first, then web.')
+  })
+
+  it('says which repo goes back, and labels the approval by the choice', () => {
+    const view = runProposalView(
+      'signOffGroupRun',
+      { groupRunId: 'g1', choice: 'request-changes', note: 'Fix the title' },
+      undefined,
+      { ...detail, choice: 'request-changes', leg: { projectId: 'api', title: 'API part' } },
+    )
+    expect(view?.approveLabel).toBe('Send it back')
+    expect(view?.sections.find((s) => s.key === 'leg')?.summary).toBe('api · API part')
+    expect(view?.sections.find((s) => s.key === 'note')?.summary).toBe('Fix the title')
+  })
+
+  it('reads a rejection as ending the work', () => {
+    const view = runProposalView('signOffGroupRun', { groupRunId: 'g1', choice: 'reject' })
+    expect(view?.tone).toBe('stuck')
+    expect(view?.approveLabel).toBe('Reject the work')
+    expect(view?.title).toBe('g1')
+  })
+})

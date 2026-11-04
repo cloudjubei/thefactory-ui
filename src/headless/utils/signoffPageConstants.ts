@@ -11,6 +11,7 @@ export const SIGNOFF_ATTENTION_ACTION = 'See what Verify said'
 export const SIGNOFF_TAB_METHOD: Record<ReviewTabId, CheckMethodId> = {
   screens: 'screens',
   walkthrough: 'walkthrough',
+  loom: 'walkthrough',
   tests: 'tests',
   build: 'build',
   report: 'report',

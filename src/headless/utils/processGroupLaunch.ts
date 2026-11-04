@@ -46,12 +46,14 @@ export function startGroupWorkGrantSummary(
   }
   const groupId = text(record.groupId)
   const title = text(record.title)
+  const groupStoryId = text(record.groupStoryId)
   const note = text(record.note)
   const runner = record.runner
   const spendCapUsd = record.spendCapUsd
   return {
     ...(groupId ? { groupId } : {}),
     ...(title ? { title } : {}),
+    ...(groupStoryId ? { groupStoryId } : {}),
     legs,
     ...(note ? { note } : {}),
     proofRequired: record.proofRequired !== false,
@@ -63,12 +65,14 @@ export function startGroupWorkGrantSummary(
 
 /** The project titles of what a leg waits for, in the card's words. */
 export function processGroupLegWaitsFor(
-  preview: Pick<ProcessGroupLaunchPreview, 'legs'>,
+  preview: Pick<ProcessGroupLaunchPreview, 'legs' | 'buildMode'>,
   dependsOn: readonly string[],
 ): string | undefined {
   if (dependsOn.length === 0) return undefined
   const titles = dependsOn.map(
     (id) => preview.legs.find((l) => l.projectId === id)?.projectTitle ?? id,
   )
-  return `Starts once ${titles.join(' and ')} ${titles.length === 1 ? 'is' : 'are'} merged`
+  const verb = titles.length === 1 ? 'is' : 'are'
+  const done = preview.buildMode === 'on-branch' ? 'finished, on its branch' : 'merged'
+  return `Starts once ${titles.join(' and ')} ${verb} ${done}`
 }

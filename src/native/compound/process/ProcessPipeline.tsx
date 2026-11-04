@@ -114,7 +114,11 @@ import {
   type ProcessWaitingItemChoice,
   type ProcessWaitingRequestView,
   type ProcessWaitingView,
+  isHeldForGroupSignOff,
+  isProcessGroupOnBranch,
   isProcessRunAtSignOff,
+  signoffGroupHold,
+  useGroupSignOff,
   processWaitingTitleLine,
 } from '../../../headless'
 import type { ChatContext } from '../../../headless/api'
@@ -131,7 +135,8 @@ import RunPendingChanges from './RunPendingChanges'
 import IntegrationResult from './IntegrationResult'
 import { CirclingChip, CirclingNotice } from './CirclingNotice'
 import ParkNoteComposer from './ParkNoteComposer'
-import type { NativeAnswerFiles, PickedAnswerFile } from './answerFilesNativeTypes'
+import type { ChatAttachmentFile } from '../../../headless/api'
+import type { NativeAnswerFiles } from './answerFilesNativeTypes'
 import ProofChangeComposer from './ProofChangeComposer'
 import RetryChoiceOptions from './RetryChoiceOptions'
 import ParkAnswers from './ParkAnswers'
@@ -146,6 +151,7 @@ import { RunManagerChip } from './RunManagerChip'
 import RunChatButton, { type RunChatButtonProps } from './RunChatButton'
 import RunDiagnosticsView from './RunDiagnosticsView'
 import StorySignoffReview from './StorySignoffReview'
+import SignOffOutputPanel from './signoff/SignOffOutputPanel'
 import StepPreview from './pipeline/StepPreview'
 import StepScreen, { type StepPanelTarget } from './pipeline/StepScreen'
 import { RunModelChip, type SaveFileHandler } from '../chat/signoff'
@@ -180,6 +186,8 @@ export type ProcessPipelineProps = {
   onOpenChat?: (context: ChatContext) => void
   /** Open the group run a project's run is a leg of. */
   onOpenGroupRun?: (groupRunId: string) => void
+  /** The app's clipboard, for an output's Copy; without it the text stays selectable. */
+  onCopy?: (text: string) => unknown
   /**
    * Push the run's own chat — native's form of web's docked run chat. Its draft is
    * already set when a "Needs you" item is being discussed.
@@ -203,7 +211,7 @@ export type ProcessPipelineProps = {
    * The app's file picker, for files a person hands a waiting agent with an
    * answer from this device. Without it only project files can be handed over.
    */
-  pickAnswerFiles?: () => Promise<PickedAnswerFile[]>
+  pickAnswerFiles?: () => Promise<ChatAttachmentFile[]>
   /**
    * The "Needs you" item a link opened the run on — the host's `?needsYou=` —
    * shown on the report and lit at its sign-off.
@@ -226,6 +234,7 @@ export default function ProcessPipeline({
   onOpenAgentRun,
   renderAgentRun,
   onSaveFile,
+  onCopy,
   onOpenChat,
   onOpenGroupRun,
   onOpenRunChat,
@@ -294,6 +303,9 @@ export default function ProcessPipeline({
   const { settings } = useAppSettings()
   const showDiagnostics = settings.userPreferences.showRunDiagnostics === true
   const { group } = useProcessGroupRun(run?.groupRunId)
+  const groupSignOff = useGroupSignOff(
+    group && isProcessGroupOnBranch(group) ? group.id : undefined,
+  )
   const integrationModes = run ? processRunIntegrationModes(run, group) : undefined
   const { projects } = useProjects()
   const { getChat, setDraft, sendMessage } = useChats()
@@ -451,13 +463,15 @@ export default function ProcessPipeline({
     stopHolder === 'manager' && stopRoot ? processRunManagerLine(stopRoot, stopNow) : undefined
   const signoff = isStorySignoff(run)
   const mergeHold =
-    signoff && group
-      ? signoffMergeHold(
-          group,
-          run.projectId,
-          (id) => projects.find((p) => p.id === id)?.title ?? id,
-        )
-      : undefined
+    signoff && isHeldForGroupSignOff(run)
+      ? signoffGroupHold()
+      : signoff && group
+        ? signoffMergeHold(
+            group,
+            run.projectId,
+            (id) => projects.find((p) => p.id === id)?.title ?? id,
+          )
+        : undefined
   const choose = (
     choice: ProcessResumeChoice,
     note?: string,
@@ -731,6 +745,18 @@ export default function ProcessPipeline({
                 onReportText={setReportText}
                 onOpenStep={setPanel}
                 {...(onSaveFile ? { onSaveFile } : {})}
+                {...(pickAnswerFiles ? { pickLoomVideo: pickAnswerFiles } : {})}
+                extraChips={groupSignOff.outputs.map((chip) => ({
+                  key: chip.key,
+                  row: chip.row,
+                  content: (
+                    <SignOffOutputPanel
+                      view={chip.panel}
+                      actions={groupSignOff.outputActions}
+                      {...(onCopy ? { onCopy } : {})}
+                    />
+                  ),
+                }))}
               />
             </NeedsYouScope>
           </View>

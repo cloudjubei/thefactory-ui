@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { ProcessGroupLeg, ProcessGroupRun } from 'thefactory-tools/types'
 import {
+  groupSignOffCounts,
+  isGroupRunAtSignOff,
+  isGroupSignOffPark,
   processGroupBadge,
   processGroupLiveState,
   processGroupCardView,
@@ -688,5 +691,143 @@ describe('processGroupLandingCheckView', () => {
     expect(
       processGroupLandingCheckView({ landed: false, problems: ['No commit was found.'] }),
     ).toEqual({ landed: false, lines: ['No commit was found.'] })
+  })
+})
+
+describe('a group run built on branches', () => {
+  const onBranch = (over: Partial<ProcessGroupRun> = {}) =>
+    group({ buildMode: 'on-branch', ...over })
+  const signOffPark = {
+    reason: 'sign-off' as const,
+    message: 'Every project is finished. One sign-off decides them all.',
+    parkedAt: 0,
+  }
+  const finished = leg('a', { status: 'at-sign-off' })
+
+  it('reads Sign off at its one decision, and Needs you when that could not be carried out', () => {
+    const waiting = onBranch({ status: 'parked', park: signOffPark, legs: [finished] })
+    expect(processGroupLiveState(waiting)).toBe('sign-off')
+    expect(processGroupBadge(waiting).label).toBe('Sign off')
+    expect(
+      processGroupLiveState(
+        onBranch({
+          status: 'parked',
+          park: { ...signOffPark, reason: 'sign-off-failed' },
+          legs: [finished],
+        }),
+      ),
+    ).toBe('needs-you')
+  })
+
+  it('asks nothing while a finished leg waits for the others', () => {
+    const building = onBranch({ legs: [finished, leg('b', { status: 'running' })] })
+    expect(processGroupLiveState(building)).toBe('running')
+    expect(processGroupCardView(building).body).toBeUndefined()
+  })
+
+  it('still reads a leg’s own ask as Needs you', () => {
+    expect(
+      processGroupLiveState(onBranch({ legs: [finished, leg('b', { status: 'needs-you' })] })),
+    ).toBe('needs-you')
+  })
+
+  it('leaves a run that merges first as it was', () => {
+    expect(processGroupLiveState(group({ legs: [finished] }))).toBe('sign-off')
+    expect(processGroupCardView(group({ legs: [finished] })).body?.text).toContain(
+      'ready for sign-off',
+    )
+  })
+
+  it('draws a finished leg as finished, waiting for the group, with no sign-off of its own', () => {
+    const [[row]] = processGroupLegRows(onBranch({ legs: [finished] })) as [
+      [ReturnType<typeof processGroupLegRows>[number][number]],
+    ]
+    expect(row).toMatchObject({
+      label: 'Finished',
+      readyForSignOff: false,
+      openLabel: 'Open its pipeline',
+      waitsFor: 'Waits for the group sign-off',
+    })
+  })
+
+  it('waits only on a needed leg not finished', () => {
+    const rows = processGroupLegRows(
+      onBranch({
+        legs: [finished, leg('b'), leg('c', { dependsOn: ['a', 'b'], status: 'blocked' })],
+      }),
+    ).flat()
+    expect(rows.find((r) => r.leg.id === 'c')?.waitsFor).toBe('Waits for b')
+  })
+})
+
+describe('isGroupSignOffPark', () => {
+  it.each([
+    ['sign-off', true],
+    ['sign-off-failed', true],
+    ['leg-failed', false],
+  ] as const)('%s is %s', (reason, expected) => {
+    expect(isGroupSignOffPark({ reason })).toBe(expected)
+  })
+})
+
+describe('isGroupRunAtSignOff', () => {
+  const parked = (reason: NonNullable<ProcessGroupRun['park']>['reason']) =>
+    group({
+      status: 'parked',
+      buildMode: 'on-branch',
+      park: { reason, message: 'm', parkedAt: 1 },
+    })
+
+  it('takes a parked group run’s sign-off, and a decision that could not be carried out', () => {
+    expect(isGroupRunAtSignOff(parked('sign-off'))).toBe(true)
+    expect(isGroupRunAtSignOff(parked('sign-off-failed'))).toBe(true)
+  })
+
+  it.each([
+    'leg-failed',
+    'leg-start-failed',
+    'integration-failed',
+    'prerequisite-build-failed',
+  ] as const)('leaves out a group stop for %s', (reason) => {
+    expect(isGroupRunAtSignOff(parked(reason))).toBe(false)
+  })
+
+  it('leaves out a run that no longer waits, whatever stop it still carries', () => {
+    const park = { reason: 'sign-off' as const, message: 'm', parkedAt: 1 }
+    expect(isGroupRunAtSignOff(group({ status: 'running', park }))).toBe(false)
+    expect(isGroupRunAtSignOff(group({ status: 'cancelled', park }))).toBe(false)
+    expect(isGroupRunAtSignOff(group({ status: 'parked' }))).toBe(false)
+  })
+})
+
+describe('groupSignOffCounts', () => {
+  const atSignOff = (groupId: string, legs: ProcessGroupLeg[]) =>
+    group({
+      groupId,
+      status: 'parked',
+      buildMode: 'on-branch',
+      park: { reason: 'sign-off', message: 'm', parkedAt: 1 },
+      legs,
+    })
+
+  it('counts a group run once, however many legs it has', () => {
+    const legs = ['a', 'b', 'c'].map((id) => leg(id, { status: 'at-sign-off' }))
+    expect(groupSignOffCounts([atSignOff('g', legs)])).toEqual(new Map([['g', 1]]))
+  })
+
+  it('counts each group run of a group, and keeps groups apart', () => {
+    expect(
+      groupSignOffCounts([atSignOff('g', []), atSignOff('g', []), atSignOff('h', [leg('a')])]),
+    ).toEqual(
+      new Map([
+        ['g', 2],
+        ['h', 1],
+      ]),
+    )
+  })
+
+  it('has no entry for a group with nothing waiting at sign-off', () => {
+    expect(groupSignOffCounts([])).toEqual(new Map())
+    expect(groupSignOffCounts([group({ groupId: 'g', status: 'running' })])).toEqual(new Map())
   })
 })

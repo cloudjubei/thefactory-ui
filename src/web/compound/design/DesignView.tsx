@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState, type DragEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { DESIGN_FILE_MAX_BYTES } from 'thefactory-tools/constants'
 import type { ChatContext, ResourceLink } from 'thefactory-tools/types'
 import {
-  CHAT_ATTACHMENT_MAX_BYTES,
   DESIGN_TEXT,
   FILE_DROP_ZONE_ATTRIBUTE,
   attachmentUploadError,
@@ -203,7 +203,7 @@ export default function DesignView({ projectId, onOpenResource }: DesignViewProp
       })
     } else {
       const refused = source.files
-        .map((f) => attachmentUploadError(f, CHAT_ATTACHMENT_MAX_BYTES))
+        .map((f) => attachmentUploadError(f, DESIGN_FILE_MAX_BYTES))
         .find(Boolean)
       if (refused) {
         setError(refused)

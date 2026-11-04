@@ -40,6 +40,14 @@ describe('isStartGroupWorkGrant', () => {
 })
 
 describe('startGroupWorkGrantSummary', () => {
+  it('names the group story a launch runs, so its ticket can be offered', () => {
+    const summary = (groupStoryId: unknown) =>
+      startGroupWorkGrantSummary({ detail: { args: { ...ARGS, groupStoryId } } })
+    expect(summary(' gs1 ').groupStoryId).toBe('gs1')
+    expect(summary('  ')).not.toHaveProperty('groupStoryId')
+    expect(summary(7)).not.toHaveProperty('groupStoryId')
+  })
+
   it('reads the arguments the ask wraps', () => {
     expect(startGroupWorkGrantSummary({ detail: { tool: 'startGroupWork', args: ARGS } })).toEqual(
       SUMMARY,
@@ -96,5 +104,15 @@ describe('processGroupLegWaitsFor', () => {
       'Starts once Tools and gone are merged',
     )
     expect(processGroupLegWaitsFor(PREVIEW, [])).toBeUndefined()
+  })
+
+  it('says finished, not merged, for a run built on branches', () => {
+    const built = (buildMode: string) => Object.assign({}, PREVIEW, { buildMode }) as never
+    expect(processGroupLegWaitsFor(built('on-branch'), ['tools'])).toBe(
+      'Starts once Tools is finished, on its branch',
+    )
+    expect(processGroupLegWaitsFor(built('merge-first'), ['tools'])).toBe(
+      'Starts once Tools is merged',
+    )
   })
 })

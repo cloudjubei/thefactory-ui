@@ -45,6 +45,15 @@ export {
 // the active token + 401 callbacks. Friendly aliases over the generated
 // shapes live in `./sdkTypes`.
 export { configureBackendClient } from './bootstrap'
+export { ChatAttachmentUploadError } from './chatAttachmentUpload'
+export type {
+  ChatAttachmentFile,
+  ChatAttachmentUploadOptions,
+  SendFileFromUri,
+  SendFileFromUriRequest,
+  SendFileFromUriResponse,
+  UploadChatFile,
+} from './chatAttachmentUploadTypes'
 export { describeBackendStartup, readBackendStarting } from './backendStartup'
 export type {
   BackendKnowledgeMapsStartup,

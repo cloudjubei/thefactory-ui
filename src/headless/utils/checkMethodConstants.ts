@@ -10,6 +10,7 @@ import type {
   ReviewTabId,
   SignoffVerdictKey,
 } from './checkMethodTypes'
+import { LOOM_WALKTHROUGH_TEXT } from './runWalkthroughConstants'
 import type { ReviewTone } from './runReviewTypes'
 
 /**
@@ -313,6 +314,7 @@ export const SIGNOFF_VERDICT_TONES: Record<SignoffVerdictKey, ReviewTone> = {
 export const REVIEW_TAB_ORDER: readonly ReviewTabId[] = [
   'screens',
   'walkthrough',
+  'loom',
   'tests',
   'build',
   'report',
@@ -323,6 +325,7 @@ export const REVIEW_TAB_ORDER: readonly ReviewTabId[] = [
 export const REVIEW_TAB_LABELS: Record<ReviewTabId, string> = {
   screens: 'Screens',
   walkthrough: 'Walkthrough',
+  loom: LOOM_WALKTHROUGH_TEXT.label,
   tests: 'Tests',
   build: 'Build',
   report: 'Report',

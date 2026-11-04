@@ -1,20 +1,9 @@
-import type { GitStatus } from '../../src/headless/api'
 import { CommitDialogView } from '../../src/web/compound/git/dialogs/CommitDialog'
+import { STATUS } from '../../src/fakeBackend/fixtures/git'
 import type { Scene } from '../showcase/types'
 
 const noop = () => {}
 const done = async () => undefined
-
-const STATUS: GitStatus = {
-  staged: [
-    'src/agent/AgentTools.test.ts',
-    'src/agent/AgentTools.ts',
-    'src/workflow/ProcessGroupDriver.test.ts',
-    'src/workflow/ProcessGroupDriver.ts',
-  ],
-  unstaged: [],
-  untracked: [],
-}
 
 const HOOK_OUTPUT = [
   '⋯ Backing up original state…',

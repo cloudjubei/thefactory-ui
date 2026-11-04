@@ -1,11 +1,20 @@
 import type { ReactNode } from 'react'
-import type { ProcessProposal, ResolvedAgentType } from 'thefactory-tools/types'
+import type { ProcessProposal } from 'thefactory-tools/types'
 import {
   agentTypeSlotRows,
   type AgentTypeSettingsData,
   type AgentTypeSlotPicks,
 } from 'thefactory-ui/headless'
 import { AgentTypeSettingsPanel, AgentTypeSlotChooser } from 'thefactory-ui/web'
+import {
+  BUILTINS,
+  CODE_QUALITY,
+  GROUP_CHECKER,
+  GROUP_DATA,
+  PROJECT_DATA,
+  SCREEN_CHECKER,
+  WEB_BUILDER,
+} from '../../src/fakeBackend/fixtures/agentTypes'
 import type { Scene } from '../showcase/types'
 
 const noop = () => {}
@@ -14,55 +23,6 @@ const kept = async () => true
 const column = (node: ReactNode) => <div className="w-[420px] max-w-full">{node}</div>
 const page = (node: ReactNode) => <div className="w-[720px] max-w-full p-4">{node}</div>
 
-const builtin = (role: ResolvedAgentType['baseRole']): ResolvedAgentType => ({
-  id: role,
-  label: role,
-  scope: 'builtin',
-  baseRole: role,
-  contextDocs: [],
-})
-
-const SCREEN_CHECKER: ResolvedAgentType = {
-  id: 'screen-checker',
-  label: 'Screen checker',
-  description: 'Proves the change on a booted device, before and after.',
-  scope: 'project',
-  baseRole: 'verifier',
-  brief: 'Capture the hot-seat handover on both orientations.',
-  contextDocs: ['docs/TESTING.md'],
-}
-
-const CODE_QUALITY: ResolvedAgentType = {
-  id: 'code-quality-maintainer',
-  label: 'Code quality maintainer',
-  description: "Reads the diff against the project's code standard.",
-  scope: 'project',
-  baseRole: 'verifier',
-  brief: 'Read the diff against docs/CODE_STANDARD.md and file one report.',
-  briefMode: 'replace',
-  proves: false,
-  tools: ['readPaths', 'gitDiff', 'getBranchDiffSummary', 'recordReviewEvidence'],
-  contextDocs: ['docs/CODE_STANDARD.md', 'docs/FILE_ORGANISATION.md'],
-}
-
-const WEB_BUILDER: ResolvedAgentType = {
-  id: 'web-builder',
-  label: 'Web builder',
-  description: 'A developer that follows the group’s web conventions.',
-  scope: 'group',
-  baseRole: 'developer',
-  contextDocs: ['docs/WEB.md'],
-}
-
-const GROUP_CHECKER: ResolvedAgentType = {
-  id: 'group-checker',
-  label: 'Group checker',
-  scope: 'group',
-  baseRole: 'verifier',
-  contextDocs: [],
-}
-
-const BUILTINS = (['developer', 'developer-verifier', 'verifier', 'fixer'] as const).map(builtin)
 const OPTIONS = [...BUILTINS, SCREEN_CHECKER, CODE_QUALITY, WEB_BUILDER, GROUP_CHECKER]
 
 /** A launch proposal offering the project's and the group's types, each slot proposed as named. */
@@ -114,19 +74,6 @@ function Slots({ offer, picks = {} }: { offer: ProcessProposal; picks?: AgentTyp
       ))}
     </div>,
   )
-}
-
-const PROJECT_DATA: AgentTypeSettingsData = {
-  agentTypes: [...BUILTINS, CODE_QUALITY, SCREEN_CHECKER, WEB_BUILDER, GROUP_CHECKER],
-  slotDefaults: { implementer: 'web-builder', verifier: 'screen-checker' },
-  ownSlotDefaults: { verifier: 'screen-checker' },
-  groupSlotDefaults: { implementer: 'web-builder', verifier: 'group-checker' },
-  groupId: 'web-team',
-}
-
-const GROUP_DATA: AgentTypeSettingsData = {
-  agentTypes: [...BUILTINS, WEB_BUILDER, GROUP_CHECKER],
-  slotDefaults: { implementer: 'web-builder', verifier: 'group-checker' },
 }
 
 const EMPTY_PROJECT: AgentTypeSettingsData = {

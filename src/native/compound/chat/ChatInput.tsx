@@ -1,4 +1,4 @@
-import { attachmentDisplayName } from 'thefactory-tools/utils'
+import { attachmentDisplayName, isVideoPath } from 'thefactory-tools/utils'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Image, Pressable, ScrollView, Text, View } from 'react-native'
 import { IconAttach, IconMic, IconSend } from '../../icons'
@@ -6,9 +6,17 @@ import FileMentionsTextarea, {
   type FileMentionsTextareaHandle,
 } from '../files/FileMentionsTextarea'
 import {
+  CHAT_UPLOAD_TEXT,
+  chatUploadFailureText,
+  formatBytes,
+  isChatUploading,
   rankMentionMatches,
+  useChatUploads,
   useNativeDictationTrigger,
   useSpeechToText,
+  type ChatAttachmentUpload,
+  type ChatUploads,
+  type ChatVideoAttachments,
   type NativeDictationResult,
   type ReferenceSuggestion,
 } from '../../../headless'
@@ -18,8 +26,11 @@ import { Modal } from '../../primitives/Modal'
 import { Button } from '../../primitives/Button'
 import DictationWave from './DictationWave'
 import { isImageAttachment } from '../../../headless/utils/chatDrop'
+import ChatUploadStrip from './ChatUploadStrip'
+import ChatVideoAttachment from './ChatVideoAttachment'
 import type { NativeAttachmentImages } from './chatNativeTypes'
 import { COMPOSER_IMAGE_THUMB_SIZE } from './sentImageAttachmentConstants'
+import VideoAttachmentCard from './VideoAttachmentCard'
 
 type SendReason = 'user' | 'suggested_action'
 
@@ -52,9 +63,13 @@ export interface ChatInputProps {
   /** Suggested quick-reply chips from the last assistant turn. */
   suggestedActions?: string[]
 
-  /** Mobile-only: opens a file picker provided by the host. When omitted the
-   *  attach button is hidden. */
+  /** Mobile-only: opens a file picker provided by the host, which hands what is
+   *  picked to `attachmentUploads`. When omitted the attach button is hidden. */
   onPickAttachment?: () => void
+  /** This chat's uploads (`useChatComposer`'s `uploads`). */
+  attachmentUploads?: ChatUploads
+  /** Where this chat's videos read how they stand. When omitted, a video shows as a plain chip. */
+  videoAttachments?: ChatVideoAttachments
   /** Shows image attachments as thumbnails — here and under sent messages. */
   attachmentImages?: NativeAttachmentImages
 
@@ -93,6 +108,8 @@ export default function ChatInput({
   queueWhileThinking = false,
   suggestedActions,
   onPickAttachment,
+  attachmentUploads,
+  videoAttachments,
   attachmentImages,
   filePaths,
   searchFiles,
@@ -109,6 +126,8 @@ export default function ChatInput({
   const { theme } = useNativeTheme()
   const inputRef = useRef<FileMentionsTextareaHandle>(null)
   const [submitting, setSubmitting] = useState(false)
+  const uploads = useChatUploads(attachmentUploads)
+  const holdingForUpload = isChatUploading(uploads)
 
   // Dictation runs through one of two host-supplied paths — see the
   // web peer for the full rationale. On mobile today only the engine
@@ -176,8 +195,14 @@ export default function ChatInput({
   const hasContent = value.trim().length > 0 || attachments.length > 0
   const thinkingBlocks = isThinking && !queueWhileThinking
   const canSend = useMemo(
-    () => hasContent && !thinkingBlocks && !submitting && isConfigured && !disconnected,
-    [hasContent, thinkingBlocks, submitting, isConfigured, disconnected],
+    () =>
+      hasContent &&
+      !thinkingBlocks &&
+      !submitting &&
+      isConfigured &&
+      !disconnected &&
+      !holdingForUpload,
+    [hasContent, thinkingBlocks, submitting, isConfigured, disconnected, holdingForUpload],
   )
 
   const send = useCallback(
@@ -186,7 +211,8 @@ export default function ChatInput({
         (!text.trim() && attachments.length === 0) ||
         thinkingBlocks ||
         submitting ||
-        !isConfigured
+        !isConfigured ||
+        holdingForUpload
       )
         return
       setSubmitting(true)
@@ -209,15 +235,11 @@ export default function ChatInput({
       submitting,
       isConfigured,
       clearOnSend,
+      holdingForUpload,
     ],
   )
 
   const onPressSend = () => void send(value, { reason: 'user' })
-
-  const removeAttachment = (idx: number) => {
-    if (!onChangeAttachments) return
-    onChangeAttachments(attachments.filter((_, i) => i !== idx))
-  }
 
   const onSuggestion = (text: string) => {
     if (clearOnSuggestedAction) onChange('')
@@ -234,288 +256,394 @@ export default function ChatInput({
   const resolvedPlaceholder =
     placeholder ?? (isConfigured ? 'Message…' : 'Configure a model in Settings to chat.')
 
-  return (
+  const failedUploads = uploads.filter((upload) => upload.status === 'failed')
+  const runningUploads = uploads.filter((upload) => upload.status === 'uploading')
+  const videos = videoAttachments ? attachments.filter((path) => isVideoPath(path)) : []
+  const others = videoAttachments ? attachments.filter((path) => !isVideoPath(path)) : attachments
+  const removePath = (path: string) =>
+    onChangeAttachments?.(attachments.filter((attached) => attached !== path))
+  const pill = (path: string, key: string) => (
     <View
+      key={key}
       style={{
-        gap: nativeSpace[3],
-        borderTopWidth: 1,
-        borderTopColor: theme.border.subtle,
-        backgroundColor: theme.surface.raised,
-        paddingHorizontal: nativeSpace[5],
-        paddingTop: nativeSpace[4],
-        paddingBottom: nativeSpace[5],
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: nativeSpace[2],
+        paddingHorizontal: nativeSpace[4],
+        paddingVertical: nativeSpace[2],
+        borderRadius: nativeRadii.round,
+        backgroundColor: theme.surface.muted,
+        borderWidth: 1,
+        borderColor: theme.border.subtle,
       }}
     >
-      {attachments.length > 0 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: nativeSpace[2] }}
-        >
-          {attachments.map((path, i) => (
-            <View
-              key={`${i}-${path}`}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: nativeSpace[2],
-                paddingHorizontal: nativeSpace[4],
-                paddingVertical: nativeSpace[2],
-                borderRadius: nativeRadii.round,
-                backgroundColor: theme.surface.muted,
-                borderWidth: 1,
-                borderColor: theme.border.subtle,
-              }}
-            >
-              <AttachmentThumb path={path} images={attachmentImages} />
-              <Text style={{ fontSize: 12, color: theme.text.secondary }}>
-                {attachmentDisplayName(path)}
-              </Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Remove ${path}`}
-                onPress={() => removeAttachment(i)}
-                hitSlop={4}
-              >
-                <Text style={{ fontSize: 12, color: theme.text.muted }}>×</Text>
-              </Pressable>
-            </View>
-          ))}
-        </ScrollView>
-      )}
+      <AttachmentThumb path={path} images={attachmentImages} />
+      <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+        {attachmentDisplayName(path)}
+      </Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Remove ${path}`}
+        onPress={() => removePath(path)}
+        hitSlop={4}
+      >
+        <Text style={{ fontSize: 12, color: theme.text.muted }}>×</Text>
+      </Pressable>
+    </View>
+  )
 
-      {suggestedActions && suggestedActions.length > 0 && !isThinking && isConfigured && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: nativeSpace[2] }}
-        >
-          {suggestedActions.map((sa, i) => (
-            <Pressable
-              key={`sa-${i}`}
-              accessibilityRole="button"
-              accessibilityLabel={sa}
-              onPress={() => onSuggestion(sa)}
-              disabled={isThinking}
-              style={({ pressed }) => ({
-                paddingHorizontal: nativeSpace[5],
-                paddingVertical: nativeSpace[3],
-                borderRadius: nativeRadii.round,
-                backgroundColor: pressed ? theme.surface.muted : theme.surface.overlay,
-                borderWidth: 1,
-                borderColor: theme.border.subtle,
-                opacity: isThinking ? 0.6 : 1,
-              })}
-            >
-              <Text numberOfLines={1} style={{ fontSize: 13, color: theme.text.primary }}>
-                {sa}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-      )}
-
+  return (
+    <>
+      {attachmentUploads ? (
+        <ChatUploadStrip uploads={runningUploads} onStop={attachmentUploads.stop} />
+      ) : null}
       <View
         style={{
-          flexDirection: 'row',
-          alignItems: 'flex-end',
           gap: nativeSpace[3],
+          borderTopWidth: 1,
+          borderTopColor: theme.border.subtle,
+          backgroundColor: theme.surface.raised,
+          paddingHorizontal: nativeSpace[5],
+          paddingTop: nativeSpace[4],
+          paddingBottom: nativeSpace[5],
         }}
       >
-        {/* Left slot — single button.
+        {failedUploads.map((upload) => (
+          <FailedUpload
+            key={upload.id}
+            upload={upload}
+            onDismiss={() => attachmentUploads?.dismiss(upload.id)}
+            onRetry={() => attachmentUploads?.retry(upload.id)}
+          />
+        ))}
+
+        {videoAttachments
+          ? videos.map((path) => (
+              <ChatVideoAttachment
+                key={path}
+                path={path}
+                chat={videoAttachments}
+                place="composer"
+                images={attachmentImages}
+                {...(onChangeAttachments ? { onRemove: () => removePath(path) } : {})}
+                fallback={pill(path, path)}
+              />
+            ))
+          : null}
+
+        {others.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: nativeSpace[2] }}
+          >
+            {others.map((path, i) => pill(path, `${i}-${path}`))}
+          </ScrollView>
+        )}
+
+        {suggestedActions && suggestedActions.length > 0 && !isThinking && isConfigured && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: nativeSpace[2] }}
+          >
+            {suggestedActions.map((sa, i) => (
+              <Pressable
+                key={`sa-${i}`}
+                accessibilityRole="button"
+                accessibilityLabel={sa}
+                onPress={() => onSuggestion(sa)}
+                disabled={isThinking}
+                style={({ pressed }) => ({
+                  paddingHorizontal: nativeSpace[5],
+                  paddingVertical: nativeSpace[3],
+                  borderRadius: nativeRadii.round,
+                  backgroundColor: pressed ? theme.surface.muted : theme.surface.overlay,
+                  borderWidth: 1,
+                  borderColor: theme.border.subtle,
+                  opacity: isThinking ? 0.6 : 1,
+                })}
+              >
+                <Text numberOfLines={1} style={{ fontSize: 13, color: theme.text.primary }}>
+                  {sa}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
+
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'flex-end',
+            gap: nativeSpace[3],
+          }}
+        >
+          {/* Left slot — single button.
             - Dictating: animated soundwave (decorative).
             - isThinking with abort wired: stop-thinking control.
             - Otherwise: attachment picker (if the host provided one). */}
-        {isDictating ? (
-          <View
-            style={{
-              width: 36,
-              height: 36,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <DictationWave height={22} />
-          </View>
-        ) : isThinking && onAbort ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Abort"
-            onPress={onAbort}
-            style={({ pressed }) => ({
-              width: 36,
-              height: 36,
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: nativeRadii[2],
-              backgroundColor: theme.surface.muted,
-              opacity: pressed ? 0.7 : 1,
-            })}
-          >
-            <Text style={{ fontSize: 14, color: theme.text.primary }}>■</Text>
-          </Pressable>
-        ) : onPickAttachment ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Attach a file"
-            onPress={onPickAttachment}
-            disabled={!isConfigured || disconnected}
-            style={({ pressed }) => ({
-              width: 36,
-              height: 36,
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: nativeRadii[2],
-              backgroundColor: pressed ? theme.surface.muted : 'transparent',
-              opacity: !isConfigured || disconnected ? 0.4 : 1,
-            })}
-          >
-            <IconAttach size={18} color={theme.text.secondary} />
-          </Pressable>
-        ) : null}
+          {isDictating ? (
+            <View
+              style={{
+                width: 36,
+                height: 36,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <DictationWave height={22} />
+            </View>
+          ) : isThinking && onAbort ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Abort"
+              onPress={onAbort}
+              style={({ pressed }) => ({
+                width: 36,
+                height: 36,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: nativeRadii[2],
+                backgroundColor: theme.surface.muted,
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <Text style={{ fontSize: 14, color: theme.text.primary }}>■</Text>
+            </Pressable>
+          ) : onPickAttachment ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Attach a file"
+              onPress={onPickAttachment}
+              disabled={!isConfigured || disconnected}
+              style={({ pressed }) => ({
+                width: 36,
+                height: 36,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: nativeRadii[2],
+                backgroundColor: pressed ? theme.surface.muted : 'transparent',
+                opacity: !isConfigured || disconnected ? 0.4 : 1,
+              })}
+            >
+              <IconAttach size={18} color={theme.text.secondary} />
+            </Pressable>
+          ) : null}
 
-        {/* Textarea is always visible — even mid-dictation it shows the
+          {/* Textarea is always visible — even mid-dictation it shows the
             buffered text plus the current partial. Just `disabled` so
             the user can't type while the engine is listening. */}
-        <View style={{ flex: 1 }}>
-          <FileMentionsTextarea
-            ref={inputRef}
-            value={
-              isDictating
-                ? `${value}${value && speech.partialTranscript ? ' ' : ''}${speech.partialTranscript}`
-                : value
-            }
-            onChangeText={onChange}
-            onSearchFiles={filePaths || searchFiles ? onSearchFiles : undefined}
-            describeFile={describeFile}
-            onSearchReferences={onSearchReferences}
-            onSearchHandles={onSearchHandles}
-            onAcceptReference={onAcceptReference}
-            placeholder={
-              isDictating
-                ? speech.status === 'requesting-permission'
-                  ? 'Waiting for microphone…'
-                  : 'Listening…'
-                : resolvedPlaceholder
-            }
-            rows={1}
-            disabled={isDictating || !isConfigured || submitting}
-          />
-        </View>
+          <View style={{ flex: 1 }}>
+            <FileMentionsTextarea
+              ref={inputRef}
+              value={
+                isDictating
+                  ? `${value}${value && speech.partialTranscript ? ' ' : ''}${speech.partialTranscript}`
+                  : value
+              }
+              onChangeText={onChange}
+              onSearchFiles={filePaths || searchFiles ? onSearchFiles : undefined}
+              describeFile={describeFile}
+              onSearchReferences={onSearchReferences}
+              onSearchHandles={onSearchHandles}
+              onAcceptReference={onAcceptReference}
+              placeholder={
+                isDictating
+                  ? speech.status === 'requesting-permission'
+                    ? 'Waiting for microphone…'
+                    : 'Listening…'
+                  : resolvedPlaceholder
+              }
+              rows={1}
+              disabled={isDictating || !isConfigured || submitting}
+            />
+          </View>
 
-        {/* Right slot — single button.
+          {/* Right slot — single button.
             - Dictating: Stop dictation.
             - Has text + idle: Send.
             - No text + idle + dictation supported: Dictate.
             - No text + idle + no dictation: Send (disabled). */}
-        {isDictating ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Stop dictation"
-            onPress={stopDictation}
-            style={({ pressed }) => ({
-              width: 36,
-              height: 36,
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: nativeRadii[2],
-              backgroundColor: theme.surface.muted,
-              opacity: pressed ? 0.7 : 1,
-            })}
-          >
-            <View
-              style={{
-                width: 12,
-                height: 12,
-                borderRadius: 2,
-                backgroundColor: theme.accent.primary,
-              }}
-            />
-          </Pressable>
-        ) : !hasContent && dictationAvailable && !isThinking ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Dictate"
-            onPress={startDictation}
-            disabled={!isConfigured || disconnected}
-            style={({ pressed }) => ({
-              width: 36,
-              height: 36,
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: nativeRadii[2],
-              backgroundColor: pressed ? theme.surface.muted : 'transparent',
-              opacity: !isConfigured || disconnected ? 0.4 : 1,
-            })}
-          >
-            <IconMic size={18} color={theme.text.secondary} />
-          </Pressable>
-        ) : (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={isThinking ? 'Add to pending messages' : 'Send message'}
-            onPress={onPressSend}
-            disabled={!canSend}
-            style={({ pressed }) => ({
-              width: 36,
-              height: 36,
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: nativeRadii[2],
-              // No background swap between enabled / disabled — matches web's
-              // `disabled:opacity-40` send button which keeps the icon in
-              // place and only fades it when there's nothing to send.
-              opacity: canSend ? (pressed ? 0.7 : 1) : 0.4,
-            })}
-          >
-            <IconSend size={16} color={theme.accent.primary} />
-          </Pressable>
-        )}
-      </View>
-
-      {(() => {
-        // Same dual-source error surface as the web peer — either the
-        // engine path (`speech.status === 'error'`) or the native
-        // trigger path (`nativeError`) drives one Modal.
-        const errorCode = nativeError ?? (speech.status === 'error' ? speech.error : undefined)
-        const open = errorCode !== undefined && errorCode !== null
-        const dismiss = () => {
-          setNativeError(null)
-          if (speech.status === 'error') speech.reset()
-        }
-        return (
-          <Modal
-            isOpen={open}
-            onClose={dismiss}
-            title={dictationErrorTitle(errorCode ?? '')}
-            size="sm"
-          >
-            <View style={{ gap: 12 }}>
-              <Text style={{ color: theme.text.primary }}>
-                {dictationErrorMessage(errorCode ?? '')}
-              </Text>
-              {dictationErrorHint(errorCode ?? '') ? (
-                <Text style={{ fontSize: 12, color: theme.text.secondary }}>
-                  {dictationErrorHint(errorCode ?? '')}
-                </Text>
-              ) : null}
-              <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
-                <Button onPress={dismiss}>OK</Button>
-              </View>
-            </View>
-          </Modal>
-        )
-      })()}
-
-      {hints && (
-        <View>
-          {typeof hints === 'string' ? (
-            <Text style={{ fontSize: 11, color: theme.text.muted }}>{hints}</Text>
+          {isDictating ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Stop dictation"
+              onPress={stopDictation}
+              style={({ pressed }) => ({
+                width: 36,
+                height: 36,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: nativeRadii[2],
+                backgroundColor: theme.surface.muted,
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <View
+                style={{
+                  width: 12,
+                  height: 12,
+                  borderRadius: 2,
+                  backgroundColor: theme.accent.primary,
+                }}
+              />
+            </Pressable>
+          ) : !hasContent && dictationAvailable && !isThinking ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Dictate"
+              onPress={startDictation}
+              disabled={!isConfigured || disconnected}
+              style={({ pressed }) => ({
+                width: 36,
+                height: 36,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: nativeRadii[2],
+                backgroundColor: pressed ? theme.surface.muted : 'transparent',
+                opacity: !isConfigured || disconnected ? 0.4 : 1,
+              })}
+            >
+              <IconMic size={18} color={theme.text.secondary} />
+            </Pressable>
           ) : (
-            hints
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={isThinking ? 'Add to pending messages' : 'Send message'}
+              onPress={onPressSend}
+              disabled={!canSend}
+              style={({ pressed }) => ({
+                width: 36,
+                height: 36,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: nativeRadii[2],
+                // No background swap between enabled / disabled — matches web's
+                // `disabled:opacity-40` send button which keeps the icon in
+                // place and only fades it when there's nothing to send.
+                opacity: canSend ? (pressed ? 0.7 : 1) : 0.4,
+              })}
+            >
+              <IconSend size={16} color={theme.accent.primary} />
+            </Pressable>
           )}
         </View>
-      )}
+
+        {(() => {
+          // Same dual-source error surface as the web peer — either the
+          // engine path (`speech.status === 'error'`) or the native
+          // trigger path (`nativeError`) drives one Modal.
+          const errorCode = nativeError ?? (speech.status === 'error' ? speech.error : undefined)
+          const open = errorCode !== undefined && errorCode !== null
+          const dismiss = () => {
+            setNativeError(null)
+            if (speech.status === 'error') speech.reset()
+          }
+          return (
+            <Modal
+              isOpen={open}
+              onClose={dismiss}
+              title={dictationErrorTitle(errorCode ?? '')}
+              size="sm"
+            >
+              <View style={{ gap: 12 }}>
+                <Text style={{ color: theme.text.primary }}>
+                  {dictationErrorMessage(errorCode ?? '')}
+                </Text>
+                {dictationErrorHint(errorCode ?? '') ? (
+                  <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+                    {dictationErrorHint(errorCode ?? '')}
+                  </Text>
+                ) : null}
+                <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+                  <Button onPress={dismiss}>OK</Button>
+                </View>
+              </View>
+            </Modal>
+          )
+        })()}
+
+        {holdingForUpload ? (
+          <Text style={{ fontSize: 11, color: theme.text.muted }}>{CHAT_UPLOAD_TEXT.sendHeld}</Text>
+        ) : null}
+
+        {hints && (
+          <View>
+            {typeof hints === 'string' ? (
+              <Text style={{ fontSize: 11, color: theme.text.muted }}>{hints}</Text>
+            ) : (
+              hints
+            )}
+          </View>
+        )}
+      </View>
+    </>
+  )
+}
+
+/** A file that did not reach the composer: why, with another go where one could work. */
+function FailedUpload({
+  upload,
+  onDismiss,
+  onRetry,
+}: {
+  upload: ChatAttachmentUpload
+  onDismiss: () => void
+  onRetry: () => void
+}) {
+  const { theme, status } = useNativeTheme()
+  if (isVideoPath(upload.name)) {
+    return (
+      <VideoAttachmentCard
+        name={upload.name}
+        view={{
+          state: 'failed',
+          ...(upload.error ? { line: upload.error } : {}),
+          ...(upload.sizeBytes !== undefined
+            ? { size: formatBytes(upload.sizeBytes) ?? undefined }
+            : {}),
+          canSetUp: false,
+          steps: [],
+        }}
+        onRemove={onDismiss}
+        {...(upload.canRetry ? { onRetry } : {})}
+      />
+    )
+  }
+  return (
+    <View
+      accessibilityRole="alert"
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: nativeSpace[3],
+        paddingHorizontal: nativeSpace[4],
+        paddingVertical: nativeSpace[2],
+        borderRadius: nativeRadii[3],
+        borderWidth: 1,
+        borderColor: status.stuck.softBorder,
+        backgroundColor: status.stuck.softBg,
+      }}
+    >
+      <Text style={{ flex: 1, fontSize: 12, color: theme.text.primary }}>
+        {chatUploadFailureText(upload)}
+      </Text>
+      {upload.canRetry ? (
+        <Pressable accessibilityRole="button" onPress={onRetry} hitSlop={6}>
+          <Text style={{ fontSize: 12, color: theme.accent.primary }}>
+            {CHAT_UPLOAD_TEXT.retry}
+          </Text>
+        </Pressable>
+      ) : null}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={CHAT_UPLOAD_TEXT.dismiss(upload.name)}
+        onPress={onDismiss}
+        hitSlop={6}
+      >
+        <Text style={{ fontSize: 14, color: theme.text.muted }}>×</Text>
+      </Pressable>
     </View>
   )
 }

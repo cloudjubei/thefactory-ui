@@ -14,6 +14,8 @@ import {
   processGrantTurnLimitView,
   processTurnLimitOfView,
   startGroupWorkGrantSummary,
+  ticketMoveDecisionOf,
+  ticketMoveField,
   useProcessGroupLaunchPreview,
   type PendingToolGrant,
 } from '../../../headless'
@@ -26,6 +28,7 @@ import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { Textarea } from '../../primitives/Textarea'
 import { TurnLimitField } from '../TurnLimitField'
 import BaseBranchChooser from './BaseBranchChooser'
+import TicketMoveField from './TicketMoveField'
 import ToolAskCard from './ToolAskCard'
 
 export type GroupWorkLaunchPanelProps = {
@@ -65,8 +68,10 @@ export default function GroupWorkLaunchPanel({
   const { preview, isLoaded, loadError } = useProcessGroupLaunchPreview({
     groupId: launchGroupId,
     legs: summary.legs,
+    groupStoryId: summary.groupStoryId,
   })
   const [note, setNote] = useState('')
+  const [moveTicket, setMoveTicket] = useState(true)
   // The agent this WORK runs on — the API or a CLI, a model — seeded from the
   // chat by the chip and sent with the decision, never written back to the
   // conversation.
@@ -88,7 +93,9 @@ export default function GroupWorkLaunchPanel({
 
   const problems = preview?.problems ?? []
   const canStart = isLoaded && preview !== undefined && problems.length === 0
-  const view = groupWorkAskView(summary, runProposalArgs(grant))
+  const view = groupWorkAskView(summary, runProposalArgs(grant), preview?.buildMode)
+  const ticket = ticketMoveField(preview?.ticketMove)
+  const ticketMove = ticketMoveDecisionOf(ticket, moveTicket)
 
   const decide = (decision: 'once' | 'deny') => {
     setBusy(true)
@@ -103,6 +110,7 @@ export default function GroupWorkLaunchPanel({
               turnLimit: processTurnLimitOfView(turnLimit),
               ...launchAgentPickMetadata(agentPick),
               ...(baseBranchMeta ?? {}),
+              ...(ticketMove ? { ticketMove } : {}),
             }
           : undefined,
       )
@@ -128,6 +136,14 @@ export default function GroupWorkLaunchPanel({
         onDeny={() => decide('deny')}
         onLater={onDecideLater}
       >
+        {ticket ? (
+          <TicketMoveField
+            field={ticket}
+            ticked={moveTicket}
+            onToggle={setMoveTicket}
+            disabled={busy}
+          />
+        ) : null}
         <View
           style={{
             gap: nativeSpace[2],

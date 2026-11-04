@@ -49,6 +49,7 @@ import {
   useProjectChecks,
   useReviewEvidence,
   useRunChatDraft,
+  useRunWalkthrough,
   useStories,
   useStorySignoff,
   type AcceptanceJudgement,
@@ -61,6 +62,7 @@ import {
   type ProcessManagerEscalationView,
   type ProcessParkChoice,
   type ProcessResumeChoice,
+  type SignoffEvidenceChip,
   type SignoffMergeHold,
   type ProcessWorkBranch,
   type ProofKind,
@@ -100,6 +102,7 @@ import ProofPlanMarks from './ProofPlanMarks'
 import ScreensDecisionNote from './ScreensDecisionNote'
 import OutsideScopeNote from './signoff/OutsideScopeNote'
 import CodeReviewPanel from './signoff/CodeReviewPanel'
+import LoomWalkthroughPanel from './signoff/LoomWalkthroughPanel'
 import SignoffDecisionList from './signoff/SignoffDecisionList'
 import SignoffReportPanel from './signoff/SignoffReportPanel'
 import StorySpecCard from './signoff/StorySpecCard'
@@ -107,6 +110,13 @@ import { PROCESS_TONE_BADGE, REVIEW_TONE_BADGE } from './signoff/tones'
 
 /** A group leg that cannot merge yet, and the way to its group run. */
 export type StorySignoffMergeHold = SignoffMergeHold & { onOpenGroup?: () => void }
+
+/** A chip set after the evidence chips, and what opens behind it: a group's output. */
+export type StorySignoffExtraChip = {
+  key: string
+  row: SignoffEvidenceChip['row']
+  content: ReactNode
+}
 
 export type StorySignoffReviewProps = {
   projectId: string
@@ -155,6 +165,10 @@ export type StorySignoffReviewProps = {
   steps?: ReactNode
   /** "More about this run" — last. */
   details?: ReactNode
+  /** Chips set beside the evidence chips, each with what it opens. */
+  extraChips?: readonly StorySignoffExtraChip[]
+  /** The evidence card alone, for a page that decides elsewhere. */
+  evidenceCardOnly?: boolean
 }
 
 const TEST_METHODS: readonly CheckMethodId[] = ['tests']
@@ -268,6 +282,8 @@ function StorySignoffPanel({
   integration,
   steps,
   details,
+  extraChips = [],
+  evidenceCardOnly = false,
   signoff,
   evidence,
   evidenceState,
@@ -282,6 +298,7 @@ function StorySignoffPanel({
     ...(projectChecks ? { projectChecks } : {}),
     inRun: true,
   })
+  const loom = useRunWalkthrough(storyRunId)
   const { getStory } = useStories()
   const { projects } = useProjects()
   const navigate = useNavigate()
@@ -360,7 +377,7 @@ function StorySignoffPanel({
 
   const hasSignoff =
     signoff.features.length > 0 || signoff.fixes.length > 0 || signoff.overall !== undefined
-  if (!hasSignoff && evidence.tiles.length === 0) {
+  if (!hasSignoff && evidence.tiles.length === 0 && extraChips.length === 0) {
     return (
       <div className="text-[12px] text-(--text-secondary)">
         No evidence was filed for this story’s features.
@@ -548,22 +565,25 @@ function StorySignoffPanel({
   const overall = signoff.overall
   const { tests: testChecks, build: buildChecks } = reviewCheckGroups(overall?.verification)
   const testTotals = aggregateTestCounts(testChecks)
-  const tabs = overall
-    ? reviewTabs({
-        screens: requestPairs.length,
-        walkthroughs: overallSection.recordings.length,
-        reports: overallSection.reports.length,
-        testCount: testTotals?.total ?? 0,
-        testChecks: ranReviewChecks(testChecks).length,
-        buildChecks: ranReviewChecks(buildChecks).length,
-        changedFiles: undefined,
-        codeReviews: overallSection.codeReviews.length,
-        ...(overallSection.leadTab ? { lead: overallSection.leadTab } : {}),
-      })
-    : []
+  const overallRows = overall?.rows ?? []
+  const tabs = reviewTabs({
+    screens: overall ? requestPairs.length : 0,
+    walkthroughs: overall ? overallSection.recordings.length : 0,
+    reports: overall ? overallSection.reports.length : 0,
+    testCount: testTotals?.total ?? 0,
+    testChecks: ranReviewChecks(testChecks).length,
+    buildChecks: ranReviewChecks(buildChecks).length,
+    changedFiles: undefined,
+    codeReviews: overall ? overallSection.codeReviews.length : 0,
+    ...(overallSection.leadTab ? { lead: overallSection.leadTab } : {}),
+    ...(loom.view ? { loom: { total: loom.view.rows.length, left: loom.view.left } } : {}),
+  })
   const tabOrder = reviewTabOrder(overallSection.leadTab ?? 'report')
-  const chips = overall ? signoffEvidenceChips(overall.rows, tabs, tabOrder) : []
-  const current = chips.find((c) => c.key === chipKey) ?? chips.find((c) => c.target.kind === 'tab')
+  const chips = signoffEvidenceChips(overallRows, tabs, tabOrder)
+  const extraChip = extraChips.find((c) => c.key === chipKey)
+  const current = extraChip
+    ? undefined
+    : (chips.find((c) => c.key === chipKey) ?? chips.find((c) => c.target.kind === 'tab'))
   const missingRow =
     current?.target.kind === 'missing'
       ? overall?.rows.find((r) => r.id === current.row.id)
@@ -663,6 +683,121 @@ function StorySignoffPanel({
     decide(answer.choice as ProcessResumeChoice, note)
   }
 
+  const evidenceCard =
+    chips.length > 0 || extraChips.length > 0 ? (
+      <section
+        aria-label={SIGNOFF_SECTION_TITLES.evidence}
+        className="overflow-hidden rounded-xl border border-(--border-subtle) bg-(--surface-raised)"
+      >
+        <div
+          role="tablist"
+          className="flex flex-wrap items-center gap-2 border-b border-(--border-subtle) px-5 py-3.5"
+        >
+          {chips.map((chip) => (
+            <CheckChip
+              key={chip.key}
+              row={chip.row}
+              role="tab"
+              selected={!extraChip && isEvidenceChipSelected(chip, chipKey, chips)}
+              onClick={() => setChipKey(chip.key)}
+            />
+          ))}
+          {extraChips.map((chip) => (
+            <CheckChip
+              key={chip.key}
+              row={chip.row}
+              role="tab"
+              selected={chip === extraChip}
+              onClick={() => setChipKey(chip.key)}
+            />
+          ))}
+        </div>
+        <div className="flex flex-col px-5 pb-5 pt-2">
+          {extraChip ? (
+            extraChip.content
+          ) : current?.target.kind === 'missing' ? (
+            <div className="flex max-w-[70ch] flex-col items-start gap-2.5 pt-3">
+              <span className="text-[13.5px] font-semibold text-(--text-primary)">
+                {current.target.title}
+              </span>
+              <span className="text-[13px] text-(--text-secondary)">{current.target.text}</span>
+              {missingSetUp ? <SetUpWithAgentButton onClick={missingSetUp} /> : null}
+            </div>
+          ) : current?.target.tab === 'report' ? (
+            <SignoffReportPanel view={reportView} onOpenTab={openTab} />
+          ) : current?.target.tab === 'screens' ? (
+            <div className="pt-3">
+              <ScreensTab
+                pairs={requestPairs}
+                onOpen={setOpenPairKey}
+                capturedLabel={undefined}
+                onRequestImage={evidence.requestImage}
+              />
+            </div>
+          ) : current?.target.tab === 'tests' ? (
+            <div className="flex flex-col gap-2 pt-3">
+              <ChecksTab
+                methods={overallRows.filter((r) => TEST_METHODS.includes(r.id))}
+                checks={testChecks}
+                branch={undefined}
+                busyId={undefined}
+              />
+              {projectChecks?.knownFlakes ? (
+                <ProjectFlakesList flakes={projectChecks.knownFlakes} />
+              ) : null}
+            </div>
+          ) : current?.target.tab === 'build' ? (
+            <div className="pt-3">
+              <ChecksTab
+                methods={overallRows.filter((r) => BUILD_METHODS.includes(r.id))}
+                checks={buildChecks}
+                branch={undefined}
+                busyId={undefined}
+              />
+            </div>
+          ) : current?.target.tab === 'code-review' && storyReview ? (
+            <div className="pt-3">
+              <CodeReviewPanel
+                review={storyReview}
+                {...(storyReviewVerdict ? { verdict: storyReviewVerdict } : {})}
+              />
+            </div>
+          ) : current?.target.tab === 'walkthrough' ? (
+            <div className="pt-3">
+              <WalkthroughTab projectId={projectId} recordings={overallSection.recordings} />
+            </div>
+          ) : current?.target.tab === 'loom' && loom.view ? (
+            <LoomWalkthroughPanel
+              view={loom.view}
+              attachLink={loom.attachLink}
+              attachFile={loom.attachFile}
+            />
+          ) : null}
+        </div>
+      </section>
+    ) : null
+
+  const overlay = (
+    <ComparisonOverlay
+      pairs={overlayPairs}
+      openKey={openPairKey}
+      onClose={() => setOpenPairKey(undefined)}
+      baseSha={undefined}
+      headSha={undefined}
+      onRequestImage={evidence.requestImage}
+      projectId={projectId}
+    />
+  )
+
+  if (evidenceCardOnly) {
+    return (
+      <>
+        {evidenceCard}
+        {overlay}
+      </>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <RunNeedsYouCard
@@ -757,10 +892,10 @@ function StorySignoffPanel({
                 variant="secondary"
                 className="ml-auto gap-1.5"
                 onClick={mergeHold.onOpenGroup}
-                aria-label="Open the group run"
+                aria-label={mergeHold.openLabel ?? 'Open the group run'}
               >
                 <IconGroup className="size-4" />
-                Group
+                {mergeHold.openLabel ?? 'Group'}
               </Button>
             ) : null}
           </div>
@@ -778,81 +913,7 @@ function StorySignoffPanel({
 
       {steps}
 
-      {overall && chips.length > 0 ? (
-        <section
-          aria-label={SIGNOFF_SECTION_TITLES.evidence}
-          className="overflow-hidden rounded-xl border border-(--border-subtle) bg-(--surface-raised)"
-        >
-          <div
-            role="tablist"
-            className="flex flex-wrap items-center gap-2 border-b border-(--border-subtle) px-5 py-3.5"
-          >
-            {chips.map((chip) => (
-              <CheckChip
-                key={chip.key}
-                row={chip.row}
-                role="tab"
-                selected={isEvidenceChipSelected(chip, chipKey, chips)}
-                onClick={() => setChipKey(chip.key)}
-              />
-            ))}
-          </div>
-          <div className="flex flex-col px-5 pb-5 pt-2">
-            {current?.target.kind === 'missing' ? (
-              <div className="flex max-w-[70ch] flex-col items-start gap-2.5 pt-3">
-                <span className="text-[13.5px] font-semibold text-(--text-primary)">
-                  {current.target.title}
-                </span>
-                <span className="text-[13px] text-(--text-secondary)">{current.target.text}</span>
-                {missingSetUp ? <SetUpWithAgentButton onClick={missingSetUp} /> : null}
-              </div>
-            ) : current?.target.tab === 'report' ? (
-              <SignoffReportPanel view={reportView} onOpenTab={openTab} />
-            ) : current?.target.tab === 'screens' ? (
-              <div className="pt-3">
-                <ScreensTab
-                  pairs={requestPairs}
-                  onOpen={setOpenPairKey}
-                  capturedLabel={undefined}
-                  onRequestImage={evidence.requestImage}
-                />
-              </div>
-            ) : current?.target.tab === 'tests' ? (
-              <div className="flex flex-col gap-2 pt-3">
-                <ChecksTab
-                  methods={overall.rows.filter((r) => TEST_METHODS.includes(r.id))}
-                  checks={testChecks}
-                  branch={undefined}
-                  busyId={undefined}
-                />
-                {projectChecks?.knownFlakes ? (
-                  <ProjectFlakesList flakes={projectChecks.knownFlakes} />
-                ) : null}
-              </div>
-            ) : current?.target.tab === 'build' ? (
-              <div className="pt-3">
-                <ChecksTab
-                  methods={overall.rows.filter((r) => BUILD_METHODS.includes(r.id))}
-                  checks={buildChecks}
-                  branch={undefined}
-                  busyId={undefined}
-                />
-              </div>
-            ) : current?.target.tab === 'code-review' && storyReview ? (
-              <div className="pt-3">
-                <CodeReviewPanel
-                  review={storyReview}
-                  {...(storyReviewVerdict ? { verdict: storyReviewVerdict } : {})}
-                />
-              </div>
-            ) : current?.target.tab === 'walkthrough' ? (
-              <div className="pt-3">
-                <WalkthroughTab projectId={projectId} recordings={overallSection.recordings} />
-              </div>
-            ) : null}
-          </div>
-        </section>
-      ) : null}
+      {evidenceCard}
 
       <section
         aria-label={SIGNOFF_SECTION_TITLES.what}
@@ -988,15 +1049,7 @@ function StorySignoffPanel({
 
       {details}
 
-      <ComparisonOverlay
-        pairs={overlayPairs}
-        openKey={openPairKey}
-        onClose={() => setOpenPairKey(undefined)}
-        baseSha={undefined}
-        headSha={undefined}
-        onRequestImage={evidence.requestImage}
-        projectId={projectId}
-      />
+      {overlay}
     </div>
   )
 }

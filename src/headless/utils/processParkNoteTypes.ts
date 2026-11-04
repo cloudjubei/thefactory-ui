@@ -1,4 +1,5 @@
 import type { ProofKind } from 'thefactory-tools/types'
+import type { ChatAttachmentFile } from '../api/chatAttachmentUploadTypes'
 
 /** One proof a request for changes can require of its fix, as the composer offers it. */
 export interface RequestProofChoice {
@@ -22,7 +23,7 @@ export interface ParkNoteCopy {
  * the project path the answer hands over.
  */
 export interface AnswerFilesSource {
-  upload: (name: string, contentBase64: string) => Promise<string>
+  upload: (file: ChatAttachmentFile) => Promise<string>
   /** The project's files to pick from — absent where there is no project, as in a group's chat. */
   loadProjectFiles?: () => Promise<string[]>
 }

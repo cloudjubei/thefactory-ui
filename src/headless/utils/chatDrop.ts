@@ -8,6 +8,7 @@ import type {
 } from './chatDropTypes'
 
 const MB = 1024 * 1024
+const GB = 1024 * MB
 
 /** Whether a drag carries OS files — the only drags the chat drop controller acts on. */
 export function isFileDrag(types: readonly string[] | null | undefined): boolean {
@@ -81,5 +82,9 @@ export function attachmentUploadError(
   maxBytes: number,
 ): string | undefined {
   if (file.size <= maxBytes) return undefined
-  return `${file.name} is ${(file.size / MB).toFixed(1)} MB — attachments can be up to ${Math.round(maxBytes / MB)} MB.`
+  const size =
+    file.size >= GB ? `${(file.size / GB).toFixed(1)} GB` : `${(file.size / MB).toFixed(1)} MB`
+  const limit =
+    maxBytes >= GB ? `${Math.round(maxBytes / GB)} GB` : `${Math.round(maxBytes / MB)} MB`
+  return `${file.name} is ${size} — attachments can be up to ${limit}.`
 }

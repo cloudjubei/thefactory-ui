@@ -21,7 +21,7 @@ const noop = () => {}
 
 /** Uploads and the project's files, faked: nothing leaves the page. */
 const SOURCE: AnswerFilesSource = {
-  upload: async (name) => `.factory/attachments/3f2a9c1d0b7e4a51/8c1d2e3f4a5b-${name}`,
+  upload: async ({ name }) => `.factory/attachments/3f2a9c1d0b7e4a51/8c1d2e3f4a5b-${name}`,
   loadProjectFiles: async () => ['data/dev-set-ledger.json', 'docs/plan.md', 'src/index.ts'],
 }
 

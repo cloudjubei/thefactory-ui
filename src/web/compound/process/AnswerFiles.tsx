@@ -12,7 +12,6 @@ import {
 import { IconAttach, IconClose, IconFiles } from '../../icons'
 import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
-import { arrayBufferToBase64 } from '../../utils/uploadEncoding'
 import type { UikitFileMeta } from '../files/FileDisplay'
 import FileSelector from '../files/FileSelector'
 
@@ -59,7 +58,7 @@ export default function AnswerFiles({
     const uploaded: string[] = []
     for (const file of taken) {
       try {
-        uploaded.push(await source.upload(file.name, arrayBufferToBase64(await file.arrayBuffer())))
+        uploaded.push(await source.upload({ name: file.name, size: file.size, blob: file }))
       } catch {
         setError(ANSWER_FILES_COPY.uploadFailed(file.name))
       }

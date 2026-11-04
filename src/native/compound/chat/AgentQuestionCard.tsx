@@ -24,7 +24,7 @@ import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import QuestionPicker, { AgentsPickPill } from './QuestionPicker'
 import AnswerFiles from '../process/AnswerFiles'
-import type { PickedAnswerFile } from '../process/answerFilesNativeTypes'
+import type { ChatAttachmentFile } from '../../../headless/api'
 
 export interface AgentQuestionCardProps {
   /** The parked `askUser` action — its parsed question and its answer channel. */
@@ -36,7 +36,7 @@ export interface AgentQuestionCardProps {
   /** The pager over several open asks, shown in the header. */
   pager?: ReactNode
   /** The app's file picker, for files handed over from this device with an answer. */
-  pickAnswerFiles?: () => Promise<PickedAnswerFile[]>
+  pickAnswerFiles?: () => Promise<ChatAttachmentFile[]>
   /** An answer in the person's own words to open the card with — its box shown, its files attached. */
   initialOwnAnswer?: { text: string; files: readonly string[] }
 }

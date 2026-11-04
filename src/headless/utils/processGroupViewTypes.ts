@@ -11,6 +11,9 @@ import type { ProcessStatusTone } from './processView'
 export interface ProcessGroupBadgeInput {
   status: ProcessGroupRun['status']
   legs: readonly Pick<ProcessGroupLeg, 'status'>[]
+  /** Built on branches, its legs have no sign-off of their own: `park` says when its one is due. */
+  buildMode?: ProcessGroupRun['buildMode']
+  park?: Pick<NonNullable<ProcessGroupRun['park']>, 'reason'>
 }
 
 /** Where a live group run stands: what a group story's row is filtered by. */

@@ -20,8 +20,10 @@ export type UseProcessGroupLaunchPreview = {
 export function useProcessGroupLaunchPreview(input: {
   groupId: string | undefined
   legs: ProcessGroupLegRequest[]
+  /** The group story the launch runs, so the preview says what happens to its ticket. */
+  groupStoryId?: string | undefined
 }): UseProcessGroupLaunchPreview {
-  const { groupId, legs } = input
+  const { groupId, legs, groupStoryId } = input
   const { token } = useAuth()
   const key = JSON.stringify(legs)
   const [preview, setPreview] = useState<ProcessGroupLaunchPreview | undefined>(undefined)
@@ -38,7 +40,8 @@ export function useProcessGroupLaunchPreview(input: {
     let live = true
     setIsLoaded(false)
     setLoadError(null)
-    void previewProcessGroupRun({ body: { groupId, legs: requested }, throwOnError: true })
+    const body = { groupId, legs: requested, ...(groupStoryId ? { groupStoryId } : {}) }
+    void previewProcessGroupRun({ body, throwOnError: true })
       .then(({ data }) => {
         if (live) setPreview(data as ProcessGroupLaunchPreview)
       })
@@ -51,7 +54,7 @@ export function useProcessGroupLaunchPreview(input: {
     return () => {
       live = false
     }
-  }, [token, groupId, key])
+  }, [token, groupId, groupStoryId, key])
 
   return useMemo(() => ({ isLoaded, loadError, preview }), [isLoaded, loadError, preview])
 }

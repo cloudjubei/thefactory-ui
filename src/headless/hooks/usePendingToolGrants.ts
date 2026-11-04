@@ -7,8 +7,6 @@ import {
   listCliAgentRunSummaries,
   listPendingCliAgentActions,
   trustSite,
-  uploadAnyChatAttachment,
-  uploadChatAttachment,
   type ChatContext,
   type ChatContextAgentRunStory,
   type PendingAction,
@@ -81,7 +79,7 @@ export type UsePendingToolGrants = {
  * agent is blocked on stays reachable across a reload.
  */
 export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendingToolGrants {
-  const { ws } = useApi()
+  const { ws, uploadChatFile } = useApi()
 
   const chatContextId = getChatContextKey(ctx)
   // The asks as loaded for one chat — another chat's never show while this
@@ -348,16 +346,10 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
   const projectId = 'projectId' in ctx ? ctx.projectId : undefined
   const answerFiles = useMemo<AnswerFilesSource>(
     () => ({
-      upload: async (name, contentBase64) => {
-        const body = { context: ctx, name, contentBase64 }
-        const { data } = projectId
-          ? await uploadChatAttachment({ path: { projectId }, body, throwOnError: true })
-          : await uploadAnyChatAttachment({ body, throwOnError: true })
-        return data.path
-      },
+      upload: (file) => uploadChatFile(ctx, file),
       ...(projectId ? { loadProjectFiles: () => loadProjectFilePaths(projectId) } : {}),
     }),
-    [ctx, projectId],
+    [ctx, projectId, uploadChatFile],
   )
 
   const grants = useMemo<PendingToolGrant[]>(

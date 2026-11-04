@@ -33,6 +33,8 @@ export default defineConfig({
     // import any other native primitive. Subpath at
     // `thefactory-ui/native/ProjectAppView`.
     'native/ProjectAppView/index': 'src/native/compound/ProjectAppView.tsx',
+    // The clients' fake backend: a bin, in no client bundle and on no export.
+    'fake-backend/cli': 'src/fakeBackend/cli.ts',
   },
   format: ['esm'],
   dts: true,

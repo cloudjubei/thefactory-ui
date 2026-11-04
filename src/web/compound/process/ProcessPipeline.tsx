@@ -103,7 +103,11 @@ import {
   type RunNeedsYouFocus,
   type RunModelChipSlot,
   type RunModelChipView,
+  isHeldForGroupSignOff,
+  isProcessGroupOnBranch,
   isProcessRunAtSignOff,
+  signoffGroupHold,
+  useGroupSignOff,
   processWaitingTitleLine,
 } from '../../../headless'
 import Alert from '../../primitives/Alert'
@@ -152,6 +156,7 @@ import RunChatButton, { type RunChatButtonProps } from './RunChatButton'
 import RunChatDock from './RunChatDock'
 import { readChatsSeen, useChatsSeen, writeChatsSeen } from '../notifications/chatsSeen'
 import StorySignoffReview from './StorySignoffReview'
+import SignOffOutputPanel from './signoff/SignOffOutputPanel'
 import StepPreview from './pipeline/StepPreview'
 import StepSidePanel, { type StepPanelTarget } from './pipeline/StepSidePanel'
 import NeedsYouLinkParam from './signoff/NeedsYouLinkParam'
@@ -267,6 +272,9 @@ export default function ProcessPipeline({
   const { settings } = useAppSettings()
   const showDiagnostics = settings.userPreferences.showRunDiagnostics === true
   const { group } = useProcessGroupRun(run?.groupRunId)
+  const groupSignOff = useGroupSignOff(
+    group && isProcessGroupOnBranch(group) ? group.id : undefined,
+  )
   const integrationModes = run ? processRunIntegrationModes(run, group) : undefined
   const { projects } = useProjects()
   const { getChat, setDraft, sendMessage } = useChats()
@@ -417,13 +425,15 @@ export default function ProcessPipeline({
     stopHolder === 'manager' && stopRoot ? processRunManagerLine(stopRoot, stopNow) : undefined
   const signoff = isStorySignoff(run) && !isReflectedPark(run.park!)
   const mergeHold =
-    signoff && group
-      ? signoffMergeHold(
-          group,
-          run.projectId,
-          (id) => projects.find((p) => p.id === id)?.title ?? id,
-        )
-      : undefined
+    signoff && isHeldForGroupSignOff(run)
+      ? signoffGroupHold()
+      : signoff && group
+        ? signoffMergeHold(
+            group,
+            run.projectId,
+            (id) => projects.find((p) => p.id === id)?.title ?? id,
+          )
+        : undefined
   const choose = (
     choice: ProcessResumeChoice,
     note?: string,
@@ -687,6 +697,13 @@ export default function ProcessPipeline({
                     : {})}
                   onReportText={setReportText}
                   onOpenStep={setPanel}
+                  extraChips={groupSignOff.outputs.map((chip) => ({
+                    key: chip.key,
+                    row: chip.row,
+                    content: (
+                      <SignOffOutputPanel view={chip.panel} actions={groupSignOff.outputActions} />
+                    ),
+                  }))}
                 />
               </NeedsYouScope>
             </div>

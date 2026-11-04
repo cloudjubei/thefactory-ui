@@ -5,8 +5,11 @@ import { attachmentDisplayName } from 'thefactory-tools/utils'
 import {
   ANSWER_FILES_COPY,
   ANSWER_FILES_MAX,
+  CHAT_ATTACHMENT_MAX_BYTES,
   addAnswerFiles,
+  attachmentUploadError,
   type AnswerFilesSource,
+  type ChatAttachmentFile,
 } from '../../../headless'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
@@ -15,7 +18,6 @@ import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
 import type { UikitFileMeta } from '../files/FileDisplay'
 import FileSelector from '../files/FileSelector'
-import type { PickedAnswerFile } from './answerFilesNativeTypes'
 
 /**
  * The files an answer hands the waiting agent: attached from this device —
@@ -30,7 +32,7 @@ export default function AnswerFiles({
 }: {
   source: AnswerFilesSource
   /** The app's file picker; without it only project files can be handed over. */
-  pickDeviceFiles?: () => Promise<PickedAnswerFile[]>
+  pickDeviceFiles?: () => Promise<ChatAttachmentFile[]>
   files: readonly string[]
   onChange: (files: string[]) => void
 }) {
@@ -54,11 +56,22 @@ export default function AnswerFiles({
     setError(undefined)
     const picked = await pickDeviceFiles().catch(() => [])
     const taken = picked.slice(0, Math.max(0, ANSWER_FILES_MAX - files.length - uploading.length))
+    const tooBig = taken
+      .map((f) =>
+        f.size === undefined
+          ? undefined
+          : attachmentUploadError({ name: f.name, size: f.size }, CHAT_ATTACHMENT_MAX_BYTES),
+      )
+      .find(Boolean)
+    if (tooBig) {
+      setError(tooBig)
+      return
+    }
     setUploading((names) => [...names, ...taken.map((f) => f.name)])
     const uploaded: string[] = []
     for (const file of taken) {
       try {
-        uploaded.push(await source.upload(file.name, file.contentBase64))
+        uploaded.push(await source.upload(file))
       } catch {
         setError(ANSWER_FILES_COPY.uploadFailed(file.name))
       }

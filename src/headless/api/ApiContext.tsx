@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -14,6 +15,8 @@ import type { BackendStartup, BackendStartupStatus } from './backendStartupTypes
 import { client as sdkClient } from './generated/client.gen'
 import { configureBackendClient } from './bootstrap'
 import { WsClient, type WsConnectionState } from './WsClient'
+import { sendChatAttachment } from './chatAttachmentUpload'
+import type { SendFileFromUri, UploadChatFile } from './chatAttachmentUploadTypes'
 
 /**
  * Configuration accepted by `configureBackendClient` — exported for callers
@@ -51,6 +54,10 @@ export interface ApiContextValue {
   backendReady: boolean
   /** The backend's startup progress while it is not ready yet, when known. */
   backendStartup: BackendStartup | null
+  /** Send a file into a chat's attachment store as a raw stream, with progress. */
+  uploadChatFile: UploadChatFile
+  /** Native only: sends a file from its `uri` to any route that takes a raw body. */
+  sendFileFromUri: SendFileFromUri | undefined
 }
 
 const ApiContext = createContext<ApiContextValue | null>(null)
@@ -66,12 +73,20 @@ export interface ApiProviderProps {
   wsBaseUrl: string | null
   /** The app this is: `web`, `desktop` or `mobile`. */
   client: ProcessDecisionClient
+  /** Native only: sends a file from its `uri`, which headless has no way to read. */
+  sendFileFromUri?: SendFileFromUri
   children: ReactNode
 }
 
 const NOT_YET_READY: BackendStartupStatus = { ready: false, startup: null }
 
-export function ApiProvider({ apiBaseUrl, wsBaseUrl, client, children }: ApiProviderProps) {
+export function ApiProvider({
+  apiBaseUrl,
+  wsBaseUrl,
+  client,
+  sendFileFromUri,
+  children,
+}: ApiProviderProps) {
   const { token, markUnauthorized, clearUnauthorized } = useAuth()
   const [wsState, setWsState] = useState<WsConnectionState>('idle')
   const [startupStatus, setStartupStatus] = useState<BackendStartupStatus>(NOT_YET_READY)
@@ -134,6 +149,19 @@ export function ApiProvider({ apiBaseUrl, wsBaseUrl, client, children }: ApiProv
     return () => probe.stop()
   }, [apiBaseUrl, token, startupStatus.ready])
 
+  const uploadChatFile = useCallback<UploadChatFile>(
+    (context, file, options) =>
+      sendChatAttachment({
+        context,
+        file,
+        ...(options ? { options } : {}),
+        apiBaseUrl,
+        token: authRef.current.token,
+        sendFileFromUri,
+      }),
+    [apiBaseUrl, sendFileFromUri],
+  )
+
   const value = useMemo<ApiContextValue>(
     () => ({
       ws,
@@ -142,8 +170,10 @@ export function ApiProvider({ apiBaseUrl, wsBaseUrl, client, children }: ApiProv
       client,
       backendReady: startupStatus.ready,
       backendStartup: startupStatus.startup,
+      uploadChatFile,
+      sendFileFromUri,
     }),
-    [ws, wsState, apiBaseUrl, client, startupStatus],
+    [ws, wsState, apiBaseUrl, client, startupStatus, uploadChatFile, sendFileFromUri],
   )
   return <ApiContext.Provider value={value}>{children}</ApiContext.Provider>
 }

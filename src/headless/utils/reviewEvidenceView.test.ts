@@ -7,6 +7,8 @@ import {
   EVIDENCE_RECORD_UNVOUCHED_REASON,
   FEATURE_REPORT_APPROACH,
   FINAL_REPORT_APPROACH,
+  LOOM_WALKTHROUGH_APPROACH,
+  SIGN_OFF_OUTPUT_APPROACH,
 } from 'thefactory-tools/constants'
 import { describe, expect, it } from 'vitest'
 import {
@@ -25,6 +27,7 @@ import {
   evidenceFiledWithin,
   reviewerVerdict,
   codeReviewVerdict,
+  isProofFiling,
   isVerifierFiling,
   orderReports,
   reportAuthor,
@@ -832,5 +835,17 @@ describe('reportProvenance', () => {
     expect(said(CODE_REVIEW_APPROACH)).toContain('code review step')
     expect(said(DEVELOPER_CHECKS_APPROACH)).toContain('recorded by the host')
     expect(said(DEVELOPER_CHECKS_APPROACH)).toContain('not the verifier agent’s account')
+  })
+})
+
+describe('isProofFiling', () => {
+  it('leaves out what a sign-off shows behind its own chips', () => {
+    expect(isProofFiling({ approach: SIGN_OFF_OUTPUT_APPROACH })).toBe(false)
+    expect(isProofFiling({ approach: LOOM_WALKTHROUGH_APPROACH })).toBe(false)
+  })
+
+  it('keeps everything else, a filing with no approach too', () => {
+    expect(isProofFiling({ approach: 'code-explanation' })).toBe(true)
+    expect(isProofFiling({})).toBe(true)
   })
 })

@@ -151,4 +151,11 @@ describe('attachmentUploadError', () => {
       'big.zip is 40.0 MB — attachments can be up to 25 MB.',
     )
   })
+
+  it('speaks in gigabytes from a gigabyte on', () => {
+    const GB = 1024 * 1024 * 1024
+    expect(attachmentUploadError({ name: 'walk.mp4', size: 2.4 * GB }, 2 * GB)).toBe(
+      'walk.mp4 is 2.4 GB — attachments can be up to 2 GB.',
+    )
+  })
 })

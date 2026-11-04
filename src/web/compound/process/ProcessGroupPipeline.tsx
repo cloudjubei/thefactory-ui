@@ -3,6 +3,8 @@ import { useCallback, useState } from 'react'
 import {
   costChipLabel,
   formatProcessDuration,
+  isGroupSignOffPark,
+  isProcessGroupOnBranch,
   processGroupBadge,
   processGroupLegRows,
   processGroupProgress,
@@ -30,6 +32,7 @@ import DurationChip from '../chips/DurationChip'
 import ProcessGroupLegLandingDialog from './ProcessGroupLegLandingDialog'
 import ProcessGroupParkReview from './ProcessGroupParkReview'
 import ProcessGroupRunChatButton from './ProcessGroupRunChatButton'
+import GroupSignOffSection from './signoff/GroupSignOffSection'
 
 export type ProcessGroupPipelineProps = {
   groupRunId: string
@@ -44,7 +47,8 @@ const ENDED = ['succeeded', 'failed', 'cancelled']
 /**
  * One group run: every project's leg, drawn by dependency level — what needs
  * nothing first, then what builds on it — with where each stands, what it
- * waits for and what it has cost. Each project is signed off and merged in its
+ * waits for and what it has cost. A run built on branches has one sign-off here
+ * for all its projects. Otherwise each project is signed off and merged in its
  * own pipeline, one click away — a project only once the ones it builds on are
  * merged; only what the group alone can answer (a project that stopped, a
  * merged project that does not build, a failed merge) is answered here — and a
@@ -200,9 +204,15 @@ export default function ProcessGroupPipeline({
         <div className="mx-3 mt-3 text-[11.5px] text-(--text-secondary)">{resumeView.reason}</div>
       ) : null}
 
-      {group.park ? (
+      {group.park && !isGroupSignOffPark(group.park) ? (
         <div className="mx-3 mt-3">
           <ProcessGroupParkReview key={group.park.parkedAt} group={group} onResume={resume} />
+        </div>
+      ) : null}
+
+      {isProcessGroupOnBranch(group) ? (
+        <div className="mx-3 mt-3">
+          <GroupSignOffSection group={group} onOpenLegRun={onOpenLegRun} />
         </div>
       ) : null}
 

@@ -1,10 +1,10 @@
 import { useCallback, useMemo, useState } from 'react'
 import { runGroupStory } from '../api'
-import type { GroupStoryRunBody } from '../utils/groupStoryTypes'
+import type { GroupStoryRunBody, GroupStoryRunStartedAnswer } from '../utils/groupStoryTypes'
 
 export interface UseGroupStoryRun {
   /** Run it; resolves with the group run started. Rejects with why it did not start. */
-  run: (body: GroupStoryRunBody) => Promise<{ groupRunId: string; message: string }>
+  run: (body: GroupStoryRunBody) => Promise<GroupStoryRunStartedAnswer>
   running: boolean
 }
 
@@ -26,7 +26,7 @@ export function useGroupStoryRun(
           throwOnError: true,
         })
         await onStarted?.()
-        return data
+        return data as GroupStoryRunStartedAnswer
       } finally {
         setRunning(false)
       }

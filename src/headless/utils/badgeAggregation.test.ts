@@ -442,3 +442,84 @@ describe('aggregateGroupBadgeState', () => {
     ])
   })
 })
+
+describe('processTallyByProject for a leg held for its group sign-off', () => {
+  const held = (id: string) =>
+    run(id, 'web', 'parked', {
+      park: { reason: 'gate', stepId: 'sign-off', message: '', parkedAt: 0 },
+      input: { groupBuildMode: 'on-branch' },
+    })
+
+  it('counts nothing: the group decides, once', () => {
+    expect(processTallyByProject([held('a')], 0).get('web')).toBeUndefined()
+  })
+
+  it('still counts news in its own chat', () => {
+    const news = new Map([['a', { asks: 0, unread: 1 }]])
+    expect(processTallyByProject([held('a')], 0, news).get('web')).toEqual({
+      running: 0,
+      waiting: 0,
+      failed: 0,
+      unread: 1,
+    })
+    const ask = new Map([['a', { asks: 1, unread: 0 }]])
+    expect(processTallyByProject([held('a')], 0, ask).get('web')?.waiting).toBe(1)
+  })
+
+  it('counts a leg signed off on its own run as before', () => {
+    const own = run('a', 'web', 'parked', {
+      park: { reason: 'gate', stepId: 'sign-off', message: '', parkedAt: 0 },
+    })
+    expect(processTallyByProject([own], 0).get('web')?.waiting).toBe(1)
+  })
+})
+
+describe('aggregateGroupBadgeState with the group’s own sign-offs', () => {
+  const held = (id: string, projectId: string) =>
+    run(id, projectId, 'parked', { park: gatePark(), input: { groupBuildMode: 'on-branch' } })
+
+  const statesOf = (runs: Parameters<typeof processTallyByProject>[0]) => {
+    const tallies = processTallyByProject(runs, 0)
+    return Object.fromEntries(
+      ['web', 'api'].map((id) => [
+        id,
+        makeState({ process: tallies.get(id) ?? EMPTY_BADGE_STATE.process }),
+      ]),
+    )
+  }
+
+  it('counts a sign-off over held legs once, not once per leg or once more for a leg', () => {
+    const byProject = statesOf([held('a', 'web'), held('b', 'api')])
+    expect(aggregateGroupBadgeState(['web', 'api'], byProject, 1).process).toEqual({
+      running: 0,
+      waiting: 1,
+      failed: 0,
+      unread: 0,
+    })
+  })
+
+  it('shows the group’s sign-off on an open group row, which sums no member', () => {
+    expect(aggregateGroupBadgeState([], {}, 1).process.waiting).toBe(1)
+  })
+
+  it('adds it to what the member projects wait on for themselves', () => {
+    const byProject = { web: makeState({ process: { waiting: 2 } }) }
+    expect(aggregateGroupBadgeState(['web'], byProject, 3).process.waiting).toBe(5)
+  })
+
+  it('adds nothing when the group has no sign-off waiting', () => {
+    const byProject = { web: makeState({ process: { waiting: 2 } }) }
+    expect(aggregateGroupBadgeState(['web'], byProject).process.waiting).toBe(2)
+    expect(hasAnyBadge(aggregateGroupBadgeState([], {}))).toBe(false)
+  })
+
+  it('leaves a leg’s own ask counted beside the sign-off: it asks something else', () => {
+    const tallies = processTallyByProject(
+      [held('a', 'web')],
+      0,
+      new Map([['a', { unread: 0, asks: 1 }]]),
+    )
+    const byProject = { web: makeState({ process: tallies.get('web') }) }
+    expect(aggregateGroupBadgeState(['web'], byProject, 1).process.waiting).toBe(2)
+  })
+})

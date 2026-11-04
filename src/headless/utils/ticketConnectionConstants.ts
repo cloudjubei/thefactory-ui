@@ -10,7 +10,7 @@ export const TICKET_ACCESS_LABELS: Record<TicketConnectionAccess, string> = {
 export const TICKET_ACCESS_DESCRIPTIONS: Record<TicketConnectionAccess, string> = {
   read: 'Agents can search and read issues, comments, history, sprints and attachments. They cannot change anything in Jira.',
   'read-write':
-    'Agents can also create, edit, transition, assign, comment on, link and delete issues, log work and manage sprints, watchers and attachments. In a chat they ask before each change unless the chat is in auto mode; unattended runs make changes without asking.',
+    'Agents can also create, edit, transition, assign, comment on, link and delete issues, log work and manage sprints, watchers and attachments. Every change asks you first, showing the ticket and what changes. Runs only read.',
 }
 
 /** The picker's choice to follow the main group's Jira. */

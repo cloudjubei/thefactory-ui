@@ -15,6 +15,8 @@ import {
 
 import type { ProcessRunChatNews } from './chatChannelTypes'
 import { cleanCliToolName } from './cliRunner'
+import { GROUP_SIGN_OFF_TEXT } from './groupSignOffConstants'
+import { isHeldForGroupSignOff } from './groupSignOffHold'
 import { latestProcessChecks } from './processChecksView'
 import { processIntegrationView } from './processIntegration'
 import { isProcessRunCurrent } from './processRunCurrent'
@@ -46,7 +48,8 @@ import { ledgerCodeReview } from './storySignoff'
  * (`needs-you` — a question, an approval, a failure, work that was not merged,
  * changes to send back, or an ask waiting in its own chat), at its sign-off
  * (`sign-off`), working (`running` — a stop its agent manager has included,
- * per `processRunStopHolder`), or merging approved work (`merging`).
+ * per `processRunStopHolder`), or merging approved work (`merging`). A leg held
+ * for its group's one sign-off only waits: the person decides on the group.
  * `undefined` for a run that is history with nothing waiting in its chat. Pure.
  */
 export function processRunAttentionSection(
@@ -58,7 +61,9 @@ export function processRunAttentionSection(
   if (!isProcessRunCurrent(run)) return asks ? 'needs-you' : undefined
   if (run.integration?.status === 'integrating') return 'merging'
   if (run.status === 'parked') {
-    if (run.park?.reason === 'waiting-on-blockers') return asks ? 'needs-you' : 'waiting'
+    if (run.park?.reason === 'waiting-on-blockers' || isHeldForGroupSignOff(run)) {
+      return asks ? 'needs-you' : 'waiting'
+    }
     if (processRunStopHolder(run, now) === 'manager') return asks ? 'needs-you' : 'running'
     return run.park?.reason === 'gate' ? 'sign-off' : 'needs-you'
   }
@@ -90,6 +95,7 @@ export function processRunNeedLine(
     case 'merging':
       return processIntegrationView(run)?.title ?? PROCESS_RUN_WORDS.merging
     case 'waiting':
+      if (isHeldForGroupSignOff(run)) return GROUP_SIGN_OFF_TEXT.heldLine
       return run.park?.message ?? PROCESS_RUN_WORDS.waiting
     default:
       return undefined

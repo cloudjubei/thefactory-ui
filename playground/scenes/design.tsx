@@ -21,13 +21,11 @@ import DesignPlayground, {
 import DesignProposals from '../../src/web/compound/design/DesignProposals'
 import type { DesignCellRef } from '../../src/web/compound/design/DesignScreenGrid'
 import { playgroundMessage } from '../showcase/registry'
+import { at, DAY, PLAY_INDEX, T0 } from '../../src/fakeBackend/fixtures/design'
 import type { Scene } from '../showcase/types'
 
 const noop = () => {}
 const done = () => Promise.resolve(undefined as never)
-const DAY = 86_400_000
-const T0 = 1_760_000_000_000
-const at = (days: number) => ({ createdAt: T0 + days * DAY, updatedAt: T0 + days * DAY })
 
 const ACTIONS = new Proxy({} as DesignActions, { get: () => done })
 
@@ -490,46 +488,6 @@ function page(index: DesignIndex, selection: DesignSelection, cell?: DesignCellR
       />
     </Frame>
   )
-}
-
-/** The Overseer's own design: the run header saved from the playground once, the run page beside it. */
-const PLAY_INDEX: DesignIndex = {
-  version: 2,
-  apps: [{ id: 'ui', name: 'Overseer', kind: 'product', aliases: [], ...at(0) }],
-  screens: [
-    {
-      id: 'run-page',
-      appId: 'ui',
-      name: 'Process run page',
-      kind: 'screen',
-      aliases: [],
-      uses: ['run-header'],
-      variants: [],
-      ...at(0),
-    },
-    {
-      id: 'run-header',
-      appId: 'ui',
-      name: 'Run header',
-      kind: 'component',
-      aliases: [],
-      uses: [],
-      variants: ['Light · Desktop', 'Dark · Desktop', 'Light · Phone', 'Dark · Phone'],
-      ...at(0),
-    },
-  ],
-  states: [
-    {
-      id: 'top-level',
-      screenId: 'run-header',
-      name: 'Top-level run',
-      address: 'scene=run-header&level=top&unread=false',
-      ...at(1),
-    },
-  ],
-  versions: [],
-  proposals: [],
-  tidyPlans: [],
 }
 
 /** The fixed time the Playground's states are shown at. */

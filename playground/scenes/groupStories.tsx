@@ -22,21 +22,13 @@ import {
   ProcessGroupRunChatButton,
 } from 'thefactory-ui/web'
 import type { ModelInfo } from '../../src/headless/api'
+import { MEMBERS } from '../../src/fakeBackend/fixtures/projects'
 import type { Scene } from '../showcase/types'
 
 const noop = () => {}
 const asyncNoop = async () => {}
 const AT = '2026-10-25T10:00:00.000Z'
 const STARTED_AT = 1_761_386_400_000
-
-const MEMBERS = [
-  { id: 'thefactory-tools', title: 'TheFactory Tools' },
-  { id: 'thefactory-backend', title: 'TheFactory Backend' },
-  { id: 'thefactory-ui', title: 'TheFactory UI' },
-  { id: 'thefactory-overseer-web', title: 'Overseer Web' },
-  { id: 'overseer-local', title: 'Overseer Desktop' },
-  { id: 'thefactory-overseer-mobile', title: 'Overseer Mobile' },
-]
 
 const title = (id: string) => MEMBERS.find((m) => m.id === id)?.title ?? id
 

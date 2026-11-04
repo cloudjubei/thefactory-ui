@@ -11,6 +11,8 @@ import type {
   ProcessVerifyReview,
 } from 'thefactory-tools/types'
 import { costChipLabel, formatCostUSD } from './costDetails'
+import { GROUP_SIGN_OFF_TEXT } from './groupSignOffConstants'
+import { isHeldForGroupSignOff } from './groupSignOffHold'
 import { isProcessEntryAcceptedUnchecked } from './processAcceptedUnchecked'
 import { PROCESS_ACCEPTED_UNCHECKED_TONE } from './processAcceptedUncheckedConstants'
 import type { ProcessAcceptedEntry } from './processAcceptedUncheckedTypes'
@@ -619,6 +621,7 @@ export function processRunBadge(
   const integration = processIntegrationBadge(run)
   if (integration) return integration
   if (run.status === 'parked') {
+    if (isHeldForGroupSignOff(run)) return { label: GROUP_SIGN_OFF_TEXT.heldBadge, tone: 'queued' }
     if (run.park?.reason === 'waiting-on-blockers') {
       return { label: PROCESS_RUN_WORDS.waiting, tone: 'queued' }
     }
@@ -669,6 +672,7 @@ export function processRunCardView(run: ProcessRun, now: number): ProcessRunCard
         text:
           processRunManagerLine(run, now) ??
           (run.park?.circling ? PROCESS_CIRCLING_CARD_LINE : undefined) ??
+          (isHeldForGroupSignOff(run) ? GROUP_SIGN_OFF_TEXT.heldLine : undefined) ??
           (run.park?.reason === 'gate'
             ? 'Ready to sign off — decide in the run'
             : '1 decision pending — answer it in the run'),

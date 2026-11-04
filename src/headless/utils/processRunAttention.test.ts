@@ -14,7 +14,7 @@ import {
   processRunWaitingCount,
 } from './processRunAttention'
 import { PROCESS_RUN_WAITING_TITLE } from './processRunAttentionConstants'
-import { processRunBadge } from './processView'
+import { processRunBadge, processRunCardView } from './processView'
 
 const SHA = 'a'.repeat(40)
 const NOW = 1_000
@@ -734,5 +734,58 @@ describe('a run whose own chat has news for the person', () => {
     expect(processRunNeedLine(done, NOW, { unread: 0, asks: 1 })).toBe('Answer: a card in its chat')
     expect(processRunAttentionSection(done, NOW, { unread: 2, asks: 0 })).toBeUndefined()
     expect(processRunListRow(done, NOW, { unread: 2, asks: 0 }).fresh).toBe(true)
+  })
+})
+
+describe('a leg held for its group’s one sign-off', () => {
+  const held = (over: Partial<ProcessRun> = {}) =>
+    parked(
+      { reason: 'gate', stepId: 'sign-off' },
+      { input: { groupBuildMode: 'on-branch' }, ...over },
+    )
+
+  it('waits, and is neither Needs you nor Sign off', () => {
+    expect(processRunAttentionSection(held(), NOW)).toBe('waiting')
+    expect(processRunWaitingCount([held()], NOW)).toBe(0)
+  })
+
+  it('waits whoever has the stop', () => {
+    const managed = held({
+      manager: { enabled: true, status: 'looking', stopKey: 'x' } as ProcessRun['manager'],
+    })
+    expect(processRunAttentionSection(managed, NOW)).toBe('waiting')
+  })
+
+  it('still comes to the person for an ask in its own chat', () => {
+    expect(processRunAttentionSection(held(), NOW, { asks: 1, unread: 0 })).toBe('needs-you')
+  })
+
+  it('says where it is decided, on its row and its badge', () => {
+    expect(processRunNeedLine(held(), NOW)).toBe('Waits for the group sign-off')
+    expect(processRunListRow(held(), NOW)).toMatchObject({
+      section: 'waiting',
+      asks: false,
+      line: 'Waits for the group sign-off',
+    })
+    expect(processRunBadge(held(), NOW)).toEqual({ label: 'Group sign-off', tone: 'queued' })
+  })
+
+  it('points its chat card at the group sign-off', () => {
+    expect(processRunCardView(held(), NOW).body?.text).toBe('Waits for the group sign-off')
+  })
+
+  it('leaves a leg signed off on its own run as it was', () => {
+    const own = held({ input: { groupBuildMode: 'merge-first' } })
+    expect(processRunAttentionSection(own, NOW)).toBe('sign-off')
+    expect(processRunBadge(own, NOW).label).toBe('Sign off')
+    expect(processRunWaitingCount([own], NOW)).toBe(1)
+  })
+
+  it('counts an on-branch leg stopped anywhere else', () => {
+    const stopped = parked(
+      { reason: 'step-failed', stepId: 'verify' },
+      { input: { groupBuildMode: 'on-branch' } },
+    )
+    expect(processRunAttentionSection(stopped, NOW)).toBe('needs-you')
   })
 })

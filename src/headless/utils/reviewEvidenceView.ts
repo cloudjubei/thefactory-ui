@@ -1,4 +1,8 @@
-import { CAPTURE_RECORD_NOT_THE_TOOLS_REASON } from 'thefactory-tools/constants'
+import {
+  CAPTURE_RECORD_NOT_THE_TOOLS_REASON,
+  LOOM_WALKTHROUGH_APPROACH,
+  SIGN_OFF_OUTPUT_APPROACH,
+} from 'thefactory-tools/constants'
 
 import type { ReviewEvidenceRef } from '../api/generated'
 import {
@@ -38,6 +42,11 @@ function captionFor(ref: ReviewEvidenceRef): string {
   if (ref.label && ref.label.trim().length > 0) return ref.label
   if (ref.phase) return ref.phase === 'before' ? 'Before' : 'After'
   return ref.kind
+}
+
+/** Whether a filing is proof of the work: an output or a Loom item has a chip of its own. Pure. */
+export function isProofFiling(ref: Pick<ReviewEvidenceRef, 'approach'>): boolean {
+  return ref.approach !== SIGN_OFF_OUTPUT_APPROACH && ref.approach !== LOOM_WALKTHROUGH_APPROACH
 }
 
 /** Wrap a ref for rendering, without loading anything yet. */

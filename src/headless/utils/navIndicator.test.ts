@@ -594,6 +594,8 @@ describe('shellTabIndicator — the other tabs keep their own channel', () => {
 })
 
 describe('groupTabIndicator', () => {
+  const NO_CHATS = { unread: 0, waiting: 0, thinking: false }
+
   it('Chat counts the GROUP’s own chats waiting, with an agent replying', () => {
     expect(groupTabIndicator('chat', { unread: 3, waiting: 1, thinking: true })).toEqual({
       kind: 'ink',
@@ -626,8 +628,28 @@ describe('groupTabIndicator', () => {
   })
 
   it.each<GroupTabKey>(['home', 'tools'])('%s carries no indicator', (tab) => {
-    expect(groupTabIndicator(tab, { unread: 1, waiting: 1, thinking: true }, ['Claude'])).toEqual({
+    expect(
+      groupTabIndicator(tab, { unread: 1, waiting: 1, thinking: true }, ['Claude'], 2),
+    ).toEqual({
       kind: 'none',
     })
+  })
+
+  it('Processes counts the group runs waiting at their sign-off', () => {
+    expect(groupTabIndicator('processes', NO_CHATS, [], 2)).toEqual({
+      kind: 'ink',
+      badge: { parts: [{ channel: 'processes', count: 2 }], rollup: false },
+      title: '2 runs need you',
+    })
+  })
+
+  it('Processes stays clear with no sign-off waiting, whatever the chats hold', () => {
+    expect(
+      groupTabIndicator('processes', { unread: 1, waiting: 1, thinking: true }, ['Claude']),
+    ).toEqual({ kind: 'none' })
+  })
+
+  it('Chat ignores the sign-offs: they count on Processes', () => {
+    expect(groupTabIndicator('chat', NO_CHATS, [], 2)).toEqual({ kind: 'none' })
   })
 })

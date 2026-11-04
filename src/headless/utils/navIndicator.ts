@@ -194,17 +194,21 @@ export function shellTabIndicator(
 }
 
 /**
- * A per-group tab row — only Chat carries a channel at group scope, and it
- * counts the GROUP's own chats, so reading the group chat clears it.
- * `expiredSignIns` names the expired sign-ins those chats use.
+ * A per-group tab row. Chat counts the GROUP's own chats, so reading the group
+ * chat clears it; `expiredSignIns` names the expired sign-ins those chats use.
+ * Processes counts the group runs waiting at their one sign-off (`signOffs`).
  */
 export function groupTabIndicator(
   tab: GroupTabKey,
   groupChats: BadgeState['chat_messages'],
   expiredSignIns: readonly string[] = [],
+  signOffs = 0,
 ): NavRowIndicator {
-  if (tab !== 'chat') return { kind: 'none' }
-  return chatTabIndicator(groupChats, expiredSignIns)
+  if (tab === 'chat') return chatTabIndicator(groupChats, expiredSignIns)
+  if (tab === 'processes') {
+    return navRowIndicator({ parts: [{ channel: 'processes', count: signOffs }], rollup: false })
+  }
+  return { kind: 'none' }
 }
 
 function chatTabIndicator(

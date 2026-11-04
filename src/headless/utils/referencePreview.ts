@@ -1,5 +1,6 @@
 import type { ProcessRun, ReferenceDescription, ResourceLink } from 'thefactory-tools/types'
 import { processStepStates } from 'thefactory-tools/utils'
+import { isHeldForGroupSignOff } from './groupSignOffHold'
 import {
   processRunBadge,
   processRunSpend,
@@ -113,11 +114,12 @@ export function runReferencePreview(
     .join(' · ')
   const link: ResourceLink = { kind: 'run', projectId: run.projectId, runId: run.id }
   const parked = run.status === 'parked' && run.park
-  const open = !parked
-    ? REFERENCE_OPEN_LABELS.run
-    : run.park?.reason === 'gate'
-      ? RUN_PREVIEW_OPEN_SIGNOFF
-      : RUN_PREVIEW_ANSWER
+  const open =
+    !parked || isHeldForGroupSignOff(run)
+      ? REFERENCE_OPEN_LABELS.run
+      : run.park?.reason === 'gate'
+        ? RUN_PREVIEW_OPEN_SIGNOFF
+        : RUN_PREVIEW_ANSWER
   return {
     caption: REFERENCE_KIND_CAPTIONS.run,
     title: run.title,

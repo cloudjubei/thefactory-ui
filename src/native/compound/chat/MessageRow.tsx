@@ -1,5 +1,5 @@
 import type { ReferenceTarget } from 'thefactory-tools/types'
-import { attachmentDisplayName } from 'thefactory-tools/utils'
+import { attachmentDisplayName, isVideoPath } from 'thefactory-tools/utils'
 import { memo, useMemo, useState, type ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import RichText from '../files/RichText'
@@ -7,6 +7,8 @@ import Markdown from '../Markdown'
 import type { ResourceLink } from 'thefactory-tools/types'
 import FileDisplay, { type UikitFileMeta } from '../files/FileDisplay'
 import { isImageAttachment } from '../../../headless/utils/chatDrop'
+import type { ChatVideoAttachments } from '../../../headless/utils/videoAttachmentTypes'
+import ChatVideoAttachment from './ChatVideoAttachment'
 import SentImageAttachment from './SentImageAttachment'
 import { IconToolbox } from '../../icons'
 import type {
@@ -236,6 +238,8 @@ export interface MessageRowProps {
   onResourceLink?: (link: ResourceLink) => void
   /** Shows the images sent with a message as thumbnails that open full size. */
   attachmentImages?: NativeAttachmentImages
+  /** Where this chat's videos read how they stand. */
+  videoAttachments?: ChatVideoAttachments
   /** Render the workspace-diff panel for a CLI-agent reply (`msg.cliRunId`). */
   renderCliRunArtifact?: (runId: string) => ReactNode
   /**
@@ -338,6 +342,7 @@ function MessageRow({
   renderReference,
   onResourceLink,
   attachmentImages,
+  videoAttachments,
   renderCliRunArtifact,
   renderProcessRun,
   renderProcessGroupRun,
@@ -846,11 +851,22 @@ function MessageRow({
                 )
               }
               const name = attachmentDisplayName(path)
-              return (
+              const file = (
                 <FileDisplay
                   key={`att-${i}-${path}`}
                   file={{ name, absolutePath: path, relativePath: path }}
                   density="compact"
+                />
+              )
+              if (!videoAttachments || !isVideoPath(path)) return file
+              return (
+                <ChatVideoAttachment
+                  key={`att-${i}-${path}`}
+                  path={path}
+                  chat={videoAttachments}
+                  place="sent"
+                  images={attachmentImages}
+                  fallback={file}
                 />
               )
             })}

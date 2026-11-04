@@ -4,6 +4,7 @@ import type { ProcessGroupRun } from 'thefactory-tools/types'
 import { acceptanceCriteriaLine } from './acceptanceJudgement'
 import type { AcceptanceJudgement } from './acceptanceJudgementTypes'
 import { CHECK_STATE_LABELS, REVIEW_TAB_LABELS } from './checkMethodConstants'
+import { GROUP_SIGN_OFF_TEXT } from './groupSignOffConstants'
 import { checkRowLayout, isAbsentCheck } from './checkMethods'
 import type { CheckMethodRow, ReviewTab, ReviewTabId } from './checkMethodTypes'
 import type { ProofPlanMarkRow } from './proofPlanViewTypes'
@@ -114,13 +115,19 @@ export function signoffEvidenceChips(
   const reached = new Set(chips.flatMap((c) => (c.target.kind === 'tab' ? [c.target.tab] : [])))
   const extra = tabOrder
     .filter((id) => tabIds.has(id) && !reached.has(id))
-    .map(
-      (id): SignoffEvidenceChip => ({
+    .map((id): SignoffEvidenceChip => {
+      const chip = tabs.find((t) => t.id === id)?.chip
+      return {
         key: `tab-${id}`,
-        row: { id: SIGNOFF_TAB_METHOD[id], label: REVIEW_TAB_LABELS[id], state: 'passed' },
+        row: {
+          id: SIGNOFF_TAB_METHOD[id],
+          label: chip?.label ?? REVIEW_TAB_LABELS[id],
+          state: chip?.state ?? 'passed',
+          ...(chip?.available ? { available: chip.available } : {}),
+        },
         target: { kind: 'tab', tab: id },
-      }),
-    )
+      }
+    })
   const opened = foldChecks([...chips.filter((c) => c.target.kind === 'tab'), ...extra]).sort(
     (a, b) => tabRank(a, tabOrder) - tabRank(b, tabOrder),
   )
@@ -253,6 +260,15 @@ export function signoffMergeHold(
       status: PROCESS_GROUP_LEG_STATUS_VIEW[leg.status].label.toLowerCase(),
       tone: PROCESS_GROUP_LEG_STATUS_VIEW[leg.status].tone,
     })),
+  }
+}
+
+/** A leg held for its group's one sign-off: its page offers no Approve, and says where it is decided. */
+export function signoffGroupHold(): SignoffMergeHold {
+  return {
+    reason: GROUP_SIGN_OFF_TEXT.held,
+    waitingOn: [],
+    openLabel: GROUP_SIGN_OFF_TEXT.openGroup,
   }
 }
 

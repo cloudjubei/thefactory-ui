@@ -1,4 +1,4 @@
-import { Fragment, useMemo } from 'react'
+import { Fragment, useMemo, type ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
 import {
@@ -12,6 +12,7 @@ import {
   groupStoryProgress,
   groupStoryRunBlockedReason,
   groupStoryStepColumns,
+  groupStoryTicketChip,
   isLiveGroupStoryRun,
   STATUS_LABELS,
   STATUS_OPTIONS,
@@ -37,6 +38,7 @@ import {
   SelectValue,
 } from '../../primitives/Select'
 import IdChip from '../chat/signoff/IdChip'
+import TicketChip from '../chips/TicketChip'
 import StatusControl, { STATUS_DOT_COLOR } from '../StatusControl'
 import { GroupStoryChip, GroupStoryRunStatus } from './GroupStoryBits'
 
@@ -50,13 +52,20 @@ export type GroupStoriesListProps = {
   onOpenRun: (groupRunId: string) => void
   onNew?: () => void
   loading?: boolean
+  /** Each sprint ticket's status by key, for a row's ticket chip. */
+  ticketStatuses?: Readonly<Record<string, string>>
+  /** Shown under the tab's heading, above the filters: Take next ticket. */
+  ticketPanel?: ReactNode
 }
 
 type RowActions = {
   onOpen: () => void
   onRun: () => void
   onOpenRun: (groupRunId: string) => void
+  ticketStatuses: Readonly<Record<string, string>>
 }
+
+const NO_TICKET_STATUSES: Readonly<Record<string, string>> = {}
 
 /**
  * Native peer of
@@ -76,6 +85,8 @@ export default function GroupStoriesList({
   onOpenRun,
   onNew,
   loading = false,
+  ticketStatuses = NO_TICKET_STATUSES,
+  ticketPanel,
 }: GroupStoriesListProps) {
   const { theme } = useNativeTheme()
   const shown = useMemo(() => filterGroupStories(stories, filter), [stories, filter])
@@ -84,6 +95,7 @@ export default function GroupStoriesList({
     onOpen: () => onOpenStory(story.id),
     onRun: () => onRun(story.id),
     onOpenRun,
+    ticketStatuses,
   })
   const note = { padding: nativeSpace[4], fontSize: 13, color: theme.text.secondary }
   return (
@@ -126,6 +138,7 @@ export default function GroupStoriesList({
           </Button>
         ) : null}
       </View>
+      {ticketPanel}
       <GroupStoriesToolbar
         stories={stories}
         shown={loading ? undefined : shown.length}
@@ -305,11 +318,19 @@ function GroupStoriesToolbar({
   )
 }
 
-function GroupStoryParts({ story }: { story: GroupStoryView }) {
+function GroupStoryParts({
+  story,
+  ticketStatuses,
+}: {
+  story: GroupStoryView
+  ticketStatuses: Readonly<Record<string, string>>
+}) {
   const { theme } = useNativeTheme()
   const { columns, looping } = groupStoryStepColumns(story)
+  const ticket = groupStoryTicketChip(story, ticketStatuses)
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
+      {ticket ? <TicketChip view={ticket} /> : null}
       {columns.map((column, i) => (
         <Fragment key={column.step}>
           {i > 0 ? <Text style={{ fontSize: 11, color: theme.text.muted }}>→</Text> : null}
@@ -329,7 +350,7 @@ function GroupStoryRunAction({
   story,
   onRun,
   onOpenRun,
-}: { story: GroupStoryView } & Omit<RowActions, 'onOpen'>) {
+}: { story: GroupStoryView } & Pick<RowActions, 'onRun' | 'onOpenRun'>) {
   const blocked = groupStoryRunBlockedReason(story)
   if (isLiveGroupStoryRun(story.latestRun) && story.latestRun) {
     return <GroupStoryRunStatus run={story.latestRun} onOpen={onOpenRun} />
@@ -353,6 +374,7 @@ function Row({
   onOpen,
   onRun,
   onOpenRun,
+  ticketStatuses,
 }: { story: GroupStoryView; position: number | undefined } & RowActions) {
   const { theme } = useNativeTheme()
   const progress = groupStoryProgress(story)
@@ -384,7 +406,7 @@ function Row({
         >
           {story.title}
         </Text>
-        <GroupStoryParts story={story} />
+        <GroupStoryParts story={story} ticketStatuses={ticketStatuses} />
       </View>
       <GroupStoryRunAction story={story} onRun={onRun} onOpenRun={onOpenRun} />
     </Pressable>
@@ -461,6 +483,7 @@ function Card({
   onOpen,
   onRun,
   onOpenRun,
+  ticketStatuses,
 }: { story: GroupStoryView; position: number | undefined } & RowActions) {
   const { theme } = useNativeTheme()
   const progress = groupStoryProgress(story)
@@ -484,7 +507,7 @@ function Card({
           {story.title}
         </Text>
       </View>
-      <GroupStoryParts story={story} />
+      <GroupStoryParts story={story} ticketStatuses={ticketStatuses} />
       <View
         style={{
           flexDirection: 'row',

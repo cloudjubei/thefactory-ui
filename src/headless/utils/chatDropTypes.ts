@@ -31,13 +31,3 @@ export type ChatDropOverlayView =
       willAttach: boolean
       targetId?: string
     }
-
-export type AttachmentUploadStatus = 'uploading' | 'error'
-
-/** A file on its way into the composer, or one that could not be added. */
-export type AttachmentUpload = {
-  id: string
-  name: string
-  status: AttachmentUploadStatus
-  error?: string
-}

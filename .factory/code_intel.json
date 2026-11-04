@@ -3907,6 +3907,36 @@
         "path": "src/headless/utils/appChatSidebarConstants.ts",
         "dependencies": []
       },
+      "APP_RUN_NESTING_MAX": {
+        "path": "src/headless/utils/appRunStateConstants.ts",
+        "description": "How deep `overseer:run.read` follows nested runs for the step a run is on.",
+        "dependencies": []
+      },
+      "APP_RUN_NO_PROJECT": {
+        "path": "src/headless/utils/appRunStateConstants.ts",
+        "description": "What `overseer:run.read` is refused with outside a project.",
+        "dependencies": []
+      },
+      "APP_RUN_OTHER_PROJECT": {
+        "path": "src/headless/utils/appRunStateConstants.ts",
+        "description": "What `overseer:run.read` is refused with for a run of another project.",
+        "dependencies": []
+      },
+      "APP_RUN_QUERY_INVALID": {
+        "path": "src/headless/utils/appRunStateConstants.ts",
+        "description": "What `overseer:run.read` is refused with when it names no run.",
+        "dependencies": []
+      },
+      "APP_RUN_READ_FAILED": {
+        "path": "src/headless/utils/appRunStateConstants.ts",
+        "description": "What `overseer:run.read` is refused with when the run cannot be read.",
+        "dependencies": []
+      },
+      "APP_RUN_SIGN_OFF_ASK": {
+        "path": "src/headless/utils/appRunStateConstants.ts",
+        "description": "What a run at its sign-off waits on the person for.",
+        "dependencies": []
+      },
       "APP_SCHEDULE_AUTO_UPDATE_REQUIRED": {
         "path": "src/headless/utils/appLiveDataConstants.ts",
         "dependencies": []
@@ -3942,51 +3972,101 @@
       },
       "APP_WORK_START_CLOSED": {
         "path": "src/headless/utils/appWorkStartConstants.ts",
-        "dependencies": []
+        "dependencies": [
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
+        ]
       },
       "APP_WORK_START_FAILED": {
         "path": "src/headless/utils/appWorkStartConstants.ts",
-        "dependencies": []
+        "dependencies": [
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
+        ]
       },
       "APP_WORK_START_FEATURE_MISSING": {
         "path": "src/headless/utils/appWorkStartConstants.ts",
-        "dependencies": []
+        "dependencies": [
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
+        ]
       },
       "APP_WORK_START_FEATURE_TITLE_REQUIRED": {
         "path": "src/headless/utils/appWorkStartConstants.ts",
-        "dependencies": []
+        "dependencies": [
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
+        ]
       },
       "APP_WORK_START_FEATURES_INVALID": {
         "path": "src/headless/utils/appWorkStartConstants.ts",
-        "dependencies": []
+        "dependencies": [
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
+        ]
+      },
+      "APP_WORK_START_FILES_INVALID": {
+        "path": "src/headless/utils/appWorkStartConstants.ts",
+        "dependencies": [
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
+        ]
+      },
+      "APP_WORK_START_FILES_TOO_MANY": {
+        "path": "src/headless/utils/appWorkStartConstants.ts",
+        "dependencies": [
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
+        ]
       },
       "APP_WORK_START_HEADING": {
         "path": "src/headless/utils/appWorkStartConstants.ts",
-        "dependencies": []
+        "dependencies": [
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
+        ]
       },
       "APP_WORK_START_HINT": {
         "path": "src/headless/utils/appWorkStartConstants.ts",
-        "dependencies": []
+        "dependencies": [
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
+        ]
       },
       "APP_WORK_START_LABELS": {
         "path": "src/headless/utils/appWorkStartConstants.ts",
-        "dependencies": []
+        "dependencies": [
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
+        ]
       },
       "APP_WORK_START_NO_PROJECT": {
         "path": "src/headless/utils/appWorkStartConstants.ts",
-        "dependencies": []
+        "dependencies": [
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
+        ]
       },
       "APP_WORK_START_ONE_FEATURE": {
         "path": "src/headless/utils/appWorkStartConstants.ts",
-        "dependencies": []
+        "dependencies": [
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
+        ]
       },
       "APP_WORK_START_PROCESS_INVALID": {
         "path": "src/headless/utils/appWorkStartConstants.ts",
-        "dependencies": []
+        "dependencies": [
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
+        ]
       },
       "APP_WORK_START_TITLE_REQUIRED": {
         "path": "src/headless/utils/appWorkStartConstants.ts",
-        "dependencies": []
+        "dependencies": [
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
+        ]
       },
       "AppActivityDefinition": {
         "path": "src/headless/api/generated/types.gen.ts",
@@ -4547,6 +4627,63 @@
           "thefactory-tools/types"
         ]
       },
+      "AppRunChangedPayload": {
+        "path": "src/headless/utils/appRunStateTypes.ts",
+        "description": "The `overseer:run.changed` push: a run of the project changed state, step or ask.",
+        "dependencies": []
+      },
+      "AppRunChangeFilter": {
+        "path": "src/headless/utils/appRunState.ts",
+        "description": "The `overseer:run.changed` pushes for one mounted app, from the host's run updates: one for a",
+        "dependencies": [
+          "AppRunChangedPayload",
+          "thefactory-tools/types/ProcessRun",
+          "BridgeRequest",
+          "thefactory-tools/utils/processRunStopHolder",
+          "thefactory-tools/utils",
+          "thefactory-tools/types"
+        ]
+      },
+      "AppRunQuery": {
+        "path": "src/headless/utils/appRunStateTypes.ts",
+        "description": "Which run `overseer:run.read` reads: by its id, or a story's newest.",
+        "dependencies": []
+      },
+      "appRunQueryOf": {
+        "path": "src/headless/utils/appRunState.ts",
+        "description": "Which run an app's `overseer:run.read` names, or why it names none. Pure.",
+        "dependencies": [
+          "Record",
+          "AppRunQuery",
+          "thefactory-tools/utils/processRunStopHolder",
+          "thefactory-tools/utils",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types"
+        ]
+      },
+      "AppRunState": {
+        "path": "src/headless/utils/appRunStateTypes.ts",
+        "description": "One run, as `overseer:run.read` answers it.",
+        "dependencies": [
+          "AppRunStateKind"
+        ]
+      },
+      "AppRunStateKind": {
+        "path": "src/headless/utils/appRunStateTypes.ts",
+        "description": "Where work an app started stands, as the app reads it (`overseer:run.read`):",
+        "dependencies": []
+      },
+      "appRunStateOf": {
+        "path": "src/headless/utils/appRunState.ts",
+        "description": "Where work an app started stands: `chain` is the run, then the nested runs its current step is",
+        "dependencies": [
+          "AppRunState",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/utils/processRunStopHolder",
+          "thefactory-tools/utils",
+          "thefactory-tools/types"
+        ]
+      },
       "AppSettings": {
         "path": "src/headless/types/settings.ts",
         "dependencies": [
@@ -4982,6 +5119,7 @@
           "thefactory-ui/headless/type SyncKVStorage",
           "thefactory-ui/headless",
           "thefactory-ui/web/ToolCallCard",
+          "thefactory-ui/web/renderToolPreview",
           "thefactory-ui/web/type ToolCallCardProps",
           "thefactory-ui/web"
         ]
@@ -5977,22 +6115,6 @@
         "path": "src/headless/utils/processBaseBranchTypes.ts",
         "description": "One branch the launch card offers to work off.",
         "dependencies": []
-      },
-      "BaseMovedNote": {
-        "path": "src/web/compound/process/BaseMovedNote.tsx",
-        "description": "What a run says about its base branch beside its pipeline: that it has moved",
-        "dependencies": [
-          "BaseMovedNoteProps"
-        ]
-      },
-      "BaseMovedNoteProps": {
-        "path": "src/native/compound/process/BaseMovedNote.tsx",
-        "dependencies": [
-          "ProcessResumeChoice",
-          "ProcessRun",
-          "react-native/Text",
-          "react-native/View"
-        ]
       },
       "BeautyContestResult": {
         "path": "src/headless/api/generated/types.gen.ts",
@@ -8366,6 +8488,10 @@
         "description": "A started story or feature's pill in a chat, in place of the shared \"Working\":",
         "dependencies": []
       },
+      "ChatAboutRun": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
       "chatActionRules": {
         "path": "src/headless/utils/actionRules.ts",
         "description": "The rules scoped to one chat — what that chat's own settings list.",
@@ -10370,6 +10496,14 @@
           "react-native/Pressable",
           "react-native/Text",
           "react-native/View"
+        ]
+      },
+      "chatReviewTarget": {
+        "path": "src/headless/utils/chatChangesDock.ts",
+        "description": "The run a chat's review would open for a card: the turn it names, else the",
+        "dependencies": [
+          "thefactory-tools/utils/isChatOpenChangesOverdue",
+          "thefactory-tools/utils"
         ]
       },
       "chatRowBadge": {
@@ -16714,12 +16848,23 @@
           "thefactory-tools/types"
         ]
       },
+      "CostLedgerAttribution": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "CostLedgerOutputStrategy": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "CostLedgerPhase": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
       "CostLedgerPlacement": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
           "Array",
-          "LlmCostSourceKind",
-          "ChatContext"
+          "ChatContextType"
         ]
       },
       "CostModelRef": {
@@ -18023,7 +18168,8 @@
       "CreateStoryData": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
-          "StoryCreateInput"
+          "Array",
+          "ExternalRef"
         ]
       },
       "CreateStoryError": {
@@ -22858,6 +23004,14 @@
       "dispatchProjectsBridge": {
         "path": "src/headless/api/projectsBridge.ts",
         "dependencies": [
+          "Promise",
+          "BridgeRequest"
+        ]
+      },
+      "dispatchRunBridge": {
+        "path": "src/headless/api/runBridge.ts",
+        "dependencies": [
+          "AppRunState",
           "Promise",
           "BridgeRequest"
         ]
@@ -29521,6 +29675,44 @@
           "Options"
         ]
       },
+      "getProjectsGroupConstellation": {
+        "path": "src/headless/api/generated/sdk.gen.ts",
+        "description": "Dependency constellation of this group’s members: each member project and the package edges among them. A member with no checkout is still listed and contributes no edges. Nothing is rebuilt to answer this.",
+        "dependencies": [
+          "ThrowOnError",
+          "GetProjectsGroupConstellationErrors",
+          "GetProjectsGroupConstellationResponses",
+          "GetProjectsGroupConstellationData",
+          "Options"
+        ]
+      },
+      "GetProjectsGroupConstellationData": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "GetProjectsGroupConstellationError": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "GetProjectsGroupConstellationErrors"
+        ]
+      },
+      "GetProjectsGroupConstellationErrors": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "GetProjectsGroupConstellationResponse": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "GetProjectsGroupConstellationResponses"
+        ]
+      },
+      "GetProjectsGroupConstellationResponses": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Array",
+          "JsonValue"
+        ]
+      },
       "GetProjectsGroupData": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": []
@@ -29546,6 +29738,44 @@
         "dependencies": [
           "Array",
           "TicketConnectionAccess"
+        ]
+      },
+      "getProjectsGroupStatus": {
+        "path": "src/headless/api/generated/sdk.gen.ts",
+        "description": "Roll-up of each member: running and parked runs, open group runs, story progress, failing checks, git divergence, open feature requests, and last activity. Refetch when `projects-group:status-updated` arrives.",
+        "dependencies": [
+          "ThrowOnError",
+          "GetProjectsGroupStatusErrors",
+          "GetProjectsGroupStatusResponses",
+          "GetProjectsGroupStatusData",
+          "Options"
+        ]
+      },
+      "GetProjectsGroupStatusData": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "GetProjectsGroupStatusError": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "GetProjectsGroupStatusErrors"
+        ]
+      },
+      "GetProjectsGroupStatusErrors": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "GetProjectsGroupStatusResponse": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "GetProjectsGroupStatusResponses"
+        ]
+      },
+      "GetProjectsGroupStatusResponses": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Array",
+          "ProjectCheckKind"
         ]
       },
       "getProjectStorageUsage": {
@@ -30308,6 +30538,14 @@
       "GitBranchTip": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": []
+      },
+      "gitBranchTipSha": {
+        "path": "src/headless/utils/gitBranchTip.ts",
+        "description": "The commit a branch row stands for in the graph: the uncommitted changes for",
+        "dependencies": [
+          "GitUnifiedBranch",
+          "Pick"
+        ]
       },
       "GitBuildMergeReportOptions": {
         "path": "src/headless/api/generated/types.gen.ts",
@@ -32728,10 +32966,22 @@
           "GrepHit"
         ]
       },
+      "GROUP_STORY_ACTION_LABELS": {
+        "path": "src/headless/utils/groupStoryConstants.ts",
+        "description": "The group story page's header buttons, as a screen reader says them and as they read on hover.",
+        "dependencies": []
+      },
       "GROUP_STORY_ALL_PROJECTS": {
         "path": "src/headless/utils/groupStoryConstants.ts",
         "description": "The project filter's label while no project is picked.",
         "dependencies": []
+      },
+      "GROUP_STORY_FOLDS_DEFAULT": {
+        "path": "src/headless/utils/groupStoryConstants.ts",
+        "description": "A group story page as first opened: Parts and Overview open, every Overview section folded.",
+        "dependencies": [
+          "GroupStoryFolds"
+        ]
       },
       "GROUP_STORY_LIST_FILTER_DEFAULT": {
         "path": "src/headless/utils/groupStoryConstants.ts",
@@ -32739,6 +32989,11 @@
         "dependencies": [
           "GroupStoryListFilter"
         ]
+      },
+      "GROUP_STORY_PAGE_LABELS": {
+        "path": "src/headless/utils/groupStoryConstants.ts",
+        "description": "The group story page's section headings and controls.",
+        "dependencies": []
       },
       "GROUP_STORY_RUN_FILTER_OPTIONS": {
         "path": "src/headless/utils/groupStoryConstants.ts",
@@ -32756,6 +33011,7 @@
           "thefactory-ui/headless/GROUP_STORY_LIST_FILTER_DEFAULT",
           "thefactory-ui/headless/groupStoryFormFor",
           "thefactory-ui/headless/type GroupProjectStoryOption",
+          "thefactory-ui/headless/type GroupStoryFolds",
           "thefactory-ui/headless/type GroupStoryForm",
           "thefactory-ui/headless/type GroupStoryListFilter",
           "thefactory-ui/headless/type GroupStoryMembership",
@@ -33040,6 +33296,14 @@
           "Array"
         ]
       },
+      "GroupStoryBackButton": {
+        "path": "src/web/compound/groupStories/GroupStoryBits.tsx",
+        "description": "Back to the group's Stories, as a story page's back button.",
+        "dependencies": [
+          "Button",
+          "IconBack"
+        ]
+      },
       "GroupStoryChip": {
         "path": "src/native/compound/groupStories/GroupStoryBits.tsx",
         "description": "The chip recipe — 24 px pill, 12 px text — as web's `.chip`, `.chip--ok`,",
@@ -33065,6 +33329,18 @@
           "GroupStoryPart",
           "Array"
         ]
+      },
+      "GroupStoryFoldControls": {
+        "path": "src/headless/utils/groupStoryTypes.ts",
+        "description": "A group story page's folds and the ways to change them.",
+        "dependencies": [
+          "GroupStoryFolds"
+        ]
+      },
+      "GroupStoryFolds": {
+        "path": "src/headless/utils/groupStoryTypes.ts",
+        "description": "Which parts of a group story's page are open: its Parts, its Overview and the Overview's sections by key.",
+        "dependencies": []
       },
       "GroupStoryForm": {
         "path": "src/headless/utils/groupStoryTypes.ts",
@@ -33226,18 +33502,27 @@
       },
       "GroupStoryPage": {
         "path": "src/web/compound/groupStories/GroupStoryPage.tsx",
-        "description": "One group story: its parts by the step they run in — parts in one step run",
+        "description": "One group story, laid out like a story page: its Parts first — by the step",
         "dependencies": [
           "GroupStoryPageProps",
-          "react/useState"
+          "react/Fragment",
+          "react/useId",
+          "react/useMemo",
+          "react/useState",
+          "react/type ReactNode"
         ]
       },
       "GroupStoryPageProps": {
         "path": "src/native/compound/groupStories/GroupStoryPage.tsx",
         "dependencies": [
+          "GroupStoryFolds",
+          "Partial",
           "Promise",
           "GroupStoryView",
+          "react/useMemo",
           "react/useState",
+          "react/type ReactNode",
+          "react-native/Pressable",
           "react-native/ScrollView",
           "react-native/Text",
           "react-native/View"
@@ -33251,6 +33536,13 @@
         "path": "src/headless/utils/groupStoryTypes.ts",
         "description": "How a project takes part, on the new group story form.",
         "dependencies": []
+      },
+      "groupStoryPartsText": {
+        "path": "src/headless/utils/groupStoryView.ts",
+        "description": "How many parts it has and their features done, as its header and Parts heading say it.",
+        "dependencies": [
+          "GroupStoryView"
+        ]
       },
       "GroupStoryPartStory": {
         "path": "src/headless/api/generated/types.gen.ts",
@@ -33293,6 +33585,19 @@
           "RunGroupStoryData",
           "NonNullable"
         ]
+      },
+      "groupStoryRunButton": {
+        "path": "src/headless/utils/groupStoryView.ts",
+        "description": "A group story's Run button, or `undefined` while a run is going and its status shows instead.",
+        "dependencies": [
+          "GroupStoryRunButton",
+          "GroupStoryView"
+        ]
+      },
+      "GroupStoryRunButton": {
+        "path": "src/headless/utils/groupStoryTypes.ts",
+        "description": "A group story's Run button: whether it can be pressed and what it says, or why not.",
+        "dependencies": []
       },
       "GroupStoryRunDialog": {
         "path": "src/web/compound/groupStories/GroupStoryRunDialog.tsx",
@@ -33429,6 +33734,13 @@
         "path": "src/web/compound/groupStories/GroupStoryBits.tsx",
         "description": "A part's story, as the story chip recipe, opening it. A story that is gone says so.",
         "dependencies": []
+      },
+      "groupStoryToggledFold": {
+        "path": "src/headless/utils/groupStoryView.ts",
+        "description": "The page's folds with one Overview section opened, or folded again when it was open.",
+        "dependencies": [
+          "GroupStoryFolds"
+        ]
       },
       "GroupStoryToneBadge": {
         "path": "src/web/compound/groupStories/GroupStoryBits.tsx",
@@ -36887,7 +37199,9 @@
       "isWorkStartRequest": {
         "path": "src/headless/utils/appWorkStart.ts",
         "dependencies": [
-          "BridgeRequest"
+          "BridgeRequest",
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
         ]
       },
       "isWsReopen": {
@@ -39646,7 +39960,9 @@
       },
       "ListProcessRunsData": {
         "path": "src/headless/api/generated/types.gen.ts",
-        "dependencies": []
+        "dependencies": [
+          "Array"
+        ]
       },
       "ListProcessRunsResponse": {
         "path": "src/headless/api/generated/types.gen.ts",
@@ -41976,6 +42292,11 @@
           "react/type Ref"
         ]
       },
+      "MARKDOWN_SECTION_SUMMARY_MAX": {
+        "path": "src/headless/utils/markdownSectionsConstants.ts",
+        "description": "The longest a folded section's summary line runs, in characters.",
+        "dependencies": []
+      },
       "MarkdownEditor": {
         "path": "src/web/compound/MarkdownEditor.tsx",
         "dependencies": [
@@ -42029,6 +42350,37 @@
           "thefactory-tools/utils",
           "thefactory-tools/types"
         ]
+      },
+      "MarkdownSection": {
+        "path": "src/headless/utils/markdownSectionsTypes.ts",
+        "description": "One heading and what follows it, up to the next heading of its level.",
+        "dependencies": []
+      },
+      "markdownSectionKeys": {
+        "path": "src/headless/utils/markdownSections.ts",
+        "description": "Every section's and subsection's key, in document order.",
+        "dependencies": [
+          "MarkdownSection"
+        ]
+      },
+      "markdownSections": {
+        "path": "src/headless/utils/markdownSections.ts",
+        "description": "A markdown document split at its shallowest heading level, each section",
+        "dependencies": [
+          "MarkdownSections"
+        ]
+      },
+      "MarkdownSections": {
+        "path": "src/headless/utils/markdownSectionsTypes.ts",
+        "description": "A markdown document split at its headings, for showing each part folded.",
+        "dependencies": [
+          "MarkdownSection"
+        ]
+      },
+      "markdownSummaryLine": {
+        "path": "src/headless/utils/markdownSections.ts",
+        "description": "The first line of readable text in some markdown, plain and cut to one line; empty when there is none.",
+        "dependencies": []
       },
       "markFeatureRequestDelivered": {
         "path": "src/headless/api/generated/sdk.gen.ts",
@@ -45015,6 +45367,16 @@
           "thefactory-tools/utils"
         ]
       },
+      "openChildRunId": {
+        "path": "src/headless/utils/appRunState.ts",
+        "description": "The nested run the step `run` is on is working — the one its stop mirrors, or the open",
+        "dependencies": [
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/utils/processRunStopHolder",
+          "thefactory-tools/utils",
+          "thefactory-tools/types"
+        ]
+      },
       "openCredentialCapture": {
         "path": "src/headless/api/generated/sdk.gen.ts",
         "dependencies": [
@@ -46516,10 +46878,12 @@
       },
       "parseWorkStartPayload": {
         "path": "src/headless/utils/appWorkStart.ts",
-        "description": "The work an app asks to start (`work.start {title, description, features?, processId?}`), or",
+        "description": "The work an app asks to start (`work.start {title, description, features?, processId?,",
         "dependencies": [
           "AppWorkFeatureDraft",
-          "AppWorkStartDraft"
+          "AppWorkStartDraft",
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
         ]
       },
       "partitionGrants": {
@@ -47890,6 +48254,11 @@
         "description": "What finishing a run as already landed does, after where the work already is.",
         "dependencies": []
       },
+      "PROCESS_BASE_MOVED_COPY": {
+        "path": "src/headless/utils/processBaseMovedViewConstants.ts",
+        "description": "What a run's \"Base branch\" section in \"More about this run\" says.",
+        "dependencies": []
+      },
       "PROCESS_CHECK_ADVISORY_LABEL": {
         "path": "src/headless/utils/processChecksViewConstants.ts",
         "dependencies": []
@@ -49210,8 +49579,8 @@
       "ProcessBaseConflict": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
-          "CodeIntelExportedSymbol",
           "Array",
+          "CodeIntelExportedSymbol",
           "ProcessKeptOneSide"
         ]
       },
@@ -49235,7 +49604,7 @@
       },
       "processBaseMovedView": {
         "path": "src/headless/utils/processBaseMovedView.ts",
-        "description": "What a run shows about its base branch, beside its pipeline: that the base",
+        "description": "What a run's \"Base branch\" section in \"More about this run\" shows: its",
         "dependencies": [
           "ProcessBaseMovedView",
           "thefactory-tools/types/ProcessRun",
@@ -51541,6 +51910,12 @@
       "ProcessNoProgress": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": []
+      },
+      "ProcessNotRebuilt": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Array"
+        ]
       },
       "ProcessOpenLeaf": {
         "path": "src/headless/utils/processView.ts",
@@ -54388,6 +54763,16 @@
         "description": "How many projects' data each per-project cache keeps — room for every project",
         "dependencies": []
       },
+      "PROJECT_SCRIPT_ASK": {
+        "path": "src/headless/utils/toolAskCardConstants.ts",
+        "description": "How running a project script reads.",
+        "dependencies": []
+      },
+      "PROJECT_SCRIPT_TOOL": {
+        "path": "src/headless/utils/toolAskCardConstants.ts",
+        "description": "The tool that runs one of the project's declared scripts on this computer.",
+        "dependencies": []
+      },
       "PROJECT_SEARCH_DEBOUNCE_MS": {
         "path": "src/headless/utils/projectSearchConstants.ts",
         "description": "How long typing must pause before the search runs.",
@@ -55788,6 +56173,61 @@
           "react/useMemo",
           "react/useState",
           "react/ReactNode"
+        ]
+      },
+      "ProjectScript": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "ProjectScriptCarryLimits": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "ProjectScriptCarryOutcome": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "ProjectScriptKeptOutFile",
+          "Array"
+        ]
+      },
+      "ProjectScriptCarryPlan": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "ProjectScriptKeptOutFile",
+          "Array"
+        ]
+      },
+      "ProjectScriptFileStamp": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "ProjectScriptKeptOutFile": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "ProjectScriptRunResult": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "ProjectScriptKeptOutFile",
+          "Array",
+          "ProjectScriptRunStatus"
+        ]
+      },
+      "ProjectScriptRunStatus": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "ProjectScriptsListing": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Array",
+          "ProjectScript"
+        ]
+      },
+      "ProjectScriptTreeChanges": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Array"
         ]
       },
       "ProjectSearchFileRow": {
@@ -62202,6 +62642,11 @@
         "description": "The group of chats that belong to no project.",
         "dependencies": []
       },
+      "RUN_CHANGED_MESSAGE": {
+        "path": "src/headless/utils/appBridgeConstants.ts",
+        "description": "`overseer:run.changed`: a push that a run of the app's project changed state, step or ask.",
+        "dependencies": []
+      },
       "RUN_CHAT_OPEN_LABEL": {
         "path": "src/headless/utils/runNeedsYouViewConstants.ts",
         "description": "The chat button on every page of a run — its header, a nested run's, a step's.",
@@ -62275,8 +62720,10 @@
           "thefactory-tools/types/ProcessPlan",
           "thefactory-tools/types/ProcessRun",
           "thefactory-tools/types",
+          "thefactory-ui/headless/processBaseMovedView",
           "thefactory-ui/headless/runNeedsYouView",
           "thefactory-ui/headless",
+          "thefactory-ui/headless/ProcessBaseMovedView",
           "thefactory-ui/headless/ProcessManagerEscalationView",
           "thefactory-ui/headless/ProcessRunManagerView",
           "thefactory-ui/headless/RunNeedsYouActions",
@@ -62284,6 +62731,11 @@
           "thefactory-tools/constants/PROCESS_MANAGER_STATUS_LOOKING",
           "thefactory-tools/constants"
         ]
+      },
+      "RUN_OPEN_MESSAGE": {
+        "path": "src/headless/utils/appBridgeConstants.ts",
+        "description": "`overseer:run.open`: open a run of the app's project in Overseer.",
+        "dependencies": []
       },
       "RUN_PENDING_CHANGE_ADDED": {
         "path": "src/headless/utils/runPendingChangesViewConstants.ts",
@@ -62545,6 +62997,11 @@
       },
       "RUN_PROPOSAL_WITHDRAW": {
         "path": "src/headless/utils/runProposalViewConstants.ts",
+        "dependencies": []
+      },
+      "RUN_READ_MESSAGE": {
+        "path": "src/headless/utils/appBridgeConstants.ts",
+        "description": "`overseer:run.read`: where a run of the app's project stands, by its id or its story's.",
         "dependencies": []
       },
       "RUN_STEPS_CARD_COPY": {
@@ -62894,6 +63351,8 @@
         "dependencies": [
           "ViewStyle",
           "StyleProp",
+          "ProcessResumeChoice",
+          "ProcessBaseMovedView",
           "UseProcessCleanup",
           "ProcessManagerPreReadView",
           "react/useState",
@@ -67039,6 +67498,18 @@
           "ReadonlyArray",
           "TabKey"
         ]
+      },
+      "shellToolPreview": {
+        "path": "src/headless/utils/toolPreview.ts",
+        "description": "A shell-like call as its expanded row shows it — the command line and what",
+        "dependencies": [
+          "ShellToolPreview"
+        ]
+      },
+      "ShellToolPreview": {
+        "path": "src/headless/utils/toolPreview.ts",
+        "description": "What a shell-like call's expanded row shows.",
+        "dependencies": []
       },
       "ShopClass": {
         "path": "src/headless/api/generated/types.gen.ts",
@@ -77882,6 +78353,17 @@
           "react/useMemo"
         ]
       },
+      "useGroupStoryFolds": {
+        "path": "src/headless/hooks/useGroupStoryFolds.ts",
+        "description": "What is open on a group story's page, kept per group story for the session:",
+        "dependencies": [
+          "GroupStoryFolds",
+          "GroupStoryFoldControls",
+          "Partial",
+          "react/useCallback",
+          "react/useState"
+        ]
+      },
       "useGroupStoryListFilter": {
         "path": "src/headless/hooks/useGroupStoryListFilter.ts",
         "description": "A group's Stories tab filter, kept per group for the session: opening a",
@@ -78610,6 +79092,29 @@
           "thefactory-tools/types"
         ]
       },
+      "useProcessIntegrationOptions": {
+        "path": "src/headless/hooks/useProcessIntegrationOptions.ts",
+        "description": "What approving a run's work offers — who it can land as, the accounts a pull",
+        "dependencies": [
+          "thefactory-tools/types/ProcessIntegrationOptions",
+          "UseProcessIntegrationOptions",
+          "react/useCallback",
+          "react/useEffect",
+          "react/useState",
+          "thefactory-tools/types"
+        ]
+      },
+      "UseProcessIntegrationOptions": {
+        "path": "src/headless/hooks/useProcessIntegrationOptions.ts",
+        "dependencies": [
+          "Promise",
+          "thefactory-tools/types/ProcessIntegrationOptions",
+          "react/useCallback",
+          "react/useEffect",
+          "react/useState",
+          "thefactory-tools/types"
+        ]
+      },
       "useProcessParkStanding": {
         "path": "src/headless/hooks/useProcessParkStanding.ts",
         "description": "Where a park a message told the person of stands now, kept live off the run",
@@ -78771,18 +79276,6 @@
           "thefactory-tools/utils",
           "thefactory-tools/types/ProcessRun",
           "thefactory-tools/types"
-        ]
-      },
-      "useProcessRunChatNews": {
-        "path": "src/headless/hooks/useProcessRunChatNews.ts",
-        "description": "What each process run's own chat holds for the person, by run id — unread",
-        "dependencies": [
-          "ProcessRunChatNews",
-          "ReadonlyMap",
-          "ChatsSeenMap",
-          "react/useMemo",
-          "thefactory-tools/utils/getChatContextKey",
-          "thefactory-tools/utils"
         ]
       },
       "useProcessRunClosure": {
@@ -81519,6 +82012,16 @@
           "thefactory-tools/utils"
         ]
       },
+      "WORK_FILES_HINT": {
+        "path": "src/headless/utils/workFilesConstants.ts",
+        "description": "What happens to the files handed over with work, said once under their list.",
+        "dependencies": []
+      },
+      "WORK_FILES_LABEL": {
+        "path": "src/headless/utils/workFilesConstants.ts",
+        "description": "What the files handed over with work are called on a confirmation.",
+        "dependencies": []
+      },
       "WORK_LAUNCH_HEADING": {
         "path": "src/headless/utils/workLaunchViewConstants.ts",
         "description": "Heading of the choice between a process run and a chat.",
@@ -81583,6 +82086,26 @@
         "path": "src/native/compound/process/WorkBranchChangesNote.tsx",
         "dependencies": [
           "ProcessRun",
+          "react-native/Text",
+          "react-native/View"
+        ]
+      },
+      "workFilesHeading": {
+        "path": "src/headless/utils/workFiles.ts",
+        "description": "The heading over the files handed over with work: how many there are.",
+        "dependencies": []
+      },
+      "WorkFilesList": {
+        "path": "src/web/compound/WorkFilesList.tsx",
+        "description": "The files that go with work the person is asked to start — each project path in full, so they",
+        "dependencies": [
+          "WorkFilesListProps"
+        ]
+      },
+      "WorkFilesListProps": {
+        "path": "src/native/compound/WorkFilesList.tsx",
+        "dependencies": [
+          "react-native/ScrollView",
           "react-native/Text",
           "react-native/View"
         ]
@@ -81724,14 +82247,18 @@
       "workStartDeclined": {
         "path": "src/headless/utils/appWorkStart.ts",
         "dependencies": [
-          "AppWorkStartReply"
+          "AppWorkStartReply",
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
         ]
       },
       "workStartDraftError": {
         "path": "src/headless/utils/appWorkStart.ts",
         "description": "Why the person's edited draft cannot start, or `null` when it can.",
         "dependencies": [
-          "AppWorkStartDraft"
+          "AppWorkStartDraft",
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
         ]
       },
       "workStartEditable": {
@@ -81739,7 +82266,9 @@
         "description": "Whether the person may still edit the draft: nothing is running and no story was made from it yet.",
         "dependencies": [
           "AppWorkStartAsk",
-          "Pick"
+          "Pick",
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
         ]
       },
       "workStartFeatures": {
@@ -81747,13 +82276,17 @@
         "description": "The features to make: those asked for, or the work itself as one feature, since a run works features.",
         "dependencies": [
           "AppWorkFeatureDraft",
-          "AppWorkStartDraft"
+          "AppWorkStartDraft",
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
         ]
       },
       "workStartStarted": {
         "path": "src/headless/utils/appWorkStart.ts",
         "dependencies": [
-          "AppWorkStartReply"
+          "AppWorkStartReply",
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
         ]
       },
       "writeChatsSeen": {
@@ -82187,6 +82720,7 @@
           "thefactory-ui/headless/type SyncKVStorage",
           "thefactory-ui/headless",
           "thefactory-ui/web/ToolCallCard",
+          "thefactory-ui/web/renderToolPreview",
           "thefactory-ui/web/type ToolCallCardProps",
           "thefactory-ui/web"
         ]
@@ -100111,6 +100645,36 @@
         "path": "headless/utils/appChatSidebarConstants.ts",
         "dependencies": []
       },
+      "APP_RUN_NESTING_MAX": {
+        "path": "headless/utils/appRunStateConstants.ts",
+        "description": "How deep `overseer:run.read` follows nested runs for the step a run is on.",
+        "dependencies": []
+      },
+      "APP_RUN_NO_PROJECT": {
+        "path": "headless/utils/appRunStateConstants.ts",
+        "description": "What `overseer:run.read` is refused with outside a project.",
+        "dependencies": []
+      },
+      "APP_RUN_OTHER_PROJECT": {
+        "path": "headless/utils/appRunStateConstants.ts",
+        "description": "What `overseer:run.read` is refused with for a run of another project.",
+        "dependencies": []
+      },
+      "APP_RUN_QUERY_INVALID": {
+        "path": "headless/utils/appRunStateConstants.ts",
+        "description": "What `overseer:run.read` is refused with when it names no run.",
+        "dependencies": []
+      },
+      "APP_RUN_READ_FAILED": {
+        "path": "headless/utils/appRunStateConstants.ts",
+        "description": "What `overseer:run.read` is refused with when the run cannot be read.",
+        "dependencies": []
+      },
+      "APP_RUN_SIGN_OFF_ASK": {
+        "path": "headless/utils/appRunStateConstants.ts",
+        "description": "What a run at its sign-off waits on the person for.",
+        "dependencies": []
+      },
       "APP_SCHEDULE_AUTO_UPDATE_REQUIRED": {
         "path": "headless/utils/appLiveDataConstants.ts",
         "dependencies": []
@@ -100129,51 +100693,101 @@
       },
       "APP_WORK_START_CLOSED": {
         "path": "headless/utils/appWorkStartConstants.ts",
-        "dependencies": []
+        "dependencies": [
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
+        ]
       },
       "APP_WORK_START_FAILED": {
         "path": "headless/utils/appWorkStartConstants.ts",
-        "dependencies": []
+        "dependencies": [
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
+        ]
       },
       "APP_WORK_START_FEATURE_MISSING": {
         "path": "headless/utils/appWorkStartConstants.ts",
-        "dependencies": []
+        "dependencies": [
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
+        ]
       },
       "APP_WORK_START_FEATURE_TITLE_REQUIRED": {
         "path": "headless/utils/appWorkStartConstants.ts",
-        "dependencies": []
+        "dependencies": [
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
+        ]
       },
       "APP_WORK_START_FEATURES_INVALID": {
         "path": "headless/utils/appWorkStartConstants.ts",
-        "dependencies": []
+        "dependencies": [
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
+        ]
+      },
+      "APP_WORK_START_FILES_INVALID": {
+        "path": "headless/utils/appWorkStartConstants.ts",
+        "dependencies": [
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
+        ]
+      },
+      "APP_WORK_START_FILES_TOO_MANY": {
+        "path": "headless/utils/appWorkStartConstants.ts",
+        "dependencies": [
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
+        ]
       },
       "APP_WORK_START_HEADING": {
         "path": "headless/utils/appWorkStartConstants.ts",
-        "dependencies": []
+        "dependencies": [
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
+        ]
       },
       "APP_WORK_START_HINT": {
         "path": "headless/utils/appWorkStartConstants.ts",
-        "dependencies": []
+        "dependencies": [
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
+        ]
       },
       "APP_WORK_START_LABELS": {
         "path": "headless/utils/appWorkStartConstants.ts",
-        "dependencies": []
+        "dependencies": [
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
+        ]
       },
       "APP_WORK_START_NO_PROJECT": {
         "path": "headless/utils/appWorkStartConstants.ts",
-        "dependencies": []
+        "dependencies": [
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
+        ]
       },
       "APP_WORK_START_ONE_FEATURE": {
         "path": "headless/utils/appWorkStartConstants.ts",
-        "dependencies": []
+        "dependencies": [
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
+        ]
       },
       "APP_WORK_START_PROCESS_INVALID": {
         "path": "headless/utils/appWorkStartConstants.ts",
-        "dependencies": []
+        "dependencies": [
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
+        ]
       },
       "APP_WORK_START_TITLE_REQUIRED": {
         "path": "headless/utils/appWorkStartConstants.ts",
-        "dependencies": []
+        "dependencies": [
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
+        ]
       },
       "AppActivityDefinition": {
         "path": "headless/api/generated/types.gen.ts",
@@ -100731,6 +101345,63 @@
         "dependencies": [
           "thefactory-tools/types/ProcessResumeChoice",
           "thefactory-tools/types/ProcessStepOutcome",
+          "thefactory-tools/types"
+        ]
+      },
+      "AppRunChangedPayload": {
+        "path": "headless/utils/appRunStateTypes.ts",
+        "description": "The `overseer:run.changed` push: a run of the project changed state, step or ask.",
+        "dependencies": []
+      },
+      "AppRunChangeFilter": {
+        "path": "headless/utils/appRunState.ts",
+        "description": "The `overseer:run.changed` pushes for one mounted app, from the host's run updates: one for a",
+        "dependencies": [
+          "AppRunChangedPayload",
+          "thefactory-tools/types/ProcessRun",
+          "BridgeRequest",
+          "thefactory-tools/utils/processRunStopHolder",
+          "thefactory-tools/utils",
+          "thefactory-tools/types"
+        ]
+      },
+      "AppRunQuery": {
+        "path": "headless/utils/appRunStateTypes.ts",
+        "description": "Which run `overseer:run.read` reads: by its id, or a story's newest.",
+        "dependencies": []
+      },
+      "appRunQueryOf": {
+        "path": "headless/utils/appRunState.ts",
+        "description": "Which run an app's `overseer:run.read` names, or why it names none. Pure.",
+        "dependencies": [
+          "Record",
+          "AppRunQuery",
+          "thefactory-tools/utils/processRunStopHolder",
+          "thefactory-tools/utils",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types"
+        ]
+      },
+      "AppRunState": {
+        "path": "headless/utils/appRunStateTypes.ts",
+        "description": "One run, as `overseer:run.read` answers it.",
+        "dependencies": [
+          "AppRunStateKind"
+        ]
+      },
+      "AppRunStateKind": {
+        "path": "headless/utils/appRunStateTypes.ts",
+        "description": "Where work an app started stands, as the app reads it (`overseer:run.read`):",
+        "dependencies": []
+      },
+      "appRunStateOf": {
+        "path": "headless/utils/appRunState.ts",
+        "description": "Where work an app started stands: `chain` is the run, then the nested runs its current step is",
+        "dependencies": [
+          "AppRunState",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/utils/processRunStopHolder",
+          "thefactory-tools/utils",
           "thefactory-tools/types"
         ]
       },
@@ -104276,6 +104947,10 @@
         "description": "A started story or feature's pill in a chat, in place of the shared \"Working\":",
         "dependencies": []
       },
+      "ChatAboutRun": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
       "chatActionRules": {
         "path": "headless/utils/actionRules.ts",
         "description": "The rules scoped to one chat — what that chat's own settings list.",
@@ -106280,6 +106955,14 @@
           "react-native/Pressable",
           "react-native/Text",
           "react-native/View"
+        ]
+      },
+      "chatReviewTarget": {
+        "path": "headless/utils/chatChangesDock.ts",
+        "description": "The run a chat's review would open for a card: the turn it names, else the",
+        "dependencies": [
+          "thefactory-tools/utils/isChatOpenChangesOverdue",
+          "thefactory-tools/utils"
         ]
       },
       "chatRowBadge": {
@@ -112537,12 +113220,23 @@
           "thefactory-tools/types"
         ]
       },
+      "CostLedgerAttribution": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "CostLedgerOutputStrategy": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "CostLedgerPhase": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
       "CostLedgerPlacement": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
           "Array",
-          "LlmCostSourceKind",
-          "ChatContext"
+          "ChatContextType"
         ]
       },
       "CostModelRef": {
@@ -113846,7 +114540,8 @@
       "CreateStoryData": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
-          "StoryCreateInput"
+          "Array",
+          "ExternalRef"
         ]
       },
       "CreateStoryError": {
@@ -118671,6 +119366,14 @@
       "dispatchProjectsBridge": {
         "path": "headless/api/projectsBridge.ts",
         "dependencies": [
+          "Promise",
+          "BridgeRequest"
+        ]
+      },
+      "dispatchRunBridge": {
+        "path": "headless/api/runBridge.ts",
+        "dependencies": [
+          "AppRunState",
           "Promise",
           "BridgeRequest"
         ]
@@ -125245,6 +125948,44 @@
           "Options"
         ]
       },
+      "getProjectsGroupConstellation": {
+        "path": "headless/api/generated/sdk.gen.ts",
+        "description": "Dependency constellation of this group’s members: each member project and the package edges among them. A member with no checkout is still listed and contributes no edges. Nothing is rebuilt to answer this.",
+        "dependencies": [
+          "ThrowOnError",
+          "GetProjectsGroupConstellationErrors",
+          "GetProjectsGroupConstellationResponses",
+          "GetProjectsGroupConstellationData",
+          "Options"
+        ]
+      },
+      "GetProjectsGroupConstellationData": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "GetProjectsGroupConstellationError": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "GetProjectsGroupConstellationErrors"
+        ]
+      },
+      "GetProjectsGroupConstellationErrors": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "GetProjectsGroupConstellationResponse": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "GetProjectsGroupConstellationResponses"
+        ]
+      },
+      "GetProjectsGroupConstellationResponses": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Array",
+          "JsonValue"
+        ]
+      },
       "GetProjectsGroupData": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": []
@@ -125270,6 +126011,44 @@
         "dependencies": [
           "Array",
           "TicketConnectionAccess"
+        ]
+      },
+      "getProjectsGroupStatus": {
+        "path": "headless/api/generated/sdk.gen.ts",
+        "description": "Roll-up of each member: running and parked runs, open group runs, story progress, failing checks, git divergence, open feature requests, and last activity. Refetch when `projects-group:status-updated` arrives.",
+        "dependencies": [
+          "ThrowOnError",
+          "GetProjectsGroupStatusErrors",
+          "GetProjectsGroupStatusResponses",
+          "GetProjectsGroupStatusData",
+          "Options"
+        ]
+      },
+      "GetProjectsGroupStatusData": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "GetProjectsGroupStatusError": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "GetProjectsGroupStatusErrors"
+        ]
+      },
+      "GetProjectsGroupStatusErrors": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "GetProjectsGroupStatusResponse": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "GetProjectsGroupStatusResponses"
+        ]
+      },
+      "GetProjectsGroupStatusResponses": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Array",
+          "ProjectCheckKind"
         ]
       },
       "getProjectStorageUsage": {
@@ -126004,6 +126783,14 @@
       "GitBranchTip": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": []
+      },
+      "gitBranchTipSha": {
+        "path": "headless/utils/gitBranchTip.ts",
+        "description": "The commit a branch row stands for in the graph: the uncommitted changes for",
+        "dependencies": [
+          "GitUnifiedBranch",
+          "Pick"
+        ]
       },
       "GitBuildMergeReportOptions": {
         "path": "headless/api/generated/types.gen.ts",
@@ -132630,7 +133417,9 @@
       "isWorkStartRequest": {
         "path": "headless/utils/appWorkStart.ts",
         "dependencies": [
-          "BridgeRequest"
+          "BridgeRequest",
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
         ]
       },
       "isWsReopen": {
@@ -135321,7 +136110,9 @@
       },
       "ListProcessRunsData": {
         "path": "headless/api/generated/types.gen.ts",
-        "dependencies": []
+        "dependencies": [
+          "Array"
+        ]
       },
       "ListProcessRunsResponse": {
         "path": "headless/api/generated/types.gen.ts",
@@ -140639,6 +141430,16 @@
           "thefactory-tools/utils"
         ]
       },
+      "openChildRunId": {
+        "path": "headless/utils/appRunState.ts",
+        "description": "The nested run the step `run` is on is working — the one its stop mirrors, or the open",
+        "dependencies": [
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/utils/processRunStopHolder",
+          "thefactory-tools/utils",
+          "thefactory-tools/types"
+        ]
+      },
       "openCredentialCapture": {
         "path": "headless/api/generated/sdk.gen.ts",
         "dependencies": [
@@ -141883,13 +142684,6 @@
           "thefactory-tools/types"
         ]
       },
-      "parseAppChatSidebar": {
-        "path": "headless/utils/appChatSidebar.ts",
-        "description": "What an app's `chat.requestSidebar {runId?, message?}` asks for: the process run whose own chat",
-        "dependencies": [
-          "AppChatSidebarRequest"
-        ]
-      },
       "parseAppDeepLink": {
         "path": "headless/utils/appDeepLink.ts",
         "description": "The deep-link an app reports as `overseer:nav.changed` (`{ view, params }`), or `null` when it",
@@ -142127,10 +142921,12 @@
       },
       "parseWorkStartPayload": {
         "path": "headless/utils/appWorkStart.ts",
-        "description": "The work an app asks to start (`work.start {title, description, features?, processId?}`), or",
+        "description": "The work an app asks to start (`work.start {title, description, features?, processId?,",
         "dependencies": [
           "AppWorkFeatureDraft",
-          "AppWorkStartDraft"
+          "AppWorkStartDraft",
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
         ]
       },
       "partitionGrants": {
@@ -144710,8 +145506,8 @@
       "ProcessBaseConflict": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
-          "CodeIntelExportedSymbol",
           "Array",
+          "CodeIntelExportedSymbol",
           "ProcessKeptOneSide"
         ]
       },
@@ -147041,6 +147837,12 @@
       "ProcessNoProgress": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": []
+      },
+      "ProcessNotRebuilt": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Array"
+        ]
       },
       "ProcessOpenLeaf": {
         "path": "headless/utils/processView.ts",
@@ -149873,6 +150675,16 @@
         "description": "How many projects' data each per-project cache keeps — room for every project",
         "dependencies": []
       },
+      "PROJECT_SCRIPT_ASK": {
+        "path": "headless/utils/toolAskCardConstants.ts",
+        "description": "How running a project script reads.",
+        "dependencies": []
+      },
+      "PROJECT_SCRIPT_TOOL": {
+        "path": "headless/utils/toolAskCardConstants.ts",
+        "description": "The tool that runs one of the project's declared scripts on this computer.",
+        "dependencies": []
+      },
       "PROJECT_SEARCH_DEBOUNCE_MS": {
         "path": "headless/utils/projectSearchConstants.ts",
         "description": "How long typing must pause before the search runs.",
@@ -151273,6 +152085,61 @@
           "react/useMemo",
           "react/useState",
           "react/ReactNode"
+        ]
+      },
+      "ProjectScript": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "ProjectScriptCarryLimits": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "ProjectScriptCarryOutcome": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "ProjectScriptKeptOutFile",
+          "Array"
+        ]
+      },
+      "ProjectScriptCarryPlan": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "ProjectScriptKeptOutFile",
+          "Array"
+        ]
+      },
+      "ProjectScriptFileStamp": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "ProjectScriptKeptOutFile": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "ProjectScriptRunResult": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "ProjectScriptKeptOutFile",
+          "Array",
+          "ProjectScriptRunStatus"
+        ]
+      },
+      "ProjectScriptRunStatus": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "ProjectScriptsListing": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Array",
+          "ProjectScript"
+        ]
+      },
+      "ProjectScriptTreeChanges": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Array"
         ]
       },
       "ProjectSearchFileRow": {
@@ -157639,6 +158506,11 @@
         "description": "The group of chats that belong to no project.",
         "dependencies": []
       },
+      "RUN_CHANGED_MESSAGE": {
+        "path": "headless/utils/appBridgeConstants.ts",
+        "description": "`overseer:run.changed`: a push that a run of the app's project changed state, step or ask.",
+        "dependencies": []
+      },
       "RUN_CHAT_OPEN_LABEL": {
         "path": "headless/utils/runNeedsYouViewConstants.ts",
         "description": "The chat button on every page of a run — its header, a nested run's, a step's.",
@@ -157700,6 +158572,11 @@
       "RUN_NEEDS_YOU_ITEMS_LOAD_FAILED": {
         "path": "headless/utils/runNeedsYouItemsConstants.ts",
         "description": "Said when a run's \"Needs you\" items could not be read.",
+        "dependencies": []
+      },
+      "RUN_OPEN_MESSAGE": {
+        "path": "headless/utils/appBridgeConstants.ts",
+        "description": "`overseer:run.open`: open a run of the app's project in Overseer.",
         "dependencies": []
       },
       "RUN_PENDING_CHANGE_ADDED": {
@@ -157962,6 +158839,11 @@
       },
       "RUN_PROPOSAL_WITHDRAW": {
         "path": "headless/utils/runProposalViewConstants.ts",
+        "dependencies": []
+      },
+      "RUN_READ_MESSAGE": {
+        "path": "headless/utils/appBridgeConstants.ts",
+        "description": "`overseer:run.read`: where a run of the app's project stands, by its id or its story's.",
         "dependencies": []
       },
       "RUN_STEPS_CARD_COPY": {
@@ -162291,6 +163173,18 @@
           "ReadonlyArray",
           "TabKey"
         ]
+      },
+      "shellToolPreview": {
+        "path": "headless/utils/toolPreview.ts",
+        "description": "A shell-like call as its expanded row shows it — the command line and what",
+        "dependencies": [
+          "ShellToolPreview"
+        ]
+      },
+      "ShellToolPreview": {
+        "path": "headless/utils/toolPreview.ts",
+        "description": "What a shell-like call's expanded row shows.",
+        "dependencies": []
       },
       "ShopClass": {
         "path": "headless/api/generated/types.gen.ts",
@@ -176708,6 +177602,16 @@
           "thefactory-tools/utils"
         ]
       },
+      "WORK_FILES_HINT": {
+        "path": "headless/utils/workFilesConstants.ts",
+        "description": "What happens to the files handed over with work, said once under their list.",
+        "dependencies": []
+      },
+      "WORK_FILES_LABEL": {
+        "path": "headless/utils/workFilesConstants.ts",
+        "description": "What the files handed over with work are called on a confirmation.",
+        "dependencies": []
+      },
       "WORK_LAUNCH_HEADING": {
         "path": "headless/utils/workLaunchViewConstants.ts",
         "description": "Heading of the choice between a process run and a chat.",
@@ -176754,6 +177658,26 @@
         "path": "native/compound/process/WorkBranchChangesNote.tsx",
         "dependencies": [
           "ProcessRun",
+          "react-native/Text",
+          "react-native/View"
+        ]
+      },
+      "workFilesHeading": {
+        "path": "headless/utils/workFiles.ts",
+        "description": "The heading over the files handed over with work: how many there are.",
+        "dependencies": []
+      },
+      "WorkFilesList": {
+        "path": "web/compound/WorkFilesList.tsx",
+        "description": "The files that go with work the person is asked to start — each project path in full, so they",
+        "dependencies": [
+          "WorkFilesListProps"
+        ]
+      },
+      "WorkFilesListProps": {
+        "path": "native/compound/WorkFilesList.tsx",
+        "dependencies": [
+          "react-native/ScrollView",
           "react-native/Text",
           "react-native/View"
         ]
@@ -176877,14 +177801,18 @@
       "workStartDeclined": {
         "path": "headless/utils/appWorkStart.ts",
         "dependencies": [
-          "AppWorkStartReply"
+          "AppWorkStartReply",
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
         ]
       },
       "workStartDraftError": {
         "path": "headless/utils/appWorkStart.ts",
         "description": "Why the person's edited draft cannot start, or `null` when it can.",
         "dependencies": [
-          "AppWorkStartDraft"
+          "AppWorkStartDraft",
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
         ]
       },
       "workStartEditable": {
@@ -176892,7 +177820,9 @@
         "description": "Whether the person may still edit the draft: nothing is running and no story was made from it yet.",
         "dependencies": [
           "AppWorkStartAsk",
-          "Pick"
+          "Pick",
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
         ]
       },
       "workStartFeatures": {
@@ -176900,13 +177830,17 @@
         "description": "The features to make: those asked for, or the work itself as one feature, since a run works features.",
         "dependencies": [
           "AppWorkFeatureDraft",
-          "AppWorkStartDraft"
+          "AppWorkStartDraft",
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
         ]
       },
       "workStartStarted": {
         "path": "headless/utils/appWorkStart.ts",
         "dependencies": [
-          "AppWorkStartReply"
+          "AppWorkStartReply",
+          "thefactory-tools/constants/STORY_FILES_MAX",
+          "thefactory-tools/constants"
         ]
       },
       "writeChatsSeen": {
@@ -178221,7 +179155,7 @@
       },
       "AGENT_FINISHING_TOOL_NAMES": {
         "path": "dist/chats/chatsConstants.js",
-        "description": "The tools an agent ends its work with. An API run finishes on them",
+        "description": "The tools an agent records an ending with. The legacy 3-phase API loop",
         "dependencies": []
       },
       "AGENT_FOLLOW_UP_REFUSAL": {
@@ -178433,6 +179367,7 @@
           "Record",
           "Promise",
           "Readonly",
+          "AbortSignal",
           "AgentToolSchema"
         ]
       },
@@ -181814,6 +182749,23 @@
           "node:fs/promises"
         ]
       },
+      "carryProjectScriptChanges": {
+        "path": "dist/projectScripts/projectScriptsHelpers.js",
+        "dependencies": [
+          "PROJECT_SCRIPT_KEPT_OUT",
+          "String",
+          "node:fs/promises/chmod",
+          "node:fs/promises/copyFile",
+          "node:fs/promises/lstat",
+          "node:fs/promises/mkdir",
+          "node:fs/promises/readdir",
+          "node:fs/promises/readFile",
+          "node:fs/promises/realpath",
+          "node:fs/promises/rm",
+          "node:fs/promises",
+          "node:string_decoder/StringDecoder"
+        ]
+      },
       "CascadeResult": {
         "path": "dist/expertPanel/arena/arenaTypes.d.ts",
         "description": "The outcome of Game 5 (Debate vs Vote): a blind majority vote versus a sequential information cascade.",
@@ -182260,6 +183212,7 @@
       "Chat": {
         "path": "dist/chats/chatsTypes.d.ts",
         "dependencies": [
+          "ChatAboutRun",
           "ChatNotifyLevel",
           "ChatApiTurn",
           "LLMConfig",
@@ -182386,6 +183339,11 @@
       "CHAT_WORK_BRIEF_TEXT_MAX_CHARS": {
         "path": "dist/workLaunch/workLaunchConstants.js",
         "description": "The longest description or acceptance text a brief quotes for one feature.",
+        "dependencies": []
+      },
+      "ChatAboutRun": {
+        "path": "dist/chats/chatsTypes.d.ts",
+        "description": "A process run a chat was started for.",
         "dependencies": []
       },
       "ChatApiTurn": {
@@ -182791,6 +183749,11 @@
         "description": "A card in an agent run's chat for the questions its story is paused on: the",
         "dependencies": []
       },
+      "chatProcessRunId": {
+        "path": "dist/workflow/processRunChatUtils.js",
+        "description": "The process run a chat leads back to: the run whose own chat it is, else",
+        "dependencies": []
+      },
       "ChatRating": {
         "path": "dist/chats/chatsTypes.d.ts",
         "dependencies": []
@@ -182934,7 +183897,9 @@
       },
       "ChatTopicCreateInput": {
         "path": "dist/chats/chatsTypes.d.ts",
-        "dependencies": []
+        "dependencies": [
+          "ChatAboutRun"
+        ]
       },
       "chatTurnCompletionSettings": {
         "path": "dist/chats/chatsUtils.js",
@@ -183379,6 +184344,11 @@
       "ClaudeStreamedUsage": {
         "path": "dist/cliAgentRunner/providers/claudeCode/claudeCodeUtils.js",
         "description": "What a Claude Code run is known to have spent from its streamed message",
+        "dependencies": []
+      },
+      "cleanProjectScriptOutput": {
+        "path": "dist/projectScripts/projectScriptsUtils.js",
+        "description": "A script's output as a model should read it: no terminal colour or title",
         "dependencies": []
       },
       "ClearCatalogParams": {
@@ -186749,6 +187719,13 @@
           "Math"
         ]
       },
+      "CompletionOutputStrategy": {
+        "path": "dist/completion/completionTypes.d.ts",
+        "description": "How an API tool turn is orchestrated. API and CLI are one paradigm: offer",
+        "dependencies": [
+          "CostLedgerOutputStrategy"
+        ]
+      },
       "CompletionProviderState": {
         "path": "dist/completion/completionTypes.d.ts",
         "dependencies": []
@@ -186758,6 +187735,7 @@
         "dependencies": [
           "CompletionMessageSanitization",
           "CompletionHistorySummarization",
+          "CompletionOutputStrategy",
           "CrossProjectDispatch",
           "AgentToolSchema",
           "AbortSignal",
@@ -186794,7 +187772,8 @@
         "path": "dist/completion/completionTypes.d.ts",
         "dependencies": [
           "CompletionMessageSanitization",
-          "CompletionHistorySummarization"
+          "CompletionHistorySummarization",
+          "CompletionOutputStrategy"
         ]
       },
       "completionStopCause": {
@@ -187536,10 +188515,33 @@
         "description": "The `breakdown` key of one model under one billing basis. Metered rows keep",
         "dependencies": []
       },
+      "CostLedgerAttribution": {
+        "path": "dist/llmCosts/llmCostsTypes.d.ts",
+        "description": "Strategy and phase an API ledger write records. Either may be absent.",
+        "dependencies": [
+          "CostLedgerPhase",
+          "CostLedgerOutputStrategy",
+          "thefactory-db/Entity"
+        ]
+      },
       "costLedgerEntryFromSpend": {
         "path": "dist/llmCosts/llmCostsUtils.js",
         "description": "The ledger entry that records `spend`, with what `provenance` knows about it.",
         "dependencies": []
+      },
+      "CostLedgerOutputStrategy": {
+        "path": "dist/llmCosts/llmCostsTypes.d.ts",
+        "description": "Which orchestrator produced an API model call: the native tool loop, or the",
+        "dependencies": [
+          "thefactory-db/Entity"
+        ]
+      },
+      "CostLedgerPhase": {
+        "path": "dist/llmCosts/llmCostsTypes.d.ts",
+        "description": "Which phase of an API completion the model call belonged to.",
+        "dependencies": [
+          "thefactory-db/Entity"
+        ]
       },
       "CostLedgerPlacement": {
         "path": "dist/llmCosts/llmCostsTypes.d.ts",
@@ -187547,6 +188549,7 @@
         "dependencies": [
           "LLMCostSourceKind",
           "ChatContext",
+          "CostLedgerAttribution",
           "thefactory-db/Entity"
         ]
       },
@@ -187984,6 +188987,11 @@
           "MobileRecordingPace"
         ]
       },
+      "createNativeToolsSystemPrompt": {
+        "path": "dist/completion/completionUtils.js",
+        "description": "System prompt for `native_tools_only`. The caller's prompt, with tools on",
+        "dependencies": []
+      },
       "createOwnedTempWorkDir": {
         "path": "dist/file/fileHelpers.js",
         "dependencies": [
@@ -188207,7 +189215,7 @@
       },
       "createSuggestRepliesTool": {
         "path": "dist/agentRunner/agentRunnerSuggestReplies.js",
-        "description": "The `suggestReplies` tool for one CLI chat turn, plus the reader that",
+        "description": "The `suggestReplies` tool for one chat turn, plus the reader that collects",
         "dependencies": [
           "SUGGEST_REPLIES_TOOL_NAME",
           "SUGGEST_REPLIES_TOOL_DESCRIPTION"
@@ -190327,6 +191335,13 @@
           "node:os/tmpdir",
           "node:path/isAbsolute",
           "node:path/join"
+        ]
+      },
+      "deleteStoryFiles": {
+        "path": "dist/story/storyFilesHelpers.js",
+        "dependencies": [
+          "node:fs/constants",
+          "node:fs/promises"
         ]
       },
       "deleteStoryFromOrder": {
@@ -196771,6 +197786,20 @@
         "description": "Why a path could not be inspected.",
         "dependencies": []
       },
+      "HostProjectScriptTools": {
+        "path": "dist/projectScripts/HostProjectScriptTools.js",
+        "description": "A project's declared scripts run on this machine for one agent, against the",
+        "dependencies": [
+          "node:path"
+        ]
+      },
+      "HostProjectScriptToolsOptions": {
+        "path": "dist/projectScripts/projectScriptsTypes.d.ts",
+        "description": "Options for {@link HostProjectScriptTools}.",
+        "dependencies": [
+          "ProcessEnv"
+        ]
+      },
       "HostReadFailures": {
         "path": "dist/web/webTypes.d.ts",
         "description": "Read failures for ONE host, split by kind — a wall, dead urls, or transience. See `webReadCacheReport`.",
@@ -197719,6 +198748,11 @@
       "isCapturePlatform": {
         "path": "dist/reviewEvidence/reviewEvidenceUtils.js",
         "description": "Whether a value names a platform a capture can be of. Pure.",
+        "dependencies": []
+      },
+      "isCarriedProjectScriptPath": {
+        "path": "dist/projectScripts/projectScriptsUtils.js",
+        "description": "Whether a script's change to this tree-relative path may reach the workspace. Pure.",
         "dependencies": []
       },
       "isChatArchivedFromList": {
@@ -200177,6 +201211,21 @@
           "dotenv/parse"
         ]
       },
+      "listProjectScriptTreePaths": {
+        "path": "dist/projectScripts/projectScriptsHelpers.js",
+        "dependencies": [
+          "node:fs/promises/chmod",
+          "node:fs/promises/copyFile",
+          "node:fs/promises/lstat",
+          "node:fs/promises/mkdir",
+          "node:fs/promises/readdir",
+          "node:fs/promises/readFile",
+          "node:fs/promises/realpath",
+          "node:fs/promises/rm",
+          "node:fs/promises",
+          "node:string_decoder/StringDecoder"
+        ]
+      },
       "listProviderModels": {
         "path": "dist/completion/providers/completionProviderHelpers.js",
         "dependencies": []
@@ -200588,6 +201637,8 @@
           "UsageCompleteness",
           "UsageTokenFields",
           "UsageEventOrigin",
+          "CostLedgerPhase",
+          "CostLedgerOutputStrategy",
           "LLMCostSourceKind",
           "ChatContext",
           "CostModelRef",
@@ -200627,6 +201678,7 @@
           "BillingBasis",
           "CostModelRef",
           "UsageEventWriteOutcome",
+          "CostLedgerAttribution",
           "UsageEventProvenance",
           "LLMCostSourceKind",
           "ChatContext",
@@ -200917,6 +201969,10 @@
       "mapQueryArgsToDataQuery": {
         "path": "dist/project/projectData/projectDataUtils.js",
         "description": "Map the LLM-facing `queryProjectData` args onto a scoped {@link DataQuery} (filter→where, sort→orderBy).",
+        "dependencies": []
+      },
+      "markApprovedAsksPending": {
+        "path": "dist/agentRunner/agentRunnerUtils.js",
         "dependencies": []
       },
       "markConnectorItemsSeen": {
@@ -203464,6 +204520,11 @@
         "description": "The role's tools narrowed to the type's allowlist. Never adds a tool the role",
         "dependencies": []
       },
+      "NATIVE_TOOLS_TURN_INSTRUCTIONS": {
+        "path": "dist/completion/completionConstants.js",
+        "description": "What a `native_tools_only` turn is told. Tools stay on the turn; a reply that",
+        "dependencies": []
+      },
       "nativeCliCompactCommand": {
         "path": "dist/chats/chatContextFill.js",
         "description": "The on-demand compact a resident CLI accepts, or `undefined` when it has",
@@ -204871,6 +205932,11 @@
         "description": "Read the task sources a parsed `package.json` declares under",
         "dependencies": []
       },
+      "parseProjectScripts": {
+        "path": "dist/projectScripts/projectScriptsUtils.js",
+        "description": "The scripts a `package.json` declares, in its own order, each with the",
+        "dependencies": []
+      },
       "parsePythonCompileOutput": {
         "path": "dist/compile/compileHelpers.js",
         "dependencies": [
@@ -205500,6 +206566,11 @@
       "planProjectCheckMirror": {
         "path": "dist/projectChecks/projectCheckEnvironmentUtils.js",
         "description": "Where to place a tree, and what to link beside it, so each out-of-tree",
+        "dependencies": []
+      },
+      "planProjectScriptCarry": {
+        "path": "dist/projectScripts/projectScriptsUtils.js",
+        "description": "Which of a script's changes reach the workspace. A path outside the tree,",
         "dependencies": []
       },
       "PlanResearchParams": {
@@ -207393,6 +208464,11 @@
         "description": "How a park opens when nothing conflicts now but the work branch still lost a side.",
         "dependencies": []
       },
+      "PROCESS_NOT_REBUILT_LEAD": {
+        "path": "dist/workflow/workflowConstants.js",
+        "description": "How a park names the conflicting files the project's build writes that it could not rebuild.",
+        "dependencies": []
+      },
       "PROCESS_OPEN_RUN_BLOCKS_ANOTHER": {
         "path": "dist/workflow/processOpenRunConstants.js",
         "description": "Why starting another run beside a live one is not offered.",
@@ -208260,6 +209336,7 @@
         "path": "dist/workflow/workflowTypes.d.ts",
         "description": "Bringing the base branch's new commits in conflicted — nothing was changed.",
         "dependencies": [
+          "ProcessNotRebuilt",
           "CodeIntelExportedSymbol",
           "ProcessKeptOneSide",
           "ProcessBaseMoved"
@@ -208267,7 +209344,7 @@
       },
       "processBaseConflictParkMessage": {
         "path": "dist/workflow/processBaseUpdateUtils.js",
-        "description": "What a park says when bringing the base branch in conflicted, would drop",
+        "description": "What a park says when bringing the base branch in conflicted — and why the",
         "dependencies": []
       },
       "processBaseConflictResolutionPending": {
@@ -210291,6 +211368,16 @@
       "ProcessNoProgress": {
         "path": "dist/workflow/workflowTypes.d.ts",
         "description": "A pass round a checks step's back edge that changed nothing: the step the",
+        "dependencies": []
+      },
+      "ProcessNotRebuilt": {
+        "path": "dist/workflow/workflowTypes.d.ts",
+        "description": "Conflicting files the project's build writes that it could not rebuild, and why.",
+        "dependencies": []
+      },
+      "processNotRebuiltClause": {
+        "path": "dist/workflow/processBaseUpdateUtils.js",
+        "description": "Why the conflicting files the project's build writes could not be rebuilt:",
         "dependencies": []
       },
       "processOpenRunRefusal": {
@@ -212543,6 +213630,16 @@
         "description": "The longest last error line a missing report's record keeps.",
         "dependencies": []
       },
+      "PROJECT_CHECK_LEARNED_TIMEOUT_CAP_FACTOR": {
+        "path": "dist/projectChecks/projectChecksConstants.js",
+        "description": "What a learned limit never goes over, as a multiple of the kind's own limit.",
+        "dependencies": []
+      },
+      "PROJECT_CHECK_LEARNED_TIMEOUT_FACTOR": {
+        "path": "dist/projectChecks/projectChecksConstants.js",
+        "description": "A check may run this many times as long as its kind's last whole run in the project took.",
+        "dependencies": []
+      },
       "PROJECT_CHECK_LIVE_HOST_REASON": {
         "path": "dist/projectChecks/projectCheckSandboxConstants.js",
         "description": "Why a live check runs on the host: its released env is applied there, and never handed to a container.",
@@ -213215,6 +214312,111 @@
         "description": "Per-project registry entry filename (always lives in the central root).",
         "dependencies": []
       },
+      "PROJECT_SCRIPT_CARRY_LIMITS": {
+        "path": "dist/projectScripts/projectScriptsConstants.js",
+        "description": "The most a script's run brings into the workspace; the rest is kept out, named.",
+        "dependencies": []
+      },
+      "PROJECT_SCRIPT_DEFAULT_TIMEOUT_MS": {
+        "path": "dist/projectScripts/projectScriptsConstants.js",
+        "description": "How long a script runs when the call does not say.",
+        "dependencies": []
+      },
+      "PROJECT_SCRIPT_KEPT_OUT": {
+        "path": "dist/projectScripts/projectScriptsConstants.js",
+        "description": "Why a file stayed out of the workspace.",
+        "dependencies": []
+      },
+      "PROJECT_SCRIPT_MAX_ARG_CHARS": {
+        "path": "dist/projectScripts/projectScriptsConstants.js",
+        "description": "The longest argument one call may pass on.",
+        "dependencies": []
+      },
+      "PROJECT_SCRIPT_MAX_ARGS": {
+        "path": "dist/projectScripts/projectScriptsConstants.js",
+        "description": "The most arguments one call may pass on.",
+        "dependencies": []
+      },
+      "PROJECT_SCRIPT_MAX_TIMEOUT_MS": {
+        "path": "dist/projectScripts/projectScriptsConstants.js",
+        "description": "The longest time a call may give a script.",
+        "dependencies": []
+      },
+      "PROJECT_SCRIPT_MAX_WALK_FILES": {
+        "path": "dist/projectScripts/projectScriptsConstants.js",
+        "description": "The most files a look over a tree that is no repository lists.",
+        "dependencies": []
+      },
+      "PROJECT_SCRIPT_MIN_TIMEOUT_MS": {
+        "path": "dist/projectScripts/projectScriptsConstants.js",
+        "description": "The shortest time a call may give a script.",
+        "dependencies": []
+      },
+      "PROJECT_SCRIPT_NEVER_CARRIED_SEGMENTS": {
+        "path": "dist/projectScripts/projectScriptsConstants.js",
+        "description": "Path segments a script's changes are never brought back through.",
+        "dependencies": []
+      },
+      "PROJECT_SCRIPT_NO_COPY": {
+        "path": "dist/projectScripts/projectScriptsConstants.js",
+        "description": "What a workspace that could not be copied is told.",
+        "dependencies": []
+      },
+      "PROJECT_SCRIPT_NO_PACKAGE_JSON": {
+        "path": "dist/projectScripts/projectScriptsConstants.js",
+        "description": "What a project without a `package.json` is told it declares.",
+        "dependencies": []
+      },
+      "PROJECT_SCRIPT_NO_WORKSPACE": {
+        "path": "dist/projectScripts/projectScriptsConstants.js",
+        "description": "What a run without a workspace of its own is told.",
+        "dependencies": []
+      },
+      "PROJECT_SCRIPT_NONE_DECLARED": {
+        "path": "dist/projectScripts/projectScriptsConstants.js",
+        "description": "What a project whose `package.json` declares no scripts is told.",
+        "dependencies": []
+      },
+      "PROJECT_SCRIPT_NOT_STARTED": {
+        "path": "dist/projectScripts/projectScriptsConstants.js",
+        "description": "What a call made after its run or turn was stopped is told.",
+        "dependencies": []
+      },
+      "PROJECT_SCRIPT_OUTPUT_GAP": {
+        "path": "dist/projectScripts/projectScriptsConstants.js",
+        "description": "What stands in a stream for the part left out.",
+        "dependencies": []
+      },
+      "PROJECT_SCRIPT_OUTPUT_HEAD_CHARS": {
+        "path": "dist/projectScripts/projectScriptsConstants.js",
+        "description": "The characters of each stream's start kept for the model.",
+        "dependencies": []
+      },
+      "PROJECT_SCRIPT_OUTPUT_TAIL_CHARS": {
+        "path": "dist/projectScripts/projectScriptsConstants.js",
+        "description": "The characters of each stream's end kept for the model — where a failure usually is.",
+        "dependencies": []
+      },
+      "PROJECT_SCRIPT_SPAWN_LABEL": {
+        "path": "dist/projectScripts/projectScriptsConstants.js",
+        "description": "The session-lane label of a script's process.",
+        "dependencies": []
+      },
+      "PROJECT_SCRIPT_STOP_GRACE_MS": {
+        "path": "dist/projectScripts/projectScriptsConstants.js",
+        "description": "How long a stopped script has after SIGTERM before its process group is killed.",
+        "dependencies": []
+      },
+      "PROJECT_SCRIPT_TOOL_NAMES": {
+        "path": "dist/projectScripts/projectScriptsConstants.js",
+        "description": "The agent tools that list and run a project's declared scripts.",
+        "dependencies": []
+      },
+      "PROJECT_SCRIPT_UNREADABLE_PACKAGE_JSON": {
+        "path": "dist/projectScripts/projectScriptsConstants.js",
+        "description": "What a `package.json` that cannot be read is told.",
+        "dependencies": []
+      },
       "PROJECT_STORIES_DIR_NAME": {
         "path": "dist/story/storyConstants.js",
         "description": "The folder of a project's data directory that holds one `<storyId>.json` per story, and the order.",
@@ -213645,6 +214847,11 @@
           "ProjectCheckFlakeFeature"
         ]
       },
+      "projectCheckLearnedTimeoutMs": {
+        "path": "dist/projectChecks/projectChecksUtils.js",
+        "description": "How long one command of a kind may run in this project: twice its last whole",
+        "dependencies": []
+      },
       "ProjectCheckMirrorExpansion": {
         "path": "dist/projectChecks/projectCheckEnvironmentTypes.d.ts",
         "description": "A directory above the tree that a dependency names as a whole: each of its",
@@ -214052,6 +215259,11 @@
         "description": "A project's checks scan as plain lines for an agent's brief: the stack, each",
         "dependencies": []
       },
+      "projectChecksWithLearnedTimeouts": {
+        "path": "dist/projectChecks/projectChecksUtils.js",
+        "description": "A scan whose every check without a declared limit runs by the limit its kind learned. Pure.",
+        "dependencies": []
+      },
       "projectChecksWithoutRewrites": {
         "path": "dist/projectChecks/projectCheckRewriteUtils.js",
         "description": "The checks with `files` — committed since they were rewritten — no longer",
@@ -214314,7 +215526,9 @@
       "ProjectFilesRegeneration": {
         "path": "dist/mergeRegenerate/mergeRegenerateTypes.d.ts",
         "description": "The project's build run to regenerate files: the ones of them it rewrote,",
-        "dependencies": []
+        "dependencies": [
+          "VerificationCheckRanIn"
+        ]
       },
       "projectFilesToStage": {
         "path": "dist/cliAgentRunner/workspace/cliWorkspaceStagingUtils.js",
@@ -214514,6 +215728,111 @@
       "PROJECTS_GROUP_CONTEXT": {
         "path": "dist/chats/chatsConstants.js",
         "dependencies": []
+      },
+      "ProjectScript": {
+        "path": "dist/projectScripts/projectScriptsTypes.d.ts",
+        "description": "One command a project declares for people to run: a `package.json` script.",
+        "dependencies": []
+      },
+      "projectScriptArgsProblem": {
+        "path": "dist/projectScripts/projectScriptsUtils.js",
+        "description": "Why `args` cannot be passed on to a script, or `undefined` when they can. Pure.",
+        "dependencies": []
+      },
+      "ProjectScriptCarryLimits": {
+        "path": "dist/projectScripts/projectScriptsTypes.d.ts",
+        "description": "The limits on what a script's run brings into the workspace.",
+        "dependencies": []
+      },
+      "ProjectScriptCarryOutcome": {
+        "path": "dist/projectScripts/projectScriptsTypes.d.ts",
+        "description": "What changes reached the workspace, and which could not be written there.",
+        "dependencies": [
+          "ProjectScriptKeptOutFile"
+        ]
+      },
+      "ProjectScriptCarryPlan": {
+        "path": "dist/projectScripts/projectScriptsTypes.d.ts",
+        "description": "Which of a script's changes reach the workspace, and which stay out.",
+        "dependencies": [
+          "ProjectScriptKeptOutFile"
+        ]
+      },
+      "ProjectScriptFileStamp": {
+        "path": "dist/projectScripts/projectScriptsTypes.d.ts",
+        "description": "A file's size and modification time, as one look at it saw them.",
+        "dependencies": []
+      },
+      "ProjectScriptKeptOutFile": {
+        "path": "dist/projectScripts/projectScriptsTypes.d.ts",
+        "description": "A file the script changed that was not brought into the workspace, and why.",
+        "dependencies": []
+      },
+      "ProjectScriptOutputBuffer": {
+        "path": "dist/projectScripts/ProjectScriptOutputBuffer.js",
+        "description": "One output stream of a script, held within a fixed size however much it",
+        "dependencies": []
+      },
+      "ProjectScriptRunResult": {
+        "path": "dist/projectScripts/projectScriptsTypes.d.ts",
+        "description": "The outcome of running one declared script.",
+        "dependencies": [
+          "ProjectScriptKeptOutFile",
+          "ProjectScriptRunStatus"
+        ]
+      },
+      "projectScriptRunStatus": {
+        "path": "dist/projectScripts/projectScriptsUtils.js",
+        "description": "How a script's process ending reads as a run's status. Pure.",
+        "dependencies": []
+      },
+      "ProjectScriptRunStatus": {
+        "path": "dist/projectScripts/projectScriptsTypes.d.ts",
+        "description": "How a run of a declared script ended:",
+        "dependencies": []
+      },
+      "ProjectScriptsListing": {
+        "path": "dist/projectScripts/projectScriptsTypes.d.ts",
+        "description": "The commands a project declares, read from its files without running anything.",
+        "dependencies": [
+          "NodePackageManager",
+          "ProjectScript"
+        ]
+      },
+      "projectScriptTimeoutMs": {
+        "path": "dist/projectScripts/projectScriptsUtils.js",
+        "description": "How long a script may run, from the seconds a call asked for — the default, bounded either way. Pure.",
+        "dependencies": [
+          "Number"
+        ]
+      },
+      "ProjectScriptTools": {
+        "path": "dist/projectScripts/projectScriptsTypes.d.ts",
+        "description": "The commands the project an agent works in declares, run like a person runs",
+        "dependencies": [
+          "ProjectScriptRunResult",
+          "Promise",
+          "ProjectScriptsListing",
+          "IFactoryTools"
+        ]
+      },
+      "projectScriptTreeChanges": {
+        "path": "dist/projectScripts/projectScriptsUtils.js",
+        "description": "Which files a script created or rewrote, and which it deleted, from looks before and after. Pure.",
+        "dependencies": []
+      },
+      "ProjectScriptTreeChanges": {
+        "path": "dist/projectScripts/projectScriptsTypes.d.ts",
+        "description": "What a script did to the copy it ran in, path by path.",
+        "dependencies": []
+      },
+      "ProjectScriptTreeStamps": {
+        "path": "dist/projectScripts/projectScriptsTypes.d.ts",
+        "description": "A tree's files by tree-relative path; a path that is not there has no entry.",
+        "dependencies": [
+          "ProjectScriptFileStamp",
+          "ReadonlyMap"
+        ]
       },
       "ProjectSearchIndex": {
         "path": "dist/ingestion/ProjectSearchIndex.js",
@@ -216373,6 +217692,21 @@
           "node:path/join"
         ]
       },
+      "readProjectScripts": {
+        "path": "dist/projectScripts/projectScriptsHelpers.js",
+        "dependencies": [
+          "node:fs/promises/chmod",
+          "node:fs/promises/copyFile",
+          "node:fs/promises/lstat",
+          "node:fs/promises/mkdir",
+          "node:fs/promises/readdir",
+          "node:fs/promises/readFile",
+          "node:fs/promises/realpath",
+          "node:fs/promises/rm",
+          "node:fs/promises",
+          "node:string_decoder/StringDecoder"
+        ]
+      },
       "readProjectWebServe": {
         "path": "dist/capability/capabilityHelpers.js",
         "dependencies": [
@@ -216581,6 +217915,22 @@
         "path": "dist/hostFileGovernor/hostFileGovernorHelpers.js",
         "dependencies": [
           "HOST_FILE_SYSCTL_TIMEOUT_MS"
+        ]
+      },
+      "readWorkspaceIncludes": {
+        "path": "dist/cliAgentRunner/workspace/cliAgentWorkspaceHelpers.js",
+        "dependencies": [
+          "node:crypto/randomUUID",
+          "node:fs/promises/appendFile",
+          "node:fs/promises/mkdir",
+          "node:fs/promises/readdir",
+          "node:fs/promises/readFile",
+          "node:fs/promises/rm",
+          "node:fs/promises/stat",
+          "node:fs/promises/writeFile",
+          "node:fs/promises",
+          "node:path/join",
+          "node:path/resolve"
         ]
       },
       "readWorkspaceMergedCommits": {
@@ -218670,6 +220020,11 @@
           "Array"
         ]
       },
+      "resolveCompletionOutputStrategy": {
+        "path": "dist/completion/completionUtils.js",
+        "description": "Which orchestrator a turn uses.",
+        "dependencies": []
+      },
       "resolveConcurrency": {
         "path": "dist/panel/panelUtils.js",
         "description": "Resolves the semaphore cap for a fan-out of `count` readers: the requested concurrency",
@@ -218961,6 +220316,11 @@
       "resolveProjectDataLocation": {
         "path": "dist/project/projectTypeValidations.js",
         "description": "Coerce a (possibly absent or invalid) `dataLocation` value to a known one.",
+        "dependencies": []
+      },
+      "resolveProjectScriptRun": {
+        "path": "dist/projectScripts/projectScriptsUtils.js",
+        "description": "The argv and command line that run `script` with `args`, or why it cannot:",
         "dependencies": []
       },
       "resolveProjectTicketConnection": {
@@ -220114,6 +221474,7 @@
         "description": "Options for {@link runProjectChecksAtRef}.",
         "dependencies": [
           "ProjectCheckSnapshotCache",
+          "ProjectCheckRunMemory",
           "ProjectCheckKnownFlake",
           "ProjectCheckKind",
           "ProjectCheckBaselineCache"
@@ -220153,6 +221514,32 @@
         "dependencies": [
           "node:fs/promises/readFile",
           "node:fs/promises"
+        ]
+      },
+      "runProjectScriptInCopy": {
+        "path": "dist/projectScripts/projectScriptsHelpers.js",
+        "dependencies": [
+          "PROJECT_SCRIPT_SPAWN_LABEL",
+          "node:fs/promises/chmod",
+          "node:fs/promises/copyFile",
+          "node:fs/promises/lstat",
+          "node:fs/promises/mkdir",
+          "node:fs/promises/readdir",
+          "node:fs/promises/readFile",
+          "node:fs/promises/realpath",
+          "node:fs/promises/rm",
+          "node:fs/promises",
+          "node:string_decoder/StringDecoder"
+        ]
+      },
+      "RunProjectScriptInCopyInput": {
+        "path": "dist/projectScripts/projectScriptsTypes.d.ts",
+        "description": "One script run in a copy of a tree, its changes brought back into the tree.",
+        "dependencies": [
+          "Promise",
+          "ProjectScriptCarryLimits",
+          "AbortSignal",
+          "ProcessEnv"
         ]
       },
       "runPythonCoverage": {
@@ -220918,6 +222305,13 @@
           "node:fs/promises",
           "node:path/dirname",
           "node:path/join"
+        ]
+      },
+      "saveStoryFiles": {
+        "path": "dist/story/storyFilesHelpers.js",
+        "dependencies": [
+          "node:fs/constants",
+          "node:fs/promises"
         ]
       },
       "scanFingerprintedProjectChecks": {
@@ -222597,6 +223991,21 @@
         "description": "The terminal stamp of a run whose process died without writing one — found",
         "dependencies": []
       },
+      "stampProjectScriptTree": {
+        "path": "dist/projectScripts/projectScriptsHelpers.js",
+        "dependencies": [
+          "node:fs/promises/chmod",
+          "node:fs/promises/copyFile",
+          "node:fs/promises/lstat",
+          "node:fs/promises/mkdir",
+          "node:fs/promises/readdir",
+          "node:fs/promises/readFile",
+          "node:fs/promises/realpath",
+          "node:fs/promises/rm",
+          "node:fs/promises",
+          "node:string_decoder/StringDecoder"
+        ]
+      },
       "stampRunTelemetry": {
         "path": "dist/cliAgentRunner/instrumentation/cliAgentInstrumentationHelpers.js",
         "description": "Stamp a run's terminal telemetry — `durationMs`, `billing`, the per-model",
@@ -222785,6 +224194,7 @@
       "startSidecarProxy": {
         "path": "dist/sandbox/proxy/sandboxProxySidecar.js",
         "dependencies": [
+          "DOCKER_TEARDOWN_TIMEOUT_MS",
           "SIDECAR_PROXY_PORT"
         ]
       },
@@ -223046,6 +224456,36 @@
         "path": "dist/chats/chatsConstants.js",
         "dependencies": []
       },
+      "STORY_FILE_MAX_BYTES": {
+        "path": "dist/story/storyConstants.js",
+        "description": "The largest file handed over with a story.",
+        "dependencies": []
+      },
+      "STORY_FILES_BAD_ID": {
+        "path": "dist/story/storyConstants.js",
+        "description": "Why files cannot be kept for a story whose id is not one plain name.",
+        "dependencies": []
+      },
+      "STORY_FILES_DIR": {
+        "path": "dist/story/storyConstants.js",
+        "description": "Project directory the files handed over with a story are kept in, one folder",
+        "dependencies": []
+      },
+      "STORY_FILES_MAX": {
+        "path": "dist/story/storyConstants.js",
+        "description": "The most files handed over with one story.",
+        "dependencies": []
+      },
+      "STORY_FILES_MAX_TOTAL_BYTES": {
+        "path": "dist/story/storyConstants.js",
+        "description": "The most bytes the files handed over with one story may hold together.",
+        "dependencies": []
+      },
+      "STORY_FILES_OUTSIDE": {
+        "path": "dist/story/storyConstants.js",
+        "description": "Why a file cannot be kept with a story at a path that leaves the story's folder.",
+        "dependencies": []
+      },
       "STORY_NOTE_MAX_VALUE_CHARS": {
         "path": "dist/story/storyConstants.js",
         "description": "Longest text a story or feature note may hold. A note is read back into later",
@@ -223188,10 +224628,22 @@
         "description": "How far a story's features have got, counted by status.",
         "dependencies": []
       },
+      "storyFilesDirFor": {
+        "path": "dist/story/storyUtils.js",
+        "description": "The project-relative folder the files handed over with a story are kept in,",
+        "dependencies": []
+      },
       "storyFileSearchHit": {
         "path": "dist/searchHits/searchHitsUtils.js",
         "description": "A match inside one of the project's story files as a hit on that story — or on one of its",
         "dependencies": []
+      },
+      "storyFilesToStage": {
+        "path": "dist/story/storyFilesHelpers.js",
+        "dependencies": [
+          "node:fs/constants",
+          "node:fs/promises"
+        ]
       },
       "storyIdOfStoryFileSrc": {
         "path": "dist/searchHits/searchHitsUtils.js",
@@ -223503,6 +224955,11 @@
         "description": "A chip is a button, not a sentence. Longer replies are dropped, not truncated.",
         "dependencies": []
       },
+      "suggestedRepliesArgument": {
+        "path": "dist/agentRunner/agentRunnerSuggestReplies.js",
+        "description": "The replies a `suggestReplies` call carried.",
+        "dependencies": []
+      },
       "suggestLaunchProofPlan": {
         "path": "dist/proofPlan/proofPlanUtils.js",
         "description": "The plan offered at launch for a feature with none of its own: the checks and",
@@ -223568,6 +225025,11 @@
       "summarizeProjectCheckRun": {
         "path": "dist/projectChecks/projectChecksUtils.js",
         "description": "One line and one status for a kind, from the results of its commands.",
+        "dependencies": []
+      },
+      "summarizeProjectScriptRun": {
+        "path": "dist/projectScripts/projectScriptsUtils.js",
+        "description": "One line for a script's run: how it ended, after how long, and what reached the workspace. Pure.",
         "dependencies": []
       },
       "summarizeScorecard": {

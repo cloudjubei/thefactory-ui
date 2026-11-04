@@ -11,6 +11,7 @@ import type { ProcessRun } from 'thefactory-tools/types'
 import { processRunStopHolder } from 'thefactory-tools/utils'
 import type { BadgeState, ProcessTally } from './badgeAggregationTypes'
 import type { ProcessRunChatNews } from './chatChannelTypes'
+import { isHeldForGroupSignOff } from './groupSignOffHold'
 import { isProcessRunCurrent } from './processRunCurrent'
 
 export const EMPTY_BADGE_STATE: BadgeState = {
@@ -61,11 +62,12 @@ export function processTallyByProject(
     const asks = (news?.asks ?? 0) > 0
     const unread = (news?.unread ?? 0) > 0
     const current = isProcessRunCurrent(r)
-    if (!current && !asks && !unread) continue
+    const held = isHeldForGroupSignOff(r)
+    if ((!current || held) && !asks && !unread) continue
     const tally = out.get(r.projectId) ?? { running: 0, waiting: 0, failed: 0, unread: 0 }
     if (current && r.integration?.status === 'failed') tally.failed += 1
     else if (asks) tally.waiting += 1
-    else if (!current) tally.unread += 1
+    else if (!current || held) tally.unread += 1
     else if (isWorking(r, now)) {
       tally.running += 1
       if (unread) tally.unread += 1
@@ -85,17 +87,21 @@ function isWorking(
   return processRunStopHolder(r, now) === 'manager'
 }
 
-/** Roll member-project states up into a single group badge state. */
+/**
+ * Roll member-project states up into a single group badge state, with the
+ * group's own `signOffs` (`groupSignOffCounts`) waiting on the person beside them.
+ */
 export function aggregateGroupBadgeState(
   memberProjectIds: ReadonlyArray<string>,
   badgeStateByProject: Readonly<Record<string, BadgeState>>,
+  signOffs = 0,
 ): BadgeState {
   const agg: BadgeState = {
     chat_messages: { unread: 0, waiting: 0, thinking: false },
     git: { incoming: 0, uncommitted: 0 },
     tests: { failing: 0 },
     activity: { running: 0, paused: 0, unseen: 0, unread: 0 },
-    process: { running: 0, waiting: 0, failed: 0, unread: 0 },
+    process: { running: 0, waiting: signOffs, failed: 0, unread: 0 },
     signIn: { expired: [] },
   }
   const expired = new Set<string>()

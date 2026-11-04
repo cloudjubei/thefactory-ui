@@ -669,6 +669,23 @@ describe('featureWorkLaunchCheck', () => {
   })
 })
 
+describe('groupWorkAskView › a run built on branches', () => {
+  const summary = { legs: [{ projectId: 'a', storyId: 's' }] }
+
+  it('says nothing merges during it', () => {
+    const { consequence } = groupWorkAskView(summary, undefined, 'on-branch')
+    expect(consequence).toMatch(/Nothing merges during the run/)
+    expect(consequence).not.toMatch(/merge it on its own/)
+  })
+
+  it('keeps the words of a run that merges each project', () => {
+    expect(groupWorkAskView(summary, undefined, 'merge-first').consequence).toMatch(
+      /merge it on its own/,
+    )
+    expect(groupWorkAskView(summary, undefined).consequence).toMatch(/merge it on its own/)
+  })
+})
+
 describe('groupWorkAskView', () => {
   const leg = (projectId: string) => ({ projectId, storyId: 's', dependsOn: [] })
 

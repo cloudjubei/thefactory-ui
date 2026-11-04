@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { AppWorkStartDialog, LiveDataTaskSourceFields, StartWorkDialog } from 'thefactory-ui/web'
 import { sourceToForm, type AppWorkStartAsk, type LiveDataSourceForm } from 'thefactory-ui/headless'
-import type { DataSource } from 'thefactory-ui/headless/api'
+import { TASK_SOURCE } from '../../src/fakeBackend/fixtures/liveData'
 import type { Scene } from '../showcase/types'
 
 const noop = () => {}
@@ -110,23 +110,6 @@ function ChoosingDemo() {
       chatRunner="cli"
     />
   )
-}
-
-const TASK_SOURCE: DataSource = {
-  id: 'wargames:official-sources',
-  name: 'Official sources',
-  recordType: 'official-source-report',
-  freshness: 86_400_000,
-  autoUpdate: true,
-  projectId: 'wargames',
-  adapter: {
-    itemsPath: 'items',
-    kind: 'snapshot',
-    map: { key: 'key' },
-    task: { script: 'monitor:sources', args: ['--json'] },
-  },
-  createdAt: '2026-10-01T00:00:00.000Z',
-  updatedAt: '2026-10-01T00:00:00.000Z',
 }
 
 function TaskSourceDemo() {

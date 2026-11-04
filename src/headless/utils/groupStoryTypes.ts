@@ -1,15 +1,20 @@
+import type { ProcessGroupBuildMode } from 'thefactory-tools/types'
 import type {
   CreateGroupStoryData,
+  ExternalRef,
   ListGroupStoriesResponses,
   ListProjectGroupStoriesResponses,
   ListStoryGroupStoriesResponses,
   PreviewGroupStoryRunResponses,
   RunGroupStoryData,
 } from '../api'
+import type { TicketLaunchMove, TicketMoveDecision, TicketMoveOutcome } from './groupTicketTypes'
 import type { StatusPickerValue } from './status'
 
 /** A group story with its parts read now: what the group's Stories tab and its page show. */
-export type GroupStoryView = ListGroupStoriesResponses[200][number]
+export type GroupStoryView = ListGroupStoriesResponses[200][number] & {
+  externalIds?: ExternalRef[]
+}
 
 /** One part of a group story as its page shows it. */
 export type GroupStoryPartView = GroupStoryView['partViews'][number]
@@ -27,10 +32,24 @@ export type GroupStoryMembershipsByStory = ListProjectGroupStoriesResponses[200]
 export type GroupStoryWriteBody = NonNullable<CreateGroupStoryData['body']>
 
 /** What running a group story sends: the agent, a cap per part, each part's branch. */
-export type GroupStoryRunBody = NonNullable<RunGroupStoryData['body']>
+export type GroupStoryRunBody = NonNullable<RunGroupStoryData['body']> & {
+  /** The move the person approved; left out to launch without moving the ticket. */
+  ticketMove?: TicketMoveDecision
+}
+
+/** A group run that started from its group story. */
+export interface GroupStoryRunStartedAnswer {
+  groupRunId: string
+  message: string
+  /** What came of the ticket's move. */
+  ticketMove?: TicketMoveOutcome
+}
 
 /** What running a group story would start. */
-export type GroupStoryRunPreview = PreviewGroupStoryRunResponses[200]
+export type GroupStoryRunPreview = PreviewGroupStoryRunResponses[200] & {
+  ticketMove?: TicketLaunchMove
+  buildMode?: ProcessGroupBuildMode
+}
 
 /** One column of a group story's page: the parts that run side by side in a step. */
 export interface GroupStoryStepColumn {

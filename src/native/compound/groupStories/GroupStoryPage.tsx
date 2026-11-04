@@ -18,12 +18,14 @@ import {
   type GroupStoryPartView,
   type GroupStoryView,
   type MarkdownSection,
+  type TicketChipView,
 } from '../../../headless'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { IconChevronDown, IconChevronRight, IconDelete, IconEdit } from '../../icons'
 import { Button } from '../../primitives/Button'
 import { ConfirmDialog } from '../../primitives/Modal'
+import TicketChip from '../chips/TicketChip'
 import Markdown from '../Markdown'
 import RunAgentButton from '../RunAgentButton'
 import StatusControl, { STATUS_DOT_COLOR } from '../StatusControl'
@@ -38,6 +40,8 @@ export type GroupStoryPageProps = {
   onOpenPartStory: (projectId: string, storyId: string) => void
   /** What is open the first time this group story is shown; later visits find it as it was left. */
   initialFolds?: Partial<GroupStoryFolds>
+  /** The ticket it works, opening it in Jira. */
+  ticket?: TicketChipView
 }
 
 const ROW_MIN_HEIGHT = 44
@@ -58,6 +62,7 @@ export default function GroupStoryPage({
   onDelete,
   onOpenPartStory,
   initialFolds,
+  ticket,
 }: GroupStoryPageProps) {
   const { theme, status } = useNativeTheme()
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -116,6 +121,11 @@ export default function GroupStoryPage({
         >
           {story.title}
         </Text>
+        {ticket ? (
+          <View style={{ flexDirection: 'row' }}>
+            <TicketChip view={ticket} />
+          </View>
+        ) : null}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}>
           <StatusControl status={story.status ?? 'pending'} />
           <View style={{ flex: 1 }} />

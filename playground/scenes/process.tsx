@@ -7,7 +7,6 @@ import {
   MessageRow,
   ModelChip,
   useIsNarrowViewport,
-  type ChatMessageLike,
 } from 'thefactory-ui/web'
 import {
   CHAT_NOTIFY_LEVEL_LABELS,
@@ -17,27 +16,18 @@ import {
   RUN_CHAT_PLACEHOLDER,
   RUN_CHAT_TITLE,
 } from 'thefactory-ui/headless'
-import type { ModelInfo } from '../../src/headless/api'
 // Not on the package's public surface: the pipeline draws its head and docks its chat itself. The
 // showcase reaches into the source for them, as the playground renders the library from source.
 import { RunHead } from '../../src/web/compound/process/ProcessPipeline'
 import RunChatDock from '../../src/web/compound/process/RunChatDock'
+import { CHAT_MESSAGES } from '../../src/fakeBackend/fixtures/chats'
+import { API_CONFIG, CLI_MODELS } from '../../src/fakeBackend/fixtures/models'
+import { FEATURE_RUN, STORY_RUN } from '../../src/fakeBackend/fixtures/processRuns'
+import { STORY } from '../../src/fakeBackend/fixtures/stories'
 import type { Scene } from '../showcase/types'
 
 const noop = () => {}
 const NOW = 1_760_000_000_000
-
-const CLI_MODELS: ModelInfo[] = [
-  { id: 'claude-opus-5-5', label: 'Opus 5.5', cli: 'claude-code' },
-  { id: 'claude-sonnet-5-5', label: 'Sonnet 5.5', cli: 'claude-code' },
-]
-
-const API_CONFIG = {
-  id: 'cfg-1',
-  name: 'Claude Opus',
-  provider: 'anthropic',
-  model: 'claude-opus-5-5',
-}
 
 const SETTINGS_ITEMS = chatSettingsMenuItems({
   notifyLevel: CHAT_NOTIFY_LEVEL_LABELS['needs-me'],
@@ -46,77 +36,6 @@ const SETTINGS_ITEMS = chatSettingsMenuItems({
   showDeveloperTools: false,
   canDelete: false,
 })
-
-const STORY_RUN: ProcessRun = {
-  id: 'run-story',
-  projectId: 'p1',
-  title: 'Let unit tests watch their files',
-  status: 'running',
-  loopCounts: {},
-  ledger: [
-    { id: 'plan-1', stepId: 'plan', iteration: 1, status: 'done', outcome: 'passed', startedAt: 0 },
-  ],
-  startedAt: 0,
-  updatedAt: 0,
-  plan: {
-    definitionId: 'story',
-    definitionScope: 'global',
-    definitionVersion: 1,
-    name: 'Story',
-    steps: [
-      { id: 'plan', name: 'Plan', kind: 'agent', agentType: 'planner' },
-      { id: 'features', name: 'Features', kind: 'agent', agentType: 'developer' },
-      { id: 'checks', name: 'Checks', kind: 'check' },
-      { id: 'code-review', name: 'Code review', kind: 'judge' },
-      { id: 'sign-off', name: 'Sign-off', kind: 'gate' },
-    ],
-    loops: [],
-    frozenAt: 0,
-  },
-}
-
-const FEATURE_RUN: ProcessRun = {
-  id: 'run-feature',
-  projectId: 'p1',
-  parentRunId: 'run-story',
-  parentStepId: 'features',
-  title: 'Watch mode for the test runner',
-  status: 'parked',
-  park: { reason: 'step-failed', stepId: 'verify', message: 'Verify failed.', parkedAt: 0 },
-  loopCounts: {},
-  ledger: [
-    {
-      id: 'impl-1',
-      stepId: 'implement',
-      iteration: 1,
-      status: 'done',
-      outcome: 'passed',
-      startedAt: 0,
-    },
-    {
-      id: 'verify-1',
-      stepId: 'verify',
-      iteration: 1,
-      status: 'done',
-      outcome: 'failed',
-      startedAt: 0,
-    },
-  ],
-  startedAt: 0,
-  updatedAt: 0,
-  plan: {
-    definitionId: 'feature',
-    definitionScope: 'global',
-    definitionVersion: 1,
-    name: 'Feature',
-    steps: [
-      { id: 'implement', name: 'Implement', kind: 'agent', agentType: 'developer' },
-      { id: 'verify', name: 'Verify', kind: 'agent', agentType: 'verifier' },
-    ],
-    loops: [],
-    frozenAt: 0,
-  },
-}
 
 type HeadProps = { run: ProcessRun; depth: number; unread?: boolean; chat?: boolean }
 
@@ -156,20 +75,6 @@ function headState(id: string, title: string, description: string, props: HeadPr
     ),
   }
 }
-
-const CHAT_MESSAGES: ChatMessageLike[] = [
-  {
-    id: 'u1',
-    role: 'user',
-    content: 'Why did verify fail on the watch-mode feature?',
-  },
-  {
-    id: 'a1',
-    role: 'assistant',
-    content:
-      'The verifier ran `npm test -- --watch` and it never exited, so the step timed out. The feature works; the check needs `--watch=false` in CI.',
-  },
-]
 
 /** The chat's own model chip as the host renders it: editable, on Claude Code with Sonnet 5.5. */
 function ChatModelChip() {
@@ -314,17 +219,6 @@ function dockState(id: string, title: string, description: string, dock: DockSet
     overlay: true,
     render: (): ReactNode => <DockedRunPage dock={dock} />,
   }
-}
-
-const STORY = {
-  id: 's7',
-  title: 'Agent-to-agent chat messaging',
-  status: 'in_progress' as const,
-  features: [
-    { id: 'f1', title: 'Send a message', status: 'done' as const },
-    { id: 'f2', title: 'Reply in thread', status: 'in_progress' as const },
-    { id: 'f3', title: 'Read receipts', status: 'pending' as const },
-  ],
 }
 
 /** A docked chat's header at a panel's width: the title and icon controls, then the pill, meta and chip. */

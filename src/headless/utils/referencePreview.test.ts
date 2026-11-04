@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ProcessRun, ReferenceDescription } from 'thefactory-tools/types'
 import { processRunBadge } from './processView'
 import { referencePreview, runReferencePreview } from './referencePreview'
+import { REFERENCE_OPEN_LABELS } from './referencePreviewConstants'
 
 function run(over: Partial<ProcessRun> = {}): ProcessRun {
   return {
@@ -180,5 +181,24 @@ describe('runReferencePreview', () => {
 
   it('offers no run chat on a nested run, whose chat is its parent’s', () => {
     expect(runReferencePreview(run({ parentRunId: 'p1' }), { now: 0 }).offersChat).toBe(false)
+  })
+})
+
+describe('runReferencePreview of a leg held for its group sign-off', () => {
+  it('opens the run, as the sign-off is not there', () => {
+    const plan = {
+      name: 'Story',
+      steps: [{ id: 'sign', name: 'Sign-off', kind: 'gate' }],
+    } as unknown as ProcessRun['plan']
+    const held = run({
+      status: 'parked',
+      plan,
+      park: { reason: 'gate', stepId: 'sign', message: '', parkedAt: 0 },
+      input: { groupBuildMode: 'on-branch' },
+    })
+    expect(runReferencePreview(held, { now: 0 }).primary?.label).toBe(REFERENCE_OPEN_LABELS.run)
+    expect(runReferencePreview({ ...held, input: {} }, { now: 0 }).primary?.label).toBe(
+      'Open sign-off',
+    )
   })
 })

@@ -9,6 +9,7 @@ export {
 } from './StatusChip'
 export { default as TurnChip } from './TurnChip'
 export { default as CheckChip, type CheckChipProps } from './CheckChip'
+export { default as TicketChip, type TicketChipProps } from './TicketChip'
 export { default as HandoffButton, type HandoffButtonProps } from './HandoffButton'
 export { default as HelpChip, type HelpChipProps } from './HelpChip'
 export { default as RefChip, type RefChipKind, type RefChipProps } from './RefChip'

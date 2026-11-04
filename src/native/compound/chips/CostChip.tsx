@@ -1,18 +1,24 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { Pressable, Text, View, type StyleProp, type TextStyle } from 'react-native'
 
 import { costDetailsView, type CostSource } from '../../../headless'
 import { nativeRadii } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
+import BottomSheet from '../../primitives/BottomSheet'
 import CostDetailsSheet from './CostDetailsSheet'
 
 export interface CostChipProps {
-  /** The chip's words: the charge in dollars (`$1.25`, `$0.00`, `$1.50 of $5.00`) — never tokens. */
+  /**
+   * The chip's words: the charge in dollars (`$1.25`, `$0.00`, `$1.50 of $5.00`) — never tokens,
+   * unless `details` says what they stand for instead.
+   */
   label: string
   /** The cost behind the label. The chip opens its details whenever there are any. */
   cost?: CostSource
   /** What the cost is of, heading its details sheet — "Spent against the cap". */
   title?: string
+  /** The details to open in place of a charge's, for a cost no model has priced yet. */
+  details?: ReactNode
   /** `pill` — the neutral cost chip; `text` — inline text, for a meta line. */
   appearance?: 'pill' | 'text'
   /** The text look for `appearance="text"`, matching the line it sits in. */
@@ -29,6 +35,7 @@ export default function CostChip({
   label,
   cost,
   title,
+  details,
   appearance = 'pill',
   textStyle,
 }: CostChipProps) {
@@ -68,7 +75,7 @@ export default function CostChip({
     ) : (
       <Text style={[{ fontVariant: ['tabular-nums'] }, textStyle]}>{label}</Text>
     )
-  if (!view) return face
+  if (!view && !details) return face
   return (
     <>
       <Pressable
@@ -79,7 +86,13 @@ export default function CostChip({
       >
         {face}
       </Pressable>
-      <CostDetailsSheet isOpen={open} onClose={() => setOpen(false)} view={view} title={title} />
+      {details ? (
+        <BottomSheet isOpen={open} onClose={() => setOpen(false)} title={title ?? 'Cost'}>
+          {details}
+        </BottomSheet>
+      ) : view ? (
+        <CostDetailsSheet isOpen={open} onClose={() => setOpen(false)} view={view} title={title} />
+      ) : null}
     </>
   )
 }

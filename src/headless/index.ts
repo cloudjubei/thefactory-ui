@@ -1412,6 +1412,7 @@ export {
   signoffEvidenceChips,
   signoffFeatureRow,
   signoffFeaturesDelivered,
+  signoffGroupHold,
   signoffMergeHold,
   signoffProofChips,
   signoffRequestOutcome,
@@ -1945,6 +1946,28 @@ export {
   type TakenChatDraft,
 } from './utils/chatDraft'
 export { ChatDraftStore } from './utils/chatDraftStore'
+export {
+  ChatAttachmentUploadStore,
+  chatUploadFailureText,
+  chatUploadLine,
+  fixedChatUploads,
+  isChatUploading,
+  nextUploadRate,
+  uploadSecondsLeft,
+  uploadTimeLeftText,
+} from './utils/chatAttachmentUploads'
+export { CHAT_UPLOAD_TEXT } from './utils/chatAttachmentUploadConstants'
+export type * from './utils/chatAttachmentUploadTypes'
+export { useChatUploads } from './hooks/useChatUploads'
+export type { ChatAttachmentFile, SendFileFromUri, UploadChatFile } from './api'
+export { videoAttachmentView, videoCostLabel } from './utils/videoAttachment'
+export { VIDEO_ATTACHMENT_TEXT } from './utils/videoAttachmentConstants'
+export type * from './utils/videoAttachmentTypes'
+export { useVideoDigest, type UseVideoDigest } from './hooks/useVideoDigest'
+export { videoSetupView, NO_VIDEO_SETUP_JOBS } from './utils/videoSetup'
+export { VIDEO_SETUP_TEXT } from './utils/videoSetupConstants'
+export type * from './utils/videoSetupTypes'
+export { useVideoSetup, type UseVideoSetup } from './hooks/useVideoSetup'
 export {
   attachmentUploadError,
   chatDropAction,
@@ -2623,6 +2646,7 @@ export type {
   GroupStoryRunButton,
   GroupStoryRunFilter,
   GroupStoryRunPreview,
+  GroupStoryRunStartedAnswer,
   GroupStoryRunState,
   GroupStoryRunSummary,
   GroupStorySorting,
@@ -2771,6 +2795,7 @@ export {
   shouldTrackProcessGroupRunUpdate,
   type UseProcessGroupRuns,
 } from './hooks/useProcessGroupRuns'
+export { applyGroupSignOffUpdate, useGroupSignOffCounts } from './hooks/useGroupSignOffCounts'
 export {
   useProcessGroupLaunchPreview,
   type UseProcessGroupLaunchPreview,
@@ -2782,6 +2807,8 @@ export {
 } from './utils/processGroupLaunch'
 export {
   PROCESS_GROUP_LAUNCH_BLURB,
+  PROCESS_GROUP_ON_BRANCH_BLURB,
+  PROCESS_GROUP_ON_BRANCH_LINE,
   START_GROUP_WORK_TOOL_NAME,
 } from './utils/processGroupLaunchConstants'
 export type {
@@ -2791,6 +2818,9 @@ export type {
   StartGroupWorkGrantSummary,
 } from './utils/processGroupLaunchTypes'
 export {
+  groupSignOffCounts,
+  isGroupRunAtSignOff,
+  isGroupSignOffPark,
   processGroupBadge,
   processGroupLiveState,
   processGroupCardView,
@@ -2805,7 +2835,11 @@ export {
   processGroupResumeView,
   processGroupWorkMs,
 } from './utils/processGroupView'
-export { processGroupLegIntegrationModes, processGroupLegMergeGate } from 'thefactory-tools/utils'
+export {
+  isProcessGroupOnBranch,
+  processGroupLegIntegrationModes,
+  processGroupLegMergeGate,
+} from 'thefactory-tools/utils'
 export {
   PROCESS_GROUP_CARD_CTA,
   PROCESS_GROUP_LANDING_FEATURES_DONE,
@@ -3071,6 +3105,164 @@ export type {
   GroupBaseBranchMetadata,
 } from './utils/processBaseBranchTypes'
 export { useAgentTypeSettings, type UseAgentTypeSettings } from './hooks/useAgentTypeSettings'
+export { useGroupTickets, type UseGroupTickets } from './hooks/useGroupTickets'
+export {
+  groupRunStartedWords,
+  groupStoryTicketChip,
+  groupStoryTicketRef,
+  groupTicketStatuses,
+  pressTicketRow,
+  takeNextTicketView,
+  ticketChipView,
+  ticketLink,
+  ticketMoveDecisionOf,
+  ticketMoveField,
+} from './utils/groupTickets'
+export {
+  TAKE_NEXT_TICKET_DEFAULT_LAYOUT,
+  TAKE_NEXT_TICKET_LAYOUT_LABELS,
+  TAKE_NEXT_TICKET_LAYOUTS,
+  TAKE_NEXT_TICKET_TEXT,
+  TICKET_CHIP_DEFAULT_LAYOUT,
+  TICKET_CHIP_LAYOUT_LABELS,
+  TICKET_CHIP_LAYOUTS,
+  TICKET_MOVE_DEFAULT_LAYOUT,
+  TICKET_MOVE_LAYOUT_LABELS,
+  TICKET_MOVE_LAYOUTS,
+  TICKET_MOVE_TEXT,
+} from './utils/groupTicketConstants'
+export type {
+  GroupRunStartedWords,
+  GroupTicket,
+  GroupTicketList,
+  GroupTicketRow,
+  GroupTicketsState,
+  TakeNextTicketLayout,
+  TakeNextTicketView,
+  TicketChipLayout,
+  TicketChipView,
+  TicketLaunchMove,
+  TicketMoveDecision,
+  TicketMoveFieldView,
+  TicketMoveLayout,
+  TicketMoveOutcome,
+  TicketPlanBody,
+  TicketPlanStarted,
+} from './utils/groupTicketTypes'
+export { useGroupSignOff, type UseGroupSignOff } from './hooks/useGroupSignOff'
+export { evidenceDataUri } from './hooks/evidenceImageLoader'
+export {
+  groupSignOffAnswers,
+  groupSignOffPhase,
+  groupSignOffScreen,
+  signOffAttachmentFileName,
+  signOffOutputChips,
+  signOffOutputSegments,
+  signOffSectionKey,
+} from './utils/groupSignOff'
+export { isHeldForGroupSignOff } from './utils/groupSignOffHold'
+export {
+  GROUP_SIGN_OFF_DEFAULT_LAYOUT,
+  GROUP_SIGN_OFF_LAYOUT_LABELS,
+  GROUP_SIGN_OFF_LAYOUTS,
+  GROUP_SIGN_OFF_SUBMITTED_DEFAULT_LAYOUT,
+  GROUP_SIGN_OFF_SUBMITTED_LAYOUT_LABELS,
+  GROUP_SIGN_OFF_SUBMITTED_LAYOUTS,
+  GROUP_SIGN_OFF_TEXT,
+  SIGN_OFF_OUTPUT_DEFAULT_LAYOUT,
+  SIGN_OFF_OUTPUT_LAYOUT_LABELS,
+  SIGN_OFF_OUTPUT_LAYOUTS,
+  SIGN_OFF_OUTPUT_TEXT,
+} from './utils/groupSignOffConstants'
+export type {
+  GroupSignOffAttachment,
+  GroupSignOffAttachmentRow,
+  GroupSignOffData,
+  GroupSignOffDecision,
+  GroupSignOffLayout,
+  GroupSignOffLink,
+  GroupSignOffPhase,
+  GroupSignOffPullRequest,
+  GroupSignOffPullRequestState,
+  GroupSignOffRepo,
+  GroupSignOffRepoRow,
+  GroupSignOffScreen,
+  GroupSignOffState,
+  GroupSignOffSubmittedLayout,
+  SignOffOutputActions,
+  SignOffOutputChipView,
+  SignOffOutputDocument,
+  SignOffOutputDraft,
+  SignOffOutputDraftView,
+  SignOffOutputLayout,
+  SignOffOutputPanelView,
+  SignOffOutputSectionView,
+  SignOffTextSegment,
+} from './utils/groupSignOffTypes'
+export { useRunWalkthrough, type UseRunWalkthrough } from './hooks/useRunWalkthrough'
+export { loomLinkProblem, loomWalkthroughView } from './utils/runWalkthrough'
+export {
+  LOOM_WALKTHROUGH_DEFAULT_LAYOUT,
+  LOOM_WALKTHROUGH_LAYOUT_LABELS,
+  LOOM_WALKTHROUGH_LAYOUTS,
+  LOOM_WALKTHROUGH_TEXT,
+} from './utils/runWalkthroughConstants'
+export type {
+  LoomWalkthroughActions,
+  LoomWalkthroughLayout,
+  LoomWalkthroughRow,
+  LoomWalkthroughView,
+  RunWalkthroughItem,
+  RunWalkthroughSending,
+  RunWalkthroughState,
+} from './utils/runWalkthroughTypes'
+export { useMcpServers, type UseMcpServers } from './hooks/useMcpServers'
+export {
+  mcpServerDraftProblem,
+  mcpServerHost,
+  mcpServerInputOf,
+  mcpServersIntro,
+  mcpServerViews,
+  mcpToolsSummary,
+} from './utils/mcpServers'
+export {
+  MCP_SERVER_ACTIONS,
+  MCP_SERVER_ASKS_TAG,
+  MCP_SERVER_AUTH_HINTS,
+  MCP_SERVER_AUTH_LABELS,
+  MCP_SERVER_AUTH_ORDER,
+  MCP_SERVER_EMPTY_DRAFT,
+  MCP_SERVER_FIELD_LABELS,
+  MCP_SERVER_NAME_HINT,
+  MCP_SERVER_REMOVE_CONFIRM,
+  MCP_SERVER_SIGN_IN_PENDING,
+  MCP_SERVER_TOKEN_HINT,
+  MCP_SERVER_TOKEN_SAVED_HINT,
+  MCP_SERVER_TOOLS_HEADING,
+  MCP_SERVER_TOOLS_HINT,
+  MCP_SERVER_URL_PLACEHOLDER,
+  MCP_SERVERS_DEFAULT_LAYOUT,
+  MCP_SERVERS_HEADING,
+  MCP_SERVERS_LAYOUT_LABELS,
+  MCP_SERVERS_LAYOUTS,
+  MCP_SERVERS_LOADING,
+  MCP_SERVERS_NONE_YET,
+} from './utils/mcpServersConstants'
+export type {
+  McpServerAccess,
+  McpServerAuthType,
+  McpServerDraft,
+  McpServerInput,
+  McpServerOwner,
+  McpServerRow,
+  McpServersLayout,
+  McpServerStanding,
+  McpServerStatus,
+  McpServerStatusTone,
+  McpServerTestResult,
+  McpServerView,
+  McpToolView,
+} from './utils/mcpServersTypes'
 export {
   agentTypeDraftOf,
   agentTypeDraftProblem,

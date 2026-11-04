@@ -62,6 +62,8 @@ export type CheckMethodFill = 'run' | 'agent'
 export type ReviewTabId =
   | 'screens'
   | 'walkthrough'
+  /** What a person still has to record: a run's Loom walkthrough. */
+  | 'loom'
   | 'tests'
   | 'build'
   | 'report'
@@ -156,6 +158,8 @@ export type ReviewTab = {
   label: string
   /** Shown as a count pill; `undefined` when the tab has nothing to count. */
   count: number | undefined
+  /** How its chip reads on a sign-off, for a tab no check stands for; passed when absent. */
+  chip?: { label: string; state: CheckMethodState; available?: { commands: string[] } }
 }
 
 export type SignoffVerdictKey = 'proven' | 'partly' | 'failed' | 'not-run'
@@ -213,4 +217,6 @@ export type ReviewTabsInput = {
   codeReviews?: number
   /** The tab that leads the rest when it is there — the story's final report. */
   lead?: ReviewTabId
+  /** How many Loom walkthrough steps the run has, and how many are still to record. */
+  loom?: { total: number; left: number }
 }

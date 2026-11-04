@@ -12,6 +12,14 @@ import {
 } from 'thefactory-ui/headless'
 import { DependencyBulletBase, ProjectKnowledgeView, type StoryStatus } from 'thefactory-ui/web'
 import type { DesignPlaygroundControl, DesignPlaygroundPreset } from 'thefactory-tools/types'
+import {
+  area,
+  claim,
+  code,
+  codeOnlyOverview,
+  EARLIER,
+  fresh,
+} from '../../src/fakeBackend/fixtures/knowledge'
 import type { Scene, SceneState } from '../showcase/types'
 
 const noop = () => {}
@@ -30,35 +38,7 @@ const FORMAT: KnowledgeViewFormat = {
 }
 
 const MORNING = '2026-10-23T09:05:00.000Z'
-const EARLIER = '2026-10-23T08:10:00.000Z'
 const YESTERDAY = '2026-10-22T16:40:00.000Z'
-
-type Claim = ProjectOverviewData['purpose']
-
-const claim = (text: string, citations: string[] = [], label: Claim['label'] = 'observed') => ({
-  text,
-  label,
-  citations,
-})
-
-const fresh = (refreshedAt: string, stale = false) => ({
-  refreshedAt,
-  contentKey: 'a',
-  currentContentKey: stale ? 'b' : 'a',
-  stale,
-})
-
-const code = (itemId: string, name: string, path: string, line?: number) => ({
-  itemId,
-  name,
-  level: 1,
-  path,
-  ...(line !== undefined ? { line } : {}),
-  hierarchyPath: [],
-  files: [path],
-})
-
-const area = (itemId: string, name: string) => ({ itemId, name, level: 2, hierarchyPath: [] })
 
 const STORY_AI = '230b9c39-08ca-4c68-994a-a6c633d31ee1'
 const STORY_PLAY = '9799e78a-2163-4de1-96f9-6c0a4ae48a74'
@@ -291,75 +271,6 @@ function modelOverview(): ProjectOverviewData {
       documentWork: fresh(EARLIER),
     },
     provenance: { source: 'llm', refreshedAt: MORNING, contentKey: 'k' },
-  }
-}
-
-function codeOnlyOverview(): ProjectOverviewData {
-  return {
-    formatVersion: 3,
-    projectId: 'thefactory-db',
-    purpose: claim(
-      'thefactory-db — Local-first PostgreSQL toolkit with hybrid text and vector search, Docker-managed databases, and a TypeScript API for documents and entities.',
-      ['c4_root'],
-      'derived',
-    ),
-    capabilities: [
-      {
-        id: 'area:src/chunking/',
-        name: 'chunking',
-        claim: claim(
-          '6 files: dataSummary.ts, chunkDocument.ts, codeChunker.ts and 3 more. Most referenced: chunkDocument — the pieces of a document to embed.',
-          ['area:src/chunking/', 'u_chunk'],
-        ),
-      },
-      {
-        id: 'area:src/client/documents.ts',
-        name: 'client / documents',
-        claim: claim('One file, documents.ts, with 23 definitions. Most referenced: addDocument.', [
-          'u_add',
-        ]),
-      },
-      {
-        id: 'area:src/migrations/',
-        name: 'migrations',
-        claim: claim('9 files: runner.ts, 001-init.ts and 7 more.', ['u_migrate']),
-      },
-    ],
-    modules: [
-      {
-        id: 'area:src/client/',
-        name: 'client',
-        claim: claim('5 files: documents.ts, entities.ts, entityQuery.ts and 2 more.', ['u_add']),
-      },
-      {
-        id: 'area:src/*',
-        name: 'src',
-        claim: claim('6 files: validation.ts, runtime.ts, utils.ts and 3 more.', ['u_runtime']),
-      },
-    ],
-    recordedWork: { stories: [], openStories: 0, totalStories: 6 },
-    documentWork: [],
-    documentWorkStatus: claim(
-      'No plan documents or imported tickets were found; documented work is unknown.',
-      [],
-      'abstain',
-    ),
-    omitted: { capabilities: 3, modules: 0, documentWork: 0 },
-    citations: {
-      c4_root: area('c4_root', 'thefactory-db'),
-      u_chunk: code('u_chunk', 'chunkDocument', 'src/chunking/chunkDocument.ts', 31),
-      u_add: code('u_add', 'addDocument', 'src/client/documents.ts', 58),
-      u_migrate: code('u_migrate', 'migrateDatabase', 'src/migrations/runner.ts', 12),
-      u_runtime: code('u_runtime', 'createReusableDatabase', 'src/runtime.ts', 140),
-    },
-    sections: {
-      purpose: fresh(EARLIER),
-      capabilities: fresh(EARLIER),
-      modules: fresh(EARLIER),
-      recordedWork: fresh(EARLIER),
-      documentWork: fresh(EARLIER),
-    },
-    provenance: { source: 'heuristic', refreshedAt: EARLIER, contentKey: 'k' },
   }
 }
 

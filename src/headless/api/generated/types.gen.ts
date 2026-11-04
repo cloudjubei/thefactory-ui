@@ -996,10 +996,19 @@ export type OrdinaryLayoutDocsConfig = {
   fallbacks?: Array<string>
 }
 
+export type ProjectGuidelineDocs = {
+  docs: Array<string>
+  missing: Array<string>
+}
+
 export type BuildAgentRunContextFilesResult =
   | {
       ok: true
       contextFiles: Array<string>
+      guidelines?: {
+        docs: Array<string>
+        missing: Array<string>
+      }
     }
   | {
       ok: false
@@ -1259,11 +1268,16 @@ export type ProjectPlatformInput = {
   webRecipe?: string
   projectApp?: string
   serveProblem?: string
+  designPlayground?: string
+  fakeBackend?: string
+  changedPaths?: Array<string>
 }
 
 export type ProjectWebServe = {
   recipe?: string
   problem?: string
+  designPlayground?: string
+  fakeBackend?: string
 }
 
 export type ProjectWebServeReadOptions = {
@@ -1427,6 +1441,7 @@ export type CompletionSettings = {
     toolContentPreviewChars?: number
   }
   cliContextStaleTurns?: number
+  seedCeilingFraction?: number
 }
 
 export type HistorySettings = {
@@ -1446,6 +1461,7 @@ export type HistorySettings = {
     maxToolContentChars?: number
     toolContentPreviewChars?: number
   }
+  seedCeilingFraction?: number
 }
 
 export type CompletionMessageRole = 'system' | 'user' | 'assistant' | 'tool'
@@ -3110,6 +3126,32 @@ export type TicketConnectionBinding = {
   signOffTransition?: string
 }
 
+export type McpServerAuth =
+  | {
+      type: 'none'
+    }
+  | {
+      type: 'bearer'
+      credentialId?: string
+    }
+  | {
+      type: 'oauth'
+      credentialId?: string
+    }
+
+export type McpServerConnection = {
+  id: string
+  name: string
+  url: string
+  auth: McpServerAuth
+}
+
+export type SignOffOutputDefinition = {
+  label: string
+  templateNoteId: string
+  perRepo: boolean
+}
+
 export type CapabilitySettings = {
   connectorWriteBack?: boolean
   autoMerge?: boolean
@@ -3128,6 +3170,8 @@ export type ProjectsGroup = {
     projectKeys?: Array<string>
     signOffTransition?: string
   }
+  mcpServers?: Array<McpServerConnection>
+  signOffOutputs?: Array<SignOffOutputDefinition>
   capabilities?: {
     connectorWriteBack?: boolean
     autoMerge?: boolean
@@ -3299,6 +3343,11 @@ export type ProjectCodeInfo = {
     | SwiftTestFramework
 }
 
+export type ProjectGuidelines = {
+  docs?: Array<string>
+  reviewAgentType?: string
+}
+
 export type ProjectConfig = {
   title: string
   description: string
@@ -3329,6 +3378,10 @@ export type ProjectConfig = {
       | RustTestFramework
       | KotlinTestFramework
       | SwiftTestFramework
+  }
+  guidelines?: {
+    docs?: Array<string>
+    reviewAgentType?: string
   }
   mainGroupId?: string
   scopeGroupIds: Array<string>
@@ -3381,6 +3434,8 @@ export type ProjectCheckEnvSetting = {
 export type ProjectRegistryMetadata = {
   githubCredentialsId?: string
   ticketConnection?: TicketConnectionBinding | 'none'
+  mcpServers?: Array<McpServerConnection>
+  signOffOutputs?: Array<SignOffOutputDefinition>
   hasApp?: boolean
   appDir?: string
   isUiApp?: boolean
@@ -3419,6 +3474,8 @@ export type ProjectRegistryEntry = {
   metadata?: {
     githubCredentialsId?: string
     ticketConnection?: TicketConnectionBinding | 'none'
+    mcpServers?: Array<McpServerConnection>
+    signOffOutputs?: Array<SignOffOutputDefinition>
     hasApp?: boolean
     appDir?: string
     isUiApp?: boolean
@@ -3564,6 +3621,8 @@ export type ChatContextArguments = {
       projectKeys?: Array<string>
       signOffTransition?: string
     }
+    mcpServers?: Array<McpServerConnection>
+    signOffOutputs?: Array<SignOffOutputDefinition>
     capabilities?: {
       connectorWriteBack?: boolean
       autoMerge?: boolean
@@ -3647,6 +3706,8 @@ export type ChatContextArgumentsGroup = {
       projectKeys?: Array<string>
       signOffTransition?: string
     }
+    mcpServers?: Array<McpServerConnection>
+    signOffOutputs?: Array<SignOffOutputDefinition>
     capabilities?: {
       connectorWriteBack?: boolean
       autoMerge?: boolean
@@ -3673,6 +3734,8 @@ export type ChatContextArgumentsGroupTopic = {
       projectKeys?: Array<string>
       signOffTransition?: string
     }
+    mcpServers?: Array<McpServerConnection>
+    signOffOutputs?: Array<SignOffOutputDefinition>
     capabilities?: {
       connectorWriteBack?: boolean
       autoMerge?: boolean
@@ -4192,6 +4255,8 @@ export type CliSessionCursor = {
   chatRevision?: number
 }
 
+export type CliSessionRebuildReason = 'chat-revision-changed' | 'last-seen-message-gone'
+
 export type CliSessionContinuity =
   | {
       action: 'seed'
@@ -4205,6 +4270,7 @@ export type CliSessionContinuity =
     }
   | {
       action: 'rebuild'
+      reason: CliSessionRebuildReason
     }
 
 export type CliChatSessionPolicy = {
@@ -4813,6 +4879,41 @@ export type SettleCliRunReviewsInput = {
   branch: string
   reason: string
   mergeCommit?: string
+}
+
+export type ApprovedReviewSnapshot = {
+  runId: string
+  branch: string
+  headSha?: string
+  landedAt?: number
+  tip: string
+}
+
+export type ReviewMergeSnapshot = {
+  projectId: string
+  reviews: Array<ApprovedReviewSnapshot>
+}
+
+export type SettleApprovedReviewsInput = {
+  snapshot: {
+    projectId: string
+    reviews: Array<ApprovedReviewSnapshot>
+  }
+  reason: string
+  mergeCommit?: string
+}
+
+export type LeftReviewReason = 'added' | 'changed' | 'closed' | 'missing'
+
+export type LeftReview = {
+  runId: string
+  branch: string
+  reason: LeftReviewReason
+}
+
+export type SettleApprovedReviewsResult = {
+  settled: Array<string>
+  left: Array<LeftReview>
 }
 
 export type PruneCliAgentRunGroupsInput = {
@@ -5467,6 +5568,7 @@ export type ReviewBranchMergeGate =
       branches: Array<string>
       allowed: true
       shipCommit: string
+      snapshot: ReviewMergeSnapshot
       droppedSeam?: string
     }
   | {
@@ -5755,6 +5857,15 @@ export type IdleWatchdogResult =
   | {
       kind: 'idle-timeout'
     }
+
+export type ResidentSessionFreshness = {
+  hasHistory: boolean
+  freshness: 'seed' | 'current' | 'catch-up' | 'rebuild'
+  rebuildReason?: 'chat-revision-changed' | 'last-seen-message-gone'
+  lastSeenMessageId?: string
+  chatRevision?: number
+  lastRebuildReason?: 'chat-revision-changed' | 'last-seen-message-gone'
+}
 
 export type ResidentBackgroundResults = {
   chatContextId: string | unknown
@@ -7059,6 +7170,16 @@ export type ConnectorWriteGuard = {
   projectKeys?: Array<string>
 }
 
+export type ConnectorWriteProbe =
+  | {
+      kind: 'comment'
+      marker: string
+    }
+  | {
+      kind: 'transition'
+      transition: string
+    }
+
 export type ConnectorSeenItem = {
   provider: string
   sourceTenant?: string
@@ -7086,12 +7207,169 @@ export type ResolvedTicketConnection = {
   groupId?: string
 }
 
-export type ProviderOAuthTokens = {
-  token: string
-  refreshToken?: string
-  expiresAt: string
-  scopes?: Array<string>
+export type ProviderConnectionTokenSource = 'api-key' | 'oauth'
+
+export type ProviderOAuthPendingSignIn = {
+  state: string
+  codeVerifier: string
+  redirectUri: string
 }
+
+export type ProviderConnectionEntry = {
+  id: string
+  name: string
+  provider: string
+  username?: string
+  token: string
+  tokenSource?: 'api-key' | 'oauth'
+  refreshToken?: string
+  clientSecret?: string
+  pendingSignIn?: {
+    state: string
+    codeVerifier: string
+    redirectUri: string
+  }
+  expiresAt?: string
+  scopes?: Array<string>
+  baseUrl?: string
+  config?: {
+    [key: string]: string
+  }
+  createdAt: string
+  updatedAt: string
+}
+
+export type ConnectorWriteConnection = {
+  id: string
+  provider: string
+  tokenSource?: 'api-key' | 'oauth'
+  baseUrl?: string
+  config?: {
+    [key: string]: string
+  }
+}
+
+export type ConnectorWriteConfiguration = {
+  binding?: {
+    connectionId: string
+    access: TicketConnectionAccess
+    projectKeys?: Array<string>
+    signOffTransition?: string
+  }
+  connection?: {
+    id: string
+    provider: string
+    tokenSource?: 'api-key' | 'oauth'
+    baseUrl?: string
+    config?: {
+      [key: string]: string
+    }
+  }
+}
+
+export type ConnectorWritePolicyReason =
+  | 'no-binding'
+  | 'azure-devops'
+  | 'project-scoped-jira'
+  | 'classic-jira-basic'
+  | 'read-only-binding'
+  | 'connection-unavailable'
+  | 'unsupported-provider'
+  | 'invalid-configuration'
+  | 'provider-mismatch'
+  | 'outside-binding-scope'
+  | 'missing-source-tenant'
+  | 'missing-item-identity'
+  | 'invalid-item-identity'
+  | 'source-tenant-mismatch'
+
+export type ConnectorWriteDecision =
+  | {
+      ref: ExternalRef
+      outcome: 'eligible'
+      connectionId: string
+    }
+  | {
+      ref: ExternalRef
+      outcome: 'not-attempted'
+      reason: ConnectorWritePolicyReason
+      message: string
+    }
+
+export type ConnectorWriteKind = 'comment' | 'transition'
+
+export type ConnectorWriteStatus = 'reserved' | 'dispatching' | 'sent' | 'ambiguous' | 'not-sent'
+
+export type ConnectorWriteReason =
+  | ConnectorWritePolicyReason
+  | 'duplicate-reference'
+  | 'pre-write-failed'
+  | 'dispatch-failed'
+  | 'not-confirmed'
+  | 'comment-not-sent'
+
+export type ConnectorWriteRecord = {
+  key: string
+  kind: ConnectorWriteKind
+  runId: string
+  identity: string
+  ref: ExternalRef
+  payload: string
+  status: ConnectorWriteStatus
+  reason?:
+    | ConnectorWritePolicyReason
+    | 'duplicate-reference'
+    | 'pre-write-failed'
+    | 'dispatch-failed'
+    | 'not-confirmed'
+    | 'comment-not-sent'
+  error?: string
+  duplicateOf?: string
+  reservedAt: string
+  updatedAt: string
+}
+
+export type ConnectorWriteReservation = {
+  key: string
+  kind: ConnectorWriteKind
+  runId: string
+  identity: string
+  ref: ExternalRef
+  payload: string
+  status: ConnectorWriteStatus
+  reason?:
+    | ConnectorWritePolicyReason
+    | 'duplicate-reference'
+    | 'pre-write-failed'
+    | 'dispatch-failed'
+    | 'not-confirmed'
+    | 'comment-not-sent'
+  error?: string
+  duplicateOf?: string
+}
+
+export type ConnectorWriteAdvance = {
+  status: ConnectorWriteStatus
+  reason?:
+    | ConnectorWritePolicyReason
+    | 'duplicate-reference'
+    | 'pre-write-failed'
+    | 'dispatch-failed'
+    | 'not-confirmed'
+    | 'comment-not-sent'
+  error?: string
+  duplicateOf?: string
+}
+
+export type ExternalRefRelinkResult =
+  | {
+      status: 'relinked'
+      refs: Array<ExternalRef>
+    }
+  | {
+      status: 'conflict'
+      error: string
+    }
 
 export type ExternalRefRelinkEvidence = {
   provider: string
@@ -7099,6 +7377,21 @@ export type ExternalRefRelinkEvidence = {
   sourceTenant: string
   sourceItemId: string
   lookupExternalId: string
+}
+
+export type ProviderOAuthTokens = {
+  token: string
+  refreshToken?: string
+  expiresAt: string
+  scopes?: Array<string>
+}
+
+export type TicketWriteOutcome = 'sent' | 'already-sent' | 'ambiguous' | 'not-attempted'
+
+export type ConnectorWriteAttempt = {
+  comment: TicketWriteOutcome
+  transition: TicketWriteOutcome
+  error?: string
 }
 
 export type QueryValue = string | number | boolean | Array<string> | unknown
@@ -7115,6 +7408,7 @@ export type JiraIssueSummary = {
   id: string
   summary: string
   status?: string
+  statusCategory?: string
   issueType?: string
   priority?: string
   assignee?: {
@@ -7187,6 +7481,7 @@ export type JiraIssueDetail = {
   id: string
   summary: string
   status?: string
+  statusCategory?: string
   issueType?: string
   priority?: string
   assignee?: {
@@ -7240,6 +7535,7 @@ export type JiraTransition = {
   id: string
   name: string
   toStatus?: string
+  toStatusCategory?: string
 }
 
 export type JiraProject = {
@@ -7413,26 +7709,6 @@ export type GitCredentialCreateInput = {
   scopes?: Array<string>
 }
 
-export type ProviderConnectionTokenSource = 'api-key' | 'oauth'
-
-export type ProviderConnectionEntry = {
-  id: string
-  name: string
-  provider: string
-  username?: string
-  token: string
-  tokenSource?: 'api-key' | 'oauth'
-  refreshToken?: string
-  expiresAt?: string
-  scopes?: Array<string>
-  baseUrl?: string
-  config?: {
-    [key: string]: string
-  }
-  createdAt: string
-  updatedAt: string
-}
-
 export type ProviderConnectionCreateInput = {
   name: string
   provider: string
@@ -7440,6 +7716,12 @@ export type ProviderConnectionCreateInput = {
   token: string
   tokenSource?: 'api-key' | 'oauth'
   refreshToken?: string
+  clientSecret?: string
+  pendingSignIn?: {
+    state: string
+    codeVerifier: string
+    redirectUri: string
+  }
   expiresAt?: string
   scopes?: Array<string>
   baseUrl?: string
@@ -10643,6 +10925,7 @@ export type GroupStory = {
   title: string
   description: string
   parts: Array<GroupStoryPart>
+  externalIds?: Array<ExternalRef>
   createdAt: string
   updatedAt: string
 }
@@ -10652,12 +10935,14 @@ export type GroupStoryCreateInput = {
   title: string
   description?: string
   parts: Array<GroupStoryPart>
+  externalIds?: Array<ExternalRef>
 }
 
 export type GroupStoryUpdateInput = {
   title?: string
   description?: string
   parts?: Array<GroupStoryPart>
+  externalIds?: Array<ExternalRef>
 }
 
 export type GroupStoryPartStory = {
@@ -11601,7 +11886,145 @@ export type LoggerConfig = {
   redactSecrets: boolean
 }
 
+export type McpServerSource = 'project' | 'group'
+
+export type ResolvedMcpServer = {
+  connection: McpServerConnection
+  source: McpServerSource
+  groupId?: string
+}
+
+export type McpServerTool = {
+  name: string
+  description?: string
+  inputSchema: JsonSchema
+  annotations?: {
+    readOnlyHint?: boolean
+    destructiveHint?: boolean
+  }
+}
+
+export type McpServerToolList =
+  | {
+      status: 'connected'
+      tools: Array<McpServerTool>
+    }
+  | {
+      status: 'needs-sign-in'
+    }
+  | {
+      status: 'unreachable'
+      reason: string
+    }
+
+export type McpServerStatus = 'connected' | 'needs-sign-in' | 'unreachable'
+
+export type McpServerListing = {
+  connection: McpServerConnection
+  list: McpServerToolList
+}
+
+export type McpToolResultLike = {
+  content?: Array<{
+    [key: string]: unknown
+  }>
+  structuredContent?: unknown
+}
+
+export type McpHostTool = {
+  name: string
+  description: string
+  parameters: JsonSchema
+  readOnly: boolean
+  serverId: string
+  serverName: string
+  toolName: string
+}
+
+export type McpServerOffer = {
+  serverId: string
+  serverName: string
+  status: McpServerStatus
+  reason?: string
+  toolCount: number
+  omittedTools: number
+}
+
+export type McpHostToolOutcome =
+  | {
+      matched: true
+      result: unknown
+    }
+  | {
+      matched: false
+    }
+
+export type McpToolCallOptions = {
+  signal?: unknown
+}
+
+export type McpHostToolsOptions = {
+  readOnly?: boolean
+  reservedNames?: Array<string>
+}
+
+export type McpToolCallResult = {
+  status: 'ok' | 'tool-error' | 'needs-sign-in' | 'unreachable'
+  text: string
+}
+
+export type McpSignInStart = {
+  authorizationUrl: string
+  credentialId: string
+  state: string
+}
+
+export type McpSignInCallback = {
+  state: string
+  code: string
+}
+
+export type McpSignInResult = {
+  credentialId: string
+  scopes?: Array<string>
+  expiresAt?: string
+}
+
+export type McpOAuthTokenFields = {
+  token: string
+  refreshToken: string | unknown
+  expiresAt: string | unknown
+  scopes: Array<string> | unknown
+}
+
+export type FakeToolCall = {
+  name: string
+  args: JsonObject
+  authorization: string | unknown
+}
+
+export type FakeRequest = {
+  method: string
+  path: string
+  authorization: string | unknown
+  body: string
+}
+
 export type McpHostJobStatus = 'running' | 'succeeded' | 'failed'
+
+export type McpHostJobNote = {
+  reason: string
+  since: number
+  advice?: string
+}
+
+export type McpCallNoteSlot = {
+  note?: {
+    reason: string
+    since: number
+    advice?: string
+  }
+}
 
 export type McpHostJob = {
   id: string
@@ -11615,6 +12038,18 @@ export type McpHostJob = {
   result?: string
   settledAt?: number
   delivered: boolean
+  waitingOn?: {
+    reason: string
+    since: number
+    advice?: string
+  }
+}
+
+export type McpHostJobWaitView = {
+  reason: string
+  since: string
+  waitingForSec: number
+  advice?: string
 }
 
 export type McpHostJobView =
@@ -11623,6 +12058,12 @@ export type McpHostJobView =
       call: string
       status: 'running'
       runningForSec: number
+      waitingOn?: {
+        reason: string
+        since: string
+        waitingForSec: number
+        advice?: string
+      }
     }
   | {
       jobId: string
@@ -12134,6 +12575,7 @@ export type ReviewEvidenceScreen = {
   ids: Array<string>
   texts: Array<string>
   activity?: string
+  playgroundScene?: string
 }
 
 export type MobileSessionEntry = {
@@ -12148,6 +12590,7 @@ export type MobileSessionEntry = {
     ids: Array<string>
     texts: Array<string>
     activity?: string
+    playgroundScene?: string
   }
   screen?: {
     width: number
@@ -15024,6 +15467,12 @@ export type PackageJsonDependencies = {
   }
 }
 
+export type CodeReviewGuidelineDocs = {
+  docs: Array<string>
+  tooLarge: Array<string>
+  missing: Array<string>
+}
+
 export type ProjectDataPaths = {
   location: ProjectDataLocation
   storiesRoot: string
@@ -15040,6 +15489,8 @@ export type ProjectSpecCreateInput = {
   metadata?: {
     githubCredentialsId?: string
     ticketConnection?: TicketConnectionBinding | 'none'
+    mcpServers?: Array<McpServerConnection>
+    signOffOutputs?: Array<SignOffOutputDefinition>
     hasApp?: boolean
     appDir?: string
     isUiApp?: boolean
@@ -15102,6 +15553,10 @@ export type ProjectSpecCreateInput = {
       | KotlinTestFramework
       | SwiftTestFramework
   }
+  guidelines?: {
+    docs?: Array<string>
+    reviewAgentType?: string
+  }
   mainGroupId?: string
   scopeGroupIds?: Array<string>
 }
@@ -15117,6 +15572,8 @@ export type ProjectSpecEditInput = {
   metadata?: {
     githubCredentialsId?: string
     ticketConnection?: TicketConnectionBinding | 'none'
+    mcpServers?: Array<McpServerConnection>
+    signOffOutputs?: Array<SignOffOutputDefinition>
     hasApp?: boolean
     appDir?: string
     isUiApp?: boolean
@@ -15155,6 +15612,7 @@ export type ProjectSpecEditInput = {
   scopeGroupIds?: Array<string>
 } & {
   codeInfo?: ProjectCodeInfo | unknown
+  guidelines?: ProjectGuidelines | unknown
   mainGroupId?: string | unknown
 }
 
@@ -16136,6 +16594,7 @@ export type ProjectsGroupEditInput = {
   active?: boolean
   projects?: Array<string>
   ticketConnection?: TicketConnectionBinding | unknown
+  signOffOutputs?: Array<SignOffOutputDefinition>
 }
 
 export type ProjectsGroupUpdateType = 'change'
@@ -16208,6 +16667,27 @@ export type ProofPlanProverFact = {
   reason?: string
 }
 
+export type UiProofRoute = 'design-playground' | 'app-screens'
+
+export type UiChangeScope = {
+  appDir?: string
+}
+
+export type UiProofRouteInput = {
+  designPlayground?: string
+  fakeBackend?: string
+  changedPaths?: Array<string>
+  scope?: {
+    appDir?: string
+  }
+}
+
+export type UiProofRouteOption = {
+  route: UiProofRoute
+  paths?: Array<string>
+  line: string
+}
+
 export type ProofPlanStepsAhead = {
   checks?: boolean
   review?: boolean
@@ -16276,10 +16756,6 @@ export type ProofPlanCapacity = {
   screensUnavailable?: string
   detectedChecks?: Array<ProjectCheckKind>
   liveCheckEnv?: boolean
-}
-
-export type UiChangeScope = {
-  appDir?: string
 }
 
 export type UiChangeFeature = {
@@ -16363,44 +16839,17 @@ export type JudgingProofPlanInput = {
   shape: ProofPlanStepShape
 }
 
-export type EvalGoal = {
-  query: string
-  categoryPath?: Array<string>
-}
-
-export type RecommendationTier = 'perfect' | 'good' | 'ok' | 'alternative' | 'rest' | 'excluded'
-
-export type CriterionStatus =
-  | 'confirmed'
-  | 'implied'
-  | 'unverifiable'
-  | 'refuted'
-  | 'conflicting'
-  | 'alternative'
-  | 'partial'
-
-export type EvalResultItem = {
-  key: string
-  tier: RecommendationTier | 'excluded'
-  criteria?: {
-    [key: string]: CriterionStatus
-  }
-  rejectedBy?: string
-}
-
-export type EvalOutcome = {
-  items: Array<EvalResultItem>
-}
-
-export type EvalCase = {
-  name: string
-  goal: EvalGoal
-  relevantKeys: Array<string>
-  k?: number
-  expected: EvalOutcome
-}
-
 export type IdentityReliability = 'reliable' | 'provisional' | 'underspecified' | 'unreliable'
+
+export type ProductProperty = {
+  key: string
+  label?: string
+  value: string
+  magnitude?: number
+  unit?: string
+  defining?: boolean
+  source?: string
+}
 
 export type ProductVariant = {
   key: string
@@ -16422,7 +16871,41 @@ export type ProductVariant = {
   }
 }
 
-export type AccessoryRelation = 'refill' | 'part' | 'accessory' | 'case' | 'works-with'
+export type ImageKind =
+  | 'screenshot'
+  | 'diagram'
+  | 'product-photo'
+  | 'demo-still'
+  | 'logo'
+  | 'wordmark'
+  | 'social-card'
+  | 'marketing-art'
+  | 'badge'
+  | 'other'
+
+export type GalleryImageDetails = {
+  kind?:
+    | 'screenshot'
+    | 'diagram'
+    | 'product-photo'
+    | 'demo-still'
+    | 'logo'
+    | 'wordmark'
+    | 'social-card'
+    | 'marketing-art'
+    | 'badge'
+    | 'other'
+  caption?: string
+  confidence?: number
+}
+
+export type VideoLink = {
+  url: string
+  thumbnailUrl?: string
+  title?: string
+}
+
+export type AccessoryRelation = string
 
 export type CriterionEvidence = {
   quote: string
@@ -16438,89 +16921,6 @@ export type AccessoryLink = {
   label?: string
   confidence?: number
   evidence?: Array<CriterionEvidence>
-}
-
-export type CriterionVerdict = {
-  criterionId: string
-  variantKey?: string
-  status: CriterionStatus
-  rulesVersion?: number
-  confidence: number
-  evidence: Array<CriterionEvidence>
-  derivation?: string
-  abstainReason?:
-    | 'no-source'
-    | 'reader-failure'
-    | 'sub-quorum'
-    | 'thin-evidence'
-    | 'shared-source-only'
-  mode?: 'cheap' | 'deep'
-  priorStatus?:
-    | 'confirmed'
-    | 'implied'
-    | 'unverifiable'
-    | 'refuted'
-    | 'conflicting'
-    | 'alternative'
-    | 'partial'
-  methodology: string
-  sourcesAttempted: Array<string>
-  asOf: string
-}
-
-export type ProductProperty = {
-  key: string
-  label?: string
-  value: string
-  magnitude?: number
-  unit?: string
-  defining?: boolean
-  source?: string
-}
-
-export type OfferAvailability =
-  | 'in-stock'
-  | 'out-of-stock'
-  | 'preorder'
-  | 'backorder'
-  | 'limited'
-  | 'discontinued'
-
-export type PricePoint = {
-  price: number
-  currency?: string
-  capturedAt: string
-}
-
-export type PriceTrend = 'dropped' | 'historical-low' | 'stable' | 'suspicious-spike'
-
-export type Offer = {
-  sourceId: string
-  variantLabel?: string
-  variantKey?: string
-  gtin?: string
-  asin?: string
-  packCount?: number
-  unitPrice?: number
-  seller: string
-  price?: number
-  regularPrice?: number
-  currency?: string
-  promo?: string
-  kind?: 'official' | 'retailer' | 'marketplace'
-  url: string
-  unavailable?: boolean
-  availability?: 'in-stock' | 'out-of-stock' | 'preorder' | 'backorder' | 'limited' | 'discontinued'
-  asOf: string
-  contentHash?: string
-  priceHistory?: Array<PricePoint>
-  pendingPrice?: {
-    price: number
-    currency?: string
-    capturedAt: string
-  }
-  priceTrend?: 'dropped' | 'historical-low' | 'stable' | 'suspicious-spike'
-  market?: string
 }
 
 export type SupportDocType =
@@ -16607,14 +17007,6 @@ export type FieldCitation = {
 
 export type ExtractionTier = 'structured' | 'grounded-llm'
 
-export type OfferDiagnosis = {
-  candidates: number
-  kept: number
-  dropped: {
-    [key: string]: number
-  }
-}
-
 export type IdentityCorroboration = {
   source: 'open-db'
   status: 'confirmed' | 'conflicting' | 'unknown'
@@ -16626,8 +17018,293 @@ export type IdentityCorroboration = {
   checkedAt: string
 }
 
+export type IdentityImageConflict = {
+  statedBrand?: string
+  note: string
+  confidence: number
+  asOf: string
+}
+
+export type OfferDiagnosis = {
+  candidates: number
+  kept: number
+  dropped: {
+    [key: string]: number
+  }
+}
+
+export type Product = {
+  key: string
+  makerKey?: string
+  identityReliability?: 'reliable' | 'provisional' | 'underspecified' | 'unreliable'
+  categoryPaths: Array<Array<string>>
+  identity: {
+    [key: string]: unknown
+  }
+  summary: string
+  description: string
+  composition: {
+    [key: string]: unknown
+  }
+  properties?: Array<ProductProperty>
+  variants?: Array<ProductVariant>
+  gallery?: Array<string>
+  galleryDetails?: {
+    [key: string]: GalleryImageDetails
+  }
+  videos?: Array<VideoLink>
+  accessories?: Array<AccessoryLink>
+  supportInfo?: {
+    manufacturer?: {
+      name?: string
+      officialHost: string
+      resolvedVia: 'official-offer' | 'verified-search'
+      hostConfidence: number
+    }
+    documents: Array<SupportDocumentRef>
+    materials: Array<ProvenancedField>
+    ingredients?: Array<ProvenancedField>
+    specs?: {
+      [key: string]: string
+    }
+    certifications?: Array<string>
+    confidence: number
+    status: 'authoritative' | 'partial' | 'no-authoritative-maker' | 'unresolved'
+    resolvedAt: string
+  }
+  reviews?: {
+    headlineRating: number | unknown
+    confidence: number
+    reviewCount: number
+    sourceCount: number
+    perSourceRatings: Array<{
+      sourceUrl?: string
+      host?: string
+      rating: number
+      trustWeight: number
+    }>
+    dispersion?: number
+    sourceGap?: number
+    recentHeadlineRating?: number
+    recentSampleSize?: number
+    aspects: Array<ReviewAspect>
+    caveats: Array<string>
+    provisional: boolean
+    asOf: string
+  }
+  sources: Array<RecommendSource>
+  fieldCitations?: Array<FieldCitation>
+  provenance?: {
+    [key: string]: ExtractionTier
+  }
+  fieldAgreement?: {
+    [key: string]: number
+  }
+  identityCorroboration?: {
+    source: 'open-db'
+    status: 'confirmed' | 'conflicting' | 'unknown'
+    barcode: string
+    url: string
+    registeredBrand?: string
+    registeredName?: string
+    matchedOn?: 'brand' | 'name'
+    checkedAt: string
+  }
+  identityImageConflict?: {
+    statedBrand?: string
+    note: string
+    confidence: number
+    asOf: string
+  }
+  /**
+   * @deprecated
+   */
+  offerDiagnosis?: {
+    candidates: number
+    kept: number
+    dropped: {
+      [key: string]: number
+    }
+  }
+  freshness: {
+    [key: string]: string
+  }
+}
+
+export type ReplacedRecordFields = {
+  identityReliability?: 'reliable' | 'provisional' | 'underspecified' | 'unreliable'
+  supportInfo?: {
+    manufacturer?: {
+      name?: string
+      officialHost: string
+      resolvedVia: 'official-offer' | 'verified-search'
+      hostConfidence: number
+    }
+    documents: Array<SupportDocumentRef>
+    materials: Array<ProvenancedField>
+    ingredients?: Array<ProvenancedField>
+    specs?: {
+      [key: string]: string
+    }
+    certifications?: Array<string>
+    confidence: number
+    status: 'authoritative' | 'partial' | 'no-authoritative-maker' | 'unresolved'
+    resolvedAt: string
+  }
+  reviews?: {
+    headlineRating: number | unknown
+    confidence: number
+    reviewCount: number
+    sourceCount: number
+    perSourceRatings: Array<{
+      sourceUrl?: string
+      host?: string
+      rating: number
+      trustWeight: number
+    }>
+    dispersion?: number
+    sourceGap?: number
+    recentHeadlineRating?: number
+    recentSampleSize?: number
+    aspects: Array<ReviewAspect>
+    caveats: Array<string>
+    provisional: boolean
+    asOf: string
+  }
+  identityCorroboration?: {
+    source: 'open-db'
+    status: 'confirmed' | 'conflicting' | 'unknown'
+    barcode: string
+    url: string
+    registeredBrand?: string
+    registeredName?: string
+    matchedOn?: 'brand' | 'name'
+    checkedAt: string
+  }
+  identityImageConflict?: {
+    statedBrand?: string
+    note: string
+    confidence: number
+    asOf: string
+  }
+  freshness: {
+    [key: string]: string
+  }
+}
+
+export type EvalGoal = {
+  query: string
+  categoryPath?: Array<string>
+}
+
+export type RecommendationTier = 'perfect' | 'good' | 'ok' | 'alternative' | 'rest' | 'excluded'
+
+export type CriterionStatus =
+  | 'confirmed'
+  | 'implied'
+  | 'unverifiable'
+  | 'refuted'
+  | 'conflicting'
+  | 'alternative'
+  | 'partial'
+
+export type EvalResultItem = {
+  key: string
+  tier: RecommendationTier | 'excluded'
+  criteria?: {
+    [key: string]: CriterionStatus
+  }
+  rejectedBy?: string
+}
+
+export type EvalOutcome = {
+  items: Array<EvalResultItem>
+}
+
+export type EvalCase = {
+  name: string
+  goal: EvalGoal
+  relevantKeys: Array<string>
+  k?: number
+  expected: EvalOutcome
+}
+
+export type CriterionVerdict = {
+  criterionId: string
+  variantKey?: string
+  status: CriterionStatus
+  rulesVersion?: number
+  confidence: number
+  evidence: Array<CriterionEvidence>
+  derivation?: string
+  abstainReason?:
+    | 'no-source'
+    | 'reader-failure'
+    | 'sub-quorum'
+    | 'thin-evidence'
+    | 'shared-source-only'
+  mode?: 'cheap' | 'deep'
+  priorStatus?:
+    | 'confirmed'
+    | 'implied'
+    | 'unverifiable'
+    | 'refuted'
+    | 'conflicting'
+    | 'alternative'
+    | 'partial'
+  methodology: string
+  sourcesAttempted: Array<string>
+  asOf: string
+}
+
+export type OfferAvailability =
+  | 'in-stock'
+  | 'out-of-stock'
+  | 'preorder'
+  | 'backorder'
+  | 'limited'
+  | 'discontinued'
+
+export type PricePoint = {
+  price: number
+  currency?: string
+  capturedAt: string
+}
+
+export type PriceTrend = 'dropped' | 'historical-low' | 'stable' | 'suspicious-spike'
+
+export type Offer = {
+  sourceId: string
+  variantLabel?: string
+  variantKey?: string
+  gtin?: string
+  asin?: string
+  packCount?: number
+  unitPrice?: number
+  seller: string
+  price?: number
+  regularPrice?: number
+  currency?: string
+  promo?: string
+  kind?: 'official' | 'retailer' | 'marketplace'
+  url: string
+  unavailable?: boolean
+  availability?: 'in-stock' | 'out-of-stock' | 'preorder' | 'backorder' | 'limited' | 'discontinued'
+  asOf: string
+  contentHash?: string
+  priceHistory?: Array<PricePoint>
+  pendingPrice?: {
+    price: number
+    currency?: string
+    capturedAt: string
+  }
+  priceTrend?: 'dropped' | 'historical-low' | 'stable' | 'suspicious-spike'
+  market?: string
+}
+
 export type CatalogItem = {
   key: string
+  makerKey?: string
   identityReliability?: 'reliable' | 'provisional' | 'underspecified' | 'unreliable'
   categoryPaths: Array<Array<string>>
   identity: {
@@ -16635,6 +17312,10 @@ export type CatalogItem = {
   }
   variants?: Array<ProductVariant>
   gallery?: Array<string>
+  galleryDetails?: {
+    [key: string]: GalleryImageDetails
+  }
+  videos?: Array<VideoLink>
   accessories?: Array<AccessoryLink>
   variantCriteria?: {
     [key: string]: {
@@ -16779,6 +17460,11 @@ export type ScoreReport = {
   rejectionAccuracy: number
 }
 
+export type LinkIdentityFields = {
+  nameField: string
+  brandField?: string
+}
+
 export type IdentityAttr = {
   slot: string
   kind: 'brand' | 'name' | 'form' | 'measure' | 'enum'
@@ -16817,14 +17503,35 @@ export type SeedSource = {
   kind?: 'aggregator' | 'multi-shop' | 'shop' | 'review' | 'marketplace' | 'reference' | 'other'
 }
 
+export type ImageProfile = 'product' | 'documentation'
+
+export type MediaProfile = {
+  images?: 'product' | 'documentation'
+  excludeSocialCards?: boolean
+  videos?: boolean
+}
+
+export type ImageRubric = {
+  shows: string
+  rejects: string
+  kinds?: Array<ImageKind>
+}
+
 export type ProductTypeSpec = {
   recordType: string
   keyFields: Array<string>
+  keyedOn?: Array<string>
   supplierQuery: string
   supplierInstructions: string
   itemQuery: string
   seedItemQuery?: string
   itemInstructions: string
+  accessoryRelations?: Array<string>
+  linkIdentityFields?: {
+    nameField: string
+    brandField?: string
+  }
+  childTypes?: Array<string>
   requiredKeyFields?: Array<string>
   identitySchema?: {
     version: number
@@ -16846,6 +17553,63 @@ export type ProductTypeSpec = {
   sourceSeedsByCountry?: {
     [key: string]: Array<SeedSource>
   }
+  notForSale?: boolean
+  mediaProfile?: {
+    images?: 'product' | 'documentation'
+    excludeSocialCards?: boolean
+    videos?: boolean
+  }
+  imageRubric?: {
+    shows: string
+    rejects: string
+    kinds?: Array<ImageKind>
+  }
+}
+
+export type ImageJudgement = {
+  kind: ImageKind
+  keep: boolean
+  caption?: string
+  confidence: number
+}
+
+export type ProductImagery = {
+  gallery?: Array<string>
+  imageUrl?: string
+  galleryDetails?: {
+    [key: string]: GalleryImageDetails
+  }
+}
+
+export type EnrichOptions = {
+  pagesRead?: {
+    [key: string]: string
+  }
+  media?: {
+    images?: 'product' | 'documentation'
+    excludeSocialCards?: boolean
+    videos?: boolean
+  }
+}
+
+export type ProductIdentitySpec = {
+  identitySchema?: {
+    version: number
+    attrs: Array<{
+      slot: string
+      kind: 'brand' | 'name' | 'form' | 'measure' | 'enum'
+      source: string
+      required: boolean
+      fallback?: string
+      canonicalUnit?: string
+      synonyms?: {
+        [key: string]: string
+      }
+    }>
+  }
+  keyFields: Array<string>
+  keyedOn?: Array<string>
+  notForSale?: boolean
 }
 
 export type FilterRule = {
@@ -16979,6 +17743,45 @@ export type ReviewCorpusEntry = {
   aspects: Array<ReviewAspect>
   scaleInferred?: boolean
   verifiedPurchaseHosts?: unknown
+}
+
+export type ProductLinkRow = {
+  productKey: string
+  childKey?: string
+  childType?: string
+  relation: AccessoryRelation
+  status: 'resolved' | 'unresolved'
+  targetKey?: string
+  targetName: string
+  targetBrand?: string
+  lookup: string
+}
+
+export type ProductChildInput = {
+  productKey: string
+  childType: string
+  slug: string
+  title: string
+  text: string
+  categoryPaths?: Array<Array<string>>
+  links?: Array<AccessoryLink>
+}
+
+export type ProductChild = {
+  productKey: string
+  childType: string
+  slug: string
+  title: string
+  text: string
+  categoryPaths?: Array<Array<string>>
+  links?: Array<AccessoryLink>
+  key: string
+}
+
+export type ProductLinkChild = {
+  childKey: string
+  childType: string
+  childTitle: string
 }
 
 export type ImageVerdict = {
@@ -17132,6 +17935,27 @@ export type CatalogQualityReport = {
   }
 }
 
+export type CatalogIdentitySpec = {
+  linkIdentityFields?: {
+    nameField: string
+    brandField?: string
+  }
+  identitySchema?: {
+    version: number
+    attrs: Array<{
+      slot: string
+      kind: 'brand' | 'name' | 'form' | 'measure' | 'enum'
+      source: string
+      required: boolean
+      fallback?: string
+      canonicalUnit?: string
+      synonyms?: {
+        [key: string]: string
+      }
+    }>
+  }
+}
+
 export type ComposedProductId = {
   id: string
   reliability: IdentityReliability
@@ -17145,93 +17969,6 @@ export type ResolvedIdentity = {
   id: string
   reliability: IdentityReliability
   brandInferred: boolean
-}
-
-export type Product = {
-  key: string
-  identityReliability?: 'reliable' | 'provisional' | 'underspecified' | 'unreliable'
-  categoryPaths: Array<Array<string>>
-  identity: {
-    [key: string]: unknown
-  }
-  summary: string
-  description: string
-  composition: {
-    [key: string]: unknown
-  }
-  properties?: Array<ProductProperty>
-  variants?: Array<ProductVariant>
-  gallery?: Array<string>
-  accessories?: Array<AccessoryLink>
-  supportInfo?: {
-    manufacturer?: {
-      name?: string
-      officialHost: string
-      resolvedVia: 'official-offer' | 'verified-search'
-      hostConfidence: number
-    }
-    documents: Array<SupportDocumentRef>
-    materials: Array<ProvenancedField>
-    ingredients?: Array<ProvenancedField>
-    specs?: {
-      [key: string]: string
-    }
-    certifications?: Array<string>
-    confidence: number
-    status: 'authoritative' | 'partial' | 'no-authoritative-maker' | 'unresolved'
-    resolvedAt: string
-  }
-  reviews?: {
-    headlineRating: number | unknown
-    confidence: number
-    reviewCount: number
-    sourceCount: number
-    perSourceRatings: Array<{
-      sourceUrl?: string
-      host?: string
-      rating: number
-      trustWeight: number
-    }>
-    dispersion?: number
-    sourceGap?: number
-    recentHeadlineRating?: number
-    recentSampleSize?: number
-    aspects: Array<ReviewAspect>
-    caveats: Array<string>
-    provisional: boolean
-    asOf: string
-  }
-  sources: Array<RecommendSource>
-  fieldCitations?: Array<FieldCitation>
-  provenance?: {
-    [key: string]: ExtractionTier
-  }
-  fieldAgreement?: {
-    [key: string]: number
-  }
-  identityCorroboration?: {
-    source: 'open-db'
-    status: 'confirmed' | 'conflicting' | 'unknown'
-    barcode: string
-    url: string
-    registeredBrand?: string
-    registeredName?: string
-    matchedOn?: 'brand' | 'name'
-    checkedAt: string
-  }
-  /**
-   * @deprecated
-   */
-  offerDiagnosis?: {
-    candidates: number
-    kept: number
-    dropped: {
-      [key: string]: number
-    }
-  }
-  freshness: {
-    [key: string]: string
-  }
 }
 
 export type ProductOffer = {
@@ -17375,7 +18112,9 @@ export type BrandCriterionLedger = {
 }
 
 export type BrandRecord = {
+  key?: string
   name: string
+  aliases?: Array<string>
   tags: Array<string>
   categories?: Array<Array<string>>
   url?: string
@@ -17385,6 +18124,14 @@ export type BrandRecord = {
     [key: string]: BrandCriterionLedger
   }
   updatedAt: string
+}
+
+export type BrandLedgerTally = {
+  pass: number
+  fail: number
+  abstain: number
+  material?: string
+  name: string
 }
 
 export type CriterionBasis = 'materials' | 'other'
@@ -17544,6 +18291,11 @@ export type CatalogBuildProgress = {
   suppliers: Array<string>
   supplierStates: {
     [key: string]: 'gathering' | 'done' | 'skipped' | 'failed'
+  }
+  categoryResult?: {
+    categoryPath: Array<string>
+    status: 'completed' | 'failed' | 'deadline'
+    items: Array<CatalogItem>
   }
 }
 
@@ -17727,6 +18479,27 @@ export type EnrichProductResult = {
   item: CatalogItem | unknown
 }
 
+export type CheckEmptyReason = 'no-evidence' | 'nothing-extracted' | 'page-not-matched'
+
+export type StructuredProduct = {
+  name?: string
+  price?: number
+  priceCurrency?: string
+  image?: string
+  images?: Array<string>
+  availability?: string
+  gtin?: string
+  mpn?: string
+  via: 'json-ld' | 'microdata' | 'open-graph'
+}
+
+export type PastedPage = {
+  url: string
+  html: string
+  structured: StructuredProduct | unknown
+  passage: EvidencePassage
+}
+
 export type CheckDrillTrace = {
   ownHost: string
   query: string
@@ -17747,6 +18520,7 @@ export type CheckDrillTrace = {
 
 export type CheckProductResult = {
   key: string
+  emptyReason?: 'no-evidence' | 'nothing-extracted' | 'page-not-matched'
   added: boolean
   matchedExisting: boolean
   item: CatalogItem | unknown
@@ -17819,6 +18593,7 @@ export type SearchProductCandidatesParams = {
   searchQuery: string
   queries?: Array<string>
   textWeight?: number
+  where?: unknown
   limit?: number
 }
 
@@ -17828,6 +18603,7 @@ export type RecommendProductsParams = {
   searchQuery: string
   queries?: Array<string>
   textWeight?: number
+  where?: unknown
   filters?: Array<FilterRule>
   criterionGates?: Array<string>
   criterionGrades?: Array<string>
@@ -17944,6 +18720,7 @@ export type SeedMaterialsParams = {
 
 export type BrandSeed = {
   name: string
+  aliases?: Array<string>
   url?: string
   imageUrl?: string
   summary?: string
@@ -18018,6 +18795,39 @@ export type VerifyProductImageryResult = {
   changed: number
   refuted: number
   galleryDropped: number
+}
+
+export type ClassifyProductImageryParams = {
+  scope: string
+  recordType: string
+  region?: string
+  spec: ProductTypeSpec
+  keys: Array<string>
+  model: ModelSelection
+  visionModel?:
+    | {
+        kind: 'api'
+        llmConfig: LlmConfig
+        effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+      }
+    | {
+        kind: 'cli'
+        cli: CliTool
+        modelId?: string
+        effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+        authCredentialId?: string
+        apiKeyCredentialId?: string
+      }
+  visionCandidates?: Array<ModelSelection>
+  abortSignal?: unknown
+}
+
+export type ClassifyProductImageryResult = {
+  skipped?: 'model-not-vision' | 'no-rubric'
+  checked: number
+  classified: number
+  dropped: number
+  unseen: number
 }
 
 export type GetCatalogHealthParams = {
@@ -18127,6 +18937,346 @@ export type ClearCatalogParams = {
   extraTypes?: Array<string>
 }
 
+export type ListProductBacklinksParams = {
+  scope: string
+  recordType: string
+  key: string
+  relation?: string
+  region?: string
+}
+
+export type ProductBacklink = {
+  childKey?: string
+  childType?: string
+  childTitle?: string
+  item: {
+    key: string
+    makerKey?: string
+    identityReliability?: 'reliable' | 'provisional' | 'underspecified' | 'unreliable'
+    categoryPaths: Array<Array<string>>
+    identity: {
+      [key: string]: unknown
+    }
+    variants?: Array<ProductVariant>
+    gallery?: Array<string>
+    galleryDetails?: {
+      [key: string]: GalleryImageDetails
+    }
+    videos?: Array<VideoLink>
+    accessories?: Array<AccessoryLink>
+    variantCriteria?: {
+      [key: string]: {
+        [key: string]: CriterionVerdict
+      }
+    }
+    summary: string
+    description: string
+    composition: {
+      [key: string]: unknown
+    }
+    properties?: Array<ProductProperty>
+    offers: Array<Offer>
+    supportInfo?: {
+      manufacturer?: {
+        name?: string
+        officialHost: string
+        resolvedVia: 'official-offer' | 'verified-search'
+        hostConfidence: number
+      }
+      documents: Array<SupportDocumentRef>
+      materials: Array<ProvenancedField>
+      ingredients?: Array<ProvenancedField>
+      specs?: {
+        [key: string]: string
+      }
+      certifications?: Array<string>
+      confidence: number
+      status: 'authoritative' | 'partial' | 'no-authoritative-maker' | 'unresolved'
+      resolvedAt: string
+    }
+    reviews?: {
+      headlineRating: number | unknown
+      confidence: number
+      reviewCount: number
+      sourceCount: number
+      perSourceRatings: Array<{
+        sourceUrl?: string
+        host?: string
+        rating: number
+        trustWeight: number
+      }>
+      dispersion?: number
+      sourceGap?: number
+      recentHeadlineRating?: number
+      recentSampleSize?: number
+      aspects: Array<ReviewAspect>
+      caveats: Array<string>
+      provisional: boolean
+      asOf: string
+    }
+    criteria: {
+      [key: string]: CriterionVerdict
+    }
+    sources: Array<RecommendSource>
+    note?: string
+    fieldCitations?: Array<FieldCitation>
+    provenance?: {
+      [key: string]: ExtractionTier
+    }
+    fieldAgreement?: {
+      [key: string]: number
+    }
+    offerDiagnosis?: {
+      candidates: number
+      kept: number
+      dropped: {
+        [key: string]: number
+      }
+    }
+    identityImageConflict?: {
+      statedBrand?: string
+      note: string
+      confidence: number
+      asOf: string
+    }
+    identityCorroboration?: {
+      source: 'open-db'
+      status: 'confirmed' | 'conflicting' | 'unknown'
+      barcode: string
+      url: string
+      registeredBrand?: string
+      registeredName?: string
+      matchedOn?: 'brand' | 'name'
+      checkedAt: string
+    }
+    freshness: {
+      [key: string]: string
+    }
+  }
+  relation: string
+}
+
+export type MakerRecordsPage = {
+  limit?: number
+  offset?: number
+}
+
+export type ListMakerRecordsParams = {
+  limit?: number
+  offset?: number
+  scope: string
+  recordType: string
+  makerKey: string
+  region?: string
+}
+
+export type ListProductLeadsParams = {
+  scope: string
+  recordType: string
+  region?: string
+}
+
+export type ProductLead = {
+  targetName: string
+  targetBrand?: string
+  sources: Array<
+    {
+      item: CatalogItem
+      links: Array<AccessoryLink>
+    } & {
+      childKey?: string
+      childType?: string
+      childTitle?: string
+    }
+  >
+}
+
+export type PutProductChildParams = {
+  scope: string
+  spec: ProductTypeSpec
+  child: ProductChildInput
+}
+
+export type ListProductChildrenParams = {
+  scope: string
+  recordType: string
+  key: string
+  childType?: string
+}
+
+export type RemoveProductChildParams = {
+  scope: string
+  recordType: string
+  key: string
+  childType: string
+  slug: string
+}
+
+export type SearchProductChildrenParams = {
+  scope: string
+  spec: ProductTypeSpec
+  query: string
+  childType?: string
+  includeParents?: boolean
+  where?: unknown
+  limit?: number
+}
+
+export type ProductChildSearchHit = {
+  parentKey: string
+  parentTitle: string
+  child?: {
+    productKey: string
+    childType: string
+    slug: string
+    title: string
+    text: string
+    categoryPaths?: Array<Array<string>>
+    links?: Array<AccessoryLink>
+    key: string
+  }
+  score: number
+}
+
+export type GetProductRecordParams = {
+  scope: string
+  recordType: string
+  key: string
+  childType?: string
+  region?: string
+}
+
+export type ProductRecordBacklink = {
+  childKey?: string
+  childType?: string
+  childTitle?: string
+  key: string
+  identity: {
+    [key: string]: unknown
+  }
+  relation: string
+}
+
+export type ProductRecordView = {
+  record: CatalogItem
+  children: Array<ProductChild>
+  links: Array<AccessoryLink>
+  backlinks: Array<ProductRecordBacklink>
+}
+
+export type CreateProductRecordParams = {
+  scope: string
+  spec: ProductTypeSpec
+  record: {
+    [key: string]: unknown
+  }
+  categoryPaths?: Array<Array<string>>
+  sources?: Array<RecommendSource>
+  region?: string
+}
+
+export type CreateProductRecordResult = {
+  key: string
+  created: boolean
+  identityReliability: IdentityReliability
+}
+
+export type ProductRecordPatch = {
+  summary?: string
+  description?: string
+  composition?: {
+    [key: string]: unknown
+  }
+  categoryPaths?: Array<Array<string>>
+  sources?: Array<RecommendSource>
+  properties?: Array<ProductProperty>
+  gallery?: Array<string>
+  galleryDetails?: {
+    [key: string]: GalleryImageDetails
+  }
+  videos?: Array<VideoLink>
+}
+
+export type UpdateProductRecordParams = {
+  scope: string
+  spec: ProductTypeSpec
+  key: string
+  patch?: {
+    summary?: string
+    description?: string
+    composition?: {
+      [key: string]: unknown
+    }
+    categoryPaths?: Array<Array<string>>
+    sources?: Array<RecommendSource>
+    properties?: Array<ProductProperty>
+    gallery?: Array<string>
+    galleryDetails?: {
+      [key: string]: GalleryImageDetails
+    }
+    videos?: Array<VideoLink>
+  }
+  remove?: Array<string>
+  region?: string
+}
+
+export type UpdateProductRecordResult = {
+  key: string
+  updated: Array<string>
+  removed: Array<string>
+}
+
+export type ProductLinkHolderChild = {
+  childType: string
+  slug: string
+}
+
+export type AddProductLinkParams = {
+  scope: string
+  spec: ProductTypeSpec
+  key: string
+  child?: {
+    childType: string
+    slug: string
+  }
+  relation: AccessoryRelation
+  targetKey?: string
+  targetName?: string
+  targetBrand?: string
+  label?: string
+  confidence?: number
+  evidence?: Array<CriterionEvidence>
+}
+
+export type AddProductLinkResult = {
+  key: string
+  childKey?: string
+  link: AccessoryLink
+  links: Array<AccessoryLink>
+  added: boolean
+}
+
+export type RemoveProductLinkParams = {
+  scope: string
+  recordType: string
+  key: string
+  child?: {
+    childType: string
+    slug: string
+  }
+  relation: AccessoryRelation
+  targetKey?: string
+  targetName?: string
+  targetBrand?: string
+}
+
+export type RemoveProductLinkResult = {
+  key: string
+  childKey?: string
+  removed: boolean
+  links: Array<AccessoryLink>
+}
+
 export type DeleteProductParams = {
   scope: string
   recordType: string
@@ -18137,7 +19287,7 @@ export type ResolveProductGoalParams = {
   scope: string
   recordType: string
   goal: string
-  categoryAxis: Array<CategoryNode>
+  categoryAxis?: Array<CategoryNode>
   model: ModelSelection
   chatContext?: {
     type: ChatContextType
@@ -18151,6 +19301,17 @@ export type ResolveProductGoalParams = {
     timestamp?: string
   }
   abortSignal?: unknown
+}
+
+export type ListProductCategoriesParams = {
+  scope: string
+  recordType: string
+}
+
+export type PutProductCategoriesParams = {
+  scope: string
+  recordType: string
+  nodes: Array<CategoryNode>
 }
 
 export type ResolvedProductGoal = {
@@ -18404,11 +19565,24 @@ export type WebReadUrlsResult = {
   [key: string]: string
 }
 
+export type HeroImageCandidate = {
+  url: string
+  width: number
+  height: number
+  top: number
+  alt?: string
+  isMain?: boolean
+  inReview?: boolean
+  caption?: string
+  heading?: string
+}
+
 export type SearchPageContent = {
   html: string
   axSnapshot?: string
   heroImageUrl?: string
   galleryImageUrls?: Array<string>
+  mediaImages?: Array<HeroImageCandidate>
   renderedText?: string
 }
 
@@ -18468,6 +19642,7 @@ export type ReviewEvidenceBuild = {
   variant?: string
   overlays?: Array<string>
   tree?: string
+  fakeBackend?: string
 }
 
 export type ReviewEvidenceCaptureDescription = {
@@ -18481,11 +19656,13 @@ export type ReviewEvidenceCaptureDescription = {
     variant?: string
     overlays?: Array<string>
     tree?: string
+    fakeBackend?: string
   }
   screen?: {
     ids: Array<string>
     texts: Array<string>
     activity?: string
+    playgroundScene?: string
   }
 }
 
@@ -18509,7 +19686,7 @@ export type ReviewEvidenceScope = {
   chatContextId?: string
 }
 
-export type ReviewEvidenceKind = 'screenshot' | 'recording' | 'report' | 'log'
+export type ReviewEvidenceKind = 'screenshot' | 'recording' | 'report' | 'log' | 'file'
 
 export type ReviewEvidenceDesignAttribution = {
   app: string
@@ -18601,6 +19778,18 @@ export type ReportSections = {
   needsYou: Array<string>
 }
 
+export type LoomWalkthroughItemFields = {
+  title: string
+  open: string
+  steps: Array<string>
+  mustShow: Array<string>
+}
+
+export type LoomWalkthroughAttachment = {
+  itemId: string
+  url?: string
+}
+
 export type ReviewEvidenceCheckRun = {
   check: ProjectCheckKind
   status: 'passed' | 'failed' | 'error' | 'skipped' | 'not-detected' | 'refused' | 'running'
@@ -18617,7 +19806,7 @@ export type ReviewEvidenceRef = {
   featureId?: string
   chatContextId?: string
   id: string
-  kind: 'screenshot' | 'recording' | 'report' | 'log'
+  kind: 'screenshot' | 'recording' | 'report' | 'log' | 'file'
   path: string
   label?: string
   phase?: 'before' | 'after'
@@ -18664,6 +19853,16 @@ export type ReviewEvidenceRef = {
     decisions: Array<string>
     needsYou: Array<string>
   }
+  walkthroughItem?: {
+    title: string
+    open: string
+    steps: Array<string>
+    mustShow: Array<string>
+  }
+  walkthroughResult?: {
+    itemId: string
+    url?: string
+  }
   build?: {
     platform?: 'android' | 'ios' | 'web'
     sha: string
@@ -18672,11 +19871,13 @@ export type ReviewEvidenceRef = {
     variant?: string
     overlays?: Array<string>
     tree?: string
+    fakeBackend?: string
   }
   screen?: {
     ids: Array<string>
     texts: Array<string>
     activity?: string
+    playgroundScene?: string
   }
   checkRun?: {
     check: ProjectCheckKind
@@ -18740,6 +19941,21 @@ export type CaptureSessionPlan = {
   verdict: CaptureSessionVerdict
 }
 
+export type ReviewEvidenceHostFields = {
+  checkRun?: {
+    check: ProjectCheckKind
+    status: 'passed' | 'failed' | 'error' | 'skipped' | 'not-detected' | 'refused' | 'running'
+    summary: string
+    commands: Array<string>
+    variant?: string
+    tests?: Array<string>
+  }
+  walkthroughResult?: {
+    itemId: string
+    url?: string
+  }
+}
+
 export type CodeReviewFindingsJudgement = {
   blocking: Array<CodeReviewFinding>
   followUps: Array<CodeReviewFinding>
@@ -18799,7 +20015,7 @@ export type ReviewEvidenceQuery = {
   storyId?: string
   featureId?: string
   chatContextId?: string
-  kind?: 'screenshot' | 'recording' | 'report' | 'log'
+  kind?: 'screenshot' | 'recording' | 'report' | 'log' | 'file'
 }
 
 export type RecordReviewEvidenceInput = {
@@ -18810,7 +20026,7 @@ export type RecordReviewEvidenceInput = {
   chatContextId?: string
   sourcePath?: string
   text?: string
-  kind: 'screenshot' | 'recording' | 'report' | 'log'
+  kind: 'screenshot' | 'recording' | 'report' | 'log' | 'file'
   label?: string
   phase?: 'before' | 'after'
   subject?: string
@@ -18845,6 +20061,12 @@ export type RecordReviewEvidenceInput = {
     decisions: Array<string>
     needsYou: Array<string>
   }
+  walkthroughItem?: {
+    title: string
+    open: string
+    steps: Array<string>
+    mustShow: Array<string>
+  }
 }
 
 export type ReviewEvidenceTextCut = {
@@ -18866,7 +20088,7 @@ export type ReviewEvidenceLookup =
 
 export type ReviewEvidenceContent = {
   id: string
-  kind?: 'screenshot' | 'recording' | 'report' | 'log'
+  kind?: 'screenshot' | 'recording' | 'report' | 'log' | 'file'
   mediaType?: string
   label?: string
   subject?: string
@@ -18973,6 +20195,87 @@ export type SearchNoteOwner =
       kind: 'group'
       groupId: string
     }
+
+export type LoomWalkthroughFileKind = 'video' | 'image' | 'file'
+
+export type LoomWalkthroughResult =
+  | {
+      kind: 'link'
+      url: string
+      evidenceId: string
+    }
+  | {
+      kind: LoomWalkthroughFileKind
+      name: string
+      evidenceId: string
+    }
+
+export type LoomWalkthroughItem = {
+  title: string
+  open: string
+  steps: Array<string>
+  mustShow: Array<string>
+  id: string
+  projectId: string
+  evidenceId: string
+  result?:
+    | {
+        kind: 'link'
+        url: string
+        evidenceId: string
+      }
+    | {
+        kind: LoomWalkthroughFileKind
+        name: string
+        evidenceId: string
+      }
+}
+
+export type LoomWalkthroughResultInput = {
+  itemId: string
+  url?: string
+  sourcePath?: string
+  name?: string
+}
+
+export type ResolvedSignOffOutput = {
+  definition: SignOffOutputDefinition
+  source: 'project' | 'group'
+  groupId?: string
+}
+
+export type SignOffOutputWrite = {
+  label: string
+  template?: string
+  current?: string
+}
+
+export type SignOffOutputRepo = {
+  projectId: string
+  outputs: Array<{
+    label: string
+    perRepo: boolean
+  }>
+}
+
+export type SignOffOutputSection = {
+  projectId: string
+  evidenceId?: string
+}
+
+export type SignOffOutputView = {
+  label: string
+  perRepo: boolean
+  sections: Array<SignOffOutputSection>
+}
+
+export type SignOffOutputValues = {
+  ticket?: string
+  pullRequests?: {
+    [key: string]: string
+  }
+  loom?: string
+}
 
 export type LargeFile = {
   path: string
@@ -19189,6 +20492,11 @@ export type LiveRunFeatureDeleteApply = {
 }
 
 export type LiveRunFeatureDeleteDecision = LiveRunFeatureDeleteApply | LiveRunFeatureUpdateRefuse
+
+export type ExternalRefsOwner = {
+  storyId: string
+  featureId?: string
+}
 
 export type FeatureTransitionEvent =
   | 'implement-started'
@@ -19795,6 +21103,7 @@ export type ToolName =
   | 'withdrawCliAgentAction'
   | 'subscribeCliAgentActions'
   | 'subscribeBackgroundJobResults'
+  | 'getResidentSessionFreshness'
   | 'getCliAgentAction'
   | 'claimCliAgentActionExecution'
   | 'recordCliAgentActionExecution'
@@ -19951,6 +21260,7 @@ export type ToolName =
   | 'searchFilesByExact'
   | 'uploadFile'
   | 'viewImage'
+  | 'viewVideo'
   | 'getAbsolutePath'
   | 'gitStatus'
   | 'listRemotes'
@@ -20113,6 +21423,8 @@ export type ToolName =
   | 'rankProductCandidates'
   | 'recommendProducts'
   | 'resolveProductGoal'
+  | 'listProductCategories'
+  | 'putProductCategories'
   | 'reverifyProductCriterion'
   | 'discoverProductBrands'
   | 'listProductBrands'
@@ -20121,7 +21433,19 @@ export type ToolName =
   | 'listProductCriteria'
   | 'removeProductCriterion'
   | 'clearCatalog'
+  | 'listProductBacklinks'
+  | 'listProductLeads'
+  | 'listMakerRecords'
   | 'deleteProduct'
+  | 'getProductRecord'
+  | 'createProductRecord'
+  | 'updateProductRecord'
+  | 'addProductLink'
+  | 'removeProductLink'
+  | 'putProductChild'
+  | 'listProductChildren'
+  | 'removeProductChild'
+  | 'searchProductChildren'
   | 'registerCriterionKnowledge'
   | 'getCriterionKnowledge'
   | 'removeCriterionKnowledge'
@@ -20142,6 +21466,7 @@ export type ToolName =
   | 'getCatalogHealth'
   | 'getEscalationReport'
   | 'verifyProductImagery'
+  | 'classifyProductImagery'
   | 'researchWeb'
   | 'recordReviewEvidence'
   | 'listReviewEvidence'
@@ -20261,6 +21586,11 @@ export type UiProjectAppFixtureCommits = {
   head: string
 }
 
+export type UiServeFakeBackendCommits = {
+  base: string
+  head: string
+}
+
 export type UiServeFixtureCommits = {
   base: string
   seam: string
@@ -20332,6 +21662,13 @@ export type ScreenshotUiOptions = {
 
 export type UiWebFramework = 'next' | 'vite'
 
+export type UiServeFakeBackend = {
+  serve: string
+  portEnv?: string
+  urlEnv: string
+  tokenEnv: string
+}
+
 export type UiServeRecipe = {
   projectApp?: string
   package?: string
@@ -20340,6 +21677,7 @@ export type UiServeRecipe = {
   serve?: string
   portEnv?: string
   envFiles?: Array<string>
+  fakeBackend?: UiServeFakeBackend | false
   readyPath?: string
   locale?: string
   timezoneId?: string
@@ -20356,10 +21694,16 @@ export type UiServeAppOptions = {
     serve?: string
     portEnv?: string
     envFiles?: Array<string>
+    fakeBackend?: UiServeFakeBackend | false
     readyPath?: string
     locale?: string
     timezoneId?: string
   }
+}
+
+export type UiServedFakeBackend = {
+  serve: string
+  url: string
 }
 
 export type UiBuildProvenance = {
@@ -20372,6 +21716,10 @@ export type UiBuildProvenance = {
   tree?: string
   recipe: string
   origin: string
+  fakeBackend?: {
+    serve: string
+    url: string
+  }
 }
 
 export type UiServeAppResult = {
@@ -20453,6 +21801,17 @@ export type UiServePlan = {
   }
 }
 
+export type UiFakeBackendPlan = {
+  serve: UiServeStep
+  env: {
+    [key: string]: string
+  }
+  url: string
+  appEnv: {
+    [key: string]: string
+  }
+}
+
 export type UiHostBoundOptions = {
   cleanup?: {
     tree: string
@@ -20490,7 +21849,12 @@ export type UiCaptureBuildState = {
     tree?: string
     recipe: string
     origin: string
+    fakeBackend?: {
+      serve: string
+      url: string
+    }
   }
+  playgroundScene?: string
 }
 
 export type UiRecordingBuildState = {
@@ -20508,6 +21872,10 @@ export type UiRecordingBuildState = {
     tree?: string
     recipe: string
     origin: string
+    fakeBackend?: {
+      serve: string
+      url: string
+    }
   }
   recordedBuild?: {
     platform: 'web'
@@ -20519,6 +21887,10 @@ export type UiRecordingBuildState = {
     tree?: string
     recipe: string
     origin: string
+    fakeBackend?: {
+      serve: string
+      url: string
+    }
   }
   leftRecordedApp: boolean
 }
@@ -20642,6 +22014,164 @@ export type UiLaunchContextOptions = {
   timezoneId?: string
 }
 
+export type VideoProbe = {
+  durationSec: number
+  width: number
+  height: number
+  videoCodec: string
+  hasAudio: boolean
+}
+
+export type VideoMomentCandidate = {
+  timeSec: number
+  thumb: unknown
+}
+
+export type VideoStill = {
+  timeSec: number
+  file: string
+}
+
+export type VideoSheet = {
+  file: string
+  timesSec: Array<number>
+}
+
+export type VideoSourceStamp = {
+  sizeBytes: number
+  modifiedMs: number
+}
+
+export type VideoTranscriptSegment = {
+  startSec: number
+  endSec: number
+  text: string
+}
+
+export type VideoTranscriptState = 'done' | 'no-audio' | 'no-speech' | 'not-set-up' | 'failed'
+
+export type VideoTranscript = {
+  state: VideoTranscriptState
+  segments: Array<VideoTranscriptSegment>
+  language?: string
+  file?: string
+}
+
+export type VideoTokenEstimate = {
+  overviewTokens: number
+  closerLookTokens: number
+}
+
+export type VideoDigestManifest = {
+  source: VideoSourceStamp
+  probe: VideoProbe
+  stills: Array<VideoStill>
+  sheets: Array<VideoSheet>
+  transcript: VideoTranscript
+  tokens: VideoTokenEstimate
+  createdAt: string
+}
+
+export type VideoDigestStage =
+  | 'probing'
+  | 'picking-frames'
+  | 'making-sheets'
+  | 'transcribing'
+  | 'ready'
+  | 'failed'
+
+export type VideoDigestStatus = {
+  stage: VideoDigestStage
+  percent?: number
+  reason?: string
+  tokens?: {
+    overviewTokens: number
+    closerLookTokens: number
+  }
+  durationSec?: number
+  updatedAt: string
+}
+
+export type VideoDigestResult =
+  | {
+      ok: true
+      digestDir: string
+      manifest: VideoDigestManifest
+    }
+  | {
+      ok: false
+      digestDir: string
+      reason: string
+    }
+
+export type VideoSheetLayout = {
+  tileWidth: number
+  tileHeight: number
+  columns: number
+  rows: number
+}
+
+export type VideoLookRequest = {
+  at?: string | number
+  from?: string | number
+  to?: string | number
+  count?: number
+  size?: number
+}
+
+export type VideoLookPlan =
+  | {
+      kind: 'digest'
+    }
+  | {
+      kind: 'still'
+      timeSec: number
+      longEdge: number
+    }
+  | {
+      kind: 'range'
+      timesSec: Array<number>
+    }
+  | {
+      kind: 'refused'
+      reason: string
+    }
+
+export type ViewedVideo = ViewedImage & {
+  times?: Array<string>
+  digest?: string
+  sheets?: Array<string>
+  note?: string
+}
+
+export type VideoModelFile = {
+  file: string
+  url: string
+  sha256: string
+  bytes: number
+}
+
+export type VideoToolId = 'ffmpeg' | 'ffprobe' | 'whisper' | 'models'
+
+export type VideoToolCheck = {
+  id: VideoToolId
+  present: boolean
+  fix?: string
+}
+
+export type VideoToolsReadiness = {
+  canDigest: boolean
+  canTranscribe: boolean
+  checks: Array<VideoToolCheck>
+}
+
+export type VideoModelDownloadProgress = {
+  receivedBytes: number
+  totalBytes: number
+}
+
+export type VideoInstallableTool = 'ffmpeg' | 'whisper'
+
 export type DocumentLink = {
   url: string
   docType: SupportDocType
@@ -20674,18 +22204,6 @@ export type SellerOffer = {
   availability?: string
 }
 
-export type StructuredProduct = {
-  name?: string
-  price?: number
-  priceCurrency?: string
-  image?: string
-  images?: Array<string>
-  availability?: string
-  gtin?: string
-  mpn?: string
-  via: 'json-ld' | 'microdata' | 'open-graph'
-}
-
 export type StructuredVariant = {
   axes: {
     [key: string]: string
@@ -20703,7 +22221,7 @@ export type ParsedPrice = {
   currency?: string
 }
 
-export type HeroImageCandidate = {
+export type ProbedImage = {
   url: string
   width: number
   height: number
@@ -20711,6 +22229,18 @@ export type HeroImageCandidate = {
   alt?: string
   isMain?: boolean
   inReview?: boolean
+  caption?: string
+  heading?: string
+  pictureSources?: Array<{
+    type?: string
+    srcset?: string
+  }>
+  inPageChrome?: boolean
+}
+
+export type GalleryImage = {
+  url: string
+  caption?: string
 }
 
 export type HostReadFailures = {
@@ -21130,6 +22660,291 @@ export type ProcessDroppedChangeAcceptedRow = {
   text: string
 }
 
+export type ProcessGroupLegStatus =
+  | 'blocked'
+  | 'starting'
+  | 'start-failed'
+  | 'running'
+  | 'needs-you'
+  | 'waiting'
+  | 'manager-on-it'
+  | 'at-sign-off'
+  | 'integrating'
+  | 'integrated'
+  | 'rebuilding'
+  | 'rebuild-failed'
+  | 'integration-failed'
+  | 'failed'
+  | 'cancelled'
+  | 'rejected'
+  | 'skipped'
+
+export type LegStatuses = {
+  [key: string]: ProcessGroupLegStatus
+}
+
+export type ProcessGroupBuildMode = 'merge-first' | 'on-branch'
+
+export type ProcessGroupAnswerer = 'person' | 'agent'
+
+export type ProcessGroupRebuildSkip = {
+  by: ProcessGroupAnswerer
+  note?: string
+  at: number
+}
+
+export type ProcessGroupLegLandingSource =
+  | 'person'
+  | 'leg-run'
+  | 'story-run'
+  | 'agent-run'
+  | 'history'
+
+export type ProcessGroupLegLanding = {
+  commit: string
+  baseRef: string
+  subject?: string
+  runId?: string
+  source: ProcessGroupLegLandingSource
+  note?: string
+  at: number
+}
+
+export type ProcessGroupLegBranch = {
+  legId: string
+  projectId: string
+  runId: string
+  branch: string
+  baseRef: string
+  tip?: string
+  heldAt: number
+}
+
+export type ProcessGroupLegLeftOut = {
+  reason: string
+  at: number
+}
+
+export type ProcessGroupLeg = {
+  id: string
+  projectId: string
+  storyId: string
+  title: string
+  dependsOn: Array<string>
+  processId?: string
+  integrationMode?: 'merge' | 'squash' | 'pull-request'
+  baseBranch?: string
+  runId?: string
+  followsOpenRun?: true
+  previousRunIds?: Array<string>
+  status: ProcessGroupLegStatus
+  rebuiltAt?: number
+  rebuildError?: string
+  rebuildNote?: string
+  rebuildSkipped?: {
+    by: ProcessGroupAnswerer
+    note?: string
+    at: number
+  }
+  noticedParkAt?: number
+  startedAt?: number
+  startError?: string
+  landedBy?: {
+    commit: string
+    baseRef: string
+    subject?: string
+    runId?: string
+    source: ProcessGroupLegLandingSource
+    note?: string
+    at: number
+  }
+  heldBranch?: {
+    legId: string
+    projectId: string
+    runId: string
+    branch: string
+    baseRef: string
+    tip?: string
+    heldAt: number
+  }
+  builtOn?: Array<ProcessGroupLegBranch>
+  signOffError?: string
+  leftOut?: {
+    reason: string
+    at: number
+  }
+}
+
+export type ProcessGroupLegApproval = {
+  identity?: {
+    name: string
+    email: string
+    credentialId: string
+  }
+  message?: string
+  checkMerge?: boolean
+  credentialId?: string
+  pullRequest?: {
+    title: string
+    body: string
+  }
+  mode?: 'merge' | 'squash' | 'pull-request'
+  leftOut?: string
+}
+
+export type ProcessGroupSignOffInput = {
+  choice: 'approve' | 'request-changes' | 'reject'
+  legId?: string
+  note?: string
+  requestedProof?: Array<ProofKind>
+  legs?: {
+    [key: string]: ProcessGroupLegApproval
+  }
+  decision?:
+    | {
+        decidedBy: 'person'
+        decidedVia: ProcessPersonDecisionVia
+      }
+    | {
+        decidedBy: 'agent'
+        decidedVia: 'tool'
+        toolName: string
+        chatContextId: string
+      }
+    | {
+        decidedBy: 'manager'
+        decidedVia: 'manager'
+        toolName: string
+        chatContextId: string
+      }
+}
+
+export type ProcessGroupSignOffRecord = {
+  choice: 'approve' | 'request-changes' | 'reject'
+  legId?: string
+  note?: string
+  requestedProof?: Array<ProofKind>
+  legs?: {
+    [key: string]: ProcessGroupLegApproval
+  }
+  decision?:
+    | {
+        decidedBy: 'person'
+        decidedVia: ProcessPersonDecisionVia
+      }
+    | {
+        decidedBy: 'agent'
+        decidedVia: 'tool'
+        toolName: string
+        chatContextId: string
+      }
+    | {
+        decidedBy: 'manager'
+        decidedVia: 'manager'
+        toolName: string
+        chatContextId: string
+      }
+  by: 'person' | 'agent'
+  at: number
+  held: {
+    [key: string]: number
+  }
+}
+
+export type ProcessGroupParkReason =
+  | 'prerequisite-build-failed'
+  | 'leg-failed'
+  | 'leg-start-failed'
+  | 'integration-failed'
+  | 'sign-off'
+  | 'sign-off-failed'
+
+export type ProcessGroupPark = {
+  reason: ProcessGroupParkReason
+  legId?: string
+  message: string
+  parkedAt: number
+}
+
+export type ProcessGroupRunTotals = {
+  costUsd?: number
+  unpricedTokens?: number
+  includedTokens?: number
+  listCostUsd?: number
+  byModel?: Array<ModelSpend>
+  workMs: number
+  elapsedMs: number
+  time: {
+    thinkingMs: number
+    toolMs: number
+    systemMs: number
+    otherMs: number
+    runningMs: number
+    waitingMs: number
+    queuedMs?: number
+    tools: Array<ProcessToolTime>
+  }
+  ticking: boolean
+  at: number
+  legs: {
+    [key: string]: ProcessRunTotals
+  }
+}
+
+export type ProcessGroupRun = {
+  id: string
+  groupId: string
+  title: string
+  chatContextId?: string
+  groupStoryId?: string
+  input?: {
+    [key: string]: unknown
+  }
+  buildMode?: 'merge-first' | 'on-branch'
+  status: ProcessRunStatus
+  legs: Array<ProcessGroupLeg>
+  signOffs?: Array<ProcessGroupSignOffRecord>
+  park?: {
+    reason: ProcessGroupParkReason
+    legId?: string
+    message: string
+    parkedAt: number
+  }
+  parkedMs?: number
+  startedAt: number
+  updatedAt: number
+  endedAt?: number
+  error?: string
+  totals?: {
+    costUsd?: number
+    unpricedTokens?: number
+    includedTokens?: number
+    listCostUsd?: number
+    byModel?: Array<ModelSpend>
+    workMs: number
+    elapsedMs: number
+    time: {
+      thinkingMs: number
+      toolMs: number
+      systemMs: number
+      otherMs: number
+      runningMs: number
+      waitingMs: number
+      queuedMs?: number
+      tools: Array<ProcessToolTime>
+    }
+    ticking: boolean
+    at: number
+    legs: {
+      [key: string]: ProcessRunTotals
+    }
+  }
+}
+
+export type GroupLegs = {
+  legs: Array<ProcessGroupLeg>
+}
+
 export type LoopedRun = {
   plan: {
     steps: Array<ProcessPlanStep>
@@ -21229,6 +23044,15 @@ export type ProofChangeRun = {
   status?: 'pending' | 'running' | 'parked' | 'succeeded' | 'failed' | 'cancelled'
   proofUnavailable?: Array<ProofKindUnavailable>
   changeUiPaths?: Array<string>
+}
+
+export type ProcessPullRequestNeedReason = 'real-changes' | 'generated-only' | 'no-changes'
+
+export type ProcessPullRequestNeed = {
+  needed: boolean
+  reason: ProcessPullRequestNeedReason
+  files: Array<string>
+  generated: Array<string>
 }
 
 export type RecheckRun = {
@@ -21526,16 +23350,31 @@ export type ClosureRun = {
   }
 }
 
-export type TicketWriteAttempt = 'not-attempted' | 'ambiguous' | 'succeeded'
+export type TicketWriteReason =
+  | ConnectorWriteReason
+  | 'reservation-failed'
+  | 'record-failed'
+  | 'dispatch-in-progress'
+  | 'confirmation-unavailable'
 
 export type ProcessTicketSignOffResult = {
   ref: ExternalRef
-  comment: 'posted' | 'failed' | 'skipped'
-  transition: 'applied' | 'failed' | 'skipped'
-  commentAttempt: TicketWriteAttempt
-  transitionAttempt: TicketWriteAttempt
-  duplicateOf?: number
+  comment: TicketWriteOutcome
+  transition: TicketWriteOutcome
+  reason?:
+    | ConnectorWriteReason
+    | 'reservation-failed'
+    | 'record-failed'
+    | 'dispatch-in-progress'
+    | 'confirmation-unavailable'
   error?: string
+  duplicateOf?: number
+}
+
+export type ProcessTicketSignOffInput = {
+  runId: string
+  refs: Array<ExternalRef>
+  evidenceSummary: string
 }
 
 export type ChainLink = {
@@ -23977,25 +25816,6 @@ export type ProcessResumeOptions = {
   files?: Array<string>
 }
 
-export type ProcessGroupLegStatus =
-  | 'blocked'
-  | 'starting'
-  | 'start-failed'
-  | 'running'
-  | 'needs-you'
-  | 'waiting'
-  | 'manager-on-it'
-  | 'at-sign-off'
-  | 'integrating'
-  | 'integrated'
-  | 'rebuilding'
-  | 'rebuild-failed'
-  | 'integration-failed'
-  | 'failed'
-  | 'cancelled'
-  | 'rejected'
-  | 'skipped'
-
 export type ProcessGroupLegRef = {
   legId: string
   projectId: string
@@ -24013,64 +25833,16 @@ export type ProcessGroupLegMergeGate =
       waitingOn: Array<ProcessGroupLegRef>
     }
 
-export type ProcessGroupAnswerer = 'person' | 'agent'
-
-export type ProcessGroupRebuildSkip = {
-  by: ProcessGroupAnswerer
-  note?: string
-  at: number
-}
-
-export type ProcessGroupLegLandingSource =
-  | 'person'
-  | 'leg-run'
-  | 'story-run'
-  | 'agent-run'
-  | 'history'
-
-export type ProcessGroupLegLanding = {
-  commit: string
-  baseRef: string
-  subject?: string
-  runId?: string
-  source: ProcessGroupLegLandingSource
-  note?: string
-  at: number
-}
-
-export type ProcessGroupLeg = {
-  id: string
+export type ProcessGroupGoingLiveStep = {
+  legId: string
   projectId: string
-  storyId: string
   title: string
-  dependsOn: Array<string>
-  processId?: string
-  integrationMode?: 'merge' | 'squash' | 'pull-request'
-  baseBranch?: string
-  runId?: string
-  followsOpenRun?: true
-  previousRunIds?: Array<string>
-  status: ProcessGroupLegStatus
-  rebuiltAt?: number
-  rebuildError?: string
-  rebuildNote?: string
-  rebuildSkipped?: {
-    by: ProcessGroupAnswerer
-    note?: string
-    at: number
-  }
-  noticedParkAt?: number
-  startedAt?: number
-  startError?: string
-  landedBy?: {
-    commit: string
-    baseRef: string
-    subject?: string
-    runId?: string
-    source: ProcessGroupLegLandingSource
-    note?: string
-    at: number
-  }
+  after: Array<string>
+}
+
+export type ProcessGroupGoingLive = {
+  steps: Array<ProcessGroupGoingLiveStep>
+  words: string
 }
 
 export type ProcessGroupLegLandingClaim = {
@@ -24269,25 +26041,13 @@ export type ProcessGroupRebuildResult =
       error: string
     }
 
-export type ProcessGroupParkReason =
-  | 'prerequisite-build-failed'
-  | 'leg-failed'
-  | 'leg-start-failed'
-  | 'integration-failed'
-
-export type ProcessGroupPark = {
-  reason: ProcessGroupParkReason
-  legId?: string
-  message: string
-  parkedAt: number
-}
-
 export type ProcessGroupResumeChoice =
   | 'retry-leg'
   | 'skip-leg'
   | 'retry-rebuild'
   | 'skip-rebuild'
   | 'retry-integration'
+  | 'retry-sign-off'
   | 'abandon'
 
 export type ProcessGroupParkChoice = {
@@ -24305,79 +26065,6 @@ export type ProcessGroupResumeInput = {
   }
 }
 
-export type ProcessGroupRunTotals = {
-  costUsd?: number
-  unpricedTokens?: number
-  includedTokens?: number
-  listCostUsd?: number
-  byModel?: Array<ModelSpend>
-  workMs: number
-  elapsedMs: number
-  time: {
-    thinkingMs: number
-    toolMs: number
-    systemMs: number
-    otherMs: number
-    runningMs: number
-    waitingMs: number
-    queuedMs?: number
-    tools: Array<ProcessToolTime>
-  }
-  ticking: boolean
-  at: number
-  legs: {
-    [key: string]: ProcessRunTotals
-  }
-}
-
-export type ProcessGroupRun = {
-  id: string
-  groupId: string
-  title: string
-  chatContextId?: string
-  groupStoryId?: string
-  input?: {
-    [key: string]: unknown
-  }
-  status: ProcessRunStatus
-  legs: Array<ProcessGroupLeg>
-  park?: {
-    reason: ProcessGroupParkReason
-    legId?: string
-    message: string
-    parkedAt: number
-  }
-  parkedMs?: number
-  startedAt: number
-  updatedAt: number
-  endedAt?: number
-  error?: string
-  totals?: {
-    costUsd?: number
-    unpricedTokens?: number
-    includedTokens?: number
-    listCostUsd?: number
-    byModel?: Array<ModelSpend>
-    workMs: number
-    elapsedMs: number
-    time: {
-      thinkingMs: number
-      toolMs: number
-      systemMs: number
-      otherMs: number
-      runningMs: number
-      waitingMs: number
-      queuedMs?: number
-      tools: Array<ProcessToolTime>
-    }
-    ticking: boolean
-    at: number
-    legs: {
-      [key: string]: ProcessRunTotals
-    }
-  }
-}
-
 export type StartProcessGroupRunInput = {
   id?: string
   groupId: string
@@ -24387,6 +26074,7 @@ export type StartProcessGroupRunInput = {
   input?: {
     [key: string]: unknown
   }
+  buildMode?: 'merge-first' | 'on-branch'
   legs: Array<{
     id: string
     projectId: string
@@ -24419,6 +26107,20 @@ export type ProcessGroupAction =
   | {
       kind: 'notify-leg'
       legId: string
+    }
+  | {
+      kind: 'stop-leg'
+      legId: string
+    }
+  | {
+      kind: 'reopen-leg'
+      legId: string
+      needs: Array<string>
+    }
+  | {
+      kind: 'sign-off-leg'
+      legId: string
+      choice: 'approve' | 'reject'
     }
   | {
       kind: 'park'
@@ -24725,6 +26427,7 @@ export type EntityInput = {
       }
     | Array<unknown>
   shouldEmbed?: boolean
+  embedText?: string
   externalKey?: string | unknown
   metadata?: {
     [key: string]: unknown
@@ -24739,6 +26442,7 @@ export type EntityPatch = {
       }
     | Array<unknown>
   shouldEmbed?: boolean
+  embedText?: string
   externalKey?: string | unknown
   metadata?: {
     [key: string]: unknown
@@ -24764,13 +26468,28 @@ export type EntityWithScore = {
   totalScore: number
 }
 
-export type EntityFilterOp = '<' | '<=' | '=' | '!=' | '>=' | '>' | 'contains' | 'exists'
+export type EntityFilterOp =
+  | '<'
+  | '<='
+  | '='
+  | '!='
+  | '>='
+  | '>'
+  | 'contains'
+  | 'exists'
+  | 'hasPrefix'
 
-export type EntityFieldPredicate = {
-  field: string
-  op: EntityFilterOp
-  value?: string | number | boolean
-}
+export type EntityFieldPredicate =
+  | {
+      field: string
+      op: '<' | '<=' | '=' | '!=' | '>=' | '>' | 'contains' | 'exists'
+      value?: string | number | boolean
+    }
+  | {
+      field: string
+      op: 'hasPrefix'
+      value: Array<string>
+    }
 
 export type EntitySort = {
   field: string
@@ -25047,6 +26766,7 @@ export type UpdateCompletionSettingsInput = {
         toolContentPreviewChars?: number
       }
       cliContextStaleTurns?: number
+      seedCeilingFraction?: number
     }
   }
 }
@@ -25537,6 +27257,10 @@ export type CreateProjectData = {
         | KotlinTestFramework
         | SwiftTestFramework
     }
+    guidelines?: {
+      docs?: Array<string>
+      reviewAgentType?: string
+    }
     mainGroupId?: string | unknown
     scopeGroupIds?: Array<string>
     overrides?: {
@@ -25638,6 +27362,7 @@ export type UpdateProjectData = {
       description?: string
     }
     codeInfo?: ProjectCodeInfo | unknown
+    guidelines?: ProjectGuidelines | unknown
   }
   path: {
     id: string
@@ -26025,6 +27750,10 @@ export type CreateProjectGithubRepoData = {
               | KotlinTestFramework
               | SwiftTestFramework
           }
+          guidelines?: {
+            docs?: Array<string>
+            reviewAgentType?: string
+          }
           mainGroupId?: string | unknown
           scopeGroupIds?: Array<string>
           overrides?: {
@@ -26117,6 +27846,7 @@ export type ListProjectsGroupsResponses = {
       projectKeys?: Array<string>
       signOffTransition?: string
     }
+    signOffOutputs?: Array<SignOffOutputDefinition>
     createdAt: string
     updatedAt: string
   }>
@@ -26161,6 +27891,7 @@ export type CreateProjectsGroupResponses = {
       projectKeys?: Array<string>
       signOffTransition?: string
     }
+    signOffOutputs?: Array<SignOffOutputDefinition>
     createdAt: string
     updatedAt: string
   }
@@ -26440,6 +28171,7 @@ export type DeleteProjectsGroupResponses = {
       projectKeys?: Array<string>
       signOffTransition?: string
     }
+    signOffOutputs?: Array<SignOffOutputDefinition>
     createdAt: string
     updatedAt: string
   }>
@@ -26486,6 +28218,7 @@ export type GetProjectsGroupResponses = {
       projectKeys?: Array<string>
       signOffTransition?: string
     }
+    signOffOutputs?: Array<SignOffOutputDefinition>
     createdAt: string
     updatedAt: string
   }
@@ -26539,6 +28272,7 @@ export type UpdateProjectsGroupResponses = {
       projectKeys?: Array<string>
       signOffTransition?: string
     }
+    signOffOutputs?: Array<SignOffOutputDefinition>
     createdAt: string
     updatedAt: string
   }
@@ -26586,6 +28320,7 @@ export type ReorderProjectInGroupResponses = {
       projectKeys?: Array<string>
       signOffTransition?: string
     }
+    signOffOutputs?: Array<SignOffOutputDefinition>
     createdAt: string
     updatedAt: string
   }
@@ -26631,6 +28366,7 @@ export type ReorderProjectsGroupsResponses = {
       projectKeys?: Array<string>
       signOffTransition?: string
     }
+    signOffOutputs?: Array<SignOffOutputDefinition>
     createdAt: string
     updatedAt: string
   }>
@@ -26638,6 +28374,803 @@ export type ReorderProjectsGroupsResponses = {
 
 export type ReorderProjectsGroupsResponse =
   ReorderProjectsGroupsResponses[keyof ReorderProjectsGroupsResponses]
+
+export type ListGroupMcpServersData = {
+  body?: never
+  path: {
+    id: string
+  }
+  query?: never
+  url: '/api/v1/projects-groups/{id}/mcp-servers'
+}
+
+export type ListGroupMcpServersErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ListGroupMcpServersError = ListGroupMcpServersErrors[keyof ListGroupMcpServersErrors]
+
+export type ListGroupMcpServersResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    id: string
+    name: string
+    url: string
+    authType: 'none' | 'bearer' | 'oauth'
+    hasCredential: boolean
+    source: McpServerSource
+    groupId?: string
+  }>
+}
+
+export type ListGroupMcpServersResponse =
+  ListGroupMcpServersResponses[keyof ListGroupMcpServersResponses]
+
+export type AddGroupMcpServerData = {
+  body: {
+    name: string
+    url: string
+    authType: 'none' | 'bearer' | 'oauth'
+  }
+  path: {
+    id: string
+  }
+  query?: never
+  url: '/api/v1/projects-groups/{id}/mcp-servers'
+}
+
+export type AddGroupMcpServerErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type AddGroupMcpServerError = AddGroupMcpServerErrors[keyof AddGroupMcpServerErrors]
+
+export type AddGroupMcpServerResponses = {
+  /**
+   * Default Response
+   */
+  201: {
+    id: string
+    name: string
+    url: string
+    authType: 'none' | 'bearer' | 'oauth'
+    hasCredential: boolean
+    source: McpServerSource
+    groupId?: string
+  }
+}
+
+export type AddGroupMcpServerResponse = AddGroupMcpServerResponses[keyof AddGroupMcpServerResponses]
+
+export type ListGroupMcpServerStatusData = {
+  body?: never
+  path: {
+    id: string
+  }
+  query?: never
+  url: '/api/v1/projects-groups/{id}/mcp-servers/status'
+}
+
+export type ListGroupMcpServerStatusErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ListGroupMcpServerStatusError =
+  ListGroupMcpServerStatusErrors[keyof ListGroupMcpServerStatusErrors]
+
+export type ListGroupMcpServerStatusResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    serverId: string
+    status: McpServerStatus
+    reason?: string
+    toolCount: number
+    omittedTools: number
+    tools: Array<{
+      /**
+       * The name agents call it by.
+       */
+      name: string
+      /**
+       * Its name on the server.
+       */
+      toolName: string
+      description: string
+      readOnly: boolean
+    }>
+  }>
+}
+
+export type ListGroupMcpServerStatusResponse =
+  ListGroupMcpServerStatusResponses[keyof ListGroupMcpServerStatusResponses]
+
+export type RemoveGroupMcpServerData = {
+  body?: never
+  path: {
+    id: string
+    serverId: string
+  }
+  query?: never
+  url: '/api/v1/projects-groups/{id}/mcp-servers/{serverId}'
+}
+
+export type RemoveGroupMcpServerErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type RemoveGroupMcpServerError = RemoveGroupMcpServerErrors[keyof RemoveGroupMcpServerErrors]
+
+export type RemoveGroupMcpServerResponses = {
+  /**
+   * Default Response
+   */
+  204: void
+}
+
+export type RemoveGroupMcpServerResponse =
+  RemoveGroupMcpServerResponses[keyof RemoveGroupMcpServerResponses]
+
+export type EditGroupMcpServerData = {
+  body: {
+    name?: string
+    url?: string
+    authType?: 'none' | 'bearer' | 'oauth'
+  }
+  path: {
+    id: string
+    serverId: string
+  }
+  query?: never
+  url: '/api/v1/projects-groups/{id}/mcp-servers/{serverId}'
+}
+
+export type EditGroupMcpServerErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type EditGroupMcpServerError = EditGroupMcpServerErrors[keyof EditGroupMcpServerErrors]
+
+export type EditGroupMcpServerResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    id: string
+    name: string
+    url: string
+    authType: 'none' | 'bearer' | 'oauth'
+    hasCredential: boolean
+    source: McpServerSource
+    groupId?: string
+  }
+}
+
+export type EditGroupMcpServerResponse =
+  EditGroupMcpServerResponses[keyof EditGroupMcpServerResponses]
+
+export type SetGroupMcpServerTokenData = {
+  body: {
+    token: string
+  }
+  path: {
+    id: string
+    serverId: string
+  }
+  query?: never
+  url: '/api/v1/projects-groups/{id}/mcp-servers/{serverId}/token'
+}
+
+export type SetGroupMcpServerTokenErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type SetGroupMcpServerTokenError =
+  SetGroupMcpServerTokenErrors[keyof SetGroupMcpServerTokenErrors]
+
+export type SetGroupMcpServerTokenResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    id: string
+    name: string
+    url: string
+    authType: 'none' | 'bearer' | 'oauth'
+    hasCredential: boolean
+    source: McpServerSource
+    groupId?: string
+  }
+}
+
+export type SetGroupMcpServerTokenResponse =
+  SetGroupMcpServerTokenResponses[keyof SetGroupMcpServerTokenResponses]
+
+export type StartGroupMcpServerSignInData = {
+  body: {
+    /**
+     * This backend’s callback, as the browser doing the sign-in reaches it: `<backend URL>/api/v1/mcp-servers/oauth/callback`.
+     */
+    redirectUrl: string
+  }
+  path: {
+    id: string
+    serverId: string
+  }
+  query?: never
+  url: '/api/v1/projects-groups/{id}/mcp-servers/{serverId}/sign-in'
+}
+
+export type StartGroupMcpServerSignInErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  422: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type StartGroupMcpServerSignInError =
+  StartGroupMcpServerSignInErrors[keyof StartGroupMcpServerSignInErrors]
+
+export type StartGroupMcpServerSignInResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    /**
+     * Open this in the person’s browser.
+     */
+    authorizationUrl: string
+  }
+}
+
+export type StartGroupMcpServerSignInResponse =
+  StartGroupMcpServerSignInResponses[keyof StartGroupMcpServerSignInResponses]
+
+export type TestGroupMcpServerData = {
+  body?: never
+  path: {
+    id: string
+    serverId: string
+  }
+  query?: never
+  url: '/api/v1/projects-groups/{id}/mcp-servers/{serverId}/test'
+}
+
+export type TestGroupMcpServerErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type TestGroupMcpServerError = TestGroupMcpServerErrors[keyof TestGroupMcpServerErrors]
+
+export type TestGroupMcpServerResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    status: McpServerStatus
+    reason?: string
+    tools: Array<{
+      name: string
+      description?: string
+      readOnly: boolean
+    }>
+  }
+}
+
+export type TestGroupMcpServerResponse =
+  TestGroupMcpServerResponses[keyof TestGroupMcpServerResponses]
+
+export type ListProjectMcpServersData = {
+  body?: never
+  path: {
+    id: string
+  }
+  query?: never
+  url: '/api/v1/projects/{id}/mcp-servers'
+}
+
+export type ListProjectMcpServersErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ListProjectMcpServersError =
+  ListProjectMcpServersErrors[keyof ListProjectMcpServersErrors]
+
+export type ListProjectMcpServersResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    id: string
+    name: string
+    url: string
+    authType: 'none' | 'bearer' | 'oauth'
+    hasCredential: boolean
+    source: McpServerSource
+    groupId?: string
+  }>
+}
+
+export type ListProjectMcpServersResponse =
+  ListProjectMcpServersResponses[keyof ListProjectMcpServersResponses]
+
+export type AddProjectMcpServerData = {
+  body: {
+    name: string
+    url: string
+    authType: 'none' | 'bearer' | 'oauth'
+  }
+  path: {
+    id: string
+  }
+  query?: never
+  url: '/api/v1/projects/{id}/mcp-servers'
+}
+
+export type AddProjectMcpServerErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type AddProjectMcpServerError = AddProjectMcpServerErrors[keyof AddProjectMcpServerErrors]
+
+export type AddProjectMcpServerResponses = {
+  /**
+   * Default Response
+   */
+  201: {
+    id: string
+    name: string
+    url: string
+    authType: 'none' | 'bearer' | 'oauth'
+    hasCredential: boolean
+    source: McpServerSource
+    groupId?: string
+  }
+}
+
+export type AddProjectMcpServerResponse =
+  AddProjectMcpServerResponses[keyof AddProjectMcpServerResponses]
+
+export type ListProjectMcpServerStatusData = {
+  body?: never
+  path: {
+    id: string
+  }
+  query?: never
+  url: '/api/v1/projects/{id}/mcp-servers/status'
+}
+
+export type ListProjectMcpServerStatusErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ListProjectMcpServerStatusError =
+  ListProjectMcpServerStatusErrors[keyof ListProjectMcpServerStatusErrors]
+
+export type ListProjectMcpServerStatusResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    serverId: string
+    status: McpServerStatus
+    reason?: string
+    toolCount: number
+    omittedTools: number
+    tools: Array<{
+      /**
+       * The name agents call it by.
+       */
+      name: string
+      /**
+       * Its name on the server.
+       */
+      toolName: string
+      description: string
+      readOnly: boolean
+    }>
+  }>
+}
+
+export type ListProjectMcpServerStatusResponse =
+  ListProjectMcpServerStatusResponses[keyof ListProjectMcpServerStatusResponses]
+
+export type RemoveProjectMcpServerData = {
+  body?: never
+  path: {
+    id: string
+    serverId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{id}/mcp-servers/{serverId}'
+}
+
+export type RemoveProjectMcpServerErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type RemoveProjectMcpServerError =
+  RemoveProjectMcpServerErrors[keyof RemoveProjectMcpServerErrors]
+
+export type RemoveProjectMcpServerResponses = {
+  /**
+   * Default Response
+   */
+  204: void
+}
+
+export type RemoveProjectMcpServerResponse =
+  RemoveProjectMcpServerResponses[keyof RemoveProjectMcpServerResponses]
+
+export type EditProjectMcpServerData = {
+  body: {
+    name?: string
+    url?: string
+    authType?: 'none' | 'bearer' | 'oauth'
+  }
+  path: {
+    id: string
+    serverId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{id}/mcp-servers/{serverId}'
+}
+
+export type EditProjectMcpServerErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type EditProjectMcpServerError = EditProjectMcpServerErrors[keyof EditProjectMcpServerErrors]
+
+export type EditProjectMcpServerResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    id: string
+    name: string
+    url: string
+    authType: 'none' | 'bearer' | 'oauth'
+    hasCredential: boolean
+    source: McpServerSource
+    groupId?: string
+  }
+}
+
+export type EditProjectMcpServerResponse =
+  EditProjectMcpServerResponses[keyof EditProjectMcpServerResponses]
+
+export type SetProjectMcpServerTokenData = {
+  body: {
+    token: string
+  }
+  path: {
+    id: string
+    serverId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{id}/mcp-servers/{serverId}/token'
+}
+
+export type SetProjectMcpServerTokenErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type SetProjectMcpServerTokenError =
+  SetProjectMcpServerTokenErrors[keyof SetProjectMcpServerTokenErrors]
+
+export type SetProjectMcpServerTokenResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    id: string
+    name: string
+    url: string
+    authType: 'none' | 'bearer' | 'oauth'
+    hasCredential: boolean
+    source: McpServerSource
+    groupId?: string
+  }
+}
+
+export type SetProjectMcpServerTokenResponse =
+  SetProjectMcpServerTokenResponses[keyof SetProjectMcpServerTokenResponses]
+
+export type StartProjectMcpServerSignInData = {
+  body: {
+    /**
+     * This backend’s callback, as the browser doing the sign-in reaches it: `<backend URL>/api/v1/mcp-servers/oauth/callback`.
+     */
+    redirectUrl: string
+  }
+  path: {
+    id: string
+    serverId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{id}/mcp-servers/{serverId}/sign-in'
+}
+
+export type StartProjectMcpServerSignInErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  422: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type StartProjectMcpServerSignInError =
+  StartProjectMcpServerSignInErrors[keyof StartProjectMcpServerSignInErrors]
+
+export type StartProjectMcpServerSignInResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    /**
+     * Open this in the person’s browser.
+     */
+    authorizationUrl: string
+  }
+}
+
+export type StartProjectMcpServerSignInResponse =
+  StartProjectMcpServerSignInResponses[keyof StartProjectMcpServerSignInResponses]
+
+export type TestProjectMcpServerData = {
+  body?: never
+  path: {
+    id: string
+    serverId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{id}/mcp-servers/{serverId}/test'
+}
+
+export type TestProjectMcpServerErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type TestProjectMcpServerError = TestProjectMcpServerErrors[keyof TestProjectMcpServerErrors]
+
+export type TestProjectMcpServerResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    status: McpServerStatus
+    reason?: string
+    tools: Array<{
+      name: string
+      description?: string
+      readOnly: boolean
+    }>
+  }
+}
+
+export type TestProjectMcpServerResponse =
+  TestProjectMcpServerResponses[keyof TestProjectMcpServerResponses]
+
+export type FinishMcpServerSignInData = {
+  body?: never
+  path?: never
+  query: {
+    state: string
+    code?: string
+    error?: string
+    error_description?: string
+  }
+  url: '/api/v1/mcp-servers/oauth/callback'
+}
+
+export type FinishMcpServerSignInErrors = {
+  /**
+   * Default Response
+   */
+  400: string
+}
+
+export type FinishMcpServerSignInError =
+  FinishMcpServerSignInErrors[keyof FinishMcpServerSignInErrors]
+
+export type FinishMcpServerSignInResponses = {
+  /**
+   * Default Response
+   */
+  200: string
+}
+
+export type FinishMcpServerSignInResponse =
+  FinishMcpServerSignInResponses[keyof FinishMcpServerSignInResponses]
 
 export type ListStoriesData = {
   body?: never
@@ -29309,6 +31842,10 @@ export type PreviewProcessGroupRunData = {
        */
       baseBranch?: string
     }>
+    /**
+     * The group story this launches, so the card can name its ticket.
+     */
+    groupStoryId?: string
   }
   path?: never
   query?: never
@@ -29322,6 +31859,7 @@ export type PreviewProcessGroupRunResponses = {
   200: {
     groupId: string
     groupTitle?: string
+    buildMode?: 'merge-first' | 'on-branch'
     legs: Array<{
       projectId: string
       projectTitle: string
@@ -29368,6 +31906,25 @@ export type PreviewProcessGroupRunResponses = {
      */
     waves: Array<Array<string>>
     problems: Array<string>
+    ticketMove?: {
+      ticketKey: string
+      ticketTitle?: string
+      ticketUrl?: string
+      ticketStatus?: string
+      /**
+       * The move as the card shows it; absent when there is none.
+       */
+      change?: string
+      /**
+       * What a launch sends back to approve the move.
+       */
+      transitionId?: string
+      toStatus?: string
+      /**
+       * Why no move is offered.
+       */
+      unavailable?: string
+    }
   }
 }
 
@@ -29414,6 +31971,482 @@ export type ResumeProcessGroupRunResponses = {
 
 export type ResumeProcessGroupRunResponse =
   ResumeProcessGroupRunResponses[keyof ResumeProcessGroupRunResponses]
+
+export type GetProcessGroupSignOffData = {
+  body?: never
+  path: {
+    groupRunId: string
+  }
+  query?: never
+  url: '/api/v1/process-group-runs/{groupRunId}/sign-off'
+}
+
+export type GetProcessGroupSignOffErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetProcessGroupSignOffError =
+  GetProcessGroupSignOffErrors[keyof GetProcessGroupSignOffErrors]
+
+export type GetProcessGroupSignOffResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    groupRunId: string
+    title: string
+    status: ProcessRunStatus
+    /**
+     * The group waits for its one decision.
+     */
+    canDecide: boolean
+    /**
+     * A pull request failed and can be tried again.
+     */
+    canRetry: boolean
+    /**
+     * Outputs can still be changed.
+     */
+    canEditOutputs: boolean
+    tickets: Array<ExternalRef>
+    repos: Array<{
+      legId: string
+      projectId: string
+      title: string
+      status: ProcessGroupLegStatus
+      runId?: string
+      branch?: string
+      baseRef?: string
+      /**
+       * The proof its sign-off shows: outputs and walkthrough filings left out.
+       */
+      evidence: Array<ReviewEvidenceRef>
+      pullRequest: {
+        /**
+         * Where it stands: `to-open` before approving, `opened` or `failed` after.
+         */
+        state:
+          | 'waiting'
+          | 'unread'
+          | 'to-open'
+          | 'left-out'
+          | 'opening'
+          | 'opened'
+          | 'failed'
+          | 'by-hand'
+          | 'merged'
+        /**
+         * Its title, split out of its PR Text.
+         */
+        title?: string
+        /**
+         * Why this repo gets none.
+         */
+        leftOut?: string
+        files?: Array<string>
+        generated?: Array<string>
+        url?: string
+        /**
+         * Where to open it by hand, on a host with no API.
+         */
+        compareUrl?: string
+        error?: string
+      }
+    }>
+    outputs: Array<SignOffOutputView>
+    goingLive: ProcessGroupGoingLive
+    walkthrough: Array<LoomWalkthroughItem>
+    attachments: Array<{
+      evidenceId: string
+      projectId: string
+      kind: 'screenshot' | 'recording' | 'file' | 'link'
+      name: string
+      mediaType?: string
+      /**
+       * Where its file downloads from; absent for a link.
+       */
+      downloadPath?: string
+      /**
+       * A walkthrough a person gave as a link.
+       */
+      url?: string
+    }>
+  }
+}
+
+export type GetProcessGroupSignOffResponse =
+  GetProcessGroupSignOffResponses[keyof GetProcessGroupSignOffResponses]
+
+export type SignOffProcessGroupRunData = {
+  body: {
+    choice: 'approve' | 'request-changes' | 'reject'
+    /**
+     * With `request-changes`, required: the leg sent back.
+     */
+    legId?: string
+    note?: string
+    requestedProof?: Array<ProofKind>
+    /**
+     * The app the person decided on, recorded on the decision.
+     */
+    decidedVia: 'web' | 'desktop' | 'mobile'
+  }
+  path: {
+    groupRunId: string
+  }
+  query?: never
+  url: '/api/v1/process-group-runs/{groupRunId}/sign-off'
+}
+
+export type SignOffProcessGroupRunErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type SignOffProcessGroupRunError =
+  SignOffProcessGroupRunErrors[keyof SignOffProcessGroupRunErrors]
+
+export type SignOffProcessGroupRunResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    groupRunId: string
+    title: string
+    status: ProcessRunStatus
+    /**
+     * The group waits for its one decision.
+     */
+    canDecide: boolean
+    /**
+     * A pull request failed and can be tried again.
+     */
+    canRetry: boolean
+    /**
+     * Outputs can still be changed.
+     */
+    canEditOutputs: boolean
+    tickets: Array<ExternalRef>
+    repos: Array<{
+      legId: string
+      projectId: string
+      title: string
+      status: ProcessGroupLegStatus
+      runId?: string
+      branch?: string
+      baseRef?: string
+      /**
+       * The proof its sign-off shows: outputs and walkthrough filings left out.
+       */
+      evidence: Array<ReviewEvidenceRef>
+      pullRequest: {
+        /**
+         * Where it stands: `to-open` before approving, `opened` or `failed` after.
+         */
+        state:
+          | 'waiting'
+          | 'unread'
+          | 'to-open'
+          | 'left-out'
+          | 'opening'
+          | 'opened'
+          | 'failed'
+          | 'by-hand'
+          | 'merged'
+        /**
+         * Its title, split out of its PR Text.
+         */
+        title?: string
+        /**
+         * Why this repo gets none.
+         */
+        leftOut?: string
+        files?: Array<string>
+        generated?: Array<string>
+        url?: string
+        /**
+         * Where to open it by hand, on a host with no API.
+         */
+        compareUrl?: string
+        error?: string
+      }
+    }>
+    outputs: Array<SignOffOutputView>
+    goingLive: ProcessGroupGoingLive
+    walkthrough: Array<LoomWalkthroughItem>
+    attachments: Array<{
+      evidenceId: string
+      projectId: string
+      kind: 'screenshot' | 'recording' | 'file' | 'link'
+      name: string
+      mediaType?: string
+      /**
+       * Where its file downloads from; absent for a link.
+       */
+      downloadPath?: string
+      /**
+       * A walkthrough a person gave as a link.
+       */
+      url?: string
+    }>
+  }
+}
+
+export type SignOffProcessGroupRunResponse =
+  SignOffProcessGroupRunResponses[keyof SignOffProcessGroupRunResponses]
+
+export type RetryProcessGroupPullRequestsData = {
+  body?: never
+  path: {
+    groupRunId: string
+  }
+  query?: never
+  url: '/api/v1/process-group-runs/{groupRunId}/sign-off/retry'
+}
+
+export type RetryProcessGroupPullRequestsErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type RetryProcessGroupPullRequestsError =
+  RetryProcessGroupPullRequestsErrors[keyof RetryProcessGroupPullRequestsErrors]
+
+export type RetryProcessGroupPullRequestsResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    groupRunId: string
+    title: string
+    status: ProcessRunStatus
+    /**
+     * The group waits for its one decision.
+     */
+    canDecide: boolean
+    /**
+     * A pull request failed and can be tried again.
+     */
+    canRetry: boolean
+    /**
+     * Outputs can still be changed.
+     */
+    canEditOutputs: boolean
+    tickets: Array<ExternalRef>
+    repos: Array<{
+      legId: string
+      projectId: string
+      title: string
+      status: ProcessGroupLegStatus
+      runId?: string
+      branch?: string
+      baseRef?: string
+      /**
+       * The proof its sign-off shows: outputs and walkthrough filings left out.
+       */
+      evidence: Array<ReviewEvidenceRef>
+      pullRequest: {
+        /**
+         * Where it stands: `to-open` before approving, `opened` or `failed` after.
+         */
+        state:
+          | 'waiting'
+          | 'unread'
+          | 'to-open'
+          | 'left-out'
+          | 'opening'
+          | 'opened'
+          | 'failed'
+          | 'by-hand'
+          | 'merged'
+        /**
+         * Its title, split out of its PR Text.
+         */
+        title?: string
+        /**
+         * Why this repo gets none.
+         */
+        leftOut?: string
+        files?: Array<string>
+        generated?: Array<string>
+        url?: string
+        /**
+         * Where to open it by hand, on a host with no API.
+         */
+        compareUrl?: string
+        error?: string
+      }
+    }>
+    outputs: Array<SignOffOutputView>
+    goingLive: ProcessGroupGoingLive
+    walkthrough: Array<LoomWalkthroughItem>
+    attachments: Array<{
+      evidenceId: string
+      projectId: string
+      kind: 'screenshot' | 'recording' | 'file' | 'link'
+      name: string
+      mediaType?: string
+      /**
+       * Where its file downloads from; absent for a link.
+       */
+      downloadPath?: string
+      /**
+       * A walkthrough a person gave as a link.
+       */
+      url?: string
+    }>
+  }
+}
+
+export type RetryProcessGroupPullRequestsResponse =
+  RetryProcessGroupPullRequestsResponses[keyof RetryProcessGroupPullRequestsResponses]
+
+export type GetProcessGroupOutputData = {
+  body?: never
+  path: {
+    groupRunId: string
+    evidenceId: string
+  }
+  query?: never
+  url: '/api/v1/process-group-runs/{groupRunId}/outputs/{evidenceId}'
+}
+
+export type GetProcessGroupOutputErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetProcessGroupOutputError =
+  GetProcessGroupOutputErrors[keyof GetProcessGroupOutputErrors]
+
+export type GetProcessGroupOutputResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    /**
+     * This version: an edit must name it.
+     */
+    evidenceId: string
+    projectId: string
+    label: string
+    text: string
+    editable: boolean
+  }
+}
+
+export type GetProcessGroupOutputResponse =
+  GetProcessGroupOutputResponses[keyof GetProcessGroupOutputResponses]
+
+export type UpdateProcessGroupOutputData = {
+  body: {
+    text: string
+  }
+  path: {
+    groupRunId: string
+    evidenceId: string
+  }
+  query?: never
+  url: '/api/v1/process-group-runs/{groupRunId}/outputs/{evidenceId}'
+}
+
+export type UpdateProcessGroupOutputErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type UpdateProcessGroupOutputError =
+  UpdateProcessGroupOutputErrors[keyof UpdateProcessGroupOutputErrors]
+
+export type UpdateProcessGroupOutputResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    /**
+     * This version: an edit must name it.
+     */
+    evidenceId: string
+    projectId: string
+    label: string
+    text: string
+    editable: boolean
+  }
+}
+
+export type UpdateProcessGroupOutputResponse =
+  UpdateProcessGroupOutputResponses[keyof UpdateProcessGroupOutputResponses]
 
 export type CheckProcessGroupLegLandingData = {
   body: {
@@ -29858,7 +32891,12 @@ export type GetReviewEvidenceContentData = {
     projectId: string
     evidenceId: string
   }
-  query?: never
+  query?: {
+    /**
+     * Hand the file over as a download, under its own name.
+     */
+    download?: boolean
+  }
   url: '/api/v1/projects/{projectId}/review-evidence/{evidenceId}/content'
 }
 
@@ -29893,6 +32931,145 @@ export type GetReviewEvidenceDiffResponses = {
    */
   200: unknown
 }
+
+export type ListRunWalkthroughItemsData = {
+  body?: never
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}/walkthrough'
+}
+
+export type ListRunWalkthroughItemsErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ListRunWalkthroughItemsError =
+  ListRunWalkthroughItemsErrors[keyof ListRunWalkthroughItemsErrors]
+
+export type ListRunWalkthroughItemsResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<LoomWalkthroughItem>
+}
+
+export type ListRunWalkthroughItemsResponse =
+  ListRunWalkthroughItemsResponses[keyof ListRunWalkthroughItemsResponses]
+
+export type AttachRunWalkthroughLinkData = {
+  body: {
+    /**
+     * An http or https link to the recording.
+     */
+    url: string
+    /**
+     * What to call it.
+     */
+    name?: string
+  }
+  path: {
+    runId: string
+    itemId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}/walkthrough/{itemId}/link'
+}
+
+export type AttachRunWalkthroughLinkErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type AttachRunWalkthroughLinkError =
+  AttachRunWalkthroughLinkErrors[keyof AttachRunWalkthroughLinkErrors]
+
+export type AttachRunWalkthroughLinkResponses = {
+  /**
+   * Default Response
+   */
+  200: LoomWalkthroughItem
+}
+
+export type AttachRunWalkthroughLinkResponse =
+  AttachRunWalkthroughLinkResponses[keyof AttachRunWalkthroughLinkResponses]
+
+export type AttachRunWalkthroughFileData = {
+  body: Blob | File
+  path: {
+    runId: string
+    itemId: string
+  }
+  query: {
+    /**
+     * The file’s name, with no folders in it.
+     */
+    name: string
+  }
+  url: '/api/v1/process-runs/{runId}/walkthrough/{itemId}/file'
+}
+
+export type AttachRunWalkthroughFileErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  413: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type AttachRunWalkthroughFileError =
+  AttachRunWalkthroughFileErrors[keyof AttachRunWalkthroughFileErrors]
+
+export type AttachRunWalkthroughFileResponses = {
+  /**
+   * Default Response
+   */
+  200: LoomWalkthroughItem
+}
+
+export type AttachRunWalkthroughFileResponse =
+  AttachRunWalkthroughFileResponses[keyof AttachRunWalkthroughFileResponses]
 
 export type GetProjectDesignData = {
   body?: never
@@ -32022,6 +35199,12 @@ export type UpdateProviderConnectionData = {
     token?: string
     tokenSource?: 'api-key' | 'oauth'
     refreshToken?: string
+    clientSecret?: string
+    pendingSignIn?: {
+      state: string
+      codeVerifier: string
+      redirectUri: string
+    }
     expiresAt?: string
     scopes?: Array<string>
     baseUrl?: string
@@ -33879,16 +37062,39 @@ export type UpdateChatDynamicContextResponses = {
 export type UpdateChatDynamicContextResponse =
   UpdateChatDynamicContextResponses[keyof UpdateChatDynamicContextResponses]
 
-export type UploadChatAttachmentData = {
-  body: {
-    context: ChatContext
-    name: string
-    contentBase64: string
+export type GetChatsSettingsData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/chats/settings'
+}
+
+export type GetChatsSettingsResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    [key: string]: ChatSettings
   }
+}
+
+export type GetChatsSettingsResponse = GetChatsSettingsResponses[keyof GetChatsSettingsResponses]
+
+export type UploadChatAttachmentData = {
+  body: Blob | File
   path: {
     projectId: string
   }
-  query?: never
+  query: {
+    /**
+     * The file’s name.
+     */
+    name: string
+    /**
+     * The chat’s context, as JSON.
+     */
+    context: string
+  }
   url: '/api/v1/projects/{projectId}/chat-attachments'
 }
 
@@ -33934,17 +37140,30 @@ export type UploadChatAttachmentResponse =
   UploadChatAttachmentResponses[keyof UploadChatAttachmentResponses]
 
 export type UploadAnyChatAttachmentData = {
-  body: {
-    context: ChatContext
-    name: string
-    contentBase64: string
-  }
+  body: Blob | File
   path?: never
-  query?: never
+  query: {
+    /**
+     * The file’s name.
+     */
+    name: string
+    /**
+     * The chat’s context, as JSON.
+     */
+    context: string
+  }
   url: '/api/v1/chat-attachments'
 }
 
 export type UploadAnyChatAttachmentErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
   /**
    * Default Response
    */
@@ -33978,23 +37197,80 @@ export type UploadAnyChatAttachmentResponses = {
 export type UploadAnyChatAttachmentResponse =
   UploadAnyChatAttachmentResponses[keyof UploadAnyChatAttachmentResponses]
 
-export type GetChatsSettingsData = {
+export type GetChatAttachmentDigestData = {
   body?: never
   path?: never
-  query?: never
-  url: '/api/v1/chats/settings'
+  query: {
+    /**
+     * The video’s path, as its upload returned it.
+     */
+    path: string
+    /**
+     * The chat’s context, as JSON.
+     */
+    context: string
+  }
+  url: '/api/v1/chat-attachments/digest'
 }
 
-export type GetChatsSettingsResponses = {
+export type GetChatAttachmentDigestErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetChatAttachmentDigestError =
+  GetChatAttachmentDigestErrors[keyof GetChatAttachmentDigestErrors]
+
+export type GetChatAttachmentDigestResponses = {
   /**
    * Default Response
    */
   200: {
-    [key: string]: ChatSettings
+    stage: VideoDigestStage
+    /**
+     * How far through the stage, 0–100.
+     */
+    percent?: number
+    /**
+     * Why it failed, in words for the person.
+     */
+    reason?: string
+    tokens?: {
+      overviewTokens: number
+      closerLookTokens: number
+    }
+    /**
+     * The first still, project-relative.
+     */
+    poster?: string
+    transcript?: 'done' | 'no-audio' | 'no-speech' | 'not-set-up' | 'failed'
+    /**
+     * The length, once known.
+     */
+    durationSec?: number
+    /**
+     * The size of the file.
+     */
+    sizeBytes?: number
   }
 }
 
-export type GetChatsSettingsResponse = GetChatsSettingsResponses[keyof GetChatsSettingsResponses]
+export type GetChatAttachmentDigestResponse =
+  GetChatAttachmentDigestResponses[keyof GetChatAttachmentDigestResponses]
 
 export type ListFilesData = {
   body?: never
@@ -37632,20 +40908,27 @@ export type SendChatCompletionWithToolsResponse =
 
 export type SendChatWithCliData = {
   body: {
-    chatContext: ChatContext
-    llmConfig: {
-      model: string
-      provider: 'openai' | 'anthropic' | 'gemini' | 'deepseek' | 'xai' | 'qwen' | 'llama' | 'custom'
-      id?: string
-      name?: string
-      apiUrlOverride?: string
-      effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
-      defaultEffort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
-      costInputPerMTokensUSD?: number
-      costOutputPerMTokensUSD?: number
-      costCacheReadInputPerMTokensUSD?: number
-      billing?: 'subscription' | 'metered' | 'free'
-      apiKey?: string
+    chatContext: {
+      type:
+        | 'GENERAL'
+        | 'GROUP'
+        | 'GROUP_TOPIC'
+        | 'PROJECT'
+        | 'STORY'
+        | 'FEATURE'
+        | 'AGENT_RUN_STORY'
+        | 'AGENT_RUN_FEATURE'
+        | 'AGENT_RUN_TASK'
+        | 'PROJECT_TOPIC'
+        | 'FEATURE_REQUEST'
+      groupId?: string
+      projectId?: string
+      storyId?: string
+      featureId?: string
+      agentRunId?: string
+      topicId?: string
+      featureRequestId?: string
+      timestamp?: string
     }
     message: {
       role: 'system' | 'user' | 'assistant' | 'tool'
@@ -37763,7 +41046,36 @@ export type SendChatWithCliData = {
       error?: string
       providerState?: unknown
     }
-    settings: CompletionSettings
+    settings: {
+      limitTurns: boolean
+      maxTurns: number
+      numberMessagesToSend: number
+      availableTools: Array<string>
+      forceFinishTools: Array<string>
+      cliAvailableTools?: Array<string>
+      toolApprovalMode?: 'ask' | 'auto'
+      finishTurnOnErrors: boolean
+      allowNoCallResponses: boolean
+      allowErrorResponses: boolean
+      outputStrategy?: 'native_tools_only' | 'three_phase_structured_native_tools_structured'
+      historySummarization?: {
+        enabled: boolean
+        keepLastTurns?: number
+        maxOpsInSummary?: number
+      }
+      messageSanitization?: {
+        enabled: boolean
+        keepLastMessages?: number
+        protectedChars?: number
+        hardMaxToolContentChars?: number
+        maxAssistantChars?: number
+        maxToolArgChars?: number
+        maxToolContentChars?: number
+        toolContentPreviewChars?: number
+      }
+      cliContextStaleTurns?: number
+      seedCeilingFraction?: number
+    }
     systemPrompt?: string
     runner?: 'api' | 'cli'
     cliRunner?: {
@@ -37773,6 +41085,20 @@ export type SendChatWithCliData = {
       workspaceHostPath?: string
       model?: string
       effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+    }
+    llmConfig?: {
+      model: string
+      provider: 'openai' | 'anthropic' | 'gemini' | 'deepseek' | 'xai' | 'qwen' | 'llama' | 'custom'
+      id?: string
+      name?: string
+      apiUrlOverride?: string
+      effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+      defaultEffort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+      costInputPerMTokensUSD?: number
+      costOutputPerMTokensUSD?: number
+      costCacheReadInputPerMTokensUSD?: number
+      billing?: 'subscription' | 'metered' | 'free'
+      apiKey?: string
     }
   }
   path?: never
@@ -37815,7 +41141,7 @@ export type SendChatWithCliResponse = SendChatWithCliResponses[keyof SendChatWit
 export type RestartChatWithCliData = {
   body: {
     chatContext: ChatContext
-    llmConfig: {
+    llmConfig?: {
       model: string
       provider: 'openai' | 'anthropic' | 'gemini' | 'deepseek' | 'xai' | 'qwen' | 'llama' | 'custom'
       id?: string
@@ -38396,6 +41722,141 @@ export type RecomputeDailyUsageResponses = {
 
 export type RecomputeDailyUsageResponse =
   RecomputeDailyUsageResponses[keyof RecomputeDailyUsageResponses]
+
+export type GetVideoSetupData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/video/setup'
+}
+
+export type GetVideoSetupResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    canDigest: boolean
+    canTranscribe: boolean
+    checks: Array<VideoToolCheck>
+    runningJobs: Array<{
+      kind: 'install' | 'models'
+      tool?: 'ffmpeg' | 'whisper'
+      /**
+       * The end of what an install printed.
+       */
+      output?: string
+      receivedBytes?: number
+      totalBytes?: number
+    }>
+  }
+}
+
+export type GetVideoSetupResponse = GetVideoSetupResponses[keyof GetVideoSetupResponses]
+
+export type InstallVideoSetupToolData = {
+  body: {
+    tool: 'ffmpeg' | 'whisper'
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/video/setup/install'
+}
+
+export type InstallVideoSetupToolResponses = {
+  /**
+   * Default Response
+   */
+  202: {
+    started: boolean
+  }
+}
+
+export type InstallVideoSetupToolResponse =
+  InstallVideoSetupToolResponses[keyof InstallVideoSetupToolResponses]
+
+export type DownloadVideoSetupModelsData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/video/setup/models'
+}
+
+export type DownloadVideoSetupModelsResponses = {
+  /**
+   * Default Response
+   */
+  202: {
+    started: boolean
+  }
+}
+
+export type DownloadVideoSetupModelsResponse =
+  DownloadVideoSetupModelsResponses[keyof DownloadVideoSetupModelsResponses]
+
+export type StopVideoSetupJobData = {
+  body:
+    | {
+        kind: 'install'
+        tool: 'ffmpeg' | 'whisper'
+      }
+    | {
+        kind: 'models'
+      }
+  path?: never
+  query?: never
+  url: '/api/v1/video/setup/stop'
+}
+
+export type StopVideoSetupJobResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    /**
+     * False when that job was not running: nothing was done and no report will come.
+     */
+    stopped: boolean
+  }
+}
+
+export type StopVideoSetupJobResponse = StopVideoSetupJobResponses[keyof StopVideoSetupJobResponses]
+
+export type OpenVideoSetupChatData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/video/setup/agent-chat'
+}
+
+export type OpenVideoSetupChatErrors = {
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type OpenVideoSetupChatError = OpenVideoSetupChatErrors[keyof OpenVideoSetupChatErrors]
+
+export type OpenVideoSetupChatResponses = {
+  /**
+   * Default Response
+   */
+  201: {
+    context: ChatContext
+    chatContextId: string
+    /**
+     * Whether the agent is on it; when not, the chat holds the brief for its first turn.
+     */
+    turnStarted: boolean
+  }
+}
+
+export type OpenVideoSetupChatResponse =
+  OpenVideoSetupChatResponses[keyof OpenVideoSetupChatResponses]
 
 export type ListTemplatesData = {
   body?: never
@@ -42340,6 +45801,7 @@ export type ListGroupStoriesResponses = {
     title: string
     description: string
     parts: Array<GroupStoryPart>
+    externalIds?: Array<ExternalRef>
     createdAt: string
     updatedAt: string
     groupTitle?: string
@@ -42364,6 +45826,10 @@ export type ListGroupStoriesResponses = {
       groupRunId: string
       title: string
       status: ProcessRunStatus
+      buildMode?: 'merge-first' | 'on-branch'
+      park?: {
+        reason: ProcessGroupParkReason
+      }
       waitingOn?: string
       legs: Array<{
         projectId: string
@@ -42403,6 +45869,10 @@ export type CreateGroupStoryData = {
     needs?: {
       [key: string]: Array<string>
     }
+    /**
+     * The tickets it works, every one; `[]` unlinks them. A ticket has one group story.
+     */
+    externalIds?: Array<ExternalRef>
   }
   path: {
     groupId: string
@@ -42458,6 +45928,7 @@ export type CreateGroupStoryResponses = {
     title: string
     description: string
     parts: Array<GroupStoryPart>
+    externalIds?: Array<ExternalRef>
     createdAt: string
     updatedAt: string
     groupTitle?: string
@@ -42482,6 +45953,10 @@ export type CreateGroupStoryResponses = {
       groupRunId: string
       title: string
       status: ProcessRunStatus
+      buildMode?: 'merge-first' | 'on-branch'
+      park?: {
+        reason: ProcessGroupParkReason
+      }
       waitingOn?: string
       legs: Array<{
         projectId: string
@@ -42577,6 +46052,7 @@ export type GetGroupStoryResponses = {
     title: string
     description: string
     parts: Array<GroupStoryPart>
+    externalIds?: Array<ExternalRef>
     createdAt: string
     updatedAt: string
     groupTitle?: string
@@ -42601,6 +46077,10 @@ export type GetGroupStoryResponses = {
       groupRunId: string
       title: string
       status: ProcessRunStatus
+      buildMode?: 'merge-first' | 'on-branch'
+      park?: {
+        reason: ProcessGroupParkReason
+      }
       waitingOn?: string
       legs: Array<{
         projectId: string
@@ -42640,6 +46120,10 @@ export type UpdateGroupStoryData = {
     needs?: {
       [key: string]: Array<string>
     }
+    /**
+     * The tickets it works, every one; `[]` unlinks them. A ticket has one group story.
+     */
+    externalIds?: Array<ExternalRef>
   }
   path: {
     groupId: string
@@ -42696,6 +46180,7 @@ export type UpdateGroupStoryResponses = {
     title: string
     description: string
     parts: Array<GroupStoryPart>
+    externalIds?: Array<ExternalRef>
     createdAt: string
     updatedAt: string
     groupTitle?: string
@@ -42720,6 +46205,10 @@ export type UpdateGroupStoryResponses = {
       groupRunId: string
       title: string
       status: ProcessRunStatus
+      buildMode?: 'merge-first' | 'on-branch'
+      park?: {
+        reason: ProcessGroupParkReason
+      }
       waitingOn?: string
       legs: Array<{
         projectId: string
@@ -42782,6 +46271,7 @@ export type PreviewGroupStoryRunResponses = {
   200: {
     groupId: string
     groupTitle?: string
+    buildMode?: 'merge-first' | 'on-branch'
     legs: Array<{
       projectId: string
       projectTitle: string
@@ -42828,6 +46318,25 @@ export type PreviewGroupStoryRunResponses = {
      */
     waves: Array<Array<string>>
     problems: Array<string>
+    ticketMove?: {
+      ticketKey: string
+      ticketTitle?: string
+      ticketUrl?: string
+      ticketStatus?: string
+      /**
+       * The move as the card shows it; absent when there is none.
+       */
+      change?: string
+      /**
+       * What a launch sends back to approve the move.
+       */
+      transitionId?: string
+      toStatus?: string
+      /**
+       * Why no move is offered.
+       */
+      unavailable?: string
+    }
   }
 }
 
@@ -42859,6 +46368,13 @@ export type RunGroupStoryData = {
      */
     baseBranches?: {
       [key: string]: string
+    }
+    /**
+     * The person’s approval of the move the preview offered; absent to leave it.
+     */
+    ticketMove?: {
+      ticketKey: string
+      transitionId: string
     }
   }
   path: {
@@ -42905,6 +46421,15 @@ export type RunGroupStoryResponses = {
   200: {
     groupRunId: string
     message: string
+    ticketMove?: {
+      ticketKey: string
+      moved: boolean
+      toStatus?: string
+      /**
+       * What to show the person. It never stops the run.
+       */
+      message: string
+    }
   }
 }
 
@@ -42988,6 +46513,162 @@ export type ListProjectGroupStoriesResponses = {
 
 export type ListProjectGroupStoriesResponse =
   ListProjectGroupStoriesResponses[keyof ListProjectGroupStoriesResponses]
+
+export type ListGroupTicketsData = {
+  body?: never
+  path: {
+    groupId: string
+  }
+  query?: {
+    /**
+     * From the last answer, for the next page.
+     */
+    nextPageToken?: string
+  }
+  url: '/api/v1/groups/{groupId}/tickets'
+}
+
+export type ListGroupTicketsErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  502: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ListGroupTicketsError = ListGroupTicketsErrors[keyof ListGroupTicketsErrors]
+
+export type ListGroupTicketsResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    /**
+     * False when the group has no Jira.
+     */
+    connected: boolean
+    access?: 'read' | 'read-write'
+    /**
+     * In board order.
+     */
+    tickets: Array<{
+      key: string
+      summary: string
+      url: string
+      status?: string
+      priority?: string
+      issueType?: string
+      /**
+       * The group story already working it.
+       */
+      groupStory?: {
+        id: string
+        title: string
+      }
+    }>
+    /**
+     * The top ticket with no group story yet.
+     */
+    nextTicketKey?: string
+    nextPageToken?: string
+  }
+}
+
+export type ListGroupTicketsResponse = ListGroupTicketsResponses[keyof ListGroupTicketsResponses]
+
+export type PlanGroupTicketData = {
+  body: {
+    runner?: 'api' | 'cli'
+    cliTool?: string
+    cliModel?: string
+    cliCredentialId?: string
+    effort?: string
+  }
+  path: {
+    groupId: string
+    ticketKey: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/tickets/{ticketKey}/plan'
+}
+
+export type PlanGroupTicketErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  502: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type PlanGroupTicketError = PlanGroupTicketErrors[keyof PlanGroupTicketErrors]
+
+export type PlanGroupTicketResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    ticket: {
+      key: string
+      summary: string
+      url: string
+      status?: string
+      priority?: string
+      issueType?: string
+      /**
+       * The group story already working it.
+       */
+      groupStory?: {
+        id: string
+        title: string
+      }
+    }
+    /**
+     * The ticket’s planning chat.
+     */
+    chatContextId: string
+    context: ChatContext
+    /**
+     * Whether its agent is now working.
+     */
+    turnStarted: boolean
+    /**
+     * The ticket’s chat was there already: nothing new was started.
+     */
+    alreadyOpen: boolean
+  }
+}
+
+export type PlanGroupTicketResponse = PlanGroupTicketResponses[keyof PlanGroupTicketResponses]
 
 export type IngestAllData = {
   body?: never

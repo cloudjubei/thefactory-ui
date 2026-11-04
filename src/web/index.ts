@@ -164,6 +164,7 @@ export {
   type SetUpWithAgentButtonProps,
   type StatusChipProps,
 } from './compound/chips'
+export { TicketChip, type TicketChipProps } from './compound/chips'
 export {
   CommandPalette,
   type CommandPaletteItem,
@@ -757,6 +758,14 @@ export {
   type AgentTypeSettingsPanelProps,
 } from './compound/settings/AgentTypeSettingsPanel'
 export {
+  default as McpServerSettings,
+  type McpServerSettingsProps,
+} from './compound/settings/McpServerSettings'
+export {
+  default as McpServerSettingsPanel,
+  type McpServerSettingsPanelProps,
+} from './compound/settings/McpServerSettingsPanel'
+export {
   default as AgentTypeSlotChooser,
   type AgentTypeSlotChooserProps,
 } from './compound/chat/AgentTypeSlotChooser'
@@ -827,6 +836,12 @@ export { default as ImportTicketsModal } from './compound/settings/ImportTickets
 export type { ImportTicketsModalProps } from './compound/settings/ImportTicketsModal'
 export { default as IngestionPanel } from './compound/settings/IngestionPanel'
 export { default as OverseerPanel } from './compound/settings/OverseerPanel'
+export {
+  default as VideoSettings,
+  VideoSettingsPanel,
+  type VideoSettingsPanelProps,
+  type VideoSettingsProps,
+} from './compound/settings/VideoSettings'
 export { default as WebSearchSettings } from './compound/settings/WebSearchSettings'
 export {
   default as LLMConfigForm,
@@ -903,6 +918,26 @@ export {
   GroupStoryStoryChip,
   GroupStoryToneBadge,
 } from './compound/groupStories/GroupStoryBits'
+export {
+  default as TakeNextTicket,
+  type TakeNextTicketProps,
+} from './compound/groupStories/TakeNextTicket'
+export {
+  default as TicketMoveField,
+  type TicketMoveFieldProps,
+} from './compound/chat/TicketMoveField'
+export {
+  default as LoomWalkthroughPanel,
+  type LoomWalkthroughPanelProps,
+} from './compound/process/signoff/LoomWalkthroughPanel'
+export {
+  default as GroupSignOff,
+  type GroupSignOffProps,
+} from './compound/process/signoff/GroupSignOff'
+export {
+  default as SignOffOutputPanel,
+  type SignOffOutputPanelProps,
+} from './compound/process/signoff/SignOffOutputPanel'
 export {
   GroupStoriesScreen,
   GroupStoryScreen,

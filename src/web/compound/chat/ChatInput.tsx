@@ -1,5 +1,4 @@
-import { attachmentDisplayName } from 'thefactory-tools/utils'
-import { CHAT_ATTACHMENT_MAX_BYTES } from 'thefactory-tools/constants'
+import { attachmentDisplayName, isVideoPath } from 'thefactory-tools/utils'
 import {
   useCallback,
   useEffect,
@@ -18,17 +17,26 @@ import Tooltip from '../../primitives/Tooltip'
 import { Modal } from '../../primitives/Modal'
 import { Button } from '../../primitives/Button'
 import { IconAttach, IconError, IconFile, IconMic, IconSend } from '../../icons'
-import Spinner from '../../primitives/Spinner'
 import {
+  CHAT_UPLOAD_TEXT,
+  chatUploadFailureText,
+  formatBytes,
+  isChatUploading,
+  useChatUploads,
   useNativeDictationTrigger,
   useSpeechToText,
+  type ChatAttachmentUpload,
+  type ChatUploads,
+  type ChatVideoAttachments,
   type NativeDictationResult,
 } from '../../../headless'
 import DictationWave from './DictationWave'
 import { PENDING_STACK_TEXT } from '../../../headless/utils/chatDraftConstants'
-import { attachmentUploadError, isImageAttachment } from '../../../headless/utils/chatDrop'
-import type { AttachmentUpload } from '../../../headless/utils/chatDropTypes'
+import { isImageAttachment } from '../../../headless/utils/chatDrop'
+import ChatUploadStrip from './ChatUploadStrip'
+import ChatVideoAttachment from './ChatVideoAttachment'
 import { useChatDropTarget } from './ChatDropController'
+import VideoAttachmentCard from './VideoAttachmentCard'
 
 type SendReason = 'user' | 'suggested_action'
 
@@ -78,16 +86,10 @@ export type ChatInputProps = {
   /** Fires after the user accepts a `#`-reference from the dropdown. */
   onAcceptReference?: (value: string) => void
 
-  /** Attachment uploader — receives the picked File and should return the
-   * stored path (which gets appended to `attachments`). When omitted, the
-   * attach button is hidden. */
-  onUploadAttachment?: (file: File) => Promise<string | undefined>
-  /**
-   * Adds an uploaded path to the composer. Preferred over `onChangeAttachments`
-   * for uploads: it applies to the composer as it is when the upload finishes,
-   * not as it was when it started.
-   */
-  onAddAttachment?: (path: string) => void
+  /** This chat's uploads (`useChatComposer`'s `uploads`). When omitted, the attach button is disabled. */
+  attachmentUploads?: ChatUploads
+  /** Where this chat's videos read how they stand. When omitted, a video shows as a plain chip. */
+  videoAttachments?: ChatVideoAttachments
   /**
    * A thumbnail URL for an image attachment this composer did not upload itself
    * (e.g. one restored from a saved draft). Resolves `null` when the file is
@@ -136,8 +138,8 @@ export default function ChatInput({
   onSearchReferences,
   onSearchHandles,
   onAcceptReference,
-  onUploadAttachment,
-  onAddAttachment,
+  attachmentUploads,
+  videoAttachments,
   getAttachmentPreviewUrl,
   dropTargetTitle,
   autoFocus,
@@ -150,6 +152,8 @@ export default function ChatInput({
 }: ChatInputProps) {
   const safeValue = value ?? ''
   const safeAttachments = attachments ?? []
+  const uploads = useChatUploads(attachmentUploads)
+  const holdingForUpload = isChatUploading(uploads)
 
   const [flashBlocked, setFlashBlocked] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -408,6 +412,7 @@ export default function ChatInput({
       triggerBlockedFlash()
       return
     }
+    if (holdingForUpload) return
     if (!safeValue.trim() && safeAttachments.length === 0) return
     void onSend(safeValue, safeAttachments, { reason: 'user' })
     if (clearOnSend) clearInput()
@@ -440,7 +445,6 @@ export default function ChatInput({
     // Plain Enter inserts a newline (matches desktop). Cmd/Ctrl+Enter sends.
   }
 
-  const [uploads, setUploads] = useState<AttachmentUpload[]>([])
   const [previews, setPreviews] = useState<Record<string, string>>({})
   const previewsRef = useRef(previews)
   previewsRef.current = previews
@@ -459,55 +463,19 @@ export default function ChatInput({
     [],
   )
 
-  const lastUploadKeyRef = useRef(restoreKey)
-  useEffect(() => {
-    if (lastUploadKeyRef.current === restoreKey) return
-    lastUploadKeyRef.current = restoreKey
-    setUploads([])
-  }, [restoreKey])
-
   const uploadFiles = useCallback(
     (files: File[]) => {
-      if (!onUploadAttachment) return
-      const addAttachment =
-        onAddAttachment ??
-        ((path: string) =>
-          onChangeAttachments?.(Array.from(new Set([...attachmentsRef.current, path]))))
-      for (const file of files) {
-        const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
-        const tooLarge = attachmentUploadError(file, CHAT_ATTACHMENT_MAX_BYTES)
-        if (tooLarge) {
-          setUploads((prev) => [...prev, { id, name: file.name, status: 'error', error: tooLarge }])
-          continue
-        }
-        setUploads((prev) => [...prev, { id, name: file.name, status: 'uploading' }])
-        void onUploadAttachment(file)
-          .then((path) => {
-            setUploads((prev) => prev.filter((u) => u.id !== id))
-            if (!path) return
-            if (isImageAttachment(file.name)) {
-              requestedPreviewsRef.current.add(path)
-              addPreview(path, URL.createObjectURL(file))
-            }
-            addAttachment(path)
-          })
-          .catch((err: unknown) => {
-            const message = err instanceof Error ? err.message : String(err)
-            setUploads((prev) =>
-              prev.map((u) =>
-                u.id === id
-                  ? {
-                      ...u,
-                      status: 'error',
-                      error: `${file.name} could not be attached: ${message}`,
-                    }
-                  : u,
-              ),
-            )
-          })
-      }
+      if (!attachmentUploads) return
+      attachmentUploads.attach(
+        files.map((file) => ({ name: file.name, size: file.size, blob: file })),
+        (path, file) => {
+          if (!('blob' in file) || !isImageAttachment(file.name)) return
+          requestedPreviewsRef.current.add(path)
+          addPreview(path, URL.createObjectURL(file.blob))
+        },
+      )
     },
-    [onUploadAttachment, onAddAttachment, onChangeAttachments, addPreview],
+    [attachmentUploads, addPreview],
   )
 
   const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
@@ -520,7 +488,7 @@ export default function ChatInput({
     ref: chatInputRef,
     title: dropTargetTitle ?? 'this chat',
     onFiles: uploadFiles,
-    enabled: !!onUploadAttachment,
+    enabled: !!attachmentUploads,
   })
 
   useEffect(() => {
@@ -545,7 +513,10 @@ export default function ChatInput({
     [searchFiles, filePaths],
   )
 
-  const canSend = (safeValue.trim().length > 0 || safeAttachments.length > 0) && isConfigured
+  const canSend =
+    (safeValue.trim().length > 0 || safeAttachments.length > 0) && isConfigured && !holdingForUpload
+  const failedUploads = uploads.filter((upload) => upload.status === 'failed')
+  const runningUploads = uploads.filter((upload) => upload.status === 'uploading')
 
   const resolvedPlaceholder =
     placeholder ??
@@ -560,7 +531,11 @@ export default function ChatInput({
   ]
   const defaultRightHints = [`${modifierSymbol} + Enter to send`]
   const lh = leftHints === null ? [] : (leftHints ?? defaultLeftHints)
-  const rh = rightHints === null ? [] : (rightHints ?? defaultRightHints)
+  const rh = holdingForUpload
+    ? [CHAT_UPLOAD_TEXT.sendHeld]
+    : rightHints === null
+      ? []
+      : (rightHints ?? defaultRightHints)
 
   const showHints = lh.length > 0 || rh.length > 0
   const renderHintsGrid = () => (
@@ -594,6 +569,10 @@ export default function ChatInput({
       ref={chatInputRef}
       className="shrink-0 border-t border-(--border-subtle) bg-(--surface-raised)"
     >
+      {attachmentUploads ? (
+        <ChatUploadStrip uploads={runningUploads} onStop={attachmentUploads.stop} />
+      ) : null}
+
       {showSuggestedActions ? (
         <div
           className="flex gap-2 px-3 py-2 overflow-x-auto border-b border-(--border-subtle)"
@@ -618,7 +597,7 @@ export default function ChatInput({
         <div className="flex gap-2">
           <div
             className={[
-              'flex-1 bg-(--surface-base) border rounded-md focus-within:ring-2',
+              'min-w-0 flex-1 bg-(--surface-base) border rounded-md focus-within:ring-2',
               'border-(--border-default) focus-within:ring-(--focus-ring)',
               flashBlocked ? 'border-red-500 ring-2 ring-red-500/60' : '',
             ].join(' ')}
@@ -667,72 +646,67 @@ export default function ChatInput({
             </div>
 
             {/* Attachments + bottom hints */}
-            {(safeAttachments.length > 0 || uploads.length > 0 || showHints) && (
+            {(safeAttachments.length > 0 || failedUploads.length > 0 || showHints) && (
               <div className="px-2 py-1.5 border-t border-(--border-subtle)">
-                {safeAttachments.length > 0 || uploads.length > 0 ? (
+                {safeAttachments.length > 0 || failedUploads.length > 0 ? (
                   <div className="flex flex-wrap gap-1 mb-2">
-                    {uploads.map((u) => (
-                      <span
-                        key={u.id}
-                        className={[
-                          'inline-flex items-center gap-1 text-[11px] rounded-full border px-2 py-[1px]',
-                          u.status === 'error'
-                            ? 'border-red-500/60 bg-red-500/10 text-(--text-primary)'
-                            : 'border-(--border-subtle) bg-(--surface-overlay) text-(--text-secondary)',
-                        ].join(' ')}
-                        title={u.error ?? `Uploading ${u.name}…`}
-                        role={u.status === 'error' ? 'alert' : 'status'}
-                      >
-                        {u.status === 'uploading' ? (
-                          <Spinner size={10} />
-                        ) : (
-                          <IconError className="w-3 h-3 text-red-500" />
-                        )}
-                        <span className="truncate max-w-[420px]">
-                          {u.status === 'error' ? u.error : u.name}
+                    {failedUploads.map((upload) => (
+                      <FailedUploadChip
+                        key={upload.id}
+                        upload={upload}
+                        onDismiss={() => attachmentUploads?.dismiss(upload.id)}
+                        onRetry={() => attachmentUploads?.retry(upload.id)}
+                      />
+                    ))}
+                    {safeAttachments.map((p) => {
+                      const chip = (
+                        <span
+                          key={p}
+                          className="inline-flex items-center gap-1 text-[11px] rounded-full border border-(--border-subtle) bg-(--surface-overlay) text-(--text-secondary) px-2 py-[1px]"
+                          title={p}
+                        >
+                          {previews[p] ? (
+                            <img
+                              src={previews[p]}
+                              alt=""
+                              className="w-5 h-5 -ml-1.5 rounded-full object-cover"
+                            />
+                          ) : isImageAttachment(p) ? (
+                            <IconFile className="w-3 h-3" />
+                          ) : null}
+                          <span className="truncate max-w-[140px]">{attachmentDisplayName(p)}</span>
+                          {onChangeAttachments ? (
+                            <button
+                              type="button"
+                              className="opacity-60 hover:opacity-100"
+                              onClick={() =>
+                                onChangeAttachments(safeAttachments.filter((x) => x !== p))
+                              }
+                              aria-label={`Remove ${p}`}
+                            >
+                              ×
+                            </button>
+                          ) : null}
                         </span>
-                        {u.status === 'error' ? (
-                          <button
-                            type="button"
-                            className="opacity-60 hover:opacity-100"
-                            onClick={() => setUploads((prev) => prev.filter((x) => x.id !== u.id))}
-                            aria-label={`Dismiss ${u.name}`}
-                          >
-                            ×
-                          </button>
-                        ) : null}
-                      </span>
-                    ))}
-                    {safeAttachments.map((p) => (
-                      <span
-                        key={p}
-                        className="inline-flex items-center gap-1 text-[11px] rounded-full border border-(--border-subtle) bg-(--surface-overlay) text-(--text-secondary) px-2 py-[1px]"
-                        title={p}
-                      >
-                        {previews[p] ? (
-                          <img
-                            src={previews[p]}
-                            alt=""
-                            className="w-5 h-5 -ml-1.5 rounded-full object-cover"
-                          />
-                        ) : isImageAttachment(p) ? (
-                          <IconFile className="w-3 h-3" />
-                        ) : null}
-                        <span className="truncate max-w-[140px]">{attachmentDisplayName(p)}</span>
-                        {onChangeAttachments ? (
-                          <button
-                            type="button"
-                            className="opacity-60 hover:opacity-100"
-                            onClick={() =>
-                              onChangeAttachments(safeAttachments.filter((x) => x !== p))
-                            }
-                            aria-label={`Remove ${p}`}
-                          >
-                            ×
-                          </button>
-                        ) : null}
-                      </span>
-                    ))}
+                      )
+                      if (!videoAttachments || !isVideoPath(p)) return chip
+                      return (
+                        <ChatVideoAttachment
+                          key={p}
+                          path={p}
+                          chat={videoAttachments}
+                          place="composer"
+                          getPreviewUrl={getAttachmentPreviewUrl}
+                          {...(onChangeAttachments
+                            ? {
+                                onRemove: () =>
+                                  onChangeAttachments(safeAttachments.filter((x) => x !== p)),
+                              }
+                            : {})}
+                          fallback={chip}
+                        />
+                      )
+                    })}
                   </div>
                 ) : null}
 
@@ -770,7 +744,7 @@ export default function ChatInput({
                       className="inline-flex items-center justify-center w-9 h-9 rounded-md hover:bg-(--surface-hover) focus:outline-none focus:ring-2 focus:ring-(--focus-ring) disabled:opacity-40"
                       aria-label="Attach files"
                       title="Attach files"
-                      disabled={!onUploadAttachment}
+                      disabled={!attachmentUploads}
                     >
                       <IconAttach className="w-5 h-5" />
                     </button>
@@ -905,6 +879,59 @@ export default function ChatInput({
         )
       })()}
     </div>
+  )
+}
+
+/** A file that did not reach the composer: why, with another go where one could work. */
+function FailedUploadChip({
+  upload,
+  onDismiss,
+  onRetry,
+}: {
+  upload: ChatAttachmentUpload
+  onDismiss: () => void
+  onRetry: () => void
+}) {
+  if (isVideoPath(upload.name)) {
+    return (
+      <VideoAttachmentCard
+        name={upload.name}
+        view={{
+          state: 'failed',
+          ...(upload.error ? { line: upload.error } : {}),
+          ...(upload.sizeBytes !== undefined
+            ? { size: formatBytes(upload.sizeBytes) ?? undefined }
+            : {}),
+          canSetUp: false,
+          steps: [],
+        }}
+        onRemove={onDismiss}
+        {...(upload.canRetry ? { onRetry } : {})}
+      />
+    )
+  }
+  return (
+    <span
+      className="inline-flex items-center gap-1 text-[11px] rounded-full border border-red-500/60 bg-red-500/10 text-(--text-primary) px-2 py-[1px]"
+      title={upload.error}
+      role="alert"
+    >
+      <IconError className="w-3 h-3 text-red-500" />
+      <span className="truncate max-w-[420px]">{chatUploadFailureText(upload)}</span>
+      {upload.canRetry ? (
+        <button type="button" className="text-(--accent-primary) hover:underline" onClick={onRetry}>
+          {CHAT_UPLOAD_TEXT.retry}
+        </button>
+      ) : null}
+      <button
+        type="button"
+        className="opacity-60 hover:opacity-100"
+        onClick={onDismiss}
+        aria-label={CHAT_UPLOAD_TEXT.dismiss(upload.name)}
+      >
+        ×
+      </button>
+    </span>
   )
 }
 
