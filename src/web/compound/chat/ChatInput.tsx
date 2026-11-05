@@ -696,7 +696,6 @@ export default function ChatInput({
                           path={p}
                           chat={videoAttachments}
                           place="composer"
-                          getPreviewUrl={getAttachmentPreviewUrl}
                           {...(onChangeAttachments
                             ? {
                                 onRemove: () =>

@@ -31,6 +31,7 @@ import {
   NEW_SCREEN_PAIR_CHANGE,
   NEW_STATE_PAIR_NOTE,
   NOTHING_JUDGED,
+  OBSERVED_BEFORE_LABEL,
   PAIR_COUNTED_VERDICT,
   PAIR_NOT_COUNTED_VERDICT,
 } from './verifyProofConstants'
@@ -255,6 +256,44 @@ describe('verifyProofHeader', () => {
   it('flags a named data mode whether or not the attempt stood', () => {
     expect(verifyProofHeader(proof({ mode: 'live' }), 'failed').chip).toBe('Live data')
     expect(verifyProofHeader(proof({ mode: 'dry' }), 'unchecked').chip).toBe('Dry run')
+  })
+})
+
+describe('verifyProofView — an observed before', () => {
+  const tiles: EvidenceTile[] = [
+    tile({ id: 'b1', phase: 'before', subject: 'home', createdAt: 10 }),
+    tile({ id: 'a1', phase: 'after', subject: 'home', createdAt: 20 }),
+  ]
+  const viewOf = (over: Partial<ProcessProofPair>) =>
+    verifyProofView(proof({ pairs: [pair({ afterId: 'a1', beforeId: 'b1', ...over })] }), tiles)
+
+  it('says so with its reason, on the pair and in the comparison', () => {
+    const view = viewOf({
+      counted: true,
+      observedBefore: { reason: 'The migration cannot be rebuilt from the base.' },
+    })
+    expect(view.pairs[0]?.observedBefore).toEqual({
+      label: OBSERVED_BEFORE_LABEL,
+      reason: 'The migration cannot be rebuilt from the base.',
+    })
+    expect(view.screens.find((s) => s.key === view.pairs[0]?.key)?.note).toContain(
+      'Observed before: The migration cannot be rebuilt from the base.',
+    )
+  })
+
+  it('carries it to the thumbnail the proof rests on', () => {
+    const view = viewOf({ counted: true, observedBefore: { reason: 'One-way migration.' } })
+    expect(proofScreensPane(view).thumbnails[0]?.observedBefore?.reason).toBe('One-way migration.')
+  })
+
+  it('leaves a pair built from the base unmarked', () => {
+    expect(viewOf({ counted: true }).pairs[0]?.observedBefore).toBeUndefined()
+  })
+
+  it('leaves off a marker with no reason: the reason is the whole point of it', () => {
+    expect(
+      viewOf({ counted: true, observedBefore: { reason: '  ' } }).pairs[0]?.observedBefore,
+    ).toBeUndefined()
   })
 })
 

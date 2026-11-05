@@ -288,6 +288,10 @@ describe('processRunNeedLine — Needs you', () => {
     [{ reason: 'step-unchecked' as const, stepId: 'verify' }, 'Decide: Verify checked nothing'],
     [{ reason: 'turn-limit' as const, stepId: 'implement' }, 'Decide: Implement ran out of turns'],
     [{ reason: 'budget-spent' as const, stepId: 'implement' }, 'Decide: the budget is spent'],
+    [
+      { reason: 'questions-spent' as const, stepId: 'implement' },
+      'Decide: the question limit is reached',
+    ],
     [{ reason: 'time-spent' as const, stepId: 'implement' }, 'Decide: the time limit is up'],
     [
       { reason: 'no-steps' as const, message: 'This process has no steps switched on.' },

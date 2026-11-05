@@ -27,7 +27,10 @@ export interface ChatDebugModalProps {
  */
 export default function ChatDebugModal({ isOpen, onClose, context, onCopy }: ChatDebugModalProps) {
   const { theme } = useNativeTheme()
-  const { json, byteSize, loading, error, dump, refresh } = useChatDebugDump(context, isOpen)
+  const { json, byteSize, loading, error, dump, contextLine, refresh } = useChatDebugDump(
+    context,
+    isOpen,
+  )
   const [copied, setCopied] = useState(false)
 
   if (!isOpen) return null
@@ -69,6 +72,10 @@ export default function ChatDebugModal({ isOpen, onClose, context, onCopy }: Cha
             </Button>
           ) : null}
         </View>
+
+        {contextLine ? (
+          <Text style={{ fontSize: 12, color: theme.text.muted }}>{contextLine}</Text>
+        ) : null}
 
         {error ? <Text style={{ fontSize: 12, color: red[600] }}>{error}</Text> : null}
 

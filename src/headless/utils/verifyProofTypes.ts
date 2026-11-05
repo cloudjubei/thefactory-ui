@@ -101,6 +101,8 @@ export type ProofPairView = {
   marker: string | undefined
   /** The sides the loaded evidence genuinely does not hold — empty until it has loaded. */
   missing: ('before' | 'after')[]
+  /** The before was seen in place, not built from the base: that, and why it could not be built. */
+  observedBefore?: { label: string; reason: string }
 }
 
 /** A capture the gate counted as a screen the change adds, beside the entry point it opens from. */
@@ -275,6 +277,8 @@ export type ProofThumbnail = {
   afterAbsent: string | undefined
   /** The corner marker — the changed share, or "new" for a screen the change adds. */
   marker: string | undefined
+  /** The before was seen in place, not built from the base. */
+  observedBefore?: { label: string; reason: string }
   /** What the per-thumbnail save and the comparison overlay act on. */
   screen: ScreenPair
 }

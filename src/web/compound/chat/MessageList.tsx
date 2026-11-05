@@ -1,4 +1,4 @@
-import type { ReferenceTarget } from 'thefactory-tools/types'
+import type { ChatContextBoundary, ReferenceTarget } from 'thefactory-tools/types'
 import { isCompletionErrorNotice } from 'thefactory-tools/utils'
 import {
   useCallback,
@@ -16,14 +16,21 @@ import MessageRow from './MessageRow'
 import CliRunMessages from './CliRunMessages'
 import ToolApprovalFooter from './ToolApprovalFooter'
 import AgentExchangeBlock from './AgentExchangeBlock'
+import ToolStepsFold from './ToolStepsFold'
 import { CardRowFrame } from './MessageRowControls'
 import { useAppSettings } from '../../../headless/contexts/AppSettingsContext'
 import {
   agentExchangeLayout,
   agentExchangeStartOf,
   agentExchangeRowEnd,
-  agentExchangeWindowStart,
 } from '../../../headless/utils/agentExchanges'
+import {
+  foldedRowWindowStart,
+  toolStepFoldKey,
+  toolStepLayout,
+  toolStepRowEnd,
+  toolStepStartOf,
+} from '../../../headless/utils/toolStepGroups'
 import type { UikitFileMeta } from '../files/FileDisplay'
 import type { ResourceLink } from 'thefactory-tools/types'
 import type { ToolCall, ToolResultType } from './ToolCall'
@@ -31,6 +38,12 @@ import type { ChatMessageLike, PendingToolGrant } from '../../../headless/utils/
 import type { ChatVideoAttachments } from '../../../headless/utils/videoAttachmentTypes'
 import { describeLastMessageDelete } from '../../../headless/utils/chatMessageDelete'
 import { chatShownMessages } from '../../../headless/utils/chatShownMessages'
+import {
+  contextBoundaryIndex,
+  rowHoldsMessage,
+  shownContextCutoff,
+} from '../../../headless/utils/chatContextFill'
+import { CHAT_CONTEXT_BOUNDARY_COPY } from '../../../headless/utils/chatContextFillConstants'
 import { firstUnreadMessageIndex } from '../../../headless/utils/chatUnread'
 import { useToolApprovalPreviews } from '../../../headless/hooks/useToolApprovalPreviews'
 import type { ToolPreviewResult } from '../../../headless/api/sdkTypes'
@@ -115,6 +128,8 @@ export type MessageListProps = {
    * shows a "Context cut-off" divider — matches desktop's
    * `numberMessagesToSend` setting. */
   numberMessagesToSend?: number
+  /** Where the chat's compacted history ends: a line says what is above it is no longer sent. */
+  contextBoundary?: ChatContextBoundary
 
   /** Most-recent ISO timestamp seen by the user. Used to position scroll on
    * first open of a chat with unread messages and to highlight the first
@@ -216,6 +231,7 @@ export default function MessageList({
   decidedAsks,
   onClaimAsks,
   numberMessagesToSend,
+  contextBoundary,
   lastReadIso,
   onAtBottomChange,
   onReadLatest,
@@ -411,9 +427,21 @@ export default function MessageList({
     () => agentExchangeLayout(messagesToDisplay, agentMessages, { openTail: exchangeOpenTail }),
     [messagesToDisplay, agentMessages, exchangeOpenTail],
   )
-  // The window counts rows that are drawn: an exchange folds its messages into
-  // one row at its first, so a window opened inside it would draw nothing.
-  const startIndex = agentExchangeWindowStart(exchanges, totalMessages, visibleCount)
+  const toolSteps = useMemo(() => {
+    let skip: Set<number> | undefined
+    if (exchanges.hidden.size > 0 || exchanges.starts.size > 0) {
+      skip = new Set(exchanges.hidden)
+      for (const index of exchanges.starts.keys()) skip.add(index)
+    }
+    return toolStepLayout(messagesToDisplay, { ...(skip ? { skip } : {}), openTail: turnInFlight })
+  }, [messagesToDisplay, exchanges, turnInFlight])
+  const rowHidden = useMemo(() => {
+    if (toolSteps.hidden.size === 0) return exchanges.hidden
+    const hidden = new Set<number>(exchanges.hidden)
+    for (const index of toolSteps.hidden) hidden.add(index)
+    return hidden
+  }, [exchanges, toolSteps])
+  const startIndex = foldedRowWindowStart(rowHidden, totalMessages, visibleCount)
   const visibleMessages = useMemo(
     () => messagesToDisplay.slice(startIndex),
     [messagesToDisplay, startIndex],
@@ -434,8 +462,14 @@ export default function MessageList({
   // to open at the bottom.
   const firstUnreadIndex = useMemo(
     () =>
-      agentExchangeStartOf(exchanges, firstUnreadMessageIndex(messagesToDisplay, openLastReadIso)),
-    [exchanges, messagesToDisplay, openLastReadIso],
+      toolStepStartOf(
+        toolSteps,
+        agentExchangeStartOf(
+          exchanges,
+          firstUnreadMessageIndex(messagesToDisplay, openLastReadIso),
+        ),
+      ),
+    [toolSteps, exchanges, messagesToDisplay, openLastReadIso],
   )
 
   const applyOpenAnchor = useCallback(() => {
@@ -608,11 +642,11 @@ export default function MessageList({
     }
     return totalMessages - totalCount
   }, [messagesToDisplay, numberMessagesToSend, totalMessages])
-  const cutoffIndexInWindow = useMemo(() => {
-    if (cutoffIndex === null) return null
-    const local = cutoffIndex - startIndex
-    return local >= 0 && local < visibleMessages.length ? local : null
-  }, [cutoffIndex, startIndex, visibleMessages.length])
+  const boundaryIndex = useMemo(
+    () => contextBoundaryIndex(messages, contextBoundary),
+    [messages, contextBoundary],
+  )
+  const shownCutoffIndex = shownContextCutoff(cutoffIndex, boundaryIndex)
 
   // Asks decided on their rows — the same toggles, "Always allow" and Resume a
   // CLI turn's rows carry; the panel leaves the asks shown here out.
@@ -683,12 +717,27 @@ export default function MessageList({
 
         {visibleMessages.map((msg, index) => {
           const globalIndex = startIndex + index
-          if (exchanges.hidden.has(globalIndex)) return null
-          const showCutoff = cutoffIndexInWindow !== null && index === cutoffIndexInWindow
+          if (exchanges.hidden.has(globalIndex) || toolSteps.hidden.has(globalIndex)) return null
           const exchange = exchanges.starts.get(globalIndex)
-          // A folded exchange is drawn as one row: it is the last row when it
-          // holds the chat's last message, and its delete takes that message.
-          const rowEnd = agentExchangeRowEnd(exchanges, globalIndex)
+          const steps = toolSteps.starts.get(globalIndex)
+          const rowEnd = exchange
+            ? agentExchangeRowEnd(exchanges, globalIndex)
+            : toolStepRowEnd(toolSteps, globalIndex)
+          const lineOf = (line: number | null | undefined) =>
+            rowHoldsMessage({
+              line,
+              rowStart: steps?.start ?? globalIndex,
+              ...(steps ? { rowEnd: steps.end } : {}),
+              windowStart: startIndex,
+            })
+          const lines = (
+            <>
+              {lineOf(boundaryIndex) ? <ContextBoundary /> : null}
+              {lineOf(shownCutoffIndex) ? (
+                <ContextCutoff numberMessagesToSend={numberMessagesToSend} />
+              ) : null}
+            </>
+          )
           const lastOfRow = messagesToDisplay[rowEnd - 1] ?? msg
           const isLast = rowEnd === messagesToDisplay.length
           const deleteControl = describeLastMessageDelete({
@@ -728,6 +777,65 @@ export default function MessageList({
               </div>
             )
           }
+          if (steps) {
+            const folded = messagesToDisplay.slice(steps.start, steps.end)
+            return (
+              <div key={toolStepFoldKey(chatId, globalIndex)} data-msg-anchor={globalIndex}>
+                {lines}
+                <CardRowFrame
+                  index={globalIndex}
+                  rowRef={isLast ? setLastMessageRef : undefined}
+                  deleteBinding={
+                    onDeleteLastMessage && deleteControl
+                      ? {
+                          control: deleteControl,
+                          onDelete: onDeleteLastMessage,
+                          preview: isInDeleteRange(rowEnd - 1, deleteFromIndex, deletePreview),
+                          onPreviewChange: setDeletePreview,
+                          deleting,
+                        }
+                      : undefined
+                  }
+                >
+                  <ToolStepsFold count={folded.length}>
+                    {folded.map((step, offset) => {
+                      const stepIndex = steps.start + offset
+                      return (
+                        <MessageRow
+                          key={step.toolCall?.toolCallId ?? `step-${stepIndex}`}
+                          {...approvals.rowProps(step)}
+                          msg={step}
+                          globalIndex={stepIndex}
+                          totalMessages={totalMessages}
+                          isThinking={isThinking}
+                          isLast={false}
+                          prevUserMessagesLen={prevUserMessagesLenRef.current}
+                          enhancedTotalLength={messagesToDisplay.length}
+                          renderToolResult={renderToolResult}
+                          getToolHeaderPath={getToolHeaderPath}
+                          onResolveFile={onResolveFile}
+                          renderReference={renderReference}
+                          onResourceLink={onResourceLink}
+                          {...(chatTitle ? { chatTitle } : {})}
+                          renderProcessRun={renderProcessRun}
+                          renderProcessGroupRun={renderProcessGroupRun}
+                          getAttachmentPreviewUrl={getAttachmentPreviewUrl}
+                          toolPreview={
+                            step.role === 'tool' && step.toolCall?.toolCallId
+                              ? toolPreviewById[String(step.toolCall.toolCallId)]
+                              : undefined
+                          }
+                          {...(step.role === 'tool' && step.toolResult?.actionId !== undefined
+                            ? { decidedAsk: decidedById.get(step.toolResult.actionId) }
+                            : {})}
+                        />
+                      )
+                    })}
+                  </ToolStepsFold>
+                </CardRowFrame>
+              </div>
+            )
+          }
           const restartControl = describeLastUserMessageRestart({
             hasRestartAction: !!onRestartTurn,
             isLast,
@@ -754,21 +862,7 @@ export default function MessageList({
               key={msg.cliRunId ? `cli-${msg.cliRunId}` : globalIndex}
               data-msg-anchor={globalIndex}
             >
-              {showCutoff ? (
-                <div
-                  className="relative text-center my-4 group"
-                  title={
-                    numberMessagesToSend
-                      ? `Context cut-off: messages below are included in the next request. With your settings, your new message and ${numberMessagesToSend - 1} previous messages will be sent.`
-                      : ''
-                  }
-                >
-                  <hr className="border-dashed border-(--border-subtle)" />
-                  <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 px-2 bg-(--surface-base) text-xs text-(--text-secondary) whitespace-nowrap">
-                    Context from here on
-                  </span>
-                </div>
-              ) : null}
+              {lines}
 
               {msg.cliRunId ? (
                 // A CLI agent reply: render the whole run as normal chat messages
@@ -928,6 +1022,37 @@ export default function MessageList({
         ) : null}
         {tailContent}
       </div>
+    </div>
+  )
+}
+
+function ContextBoundary() {
+  return (
+    <div
+      className="my-4 flex items-center gap-3 text-xs text-(--text-secondary)"
+      title={CHAT_CONTEXT_BOUNDARY_COPY.detail}
+    >
+      <hr className="min-w-4 flex-1 border-(--border-default)" />
+      <span className="min-w-0 text-center">{CHAT_CONTEXT_BOUNDARY_COPY.label}</span>
+      <hr className="min-w-4 flex-1 border-(--border-default)" />
+    </div>
+  )
+}
+
+function ContextCutoff({ numberMessagesToSend }: { numberMessagesToSend?: number }) {
+  return (
+    <div
+      className="relative text-center my-4 group"
+      title={
+        numberMessagesToSend
+          ? `Context cut-off: messages below are included in the next request. With your settings, your new message and ${numberMessagesToSend - 1} previous messages will be sent.`
+          : ''
+      }
+    >
+      <hr className="border-dashed border-(--border-subtle)" />
+      <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 px-2 bg-(--surface-base) text-xs text-(--text-secondary) whitespace-nowrap">
+        Context from here on
+      </span>
     </div>
   )
 }

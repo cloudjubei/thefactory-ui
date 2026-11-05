@@ -1,7 +1,7 @@
 // Shapes behind a mid-run `askUser` question: the parsed payload the question
 // card renders, and the decision body sent back to the CLI action broker.
 
-import type { AskUserAnswerKind } from 'thefactory-tools/types'
+import type { AskUserAnswerKind, StuckSignal } from 'thefactory-tools/types'
 
 /** One of the agent's suggested answers, as the card offers it. */
 export type AgentQuestionOption = {
@@ -29,6 +29,8 @@ export type AgentQuestion = {
   options?: AgentQuestionOption[]
   /** The kind of answer wanted, when the card can offer a picker of the real items of that kind. */
   answerKind?: QuestionPickerKind
+  /** The host paused a turn going nowhere: what it saw. The stuck card takes this question. */
+  stuck?: StuckSignal
   /**
    * The payload exactly as received, kept only when it could not be parsed into
    * a question — so the card can show what the agent actually sent instead of

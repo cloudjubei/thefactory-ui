@@ -3,13 +3,19 @@ import type { ProcessRun, ProcessRunSummary } from 'thefactory-tools/types'
 import { listProcessRuns } from '../api'
 import { useApi, useAuth } from '../api'
 import { LiveResourceStore } from '../utils/liveResourceStore'
-import {
-  ALL_PROJECTS_PROCESS_RUN_LIST_KEY,
-  PROCESS_RUN_LIST_LINGER_MS,
-} from '../utils/processViewCacheConstants'
+import { PROCESS_RUN_LIST_LINGER_MS } from '../utils/processViewCacheConstants'
 import { splitProcessRunsByCurrent } from '../utils/processRunCurrent'
 import { compareRunsNewestFirst } from '../utils/processRunOrder'
-import { processRunListCache, processRunListKey } from './processViewCache'
+import {
+  processRunListCacheKey,
+  processRunListMatchesNothing,
+  processRunListQuery,
+  processRunListRequestFromArg,
+  processRunListRequestFromKey,
+  processRunUpdateAction,
+  type ProcessRunListRequest,
+} from '../utils/processRunListQuery'
+import { processRunListCache } from './processViewCache'
 
 /** A `process:run-update` event as it arrives on the socket. */
 export type ProcessRunUpdate = {
@@ -27,18 +33,17 @@ export type ProcessRunUpdate = {
  * must apply the SAME rule or it drifts from the fetch: a CHILD run (a feature
  * step's own pipeline, `parentRunId` set) leaking in counted one process as two
  * in the nav badge and stacked a drilled-into child beside its parent. A scoped
- * instance also ignores other projects' updates. Pure, so the rule is tested
- * once rather than re-derived per socket event.
+ * instance also ignores other projects' updates, and a story or status filter
+ * ignores a run that does not match it. An ending filter is not decided here —
+ * that list re-reads. Pure, so the rule is tested once rather than re-derived
+ * per socket event.
  */
 export function shouldTrackProcessRunUpdate(
   update: ProcessRunUpdate,
-  scopedProjectId?: string,
+  scopedProjectId?: string | ProcessRunListRequest,
 ): update is ProcessRunUpdate & { runId: string; run: ProcessRun } {
-  if (!update?.run || !update.runId) return false
-  if (scopedProjectId && update.projectId && update.projectId !== scopedProjectId) return false
-  if (scopedProjectId && update.run.projectId !== scopedProjectId) return false
-  if (update.run.parentRunId) return false
-  return true
+  const request = processRunListRequestFromArg(scopedProjectId)
+  return processRunUpdateAction(update, request, false) === 'upsert'
 }
 
 export type UseProcessRuns = {
@@ -59,20 +64,22 @@ export type UseProcessRuns = {
 
 /**
  * A scope's list after one `process:run-update`: a deleted run dropped, a root
- * run of the scope put in (or replaced) newest first. The same list back when
- * the update is not for it, so nothing re-renders.
+ * run of the scope put in (or replaced) newest first, a run that left a story
+ * or status filter taken out. The same list back when the update is not for
+ * it — including one an ending filter must re-read rather than guess — so
+ * nothing re-renders.
  */
 export function applyProcessRunUpdate(
   prev: ProcessRunSummary[] | undefined,
   update: ProcessRunUpdate,
-  scopedProjectId: string | undefined,
+  scopedProjectId: string | ProcessRunListRequest | undefined,
 ): ProcessRunSummary[] | undefined {
-  if (update?.deleted && update.runId) {
-    if (!prev?.some((r) => r.id === update.runId)) return prev
-    return prev.filter((r) => r.id !== update.runId)
-  }
-  if (!shouldTrackProcessRunUpdate(update, scopedProjectId)) return prev
-  const next = (prev ?? []).filter((r) => r.id !== update.runId)
+  const request = processRunListRequestFromArg(scopedProjectId)
+  const held = Boolean(update.runId && prev?.some((run) => run.id === update.runId))
+  const action = processRunUpdateAction(update, request, held)
+  if (action === 'drop') return prev?.filter((run) => run.id !== update.runId)
+  if (action !== 'upsert' || !update.run) return prev
+  const next = (prev ?? []).filter((run) => run.id !== update.runId)
   next.push(update.run)
   return next.sort(compareRunsNewestFirst)
 }
@@ -81,27 +88,26 @@ type WsLike = ReturnType<typeof useApi>['ws']
 
 const stores = new WeakMap<WsLike, LiveResourceStore<ProcessRunSummary[]>>()
 
-function projectIdOfKey(key: string): string | undefined {
-  return key === ALL_PROJECTS_PROCESS_RUN_LIST_KEY ? undefined : key
-}
-
 function processRunListStoreFor(ws: WsLike): LiveResourceStore<ProcessRunSummary[]> {
   const existing = stores.get(ws)
   if (existing) return existing
   const store = new LiveResourceStore<ProcessRunSummary[]>({
     load: async (key) => {
-      const projectId = projectIdOfKey(key)
-      const { data } = await listProcessRuns({
-        query: { rootOnly: true, ...(projectId ? { projectId } : {}) },
-        throwOnError: true,
-      })
+      const query = processRunListQuery(processRunListRequestFromKey(key))
+      if (processRunListMatchesNothing(query)) return []
+      const { data } = await listProcessRuns({ query, throwOnError: true })
       return ((data as ProcessRunSummary[] | undefined) ?? []).slice().sort(compareRunsNewestFirst)
     },
     connect: (key, live) => {
-      const projectId = projectIdOfKey(key)
-      const offUpdate = ws.on('process:run-update', (data: unknown) =>
-        live.patch((prev) => applyProcessRunUpdate(prev, data as ProcessRunUpdate, projectId)),
-      )
+      const request = processRunListRequestFromKey(key)
+      const offUpdate = ws.on('process:run-update', (data: unknown) => {
+        const update = data as ProcessRunUpdate
+        live.patch((prev) => {
+          const held = Boolean(update.runId && prev?.some((run) => run.id === update.runId))
+          if (processRunUpdateAction(update, request, held) === 'reread') void live.refresh()
+          return applyProcessRunUpdate(prev, update, request)
+        })
+      })
       const offReconnect = ws.onReconnect(() => void live.refresh())
       return () => {
         offUpdate()
@@ -119,31 +125,34 @@ function processRunListStoreFor(ws: WsLike): LiveResourceStore<ProcessRunSummary
 /**
  * Every process run for a scope, kept live.
  *
- * The list route has no `status` filter, so Current/History is split HERE by
- * `splitProcessRunsByCurrent` — one fetch, both lists. The list route sends
- * summaries (`ProcessRunSummary`: what rows and badges read, without what only
- * a run's own view opens). Liveness is the same `process:run-update` event the
- * single-run hook uses: it carries the record, so a step change upserts in
- * place rather than re-fetching (which would flicker the list). A run
- * that changes status stays in the list and simply moves between `current` and
- * `history`, so a run finishing is visible rather than vanishing.
+ * Pass a project id for that project's runs. Pass nothing for every project
+ * the person can see (the nav badge, the chat list). Pass a
+ * {@link ProcessRunListRequest} to read a group's projects together, and to
+ * narrow by story, status or ending — the list route applies them.
  *
- * Pass a `projectId` to scope to one project (the Processes tab); omit it for
- * every project the user can see (the nav badge, which sums across projects).
+ * Current and History are still split here (`splitProcessRunsByCurrent`): a
+ * status is not that split. The list route sends summaries (`ProcessRunSummary`).
+ * Liveness is the same `process:run-update` event the single-run hook uses: it
+ * carries the record, so a step change upserts in place rather than
+ * re-fetching (which would flicker the list). A list narrowed by an ending
+ * re-reads instead, because whether a run was abandoned or left unmerged is
+ * the route's decision. A run that changes status stays in an unfiltered list
+ * and simply moves between `current` and `history`.
+ *
  * `rootOnly` keeps it to the runs a chat launched — a child run drilled into is
  * reached through its parent, never double-counted here.
  *
- * Every view showing a scope shares ONE read and ONE live subscription — the
- * sidebar, the chat list and an open chat no longer each pull the whole list.
- * What was last read outlives the view (`processRunListCache`): a return paints
- * that list at once, and a scope left only briefly is still live, so it is not
- * read again.
+ * Every view showing one scope and filter shares ONE read and ONE live
+ * subscription. What was last read outlives the view (`processRunListCache`).
  */
-export function useProcessRuns(projectId?: string): UseProcessRuns {
+export function useProcessRuns(
+  projectIdOrRequest?: string | ProcessRunListRequest,
+): UseProcessRuns {
+  const request = processRunListRequestFromArg(projectIdOrRequest)
   const { token } = useAuth()
   const { ws } = useApi()
   const store = processRunListStoreFor(ws)
-  const key = processRunListKey(projectId)
+  const key = processRunListCacheKey(request)
 
   useEffect(() => {
     if (!token) return
@@ -166,8 +175,8 @@ export function useProcessRuns(projectId?: string): UseProcessRuns {
       runs,
       current,
       history,
-      running: runs.filter((r) => r.status === 'running').length,
-      parked: runs.filter((r) => r.status === 'parked').length,
+      running: runs.filter((run) => run.status === 'running').length,
+      parked: runs.filter((run) => run.status === 'parked').length,
       refresh,
     }
   }, [snapshot.settled, snapshot.error, runs, refresh])

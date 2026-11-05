@@ -39,6 +39,7 @@ export const PROCESS_RUN_NEED_DECISIONS = {
   'turn-limit': (step: string) => `${step} ran out of turns`,
   'budget-spent': () => 'the budget is spent',
   'time-spent': () => 'the time limit is up',
+  'questions-spent': () => 'the question limit is reached',
 } as const
 
 /** A step that failed more than once, said with how often. */

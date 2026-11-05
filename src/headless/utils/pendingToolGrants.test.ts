@@ -411,6 +411,16 @@ describe('pickActiveStoryRunId', () => {
   }
   const storyChatKey = '/projects/p/stories/s1/agents/verifier'
 
+  it('leaves out a run the host started for the chat’s own upkeep', () => {
+    const hidden = {
+      id: 'upkeep',
+      chatContextId: storyChatKey,
+      createdAt: 2,
+      hiddenContextCheckpoint: true,
+    }
+    expect(pickActiveStoryRunId([hidden], storyChat)).toBeUndefined()
+  })
+
   it("ignores another agent's story-level run in the same story", () => {
     // The regression: a finished verifier's Transcript showed the REPORT agent
     // running next in the same story, because any active run in the story won.
@@ -503,6 +513,15 @@ describe('pickActiveStoryRunId', () => {
 })
 
 describe('pickActiveCliRunId', () => {
+  it('leaves out a run the host started for the chat’s own upkeep: it is never a turn', () => {
+    const key = 'projects/p/GENERAL'
+    const hidden = { id: 'upkeep', chatContextId: key, createdAt: 2, hiddenContextCheckpoint: true }
+    expect(pickActiveCliRunId([hidden], key)).toBeUndefined()
+    expect(
+      pickActiveCliRunId([{ id: 'turn', chatContextId: key, createdAt: 1 }, hidden], key),
+    ).toBe('turn')
+  })
+
   it('returns the run bound to this chat', () => {
     expect(
       pickActiveCliRunId(

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import type { VideoFrame } from '../../../../headless'
 
 /** One file the panel is handing to the host to put somewhere the user can reach. */
 export type SaveFileRequest = {
@@ -19,11 +20,31 @@ export type SaveFileRequest = {
  */
 export type SaveFileHandler = (file: SaveFileRequest) => void | Promise<void>
 
+/** What a chat video's card asks of the player playing it. */
+export type InlineVideoHandle = {
+  enterFullscreen: () => void
+}
+
+/** A chat video for the host's player, streamed from a signed URL. */
+export type InlineVideo = {
+  uri: string
+  /** Where to carry on from when `uri` changes, as it does when a URL runs out. */
+  startAtSec?: number
+  /** Set by the player while it is mounted. */
+  handleRef: { current: InlineVideoHandle | null }
+  onMetadata: (frame: VideoFrame) => void
+  /** The player gave up, in the player's words, at that time. */
+  onFailed: (message: string, atSec: number) => void
+  onPlayingChange: (playing: boolean) => void
+}
+
 /**
  * What the app hosting the review surfaces supplies for media this package
- * cannot play itself: a video player, handed the recording as a `data:` URI.
- * Left out, a recording is named and sized instead of played.
+ * cannot play itself: a video player, handed the recording as a `data:` URI,
+ * and one for a chat's video, by URL. Left out, a recording is named and sized
+ * instead of played, and a chat's video stays a poster with its details.
  */
 export type MediaHost = {
   renderVideo?: (dataUri: string) => ReactNode
+  renderInlineVideo?: (video: InlineVideo) => ReactNode
 }

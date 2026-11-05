@@ -431,3 +431,16 @@ describe('chatHeaderView — the other chats', () => {
     expect(chatHeaderView(input({ context, listHidden: true })).pill).toBeUndefined()
   })
 })
+
+describe('chatHeaderView — context fill', () => {
+  const context: ChatContext = { type: 'PROJECT', projectId: 'p' }
+
+  it('leaves the chip out until there is a fill to say', () => {
+    expect(chatHeaderView({ context, now: 0 }).contextFill).toBeUndefined()
+  })
+
+  it('carries the chip on whatever the chat is about', () => {
+    const contextFill = { label: '42%', percent: 42, level: 'roomy', tokens: '84k tokens' } as const
+    expect(chatHeaderView({ context, now: 0, contextFill }).contextFill).toBe(contextFill)
+  })
+})

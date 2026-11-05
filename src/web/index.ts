@@ -127,6 +127,8 @@ export {
   CommitCard,
   CommitChip,
   CommitChipBase,
+  ContextFillChip,
+  ContextFillPanel,
   CostChip,
   DurationChip,
   HandoffButton,
@@ -148,6 +150,9 @@ export {
   type CommitCardProps,
   type CommitChipBaseProps,
   type CommitChipProps,
+  type ContextFillChipAppearance,
+  type ContextFillChipProps,
+  type ContextFillPanelProps,
   type CostChipProps,
   type DurationChipProps,
   type HandoffButtonProps,
@@ -197,6 +202,14 @@ export {
   type GroupHomeProps,
   type GroupHomeProjectCard,
 } from './compound/GroupHome'
+export {
+  default as GroupHomeConnected,
+  type GroupHomeConnectedProps,
+} from './compound/GroupHomeConnected'
+export {
+  default as GroupConstellation,
+  type GroupConstellationProps,
+} from './compound/groupHome/GroupConstellation'
 export { default as JsonView, type JsonViewProps } from './compound/JsonView'
 export { default as Markdown, type MarkdownProps } from './compound/Markdown'
 export {
@@ -472,6 +485,7 @@ export {
 // Chat view (lifted from web + desktop's ChatView)
 export {
   AgentQuestionCard,
+  StuckCard,
   ChatBody,
   CliRunArtifactPanel,
   ChatChangesBar,
@@ -487,6 +501,8 @@ export {
   ChatReviewPanelConnected,
   type ChatReviewPanelConnectedProps,
   EvidenceImageOverlay,
+  ChatContextSettings,
+  LaunchCapsFields,
   ChatDebugModal,
   ChatDynamicContextModal,
   ChatHeader,
@@ -523,6 +539,8 @@ export {
   type SendChatMessagePreviewProps,
   type SendChatMessageCardProps,
   type AgentQuestionCardProps,
+  type StuckCardLayout,
+  type StuckCardProps,
   type ChatBodyProps,
   type ChatContextLike,
   type ChatHeaderProps,
@@ -534,6 +552,8 @@ export {
   type ChatSettingsDropdownProps,
   type ChatTopicCreateModalProps,
   type ChatTopicCreateModalConnectedProps,
+  type ChatContextSettingsProps,
+  type LaunchCapsFieldsProps,
   type ChatDebugModalProps,
   type ChatDynamicContextModalProps,
   type CredentialCaptureCardProps,
@@ -734,6 +754,10 @@ export {
   type ProjectCheckEnvFieldProps,
 } from './compound/projects/ProjectCheckEnvField'
 export {
+  default as ProjectDefaultCapsField,
+  type ProjectDefaultCapsFieldProps,
+} from './compound/projects/ProjectDefaultCapsField'
+export {
   default as ProjectEvaluationDefaultsField,
   type ProjectEvaluationDefaultsFieldProps,
 } from './compound/projects/ProjectEvaluationDefaultsField'
@@ -745,6 +769,12 @@ export {
   default as ProjectTicketSettings,
   type ProjectTicketSettingsProps,
 } from './compound/projects/ProjectTicketSettings'
+export {
+  default as ProjectDeviceSettings,
+  ProjectDeviceSettingsPanel,
+  type ProjectDeviceSettingsPanelProps,
+  type ProjectDeviceSettingsProps,
+} from './compound/projects/ProjectDeviceSettings'
 export {
   default as GroupTicketSettings,
   type GroupTicketSettingsProps,

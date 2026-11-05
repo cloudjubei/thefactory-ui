@@ -63,6 +63,7 @@ import {
   NO_PAIR_FILED,
   NO_PAIR_SHOWS_CHANGE,
   NOTHING_JUDGED,
+  OBSERVED_BEFORE_LABEL,
   PAIR_COUNTED_VERDICT,
   PAIR_IDENTICAL,
   PAIR_NOT_COUNTED_VERDICT,
@@ -388,6 +389,7 @@ function pairView(
     if (!after) missing.push('after')
   }
   const newScreen = pair.newScreen === true
+  const observedReason = trimmed(pair.observedBefore?.reason)
   return {
     key,
     index,
@@ -415,6 +417,9 @@ function pairView(
       ? PROOF_THUMB_NEW_MARKER
       : proofChangeMarker(pair.changedPixels, pair.totalPixels),
     missing,
+    ...(observedReason
+      ? { observedBefore: { label: OBSERVED_BEFORE_LABEL, reason: observedReason } }
+      : {}),
   }
 }
 
@@ -426,7 +431,14 @@ function pairScreen(p: ProofPairView, shas: Partial<ScreenPair>): ScreenPair {
     class: 'pair',
     ...(p.before ? { before: p.before } : {}),
     ...(p.after ? { after: p.after } : {}),
-    note: [p.verdict, p.change, p.sameScreen].filter((t) => t !== undefined).join(' · '),
+    note: [
+      p.verdict,
+      p.change,
+      p.sameScreen,
+      p.observedBefore ? `${p.observedBefore.label}: ${p.observedBefore.reason}` : undefined,
+    ]
+      .filter((t) => t !== undefined)
+      .join(' · '),
     ...(p.counted ? { counted: true } : {}),
     ...shas,
   }
@@ -981,6 +993,7 @@ export function proofScreensPane(view: VerifyProofView): ProofScreensPane {
       beforeAbsent: p.beforeAbsent,
       afterAbsent: p.afterAbsent,
       marker: p.marker,
+      ...(p.observedBefore ? { observedBefore: p.observedBefore } : {}),
     })),
     ...view.newScreens.map((s) => ({
       key: s.key,

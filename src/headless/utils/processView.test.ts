@@ -11,6 +11,7 @@ import {
   processAttemptTone,
   processRunSpend,
   PROCESS_KIND_BLURB,
+  processStepToolsView,
   copyProcessDefinition,
   blankProcessDefinition,
   blankProcessStep,
@@ -590,6 +591,51 @@ describe('parkedRunRef', () => {
     expect(
       parkedRunRef(run({ ledger: [entry('a', { runId: 'r1', chatContextId: '/x' })] })),
     ).toBeUndefined()
+  })
+})
+
+describe('processStepToolsView', () => {
+  it('says what a step of each kind ends with', () => {
+    for (const kind of PROCESS_STEP_KINDS) {
+      expect(processStepToolsView({ kind }).exitLabel, kind).toMatch(/^Ends /)
+    }
+    expect(processStepToolsView({ kind: 'judge' }).exitLabel).toBe('Ends with a verdict.')
+    expect(processStepToolsView({ kind: 'gate' }).exitLabel).toBe('Ends with a gate decision.')
+    expect(processStepToolsView({ kind: 'check' }).exitLabel).toBe('Ends with a check result.')
+    expect(processStepToolsView({ kind: 'capture' }).exitLabel).toBe('Ends with an artifact.')
+  })
+
+  it('names the tools a role is handed, and counts them for its line', () => {
+    const view = processStepToolsView({ kind: 'judge' })
+    expect(view.tools.length).toBeGreaterThan(1)
+    expect(view.toolsLabel).toBe(`${view.tools.length} tools`)
+    expect(view.noTools).toBeUndefined()
+  })
+
+  it('reads an agent step’s tools from the role it names', () => {
+    const developer = processStepToolsView({ kind: 'agent', agentType: 'developer' })
+    const verifier = processStepToolsView({ kind: 'agent', agentType: 'verifier' })
+    expect(developer.tools.length).toBeGreaterThan(0)
+    expect(developer.tools).not.toEqual(verifier.tools)
+  })
+
+  it('says why a step that runs no agent has none, with no line to open', () => {
+    const view = processStepToolsView({ kind: 'gate' })
+    expect(view.tools).toEqual([])
+    expect(view.toolsLabel).toBeUndefined()
+    expect(view.noTools).toMatch(/No agent tools/)
+  })
+
+  it('keeps a report made of documents to the documents', () => {
+    const view = processStepToolsView({ kind: 'report', documents: ['docs/run.md'] })
+    expect(view.tools).toEqual([])
+    expect(view.noTools).toMatch(/documents/)
+  })
+
+  it('does not guess the tools of an agent type it does not know', () => {
+    const view = processStepToolsView({ kind: 'agent', agentType: 'my-reviewer' })
+    expect(view.tools).toEqual([])
+    expect(view.noTools).toMatch(/agent type/)
   })
 })
 

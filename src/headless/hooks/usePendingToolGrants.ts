@@ -12,6 +12,8 @@ import {
   type PendingAction,
 } from '../api/generated'
 import { useApi } from '../api'
+import { extractErrorMessage } from '../api/errorMessage'
+import { QUESTION_SEND_FAILED } from '../utils/agentQuestionConstants'
 import { pendingChatActionsCache } from './chatAsksCache'
 import { loadProjectFilePaths } from '../contexts/FilesContext'
 import type { AnswerFilesSource } from '../utils/processParkNoteTypes'
@@ -303,7 +305,7 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
         setCliActions((prev) => prev.filter((a) => a.id !== actionId))
       } catch (err) {
         void loadCliActions()
-        throw err
+        throw new Error(extractErrorMessage(err, QUESTION_SEND_FAILED))
       }
     },
     [loadCliActions, setCliActions],

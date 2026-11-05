@@ -10,7 +10,7 @@ import { useNativeTheme } from '../../hooks/useNativeTheme'
  * Shared by the launch dock and the Processes catalogue so the chain is drawn
  * one way.
  */
-export type ChainChipItem = { name: string; agent: boolean }
+export type ChainChipItem = { name: string; agent: boolean; device?: string }
 
 export default function ChainChip({ chip }: { chip: ChainChipItem }) {
   const { theme } = useNativeTheme()
@@ -38,7 +38,9 @@ export default function ChainChip({ chip }: { chip: ChainChipItem }) {
           borderColor: theme.text.muted,
         }}
       />
-      <Text style={{ fontSize: 11, color: theme.text.secondary }}>{chip.name}</Text>
+      <Text style={{ fontSize: 11, color: theme.text.secondary }}>
+        {chip.device ? `${chip.name} · ${chip.device}` : chip.name}
+      </Text>
     </View>
   )
 }

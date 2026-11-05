@@ -5,6 +5,7 @@ import type { ChatHeaderView } from '../../../headless'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { IconChevron, IconMaximize } from '../../icons'
+import ContextFillChip from '../chips/ContextFillChip'
 import CostChip from '../chips/CostChip'
 import DurationChip from '../chips/DurationChip'
 import ToneBadge from '../chips/ToneBadge'
@@ -213,6 +214,7 @@ export default function ChatHeader({
             {view.cost ? (
               <CostChip label={view.cost.label} cost={view.cost.cost} title={view.cost.title} />
             ) : null}
+            {view.contextFill ? <ContextFillChip view={view.contextFill} /> : null}
             {narrow ? modelChip : null}
           </View>
         </View>

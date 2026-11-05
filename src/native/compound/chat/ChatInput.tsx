@@ -324,7 +324,6 @@ export default function ChatInput({
                 path={path}
                 chat={videoAttachments}
                 place="composer"
-                images={attachmentImages}
                 {...(onChangeAttachments ? { onRemove: () => removePath(path) } : {})}
                 fallback={pill(path, path)}
               />

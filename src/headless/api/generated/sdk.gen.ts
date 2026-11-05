@@ -115,12 +115,18 @@ import type {
   CloseProcessRunFeaturesData,
   CloseProcessRunFeaturesErrors,
   CloseProcessRunFeaturesResponses,
+  CompactChatNowData,
+  CompactChatNowErrors,
+  CompactChatNowResponses,
   CompleteGitCredentialGithubRedirectData,
   CompleteGitCredentialGithubRedirectErrors,
   CompleteGitCredentialGithubRedirectResponses,
   CompleteOverseerGithubAuthData,
   CompleteOverseerGithubAuthErrors,
   CompleteOverseerGithubAuthResponses,
+  CompleteProviderOAuthData,
+  CompleteProviderOAuthErrors,
+  CompleteProviderOAuthResponses,
   ConfirmOverseerLocalOnlyData,
   ConfirmOverseerLocalOnlyResponses,
   ConsolidateChatData,
@@ -132,6 +138,10 @@ import type {
   CountProjectDataErrors,
   CountProjectDataResponses,
   CreateChatData,
+  CreateChatErrors,
+  CreateChatMediaUrlData,
+  CreateChatMediaUrlErrors,
+  CreateChatMediaUrlResponses,
   CreateChatResponses,
   CreateCliAuthCacheData,
   CreateCliAuthCacheResponses,
@@ -353,12 +363,20 @@ import type {
   GetChatAttachmentDigestData,
   GetChatAttachmentDigestErrors,
   GetChatAttachmentDigestResponses,
+  GetChatContextReadoutData,
+  GetChatContextReadoutErrors,
+  GetChatContextReadoutResponses,
   GetChatData,
   GetChatErrors,
+  GetChatMediaData,
+  GetChatMediaErrors,
   GetChatOpenChangesData,
   GetChatOpenChangesErrors,
   GetChatOpenChangesResponses,
   GetChatResponses,
+  GetChatSessionFreshnessData,
+  GetChatSessionFreshnessErrors,
+  GetChatSessionFreshnessResponses,
   GetChatsSettingsData,
   GetChatsSettingsResponses,
   GetChatSummaryData,
@@ -513,6 +531,8 @@ import type {
   GetProcessRunLandingCheckErrors,
   GetProcessRunLandingCheckResponses,
   GetProcessRunResponses,
+  GetProcessRunStatisticsData,
+  GetProcessRunStatisticsResponses,
   GetProjectData,
   GetProjectDesignData,
   GetProjectDesignErrors,
@@ -962,6 +982,9 @@ import type {
   RejectFeatureRequestData,
   RejectFeatureRequestErrors,
   RejectFeatureRequestResponses,
+  RelinkStoryExternalRefData,
+  RelinkStoryExternalRefErrors,
+  RelinkStoryExternalRefResponses,
   RemoveActionRuleData,
   RemoveActionRuleErrors,
   RemoveActionRuleResponses,
@@ -1230,6 +1253,9 @@ import type {
   StartProjectMcpServerSignInData,
   StartProjectMcpServerSignInErrors,
   StartProjectMcpServerSignInResponses,
+  StartProviderOAuthData,
+  StartProviderOAuthErrors,
+  StartProviderOAuthResponses,
   StartStoryWorkData,
   StartStoryWorkErrors,
   StartStoryWorkResponses,
@@ -2351,6 +2377,19 @@ export const listProcessRuns = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/process-runs',
+    ...options,
+  })
+
+/**
+ * How each process of a project has done, version by version, over its ended runs: how many ran, the share that passed first time, the median iterations and the median cost, nested work counted in a run’s cost.
+ */
+export const getProcessRunStatistics = <ThrowOnError extends boolean = false>(
+  options: Options<GetProcessRunStatisticsData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<GetProcessRunStatisticsResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/statistics',
     ...options,
   })
 
@@ -3987,6 +4026,42 @@ export const revealGitCredentialToken = <ThrowOnError extends boolean = false>(
     ...options,
   })
 
+export const startProviderOAuth = <ThrowOnError extends boolean = false>(
+  options: Options<StartProviderOAuthData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    StartProviderOAuthResponses,
+    StartProviderOAuthErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/provider-connections/oauth/{provider}/start',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const completeProviderOAuth = <ThrowOnError extends boolean = false>(
+  options: Options<CompleteProviderOAuthData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CompleteProviderOAuthResponses,
+    CompleteProviderOAuthErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/provider-connections/oauth/{provider}/callback',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
 export const listProviderConnections = <ThrowOnError extends boolean = false>(
   options?: Options<ListProviderConnectionsData, ThrowOnError>,
 ) =>
@@ -4455,6 +4530,24 @@ export const importConnectionItem = <ThrowOnError extends boolean = false>(
     },
   })
 
+export const relinkStoryExternalRef = <ThrowOnError extends boolean = false>(
+  options: Options<RelinkStoryExternalRefData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    RelinkStoryExternalRefResponses,
+    RelinkStoryExternalRefErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/stories/{storyId}/external-refs/relink',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
 export const deleteChat = <ThrowOnError extends boolean = false>(
   options: Options<DeleteChatData, ThrowOnError>,
 ) =>
@@ -4495,7 +4588,7 @@ export const updateChat = <ThrowOnError extends boolean = false>(
 export const createChat = <ThrowOnError extends boolean = false>(
   options: Options<CreateChatData, ThrowOnError>,
 ) =>
-  (options.client ?? client).post<CreateChatResponses, unknown, ThrowOnError>({
+  (options.client ?? client).post<CreateChatResponses, CreateChatErrors, ThrowOnError>({
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/chats',
@@ -4540,6 +4633,65 @@ export const getChat = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/chats/get',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Read the resident CLI session against the stored chat without creating either. A missing chat answers 404. The snapshot is advisory and can change before the next turn.
+ */
+export const getChatSessionFreshness = <ThrowOnError extends boolean = false>(
+  options: Options<GetChatSessionFreshnessData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    GetChatSessionFreshnessResponses,
+    GetChatSessionFreshnessErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/chats/session-freshness',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * How the chat's working context stands, the same for API and CLI chats, without creating the chat: what its last turn measured against the model's window, and how many user turns its notes are behind. A missing chat answers 404.
+ */
+export const getChatContextReadout = <ThrowOnError extends boolean = false>(
+  options: Options<GetChatContextReadoutData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    GetChatContextReadoutResponses,
+    GetChatContextReadoutErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/chats/context-readout',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Compact the chat's working context now, the same for API and CLI chats: its next turn runs on notes and recent messages, and the transcript keeps every message. Everything it runs on is read from the chat. A chat that is busy answers `busy` at once and nothing is queued. Holds the chat's turn while it runs, so `completion:turn` shows it working, Stop reaches it and a new message cancels it.
+ */
+export const compactChatNow = <ThrowOnError extends boolean = false>(
+  options: Options<CompactChatNowData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<CompactChatNowResponses, CompactChatNowErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/chats/compact-now',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -4857,6 +5009,39 @@ export const getChatAttachmentDigest = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/chat-attachments/digest',
+    ...options,
+  })
+
+/**
+ * A short-lived signed URL for one of a chat’s videos and, beside it, for a still of it. They need no bearer, so a `<video>` or `<img>` can use them; the path is relative to the server.
+ */
+export const createChatMediaUrl = <ThrowOnError extends boolean = false>(
+  options: Options<CreateChatMediaUrlData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CreateChatMediaUrlResponses,
+    CreateChatMediaUrlErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/chat-attachments/media-url',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * The file a signed URL from `POST /chat-attachments/media-url` is for, from disk, in ranges. The signature is the only thing that opens this route: a bearer does not.
+ */
+export const getChatMedia = <ThrowOnError extends boolean = false>(
+  options?: Options<GetChatMediaData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<unknown, GetChatMediaErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/chat-attachments/media',
     ...options,
   })
 

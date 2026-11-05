@@ -25,6 +25,7 @@ import { Switch } from '../../primitives/Switch'
 import { Input } from '../../primitives/Input'
 import { Textarea } from '../../primitives/Textarea'
 import { Slider } from '../../primitives/Slider'
+import ChatContextSettings from './ChatContextSettings'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import ChatRulesPanel from '../rules/ChatRulesPanel'
@@ -58,6 +59,8 @@ export type CompletionSettingsLike = {
   finishTurnOnErrors?: boolean
   historySummarization?: unknown
   messageSanitization?: unknown
+  seedCeilingFraction?: number
+  cliContextStaleTurns?: number
 }
 
 export interface ChatSettingsDropdownProps {
@@ -264,6 +267,10 @@ export default function ChatSettingsDropdown({
         ) : null}
 
         {extraContent}
+
+        {completion ? (
+          <ChatContextSettings completion={completion} persistSettings={persistSettings} />
+        ) : null}
 
         {/* Agent runs — CLI transcript display prefs (global). */}
         <View style={{ gap: nativeSpace[3] }}>

@@ -69,6 +69,9 @@ export function videoAttachmentView(digest: ChatVideoDigest | undefined): VideoA
     ...(length ? { length } : {}),
     ...(size ? { size } : {}),
     ...(facts ? { facts } : {}),
+    ...(digest?.width && digest.height
+      ? { frame: { width: digest.width, height: digest.height } }
+      : {}),
   }
   if (stage === 'failed') {
     return {

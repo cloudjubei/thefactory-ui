@@ -1,4 +1,8 @@
-import type { ProcessBaseBranchOptions, ProcessGroupBuildMode } from 'thefactory-tools/types'
+import type {
+  ProcessBaseBranchOptions,
+  ProcessGroupBuildMode,
+  ProjectProcessDefaultCaps,
+} from 'thefactory-tools/types'
 import type { TicketLaunchMove } from './groupTicketTypes'
 
 /** One project's part of a group run, as a launch asks for it. */
@@ -21,6 +25,8 @@ export interface ProcessGroupLaunchLeg {
   processId?: string
   features: number
   isPrerequisite: boolean
+  /** The caps this project's launches start from. */
+  defaultCaps?: ProjectProcessDefaultCaps
   problem?: string
   /** The branches this project's work may go off, its checkout's own preselected; absent off git. */
   baseBranches?: ProcessBaseBranchOptions

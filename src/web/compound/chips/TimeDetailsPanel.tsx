@@ -11,7 +11,7 @@ export type TimeDetailsPanelProps = {
  * Where a time went — the one view every time chip opens. The chip says the
  * total; this splits it into agent thinking, tools & commands and the rest,
  * each with its share, names the slowest tools, and says how long a person was
- * waited on, and how long it waited for other check runs, beside it. Worded in headless (`processTimeDetailsView`) so the
+ * waited on, and how long it waited for a turn or machine capacity, beside it. Worded in headless (`processTimeDetailsView`) so the
  * native sheet reads the same.
  */
 export default function TimeDetailsPanel({ view, title }: TimeDetailsPanelProps) {

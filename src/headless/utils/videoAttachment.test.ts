@@ -6,6 +6,23 @@ import type { ChatVideoDigest } from './videoAttachmentTypes'
 const TOKENS = { overviewTokens: 6200, closerLookTokens: 1600 }
 
 describe('videoAttachmentView', () => {
+  it('carries the video’s size once it is known', () => {
+    expect(videoAttachmentView({ stage: 'ready', width: 1080, height: 1920 }).frame).toEqual({
+      width: 1080,
+      height: 1920,
+    })
+  })
+
+  it('has no size before the digest read one', () => {
+    expect(videoAttachmentView({ stage: 'probing' }).frame).toBeUndefined()
+    expect(videoAttachmentView({ stage: 'ready', width: 0, height: 0 }).frame).toBeUndefined()
+  })
+
+  it('keeps a failed video’s size', () => {
+    const digest = { stage: 'failed', width: 640, height: 480 } as const
+    expect(videoAttachmentView(digest).frame).toEqual({ width: 640, height: 480 })
+  })
+
   it('reads as the first stage until the first answer comes', () => {
     expect(videoAttachmentView(undefined)).toMatchObject({
       state: 'preparing',

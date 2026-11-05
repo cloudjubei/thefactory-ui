@@ -38,6 +38,50 @@ function proposal(): ProcessProposal {
   }
 }
 
+describe('processProposalView — the capture device', () => {
+  const steps = [
+    {
+      id: 'f',
+      name: 'Feature',
+      kind: 'process',
+      agent: false,
+      subject: { kind: 'feature', id: 'f1' },
+      children: [
+        { id: 'dev', name: 'Implement', kind: 'agent', agent: true, agentRole: 'developer' },
+        { id: 'cap', name: 'Capture', kind: 'capture', agent: false },
+        { id: 'ver', name: 'Verify', kind: 'agent', agent: true, agentRole: 'verifier' },
+        { id: 'both', name: 'Build', kind: 'agent', agent: true, agentRole: 'developer-verifier' },
+      ],
+    },
+    { id: 'sign', name: 'Sign-off', kind: 'gate', agent: false },
+  ] as ProcessProposal['steps']
+
+  it('names it on the steps that drive it, and no others', () => {
+    const view = processProposalView({ ...proposal(), steps, captureTarget: 'android' })
+    expect(view.features[0]?.chain.map((c) => c.device)).toEqual([
+      undefined,
+      'Android emulator',
+      'Android emulator',
+      'Android emulator',
+    ])
+    expect(view.tail[0]?.device).toBeUndefined()
+    expect(view.deviceLine).toBe('Captures on Android emulator')
+  })
+
+  it.each([
+    ['ios', 'Captures on iOS simulator'],
+    ['web', 'Captures on Web browser'],
+  ] as const)('reads %s', (captureTarget, line) => {
+    expect(processProposalView({ ...proposal(), steps, captureTarget }).deviceLine).toBe(line)
+  })
+
+  it('names none when the host could not tell', () => {
+    const view = processProposalView({ ...proposal(), steps })
+    expect(view.deviceLine).toBeUndefined()
+    expect(view.features[0]?.chain.some((c) => c.device !== undefined)).toBe(false)
+  })
+})
+
 describe('processProposalView', () => {
   it('splits feature rows from the story-level tail', () => {
     const view = processProposalView(proposal())

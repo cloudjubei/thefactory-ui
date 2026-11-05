@@ -55,6 +55,9 @@ export const PROOF_THUMB_UNDER_ONE = '<1%'
 export const PROOF_NOT_COUNTED_TAIL = 'not part of the proof'
 
 export const PAIR_COUNTED_VERDICT = 'Shows the change'
+
+/** A before seen in place rather than built from the base: said beside it, with its reason. */
+export const OBSERVED_BEFORE_LABEL = 'Observed before'
 export const PAIR_NOT_COUNTED_VERDICT = 'Did not count as proof.'
 export const PAIR_IDENTICAL = 'Pixel-identical'
 export const PAIR_UNMEASURED = 'Not measured'

@@ -865,7 +865,6 @@ function MessageRow({
                   path={path}
                   chat={videoAttachments}
                   place="sent"
-                  images={attachmentImages}
                   fallback={file}
                 />
               )

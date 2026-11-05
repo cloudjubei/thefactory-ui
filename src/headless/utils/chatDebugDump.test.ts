@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildChatDebugDump,
+  chatDebugContextLine,
   chatDebugText,
   fitsChatDebugBudget,
   serializeChatDebugDump,
@@ -530,5 +531,99 @@ describe('buildChatDebugDump — runs that could not be loaded', () => {
 
   it('says nothing about an error when the listing succeeded and was simply empty', () => {
     expect(buildChatDebugDump({ context, runs: [] }).runsError).toBeUndefined()
+  })
+})
+
+describe('buildChatDebugDump — context upkeep', () => {
+  const checkpoint = {
+    phase: 'finished',
+    chatContextId: 'k',
+    reason: 'end-of-turn',
+    outcome: 'finished',
+    at: '2026-11-05T10:00:00.000Z',
+  } as const
+  const readout = {
+    turnsSinceLastContextUpdate: 2,
+    notesUpdatedAt: '2026-11-05T09:00:00.000Z',
+    contextFill: {
+      tokensUsed: 10,
+      windowTokens: 100,
+      fillFraction: 0.1,
+      windowSource: 'catalogue',
+      source: 'recorded-usage',
+      turnsSinceLastContextUpdate: 2,
+    },
+  } as const
+
+  it('leaves the section out when nothing was read about it', () => {
+    expect(buildChatDebugDump({ context }).contextUpkeep).toBeUndefined()
+  })
+
+  it('carries how far behind the notes are, the fill and the checkpoints heard', () => {
+    const dump = buildChatDebugDump({
+      context,
+      chat: chatOf({ contextBoundary: { messageId: 'm', at: 'then' } }),
+      contextReadout: readout,
+      contextCheckpoints: [checkpoint],
+    })
+    expect(dump.contextUpkeep).toEqual({
+      turnsSinceLastContextUpdate: 2,
+      notesUpdatedAt: readout.notesUpdatedAt,
+      contextFill: readout.contextFill,
+      contextBoundary: { messageId: 'm', at: 'then' },
+      checkpoints: [checkpoint],
+    })
+  })
+
+  it('still shows the checkpoints when the readout could not be read', () => {
+    const dump = buildChatDebugDump({ context, contextCheckpoints: [checkpoint] })
+    expect(dump.contextUpkeep?.checkpoints).toEqual([checkpoint])
+    expect(dump.contextUpkeep?.turnsSinceLastContextUpdate).toBeUndefined()
+  })
+})
+
+describe('chatDebugContextLine', () => {
+  const started = {
+    phase: 'started',
+    chatContextId: 'k',
+    reason: 'compact-now',
+    at: '2026-11-05T10:00:00.000Z',
+  } as const
+
+  it('says nothing with no section', () => {
+    expect(chatDebugContextLine(buildChatDebugDump({ context }))).toBeUndefined()
+  })
+
+  it('says the notes’ turns and the count of checkpoints, with the last one', () => {
+    const dump = buildChatDebugDump({
+      context,
+      contextReadout: { turnsSinceLastContextUpdate: 1 },
+      contextCheckpoints: [
+        started,
+        { ...started, phase: 'finished', reason: 'fill', outcome: 'cancelled' },
+      ],
+    })
+    expect(chatDebugContextLine(dump)).toBe(
+      '1 turn since last notes update · 2 checkpoints · last: fill, cancelled',
+    )
+  })
+
+  it('says a checkpoint still running as running', () => {
+    const dump = buildChatDebugDump({
+      context,
+      contextReadout: { turnsSinceLastContextUpdate: 0 },
+      contextCheckpoints: [started],
+    })
+    expect(chatDebugContextLine(dump)).toBe(
+      '0 turns since last notes update · 1 checkpoint · last: compact-now, running',
+    )
+  })
+
+  it('says no checkpoints when none were heard', () => {
+    const dump = buildChatDebugDump({
+      context,
+      contextReadout: { turnsSinceLastContextUpdate: 4 },
+    })
+    expect(chatDebugContextLine(dump)).toBe('4 turns since last notes update · 0 checkpoints')
   })
 })

@@ -22,6 +22,7 @@ import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
 import { Switch } from '../../primitives/Switch'
 import ChatRulesPanel from '../rules/ChatRulesPanel'
+import ChatContextSettings from './ChatContextSettings'
 import { TurnLimitField } from '../TurnLimitField'
 
 export type ToolToggle = {
@@ -53,6 +54,8 @@ export type CompletionSettingsLike = {
   /** Free-form — host wires its own historySummarization config. */
   historySummarization?: unknown
   messageSanitization?: unknown
+  seedCeilingFraction?: number
+  cliContextStaleTurns?: number
 }
 
 export type ChatSettingsDropdownProps = {
@@ -260,6 +263,10 @@ export default function ChatSettingsDropdown({
       ) : null}
 
       {extraContent}
+
+      {completion ? (
+        <ChatContextSettings completion={completion} persistSettings={persistSettings} />
+      ) : null}
 
       <div className="space-y-2">
         <div className="text-xs font-medium text-(--text-secondary)">Agent runs</div>

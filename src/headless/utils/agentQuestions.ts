@@ -3,6 +3,7 @@
 // rather than approved — these helpers keep that split out of the components.
 
 import { ASK_USER_ANSWER_KINDS, ASK_USER_TOOL_NAME } from 'thefactory-tools/constants'
+import { stuckSignalOfAsk } from 'thefactory-tools/utils'
 import type {
   AgentQuestion,
   AgentQuestionDecision,
@@ -105,6 +106,8 @@ export function parseQuestionPayload(payload: unknown): AgentQuestion {
   if (context) parsed.context = context
   if (options) parsed.options = options
   if (answerKind) parsed.answerKind = answerKind
+  const stuck = stuckSignalOfAsk(payload)
+  if (stuck) parsed.stuck = stuck
   if (!question) parsed.raw = payload
   return parsed
 }

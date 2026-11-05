@@ -1,5 +1,7 @@
 import type {
   ChatContext,
+  CompactChatNowData,
+  CompactChatNowResponse,
   CountPendingCliAgentActionsByChatData,
   CountPendingCliAgentActionsByChatResponse,
   GetActiveCliStateData,
@@ -8,6 +10,8 @@ import type {
   GetActiveRunnerKindResponse,
   GetAllFileStatsData,
   GetAllFileStatsResponse,
+  GetChatContextReadoutData,
+  GetChatContextReadoutResponse,
   GetChatData,
   GetChatOpenChangesData,
   GetChatOpenChangesResponse,
@@ -20,6 +24,8 @@ import type {
   GetChatTurnResponse,
   GetCostsByChatData,
   GetCostsByChatResponse,
+  GetCliAgentRunData,
+  GetCliAgentRunResponse,
   GetDailyUsageData,
   GetDailyUsageResponse,
   GetDbHealthData,
@@ -44,9 +50,15 @@ import type {
   GetOverseerResponse,
   GetPricingData,
   GetPricingResponse,
+  GetProjectsGroupConstellationData,
+  GetProjectsGroupConstellationResponse,
+  GetProjectsGroupStatusData,
+  GetProjectsGroupStatusResponse,
   GetProcessCapabilitiesData,
   GetProcessCapabilitiesResponse,
   GetProcessRunData,
+  GetProcessRunStatisticsData,
+  GetProcessRunStatisticsResponse,
   GetProcessRunResponse,
   GetProjectDesignData,
   GetProjectDesignResponse,
@@ -170,6 +182,7 @@ import {
   fakeProjectStorageUsage,
 } from './fixtures/account'
 import { GROUP_DATA, PROJECT_DATA } from './fixtures/agentTypes'
+import { FAKE_CLI_RUN } from './fixtures/cliRuns'
 import {
   FAKE_CHAT_SETTINGS,
   FAKE_CHATS,
@@ -177,14 +190,21 @@ import {
   fakeChatSummaryOf,
   findFakeChat,
 } from './fixtures/chats'
+import { FAKE_CONTEXT_READOUT } from './fixtures/chatContext'
 import { PLAY_INDEX } from './fixtures/design'
 import { FAKE_FEATURE_REQUESTS } from './fixtures/featureRequests'
 import { fakeGitBundle, LOG } from './fixtures/git'
 import { codeOnlyOverview } from './fixtures/knowledge'
 import { FAKE_DATA_SUBSCRIPTIONS, FAKE_SOURCE_RECORDS, TASK_SOURCE } from './fixtures/liveData'
 import { API_CONFIG, CLI_MODELS, FAKE_LLM_CONFIGS } from './fixtures/models'
-import { FAKE_PROCESS_RUNS, FAKE_PROCESSES } from './fixtures/processRuns'
-import { FAKE_GROUPS, FAKE_PROJECTS } from './fixtures/projects'
+import {
+  FAKE_PROCESS_RUN_STATISTICS,
+  FAKE_PROCESS_RUNS,
+  FAKE_PROCESSES,
+  fakeProcessRunsMatching,
+} from './fixtures/processRuns'
+import { FAKE_GROUP_ID, FAKE_GROUPS, FAKE_PROJECTS } from './fixtures/projects'
+import { FAKE_GROUP_CONSTELLATION, FAKE_GROUP_STATUS } from './fixtures/projectsGroups'
 import { FAKE_AT } from './fixtures/stamps'
 import { FAKE_STORIES_BY_PROJECT } from './fixtures/stories'
 
@@ -215,17 +235,6 @@ const storiesOf = (projectId: string | undefined) => FAKE_STORIES_BY_PROJECT[pro
 function contextOf({ body, missing }: FakeRouteRequest): ChatContext {
   const { context } = (body ?? {}) as { context?: ChatContext }
   return context ?? missing('The request names no chat context.')
-}
-
-function fakeProcessRuns({ query }: FakeRouteRequest): ListProcessRunsResponse {
-  const projectIds = [...query.getAll('projectIds'), ...query.getAll('projectId')]
-  const storyId = query.get('storyId')
-  return FAKE_PROCESS_RUNS.filter(
-    (run) =>
-      (projectIds.length === 0 || projectIds.includes(run.projectId)) &&
-      (!storyId || run.storyId === storyId) &&
-      (query.get('rootOnly') !== 'true' || !run.parentRunId),
-  )
 }
 
 const HEALTH: HealthResponse = {
@@ -331,6 +340,18 @@ export const FAKE_BACKEND_ROUTES: readonly FakeRoute[] = [
   read<ListProjectsGroupsData, ListProjectsGroupsResponse>(
     '/api/v1/projects-groups',
     () => FAKE_GROUPS,
+  ),
+  read<GetProjectsGroupStatusData, GetProjectsGroupStatusResponse>(
+    '/api/v1/projects-groups/{id}/status',
+    ({ params, missing }) =>
+      params.id === FAKE_GROUP_ID ? FAKE_GROUP_STATUS : missing(`No fake group '${params.id}'.`),
+  ),
+  read<GetProjectsGroupConstellationData, GetProjectsGroupConstellationResponse>(
+    '/api/v1/projects-groups/{id}/constellation',
+    ({ params, missing }) =>
+      params.id === FAKE_GROUP_ID
+        ? FAKE_GROUP_CONSTELLATION
+        : missing(`No fake group '${params.id}'.`),
   ),
   read<ListTemplatesData, ListTemplatesResponse>('/api/v1/templates', () => ({ templates: [] })),
   read<GetPricingData, GetPricingResponse>('/api/v1/pricing', () => ({
@@ -473,6 +494,13 @@ export const FAKE_BACKEND_ROUTES: readonly FakeRoute[] = [
     '/api/v1/chats/settings',
     () => FAKE_CHAT_SETTINGS,
   ),
+  readByPost<GetChatContextReadoutData, GetChatContextReadoutResponse>(
+    '/api/v1/chats/context-readout',
+    () => FAKE_CONTEXT_READOUT,
+  ),
+  readByPost<CompactChatNowData, CompactChatNowResponse>('/api/v1/chats/compact-now', () => ({
+    outcome: 'nothing-needed',
+  })),
   readByPost<GetChatData, GetChatResponse>('/api/v1/chats/get', (request) =>
     fakeChatOf(contextOf(request)),
   ),
@@ -521,7 +549,20 @@ export const FAKE_BACKEND_ROUTES: readonly FakeRoute[] = [
     () => [],
   ),
 
-  read<ListProcessRunsData, ListProcessRunsResponse>('/api/v1/process-runs', fakeProcessRuns),
+  read<GetCliAgentRunData, GetCliAgentRunResponse>(
+    '/api/v1/cli-runs/{runId}',
+    ({ params, missing }) =>
+      params.runId === FAKE_CLI_RUN.id
+        ? FAKE_CLI_RUN
+        : missing(`No fake CLI run '${params.runId}'.`),
+  ),
+  read<GetProcessRunStatisticsData, GetProcessRunStatisticsResponse>(
+    '/api/v1/process-runs/statistics',
+    () => FAKE_PROCESS_RUN_STATISTICS,
+  ),
+  read<ListProcessRunsData, ListProcessRunsResponse>('/api/v1/process-runs', ({ query }) =>
+    fakeProcessRunsMatching(query),
+  ),
   read<GetProcessRunData, GetProcessRunResponse>(
     '/api/v1/process-runs/{runId}',
     ({ params, missing }) =>

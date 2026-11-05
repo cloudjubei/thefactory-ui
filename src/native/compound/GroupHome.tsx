@@ -1,7 +1,18 @@
 import type { ReactNode } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
+import {
+  GROUP_HOME_DEFAULT_LAYOUT,
+  GROUP_STATUS_COPY,
+  type GroupHomeLayout,
+  type GroupMemberView,
+  type GroupStatusView,
+} from '../../headless'
 import { nativeRadii, nativeSpace } from '../../tokens/native'
 import { useNativeTheme } from '../hooks/useNativeTheme'
+import GroupMemberCard from './groupHome/GroupMemberCard'
+import GroupMemberRow from './groupHome/GroupMemberRow'
+import GroupRunsList from './groupHome/GroupRunsList'
+import GroupStatusBadges from './groupHome/GroupStatusBadges'
 
 export interface GroupHomeProjectCard {
   id: string
@@ -18,7 +29,17 @@ export interface GroupHomeProps {
   subtitle?: string
   projects: ReadonlyArray<GroupHomeProjectCard>
   onSelectProject: (project: GroupHomeProjectCard) => void
-  /** Slot rendered beneath the project list (e.g. a group-level chat preview). */
+  /** The group's status for this render. Left out, the projects are plain cards. */
+  view?: GroupStatusView
+  /** How the status arranges its members. */
+  layout?: GroupHomeLayout
+  /** Why the status is not shown yet, or could not be read. */
+  statusNote?: string
+  /** A run listed on a member was selected. */
+  onSelectRun?: (runId: string, projectId: string) => void
+  /** A group run was selected. */
+  onSelectGroupRun?: (groupRunId: string) => void
+  /** Slot rendered beneath the project list (e.g. the dependency map, a group-level chat preview). */
   footer?: ReactNode
   emptyLabel?: string
   missingLabel?: string
@@ -35,6 +56,11 @@ export default function GroupHome({
   subtitle,
   projects,
   onSelectProject,
+  view,
+  layout = GROUP_HOME_DEFAULT_LAYOUT,
+  statusNote,
+  onSelectRun,
+  onSelectGroupRun,
   footer,
   emptyLabel = 'This group has no projects yet.',
   missingLabel = 'Group not found.',
@@ -64,6 +90,31 @@ export default function GroupHome({
 
   const subtitleText =
     subtitle ?? `${projects.length} ${projects.length === 1 ? 'project' : 'projects'}`
+
+  const projectOf = (projectId: string) => projects.find((p) => p.id === projectId)
+  const titleOf = (projectId: string) => projectOf(projectId)?.title ?? projectId
+  const select = (projectId: string) =>
+    onSelectProject(projectOf(projectId) ?? { id: projectId, title: projectId })
+  const iconOf = (projectId: string) =>
+    renderProjectIcon ? (
+      renderProjectIcon(projectOf(projectId)?.iconKey ?? 'folder')
+    ) : (
+      <Text style={{ fontSize: 18 }}>📁</Text>
+    )
+  const memberCards = (members: readonly GroupMemberView[]) => (
+    <View style={{ gap: nativeSpace[6] }}>
+      {members.map((member) => (
+        <GroupMemberCard
+          key={member.projectId}
+          title={titleOf(member.projectId)}
+          icon={iconOf(member.projectId)}
+          member={member}
+          onSelect={() => select(member.projectId)}
+          {...(onSelectRun ? { onSelectRun } : {})}
+        />
+      ))}
+    </View>
+  )
 
   return (
     <ScrollView
@@ -104,10 +155,66 @@ export default function GroupHome({
         >
           {subtitleText}
         </Text>
+        {statusNote ? (
+          <Text style={{ marginTop: nativeSpace[2], fontSize: 13, color: theme.text.muted }}>
+            {statusNote}
+          </Text>
+        ) : null}
+        {view ? (
+          <View
+            style={{
+              marginTop: nativeSpace[3],
+              flexDirection: 'row',
+              flexWrap: 'wrap',
+              gap: nativeSpace[2],
+            }}
+          >
+            {view.headline.length > 0 ? (
+              <GroupStatusBadges badges={view.headline} />
+            ) : (
+              <Text style={{ fontSize: 13, color: theme.text.muted }}>
+                {GROUP_STATUS_COPY.allQuiet}
+              </Text>
+            )}
+          </View>
+        ) : null}
       </View>
+
+      {view && view.groupRuns.length > 0 ? (
+        <GroupRunsList
+          runs={view.groupRuns}
+          nameOf={titleOf}
+          {...(onSelectGroupRun ? { onSelect: onSelectGroupRun } : {})}
+        />
+      ) : null}
 
       {projects.length === 0 ? (
         <Text style={{ fontSize: 13, color: theme.text.muted }}>{emptyLabel}</Text>
+      ) : view && layout === 'table' ? (
+        <View>
+          {view.members.map((member) => (
+            <GroupMemberRow
+              key={member.projectId}
+              title={titleOf(member.projectId)}
+              icon={iconOf(member.projectId)}
+              member={member}
+              onSelect={() => select(member.projectId)}
+            />
+          ))}
+        </View>
+      ) : view && layout === 'cards' ? (
+        memberCards(view.members)
+      ) : view ? (
+        <View style={{ gap: nativeSpace[8] }}>
+          {view.sections.map((section) => (
+            <View key={section.id} style={{ gap: nativeSpace[3] }}>
+              <Text style={{ fontSize: 12, fontWeight: '600', color: theme.text.secondary }}>
+                {section.label}
+              </Text>
+              {memberCards(section.members)}
+            </View>
+          ))}
+        </View>
       ) : (
         // Card grid spacing mirrors web's `gap-4` (16px between cards), with
         // each card matching `p-4 gap-3 rounded-lg` exactly. Keep these in

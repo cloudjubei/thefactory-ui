@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ProcessRun } from 'thefactory-tools/types'
 
+import type { ProcessRunListRequest } from '../utils/processRunListQuery'
 import { applyProcessRunUpdate, shouldTrackProcessRunUpdate } from './useProcessRuns'
 
 // Fixtures vary in SHAPE (root vs child, scoped vs cross-project, absent run),
@@ -107,6 +108,49 @@ describe('applyProcessRunUpdate', () => {
       ),
     ).toBe(prev)
     expect(applyProcessRunUpdate(prev, { runId: 'gone', deleted: true }, undefined)).toBe(prev)
+  })
+
+  it('drops a run that left a status filter and inserts one that entered it', () => {
+    const request: ProcessRunListRequest = {
+      scope: { kind: 'project', projectId: 'p1' },
+      filter: { status: 'parked' },
+    }
+    const prev = [run('a', 10, { status: 'parked' })]
+    expect(
+      applyProcessRunUpdate(
+        prev,
+        { runId: 'a', projectId: 'p1', run: run('a', 10, { status: 'running' }) },
+        request,
+      ),
+    ).toEqual([])
+    expect(
+      applyProcessRunUpdate(
+        prev,
+        { runId: 'b', projectId: 'p1', run: run('b', 30, { status: 'parked' }) },
+        request,
+      )?.map((item) => item.id),
+    ).toEqual(['b', 'a'])
+  })
+
+  it('leaves an ending-filtered list untouched — that decision is re-read, not guessed', () => {
+    const request: ProcessRunListRequest = {
+      scope: { kind: 'all' },
+      filter: { ending: 'unmerged' },
+    }
+    const prev = [run('a', 10, { status: 'succeeded' })]
+    expect(
+      applyProcessRunUpdate(
+        prev,
+        { runId: 'a', run: run('a', 10, { status: 'succeeded' }) },
+        request,
+      ),
+    ).toBe(prev)
+    expect(
+      shouldTrackProcessRunUpdate(
+        { runId: 'a', run: run('a', 10, { status: 'succeeded' }) },
+        request,
+      ),
+    ).toBe(false)
   })
 
   it('starts a list from nothing when a run arrives before the first read', () => {

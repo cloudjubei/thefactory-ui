@@ -1,3 +1,9 @@
+export {
+  default as ContextFillChip,
+  type ContextFillChipAppearance,
+  type ContextFillChipProps,
+} from './ContextFillChip'
+export { default as ContextFillPanel, type ContextFillPanelProps } from './ContextFillPanel'
 export { default as CostChip, type CostChipProps } from './CostChip'
 export { default as DurationChip, type DurationChipProps } from './DurationChip'
 export { default as ProjectChip, type ProjectChipProps } from './ProjectChip'

@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import {
   ApiProvider,
@@ -38,6 +38,12 @@ const POSTER_ART = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90"
 const POSTER = `data:image/svg+xml;utf8,${encodeURIComponent(POSTER_ART)}`
 const POSTER_PATH = '.factory/video-digests/3f2a/stills/t-00m00.0s.jpg'
 const previewUrl = async () => POSTER
+const LANDSCAPE_VIDEO = new URL('./assets/sample-landscape.webm', import.meta.url).href
+const PORTRAIT_VIDEO = new URL('./assets/sample-portrait.webm', import.meta.url).href
+const NOT_A_VIDEO = 'data:video/mp4;base64,AAAAAAAA'
+const FAR_OFF = '2999-01-01T00:00:00.000Z'
+const LANDSCAPE = { width: 640, height: 360 }
+const PORTRAIT = { width: 270, height: 480 }
 
 const STATES: Record<string, ChatVideoDigest> = {
   checking: { stage: 'probing', ...FACTS },
@@ -109,6 +115,8 @@ const TITLES: Record<string, [string, string]> = {
 
 const posterUrl = (digest: ChatVideoDigest) => (digest.poster ? POSTER : null)
 
+const sourceOf = (url: string) => ({ video: async () => ({ url, expiresAt: FAR_OFF }) })
+
 function Card({ digest, retry }: { digest: ChatVideoDigest; retry?: boolean }) {
   return (
     <VideoAttachmentCard
@@ -128,6 +136,7 @@ function Tile({ digest }: { digest: ChatVideoDigest }) {
       name={NAME}
       view={videoAttachmentView(digest)}
       posterUrl={posterUrl(digest)}
+      source={sourceOf(LANDSCAPE_VIDEO)}
       onOpenSetup={noop}
     />
   )
@@ -151,6 +160,7 @@ function Frame({ children, width = 640 }: { children: ReactNode; width?: number 
 const chatWith = (digest: ChatVideoDigest): ChatVideoAttachments => ({
   context: CONTEXT,
   fixedDigests: { [VIDEO]: digest },
+  fixedMedia: { [VIDEO]: { video: LANDSCAPE_VIDEO, ...(digest.poster ? { still: POSTER } : {}) } },
   onOpenSetup: noop,
 })
 
@@ -256,6 +266,73 @@ const FILE_FAILED: ChatAttachmentUpload = {
   error: 'The upload stopped at 66%.',
 }
 
+/** A card pressed as a person would press it, so a scene shows the real playing state. */
+function Pressed({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    ref.current?.querySelector<HTMLButtonElement>('button[aria-label^="Play"]')?.click()
+  }, [])
+  return <div ref={ref}>{children}</div>
+}
+
+function Player({
+  url,
+  frame,
+  width = 560,
+  pressed = true,
+  showControls = false,
+  digest = STATES.ready as ChatVideoDigest,
+}: {
+  url: string
+  frame?: { width: number; height: number }
+  width?: number
+  pressed?: boolean
+  showControls?: boolean
+  digest?: ChatVideoDigest
+}) {
+  const card = (
+    <SentVideoAttachment
+      name={NAME}
+      view={videoAttachmentView({ ...digest, ...frame })}
+      posterUrl={posterUrl(digest)}
+      source={sourceOf(url)}
+      onOpenSetup={noop}
+      showControls={showControls}
+    />
+  )
+  return <Frame width={width}>{pressed ? <Pressed>{card}</Pressed> : card}</Frame>
+}
+
+/** A URL that has run out, then a good one, as a card meets when left open past its time. */
+function runsOutOnce(url: string) {
+  let asked = 0
+  return {
+    video: async () =>
+      asked++ === 0
+        ? { url: NOT_A_VIDEO, expiresAt: '2000-01-01T00:00:00.000Z' }
+        : { url, expiresAt: FAR_OFF },
+  }
+}
+
+function TwoVideos() {
+  const digest = STATES.ready as ChatVideoDigest
+  return (
+    <Frame width={560}>
+      <div className="flex flex-col gap-2">
+        {[LANDSCAPE_VIDEO, PORTRAIT_VIDEO].map((url) => (
+          <SentVideoAttachment
+            key={url}
+            name={NAME}
+            view={videoAttachmentView(digest)}
+            posterUrl={POSTER}
+            source={sourceOf(url)}
+          />
+        ))}
+      </div>
+    </Frame>
+  )
+}
+
 const stateOf = (key: string, render: (digest: ChatVideoDigest) => ReactNode): SceneState => {
   const [title, description] = TITLES[key] as [string, string]
   const digest = STATES[key] as ChatVideoDigest
@@ -312,7 +389,7 @@ export const VIDEO_ATTACHMENT_SCENES: Scene[] = [
     component: 'SentVideoAttachment',
     group: 'Chat',
     description:
-      'Decision 2A: a poster beside the images a message shows, which stays live: the row follows the digest for as long as the chat is open. Clicking it shows status details; there is no playback.',
+      'Decision 2A: a poster beside the images a message shows, which stays live: the row follows the digest for as long as the chat is open. It plays in the card (see Video playing); details are on the info button beside the name.',
     states: [
       ...Object.keys(STATES).map((key) =>
         stateOf(key, (digest) => (
@@ -332,6 +409,116 @@ export const VIDEO_ATTACHMENT_SCENES: Scene[] = [
         title: 'In a message, still being read',
         description: 'The message went while the digest goes on; the poster follows it.',
         render: () => <Sent digest={STATES.frames as ChatVideoDigest} />,
+      },
+    ],
+  },
+  {
+    id: 'video-playing',
+    title: 'Video playing',
+    component: 'SentVideoAttachment · ChatVideoPlayer',
+    group: 'Chat',
+    description:
+      'A sent video plays in its card from a short-lived signed URL. The card grows to the video’s own shape, no crop and no bars, up to 420 wide and 360 tall, and goes back on close. Play and full screen show on hover or keyboard focus, and after a tap where there is no hover. Details stay on the info button, always in view.',
+    states: [
+      {
+        id: 'poster',
+        title: 'Poster',
+        description: 'At rest: no controls, and nothing is downloaded until someone presses play.',
+        render: () => <Player url={LANDSCAPE_VIDEO} pressed={false} frame={LANDSCAPE} />,
+      },
+      {
+        id: 'hover',
+        title: 'Hover or focus',
+        description: 'Play in the middle, full screen at the top right. On a phone: after a tap.',
+        render: () => (
+          <Player url={LANDSCAPE_VIDEO} pressed={false} showControls frame={LANDSCAPE} />
+        ),
+      },
+      {
+        id: 'playing-landscape',
+        title: 'Playing, landscape',
+        description:
+          'The card grows to 420 wide, at the video’s own shape, with the player’s controls.',
+        render: () => <Player url={LANDSCAPE_VIDEO} frame={LANDSCAPE} />,
+      },
+      {
+        id: 'playing-portrait',
+        title: 'Playing, portrait',
+        description: 'Height capped at 360, and the width follows: it never fills the chat.',
+        render: () => <Player url={PORTRAIT_VIDEO} frame={PORTRAIT} />,
+      },
+      {
+        id: 'playing-size-unknown',
+        title: 'Playing before the digest knows the size',
+        description:
+          'Still being read: it plays anyway, and takes its shape once the player reads it.',
+        render: () => <Player url={PORTRAIT_VIDEO} digest={STATES.frames as ChatVideoDigest} />,
+      },
+      {
+        id: 'full-screen-button',
+        title: 'Full screen and close',
+        description: 'While playing: full screen and close at the top right, in view on hover.',
+        render: () => <Player url={LANDSCAPE_VIDEO} showControls frame={LANDSCAPE} />,
+      },
+      {
+        id: 'digest-failed',
+        title: 'Failed digest, file fine',
+        description: 'Agents cannot read it, but it plays: playing needs only the upload.',
+        render: () => (
+          <Player
+            url={LANDSCAPE_VIDEO}
+            pressed={false}
+            showControls
+            digest={STATES.timedOut as ChatVideoDigest}
+          />
+        ),
+      },
+      {
+        id: 'format-not-playable',
+        title: 'Format not playable',
+        description:
+          'The browser cannot decode it: a plain line on the card, and no broken player.',
+        render: () => <Player url={NOT_A_VIDEO} frame={LANDSCAPE} />,
+      },
+      {
+        id: 'url-ran-out',
+        title: 'The link ran out',
+        description: 'Links last 15 minutes: the card quietly asks for another and carries on.',
+        render: () => (
+          <Frame width={560}>
+            <Pressed>
+              <SentVideoAttachment
+                name={NAME}
+                view={videoAttachmentView({ ...(STATES.ready as ChatVideoDigest), ...LANDSCAPE })}
+                posterUrl={POSTER}
+                source={runsOutOnce(LANDSCAPE_VIDEO)}
+              />
+            </Pressed>
+          </Frame>
+        ),
+      },
+      {
+        id: 'two-videos',
+        title: 'Two videos',
+        description: 'One open at a time: starting one closes the other, freeing its connection.',
+        render: () => <TwoVideos />,
+      },
+      {
+        id: 'phone-width',
+        title: 'Small screen',
+        description: 'The card takes the width there is, keeping the video’s shape.',
+        render: () => <Player url={LANDSCAPE_VIDEO} width={320} frame={LANDSCAPE} />,
+      },
+      {
+        id: 'in-a-message',
+        title: 'Playing in a message',
+        description:
+          'The real message row: the card stays with the bubble, on its side of the chat.',
+        render: () => (
+          <Pressed>
+            <Sent digest={{ ...(STATES.ready as ChatVideoDigest), ...LANDSCAPE }} />
+          </Pressed>
+        ),
       },
     ],
   },

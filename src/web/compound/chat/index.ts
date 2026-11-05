@@ -1,4 +1,5 @@
 export { default as AgentQuestionCard, type AgentQuestionCardProps } from './AgentQuestionCard'
+export { default as StuckCard, type StuckCardLayout, type StuckCardProps } from './StuckCard'
 export { default as ChatBody, type ChatBodyProps } from './ChatBody'
 export {
   default as CliRunArtifactPanel,
@@ -64,7 +65,12 @@ export {
   default as ChatDynamicContextModal,
   type ChatDynamicContextModalProps,
 } from './ChatDynamicContextModal'
+export { default as LaunchCapsFields, type LaunchCapsFieldsProps } from './LaunchCapsFields'
 export { default as ChatDebugModal, type ChatDebugModalProps } from './ChatDebugModal'
+export {
+  default as ChatContextSettings,
+  type ChatContextSettingsProps,
+} from './ChatContextSettings'
 export {
   default as SystemPromptViewerConnected,
   type SystemPromptViewerConnectedProps,

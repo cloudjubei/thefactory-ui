@@ -1,3 +1,4 @@
+import type { ProcessRunStatistics } from 'thefactory-tools/types'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 
@@ -14,6 +15,10 @@ import {
   processScopeLabel,
   processStepName,
   useActiveProject,
+  PROCESS_STATISTICS_COPY,
+  processStatisticsLine,
+  processStatisticsRows,
+  useProcessRunStatistics,
   useProcesses,
   type ProcessDefinition,
   type ProcessStep,
@@ -29,6 +34,7 @@ import { Switch } from '../primitives/Switch'
 import { Textarea } from '../primitives/Textarea'
 import { useNativeTheme } from '../hooks/useNativeTheme'
 import ChainChip from '../compound/process/ChainChip'
+import StepToolsAndExit from '../compound/process/StepToolsAndExit'
 
 /**
  * Native peer of
@@ -48,6 +54,7 @@ export default function ProcessesView({ selectedProcessId }: ProcessesViewProps 
   const { theme } = useNativeTheme()
   const { projectId } = useActiveProject()
   const { isLoaded, loadError, processes, implementedKinds, save, remove } = useProcesses(projectId)
+  const statistics = useProcessRunStatistics(projectId)
   const [editing, setEditing] = useState<ProcessDefinition | undefined>(undefined)
   const [selectedId, setSelectedId] = useState<string | undefined>(selectedProcessId)
   useEffect(() => {
@@ -113,6 +120,7 @@ export default function ProcessesView({ selectedProcessId }: ProcessesViewProps 
         </Pressable>
         <ProcessDetail
           definition={selected}
+          statistics={statistics}
           onEdit={() => setEditing(structuredClone(selected))}
           onCopy={() => setEditing(copyProcessDefinition(selected))}
           {...(selected.scope === 'project' ? { onDelete: () => void remove(selected.id) } : {})}
@@ -173,6 +181,11 @@ export default function ProcessesView({ selectedProcessId }: ProcessesViewProps 
                 </View>
               ))}
           </View>
+          {processStatisticsLine(statistics, definition.id) ? (
+            <Text style={{ fontSize: 11, color: theme.text.muted }}>
+              {processStatisticsLine(statistics, definition.id)}
+            </Text>
+          ) : null}
         </Pressable>
       ))}
     </ScrollView>
@@ -181,16 +194,19 @@ export default function ProcessesView({ selectedProcessId }: ProcessesViewProps 
 
 function ProcessDetail({
   definition,
+  statistics,
   onEdit,
   onCopy,
   onDelete,
 }: {
   definition: ProcessDefinition
+  statistics: readonly ProcessRunStatistics[]
   onEdit: () => void
   onCopy: () => void
   onDelete?: () => void
 }) {
   const { theme } = useNativeTheme()
+  const rows = processStatisticsRows(statistics, definition.id)
   return (
     <View style={{ gap: nativeSpace[3] }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}>
@@ -208,6 +224,21 @@ function ProcessDetail({
         <Alert variant="info">
           This project has its own copy of a shared process. Removing it brings the shared one back.
         </Alert>
+      ) : null}
+
+      {rows.length > 0 ? (
+        <View style={{ gap: nativeSpace[1] }}>
+          <Text style={{ fontSize: 12, fontWeight: '600', color: theme.text.primary }}>
+            {PROCESS_STATISTICS_COPY.heading}
+          </Text>
+          {rows.map((row) => (
+            <Text key={row.version} style={{ fontSize: 11, color: theme.text.secondary }}>
+              {[row.version, row.runs, row.firstPass, row.iterations, row.cost]
+                .filter(Boolean)
+                .join(' · ')}
+            </Text>
+          ))}
+        </View>
       ) : null}
 
       {definition.steps.map((step, index) => (
@@ -257,6 +288,7 @@ function ProcessDetail({
           <Text style={{ fontSize: 12, color: theme.text.secondary }}>
             {step.description ?? PROCESS_KIND_BLURB[step.kind]}
           </Text>
+          <StepToolsAndExit step={step} />
         </View>
       ))}
 

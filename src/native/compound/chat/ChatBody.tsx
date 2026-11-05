@@ -1,4 +1,4 @@
-import type { ReferenceTarget } from 'thefactory-tools/types'
+import type { ChatContextBoundary, ReferenceTarget } from 'thefactory-tools/types'
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import type { LaunchModelChipSlot } from '../../../headless/utils/launchAgentPickTypes'
 import { useProjectsOptional } from '../../../headless/contexts/ProjectsContext'
@@ -7,6 +7,7 @@ import { Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-na
 import Alert from '../../primitives/Alert'
 import { IconChevronLeft, IconChevronRight } from '../../icons'
 import AgentQuestionCard from './AgentQuestionCard'
+import StuckCard from './StuckCard'
 import RemedyCard from './RemedyCard'
 import ChatInput, { type ChatInputProps } from './ChatInput'
 import CredentialCaptureCard from './CredentialCaptureCard'
@@ -117,6 +118,8 @@ export interface ChatBodyProps {
 
   /** Draws a context cut-off divider per the chat's `numberMessagesToSend`. */
   numberMessagesToSend?: number
+  /** The chat's `contextBoundary`. Forwarded to MessageList, which draws the line. */
+  contextBoundary?: ChatContextBoundary
 
   /** Last-read timestamp — opens the list at the first unread message. */
   lastReadIso?: string
@@ -238,6 +241,7 @@ export default function ChatBody({
   systemPrompt,
   systemPromptTimestamp,
   numberMessagesToSend,
+  contextBoundary,
   lastReadIso,
   renderToolCall,
   previewTool,
@@ -507,6 +511,7 @@ export default function ChatBody({
             systemPrompt={systemPrompt}
             systemPromptTimestamp={systemPromptTimestamp}
             numberMessagesToSend={numberMessagesToSend}
+            {...(contextBoundary ? { contextBoundary } : {})}
             lastReadIso={lastReadIso}
             renderToolCall={renderToolCall}
             previewTool={previewTool}
@@ -601,7 +606,14 @@ export default function ChatBody({
             }}
             keyboardShouldPersistTaps="handled"
           >
-            {shownAsk.kind === 'question' ? (
+            {shownAsk.kind === 'question' && shownAsk.grant.question.stuck ? (
+              <StuckCard
+                key={shownAsk.id}
+                grant={shownAsk.grant}
+                onPark={() => setAskParked(shownAsk.id, true)}
+                {...(openAsks.length > 1 ? { pager: askPager } : {})}
+              />
+            ) : shownAsk.kind === 'question' ? (
               <AgentQuestionCard
                 key={shownAsk.id}
                 grant={shownAsk.grant}

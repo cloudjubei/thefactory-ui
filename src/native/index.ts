@@ -210,6 +210,15 @@ export {
   type ActionMenuItem,
   type ActionMenuProps,
 } from './compound/ActionMenu'
+export {
+  default as ContextFillChip,
+  type ContextFillChipAppearance,
+  type ContextFillChipProps,
+} from './compound/chips/ContextFillChip'
+export {
+  default as ContextFillBody,
+  type ContextFillBodyProps,
+} from './compound/chips/ContextFillBody'
 export { default as CostChip, type CostChipProps } from './compound/chips/CostChip'
 export { default as ToneBadge, type ToneBadgeProps } from './compound/chips/ToneBadge'
 export { default as DurationChip, type DurationChipProps } from './compound/chips/DurationChip'
@@ -353,6 +362,14 @@ export {
   type GroupHomeProjectCard,
   type GroupHomeProps,
 } from './compound/GroupHome'
+export {
+  default as GroupHomeConnected,
+  type GroupHomeConnectedProps,
+} from './compound/GroupHomeConnected'
+export {
+  default as GroupConstellation,
+  type GroupConstellationProps,
+} from './compound/groupHome/GroupConstellation'
 export { default as BottomSheet, type BottomSheetProps } from './primitives/BottomSheet'
 export { default as ChatBody, type ChatBodyProps } from './compound/chat/ChatBody'
 export type { NativeAttachmentImages } from './compound/chat/chatNativeTypes'
@@ -366,6 +383,8 @@ export {
 } from './compound/chat/CliRunArtifactPanel'
 // The review surfaces' host slots: saving a file, and the app's video player for walkthroughs.
 export type {
+  InlineVideo,
+  InlineVideoHandle,
   MediaHost,
   SaveFileHandler,
   SaveFileRequest,
@@ -445,6 +464,19 @@ export {
   default as AgentQuestionCard,
   type AgentQuestionCardProps,
 } from './compound/chat/AgentQuestionCard'
+export {
+  default as LaunchCapsFields,
+  type LaunchCapsFieldsProps,
+} from './compound/chat/LaunchCapsFields'
+export {
+  default as ProjectDefaultCapsField,
+  type ProjectDefaultCapsFieldProps,
+} from './compound/projects/ProjectDefaultCapsField'
+export {
+  default as StuckCard,
+  type StuckCardLayout,
+  type StuckCardProps,
+} from './compound/chat/StuckCard'
 export {
   default as CredentialCaptureCard,
   type CredentialCaptureCardProps,
@@ -732,6 +764,12 @@ export {
   default as ProjectTicketSettings,
   type ProjectTicketSettingsProps,
 } from './compound/projects/ProjectTicketSettings'
+export {
+  default as ProjectDeviceSettings,
+  ProjectDeviceSettingsPanel,
+  type ProjectDeviceSettingsPanelProps,
+  type ProjectDeviceSettingsProps,
+} from './compound/projects/ProjectDeviceSettings'
 export {
   default as GroupTicketSettings,
   type GroupTicketSettingsProps,

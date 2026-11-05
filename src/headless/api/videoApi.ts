@@ -21,6 +21,28 @@ export async function readChatVideoDigest(
   return data as ChatVideoDigest
 }
 
+/** Where a player reads a chat's video, and its still, without a bearer: relative to the server. */
+export type ChatVideoMediaUrls = {
+  url: string
+  stillUrl?: string
+  expiresAt: string
+}
+
+/** Signed URLs for a chat's video. Written by hand until the SDK is generated from these routes. */
+export async function readChatVideoMedia(
+  context: ChatContext,
+  path: string,
+  still: string | undefined,
+): Promise<ChatVideoMediaUrls> {
+  const { data } = await client.post({
+    url: '/api/v1/chat-attachments/media-url',
+    body: { context, path, ...(still ? { still } : {}) },
+    headers: { 'Content-Type': 'application/json' },
+    throwOnError: true,
+  })
+  return data as ChatVideoMediaUrls
+}
+
 export async function readVideoSetup(): Promise<VideoSetupState> {
   const { data } = await client.get({ url: '/api/v1/video/setup', throwOnError: true })
   return data as VideoSetupState

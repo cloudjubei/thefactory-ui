@@ -33,8 +33,10 @@ export function useProcessProposal(input: {
   featureIds?: readonly string[]
   /** The agent type the ask proposed for each slot — the proposal offers it over the defaults. */
   agentTypeSlots?: AgentTypeSlotMap
+  /** The launch's iteration limit, so each feature shows the attempts it will really have. */
+  maxIterations?: number
 }): UseProcessProposal {
-  const { projectId, storyId, processId, featureProcessId } = input
+  const { projectId, storyId, processId, featureProcessId, maxIterations } = input
   const featureKey = input.featureIds?.join(',') ?? ''
   const slotsKey = input.agentTypeSlots ? JSON.stringify(input.agentTypeSlots) : ''
   const { token } = useAuth()
@@ -62,6 +64,7 @@ export function useProcessProposal(input: {
         ...(featureProcessId ? { featureProcessId } : {}),
         ...(featureKey ? { featureIds: featureKey.split(',') } : {}),
         ...(slotsKey ? { agentTypeSlots: JSON.parse(slotsKey) as AgentTypeSlotMap } : {}),
+        ...(maxIterations !== undefined ? { maxIterations } : {}),
       },
       throwOnError: true,
     })
@@ -81,7 +84,7 @@ export function useProcessProposal(input: {
     return () => {
       live = false
     }
-  }, [token, projectId, storyId, processId, featureProcessId, featureKey, slotsKey])
+  }, [token, projectId, storyId, processId, featureProcessId, featureKey, slotsKey, maxIterations])
 
   return useMemo<UseProcessProposal>(
     () => ({ isLoaded, loadError, proposal, refusal }),

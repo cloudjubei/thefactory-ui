@@ -24,8 +24,12 @@ export const PROCESS_TIME_TOOLS_SHOWN = 3
 /** The line that says time waiting on a person was left out of the total. */
 export const PROCESS_TIME_WAITING_LABEL = 'Waiting on a person — not counted'
 
-/** The line that says time waiting a turn behind other check runs was left out of the total. */
-export const PROCESS_TIME_QUEUED_LABEL = 'Waiting for other check runs — not counted'
+/**
+ * The line that says time waiting was left out of the total: a turn behind
+ * other check runs, of this project or another, or room on the machine for a
+ * sandbox container. One line for all of them, for `queuedMs` adds them up.
+ */
+export const PROCESS_TIME_QUEUED_LABEL = 'Waiting for a turn or machine capacity — not counted'
 
 /** The line naming the agent manager's share of a run's cost and time. */
 export const PROCESS_TIME_MANAGER_LABEL = 'Agent manager'

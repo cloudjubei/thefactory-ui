@@ -40,7 +40,7 @@ export type ProcessTimeDetailsView = {
   tools: ProcessTimeDetailsTool[]
   /** Time spent waiting on a person, beside the total and never in it. */
   waiting?: string
-  /** Time spent waiting a turn behind other check runs of the project, beside the total and never in it. */
+  /** Time spent waiting a turn behind other check runs or for room on the machine, beside the total and never in it. */
   queued?: string
   /** What the agent manager's turns on a run cost and how long they worked — counted in the total. */
   manager?: ProcessTimeDetailsLine

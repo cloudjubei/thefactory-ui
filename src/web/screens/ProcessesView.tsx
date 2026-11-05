@@ -1,3 +1,4 @@
+import type { ProcessRunStatistics } from 'thefactory-tools/types'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   AGENT_RUN_TYPES,
@@ -12,6 +13,10 @@ import {
   processScopeLabel,
   processStepName,
   useActiveProject,
+  PROCESS_STATISTICS_COPY,
+  processStatisticsLine,
+  processStatisticsRows,
+  useProcessRunStatistics,
   useProcesses,
   type ProcessDefinition,
   type ProcessStep,
@@ -24,6 +29,7 @@ import { Input } from '../primitives/Input'
 import { NativeSelect } from '../primitives/NativeSelect'
 import Surface from '../primitives/Surface'
 import ChainChip from '../compound/process/ChainChip'
+import StepToolsAndExit from '../compound/process/StepToolsAndExit'
 import { Switch } from '../primitives/Switch'
 import { Textarea } from '../primitives/Textarea'
 import { IconSave } from '../icons'
@@ -53,6 +59,7 @@ export type ProcessesViewProps = {
 export default function ProcessesView({ narrow = false, selectedProcessId }: ProcessesViewProps) {
   const { projectId } = useActiveProject()
   const { isLoaded, loadError, processes, implementedKinds, save, remove } = useProcesses(projectId)
+  const statistics = useProcessRunStatistics(projectId)
   const [editing, setEditing] = useState<ProcessDefinition | undefined>(undefined)
   const [selectedId, setSelectedId] = useState<string | undefined>(selectedProcessId)
   useEffect(() => {
@@ -136,6 +143,9 @@ export default function ProcessesView({ narrow = false, selectedProcessId }: Pro
                   </span>
                 ))}
             </div>
+            <div className="mt-1 text-[11px] text-(--text-muted) empty:hidden">
+              {processStatisticsLine(statistics, definition.id)}
+            </div>
           </Surface>
         ))}
       </div>
@@ -167,6 +177,7 @@ export default function ProcessesView({ narrow = false, selectedProcessId }: Pro
             definition={selected}
             onEdit={() => setEditing(structuredClone(selected))}
             onCopy={() => setEditing(copyProcessDefinition(selected))}
+            statistics={statistics}
             onDelete={selected.scope === 'project' ? () => void remove(selected.id) : undefined}
           />
         ) : (
@@ -193,15 +204,18 @@ function ScopeBadge({ definition }: { definition: ProcessDefinition }) {
 
 function ProcessDetail({
   definition,
+  statistics,
   onEdit,
   onCopy,
   onDelete,
 }: {
   definition: ProcessDefinition
+  statistics: readonly ProcessRunStatistics[]
   onEdit: () => void
   onCopy: () => void
   onDelete?: () => void
 }) {
+  const rows = processStatisticsRows(statistics, definition.id)
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -231,6 +245,18 @@ function ProcessDetail({
         </Alert>
       ) : null}
 
+      {rows.length > 0 ? (
+        <div className="space-y-1">
+          <h3 className="text-xs font-semibold">{PROCESS_STATISTICS_COPY.heading}</h3>
+          {rows.map((row) => (
+            <div key={row.version} className="text-[11px] text-(--text-secondary)">
+              {row.version} · {row.runs} · {row.firstPass} · {row.iterations}
+              {row.cost ? ` · ${row.cost}` : ''}
+            </div>
+          ))}
+        </div>
+      ) : null}
+
       <ol className="space-y-2">
         {definition.steps.map((step, index) => (
           <Surface key={step.id} className="p-3">
@@ -258,6 +284,7 @@ function ProcessDetail({
             <div className="mt-1 text-[11px] text-(--text-secondary)">
               {step.description ?? PROCESS_KIND_BLURB[step.kind]}
             </div>
+            <StepToolsAndExit step={step} />
           </Surface>
         ))}
       </ol>

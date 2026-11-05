@@ -1,6 +1,9 @@
+import type { ChatContextCheckpointEvent } from 'thefactory-tools/types'
 import type {
   Chat,
   ChatContext,
+  ChatContextBoundary,
+  ChatContextReadout,
   CliRun,
   CliRunStatus,
   CliRunTranscriptEntry,
@@ -121,6 +124,17 @@ export type ChatDebugLimits = {
   interpretedBudgetChars: number
 }
 
+/** How a chat's working context is kept: the numbers that stay out of the chat itself. */
+export type ChatDebugContextUpkeep = {
+  /** Absent when the readout could not be read. */
+  turnsSinceLastContextUpdate?: number
+  notesUpdatedAt?: string
+  contextFill?: ChatContextReadout['contextFill']
+  contextBoundary?: ChatContextBoundary
+  /** The hidden checkpoints heard since the app opened, oldest first. */
+  checkpoints: ChatContextCheckpointEvent[]
+}
+
 export type ChatDebugDump = {
   kind: 'chat-debug-dump'
   version: number
@@ -140,6 +154,7 @@ export type ChatDebugDump = {
   runs: ChatDebugCliRun[]
   /** Set when the run listing could not be fetched — see `ChatDebugDumpInput.runsError`. */
   runsError?: string
+  contextUpkeep?: ChatDebugContextUpkeep
 }
 
 export type ChatDebugDumpInput = {
@@ -158,6 +173,10 @@ export type ChatDebugDumpInput = {
   generatedAt?: string
   /** The `cliShowThinking` preference the chat renders under. Defaults to true. */
   showThinking?: boolean
+  /** How the chat's working context stands, from `POST /chats/context-readout`. */
+  contextReadout?: ChatContextReadout
+  /** The hidden checkpoints heard for this chat. */
+  contextCheckpoints?: readonly ChatContextCheckpointEvent[]
 }
 
 /** A serialized dump plus its UTF-8 size, which the modal reports. */

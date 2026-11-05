@@ -24,12 +24,14 @@ import { cliRowAsks, withAsksAwaitingOutcome } from '../../../headless/utils/pen
 import type { CliDecidedAsk, CliPendingAsk } from '../../../headless/utils/cliRunActivityTypes'
 import type { PendingToolGrant } from '../../../headless/utils/chatTypes'
 import type { ChatStopNotice } from '../../../headless/utils/chatStopNoticeTypes'
+import { toolStepLayout } from '../../../headless/utils/toolStepGroups'
 import { refuseWhileRunActive } from '../../../headless/utils/chatMessageDelete'
 import { CLI_TURN_DELETE_ACTION_LABEL } from '../../../headless/utils/chatMessageDeleteConstants'
 import type { MessageDeleteControl } from '../../../headless/utils/chatMessageDeleteTypes'
 import { IconDelete } from '../../icons'
 import type { UikitFileMeta } from '../files/FileDisplay'
 import MessageRow from './MessageRow'
+import ToolStepsFold from './ToolStepsFold'
 import ThinkingRow from './ThinkingRow'
 import ToolApprovalFooter from './ToolApprovalFooter'
 import type { ToolCall, ToolResultType } from './ToolCall'
@@ -207,6 +209,7 @@ export default function CliRunMessages({
     [messages, storedReply, model, active, stopNotice],
   )
   const total = baseIndex + shown.length + 1
+  const toolSteps = useMemo(() => toolStepLayout(shown, { openTail: active }), [shown, active])
   let shownModel = false
 
   // "Not idling" proof, like VS Code / Cursor: the readout ticks once a second
@@ -269,18 +272,21 @@ export default function CliRunMessages({
         }`}
       >
         {shown.map((m, i) => {
-          // Show the model chip once, on the run's first assistant message —
-          // matches API grouping (chip on the first assistant, not repeated).
-          const showModel = !!model && m.role === 'assistant' && !shownModel
-          if (showModel) shownModel = true
-          return (
-            <div key={`cli-${runId}-${i}`}>
+          if (toolSteps.hidden.has(i)) return null
+          const group = toolSteps.starts.get(i)
+          const row = (step: (typeof shown)[number], index: number) => {
+            // Show the model chip once, on the run's first assistant message —
+            // matches API grouping (chip on the first assistant, not repeated).
+            const showModel = !!model && step.role === 'assistant' && !shownModel
+            if (showModel) shownModel = true
+            return (
               <MessageRow
-                {...approvals.rowProps(m)}
-                msg={{ ...m, showModel, isFirstInGroup: true }}
+                key={`cli-${runId}-${index}`}
+                {...approvals.rowProps(step)}
+                msg={{ ...step, showModel, isFirstInGroup: true }}
                 onResourceLink={onResourceLink}
                 {...(chatTitle ? { chatTitle } : {})}
-                globalIndex={baseIndex + i}
+                globalIndex={baseIndex + index}
                 totalMessages={total}
                 isThinking={false}
                 isLast={false}
@@ -293,8 +299,17 @@ export default function CliRunMessages({
                 onResolveFile={onResolveFile}
                 renderReference={renderReference}
               />
-            </div>
-          )
+            )
+          }
+          if (group) {
+            const folded = shown.slice(group.start, group.end)
+            return (
+              <ToolStepsFold key={`steps-${runId}-${i}`} count={folded.length}>
+                {folded.map((step, offset) => row(step, group.start + offset))}
+              </ToolStepsFold>
+            )
+          }
+          return <div key={`cli-${runId}-${i}`}>{row(m, i)}</div>
         })}
         {approvals.askIds.length > 0 ? (
           <ToolApprovalFooter

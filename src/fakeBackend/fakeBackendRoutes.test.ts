@@ -81,6 +81,34 @@ describe('FAKE_BACKEND_ROUTES', () => {
     expect((body as { id: string }[]).map((run) => run.id)).toEqual(['run-story', 'run-feature'])
   })
 
+  it('answers a group’s roll-up and dependency map, and 404s another group’s', () => {
+    const status = get('/api/v1/projects-groups/overseer/status')
+    expect((status.body as { members: unknown[] }).members).toHaveLength(6)
+    const map = get('/api/v1/projects-groups/overseer/constellation')
+    expect((map.body as { projects: unknown[] }).projects).toHaveLength(6)
+    expect(get('/api/v1/projects-groups/nothing/status').status).toBe(404)
+    expect(get('/api/v1/projects-groups/nothing/constellation').status).toBe(404)
+  })
+
+  it('answers a CLI run it holds, and 404s one it does not', () => {
+    const { status, body } = get('/api/v1/cli-runs/cli-run-reads')
+    expect(status).toBe(200)
+    expect((body as { status: string }).status).toBe('succeeded')
+    expect(get('/api/v1/cli-runs/nothing').status).toBe(404)
+  })
+
+  it('narrows the run list by status', () => {
+    const { body } = get('/api/v1/process-runs', 'rootOnly=true&status=running')
+    expect((body as { id: string }[]).map((run) => run.id)).toEqual(['run-story', 'run-ui-request'])
+  })
+
+  it('narrows the run list by how a run was left', () => {
+    const ids = (search: string) =>
+      (get('/api/v1/process-runs', search).body as { id: string }[]).map((run) => run.id)
+    expect(ids('ending=unmerged')).toEqual(['run-mobile-unmerged'])
+    expect(ids('ending=abandoned')).toEqual(['run-web-abandoned'])
+  })
+
   it('reads several projects at once', () => {
     const { body } = get('/api/v1/process-runs', 'projectIds=wargames&projectIds=thefactory-tools')
     expect((body as unknown[]).length).toBe(2)

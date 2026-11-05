@@ -4,6 +4,7 @@ import type {
   ProcessLedgerEntry,
   ProcessNodeRunRef,
   ProcessPlan,
+  ProcessPlanStep,
   ProcessRun,
   ProcessStep,
   ProcessStepKind,
@@ -26,12 +27,14 @@ import {
   PROCESS_SPEND_TITLE,
   PROCESS_STEP_FINISHED_COPY,
   PROCESS_STEP_RECHECKED,
+  PROCESS_STEP_TOOLS_LABEL,
 } from './processViewConstants'
 import { PROVING_AGENT_TYPES } from './verifyProofConstants'
 import type {
   ProcessNodeLook,
   ProcessNodeSummary,
   ProcessRunPersonEnding,
+  ProcessStepToolsView,
 } from './processViewTypes'
 import type { ProcessStepState } from 'thefactory-tools/types'
 import {
@@ -42,6 +45,7 @@ import {
   processStepStates,
   processVerifyReview,
   processSignOffGateId,
+  processStepToolsAndExit,
 } from 'thefactory-tools/utils'
 
 /**
@@ -301,6 +305,22 @@ export const PROCESS_KIND_BLURB: Record<ProcessStepKind, string> = {
   process: 'A nested process, one level down.',
   cleanup:
     'Any process can end with it: after you approve its sign-off, removes what is on the run’s cleanup list — hand-over notes, captures, temporary files — once the work is merged. No agent.',
+}
+
+/**
+ * What a step is handed and what ends it, from the SDK's per-kind metadata.
+ * The names are the role's own offer, before a host withholds any. Pure.
+ */
+export function processStepToolsView(
+  step: Pick<ProcessPlanStep, 'kind' | 'agentType' | 'agentRole' | 'documents'>,
+): ProcessStepToolsView {
+  const { tools, noTools, exitLabel } = processStepToolsAndExit(step)
+  return {
+    exitLabel,
+    tools,
+    ...(tools.length > 0 ? { toolsLabel: PROCESS_STEP_TOOLS_LABEL(tools.length) } : {}),
+    ...(noTools ? { noTools } : {}),
+  }
 }
 
 /** Where a definition came from, as the list row says it. */

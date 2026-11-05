@@ -6,6 +6,12 @@ import {
   groupRunStartedWords,
   launchAgentPickMetadata,
   launchAgentPickRunner,
+  LAUNCH_CAPS_COPY,
+  launchCapFields,
+  launchCapsMetadata,
+  launchCapsSummary,
+  launchCapsValid,
+  launchWorstCaseLine,
   PROCESS_GROUP_ON_BRANCH_LINE,
   processGroupLegWaitsFor,
   processLaunchTurnLimitView,
@@ -17,6 +23,7 @@ import {
   type GroupStoryRunBody,
   type GroupStoryRunPreview,
   type GroupStoryRunStartedAnswer,
+  type LaunchCapsTyped,
   type LaunchModelChipSlot,
   type TicketMoveLayout,
 } from '../../../headless'
@@ -24,10 +31,10 @@ import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
-import { Input } from '../../primitives/Input'
 import { Modal } from '../../primitives/Modal'
 import BaseBranchChooser from '../chat/BaseBranchChooser'
 import TicketMoveField from '../chat/TicketMoveField'
+import LaunchCapsFields from '../chat/LaunchCapsFields'
 import { TurnLimitField } from '../TurnLimitField'
 
 export type GroupStoryRunStarted = GroupStoryRunStartedAnswer
@@ -75,7 +82,7 @@ export default function GroupStoryRunDialog({
   const [turnLimitPick, setTurnLimitPick] = useState<{ limited: boolean; maxTurns: number }>()
   const turnStart = processLaunchTurnLimitView(runner)
   const turnLimit = turnLimitPick ?? turnStart
-  const [cap, setCap] = useState('')
+  const [capsTyped, setCapsTyped] = useState<LaunchCapsTyped>({})
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [started, setStarted] = useState<GroupStoryRunStarted | undefined>(startedShown)
@@ -91,10 +98,21 @@ export default function GroupStoryRunDialog({
   }, [isOpen, startedShown])
 
   const problems = preview?.problems ?? []
-  const capUsd = Number(cap)
-  const capValid = cap.trim() === '' || (Number.isFinite(capUsd) && capUsd > 0)
+  const capFields = launchCapFields({ typed: capsTyped })
+  const capsMeta = launchCapsMetadata(capFields)
+  const worstCase = launchWorstCaseLine({
+    attempts:
+      capsMeta.maxIterations ??
+      Math.max(0, ...(preview?.legs ?? []).map((leg) => leg.defaultCaps?.maxIterations ?? 0)),
+    count: preview?.legs.length ?? 0,
+    of: 'leg',
+  })
   const canStart =
-    !busy && !previewLoading && preview !== undefined && problems.length === 0 && capValid
+    !busy &&
+    !previewLoading &&
+    preview !== undefined &&
+    problems.length === 0 &&
+    launchCapsValid(capFields)
   const legsByStep = (preview?.waves ?? []).map((wave) =>
     wave.flatMap((id) => preview?.legs.filter((l) => l.projectId === id) ?? []),
   )
@@ -110,7 +128,7 @@ export default function GroupStoryRunDialog({
     void onStart({
       ...launchAgentPickMetadata(pick),
       turnLimit: processTurnLimitOfView(turnLimit),
-      ...(cap.trim() ? { spendCapUsd: capUsd } : {}),
+      ...capsMeta,
       ...(Object.keys(basePicks).length > 0 ? { baseBranches: { ...basePicks } } : {}),
       ...(ticketMove ? { ticketMove } : {}),
     })
@@ -252,20 +270,14 @@ export default function GroupStoryRunDialog({
               {renderModelChip(slot)}
             </View>
           ) : null}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}>
-            <Text style={{ fontSize: 13, color: theme.text.secondary }}>Spend cap per part $</Text>
-            <View style={{ width: 96 }}>
-              <Input
-                size="sm"
-                keyboardType="decimal-pad"
-                value={cap}
-                disabled={busy}
-                placeholder="None"
-                invalid={!capValid}
-                onChangeText={setCap}
-              />
-            </View>
-          </View>
+          <LaunchCapsFields
+            fields={capFields}
+            summary={launchCapsSummary(capsMeta)}
+            {...(worstCase ? { worstCase } : {})}
+            note={LAUNCH_CAPS_COPY.eachPart}
+            busy={busy}
+            onChange={(key, text) => setCapsTyped((prev) => ({ ...prev, [key]: text }))}
+          />
           <TurnLimitField
             {...turnStart}
             limited={turnLimit.limited}

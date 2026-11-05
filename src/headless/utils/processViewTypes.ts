@@ -29,3 +29,15 @@ export interface ProcessRunPersonEnding {
   /** The decision as a sentence: where it was made, and the person's words. */
   line: string
 }
+
+/** What a step is handed and what ends it, as the Processes view says them. */
+export interface ProcessStepToolsView {
+  /** What ends the step. */
+  exitLabel: string
+  /** The tools it is handed, by name. Empty when it runs no agent. */
+  tools: readonly string[]
+  /** The line those tools fold under. Absent when there are none. */
+  toolsLabel?: string
+  /** Why it is handed none. */
+  noTools?: string
+}

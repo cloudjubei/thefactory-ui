@@ -8,24 +8,35 @@ export type VideoDetailsOpenerProps = {
   label: string
   details: ReactNode
   className: string
+  /** What the button shows. Left out, it stretches over the chip instead. */
+  children?: ReactNode
 }
 
 /**
- * The stretched button over a video's chip, which leaves the chip's own links
- * reachable above it: a popover on a big screen, a sheet on a small one.
+ * What opens a video's details: a popover on a big screen, a sheet on a small
+ * one. Stretched over a chip it leaves the chip's own links reachable above it;
+ * given `children`, it is a button of its own in the row.
  */
-export default function VideoDetailsOpener({ label, details, className }: VideoDetailsOpenerProps) {
+export default function VideoDetailsOpener({
+  label,
+  details,
+  className,
+  children,
+}: VideoDetailsOpenerProps) {
   const narrow = useIsNarrowViewport()
   const [open, setOpen] = useState(false)
+  const stretch = children ? '' : 'absolute inset-0'
   if (narrow) {
     return (
       <>
         <button
           type="button"
           aria-label={label}
-          className={`absolute inset-0 ${className}`}
+          className={`${stretch} ${className}`}
           onClick={() => setOpen(true)}
-        />
+        >
+          {children}
+        </button>
         <BottomSheet
           isOpen={open}
           onClose={() => setOpen(false)}
@@ -43,9 +54,15 @@ export default function VideoDetailsOpener({ label, details, className }: VideoD
       content={details}
       placement="top"
       allowedPlacements={['top', 'bottom']}
-      anchorClassName="absolute inset-0"
+      {...(stretch ? { anchorClassName: stretch } : {})}
     >
-      <button type="button" aria-label={label} className={`h-full w-full ${className}`} />
+      <button
+        type="button"
+        aria-label={label}
+        className={`${stretch ? 'h-full w-full' : ''} ${className}`}
+      >
+        {children}
+      </button>
     </Tooltip>
   )
 }

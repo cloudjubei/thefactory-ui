@@ -110,6 +110,11 @@ function UncountedPair({ pair, onOpen }: { pair: ProofPairView; onOpen: (key: st
           {pair.change}
           {pair.sameScreen ? ` · ${pair.sameScreen}` : ''}
         </span>
+        {pair.observedBefore ? (
+          <span className="text-[10.5px] text-(--status-working-soft-fg)">
+            {pair.observedBefore.label}: {pair.observedBefore.reason}
+          </span>
+        ) : null}
       </span>
     </button>
   )
@@ -217,6 +222,14 @@ function Thumbnail({
       <span className="text-[10px] leading-tight text-(--text-muted) [overflow-wrap:anywhere]">
         {thumb.subject}
       </span>
+      {thumb.observedBefore ? (
+        <span
+          className="w-fit rounded-full border border-(--status-working-soft-border) bg-(--status-working-soft-bg) px-1.5 py-px text-[10px] font-medium whitespace-nowrap text-(--status-working-soft-fg)"
+          title={thumb.observedBefore.reason}
+        >
+          {thumb.observedBefore.label}
+        </span>
+      ) : null}
     </div>
   )
 }

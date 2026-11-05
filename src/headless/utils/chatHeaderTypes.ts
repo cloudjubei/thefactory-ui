@@ -1,5 +1,6 @@
 import type { ChatContext, Feature, ProcessRun, Story } from 'thefactory-tools/types'
 
+import type { ChatContextFillView } from './chatContextFillTypes'
 import type { CostSource } from './costDetailsTypes'
 import type { ProcessStatusTone } from './processView'
 import type { ProcessTimeDetailsView } from './processTimeDetailsTypes'
@@ -45,6 +46,8 @@ export type ChatHeaderInput = {
   now: number
   /** The person archived the chat from their list. */
   listHidden?: boolean
+  /** How full the chat's working context is, once a turn has finished. */
+  contextFill?: ChatContextFillView
 }
 
 /** A status pill in the package's semantic tones. */
@@ -61,6 +64,8 @@ export type ChatHeaderView = {
   /** A run's working time, with where it went. */
   duration?: { label: string; details?: ProcessTimeDetailsView; title: string }
   cost?: { label: string; cost?: CostSource; title?: string }
+  /** How full the chat's working context is, and Compact now. Absent until a turn has finished. */
+  contextFill?: ChatContextFillView
   /** The steps, features or done-when criteria under the header. */
   strip?: StepsStripModel
 }

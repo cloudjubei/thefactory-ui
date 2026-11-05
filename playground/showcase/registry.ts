@@ -12,6 +12,7 @@ import { CHAT_HIDDEN_TAIL_SCENES } from '../scenes/chatHiddenTail'
 import { CHAT_LAST_ROW_SCENES } from '../scenes/chatLastRow'
 import { CHAT_LIST_CLOSED_SCENES } from '../scenes/chatListClosed'
 import { CHAT_STOP_SCENES } from '../scenes/chatStop'
+import { CHAT_TOOL_STEP_SCENES } from '../scenes/chatToolSteps'
 import { CIRCLING_SCENES } from '../scenes/circling'
 import { CLI_CAPABILITY_CARD_SCENES } from '../scenes/cliCapabilityCard'
 import { CHAT_CHANGES_SCENES } from '../scenes/chatChanges'
@@ -19,8 +20,10 @@ import { CHAT_CHANGES_DOCK_SCENES } from '../scenes/chatChangesDock'
 import { CHECKS_UNFINISHED_SCENES } from '../scenes/checksUnfinished'
 import { COMMIT_CHECKS_SCENES } from '../scenes/commitChecks'
 import { COMMIT_RECEIPT_SCENES } from '../scenes/commitReceipt'
+import { CONTEXT_FILL_SCENES } from '../scenes/contextFill'
 import { COST_CHIP_SCENES } from '../scenes/costChip'
 import { CHAT_PAUSED_RUN_SCENES } from '../scenes/chatPausedRun'
+import { CROSS_PROJECT_RESUME_SCENES } from '../scenes/crossProjectResume'
 import { DESIGN_SCENES } from '../scenes/design'
 import { DOCUMENT_REPORT_SCENES } from '../scenes/documentReport'
 import { DROPPED_CHANGE_SCENES } from '../scenes/droppedChange'
@@ -31,6 +34,7 @@ import { FILE_SUGGESTION_SCENES } from '../scenes/fileSuggestions'
 import { GIT_GRAPH_UNCOMMITTED_SCENES } from '../scenes/gitGraphUncommitted'
 import { GIT_PUSH_AFTER_SCENES } from '../scenes/gitPushAfter'
 import { GIT_STASH_SCENES } from '../scenes/gitStash'
+import { GROUP_HOME_SCENES } from '../scenes/groupHome'
 import { GROUP_SIGN_OFF_SCENES } from '../scenes/groupSignOff'
 import { GROUP_STORY_SCENES } from '../scenes/groupStories'
 import { KNOWLEDGE_SCENES } from '../scenes/knowledge'
@@ -46,7 +50,10 @@ import { PARK_CLOSING_SCENES } from '../scenes/parkClosing'
 import { PROCESS_SCENES } from '../scenes/process'
 import { PROCESS_CHECKS_SCENES } from '../scenes/processChecks'
 import { PROCESS_FEATURE_SCENES } from '../scenes/processFeatures'
+import { PROCESS_LAUNCH_SCENES } from '../scenes/processLaunch'
 import { PROCESS_MODEL_SCENES } from '../scenes/processModel'
+import { PROCESS_RUNS_SCENES } from '../scenes/processRuns'
+import { PROCESS_STEP_TOOL_SCENES } from '../scenes/processStepTools'
 import { PROJECT_OVERVIEW_MODEL_SCENES } from '../scenes/projectOverviewModel'
 import { PROOF_CHANGE_SCENES } from '../scenes/proofChange'
 import { REGENERATED_MERGE_SCENES } from '../scenes/regeneratedMerge'
@@ -56,11 +63,13 @@ import { RUNNING_TONE_SCENES } from '../scenes/runningTone'
 import { RUN_TIME_DETAILS_SCENES } from '../scenes/runTimeDetails'
 import { SEND_CHAT_MESSAGE_SCENES } from '../scenes/sendChatMessage'
 import { STORY_CHANGE_ERROR_SCENES } from '../scenes/storyChangeErrors'
+import { STUCK_SCENES } from '../scenes/stuck'
 import { STORY_WORK_SCENES } from '../scenes/storyWork'
 import { TICKET_SCENES } from '../scenes/ticketFlow'
 import { UI_IMPACT_SCENES } from '../scenes/uiImpact'
 import { USAGE_SCENES } from '../scenes/usage'
 import { VIDEO_ATTACHMENT_SCENES } from '../scenes/videoAttachments'
+import { PROJECT_DEVICE_SETTINGS_SCENES } from '../scenes/projectDeviceSettings'
 import { VIDEO_SETTINGS_SCENES } from '../scenes/videoSettings'
 import { WORK_LAUNCH_SCENES } from '../scenes/workLaunch'
 import { WORKFLOW_GUARD_SCENES } from '../scenes/workflowGuards'
@@ -86,9 +95,12 @@ export const SCENES: readonly Scene[] = [
   ...FILE_SUGGESTION_SCENES,
   ...VIDEO_ATTACHMENT_SCENES,
   ...MODEL_EFFORT_SCENES,
+  ...CONTEXT_FILL_SCENES,
+  ...STUCK_SCENES,
   ...CHAT_STOP_SCENES,
   ...CHAT_HIDDEN_TAIL_SCENES,
   ...CHAT_LAST_ROW_SCENES,
+  ...CHAT_TOOL_STEP_SCENES,
   ...ACTIVITY_STOP_SCENES,
   ...CHAT_CHANGES_SCENES,
   ...CHAT_CHANGES_DOCK_SCENES,
@@ -101,14 +113,19 @@ export const SCENES: readonly Scene[] = [
   ...LAND_NOTICE_SCENES,
   ...PROCESS_SCENES,
   ...RUN_TIME_DETAILS_SCENES,
+  ...PROCESS_LAUNCH_SCENES,
   ...COST_CHIP_SCENES,
   ...PROCESS_CHECKS_SCENES,
   ...ACCEPTED_UNCHECKED_SCENES,
   ...PROCESS_FEATURE_SCENES,
   ...PROCESS_MODEL_SCENES,
+  ...PROCESS_RUNS_SCENES,
+  ...PROCESS_STEP_TOOL_SCENES,
   ...PROOF_CHANGE_SCENES,
   ...ANSWER_FILES_SCENES,
   ...VIDEO_SETTINGS_SCENES,
+  ...PROJECT_DEVICE_SETTINGS_SCENES,
+  ...CROSS_PROJECT_RESUME_SCENES,
   ...UI_IMPACT_SCENES,
   ...PARK_CLOSING_SCENES,
   ...DROPPED_CHANGE_SCENES,
@@ -127,6 +144,7 @@ export const SCENES: readonly Scene[] = [
   ...MCP_SERVER_SCENES,
   ...WORKFLOW_GUARD_SCENES,
   ...KNOWLEDGE_SCENES,
+  ...GROUP_HOME_SCENES,
   ...GROUP_STORY_SCENES,
   ...TICKET_SCENES,
   ...GROUP_SIGN_OFF_SCENES,

@@ -19,7 +19,10 @@ export type ChatDebugModalProps = {
  * `limits`; nothing is redacted, only cut for size.
  */
 export default function ChatDebugModal({ isOpen, onClose, context }: ChatDebugModalProps) {
-  const { json, byteSize, loading, error, dump, refresh } = useChatDebugDump(context, isOpen)
+  const { json, byteSize, loading, error, dump, contextLine, refresh } = useChatDebugDump(
+    context,
+    isOpen,
+  )
 
   if (!isOpen) return null
 
@@ -47,6 +50,10 @@ export default function ChatDebugModal({ isOpen, onClose, context }: ChatDebugMo
           {loading ? 'Loading…' : 'Reload'}
         </button>
       </div>
+
+      {contextLine ? (
+        <div className="pb-2 text-[12px] text-(--text-muted)">{contextLine}</div>
+      ) : null}
 
       {error ? <div className="pb-2 text-[12px] text-red-500">{error}</div> : null}
 

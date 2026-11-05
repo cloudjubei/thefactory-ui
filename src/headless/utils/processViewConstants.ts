@@ -101,3 +101,7 @@ export const PROCESS_PARK_ASK_AGENT_COPY = {
 /** The line under a step whose Try again went to the checks first, the branch having moved past what they failed on. */
 export const PROCESS_STEP_RECHECKED = (sha: string | undefined) =>
   `Try again ran the checks first — branch changed${sha ? ` (${sha.slice(0, 8)})` : ''}`
+
+/** The line a step's tools fold under, in the Processes view. */
+export const PROCESS_STEP_TOOLS_LABEL = (count: number): string =>
+  `${count} ${count === 1 ? 'tool' : 'tools'}`

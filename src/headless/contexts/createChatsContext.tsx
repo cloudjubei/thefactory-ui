@@ -33,6 +33,9 @@ import type {
 } from '../api'
 import { useApi, useAuth, type UploadChatFile } from '../api'
 import { ChatAttachmentUploadStore } from '../utils/chatAttachmentUploads'
+import type { ChatContextCheckpointEvent } from 'thefactory-tools/types'
+import { ChatContextCheckpointLog } from '../utils/ChatContextCheckpointLog'
+import { chatContextCheckpointOfEvent } from '../utils/chatContextFill'
 import { errorStatus } from '../api/errorMessage'
 import {
   chatRestartMessages,
@@ -158,6 +161,8 @@ export type ChatsContextValue = {
    * so consumers can destructure directly.
    */
   getChatLiveState: (ctx: ChatCtx) => ChatLiveState
+  /** The hidden checkpoints heard for a chat, for the Debug view alone. */
+  getChatContextCheckpoints: (ctx: ChatCtx) => ChatContextCheckpointEvent[]
 
   /**
    * Per-chat draft text — the text part of {@link getDraftState}. Read at the
@@ -693,6 +698,19 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
           void refreshChat(target).catch(() => void refreshAllCoalesced())
         }),
       [ws, refreshAllCoalesced, refreshChat],
+    )
+    const contextCheckpointsRef = useRef(new ChatContextCheckpointLog())
+    useEffect(
+      () =>
+        ws.on('chats:context-checkpoint', (data: unknown) => {
+          const event = chatContextCheckpointOfEvent(data)
+          if (event) contextCheckpointsRef.current.record(event)
+        }),
+      [ws],
+    )
+    const getChatContextCheckpoints = useCallback(
+      (ctx: ChatCtx) => contextCheckpointsRef.current.of(getChatContextKey(ctx)),
+      [],
     )
     // What changed while the socket was down — a card closed, a message added — was never told.
     useEffect(() => ws.onReconnect(() => void refreshAllCoalesced()), [ws, refreshAllCoalesced])
@@ -1592,6 +1610,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         loadChat,
         findChat: refreshChat,
         getChatLiveState,
+        getChatContextCheckpoints,
         getDraft,
         setDraft,
         clearDraft,
@@ -1630,6 +1649,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         loadChat,
         refreshChat,
         getChatLiveState,
+        getChatContextCheckpoints,
         getDraft,
         setDraft,
         clearDraft,

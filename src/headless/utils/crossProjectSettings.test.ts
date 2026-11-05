@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { isAcceptanceMode, readAcceptanceLayer, resolveAcceptance } from './crossProjectSettings'
+import {
+  isAcceptanceMode,
+  readAcceptanceLayer,
+  readResumeLayer,
+  resolveAcceptance,
+  resolveResumeMode,
+} from './crossProjectSettings'
+import { CROSS_PROJECT_RESUME_OPTIONS } from './crossProjectSettingsConstants'
 
 describe('isAcceptanceMode', () => {
   it.each(['off', 'manual', 'autonomous'])('accepts the known mode %s', (m) => {
@@ -38,5 +45,43 @@ describe('resolveAcceptance', () => {
   })
   it('ignores a malformed global mode and falls through to the default', () => {
     expect(resolveAcceptance(undefined, { mode: 7 })).toBe('manual')
+  })
+})
+
+describe('readResumeLayer', () => {
+  it('reads a valid mode off the record content', () => {
+    expect(readResumeLayer({ mode: 'auto' })).toBe('auto')
+  })
+  it('returns undefined for a malformed / absent / non-object layer', () => {
+    expect(readResumeLayer({ mode: 'manual' })).toBeUndefined()
+    expect(readResumeLayer({})).toBeUndefined()
+    expect(readResumeLayer(undefined)).toBeUndefined()
+    expect(readResumeLayer('auto')).toBeUndefined()
+  })
+})
+
+describe('resolveResumeMode', () => {
+  it('asks when neither layer is set', () => {
+    expect(resolveResumeMode(undefined, undefined)).toBe('ask')
+  })
+  it('uses the global default when there is no per-project override', () => {
+    expect(resolveResumeMode(undefined, { mode: 'notify' })).toBe('notify')
+  })
+  it('prefers the per-project override over the global default', () => {
+    expect(resolveResumeMode({ mode: 'auto' }, { mode: 'notify' })).toBe('auto')
+  })
+  it('ignores a malformed layer, so a corrupt setting cannot wake an agent', () => {
+    expect(resolveResumeMode({ mode: 'always' }, { mode: 'notify' })).toBe('notify')
+    expect(resolveResumeMode({ mode: 'always' }, { mode: 7 })).toBe('ask')
+  })
+})
+
+describe('CROSS_PROJECT_RESUME_OPTIONS', () => {
+  it('offers every stored mode once, the default first', () => {
+    expect(CROSS_PROJECT_RESUME_OPTIONS.map((option) => option.value)).toEqual([
+      'ask',
+      'notify',
+      'auto',
+    ])
   })
 })

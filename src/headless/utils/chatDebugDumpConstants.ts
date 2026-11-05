@@ -15,3 +15,11 @@ export const CHAT_DEBUG_INTERPRETED_BUDGET_CHARS = 150_000
 
 /** Stand-in for a transcript payload that cannot be serialized (a cycle, a BigInt). */
 export const CHAT_DEBUG_UNSERIALIZABLE_PAYLOAD = '[unserializable payload]'
+
+/** The Debug view's words for a chat's context upkeep. */
+export const CHAT_DEBUG_CONTEXT_COPY = {
+  turns: (n: number) => `${n} ${n === 1 ? 'turn' : 'turns'} since last notes update`,
+  checkpoints: (n: number) => `${n} ${n === 1 ? 'checkpoint' : 'checkpoints'}`,
+  last: (reason: string, how: string) => `last: ${reason}, ${how}`,
+  running: 'running',
+} as const

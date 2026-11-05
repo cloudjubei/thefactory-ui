@@ -6,7 +6,7 @@
  * the launch dock (the proposal) and the Processes catalogue so the two cannot
  * draw the same chain two different ways.
  */
-export type ChainChipItem = { name: string; agent: boolean }
+export type ChainChipItem = { name: string; agent: boolean; device?: string }
 
 export default function ChainChip({ chip }: { chip: ChainChipItem }) {
   return (
@@ -20,6 +20,7 @@ export default function ChainChip({ chip }: { chip: ChainChipItem }) {
         }}
       />
       {chip.name}
+      {chip.device ? <span className="text-(--text-muted)">· {chip.device}</span> : null}
     </span>
   )
 }

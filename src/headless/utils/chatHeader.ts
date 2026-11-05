@@ -233,6 +233,7 @@ export function chatHeaderView(input: ChatHeaderInput): ChatHeaderView {
             },
           }
         : {}),
+    ...(input.contextFill ? { contextFill: input.contextFill } : {}),
     ...(strip ? { strip } : {}),
   }
 }

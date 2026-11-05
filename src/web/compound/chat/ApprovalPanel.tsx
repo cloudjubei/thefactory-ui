@@ -58,11 +58,19 @@ import {
   processGrantTurnLimitView,
   processOpenWorkMetadata,
   processOpenWorkView,
+  launchCapFields,
+  launchCapsMetadata,
+  launchCapsOfArgs,
+  launchCapsSummary,
+  launchCapsValid,
+  launchWorstCaseLine,
+  processStatisticsLine,
   processTurnLimitOfView,
   setLaunchProofNotes,
   toggleLaunchFeaturePick,
   toggleLaunchProofKind,
   useProcessProposal,
+  useProcessRunStatistics,
   useProjectNotes,
   useStories,
 } from '../../../headless'
@@ -70,6 +78,7 @@ import type {
   AgentTypeSlotPicks,
   LaunchProofPlanEdits,
   PendingToolGrant,
+  LaunchCapsTyped,
   ProcessOpenWorkChoice,
 } from '../../../headless'
 import DependencyBullet from '../stories/DependencyBullet'
@@ -79,6 +88,7 @@ import FeatureProcessChooser from './FeatureProcessChooser'
 import LaunchOverlapNote from './LaunchOverlapNote'
 import OpenWorkChooser from './OpenWorkChooser'
 import AlreadyDoneNote from './AlreadyDoneNote'
+import LaunchCapsFields from './LaunchCapsFields'
 import LaunchFeatureList from './LaunchFeatureList'
 import ProjectNoteChip from '../chips/ProjectNoteChip'
 import GitSetupApprovalPanel from './GitSetupApprovalPanel'
@@ -299,6 +309,11 @@ function ToolApprovalPanel({
   // The resolved plan the user reads before approving — the whole path the run
   // will take, per feature, not just the feature list. Fetched only for a launch
   // grant that names a story; a miss falls back to the plain feature list below.
+  const askedCaps = launchCapsOfArgs(runProposalArgs(grant))
+  const [capsTyped, setCapsTyped] = useState<LaunchCapsTyped>({})
+  const askedIterations = launchCapsMetadata(
+    launchCapFields({ asked: askedCaps, typed: capsTyped }),
+  ).maxIterations
   const {
     proposal,
     refusal,
@@ -310,6 +325,7 @@ function ToolApprovalPanel({
     ...(featureProcessSent ? { featureProcessId: featureProcessSent } : {}),
     ...(previewFeatureIds ? { featureIds: previewFeatureIds } : {}),
     ...(summary.agentTypeSlots ? { agentTypeSlots: summary.agentTypeSlots } : {}),
+    ...(askedIterations !== undefined ? { maxIterations: askedIterations } : {}),
   })
   if (defaultFeatureProcessRef.current === undefined && featureProcessPick === undefined) {
     defaultFeatureProcessRef.current = proposalFeatureProcessId(proposal)
@@ -317,6 +333,16 @@ function ToolApprovalPanel({
   const defaultFeatureProcess = defaultFeatureProcessRef.current
   const featureProcess = featureProcessChoice(defaultFeatureProcess, featureProcessPick)
   const proposalView = proposal ? processProposalView(proposal) : undefined
+  const capFields = launchCapFields({
+    asked: askedCaps,
+    ...(proposal?.defaultCaps ? { defaults: proposal.defaultCaps } : {}),
+    typed: capsTyped,
+  })
+  const capsMeta = launchCapsMetadata(capFields)
+  const statistics = useProcessRunStatistics(projectId)
+  const statisticsLine = proposal
+    ? processStatisticsLine(statistics, proposal.processId)
+    : undefined
   // The story's open work — a run still going, or finished and not merged. The
   // launch waits for the person to choose how to proceed over it; the choice is
   // theirs, carried on the decision on either transport.
@@ -357,6 +383,12 @@ function ToolApprovalPanel({
   const [saveProofPlans, setSaveProofPlans] = useState(false)
   const proofPlanRows = launchProofPlanRows(proposal, proofPlanEdits)
   const featureRows = launchFeatureRows(proposalView, proofPlanRows)
+  const worstCase = launchWorstCaseLine({
+    attempts:
+      capsMeta.maxIterations ?? Math.max(0, ...featureRows.map((r) => r.maxIterations ?? 0)),
+    count: featureRows.length,
+    of: 'feature',
+  })
   const canonicalize = useCanonicalizeReferences()
   const proofPlanMeta = proofPlanMetadata(
     proposal,
@@ -441,6 +473,7 @@ function ToolApprovalPanel({
                   ...(trimmedNote ? { note: trimmedNote } : {}),
                   ...launchAgentPickMetadata(agentPick),
                   turnLimit: processTurnLimitOfView(turnLimit),
+                  ...(decision === 'once' ? capsMeta : {}),
                   ...(decision === 'once' && openWorkMeta ? openWorkMeta : {}),
                   ...(decision === 'once' && featureProcessMeta ? featureProcessMeta : {}),
                   ...(decision === 'once' && baseBranchMeta ? baseBranchMeta : {}),
@@ -469,7 +502,7 @@ function ToolApprovalPanel({
         view={view}
         busy={busy}
         error={error}
-        ready={check.ready}
+        ready={check.ready && (inChat || launchCapsValid(capFields))}
         {...(check.problem !== undefined ? { problem: check.problem } : {})}
         onApprove={() => decide('once')}
         onDeny={() => decide('deny')}
@@ -544,6 +577,9 @@ function ToolApprovalPanel({
           <span className="text-[10px] font-semibold uppercase tracking-wider text-(--text-muted)">
             {LAUNCH_HOW_IT_RUNS_HEADING}
           </span>
+          {statisticsLine && !inChat ? (
+            <span className="text-[11.5px] text-(--text-muted)">{statisticsLine}</span>
+          ) : null}
           <div className="flex flex-wrap items-center gap-2">
             {!inChat && featureProcess !== undefined ? (
               <FeatureProcessChooser
@@ -615,6 +651,15 @@ function ToolApprovalPanel({
             />
           )}
           {inChat ? null : (
+            <LaunchCapsFields
+              fields={capFields}
+              summary={launchCapsSummary(capsMeta)}
+              {...(worstCase ? { worstCase } : {})}
+              busy={busy}
+              onChange={(key, text) => setCapsTyped((prev) => ({ ...prev, [key]: text }))}
+            />
+          )}
+          {inChat ? null : (
             <LaunchSuggestionPanel
               rows={launchSuggestionRows(suggestion.suggestion)}
               {...(suggestion.answeredBy ? { answeredBy: suggestion.answeredBy } : {})}
@@ -634,6 +679,9 @@ function ToolApprovalPanel({
             rows={inChat ? [] : featureRows}
             tail={inChat ? [] : (proposalView?.tail ?? [])}
             {...(proposalView && !inChat ? { agentStepCount: proposalView.agentStepCount } : {})}
+            {...(proposalView?.deviceLine && !inChat
+              ? { deviceLine: proposalView.deviceLine }
+              : {})}
             {...(pickRows ? { pick: { rows: pickRows, onToggle: togglePick } } : {})}
             save={saveProofPlans}
             joinsOpenRun={joinsOpenRun}

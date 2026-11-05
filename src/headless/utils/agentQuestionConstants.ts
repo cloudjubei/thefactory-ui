@@ -31,6 +31,9 @@ export const QUESTION_ANSWER_PLACEHOLDER = 'Type your answer — @ to point at a
 
 export const QUESTION_SUBMIT_LABEL = 'Send answer'
 
+/** An answer the backend did not take and gave no reason for. */
+export const QUESTION_SEND_FAILED = 'Could not send the answer.'
+
 export const QUESTION_DECLINE_LABEL = 'Let the agent decide'
 
 /** Sets the question aside without answering it; it stays waiting. */

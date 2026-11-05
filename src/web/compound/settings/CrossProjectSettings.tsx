@@ -1,5 +1,11 @@
-import type { FeatureRequestAcceptance } from 'thefactory-tools/types'
-import { useActiveProject, useCrossProjectSettings } from '../../../headless'
+import type { FeatureRequestAcceptance, FeatureRequestResumeMode } from 'thefactory-tools/types'
+import {
+  CROSS_PROJECT_RESUME_COPY,
+  CROSS_PROJECT_RESUME_OPTIONS,
+  CROSS_PROJECT_USE_DEFAULT,
+  useActiveProject,
+  useCrossProjectSettings,
+} from '../../../headless'
 import { NativeSelect } from '../../primitives/NativeSelect'
 
 /**
@@ -12,18 +18,18 @@ const ACCEPTANCE_OPTIONS: { value: FeatureRequestAcceptance; label: string }[] =
   { value: 'off', label: 'Off — decline inbound requests' },
 ]
 
-const USE_DEFAULT = '__default'
-
 /**
- * D.6 settings: the receiver **cross-project acceptance** policy (a user-global default + an optional
- * per-project override), bound to {@link useCrossProjectSettings} — which the backend resolver
- * actually enforces at emit. The sender "resume mode" control ships disabled (`notify` only) until
- * `auto_resume` lands. Shared by web + desktop; mobile renders its own.
+ * D.6 settings: the receiver **cross-project acceptance** policy and the sender's **resume mode**
+ * (each a user-global default + an optional per-project override), bound to
+ * {@link useCrossProjectSettings} — which the backend resolvers enforce. Shared by web + desktop;
+ * mobile renders its own.
  */
 export default function CrossProjectSettings() {
   const { projectId, project } = useActiveProject()
-  const { loading, effective, global, override, setGlobal, setOverride } =
+  const { loading, effective, global, override, setGlobal, setOverride, resume } =
     useCrossProjectSettings(projectId)
+  const resumeLabel = (mode: FeatureRequestResumeMode) =>
+    CROSS_PROJECT_RESUME_OPTIONS.find((option) => option.value === mode)?.short ?? mode
 
   return (
     <div className="space-y-6">
@@ -55,14 +61,16 @@ export default function CrossProjectSettings() {
             Override for {project?.title ?? 'this project'}
           </label>
           <NativeSelect
-            value={override ?? USE_DEFAULT}
+            value={override ?? CROSS_PROJECT_USE_DEFAULT}
             disabled={loading}
             onChange={(e) => {
               const v = e.target.value
-              void setOverride(v === USE_DEFAULT ? undefined : (v as FeatureRequestAcceptance))
+              void setOverride(
+                v === CROSS_PROJECT_USE_DEFAULT ? undefined : (v as FeatureRequestAcceptance),
+              )
             }}
           >
-            <option value={USE_DEFAULT}>Use default ({global})</option>
+            <option value={CROSS_PROJECT_USE_DEFAULT}>Use default ({global})</option>
             {ACCEPTANCE_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
@@ -75,13 +83,51 @@ export default function CrossProjectSettings() {
         </div>
       ) : null}
 
-      <div className="space-y-1.5 opacity-60">
-        <label className="text-sm font-medium">When a request you sent completes</label>
-        <NativeSelect value="notify" disabled>
-          <option value="notify">Notify me — I reopen the chat and continue</option>
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium">{CROSS_PROJECT_RESUME_COPY.label}</label>
+        <NativeSelect
+          value={resume.global}
+          disabled={loading}
+          onChange={(e) => void resume.setGlobal(e.target.value as FeatureRequestResumeMode)}
+        >
+          {CROSS_PROJECT_RESUME_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
         </NativeSelect>
-        <p className="text-xs text-(--text-secondary)">Auto-resume is coming soon.</p>
       </div>
+
+      {projectId ? (
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium">
+            {CROSS_PROJECT_RESUME_COPY.override(project?.title ?? 'this project')}
+          </label>
+          <NativeSelect
+            value={resume.override ?? CROSS_PROJECT_USE_DEFAULT}
+            disabled={loading}
+            onChange={(e) => {
+              const v = e.target.value
+              void resume.setOverride(
+                v === CROSS_PROJECT_USE_DEFAULT ? undefined : (v as FeatureRequestResumeMode),
+              )
+            }}
+          >
+            <option value={CROSS_PROJECT_USE_DEFAULT}>
+              {CROSS_PROJECT_RESUME_COPY.useDefault(resumeLabel(resume.global))}
+            </option>
+            {CROSS_PROJECT_RESUME_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </NativeSelect>
+          <p className="text-xs text-(--text-secondary)">
+            {CROSS_PROJECT_RESUME_COPY.effective}{' '}
+            <span className="font-medium">{resumeLabel(resume.effective)}</span>
+          </p>
+        </div>
+      ) : null}
     </div>
   )
 }

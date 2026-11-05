@@ -1,4 +1,4 @@
-import type { ReferenceTarget } from 'thefactory-tools/types'
+import type { ChatContextBoundary, ReferenceTarget } from 'thefactory-tools/types'
 import type { ToolPreviewResult } from '../../../headless/api/sdkTypes'
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import type { LaunchModelChipSlot } from '../../../headless/utils/launchAgentPickTypes'
@@ -6,6 +6,7 @@ import { useProjectsOptional } from '../../../headless/contexts/ProjectsContext'
 import { chatTitleFromContextId } from '../../../headless/utils/sendChatMessageView'
 import Alert from '../../primitives/Alert'
 import AgentQuestionCard from './AgentQuestionCard'
+import StuckCard from './StuckCard'
 import RemedyCard from './RemedyCard'
 import ChatInput, { type ChatInputProps } from './ChatInput'
 import CredentialCaptureCard from './CredentialCaptureCard'
@@ -192,6 +193,8 @@ export type ChatBodyProps = {
 
   /** Forwarded to MessageList — controls the context-cutoff divider. */
   numberMessagesToSend?: number
+  /** The chat's `contextBoundary`. Forwarded to MessageList, which draws the line. */
+  contextBoundary?: ChatContextBoundary
 
   /** Most-recent ISO timestamp the user has seen — drives MessageList's
    * first-unread positioning. */
@@ -266,6 +269,7 @@ export default function ChatBody({
   onRestartTurn,
   canSend = true,
   numberMessagesToSend,
+  contextBoundary,
   lastReadIso,
   onAtBottomChange,
   onReadLatest,
@@ -497,6 +501,7 @@ export default function ChatBody({
               renderProcessRun={renderProcessRun}
               renderProcessGroupRun={renderProcessGroupRun}
               numberMessagesToSend={numberMessagesToSend}
+              {...(contextBoundary ? { contextBoundary } : {})}
               lastReadIso={lastReadIso}
               onAtBottomChange={onAtBottomChange}
               onReadLatest={onReadLatest}
@@ -574,7 +579,14 @@ export default function ChatBody({
           pushes its own decision off-screen. */}
           {shownAsk ? (
             <div className="flex max-h-[65%] min-h-0 shrink flex-col gap-2 overflow-y-auto border-t border-(--border-default) bg-(--surface-raised) px-3 py-3">
-              {shownAsk.kind === 'question' ? (
+              {shownAsk.kind === 'question' && shownAsk.grant.question.stuck ? (
+                <StuckCard
+                  key={shownAsk.id}
+                  grant={shownAsk.grant}
+                  onPark={() => setAskParked(shownAsk.id, true)}
+                  {...(openAsks.length > 1 ? { pager: askPager } : {})}
+                />
+              ) : shownAsk.kind === 'question' ? (
                 <AgentQuestionCard
                   key={shownAsk.id}
                   grant={shownAsk.grant}

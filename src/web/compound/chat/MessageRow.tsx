@@ -699,7 +699,6 @@ function MessageRow({
                     path={path}
                     chat={videoAttachments}
                     place="sent"
-                    getPreviewUrl={getAttachmentPreviewUrl}
                     fallback={file}
                   />
                 )

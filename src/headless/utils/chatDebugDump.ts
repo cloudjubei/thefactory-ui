@@ -9,6 +9,7 @@ import {
   type CliTranscriptStep,
 } from './cliRunner'
 import {
+  CHAT_DEBUG_CONTEXT_COPY,
   CHAT_DEBUG_DUMP_VERSION,
   CHAT_DEBUG_INTERPRETED_BUDGET_CHARS,
   CHAT_DEBUG_MESSAGES_BUDGET_CHARS,
@@ -19,6 +20,7 @@ import {
 import type {
   ChatDebugCliRun,
   ChatDebugCliRunner,
+  ChatDebugContextUpkeep,
   ChatDebugDump,
   ChatDebugDumpInput,
   ChatDebugDumpSerialized,
@@ -261,6 +263,36 @@ function debugCliRunner(chat: Chat | null | undefined): ChatDebugCliRunner | und
   }
 }
 
+function debugContextUpkeep(input: ChatDebugDumpInput): ChatDebugContextUpkeep | undefined {
+  const { contextReadout: readout, contextCheckpoints: checkpoints = [] } = input
+  if (!readout && checkpoints.length === 0) return undefined
+  const boundary = input.chat?.contextBoundary
+  return {
+    ...(readout ? { turnsSinceLastContextUpdate: readout.turnsSinceLastContextUpdate } : {}),
+    ...(readout?.notesUpdatedAt ? { notesUpdatedAt: readout.notesUpdatedAt } : {}),
+    ...(readout?.contextFill ? { contextFill: readout.contextFill } : {}),
+    ...(boundary ? { contextBoundary: boundary } : {}),
+    checkpoints: [...checkpoints],
+  }
+}
+
+/** The Debug view's line of a chat's context upkeep: turns since its notes, and its checkpoints. Pure. */
+export function chatDebugContextLine(dump: ChatDebugDump): string | undefined {
+  const upkeep = dump.contextUpkeep
+  if (!upkeep) return undefined
+  const turns = upkeep.turnsSinceLastContextUpdate
+  const last = upkeep.checkpoints.at(-1)
+  return [
+    turns !== undefined ? CHAT_DEBUG_CONTEXT_COPY.turns(turns) : undefined,
+    CHAT_DEBUG_CONTEXT_COPY.checkpoints(upkeep.checkpoints.length),
+    last
+      ? CHAT_DEBUG_CONTEXT_COPY.last(last.reason, last.outcome ?? CHAT_DEBUG_CONTEXT_COPY.running)
+      : undefined,
+  ]
+    .filter((part) => part !== undefined)
+    .join(' · ')
+}
+
 /**
  * Build the one-document diagnostic of how a chat renders: the chat's stored
  * messages, every CLI run belonging to it with its RAW transcript entries, and
@@ -319,6 +351,7 @@ export function buildChatDebugDump(input: ChatDebugDumpInput): ChatDebugDump {
     derivedMessagesOmitted: runs.reduce((n, r) => n + r.derivedMessagesOmitted, 0),
   }
   const cliRunner = debugCliRunner(chat)
+  const contextUpkeep = debugContextUpkeep(input)
 
   return {
     kind: 'chat-debug-dump',
@@ -329,6 +362,7 @@ export function buildChatDebugDump(input: ChatDebugDumpInput): ChatDebugDump {
     ...(chat?.title ? { chatTitle: chat.title } : {}),
     ...(chat?.state ? { chatState: chat.state } : {}),
     ...(cliRunner ? { cliRunner } : {}),
+    ...(contextUpkeep ? { contextUpkeep } : {}),
     showThinking,
     truncated:
       counts.messagesOmitted > 0 ||

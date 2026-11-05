@@ -9,13 +9,14 @@ import { useStories } from '../contexts/StoriesContext'
 import { chatHeaderView, chatMessagesCost } from '../utils/chatHeader'
 import type { ChatHeaderView } from '../utils/chatHeaderTypes'
 import type { ChatMessageLike } from '../utils/chatTypes'
+import { useChatContextFill } from './useChatContextFill'
 import { useDurationTimer } from './useDurationTimer'
 import { useProcessRun } from './useProcessRun'
 
 /**
  * A chat's header, read live: the run a run chat belongs to, the story or
  * feature a story or feature chat is about, the project or group it sits in,
- * and what its messages cost. A host that holds the chat's messages itself —
+ * what its messages cost and how full its working context is. A host that holds the chat's messages itself —
  * an opened chat — passes them, since the chat list keeps only a summary.
  */
 export function useChatHeaderView(
@@ -43,6 +44,7 @@ export function useChatHeaderView(
       : undefined
   const chatTitle = chat?.title ?? undefined
   const listHidden = chat ? isChatArchivedFromList(chat) : false
+  const contextFill = useChatContextFill(context)
   return useMemo(
     () =>
       chatHeaderView({
@@ -58,6 +60,7 @@ export function useChatHeaderView(
         ...(run ? { run } : {}),
         ...(messagesCost ? { messagesCost } : {}),
         ...(listHidden ? { listHidden } : {}),
+        ...(contextFill ? { contextFill } : {}),
       }),
     [
       context,
@@ -72,6 +75,7 @@ export function useChatHeaderView(
       run,
       messagesCost,
       listHidden,
+      contextFill,
     ],
   )
 }

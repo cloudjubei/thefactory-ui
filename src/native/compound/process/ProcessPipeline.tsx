@@ -15,7 +15,9 @@ import {
 import {
   choiceTakesNote,
   processParkCirclingView,
+  processParkStuckView,
   processStepCirclingView,
+  processStepStuckView,
   computeChatRowStatus,
   parkNoteCopy,
   RunChatDraftProvider,
@@ -1262,7 +1264,8 @@ function PipelineNode({
       : undefined
   const resolves = featureRef ? !('code' in resolveDependency(featureRef)) : false
   const signoffGate = parked && isStorySignoff(run)
-  const circling = processStepCirclingView(run, state.step.id, state.latest)
+  const circling =
+    processStepStuckView(state.latest) ?? processStepCirclingView(run, state.step.id, state.latest)
   const parkedTone = status[managerLine ? PROCESS_LIVE_TONE : 'on_hold']
 
   return (
@@ -1544,7 +1547,7 @@ function ParkBlock({
   const reflected = isReflectedPark(park)
   const choices = processRunParkChoices(run)
   const proofChange = choices.find((c) => c.choice === 'change-proof')?.proofChange
-  const circling = processParkCirclingView(run, root ?? run)
+  const circling = processParkStuckView(run) ?? processParkCirclingView(run, root ?? run)
   const variant = managerLine
     ? status[PROCESS_LIVE_TONE]
     : park.reason === 'gate'

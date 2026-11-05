@@ -4,6 +4,7 @@ import type {
   VideoTranscriptState,
 } from 'thefactory-tools/types'
 import type { ChatContext } from '../api/generated'
+import type { VideoFrame } from './videoPlaybackTypes'
 
 /** How the digest of a chat's video stands, as `GET /chat-attachments/digest` and `chatAttachments:digest` say. */
 export type ChatVideoDigest = {
@@ -15,6 +16,9 @@ export type ChatVideoDigest = {
   poster?: string
   transcript?: VideoTranscriptState
   durationSec?: number
+  /** As shown, rotation applied. Known once the digest is ready: a player reads it before that. */
+  width?: number
+  height?: number
   sizeBytes?: number
 }
 
@@ -66,7 +70,15 @@ export type VideoAttachmentView = {
   size?: string
   /** "04:12 · 186 MB". */
   facts?: string
+  /** Its size as shown, so the card can take its shape before the video loads. */
+  frame?: VideoFrame
   steps: VideoStep[]
+}
+
+/** A showcase scene's stand-in for a video's signed URLs. */
+export type ChatVideoFixedMedia = {
+  video: string
+  still?: string
 }
 
 /** Where a chat's videos read how they stand: bound to the chat, as the digest routes are. */
@@ -76,4 +88,6 @@ export type ChatVideoAttachments = {
   onOpenSetup?: () => void
   /** A fixed answer per path in place of the backend's, for a showcase scene. */
   fixedDigests?: Record<string, ChatVideoDigest>
+  /** The fixed URLs per path to go with them. */
+  fixedMedia?: Record<string, ChatVideoFixedMedia>
 }

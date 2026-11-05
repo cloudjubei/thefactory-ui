@@ -12,12 +12,21 @@ import {
   LAUNCH_NOTE_MAX_CHARS,
   processGroupLegWaitsFor,
   processGrantTurnLimitView,
+  LAUNCH_CAPS_COPY,
+  launchCapFields,
+  launchCapsMetadata,
+  launchCapsOfArgs,
+  launchCapsOfDefaults,
+  launchCapsSummary,
+  launchCapsValid,
+  launchWorstCaseLine,
   processTurnLimitOfView,
   startGroupWorkGrantSummary,
   ticketMoveDecisionOf,
   ticketMoveField,
   useProcessGroupLaunchPreview,
   type PendingToolGrant,
+  type LaunchCapsTyped,
 } from '../../../headless'
 import { grantDecideErrorMessage } from '../../../headless/utils/pendingToolGrants'
 import { runProposalArgs } from '../../../headless/utils/runProposalView'
@@ -27,6 +36,7 @@ import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { Textarea } from '../../primitives/Textarea'
 import { TurnLimitField } from '../TurnLimitField'
+import LaunchCapsFields from './LaunchCapsFields'
 import BaseBranchChooser from './BaseBranchChooser'
 import TicketMoveField from './TicketMoveField'
 import ToolAskCard from './ToolAskCard'
@@ -90,6 +100,19 @@ export default function GroupWorkLaunchPanel({
   // agent asked, else that project's current branch.
   const [basePicks, setBasePicks] = useState<Record<string, string>>({})
   const baseBranchMeta = groupBaseBranchMetadata(preview?.legs ?? [], basePicks)
+  const [capsTyped, setCapsTyped] = useState<LaunchCapsTyped>({})
+  const capFields = launchCapFields({
+    asked: launchCapsOfArgs(runProposalArgs(grant)),
+    typed: capsTyped,
+  })
+  const capsMeta = launchCapsMetadata(capFields)
+  const worstCase = launchWorstCaseLine({
+    attempts:
+      capsMeta.maxIterations ??
+      Math.max(0, ...(preview?.legs ?? []).map((leg) => leg.defaultCaps?.maxIterations ?? 0)),
+    count: preview?.legs.length ?? 0,
+    of: 'leg',
+  })
 
   const problems = preview?.problems ?? []
   const canStart = isLoaded && preview !== undefined && problems.length === 0
@@ -108,6 +131,7 @@ export default function GroupWorkLaunchPanel({
           ? {
               ...(trimmed ? { note: trimmed } : {}),
               turnLimit: processTurnLimitOfView(turnLimit),
+              ...capsMeta,
               ...launchAgentPickMetadata(agentPick),
               ...(baseBranchMeta ?? {}),
               ...(ticketMove ? { ticketMove } : {}),
@@ -131,7 +155,7 @@ export default function GroupWorkLaunchPanel({
         view={view}
         busy={busy}
         error={error}
-        ready={canStart}
+        ready={canStart && launchCapsValid(capFields)}
         onApprove={() => decide('once')}
         onDeny={() => decide('deny')}
         onLater={onDecideLater}
@@ -204,6 +228,13 @@ export default function GroupWorkLaunchPanel({
                           {`${leg.features} feature${leg.features === 1 ? '' : 's'}`}
                         </Text>
                       </View>
+                      {leg.defaultCaps ? (
+                        <Text style={{ fontSize: 11, color: theme.text.muted }}>
+                          {LAUNCH_CAPS_COPY.projectDefault(
+                            launchCapsSummary(launchCapsOfDefaults(leg.defaultCaps)),
+                          )}
+                        </Text>
+                      ) : null}
                       <BaseBranchChooser
                         options={leg.baseBranches}
                         {...(leg.baseBranch !== undefined ? { asked: leg.baseBranch } : {})}
@@ -281,6 +312,14 @@ export default function GroupWorkLaunchPanel({
             maxTurns={turnLimit.maxTurns}
             disabled={busy}
             onChange={setTurnLimitPick}
+          />
+          <LaunchCapsFields
+            fields={capFields}
+            summary={launchCapsSummary(capsMeta)}
+            {...(worstCase ? { worstCase } : {})}
+            note={LAUNCH_CAPS_COPY.legsDefault}
+            busy={busy}
+            onChange={(key, text) => setCapsTyped((prev) => ({ ...prev, [key]: text }))}
           />
           <Textarea
             rows={2}

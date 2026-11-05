@@ -40,7 +40,7 @@ function managerLine(manager: ProcessManagerTotals): ProcessTimeDetailsLine {
  * chip promises is never missing — and setup, other and still-running work
  * only when there is some, each with its duration and share; the slowest
  * tools; and, beside the total, time waiting on a person and time waiting a
- * turn behind other check runs (`queuedMs`, part of `waitingMs`), each apart.
+ * turn or for room on the machine (`queuedMs`, part of `waitingMs`), each apart.
  *
  * `workMs` is the chip's own total, live while a step runs: work the breakdown
  * has not placed yet — the clock carried on since the totals were read — is

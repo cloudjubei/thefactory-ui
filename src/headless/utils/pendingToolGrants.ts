@@ -61,6 +61,8 @@ export type CliRunLike = {
   createdAt?: number
   /** The story a run is executing for — set on the per-feature sub-runs of a story run. */
   storyId?: string
+  /** The host ran it for the chat's own upkeep: never a turn, so never what a chat is working on. */
+  hiddenContextCheckpoint?: boolean
 }
 
 /**
@@ -171,6 +173,7 @@ export function pickActiveCliRunId(
   let best: CliRunLike | undefined
   for (const run of runs ?? []) {
     if (!run || typeof run.id !== 'string' || run.id.length === 0) continue
+    if (run.hiddenContextCheckpoint === true) continue
     if (run.chatContextId !== chatContextId) continue
     if (!best || (run.createdAt ?? 0) >= (best.createdAt ?? 0)) best = run
   }
@@ -217,6 +220,7 @@ export function pickActiveStoryRunId(
   let best: CliRunLike | undefined
   for (const run of runs ?? []) {
     if (!run || typeof run.id !== 'string' || run.id.length === 0) continue
+    if (run.hiddenContextCheckpoint === true) continue
     if (!belongsToStoryAgentRun(run.chatContextId, storyChat, storyChatKey)) continue
     if (!best || (run.createdAt ?? 0) >= (best.createdAt ?? 0)) best = run
   }

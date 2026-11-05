@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 
 import { useAppSettings, useCliRunArtifact, useInlineApprovals } from '../../../headless'
+import { toolStepLayout } from '../../../headless/utils/toolStepGroups'
 import {
   describeCliRunActivity,
   isCliRunWorking,
@@ -33,6 +34,7 @@ import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { IconDelete } from '../../icons'
 import type { UikitFileMeta } from '../files/FileDisplay'
 import MessageRow from './MessageRow'
+import ToolStepsFold from './ToolStepsFold'
 import ToolApprovalFooter from './ToolApprovalFooter'
 import ThinkingRow from './ThinkingRow'
 import type { NativeToolCallRenderArgs } from './chatNativeTypes'
@@ -201,6 +203,7 @@ export default function CliRunMessages({
     [messages, storedReply, model, active, stopNotice],
   )
   const total = baseIndex + shown.length + 1
+  const toolSteps = useMemo(() => toolStepLayout(shown, { openTail: active }), [shown, active])
   let shownModel = false
 
   // Since-last-action readout, ticking once a second while active: times the
@@ -255,29 +258,42 @@ export default function CliRunMessages({
         }}
       >
         {shown.map((m, i) => {
-          const showModel = !!model && m.role === 'assistant' && !shownModel
-          if (showModel) shownModel = true
-          return (
-            <MessageRow
-              key={`cli-${runId}-${i}`}
-              {...approvals.rowProps(m)}
-              msg={{ ...m, showModel, isFirstInGroup: true }}
-              onResourceLink={onResourceLink}
-              {...(chatTitle ? { chatTitle } : {})}
-              globalIndex={baseIndex + i}
-              totalMessages={total}
-              isThinking={false}
-              isLast={false}
-              prevUserMessagesLen={0}
-              enhancedTotalLength={total}
-              renderToolCall={renderToolCall}
-              renderProcessRun={renderProcessRun}
-              renderProcessGroupRun={renderProcessGroupRun}
-              onResolveFile={onResolveFile}
-              renderReference={renderReference}
-              onShowUsage={onShowUsage}
-            />
-          )
+          if (toolSteps.hidden.has(i)) return null
+          const group = toolSteps.starts.get(i)
+          const row = (step: (typeof shown)[number], index: number) => {
+            const showModel = !!model && step.role === 'assistant' && !shownModel
+            if (showModel) shownModel = true
+            return (
+              <MessageRow
+                key={`cli-${runId}-${index}`}
+                {...approvals.rowProps(step)}
+                msg={{ ...step, showModel, isFirstInGroup: true }}
+                onResourceLink={onResourceLink}
+                {...(chatTitle ? { chatTitle } : {})}
+                globalIndex={baseIndex + index}
+                totalMessages={total}
+                isThinking={false}
+                isLast={false}
+                prevUserMessagesLen={0}
+                enhancedTotalLength={total}
+                renderToolCall={renderToolCall}
+                renderProcessRun={renderProcessRun}
+                renderProcessGroupRun={renderProcessGroupRun}
+                onResolveFile={onResolveFile}
+                renderReference={renderReference}
+                onShowUsage={onShowUsage}
+              />
+            )
+          }
+          if (group) {
+            const folded = shown.slice(group.start, group.end)
+            return (
+              <ToolStepsFold key={`steps-${runId}-${i}`} count={folded.length}>
+                {folded.map((step, offset) => row(step, group.start + offset))}
+              </ToolStepsFold>
+            )
+          }
+          return row(m, i)
         })}
         {approvals.askIds.length > 0 ? (
           <ToolApprovalFooter

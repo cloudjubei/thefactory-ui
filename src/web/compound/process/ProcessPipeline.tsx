@@ -3,7 +3,9 @@ import { chatNotifyLevel } from '../../../headless/utils/chatNotify'
 import {
   choiceTakesNote,
   processParkCirclingView,
+  processParkStuckView,
   processStepCirclingView,
+  processStepStuckView,
   computeChatRowStatus,
   useProcessRunAlreadyLanded,
   type ProcessAlreadyMergedAction,
@@ -1133,7 +1135,8 @@ export function PipelineNode({
       : undefined
   const resolves = featureRef ? !('code' in resolveDependency(featureRef)) : false
   const signoffGate = parked && isStorySignoff(run) && !isReflectedPark(run.park!)
-  const circling = processStepCirclingView(run, state.step.id, state.latest)
+  const circling =
+    processStepStuckView(state.latest) ?? processStepCirclingView(run, state.step.id, state.latest)
 
   return (
     <li
@@ -1375,7 +1378,7 @@ export function ParkBlock({
   const reflected = isReflectedPark(park)
   const choices = processRunParkChoices(run)
   const proofChange = choices.find((c) => c.choice === 'change-proof')?.proofChange
-  const circling = processParkCirclingView(run, root ?? run)
+  const circling = processParkStuckView(run) ?? processParkCirclingView(run, root ?? run)
   const tone = managerLine ? PROCESS_LIVE_TONE : park.reason === 'gate' ? 'review' : 'on_hold'
   const offered = choices
     .filter(isResumeParkChoice)

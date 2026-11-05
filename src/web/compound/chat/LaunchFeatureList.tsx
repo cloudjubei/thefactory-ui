@@ -26,6 +26,8 @@ export type LaunchFeatureListProps = {
   tail: readonly ProposalChip[]
   /** Steps where a model runs, across the whole plan. */
   agentStepCount?: number
+  /** What the capture and verify steps drive, when the host named it. */
+  deviceLine?: string
   /** Write the confirmed plans back onto the features. */
   save: boolean
   /** The features join an open run, which reads their own plans: they are always saved. */
@@ -55,6 +57,7 @@ export default function LaunchFeatureList({
   rows,
   tail,
   agentStepCount,
+  deviceLine,
   save,
   joinsOpenRun = false,
   busy = false,
@@ -113,6 +116,9 @@ export default function LaunchFeatureList({
           </button>
         ) : null}
       </div>
+      {deviceLine ? (
+        <span className="text-[11.5px] text-(--text-secondary)">{deviceLine}</span>
+      ) : null}
       <div className="flex flex-col overflow-hidden rounded-md border border-(--border-subtle) bg-(--surface-base)">
         {listed.map((item, i) => {
           const row = item.picked ? rows.find((r) => r.featureId === item.featureId) : undefined

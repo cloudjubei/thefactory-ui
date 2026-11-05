@@ -124,15 +124,71 @@ export type {
   FeatureRequestStatusView,
 } from './utils/featureRequestViewTypes'
 export { crossProjectNotification, type CrossProjectNotification } from './utils/crossProjectNotify'
+export { useProjectsGroupStatus, type UseProjectsGroupStatus } from './hooks/useProjectsGroupStatus'
+export {
+  useProjectsGroupConstellation,
+  type UseProjectsGroupConstellation,
+} from './hooks/useProjectsGroupConstellation'
+export { groupMemberProgress, groupStatusView } from './utils/groupStatusView'
+export {
+  GROUP_HOME_CLOCK_MS,
+  GROUP_HOME_DEFAULT_LAYOUT,
+  GROUP_HOME_LAYOUT_LABELS,
+  GROUP_HOME_LAYOUTS,
+  GROUP_MEMBER_ATTENTION_TONE,
+  GROUP_MEMBER_RUNS_SHOWN,
+  GROUP_STATUS_COPY,
+} from './utils/groupStatusViewConstants'
+export type {
+  GroupHomeLayout,
+  GroupMemberAttention,
+  GroupMemberCheck,
+  GroupMemberGit,
+  GroupMemberProgress,
+  GroupMemberRunRow,
+  GroupMemberView,
+  GroupRunRow,
+  GroupStatusBadge,
+  GroupStatusSection,
+  GroupStatusView,
+  ProjectsGroupMemberStatus,
+  ProjectsGroupStatus,
+} from './utils/groupStatusViewTypes'
+export { groupConstellationLinks, groupConstellationMap } from './utils/groupConstellationView'
+export {
+  GROUP_CONSTELLATION_COPY,
+  GROUP_CONSTELLATION_DEFAULT_LAYOUT,
+  GROUP_CONSTELLATION_FALLBACK_WIDTH,
+  GROUP_CONSTELLATION_LAYOUT_LABELS,
+  GROUP_CONSTELLATION_LAYOUTS,
+  GROUP_CONSTELLATION_NODE,
+} from './utils/groupConstellationViewConstants'
+export type {
+  GroupConstellationEdge,
+  GroupConstellationLayout,
+  GroupConstellationLink,
+  GroupConstellationLinks,
+  GroupConstellationMap,
+  GroupConstellationNode,
+  ProjectsGroupConstellation,
+} from './utils/groupConstellationViewTypes'
 export {
   useCrossProjectSettings,
+  type CrossProjectResumeState,
   type CrossProjectSettingsState,
 } from './hooks/useCrossProjectSettings'
 export {
   isAcceptanceMode,
   readAcceptanceLayer,
+  readResumeLayer,
   resolveAcceptance,
+  resolveResumeMode,
 } from './utils/crossProjectSettings'
+export {
+  CROSS_PROJECT_RESUME_COPY,
+  CROSS_PROJECT_RESUME_OPTIONS,
+  CROSS_PROJECT_USE_DEFAULT,
+} from './utils/crossProjectSettingsConstants'
 export {
   readProjectOverviewModelSetting,
   useProjectOverviewModelSetting,
@@ -331,6 +387,16 @@ export type {
   AgentExchangeLayout,
   AgentExchangeLineView,
 } from './utils/agentExchangesTypes'
+export {
+  foldedRowWindowStart,
+  isFoldableToolStep,
+  toolStepFoldKey,
+  toolStepLayout,
+  toolStepRowEnd,
+  toolStepStartOf,
+} from './utils/toolStepGroups'
+export { TOOL_STEP_FOLD_MIN, TOOL_STEPS_LABEL } from './utils/toolStepGroupsConstants'
+export type { ToolStepGroup, ToolStepLayout } from './utils/toolStepGroupsTypes'
 export { managerBriefView, managerEscalationView, managerOutcomeView } from './utils/managerCards'
 export * from './utils/managerCardsConstants'
 export type {
@@ -1670,6 +1736,69 @@ export type { LinkedFeatureStep } from './utils/featureLinkTypes'
 export { dependencyResourceLink } from './utils/dependencyLink'
 export type { DependencyLinkTarget } from './utils/dependencyLinkTypes'
 export { contextInfoStory } from './utils/contextInfo'
+export {
+  chatCompactLine,
+  chatContextCheckpointOfEvent,
+  chatContextFillChip,
+  chatContextReadoutOfEvent,
+  contextBoundaryIndex,
+  rowHoldsMessage,
+  shownContextCutoff,
+} from './utils/chatContextFill'
+export * from './utils/chatContextFillConstants'
+export type {
+  ChatCompactLineView,
+  ChatCompactView,
+  ChatContextFillChipView,
+  ChatContextFillLevel,
+  ChatContextFillView,
+} from './utils/chatContextFillTypes'
+export {
+  applyChatHistoryShare,
+  applyChatNotesTurns,
+  buildChatContextSettings,
+} from './utils/chatContextSettings'
+export * from './utils/chatContextSettingsConstants'
+export type {
+  ChatContextSettingsStored,
+  ChatContextSettingsView,
+} from './utils/chatContextSettingsTypes'
+export { useChatContextFill } from './hooks/useChatContextFill'
+export {
+  canSendStuckHint,
+  processParkStuckView,
+  processStepStuckView,
+  stuckCardView,
+  stuckEvidenceLines,
+} from './utils/stuckCard'
+export * from './utils/stuckCardConstants'
+export type { StuckCardAnswer, StuckCardAnswerKind, StuckCardView } from './utils/stuckCardTypes'
+export { useStuckCard } from './hooks/useStuckCard'
+export {
+  launchCapFields,
+  launchCapsMetadata,
+  launchCapsOfArgs,
+  launchCapsOfDefaults,
+  launchCapsSummary,
+  launchCapsValid,
+  launchWorstCaseLine,
+  processDefaultCapFields,
+  readProcessDefaultCaps,
+  withProcessDefaultCaps,
+} from './utils/processLaunchCaps'
+export * from './utils/processLaunchCapsConstants'
+export type {
+  LaunchCapFieldsInput,
+  LaunchCapFieldView,
+  LaunchCapKey,
+  LaunchCaps,
+  LaunchCapsTyped,
+  LaunchWorstCaseInput,
+} from './utils/processLaunchCapsTypes'
+export { processStatisticsLine, processStatisticsRows } from './utils/processRunStatistics'
+export * from './utils/processRunStatisticsConstants'
+export type { ProcessStatisticsRow } from './utils/processRunStatisticsTypes'
+export { useProcessRunStatistics } from './hooks/useProcessRunStatistics'
 export { chatHeaderView, chatKindOf, chatMessagesCost } from './utils/chatHeader'
 export {
   CHAT_AGENT_RUN_KIND_LABEL,
@@ -1964,10 +2093,27 @@ export { videoAttachmentView, videoCostLabel } from './utils/videoAttachment'
 export { VIDEO_ATTACHMENT_TEXT } from './utils/videoAttachmentConstants'
 export type * from './utils/videoAttachmentTypes'
 export { useVideoDigest, type UseVideoDigest } from './hooks/useVideoDigest'
+export {
+  isVideoSourceSpent,
+  nativeVideoFailureKind,
+  videoFailureKind,
+  videoPlayerSize,
+  videoPlayerWidthCss,
+} from './utils/videoPlayback'
+export { VIDEO_PLAYBACK_TEXT } from './utils/videoPlaybackConstants'
+export type * from './utils/videoPlaybackTypes'
+export { takeVideoTurn } from './utils/videoPlaybackTurn'
+export { useChatVideoMedia, type UseChatVideoMedia } from './hooks/useChatVideoMedia'
+export { useVideoPlayback, type UseVideoPlayback } from './hooks/useVideoPlayback'
 export { videoSetupView, NO_VIDEO_SETUP_JOBS } from './utils/videoSetup'
 export { VIDEO_SETUP_TEXT } from './utils/videoSetupConstants'
 export type * from './utils/videoSetupTypes'
 export { useVideoSetup, type UseVideoSetup } from './hooks/useVideoSetup'
+export { PROJECT_DEVICE_AUTOMATION_TEXT } from './utils/projectDeviceAutomationConstants'
+export {
+  useProjectDeviceAutomation,
+  type UseProjectDeviceAutomation,
+} from './hooks/useProjectDeviceAutomation'
 export {
   attachmentUploadError,
   chatDropAction,
@@ -2756,6 +2902,12 @@ export type {
 } from 'thefactory-tools/types'
 export { useProcessRuns, type UseProcessRuns } from './hooks/useProcessRuns'
 export {
+  useProcessRunListControls,
+  type ProcessRunListControls,
+} from './hooks/useProcessRunListControls'
+export { PROCESS_RUN_LIST_COPY } from './utils/processRunListQueryConstants'
+export type { ProcessRunListRequest } from './utils/processRunListQuery'
+export {
   isProcessRunActive,
   isProcessRunCurrent,
   PROCESS_RUN_ACTIVE_STATUSES,
@@ -2871,6 +3023,7 @@ export {
 // the two cannot drift on an outcome's name or its status colour.
 export {
   PROCESS_KIND_BLURB,
+  processStepToolsView,
   PROCESS_OUTCOME_VIEW,
   PROCESS_RUN_STATUS_VIEW,
   blankProcessDefinition,

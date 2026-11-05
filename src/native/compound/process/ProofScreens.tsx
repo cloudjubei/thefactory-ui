@@ -76,7 +76,7 @@ function Frame({
 
 /** A pair that did not count — small, muted, with its reason. See the web peer. */
 function UncountedPair({ pair, onOpen }: { pair: ProofPairView; onOpen: (key: string) => void }) {
-  const { theme } = useNativeTheme()
+  const { theme, status } = useNativeTheme()
   return (
     <Pressable
       accessibilityRole="button"
@@ -123,6 +123,11 @@ function UncountedPair({ pair, onOpen }: { pair: ProofPairView; onOpen: (key: st
         <Text style={{ fontSize: 10.5, color: theme.text.muted }}>
           {pair.sameScreen ? `${pair.change} · ${pair.sameScreen}` : pair.change}
         </Text>
+        {pair.observedBefore ? (
+          <Text style={{ fontSize: 10.5, color: status.working.softFg }}>
+            {`${pair.observedBefore.label}: ${pair.observedBefore.reason}`}
+          </Text>
+        ) : null}
       </View>
     </Pressable>
   )
@@ -200,7 +205,7 @@ function Thumbnail({
   onOpen: (key: string) => void
   onSave: ((pair: ScreenPair) => void) | undefined
 }) {
-  const { theme } = useNativeTheme()
+  const { theme, status } = useNativeTheme()
   const [aspect, setAspect] = useState<number | undefined>()
   const frame = proofThumbnailFrame(thumb, side)
   const savable = onSave && (thumb.screen.before?.dataUri || thumb.screen.after?.dataUri)
@@ -287,6 +292,14 @@ function Thumbnail({
         </View>
       ) : null}
       <Text style={{ fontSize: 10, lineHeight: 13, color: theme.text.muted }}>{thumb.subject}</Text>
+      {thumb.observedBefore ? (
+        <Text
+          accessibilityHint={thumb.observedBefore.reason}
+          style={{ fontSize: 10, fontWeight: '500', color: status.working.softFg }}
+        >
+          {thumb.observedBefore.label}
+        </Text>
+      ) : null}
     </View>
   )
 }
