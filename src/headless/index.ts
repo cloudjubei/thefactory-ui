@@ -1439,6 +1439,18 @@ export type {
   SignoffStepTarget,
 } from './utils/signoffDecisionTypes'
 export {
+  accessRecordProjectNames,
+  accessRecordSection,
+  accessRecordsUnder,
+  formatAccessRecordAt,
+} from './utils/accessRecordView'
+export { ACCESS_RECORD_COPY } from './utils/accessRecordViewConstants'
+export type {
+  AccessRecordRowView,
+  AccessRecordRun,
+  AccessRecordSectionView,
+} from './utils/accessRecordViewTypes'
+export {
   reportBodyView,
   reportPreviewTiles,
   reportSectionsOf,
@@ -3372,6 +3384,16 @@ export type {
   GroupBaseBranchMetadata,
 } from './utils/processBaseBranchTypes'
 export { useAgentTypeSettings, type UseAgentTypeSettings } from './hooks/useAgentTypeSettings'
+export { useCapabilitySettings, type UseCapabilitySettings } from './hooks/useCapabilitySettings'
+export { capabilitySettingsView } from './utils/capabilitySettings'
+export type {
+  CapabilityBadge,
+  CapabilitySettingsInput,
+  CapabilitySettingsOwner,
+  CapabilitySettingsRow,
+  CapabilitySettingsSection,
+  CapabilitySettingsView,
+} from './utils/capabilitySettingsTypes'
 export {
   useGroupTickets,
   useGroupTicketStatuses,

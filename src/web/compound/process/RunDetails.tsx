@@ -5,6 +5,7 @@ import {
   PROCESS_MANAGER_RECOMMENDS_LABEL,
   RUN_DETAILS_COPY,
   processCleanupHeadline,
+  type AccessRecordSectionView,
   type ProcessBaseMovedView,
   type ProcessManagerPreReadView,
   type ProcessResumeChoice,
@@ -13,6 +14,7 @@ import {
 import { PROCESS_CLEANUP_COPY } from '../../../headless/utils/processCleanupViewConstants'
 import { IconChevronRight } from '../../icons'
 import { Button } from '../../primitives/Button'
+import { AccessRecordList } from './AccessRecordList'
 import { ProcessCleanupBody } from './signoff/ProcessCleanupCard'
 
 export type RunDetailsProps = {
@@ -24,6 +26,10 @@ export type RunDetailsProps = {
   cleanup?: UseProcessCleanup
   /** What the run says about its base branch, as `processBaseMovedView` lays it out. */
   base?: ProcessBaseMovedView
+  /** Cross-project access and automatic actions recorded on this run. */
+  access?: AccessRecordSectionView
+  /** Open the access trail on first draw — the showcase's opened state. */
+  accessOpen?: boolean
   /** Takes the base section's choice — bringing the base in and re-checking. */
   onChooseBase?: (choice: ProcessResumeChoice) => void
   className?: string
@@ -32,20 +38,22 @@ export type RunDetailsProps = {
 /**
  * "More about this run": what matters less than the decision and the report,
  * each folded to one line until opened — its base branch once that moved on,
- * the manager's pre-read, the work added to the run, and its cleanup list.
- * Nothing when there is none of it.
+ * the manager's pre-read, the work added to the run, its access trail, and
+ * its cleanup list. Nothing when there is none of it.
  */
 export default function RunDetails({
   preRead,
   workAdded,
   cleanup,
   base,
+  access,
+  accessOpen = false,
   onChooseBase,
   className = 'mx-3 mt-3',
 }: RunDetailsProps) {
   const list = cleanup?.list
   const hasCleanup = !!list && (list.items.length > 0 || !!list.report)
-  if (!base && !preRead && workAdded.length === 0 && !hasCleanup) return null
+  if (!base && !preRead && workAdded.length === 0 && !hasCleanup && !access) return null
   const baseChoice = onChooseBase ? base?.choice : undefined
   return (
     <section
@@ -108,6 +116,11 @@ export default function RunDetails({
           ))}
         </Disclosure>
       ) : null}
+      {access ? (
+        <Disclosure title={access.title} meta={access.summary} startOpen={accessOpen}>
+          <AccessRecordList rows={access.rows} />
+        </Disclosure>
+      ) : null}
       {hasCleanup && list && cleanup ? (
         <Disclosure title={PROCESS_CLEANUP_COPY.title} meta={processCleanupHeadline(list)}>
           <ProcessCleanupBody cleanup={cleanup} />
@@ -122,12 +135,14 @@ function Disclosure({
   title,
   meta,
   children,
+  startOpen = false,
 }: {
   title: string
   meta: string
   children: ReactNode
+  startOpen?: boolean
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(startOpen)
   return (
     <div className="border-t border-(--border-subtle)">
       <button

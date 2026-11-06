@@ -6,6 +6,7 @@ import {
   PROCESS_MANAGER_RECOMMENDS_LABEL,
   RUN_DETAILS_COPY,
   processCleanupHeadline,
+  type AccessRecordSectionView,
   type ProcessBaseMovedView,
   type ProcessManagerPreReadView,
   type ProcessResumeChoice,
@@ -16,6 +17,7 @@ import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { IconChevronRight } from '../../icons'
 import { Button } from '../../primitives/Button'
+import { AccessRecordList } from './AccessRecordList'
 import { ProcessCleanupBody } from './signoff/ProcessCleanupCard'
 
 export type RunDetailsProps = {
@@ -27,6 +29,10 @@ export type RunDetailsProps = {
   cleanup?: UseProcessCleanup
   /** What the run says about its base branch, as `processBaseMovedView` lays it out. */
   base?: ProcessBaseMovedView
+  /** Cross-project access and automatic actions recorded on this run. */
+  access?: AccessRecordSectionView
+  /** Open the access trail on first draw — the showcase's opened state. */
+  accessOpen?: boolean
   /** Takes the base section's choice — bringing the base in and re-checking. */
   onChooseBase?: (choice: ProcessResumeChoice) => void
   /** Laid over the card's own style — the sign-off places it flush in its column. */
@@ -38,21 +44,23 @@ export type RunDetailsProps = {
  * [web's `RunDetails`](../../../web/compound/process/RunDetails.tsx).
  * "More about this run": what matters less than the decision and the report,
  * each folded to one line until opened — its base branch once that moved on,
- * the manager's pre-read, the work added to the run, and its cleanup list.
- * Nothing when there is none of it.
+ * the manager's pre-read, the work added to the run, its access trail, and
+ * its cleanup list. Nothing when there is none of it.
  */
 export default function RunDetails({
   preRead,
   workAdded,
   cleanup,
   base,
+  access,
+  accessOpen = false,
   onChooseBase,
   style,
 }: RunDetailsProps) {
   const { theme } = useNativeTheme()
   const list = cleanup?.list
   const hasCleanup = !!list && (list.items.length > 0 || !!list.report)
-  if (!base && !preRead && workAdded.length === 0 && !hasCleanup) return null
+  if (!base && !preRead && workAdded.length === 0 && !hasCleanup && !access) return null
   const baseChoice = onChooseBase ? base?.choice : undefined
   const body = { fontSize: 12.5, lineHeight: 18, color: theme.text.secondary } as const
   return (
@@ -126,6 +134,11 @@ export default function RunDetails({
           ))}
         </Disclosure>
       ) : null}
+      {access ? (
+        <Disclosure title={access.title} meta={access.summary} startOpen={accessOpen}>
+          <AccessRecordList rows={access.rows} />
+        </Disclosure>
+      ) : null}
       {hasCleanup && list && cleanup ? (
         <Disclosure title={PROCESS_CLEANUP_COPY.title} meta={processCleanupHeadline(list)}>
           <ProcessCleanupBody cleanup={cleanup} />
@@ -140,13 +153,15 @@ function Disclosure({
   title,
   meta,
   children,
+  startOpen = false,
 }: {
   title: string
   meta: string
   children: ReactNode
+  startOpen?: boolean
 }) {
   const { theme } = useNativeTheme()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(startOpen)
   return (
     <View style={{ borderTopWidth: 1, borderTopColor: theme.border.subtle }}>
       <Pressable

@@ -13,6 +13,8 @@ import {
 } from 'react-native'
 
 import {
+  accessRecordProjectNames,
+  accessRecordSection,
   choiceTakesNote,
   processParkCirclingView,
   processParkStuckView,
@@ -549,12 +551,14 @@ export default function ProcessPipeline({
     </RunStepsCard>
   )
   const baseView = signoff ? undefined : processBaseMovedView(run)
+  const access = accessRecordSection(run.accessRecords, accessRecordProjectNames(projects))
   const runDetails = (style?: typeof flush) => (
     <RunDetails
       {...(managerView?.preRead ? { preRead: managerView.preRead } : {})}
       workAdded={amendments.notes}
       {...(stack.length === 0 ? { cleanup } : {})}
       {...(baseView ? { base: baseView } : {})}
+      {...(access ? { access } : {})}
       onChooseBase={(choice) => void resume(choice)}
       {...(style ? { style } : {})}
     />

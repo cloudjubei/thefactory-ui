@@ -1,6 +1,11 @@
 import { DOCUMENT_REPORT_APPROACH } from 'thefactory-tools/constants'
 import { parseReportSections, processNeedsYouDecisions } from 'thefactory-tools/utils'
-import type { ReportProofSource, ReportProofStatus, ReportSections } from 'thefactory-tools/types'
+import type {
+  AccessRecord,
+  ReportProofSource,
+  ReportProofStatus,
+  ReportSections,
+} from 'thefactory-tools/types'
 
 import { acceptanceDeliveredLine } from './acceptanceJudgement'
 import {
@@ -27,6 +32,7 @@ import type {
   SignoffReportView,
 } from './signoffReportTypes'
 import type { ReviewTabId } from './checkMethodTypes'
+import { accessRecordSection } from './accessRecordView'
 import { clipLine, plainMarkdownLine } from './textLine'
 import { signoffCostView, signoffTimeView } from './signoffWork'
 
@@ -303,6 +309,21 @@ function needsYouSummary(needsYou: readonly string[]): string {
   return `${plural(needsYou.length, 'decision', 'decisions')} before you approve`
 }
 
+function accessSection(
+  records: readonly AccessRecord[] | undefined,
+  projectNames: Readonly<Record<string, string>> | undefined,
+): SignoffReportView['access'] {
+  const section = accessRecordSection(records, projectNames)
+  if (!section) return undefined
+  return {
+    title: section.title,
+    summary: section.summary,
+    body: section.rows,
+    open: true,
+    attention: false,
+  }
+}
+
 function howProvenSection(rows: readonly ReportProofRow[]) {
   return rows.length > 0
     ? {
@@ -318,7 +339,8 @@ function howProvenSection(rows: readonly ReportProofRow[]) {
 /**
  * The report's fixed sections — Outcome, How it was proven (each line linked to
  * the tab that holds its proof rather than repeating it), Decisions made and
- * Needs you. A report that cannot be read as sections is kept as its markdown.
+ * Needs you, then the access trail when the run recorded one. A report that
+ * cannot be read as sections is kept as its markdown.
  * `proof` — the run's own final state, from {@link signoffProofRows} — replaces
  * the report's account of how it was proven when given.
  */
@@ -326,15 +348,21 @@ export function reportBodyView(
   report: ReportSource | undefined,
   tabs: readonly ReviewTabId[],
   proof?: readonly ReportProofRow[],
+  access?: {
+    records?: readonly AccessRecord[]
+    projectNames?: Readonly<Record<string, string>>
+  },
 ): Omit<SignoffReportView, 'tiles'> {
   const sections = report ? reportSectionsOf(report) : undefined
   const markdown = report?.text
+  const recorded = accessSection(access?.records, access?.projectNames)
   if (!sections) {
     return {
       outcome: undefined,
       howProven: proof ? howProvenSection(proof) : undefined,
       decisions: undefined,
       needsYou: undefined,
+      access: recorded,
       fallbackMarkdown: markdown,
       markdown,
     }
@@ -366,6 +394,7 @@ export function reportBodyView(
       open: sections.needsYou.length > 0,
       attention: sections.needsYou.length > 0,
     },
+    access: recorded,
     fallbackMarkdown: undefined,
     markdown,
   }
@@ -373,7 +402,13 @@ export function reportBodyView(
 
 /** The final report as an overview, not a second code review: four tiles over its fixed sections. */
 export function signoffReportView(input: SignoffReportInput): SignoffReportView {
-  return { tiles: reportTiles(input), ...reportBodyView(input.report, input.tabs, input.proof) }
+  return {
+    tiles: reportTiles(input),
+    ...reportBodyView(input.report, input.tabs, input.proof, {
+      ...(input.accessRecords ? { records: input.accessRecords } : {}),
+      ...(input.projectNames ? { projectNames: input.projectNames } : {}),
+    }),
+  }
 }
 
 /** What a report step's preview card says: the outcome, how much is proven, decisions and what needs you. */

@@ -1,5 +1,6 @@
-import type { ReportProofStatus, ReportSections } from 'thefactory-tools/types'
+import type { AccessRecord, ReportProofStatus, ReportSections } from 'thefactory-tools/types'
 
+import type { AccessRecordRowView } from './accessRecordViewTypes'
 import type { AcceptanceJudgement } from './acceptanceJudgementTypes'
 import type { CheckMethodRow, CheckMethodState, ReviewTabId } from './checkMethodTypes'
 import type { VerifyReviewStatus } from './processView'
@@ -45,13 +46,15 @@ export type ReportSectionView<T> = {
   attention: boolean
 }
 
-/** The report as an overview: four tiles over Outcome, How it was proven, Decisions made, Needs you. */
+/** The report as an overview: four tiles over Outcome, How it was proven, Decisions made, Needs you, and the access trail when the run recorded one. */
 export type SignoffReportView = {
   tiles: ReportTile[]
   outcome: ReportSectionView<{ headline: string; detail: string | undefined }> | undefined
   howProven: ReportSectionView<ReportProofRow[]> | undefined
   decisions: ReportSectionView<string[]> | undefined
   needsYou: ReportSectionView<string[]> | undefined
+  /** Cross-project access and automatic actions recorded on the run. Absent when none were. */
+  access: ReportSectionView<AccessRecordRowView[]> | undefined
   /** The report as written, when it could not be read as sections — shown as markdown. */
   fallbackMarkdown: string | undefined
   /** The report as filed, for a download. */
@@ -78,6 +81,10 @@ export type SignoffReportInput = {
   work?: SignoffWork
   /** The tabs the evidence card has, so a proof line links only to one that exists. */
   tabs: readonly ReviewTabId[]
+  /** Access records on this run and the runs under it. The section is left out when there are none. */
+  accessRecords?: readonly AccessRecord[]
+  /** Project id to title, so a record names the project it reached. */
+  projectNames?: Readonly<Record<string, string>>
 }
 
 /** What a step's preview says of the report: four small tiles. */

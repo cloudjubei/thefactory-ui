@@ -1,6 +1,8 @@
 import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { chatNotifyLevel } from '../../../headless/utils/chatNotify'
 import {
+  accessRecordProjectNames,
+  accessRecordSection,
   choiceTakesNote,
   processParkCirclingView,
   processParkStuckView,
@@ -510,12 +512,14 @@ export default function ProcessPipeline({
     </RunStepsCard>
   )
   const baseView = signoff ? undefined : processBaseMovedView(run)
+  const access = accessRecordSection(run.accessRecords, accessRecordProjectNames(projects))
   const runDetails = (className?: string) => (
     <RunDetails
       {...(managerView?.preRead ? { preRead: managerView.preRead } : {})}
       workAdded={amendments.notes}
       {...(stack.length === 0 ? { cleanup } : {})}
       {...(baseView ? { base: baseView } : {})}
+      {...(access ? { access } : {})}
       onChooseBase={(choice) => choose(choice)}
       {...(className !== undefined ? { className } : {})}
     />

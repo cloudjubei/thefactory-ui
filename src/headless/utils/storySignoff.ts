@@ -21,6 +21,7 @@ import type {
   RunVerification,
   VerificationCheckResult,
 } from '../api/generated'
+import { accessRecordsUnder } from './accessRecordView'
 import { proofPlanMarkRows } from './proofPlanView'
 import {
   CHECK_STATE_TONES,
@@ -1373,10 +1374,20 @@ export function buildStorySignoff(input: BuildStorySignoffInput): StorySignoff {
       : runReviewFacts(sumFacts([...chosenRuns, ...storyRuns])),
     evidenceRunIds,
     work: signoffWorkOf(scope),
+    ...recordedAccess(processRuns, scope?.storyRun?.id),
     ...outsideScopeOf(
       scope ? processRuns.filter((r) => scope.processRunIds.has(r.id)) : processRuns,
     ),
   }
+}
+
+/** The access trail of the story run and everything it launched. None when it recorded nothing. */
+function recordedAccess(
+  runs: readonly StorySignoffProcessRun[],
+  rootId: string | undefined,
+): { accessRecords?: StorySignoff['accessRecords'] } {
+  const accessRecords = accessRecordsUnder(runs, rootId)
+  return accessRecords.length > 0 ? { accessRecords } : {}
 }
 
 function outsideScopeOf(runs: readonly StorySignoffProcessRun[]): { outsideScope?: string } {

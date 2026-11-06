@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import {
+  accessRecordProjectNames,
   acceptanceCriteriaLines,
   aggregateTestCounts,
   capabilitySetupHandler,
@@ -642,6 +643,8 @@ function StorySignoffPanel({
     featuresDelivered: signoffFeaturesDelivered(signoff.digest),
     took: { duration: signoff.facts.durationLabel, cost: signoff.facts.costLabel },
     ...(signoff.work ? { work: signoff.work } : {}),
+    ...(signoff.accessRecords ? { accessRecords: signoff.accessRecords } : {}),
+    projectNames: accessRecordProjectNames(projects),
     tabs: tabs.map((t) => t.id),
   })
 

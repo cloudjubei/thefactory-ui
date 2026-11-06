@@ -2,6 +2,7 @@ import { Pressable, Text, View } from 'react-native'
 
 import type { ReviewTabId, SignoffReportView } from '../../../../headless'
 import { useNativeTheme } from '../../../hooks/useNativeTheme'
+import { AccessRecordList } from '../AccessRecordList'
 import Markdown from '../../Markdown'
 import NeedsYouSection from './NeedsYouSection'
 import Pill from './Pill'
@@ -17,8 +18,9 @@ export type SignoffReportPanelProps = {
 
 /**
  * Native peer of web's `SignoffReportPanel`: four tiles over Outcome, How it
- * was proven (each line linked to the tab with its proof), Decisions made and
- * Needs you — or the markdown, when the report cannot be read as sections.
+ * was proven (each line linked to the tab with its proof), Decisions made,
+ * Needs you, and the access trail — or the markdown, when the report cannot
+ * be read as sections.
  */
 export default function SignoffReportPanel({
   view,
@@ -89,6 +91,12 @@ export default function SignoffReportPanel({
       ) : null}
 
       {view.needsYou ? <NeedsYouSection section={view.needsYou} /> : null}
+
+      {view.access ? (
+        <SignoffSection title={view.access.title} summary={view.access.summary} defaultOpen>
+          <AccessRecordList rows={view.access.body} />
+        </SignoffSection>
+      ) : null}
 
       {view.fallbackMarkdown ? (
         <View style={{ borderTopWidth: 1, borderTopColor: theme.border.subtle, paddingTop: 12 }}>

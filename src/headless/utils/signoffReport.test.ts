@@ -428,6 +428,38 @@ describe('signoffReportView', () => {
     const view = signoffReportView(input({ report: undefined }))
     expect(view.fallbackMarkdown).toBeUndefined()
     expect(view.tiles).toHaveLength(4)
+    expect(view.access).toBeUndefined()
+  })
+
+  it('adds the access trail, open, and leaves it out when the run recorded none', () => {
+    const view = signoffReportView(
+      input({
+        accessRecords: [
+          {
+            who: 'agent',
+            what: 'cross-project read',
+            targetProjectId: 'thefactory-backend',
+            tool: 'readPaths',
+            why: 'Reads are allowed across projects.',
+            at: Date.UTC(2026, 10, 4, 8, 44),
+          },
+        ],
+        projectNames: { 'thefactory-backend': 'Factory Backend' },
+      }),
+    )
+    expect(view.access).toMatchObject({
+      title: 'Access',
+      summary: '1 record',
+      open: true,
+      body: [
+        {
+          who: 'An agent',
+          what: 'cross-project read',
+          target: 'Factory Backend (thefactory-backend)',
+          tool: 'readPaths',
+        },
+      ],
+    })
   })
 
   it('drops a blank outcome detail', () => {

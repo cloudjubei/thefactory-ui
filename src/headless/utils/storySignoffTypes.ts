@@ -1,4 +1,4 @@
-import type { ProcessRun } from 'thefactory-tools/types'
+import type { AccessRecord, ProcessRun } from 'thefactory-tools/types'
 
 import type {
   CliRun,
@@ -67,7 +67,12 @@ export type StorySignoffProcessRun = Pick<
   ProcessRun,
   'id' | 'featureId' | 'ledger' | 'plan' | 'startedAt'
 > &
-  Partial<Pick<ProcessRun, 'parentRunId' | 'parentStepId' | 'totals' | 'input' | 'status'>>
+  Partial<
+    Pick<
+      ProcessRun,
+      'parentRunId' | 'parentStepId' | 'totals' | 'input' | 'status' | 'accessRecords'
+    >
+  >
 
 export type BuildStorySignoffInput = {
   /** The story's features, in declaration order. */
@@ -352,6 +357,11 @@ export type StorySignoff = {
   work: SignoffWork | undefined
   /** "Outside the feature’s scope: …" — changed files a code review was told lie outside the features' scope. */
   outsideScope?: string
+  /**
+   * Cross-project access and automatic actions on this story run and the runs
+   * it launched, oldest first. Absent when none were recorded.
+   */
+  accessRecords?: AccessRecord[]
 }
 
 /** Where one of the sources a sign-off is computed from stands. */

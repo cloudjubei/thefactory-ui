@@ -787,6 +787,15 @@ export {
   type AgentTypeSettingsProps,
 } from './compound/settings/AgentTypeSettings'
 export {
+  default as CapabilitySettings,
+  type CapabilitySettingsProps,
+} from './compound/settings/CapabilitySettings'
+export {
+  default as CapabilitySettingsPanel,
+  CapabilitySettingsBadge,
+  type CapabilitySettingsPanelProps,
+} from './compound/settings/CapabilitySettingsPanel'
+export {
   default as SignOffOutputSettings,
   type SignOffOutputSettingsProps,
 } from './compound/settings/SignOffOutputSettings'

@@ -14,6 +14,7 @@ import { CHAT_LIST_CLOSED_SCENES } from '../scenes/chatListClosed'
 import { CHAT_STOP_SCENES } from '../scenes/chatStop'
 import { CHAT_TOOL_STEP_SCENES } from '../scenes/chatToolSteps'
 import { CIRCLING_SCENES } from '../scenes/circling'
+import { CAPABILITY_SETTINGS_SCENES } from '../scenes/capabilitySettings'
 import { CLI_CAPABILITY_CARD_SCENES } from '../scenes/cliCapabilityCard'
 import { CHAT_CHANGES_SCENES } from '../scenes/chatChanges'
 import { CHAT_CHANGES_DOCK_SCENES } from '../scenes/chatChangesDock'
@@ -64,6 +65,7 @@ import { PROJECT_OVERVIEW_MODEL_SCENES } from '../scenes/projectOverviewModel'
 import { PROOF_CHANGE_SCENES } from '../scenes/proofChange'
 import { REGENERATED_MERGE_SCENES } from '../scenes/regeneratedMerge'
 import { NEEDS_YOU_REFERENCE_SCENES } from '../scenes/needsYouReferences'
+import { RUN_ACCESS_SCENES } from '../scenes/runAccess'
 import { RUN_NEEDS_YOU_SCENES } from '../scenes/runNeedsYou'
 import { RUNNING_TONE_SCENES } from '../scenes/runningTone'
 import { RUN_TIME_DETAILS_SCENES } from '../scenes/runTimeDetails'
@@ -139,6 +141,7 @@ export const SCENES: readonly Scene[] = [
   ...DROPPED_CHANGE_SCENES,
   ...CIRCLING_SCENES,
   ...REGENERATED_MERGE_SCENES,
+  ...RUN_ACCESS_SCENES,
   ...RUN_NEEDS_YOU_SCENES,
   ...NEEDS_YOU_REFERENCE_SCENES,
   ...RUNNING_TONE_SCENES,
@@ -175,6 +178,7 @@ export const SCENES: readonly Scene[] = [
   ...COMMIT_CHECKS_SCENES,
   ...GIT_PUSH_AFTER_SCENES,
   ...USAGE_SCENES,
+  ...CAPABILITY_SETTINGS_SCENES,
   ...CLI_CAPABILITY_CARD_SCENES,
   ...BACKEND_CONNECTION_SCENES,
   ...PROJECT_OVERVIEW_MODEL_SCENES,

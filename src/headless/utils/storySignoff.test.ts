@@ -373,6 +373,62 @@ const features = [
 ]
 
 describe('buildStorySignoff', () => {
+  it('keeps access records from the story run and the runs under it', () => {
+    const signoff = buildStorySignoff({
+      features,
+      storyRunId: 'story',
+      processRuns: [
+        {
+          id: 'story',
+          ledger: [],
+          accessRecords: [
+            {
+              who: 'person',
+              what: 'sign-off',
+              targetProjectId: 'thefactory-ui',
+              tool: 'sign-off',
+              why: 'You approved it.',
+              at: 40,
+            },
+          ],
+        } as unknown as StorySignoffProcessRun,
+        {
+          id: 'feature',
+          featureId: 'f1',
+          parentRunId: 'story',
+          ledger: [],
+          accessRecords: [
+            {
+              who: 'agent',
+              what: 'cross-project read',
+              targetProjectId: 'thefactory-backend',
+              tool: 'readPaths',
+              why: 'Reads are allowed across projects.',
+              at: 10,
+            },
+          ],
+        } as unknown as StorySignoffProcessRun,
+        {
+          id: 'other',
+          ledger: [],
+          accessRecords: [
+            {
+              who: 'agent',
+              what: 'cross-project read',
+              targetProjectId: 'elsewhere',
+              tool: 'listProjects',
+              why: 'Not this run.',
+              at: 1,
+            },
+          ],
+        } as unknown as StorySignoffProcessRun,
+      ],
+      cliRuns: [],
+      evidence: [],
+    })
+    expect(signoff.accessRecords?.map((record) => record.tool)).toEqual(['readPaths', 'sign-off'])
+  })
+
   it('attributes a run to its feature via the child process run id', () => {
     const signoff = buildStorySignoff({
       features,

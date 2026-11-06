@@ -1,5 +1,6 @@
 import type { ReviewTabId, SignoffReportView } from '../../../../headless'
 import Markdown from '../../Markdown'
+import { AccessRecordList } from '../AccessRecordList'
 import NeedsYouSection from './NeedsYouSection'
 import ReportTiles from './ReportTiles'
 import SignoffSection from './SignoffSection'
@@ -15,7 +16,8 @@ export type SignoffReportPanelProps = {
 
 /**
  * The final report as an overview: four tiles, then Outcome, How it was proven
- * (each line links to the tab with its proof), Decisions made and Needs you.
+ * (each line links to the tab with its proof), Decisions made, Needs you, and
+ * the access trail when the run recorded one.
  * A report that could not be read as sections shows as its markdown.
  */
 export default function SignoffReportPanel({
@@ -84,6 +86,12 @@ export default function SignoffReportPanel({
       ) : null}
 
       {view.needsYou ? <NeedsYouSection section={view.needsYou} /> : null}
+
+      {view.access ? (
+        <SignoffSection title={view.access.title} summary={view.access.summary} defaultOpen>
+          <AccessRecordList rows={view.access.body} />
+        </SignoffSection>
+      ) : null}
 
       {view.fallbackMarkdown ? (
         <div className="markdown-content border-t border-(--border-subtle) pt-3 text-[12.5px] leading-relaxed text-(--text-secondary)">
