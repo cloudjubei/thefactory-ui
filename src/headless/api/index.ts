@@ -28,6 +28,7 @@ export {
 export {
   AuthProvider,
   useAuth,
+  useAuthToken,
   type AuthContextValue,
   type AuthProviderProps,
   type TokenStorage,

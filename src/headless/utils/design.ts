@@ -12,7 +12,11 @@ import type {
   DesignVersion,
   StorageUsageStanding,
 } from '../api'
-import { DESIGN_BUILD_ROOT_DIR, DESIGN_BUILD_VARIANT_NAMES } from './designConstants'
+import {
+  DESIGN_BUILD_ROOT_DIR,
+  DESIGN_BUILD_VARIANT_NAMES,
+  DESIGN_VIEW_TOKEN_PARAM,
+} from './designConstants'
 import type { DesignShown, DesignViewKind } from './designTypes'
 
 /** What the `&` dropdown and the chips need of a project's design. Pure. */
@@ -113,9 +117,29 @@ export function designContentUrl(
       ? `${project}/versions/${encodeURIComponent(ref.versionId)}/content`
       : `${project}/proposals/${encodeURIComponent(ref.proposalId)}/entries/${encodeURIComponent(ref.entryId)}/content`
   const params = new URLSearchParams(opts.caseQuery?.replace(/^\?/, '') ?? '')
-  if (opts.viewToken) params.set('viewToken', opts.viewToken)
+  if (opts.viewToken) params.set(DESIGN_VIEW_TOKEN_PARAM, opts.viewToken)
   const query = params.toString()
   return query ? `${base}?${query}` : base
+}
+
+/**
+ * How a `fetch` asks for a design file. With the bearer the address loses its
+ * view token, so it stays the same when the token is minted again and the
+ * browser's cache of a stored file keeps working. Pure.
+ */
+export function designFileRequest(
+  src: string,
+  bearer: string | null,
+): { url: string; headers: Record<string, string> } {
+  const [address, query] = src.split('?', 2)
+  const params = new URLSearchParams(query ?? '')
+  if (!bearer || !params.has(DESIGN_VIEW_TOKEN_PARAM)) return { url: src, headers: {} }
+  params.delete(DESIGN_VIEW_TOKEN_PARAM)
+  const rest = params.toString()
+  return {
+    url: rest ? `${address}?${rest}` : address!,
+    headers: { Authorization: `Bearer ${bearer}` },
+  }
 }
 
 /** A design file's media type; `undefined` for a link. Pure. */

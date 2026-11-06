@@ -42,6 +42,7 @@ import type { DesignIndex } from '../api'
 import { computeRefreshDelayMs } from '../utils/viewTokenSchedule'
 import type {
   DesignActions,
+  DesignLoad,
   DesignProjectState,
   DesignViewToken,
   StorageTotalsState,
@@ -58,9 +59,8 @@ const EMPTY: DesignProjectState = {
 const VIEW_TOKEN_LEAD_MS = 60_000
 
 let byProject: Readonly<Record<string, DesignProjectState>> = {}
-const epochs = new Map<string, number>()
 const listeners = new Set<() => void>()
-const loading = new Map<string, Promise<void>>()
+const loads = new Map<string, DesignLoad>()
 const viewTokens = new Map<string, DesignViewToken>()
 const minting = new Map<string, Promise<DesignViewToken>>()
 let storageTotals: StorageTotalsState = { totals: undefined, error: null }
@@ -96,24 +96,20 @@ export function designStateOf(
 /** Forget every project — for tests and a sign-out. */
 export function resetDesignStore(): void {
   byProject = {}
-  epochs.clear()
-  loading.clear()
+  loads.clear()
   viewTokens.clear()
   minting.clear()
   storageTotals = { totals: undefined, error: null }
   emit()
 }
 
-/** Load a project's design again. An answer a later load overtook is dropped; a failure keeps what was there. */
-export async function refreshDesign(projectId: string): Promise<void> {
-  const epoch = (epochs.get(projectId) ?? 0) + 1
-  epochs.set(projectId, epoch)
+async function loadDesign(projectId: string, load: DesignLoad): Promise<void> {
   try {
     const { data } = await getProjectDesign({ path: { projectId }, throwOnError: true })
-    if (epochs.get(projectId) !== epoch) return
+    if (loads.get(projectId) !== load) return
     patch(projectId, { index: data, isLoaded: true, loadError: null })
   } catch (err) {
-    if (epochs.get(projectId) !== epoch) return
+    if (loads.get(projectId) !== load) return
     patch(projectId, {
       isLoaded: true,
       loadError: err instanceof Error ? err : new Error(String(err)),
@@ -121,17 +117,37 @@ export async function refreshDesign(projectId: string): Promise<void> {
   }
 }
 
+function startLoad(projectId: string): Promise<void> {
+  const load: DesignLoad = { done: Promise.resolve() }
+  loads.set(projectId, load)
+  load.done = loadDesign(projectId, load).finally(() => {
+    if (loads.get(projectId) === load) loads.delete(projectId)
+  })
+  return load.done
+}
+
+/**
+ * Load a project's design again; a failure keeps what was there. A whole design
+ * is megabytes and agents change it many times a second, so one load runs at a
+ * time: whoever asks during it shares a single load after it, which sees their
+ * change.
+ */
+export function refreshDesign(projectId: string): Promise<void> {
+  const running = loads.get(projectId)
+  if (!running) return startLoad(projectId)
+  running.next ??= running.done.then(() => refreshDesign(projectId))
+  return running.next
+}
+
 /**
  * Load a project's design for a surface that only shows it — a chip's preview:
  * once, however many ask at the same time, and again only when `changed`.
  */
 export function ensureDesign(projectId: string, opts: { changed?: boolean } = {}): Promise<void> {
-  const inFlight = loading.get(projectId)
-  if (inFlight) return inFlight
-  if (!opts.changed && byProject[projectId]?.isLoaded) return Promise.resolve()
-  const load = refreshDesign(projectId).finally(() => loading.delete(projectId))
-  loading.set(projectId, load)
-  return load
+  if (opts.changed) return refreshDesign(projectId)
+  const running = loads.get(projectId)
+  if (running) return running.done
+  return byProject[projectId]?.isLoaded ? Promise.resolve() : startLoad(projectId)
 }
 
 /**

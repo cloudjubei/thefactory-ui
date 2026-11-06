@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { DesignIndex, DesignProposal, DesignSource } from '../api'
 import {
   designContentUrl,
+  designFileRequest,
   designShownOfEntry,
   designShownOfVersion,
   designSourceFileName,
@@ -192,5 +193,37 @@ describe('design', () => {
   it('says how far the total is toward the threshold', () => {
     expect(storageUsageFraction({ totalBytes: 5, thresholdBytes: 10, over: false })).toBe(0.5)
     expect(storageUsageFraction({ totalBytes: 5, thresholdBytes: 0, over: true })).toBe(1)
+  })
+
+  describe('designFileRequest', () => {
+    const url = 'http://h/api/v1/projects/p/design/versions/v/content'
+
+    it('asks with the bearer at an address free of the view token, which changes every few minutes', () => {
+      const one = designFileRequest(`${url}?viewToken=one`, 'secret')
+      const two = designFileRequest(`${url}?viewToken=two`, 'secret')
+      expect(one).toEqual({ url, headers: { Authorization: 'Bearer secret' } })
+      expect(two.url).toBe(one.url)
+    })
+
+    it('keeps the rest of the address, a draft case included', () => {
+      expect(designFileRequest(`${url}?mode=dark&viewToken=t&size=l`, 'secret').url).toBe(
+        `${url}?mode=dark&size=l`,
+      )
+    })
+
+    it('asks as given without a bearer, or where there is no view token to replace', () => {
+      expect(designFileRequest(`${url}?viewToken=t`, null)).toEqual({
+        url: `${url}?viewToken=t`,
+        headers: {},
+      })
+      expect(designFileRequest('data:image/png;base64,AAAA', 'secret')).toEqual({
+        url: 'data:image/png;base64,AAAA',
+        headers: {},
+      })
+      expect(designFileRequest('/mock/shot.png', 'secret')).toEqual({
+        url: '/mock/shot.png',
+        headers: {},
+      })
+    })
   })
 })

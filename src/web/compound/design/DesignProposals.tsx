@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { designCompareRows } from 'thefactory-tools/utils'
 import {
   DESIGN_COMPARE_MARK_LABELS,
@@ -217,7 +217,7 @@ function CompareRow({
   const current = row.current ? designShownOfVersion(index, row.current) : undefined
   const decidable = proposal.status === 'open' || proposal.status === 'alternative'
   return (
-    <div className="grid grid-cols-1 gap-3 border-b border-(--border-subtle) pb-3 @2xl:grid-cols-[minmax(130px,180px)_1fr_1fr] @2xl:items-start">
+    <div className="grid grid-cols-1 gap-3 border-b border-(--border-subtle) pb-3 [contain-intrinsic-size:auto_220px] [content-visibility:auto] @2xl:grid-cols-[minmax(130px,180px)_1fr_1fr] @2xl:items-start">
       <div className="flex flex-col gap-1">
         <span className="text-[13px] font-semibold text-(--text-primary)">{where || '—'}</span>
         <span className="text-[12px] text-(--text-secondary)">
@@ -650,7 +650,12 @@ export default function DesignProposals(props: DesignProposalsProps) {
   const { index, appId, proposal } = props
   const [view, setView] = useState<'compare' | 'flow'>(props.initialView ?? 'compare')
   const [piece, setPiece] = useState<string | undefined>(props.initialPiece)
-  const groups = designProposalGroups(index, appId)
+  const groups = useMemo(() => designProposalGroups(index, appId), [index, appId])
+  const rows = useMemo(
+    () => (proposal ? designCompareRows(index, proposal) : []),
+    [index, proposal],
+  )
+  const targets = useMemo(() => designFileTargets(index, appId), [index, appId])
   if (groups.length === 0) {
     return (
       <p className="rounded-md border border-dashed border-(--border-default) px-3 py-8 text-center text-[13px] text-(--text-muted)">
@@ -658,8 +663,6 @@ export default function DesignProposals(props: DesignProposalsProps) {
       </p>
     )
   }
-  const rows = proposal ? designCompareRows(index, proposal) : []
-  const targets = designFileTargets(index, appId)
   const linked = !!proposal?.entries.some((e) => e.links.length > 0)
   const unfiled = rows.filter((r) => r.mark === 'unfiled').length
   return (

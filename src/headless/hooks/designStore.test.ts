@@ -140,16 +140,46 @@ describe('designStore', () => {
     expect(state.loadError?.message).toBe('offline')
   })
 
-  it('drops an answer a later load overtook', async () => {
+  it('loads one at a time, and once more for everyone who asked meanwhile', async () => {
     let first!: (v: unknown) => void
     asMock(getProjectDesign)
       .mockImplementationOnce(() => new Promise((r) => (first = r)))
       .mockResolvedValueOnce({ data: index('New') })
+    const asked = [refreshDesign('p1'), refreshDesign('p1'), refreshDesign('p1')]
+    expect(getProjectDesign).toHaveBeenCalledTimes(1)
+    first({ data: index('Old') })
+    await Promise.all(asked)
+    expect(getProjectDesign).toHaveBeenCalledTimes(2)
+    expect(designStateOf(designSnapshot(), 'p1').index).toEqual(index('New'))
+  })
+
+  it('has seen a change by the time a refresh asked after it finishes', async () => {
+    let first!: (v: unknown) => void
+    asMock(getProjectDesign)
+      .mockImplementationOnce(() => new Promise((r) => (first = r)))
+      .mockResolvedValueOnce({ data: index('After the change') })
+    void refreshDesign('p1')
+    const asked = refreshDesign('p1')
+    first({ data: index('Before the change') })
+    await asked
+    expect(designStateOf(designSnapshot(), 'p1').index).toEqual(index('After the change'))
+  })
+
+  it('loads each project on its own schedule', async () => {
+    asMock(getProjectDesign).mockImplementation(() => new Promise(() => {}))
+    void refreshDesign('p1')
+    void refreshDesign('p2')
+    expect(getProjectDesign).toHaveBeenCalledTimes(2)
+  })
+
+  it('drops an answer that arrives after the store was reset', async () => {
+    let first!: (v: unknown) => void
+    asMock(getProjectDesign).mockImplementationOnce(() => new Promise((r) => (first = r)))
     const slow = refreshDesign('p1')
-    await refreshDesign('p1')
+    resetDesignStore()
     first({ data: index('Old') })
     await slow
-    expect(designStateOf(designSnapshot(), 'p1').index).toEqual(index('New'))
+    expect(designStateOf(designSnapshot(), 'p1').isLoaded).toBe(false)
   })
 
   it('loads the project’s usage with how the total stands', async () => {
@@ -423,6 +453,18 @@ describe('ensureDesign', () => {
     asMock(getProjectDesign).mockResolvedValue({ data: index('iOS') })
     await ensureDesign('p1', { changed: true })
     expect(getProjectDesign).toHaveBeenCalledTimes(2)
+    expect(designStateOf(designSnapshot(), 'p1').index).toEqual(index('iOS'))
+  })
+
+  it('loads again after a load that a change overtook', async () => {
+    let first!: (v: unknown) => void
+    asMock(getProjectDesign)
+      .mockImplementationOnce(() => new Promise((r) => (first = r)))
+      .mockResolvedValueOnce({ data: index('iOS') })
+    void ensureDesign('p1')
+    const changed = ensureDesign('p1', { changed: true })
+    first({ data: index('Android') })
+    await changed
     expect(designStateOf(designSnapshot(), 'p1').index).toEqual(index('iOS'))
   })
 

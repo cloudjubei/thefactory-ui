@@ -3,6 +3,7 @@ import { IconExternalLink } from '../../icons'
 import { FileTypeIcon } from '../files/FileTypeIcon'
 import { DESIGN_THUMB_FRAME } from './designWebConstants'
 import { useObjectUrl } from './useObjectUrl'
+import { useSeenOnce } from './useSeenOnce'
 
 export type DesignFileThumbProps = {
   shown: DesignShown
@@ -15,7 +16,8 @@ export type DesignFileThumbProps = {
 
 /**
  * A design file in miniature: an image, a page drawn small in a sandboxed
- * frame, else the icon of its type.
+ * frame, else the icon of its type. Asks for the file once it comes near the
+ * screen: a list can hold thousands, and only a screenful is ever looked at.
  */
 export default function DesignFileThumb({
   shown,
@@ -24,22 +26,30 @@ export default function DesignFileThumb({
   className,
 }: DesignFileThumbProps) {
   const kind = designViewKind(shown.source)
-  const image = useObjectUrl(kind === 'image' ? src : undefined)
+  const { ref, seen } = useSeenOnce<HTMLDivElement>()
+  const wanted = seen || src?.startsWith('data:') ? src : undefined
+  const image = useObjectUrl(kind === 'image' ? wanted : undefined)
   const height = Math.round((width * 3) / 4)
   const box = `relative shrink-0 overflow-hidden rounded-md border border-(--border-subtle) bg-(--surface-muted) ${className ?? ''}`
   if (image.url) {
     return (
-      <div className={box} style={{ width, height }}>
-        <img src={image.url} alt="" className="h-full w-full object-contain" draggable={false} />
+      <div ref={ref} className={box} style={{ width, height }}>
+        <img
+          src={image.url}
+          alt=""
+          decoding="async"
+          className="h-full w-full object-contain"
+          draggable={false}
+        />
       </div>
     )
   }
-  if (src && kind === 'html') {
+  if (wanted && kind === 'html') {
     const scale = width / DESIGN_THUMB_FRAME.width
     return (
-      <div className={box} style={{ width, height }}>
+      <div ref={ref} className={box} style={{ width, height }}>
         <iframe
-          src={src}
+          src={wanted}
           title={shown.name}
           sandbox="allow-scripts"
           tabIndex={-1}
@@ -56,7 +66,7 @@ export default function DesignFileThumb({
     )
   }
   return (
-    <div className={`${box} flex items-center justify-center`} style={{ width, height }}>
+    <div ref={ref} className={`${box} flex items-center justify-center`} style={{ width, height }}>
       {kind === 'link' ? (
         <IconExternalLink className="h-6 w-6 text-(--text-muted)" />
       ) : (

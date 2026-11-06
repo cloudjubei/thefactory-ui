@@ -142,3 +142,9 @@ export type DesignActions = {
 
 /** Where a project's design playground is: none declared, not served yet, building, ready, or failed. */
 export type DesignPlaygroundStatus = GetDesignPlaygroundResponse
+
+/** A load of a project's design under way, and the one queued after it. */
+export type DesignLoad = {
+  done: Promise<void>
+  next?: Promise<void>
+}

@@ -73,6 +73,11 @@ export function AuthProvider({ storage, children }: AuthProviderProps) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
+/** The bearer, or `null` where there is none — also outside an `AuthProvider`, as in a showcase scene. */
+export function useAuthToken(): string | null {
+  return useContext(AuthContext)?.token ?? null
+}
+
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext)
   if (!ctx) throw new Error('useAuth must be used within AuthProvider')

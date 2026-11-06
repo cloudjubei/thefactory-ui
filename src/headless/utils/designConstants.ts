@@ -8,3 +8,6 @@ export const DESIGN_BUILD_VARIANT_NAMES = {
 
 /** The package folder a build key gives for a project's root app. */
 export const DESIGN_BUILD_ROOT_DIR = '.'
+
+/** The query parameter carrying a project's view token on a design file's address. */
+export const DESIGN_VIEW_TOKEN_PARAM = 'viewToken'

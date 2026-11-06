@@ -278,7 +278,7 @@ function ProcessDetail({
                 N nodes at freeze time, so a 5-step process can execute as 12. */}
             {step.expand ? (
               <Text style={{ fontSize: 11, color: theme.text.secondary }}>
-                one per {step.expand}
+                one per {step.expand === 'features' ? 'feature' : step.expand.input}
               </Text>
             ) : null}
             {step.enabled === false ? (

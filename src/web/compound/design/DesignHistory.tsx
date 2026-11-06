@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   DESIGN_TEXT,
   designHistory,
@@ -34,7 +34,7 @@ export default function DesignHistory({
   onRestore,
 }: DesignHistoryProps) {
   const [busy, setBusy] = useState<string | undefined>(undefined)
-  const screens = designHistory(index, appId)
+  const screens = useMemo(() => designHistory(index, appId), [index, appId])
   return (
     <div className="flex flex-col gap-3">
       <p className="text-[13px] text-(--text-secondary)">{DESIGN_TEXT.historyIntro}</p>

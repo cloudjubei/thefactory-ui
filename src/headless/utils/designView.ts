@@ -10,6 +10,7 @@ import type {
   DesignOrigin,
   DesignProposal,
   DesignTidyMove,
+  DesignVersion,
   GetProjectStorageUsageResponse,
   ProjectStorageUsage,
   StorageUsageStanding,
@@ -226,24 +227,34 @@ export function designOriginText(origin: DesignOrigin): string {
  * newest first, the current ones marked, and where each came from. Pure.
  */
 export function designHistory(index: DesignIndex, appId: string): DesignHistoryScreen[] {
-  const proposalTitle = (id: string | undefined) => index.proposals.find((p) => p.id === id)?.title
+  const titles = new Map(index.proposals.map((p) => [p.id, p.title]))
+  const versionsOf = new Map<string, DesignVersion[]>()
+  for (const version of index.versions) {
+    versionsOf.set(version.stateId, [...(versionsOf.get(version.stateId) ?? []), version])
+  }
   return index.screens
     .filter((s) => s.appId === appId)
     .map((screen) => ({
       screen,
       states: index.states
         .filter((s) => s.screenId === screen.id)
-        .map((state) => ({
-          state,
-          versions: index.versions
-            .filter((v) => v.stateId === state.id)
-            .sort((a, b) => b.createdAt - a.createdAt || b.number - a.number)
-            .map((version) => ({
-              version,
-              current: currentDesignVersion(index, state.id, version.variant)?.id === version.id,
-              from: proposalTitle(version.proposalId) ?? designOriginText(version.origin),
-            })),
-        }))
+        .map((state) => {
+          const own = versionsOf.get(state.id) ?? []
+          const ownIndex = { ...index, versions: own }
+          return {
+            state,
+            versions: [...own]
+              .sort((a, b) => b.createdAt - a.createdAt || b.number - a.number)
+              .map((version) => ({
+                version,
+                current:
+                  currentDesignVersion(ownIndex, state.id, version.variant)?.id === version.id,
+                from:
+                  (version.proposalId ? titles.get(version.proposalId) : undefined) ??
+                  designOriginText(version.origin),
+              })),
+          }
+        })
         .filter((s) => s.versions.length > 0),
     }))
     .filter((s) => s.states.length > 0)

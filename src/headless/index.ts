@@ -2030,6 +2030,7 @@ export {
 export {
   AuthProvider,
   useAuth,
+  useAuthToken,
   type AuthContextValue,
   type AuthProviderProps,
   type TokenStorage,
@@ -2776,6 +2777,7 @@ export {
 export type {
   DesignActions,
   DesignPlaygroundStatus,
+  DesignLoad,
   DesignProjectState,
   DesignProposeEntry,
   DesignSourceChoice,
@@ -2844,6 +2846,7 @@ export type {
 } from './utils/designViewTypes'
 export {
   designContentUrl,
+  designFileRequest,
   designShownOfEntry,
   designShownOfVersion,
   designSourceFileName,

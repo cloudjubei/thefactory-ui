@@ -275,7 +275,9 @@ function ProcessDetail({
                 <span className="text-[10px] text-(--text-secondary)">→ {step.processId}</span>
               ) : null}
               {step.expand ? (
-                <span className="text-[10px] text-(--text-secondary)">one per {step.expand}</span>
+                <span className="text-[10px] text-(--text-secondary)">
+                  one per {step.expand === 'features' ? 'feature' : step.expand.input}
+                </span>
               ) : null}
               {step.enabled === false ? (
                 <span className="text-[10px] text-(--text-secondary)">off</span>
