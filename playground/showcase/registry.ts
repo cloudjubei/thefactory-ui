@@ -46,6 +46,7 @@ import { MCP_SERVER_CARD_SCENES } from '../scenes/mcpServerCard'
 import { MCP_SERVER_SCENES } from '../scenes/mcpServers'
 import { PROVIDER_CONNECTION_FORM_SCENES } from '../scenes/providerConnectionForm'
 import { SIGN_OFF_OUTPUT_SETTINGS_SCENES } from '../scenes/signOffOutputSettings'
+import { TICKET_POST_SCENES } from '../scenes/ticketPost'
 import { TICKET_TRANSITION_SCENES } from '../scenes/ticketTransition'
 import { MODEL_EFFORT_SCENES } from '../scenes/modelEffort'
 import { OPEN_RUN_SCENES } from '../scenes/openRun'
@@ -150,6 +151,7 @@ export const SCENES: readonly Scene[] = [
   ...MCP_SERVER_CARD_SCENES,
   ...PROVIDER_CONNECTION_FORM_SCENES,
   ...SIGN_OFF_OUTPUT_SETTINGS_SCENES,
+  ...TICKET_POST_SCENES,
   ...TICKET_TRANSITION_SCENES,
   ...WORKFLOW_GUARD_SCENES,
   ...KNOWLEDGE_SCENES,

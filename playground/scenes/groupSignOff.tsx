@@ -191,6 +191,38 @@ const WALKTHROUGH: GroupSignOffData['walkthrough'] = [
   },
 ]
 
+const POST_COMMENT = `Signed off: Return the renewal date.
+
+- Return the renewal date`
+const POSTING_BE: GroupSignOffRepo = {
+  ...BE,
+  ticketPost: {
+    tickets: [{ provider: 'jira', externalId: 'ENG-214', posts: true }],
+    comment: POST_COMMENT,
+    transition: '31',
+  },
+}
+const POSTING_WEB: GroupSignOffRepo = {
+  ...WEB,
+  ticketPost: {
+    tickets: [{ provider: 'jira', externalId: 'ENG-215', posts: true }],
+    comment: POST_COMMENT,
+  },
+}
+const HELD_BE: GroupSignOffRepo = {
+  ...BE,
+  ticketPost: {
+    tickets: [
+      {
+        provider: 'jira',
+        externalId: 'ENG-214',
+        posts: false,
+        why: 'Connector write-back is off, so nothing is posted',
+      },
+    ],
+  },
+}
+
 const data = (over: Partial<GroupSignOffData> = {}): GroupSignOffData => ({
   groupRunId: 'group-run',
   title: 'Renewal date on the plan page',
@@ -321,6 +353,7 @@ type Board = {
   acting?: string
   actionError?: string
   requesting?: boolean
+  ticketPost?: { startOpen: boolean }
 }
 
 function signOffBoard({
@@ -334,6 +367,7 @@ function signOffBoard({
   acting,
   actionError,
   requesting,
+  ticketPost,
 }: Board) {
   return (
     <GroupSignOff
@@ -352,6 +386,7 @@ function signOffBoard({
       {...(acting ? { acting } : {})}
       {...(actionError ? { actionError } : {})}
       {...(requesting ? { requesting } : {})}
+      {...(ticketPost ? { ticketPost } : {})}
     />
   )
 }
@@ -781,6 +816,30 @@ export const GROUP_SIGN_OFF_SCENES: Scene[] = [
         title: 'An edit not saved',
         description: 'The decision waits for it, as a pull request opens from what is saved.',
         render: () => page(signOffBoard({ held: editing(), opens: 'output-PR Text' })),
+      },
+      {
+        id: 'what-it-posts',
+        title: 'What approving will post',
+        description:
+          'Each repo says it under its pull request, before the decision: the tickets, and the move by its raw id.',
+        render: () => page(signOffBoard({ view: data({ repos: [POSTING_BE, POSTING_WEB, SDK] }) })),
+      },
+      {
+        id: 'what-it-posts-open',
+        title: 'The comment opened',
+        render: () =>
+          page(
+            signOffBoard({
+              view: data({ repos: [POSTING_BE, POSTING_WEB, SDK] }),
+              ticketPost: { startOpen: true },
+            }),
+          ),
+      },
+      {
+        id: 'posts-nothing',
+        title: 'Write-back off',
+        description: 'No comment to read, and why, on the repo it is off for.',
+        render: () => page(signOffBoard({ view: data({ repos: [HELD_BE, WEB, SDK] }) })),
       },
       {
         id: 'deciding',

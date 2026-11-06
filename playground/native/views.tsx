@@ -6,6 +6,7 @@ import {
   TICKET_TRANSITION_STANDING,
   groupTicketsView,
   signOffOutputSettingViews,
+  ticketPostView,
   signOffTemplateChoices,
   type GroupConstellationLayout,
   type GroupHomeLayout,
@@ -16,6 +17,7 @@ import GroupHomeConnected from '../../src/native/compound/GroupHomeConnected'
 import GroupTicketsList from '../../src/native/compound/groupStories/GroupTicketsList'
 import ProjectDefaultCapsField from '../../src/native/compound/projects/ProjectDefaultCapsField'
 import TicketTransitionField from '../../src/native/compound/projects/TicketTransitionField'
+import TicketPostNote from '../../src/native/compound/process/signoff/TicketPostNote'
 import ProviderConnectionsForm from '../../src/native/compound/settings/ProviderConnectionsForm'
 import SignOffOutputSettingsPanel from '../../src/native/compound/settings/SignOffOutputSettingsPanel'
 import CaptureCardShell from '../../src/native/compound/chat/CaptureCardShell'
@@ -158,6 +160,61 @@ function TicketTransition({ standing }: { standing: TicketTransitionStanding }) 
   )
 }
 
+const POST_VIEW = ticketPostView({
+  tickets: [{ provider: 'jira', externalId: 'ENG-214', posts: true }],
+  comment: 'Signed off: Renewal date on the plan page.\n\n- Show it on the plan page',
+  transition: '31',
+})
+const HELD_VIEW = ticketPostView({
+  tickets: [
+    {
+      provider: 'jira',
+      externalId: 'ENG-214',
+      posts: false,
+      why: 'Connector write-back is off, so nothing is posted',
+    },
+  ],
+})
+
+function TicketPost({ held, open }: { held: boolean; open: boolean }) {
+  const view = held ? HELD_VIEW : POST_VIEW
+  return (
+    <View style={{ padding: 16 }}>
+      {view ? <TicketPostNote view={view} startOpen={open} /> : null}
+    </View>
+  )
+}
+
+function SwitchTokenForm() {
+  return (
+    <View style={{ padding: 16 }}>
+      <ProviderConnectionsForm
+        mode={{
+          kind: 'edit',
+          onSubmit: async () => undefined,
+          connection: {
+            id: 'c1',
+            name: 'Acme Jira',
+            provider: 'jira',
+            username: 'kamil@example.com',
+            baseUrl: 'https://acme.atlassian.net',
+            hasToken: true,
+            hasRefreshToken: false,
+            config: {
+              jiraApiTokenMode: 'scoped',
+              cloudId: '11111111-2222-4333-8444-555555555555',
+            },
+            createdAt: '2026-11-01T00:00:00.000Z',
+            updatedAt: '2026-11-01T00:00:00.000Z',
+          },
+        }}
+        onCancel={noop}
+        fixedCloudIdStatus="idle"
+      />
+    </View>
+  )
+}
+
 function ConnectionForm() {
   return (
     <View style={{ padding: 16 }}>
@@ -257,6 +314,18 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
     id: 'sign-off-outputs',
     title: 'Sign-off outputs',
     render: () => <SignOffOutputs />,
+  },
+  {
+    id: 'ticket-post',
+    title: 'What sign-off will post',
+    render: (address) => (
+      <TicketPost held={address.get('held') === '1'} open={address.get('open') === '1'} />
+    ),
+  },
+  {
+    id: 'jira-token-form',
+    title: 'A Jira token with scopes',
+    render: () => <SwitchTokenForm />,
   },
   {
     id: 'ticket-transition',

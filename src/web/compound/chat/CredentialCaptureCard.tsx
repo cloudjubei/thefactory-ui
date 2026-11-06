@@ -9,7 +9,7 @@ import { SecretInput } from '../SecretInput'
 import { captureHelp } from '../../../headless/utils/credentialCaptureHelp'
 import { useJiraCloudIdLookup } from '../../../headless/hooks/useJiraCloudIdLookup'
 import { jiraCloudIdHint } from '../../../headless/utils/providerConnectionForm'
-import type { JiraCloudIdFinder } from '../../../headless/utils/providerConnectionFormTypes'
+import type { JiraCloudIdStatus } from '../../../headless/utils/providerConnectionFormTypes'
 import CaptureCardShell from './CaptureCardShell'
 import CredentialHelpPanel from './CredentialHelpPanel'
 import McpServerCaptureSignIn from './McpServerCaptureSignIn'
@@ -64,8 +64,8 @@ export type CredentialCaptureCardProps = {
   disabled?: boolean
   /** Start the form with these in it. */
   initialValues?: CredentialCaptureFormValues
-  /** Find a site's cloud id another way than the backend's, for a fixed showcase state. */
-  findCloudId?: JiraCloudIdFinder
+  /** Hold finding the cloud id at this stage, for a fixed showcase state. */
+  fixedCloudIdStatus?: JiraCloudIdStatus
 }
 
 /**
@@ -90,7 +90,7 @@ export default function CredentialCaptureCard({
   onCancel,
   disabled,
   initialValues,
-  findCloudId,
+  fixedCloudIdStatus,
 }: CredentialCaptureCardProps) {
   const [values, setValues] = useState<CredentialCaptureFormValues>(() => ({
     ...emptyCaptureForm(capture),
@@ -132,11 +132,11 @@ export default function CredentialCaptureCard({
     touched.includes(name) ? errors[name] : undefined
   const set = (name: CredentialCaptureFieldName, value: string) =>
     setValues((prev) => captureFormWith(prev, name, value))
-  const cloudIdStatus = useJiraCloudIdLookup(
-    captureCloudIdSite(capture, values),
+  const lookedUp = useJiraCloudIdLookup(
+    fixedCloudIdStatus ? undefined : captureCloudIdSite(capture, values),
     (cloudId) => setValues((prev) => ({ ...prev, cloudId })),
-    findCloudId,
   )
+  const cloudIdStatus = fixedCloudIdStatus ?? lookedUp
   const hintFor = (name: CredentialCaptureFieldName) =>
     errorFor(name) ??
     (name === 'cloudId' ? jiraCloudIdHint(cloudIdStatus, values.cloudId ?? '') : undefined)

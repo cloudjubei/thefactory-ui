@@ -985,6 +985,10 @@ export {
   type SignOffOutputPanelProps,
 } from './compound/process/signoff/SignOffOutputPanel'
 export {
+  default as TicketPostNote,
+  type TicketPostNoteProps,
+} from './compound/process/signoff/TicketPostNote'
+export {
   GroupStoriesScreen,
   GroupStoryScreen,
   type GroupStoriesScreenProps,

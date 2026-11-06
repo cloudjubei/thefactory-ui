@@ -67,6 +67,10 @@ describe('captureHelp — a ticket connection', () => {
     expect(steps).toMatch(/atlassian\.net/)
   })
 
+  it('has no steps for Azure DevOps, rather than Jira’s', () => {
+    expect(helpFor(jira, { provider: 'azure-devops' })).toBeUndefined()
+  })
+
   it('follows the tracker the user picks, not the one the agent named', () => {
     const github = helpFor(jira, { provider: 'github' })
     expect(github?.title).toMatch(/GitHub/)

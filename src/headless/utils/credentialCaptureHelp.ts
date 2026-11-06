@@ -45,6 +45,7 @@ export function captureHelp(
   switch (capture.provider) {
     case 'ticket-connection':
       if (values.provider === 'github') return GITHUB_ISSUES_TOKEN_HELP
+      if (values.provider === 'azure-devops') return undefined
       return values.tokenType === 'classic' ? JIRA_TOKEN_HELP : JIRA_SCOPED_TOKEN_HELP
     case 'git':
       return gitHostHelp(values.host)

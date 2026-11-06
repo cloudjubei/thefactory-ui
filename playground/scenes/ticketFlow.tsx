@@ -236,6 +236,11 @@ const NO_MOVE: TicketLaunchMove = {
   unavailable: 'OSC-418 has no move to In Progress from Blocked.',
 }
 const JIRA_DOWN: TicketLaunchMove = { ...NAMED, unavailable: 'Jira did not answer.' }
+const CLASSIC_TOKEN: TicketLaunchMove = {
+  ...NAMED,
+  unavailable:
+    'Write-back is disabled for a classic Jira API token: it routes by site URL. Use a scoped API token or OAuth; nothing was written',
+}
 
 const BRANCHES = { branches: ['dev', 'main'], preselected: 'dev' }
 
@@ -546,6 +551,17 @@ const moveStates: SceneState[] = [
     render: () => (
       <div className="w-[560px] max-w-full p-4">
         <MoveField move={READ_ONLY} />
+      </div>
+    ),
+  },
+  {
+    id: 'classic-token',
+    title: 'A classic token cannot move it',
+    description:
+      'The write policy’s own words and no tick box, rather than a tick that then fails.',
+    render: () => (
+      <div className="w-[560px] max-w-full p-4">
+        <MoveField move={CLASSIC_TOKEN} />
       </div>
     ),
   },

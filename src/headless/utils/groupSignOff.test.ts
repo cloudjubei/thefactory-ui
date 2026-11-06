@@ -244,8 +244,9 @@ describe('groupSignOffScreen', () => {
     it('stops saying it once the decision is made', () => {
       const screen = groupSignOffScreen(
         data({
+          canDecide: false,
           repos: [
-            repo('be', { ticketPost: post, pullRequest: { state: 'open', url: 'https://x/1' } }),
+            repo('be', { ticketPost: post, pullRequest: { state: 'opened', url: 'https://x/1' } }),
           ],
         }),
         state(),

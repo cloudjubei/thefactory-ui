@@ -126,6 +126,11 @@ export function jiraCloudIdProblem(draft: ProviderConnectionDraft): string | und
     : undefined
 }
 
+/** Where finding stands once nothing is being asked: only an id it found stays said. */
+export function jiraCloudIdStatusAtRest(status: JiraCloudIdStatus): JiraCloudIdStatus {
+  return status === 'found' ? 'found' : 'idle'
+}
+
 /** What the cloud id field says under it. An id the person typed needs no words. */
 export function jiraCloudIdHint(status: JiraCloudIdStatus, cloudId: string): string | undefined {
   if (cloudId.trim()) return status === 'found' ? JIRA_TOKEN_COPY.cloudIdFound : undefined

@@ -27,7 +27,7 @@ import {
   providerTokenFieldCopy,
   useJiraCloudIdLookup,
   useProviderOAuthFlow,
-  type JiraCloudIdFinder,
+  type JiraCloudIdStatus,
   type JiraTokenType,
   type ProviderConnectionDraft,
   type ProviderConnectionEditInput,
@@ -63,8 +63,8 @@ export interface ProviderConnectionsFormProps {
   onCancel: () => void
   /** Sign in with a provider. Without it the form offers tokens alone. */
   oauth?: ProviderOAuthActions
-  /** Find a site's cloud id another way than the backend's, for a fixed showcase state. */
-  findCloudId?: JiraCloudIdFinder
+  /** Hold finding the cloud id at this stage, for a fixed showcase state. */
+  fixedCloudIdStatus?: JiraCloudIdStatus
 }
 
 /**
@@ -76,7 +76,7 @@ export default function ProviderConnectionsForm({
   mode,
   onCancel,
   oauth,
-  findCloudId,
+  fixedCloudIdStatus,
 }: ProviderConnectionsFormProps) {
   const { theme } = useNativeTheme()
   const initial = mode.kind === 'edit' ? mode.connection : undefined
@@ -95,11 +95,11 @@ export default function ProviderConnectionsForm({
   const set = (patch: Partial<ProviderConnectionDraft>) => setDraft({ ...draft, ...patch })
   const saving = { creating: isCreate, ...(initial ? { stored: initial } : {}) }
   const tokenCopy = providerTokenFieldCopy(draft, saving)
-  const cloudIdStatus = useJiraCloudIdLookup(
-    method === 'token' && !signedIn ? jiraCloudIdSiteOf(draft) : undefined,
+  const lookedUp = useJiraCloudIdLookup(
+    method === 'token' && !signedIn && !fixedCloudIdStatus ? jiraCloudIdSiteOf(draft) : undefined,
     (cloudId) => setDraft((current) => ({ ...current, cloudId })),
-    findCloudId,
   )
+  const cloudIdStatus = fixedCloudIdStatus ?? lookedUp
 
   const canSubmit = signedIn
     ? draft.name.trim().length > 0

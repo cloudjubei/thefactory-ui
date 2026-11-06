@@ -2627,7 +2627,6 @@ export {
   PROVIDER_OAUTH_COPY,
 } from './utils/providerConnectionFormConstants'
 export type {
-  JiraCloudIdFinder,
   JiraCloudIdStatus,
   JiraTokenType,
   ProviderConnectionDraft,

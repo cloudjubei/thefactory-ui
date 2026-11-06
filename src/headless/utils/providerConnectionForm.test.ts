@@ -8,6 +8,7 @@ import {
   jiraCloudIdHint,
   jiraCloudIdProblem,
   jiraCloudIdSiteOf,
+  jiraCloudIdStatusAtRest,
   jiraTokenTypeOf,
   providerBaseUrlProblem,
   providerConnectionDraftOf,
@@ -445,6 +446,15 @@ describe('a Jira token’s type', () => {
     ['found', '', JIRA_TOKEN_COPY.cloudIdHint],
   ] as const)('says %s with %j in the field', (status, cloudId, hint) => {
     expect(jiraCloudIdHint(status, cloudId)).toBe(hint)
+  })
+
+  it.each([
+    ['found', 'found'],
+    ['finding', 'idle'],
+    ['failed', 'idle'],
+    ['idle', 'idle'],
+  ] as const)('leaves %s as %s once nothing is being asked', (status, atRest) => {
+    expect(jiraCloudIdStatusAtRest(status)).toBe(atRest)
   })
 
   it('names the scopes a token with scopes needs, and what a classic one cannot do', () => {

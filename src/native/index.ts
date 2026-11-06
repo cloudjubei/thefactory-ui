@@ -255,6 +255,10 @@ export {
   default as SignOffOutputPanel,
   type SignOffOutputPanelProps,
 } from './compound/process/signoff/SignOffOutputPanel'
+export {
+  default as TicketPostNote,
+  type TicketPostNoteProps,
+} from './compound/process/signoff/TicketPostNote'
 export { default as HandoffButton, type HandoffButtonProps } from './compound/chips/HandoffButton'
 export {
   default as SetUpWithAgentButton,

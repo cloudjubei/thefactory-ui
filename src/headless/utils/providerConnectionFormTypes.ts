@@ -28,9 +28,6 @@ export type ProviderConnectionSaving = { creating: boolean; stored?: ProviderCon
 /** How far finding a site's cloud id has got. */
 export type JiraCloudIdStatus = 'idle' | 'finding' | 'found' | 'failed'
 
-/** Asks the backend for a site's cloud id. */
-export type JiraCloudIdFinder = (siteUrl: string) => Promise<string>
-
 /** How a person connects: paste a token, or sign in with the provider. */
 export type ProviderConnectionMethod = 'token' | 'oauth'
 
