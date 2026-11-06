@@ -1,7 +1,8 @@
 import { useMemo, type ReactNode } from 'react'
-import { Text, View, type TextStyle } from 'react-native'
+import { Linking, Text, View, type TextStyle } from 'react-native'
 import { splitReferences } from 'thefactory-tools/utils'
 import { useEffectiveReferenceRenderer } from '../../../headless/contexts/ReferenceRenderingContext'
+import { splitTextLinks } from '../../../headless/utils/textLinks'
 import type { ReferenceTarget } from 'thefactory-tools/types'
 import { nativePalette, nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
@@ -55,7 +56,20 @@ export default function RichText({
         if (seg.type === 'text') {
           return (
             <Text key={idx} style={{ fontSize, fontWeight, color: baseColor }}>
-              {seg.value}
+              {splitTextLinks(seg.value).map((part, at) =>
+                part.type === 'text' ? (
+                  part.value
+                ) : (
+                  <Text
+                    key={at}
+                    accessibilityRole="link"
+                    style={{ textDecorationLine: 'underline' }}
+                    onPress={() => void Linking.openURL(part.url)}
+                  >
+                    {part.label}
+                  </Text>
+                ),
+              )}
             </Text>
           )
         }

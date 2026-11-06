@@ -5,6 +5,7 @@ import {
   groupStoryTicketRef,
   groupTicketStatuses,
   groupTicketsView,
+  chatContextTickets,
   ticketChipView,
   ticketLink,
   ticketMoveDecisionOf,
@@ -469,5 +470,57 @@ describe('what a started run says of its ticket', () => {
         ticketMove: { ticketKey: 'ENG-7', moved: false, message: 'Not moved.' },
       }),
     ).toEqual({ message: 'Started.', notMoved: 'Not moved.' })
+  })
+})
+
+describe('chatContextTickets', () => {
+  const ref = (key: string) => ({
+    provider: 'jira',
+    externalId: key,
+    url: `https://acme.atlassian.net/browse/${key}`,
+  })
+
+  it('reads the ticket a ticket’s chat keeps', () => {
+    expect(chatContextTickets({ metadata: { ticket: ref('ENG-1') } })).toEqual([
+      ticketChipView({ key: 'ENG-1', url: ref('ENG-1').url }),
+    ])
+  })
+
+  it('reads the ticket of the group story a chat’s story is a part of', () => {
+    const memberships = [{ title: 'Faster', externalIds: [ref('ENG-2')] }]
+    expect(chatContextTickets({ memberships })).toEqual([
+      ticketChipView({ key: 'ENG-2', title: 'Faster', url: ref('ENG-2').url }),
+    ])
+  })
+
+  it('puts the chat’s own first and shows a ticket once', () => {
+    const memberships = [
+      { title: 'A', externalIds: [ref('ENG-1')] },
+      { title: 'B', externalIds: [ref('ENG-2')] },
+    ]
+    const keys = chatContextTickets({ metadata: { ticket: ref('ENG-1') }, memberships })
+    expect(keys.map((t) => t.key)).toEqual(['ENG-1', 'ENG-2'])
+  })
+
+  it('leaves out a group story with no Jira ticket', () => {
+    const memberships = [
+      { title: 'A' },
+      { title: 'B', externalIds: [{ provider: 'github', externalId: '45' }] },
+    ]
+    expect(chatContextTickets({ memberships })).toEqual([])
+  })
+
+  it.each([
+    ['nothing', undefined],
+    ['no ticket', {}],
+    ['a ticket of another shape', { ticket: 'ENG-1' }],
+    ['a ticket with no key', { ticket: { provider: 'jira' } }],
+  ])('reads none from metadata holding %s', (_name, metadata) => {
+    expect(chatContextTickets({ metadata })).toEqual([])
+  })
+
+  it('opens nothing for a link that is no web page', () => {
+    const ticket = { ...ref('ENG-1'), url: 'javascript:alert(1)' }
+    expect(chatContextTickets({ metadata: { ticket } })[0]?.url).toBeUndefined()
   })
 })

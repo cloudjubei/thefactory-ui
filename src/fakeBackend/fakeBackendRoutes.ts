@@ -208,6 +208,8 @@ import { FAKE_GROUP_CONSTELLATION, FAKE_GROUP_STATUS } from './fixtures/projects
 import { FAKE_AT } from './fixtures/stamps'
 import { FAKE_STORIES_BY_PROJECT } from './fixtures/stories'
 
+const FAKE_JIRA_CLOUD_ID = '11111111-2222-4333-8444-555555555555'
+
 type ContractData = { url: string }
 
 /**
@@ -331,6 +333,11 @@ export const FAKE_BACKEND_ROUTES: readonly FakeRoute[] = [
     '/api/v1/provider-connections',
     () => [],
   ),
+  {
+    method: 'GET',
+    path: '/api/v1/provider-connections/jira-cloud-id',
+    answer: () => ({ cloudId: FAKE_JIRA_CLOUD_ID }),
+  },
   read<GetOverseerData, GetOverseerResponse>('/api/v1/overseer', () => FAKE_OVERSEER),
   read<ListOverseerAuthProvidersData, ListOverseerAuthProvidersResponse>(
     '/api/v1/overseer/auth-providers',
@@ -563,6 +570,11 @@ export const FAKE_BACKEND_ROUTES: readonly FakeRoute[] = [
   read<ListProcessRunsData, ListProcessRunsResponse>('/api/v1/process-runs', ({ query }) =>
     fakeProcessRunsMatching(query),
   ),
+  {
+    method: 'GET',
+    path: '/api/v1/process-runs/{runId}/ticket-post',
+    answer: () => ({ tickets: [] }),
+  },
   read<GetProcessRunData, GetProcessRunResponse>(
     '/api/v1/process-runs/{runId}',
     ({ params, missing }) =>

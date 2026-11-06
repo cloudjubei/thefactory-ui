@@ -20,6 +20,7 @@ import { CHAT_CHANGES_DOCK_SCENES } from '../scenes/chatChangesDock'
 import { CHECKS_UNFINISHED_SCENES } from '../scenes/checksUnfinished'
 import { COMMIT_CHECKS_SCENES } from '../scenes/commitChecks'
 import { COMMIT_RECEIPT_SCENES } from '../scenes/commitReceipt'
+import { CHAT_TICKET_SCENES } from '../scenes/chatTicketContext'
 import { CONTEXT_FILL_SCENES } from '../scenes/contextFill'
 import { COST_CHIP_SCENES } from '../scenes/costChip'
 import { CHAT_PAUSED_RUN_SCENES } from '../scenes/chatPausedRun'
@@ -102,6 +103,7 @@ export const SCENES: readonly Scene[] = [
   ...FILE_SUGGESTION_SCENES,
   ...VIDEO_ATTACHMENT_SCENES,
   ...MODEL_EFFORT_SCENES,
+  ...CHAT_TICKET_SCENES,
   ...CONTEXT_FILL_SCENES,
   ...STUCK_SCENES,
   ...CHAT_STOP_SCENES,

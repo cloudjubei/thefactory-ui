@@ -230,9 +230,7 @@ export function captureCloudIdSite(
   capture: CredentialCapture,
   values: CredentialCaptureFormValues,
 ): string | undefined {
-  if (capture.provider !== 'ticket-connection' || !isScopedTokenForm(capture, values)) {
-    return undefined
-  }
+  if (!isScopedTokenForm(capture, values)) return undefined
   const site = values.baseUrl ?? ''
   return !(values.cloudId ?? '').trim() && isJiraSiteUrl(site) ? site.trim() : undefined
 }

@@ -361,6 +361,7 @@ export type LlmConfig = {
   costOutputPerMTokensUSD?: number
   costCacheReadInputPerMTokensUSD?: number
   billing?: 'subscription' | 'metered' | 'free'
+  contextWindowTokens?: number
 }
 
 export type CliTool = 'claude-code' | 'cursor-agent' | 'codex'
@@ -2547,6 +2548,7 @@ export type ChatApiTurn = {
     costOutputPerMTokensUSD?: number
     costCacheReadInputPerMTokensUSD?: number
     billing?: 'subscription' | 'metered' | 'free'
+    contextWindowTokens?: number
   }
   systemPrompt?: string
   settings: CompletionSettings
@@ -2784,6 +2786,7 @@ export type ChatSummary = {
       costOutputPerMTokensUSD?: number
       costCacheReadInputPerMTokensUSD?: number
       billing?: 'subscription' | 'metered' | 'free'
+      contextWindowTokens?: number
     }
     systemPrompt?: string
     settings: CompletionSettings
@@ -3180,6 +3183,7 @@ export type ChatUpdate = {
         costOutputPerMTokensUSD?: number
         costCacheReadInputPerMTokensUSD?: number
         billing?: 'subscription' | 'metered' | 'free'
+        contextWindowTokens?: number
       }
       systemPrompt?: string
       settings: CompletionSettings
@@ -3207,6 +3211,12 @@ export type ChatsSettings = {
   AGENT_RUN_STORY: ChatSettings
   AGENT_RUN_FEATURE: ChatSettings
   PROJECT_TOPIC: ChatSettings
+}
+
+export type ChatPromptScope = {
+  storyId?: string
+  featureId?: string
+  groupId?: string
 }
 
 export type ProjectsGroupType = 'MAIN' | 'SCOPE'
@@ -3238,6 +3248,7 @@ export type McpServerConnection = {
   name: string
   url: string
   auth: McpServerAuth
+  onlyReads?: boolean
 }
 
 export type SignOffOutputDefinition = {
@@ -6592,6 +6603,10 @@ export type ToolCallConfirmation =
       outcome: 'refused'
       reason: string
     }
+
+export type LlmModelWindow = LlmModel & {
+  contextWindowTokens?: number
+}
 
 export type CompletionResponse = {
   assistantMessage: CompletionAssistantMessage
@@ -11590,6 +11605,7 @@ export type ModelPrice = {
   cacheReadInputPerMTokensUSD?: number
   cacheWriteInputPerMTokensUSD?: number
   cacheWrite1hInputPerMTokensUSD?: number
+  maxInputTokens?: number
   source?: string
   currency?: 'USD'
 }
@@ -12463,6 +12479,12 @@ export type BuildAndroidAppOptions = {
   overlayRefs?: Array<string>
 }
 
+export type MobileBuildSweepOptions = {
+  parent?: string
+  now?: number
+  maxAgeMs?: number
+}
+
 export type MobileBuildProvenance = {
   platform: 'android' | 'ios'
   root: string
@@ -12586,6 +12608,7 @@ export type OpenMobileSessionOptions = {
   platform: MobilePlatform
   appPath?: string
   appId?: string
+  activity?: string
   deviceId?: string
 }
 
@@ -12679,6 +12702,7 @@ export type MobileShellResult = {
   exitCode: number
   stdout: string
   stderr: string
+  timedOut?: boolean
 }
 
 export type MobileStdoutCapture = {
@@ -12727,6 +12751,7 @@ export type MobileSessionEntry = {
   platform: MobilePlatform
   deviceId: string
   appId?: string
+  activity?: string
   lastRefs: {
     [key: string]: MobileRefTarget
   }
@@ -14510,6 +14535,28 @@ export type ProcessRegeneratedCommit = {
   sha: string
 }
 
+export type ProcessSeamConflict = {
+  sha: string
+  subject: string
+  files: Array<string>
+  seams: Array<string>
+  reason: string
+}
+
+export type ProcessWorkBranchRewoundCommit = {
+  sha: string
+  subject: string
+}
+
+export type ProcessWorkBranchRewind = {
+  sha: string
+  subject: string
+  commits: Array<ProcessWorkBranchRewoundCommit>
+  fromSha: string
+  toSha: string
+  keptRef: string
+}
+
 export type ProjectCheckNotCausedCause = 'not-reproducible' | 'pre-existing' | 'environment'
 
 export type ProjectCheckNotCausedReport = {
@@ -14708,6 +14755,21 @@ export type ProcessLedgerEntry = {
   checkedSha?: string
   checkedTree?: string
   checkedEnvironment?: string
+  seamConflict?: {
+    sha: string
+    subject: string
+    files: Array<string>
+    seams: Array<string>
+    reason: string
+  }
+  workBranchRewind?: {
+    sha: string
+    subject: string
+    commits: Array<ProcessWorkBranchRewoundCommit>
+    fromSha: string
+    toSha: string
+    keptRef: string
+  }
   reusedChecksOf?: string
   notCaused?: Array<ProjectCheckNotCausedReport>
   baseUpdate?: {
@@ -16607,6 +16669,11 @@ export type ProjectCommandParam = {
   description?: string
 }
 
+export type ProjectCommandAgentTurn = {
+  label: string
+  description?: string
+}
+
 export type ProjectCommandDeclaration = {
   argv: Array<string>
   cwd?: string
@@ -16619,6 +16686,9 @@ export type ProjectCommandDeclaration = {
     [key: string]: ProjectCommandParam
   }
   recordTypes: Array<string>
+  agentTurns?: {
+    [key: string]: ProjectCommandAgentTurn
+  }
   label?: string
   description?: string
 }
@@ -16644,6 +16714,11 @@ export type ProjectCommandRecord = {
   }
 }
 
+export type ProjectCommandAgentTurnRequest = {
+  turn: string
+  brief: string
+}
+
 export type ProjectCommandLogLevel = 'info' | 'warn' | 'error'
 
 export type ProjectCommandMessage =
@@ -16658,6 +16733,9 @@ export type ProjectCommandMessage =
       level: ProjectCommandLogLevel
       text: string
     }
+  | ({
+      kind: 'agent-turn'
+    } & ProjectCommandAgentTurnRequest)
   | {
       kind: 'text'
       text: string
@@ -18346,6 +18424,69 @@ export type ProductMarketFacts = {
   }
 }
 
+export type ProductMarketOffers = {
+  market: string
+  currency?: string
+  offers: Array<ProductOffer>
+  updatedAt?: string
+  marketFacts?: {
+    availability?: string
+    priceLow?: number
+    currency?: string
+    offerDiagnosis?: {
+      candidates: number
+      kept: number
+      dropped: {
+        [key: string]: number
+      }
+    }
+    variantPrices?: {
+      [key: string]: {
+        price?: number
+        currency?: string
+      }
+    }
+  }
+}
+
+export type ExchangeRates = {
+  base: string
+  date: string
+  rates: {
+    [key: string]: number
+  }
+}
+
+export type ConvertedPrice = {
+  price: number
+  currency: string
+  ratesDate: string
+}
+
+export type MarketPrice = {
+  market: string
+  price: number
+  currency: string
+  seller: string
+  url: string
+  variantLabel?: string
+  offers: number
+  converted?: {
+    price: number
+    currency: string
+    ratesDate: string
+  }
+}
+
+export type ProductPriceComparison = {
+  productKey: string
+  rates?: {
+    base: string
+    date: string
+  }
+  prices: Array<MarketPrice>
+}
+
 export type DecomposedItem = {
   product: Product
   offers: Array<ProductOffer>
@@ -19380,6 +19521,25 @@ export type ListMakerRecordsParams = {
   recordType: string
   makerKey: string
   region?: string
+}
+
+export type ListProductMarketOffersParams = {
+  scope: string
+  recordType: string
+  key: string
+}
+
+export type CompareProductPricesParams = {
+  scope: string
+  recordType: string
+  key: string
+  rates?: {
+    base: string
+    date: string
+    rates: {
+      [key: string]: number
+    }
+  }
 }
 
 export type ListProductLeadsParams = {
@@ -21366,8 +21526,6 @@ export type ToolName =
   | 'spawnTriagePanel'
   | 'spawnApproachPanel'
   | 'spawnAnswerPanel'
-  | 'beginApiChatTurn'
-  | 'finishApiChatTurn'
   | 'sendChatCompletion'
   | 'sendChatCompletionWithTools'
   | 'startChatCompletionWithToolsCli'
@@ -21460,10 +21618,8 @@ export type ToolName =
   | 'withdrawCliAgentAction'
   | 'subscribeCliAgentActions'
   | 'subscribeBackgroundJobResults'
-  | 'subscribeResidentSessionEnded'
   | 'getResidentSessionFreshness'
   | 'getCliAgentAction'
-  | 'reconcileCliAgentQuestions'
   | 'claimCliAgentActionExecution'
   | 'recordCliAgentActionExecution'
   | 'releaseCliAgentActionExecution'
@@ -21795,6 +21951,8 @@ export type ToolName =
   | 'listProductBacklinks'
   | 'listProductLeads'
   | 'listMakerRecords'
+  | 'listProductMarketOffers'
+  | 'compareProductPrices'
   | 'deleteProduct'
   | 'getProductRecord'
   | 'createProductRecord'
@@ -22364,6 +22522,11 @@ export type RawPerformanceInput = {
   domContentLoadedEventEnd?: number
   loadEventEnd?: number
   firstContentfulPaint?: number
+}
+
+export type UiConfinedProxy = {
+  server: string
+  bypass: string
 }
 
 export type UiLaunchContextOptions = {
@@ -23747,6 +23910,14 @@ export type ChainLink = {
   retryMode?: 'continue' | 'fresh'
   resumes?: string
   viaLoopId?: string
+  workBranchRewind?: {
+    sha: string
+    subject: string
+    commits: Array<ProcessWorkBranchRewoundCommit>
+    fromSha: string
+    toSha: string
+    keptRef: string
+  }
 } & {
   stepId?: string
 }
@@ -25008,14 +25179,6 @@ export type ProcessWorkBranchChecksTarget = {
   seams: Array<string>
 }
 
-export type ProcessSeamConflict = {
-  sha: string
-  subject: string
-  files: Array<string>
-  seams: Array<string>
-  reason: string
-}
-
 export type ProcessWorkBranchChecksRefusal = {
   error: string
   seamConflict?: {
@@ -25025,6 +25188,21 @@ export type ProcessWorkBranchChecksRefusal = {
     seams: Array<string>
     reason: string
   }
+}
+
+export type ProcessWorkBranchRewindResult =
+  | {
+      status: 'rewound' | 'already-rewound'
+      rewind: ProcessWorkBranchRewind
+    }
+  | {
+      status: 'refused'
+      reason: string
+    }
+
+export type ProcessWorkBranchRewindDiff = {
+  refused: string
+  after?: string
 }
 
 export type PushProcessWorkBranchInput = {
@@ -25629,6 +25807,13 @@ export type ProcessStepResult = {
   checkedSha?: string
   checkedTree?: string
   checkedEnvironment?: string
+  seamConflict?: {
+    sha: string
+    subject: string
+    files: Array<string>
+    seams: Array<string>
+    reason: string
+  }
   reusedChecksOf?: string
   notCaused?: Array<ProjectCheckNotCausedReport>
   baseUpdate?: {
@@ -26014,6 +26199,21 @@ export type ProcessStepState = {
     checkedSha?: string
     checkedTree?: string
     checkedEnvironment?: string
+    seamConflict?: {
+      sha: string
+      subject: string
+      files: Array<string>
+      seams: Array<string>
+      reason: string
+    }
+    workBranchRewind?: {
+      sha: string
+      subject: string
+      commits: Array<ProcessWorkBranchRewoundCommit>
+      fromSha: string
+      toSha: string
+      keptRef: string
+    }
     reusedChecksOf?: string
     notCaused?: Array<ProjectCheckNotCausedReport>
     baseUpdate?: {
@@ -28834,6 +29034,10 @@ export type ListGroupMcpServersResponses = {
     url: string
     authType: 'none' | 'bearer' | 'oauth'
     hasCredential: boolean
+    /**
+     * The person says it only reads: its tools run unasked, and runs get them.
+     */
+    onlyReads: boolean
     source: McpServerSource
     groupId?: string
   }>
@@ -28886,6 +29090,10 @@ export type AddGroupMcpServerResponses = {
     url: string
     authType: 'none' | 'bearer' | 'oauth'
     hasCredential: boolean
+    /**
+     * The person says it only reads: its tools run unasked, and runs get them.
+     */
+    onlyReads: boolean
     source: McpServerSource
     groupId?: string
   }
@@ -28982,6 +29190,10 @@ export type EditGroupMcpServerData = {
     name?: string
     url?: string
     authType?: 'none' | 'bearer' | 'oauth'
+    /**
+     * Every tool of the server counts as read-only, except one the server marks destructive. Only the person sets it.
+     */
+    onlyReads?: boolean
   }
   path: {
     id: string
@@ -29022,6 +29234,10 @@ export type EditGroupMcpServerResponses = {
     url: string
     authType: 'none' | 'bearer' | 'oauth'
     hasCredential: boolean
+    /**
+     * The person says it only reads: its tools run unasked, and runs get them.
+     */
+    onlyReads: boolean
     source: McpServerSource
     groupId?: string
   }
@@ -29074,6 +29290,10 @@ export type SetGroupMcpServerTokenResponses = {
     url: string
     authType: 'none' | 'bearer' | 'oauth'
     hasCredential: boolean
+    /**
+     * The person says it only reads: its tools run unasked, and runs get them.
+     */
+    onlyReads: boolean
     source: McpServerSource
     groupId?: string
   }
@@ -29216,6 +29436,10 @@ export type ListProjectMcpServersResponses = {
     url: string
     authType: 'none' | 'bearer' | 'oauth'
     hasCredential: boolean
+    /**
+     * The person says it only reads: its tools run unasked, and runs get them.
+     */
+    onlyReads: boolean
     source: McpServerSource
     groupId?: string
   }>
@@ -29268,6 +29492,10 @@ export type AddProjectMcpServerResponses = {
     url: string
     authType: 'none' | 'bearer' | 'oauth'
     hasCredential: boolean
+    /**
+     * The person says it only reads: its tools run unasked, and runs get them.
+     */
+    onlyReads: boolean
     source: McpServerSource
     groupId?: string
   }
@@ -29366,6 +29594,10 @@ export type EditProjectMcpServerData = {
     name?: string
     url?: string
     authType?: 'none' | 'bearer' | 'oauth'
+    /**
+     * Every tool of the server counts as read-only, except one the server marks destructive. Only the person sets it.
+     */
+    onlyReads?: boolean
   }
   path: {
     id: string
@@ -29406,6 +29638,10 @@ export type EditProjectMcpServerResponses = {
     url: string
     authType: 'none' | 'bearer' | 'oauth'
     hasCredential: boolean
+    /**
+     * The person says it only reads: its tools run unasked, and runs get them.
+     */
+    onlyReads: boolean
     source: McpServerSource
     groupId?: string
   }
@@ -29458,6 +29694,10 @@ export type SetProjectMcpServerTokenResponses = {
     url: string
     authType: 'none' | 'bearer' | 'oauth'
     hasCredential: boolean
+    /**
+     * The person says it only reads: its tools run unasked, and runs get them.
+     */
+    onlyReads: boolean
     source: McpServerSource
     groupId?: string
   }
@@ -30603,6 +30843,66 @@ export type GetProcessRunResponses = {
 }
 
 export type GetProcessRunResponse = GetProcessRunResponses[keyof GetProcessRunResponses]
+
+export type GetProcessRunTicketPostData = {
+  body?: never
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}/ticket-post'
+}
+
+export type GetProcessRunTicketPostErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetProcessRunTicketPostError =
+  GetProcessRunTicketPostErrors[keyof GetProcessRunTicketPostErrors]
+
+export type GetProcessRunTicketPostResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    tickets: Array<{
+      provider: string
+      externalId: string
+      title?: string
+      url?: string
+      /**
+       * Approving posts the comment here.
+       */
+      posts: boolean
+      /**
+       * What stops the post, when it does not.
+       */
+      why?: string
+    }>
+    /**
+     * The comment, word for word. Absent when no ticket gets one.
+     */
+    comment?: string
+    /**
+     * The move made on each ticket once its comment is sent.
+     */
+    transition?: string
+    /**
+     * Why the story's own tickets are left out, when they are.
+     */
+    waiting?: string
+  }
+}
+
+export type GetProcessRunTicketPostResponse =
+  GetProcessRunTicketPostResponses[keyof GetProcessRunTicketPostResponses]
 
 export type GetRunDiagnosticsData = {
   body?: never
@@ -32539,6 +32839,34 @@ export type GetProcessGroupSignOffResponses = {
         compareUrl?: string
         error?: string
       }
+      ticketPost?: {
+        tickets: Array<{
+          provider: string
+          externalId: string
+          title?: string
+          url?: string
+          /**
+           * Approving posts the comment here.
+           */
+          posts: boolean
+          /**
+           * What stops the post, when it does not.
+           */
+          why?: string
+        }>
+        /**
+         * The comment, word for word. Absent when no ticket gets one.
+         */
+        comment?: string
+        /**
+         * The move made on each ticket once its comment is sent.
+         */
+        transition?: string
+        /**
+         * Why the story's own tickets are left out, when they are.
+         */
+        waiting?: string
+      }
     }>
     outputs: Array<SignOffOutputView>
     goingLive: ProcessGroupGoingLive
@@ -32671,6 +32999,34 @@ export type SignOffProcessGroupRunResponses = {
         compareUrl?: string
         error?: string
       }
+      ticketPost?: {
+        tickets: Array<{
+          provider: string
+          externalId: string
+          title?: string
+          url?: string
+          /**
+           * Approving posts the comment here.
+           */
+          posts: boolean
+          /**
+           * What stops the post, when it does not.
+           */
+          why?: string
+        }>
+        /**
+         * The comment, word for word. Absent when no ticket gets one.
+         */
+        comment?: string
+        /**
+         * The move made on each ticket once its comment is sent.
+         */
+        transition?: string
+        /**
+         * Why the story's own tickets are left out, when they are.
+         */
+        waiting?: string
+      }
     }>
     outputs: Array<SignOffOutputView>
     goingLive: ProcessGroupGoingLive
@@ -32790,6 +33146,34 @@ export type RetryProcessGroupPullRequestsResponses = {
          */
         compareUrl?: string
         error?: string
+      }
+      ticketPost?: {
+        tickets: Array<{
+          provider: string
+          externalId: string
+          title?: string
+          url?: string
+          /**
+           * Approving posts the comment here.
+           */
+          posts: boolean
+          /**
+           * What stops the post, when it does not.
+           */
+          why?: string
+        }>
+        /**
+         * The comment, word for word. Absent when no ticket gets one.
+         */
+        comment?: string
+        /**
+         * The move made on each ticket once its comment is sent.
+         */
+        transition?: string
+        /**
+         * Why the story's own tickets are left out, when they are.
+         */
+        waiting?: string
       }
     }>
     outputs: Array<SignOffOutputView>
@@ -35660,6 +36044,20 @@ export type CreateProviderConnectionData = {
   url: '/api/v1/provider-connections'
 }
 
+export type CreateProviderConnectionErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type CreateProviderConnectionError =
+  CreateProviderConnectionErrors[keyof CreateProviderConnectionErrors]
+
 export type CreateProviderConnectionResponses = {
   /**
    * Default Response
@@ -35768,6 +36166,14 @@ export type UpdateProviderConnectionErrors = {
   /**
    * Default Response
    */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
@@ -35787,6 +36193,50 @@ export type UpdateProviderConnectionResponses = {
 
 export type UpdateProviderConnectionResponse =
   UpdateProviderConnectionResponses[keyof UpdateProviderConnectionResponses]
+
+export type FindJiraCloudIdData = {
+  body?: never
+  path?: never
+  query: {
+    /**
+     * The Atlassian site, like https://acme.atlassian.net.
+     */
+    siteUrl: string
+  }
+  url: '/api/v1/provider-connections/jira-cloud-id'
+}
+
+export type FindJiraCloudIdErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  502: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type FindJiraCloudIdError = FindJiraCloudIdErrors[keyof FindJiraCloudIdErrors]
+
+export type FindJiraCloudIdResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    cloudId: string
+  }
+}
+
+export type FindJiraCloudIdResponse = FindJiraCloudIdResponses[keyof FindJiraCloudIdResponses]
 
 export type ListCliAuthCachesData = {
   body?: never
@@ -36683,10 +37133,12 @@ export type SubmitCredentialCaptureData = {
     | {
         kind: 'ticket-connection'
         name: string
-        provider: 'jira' | 'github'
+        provider: 'jira' | 'github' | 'azure-devops'
         username?: string
         baseUrl?: string
         token: string
+        tokenType?: 'classic' | 'scoped'
+        cloudId?: string
         access?: 'read' | 'read-write'
         projectKeys?: Array<string>
       }
@@ -36917,6 +37369,130 @@ export type ListConnectionAssignedItemsResponses = {
 
 export type ListConnectionAssignedItemsResponse =
   ListConnectionAssignedItemsResponses[keyof ListConnectionAssignedItemsResponses]
+
+export type ListConnectionNewItemsData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/provider-connections/new-items'
+}
+
+export type ListConnectionNewItemsResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    connectionId: string
+    /**
+     * The connection identity the counts belong to. Marking items seen names it.
+     */
+    identityEpoch: string
+    /**
+     * Items definitely not shown before.
+     */
+    newCount: number
+    /**
+     * Items that may or may not have been shown. Never part of `newCount`.
+     */
+    uncertainCount: number
+    /**
+     * When the connection was last read in the background.
+     */
+    polledAt?: string
+  }>
+}
+
+export type ListConnectionNewItemsResponse =
+  ListConnectionNewItemsResponses[keyof ListConnectionNewItemsResponses]
+
+export type MarkConnectionItemsSeenData = {
+  body: {
+    /**
+     * The `identityEpoch` the items were listed under.
+     */
+    identityEpoch: string
+    /**
+     * The items shown to the person, as the listing gave them.
+     */
+    items: Array<{
+      provider: string
+      externalId: string
+      sourceTenant?: string
+      sourceItemId?: string
+    }>
+  }
+  path: {
+    id: string
+  }
+  query?: never
+  url: '/api/v1/provider-connections/{id}/seen'
+}
+
+export type MarkConnectionItemsSeenErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  422: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type MarkConnectionItemsSeenError =
+  MarkConnectionItemsSeenErrors[keyof MarkConnectionItemsSeenErrors]
+
+export type MarkConnectionItemsSeenResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    connectionId: string
+    /**
+     * The connection identity the counts belong to. Marking items seen names it.
+     */
+    identityEpoch: string
+    /**
+     * Items definitely not shown before.
+     */
+    newCount: number
+    /**
+     * Items that may or may not have been shown. Never part of `newCount`.
+     */
+    uncertainCount: number
+    /**
+     * When the connection was last read in the background.
+     */
+    polledAt?: string
+  }
+}
+
+export type MarkConnectionItemsSeenResponse =
+  MarkConnectionItemsSeenResponses[keyof MarkConnectionItemsSeenResponses]
 
 export type ImportConnectionItemData = {
   body: {
@@ -41273,6 +41849,7 @@ export type SendCompletionWithToolsData = {
         costOutputPerMTokensUSD?: number
         costCacheReadInputPerMTokensUSD?: number
         billing?: 'subscription' | 'metered' | 'free'
+        contextWindowTokens?: number
         apiKey?: string
       }
       systemPrompt?: string
@@ -41496,6 +42073,7 @@ export type SendChatCompletionWithToolsData = {
       costOutputPerMTokensUSD?: number
       costCacheReadInputPerMTokensUSD?: number
       billing?: 'subscription' | 'metered' | 'free'
+      contextWindowTokens?: number
       apiKey?: string
     }
     message: {
@@ -41995,6 +42573,7 @@ export type SendChatWithCliData = {
       costOutputPerMTokensUSD?: number
       costCacheReadInputPerMTokensUSD?: number
       billing?: 'subscription' | 'metered' | 'free'
+      contextWindowTokens?: number
       apiKey?: string
     }
   }
@@ -42050,6 +42629,7 @@ export type RestartChatWithCliData = {
       costOutputPerMTokensUSD?: number
       costCacheReadInputPerMTokensUSD?: number
       billing?: 'subscription' | 'metered' | 'free'
+      contextWindowTokens?: number
       apiKey?: string
     }
     settings: CompletionSettings
@@ -42754,6 +43334,94 @@ export type OpenVideoSetupChatResponses = {
 
 export type OpenVideoSetupChatResponse =
   OpenVideoSetupChatResponses[keyof OpenVideoSetupChatResponses]
+
+export type GetProjectDeviceAutomationData = {
+  body?: never
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/device-automation'
+}
+
+export type GetProjectDeviceAutomationErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetProjectDeviceAutomationError =
+  GetProjectDeviceAutomationErrors[keyof GetProjectDeviceAutomationErrors]
+
+export type GetProjectDeviceAutomationResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    enabled: boolean
+  }
+}
+
+export type GetProjectDeviceAutomationResponse =
+  GetProjectDeviceAutomationResponses[keyof GetProjectDeviceAutomationResponses]
+
+export type SetProjectDeviceAutomationData = {
+  body: {
+    enabled: boolean
+  }
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/device-automation'
+}
+
+export type SetProjectDeviceAutomationErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type SetProjectDeviceAutomationError =
+  SetProjectDeviceAutomationErrors[keyof SetProjectDeviceAutomationErrors]
+
+export type SetProjectDeviceAutomationResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    enabled: boolean
+  }
+}
+
+export type SetProjectDeviceAutomationResponse =
+  SetProjectDeviceAutomationResponses[keyof SetProjectDeviceAutomationResponses]
 
 export type ListTemplatesData = {
   body?: never
@@ -47386,6 +48054,7 @@ export type ListStoryGroupStoriesResponses = {
     groupTitle: string
     groupStoryId: string
     title: string
+    externalIds?: Array<ExternalRef>
   }>
 }
 
@@ -47425,6 +48094,7 @@ export type ListProjectGroupStoriesResponses = {
       groupTitle: string
       groupStoryId: string
       title: string
+      externalIds?: Array<ExternalRef>
     }>
   }
 }
@@ -47438,6 +48108,14 @@ export type ListGroupTicketsData = {
     groupId: string
   }
   query?: {
+    /**
+     * The person’s tickets in the open sprint (the default), everyone else’s there, or a search.
+     */
+    view?: 'mine' | 'sprint' | 'search'
+    /**
+     * With `search`: a ticket key, or words.
+     */
+    q?: string
     /**
      * From the last answer, for the next page.
      */
@@ -47485,8 +48163,10 @@ export type ListGroupTicketsResponses = {
       summary: string
       url: string
       status?: string
+      statusCategory?: string
       priority?: string
       issueType?: string
+      assignee?: string
       /**
        * The group story already working it.
        */
@@ -47494,6 +48174,14 @@ export type ListGroupTicketsResponses = {
         id: string
         title: string
       }
+      /**
+       * No group story and not started: anything else can only be discussed.
+       */
+      canTake: boolean
+      /**
+       * Its chat is already open.
+       */
+      chatOpen: boolean
     }>
     /**
      * The top ticket with no group story yet.
@@ -47560,8 +48248,10 @@ export type PlanGroupTicketResponses = {
       summary: string
       url: string
       status?: string
+      statusCategory?: string
       priority?: string
       issueType?: string
+      assignee?: string
       /**
        * The group story already working it.
        */
@@ -47569,6 +48259,14 @@ export type PlanGroupTicketResponses = {
         id: string
         title: string
       }
+      /**
+       * No group story and not started: anything else can only be discussed.
+       */
+      canTake: boolean
+      /**
+       * Its chat is already open.
+       */
+      chatOpen: boolean
     }
     /**
      * The ticket’s planning chat.
@@ -47587,6 +48285,100 @@ export type PlanGroupTicketResponses = {
 }
 
 export type PlanGroupTicketResponse = PlanGroupTicketResponses[keyof PlanGroupTicketResponses]
+
+export type DiscussGroupTicketData = {
+  body: {
+    runner?: 'api' | 'cli'
+    cliTool?: string
+    cliModel?: string
+    cliCredentialId?: string
+    effort?: string
+  }
+  path: {
+    groupId: string
+    ticketKey: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/tickets/{ticketKey}/discuss'
+}
+
+export type DiscussGroupTicketErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  502: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type DiscussGroupTicketError = DiscussGroupTicketErrors[keyof DiscussGroupTicketErrors]
+
+export type DiscussGroupTicketResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    ticket: {
+      key: string
+      summary: string
+      url: string
+      status?: string
+      statusCategory?: string
+      priority?: string
+      issueType?: string
+      assignee?: string
+      /**
+       * The group story already working it.
+       */
+      groupStory?: {
+        id: string
+        title: string
+      }
+      /**
+       * No group story and not started: anything else can only be discussed.
+       */
+      canTake: boolean
+      /**
+       * Its chat is already open.
+       */
+      chatOpen: boolean
+    }
+    /**
+     * The ticket’s planning chat.
+     */
+    chatContextId: string
+    context: ChatContext
+    /**
+     * Whether its agent is now working.
+     */
+    turnStarted: boolean
+    /**
+     * The ticket’s chat was there already: nothing new was started.
+     */
+    alreadyOpen: boolean
+  }
+}
+
+export type DiscussGroupTicketResponse =
+  DiscussGroupTicketResponses[keyof DiscussGroupTicketResponses]
 
 export type IngestAllData = {
   body?: never

@@ -13,6 +13,11 @@ import {
 import { ProviderConnectionsForm, SegmentedControl } from 'thefactory-ui/web'
 // Not on the package's public surface: the chat renders it itself.
 import CredentialCaptureCard from '../../src/web/compound/chat/CredentialCaptureCard'
+import CredentialHelpPanel from '../../src/web/compound/chat/CredentialHelpPanel'
+import {
+  JIRA_SCOPED_TOKEN_HELP,
+  JIRA_TOKEN_HELP,
+} from '../../src/headless/utils/credentialCaptureHelpConstants'
 import type { CredentialCapture } from '../../src/headless/utils/credentialCaptureTypes'
 import type { Scene, SceneState } from '../showcase/types'
 import { Dock } from './askRows'
@@ -403,6 +408,25 @@ export const PROVIDER_CONNECTION_FORM_SCENES: Scene[] = [
         title: 'A classic token',
         description: 'The classic steps, saying what a classic token cannot do.',
         render: () => <Card values={{ ...CARD_FILLED, tokenType: 'classic' }} />,
+      },
+      {
+        id: 'steps-with-scopes',
+        title: 'The steps for a token with scopes',
+        description: 'Each scope by name, and what boards and sprints need on top.',
+        render: () => (
+          <Dock>
+            <CredentialHelpPanel help={JIRA_SCOPED_TOKEN_HELP} startOpen />
+          </Dock>
+        ),
+      },
+      {
+        id: 'steps-classic',
+        title: 'The steps for a classic token',
+        render: () => (
+          <Dock>
+            <CredentialHelpPanel help={JIRA_TOKEN_HELP} startOpen />
+          </Dock>
+        ),
       },
     ],
   },

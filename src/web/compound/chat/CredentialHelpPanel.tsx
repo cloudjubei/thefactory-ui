@@ -4,6 +4,8 @@ import { IconChevron, IconExternalLink, IconInfo } from '../../icons'
 
 export interface CredentialHelpPanelProps {
   help: CredentialHelp
+  /** Open on the steps, for a fixed showcase state. */
+  startOpen?: boolean
 }
 
 /**
@@ -11,14 +13,14 @@ export interface CredentialHelpPanelProps {
  * secret, one click away, and the steps to take there behind a toggle so the
  * form stays short for a user who already knows.
  */
-export default function CredentialHelpPanel({ help }: CredentialHelpPanelProps) {
-  const [open, setOpen] = useState(false)
+export default function CredentialHelpPanel({ help, startOpen = false }: CredentialHelpPanelProps) {
+  const [open, setOpen] = useState(startOpen)
   return (
     <div className="rounded-md border border-(--border-subtle) bg-(--surface-base) text-[12px]">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-2 py-1.5">
         <button
           type="button"
-          className="flex min-w-0 flex-1 items-center gap-1.5 text-left font-medium text-(--text-primary)"
+          className="flex min-w-0 flex-1 basis-56 items-center gap-1.5 text-left font-medium text-(--text-primary)"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
         >

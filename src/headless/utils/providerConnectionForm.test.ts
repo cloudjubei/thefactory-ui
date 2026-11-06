@@ -226,7 +226,7 @@ describe('providerConnectionFieldsOf', () => {
 })
 
 describe('a Jira token’s type', () => {
-  const CLOUD = '11111111-2222-4333-8444-555555555555'
+  const CLOUD = '1324a887-45db-4bf4-9e99-ef0ff456d421'
   const OTHER = '99999999-2222-4333-8444-555555555555'
   const SITE = 'https://acme.atlassian.net'
   const add = { creating: true }
@@ -355,6 +355,12 @@ describe('a Jira token’s type', () => {
     expect(
       providerConnectionDraftProblem({ ...changed, token: 'new' }, edit(stored)),
     ).toBeUndefined()
+  })
+
+  it('reads no change of type into another provider, whatever the draft was left on', () => {
+    const stored = { name: 'Acme', provider: 'github' }
+    const left = { ...providerConnectionDraftOf(stored), tokenType: 'scoped' as const }
+    expect(providerConnectionDraftProblem(left, { creating: false, stored })).toBeUndefined()
   })
 
   it('needs no new token while the type stays', () => {

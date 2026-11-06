@@ -19,7 +19,7 @@ export const JIRA_SCOPED_TOKEN_HELP: CredentialHelp = {
   steps: [
     JIRA_OPEN_TOKENS_STEP,
     'Choose "Create API token with scopes", name it, e.g. "Overseer", and pick an expiry — up to a year.',
-    'Choose Jira as the app, then select read:jira-work, write:jira-work and read:jira-user. A token’s scopes cannot be changed later.',
+    'Choose Jira as the app, then select read:jira-work, write:jira-work and read:jira-user.',
     'For boards and sprints, also select read:board-scope:jira-software, read:project:jira, read:issue-details:jira and read:sprint:jira-software.',
     'Create it, copy the token straight away — Atlassian shows it only once — and paste it into API token.',
     `${JIRA_ACCOUNT_AND_SITE_STEP} Cloud id fills itself in from the site.`,

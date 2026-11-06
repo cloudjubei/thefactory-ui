@@ -1,5 +1,10 @@
 import type { ExternalRef } from '../api'
-import { GROUP_TICKETS_TEXT, JIRA_TICKET_PROVIDER, TICKET_CHIP_TEXT } from './groupTicketConstants'
+import {
+  CHAT_TICKET_METADATA_KEY,
+  GROUP_TICKETS_TEXT,
+  JIRA_TICKET_PROVIDER,
+  TICKET_CHIP_TEXT,
+} from './groupTicketConstants'
 import type {
   GroupRunStartedWords,
   GroupTicket,
@@ -45,6 +50,34 @@ export function groupStoryTicketRef(story: {
   externalIds?: readonly ExternalRef[]
 }): ExternalRef | undefined {
   return story.externalIds?.find((ref) => ref.provider === JIRA_TICKET_PROVIDER)
+}
+
+/** The ticket a ticket's chat keeps on itself, when it holds one. */
+function chatTicketRef(metadata: Record<string, unknown> | undefined): ExternalRef | undefined {
+  const ticket = metadata?.[CHAT_TICKET_METADATA_KEY] as Partial<ExternalRef> | undefined
+  return typeof ticket?.externalId === 'string' ? (ticket as ExternalRef) : undefined
+}
+
+/**
+ * The tickets a chat is about, for its context dropdown: the one it keeps first,
+ * then those of the group stories its story is a part of, each once.
+ */
+export function chatContextTickets({
+  metadata,
+  memberships = [],
+}: {
+  metadata?: Record<string, unknown> | undefined
+  memberships?: readonly { title: string; externalIds?: readonly ExternalRef[] }[]
+}): TicketChipView[] {
+  const own = chatTicketRef(metadata)
+  const views = [
+    ...(own ? [ticketChipView({ key: own.externalId, url: own.url })] : []),
+    ...memberships.flatMap(({ title, externalIds }) => {
+      const ref = groupStoryTicketRef({ ...(externalIds ? { externalIds } : {}) })
+      return ref ? [ticketChipView({ key: ref.externalId, title, url: ref.url })] : []
+    }),
+  ]
+  return views.filter((view, at) => views.findIndex((t) => t.key === view.key) === at)
 }
 
 /** Each sprint ticket's status by key: what a group story's chip reads its status from. */

@@ -202,6 +202,7 @@ import type {
   CreateProjectsGroupErrors,
   CreateProjectsGroupResponses,
   CreateProviderConnectionData,
+  CreateProviderConnectionErrors,
   CreateProviderConnectionResponses,
   CreateRunnerPairingData,
   CreateRunnerPairingResponses,
@@ -327,6 +328,9 @@ import type {
   DiscardCliAgentArtifactResponses,
   DiscardHeldAgentMessageData,
   DiscardHeldAgentMessageResponses,
+  DiscussGroupTicketData,
+  DiscussGroupTicketErrors,
+  DiscussGroupTicketResponses,
   DismissDesignTidyPlanData,
   DismissDesignTidyPlanErrors,
   DismissDesignTidyPlanResponses,
@@ -347,6 +351,9 @@ import type {
   FileDesignProposalEntryData,
   FileDesignProposalEntryErrors,
   FileDesignProposalEntryResponses,
+  FindJiraCloudIdData,
+  FindJiraCloudIdErrors,
+  FindJiraCloudIdResponses,
   FinishMcpServerSignInData,
   FinishMcpServerSignInErrors,
   FinishMcpServerSignInResponses,
@@ -533,10 +540,16 @@ import type {
   GetProcessRunResponses,
   GetProcessRunStatisticsData,
   GetProcessRunStatisticsResponses,
+  GetProcessRunTicketPostData,
+  GetProcessRunTicketPostErrors,
+  GetProcessRunTicketPostResponses,
   GetProjectData,
   GetProjectDesignData,
   GetProjectDesignErrors,
   GetProjectDesignResponses,
+  GetProjectDeviceAutomationData,
+  GetProjectDeviceAutomationErrors,
+  GetProjectDeviceAutomationResponses,
   GetProjectErrors,
   GetProjectKnowledgeOverviewData,
   GetProjectKnowledgeOverviewErrors,
@@ -704,6 +717,8 @@ import type {
   ListConnectionAssignedItemsData,
   ListConnectionAssignedItemsErrors,
   ListConnectionAssignedItemsResponses,
+  ListConnectionNewItemsData,
+  ListConnectionNewItemsResponses,
   ListCredentialCapturesData,
   ListCredentialCapturesErrors,
   ListCredentialCapturesResponses,
@@ -857,6 +872,9 @@ import type {
   LiveCliAgentProbeData,
   LiveCliAgentProbeErrors,
   LiveCliAgentProbeResponses,
+  MarkConnectionItemsSeenData,
+  MarkConnectionItemsSeenErrors,
+  MarkConnectionItemsSeenResponses,
   MarkFeatureRequestDeliveredData,
   MarkFeatureRequestDeliveredErrors,
   MarkFeatureRequestDeliveredResponses,
@@ -1202,6 +1220,9 @@ import type {
   SetProjectDataLocationData,
   SetProjectDataLocationErrors,
   SetProjectDataLocationResponses,
+  SetProjectDeviceAutomationData,
+  SetProjectDeviceAutomationErrors,
+  SetProjectDeviceAutomationResponses,
   SetProjectMcpServerTokenData,
   SetProjectMcpServerTokenErrors,
   SetProjectMcpServerTokenResponses,
@@ -1852,7 +1873,7 @@ export const removeGroupMcpServer = <ThrowOnError extends boolean = false>(
   })
 
 /**
- * A new `url` or `authType` removes the stored credential, so the server needs signing in again.
+ * A new `url` or `authType` removes the stored credential, so the server needs signing in again. `onlyReads: true` is the person saying the server only reads: its tools run unasked in chats and runs get them, except one the server marks destructive. A new `url` turns it off unless the same edit sets it.
  */
 export const editGroupMcpServer = <ThrowOnError extends boolean = false>(
   options: Options<EditGroupMcpServerData, ThrowOnError>,
@@ -1994,7 +2015,7 @@ export const removeProjectMcpServer = <ThrowOnError extends boolean = false>(
   })
 
 /**
- * A new `url` or `authType` removes the stored credential, so the server needs signing in again.
+ * A new `url` or `authType` removes the stored credential, so the server needs signing in again. `onlyReads: true` is the person saying the server only reads: its tools run unasked in chats and runs get them, except one the server marks destructive. A new `url` turns it off unless the same edit sets it.
  */
 export const editProjectMcpServer = <ThrowOnError extends boolean = false>(
   options: Options<EditProjectMcpServerData, ThrowOnError>,
@@ -2418,6 +2439,20 @@ export const getProcessRun = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/process-runs/{runId}',
+    ...options,
+  })
+
+export const getProcessRunTicketPost = <ThrowOnError extends boolean = false>(
+  options: Options<GetProcessRunTicketPostData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetProcessRunTicketPostResponses,
+    GetProcessRunTicketPostErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/ticket-post',
     ...options,
   })
 
@@ -4075,7 +4110,11 @@ export const listProviderConnections = <ThrowOnError extends boolean = false>(
 export const createProviderConnection = <ThrowOnError extends boolean = false>(
   options: Options<CreateProviderConnectionData, ThrowOnError>,
 ) =>
-  (options.client ?? client).post<CreateProviderConnectionResponses, unknown, ThrowOnError>({
+  (options.client ?? client).post<
+    CreateProviderConnectionResponses,
+    CreateProviderConnectionErrors,
+    ThrowOnError
+  >({
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/provider-connections',
@@ -4129,6 +4168,16 @@ export const updateProviderConnection = <ThrowOnError extends boolean = false>(
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  })
+
+export const findJiraCloudId = <ThrowOnError extends boolean = false>(
+  options: Options<FindJiraCloudIdData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<FindJiraCloudIdResponses, FindJiraCloudIdErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/provider-connections/jira-cloud-id',
+    ...options,
   })
 
 export const listCliAuthCaches = <ThrowOnError extends boolean = false>(
@@ -4510,6 +4559,34 @@ export const listConnectionAssignedItems = <ThrowOnError extends boolean = false
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/provider-connections/{id}/assigned-items',
     ...options,
+  })
+
+export const listConnectionNewItems = <ThrowOnError extends boolean = false>(
+  options?: Options<ListConnectionNewItemsData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<ListConnectionNewItemsResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/provider-connections/new-items',
+    ...options,
+  })
+
+export const markConnectionItemsSeen = <ThrowOnError extends boolean = false>(
+  options: Options<MarkConnectionItemsSeenData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    MarkConnectionItemsSeenResponses,
+    MarkConnectionItemsSeenErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/provider-connections/{id}/seen',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
   })
 
 export const importConnectionItem = <ThrowOnError extends boolean = false>(
@@ -6299,6 +6376,44 @@ export const openVideoSetupChat = <ThrowOnError extends boolean = false>(
     ...options,
   })
 
+/**
+ * Whether the project's chats and runs may drive a device on this machine.
+ */
+export const getProjectDeviceAutomation = <ThrowOnError extends boolean = false>(
+  options: Options<GetProjectDeviceAutomationData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetProjectDeviceAutomationResponses,
+    GetProjectDeviceAutomationErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/device-automation',
+    ...options,
+  })
+
+/**
+ * Turn on or off the project's chats and runs driving a device on this machine.
+ */
+export const setProjectDeviceAutomation = <ThrowOnError extends boolean = false>(
+  options: Options<SetProjectDeviceAutomationData, ThrowOnError>,
+) =>
+  (options.client ?? client).put<
+    SetProjectDeviceAutomationResponses,
+    SetProjectDeviceAutomationErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/device-automation',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
 export const listTemplates = <ThrowOnError extends boolean = false>(
   options?: Options<ListTemplatesData, ThrowOnError>,
 ) =>
@@ -7704,6 +7819,27 @@ export const planGroupTicket = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/groups/{groupId}/tickets/{ticketKey}/plan',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Open the ticket’s chat to talk it over: its agent reads the ticket and waits. Any ticket the group reaches, started or not. Nothing changes unless the person asks.
+ */
+export const discussGroupTicket = <ThrowOnError extends boolean = false>(
+  options: Options<DiscussGroupTicketData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    DiscussGroupTicketResponses,
+    DiscussGroupTicketErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/tickets/{ticketKey}/discuss',
     ...options,
     headers: {
       'Content-Type': 'application/json',

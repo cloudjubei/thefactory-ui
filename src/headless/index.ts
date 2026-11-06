@@ -2852,6 +2852,9 @@ export { useGroupStoryFolds } from './hooks/useGroupStoryFolds'
 export { useGroupStory, type UseGroupStory } from './hooks/useGroupStory'
 export { useGroupStoryRun, type UseGroupStoryRun } from './hooks/useGroupStoryRun'
 export { useStoryGroupStories } from './hooks/useStoryGroupStories'
+export { useChatContextTickets } from './hooks/useChatContextTickets'
+export { splitTextLinks } from './utils/textLinks'
+export type { TextLinkSegment } from './utils/textLinksTypes'
 export { useProjectGroupStories } from './hooks/useProjectGroupStories'
 export {
   useGroupStoryRunPreview,
@@ -3377,6 +3380,7 @@ export {
 export {
   groupRunStartedWords,
   groupStoryTicketChip,
+  chatContextTickets,
   groupStoryTicketRef,
   groupTicketStatuses,
   groupTicketsView,

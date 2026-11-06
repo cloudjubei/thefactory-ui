@@ -1,6 +1,7 @@
 import { Fragment, useMemo, type ReactNode } from 'react'
 import { splitReferences } from 'thefactory-tools/utils'
 import { useEffectiveReferenceRenderer } from '../../../headless/contexts/ReferenceRenderingContext'
+import { splitTextLinks } from '../../../headless/utils/textLinks'
 import type { ReferenceSegment, ReferenceTarget } from 'thefactory-tools/types'
 import FileDisplay, { type UikitFileMeta } from './FileDisplay'
 
@@ -43,6 +44,25 @@ export type RichTextProps = {
   typedReferences?: boolean
   /** Async preview loader forwarded to inline `FileDisplay`. Optional. */
   onReadPreview?: (relativePath: string) => Promise<string | null>
+}
+
+/** Plain text with its `[label](url)` links opening in a new tab. */
+function TextWithLinks({ text }: { text: string }) {
+  return splitTextLinks(text).map((part, idx) =>
+    part.type === 'text' ? (
+      <Fragment key={idx}>{part.value}</Fragment>
+    ) : (
+      <a
+        key={idx}
+        href={part.url}
+        target="_blank"
+        rel="noreferrer noopener"
+        className="underline underline-offset-2"
+      >
+        {part.label}
+      </a>
+    ),
+  )
 }
 
 export default function RichText({
@@ -97,7 +117,7 @@ export default function RichText({
   return (
     <>
       {segments.map((seg, idx) => {
-        if (seg.type === 'text') return <Fragment key={idx}>{seg.value}</Fragment>
+        if (seg.type === 'text') return <TextWithLinks key={idx} text={seg.value} />
         const path = filePath(seg)
         // Without a file resolver of its own, a file goes to the app's renderer,
         // which knows the project's files; one it does not know reads as written.

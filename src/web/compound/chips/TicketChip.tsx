@@ -3,6 +3,7 @@ import {
   type TicketChipLayout,
   type TicketChipView,
 } from '../../../headless'
+import { IconJira } from '../../icons'
 import { GroupStoryToneBadge } from '../groupStories/GroupStoryBits'
 
 export type TicketChipProps = {
@@ -11,7 +12,7 @@ export type TicketChipProps = {
 }
 
 /**
- * A ticket as a chip: its key and status, opening it in Jira in a new tab. It
+ * A ticket as a chip: Jira's mark, its key and status, opening it in Jira in a new tab. It
  * sits on rows that open on a press, so its own press stops with it. With no
  * status known it says the key; with no web link it opens nothing.
  */
@@ -29,10 +30,12 @@ export default function TicketChip({ view, layout = TICKET_CHIP_DEFAULT_LAYOUT }
       onKeyDown={(e) => e.stopPropagation()}
       className="chip chip--ok min-w-0 max-w-full no-underline"
     >
+      <IconJira className="h-3 w-3 shrink-0 text-(--color-blue-500)" />
       <span className="min-w-0 truncate">{words}</span>
     </a>
   ) : (
     <span title={view.hint} className="chip min-w-0 max-w-full">
+      <IconJira className="h-3 w-3 shrink-0 text-(--color-blue-500)" />
       <span className="min-w-0 truncate">{words}</span>
     </span>
   )

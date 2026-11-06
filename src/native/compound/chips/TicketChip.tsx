@@ -5,6 +5,8 @@ import {
   type TicketChipLayout,
   type TicketChipView,
 } from '../../../headless'
+import { blue } from '../../../tokens'
+import { IconJira } from '../../icons'
 import { GroupStoryChip, GroupStoryToneBadge } from '../groupStories/GroupStoryBits'
 
 export type TicketChipProps = {
@@ -14,7 +16,7 @@ export type TicketChipProps = {
 
 /**
  * Native peer of [web's `TicketChip`](../../../web/compound/chips/TicketChip.tsx):
- * a ticket's key and status, opening it in Jira. With no status known it says the
+ * Jira's mark, a ticket's key and status, opening it in Jira. With no status known it says the
  * key; with no web link it opens nothing.
  */
 export default function TicketChip({ view, layout = TICKET_CHIP_DEFAULT_LAYOUT }: TicketChipProps) {
@@ -24,6 +26,7 @@ export default function TicketChip({ view, layout = TICKET_CHIP_DEFAULT_LAYOUT }
     <GroupStoryChip
       label={pill ? view.key : view.label}
       tone={url ? 'ok' : 'neutral'}
+      icon={<IconJira size={12} color={blue[500]} />}
       accessibilityLabel={`${view.label}. ${view.hint}`}
       {...(url ? { onPress: () => void Linking.openURL(url) } : {})}
     />

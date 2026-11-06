@@ -1,5 +1,6 @@
 import { Tooltip, StoryAndFeatureCallout } from '../..'
-import { contextInfoStory, useProcessRun } from '../../../headless'
+import { contextInfoStory, useProcessRun, type TicketChipView } from '../../../headless'
+import TicketChip from '../chips/TicketChip'
 import ProcessRunChip from '../process/ProcessRunChip'
 
 export type ContextInfoButtonProps = {
@@ -9,6 +10,8 @@ export type ContextInfoButtonProps = {
   processRunId?: string
   /** Opens the run's pipeline from the run card. */
   onOpenProcessRun?: (processRunId: string) => void
+  /** The tickets this context is about: the callout shows them first. */
+  tickets?: readonly TicketChipView[]
   label?: string
   className?: string
 }
@@ -23,12 +26,13 @@ export default function ContextInfoButton({
   featureId,
   processRunId,
   onOpenProcessRun,
+  tickets = [],
   label,
   className = '',
 }: ContextInfoButtonProps) {
   const hasAny = !!(storyId || featureId)
 
-  const content = processRunId ? (
+  const items = processRunId ? (
     <ProcessRunContextItems
       processRunId={processRunId}
       storyId={storyId}
@@ -37,11 +41,25 @@ export default function ContextInfoButton({
     />
   ) : hasAny ? (
     <StoryAndFeatureCallout storyId={storyId} featureId={featureId} />
-  ) : (
-    <div className="text-xs px-1 py-0.5" style={{ color: 'var(--text-secondary)' }}>
-      No contextual items.
-    </div>
-  )
+  ) : undefined
+
+  const content =
+    tickets.length > 0 ? (
+      <div className="flex flex-col items-center gap-2">
+        <div className="flex flex-wrap justify-center gap-1">
+          {tickets.map((ticket) => (
+            <TicketChip key={ticket.key} view={ticket} />
+          ))}
+        </div>
+        {items}
+      </div>
+    ) : (
+      (items ?? (
+        <div className="text-xs px-1 py-0.5" style={{ color: 'var(--text-secondary)' }}>
+          No contextual items.
+        </div>
+      ))
+    )
 
   return (
     <Tooltip

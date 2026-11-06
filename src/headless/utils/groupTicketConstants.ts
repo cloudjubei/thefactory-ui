@@ -3,6 +3,9 @@ import type { GroupTicketsLayout, TicketChipLayout, TicketMoveLayout } from './g
 /** The `provider` of a Jira ticket's link. */
 export const JIRA_TICKET_PROVIDER = 'jira'
 
+/** Where a ticket's chat keeps the ticket it is about. */
+export const CHAT_TICKET_METADATA_KEY = 'ticket'
+
 export const GROUP_TICKETS_LAYOUTS: readonly GroupTicketsLayout[] = [
   'sections',
   'segmented',

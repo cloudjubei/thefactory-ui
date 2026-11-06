@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
 import {
@@ -18,11 +19,14 @@ export type GroupStoryChipTone = 'neutral' | 'ok' | 'blocks' | 'missing'
 export function GroupStoryChip({
   label,
   tone = 'neutral',
+  icon,
   onPress,
   accessibilityLabel,
 }: {
   label: string
   tone?: GroupStoryChipTone
+  /** Drawn before the label. */
+  icon?: ReactNode
   onPress?: () => void
   accessibilityLabel?: string
 }) {
@@ -39,7 +43,10 @@ export function GroupStoryChip({
     <View
       style={{
         minHeight: 24,
+        flexDirection: 'row',
+        alignItems: 'center',
         justifyContent: 'center',
+        gap: nativeSpace[1],
         paddingHorizontal: nativeSpace[2],
         borderRadius: nativeRadii.round,
         borderWidth: 1,
@@ -48,7 +55,8 @@ export function GroupStoryChip({
         maxWidth: '100%',
       }}
     >
-      <Text numberOfLines={1} style={{ fontSize: 12, color: colors.fg }}>
+      {icon}
+      <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: 12, color: colors.fg }}>
         {label}
       </Text>
     </View>
