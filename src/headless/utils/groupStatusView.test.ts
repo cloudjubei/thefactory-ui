@@ -189,6 +189,60 @@ describe('groupStatusView', () => {
       expect(badge?.label).toBe('1 request')
       expect(badge?.title).toBe('First')
     })
+
+    it('counts a failing check and a request nobody accepted in Needs you', () => {
+      const one = member('a', {
+        failingChecks: [
+          { kind: 'lint', status: 'failed', summary: 'x', ranAt: '2026-10-25T11:00:00Z' },
+          { kind: 'test', status: 'error', summary: 'y', ranAt: '2026-10-25T11:00:00Z' },
+        ],
+        openRequests: [
+          { id: 'q1', title: 'First', status: 'pending', updatedAt: '2026-10-25T11:00:00Z' },
+        ],
+      })
+      const view = groupStatusView(status(one), [parked('r1', 'a')], NOW)
+      expect(view.members[0]?.badges.map((b) => b.label)).toEqual(['Needs you 4', '1 to accept'])
+    })
+
+    it('counts them before the runs are read, too', () => {
+      const one = member('a', {
+        runs: { running: [], parked: ['r1'] },
+        failingChecks: [
+          { kind: 'lint', status: 'failed', summary: 'x', ranAt: '2026-10-25T11:00:00Z' },
+        ],
+      })
+      const view = groupStatusView(status(one), undefined, NOW)
+      expect(view.members[0]?.badges.map((b) => b.label)).toEqual(['Needs you 2'])
+    })
+
+    it('says which requests wait to be accepted, apart from the ones under way', () => {
+      const one = member('a', {
+        openRequests: [
+          { id: 'q1', title: 'First', status: 'pending', updatedAt: '2026-10-25T11:00:00Z' },
+          { id: 'q2', title: 'Second', status: 'pending', updatedAt: '2026-10-25T11:00:00Z' },
+          { id: 'q3', title: 'Third', status: 'in_review', updatedAt: '2026-10-25T11:00:00Z' },
+        ],
+      })
+      const { badges } = groupStatusView(status(one), [], NOW).members[0] ?? { badges: [] }
+      expect(badges).toEqual([
+        { id: 'needs-you', label: 'Needs you 2', tone: 'on_hold' },
+        { id: 'requests-to-accept', label: '2 to accept', tone: 'on_hold', title: 'First\nSecond' },
+        { id: 'requests', label: '1 request', tone: 'queued', title: 'Third' },
+      ])
+    })
+
+    it('counts no request under way in Needs you', () => {
+      for (const requestStatus of ['accepted', 'in_progress', 'in_review', 'blocked'] as const) {
+        const one = member('a', {
+          openRequests: [
+            { id: 'q', title: 'Q', status: requestStatus, updatedAt: '2026-10-25T11:00:00Z' },
+          ],
+        })
+        const view = groupStatusView(status(one), [], NOW)
+        expect(view.members[0]?.badges.map((b) => b.id)).toEqual(['requests'])
+        expect(view.members[0]?.attention).toBe('working')
+      }
+    })
   })
 
   describe('a member’s checks', () => {
@@ -312,11 +366,37 @@ describe('groupStatusView', () => {
         NOW,
       )
       expect(view.headline.map((b) => b.label)).toEqual([
-        'Needs you 2',
+        'Needs you 3',
         'Running 1',
         '1 check failing',
         '1 request',
       ])
+    })
+
+    it('adds up what each project’s Needs you says', () => {
+      const view = groupStatusView(
+        status(
+          member('a', {
+            failingChecks: [
+              { kind: 'lint', status: 'failed', summary: 'x', ranAt: '2026-10-25T11:00:00Z' },
+            ],
+          }),
+          member('b', {
+            openRequests: [
+              { id: 'q', title: 'Q', status: 'pending', updatedAt: '2026-10-25T11:00:00Z' },
+            ],
+          }),
+          member('c'),
+        ),
+        [parked('r1', 'c')],
+        NOW,
+      )
+      expect(view.headline.map((b) => b.label)).toEqual([
+        'Needs you 3',
+        '1 check failing',
+        '1 to accept',
+      ])
+      expect(view.sections.map((s) => [s.id, s.members.length])).toEqual([['needs-you', 3]])
     })
 
     it('counts a request a second member also holds once per member', () => {

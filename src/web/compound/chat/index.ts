@@ -129,7 +129,8 @@ export type {
   ToolResultTypeLike,
 } from '../../../headless/utils/chatTypes'
 
-export { interpolatePrompt, type PromptVariables } from '../../../headless/utils/promptInterpolate'
+export { interpolatePrompt } from 'thefactory-tools/utils'
+export type { PromptVariables } from 'thefactory-tools/types'
 
 export {
   asArray,

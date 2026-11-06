@@ -4,6 +4,7 @@ import {
   formatBadgeCount,
   PROCESS_RUN_FRESH_TITLE,
   PROCESS_RUN_WAITING_TITLE,
+  isProcessRunHistoryOnly,
   processRunAttentionSections,
   processRunListRow,
   processRunSpend,
@@ -13,7 +14,6 @@ import {
   useDurationTimer,
   PROCESS_RUN_LIST_COPY,
   useProcessRunChatNews,
-  useProcessRunListControls,
   useProcessRuns,
   useProcessStopClock,
   type BadgeColor,
@@ -26,7 +26,6 @@ import {
 } from '../../headless'
 import DotBadge from '../primitives/DotBadge'
 import { useChatsSeen } from '../compound/notifications/chatsSeen'
-import { NativeSelect } from '../primitives/NativeSelect'
 import SegmentedControl from '../primitives/SegmentedControl'
 import Spinner from '../primitives/Spinner'
 import Tooltip from '../primitives/Tooltip'
@@ -38,11 +37,7 @@ import ProcessPipeline from '../compound/process/ProcessPipeline'
 import type { ChatContext } from '../../headless/api'
 
 export type ProcessRunsViewProps = {
-  /**
-   * The project the tab was opened on. The list can widen to every project or
-   * to a group; a row then names its project, and selecting it passes that
-   * project as the second argument.
-   */
+  /** The project whose runs to list. */
   projectId: string
   /** The run whose pipeline fills the detail pane, from the route. */
   selectedRunId?: string
@@ -77,8 +72,7 @@ type Mode = 'current' | 'history'
 /**
  * The Processes tab: the process RUNS (not the blueprints — those moved to
  * Settings → Processes, reached by the header cog). An inner sidebar lists the
- * runs with a Current / History toggle, mirroring the chat sidebar, and filters
- * for which projects, which story, which status and which ending. Current is
+ * runs with a Current / History toggle, mirroring the chat sidebar. Current is
  * grouped by what each run needs — Needs you, Sign off, Running, Merging — and
  * its tab counts the runs waiting on the person; each row says in one line
  * what its run needs. Selecting one shows its pipeline in the detail pane — the
@@ -98,8 +92,7 @@ export default function ProcessRunsView({
   onOpenGroupRun,
   narrow = false,
 }: ProcessRunsViewProps) {
-  const controls = useProcessRunListControls(projectId)
-  const { isLoaded, runs, current, history } = useProcessRuns(controls.request)
+  const { isLoaded, runs, current, history } = useProcessRuns(projectId)
   const { settings } = useAppSettings()
   const badgeColor = settings.notifications.badgeColors.processes
   const stopNow = useProcessStopClock()
@@ -114,17 +107,15 @@ export default function ProcessRunsView({
   // elsewhere (a chat card) should land on History, not leave the user on an
   // empty Current tab wondering where it went.
   const selectedIsHistory = useMemo(
-    () => history.some((r) => r.id === selectedRunId),
-    [history, selectedRunId],
+    () => isProcessRunHistoryOnly(selectedRunId, history, sections),
+    [history, sections, selectedRunId],
   )
   const [mode, setMode] = useModeForSelection(selectedIsHistory)
   const rows = mode === 'current' ? current : history
   // One clock for the whole list — ticks while any run has a step working, so
   // its row's time advances; every other row is fixed at its ledger total.
   const now = useDurationTimer(current.some((r) => r.totals?.ticking === true))
-  const showLoading = controls.scopePending || !isLoaded
   const listEmpty = mode === 'current' ? sections.length === 0 : rows.length === 0
-  const projectNameOf = controls.showProject ? controls.projectName : undefined
 
   const sidebar = (
     <div
@@ -172,52 +163,14 @@ export default function ProcessRunsView({
           </button>
         </Tooltip>
       </div>
-      <div
-        role="group"
-        aria-label="Filter process runs"
-        className="flex flex-col gap-1.5 border-b border-(--border-subtle) px-3 py-2"
-      >
-        <FilterSelect
-          label={PROCESS_RUN_LIST_COPY.scope}
-          value={controls.scope}
-          onChange={controls.setScope}
-          options={controls.scopeOptions}
-        />
-        <div className="flex min-w-0 gap-1.5">
-          <div className="min-w-0 flex-1">
-            <FilterSelect
-              label={PROCESS_RUN_LIST_COPY.story}
-              value={controls.story}
-              onChange={controls.setStory}
-              options={controls.storyOptions}
-            />
-          </div>
-          <div className="min-w-0 flex-1">
-            <FilterSelect
-              label={PROCESS_RUN_LIST_COPY.status}
-              value={controls.status}
-              onChange={controls.setStatus}
-              options={controls.statusOptions}
-            />
-          </div>
-        </div>
-        <FilterSelect
-          label={PROCESS_RUN_LIST_COPY.ending}
-          value={controls.ending}
-          onChange={controls.setEnding}
-          options={controls.endingOptions}
-        />
-      </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
-        {showLoading ? (
+        {!isLoaded ? (
           <p className="px-2 py-3 text-[12px] text-(--text-muted)">Loading runs…</p>
         ) : listEmpty ? (
           <p className="px-2 py-3 text-[12px] text-(--text-muted)">
-            {controls.narrowed
-              ? PROCESS_RUN_LIST_COPY.noMatch
-              : mode === 'current'
-                ? PROCESS_RUN_LIST_COPY.emptyCurrent
-                : PROCESS_RUN_LIST_COPY.emptyHistory}
+            {mode === 'current'
+              ? PROCESS_RUN_LIST_COPY.emptyCurrent
+              : PROCESS_RUN_LIST_COPY.emptyHistory}
           </p>
         ) : mode === 'current' ? (
           <div className="flex flex-col gap-2">
@@ -231,7 +184,6 @@ export default function ProcessRunsView({
                 chatNews={chatNews}
                 selectedRunId={selectedRunId}
                 onSelectRun={onSelectRun}
-                projectNameOf={projectNameOf}
               />
             ))}
           </div>
@@ -243,7 +195,6 @@ export default function ProcessRunsView({
             chatNews={chatNews}
             selectedRunId={selectedRunId}
             onSelectRun={onSelectRun}
-            projectNameOf={projectNameOf}
           />
         )}
       </div>
@@ -289,7 +240,6 @@ export function RunSection({
   chatNews,
   selectedRunId,
   onSelectRun,
-  projectNameOf,
 }: {
   section: ProcessRunAttentionSection
   badgeColor: BadgeColor
@@ -298,8 +248,6 @@ export function RunSection({
   chatNews: ReadonlyMap<string, ProcessRunChatNews>
   selectedRunId: string | undefined
   onSelectRun: (runId: string, projectId: string) => void
-  /** Names a run's project when the list is wider than one. */
-  projectNameOf?: (projectId: string) => string | undefined
 }) {
   const count = section.runs.length
   return (
@@ -334,7 +282,6 @@ export function RunSection({
         chatNews={chatNews}
         selectedRunId={selectedRunId}
         onSelectRun={onSelectRun}
-        projectNameOf={projectNameOf}
       />
     </section>
   )
@@ -347,7 +294,6 @@ function RunList({
   chatNews,
   selectedRunId,
   onSelectRun,
-  projectNameOf,
 }: {
   runs: readonly ProcessRun[]
   now: number
@@ -357,7 +303,6 @@ function RunList({
   chatNews: ReadonlyMap<string, ProcessRunChatNews>
   selectedRunId: string | undefined
   onSelectRun: (runId: string, projectId: string) => void
-  projectNameOf?: (projectId: string) => string | undefined
 }) {
   return (
     <ul className="flex flex-col gap-1">
@@ -369,7 +314,6 @@ function RunList({
             stopNow={stopNow}
             chatNews={chatNews.get(run.id)}
             selected={run.id === selectedRunId}
-            projectName={projectNameOf?.(run.projectId)}
             onClick={() => onSelectRun(run.id, run.projectId)}
           />
         </li>
@@ -384,7 +328,6 @@ function RunRow({
   stopNow,
   chatNews,
   selected,
-  projectName,
   onClick,
 }: {
   run: ProcessRun
@@ -393,16 +336,12 @@ function RunRow({
   stopNow: number
   chatNews: ProcessRunChatNews | undefined
   selected: boolean
-  /** Set when the list shows more than one project. */
-  projectName?: string
   onClick: () => void
 }) {
   const row = processRunListRow(run, stopNow, chatNews)
   const spend = processRunSpend(run)
   const work = processRunWorkLabel(run, now)
-  const label = projectName
-    ? `${row.title} · ${projectName} · ${row.line}`
-    : `${row.title} · ${row.line}`
+  const label = `${row.title} · ${row.line}`
   return (
     <div
       className={`relative flex w-full flex-col gap-1 rounded-md border px-2.5 py-2 text-left transition-colors ${
@@ -438,14 +377,6 @@ function RunRow({
         ) : null}
         {work ? <span className={`shrink-0 ${DURATION_CHIP_CLASS}`}>{work}</span> : null}
       </div>
-      {projectName ? (
-        <span
-          className="pointer-events-none truncate pl-4 text-[11px] text-(--text-muted)"
-          title={projectName}
-        >
-          {projectName}
-        </span>
-      ) : null}
       <div className="pointer-events-none flex items-center gap-2 pl-4">
         <span
           className={`min-w-0 flex-1 truncate text-[11.5px] ${
@@ -463,35 +394,6 @@ function RunRow({
         ) : null}
       </div>
     </div>
-  )
-}
-
-function FilterSelect({
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  label: string
-  value: string
-  onChange: (value: string) => void
-  options: readonly { value: string; label: string }[]
-}) {
-  return (
-    <NativeSelect
-      size="sm"
-      aria-label={label}
-      title={label}
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      className="h-7 min-w-0 border-(--border-default) bg-(--surface-raised) px-1.5 text-[12px] text-(--text-primary)"
-    >
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </NativeSelect>
   )
 }
 

@@ -30,6 +30,7 @@ const ZENOR: McpServerRow = {
   url: 'https://mcp.getzenor.com/mcp',
   authType: 'oauth',
   hasCredential: true,
+  onlyReads: false,
   source: 'group',
   groupId: 'osc',
 }
@@ -39,6 +40,7 @@ const LINEAR: McpServerRow = {
   url: 'https://mcp.linear.app/mcp',
   authType: 'oauth',
   hasCredential: false,
+  onlyReads: false,
   source: 'project',
 }
 const SENTRY: McpServerRow = {
@@ -47,6 +49,7 @@ const SENTRY: McpServerRow = {
   url: 'https://mcp.sentry.dev/mcp',
   authType: 'bearer',
   hasCredential: true,
+  onlyReads: false,
   source: 'project',
 }
 const DOCS: McpServerRow = {
@@ -55,6 +58,7 @@ const DOCS: McpServerRow = {
   url: 'http://localhost:3845/mcp',
   authType: 'none',
   hasCredential: false,
+  onlyReads: false,
   source: 'project',
 }
 
@@ -136,6 +140,7 @@ type PanelOptions = {
   openId?: string
   draft?: McpServerDraft
   removingId?: string
+  onSetOnlyReads?: (serverId: string, onlyReads: boolean) => void
 }
 
 function panel({
@@ -154,6 +159,7 @@ function panel({
   openId,
   draft,
   removingId,
+  onSetOnlyReads,
 }: PanelOptions = {}) {
   const views = mcpServerViews({
     owner,
@@ -178,6 +184,7 @@ function panel({
       onSignIn={noop}
       onOpenPage={noop}
       onTest={noop}
+      onSetOnlyReads={onSetOnlyReads ?? noop}
       {...(layout ? { layout } : {})}
       {...(openId ? { initialOpenId: openId } : {})}
       {...(draft ? { initialDraft: draft } : {})}
@@ -203,6 +210,28 @@ function ChooseLayout({ initial = 'rows' }: { initial?: McpServersLayout }) {
       {panel({ layout, openId: layout === 'rows' ? undefined : 'zenor' })}
     </div>
   )
+}
+
+/** Zenor's tools as the backend counts them with the switch on: the one it marks destructive still asks. */
+const ZENOR_DESTRUCTIVE = new Set(['pauseUser'])
+const zenorStanding = (onlyReads: boolean): McpServerStanding => ({
+  ...ZENOR_STANDING,
+  tools: ZENOR_STANDING.tools.map((t) => ({
+    ...t,
+    readOnly: onlyReads ? !ZENOR_DESTRUCTIVE.has(t.toolName) : t.readOnly,
+  })),
+})
+
+/** "This server only reads", switched on the board itself. */
+function OnlyReads({ initial = true }: { initial?: boolean }) {
+  const [onlyReads, setOnlyReads] = useState(initial)
+  return panel({
+    owner: GROUP,
+    rows: [{ ...ZENOR, onlyReads }],
+    standings: [zenorStanding(onlyReads)],
+    openId: 'zenor',
+    onSetOnlyReads: (_id, on) => setOnlyReads(on),
+  })
 }
 
 const LAYOUT_DESCRIPTIONS: Record<McpServersLayout, string> = {
@@ -333,6 +362,14 @@ export const MCP_SERVER_SCENES: Scene[] = [
           standings: [{ ...LINEAR_STANDING, serverId: 'docs' }],
         },
       ),
+      {
+        id: 'open-only-reads',
+        title: 'This server only reads',
+        description:
+          'The person says the server only reads: its tools run without asking and runs get them. Off by default. A tool the server itself marks destructive still asks. Flip the switch to compare.',
+        overlay: true,
+        render: () => <OnlyReads />,
+      },
       opened(
         'open-from-group',
         'On a project, from its group',

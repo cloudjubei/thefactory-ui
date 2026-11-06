@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import {
   Alert,
@@ -148,6 +148,18 @@ export function ProjectEditorForm({
   const evaluation = useKnowledgeEvaluationSettings(mode === 'edit' ? form.id : undefined)
   const [iconPickerOpen, setIconPickerOpen] = useState(false)
   const [codeInfoOpen, setCodeInfoOpen] = useState(false)
+  const [capsError, setCapsError] = useState<string>()
+  const capsField = useRef<HTMLDivElement>(null)
+
+  const submit = (event: FormEvent) => {
+    if (!capsError) {
+      onSubmit(event)
+      return
+    }
+    event.preventDefault()
+    capsField.current?.scrollIntoView({ block: 'center' })
+    capsField.current?.querySelector<HTMLInputElement>('[aria-invalid="true"]')?.focus()
+  }
 
   const mainGroups = useMemo(() => groups.filter((g) => g.type === 'MAIN'), [groups])
   const mainGroup = groups.find((g) => g.id === form.mainGroupId)
@@ -169,7 +181,7 @@ export function ProjectEditorForm({
   const iconEntries = useMemo(() => Object.entries(PROJECT_ICONS), [])
 
   return (
-    <form id={formId} className="flex flex-col gap-4" onSubmit={onSubmit}>
+    <form id={formId} className="flex flex-col gap-4" onSubmit={submit}>
       {formErrors.length > 0 && (
         <Alert>
           {formErrors.map((e, i) => (
@@ -418,13 +430,16 @@ export function ProjectEditorForm({
         />
       ) : null}
 
-      <ProjectDefaultCapsField
-        key={`caps-${form.id}`}
-        metadata={form.metadata}
-        onChange={(metadata) =>
-          setForm((s) => ({ ...s, metadata: metadata as ProjectFormState['metadata'] }))
-        }
-      />
+      <div ref={capsField}>
+        <ProjectDefaultCapsField
+          key={mode === 'edit' ? `caps-${form.id}` : 'caps-new'}
+          metadata={form.metadata}
+          onChange={(metadata) =>
+            setForm((s) => ({ ...s, metadata: metadata as ProjectFormState['metadata'] }))
+          }
+          onErrorChange={setCapsError}
+        />
+      </div>
 
       {mode === 'edit' && evaluation.settings?.available ? (
         <ProjectEvaluationDefaultsField

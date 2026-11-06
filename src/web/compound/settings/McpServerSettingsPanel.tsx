@@ -51,6 +51,8 @@ export interface McpServerSettingsPanelProps {
   onSignIn: (serverId: string) => void | Promise<void>
   onOpenPage: (url: string) => void
   onTest: (serverId: string) => void | Promise<void>
+  /** Turn "This server only reads" on or off. */
+  onSetOnlyReads: (serverId: string, onlyReads: boolean) => void | Promise<unknown>
   /** How the servers are laid out. */
   layout?: McpServersLayout
   /** A server to show opened first. */
@@ -143,6 +145,7 @@ export default function McpServerSettingsPanel({
   onSignIn,
   onOpenPage,
   onTest,
+  onSetOnlyReads,
   layout = MCP_SERVERS_DEFAULT_LAYOUT,
   initialOpenId,
   initialDraft,
@@ -161,6 +164,7 @@ export default function McpServerSettingsPanel({
     onOpenPage,
     onSetToken,
     onTest,
+    onSetOnlyReads,
     onRemove: setRemovingId,
   }
 

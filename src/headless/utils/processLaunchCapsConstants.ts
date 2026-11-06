@@ -38,6 +38,7 @@ export const LAUNCH_CAPS_COPY = {
     `Worst case: ${attempts} × ${things} = ${total}`,
   projectHeading: 'Default run limits',
   projectHint: 'Each launch starts from these, and can change them.',
+  defaultBlocked: (label: string, error: string) => `${label}: ${error}`,
 } as const
 
 /** The number of milliseconds a field's minute stands for. */

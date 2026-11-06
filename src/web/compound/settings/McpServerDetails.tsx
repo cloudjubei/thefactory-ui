@@ -3,6 +3,8 @@ import {
   MCP_SERVER_ACTIONS,
   MCP_SERVER_ASKS_TAG,
   MCP_SERVER_FIELD_LABELS,
+  MCP_SERVER_ONLY_READS_HINT,
+  MCP_SERVER_ONLY_READS_LABEL,
   MCP_SERVER_SIGN_IN_PENDING,
   MCP_SERVER_TOKEN_HINT,
   MCP_SERVER_TOKEN_SAVED_HINT,
@@ -14,6 +16,7 @@ import {
 } from '../../../headless'
 import { Button } from '../../primitives/Button'
 import Field from '../../primitives/Field'
+import { Switch } from '../../primitives/Switch'
 import { SecretInput } from '../SecretInput'
 
 const TONE_CLASS: Record<McpServerStatusTone, string> = {
@@ -37,6 +40,7 @@ export type McpServerActions = {
   onOpenPage: (url: string) => void
   onSetToken: (serverId: string, token: string) => Promise<boolean>
   onTest: (serverId: string) => void | Promise<void>
+  onSetOnlyReads: (serverId: string, onlyReads: boolean) => void | Promise<unknown>
   /** Ask to remove it; the section confirms. */
   onRemove: (serverId: string) => void
 }
@@ -112,6 +116,7 @@ export default function McpServerDetails({
   onOpenPage,
   onSetToken,
   onTest,
+  onSetOnlyReads,
   onRemove,
 }: { view: McpServerView; showUrl?: boolean } & McpServerActions) {
   const access = view.access
@@ -153,6 +158,16 @@ export default function McpServerDetails({
       {access?.kind === 'token' ? (
         <TokenField view={view} saved={access.saved} busy={busy} onSetToken={onSetToken} />
       ) : null}
+
+      <div className="flex flex-col gap-1">
+        <Switch
+          checked={view.onlyReads}
+          onCheckedChange={(on) => void onSetOnlyReads(view.id, on)}
+          label={MCP_SERVER_ONLY_READS_LABEL}
+          disabled={busy || view.readOnly}
+        />
+        <span className="text-[12px] text-(--text-secondary)">{MCP_SERVER_ONLY_READS_HINT}</span>
+      </div>
 
       {view.toolsSummary || view.tools.length > 0 ? (
         <div className="flex flex-col gap-1">

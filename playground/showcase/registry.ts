@@ -52,8 +52,8 @@ import { PROCESS_CHECKS_SCENES } from '../scenes/processChecks'
 import { PROCESS_FEATURE_SCENES } from '../scenes/processFeatures'
 import { PROCESS_LAUNCH_SCENES } from '../scenes/processLaunch'
 import { PROCESS_MODEL_SCENES } from '../scenes/processModel'
-import { PROCESS_RUNS_SCENES } from '../scenes/processRuns'
 import { PROCESS_STEP_TOOL_SCENES } from '../scenes/processStepTools'
+import { PROJECT_EDITOR_LIMIT_SCENES } from '../scenes/projectEditorLimits'
 import { PROJECT_OVERVIEW_MODEL_SCENES } from '../scenes/projectOverviewModel'
 import { PROOF_CHANGE_SCENES } from '../scenes/proofChange'
 import { REGENERATED_MERGE_SCENES } from '../scenes/regeneratedMerge'
@@ -66,6 +66,7 @@ import { STORY_CHANGE_ERROR_SCENES } from '../scenes/storyChangeErrors'
 import { STUCK_SCENES } from '../scenes/stuck'
 import { STORY_WORK_SCENES } from '../scenes/storyWork'
 import { TICKET_SCENES } from '../scenes/ticketFlow'
+import { TICKET_NEW_ITEMS_SCENES } from '../scenes/ticketNewItems'
 import { UI_IMPACT_SCENES } from '../scenes/uiImpact'
 import { USAGE_SCENES } from '../scenes/usage'
 import { VIDEO_ATTACHMENT_SCENES } from '../scenes/videoAttachments'
@@ -119,7 +120,6 @@ export const SCENES: readonly Scene[] = [
   ...ACCEPTED_UNCHECKED_SCENES,
   ...PROCESS_FEATURE_SCENES,
   ...PROCESS_MODEL_SCENES,
-  ...PROCESS_RUNS_SCENES,
   ...PROCESS_STEP_TOOL_SCENES,
   ...PROOF_CHANGE_SCENES,
   ...ANSWER_FILES_SCENES,
@@ -145,8 +145,10 @@ export const SCENES: readonly Scene[] = [
   ...WORKFLOW_GUARD_SCENES,
   ...KNOWLEDGE_SCENES,
   ...GROUP_HOME_SCENES,
+  ...PROJECT_EDITOR_LIMIT_SCENES,
   ...GROUP_STORY_SCENES,
   ...TICKET_SCENES,
+  ...TICKET_NEW_ITEMS_SCENES,
   ...GROUP_SIGN_OFF_SCENES,
   ...DESIGN_SCENES,
   ...LEAVE_GUARD_SCENES,

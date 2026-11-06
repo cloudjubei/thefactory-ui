@@ -143,6 +143,20 @@ export function processRunAttentionSections<T extends ProcessRun>(
   })
 }
 
+/**
+ * Whether a selected run belongs on History alone. A finished run with a card
+ * open in its chat is in History and in a Current section, and stays on Current
+ * where the person opened it. Pure.
+ */
+export function isProcessRunHistoryOnly(
+  runId: string | undefined,
+  history: readonly { id: string }[],
+  sections: readonly { runs: readonly { id: string }[] }[],
+): boolean {
+  if (!history.some((run) => run.id === runId)) return false
+  return !sections.some((section) => section.runs.some((run) => run.id === runId))
+}
+
 /** How many runs wait on the person — Needs you and Sign off — what the Current tab counts. Pure. */
 export function processRunWaitingCount(
   runs: readonly ProcessRun[],

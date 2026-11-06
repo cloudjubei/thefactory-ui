@@ -35,6 +35,7 @@ export function LaunchCapField({
     >
       <Input
         value={field.text}
+        invalid={Boolean(field.error)}
         inputMode="decimal"
         disabled={busy}
         placeholder={field.placeholder}

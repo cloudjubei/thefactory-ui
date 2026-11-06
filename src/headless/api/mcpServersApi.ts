@@ -1,4 +1,5 @@
 import type {
+  McpServerEdit,
   McpServerInput,
   McpServerOwner,
   McpServerRow,
@@ -35,6 +36,20 @@ export async function addMcpServer(
   const { data } = await client.post({
     url: ownerBase(owner),
     body: input,
+    headers: JSON_HEADERS,
+    throwOnError: true,
+  })
+  return data as McpServerRow
+}
+
+export async function editMcpServer(
+  owner: McpServerOwner,
+  serverId: string,
+  edit: McpServerEdit,
+): Promise<McpServerRow> {
+  const { data } = await client.patch({
+    url: serverBase(owner, serverId),
+    body: edit,
     headers: JSON_HEADERS,
     throwOnError: true,
   })

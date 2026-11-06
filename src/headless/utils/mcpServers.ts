@@ -218,6 +218,7 @@ export function mcpServerViews({
           : MCP_SERVER_STATUS_LABELS[status],
       statusTone: MCP_SERVER_STATUS_TONES[status],
       readOnly,
+      onlyReads: row.onlyReads === true,
       testing: testing.includes(row.id),
       tools,
       ...(answer?.reason ? { reason: answer.reason } : {}),

@@ -1691,8 +1691,8 @@ export {
   interpolatePrompt,
   interpolateChatSystemPrompt,
   buildChatPromptVariables,
-  type PromptVariables,
-} from './utils/promptInterpolate'
+} from 'thefactory-tools/utils'
+export type { PromptVariables } from 'thefactory-tools/types'
 
 // Pure git/diff helpers single-sourced in `thefactory-tools/utils`, re-exported
 // here so apps consume them through `thefactory-ui` rather than importing
@@ -1783,6 +1783,7 @@ export {
   launchCapsValid,
   launchWorstCaseLine,
   processDefaultCapFields,
+  processDefaultCapsError,
   readProcessDefaultCaps,
   withProcessDefaultCaps,
 } from './utils/processLaunchCaps'
@@ -2535,6 +2536,21 @@ export {
   PROVIDER_CONNECTIONS_EVENT,
   WEB_SEARCH_KEYS_EVENT,
 } from './utils/credentialStoreEventConstants'
+export {
+  connectorNewItemsById,
+  connectorNewItemsIndicator,
+  connectorShownItems,
+  withConnectorNewItems,
+} from './utils/connectorNewItems'
+export {
+  CONNECTOR_NEW_ITEMS_CHANNEL,
+  CONNECTOR_NEW_ITEMS_EVENT,
+} from './utils/connectorNewItemsConstants'
+export type {
+  AssignedItemsToShow,
+  ConnectorItemIdentity,
+  ConnectorNewItems,
+} from './utils/connectorNewItemsTypes'
 
 // Provider connections (Jira / GitHub Issues / … ticket providers) CRUD + the
 // B3 connectors: list assigned items + import a ticket into a project as a Story.
@@ -2901,10 +2917,6 @@ export type {
   ProcessTurnLimitOffer,
 } from 'thefactory-tools/types'
 export { useProcessRuns, type UseProcessRuns } from './hooks/useProcessRuns'
-export {
-  useProcessRunListControls,
-  type ProcessRunListControls,
-} from './hooks/useProcessRunListControls'
 export { PROCESS_RUN_LIST_COPY } from './utils/processRunListQueryConstants'
 export type { ProcessRunListRequest } from './utils/processRunListQuery'
 export {
@@ -2916,6 +2928,7 @@ export {
 export { compareRunsNewestFirst } from './utils/processRunOrder'
 export {
   processRunAttentionSection,
+  isProcessRunHistoryOnly,
   processRunAttentionSections,
   processRunListRow,
   processRunNeedLine,
@@ -3387,6 +3400,8 @@ export {
   MCP_SERVER_EMPTY_DRAFT,
   MCP_SERVER_FIELD_LABELS,
   MCP_SERVER_NAME_HINT,
+  MCP_SERVER_ONLY_READS_HINT,
+  MCP_SERVER_ONLY_READS_LABEL,
   MCP_SERVER_REMOVE_CONFIRM,
   MCP_SERVER_SIGN_IN_PENDING,
   MCP_SERVER_TOKEN_HINT,
@@ -3405,6 +3420,7 @@ export type {
   McpServerAccess,
   McpServerAuthType,
   McpServerDraft,
+  McpServerEdit,
   McpServerInput,
   McpServerOwner,
   McpServerRow,

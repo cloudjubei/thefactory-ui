@@ -2,21 +2,12 @@ import { describe, expect, it } from 'vitest'
 import type { ProcessRunStatus } from 'thefactory-tools/types'
 
 import { ALL_PROJECTS_PROCESS_RUN_LIST_KEY } from './processViewCacheConstants'
-import { PROCESS_RUN_LIST_COPY } from './processRunListQueryConstants'
 import {
-  isProcessRunListEnding,
-  isProcessRunListStatus,
-  processRunGroupScopeValue,
   processRunListCacheKey,
-  processRunListEndingOptions,
-  processRunListFilterFromValues,
   processRunListMatchesNothing,
   processRunListQuery,
   processRunListRequestFromArg,
   processRunListRequestFromKey,
-  processRunListScopeFromValue,
-  processRunListScopeOptions,
-  processRunListStoryOptions,
   processRunUpdateAction,
   type ProcessRunListRequest,
 } from './processRunListQuery'
@@ -92,100 +83,6 @@ describe('processRunListCacheKey', () => {
       processRunListQuery(request),
     )
     expect(processRunListCacheKey(processRunListRequestFromKey('p1'))).toBe('p1')
-  })
-})
-
-describe('processRunListScopeFromValue', () => {
-  const groups = [{ id: 'g1', projects: ['p1', 'p2'] }]
-
-  it('names this project, every project, or a group’s members', () => {
-    expect(processRunListScopeFromValue('project', 'p9', groups, true)).toEqual({
-      kind: 'project',
-      projectId: 'p9',
-    })
-    expect(processRunListScopeFromValue('all', 'p9', groups, true)).toEqual({ kind: 'all' })
-    expect(
-      processRunListScopeFromValue(processRunGroupScopeValue('g1'), 'p9', groups, true),
-    ).toEqual({
-      kind: 'group',
-      groupId: 'g1',
-      projectIds: ['p1', 'p2'],
-    })
-  })
-
-  it('holds an unknown group until the group list has loaded, then falls back to the project', () => {
-    const value = processRunGroupScopeValue('gone')
-    expect(processRunListScopeFromValue(value, 'p9', [], false)).toEqual({
-      kind: 'group',
-      groupId: 'gone',
-      projectIds: [],
-    })
-    expect(processRunListScopeFromValue(value, 'p9', [], true)).toEqual({
-      kind: 'project',
-      projectId: 'p9',
-    })
-  })
-})
-
-describe('process run list options', () => {
-  it('offers this project, all projects, then groups by title', () => {
-    expect(
-      processRunListScopeOptions([
-        { id: 'b', title: 'Beta' },
-        { id: 'a', title: 'Alpha' },
-      ]).map((option) => option.label),
-    ).toEqual(['This project', 'All projects', 'Alpha', 'Beta'])
-  })
-
-  it('names the project beside a story when the list is wider than one', () => {
-    const options = processRunListStoryOptions(
-      [
-        { projectId: 'p2', id: 's2', title: 'Billing' },
-        { projectId: 'p1', id: 's1', title: 'Search' },
-      ],
-      (id) => (id === 'p1' ? 'Tools' : 'Backend'),
-      true,
-    )
-    expect(options.map((option) => option.label)).toEqual([
-      'Any story',
-      'Billing · Backend',
-      'Search · Tools',
-    ])
-  })
-
-  it('keeps a single project’s stories as titles only', () => {
-    expect(
-      processRunListStoryOptions(
-        [{ projectId: 'p1', id: 's1', title: 'Search' }],
-        () => 'Tools',
-        false,
-      ).map((option) => option.label),
-    ).toEqual(['Any story', 'Search'])
-  })
-
-  it('offers the run’s own status words, and Not merged / Abandoned for an ending', () => {
-    expect(processRunListEndingOptions().map((option) => option.label)).toEqual([
-      PROCESS_RUN_LIST_COPY.anyEnding,
-      PROCESS_RUN_LIST_COPY.unmerged,
-      PROCESS_RUN_LIST_COPY.abandoned,
-    ])
-    expect(PROCESS_RUN_LIST_COPY.unmerged).toBe('Not merged')
-    expect(PROCESS_RUN_LIST_COPY.abandoned).toBe('Abandoned')
-  })
-})
-
-describe('processRunListFilterFromValues', () => {
-  it('leaves any off the query and keeps a real story, status and ending', () => {
-    expect(processRunListFilterFromValues({ story: 'any', status: 'any', ending: 'any' })).toEqual(
-      {},
-    )
-    expect(
-      processRunListFilterFromValues({ story: 's1', status: 'parked', ending: 'unmerged' }),
-    ).toEqual({ storyId: 's1', status: 'parked', ending: 'unmerged' })
-    expect(isProcessRunListStatus('parked')).toBe(true)
-    expect(isProcessRunListStatus('nope')).toBe(false)
-    expect(isProcessRunListEnding('abandoned')).toBe(true)
-    expect(isProcessRunListEnding('merged')).toBe(false)
   })
 })
 

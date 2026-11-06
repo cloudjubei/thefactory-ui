@@ -7,6 +7,7 @@ import type {
 } from 'thefactory-tools/types'
 
 import {
+  isProcessRunHistoryOnly,
   processRunAttentionSection,
   processRunAttentionSections,
   processRunListRow,
@@ -160,6 +161,29 @@ describe('processRunAttentionSection', () => {
     ['finished with nothing to bring in', run({ status: 'succeeded', workBranch: undefined })],
   ])('has no section for a run that is %s — it is history', (_, r) => {
     expect(processRunAttentionSection(r, NOW)).toBeUndefined()
+  })
+})
+
+describe('isProcessRunHistoryOnly', () => {
+  const finished = { id: 'finished' }
+  const section = (...ids: string[]) => ({ runs: ids.map((id) => ({ id })) })
+
+  it('is true for a selected run only History holds', () => {
+    expect(isProcessRunHistoryOnly('finished', [finished], [])).toBe(true)
+    expect(isProcessRunHistoryOnly('finished', [finished], [section('other')])).toBe(true)
+  })
+
+  it('keeps a finished run on Current while a section holds it', () => {
+    expect(isProcessRunHistoryOnly('finished', [finished], [section('finished')])).toBe(false)
+    expect(
+      isProcessRunHistoryOnly('finished', [finished], [section('other'), section('finished')]),
+    ).toBe(false)
+  })
+
+  it('is false for a run History does not hold, and for no selection', () => {
+    expect(isProcessRunHistoryOnly('open', [finished], [section('open')])).toBe(false)
+    expect(isProcessRunHistoryOnly('open', [finished], [])).toBe(false)
+    expect(isProcessRunHistoryOnly(undefined, [finished], [])).toBe(false)
   })
 })
 

@@ -117,6 +117,10 @@ export const MCP_SERVER_TOOLS_HINT =
 
 export const MCP_SERVER_NO_TOOLS = 'It offers no tools.'
 
+export const MCP_SERVER_ONLY_READS_LABEL = 'This server only reads'
+
+export const MCP_SERVER_ONLY_READS_HINT = 'Its tools run without asking you, and runs can use them.'
+
 export const MCP_SERVER_SIGN_IN_PENDING = 'Finish in your browser. Nothing opened?'
 
 export const MCP_SERVER_TOKEN_SAVED_HINT = 'A token is saved. Leave blank to keep it.'
@@ -147,6 +151,8 @@ export const MCP_SERVER_TOKEN_FAILED = 'Could not save the token.'
 export const MCP_SERVER_SIGN_IN_FAILED = 'Could not start the sign-in.'
 
 export const MCP_SERVER_TEST_FAILED = 'Could not test the server.'
+
+export const MCP_SERVER_EDIT_FAILED = 'Could not change the setting.'
 
 export const MCP_SERVER_NO_BACKEND = 'Not connected to a backend yet.'
 

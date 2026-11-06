@@ -1,15 +1,6 @@
 import type { ProcessRunEnding, ProcessRunStatus } from 'thefactory-tools/types'
 
 import { ALL_PROJECTS_PROCESS_RUN_LIST_KEY } from './processViewCacheConstants'
-import { PROCESS_RUN_STATUS_VIEW } from './processView'
-import {
-  PROCESS_RUN_LIST_ANY,
-  PROCESS_RUN_LIST_COPY,
-  PROCESS_RUN_LIST_STATUSES,
-  PROCESS_RUN_SCOPE_ALL,
-  PROCESS_RUN_SCOPE_GROUP_PREFIX,
-  PROCESS_RUN_SCOPE_PROJECT,
-} from './processRunListQueryConstants'
 
 /** Whose runs the list reads: one project, every project, or one group's members. */
 export type ProcessRunListScope =
@@ -43,22 +34,7 @@ export interface ProcessRunListQuery {
   rootOnly: true
 }
 
-/** One option in a filter picker. */
-export interface ProcessRunListChoice {
-  value: string
-  label: string
-}
-
-/** A story the story picker can offer, with the project it belongs to. */
-export interface ProcessRunListStorySource {
-  projectId: string
-  id: string
-  title: string
-}
-
 const QUERY_KEY_PREFIX = 'query:'
-
-const ENDINGS = new Set<ProcessRunEnding>(['abandoned', 'unmerged'])
 
 /** `useProcessRuns()` and `useProcessRuns(projectId)` as a request. */
 export function processRunListRequestFromArg(
@@ -133,98 +109,6 @@ export function processRunListRequestFromKey(key: string): ProcessRunListRequest
   if (body.status) filter.status = body.status
   if (body.ending) filter.ending = body.ending
   return { scope, filter }
-}
-
-/** The scope a select value names. An unknown group, once groups are known, falls back to the project. */
-export function processRunListScopeFromValue(
-  value: string,
-  projectId: string,
-  groups: readonly { id: string; projects: readonly string[] }[],
-  groupsLoaded: boolean,
-): ProcessRunListScope {
-  if (value === PROCESS_RUN_SCOPE_ALL) return { kind: 'all' }
-  if (value.startsWith(PROCESS_RUN_SCOPE_GROUP_PREFIX)) {
-    const groupId = value.slice(PROCESS_RUN_SCOPE_GROUP_PREFIX.length)
-    const group = groups.find((item) => item.id === groupId)
-    if (group) return { kind: 'group', groupId, projectIds: group.projects }
-    if (!groupsLoaded) return { kind: 'group', groupId, projectIds: [] }
-    return { kind: 'project', projectId }
-  }
-  return { kind: 'project', projectId }
-}
-
-export function processRunGroupScopeValue(groupId: string): string {
-  return `${PROCESS_RUN_SCOPE_GROUP_PREFIX}${groupId}`
-}
-
-/** This project, all projects, then each group by title. */
-export function processRunListScopeOptions(
-  groups: readonly { id: string; title: string }[],
-): ProcessRunListChoice[] {
-  const sorted = [...groups].sort(
-    (a, b) => a.title.localeCompare(b.title) || a.id.localeCompare(b.id),
-  )
-  return [
-    { value: PROCESS_RUN_SCOPE_PROJECT, label: PROCESS_RUN_LIST_COPY.thisProject },
-    { value: PROCESS_RUN_SCOPE_ALL, label: PROCESS_RUN_LIST_COPY.allProjects },
-    ...sorted.map((group) => ({ value: processRunGroupScopeValue(group.id), label: group.title })),
-  ]
-}
-
-/** Any story, then each story. A list wider than one project names the project beside the title. */
-export function processRunListStoryOptions(
-  stories: readonly ProcessRunListStorySource[],
-  projectTitle: (projectId: string) => string | undefined,
-  multiProject: boolean,
-): ProcessRunListChoice[] {
-  const rows = stories.map((story) => {
-    const project = projectTitle(story.projectId)
-    const label = multiProject && project ? `${story.title} · ${project}` : story.title
-    return { value: story.id, label }
-  })
-  rows.sort((a, b) => a.label.localeCompare(b.label) || a.value.localeCompare(b.value))
-  return [{ value: PROCESS_RUN_LIST_ANY, label: PROCESS_RUN_LIST_COPY.anyStory }, ...rows]
-}
-
-/** Any status, then each run status in the picker's words. */
-export function processRunListStatusOptions(): ProcessRunListChoice[] {
-  return [
-    { value: PROCESS_RUN_LIST_ANY, label: PROCESS_RUN_LIST_COPY.anyStatus },
-    ...PROCESS_RUN_LIST_STATUSES.map((status) => ({
-      value: status,
-      label: PROCESS_RUN_STATUS_VIEW[status].label,
-    })),
-  ]
-}
-
-/** Any ending, Not merged, Abandoned. */
-export function processRunListEndingOptions(): ProcessRunListChoice[] {
-  return [
-    { value: PROCESS_RUN_LIST_ANY, label: PROCESS_RUN_LIST_COPY.anyEnding },
-    { value: 'unmerged', label: PROCESS_RUN_LIST_COPY.unmerged },
-    { value: 'abandoned', label: PROCESS_RUN_LIST_COPY.abandoned },
-  ]
-}
-
-export function isProcessRunListStatus(value: string): value is ProcessRunStatus {
-  return (PROCESS_RUN_LIST_STATUSES as readonly string[]).includes(value)
-}
-
-export function isProcessRunListEnding(value: string): value is ProcessRunEnding {
-  return ENDINGS.has(value as ProcessRunEnding)
-}
-
-/** The filter a picker's values name. `any` leaves that field off the query. */
-export function processRunListFilterFromValues(values: {
-  story: string
-  status: string
-  ending: string
-}): ProcessRunListFilter {
-  const filter: ProcessRunListFilter = {}
-  if (values.story !== PROCESS_RUN_LIST_ANY) filter.storyId = values.story
-  if (isProcessRunListStatus(values.status)) filter.status = values.status
-  if (isProcessRunListEnding(values.ending)) filter.ending = values.ending
-  return filter
 }
 
 /** A live update as far as list membership cares. */

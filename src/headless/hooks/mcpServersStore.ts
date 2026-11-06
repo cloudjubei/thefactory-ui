@@ -1,6 +1,7 @@
 import { extractErrorMessage } from '../api/errorMessage'
 import {
   addMcpServer,
+  editMcpServer,
   listMcpServers,
   listMcpServerStatus,
   removeMcpServer,
@@ -12,6 +13,7 @@ import { isMcpSignInPage, mcpSignInRedirectUrl } from '../utils/mcpServers'
 import {
   MCP_SERVER_ADD_FAILED,
   MCP_SERVER_BAD_SIGN_IN_PAGE,
+  MCP_SERVER_EDIT_FAILED,
   MCP_SERVER_NO_BACKEND,
   MCP_SERVER_READ_FAILED,
   MCP_SERVER_REMOVE_FAILED,
@@ -160,6 +162,15 @@ export class McpServersStore {
       })
       return true
     }, MCP_SERVER_REMOVE_FAILED)
+    return done === true
+  }
+
+  /** The person's word that a server only reads, or its withdrawal; answers whether it was kept. */
+  setOnlyReads = async (serverId: string, onlyReads: boolean): Promise<boolean> => {
+    const done = await this._change(async () => {
+      await editMcpServer(this._owner, serverId, { onlyReads })
+      return true
+    }, MCP_SERVER_EDIT_FAILED)
     return done === true
   }
 

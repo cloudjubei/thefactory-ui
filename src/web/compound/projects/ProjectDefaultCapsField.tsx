@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import {
   LAUNCH_CAPS_COPY,
   processDefaultCapFields,
+  processDefaultCapsError,
   readProcessDefaultCaps,
   withProcessDefaultCaps,
   type LaunchCapsTyped,
@@ -14,6 +15,8 @@ export type ProjectDefaultCapsFieldProps = {
   metadata: Record<string, unknown>
   /** The metadata with the defaults as edited. */
   onChange: (metadata: Record<string, unknown>) => void
+  /** What stops a save while a limit cannot be kept; nothing once it can. */
+  onErrorChange?: (error: string | undefined) => void
   busy?: boolean
 }
 
@@ -21,11 +24,14 @@ export type ProjectDefaultCapsFieldProps = {
 export default function ProjectDefaultCapsField({
   metadata,
   onChange,
+  onErrorChange,
   busy = false,
 }: ProjectDefaultCapsFieldProps) {
   const [typed, setTyped] = useState<LaunchCapsTyped>({})
   const stored = readProcessDefaultCaps(metadata.processDefaultCaps)
   const fields = processDefaultCapFields(stored, typed)
+  const error = processDefaultCapsError(fields)
+  useEffect(() => onErrorChange?.(error), [error, onErrorChange])
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-col">

@@ -6,6 +6,7 @@ import {
   INK_FRESH_DOT_COLOR,
   PROCESS_RUN_FRESH_TITLE,
   PROCESS_RUN_WAITING_TITLE,
+  isProcessRunHistoryOnly,
   processRunAttentionSections,
   processRunListRow,
   processRunSpend,
@@ -15,7 +16,6 @@ import {
   useDurationTimer,
   PROCESS_RUN_LIST_COPY,
   useProcessRunChatNews,
-  useProcessRunListControls,
   useProcessRuns,
   useProcessStopClock,
   type BadgeColor,
@@ -27,7 +27,6 @@ import {
 } from '../../headless'
 import DotBadge from '../primitives/DotBadge'
 import { nativeRadii, nativeSpace } from '../../tokens/native'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../primitives/Select'
 import SegmentedControl from '../primitives/SegmentedControl'
 import Spinner from '../primitives/Spinner'
 import { DurCostChips } from '../compound/chat/signoff'
@@ -38,11 +37,7 @@ import { useNativeTheme } from '../hooks/useNativeTheme'
 import type { ChatContext } from '../../headless/api'
 
 export type ProcessRunsViewProps = {
-  /**
-   * The project the tab was opened on. The list can widen to every project or
-   * to a group; a row then names its project, and selecting it passes that
-   * project as the second argument.
-   */
+  /** The project whose runs to list. */
   projectId: string
   /** The run currently open (for row highlight), from the route. */
   selectedRunId?: string
@@ -81,8 +76,7 @@ export default function ProcessRunsView({
   chatsSeen,
 }: ProcessRunsViewProps) {
   const { theme } = useNativeTheme()
-  const controls = useProcessRunListControls(projectId)
-  const { isLoaded, runs, current, history } = useProcessRuns(controls.request)
+  const { isLoaded, runs, current, history } = useProcessRuns(projectId)
   const { settings } = useAppSettings()
   const badgeColor = settings.notifications.badgeColors.processes
   const stopNow = useProcessStopClock()
@@ -94,8 +88,8 @@ export default function ProcessRunsView({
   )
 
   const selectedIsHistory = useMemo(
-    () => history.some((r) => r.id === selectedRunId),
-    [history, selectedRunId],
+    () => isProcessRunHistoryOnly(selectedRunId, history, sections),
+    [history, sections, selectedRunId],
   )
   const [mode, setMode] = useState<Mode>(selectedIsHistory ? 'history' : 'current')
   useEffect(() => {
@@ -105,9 +99,7 @@ export default function ProcessRunsView({
   // One clock for the list — ticks while any run has a step working, so its
   // row's time advances; every other row is fixed at its ledger total.
   const now = useDurationTimer(current.some((r) => r.totals?.ticking === true))
-  const showLoading = controls.scopePending || !isLoaded
   const listEmpty = mode === 'current' ? sections.length === 0 : rows.length === 0
-  const projectNameOf = controls.showProject ? controls.projectName : undefined
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.surface.base }}>
@@ -166,58 +158,16 @@ export default function ProcessRunsView({
           <IconSettings size={16} color={theme.text.secondary} />
         </Pressable>
       </View>
-      <View
-        style={{
-          gap: nativeSpace[2],
-          paddingHorizontal: nativeSpace[3],
-          paddingVertical: nativeSpace[2],
-          borderBottomWidth: 1,
-          borderBottomColor: theme.border.subtle,
-        }}
-      >
-        <FilterSelect
-          label={PROCESS_RUN_LIST_COPY.scope}
-          value={controls.scope}
-          onChange={controls.setScope}
-          options={controls.scopeOptions}
-        />
-        <View style={{ flexDirection: 'row', gap: nativeSpace[2] }}>
-          <View style={{ flex: 1 }}>
-            <FilterSelect
-              label={PROCESS_RUN_LIST_COPY.story}
-              value={controls.story}
-              onChange={controls.setStory}
-              options={controls.storyOptions}
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <FilterSelect
-              label={PROCESS_RUN_LIST_COPY.status}
-              value={controls.status}
-              onChange={controls.setStatus}
-              options={controls.statusOptions}
-            />
-          </View>
-        </View>
-        <FilterSelect
-          label={PROCESS_RUN_LIST_COPY.ending}
-          value={controls.ending}
-          onChange={controls.setEnding}
-          options={controls.endingOptions}
-        />
-      </View>
 
-      {showLoading ? (
+      {!isLoaded ? (
         <Text style={{ padding: nativeSpace[3], fontSize: 12, color: theme.text.muted }}>
           Loading runs…
         </Text>
       ) : listEmpty ? (
         <Text style={{ padding: nativeSpace[3], fontSize: 12, color: theme.text.muted }}>
-          {controls.narrowed
-            ? PROCESS_RUN_LIST_COPY.noMatch
-            : mode === 'current'
-              ? PROCESS_RUN_LIST_COPY.emptyCurrent
-              : PROCESS_RUN_LIST_COPY.emptyHistory}
+          {mode === 'current'
+            ? PROCESS_RUN_LIST_COPY.emptyCurrent
+            : PROCESS_RUN_LIST_COPY.emptyHistory}
         </Text>
       ) : (
         <ScrollView contentContainerStyle={{ padding: nativeSpace[2], gap: nativeSpace[1] }}>
@@ -232,7 +182,6 @@ export default function ProcessRunsView({
                   chatNews={chatNews}
                   selectedRunId={selectedRunId}
                   onSelectRun={onSelectRun}
-                  projectNameOf={projectNameOf}
                 />
               ))
             : rows.map((run) => (
@@ -242,7 +191,6 @@ export default function ProcessRunsView({
                   now={now}
                   stopNow={stopNow}
                   chatNews={chatNews.get(run.id)}
-                  projectName={projectNameOf?.(run.projectId)}
                   selected={run.id === selectedRunId}
                   onPress={() => onSelectRun(run.id, run.projectId)}
                 />
@@ -261,7 +209,6 @@ function RunSection({
   chatNews,
   selectedRunId,
   onSelectRun,
-  projectNameOf,
 }: {
   section: ProcessRunAttentionSection
   badgeColor: BadgeColor
@@ -272,7 +219,6 @@ function RunSection({
   chatNews: ReadonlyMap<string, ProcessRunChatNews>
   selectedRunId: string | undefined
   onSelectRun: (runId: string, projectId: string) => void
-  projectNameOf?: (projectId: string) => string | undefined
 }) {
   const { status } = useNativeTheme()
   const fg = status[section.tone].softFg
@@ -309,40 +255,11 @@ function RunSection({
           now={now}
           stopNow={stopNow}
           chatNews={chatNews.get(run.id)}
-          projectName={projectNameOf?.(run.projectId)}
           selected={run.id === selectedRunId}
           onPress={() => onSelectRun(run.id, run.projectId)}
         />
       ))}
     </View>
-  )
-}
-
-function FilterSelect({
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  label: string
-  value: string
-  onChange: (value: string) => void
-  options: readonly { value: string; label: string }[]
-}) {
-  const selected = options.find((option) => option.value === value)?.label
-  return (
-    <Select value={value} onValueChange={onChange}>
-      <SelectTrigger size="sm" accessibilityLabel={selected ? `${label}, ${selected}` : label}>
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {options.map((option) => (
-          <SelectItem key={option.value} value={option.value}>
-            {option.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
   )
 }
 
@@ -352,7 +269,6 @@ function RunRow({
   stopNow,
   chatNews,
   selected,
-  projectName,
   onPress,
 }: {
   run: ProcessRun
@@ -361,8 +277,6 @@ function RunRow({
   stopNow: number
   chatNews: ProcessRunChatNews | undefined
   selected: boolean
-  /** Set when the list shows more than one project. */
-  projectName?: string
   onPress: () => void
 }) {
   const { theme, status } = useNativeTheme()
@@ -370,9 +284,7 @@ function RunRow({
   const variant = status[row.tone]
   const spend = processRunSpend(run)
   const work = processRunWorkLabel(run, now)
-  const label = projectName
-    ? `${row.title} · ${projectName} · ${row.line}`
-    : `${row.title} · ${row.line}`
+  const label = `${row.title} · ${row.line}`
   return (
     <Pressable
       accessibilityRole="button"
@@ -404,11 +316,6 @@ function RunRow({
         ) : null}
         <DurCostChips facts={{ durationLabel: work }} />
       </View>
-      {projectName ? (
-        <Text numberOfLines={1} style={{ paddingLeft: 16, fontSize: 11, color: theme.text.muted }}>
-          {projectName}
-        </Text>
-      ) : null}
       <View
         style={{
           flexDirection: 'row',

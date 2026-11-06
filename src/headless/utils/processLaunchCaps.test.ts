@@ -9,6 +9,7 @@ import {
   launchCapsValid,
   launchWorstCaseLine,
   processDefaultCapFields,
+  processDefaultCapsError,
   readProcessDefaultCaps,
   withProcessDefaultCaps,
 } from './processLaunchCaps'
@@ -265,5 +266,66 @@ describe('project default caps', () => {
   it('leaves a field in error out of what is saved', () => {
     const fields = processDefaultCapFields({}, { maxIterations: '0', spendCapUsd: '3' })
     expect(withProcessDefaultCaps({}, fields)).toEqual({ processDefaultCaps: { spendUsdCap: 3 } })
+  })
+
+  it('keeps the limit a field in error had, rather than dropping it', () => {
+    const stored = { spendUsdCap: 10, wallClockMs: 3_600_000, maxIterations: 2 }
+    const fields = processDefaultCapFields(stored, {
+      spendCapUsd: '-1',
+      wallClockMs: 'soon',
+      maxIterations: '1.5',
+    })
+    expect(withProcessDefaultCaps({ processDefaultCaps: stored }, fields)).toEqual({
+      processDefaultCaps: stored,
+    })
+  })
+
+  it('keeps only real limits while keeping one in error', () => {
+    const fields = processDefaultCapFields({}, { maxIterations: '0' })
+    expect(
+      withProcessDefaultCaps({ processDefaultCaps: { maxIterations: 'many' } }, fields),
+    ).toEqual({})
+  })
+})
+
+describe('processDefaultCapsError', () => {
+  it('has nothing to say when every limit can be saved', () => {
+    expect(processDefaultCapsError(processDefaultCapFields({}, {}))).toBeUndefined()
+    expect(
+      processDefaultCapsError(
+        processDefaultCapFields(
+          { spendUsdCap: 10 },
+          { spendCapUsd: ' 4.5 ', wallClockMs: '', maxIterations: '3' },
+        ),
+      ),
+    ).toBeUndefined()
+  })
+
+  it('names the limit that stops the save and why', () => {
+    expect(processDefaultCapsError(processDefaultCapFields({}, { maxIterations: '1.5' }))).toBe(
+      'Attempts: Enter a whole number above 0.',
+    )
+    expect(processDefaultCapsError(processDefaultCapFields({}, { spendCapUsd: 'lots' }))).toBe(
+      'Spend limit: Enter an amount above 0.',
+    )
+    expect(processDefaultCapsError(processDefaultCapFields({}, { wallClockMs: '0' }))).toBe(
+      'Time limit: Enter a number of minutes above 0.',
+    )
+  })
+
+  it('names the first of several, in the order the form shows them', () => {
+    expect(
+      processDefaultCapsError(
+        processDefaultCapFields({}, { maxIterations: '0', spendCapUsd: '-1' }),
+      ),
+    ).toBe('Spend limit: Enter an amount above 0.')
+  })
+
+  it('stops the save even where the project already holds a good value', () => {
+    expect(
+      processDefaultCapsError(
+        processDefaultCapFields({ maxIterations: 2 }, { maxIterations: '0' }),
+      ),
+    ).toBe('Attempts: Enter a whole number above 0.')
   })
 })

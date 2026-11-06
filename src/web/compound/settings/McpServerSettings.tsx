@@ -42,6 +42,7 @@ export default function McpServerSettings({ owner }: McpServerSettingsProps) {
       }}
       onOpenPage={openInBrowser}
       onTest={servers.test}
+      onSetOnlyReads={servers.setOnlyReads}
     />
   )
 }

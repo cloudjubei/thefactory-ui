@@ -25,9 +25,12 @@ import { PROCESS_RUN_STATUS_VIEW } from './processView'
 import { timeAgo } from './time'
 
 type WorkCounts = ProjectsGroupMemberStatus['storyProgress']['stories']
+type OpenRequest = ProjectsGroupMemberStatus['openRequests'][number]
 type SectionCounts = Partial<Record<ProcessRunAttentionSectionId, number>>
 
 const SECTION_ORDER = PROCESS_RUN_ATTENTION_SECTIONS.map((section) => section.id)
+
+const isUnaccepted = (request: OpenRequest): boolean => request.status === 'pending'
 
 const countsTotal = (counts: WorkCounts): number =>
   counts.pending + counts.in_progress + counts.reviewable + counts.done + counts.blocked
@@ -72,7 +75,7 @@ function memberRunRows(
   return rows.sort((a, b) => SECTION_ORDER.indexOf(a.section) - SECTION_ORDER.indexOf(b.section))
 }
 
-function sectionCounts(
+function runCounts(
   member: ProjectsGroupMemberStatus,
   rows: readonly GroupMemberRunRow[],
   runsRead: boolean,
@@ -85,6 +88,17 @@ function sectionCounts(
   return counts
 }
 
+/** The member's runs, with what waits on the person outside a run counted in Needs you. */
+function sectionCounts(
+  member: ProjectsGroupMemberStatus,
+  rows: readonly GroupMemberRunRow[],
+  runsRead: boolean,
+): SectionCounts {
+  const counts = runCounts(member, rows, runsRead)
+  const waiting = member.failingChecks.length + member.openRequests.filter(isUnaccepted).length
+  return waiting > 0 ? { ...counts, 'needs-you': (counts['needs-you'] ?? 0) + waiting } : counts
+}
+
 function runBadges(counts: SectionCounts): GroupStatusBadge[] {
   return PROCESS_RUN_ATTENTION_SECTIONS.flatMap((section) => {
     const count = counts[section.id] ?? 0
@@ -94,15 +108,31 @@ function runBadges(counts: SectionCounts): GroupStatusBadge[] {
   })
 }
 
-function requestsBadge(titles: readonly string[]): GroupStatusBadge[] {
-  if (titles.length === 0) return []
+function requestBadges(requests: readonly OpenRequest[]): GroupStatusBadge[] {
+  const unaccepted = requests.filter(isUnaccepted)
+  const underWay = requests.filter((request) => !isUnaccepted(request))
+  const titles = (held: readonly OpenRequest[]) => held.map((request) => request.title).join('\n')
   return [
-    {
-      id: 'requests',
-      label: GROUP_STATUS_COPY.requests(titles.length),
-      tone: 'queued',
-      title: titles.join('\n'),
-    },
+    ...(unaccepted.length > 0
+      ? [
+          {
+            id: 'requests-to-accept',
+            label: GROUP_STATUS_COPY.toAccept(unaccepted.length),
+            tone: 'on_hold' as const,
+            title: titles(unaccepted),
+          },
+        ]
+      : []),
+    ...(underWay.length > 0
+      ? [
+          {
+            id: 'requests',
+            label: GROUP_STATUS_COPY.requests(underWay.length),
+            tone: 'queued' as const,
+            title: titles(underWay),
+          },
+        ]
+      : []),
   ]
 }
 
@@ -110,14 +140,7 @@ function memberAttention(
   member: ProjectsGroupMemberStatus,
   counts: SectionCounts,
 ): GroupMemberAttention {
-  if (
-    (counts['needs-you'] ?? 0) > 0 ||
-    (counts['sign-off'] ?? 0) > 0 ||
-    member.failingChecks.length > 0 ||
-    member.openRequests.some((request) => request.status === 'pending')
-  ) {
-    return 'needs-you'
-  }
+  if ((counts['needs-you'] ?? 0) > 0 || (counts['sign-off'] ?? 0) > 0) return 'needs-you'
   const working = Object.values(counts).some((count) => count > 0)
   return working || member.groupRuns.length > 0 || member.openRequests.length > 0
     ? 'working'
@@ -166,10 +189,7 @@ function memberView(
     view: {
       projectId: member.projectId,
       attention: memberAttention(member, counts),
-      badges: [
-        ...runBadges(counts),
-        ...requestsBadge(member.openRequests.map((request) => request.title)),
-      ],
+      badges: [...runBadges(counts), ...requestBadges(member.openRequests)],
       runs: rows,
       checks: memberChecks(member),
       ...(progress ? { progress } : {}),
@@ -225,9 +245,7 @@ export function groupStatusView(
     }
   }
   const failing = status.members.reduce((sum, member) => sum + member.failingChecks.length, 0)
-  const requests = status.members.flatMap((member) =>
-    member.openRequests.map((request) => request.title),
-  )
+  const requests = status.members.flatMap((member) => member.openRequests)
   return {
     headline: [
       ...runBadges(totals),
@@ -240,7 +258,7 @@ export function groupStatusView(
             },
           ]
         : []),
-      ...requestsBadge(requests),
+      ...requestBadges(requests),
     ],
     groupRuns: groupRunRows(status),
     members,

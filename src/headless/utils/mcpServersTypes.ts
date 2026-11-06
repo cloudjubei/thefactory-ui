@@ -14,6 +14,8 @@ export type McpServerRow = {
   url: string
   authType: McpServerAuthType
   hasCredential: boolean
+  /** The person says it only reads: its tools run without asking, and runs get them. */
+  onlyReads: boolean
   source: 'project' | 'group'
   groupId?: string
 }
@@ -44,6 +46,9 @@ export type McpServerTestResult = {
 }
 
 export type McpServerInput = { name: string; url: string; authType: McpServerAuthType }
+
+/** What a server's edit may change. */
+export type McpServerEdit = Partial<McpServerInput> & { onlyReads?: boolean }
 
 /** The event `mcpServers:updated` carries. `signed-in` names no owner: refetch whatever is showing. */
 export type McpServersEvent =
@@ -109,6 +114,8 @@ export type McpServerView = {
   note?: string
   /** It is changed on its group: this project can only look and test. */
   readOnly: boolean
+  /** The person says it only reads. Changed only where `readOnly` is false. */
+  onlyReads: boolean
   /** The group it comes from, on a project. */
   sourceLabel?: string
   access?: McpServerAccess

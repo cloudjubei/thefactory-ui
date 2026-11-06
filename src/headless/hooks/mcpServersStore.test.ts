@@ -7,6 +7,7 @@ const api = vi.hoisted(() => ({
   addMcpServer: vi.fn(),
   removeMcpServer: vi.fn(),
   setMcpServerToken: vi.fn(),
+  editMcpServer: vi.fn(),
   startMcpServerSignIn: vi.fn(),
   testMcpServer: vi.fn(),
 }))
@@ -24,6 +25,7 @@ const row = (id: string, over: Partial<McpServerRow> = {}): McpServerRow => ({
   url: `https://${id}.example.com`,
   authType: 'oauth',
   hasCredential: false,
+  onlyReads: false,
   source: 'group',
   groupId: 'osc',
   ...over,
@@ -217,6 +219,28 @@ describe('McpServersStore changes', () => {
     expect(await s.setToken('s1', '   ')).toBe(false)
     expect(api.setMcpServerToken).not.toHaveBeenCalled()
     expect(s.getState().error).toBeNull()
+  })
+
+  it('turns the switch on and off, and reads again', async () => {
+    api.editMcpServer.mockResolvedValue(row('s1', { onlyReads: true }))
+    api.listMcpServers.mockResolvedValue([row('s1', { onlyReads: true })])
+    const s = store()
+    expect(await s.setOnlyReads('s1', true)).toBe(true)
+    expect(api.editMcpServer).toHaveBeenCalledWith(OWNER, 's1', { onlyReads: true })
+    expect(s.getState().rows?.[0]?.onlyReads).toBe(true)
+    expect(api.listMcpServerStatus).toHaveBeenCalled()
+    expect(await s.setOnlyReads('s1', false)).toBe(true)
+    expect(api.editMcpServer).toHaveBeenLastCalledWith(OWNER, 's1', { onlyReads: false })
+  })
+
+  it('says why when the switch is refused, and answers false', async () => {
+    api.editMcpServer.mockRejectedValue(backendError('Group osc holds no MCP server s1'))
+    const s = store()
+    expect(await s.setOnlyReads('s1', true)).toBe(false)
+    expect(s.getState()).toMatchObject({ error: 'Group osc holds no MCP server s1', busy: false })
+    api.editMcpServer.mockRejectedValue({})
+    expect(await s.setOnlyReads('s1', true)).toBe(false)
+    expect(s.getState().error).toBe('Could not change the setting.')
   })
 
   it('does not put a refused token in the error it shows', async () => {

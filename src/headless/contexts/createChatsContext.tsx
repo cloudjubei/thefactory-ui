@@ -38,8 +38,10 @@ import { ChatContextCheckpointLog } from '../utils/ChatContextCheckpointLog'
 import { chatContextCheckpointOfEvent } from '../utils/chatContextFill'
 import { errorStatus } from '../api/errorMessage'
 import {
+  buildChatPromptVariables,
   chatRestartMessages,
   getChatContextKey,
+  interpolateChatSystemPrompt,
   normalizeChatContext,
 } from 'thefactory-tools/utils'
 import { applyChatLiveStatePatch } from '../utils/chatLiveState'
@@ -68,7 +70,6 @@ import { lastMessageDeleteFromIndex } from '../utils/chatTurnDelete'
 import { chatCliRunnerToDispatchOptions, parseCliRunUpdateEvent } from '../utils/cliRunner'
 import { cliRunSettlement, cliRunUpdateSettlement } from '../utils/cliRunActivity'
 import type { CliRunEndRecord } from '../utils/cliRunActivityTypes'
-import { buildChatPromptVariables, interpolateChatSystemPrompt } from '../utils/promptInterpolate'
 import { ChatDraftStore } from '../utils/chatDraftStore'
 import { CHAT_TURN_LIMIT_START } from '../utils/chatTurnLimitConstants'
 import type { ChatDraft, ChatDraftListener } from '../utils/chatDraftTypes'

@@ -38,6 +38,7 @@ export function LaunchCapField({
     >
       <Input
         value={field.text}
+        invalid={Boolean(field.error)}
         keyboardType="decimal-pad"
         disabled={busy}
         {...(field.placeholder ? { placeholder: field.placeholder } : {})}

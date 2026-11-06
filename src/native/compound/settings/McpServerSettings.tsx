@@ -10,6 +10,8 @@ import {
   MCP_SERVER_EMPTY_DRAFT,
   MCP_SERVER_FIELD_LABELS,
   MCP_SERVER_NAME_HINT,
+  MCP_SERVER_ONLY_READS_HINT,
+  MCP_SERVER_ONLY_READS_LABEL,
   MCP_SERVER_REMOVE_CONFIRM,
   MCP_SERVER_SIGN_IN_PENDING,
   MCP_SERVER_TOKEN_HINT,
@@ -42,6 +44,7 @@ import { Input } from '../../primitives/Input'
 import { ConfirmDialog, Modal } from '../../primitives/Modal'
 import { SecretInput } from '../../primitives/SecretInput'
 import SegmentedControl from '../../primitives/SegmentedControl'
+import { Switch } from '../../primitives/Switch'
 
 export interface McpServerSettingsProps {
   /** The project or the group whose servers these are. */
@@ -162,6 +165,7 @@ type DetailsActions = {
   onSignIn: (serverId: string) => void
   onSetToken: (serverId: string, token: string) => Promise<boolean>
   onTest: (serverId: string) => void
+  onSetOnlyReads: (serverId: string, onlyReads: boolean) => void
   onRemove: (serverId: string) => void
 }
 
@@ -173,6 +177,7 @@ function ServerDetails({
   onSignIn,
   onSetToken,
   onTest,
+  onSetOnlyReads,
   onRemove,
 }: { view: McpServerView; showUrl?: boolean } & DetailsActions) {
   const { theme } = useNativeTheme()
@@ -222,6 +227,16 @@ function ServerDetails({
           onSave={(token) => onSetToken(view.id, token)}
         />
       ) : null}
+
+      <View style={{ gap: nativeSpace[1] }}>
+        <Switch
+          checked={view.onlyReads}
+          onCheckedChange={(on) => onSetOnlyReads(view.id, on)}
+          label={MCP_SERVER_ONLY_READS_LABEL}
+          disabled={busy || view.readOnly}
+        />
+        <Text style={muted}>{MCP_SERVER_ONLY_READS_HINT}</Text>
+      </View>
 
       {view.toolsSummary || view.tools.length > 0 ? (
         <View style={{ gap: nativeSpace[1] }}>
@@ -354,6 +369,7 @@ export default function McpServerSettings({
     onSignIn: (serverId) => void signIn(serverId),
     onSetToken: servers.setToken,
     onTest: (serverId) => void servers.test(serverId),
+    onSetOnlyReads: (serverId, onlyReads) => void servers.setOnlyReads(serverId, onlyReads),
     onRemove: setRemovingId,
   }
 

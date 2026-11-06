@@ -212,12 +212,28 @@ export function processDefaultCapFields(
   )
 }
 
-/** A project's metadata with its default caps as edited, without the key once none is set. Pure. */
+/** What stops the project editor saving: the first limit in error and why. None when it can. Pure. */
+export function processDefaultCapsError(fields: readonly LaunchCapFieldView[]): string | undefined {
+  const field = fields.find((candidate) => candidate.error)
+  return field?.error ? LAUNCH_CAPS_COPY.defaultBlocked(field.label, field.error) : undefined
+}
+
+/**
+ * A project's metadata with its default caps as edited, without the key once
+ * none is set. A field in error keeps the limit the metadata held. Pure.
+ */
 export function withProcessDefaultCaps<T extends Record<string, unknown>>(
   metadata: T,
   fields: readonly LaunchCapFieldView[],
 ): T {
-  const { spendCapUsd, wallClockMs, maxIterations } = capsOf(fields)
+  const held = launchCapsOfDefaults(readProcessDefaultCaps(metadata.processDefaultCaps))
+  const inError = fields.flatMap(({ key, error }) =>
+    error && held[key] !== undefined ? [[key, held[key]]] : [],
+  )
+  const { spendCapUsd, wallClockMs, maxIterations } = {
+    ...capsOf(fields),
+    ...(Object.fromEntries(inError) as LaunchCaps),
+  }
   const caps: ProjectProcessDefaultCaps = {
     ...(spendCapUsd !== undefined ? { spendUsdCap: spendCapUsd } : {}),
     ...(wallClockMs !== undefined ? { wallClockMs } : {}),

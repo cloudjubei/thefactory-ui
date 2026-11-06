@@ -51,6 +51,7 @@ export const GROUP_STATUS_COPY = {
   groupRuns: 'Group runs',
   moreRuns: (count: number) => `${count} more`,
   requests: (count: number) => `${count} ${count === 1 ? 'request' : 'requests'}`,
+  toAccept: (count: number) => `${count} to accept`,
   checksFailing: (count: number) => `${count} ${count === 1 ? 'check' : 'checks'} failing`,
   stories: (done: number, total: number) => `${done}/${total} ${total === 1 ? 'story' : 'stories'}`,
   features: (done: number, total: number) =>

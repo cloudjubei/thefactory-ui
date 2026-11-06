@@ -25,6 +25,7 @@ export type UseMcpServers = {
   add: (input: McpServerInput) => Promise<McpServerRow | undefined>
   remove: (serverId: string) => Promise<boolean>
   setToken: (serverId: string, token: string) => Promise<boolean>
+  setOnlyReads: (serverId: string, onlyReads: boolean) => Promise<boolean>
   signIn: (serverId: string) => Promise<string | undefined>
   test: (serverId: string) => Promise<void>
   refresh: () => Promise<void>
@@ -103,6 +104,7 @@ export function useMcpServers(owner: McpServerOwner): UseMcpServers {
     add: store.add,
     remove: store.remove,
     setToken: store.setToken,
+    setOnlyReads: store.setOnlyReads,
     signIn: store.signIn,
     test: store.test,
     refresh,

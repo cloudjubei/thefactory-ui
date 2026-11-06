@@ -224,3 +224,63 @@ export function Picked({
     </div>
   )
 }
+
+/** One thing a person does: types into a labelled field, or presses a button by its words. */
+export type SceneStep = { fill: string; value: string } | { press: string }
+
+const STEP_GAP_MS = 60
+
+function fill(input: HTMLInputElement, value: string) {
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input, value)
+  input.dispatchEvent(new Event('input', { bubbles: true }))
+}
+
+function doStep(element: HTMLElement, step: SceneStep): boolean {
+  if ('fill' in step) {
+    const input = element.querySelector<HTMLInputElement>(`input[aria-label="${step.fill}"]`)
+    if (input) fill(input, step.value)
+    return input !== null
+  }
+  const button = [...element.querySelectorAll('button')].find((candidate) =>
+    (candidate.getAttribute('aria-label') ?? candidate.textContent)?.includes(step.press),
+  )
+  button?.click()
+  return button !== undefined
+}
+
+/**
+ * Does what a person would, a step at a time, each once it can be done: what
+ * the state is about happens after a press the view keeps to itself.
+ */
+export function Acted({ steps, children }: { steps: readonly SceneStep[]; children: ReactNode }) {
+  const root = useRef<HTMLDivElement>(null)
+  const script = useRef(steps)
+  useEffect(() => {
+    const element = root.current
+    if (!element) return
+    const left = [...script.current]
+    let timer: number | undefined
+    const tryStep = () => {
+      timer = undefined
+      const step = left[0]
+      if (!step) return observer.disconnect()
+      if (doStep(element, step)) left.shift()
+      if (left.length === 0) return observer.disconnect()
+      timer = window.setTimeout(tryStep, STEP_GAP_MS)
+    }
+    const observer = new MutationObserver(() => {
+      if (timer === undefined) timer = window.setTimeout(tryStep, STEP_GAP_MS)
+    })
+    observer.observe(element, { childList: true, subtree: true })
+    tryStep()
+    return () => {
+      observer.disconnect()
+      window.clearTimeout(timer)
+    }
+  }, [])
+  return (
+    <div ref={root} className="contents">
+      {children}
+    </div>
+  )
+}

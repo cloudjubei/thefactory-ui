@@ -6,10 +6,21 @@ import {
   GROUP_HOME_DEFAULT_LAYOUT,
   GROUP_HOME_LAYOUT_LABELS,
   GROUP_HOME_LAYOUTS,
+  PROCESS_RUN_WORDS,
+  groupStatusView,
   type GroupConstellationLayout,
   type GroupHomeLayout,
+  type GroupMemberView,
+  type GroupStatusBadge,
+  type GroupStatusView,
 } from 'thefactory-ui/headless'
-import { GroupHomeConnected, SegmentedControl, type GroupHomeProjectCard } from 'thefactory-ui/web'
+import {
+  GroupHome,
+  GroupHomeConnected,
+  SegmentedControl,
+  type GroupHomeProjectCard,
+} from 'thefactory-ui/web'
+import { fakeProcessRunsMatching } from '../../src/fakeBackend/fixtures/processRuns'
 import { FAKE_GROUP_ID, MEMBERS } from '../../src/fakeBackend/fixtures/projects'
 import {
   FAKE_GROUP_CONSTELLATION,
@@ -44,6 +55,41 @@ const QUIET: FixtureRoutes = {
   '/api/v1/process-runs': () => [],
 }
 
+type MemberStatus = (typeof FAKE_GROUP_STATUS)['members'][number]
+
+/** A quiet group with one member holding only what it is given. */
+const ONLY: (over: Partial<MemberStatus>) => FixtureRoutes = (over) => ({
+  ...QUIET,
+  [STATUS_PATH]: () => ({
+    ...FAKE_GROUP_STATUS,
+    members: FAKE_GROUP_STATUS.members.map((member) => ({
+      ...member,
+      runs: { running: [], parked: [] },
+      groupRuns: [],
+      failingChecks: [],
+      openRequests: [],
+      ...(member.projectId === 'thefactory-backend' ? over : {}),
+    })),
+  }),
+})
+
+const ONE_CHECK = ONLY({
+  failingChecks: [
+    { kind: 'lint', status: 'failed', summary: '3 lint errors', ranAt: FAKE_GROUP_STATUS_AT },
+  ],
+})
+
+const ONE_REQUEST = ONLY({
+  openRequests: [
+    {
+      id: 'request-to-accept',
+      title: 'Expose the sign-off route',
+      status: 'pending',
+      updatedAt: FAKE_GROUP_STATUS_AT,
+    },
+  ],
+})
+
 const NOT_READ: FixtureRoutes = { [STATUS_PATH]: notRead, [MAP_PATH]: notRead }
 
 const NO_EDGES: FixtureRoutes = {
@@ -75,6 +121,51 @@ function Home({
       />
     </OnFixtures>
   )
+}
+
+type NeedsYouCount = 'items' | 'projects' | 'runs'
+
+const NEEDS_YOU_COUNTS: readonly NeedsYouCount[] = ['items', 'projects', 'runs']
+
+const NEEDS_YOU_COUNT_LABELS: Record<NeedsYouCount, string> = {
+  items: 'Every item',
+  projects: 'Projects',
+  runs: 'Runs only',
+}
+
+const needsYouBadge = (badges: readonly GroupStatusBadge[], count: number): GroupStatusBadge[] =>
+  badges.flatMap((badge) => {
+    if (badge.id !== 'needs-you') return [badge]
+    return count > 0 ? [{ ...badge, label: `${PROCESS_RUN_WORDS.needsYou} ${count}` }] : []
+  })
+
+const runsWaiting = (member: GroupMemberView): number =>
+  member.runs.filter((run) => run.section === 'needs-you').length
+
+/** The roll-up's real view, its Needs you pills read the way the option counts. */
+function countedAs(option: NeedsYouCount): GroupStatusView {
+  const runs = fakeProcessRunsMatching(new URLSearchParams({ rootOnly: 'true' }))
+  const view = groupStatusView(FAKE_GROUP_STATUS, runs, AT)
+  if (option === 'items') return view
+  if (option === 'projects') {
+    const waiting = view.members.filter((member) => member.attention === 'needs-you').length
+    return { ...view, headline: needsYouBadge(view.headline, waiting) }
+  }
+  const members = view.members.map((member) => ({
+    ...member,
+    badges: needsYouBadge(member.badges, runsWaiting(member)),
+  }))
+  const total = view.members.reduce((sum, member) => sum + runsWaiting(member), 0)
+  const held = new Map(members.map((member) => [member.projectId, member]))
+  return {
+    ...view,
+    headline: needsYouBadge(view.headline, total),
+    members,
+    sections: view.sections.map((section) => ({
+      ...section,
+      members: section.members.map((member) => held.get(member.projectId) ?? member),
+    })),
+  }
 }
 
 function Board<T extends string>({
@@ -142,6 +233,42 @@ export const GROUP_HOME_SCENES: Scene[] = [
               : 'One row per project, one column per thing the roll-up says.',
         render: () => <Home layout={layout} />,
       })),
+      {
+        id: 'needs-you-count',
+        title: 'What Needs you counts',
+        description:
+          'A failing check and a request nobody accepted put a project under Needs you. Every item ships: the pill adds up runs, checks and requests, a project’s pill and the group’s agree. Projects counts the cards under Needs you. Runs only is how it read before.',
+        render: () => (
+          <Board
+            options={NEEDS_YOU_COUNTS}
+            labels={NEEDS_YOU_COUNT_LABELS}
+            initial="items"
+            label="Needs you counts"
+            board={(option) => (
+              <GroupHome
+                title="Overseer"
+                typeTag="MAIN"
+                projects={PROJECTS}
+                view={countedAs(option)}
+                onSelectProject={noop}
+              />
+            )}
+          />
+        ),
+      },
+      {
+        id: 'only-a-check',
+        title: 'Only a failing check',
+        description: 'No run is waiting: the failing check alone puts the project under Needs you.',
+        render: () => <Home routes={ONE_CHECK} />,
+      },
+      {
+        id: 'only-a-request',
+        title: 'Only a request to accept',
+        description:
+          'A request nobody accepted yet does the same, and says it waits to be accepted.',
+        render: () => <Home routes={ONE_REQUEST} />,
+      },
       {
         id: 'quiet',
         title: 'Nothing going on',

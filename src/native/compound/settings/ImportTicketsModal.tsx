@@ -25,7 +25,7 @@ export interface ImportTicketsModalProps {
  * CONTENT — the parent wraps it in a `Modal`.
  */
 export default function ImportTicketsModal({ connection, onClose }: ImportTicketsModalProps) {
-  const { listAssignedItems, importItem } = useProviderConnections()
+  const { listItemsToShow, importItem } = useProviderConnections()
   const { projects } = useProjects()
 
   const [items, setItems] = useState<ExternalItem[]>([])
@@ -43,9 +43,11 @@ export default function ImportTicketsModal({ connection, onClose }: ImportTicket
     let cancelled = false
     setLoading(true)
     setError(null)
-    listAssignedItems(connection.id)
-      .then((data) => {
-        if (!cancelled) setItems(data)
+    listItemsToShow(connection.id)
+      .then(({ items: listed, markShown }) => {
+        if (cancelled) return
+        setItems(listed)
+        void markShown()
       })
       .catch((err) => {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load tickets')
@@ -56,7 +58,7 @@ export default function ImportTicketsModal({ connection, onClose }: ImportTicket
     return () => {
       cancelled = true
     }
-  }, [connection.id, listAssignedItems])
+  }, [connection.id, listItemsToShow])
 
   const doImport = async (item: ExternalItem) => {
     if (!projectId || importingId) return

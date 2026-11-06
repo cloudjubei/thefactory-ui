@@ -70,6 +70,7 @@ import { nativeSpace, nativeLightTheme, nativeShadows } from 'thefactory-ui/nati
 npm install
 npm run build           # tsup build of the package
 npm run playground:dev  # vite dev server with the component showcase
+npm run playground:native:dev  # the native components on react-native-web, on fake data
 npm run typecheck
 npm run check:uikit     # enforces the four-layer boundary
 npm run generate:tokens # regenerate src/web/styles/tokens.css from src/tokens/*.ts

@@ -25,6 +25,7 @@ const row = (over: Partial<McpServerRow> = {}): McpServerRow => ({
   url: 'https://mcp.getzenor.com/mcp',
   authType: 'oauth',
   hasCredential: false,
+  onlyReads: false,
   source: 'project',
   ...over,
 })
@@ -318,6 +319,30 @@ describe('mcpServerViews', () => {
       })
       expect(view?.note).toMatch(/Change it in that group/)
       expect(view?.note).not.toMatch(/Remove/)
+    })
+  })
+
+  describe('the switch for a server that only reads', () => {
+    it('shows it as the row has it', () => {
+      expect(views({ rows: [row()] })[0]?.onlyReads).toBe(false)
+      expect(views({ rows: [row({ onlyReads: true })] })[0]?.onlyReads).toBe(true)
+    })
+
+    it('is shown on a project’s server from its group but cannot be changed there', () => {
+      const [view] = views({ rows: [row({ source: 'group', groupId: 'osc', onlyReads: true })] })
+      expect(view).toMatchObject({ onlyReads: true, readOnly: true })
+    })
+
+    it('lists the tools the backend now counts as reads without Asks first', () => {
+      const [view] = views({
+        rows: [row({ onlyReads: true })],
+        standings: [standing({ tools: [tool('getUser', true), tool('wipe', false)] })],
+      })
+      expect(view?.tools.map((t) => [t.name, t.asks])).toEqual([
+        ['wipe', true],
+        ['getUser', false],
+      ])
+      expect(view?.toolsSummary).toBe('2 tools, 1 asks first')
     })
   })
 
