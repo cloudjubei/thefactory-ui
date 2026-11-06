@@ -15,7 +15,7 @@ export type CredentialCapture = GetCredentialCaptureResponse
 
 export type CredentialCaptureStatus = CredentialCapture['status']
 
-/** What a capture collects — git credentials, a ticket connection, a web-search key, an LLM key, a CLI sign-in or a secret note. */
+/** What a capture collects — git credentials, a ticket connection, a web-search key, an LLM key, a CLI sign-in, a secret note or an MCP server. */
 export type CredentialCaptureKind = CredentialCapture['provider']
 
 /**
@@ -54,6 +54,10 @@ export type CredentialCaptureFieldSpec = {
   fromPreset?: boolean
   /** Shown only on a capture that adds a credential, not on one that replaces a stored one. */
   newOnly?: boolean
+  /** Filled from what the agent suggested for a server card. */
+  fromMcpServer?: 'name' | 'url' | 'scope'
+  /** Shown only on a capture with a project and a group to choose between. */
+  twoOwners?: boolean
 }
 
 /**

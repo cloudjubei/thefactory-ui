@@ -42,7 +42,11 @@ import { KNOWLEDGE_EVALUATION_SCENES } from '../scenes/knowledgeEvaluation'
 import { LAND_NOTICE_SCENES } from '../scenes/landNotice'
 import { LAUNCH_MODEL_CHIP_SCENES } from '../scenes/launchModelChip'
 import { LEAVE_GUARD_SCENES } from '../scenes/leaveGuard'
+import { MCP_SERVER_CARD_SCENES } from '../scenes/mcpServerCard'
 import { MCP_SERVER_SCENES } from '../scenes/mcpServers'
+import { PROVIDER_CONNECTION_FORM_SCENES } from '../scenes/providerConnectionForm'
+import { SIGN_OFF_OUTPUT_SETTINGS_SCENES } from '../scenes/signOffOutputSettings'
+import { TICKET_TRANSITION_SCENES } from '../scenes/ticketTransition'
 import { MODEL_EFFORT_SCENES } from '../scenes/modelEffort'
 import { OPEN_RUN_SCENES } from '../scenes/openRun'
 import { PRIMITIVE_SCENES } from '../scenes/primitives'
@@ -65,6 +69,7 @@ import { SEND_CHAT_MESSAGE_SCENES } from '../scenes/sendChatMessage'
 import { STORY_CHANGE_ERROR_SCENES } from '../scenes/storyChangeErrors'
 import { STUCK_SCENES } from '../scenes/stuck'
 import { STORY_WORK_SCENES } from '../scenes/storyWork'
+import { GROUP_TICKETS_SCENES } from '../scenes/groupTickets'
 import { TICKET_SCENES } from '../scenes/ticketFlow'
 import { TICKET_NEW_ITEMS_SCENES } from '../scenes/ticketNewItems'
 import { UI_IMPACT_SCENES } from '../scenes/uiImpact'
@@ -142,11 +147,16 @@ export const SCENES: readonly Scene[] = [
   ...FEATURE_POOL_SCENES,
   ...AGENT_TYPE_SCENES,
   ...MCP_SERVER_SCENES,
+  ...MCP_SERVER_CARD_SCENES,
+  ...PROVIDER_CONNECTION_FORM_SCENES,
+  ...SIGN_OFF_OUTPUT_SETTINGS_SCENES,
+  ...TICKET_TRANSITION_SCENES,
   ...WORKFLOW_GUARD_SCENES,
   ...KNOWLEDGE_SCENES,
   ...GROUP_HOME_SCENES,
   ...PROJECT_EDITOR_LIMIT_SCENES,
   ...GROUP_STORY_SCENES,
+  ...GROUP_TICKETS_SCENES,
   ...TICKET_SCENES,
   ...TICKET_NEW_ITEMS_SCENES,
   ...GROUP_SIGN_OFF_SCENES,

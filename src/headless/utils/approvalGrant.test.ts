@@ -371,6 +371,7 @@ describe('isToolAskDecidedOnRow', () => {
   it('leaves a question or a form the person answers to the composer', () => {
     expect(isToolAskDecidedOnRow('askUser')).toBe(false)
     expect(isToolAskDecidedOnRow('requestCliSignIn')).toBe(false)
+    expect(isToolAskDecidedOnRow('requestMcpServer')).toBe(false)
   })
 
   it('reads an MCP-prefixed name as the bare tool', () => {

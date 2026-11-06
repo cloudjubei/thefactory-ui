@@ -143,7 +143,11 @@ function GroupJiraModal({
           own in their settings.
         </div>
         {error && <Alert>{error}</Alert>}
-        <TicketConnectionPicker value={value} onChange={setValue} />
+        <TicketConnectionPicker
+          value={value}
+          onChange={setValue}
+          writeBack={group.capabilities?.connectorWriteBack === true}
+        />
         <div className="flex justify-end gap-2 mt-1">
           <Button variant="outline" onClick={onClose} disabled={submitting}>
             Cancel

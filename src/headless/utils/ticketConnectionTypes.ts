@@ -9,3 +9,13 @@ export type EffectiveTicketBinding =
   | { source: 'group'; binding: TicketConnectionBinding; groupTitle: string }
   | { source: 'off' }
   | { source: 'none' }
+
+/** What a sign-off would do with a binding, for the transition setting. */
+export type TicketTransitionStanding = {
+  label: string
+  tone: 'empty' | 'onhold' | 'done'
+  text: string
+}
+
+/** How the transition setting sits under the Jira picker. */
+export type TicketTransitionLayout = 'inline' | 'fold' | 'panel'

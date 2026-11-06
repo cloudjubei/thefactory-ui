@@ -14,7 +14,9 @@ import {
   TICKET_PICKER_INHERIT,
   TICKET_PICKER_NONE,
   chooseTicketConnection,
+  ticketTransitionStanding,
   useProviderConnections,
+  withSignOffTransition,
 } from '../../../headless'
 import type { TicketConnectionAccess, TicketConnectionBinding } from '../../../headless/api'
 import {
@@ -27,6 +29,7 @@ import {
   TICKET_ACCESS_DESCRIPTIONS,
   TICKET_ACCESS_LABELS,
 } from '../../../headless/utils/ticketConnectionConstants'
+import TicketTransitionField from './TicketTransitionField'
 
 /** A project's setting (`undefined` = inherit, `'none'` = opted out) or a group's (`undefined` = none). */
 export type TicketConnectionPickerValue = TicketConnectionBinding | 'none' | undefined
@@ -39,6 +42,8 @@ export type TicketConnectionPickerProps = {
    * Absent for a group, or for a project with no main group.
    */
   inherited?: { groupTitle: string; binding?: TicketConnectionBinding }
+  /** Whether connector write-back is on where this binding applies. */
+  writeBack?: boolean
 }
 
 /**
@@ -50,11 +55,13 @@ export default function TicketConnectionPicker({
   value,
   onChange,
   inherited,
+  writeBack = false,
 }: TicketConnectionPickerProps) {
   const { connections } = useProviderConnections()
   const jiraConnections = jiraConnectionsOf(connections)
   const own = value !== undefined && value !== 'none' ? value : undefined
   const [keysText, setKeysText] = useState(formatJiraProjectKeys(own?.projectKeys))
+  const [transitionText, setTransitionText] = useState(own?.signOffTransition ?? '')
 
   const selected = own
     ? own.connectionId
@@ -74,6 +81,7 @@ export default function TicketConnectionPicker({
     if (!choice) return
     if (choice.value !== undefined && choice.value !== 'none') {
       setKeysText(formatJiraProjectKeys(choice.value.projectKeys))
+      setTransitionText(choice.value.signOffTransition ?? '')
     }
     onChange(choice.value)
   }
@@ -88,6 +96,11 @@ export default function TicketConnectionPicker({
     const projectKeys = parseJiraProjectKeys(text)
     const { projectKeys: _previous, ...rest } = own
     onChange(projectKeys.length ? { ...rest, projectKeys } : rest)
+  }
+
+  const setTransition = (text: string) => {
+    setTransitionText(text)
+    if (own) onChange(withSignOffTransition(own, text))
   }
 
   const inheritedSummary = inherited?.binding
@@ -155,6 +168,15 @@ export default function TicketConnectionPicker({
               spellCheck={false}
             />
           </Field>
+          <TicketTransitionField
+            value={transitionText}
+            onChange={setTransition}
+            standing={ticketTransitionStanding({
+              binding: own,
+              connection: jiraConnections.find((c) => c.id === own.connectionId),
+              writeBack,
+            })}
+          />
           {ownIsMissing ? (
             <Alert>
               This connection was deleted, so agents here get no Jira tools. Choose another.

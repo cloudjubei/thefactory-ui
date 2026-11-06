@@ -29,6 +29,7 @@ import ParkNoteComposer from '../ParkNoteComposer'
 import RunNeedsYouCard from '../RunNeedsYouCard'
 import type { StorySignoffExtraChip } from '../StorySignoffReview'
 import SignOffOutputPanel from './SignOffOutputPanel'
+import TicketPostNote, { type TicketPostNoteProps } from './TicketPostNote'
 
 export type GroupSignOffProps = {
   screen: GroupSignOffScreen
@@ -50,6 +51,8 @@ export type GroupSignOffProps = {
   submittedLayout?: GroupSignOffSubmittedLayout
   /** Open on Request changes — for a fixed showcase state. */
   requesting?: boolean
+  /** How the note of what would post is drawn — for a fixed showcase state. */
+  ticketPost?: Pick<TicketPostNoteProps, 'layout' | 'startOpen'>
 }
 
 function Heading({ children }: { children: string }) {
@@ -114,9 +117,11 @@ function RepoHead({ repo }: { repo: GroupSignOffRepoRow }) {
 function RepoRows({
   repos,
   onOpenRun,
+  ticketPost,
 }: {
   repos: readonly GroupSignOffRepoRow[]
   onOpenRun: GroupSignOffProps['onOpenRun']
+  ticketPost?: GroupSignOffProps['ticketPost']
 }) {
   return (
     <div className="flex flex-col divide-y divide-(--border-subtle) rounded-lg border border-(--border-subtle) bg-(--surface-base)">
@@ -135,6 +140,7 @@ function RepoRows({
             ) : null}
           </div>
           <RepoFacts repo={repo} />
+          {repo.ticketPost ? <TicketPostNote view={repo.ticketPost} {...ticketPost} /> : null}
         </div>
       ))}
     </div>
@@ -408,11 +414,13 @@ function RepoFold({
   repo,
   open,
   onToggle,
+  ticketPost,
   children,
 }: {
   repo: GroupSignOffRepoRow
   open: boolean
   onToggle: () => void
+  ticketPost?: Pick<TicketPostNoteProps, 'layout' | 'startOpen'> | undefined
   children: ReactNode
 }) {
   return (
@@ -436,6 +444,11 @@ function RepoFold({
           <Alert variant="error">{repo.error}</Alert>
         </div>
       ) : null}
+      {repo.ticketPost ? (
+        <div className="px-4 pb-3">
+          <TicketPostNote view={repo.ticketPost} {...ticketPost} />
+        </div>
+      ) : null}
       {open ? <div className="px-4 pb-4">{children}</div> : null}
     </div>
   )
@@ -457,9 +470,10 @@ function Evidence({
   outputLayout,
   renderEvidence,
   layout,
+  ticketPost,
 }: Pick<
   GroupSignOffProps,
-  'screen' | 'outputs' | 'outputActions' | 'outputLayout' | 'renderEvidence'
+  'screen' | 'outputs' | 'outputActions' | 'outputLayout' | 'renderEvidence' | 'ticketPost'
 > & { layout: GroupSignOffLayout }) {
   const { repos } = screen
   const [picked, setPicked] = useState<string | undefined>(undefined)
@@ -485,6 +499,7 @@ function Evidence({
             repo={repo}
             open={repo.legId === shown.legId}
             onToggle={() => setPicked(repo.legId)}
+            ticketPost={ticketPost}
           >
             {repo.legId === shown.legId ? renderEvidence(repo, chips) : null}
           </RepoFold>
@@ -560,6 +575,7 @@ export default function GroupSignOff(props: GroupSignOffProps) {
     layout = GROUP_SIGN_OFF_DEFAULT_LAYOUT,
     outputLayout,
     requesting,
+    ticketPost,
   } = props
   const evidence = (
     <Evidence
@@ -567,6 +583,7 @@ export default function GroupSignOff(props: GroupSignOffProps) {
       outputs={outputs}
       outputActions={outputActions}
       {...(outputLayout ? { outputLayout } : {})}
+      {...(ticketPost ? { ticketPost } : {})}
       renderEvidence={renderEvidence}
       layout={layout}
     />
@@ -602,7 +619,7 @@ export default function GroupSignOff(props: GroupSignOffProps) {
         requesting={requesting === true}
         repoRows={
           layout === 'decision-first' ? (
-            <RepoRows repos={screen.repos} onOpenRun={onOpenRun} />
+            <RepoRows repos={screen.repos} onOpenRun={onOpenRun} ticketPost={ticketPost} />
           ) : null
         }
       />

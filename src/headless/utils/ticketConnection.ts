@@ -1,10 +1,14 @@
+import { resolveProjectCapabilitySettings } from 'thefactory-tools/validations'
+
 import type { GetProviderConnectionResponse, TicketConnectionBinding } from '../api/generated'
 import {
   TICKET_ACCESS_LABELS,
   TICKET_PICKER_INHERIT,
   TICKET_PICKER_NONE,
+  TICKET_TRANSITION_LABEL,
+  TICKET_TRANSITION_STANDING,
 } from './ticketConnectionConstants'
-import type { EffectiveTicketBinding } from './ticketConnectionTypes'
+import type { EffectiveTicketBinding, TicketTransitionStanding } from './ticketConnectionTypes'
 
 /** Jira project keys typed as free text ("eng, OPS"), upper-cased and de-duplicated. */
 export function parseJiraProjectKeys(text: string): string[] {
@@ -38,7 +42,66 @@ export function describeTicketBinding(
   const scope = binding.projectKeys?.length
     ? formatJiraProjectKeys(binding.projectKeys)
     : 'all Jira projects'
-  return `${name} · ${TICKET_ACCESS_LABELS[binding.access]} · ${scope}`
+  const line = `${name} · ${TICKET_ACCESS_LABELS[binding.access]} · ${scope}`
+  return binding.signOffTransition
+    ? `${line} · ${TICKET_TRANSITION_LABEL(binding.signOffTransition)}`
+    : line
+}
+
+/**
+ * A binding with this sign-off transition. Blank drops the key: the backend
+ * refuses a blank one, and no key is what "leave the ticket where it is" means.
+ */
+export function withSignOffTransition(
+  binding: TicketConnectionBinding,
+  text: string,
+): TicketConnectionBinding {
+  const { signOffTransition: _previous, ...rest } = binding
+  const signOffTransition = text.trim()
+  return signOffTransition ? { ...rest, signOffTransition } : rest
+}
+
+/**
+ * Whether connector write-back is on for a project: its own flag, else its main
+ * group's. Anything still unset is off, the same rule the backend resolves.
+ */
+export function connectorWriteBackOf(
+  project: { metadata?: unknown; mainGroupId?: string | null },
+  groups: readonly { id: string; type?: string; capabilities?: unknown }[],
+): boolean {
+  const group = groups.find((g) => g.id === project.mainGroupId && g.type === 'MAIN')
+  const own = (project.metadata as { capabilities?: unknown } | undefined)?.capabilities
+  return resolveProjectCapabilitySettings(
+    own as Parameters<typeof resolveProjectCapabilitySettings>[0],
+    group?.capabilities as Parameters<typeof resolveProjectCapabilitySettings>[1],
+  ).connectorWriteBack
+}
+
+/**
+ * What a sign-off would do with this binding, read the way the write policy reads
+ * it and in its order, so the reason a person has to act on comes first.
+ */
+export function ticketTransitionStanding({
+  binding,
+  connection,
+  writeBack,
+}: {
+  binding: TicketConnectionBinding
+  connection?:
+    | Pick<GetProviderConnectionResponse, 'provider' | 'tokenSource' | 'config'>
+    | undefined
+  writeBack: boolean
+}): TicketTransitionStanding {
+  if (!writeBack) return TICKET_TRANSITION_STANDING.off
+  if (!connection) return TICKET_TRANSITION_STANDING.noConnection
+  if (binding.projectKeys?.length) return TICKET_TRANSITION_STANDING.projectLimit
+  if (connection.tokenSource !== 'oauth' && connection.config?.jiraApiTokenMode !== 'scoped') {
+    return TICKET_TRANSITION_STANDING.classicToken
+  }
+  if (binding.access !== 'read-write') return TICKET_TRANSITION_STANDING.readOnly
+  return binding.signOffTransition
+    ? TICKET_TRANSITION_STANDING.moves
+    : TICKET_TRANSITION_STANDING.commentOnly
 }
 
 /** A project's own setting as stored in its metadata: a binding, an opt-out, or nothing (follow its group). */

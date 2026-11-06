@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   chooseTicketConnection,
+  connectorWriteBackOf,
   describeEffectiveTicketBinding,
   describeTicketBinding,
   effectiveTicketBinding,
@@ -9,9 +10,15 @@ import {
   jiraConnectionsOf,
   parseJiraProjectKeys,
   readTicketConnection,
+  ticketTransitionStanding,
+  withSignOffTransition,
   withTicketConnection,
 } from './ticketConnection'
-import { TICKET_PICKER_INHERIT, TICKET_PICKER_NONE } from './ticketConnectionConstants'
+import {
+  TICKET_PICKER_INHERIT,
+  TICKET_PICKER_NONE,
+  TICKET_TRANSITION_STANDING,
+} from './ticketConnectionConstants'
 
 const connection = (id: string, provider: string, name = id) => ({
   id,
@@ -219,5 +226,155 @@ describe('withTicketConnection', () => {
       icon: 'rocket',
     })
     expect(withTicketConnection(undefined, undefined)).toEqual({})
+  })
+})
+
+describe('withSignOffTransition', () => {
+  const binding = { connectionId: 'c1', access: 'read-write' as const }
+
+  it('sets the transition, trimmed', () => {
+    expect(withSignOffTransition(binding, ' 31 ')).toEqual({ ...binding, signOffTransition: '31' })
+  })
+
+  it('drops the key on blank text: a blank one would be refused', () => {
+    const next = withSignOffTransition({ ...binding, signOffTransition: '31' }, '   ')
+    expect(next).toEqual(binding)
+    expect('signOffTransition' in next).toBe(false)
+  })
+})
+
+describe('chooseTicketConnection and the sign-off transition', () => {
+  const own = { connectionId: 'c1', access: 'read-write' as const, signOffTransition: '31' }
+  const options = { inherits: false, connectionIds: ['c1', 'c2'] }
+
+  it('keeps it when the same connection is picked again', () => {
+    expect(chooseTicketConnection('c1', own, options)).toEqual({ value: own })
+  })
+
+  it('drops it with a new connection: a transition id belongs to one Jira', () => {
+    expect(chooseTicketConnection('c2', own, options)).toEqual({
+      value: { connectionId: 'c2', access: 'read-write' },
+    })
+  })
+})
+
+describe('describeTicketBinding and the sign-off transition', () => {
+  it('names the transition a binding moves tickets with', () => {
+    expect(
+      describeTicketBinding(
+        { connectionId: 'jira-1', access: 'read-write', signOffTransition: '31' },
+        [connection('jira-1', 'jira', 'Acme Jira')],
+      ),
+    ).toBe('Acme Jira · Read & write · all Jira projects · Sign-off transition 31')
+  })
+})
+
+describe('connectorWriteBackOf', () => {
+  const on = { connectorWriteBack: true }
+  const off = { connectorWriteBack: false }
+  const main = (capabilities?: object) => ({
+    id: 'g1',
+    type: 'MAIN' as const,
+    ...(capabilities ? { capabilities } : {}),
+  })
+
+  it('is off when nothing says so', () => {
+    expect(connectorWriteBackOf({ metadata: {} }, [])).toBe(false)
+  })
+
+  it('follows the main group', () => {
+    expect(connectorWriteBackOf({ mainGroupId: 'g1' }, [main(on)])).toBe(true)
+  })
+
+  it('lets the project say no over its group, and yes on its own', () => {
+    expect(
+      connectorWriteBackOf({ mainGroupId: 'g1', metadata: { capabilities: off } }, [main(on)]),
+    ).toBe(false)
+    expect(
+      connectorWriteBackOf({ mainGroupId: 'g1', metadata: { capabilities: on } }, [main()]),
+    ).toBe(true)
+  })
+
+  it('takes nothing from a scope group', () => {
+    expect(
+      connectorWriteBackOf({ mainGroupId: 'g1' }, [{ ...main(on), type: 'SCOPE' as const }]),
+    ).toBe(false)
+  })
+
+  it('reads anything but true as off', () => {
+    expect(
+      connectorWriteBackOf({ metadata: { capabilities: { connectorWriteBack: 'yes' } } }, []),
+    ).toBe(false)
+  })
+})
+
+describe('ticketTransitionStanding', () => {
+  const writable = { connectionId: 'c1', access: 'read-write' as const, signOffTransition: '31' }
+  const OAUTH = { id: 'c1', provider: 'jira', tokenSource: 'oauth' as const }
+  const SCOPED = { id: 'c1', provider: 'jira', config: { jiraApiTokenMode: 'scoped' } }
+  const CLASSIC = { id: 'c1', provider: 'jira' }
+
+  it('says plainly that nothing moves while write-back is off, whatever else holds', () => {
+    expect(
+      ticketTransitionStanding({ binding: writable, connection: OAUTH, writeBack: false }),
+    ).toEqual(TICKET_TRANSITION_STANDING.off)
+    expect(
+      ticketTransitionStanding({
+        binding: { connectionId: 'c1', access: 'read' },
+        connection: CLASSIC,
+        writeBack: false,
+      }),
+    ).toEqual(TICKET_TRANSITION_STANDING.off)
+  })
+
+  it('reads a missing connection as blocked', () => {
+    expect(ticketTransitionStanding({ binding: writable, writeBack: true })).toEqual(
+      TICKET_TRANSITION_STANDING.noConnection,
+    )
+  })
+
+  it('blocks a binding limited to Jira projects, first, as the write policy does', () => {
+    expect(
+      ticketTransitionStanding({
+        binding: { ...writable, access: 'read', projectKeys: ['ENG'] },
+        connection: OAUTH,
+        writeBack: true,
+      }),
+    ).toEqual(TICKET_TRANSITION_STANDING.projectLimit)
+  })
+
+  it('blocks a classic API token', () => {
+    expect(
+      ticketTransitionStanding({ binding: writable, connection: CLASSIC, writeBack: true }),
+    ).toEqual(TICKET_TRANSITION_STANDING.classicToken)
+  })
+
+  it('blocks a read-only binding', () => {
+    expect(
+      ticketTransitionStanding({
+        binding: { ...writable, access: 'read' },
+        connection: SCOPED,
+        writeBack: true,
+      }),
+    ).toEqual(TICKET_TRANSITION_STANDING.readOnly)
+  })
+
+  it('says it moves the ticket when all holds', () => {
+    expect(
+      ticketTransitionStanding({ binding: writable, connection: OAUTH, writeBack: true }),
+    ).toEqual(TICKET_TRANSITION_STANDING.moves)
+    expect(
+      ticketTransitionStanding({ binding: writable, connection: SCOPED, writeBack: true }),
+    ).toEqual(TICKET_TRANSITION_STANDING.moves)
+  })
+
+  it('says it only comments when no transition is set', () => {
+    expect(
+      ticketTransitionStanding({
+        binding: { connectionId: 'c1', access: 'read-write' },
+        connection: OAUTH,
+        writeBack: true,
+      }),
+    ).toEqual(TICKET_TRANSITION_STANDING.commentOnly)
   })
 })

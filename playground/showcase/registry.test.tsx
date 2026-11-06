@@ -102,6 +102,14 @@ describe('showcase registry', () => {
     expect(markup('plan-and-api-key-cost')).toMatch(/\$0\.02 \+ \$\?/)
   })
 
+  it('draws every state of the server card', () => {
+    const states = SCENES.find((s) => s.id === 'mcp-server-card')?.states ?? []
+    expect(states.length).toBeGreaterThan(0)
+    for (const state of states) {
+      expect(renderToStaticMarkup(<>{state.render()}</>), state.id).not.toBe('')
+    }
+  })
+
   it('draws a failed turn under a hidden notice exactly as the turn alone, Try again offered', () => {
     const states = SCENES.find((s) => s.id === 'chat-hidden-notice-tail')?.states ?? []
     const markup = (id: string) =>

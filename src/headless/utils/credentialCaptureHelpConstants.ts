@@ -2,17 +2,38 @@ import type { CredentialHelp } from './credentialCaptureTypes'
 
 const GITHUB_FINE_GRAINED_TOKENS = 'https://github.com/settings/personal-access-tokens/new'
 
-export const JIRA_TOKEN_HELP: CredentialHelp = {
-  title: 'How do I get a Jira API token?',
-  link: {
-    label: 'Open Atlassian API tokens',
-    url: 'https://id.atlassian.com/manage-profile/security/api-tokens',
-  },
+const ATLASSIAN_API_TOKENS = {
+  label: 'Open Atlassian API tokens',
+  url: 'https://id.atlassian.com/manage-profile/security/api-tokens',
+}
+
+const JIRA_OPEN_TOKENS_STEP =
+  'Open Atlassian API tokens and sign in with the account the agent should work as — it can see and do exactly what that account can in Jira.'
+
+const JIRA_ACCOUNT_AND_SITE_STEP =
+  'Account email is the email you sign in to Atlassian with. Site URL is the address you open Jira at, e.g. https://your-company.atlassian.net.'
+
+export const JIRA_SCOPED_TOKEN_HELP: CredentialHelp = {
+  title: 'How do I get a Jira API token with scopes?',
+  link: ATLASSIAN_API_TOKENS,
   steps: [
-    'Open Atlassian API tokens and sign in with the account the agent should work as — it can see and do exactly what that account can in Jira.',
-    'Choose "Create API token" (not "Create API token with scopes"), name it, e.g. "Overseer", pick an expiry, and create it.',
+    JIRA_OPEN_TOKENS_STEP,
+    'Choose "Create API token with scopes", name it, e.g. "Overseer", and pick an expiry — up to a year.',
+    'Choose Jira as the app, then select read:jira-work, write:jira-work and read:jira-user. A token’s scopes cannot be changed later.',
+    'For boards and sprints, also select read:board-scope:jira-software, read:project:jira, read:issue-details:jira and read:sprint:jira-software.',
+    'Create it, copy the token straight away — Atlassian shows it only once — and paste it into API token.',
+    `${JIRA_ACCOUNT_AND_SITE_STEP} Cloud id fills itself in from the site.`,
+  ],
+}
+
+export const JIRA_TOKEN_HELP: CredentialHelp = {
+  title: 'How do I get a classic Jira API token?',
+  link: ATLASSIAN_API_TOKENS,
+  steps: [
+    JIRA_OPEN_TOKENS_STEP,
+    'Choose "Create API token", name it, e.g. "Overseer", pick an expiry, and create it. A classic token reads tickets, but cannot post to Jira or move a ticket.',
     'Copy the token straight away — Atlassian shows it only once — and paste it into API token.',
-    'Account email is the email you sign in to Atlassian with. Site URL is the address you open Jira at, e.g. https://your-company.atlassian.net.',
+    JIRA_ACCOUNT_AND_SITE_STEP,
   ],
 }
 

@@ -108,6 +108,7 @@ import CodeReviewPanel from './signoff/CodeReviewPanel'
 import LoomWalkthroughPanel from './signoff/LoomWalkthroughPanel'
 import Pill from './signoff/Pill'
 import SignoffDecisionList from './signoff/SignoffDecisionList'
+import { RunTicketPostNote } from './signoff/TicketPostNote'
 import SignoffReportPanel from './signoff/SignoffReportPanel'
 import StorySpecCard from './signoff/StorySpecCard'
 
@@ -858,6 +859,7 @@ function StorySignoffPanel({
             onShowSection={showSection}
             onRequestImage={evidence.requestImage}
           />
+          {canDecide ? <RunTicketPostNote runId={storyRunId} /> : null}
         </View>
 
         {integration}

@@ -5,6 +5,7 @@ import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import {
+  connectorWriteBackOf,
   readTicketConnection,
   useProjects,
   useProjectsGroups,
@@ -72,6 +73,7 @@ export default function ProjectTicketSettings({ projectId }: ProjectTicketSettin
           setValue(next)
           setSaved(false)
         }}
+        writeBack={connectorWriteBackOf(project, groups)}
         {...(mainGroup
           ? { inherited: { groupTitle: mainGroup.title, binding: mainGroup.ticketConnection } }
           : {})}

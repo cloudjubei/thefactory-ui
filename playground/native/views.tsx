@@ -1,8 +1,27 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { ScrollView, Text, View } from 'react-native'
-import type { GroupConstellationLayout, GroupHomeLayout } from 'thefactory-ui/headless'
+import {
+  CliConfigsProvider,
+  SIGN_OFF_OUTPUT_COPY,
+  TICKET_TRANSITION_STANDING,
+  groupTicketsView,
+  signOffOutputSettingViews,
+  signOffTemplateChoices,
+  type GroupConstellationLayout,
+  type GroupHomeLayout,
+  type GroupTicketsLayout,
+  type TicketTransitionStanding,
+} from 'thefactory-ui/headless'
 import GroupHomeConnected from '../../src/native/compound/GroupHomeConnected'
+import GroupTicketsList from '../../src/native/compound/groupStories/GroupTicketsList'
 import ProjectDefaultCapsField from '../../src/native/compound/projects/ProjectDefaultCapsField'
+import TicketTransitionField from '../../src/native/compound/projects/TicketTransitionField'
+import ProviderConnectionsForm from '../../src/native/compound/settings/ProviderConnectionsForm'
+import SignOffOutputSettingsPanel from '../../src/native/compound/settings/SignOffOutputSettingsPanel'
+import CaptureCardShell from '../../src/native/compound/chat/CaptureCardShell'
+import CredentialCaptureCard from '../../src/native/compound/chat/CredentialCaptureCard'
+import McpServerSignInStep from '../../src/native/compound/chat/McpServerSignInStep'
+import type { CredentialCapture } from '../../src/headless/utils/credentialCaptureTypes'
 import { useNativeTheme } from '../../src/native/hooks/useNativeTheme'
 import { IconSave } from '../../src/native/icons'
 import { Button } from '../../src/native/primitives/Button'
@@ -10,6 +29,7 @@ import Field from '../../src/native/primitives/Field'
 import { Input } from '../../src/native/primitives/Input'
 import { FAKE_GROUP_ID, MEMBERS } from '../../src/fakeBackend/fixtures/projects'
 import { FAKE_GROUP_STATUS_AT } from '../../src/fakeBackend/fixtures/projectsGroups'
+import { ticketsState } from '../scenes/groupTicketsFixtures'
 import { OnFixtures } from '../scenes/onFixtures'
 
 const noop = () => {}
@@ -93,6 +113,81 @@ function ProjectLimits() {
   )
 }
 
+const SAMPLE_OUTPUTS = [
+  { label: 'Release note', templateNoteId: 'release', perRepo: false },
+  { label: 'PR Text', templateNoteId: 'gone', perRepo: true },
+]
+const SAMPLE_NOTES = [{ id: 'release', label: 'Release note template', kind: 'note' }]
+
+function SignOffOutputs() {
+  return (
+    <View style={{ padding: 16 }}>
+      <SignOffOutputSettingsPanel
+        views={signOffOutputSettingViews({
+          own: SAMPLE_OUTPUTS,
+          ownNotes: SAMPLE_NOTES,
+          mainGroup: {
+            id: 'osc',
+            title: 'OSC',
+            type: 'MAIN',
+            signOffOutputs: [{ label: 'Slack Message', templateNoteId: 'slack', perRepo: false }],
+          },
+          groupNotes: [{ id: 'slack', label: 'Slack post template', kind: 'note' }],
+          notesRead: true,
+        })}
+        own={SAMPLE_OUTPUTS}
+        choices={signOffTemplateChoices(SAMPLE_NOTES)}
+        noNotes={SIGN_OFF_OUTPUT_COPY.noNotesProject}
+        intro={SIGN_OFF_OUTPUT_COPY.projectIntro('OSC web')}
+        canAdd
+        error={null}
+        busy={false}
+        onSave={async () => true}
+        onRemove={async () => true}
+      />
+    </View>
+  )
+}
+
+function TicketTransition({ standing }: { standing: TicketTransitionStanding }) {
+  const [value, setValue] = useState('31')
+  return (
+    <View style={{ padding: 16 }}>
+      <TicketTransitionField value={value} onChange={setValue} standing={standing} />
+    </View>
+  )
+}
+
+function ConnectionForm() {
+  return (
+    <View style={{ padding: 16 }}>
+      <ProviderConnectionsForm
+        mode={{ kind: 'create', onSubmit: async () => undefined }}
+        onCancel={noop}
+        oauth={{
+          start: async () => 'https://auth.atlassian.com/authorize?state=s1',
+          finish: async () => undefined,
+        }}
+      />
+    </View>
+  )
+}
+
+const LINEAR = { name: 'Linear', url: 'https://mcp.linear.app/mcp', scope: 'project' as const }
+
+const SERVER_CARD: CredentialCapture = {
+  id: 'cap-server',
+  purpose: 'Read the tickets for this story',
+  provider: 'mcp-server',
+  projectId: 'osc-web',
+  groupId: 'osc',
+  status: 'requested',
+  requestedAt: '2026-11-06T09:00:00.000Z',
+  mcpServer: LINEAR,
+}
+
+const idle = () => new Promise<void>(noop)
+
 export const NATIVE_VIEWS: readonly NativeView[] = [
   {
     id: 'group-home',
@@ -118,5 +213,87 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
     id: 'project-limits',
     title: 'Project default limits',
     render: () => <ProjectLimits />,
+  },
+  {
+    id: 'server-card',
+    title: 'Connect a server card',
+    render: (address) => (
+      <OnFixtures>
+        <CliConfigsProvider>
+          <View style={{ padding: 16 }}>
+            <CredentialCaptureCard
+              capture={SERVER_CARD}
+              onSubmit={idle}
+              onCancel={idle}
+              initialValues={{ authType: address.get('auth') ?? 'oauth' }}
+            />
+          </View>
+        </CliConfigsProvider>
+      </OnFixtures>
+    ),
+  },
+  {
+    id: 'server-card-sign-in',
+    title: 'Connect a server card: Sign in',
+    render: (address) => (
+      <View style={{ padding: 16 }}>
+        <CaptureCardShell
+          capture={{ ...SERVER_CARD, mcpServer: { ...LINEAR, serverId: 'linear' } }}
+        >
+          <McpServerSignInStep
+            url={LINEAR.url}
+            pendingUrl={address.get('pending') ?? undefined}
+            busy={false}
+            error={null}
+            onSignIn={noop}
+            onOpenPage={noop}
+            onCancel={noop}
+          />
+        </CaptureCardShell>
+      </View>
+    ),
+  },
+  {
+    id: 'sign-off-outputs',
+    title: 'Sign-off outputs',
+    render: () => <SignOffOutputs />,
+  },
+  {
+    id: 'ticket-transition',
+    title: 'Sign-off transition',
+    render: (address) => (
+      <TicketTransition
+        standing={
+          address.get('standing') === 'moves'
+            ? TICKET_TRANSITION_STANDING.moves
+            : TICKET_TRANSITION_STANDING.off
+        }
+      />
+    ),
+  },
+  {
+    id: 'group-tickets',
+    title: 'Tickets tab',
+    render: (address) => (
+      <ScrollView>
+        <GroupTicketsList
+          view={groupTicketsView(ticketsState())}
+          query=""
+          onQueryChange={noop}
+          onDiscuss={noop}
+          onPlan={noop}
+          onOpenStory={noop}
+          onOpenSettings={noop}
+          onRetry={noop}
+          onLoadMore={noop}
+          layout={(address.get('layout') ?? 'sections') as GroupTicketsLayout}
+        />
+      </ScrollView>
+    ),
+  },
+  {
+    id: 'connection-form',
+    title: 'Ticket connection form',
+    render: () => <ConnectionForm />,
   },
 ]

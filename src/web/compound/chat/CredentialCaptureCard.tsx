@@ -6,39 +6,44 @@ import Field from '../../primitives/Field'
 import { Input } from '../../primitives/Input'
 import { NativeSelect } from '../../primitives/NativeSelect'
 import { SecretInput } from '../SecretInput'
-import { IconKey } from '../../icons'
 import { captureHelp } from '../../../headless/utils/credentialCaptureHelp'
+import { useJiraCloudIdLookup } from '../../../headless/hooks/useJiraCloudIdLookup'
+import { jiraCloudIdHint } from '../../../headless/utils/providerConnectionForm'
+import type { JiraCloudIdFinder } from '../../../headless/utils/providerConnectionFormTypes'
+import CaptureCardShell from './CaptureCardShell'
 import CredentialHelpPanel from './CredentialHelpPanel'
+import McpServerCaptureSignIn from './McpServerCaptureSignIn'
 import { useCliConfigs } from '../../../headless/contexts/CliConfigsContext'
 import { useCliSignIn } from '../../../headless/hooks/useCliSignIn'
 import { CLI_CLIENT_OPENS_LOGIN_URL } from '../../../headless/utils/cliRunner'
 import {
-  captureCardTitle,
+  captureFailureText,
+  captureCloudIdSite,
   captureFields,
+  captureFormWith,
+  captureFormNote,
   cliSignInRequest,
   captureFormErrors,
-  captureStatusDisplay,
   captureSubmitBody,
+  captureSubmitLabel,
   emptyCaptureForm,
+  filledCaptureFields,
   isAwaitingUser,
   isCaptureFormValid,
   isCliSignInCapture,
+  isMcpSignInStep,
+  mcpCaptureOwner,
 } from '../../../headless/utils/credentialCaptures'
 import {
   CAPTURE_CANCEL_ERROR,
   CAPTURE_CANCEL_LABEL,
-  CAPTURE_CARD_PRIVACY_NOTE,
-  CAPTURE_PURPOSE_LABEL,
   CAPTURE_SUBMIT_ERROR,
-  CAPTURE_SUBMIT_LABEL,
   CLI_SIGN_IN_AUTHORIZE_HINT,
   CLI_SIGN_IN_CODE_LABEL,
   CLI_SIGN_IN_CODE_PLACEHOLDER,
   CLI_SIGN_IN_CODE_SUBMIT,
   CLI_SIGN_IN_COPY_LINK,
   CLI_SIGN_IN_OPEN_LINK,
-  CLI_SIGN_IN_PRIVACY_NOTE,
-  CLI_SIGN_IN_START_LABEL,
   CLI_SIGN_IN_STARTING,
 } from '../../../headless/utils/credentialCaptureConstants'
 import type {
@@ -57,6 +62,10 @@ export type CredentialCaptureCardProps = {
   onCancel: () => Promise<void>
   /** Blocks the form while the host is busy. */
   disabled?: boolean
+  /** Start the form with these in it. */
+  initialValues?: CredentialCaptureFormValues
+  /** Find a site's cloud id another way than the backend's, for a fixed showcase state. */
+  findCloudId?: JiraCloudIdFinder
 }
 
 /**
@@ -72,27 +81,35 @@ export type CredentialCaptureCardProps = {
  *
  * A CLI sign-in card stores nothing typed: it runs the Settings sign-in for the
  * card, with its link and code box here, and the backend answers the card once
- * the sign-in succeeds.
+ * the sign-in succeeds. A server card adds its server here, then moves to signing
+ * in if the server wants that; the backend answers that one as well.
  */
 export default function CredentialCaptureCard({
   capture,
   onSubmit,
   onCancel,
   disabled,
+  initialValues,
+  findCloudId,
 }: CredentialCaptureCardProps) {
-  const [values, setValues] = useState<CredentialCaptureFormValues>(() => emptyCaptureForm(capture))
-  const [touched, setTouched] = useState<CredentialCaptureFieldName[]>([])
+  const [values, setValues] = useState<CredentialCaptureFormValues>(() => ({
+    ...emptyCaptureForm(capture),
+    ...initialValues,
+  }))
+  const [touched, setTouched] = useState<CredentialCaptureFieldName[]>(() =>
+    filledCaptureFields(capture),
+  )
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // The agent is parked on this form, so it opens showing what it needs; the
   // chevron is for getting it out of the way, not for finding it.
 
-  const status = captureStatusDisplay(capture)
   const open = isAwaitingUser(capture)
   const errors = captureFormErrors(capture, values)
   const locked = busy || disabled === true
   const canSubmit = isCaptureFormValid(capture, values)
-  const showForm = open
+  const serverOwner = isMcpSignInStep(capture) ? mcpCaptureOwner(capture) : undefined
+  const showForm = open && !serverOwner
   const help = captureHelp(capture, values)
 
   const signInCard = isCliSignInCapture(capture)
@@ -114,7 +131,15 @@ export default function CredentialCaptureCard({
   const errorFor = (name: CredentialCaptureFieldName) =>
     touched.includes(name) ? errors[name] : undefined
   const set = (name: CredentialCaptureFieldName, value: string) =>
-    setValues((prev) => ({ ...prev, [name]: value }))
+    setValues((prev) => captureFormWith(prev, name, value))
+  const cloudIdStatus = useJiraCloudIdLookup(
+    captureCloudIdSite(capture, values),
+    (cloudId) => setValues((prev) => ({ ...prev, cloudId })),
+    findCloudId,
+  )
+  const hintFor = (name: CredentialCaptureFieldName) =>
+    errorFor(name) ??
+    (name === 'cloudId' ? jiraCloudIdHint(cloudIdStatus, values.cloudId ?? '') : undefined)
   const markTouched = (name: CredentialCaptureFieldName) =>
     setTouched((prev) => (prev.includes(name) ? prev : [...prev, name]))
 
@@ -124,9 +149,9 @@ export default function CredentialCaptureCard({
     try {
       await action()
     } catch (err) {
-      setError(err instanceof Error ? err.message : fallback)
-      setBusy(false)
+      setError(captureFailureText(capture, err, fallback))
     }
+    setBusy(false)
   }
 
   const submit = (e: FormEvent) => {
@@ -150,19 +175,10 @@ export default function CredentialCaptureCard({
   }
 
   return (
-    <div className="block w-full rounded-md border text-sm text-(--text-primary) bg-amber-500/10 border-amber-500/60">
-      <div className="flex items-start gap-2 px-3 py-2 min-w-0">
-        <IconKey className="w-4 h-4 mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" />
-        <div className="min-w-0 flex-1 flex flex-col">
-          <span className="font-semibold">{captureCardTitle(capture)}</span>
-          <span className="text-[12px] text-(--text-secondary) wrap-break-word">
-            {CAPTURE_PURPOSE_LABEL}: {capture.purpose}
-          </span>
-        </div>
-        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 dark:text-amber-400 bg-amber-500/15 rounded-full px-1.5 py-0.5 shrink-0">
-          {status.label}
-        </span>
-      </div>
+    <CaptureCardShell capture={capture}>
+      {serverOwner ? (
+        <McpServerCaptureSignIn capture={capture} owner={serverOwner} onCancel={onCancel} />
+      ) : null}
 
       {showForm ? (
         <form
@@ -170,13 +186,13 @@ export default function CredentialCaptureCard({
           className="border-t border-amber-500/40 px-3 py-2 flex flex-col gap-2"
         >
           <p className="text-[11px] text-(--text-secondary) wrap-break-word">
-            {signInCard ? CLI_SIGN_IN_PRIVACY_NOTE : CAPTURE_CARD_PRIVACY_NOTE}
+            {captureFormNote(capture)}
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {captureFields(capture, values).map((field) => (
               <div key={field.name} className={field.type === 'secret' ? 'sm:col-span-2' : ''}>
-                <Field label={field.label} hint={errorFor(field.name)}>
+                <Field label={field.label} hint={hintFor(field.name)}>
                   {field.type === 'select' ? (
                     <NativeSelect
                       value={values[field.name]}
@@ -304,12 +320,12 @@ export default function CredentialCaptureCard({
                 loading={busy || signIn.starting}
                 disabled={locked || !canSubmit}
               >
-                {signInCard ? CLI_SIGN_IN_START_LABEL : CAPTURE_SUBMIT_LABEL}
+                {captureSubmitLabel(capture)}
               </Button>
             ) : null}
           </div>
         </form>
       ) : null}
-    </div>
+    </CaptureCardShell>
   )
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
 import {
+  connectorWriteBackOf,
   readTicketConnection,
   useProjects,
   useProjectsGroups,
@@ -73,6 +74,7 @@ export default function ProjectTicketSettings({ projectId }: ProjectTicketSettin
           setValue(next)
           setSaved(false)
         }}
+        writeBack={connectorWriteBackOf(project, groups)}
         {...(mainGroup
           ? { inherited: { groupTitle: mainGroup.title, binding: mainGroup.ticketConnection } }
           : {})}

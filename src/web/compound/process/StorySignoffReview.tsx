@@ -106,6 +106,7 @@ import LoomWalkthroughPanel from './signoff/LoomWalkthroughPanel'
 import SignoffDecisionList from './signoff/SignoffDecisionList'
 import SignoffReportPanel from './signoff/SignoffReportPanel'
 import StorySpecCard from './signoff/StorySpecCard'
+import { RunTicketPostNote } from './signoff/TicketPostNote'
 import { PROCESS_TONE_BADGE, REVIEW_TONE_BADGE } from './signoff/tones'
 
 /** A group leg that cannot merge yet, and the way to its group run. */
@@ -823,6 +824,7 @@ function StorySignoffPanel({
             onShowSection={showSection}
             onRequestImage={evidence.requestImage}
           />
+          {canDecide ? <RunTicketPostNote runId={storyRunId} /> : null}
         </div>
 
         {integration}

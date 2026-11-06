@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useAppSettings, useProviderConnections } from '../../../headless'
+import { providerConnectionLine, useAppSettings, useProviderConnections } from '../../../headless'
 import type { GetProviderConnectionResponse } from '../../../headless/api'
 import { connectorNewItemsIndicator } from '../../../headless/utils/connectorNewItems'
 import { inkBadgeLook } from '../../../headless/utils/inkBadge'
@@ -17,7 +17,7 @@ type ModalRoute =
   | { kind: 'import'; connection: GetProviderConnectionResponse }
 
 /**
- * Manage ticket-provider connections (GitHub Issues / Jira) and import items
+ * Manage ticket-provider connections (GitHub Issues / Jira / Azure DevOps) and import items
  * assigned to you into a project as Stories. Mirrors `GitCredentialsSettings`.
  */
 export default function ProviderConnectionsSettings() {
@@ -29,6 +29,7 @@ export default function ProviderConnectionsSettings() {
     createConnection,
     updateConnection,
     deleteConnection,
+    oauth,
   } = useProviderConnections()
   const { settings } = useAppSettings()
   const look = inkBadgeLook(settings.userPreferences)
@@ -54,7 +55,7 @@ export default function ProviderConnectionsSettings() {
           <div className="p-4 text-sm text-(--text-secondary)">Loading…</div>
         ) : connections.length === 0 ? (
           <div className="p-4 text-sm text-(--text-secondary)">
-            No connections yet. Click the + button to connect Jira or GitHub Issues.
+            No connections yet. Click the + button to connect Jira, GitHub Issues or Azure DevOps.
           </div>
         ) : (
           connections.map((c) => {
@@ -64,9 +65,7 @@ export default function ProviderConnectionsSettings() {
                 <div className="min-w-0 flex-1">
                   <div className="font-medium truncate">{c.name}</div>
                   <div className="text-sm text-(--text-secondary) truncate">
-                    {c.provider}
-                    {c.username ? ` · ${c.username}` : ''}
-                    {c.baseUrl ? ` · ${c.baseUrl}` : ''}
+                    {providerConnectionLine(c)}
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -120,6 +119,7 @@ export default function ProviderConnectionsSettings() {
         <Modal isOpen onClose={() => setModal(null)} title="New ticket connection">
           <ProviderConnectionsForm
             mode={{ kind: 'create', onSubmit: createConnection }}
+            oauth={oauth}
             onCancel={() => setModal(null)}
           />
         </Modal>

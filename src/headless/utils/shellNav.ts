@@ -25,6 +25,7 @@ export type NavIconKey =
   | 'app'
   | 'processes'
   | 'stories'
+  | 'tickets'
 
 /** Per-project shell surface keys. Map to URL segments `/projects/:id/{key}`. */
 export type ShellTabKey =
@@ -114,7 +115,15 @@ export const ASSISTANT_NAV_DEF = {
 }
 
 /** Per-group shell surface keys. Map to URL segments `/groups/:id/{key}`. */
-export type GroupTabKey = 'home' | 'stories' | 'chat' | 'notes' | 'tools' | 'processes' | 'settings'
+export type GroupTabKey =
+  | 'home'
+  | 'stories'
+  | 'tickets'
+  | 'chat'
+  | 'notes'
+  | 'tools'
+  | 'processes'
+  | 'settings'
 
 export type GroupTabDef = {
   key: GroupTabKey
@@ -128,11 +137,13 @@ export type GroupTabDef = {
  * Per-group shell surfaces — only those that make sense at the group scope (a
  * group spans multiple repos, so no Files / Git / etc.). Its Stories are its
  * group stories — a feature across several of its projects, one story each —
- * and its Processes the group runs that carry them out.
+ * its Tickets what Jira holds for it, and its Processes the group runs that
+ * carry them out.
  */
 export const GROUP_TAB_DEFS: readonly GroupTabDef[] = [
   { key: 'home', label: 'Home', icon: 'home' },
   { key: 'stories', label: 'Stories', icon: 'stories' },
+  { key: 'tickets', label: 'Tickets', icon: 'tickets' },
   { key: 'chat', label: 'Chat', icon: 'chat' },
   { key: 'notes', label: 'Notes', icon: 'notes' },
   { key: 'tools', label: 'Tools', icon: 'tools' },

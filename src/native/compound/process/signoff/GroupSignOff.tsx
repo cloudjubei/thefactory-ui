@@ -31,6 +31,7 @@ import ParkNoteComposer from '../ParkNoteComposer'
 import RunNeedsYouCard from '../RunNeedsYouCard'
 import type { StorySignoffExtraChip } from '../StorySignoffReview'
 import SignOffOutputPanel from './SignOffOutputPanel'
+import TicketPostNote from './TicketPostNote'
 
 export type GroupSignOffProps = {
   screen: GroupSignOffScreen
@@ -174,6 +175,7 @@ function RepoRows({
         >
           <RepoHead repo={repo} />
           <RepoFacts repo={repo} />
+          {repo.ticketPost ? <TicketPostNote view={repo.ticketPost} /> : null}
           {repo.runId ? (
             <Pressable
               accessibilityRole="button"
@@ -459,6 +461,11 @@ function RepoFold({
       {repo.error ? (
         <View style={{ paddingHorizontal: nativeSpace[3], paddingBottom: nativeSpace[2] }}>
           <Alert variant="error">{repo.error}</Alert>
+        </View>
+      ) : null}
+      {repo.ticketPost ? (
+        <View style={{ paddingHorizontal: nativeSpace[3], paddingBottom: nativeSpace[2] }}>
+          <TicketPostNote view={repo.ticketPost} />
         </View>
       ) : null}
       {open ? <View style={{ padding: nativeSpace[3], paddingTop: 0 }}>{children}</View> : null}

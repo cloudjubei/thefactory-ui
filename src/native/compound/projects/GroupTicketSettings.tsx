@@ -70,6 +70,7 @@ export default function GroupTicketSettings({ groupId }: GroupTicketSettingsProp
         <>
           <TicketConnectionPicker
             value={value}
+            writeBack={group.capabilities?.connectorWriteBack === true}
             onChange={(next) => {
               setValue(next)
               setSaved(false)

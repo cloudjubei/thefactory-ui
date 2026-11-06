@@ -1,11 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
+  completeProviderOAuth,
   createProviderConnection,
   deleteProviderConnection,
   importConnectionItem,
   listConnectionAssignedItems,
   listProviderConnections,
+  startProviderOAuth,
   updateProviderConnection,
   type GetProviderConnectionResponse,
   type ImportConnectionItemResponse,
@@ -24,6 +26,7 @@ import {
 } from '../utils/connectorNewItems'
 import { CONNECTOR_NEW_ITEMS_EVENT } from '../utils/connectorNewItemsConstants'
 import type { AssignedItemsToShow, ConnectorNewItems } from '../utils/connectorNewItemsTypes'
+import type { ProviderOAuthActions } from '../utils/providerConnectionFormTypes'
 
 /** PATCH body for a provider connection (every create field, all optional). */
 export type ProviderConnectionEditInput = UpdateProviderConnectionData['body']
@@ -38,6 +41,8 @@ export type ProviderConnectionsContextValue = {
     patch: ProviderConnectionEditInput,
   ) => Promise<GetProviderConnectionResponse>
   deleteConnection: (id: string) => Promise<void>
+  /** Sign in with a provider: the page to open, then the code it gave back. */
+  oauth: ProviderOAuthActions<GetProviderConnectionResponse>
   refresh: () => Promise<void>
   /** Items currently assigned to the connection's user (a live provider fetch). */
   listAssignedItems: (connectionId: string) => Promise<ListConnectionAssignedItemsResponse>
@@ -138,6 +143,25 @@ export function ProviderConnectionsProvider({ children }: { children: ReactNode 
     [refresh],
   )
 
+  const oauth = useMemo<ProviderOAuthActions<GetProviderConnectionResponse>>(
+    () => ({
+      start: async (provider, body) => {
+        const { data } = await startProviderOAuth({ path: { provider }, body, throwOnError: true })
+        return data.authorizationUrl
+      },
+      finish: async (provider, body) => {
+        const { data } = await completeProviderOAuth({
+          path: { provider },
+          body,
+          throwOnError: true,
+        })
+        await refresh()
+        return data
+      },
+    }),
+    [refresh],
+  )
+
   const deleteConnection = useCallback(
     async (id: string) => {
       await deleteProviderConnection({ path: { id }, throwOnError: true })
@@ -198,6 +222,7 @@ export function ProviderConnectionsProvider({ children }: { children: ReactNode 
       createConnection,
       updateConnection,
       deleteConnection,
+      oauth,
       refresh,
       listAssignedItems,
       newItems,

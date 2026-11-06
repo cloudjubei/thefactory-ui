@@ -7,6 +7,7 @@ import {
   GITHUB_GIT_TOKEN_HELP,
   GITHUB_ISSUES_TOKEN_HELP,
   GITLAB_GIT_TOKEN_HELP,
+  JIRA_SCOPED_TOKEN_HELP,
   JIRA_TOKEN_HELP,
   LLM_KEY_HELP,
   OTHER_GIT_TOKEN_STEPS,
@@ -43,7 +44,8 @@ export function captureHelp(
 ): CredentialHelp | undefined {
   switch (capture.provider) {
     case 'ticket-connection':
-      return values.provider === 'github' ? GITHUB_ISSUES_TOKEN_HELP : JIRA_TOKEN_HELP
+      if (values.provider === 'github') return GITHUB_ISSUES_TOKEN_HELP
+      return values.tokenType === 'classic' ? JIRA_TOKEN_HELP : JIRA_SCOPED_TOKEN_HELP
     case 'git':
       return gitHostHelp(values.host)
     case 'web-search-key':

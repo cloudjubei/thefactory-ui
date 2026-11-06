@@ -4,14 +4,41 @@ import type {
   GetProviderConnectionResponse,
   ProviderConnectionCreateInput,
 } from '../../../headless/api'
-import type { ProviderConnectionEditInput } from '../../../headless'
-import { Alert, Button, Field, Input, NativeSelect, SecretInput } from '../..'
-
-/** The ticket providers the connectors support (GitHub Issues + Jira in Phase 1). */
-const PROVIDERS = [
-  { value: 'github', label: 'GitHub Issues' },
-  { value: 'jira', label: 'Jira' },
-] as const
+import {
+  JIRA_TOKEN_COPY,
+  JIRA_TOKEN_TYPES,
+  PROVIDER_CONNECTION_DEFAULT_LAYOUT,
+  PROVIDER_CONNECTION_DEFAULT_METHOD,
+  PROVIDER_CONNECTION_OPTIONS,
+  PROVIDER_OAUTH_COPY,
+  extractErrorMessage,
+  isOAuthConnection,
+  jiraCloudIdHint,
+  jiraCloudIdProblem,
+  jiraCloudIdSiteOf,
+  providerBaseUrlProblem,
+  providerConnectionDraftOf,
+  providerConnectionDraftProblem,
+  providerConnectionDraftWithSite,
+  providerConnectionFieldsOf,
+  providerConnectionLabel,
+  providerConnectionSpec,
+  providerOAuthDraftProblem,
+  providerOAuthStartBody,
+  providerTokenFieldCopy,
+  useJiraCloudIdLookup,
+  useProviderOAuthFlow,
+  type JiraCloudIdFinder,
+  type JiraTokenType,
+  type ProviderConnectionDraft,
+  type ProviderConnectionEditInput,
+  type ProviderConnectionFormLayout,
+  type ProviderConnectionMethod,
+  type ProviderOAuthActions,
+  type ProviderOAuthState,
+} from '../../../headless'
+import { Alert, Button, Field, Input, NativeSelect, SecretInput, SegmentedControl } from '../..'
+import ProviderOAuthWaiting from './ProviderOAuthWaiting'
 
 type ProviderConnectionsFormMode =
   | { kind: 'create'; onSubmit: (input: ProviderConnectionCreateInput) => Promise<unknown> }
@@ -24,132 +51,284 @@ type ProviderConnectionsFormMode =
 export type ProviderConnectionsFormProps = {
   mode: ProviderConnectionsFormMode
   onCancel: () => void
+  /** Sign in with a provider. Without it the form offers tokens alone. */
+  oauth?: ProviderOAuthActions
+  /** How sign-in is offered beside a token. */
+  layout?: ProviderConnectionFormLayout
+  /** Start with this in the form. */
+  initialDraft?: Partial<ProviderConnectionDraft>
+  /** Start on this way of connecting. */
+  initialMethod?: ProviderConnectionMethod
+  /** Start at this step of a sign-in. */
+  initialSignIn?: ProviderOAuthState
+  /** Find a site's cloud id another way than the backend's, for a fixed showcase state. */
+  findCloudId?: JiraCloudIdFinder
 }
 
-export default function ProviderConnectionsForm({ mode, onCancel }: ProviderConnectionsFormProps) {
-  const initial = mode.kind === 'edit' ? mode.connection : null
-  const [name, setName] = useState(initial?.name ?? '')
-  const [provider, setProvider] = useState(initial?.provider ?? 'github')
-  const [username, setUsername] = useState(initial?.username ?? '')
-  const [token, setToken] = useState('')
-  const [baseUrl, setBaseUrl] = useState(initial?.baseUrl ?? '')
+/** A desktop window's `window.open` goes to the system browser through its main process. */
+function openInBrowser(url: string): void {
+  window.open(url, '_blank', 'noopener,noreferrer')
+}
+
+export default function ProviderConnectionsForm({
+  mode,
+  onCancel,
+  oauth,
+  layout = PROVIDER_CONNECTION_DEFAULT_LAYOUT,
+  initialDraft,
+  initialMethod = PROVIDER_CONNECTION_DEFAULT_METHOD,
+  initialSignIn,
+  findCloudId,
+}: ProviderConnectionsFormProps) {
+  const initial = mode.kind === 'edit' ? mode.connection : undefined
+  const [draft, setDraft] = useState<ProviderConnectionDraft>({
+    ...providerConnectionDraftOf(initial),
+    ...initialDraft,
+  })
+  const [chosenMethod, setChosenMethod] = useState(initialMethod)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const signIn = useProviderOAuthFlow(oauth, initialSignIn)
 
   const isCreate = mode.kind === 'create'
-  const needsUsername = provider === 'jira' // Jira authenticates with email:token
-  const needsBaseUrl = provider === 'jira' // Jira's site URL is required
+  const signedIn = initial !== undefined && isOAuthConnection(initial)
+  const spec = providerConnectionSpec(draft.provider)
+  const offersSignIn = isCreate && oauth !== undefined && spec.oauth !== undefined
+  const method = offersSignIn ? chosenMethod : 'token'
+  const urlProblem = providerBaseUrlProblem(draft)
+  const set = (patch: Partial<ProviderConnectionDraft>) => setDraft({ ...draft, ...patch })
+  const saving = { creating: isCreate, ...(initial ? { stored: initial } : {}) }
+  const tokenCopy = providerTokenFieldCopy(draft, saving)
+  const cloudIdStatus = useJiraCloudIdLookup(
+    method === 'token' && !signedIn ? jiraCloudIdSiteOf(draft) : undefined,
+    (cloudId) => setDraft((current) => ({ ...current, cloudId })),
+    findCloudId,
+  )
 
-  const canSubmit =
-    name.trim().length > 0 &&
-    provider.trim().length > 0 &&
-    (isCreate ? token.trim().length > 0 : true) &&
-    (!needsUsername || username.trim().length > 0) &&
-    (!needsBaseUrl || baseUrl.trim().length > 0)
+  const canSubmit = signedIn
+    ? draft.name.trim().length > 0
+    : providerConnectionDraftProblem(draft, saving) === undefined
+  const canConnect = offersSignIn && providerOAuthDraftProblem(draft) === undefined
 
-  const onSubmit = async (e: FormEvent) => {
-    e.preventDefault()
+  const connect = async () => {
+    if (!canConnect) return
+    const page = await signIn.start(draft.provider, providerOAuthStartBody(draft))
+    if (page) openInBrowser(page)
+  }
+
+  const finish = async (address: string) => {
+    if (await signIn.finish(address)) onCancel()
+  }
+
+  const save = async () => {
     if (!canSubmit || submitting) return
     setSubmitting(true)
     setError(null)
     try {
-      const fields = {
-        name: name.trim(),
-        provider: provider.trim(),
-        ...(username.trim() ? { username: username.trim() } : {}),
-        ...(baseUrl.trim() ? { baseUrl: baseUrl.trim() } : {}),
-        // On edit, a blank token leaves the stored one untouched.
-        ...(token.trim() ? { token: token.trim() } : {}),
-      }
+      const fields = providerConnectionFieldsOf(draft, initial)
       if (mode.kind === 'create') {
         await mode.onSubmit(fields as ProviderConnectionCreateInput)
       } else {
-        await mode.onSubmit(fields)
+        await mode.onSubmit(signedIn ? { name: fields.name } : fields)
       }
       onCancel()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save the connection')
+      setError(extractErrorMessage(err, 'Failed to save the connection'))
     } finally {
       setSubmitting(false)
     }
   }
 
-  return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-4">
-      {error && <Alert>{error}</Alert>}
+  const onSubmit = (e: FormEvent) => {
+    e.preventDefault()
+    void (method === 'oauth' ? connect() : save())
+  }
 
-      <Field label="Name" hint="A label for this connection, e.g. “Acme Jira”.">
-        <Input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Acme Jira / My GitHub"
-          autoFocus
-        />
-      </Field>
+  if (signIn.step === 'waiting' || signIn.step === 'finishing') {
+    const page = signIn.step === 'waiting' ? signIn.page : undefined
+    return (
+      <ProviderOAuthWaiting
+        error={signIn.error}
+        finishing={signIn.step === 'finishing'}
+        onOpenAgain={() => {
+          if (page) openInBrowser(page)
+        }}
+        onFinish={(address) => void finish(address)}
+        onStartOver={signIn.reset}
+      />
+    )
+  }
 
-      <Field label="Provider">
-        <NativeSelect value={provider} onChange={(e) => setProvider(e.target.value)}>
-          {PROVIDERS.map((p) => (
-            <option key={p.value} value={p.value}>
-              {p.label}
-            </option>
-          ))}
-        </NativeSelect>
-      </Field>
-
-      {needsUsername && (
-        <Field
-          label="Account email"
-          hint="Jira authenticates with your account email + an API token."
-        >
+  const connectAction = spec.oauth?.action ?? ''
+  const cloudIdField = spec.oauth?.cloudId ? (
+    <Field label={PROVIDER_OAUTH_COPY.cloudIdLabel} hint={PROVIDER_OAUTH_COPY.cloudIdHint}>
+      <Input
+        value={draft.cloudId}
+        onChange={(e) => set({ cloudId: e.target.value })}
+        placeholder={PROVIDER_OAUTH_COPY.cloudIdPlaceholder}
+        autoComplete="off"
+        spellCheck={false}
+      />
+    </Field>
+  ) : null
+  const tokenFields = (
+    <>
+      {spec.username ? (
+        <Field label={spec.username.label} hint={spec.username.hint}>
           <Input
             type="email"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="you@company.com"
+            value={draft.username}
+            onChange={(e) => set({ username: e.target.value })}
+            placeholder={spec.username.placeholder}
             autoComplete="off"
           />
         </Field>
-      )}
-
-      {needsBaseUrl && (
-        <Field label="Site URL" hint="Your Jira Cloud site, e.g. https://acme.atlassian.net.">
+      ) : null}
+      {spec.baseUrl ? (
+        <Field label={spec.baseUrl.label} hint={spec.baseUrl.hint} error={urlProblem}>
           <Input
-            value={baseUrl}
-            onChange={(e) => setBaseUrl(e.target.value)}
-            placeholder="https://your-domain.atlassian.net"
+            value={draft.baseUrl}
+            onChange={(e) => setDraft(providerConnectionDraftWithSite(draft, e.target.value))}
+            placeholder={spec.baseUrl.placeholder}
             autoComplete="off"
           />
         </Field>
-      )}
-
-      <Field
-        label={isCreate ? 'API token' : 'New API token (optional)'}
-        hint={
-          provider === 'github'
-            ? 'A GitHub PAT with the Issues / repo scope.'
-            : isCreate
-              ? 'A Jira API token from id.atlassian.com.'
-              : 'Leave blank to keep the current token.'
-        }
-      >
+      ) : null}
+      {draft.provider === 'jira' ? (
+        <div className="flex flex-col gap-1">
+          <span className="text-sm font-medium">{JIRA_TOKEN_COPY.typeLabel}</span>
+          <SegmentedControl
+            ariaLabel={JIRA_TOKEN_COPY.typeLabel}
+            value={draft.tokenType}
+            onChange={(next) => set({ tokenType: next as JiraTokenType })}
+            options={[...JIRA_TOKEN_TYPES]}
+          />
+        </div>
+      ) : null}
+      {draft.provider === 'jira' && draft.tokenType === 'scoped' ? (
+        <Field
+          label={JIRA_TOKEN_COPY.cloudIdLabel}
+          hint={jiraCloudIdHint(cloudIdStatus, draft.cloudId)}
+          error={jiraCloudIdProblem(draft)}
+        >
+          <Input
+            value={draft.cloudId}
+            onChange={(e) => set({ cloudId: e.target.value })}
+            placeholder={JIRA_TOKEN_COPY.cloudIdPlaceholder}
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </Field>
+      ) : null}
+      <Field label={tokenCopy.label} hint={tokenCopy.hint}>
         <SecretInput
-          value={token}
-          onChange={(e) => setToken(e.target.value)}
-          placeholder={provider === 'github' ? 'ghp_… / github_pat_…' : 'Jira API token'}
+          value={draft.token}
+          onChange={(e) => set({ token: e.target.value })}
+          placeholder={spec.token.placeholder}
           autoComplete="off"
           spellCheck={false}
           revealConfirmDescription="The token will be visible until you leave this page."
         />
       </Field>
+    </>
+  )
+
+  return (
+    <form onSubmit={onSubmit} className="flex flex-col gap-4">
+      {error ? <Alert>{error}</Alert> : null}
+      {signIn.error ? <Alert>{signIn.error}</Alert> : null}
+
+      <Field label="Name" hint="A label for this connection, e.g. “Acme Jira”.">
+        <Input
+          value={draft.name}
+          onChange={(e) => set({ name: e.target.value })}
+          placeholder="Acme Jira / My GitHub"
+          autoFocus
+        />
+      </Field>
+
+      {signedIn ? (
+        <span className="text-sm text-(--text-secondary)">
+          {PROVIDER_OAUTH_COPY.connected(providerConnectionLabel(draft.provider))}
+        </span>
+      ) : (
+        <Field label="Provider">
+          <NativeSelect value={draft.provider} onChange={(e) => set({ provider: e.target.value })}>
+            {PROVIDER_CONNECTION_OPTIONS.map((p) => (
+              <option key={p.value} value={p.value}>
+                {p.label}
+              </option>
+            ))}
+          </NativeSelect>
+        </Field>
+      )}
+
+      {offersSignIn && layout === 'choice' ? (
+        <div className="flex flex-col gap-1">
+          <span className="text-sm font-medium">{PROVIDER_OAUTH_COPY.methodLabel}</span>
+          <SegmentedControl
+            ariaLabel={PROVIDER_OAUTH_COPY.methodLabel}
+            value={method}
+            onChange={(next) => setChosenMethod(next as ProviderConnectionMethod)}
+            options={[
+              { value: 'token', label: PROVIDER_OAUTH_COPY.tokenMethod },
+              { value: 'oauth', label: connectAction },
+            ]}
+          />
+        </div>
+      ) : null}
+
+      {offersSignIn && layout === 'button-first' ? (
+        <>
+          {cloudIdField}
+          <Button
+            type="button"
+            variant="secondary"
+            loading={signIn.step === 'opening'}
+            disabled={!canConnect}
+            onClick={() => void connect()}
+          >
+            {connectAction}
+          </Button>
+          <div className="flex items-center gap-2 text-xs text-(--text-muted)">
+            <span className="h-px flex-1 bg-(--border-subtle)" />
+            {PROVIDER_OAUTH_COPY.orDivider}
+            <span className="h-px flex-1 bg-(--border-subtle)" />
+          </div>
+        </>
+      ) : null}
+
+      {signedIn
+        ? null
+        : method === 'oauth' && layout !== 'button-first'
+          ? cloudIdField
+          : tokenFields}
+
+      {offersSignIn && layout === 'link-below' ? (
+        <button
+          type="button"
+          className="self-start text-xs text-(--text-secondary) underline"
+          onClick={() => setChosenMethod(method === 'oauth' ? 'token' : 'oauth')}
+        >
+          {method === 'oauth'
+            ? PROVIDER_OAUTH_COPY.useToken
+            : PROVIDER_OAUTH_COPY.useSignIn(connectAction)}
+        </button>
+      ) : null}
 
       <div className="flex justify-end gap-2 pt-2">
         <Button type="button" variant="secondary" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit" loading={submitting} disabled={!canSubmit}>
-          {isCreate ? 'Add connection' : 'Save'}
-        </Button>
+        {method === 'oauth' && layout !== 'button-first' ? (
+          <Button type="submit" loading={signIn.step === 'opening'} disabled={!canConnect}>
+            {connectAction}
+          </Button>
+        ) : (
+          <Button type="submit" loading={submitting} disabled={!canSubmit}>
+            {isCreate ? 'Add connection' : 'Save'}
+          </Button>
+        )}
       </div>
     </form>
   )

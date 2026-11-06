@@ -2475,6 +2475,8 @@ export {
   capturesBlockedOn,
   captureFields,
   captureFormErrors,
+  captureCloudIdSite,
+  captureFormWith,
   captureStatusDisplay,
   captureSubmitBody,
   captureToolName,
@@ -2563,22 +2565,119 @@ export {
 // Binding a Jira connection to a group or project: key parsing and the one-line summary.
 export {
   chooseTicketConnection,
+  connectorWriteBackOf,
   describeEffectiveTicketBinding,
   describeTicketBinding,
   effectiveTicketBinding,
   readTicketConnection,
+  ticketTransitionStanding,
+  withSignOffTransition,
   withTicketConnection,
   formatJiraProjectKeys,
   jiraConnectionsOf,
   parseJiraProjectKeys,
 } from './utils/ticketConnection'
-export type { EffectiveTicketBinding } from './utils/ticketConnectionTypes'
+export type {
+  EffectiveTicketBinding,
+  TicketTransitionLayout,
+  TicketTransitionStanding,
+} from './utils/ticketConnectionTypes'
 export {
   TICKET_ACCESS_DESCRIPTIONS,
   TICKET_ACCESS_LABELS,
   TICKET_PICKER_INHERIT,
   TICKET_PICKER_NONE,
+  TICKET_TRANSITION_DEFAULT_LAYOUT,
+  TICKET_TRANSITION_FIELD,
+  TICKET_TRANSITION_LAYOUT_LABELS,
+  TICKET_TRANSITION_LAYOUTS,
+  TICKET_TRANSITION_STANDING,
 } from './utils/ticketConnectionConstants'
+// The connection form's fields per provider, and its browser sign-in.
+export {
+  isJiraCloudId,
+  isJiraSiteUrl,
+  isOAuthConnection,
+  jiraCloudIdHint,
+  jiraCloudIdProblem,
+  jiraCloudIdSiteOf,
+  jiraTokenTypeOf,
+  providerBaseUrlProblem,
+  providerConnectionDraftOf,
+  providerConnectionDraftProblem,
+  providerConnectionDraftWithSite,
+  providerConnectionFieldsOf,
+  providerConnectionLabel,
+  providerConnectionLine,
+  providerConnectionSpec,
+  providerOAuthDraftProblem,
+  providerOAuthStartBody,
+  providerTokenFieldCopy,
+} from './utils/providerConnectionForm'
+export {
+  JIRA_TOKEN_COPY,
+  JIRA_TOKEN_TYPES,
+  PROVIDER_CONNECTION_DEFAULT_LAYOUT,
+  PROVIDER_CONNECTION_DEFAULT_METHOD,
+  PROVIDER_CONNECTION_FORM_LAYOUT_LABELS,
+  PROVIDER_CONNECTION_FORM_LAYOUTS,
+  PROVIDER_CONNECTION_KEEP_TOKEN_HINT,
+  PROVIDER_CONNECTION_NEW_TOKEN_LABEL,
+  PROVIDER_CONNECTION_OPTIONS,
+  PROVIDER_OAUTH_COPY,
+} from './utils/providerConnectionFormConstants'
+export type {
+  JiraCloudIdFinder,
+  JiraCloudIdStatus,
+  JiraTokenType,
+  ProviderConnectionDraft,
+  ProviderConnectionFormLayout,
+  ProviderConnectionMethod,
+  ProviderOAuthActions,
+  ProviderOAuthState,
+} from './utils/providerConnectionFormTypes'
+export { useProviderOAuthFlow, type UseProviderOAuthFlow } from './hooks/useProviderOAuthFlow'
+export { useJiraCloudIdLookup } from './hooks/useJiraCloudIdLookup'
+// What approving a sign-off would post to its tickets.
+export { ticketPostView } from './utils/ticketPost'
+export {
+  TICKET_POST_DEFAULT_LAYOUT,
+  TICKET_POST_LAYOUT_LABELS,
+  TICKET_POST_LAYOUTS,
+  TICKET_POST_TEXT,
+} from './utils/ticketPostConstants'
+export type {
+  TicketPost,
+  TicketPostLayout,
+  TicketPostTicket,
+  TicketPostView,
+} from './utils/ticketPostTypes'
+export { useTicketPost, type UseTicketPost } from './hooks/useTicketPost'
+// A group's or a project's sign-off outputs in Settings.
+export { useSignOffOutputs, type UseSignOffOutputs } from './hooks/useSignOffOutputs'
+export {
+  signOffOutputDraftOf,
+  signOffOutputDraftProblem,
+  signOffOutputOfDraft,
+  signOffOutputSettingViews,
+  signOffOutputsIntro,
+  signOffTemplateChoices,
+} from './utils/signOffOutputSettings'
+export {
+  SIGN_OFF_OUTPUT_COPY,
+  SIGN_OFF_OUTPUT_EMPTY_DRAFT,
+  SIGN_OFF_OUTPUT_PROBLEMS,
+  SIGN_OFF_OUTPUTS_DEFAULT_LAYOUT,
+  SIGN_OFF_OUTPUTS_LAYOUT_LABELS,
+  SIGN_OFF_OUTPUTS_LAYOUTS,
+} from './utils/signOffOutputSettingsConstants'
+export type {
+  SignOffOutputFormDraft,
+  SignOffOutputOwner,
+  SignOffOutputsLayout,
+  SignOffOutputSettingView,
+  SignOffTemplateChoice,
+} from './utils/signOffOutputSettingsTypes'
 
 // Project groups (MAIN exclusive + SCOPE overlapping) — sidebar / nav source
 // of truth across clients. Listens to the `projectsGroups:updated` WS topic.
@@ -3271,24 +3370,27 @@ export type {
   GroupBaseBranchMetadata,
 } from './utils/processBaseBranchTypes'
 export { useAgentTypeSettings, type UseAgentTypeSettings } from './hooks/useAgentTypeSettings'
-export { useGroupTickets, type UseGroupTickets } from './hooks/useGroupTickets'
+export {
+  useGroupTickets,
+  useGroupTicketStatuses,
+  type UseGroupTickets,
+} from './hooks/useGroupTickets'
 export {
   groupRunStartedWords,
   groupStoryTicketChip,
   groupStoryTicketRef,
   groupTicketStatuses,
-  pressTicketRow,
-  takeNextTicketView,
+  groupTicketsView,
   ticketChipView,
   ticketLink,
   ticketMoveDecisionOf,
   ticketMoveField,
 } from './utils/groupTickets'
 export {
-  TAKE_NEXT_TICKET_DEFAULT_LAYOUT,
-  TAKE_NEXT_TICKET_LAYOUT_LABELS,
-  TAKE_NEXT_TICKET_LAYOUTS,
-  TAKE_NEXT_TICKET_TEXT,
+  GROUP_TICKETS_DEFAULT_LAYOUT,
+  GROUP_TICKETS_LAYOUT_LABELS,
+  GROUP_TICKETS_LAYOUTS,
+  GROUP_TICKETS_TEXT,
   TICKET_CHIP_DEFAULT_LAYOUT,
   TICKET_CHIP_LAYOUT_LABELS,
   TICKET_CHIP_LAYOUTS,
@@ -3300,11 +3402,18 @@ export {
 export type {
   GroupRunStartedWords,
   GroupTicket,
+  GroupTicketAction,
   GroupTicketList,
+  GroupTicketListName,
   GroupTicketRow,
+  GroupTicketSearch,
+  GroupTicketSection,
+  GroupTicketSectionView,
+  GroupTicketsLayout,
+  GroupTicketsQuery,
+  GroupTicketsShown,
   GroupTicketsState,
-  TakeNextTicketLayout,
-  TakeNextTicketView,
+  GroupTicketsView,
   TicketChipLayout,
   TicketChipView,
   TicketLaunchMove,

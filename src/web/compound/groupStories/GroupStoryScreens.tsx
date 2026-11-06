@@ -10,19 +10,17 @@ import {
   useGroupStoryRun,
   useGroupStoryListFilter,
   useGroupStoryRunPreview,
-  useGroupTickets,
+  useGroupTicketStatuses,
   type GroupStoryMemberProject,
   type GroupStoryRunBody,
   type LaunchModelChipSlot,
 } from '../../../headless'
-import type { ChatContext } from '../../../headless/api'
 import Alert from '../../primitives/Alert'
 import GroupStoriesList from './GroupStoriesList'
 import { GroupStoryBackButton } from './GroupStoryBits'
 import { GroupStoryFormDialog } from './GroupStoryForm'
 import GroupStoryPage from './GroupStoryPage'
 import GroupStoryRunDialog, { type GroupStoryRunStarted } from './GroupStoryRunDialog'
-import TakeNextTicket from './TakeNextTicket'
 
 type RunTarget = { groupId: string; groupStoryId: string; title: string }
 
@@ -72,22 +70,19 @@ export type GroupStoriesScreenProps = {
   members: readonly GroupStoryMemberProject[]
   onOpenStory: (groupStoryId: string) => void
   onOpenRun: (groupRunId: string) => void
-  /** Open a ticket's planning chat; Take next ticket is left out without it. */
-  onOpenChat?: (context: ChatContext) => void
   renderModelChip?: (picked: LaunchModelChipSlot) => ReactNode
 }
 
-/** A group's Stories tab: the next ticket, its group stories, a new one, and Run from a row. */
+/** A group's Stories tab: its group stories, a new one, and Run from a row. */
 export function GroupStoriesScreen({
   groupId,
   members,
   onOpenStory,
   onOpenRun,
-  onOpenChat,
   renderModelChip,
 }: GroupStoriesScreenProps) {
   const { stories, isLoaded, loadError, createStory, refresh } = useGroupStories(groupId)
-  const tickets = useGroupTickets(groupId)
+  const ticketStatuses = useGroupTicketStatuses(groupId)
   const [creating, setCreating] = useState(false)
   const [runTarget, setRunTarget] = useState<RunTarget>()
   const storiesByProject = useMemberStories(members, creating)
@@ -103,22 +98,7 @@ export function GroupStoriesScreen({
         filter={filter}
         onFilterChange={changeFilter}
         loading={!isLoaded}
-        ticketStatuses={tickets.statuses}
-        ticketPanel={
-          tickets.view && onOpenChat ? (
-            <TakeNextTicket
-              view={tickets.view}
-              onPlan={(key) => {
-                void tickets.plan(key).then((started) => {
-                  if (started) onOpenChat(started.context)
-                })
-              }}
-              onOpenStory={onOpenStory}
-              onRetry={() => void tickets.refresh()}
-              onLoadMore={() => void tickets.loadMore()}
-            />
-          ) : null
-        }
+        ticketStatuses={ticketStatuses}
         onOpenStory={onOpenStory}
         onOpenRun={onOpenRun}
         onNew={() => setCreating(true)}
@@ -181,7 +161,7 @@ export function GroupStoryScreen({
   const [running, setRunning] = useState(false)
   const storiesByProject = useMemberStories(members, editing)
   const initialForm = useMemo(() => groupStoryFormFor(members, story), [members, story])
-  const { statuses } = useGroupTickets(story && groupStoryTicketRef(story) ? groupId : undefined)
+  const statuses = useGroupTicketStatuses(story && groupStoryTicketRef(story) ? groupId : undefined)
   const ticket = story ? groupStoryTicketChip(story, statuses) : undefined
 
   if (loadError || !isLoaded || !story) {

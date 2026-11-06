@@ -1,33 +1,56 @@
-import type { GroupTicketList, TicketPlanBody, TicketPlanStarted } from '../utils/groupTicketTypes'
+import type {
+  GroupTicketList,
+  GroupTicketsQuery,
+  TicketPlanBody,
+  TicketPlanStarted,
+} from '../utils/groupTicketTypes'
 import { client } from './generated/client.gen'
 
 const ticketsUrl = (groupId: string): string =>
   `/api/v1/groups/${encodeURIComponent(groupId)}/tickets`
 
-/** The person's sprint tickets. Written by hand until the SDK is generated from these routes. */
+/** One list of a group's tickets. Written by hand until the SDK is generated from these routes. */
 export async function readGroupTickets(
   groupId: string,
-  nextPageToken?: string,
+  query: GroupTicketsQuery = {},
 ): Promise<GroupTicketList> {
   const { data } = await client.get({
     url: ticketsUrl(groupId),
-    ...(nextPageToken ? { query: { nextPageToken } } : {}),
+    query: { ...query },
     throwOnError: true,
   })
   return data as GroupTicketList
 }
 
-/** Open a ticket's planning chat: its agent proposes the group story there. */
-export async function startGroupTicketPlan(
+async function startTicketChat(
   groupId: string,
   ticketKey: string,
-  body: TicketPlanBody = {},
+  route: 'discuss' | 'plan',
+  body: TicketPlanBody,
 ): Promise<TicketPlanStarted> {
   const { data } = await client.post({
-    url: `${ticketsUrl(groupId)}/${encodeURIComponent(ticketKey)}/plan`,
+    url: `${ticketsUrl(groupId)}/${encodeURIComponent(ticketKey)}/${route}`,
     body,
     headers: { 'Content-Type': 'application/json' },
     throwOnError: true,
   })
   return data as TicketPlanStarted
+}
+
+/** Open a ticket's chat to talk it over: its agent reads it and waits. */
+export function startGroupTicketDiscussion(
+  groupId: string,
+  ticketKey: string,
+  body: TicketPlanBody = {},
+): Promise<TicketPlanStarted> {
+  return startTicketChat(groupId, ticketKey, 'discuss', body)
+}
+
+/** Open a ticket's planning chat: its agent proposes the group story there. */
+export function startGroupTicketPlan(
+  groupId: string,
+  ticketKey: string,
+  body: TicketPlanBody = {},
+): Promise<TicketPlanStarted> {
+  return startTicketChat(groupId, ticketKey, 'plan', body)
 }

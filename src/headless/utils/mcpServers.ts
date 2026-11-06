@@ -68,7 +68,7 @@ export function mcpServerHost(url: string): string {
   return WEB_ADDRESS.exec(url.trim())?.[2] || url
 }
 
-function urlProblem(text: string): string | undefined {
+export function mcpServerUrlProblem(text: string): string | undefined {
   const [, scheme = '', authority = ''] = WEB_ADDRESS.exec(text) ?? []
   const secure = scheme.toLowerCase() === 'https'
   if (!authority || (!secure && scheme.toLowerCase() !== 'http')) {
@@ -88,7 +88,7 @@ export function mcpServerDraftProblem(
   if (!name) return MCP_SERVER_DRAFT_PROBLEMS.name
   if (name.length > MCP_SERVER_NAME_MAX) return MCP_SERVER_DRAFT_PROBLEMS.nameTooLong
   if (!url) return MCP_SERVER_DRAFT_PROBLEMS.url
-  const problem = urlProblem(url)
+  const problem = mcpServerUrlProblem(url)
   if (problem) return problem
   if (own.some((server) => sameText(server.name, name))) return MCP_SERVER_DRAFT_PROBLEMS.nameTaken
   if (own.some((server) => sameAddress(server.url, url))) return MCP_SERVER_DRAFT_PROBLEMS.urlTaken

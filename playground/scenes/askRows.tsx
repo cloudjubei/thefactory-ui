@@ -284,7 +284,7 @@ const LAUNCH_WITH_FILES: PendingToolGrant = {
 }
 
 /** Sized like the dock it replaces the composer in. */
-function Dock({ children }: { children: ReactNode }) {
+export function Dock({ children }: { children: ReactNode }) {
   return (
     <div className="max-w-2xl rounded-xl border border-(--border-subtle) bg-(--surface-base) p-3">
       {children}

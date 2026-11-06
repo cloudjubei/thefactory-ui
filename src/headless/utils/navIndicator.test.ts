@@ -627,7 +627,7 @@ describe('groupTabIndicator', () => {
     })
   })
 
-  it.each<GroupTabKey>(['home', 'tools'])('%s carries no indicator', (tab) => {
+  it.each<GroupTabKey>(['home', 'tickets', 'tools'])('%s carries no indicator', (tab) => {
     expect(
       groupTabIndicator(tab, { unread: 1, waiting: 1, thinking: true }, ['Claude'], 2),
     ).toEqual({

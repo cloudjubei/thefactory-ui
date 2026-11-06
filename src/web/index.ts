@@ -788,6 +788,18 @@ export {
   type AgentTypeSettingsPanelProps,
 } from './compound/settings/AgentTypeSettingsPanel'
 export {
+  default as SignOffOutputSettings,
+  type SignOffOutputSettingsProps,
+} from './compound/settings/SignOffOutputSettings'
+export {
+  default as SignOffOutputSettingsPanel,
+  type SignOffOutputSettingsPanelProps,
+} from './compound/settings/SignOffOutputSettingsPanel'
+export {
+  default as TicketTransitionField,
+  type TicketTransitionFieldProps,
+} from './compound/projects/TicketTransitionField'
+export {
   default as McpServerSettings,
   type McpServerSettingsProps,
 } from './compound/settings/McpServerSettings'
@@ -949,9 +961,13 @@ export {
   GroupStoryToneBadge,
 } from './compound/groupStories/GroupStoryBits'
 export {
-  default as TakeNextTicket,
-  type TakeNextTicketProps,
-} from './compound/groupStories/TakeNextTicket'
+  default as GroupTicketsList,
+  type GroupTicketsListProps,
+} from './compound/groupStories/GroupTicketsList'
+export {
+  GroupTicketsScreen,
+  type GroupTicketsScreenProps,
+} from './compound/groupStories/GroupTicketsScreen'
 export {
   default as TicketMoveField,
   type TicketMoveFieldProps,

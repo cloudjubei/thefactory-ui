@@ -8,9 +8,6 @@ import {
   loomWalkthroughView,
   reviewTabs,
   signoffEvidenceChips,
-  TAKE_NEXT_TICKET_LAYOUT_LABELS,
-  TAKE_NEXT_TICKET_LAYOUTS,
-  takeNextTicketView,
   TICKET_CHIP_LAYOUT_LABELS,
   TICKET_CHIP_LAYOUTS,
   TICKET_MOVE_LAYOUT_LABELS,
@@ -23,12 +20,9 @@ import {
   type GroupStoryRunStartedAnswer,
   type GroupStoryView,
   type GroupTicket,
-  type GroupTicketList,
-  type GroupTicketsState,
   type LoomWalkthroughLayout,
   type RunWalkthroughItem,
   type RunWalkthroughState,
-  type TakeNextTicketLayout,
   type TicketChipLayout,
   type TicketLaunchMove,
   type TicketMoveLayout,
@@ -40,7 +34,6 @@ import {
   GroupStoryRunDialog,
   LoomWalkthroughPanel,
   SegmentedControl,
-  TakeNextTicket,
   TicketChip,
   TicketMoveField,
 } from 'thefactory-ui/web'
@@ -62,6 +55,8 @@ const ticket = (key: string, summary: string, over: Partial<GroupTicket> = {}): 
   url: `${JIRA}/${key}`,
   status: 'To Do',
   issueType: 'Task',
+  canTake: false,
+  chatOpen: false,
   ...over,
 })
 
@@ -84,44 +79,6 @@ const SPRINT: GroupTicket[] = [
   }),
   ticket('OSC-430', 'Add an empty state to the goals list', { priority: 'Low' }),
 ]
-const LIST: GroupTicketList = {
-  connected: true,
-  access: 'read-write',
-  tickets: SPRINT,
-  nextTicketKey: NEXT.key,
-}
-
-const ticketsState = (over: Partial<GroupTicketsState> = {}): GroupTicketsState => ({
-  list: LIST,
-  readError: null,
-  loadingMore: false,
-  planning: undefined,
-  planError: null,
-  ...over,
-})
-
-type PanelOptions = {
-  state?: Partial<GroupTicketsState>
-  layout?: TakeNextTicketLayout
-  sprintOpen?: boolean
-}
-
-function panel({ state, layout, sprintOpen }: PanelOptions = {}) {
-  const view = takeNextTicketView(ticketsState(state))
-  if (!view) return null
-  return (
-    <TakeNextTicket
-      view={view}
-      onPlan={noop}
-      onOpenStory={noop}
-      onRetry={noop}
-      onLoadMore={noop}
-      {...(layout ? { layout } : {})}
-      {...(sprintOpen ? { sprintOpen } : {})}
-    />
-  )
-}
-
 function part(projectId: string, projectTitle: string, step: number): GroupStoryPartView {
   return {
     projectId,
@@ -174,13 +131,7 @@ const STORIES = [
 ]
 const STATUSES = groupTicketStatuses(SPRINT)
 
-function ListState({
-  ticketPanel,
-  start,
-}: {
-  ticketPanel?: ReactNode
-  start?: Partial<GroupStoryListFilter>
-}) {
+function ListState({ start }: { start?: Partial<GroupStoryListFilter> }) {
   const [filter, setFilter] = useState<GroupStoryListFilter>({
     ...GROUP_STORY_LIST_FILTER_DEFAULT,
     ...start,
@@ -195,52 +146,9 @@ function ListState({
       onOpenRun={noop}
       onNew={noop}
       ticketStatuses={STATUSES}
-      {...(ticketPanel ? { ticketPanel } : {})}
     />
   )
 }
-
-function ChooseTicketLayout() {
-  const [layout, setLayout] = useState<TakeNextTicketLayout>('card')
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="px-4 pt-4">
-        <SegmentedControl
-          ariaLabel="Layout"
-          value={layout}
-          onChange={(next) => setLayout(next as TakeNextTicketLayout)}
-          options={TAKE_NEXT_TICKET_LAYOUTS.map((value) => ({
-            value,
-            label: TAKE_NEXT_TICKET_LAYOUT_LABELS[value],
-          }))}
-        />
-      </div>
-      <ListState ticketPanel={panel({ layout })} />
-    </div>
-  )
-}
-
-const TICKET_LAYOUT_DESCRIPTIONS: Record<TakeNextTicketLayout, string> = {
-  card: 'The default that ships. The next ticket and what taking it does, with the sprint folded to one line that counts it: the group stories below stay near the top of the tab.',
-  list: 'The sprint as one list, the next ticket marked and holding the button. Nothing to unfold, but a long sprint pushes the group stories down.',
-  columns:
-    'The next ticket beside the sprint on a wide page; stacked on a narrow one. Everything shows at once and takes the most room.',
-}
-
-const takeLayoutStates: SceneState[] = TAKE_NEXT_TICKET_LAYOUTS.flatMap((layout) => [
-  {
-    id: `layout-${layout}`,
-    title: TAKE_NEXT_TICKET_LAYOUT_LABELS[layout],
-    description: TICKET_LAYOUT_DESCRIPTIONS[layout],
-    render: () => <ListState ticketPanel={panel({ layout })} />,
-  },
-  {
-    id: `layout-${layout}-phone`,
-    title: `${TAKE_NEXT_TICKET_LAYOUT_LABELS[layout]}, on a phone`,
-    description: 'The small-screen width: the mobile app’s native section follows this.',
-    render: () => phone(<ListState ticketPanel={panel({ layout })} />),
-  },
-])
 
 const CHIP_SAMPLES = [
   ticketChipView({
@@ -672,122 +580,6 @@ const moveStates: SceneState[] = [
 ]
 
 export const TICKET_SCENES: Scene[] = [
-  {
-    id: 'take-next-ticket',
-    title: 'Take next ticket',
-    component: 'TakeNextTicket',
-    group: 'Project',
-    kind: 'screen',
-    wide: true,
-    description:
-      'On a group’s Stories tab, for a group with Jira: the top ticket assigned to the person in the open sprint that has no work yet, with its title and priority, and the sprint in board order with what already has work. A row with work opens its group story; a row without one starts its plan: an agent reads the ticket in a chat of its own and proposes a group story for the person to approve there. A group with no Jira sees none of this. Three layouts to pick from; the card ships.',
-    states: [
-      {
-        id: 'choose-layout',
-        title: 'Pick a layout',
-        description: 'The three layouts on the tab itself, with the switch above them.',
-        render: () => <ChooseTicketLayout />,
-      },
-      ...takeLayoutStates,
-      {
-        id: 'sprint-open',
-        title: 'The sprint unfolded',
-        description:
-          'Each row: the ticket’s chip, priority, title, and its group story or “No work yet”.',
-        render: () => <ListState ticketPanel={panel({ sprintOpen: true })} />,
-      },
-      {
-        id: 'planning',
-        title: 'A plan starting',
-        description: 'One at a time: the rows with no work wait; rows with work still open.',
-        render: () => (
-          <ListState ticketPanel={panel({ sprintOpen: true, state: { planning: NEXT.key } })} />
-        ),
-      },
-      {
-        id: 'plan-refused',
-        title: 'A plan that did not start',
-        description:
-          'The backend’s reason. The list is read again, as a refusal may mean it was stale.',
-        render: () =>
-          page(
-            panel({
-              state: { planError: 'OSC-418 already has the group story “Paused plan reminders”.' },
-            }),
-          ),
-      },
-      {
-        id: 'all-have-work',
-        title: 'Every ticket has work',
-        render: () =>
-          page(
-            panel({
-              state: {
-                list: {
-                  connected: true,
-                  tickets: [WORKED, SPRINT[3]!],
-                },
-              },
-              sprintOpen: true,
-            }),
-          ),
-      },
-      {
-        id: 'no-tickets',
-        title: 'Nothing assigned',
-        render: () => page(panel({ state: { list: { connected: true, tickets: [] } } })),
-      },
-      {
-        id: 'read-failed',
-        title: 'Jira could not be read',
-        description: 'Jira’s words, and a way to try again.',
-        render: () =>
-          page(
-            panel({ state: { list: undefined, readError: 'Jira answered 503: try again soon.' } }),
-          ),
-      },
-      {
-        id: 'read-failed-later',
-        title: 'A later read failed',
-        description: 'What was read stays on screen.',
-        render: () => page(panel({ state: { readError: 'Jira answered 503: try again soon.' } })),
-      },
-      {
-        id: 'more-pages',
-        title: 'A sprint of more than one page',
-        render: () =>
-          page(panel({ state: { list: { ...LIST, nextPageToken: 'p2' } }, sprintOpen: true })),
-      },
-      {
-        id: 'no-jira',
-        title: 'A group with no Jira',
-        description: 'The tab as it always was.',
-        render: () => <ListState />,
-      },
-    ],
-    controls: [
-      {
-        id: 'layout',
-        label: 'Layout',
-        kind: 'choice',
-        options: TAKE_NEXT_TICKET_LAYOUTS.map((id) => ({
-          id,
-          label: TAKE_NEXT_TICKET_LAYOUT_LABELS[id],
-        })),
-        default: 'card',
-      },
-    ],
-    presets: TAKE_NEXT_TICKET_LAYOUTS.map((id) => ({
-      id,
-      name: TAKE_NEXT_TICKET_LAYOUT_LABELS[id],
-      values: { layout: id },
-    })),
-    play: (values) => (
-      <ListState
-        ticketPanel={panel({ layout: (values.layout ?? 'card') as TakeNextTicketLayout })}
-      />
-    ),
-  },
   {
     id: 'ticket-chip',
     title: 'Ticket chip on a group story',

@@ -1,3 +1,10 @@
+import {
+  MCP_SERVER_AUTH_LABELS,
+  MCP_SERVER_AUTH_ORDER,
+  MCP_SERVER_FIELD_LABELS,
+  MCP_SERVER_URL_PLACEHOLDER,
+} from './mcpServersConstants'
+import { JIRA_TOKEN_COPY, JIRA_TOKEN_TYPES } from './providerConnectionFormConstants'
 import type {
   CredentialCaptureFieldSpec,
   CredentialCaptureKind,
@@ -20,6 +27,7 @@ export const CREDENTIAL_CAPTURE_TOOL_NAMES: Record<CredentialCaptureKind, string
   'llm-key': 'requestLlmApiKey',
   'cli-login': 'requestCliSignIn',
   'project-note': 'requestSecretNote',
+  'mcp-server': 'requestMcpServer',
 }
 
 const LLM_PROVIDERS = [
@@ -69,6 +77,7 @@ export const CREDENTIAL_CAPTURE_FIELDS: Record<
       options: [
         { value: 'jira', label: 'Jira Cloud' },
         { value: 'github', label: 'GitHub Issues' },
+        { value: 'azure-devops', label: 'Azure DevOps' },
       ],
     },
     {
@@ -85,7 +94,42 @@ export const CREDENTIAL_CAPTURE_FIELDS: Record<
       type: 'text',
       shownWhen: { field: 'provider', in: ['jira'] },
     },
-    { name: 'token', label: 'API token', placeholder: 'API token', type: 'secret' },
+    {
+      name: 'baseUrl',
+      label: 'Organization or project URL',
+      placeholder: 'https://dev.azure.com/your-org/your-project',
+      type: 'text',
+      shownWhen: { field: 'provider', in: ['azure-devops'] },
+    },
+    {
+      name: 'tokenType',
+      label: JIRA_TOKEN_COPY.typeLabel,
+      placeholder: 'Choose a token type',
+      type: 'select',
+      shownWhen: { field: 'provider', in: ['jira'] },
+      options: JIRA_TOKEN_TYPES,
+    },
+    {
+      name: 'cloudId',
+      label: JIRA_TOKEN_COPY.cloudIdLabel,
+      placeholder: JIRA_TOKEN_COPY.cloudIdPlaceholder,
+      type: 'text',
+      shownWhen: { field: 'tokenType', in: ['scoped'] },
+    },
+    {
+      name: 'token',
+      label: 'API token',
+      placeholder: 'API token',
+      type: 'secret',
+      shownWhen: { field: 'provider', in: ['jira', 'github'] },
+    },
+    {
+      name: 'token',
+      label: 'Personal access token',
+      placeholder: 'Personal access token',
+      type: 'secret',
+      shownWhen: { field: 'provider', in: ['azure-devops'] },
+    },
     {
       name: 'access',
       label: 'Give this project',
@@ -179,6 +223,51 @@ export const CREDENTIAL_CAPTURE_FIELDS: Record<
     },
     { name: 'value', label: 'Secret', placeholder: 'The value', type: 'secret' },
   ],
+  'mcp-server': [
+    {
+      name: 'name',
+      label: MCP_SERVER_FIELD_LABELS.name,
+      placeholder: 'Linear',
+      type: 'text',
+      fromMcpServer: 'name',
+    },
+    {
+      name: 'url',
+      label: MCP_SERVER_FIELD_LABELS.url,
+      placeholder: MCP_SERVER_URL_PLACEHOLDER,
+      type: 'text',
+      fromMcpServer: 'url',
+    },
+    {
+      name: 'authType',
+      label: MCP_SERVER_FIELD_LABELS.authType,
+      placeholder: 'Choose how',
+      type: 'select',
+      options: MCP_SERVER_AUTH_ORDER.map((value) => ({
+        value,
+        label: MCP_SERVER_AUTH_LABELS[value],
+      })),
+    },
+    {
+      name: 'scope',
+      label: 'Keep it on',
+      placeholder: 'Choose where',
+      type: 'select',
+      fromMcpServer: 'scope',
+      twoOwners: true,
+      options: [
+        { value: 'project', label: 'This project' },
+        { value: 'group', label: 'Its main group' },
+      ],
+    },
+    {
+      name: 'token',
+      label: MCP_SERVER_FIELD_LABELS.token,
+      placeholder: 'Token',
+      type: 'secret',
+      shownWhen: { field: 'authType', in: ['bearer'] },
+    },
+  ],
 }
 
 /** Each kind's card heading. */
@@ -189,7 +278,11 @@ export const CAPTURE_CARD_TITLES: Record<CredentialCaptureKind, string> = {
   'llm-key': 'The agent needs an LLM API key',
   'cli-login': 'The agent needs a CLI agent signed in',
   'project-note': 'The agent needs a secret for this project',
+  'mcp-server': 'The agent needs an MCP server connected',
 }
+
+/** A server card's heading once it has moved to signing in. */
+export const MCP_CAPTURE_SIGN_IN_TITLE = (name: string): string => `Sign in to ${name}`
 
 /** The heading of a card that gives a stored credential a new secret instead of adding one. */
 export const CAPTURE_REPLACING_CARD_TITLE = 'The agent needs a new secret for a stored credential'
@@ -211,6 +304,16 @@ export const CAPTURE_CARD_PRIVACY_NOTE =
 /** The same promise on a sign-in card, where what is entered is the provider's sign-in code. */
 export const CLI_SIGN_IN_PRIVACY_NOTE =
   'You sign in on the provider’s own page. The code you paste here goes straight to the sign-in and never enters the chat — the agent is only told which login is ready.'
+
+/** The promise on a server card, where the one thing that must stay out of the chat is a token. */
+export const MCP_CAPTURE_PRIVACY_NOTE =
+  'A token goes straight to your encrypted store and never enters the chat. The agent is only told what was connected and how it stands.'
+
+/** The same promise once the card has moved to signing in. */
+export const MCP_CAPTURE_SIGN_IN_NOTE =
+  'You sign in on the server’s own page. The agent is only told what was connected and how it stands.'
+
+export const MCP_CAPTURE_SUBMIT_LABEL = 'Add server'
 
 export const CLI_SIGN_IN_START_LABEL = 'Sign in'
 
@@ -284,6 +387,23 @@ export const CAPTURE_STATUS_DISPLAY_BY_KIND: Partial<
       label: 'Signed in',
       description: 'The login is ready. The agent was told which login to use, never its sign-in.',
       tone: 'success',
+    },
+  },
+  'mcp-server': {
+    requested: {
+      label: 'Waiting for you',
+      description: 'The agent is paused until you connect the server or dismiss the request.',
+      tone: 'pending',
+    },
+    submitted: {
+      label: 'Server added',
+      description: 'The agent was told what was connected and how it stands, never a token.',
+      tone: 'success',
+    },
+    cancelled: {
+      label: 'Dismissed',
+      description: 'You declined this request. The agent was told to carry on without the server.',
+      tone: 'neutral',
     },
   },
 }

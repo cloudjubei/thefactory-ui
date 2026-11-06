@@ -1,31 +1,40 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
   groupRunStartedWords,
   groupStoryTicketChip,
   groupStoryTicketRef,
   groupTicketStatuses,
-  pressTicketRow,
-  takeNextTicketView,
+  groupTicketsView,
   ticketChipView,
   ticketLink,
   ticketMoveDecisionOf,
   ticketMoveField,
 } from './groupTickets'
-import type { GroupTicket, GroupTicketsState } from './groupTicketTypes'
+import type {
+  GroupTicket,
+  GroupTicketList,
+  GroupTicketSearch,
+  GroupTicketSection,
+  GroupTicketsState,
+} from './groupTicketTypes'
 
 const ticket = (key: string, over: Partial<GroupTicket> = {}): GroupTicket => ({
   key,
   summary: `Summary of ${key}`,
   url: `https://acme.atlassian.net/browse/${key}`,
+  canTake: false,
+  chatOpen: false,
   ...over,
 })
 
+const NOT_READ: GroupTicketSection = { list: undefined, readError: null, loadingMore: false }
+
 const state = (over: Partial<GroupTicketsState> = {}): GroupTicketsState => ({
-  list: undefined,
-  readError: null,
-  loadingMore: false,
-  planning: undefined,
-  planError: null,
+  mine: NOT_READ,
+  sprint: NOT_READ,
+  search: { ...NOT_READ, query: '' },
+  starting: undefined,
+  startError: null,
   ...over,
 })
 
@@ -113,154 +122,252 @@ describe('the sprint’s statuses', () => {
   })
 })
 
-describe('Take next ticket', () => {
-  it('shows nothing until the first read answers', () => {
-    expect(takeNextTicketView(state())).toBeUndefined()
+const read = (tickets: GroupTicket[], over: Partial<GroupTicketList> = {}): GroupTicketSection => ({
+  ...NOT_READ,
+  list: { connected: true, tickets, ...over },
+})
+
+const shown = (s: GroupTicketsState) => {
+  const view = groupTicketsView(s)
+  if (view.kind !== 'tickets') throw new Error(`expected tickets, got ${view.kind}`)
+  return view
+}
+
+describe('the Tickets tab', () => {
+  it('waits for the first answer, and for neither list to have one', () => {
+    expect(groupTicketsView(state()).kind).toBe('loading')
   })
 
-  it('shows nothing for a group with no Jira', () => {
-    expect(takeNextTicketView(state({ list: { connected: false, tickets: [] } }))).toBeUndefined()
+  it('shows the lists as soon as either one answers', () => {
+    const view = shown(state({ mine: read([ticket('A-1')]) }))
+    expect(view.mine.rows.map((r) => r.key)).toEqual(['A-1'])
+    expect(view.others.loading).toBe(true)
+    expect(view.others.rows).toEqual([])
   })
 
-  it('says why when the first read failed', () => {
-    expect(takeNextTicketView(state({ readError: 'Jira said no' }))).toMatchObject({
-      rows: [],
-      readError: 'Jira said no',
-    })
-    expect(takeNextTicketView(state({ readError: 'Jira said no' }))?.noNextLine).toBeUndefined()
+  it.each([
+    ['mine', { mine: { ...NOT_READ, list: { connected: false, tickets: [] } } }],
+    ['sprint', { sprint: { ...NOT_READ, list: { connected: false, tickets: [] } } }],
+  ])('says a group has no Jira from the %s list alone', (_name, over) => {
+    expect(groupTicketsView(state(over)).kind).toBe('no-jira')
   })
 
-  it('names the next ticket and keeps board order, with what already has work', () => {
-    const view = takeNextTicketView(
+  it('says why once, when both lists failed the same way', () => {
+    const failed = { ...NOT_READ, readError: 'Jira is down' }
+    const view = shown(state({ mine: failed, sprint: failed }))
+    expect(view.readError).toBe('Jira is down')
+    expect(view.mine.readError).toBeUndefined()
+    expect(view.others.readError).toBeUndefined()
+    expect(view.mine.loading).toBe(false)
+  })
+
+  it('says why on the list that failed, and keeps the other', () => {
+    const view = shown(
+      state({ mine: read([ticket('A-1')]), sprint: { ...NOT_READ, readError: 'No board' } }),
+    )
+    expect(view.readError).toBeUndefined()
+    expect(view.others.readError).toBe('No board')
+    expect(view.mine.readError).toBeUndefined()
+    expect(view.mine.rows).toHaveLength(1)
+  })
+
+  it('keeps a list on screen when a later read fails', () => {
+    const view = shown(state({ mine: { ...read([ticket('A-1')]), readError: 'Jira is down' } }))
+    expect(view.mine.rows).toHaveLength(1)
+    expect(view.mine.readError).toBe('Jira is down')
+  })
+
+  it('counts a list in plain words, the next ticket among them', () => {
+    const one = shown(state({ sprint: read([ticket('A-1')]) }))
+    expect(one.others.line).toBe('1 ticket')
+    const worked = { groupStory: { id: 'g', title: 'G' } }
+    const three = shown(
       state({
-        list: {
-          connected: true,
-          nextTicketKey: 'ENG-8',
-          tickets: [
-            ticket('ENG-7', { status: 'In Progress', groupStory: { id: 'gs1', title: 'Totals' } }),
-            ticket('ENG-8', { status: 'To Do', priority: 'High' }),
-            ticket('ENG-9'),
-          ],
-        },
+        mine: read([ticket('A-1', { canTake: true }), ticket('A-2', worked), ticket('A-3')], {
+          nextTicketKey: 'A-1',
+        }),
       }),
     )
-    expect(view?.rows.map((r) => r.key)).toEqual(['ENG-7', 'ENG-8', 'ENG-9'])
-    expect(view?.next).toMatchObject({
-      key: 'ENG-8',
-      summary: 'Summary of ENG-8',
-      priority: 'High',
-      hint: 'Plan ENG-8',
-    })
-    expect(view?.rows[0]).toMatchObject({
-      work: { id: 'gs1', title: 'Totals' },
-      hint: 'Open “Totals”',
-    })
-    expect(view?.sprintLine).toBe('3 tickets · 1 has work')
-    expect(view?.noNextLine).toBeUndefined()
+    expect(three.mine.line).toBe('3 tickets · 1 has work')
+    const both = shown(state({ sprint: read([ticket('A-1', worked), ticket('A-2', worked)]) }))
+    expect(both.others.line).toBe('2 tickets · 2 have work')
   })
 
-  it('counts one ticket, and more with work, in plain words', () => {
-    const one = takeNextTicketView(
-      state({ list: { connected: true, nextTicketKey: 'A-1', tickets: [ticket('A-1')] } }),
+  it('says so when a list is empty, and not while it is read', () => {
+    const view = shown(state({ mine: read([]), sprint: read([]) }))
+    expect(view.mine.emptyLine).toBe('Nothing is assigned to you in the open sprint.')
+    expect(view.others.emptyLine).toBe('Nobody else has tickets in the open sprint.')
+    expect(view.mine.line).toBe('')
+    expect(shown(state({ mine: read([]) })).others.emptyLine).toBeUndefined()
+  })
+
+  it('says nothing of an empty list when the next ticket is all there is', () => {
+    const view = shown(
+      state({ mine: read([ticket('A-1', { canTake: true })], { nextTicketKey: 'A-1' }) }),
     )
-    expect(one?.sprintLine).toBe('1 ticket')
-    const two = takeNextTicketView(
+    expect(view.next?.key).toBe('A-1')
+    expect(view.mine.rows).toEqual([])
+    expect(view.mine.emptyLine).toBeUndefined()
+  })
+
+  it('offers more only while Jira has more, per list, and says which is reading', () => {
+    const view = shown(
       state({
-        list: {
-          connected: true,
-          tickets: [
-            ticket('A-1', { groupStory: { id: 'a', title: 'A' } }),
-            ticket('A-2', { groupStory: { id: 'b', title: 'B' } }),
-          ],
-        },
+        mine: { ...read([ticket('A-1')], { nextPageToken: 'p2' }), loadingMore: true },
+        sprint: read([ticket('B-1')]),
       }),
     )
-    expect(two?.sprintLine).toBe('2 tickets · 2 have work')
-  })
-
-  it('says every ticket has work when none is next', () => {
-    const view = takeNextTicketView(
-      state({
-        list: {
-          connected: true,
-          tickets: [ticket('A-1', { groupStory: { id: 'a', title: 'A' } })],
-        },
-      }),
-    )
-    expect(view?.next).toBeUndefined()
-    expect(view?.noNextLine).toBe('Every ticket in your sprint has work.')
-  })
-
-  it('says so when nothing is assigned', () => {
-    const view = takeNextTicketView(state({ list: { connected: true, tickets: [] } }))
-    expect(view?.rows).toEqual([])
-    expect(view?.sprintLine).toBe('')
-    expect(view?.noNextLine).toBe('Nothing is assigned to you in the open sprint.')
-  })
-
-  it('offers more only while Jira has more, and says when it is reading them', () => {
-    const list = { connected: true, tickets: [ticket('A-1')], nextPageToken: 'p2' }
-    expect(takeNextTicketView(state({ list }))).toMatchObject({
-      canLoadMore: true,
-      loadingMore: false,
-    })
-    expect(takeNextTicketView(state({ list, loadingMore: true }))?.loadingMore).toBe(true)
-    expect(
-      takeNextTicketView(state({ list: { connected: true, tickets: [ticket('A-1')] } }))
-        ?.canLoadMore,
-    ).toBe(false)
-  })
-
-  it('marks the ticket being planned and says why a plan did not start', () => {
-    const view = takeNextTicketView(
-      state({
-        list: { connected: true, nextTicketKey: 'A-1', tickets: [ticket('A-1'), ticket('A-2')] },
-        planning: 'A-1',
-        planError: 'Already linked',
-      }),
-    )
-    expect(view?.planning).toBe(true)
-    expect(view?.next?.planning).toBe(true)
-    expect(view?.rows[1]?.planning).toBe(false)
-    expect(view?.planError).toBe('Already linked')
-  })
-
-  it('keeps the list on screen when a later read fails', () => {
-    const view = takeNextTicketView(
-      state({ list: { connected: true, tickets: [ticket('A-1')] }, readError: 'Jira is down' }),
-    )
-    expect(view?.rows).toHaveLength(1)
-    expect(view?.readError).toBe('Jira is down')
+    expect(view.mine).toMatchObject({ canLoadMore: true, loadingMore: true })
+    expect(view.others).toMatchObject({ canLoadMore: false, loadingMore: false })
   })
 })
 
-describe('pressing a sprint row', () => {
-  const handlers = () => ({ onOpenStory: vi.fn(), onPlan: vi.fn() })
-
-  it('opens the group story of a row with work', () => {
-    const on = handlers()
-    pressTicketRow({ key: 'A-1', work: { id: 'gs1', title: 'A' } }, false, on)
-    expect(on.onOpenStory).toHaveBeenCalledWith('gs1')
-    expect(on.onPlan).not.toHaveBeenCalled()
+describe('the next ticket', () => {
+  it('comes out of the rows, which keep board order', () => {
+    const view = shown(
+      state({
+        mine: read(
+          [ticket('A-1'), ticket('A-2', { canTake: true }), ticket('A-3', { canTake: true })],
+          { nextTicketKey: 'A-2' },
+        ),
+      }),
+    )
+    expect(view.next?.key).toBe('A-2')
+    expect(view.mine.rows.map((r) => r.key)).toEqual(['A-1', 'A-3'])
   })
 
-  it('still opens one while a plan is starting', () => {
-    const on = handlers()
-    pressTicketRow({ key: 'A-1', work: { id: 'gs1', title: 'A' } }, true, on)
-    expect(on.onOpenStory).toHaveBeenCalledWith('gs1')
+  it('is none when Jira names none', () => {
+    const view = shown(state({ mine: read([ticket('A-1', { canTake: true })]) }))
+    expect(view.next).toBeUndefined()
+    expect(view.mine.rows).toHaveLength(1)
   })
 
-  it('starts the plan of a row with none', () => {
-    const on = handlers()
-    pressTicketRow({ key: 'A-1' }, false, on)
-    expect(on.onPlan).toHaveBeenCalledWith('A-1')
-    expect(on.onOpenStory).not.toHaveBeenCalled()
+  it('is none for a ticket that cannot be taken, which stays a row', () => {
+    const view = shown(state({ mine: read([ticket('A-1')], { nextTicketKey: 'A-1' }) }))
+    expect(view.next).toBeUndefined()
+    expect(view.mine.rows.map((r) => r.key)).toEqual(['A-1'])
   })
 
-  it('starts no second plan while one is starting', () => {
-    const on = handlers()
-    pressTicketRow({ key: 'A-1' }, true, on)
-    expect(on.onPlan).not.toHaveBeenCalled()
+  it('is none for a ticket not on the pages read yet', () => {
+    const view = shown(state({ mine: read([ticket('A-1')], { nextTicketKey: 'A-9' }) }))
+    expect(view.next).toBeUndefined()
+  })
+})
+
+describe('a ticket’s row', () => {
+  const row = (over: Partial<GroupTicket>, starting?: GroupTicketsState['starting']) =>
+    shown(state({ sprint: read([ticket('A-1', over)]), starting })).others.rows[0]!
+
+  it('carries its chip, priority and summary', () => {
+    const { chip, priority, summary } = row({ status: 'In QA', priority: 'High' })
+    expect(chip.label).toBe('A-1 · In QA')
+    expect(priority).toBe('High')
+    expect(summary).toBe('Summary of A-1')
+  })
+
+  it('leaves out what Jira did not say', () => {
+    expect(row({})).not.toHaveProperty('priority')
+    expect(row({})).not.toHaveProperty('work')
+    expect(row({})).not.toHaveProperty('starting')
+  })
+
+  it('can be taken only when the ticket says so', () => {
+    expect(row({ canTake: true }).canTake).toBe(true)
+    expect(row({ canTake: false, status: 'To Do' }).canTake).toBe(false)
+    expect(row({ canTake: false, status: 'In Progress' }).canTake).toBe(false)
+  })
+
+  it('says it has work, and a chat, each on its own', () => {
+    const story = { id: 'g', title: 'G' }
+    expect(row({ groupStory: story })).toMatchObject({ work: story, chatOpen: false })
+    expect(row({ chatOpen: true })).toMatchObject({ chatOpen: true })
+    expect(row({ chatOpen: true })).not.toHaveProperty('work')
+    expect(row({ groupStory: story, chatOpen: true })).toMatchObject({
+      work: story,
+      chatOpen: true,
+    })
+  })
+
+  it('says what a press does', () => {
+    expect(row({}).hint).toBe('Discuss A-1')
+    expect(row({ chatOpen: true }).hint).toBe('Open the chat on A-1')
+  })
+
+  it('marks what is starting on its own ticket alone', () => {
+    const opening = shown(
+      state({
+        sprint: read([ticket('A-1'), ticket('A-2')]),
+        starting: { key: 'A-1', action: 'discuss' },
+      }),
+    )
+    expect(opening.starting).toBe(true)
+    expect(opening.others.rows[0]?.starting).toBe('discuss')
+    expect(opening.others.rows[1]).not.toHaveProperty('starting')
+    expect(row({}, { key: 'A-1', action: 'plan' }).starting).toBe('plan')
+  })
+
+  it('marks the next ticket as it starts too', () => {
+    const view = shown(
+      state({
+        mine: read([ticket('A-1', { canTake: true })], { nextTicketKey: 'A-1' }),
+        starting: { key: 'A-1', action: 'plan' },
+      }),
+    )
+    expect(view.next?.starting).toBe('plan')
+  })
+
+  it('says why a chat did not open', () => {
+    const view = shown(state({ sprint: read([]), startError: 'A-1 is In Progress.' }))
+    expect(view.startError).toBe('A-1 is In Progress.')
+    expect(view.starting).toBe(false)
+    expect(shown(state({ sprint: read([]) }))).not.toHaveProperty('startError')
+  })
+})
+
+describe('a search', () => {
+  const searching = (over: Partial<GroupTicketSearch>): GroupTicketsState =>
+    state({
+      mine: read([ticket('A-1')]),
+      search: { ...NOT_READ, query: 'znr-780', ...over },
+    })
+
+  it('is absent with nothing typed', () => {
+    expect(shown(state({ mine: read([]) })).search).toBeUndefined()
+  })
+
+  it('is being read until it answers', () => {
+    const { search } = shown(searching({}))
+    expect(search).toMatchObject({ query: 'znr-780', loading: true, rows: [] })
+    expect(search?.emptyLine).toBeUndefined()
+  })
+
+  it('lists what it found, Done ones included, with no next ticket among them', () => {
+    const { search, next } = shown(
+      searching({
+        list: { connected: true, tickets: [ticket('ZNR-780', { status: 'Done' })] },
+      }),
+    )
+    expect(search?.rows.map((r) => r.chip.label)).toEqual(['ZNR-780 · Done'])
+    expect(search?.line).toBe('1 ticket')
+    expect(next).toBeUndefined()
+  })
+
+  it('says so when nothing matches, in the person’s own words', () => {
+    const { search } = shown(searching({ list: { connected: true, tickets: [] } }))
+    expect(search?.emptyLine).toBe('No ticket matches “znr-780”.')
+  })
+
+  it('says why it failed, with no empty line, and is not being read', () => {
+    const { search } = shown(searching({ readError: 'Jira is down' }))
+    expect(search).toMatchObject({ readError: 'Jira is down', loading: false })
+    expect(search?.emptyLine).toBeUndefined()
+  })
+
+  it('can read more of a long answer', () => {
+    const { search } = shown(
+      searching({ list: { connected: true, tickets: [ticket('A-1')], nextPageToken: 'p2' } }),
+    )
+    expect(search?.canLoadMore).toBe(true)
   })
 })
 

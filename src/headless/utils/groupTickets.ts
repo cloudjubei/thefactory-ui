@@ -1,15 +1,13 @@
 import type { ExternalRef } from '../api'
-import {
-  JIRA_TICKET_PROVIDER,
-  TAKE_NEXT_TICKET_TEXT,
-  TICKET_CHIP_TEXT,
-} from './groupTicketConstants'
+import { GROUP_TICKETS_TEXT, JIRA_TICKET_PROVIDER, TICKET_CHIP_TEXT } from './groupTicketConstants'
 import type {
   GroupRunStartedWords,
   GroupTicket,
   GroupTicketRow,
+  GroupTicketSection,
+  GroupTicketSectionView,
   GroupTicketsState,
-  TakeNextTicketView,
+  GroupTicketsView,
   TicketChipView,
   TicketLaunchMove,
   TicketMoveDecision,
@@ -73,67 +71,86 @@ export function groupStoryTicketChip(
   })
 }
 
-function ticketRow(ticket: GroupTicket, planning: string | undefined): GroupTicketRow {
-  const { key, summary, priority, status, url, groupStory } = ticket
+function ticketRow(ticket: GroupTicket, starting: GroupTicketsState['starting']): GroupTicketRow {
+  const { key, summary, priority, status, url, groupStory, canTake, chatOpen } = ticket
   return {
     key,
     summary,
     ...(priority ? { priority } : {}),
     chip: ticketChipView({ key, status, title: summary, url }),
     ...(groupStory ? { work: groupStory } : {}),
-    planning: planning === key,
-    hint: groupStory
-      ? TAKE_NEXT_TICKET_TEXT.openStory(groupStory.title)
-      : TAKE_NEXT_TICKET_TEXT.planTicket(key),
+    chatOpen,
+    canTake,
+    ...(starting?.key === key ? { starting: starting.action } : {}),
+    hint: chatOpen ? GROUP_TICKETS_TEXT.openChat(key) : GROUP_TICKETS_TEXT.discussTicket(key),
   }
 }
 
-function sprintLine(rows: readonly GroupTicketRow[]): string {
-  if (rows.length === 0) return ''
-  const withWork = rows.filter((r) => r.work).length
-  const tickets = `${rows.length} ticket${rows.length === 1 ? '' : 's'}`
-  if (withWork === 0) return tickets
-  return `${tickets} · ${withWork} ${withWork === 1 ? 'has' : 'have'} work`
+function listLine(tickets: readonly GroupTicket[]): string {
+  if (tickets.length === 0) return ''
+  const withWork = tickets.filter((t) => t.groupStory).length
+  const count = `${tickets.length} ticket${tickets.length === 1 ? '' : 's'}`
+  if (withWork === 0) return count
+  return `${count} · ${withWork} ${withWork === 1 ? 'has' : 'have'} work`
+}
+
+function sectionView(
+  section: GroupTicketSection,
+  rows: GroupTicketRow[],
+  emptyLine: string,
+  sayFailure = true,
+): GroupTicketSectionView {
+  const { list, readError, loadingMore } = section
+  return {
+    rows,
+    line: listLine(list?.tickets ?? []),
+    ...(list?.tickets.length === 0 ? { emptyLine } : {}),
+    loading: !list && !readError,
+    ...(readError && sayFailure ? { readError } : {}),
+    canLoadMore: Boolean(list?.nextPageToken),
+    loadingMore,
+  }
 }
 
 /**
- * What the Stories tab shows of the sprint, or `undefined` for nothing at all: a
- * group with no Jira sees no trace of it, and neither does one still being read.
+ * What the Tickets tab shows. A search stands in for the lists while it is on. The
+ * next ticket is only ever one that can be taken, whatever Jira's list says of it.
  */
-export function takeNextTicketView(state: GroupTicketsState): TakeNextTicketView | undefined {
-  const { list, readError, loadingMore, planning, planError } = state
-  if (list && !list.connected) return undefined
-  if (!list && !readError) return undefined
-  const rows = (list?.tickets ?? []).map((t) => ticketRow(t, planning))
-  const next = rows.find((r) => r.key === list?.nextTicketKey)
-  const noNextLine = !list
-    ? undefined
-    : rows.length === 0
-      ? TAKE_NEXT_TICKET_TEXT.noTickets
-      : next
-        ? undefined
-        : TAKE_NEXT_TICKET_TEXT.allHaveWork
-  return {
-    ...(next ? { next } : {}),
-    rows,
-    sprintLine: sprintLine(rows),
-    ...(noNextLine ? { noNextLine } : {}),
-    ...(readError ? { readError } : {}),
-    ...(planError ? { planError } : {}),
-    canLoadMore: Boolean(list?.nextPageToken),
-    loadingMore,
-    planning: planning !== undefined,
+export function groupTicketsView(state: GroupTicketsState): GroupTicketsView {
+  const { mine, sprint, search, starting, startError } = state
+  if (mine.list?.connected === false || sprint.list?.connected === false) {
+    return { kind: 'no-jira' }
   }
-}
+  const answered = mine.list || sprint.list || mine.readError || sprint.readError
+  if (!answered) return { kind: 'loading' }
 
-/** A sprint row's press: a row with work opens it; one without starts its plan, one at a time. */
-export function pressTicketRow(
-  row: Pick<GroupTicketRow, 'key' | 'work'>,
-  planning: boolean,
-  on: { onOpenStory: (groupStoryId: string) => void; onPlan: (ticketKey: string) => void },
-): void {
-  if (row.work) on.onOpenStory(row.work.id)
-  else if (!planning) on.onPlan(row.key)
+  const rowsOf = (section: GroupTicketSection) =>
+    (section.list?.tickets ?? []).map((t) => ticketRow(t, starting))
+  const mineRows = rowsOf(mine)
+  const next = mineRows.find((r) => r.key === mine.list?.nextTicketKey && r.canTake)
+  const sameFailure = mine.readError && mine.readError === sprint.readError
+  return {
+    kind: 'tickets',
+    ...(next ? { next } : {}),
+    mine: sectionView(
+      mine,
+      mineRows.filter((r) => r !== next),
+      GROUP_TICKETS_TEXT.noneYours,
+      !sameFailure,
+    ),
+    others: sectionView(sprint, rowsOf(sprint), GROUP_TICKETS_TEXT.noneOthers, !sameFailure),
+    ...(search.query
+      ? {
+          search: {
+            query: search.query,
+            ...sectionView(search, rowsOf(search), GROUP_TICKETS_TEXT.noResults(search.query)),
+          },
+        }
+      : {}),
+    ...(sameFailure ? { readError: mine.readError! } : {}),
+    ...(startError ? { startError } : {}),
+    starting: starting !== undefined,
+  }
 }
 
 /** What a launch card draws of a ticket: a whole move to tick, why there is none, or nothing. */

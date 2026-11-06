@@ -28,6 +28,7 @@ import {
   PROCESS_MANAGER_AUTONOMY_OPTIONS,
   PROCESS_MANAGER_PROJECT_DETAIL,
   PROCESS_MANAGER_PROJECT_LABEL,
+  connectorWriteBackOf,
   projectManagerSettingsOf,
   projectCheckEnvOf,
   projectMetadataCarried,
@@ -421,6 +422,10 @@ export function ProjectEditorForm({
       {mode === 'edit' ? (
         <TicketConnectionPicker
           value={form.metadata.ticketConnection}
+          writeBack={connectorWriteBackOf(
+            { metadata: form.metadata, mainGroupId: form.mainGroupId },
+            groups,
+          )}
           onChange={(next) =>
             setForm((s) => ({ ...s, metadata: { ...s.metadata, ticketConnection: next } }))
           }

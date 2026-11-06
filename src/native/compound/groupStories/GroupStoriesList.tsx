@@ -1,4 +1,4 @@
-import { Fragment, useMemo, type ReactNode } from 'react'
+import { Fragment, useMemo } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
 import {
@@ -54,8 +54,6 @@ export type GroupStoriesListProps = {
   loading?: boolean
   /** Each sprint ticket's status by key, for a row's ticket chip. */
   ticketStatuses?: Readonly<Record<string, string>>
-  /** Shown under the tab's heading, above the filters: Take next ticket. */
-  ticketPanel?: ReactNode
 }
 
 type RowActions = {
@@ -86,7 +84,6 @@ export default function GroupStoriesList({
   onNew,
   loading = false,
   ticketStatuses = NO_TICKET_STATUSES,
-  ticketPanel,
 }: GroupStoriesListProps) {
   const { theme } = useNativeTheme()
   const shown = useMemo(() => filterGroupStories(stories, filter), [stories, filter])
@@ -138,7 +135,6 @@ export default function GroupStoriesList({
           </Button>
         ) : null}
       </View>
-      {ticketPanel}
       <GroupStoriesToolbar
         stories={stories}
         shown={loading ? undefined : shown.length}

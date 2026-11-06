@@ -8,17 +8,30 @@
 // it, or embeds it in a message, and `credentialCaptures.test.ts` pins that.
 
 import {
+  CAPTURE_CARD_PRIVACY_NOTE,
   CAPTURE_CARD_TITLES,
   CAPTURE_REPLACING_CARD_TITLE,
   CAPTURE_REPLACING_CARD_TITLES,
   CAPTURE_STATUS_DISPLAY_BY_KIND,
   CAPTURE_CREDENTIAL_NAME_PREFIX,
   CAPTURE_FIELD_REQUIRED,
+  CAPTURE_SUBMIT_LABEL,
+  CLI_SIGN_IN_PRIVACY_NOTE,
+  CLI_SIGN_IN_START_LABEL,
   CREDENTIAL_CAPTURE_FIELDS,
   CREDENTIAL_CAPTURE_STATUS_DISPLAY,
   CREDENTIAL_CAPTURE_TOOL_NAMES,
+  MCP_CAPTURE_PRIVACY_NOTE,
+  MCP_CAPTURE_SIGN_IN_TITLE,
+  MCP_CAPTURE_SUBMIT_LABEL,
 } from './credentialCaptureConstants'
+import { extractErrorMessage } from '../api/errorMessage'
 import { cliLabel } from './cliRunner'
+import { mcpServerUrlProblem } from './mcpServers'
+import { MCP_SERVER_DRAFT_PROBLEMS, MCP_SERVER_NAME_MAX } from './mcpServersConstants'
+import type { McpServerOwner } from './mcpServersTypes'
+import { isJiraCloudId, isJiraSiteUrl } from './providerConnectionForm'
+import { PROVIDER_CONNECTION_PROBLEMS } from './providerConnectionFormConstants'
 import { parseJiraProjectKeys } from './ticketConnection'
 import type { CliTool } from '../api'
 import type { CliRunBlockedOn } from './cliRunActivityTypes'
@@ -106,7 +119,11 @@ function kindFields(capture: CredentialCapture): readonly CredentialCaptureField
 export function emptyCaptureForm(capture: CredentialCapture): CredentialCaptureFormValues {
   const values: CredentialCaptureFormValues = {}
   for (const field of kindFields(capture)) {
-    const preset = field.fromPreset ? capture.preset : undefined
+    const preset = field.fromMcpServer
+      ? capture.mcpServer?.[field.fromMcpServer]
+      : field.fromPreset
+        ? capture.preset
+        : undefined
     if (field.type === 'select') {
       const options = field.options ?? []
       values[field.name] =
@@ -119,6 +136,17 @@ export function emptyCaptureForm(capture: CredentialCapture): CredentialCaptureF
 }
 
 /**
+ * The fields a form opens with something in: a card explains what is wrong with
+ * an agent's suggestion at once, rather than after the person has left the field.
+ */
+export function filledCaptureFields(capture: CredentialCapture): CredentialCaptureFieldName[] {
+  const opened = emptyCaptureForm(capture)
+  return captureFields(capture, opened)
+    .map((field) => field.name)
+    .filter((name) => opened[name])
+}
+
+/**
  * The fields shown right now, in render order: a project-only field only on a
  * capture opened in a project, a dependent field only while what it depends on
  * holds a matching value.
@@ -127,11 +155,23 @@ export function captureFields(
   capture: CredentialCapture,
   values: CredentialCaptureFormValues,
 ): readonly CredentialCaptureFieldSpec[] {
-  return kindFields(capture).filter(
-    (field) =>
-      (!field.projectOnly || !!capture.projectId) &&
-      (!field.newOnly || !capture.replacesId) &&
-      (!field.shownWhen || field.shownWhen.in.includes(values[field.shownWhen.field] ?? '')),
+  return kindFields(capture).filter((field) => isFieldShown(capture, field, values))
+}
+
+/** A field hangs on another only while that one is shown: a hidden choice keeps its old value. */
+function isFieldShown(
+  capture: CredentialCapture,
+  field: CredentialCaptureFieldSpec,
+  values: CredentialCaptureFormValues,
+): boolean {
+  if (field.projectOnly && !capture.projectId) return false
+  if (field.newOnly && capture.replacesId) return false
+  if (field.twoOwners && !(capture.projectId && capture.groupId)) return false
+  const { shownWhen } = field
+  if (!shownWhen) return true
+  if (!shownWhen.in.includes(values[shownWhen.field] ?? '')) return false
+  return kindFields(capture).some(
+    (other) => other.name === shownWhen.field && isFieldShown(capture, other, values),
   )
 }
 
@@ -158,7 +198,63 @@ export function captureFormErrors(
     if (field.optional) continue
     if (!(values[field.name] ?? '').trim()) errors[field.name] = CAPTURE_FIELD_REQUIRED
   }
-  return errors
+  if (capture.provider === 'mcp-server') return { ...errors, ...mcpServerFieldErrors(values) }
+  return capture.provider === 'ticket-connection'
+    ? { ...errors, ...jiraTokenFieldErrors(capture, values) }
+    : errors
+}
+
+const isScopedTokenForm = (
+  capture: CredentialCapture,
+  values: CredentialCaptureFormValues,
+): boolean => captureFields(capture, values).some((field) => field.name === 'cloudId')
+
+/** What a card shares with the Settings form, on the field it is about. */
+function jiraTokenFieldErrors(
+  capture: CredentialCapture,
+  values: CredentialCaptureFormValues,
+): CredentialCaptureFormErrors {
+  if (!isScopedTokenForm(capture, values)) return {}
+  const site = (values.baseUrl ?? '').trim()
+  const cloudId = (values.cloudId ?? '').trim()
+  return {
+    ...(site && !isJiraSiteUrl(site) ? { baseUrl: PROVIDER_CONNECTION_PROBLEMS.jiraSite } : {}),
+    ...(cloudId && !isJiraCloudId(cloudId)
+      ? { cloudId: PROVIDER_CONNECTION_PROBLEMS.jiraCloudId }
+      : {}),
+  }
+}
+
+/** The site to ask for a cloud id: only while the form wants one and the site can answer. */
+export function captureCloudIdSite(
+  capture: CredentialCapture,
+  values: CredentialCaptureFormValues,
+): string | undefined {
+  if (capture.provider !== 'ticket-connection' || !isScopedTokenForm(capture, values)) {
+    return undefined
+  }
+  const site = values.baseUrl ?? ''
+  return !(values.cloudId ?? '').trim() && isJiraSiteUrl(site) ? site.trim() : undefined
+}
+
+/** The form with one field changed. A cloud id belongs to the site it was found on, so it goes too. */
+export function captureFormWith(
+  values: CredentialCaptureFormValues,
+  name: CredentialCaptureFieldName,
+  value: string,
+): CredentialCaptureFormValues {
+  return { ...values, [name]: value, ...(name === 'baseUrl' ? { cloudId: '' } : {}) }
+}
+
+/** What a server card shares with the Settings form, on the field it is about. */
+function mcpServerFieldErrors(values: CredentialCaptureFormValues): CredentialCaptureFormErrors {
+  const name = (values.name ?? '').trim()
+  const url = (values.url ?? '').trim()
+  const urlProblem = url ? mcpServerUrlProblem(url) : undefined
+  return {
+    ...(name.length > MCP_SERVER_NAME_MAX ? { name: MCP_SERVER_DRAFT_PROBLEMS.nameTooLong } : {}),
+    ...(urlProblem ? { url: urlProblem } : {}),
+  }
 }
 
 /** Whether the form can be submitted — drives the submit button's disabled state. */
@@ -196,13 +292,56 @@ export function captureToolName(capture: CredentialCapture): string {
 
 /** What the card says the agent is asking for. */
 export function captureCardTitle(capture: CredentialCapture): string {
+  if (isMcpSignInStep(capture)) return MCP_CAPTURE_SIGN_IN_TITLE(capture.mcpServer?.name ?? '')
   if (!capture.replacesId) return CAPTURE_CARD_TITLES[capture.provider]
   return CAPTURE_REPLACING_CARD_TITLES[capture.provider] ?? CAPTURE_REPLACING_CARD_TITLE
+}
+
+/** The promise a form makes above its fields. */
+export function captureFormNote(capture: CredentialCapture): string {
+  if (isCliSignInCapture(capture)) return CLI_SIGN_IN_PRIVACY_NOTE
+  return capture.provider === 'mcp-server' ? MCP_CAPTURE_PRIVACY_NOTE : CAPTURE_CARD_PRIVACY_NOTE
+}
+
+/** Why a form's action failed. A server or ticket card shows the backend's words: they say what to fix, and never hold a token. */
+export function captureFailureText(
+  capture: CredentialCapture,
+  err: unknown,
+  fallback: string,
+): string {
+  if (capture.provider === 'mcp-server' || capture.provider === 'ticket-connection') {
+    return extractErrorMessage(err, fallback)
+  }
+  return err instanceof Error ? err.message : fallback
+}
+
+/** What a form's button says. */
+export function captureSubmitLabel(capture: CredentialCapture): string {
+  if (isCliSignInCapture(capture)) return CLI_SIGN_IN_START_LABEL
+  return capture.provider === 'mcp-server' ? MCP_CAPTURE_SUBMIT_LABEL : CAPTURE_SUBMIT_LABEL
 }
 
 /** Whether a capture is a CLI sign-in — signed in on the card, not typed into a form. */
 export function isCliSignInCapture(capture: CredentialCapture): boolean {
   return capture.provider === 'cli-login'
+}
+
+/** Whether a server card has added its server and only the sign-in is left. */
+export function isMcpSignInStep(capture: CredentialCapture): boolean {
+  return (
+    capture.provider === 'mcp-server' &&
+    isAwaitingUser(capture) &&
+    capture.mcpServer?.serverId !== undefined
+  )
+}
+
+/** Whom a server card keeps its server on, as the backend recorded it. */
+export function mcpCaptureOwner(capture: CredentialCapture): McpServerOwner | undefined {
+  const scope = capture.mcpServer?.scope ?? (capture.projectId ? 'project' : 'group')
+  if (scope === 'group') {
+    return capture.groupId ? { kind: 'group', groupId: capture.groupId } : undefined
+  }
+  return capture.projectId ? { kind: 'project', projectId: capture.projectId } : undefined
 }
 
 /**

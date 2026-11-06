@@ -9,6 +9,7 @@ import {
   SIGN_OFF_OUTPUT_MAX_CHARS,
   SIGN_OFF_OUTPUT_TEXT,
 } from './groupSignOffConstants'
+import { ticketPostView } from './ticketPost'
 import type {
   GroupSignOffAttachment,
   GroupSignOffAttachmentRow,
@@ -77,11 +78,12 @@ function pullRequestLine(repo: GroupSignOffRepo): string | undefined {
   return undefined
 }
 
-function repoRow(repo: GroupSignOffRepo, nameOf: NameOf): GroupSignOffRepoRow {
+function repoRow(repo: GroupSignOffRepo, nameOf: NameOf, deciding: boolean): GroupSignOffRepoRow {
   const { legId, projectId, title, runId, branch, baseRef, pullRequest } = repo
   const { state, files, generated, error } = pullRequest
   const line = pullRequestLine(repo)
   const link = pullRequestLink(repo)
+  const ticketPost = deciding ? ticketPostView(repo.ticketPost) : undefined
   return {
     legId,
     projectId,
@@ -98,6 +100,7 @@ function repoRow(repo: GroupSignOffRepo, nameOf: NameOf): GroupSignOffRepoRow {
     ...(link ? { link } : {}),
     ...(error ? { error } : {}),
     busy: state === 'opening',
+    ...(ticketPost ? { ticketPost } : {}),
   }
 }
 
@@ -192,7 +195,7 @@ export function groupSignOffScreen(
 ): GroupSignOffScreen {
   const phase = groupSignOffPhase(data)
   const deciding = phase === 'deciding'
-  const repos = data.repos.map((repo) => repoRow(repo, nameOf))
+  const repos = data.repos.map((repo) => repoRow(repo, nameOf, deciding))
   const toOpen = data.repos.filter((r) => r.pullRequest.state === 'to-open').length
   const unsaved = outputSections(data).flatMap(({ output, key }) =>
     state.drafts[key] ? [output.label] : [],

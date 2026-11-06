@@ -1,18 +1,25 @@
-import type { TakeNextTicketLayout, TicketChipLayout, TicketMoveLayout } from './groupTicketTypes'
+import type { GroupTicketsLayout, TicketChipLayout, TicketMoveLayout } from './groupTicketTypes'
 
 /** The `provider` of a Jira ticket's link. */
 export const JIRA_TICKET_PROVIDER = 'jira'
 
-export const TAKE_NEXT_TICKET_LAYOUTS: readonly TakeNextTicketLayout[] = ['card', 'list', 'columns']
+export const GROUP_TICKETS_LAYOUTS: readonly GroupTicketsLayout[] = [
+  'sections',
+  'segmented',
+  'columns',
+]
 
 /** The layout that ships. */
-export const TAKE_NEXT_TICKET_DEFAULT_LAYOUT: TakeNextTicketLayout = 'card'
+export const GROUP_TICKETS_DEFAULT_LAYOUT: GroupTicketsLayout = 'sections'
 
-export const TAKE_NEXT_TICKET_LAYOUT_LABELS: Record<TakeNextTicketLayout, string> = {
-  card: 'Card, sprint folded',
-  list: 'One list',
+export const GROUP_TICKETS_LAYOUT_LABELS: Record<GroupTicketsLayout, string> = {
+  sections: 'One after the other',
+  segmented: 'One list at a time',
   columns: 'Side by side',
 }
+
+/** How long typing rests before a search goes to Jira. */
+export const GROUP_TICKETS_SEARCH_WAIT_MS = 350
 
 export const TICKET_CHIP_LAYOUTS: readonly TicketChipLayout[] = ['joined', 'split']
 
@@ -34,22 +41,37 @@ export const TICKET_MOVE_LAYOUT_LABELS: Record<TicketMoveLayout, string> = {
   settings: 'With the settings',
 }
 
-export const TAKE_NEXT_TICKET_TEXT = {
-  heading: 'Next ticket',
+export const GROUP_TICKETS_TEXT = {
+  heading: 'Tickets',
+  search: 'Find a ticket',
+  searchHint: 'Find any ticket by key or words',
+  searching: 'Searching…',
+  results: 'Results',
+  noResults: (query: string) => `No ticket matches “${query}”.`,
+  next: 'Next ticket',
+  explain: 'An agent reads it and proposes a group story for you to approve.',
+  yours: 'Yours',
+  others: 'Others in the sprint',
+  othersShort: 'Others',
+  noneYours: 'Nothing is assigned to you in the open sprint.',
+  noneOthers: 'Nobody else has tickets in the open sprint.',
   take: 'Take ticket',
   starting: 'Starting…',
-  explain: 'An agent reads it and proposes a group story for you to approve.',
-  sprint: 'Your sprint',
-  noTickets: 'Nothing is assigned to you in the open sprint.',
-  allHaveWork: 'Every ticket in your sprint has work.',
-  noWork: 'No work yet',
-  next: 'Next',
+  discuss: 'Discuss',
+  opening: 'Opening…',
+  chatOpen: 'Chat open',
+  noWork: 'No group story',
+  loading: 'Loading…',
   showMore: 'Show more',
   tryAgain: 'Try again',
-  readFailed: 'Could not read your tickets.',
+  noJira: 'This group has no Jira.',
+  connectJira: 'Connect it in Settings → Group',
+  readFailed: 'Could not read the tickets.',
+  searchFailed: 'Could not search the tickets.',
   planFailed: 'The plan did not start.',
-  openStory: (title: string) => `Open “${title}”`,
-  planTicket: (key: string) => `Plan ${key}`,
+  discussFailed: 'The chat did not open.',
+  discussTicket: (key: string) => `Discuss ${key}`,
+  openChat: (key: string) => `Open the chat on ${key}`,
 } as const
 
 export const TICKET_CHIP_TEXT = {

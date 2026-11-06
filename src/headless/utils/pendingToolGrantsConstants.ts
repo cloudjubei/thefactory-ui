@@ -36,6 +36,7 @@ export const USER_INPUT_TOOL_NAMES: readonly string[] = [
   'requestCliSignIn',
   'requestLlmApiKey',
   'requestWebSearchKey',
+  'requestMcpServer',
 ]
 
 /** The action kinds answered rather than approved: a question, a blocker, a remedy. */

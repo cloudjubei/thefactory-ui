@@ -189,6 +189,73 @@ describe('groupSignOffScreen', () => {
     })
   })
 
+  describe('what approving would post', () => {
+    const post = {
+      tickets: [{ provider: 'jira', externalId: 'ENG-7', posts: true }],
+      comment: 'Signed off.',
+      transition: '31',
+    }
+
+    it('says it on the repo while the decision is open', () => {
+      const screen = groupSignOffScreen(
+        data({ repos: [repo('be', { ticketPost: post })] }),
+        state(),
+        nameOf,
+      )
+      expect(screen.phase).toBe('deciding')
+      expect(screen.repos[0]!.ticketPost).toEqual({
+        line: 'Posts a comment on ENG-7, then makes transition 31.',
+        notes: [],
+        comment: 'Signed off.',
+      })
+    })
+
+    it('says the reason when nothing would post', () => {
+      const off = {
+        tickets: [
+          {
+            provider: 'jira',
+            externalId: 'ENG-7',
+            posts: false,
+            why: 'Connector write-back is off, so nothing is posted',
+          },
+        ],
+      }
+      const screen = groupSignOffScreen(
+        data({ repos: [repo('be', { ticketPost: off })] }),
+        state(),
+        nameOf,
+      )
+      expect(screen.repos[0]!.ticketPost).toEqual({
+        line: 'ENG-7: Connector write-back is off, so nothing is posted.',
+        notes: [],
+      })
+    })
+
+    it('leaves it out for a repo with no tickets', () => {
+      const screen = groupSignOffScreen(
+        data({ repos: [repo('be', { ticketPost: { tickets: [] } })] }),
+        state(),
+        nameOf,
+      )
+      expect(screen.repos[0]!).not.toHaveProperty('ticketPost')
+    })
+
+    it('stops saying it once the decision is made', () => {
+      const screen = groupSignOffScreen(
+        data({
+          repos: [
+            repo('be', { ticketPost: post, pullRequest: { state: 'open', url: 'https://x/1' } }),
+          ],
+        }),
+        state(),
+        nameOf,
+      )
+      expect(screen.phase).not.toBe('deciding')
+      expect(screen.repos[0]!).not.toHaveProperty('ticketPost')
+    })
+  })
+
   it('leaves the branch line out for a repo with no branch', () => {
     const screen = groupSignOffScreen(
       data({ repos: [repo('be', { branch: undefined, baseRef: undefined })] }),

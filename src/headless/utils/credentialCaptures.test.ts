@@ -1,27 +1,42 @@
 import { describe, expect, it } from 'vitest'
+import { JIRA_TOKEN_TYPES, PROVIDER_CONNECTION_PROBLEMS } from './providerConnectionFormConstants'
 import {
   awaitingCaptures,
   belongsToChat,
   captureCardTitle,
   capturesBlockedOn,
   captureFields,
+  captureFailureText,
+  captureFormNote,
+  captureSubmitLabel,
   captureToolName,
   cliSignInRequest,
   captureFormErrors,
   captureStatusDisplay,
+  captureCloudIdSite,
+  captureFormWith,
   captureSubmitBody,
   emptyCaptureForm,
+  filledCaptureFields,
   isAwaitingUser,
   isCaptureFormValid,
   isCaptureSecretField,
   isCliSignInCapture,
   isCredentialCapture,
+  isMcpSignInStep,
+  mcpCaptureOwner,
   upsertCapture,
 } from './credentialCaptures'
 import { CAPTURE_REPLACING_CARD_TITLE } from './credentialCaptureConstants'
 import {
+  CAPTURE_CARD_PRIVACY_NOTE,
   CAPTURE_FIELD_REQUIRED,
+  CAPTURE_SUBMIT_LABEL,
+  CLI_SIGN_IN_PRIVACY_NOTE,
+  CLI_SIGN_IN_START_LABEL,
   CREDENTIAL_CAPTURE_STATUS_DISPLAY,
+  MCP_CAPTURE_PRIVACY_NOTE,
+  MCP_CAPTURE_SUBMIT_LABEL,
 } from './credentialCaptureConstants'
 import type {
   CredentialCapture,
@@ -416,6 +431,8 @@ describe('the other capture kinds', () => {
       provider: 'jira',
       username: '',
       baseUrl: '',
+      tokenType: 'scoped',
+      cloudId: '',
       token: '',
       access: '',
       projectKeys: '',
@@ -429,7 +446,16 @@ describe('the other capture kinds', () => {
   it('asks Jira for its email and site, and GitHub for neither', () => {
     const shown = (provider: string) =>
       captureFields(jira(), { ...emptyCaptureForm(jira()), provider }).map((f) => f.name)
-    expect(shown('jira')).toEqual(['name', 'provider', 'username', 'baseUrl', 'token', 'access'])
+    expect(shown('jira')).toEqual([
+      'name',
+      'provider',
+      'username',
+      'baseUrl',
+      'tokenType',
+      'cloudId',
+      'token',
+      'access',
+    ])
     expect(shown('github')).toEqual(['name', 'provider', 'token'])
   })
 
@@ -462,9 +488,114 @@ describe('the other capture kinds', () => {
       provider: 'jira',
       username: 'me@acme.com',
       baseUrl: 'https://acme.atlassian.net',
+      tokenType: 'scoped',
       token: 'tok',
       access: 'read-write',
       projectKeys: ['ENG', 'OPS'],
+    })
+  })
+
+  describe('a Jira token’s type', () => {
+    const CLOUD = '11111111-2222-4333-8444-555555555555'
+    const SITE = 'https://acme.atlassian.net'
+    const filled = (over = {}) => ({
+      ...emptyCaptureForm(jira()),
+      name: 'Acme Jira',
+      username: 'me@acme.com',
+      baseUrl: SITE,
+      token: 'tok',
+      cloudId: CLOUD,
+      ...over,
+    })
+    const names = (values: Record<string, string>) =>
+      captureFields(jira(), values).map((f) => f.name)
+
+    it('offers the same two types as Settings, With scopes first', () => {
+      const field = captureFields(jira(), filled()).find((f) => f.name === 'tokenType')
+      expect(field?.options).toEqual(JIRA_TOKEN_TYPES)
+    })
+
+    it('asks a classic token for no cloud id', () => {
+      expect(names(filled({ tokenType: 'classic' }))).not.toContain('cloudId')
+      expect(isCaptureFormValid(jira(), filled({ tokenType: 'classic', cloudId: '' }))).toBe(true)
+    })
+
+    it('hides both on another tracker, whatever the type was left on', () => {
+      const github = names(filled({ provider: 'github' }))
+      expect(github).not.toContain('tokenType')
+      expect(github).not.toContain('cloudId')
+      expect(captureSubmitBody(jira(), filled({ provider: 'github' }))).not.toHaveProperty(
+        'cloudId',
+      )
+    })
+
+    it('hides a field when the one it hangs on is hidden', () => {
+      const values = filled({ provider: 'github', access: 'read' })
+      expect(names(values)).not.toContain('projectKeys')
+    })
+
+    it('sends the type and the id', () => {
+      expect(captureSubmitBody(jira(), filled())).toMatchObject({
+        tokenType: 'scoped',
+        cloudId: CLOUD,
+      })
+    })
+
+    it('sends the classic type with no id, so a replaced connection loses its old one', () => {
+      const body = captureSubmitBody(jira(), filled({ tokenType: 'classic' }))
+      expect(body).toMatchObject({ tokenType: 'classic' })
+      expect(body).not.toHaveProperty('cloudId')
+    })
+
+    it('needs a cloud id for a token with scopes', () => {
+      expect(captureFormErrors(jira(), filled({ cloudId: '' })).cloudId).toBe(
+        CAPTURE_FIELD_REQUIRED,
+      )
+    })
+
+    it('refuses a cloud id that is not one, without echoing it', () => {
+      const errors = captureFormErrors(jira(), filled({ cloudId: 'typed-acme' }))
+      expect(errors.cloudId).toBe(PROVIDER_CONNECTION_PROBLEMS.jiraCloudId)
+      expect(JSON.stringify(errors)).not.toContain('typed-acme')
+    })
+
+    it('refuses a site a token with scopes cannot reach', () => {
+      const values = filled({ baseUrl: 'https://jira.acme.com' })
+      expect(captureFormErrors(jira(), values).baseUrl).toBe(PROVIDER_CONNECTION_PROBLEMS.jiraSite)
+      expect(captureFormErrors(jira(), { ...values, tokenType: 'classic' }).baseUrl).toBeUndefined()
+    })
+
+    it('takes a good form', () => {
+      expect(isCaptureFormValid(jira(), filled())).toBe(true)
+    })
+
+    it('looks the id up only while it is wanted and the site can answer', () => {
+      expect(captureCloudIdSite(jira(), filled({ cloudId: ' ' }))).toBe(SITE)
+      expect(captureCloudIdSite(jira(), filled())).toBeUndefined()
+      expect(captureCloudIdSite(jira(), filled({ cloudId: '', tokenType: 'classic' }))).toBe(
+        undefined,
+      )
+      expect(captureCloudIdSite(jira(), filled({ cloudId: '', provider: 'github' }))).toBe(
+        undefined,
+      )
+      expect(captureCloudIdSite(jira(), filled({ cloudId: '', baseUrl: 'https://x.com' }))).toBe(
+        undefined,
+      )
+      expect(captureCloudIdSite(capture(), filled({ cloudId: '' }))).toBeUndefined()
+    })
+
+    it('forgets the id when the site changes, and keeps everything else', () => {
+      expect(captureFormWith(filled(), 'baseUrl', 'https://other.atlassian.net')).toMatchObject({
+        baseUrl: 'https://other.atlassian.net',
+        cloudId: '',
+        name: 'Acme Jira',
+      })
+      expect(captureFormWith(filled(), 'name', 'New').cloudId).toBe(CLOUD)
+    })
+
+    it('shows the backend’s words on a refused ticket form', () => {
+      const refused = { isAxiosError: true, response: { status: 400, data: { error: 'No.' } } }
+      expect(captureFailureText(jira(), refused, 'fallback')).toBe('No.')
     })
   })
 
@@ -572,6 +703,39 @@ describe('a CLI sign-in card', () => {
   })
 })
 
+describe('a ticket form for Azure DevOps', () => {
+  const azure = () => capture({ provider: 'ticket-connection', preset: 'azure-devops' })
+  const values = (over = {}) => ({ ...emptyCaptureForm(azure()), ...over })
+  const shown = (form = values()) => captureFields(azure(), form).map((field) => field.label)
+
+  it('opens on the tracker the agent named', () => {
+    expect(emptyCaptureForm(azure()).provider).toBe('azure-devops')
+  })
+
+  it('asks for the URL and a personal access token, and no account email', () => {
+    expect(shown()).toEqual([
+      'Name',
+      'Tracker',
+      'Organization or project URL',
+      'Personal access token',
+    ])
+  })
+
+  it('keeps each provider to one URL field and one token field', () => {
+    const jira = captureFields(azure(), values({ provider: 'jira' })).map((field) => field.name)
+    expect(jira.filter((name) => name === 'baseUrl')).toHaveLength(1)
+    expect(jira.filter((name) => name === 'token')).toHaveLength(1)
+  })
+
+  it('needs the URL and the token, and masks the token', () => {
+    expect(Object.keys(captureFormErrors(azure(), values({ name: 'Acme' })))).toEqual([
+      'baseUrl',
+      'token',
+    ])
+    expect(isCaptureSecretField(azure(), 'token')).toBe(true)
+  })
+})
+
 describe('capturesBlockedOn', () => {
   it('reads an open form as the agent waiting on the user, named after its tool', () => {
     expect(capturesBlockedOn([capture({ provider: 'ticket-connection' })])).toEqual([
@@ -587,5 +751,197 @@ describe('capturesBlockedOn', () => {
     expect(
       capturesBlockedOn([capture({ status: 'submitted' }), capture({ status: 'cancelled' })]),
     ).toEqual([])
+  })
+})
+
+describe('a server card', () => {
+  const SECRET = 'mcp_token_only_the_store_sees'
+  const card = (overrides: Partial<CredentialCapture> = {}) =>
+    capture({
+      provider: 'mcp-server',
+      projectId: 'p1',
+      mcpServer: { name: 'Linear', url: 'https://mcp.linear.app/mcp', scope: 'project' },
+      ...overrides,
+    })
+  const names = (c: CredentialCapture, v: CredentialCaptureFormValues) =>
+    captureFields(c, v).map((field) => field.name)
+
+  it('is named after its tool', () => {
+    expect(captureToolName(card())).toBe('requestMcpServer')
+  })
+
+  it('opens on what the agent suggested, signing in through a browser', () => {
+    expect(emptyCaptureForm(card())).toEqual({
+      name: 'Linear',
+      url: 'https://mcp.linear.app/mcp',
+      authType: 'oauth',
+      token: '',
+      scope: 'project',
+    })
+  })
+
+  it('opens blank on a card with no suggestion', () => {
+    expect(emptyCaptureForm(card({ mcpServer: { scope: 'group' } }))).toMatchObject({
+      name: '',
+      url: '',
+      scope: 'group',
+    })
+    expect(emptyCaptureForm(card({ mcpServer: undefined }))).toMatchObject({ name: '', url: '' })
+  })
+
+  it('offers the choice of owner only where there are two', () => {
+    const form = emptyCaptureForm(card())
+    expect(names(card({ groupId: 'g1' }), form)).toContain('scope')
+    expect(names(card(), form)).not.toContain('scope')
+    expect(names(card({ projectId: undefined, groupId: 'g1' }), form)).not.toContain('scope')
+  })
+
+  it('shows the token field only for a token, and masks it', () => {
+    const form = emptyCaptureForm(card())
+    expect(names(card(), form)).not.toContain('token')
+    expect(names(card(), { ...form, authType: 'none' })).not.toContain('token')
+    expect(names(card(), { ...form, authType: 'bearer' })).toContain('token')
+    expect(isCaptureSecretField(card(), 'token')).toBe(true)
+  })
+
+  it('needs a token to go with a token sign-in', () => {
+    const form = { ...emptyCaptureForm(card()), authType: 'bearer' }
+    expect(isCaptureFormValid(card(), form)).toBe(false)
+    expect(isCaptureFormValid(card(), { ...form, token: SECRET })).toBe(true)
+  })
+
+  it.each([
+    ['an address that is not one', { url: 'mcp.linear.app' }, 'url'],
+    ['plain http', { url: 'http://mcp.linear.app/mcp' }, 'url'],
+    ['a user in the address', { url: 'https://me:pw@mcp.linear.app/mcp' }, 'url'],
+    ['a name that is too long', { name: 'n'.repeat(65) }, 'name'],
+  ])('holds back %s, on its field', (_name, change, field) => {
+    const errors = captureFormErrors(card(), { ...emptyCaptureForm(card()), ...change })
+    expect(Object.keys(errors)).toEqual([field])
+    expect(errors[field]).not.toContain('me:pw')
+  })
+
+  it('takes a local address over plain http', () => {
+    const form = { ...emptyCaptureForm(card()), url: 'http://localhost:3845/mcp' }
+    expect(isCaptureFormValid(card(), form)).toBe(true)
+  })
+
+  it('sends the form, and no word on whether the server only reads', () => {
+    const body = captureSubmitBody(card({ groupId: 'g1' }), {
+      ...emptyCaptureForm(card()),
+      authType: 'bearer',
+      token: SECRET,
+      scope: 'group',
+      onlyReads: 'true',
+    })
+    expect(body).toEqual({
+      kind: 'mcp-server',
+      name: 'Linear',
+      url: 'https://mcp.linear.app/mcp',
+      authType: 'bearer',
+      token: SECRET,
+      scope: 'group',
+    })
+  })
+
+  it('sends no token typed before the sign-in was changed', () => {
+    const body = captureSubmitBody(card(), { ...emptyCaptureForm(card()), token: SECRET })
+    expect(JSON.stringify(body)).not.toContain(SECRET)
+  })
+
+  it('leaves the token out of everything shown about the card', () => {
+    const shown = JSON.stringify([
+      captureStatusDisplay(card()),
+      captureCardTitle(card()),
+      capturesBlockedOn([card()]),
+    ])
+    expect(shown).not.toContain(SECRET)
+  })
+
+  describe('on Sign in', () => {
+    const added = (scope: 'project' | 'group' = 'project') =>
+      card({
+        groupId: 'g1',
+        mcpServer: { name: 'Linear', url: 'https://mcp.linear.app/mcp', scope, serverId: 's1' },
+      })
+
+    it('is a card whose server was added and is still open', () => {
+      expect(isMcpSignInStep(added())).toBe(true)
+      expect(isMcpSignInStep(card())).toBe(false)
+      expect(isMcpSignInStep({ ...added(), status: 'submitted' })).toBe(false)
+      expect(isMcpSignInStep(capture({ mcpServer: { scope: 'project', serverId: 's1' } }))).toBe(
+        false,
+      )
+    })
+
+    it('is headed with the server it signs in to', () => {
+      expect(captureCardTitle(added())).toBe('Sign in to Linear')
+      expect(captureCardTitle(card())).toBe('The agent needs an MCP server connected')
+    })
+
+    it('signs in on the owner it was added to', () => {
+      expect(mcpCaptureOwner(added())).toEqual({ kind: 'project', projectId: 'p1' })
+      expect(mcpCaptureOwner(added('group'))).toEqual({ kind: 'group', groupId: 'g1' })
+    })
+
+    it('has no owner on a card with neither', () => {
+      expect(mcpCaptureOwner(capture({ provider: 'mcp-server' }))).toBeUndefined()
+    })
+  })
+
+  it('reads as answered without calling it connected: the server may not answer', () => {
+    expect(captureStatusDisplay(card({ status: 'submitted', credentialName: 'Linear' }))).toEqual({
+      label: 'Server added',
+      description: expect.stringContaining('“Linear”'),
+      tone: 'success',
+    })
+    expect(captureStatusDisplay(card({ status: 'cancelled' })).description).not.toContain(
+      'credentials',
+    )
+  })
+})
+
+describe('what a form says beside its fields', () => {
+  it.each([
+    ['git', CAPTURE_CARD_PRIVACY_NOTE, CAPTURE_SUBMIT_LABEL],
+    ['cli-login', CLI_SIGN_IN_PRIVACY_NOTE, CLI_SIGN_IN_START_LABEL],
+    ['mcp-server', MCP_CAPTURE_PRIVACY_NOTE, MCP_CAPTURE_SUBMIT_LABEL],
+  ] as const)('reads for a %s card', (provider, note, label) => {
+    expect(captureFormNote(capture({ provider }))).toBe(note)
+    expect(captureSubmitLabel(capture({ provider }))).toBe(label)
+  })
+})
+
+describe('captureFailureText', () => {
+  const refused = Object.assign(new Error('Request failed with status code 400'), {
+    isAxiosError: true,
+    response: { status: 400, data: { error: 'A server here already has that name.' } },
+  })
+
+  it('gives a server card the backend’s words', () => {
+    expect(captureFailureText(capture({ provider: 'mcp-server' }), refused, 'x')).toBe(
+      'A server here already has that name.',
+    )
+  })
+
+  it('leaves the other kinds as they were', () => {
+    expect(captureFailureText(capture(), refused, 'x')).toBe('Request failed with status code 400')
+    expect(captureFailureText(capture(), 'nothing useful', 'fallback')).toBe('fallback')
+  })
+})
+
+describe('filledCaptureFields', () => {
+  it('names what opened filled in, so a bad suggestion is explained at once', () => {
+    const card = capture({
+      provider: 'mcp-server',
+      projectId: 'p1',
+      mcpServer: { url: 'nonsense', scope: 'project' },
+    })
+    expect(filledCaptureFields(card)).toEqual(['url', 'authType'])
+    expect(captureFormErrors(card, emptyCaptureForm(card)).url).toBeDefined()
+  })
+
+  it('names nothing on a form that opened blank', () => {
+    expect(filledCaptureFields(capture())).toEqual([])
   })
 })

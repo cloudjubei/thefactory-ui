@@ -36506,6 +36506,7 @@ export type ListCredentialCapturesResponses = {
       | 'llm-key'
       | 'cli-login'
       | 'project-note'
+      | 'mcp-server'
     preset?: string
     projectId?: string
     groupId?: string
@@ -36516,6 +36517,13 @@ export type ListCredentialCapturesResponses = {
     credentialName?: string
     chatContextKey?: string
     replacesId?: string
+    mcpServer?: {
+      name?: string
+      url?: string
+      scope: 'project' | 'group'
+      serverId?: string
+      status?: 'connected' | 'needs-sign-in' | 'unreachable'
+    }
   }>
 }
 
@@ -36532,6 +36540,7 @@ export type OpenCredentialCaptureData = {
       | 'llm-key'
       | 'cli-login'
       | 'project-note'
+      | 'mcp-server'
     preset?: string
     projectId?: string
     chatContextKey?: string
@@ -36569,6 +36578,7 @@ export type OpenCredentialCaptureResponses = {
       | 'llm-key'
       | 'cli-login'
       | 'project-note'
+      | 'mcp-server'
     preset?: string
     projectId?: string
     groupId?: string
@@ -36579,6 +36589,13 @@ export type OpenCredentialCaptureResponses = {
     credentialName?: string
     chatContextKey?: string
     replacesId?: string
+    mcpServer?: {
+      name?: string
+      url?: string
+      scope: 'project' | 'group'
+      serverId?: string
+      status?: 'connected' | 'needs-sign-in' | 'unreachable'
+    }
   }
 }
 
@@ -36629,6 +36646,7 @@ export type GetCredentialCaptureResponses = {
       | 'llm-key'
       | 'cli-login'
       | 'project-note'
+      | 'mcp-server'
     preset?: string
     projectId?: string
     groupId?: string
@@ -36639,6 +36657,13 @@ export type GetCredentialCaptureResponses = {
     credentialName?: string
     chatContextKey?: string
     replacesId?: string
+    mcpServer?: {
+      name?: string
+      url?: string
+      scope: 'project' | 'group'
+      serverId?: string
+      status?: 'connected' | 'needs-sign-in' | 'unreachable'
+    }
   }
 }
 
@@ -36683,6 +36708,14 @@ export type SubmitCredentialCaptureData = {
         label: string
         value: string
         description?: string
+      }
+    | {
+        kind: 'mcp-server'
+        name: string
+        url: string
+        authType: 'none' | 'bearer' | 'oauth'
+        scope?: 'project' | 'group'
+        token?: string
       }
   path: {
     id: string
@@ -36743,6 +36776,7 @@ export type SubmitCredentialCaptureResponses = {
       | 'llm-key'
       | 'cli-login'
       | 'project-note'
+      | 'mcp-server'
     preset?: string
     projectId?: string
     groupId?: string
@@ -36753,6 +36787,13 @@ export type SubmitCredentialCaptureResponses = {
     credentialName?: string
     chatContextKey?: string
     replacesId?: string
+    mcpServer?: {
+      name?: string
+      url?: string
+      scope: 'project' | 'group'
+      serverId?: string
+      status?: 'connected' | 'needs-sign-in' | 'unreachable'
+    }
   }
 }
 
@@ -36812,6 +36853,7 @@ export type CancelCredentialCaptureResponses = {
       | 'llm-key'
       | 'cli-login'
       | 'project-note'
+      | 'mcp-server'
     preset?: string
     projectId?: string
     groupId?: string
@@ -36822,6 +36864,13 @@ export type CancelCredentialCaptureResponses = {
     credentialName?: string
     chatContextKey?: string
     replacesId?: string
+    mcpServer?: {
+      name?: string
+      url?: string
+      scope: 'project' | 'group'
+      serverId?: string
+      status?: 'connected' | 'needs-sign-in' | 'unreachable'
+    }
   }
 }
 

@@ -1,3 +1,4 @@
+import type { TicketPost, TicketPostView } from './ticketPostTypes'
 import type {
   ExternalRef,
   LoomWalkthroughItem,
@@ -47,6 +48,8 @@ export interface GroupSignOffRepo {
   baseRef?: string
   evidence: ReviewEvidenceRef[]
   pullRequest: GroupSignOffPullRequest
+  /** What approving would post to this repo's story's tickets. */
+  ticketPost?: TicketPost
 }
 
 export interface GroupSignOffAttachment {
@@ -162,6 +165,8 @@ export interface GroupSignOffRepoRow {
   link?: GroupSignOffLink
   error?: string
   busy: boolean
+  /** What approving would post, while that is still to decide. */
+  ticketPost?: TicketPostView
 }
 
 /** One thing to attach. */

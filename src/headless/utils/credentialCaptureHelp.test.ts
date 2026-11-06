@@ -26,8 +26,38 @@ describe('captureHelp — a ticket connection', () => {
     )
   })
 
-  it('steers them off the scoped token, which this connection cannot use', () => {
-    expect(helpFor(jira)?.steps.join(' ')).toMatch(/not "Create API token with scopes"/)
+  it('walks them through a token with scopes, naming the scopes it needs', () => {
+    const help = helpFor(jira)
+    const steps = help?.steps.join(' ') ?? ''
+    expect(help?.title).toMatch(/with scopes/)
+    expect(steps).toMatch(/"Create API token with scopes"/)
+    for (const scope of ['read:jira-work', 'write:jira-work', 'read:jira-user']) {
+      expect(steps).toContain(scope)
+    }
+  })
+
+  it('names what boards and sprints need on top', () => {
+    const steps = helpFor(jira)?.steps.join(' ') ?? ''
+    for (const scope of [
+      'read:board-scope:jira-software',
+      'read:project:jira',
+      'read:issue-details:jira',
+      'read:sprint:jira-software',
+    ]) {
+      expect(steps).toContain(scope)
+    }
+  })
+
+  it('follows the token type: a classic token gets the classic steps, and says what it cannot do', () => {
+    const help = helpFor(jira, { tokenType: 'classic' })
+    const steps = help?.steps.join(' ') ?? ''
+    expect(steps).toMatch(/"Create API token"/)
+    expect(steps).not.toMatch(/with scopes"/)
+    expect(steps).toMatch(/cannot post/)
+  })
+
+  it('says the cloud id comes from the site', () => {
+    expect(helpFor(jira)?.steps.join(' ')).toMatch(/Cloud id/)
   })
 
   it('also explains the account email and the site URL the form asks for', () => {

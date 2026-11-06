@@ -1,16 +1,12 @@
 import { useEffect } from 'react'
 import { useMcpServers, type McpServerOwner } from '../../../headless'
 import McpServerSettingsPanel from './McpServerSettingsPanel'
+import { openInBrowser } from './openInBrowser'
 import { subscribeWindowFocus } from './subscribeWindowFocus'
 
 export interface McpServerSettingsProps {
   /** The project or the group whose servers these are. */
   owner: McpServerOwner
-}
-
-/** A desktop window's `window.open` goes to the system browser through its main process. */
-function openInBrowser(url: string): void {
-  window.open(url, '_blank', 'noopener,noreferrer')
 }
 
 /**

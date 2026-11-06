@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { Fragment, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 
 import {
   filterGroupStories,
@@ -47,8 +47,6 @@ export type GroupStoriesListProps = {
   loading?: boolean
   /** Each sprint ticket's status by key, for a row's ticket chip. */
   ticketStatuses?: Readonly<Record<string, string>>
-  /** Shown under the tab's heading, above the filters: Take next ticket. */
-  ticketPanel?: ReactNode
 }
 
 type RowActions = {
@@ -77,7 +75,6 @@ export default function GroupStoriesList({
   onNew,
   loading = false,
   ticketStatuses = NO_TICKET_STATUSES,
-  ticketPanel,
 }: GroupStoriesListProps) {
   const shown = useMemo(() => filterGroupStories(stories, filter), [stories, filter])
   const position = useMemo(() => new Map(stories.map((s, i) => [s.id, i + 1])), [stories])
@@ -114,7 +111,6 @@ export default function GroupStoriesList({
           ) : null}
         </div>
       </div>
-      {ticketPanel}
       <GroupStoriesToolbar stories={stories} filter={filter} onFilterChange={onFilterChange} />
       <div className="stories-toolbar shrink-0">
         <div className="left">

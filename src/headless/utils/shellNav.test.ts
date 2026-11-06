@@ -87,6 +87,7 @@ describe('GROUP_TAB_DEFS', () => {
     expect(GROUP_TAB_DEFS.map((t) => t.key)).toEqual([
       'home',
       'stories',
+      'tickets',
       'chat',
       'notes',
       'tools',
@@ -117,6 +118,7 @@ describe('isGroupTabKey', () => {
     expect(isGroupTabKey('home')).toBe(true)
     expect(isGroupTabKey('chat')).toBe(true)
     expect(isGroupTabKey('settings')).toBe(true)
+    expect(isGroupTabKey('tickets')).toBe(true)
   })
 
   it('rejects unknown values and undefined', () => {
