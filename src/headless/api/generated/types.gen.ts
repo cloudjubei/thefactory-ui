@@ -204,6 +204,7 @@ export type PendingAction = {
   }
   deliveredInRun?: boolean
   carriedToAgentAt?: number
+  hostFacts?: unknown
 }
 
 export type DecideResult = {
@@ -1659,6 +1660,13 @@ export type CompletionUserMessage = {
   }
 }
 
+export type CompletionRequestShape = {
+  items: number
+  images: number
+  firstChangedItem?: number
+  fixedChanged?: true
+}
+
 export type UsageTokenField = 'input' | 'output' | 'cacheRead' | 'cacheWrite'
 
 export type UsageTokenFieldStatus = 'reported' | 'derived' | 'unavailable'
@@ -1716,6 +1724,12 @@ export type CompletionUsage = {
   cachedReadInputTokens?: number
   cacheWriteInputTokens?: number
   cacheWrite1hInputTokens?: number
+  requestShape?: {
+    items: number
+    images: number
+    firstChangedItem?: number
+    fixedChanged?: true
+  }
   reasoningTokens?: number
   cost?: number
   costInput?: number
@@ -1777,6 +1791,12 @@ export type CompletionAssistantMessage = {
     cachedReadInputTokens?: number
     cacheWriteInputTokens?: number
     cacheWrite1hInputTokens?: number
+    requestShape?: {
+      items: number
+      images: number
+      firstChangedItem?: number
+      fixedChanged?: true
+    }
     reasoningTokens?: number
     cost?: number
     costInput?: number
@@ -1951,6 +1971,17 @@ export type CrossProjectGuidanceInput = {
   routableReadToolNames?: Array<string>
 }
 
+export type StandaloneTaskLaunchClaim = {
+  projectId: string
+  standaloneTask: StandaloneTask
+  runId: string | unknown
+  agentRunId: string
+  workBranch: {
+    name: string
+    baseSha: string
+  }
+}
+
 export type AgentTypeBriefMode = 'append' | 'replace'
 
 export type AgentTypeDefinition = {
@@ -1982,7 +2013,7 @@ export type AgentTypeInput = {
   updatedAt?: number
 }
 
-export type AgentTypeScope = 'builtin' | 'group' | 'project'
+export type AgentTypeScope = 'builtin' | 'seeded' | 'group' | 'project'
 
 export type ResolvedAgentType = {
   id: string
@@ -2597,6 +2628,12 @@ export type Chat = {
       cachedReadInputTokens?: number
       cacheWriteInputTokens?: number
       cacheWrite1hInputTokens?: number
+      requestShape?: {
+        items: number
+        images: number
+        firstChangedItem?: number
+        fixedChanged?: true
+      }
       reasoningTokens?: number
       cost?: number
       costInput?: number
@@ -2851,6 +2888,12 @@ export type ChatCreateInput = {
       cachedReadInputTokens?: number
       cacheWriteInputTokens?: number
       cacheWrite1hInputTokens?: number
+      requestShape?: {
+        items: number
+        images: number
+        firstChangedItem?: number
+        fixedChanged?: true
+      }
       reasoningTokens?: number
       cost?: number
       costInput?: number
@@ -2992,6 +3035,12 @@ export type ChatEditInput = {
       cachedReadInputTokens?: number
       cacheWriteInputTokens?: number
       cacheWrite1hInputTokens?: number
+      requestShape?: {
+        items: number
+        images: number
+        firstChangedItem?: number
+        fixedChanged?: true
+      }
       reasoningTokens?: number
       cost?: number
       costInput?: number
@@ -3263,6 +3312,30 @@ export type CapabilitySettings = {
   autoFollowUp?: boolean
 }
 
+export type UiStackEnvFile = {
+  from: string
+  to?: string
+}
+
+export type UiStackPart = {
+  role: string
+  project?: string
+  package?: string
+  build?: Array<string>
+  serve: Array<string>
+  portEnv?: string
+  env?: {
+    [key: string]: string
+  }
+  envFiles?: Array<UiStackEnvFile>
+  readyPath?: string
+}
+
+export type UiStackSetting = {
+  entry: string
+  parts: Array<UiStackPart>
+}
+
 export type ProjectsGroup = {
   id: string
   title: string
@@ -3281,6 +3354,10 @@ export type ProjectsGroup = {
     connectorWriteBack?: boolean
     autoMerge?: boolean
     autoFollowUp?: boolean
+  }
+  serveStack?: {
+    entry: string
+    parts: Array<UiStackPart>
   }
   createdAt: string
   updatedAt: string
@@ -3580,6 +3657,10 @@ export type ProjectRegistryMetadata = {
     }
     secrets?: Array<ProjectCheckEnvSecretRef>
   }
+  serveStack?: {
+    entry: string
+    parts: Array<UiStackPart>
+  }
   [key: string]: unknown
 }
 
@@ -3624,6 +3705,10 @@ export type ProjectRegistryEntry = {
         [key: string]: string
       }
       secrets?: Array<ProjectCheckEnvSecretRef>
+    }
+    serveStack?: {
+      entry: string
+      parts: Array<UiStackPart>
     }
     [key: string]: unknown
   }
@@ -3758,6 +3843,10 @@ export type ChatContextArguments = {
       autoMerge?: boolean
       autoFollowUp?: boolean
     }
+    serveStack?: {
+      entry: string
+      parts: Array<UiStackPart>
+    }
     createdAt: string
     updatedAt: string
   }
@@ -3843,6 +3932,10 @@ export type ChatContextArgumentsGroup = {
       autoMerge?: boolean
       autoFollowUp?: boolean
     }
+    serveStack?: {
+      entry: string
+      parts: Array<UiStackPart>
+    }
     createdAt: string
     updatedAt: string
   }
@@ -3870,6 +3963,10 @@ export type ChatContextArgumentsGroupTopic = {
       connectorWriteBack?: boolean
       autoMerge?: boolean
       autoFollowUp?: boolean
+    }
+    serveStack?: {
+      entry: string
+      parts: Array<UiStackPart>
     }
     createdAt: string
     updatedAt: string
@@ -6571,6 +6668,31 @@ export type CompileCheckResult = {
     | 'outside-program'
 }
 
+export type ImageCacheArm = 'text' | 'kept' | 'pinnedBytes' | 'pinned'
+
+export type ImageCacheHistory = ImageCacheArm | 'production'
+
+export type ImageCacheStep = {
+  step: number
+  total: number
+  cached: number
+  written: number
+  images: number
+  firstChangedItem?: number
+  fixedChanged?: true
+}
+
+export type ImageCacheRun = {
+  round: number
+  arm: ImageCacheArm
+  steps: Array<ImageCacheStep>
+}
+
+export type ImageCacheVerdict = {
+  outcome: 'invalid' | 'cause-refuted' | 'inconclusive' | 'fix-fails' | 'proved'
+  reason: string
+}
+
 export type SummarizeOptions = {
   keepLastTurns?: number
   maxOpsInSummary?: number
@@ -6606,6 +6728,11 @@ export type ToolCallConfirmation =
 
 export type LlmModelWindow = LlmModel & {
   contextWindowTokens?: number
+}
+
+export type CompletionRequestFingerprint = {
+  fixed: string
+  items: Array<string>
 }
 
 export type CompletionResponse = {
@@ -7024,9 +7151,11 @@ export type OpenAiUsage = {
   output_tokens?: number
   prompt_tokens_details?: {
     cached_tokens?: number
+    cache_write_tokens?: number
   }
   input_tokens_details?: {
     cached_tokens?: number
+    cache_write_tokens?: number
   }
   completion_tokens_details?: {
     reasoning_tokens?: number
@@ -7067,9 +7196,11 @@ export type OpenAiChatResponse = {
     output_tokens?: number
     prompt_tokens_details?: {
       cached_tokens?: number
+      cache_write_tokens?: number
     }
     input_tokens_details?: {
       cached_tokens?: number
+      cache_write_tokens?: number
     }
     completion_tokens_details?: {
       reasoning_tokens?: number
@@ -7103,9 +7234,11 @@ export type OpenAiResponsesResponse = {
     output_tokens?: number
     prompt_tokens_details?: {
       cached_tokens?: number
+      cache_write_tokens?: number
     }
     input_tokens_details?: {
       cached_tokens?: number
+      cache_write_tokens?: number
     }
     completion_tokens_details?: {
       reasoning_tokens?: number
@@ -7504,6 +7637,14 @@ export type ConnectorWriteAdvance = {
     | 'comment-not-sent'
   error?: string
   duplicateOf?: string
+}
+
+export type ConnectorSignOffOwedKind = 'run' | 'group-run'
+
+export type ConnectorSignOffOwed = {
+  runId: string
+  kind: ConnectorSignOffOwedKind
+  owedAt: string
 }
 
 export type ExternalRefRelinkResult =
@@ -8237,6 +8378,12 @@ export type ResearchTraceEvent = {
     cachedReadInputTokens?: number
     cacheWriteInputTokens?: number
     cacheWrite1hInputTokens?: number
+    requestShape?: {
+      items: number
+      images: number
+      firstChangedItem?: number
+      fixedChanged?: true
+    }
     reasoningTokens?: number
     cost?: number
     costInput?: number
@@ -8883,6 +9030,8 @@ export type DesignContent =
       mediaType: string
       bytes: number
       fileName: string
+      revision: string
+      immutable: boolean
       agentPath?: string
     }
   | {
@@ -10043,6 +10192,20 @@ export type RemoveRecordedBranchInput = {
   branch: string
   recoveryLogPath: string
   reason: string
+}
+
+export type CheckoutPatchStatus = 'applied' | 'refused' | 'failed'
+
+export type CheckoutPatchOutcome = {
+  status: CheckoutPatchStatus
+  summary: string
+  files: Array<string>
+}
+
+export type ApplyCheckoutPatchInput = {
+  patchText: string
+  checkoutRoot: string
+  liveCheckoutRoot: string
 }
 
 export type GitContainment =
@@ -11268,6 +11431,12 @@ export type InferenceResult = {
     cachedReadInputTokens?: number
     cacheWriteInputTokens?: number
     cacheWrite1hInputTokens?: number
+    requestShape?: {
+      items: number
+      images: number
+      firstChangedItem?: number
+      fixedChanged?: true
+    }
     reasoningTokens?: number
     cost?: number
     costInput?: number
@@ -13393,6 +13562,49 @@ export type ProcessManagerAnsweredBefore = {
   }>
 }
 
+export type ProcessInputRef = {
+  project?: string
+  role?: string
+  ref: string
+  patch?: string
+}
+
+export type ProcessInputValue = string | number | Array<ProcessInputRef>
+
+export type ProcessVariantSubject = {
+  kind: 'variant'
+  id: string
+  title: string
+  input: string
+  values?: {
+    [key: string]: ProcessInputValue
+  }
+}
+
+export type UiServedPatch = {
+  summary: string
+  files: Array<string>
+}
+
+export type UiServedStackPart = {
+  role: string
+  project: string
+  appId: string
+  url: string
+  ref: string
+  sha: string
+  patch?: {
+    summary: string
+    files: Array<string>
+  }
+  warnings?: Array<string>
+}
+
+export type UiServedStack = {
+  url: string
+  parts: Array<UiServedStackPart>
+}
+
 export type ProcessWorkBranchStack = {
   runId: string
   branch: string
@@ -13604,7 +13816,11 @@ export type ProcessStepKind =
   | 'process'
   | 'cleanup'
 
-export type ProcessStepExpansion = 'features'
+export type ProcessInputExpansion = {
+  input: string
+}
+
+export type ProcessStepExpansion = 'features' | ProcessInputExpansion
 
 export type ProcessStep = {
   id: string
@@ -13616,9 +13832,15 @@ export type ProcessStep = {
   slot?: 'implementer' | 'verifier'
   gateKind?: 'design'
   processId?: string
-  expand?: 'features'
+  expand?:
+    | 'features'
+    | {
+        input: string
+      }
   onlyWhenSentBack?: boolean
   produces?: Array<string>
+  mayChangeNothing?: boolean
+  serveVariant?: boolean
   documents?: Array<string>
   documentSection?: Array<string>
 }
@@ -13640,17 +13862,19 @@ export type ProcessPlanStep = {
   slot?: 'implementer' | 'verifier'
   gateKind?: 'design'
   processId?: string
-  expand?: 'features'
+  expand?:
+    | 'features'
+    | {
+        input: string
+      }
   onlyWhenSentBack?: boolean
   produces?: Array<string>
+  mayChangeNothing?: boolean
+  serveVariant?: boolean
   documents?: Array<string>
   documentSection?: Array<string>
-  subject?: {
-    kind: 'feature'
-    id: string
-    title: string
-    work?: 'design'
-  }
+  subject?: ProcessSubject | ProcessVariantSubject
+  fanOut?: string
   agentRole?:
     | 'developer'
     | 'developer-verifier'
@@ -13906,6 +14130,23 @@ export type ProcessPlanAmendment = {
   }
 }
 
+export type ProcessInputKind = 'text' | 'note-reference' | 'number' | 'refs' | 'variants'
+
+export type ProcessInputField = {
+  name: string
+  label: string
+  kind: 'text' | 'note-reference' | 'number' | 'refs'
+  required?: boolean
+}
+
+export type ProcessInput = {
+  name: string
+  label: string
+  required?: boolean
+  kind: 'text' | 'note-reference' | 'number' | 'refs' | 'variants'
+  fields?: Array<ProcessInputField>
+}
+
 export type ProcessPlan = {
   definitionId: string
   definitionScope: ProcessScope
@@ -13918,6 +14159,7 @@ export type ProcessPlan = {
   signOff?: 'automatic'
   unreadWhenDone?: true
   features?: Array<ProcessSubject>
+  inputs?: Array<ProcessInput>
 }
 
 export type ProcessRunStatus =
@@ -14812,6 +15054,7 @@ export type ProcessLedgerEntry = {
   endedAt?: number
   suspendedMs?: number
   retriedAfterHostSleep?: true
+  stoppedWithRun?: true
   waitedMs?: number
   waitingSince?: number
   model?: {
@@ -15056,6 +15299,19 @@ export type ProcessRun = {
   standaloneTask?: {
     prompt: string
     contextFiles?: Array<string>
+  }
+  variant?: {
+    kind: 'variant'
+    id: string
+    title: string
+    input: string
+    values?: {
+      [key: string]: ProcessInputValue
+    }
+  }
+  served?: {
+    url: string
+    parts: Array<UiServedStackPart>
   }
   workBranch?: {
     name: string
@@ -15902,6 +16158,10 @@ export type ProjectSpecCreateInput = {
       }
       secrets?: Array<ProjectCheckEnvSecretRef>
     }
+    serveStack?: {
+      entry: string
+      parts: Array<UiStackPart>
+    }
     [key: string]: unknown
   }
   active?: boolean
@@ -15989,6 +16249,10 @@ export type ProjectSpecEditInput = {
         [key: string]: string
       }
       secrets?: Array<ProjectCheckEnvSecretRef>
+    }
+    serveStack?: {
+      entry: string
+      parts: Array<UiStackPart>
     }
     [key: string]: unknown
   }
@@ -16975,6 +17239,10 @@ export type ProjectsGroupCreateInput = {
     autoMerge?: boolean
     autoFollowUp?: boolean
   }
+  serveStack?: {
+    entry: string
+    parts: Array<UiStackPart>
+  }
 }
 
 export type ProjectsGroupEditInput = {
@@ -16985,6 +17253,7 @@ export type ProjectsGroupEditInput = {
   ticketConnection?: TicketConnectionBinding | unknown
   signOffOutputs?: Array<SignOffOutputDefinition>
   capabilities?: CapabilitySettings | unknown
+  serveStack?: UiStackSetting | unknown
 }
 
 export type ProjectsGroupUpdateType = 'change'
@@ -18765,6 +19034,12 @@ export type RecommendTraceEvent = {
     cachedReadInputTokens?: number
     cacheWriteInputTokens?: number
     cacheWrite1hInputTokens?: number
+    requestShape?: {
+      items: number
+      images: number
+      firstChangedItem?: number
+      fixedChanged?: true
+    }
     reasoningTokens?: number
     cost?: number
     costInput?: number
@@ -20436,6 +20711,39 @@ export type ReviewEvidenceHostFields = {
   }
 }
 
+export type ReviewEvidenceLeftBehind = {
+  path: string
+  reason: string
+}
+
+export type ReviewEvidenceStoreMove = {
+  sourceRoot: string
+  status: 'moved' | 'nothing-there' | 'left-behind'
+  movedFiles: number
+  movedBytes: number
+  leftBehind: Array<ReviewEvidenceLeftBehind>
+}
+
+export type ReviewEvidenceProjectMove = {
+  projectId: string
+  stores: Array<ReviewEvidenceStoreMove>
+  missingRoots: Array<string>
+  failure?: string
+}
+
+export type ReviewEvidenceSourceFile = {
+  rel: string
+  bytes: number
+  sha256: string
+  version: string
+}
+
+export type ReviewEvidenceSourceEntry = {
+  files: Array<ReviewEvidenceSourceFile>
+  dirs: Array<string>
+  leftBehind: Array<ReviewEvidenceLeftBehind>
+}
+
 export type CodeReviewFindingsJudgement = {
   blocking: Array<CodeReviewFinding>
   followUps: Array<CodeReviewFinding>
@@ -20558,6 +20866,18 @@ export type ReviewEvidenceTextCut = {
   tailChars: number
 }
 
+export type ReviewEvidenceTextRangeRequest = {
+  offset?: number
+  limit?: number
+}
+
+export type ReviewEvidenceTextRange = {
+  offset: number
+  totalChars: number
+  more: boolean
+  nextOffset?: number
+}
+
 export type ReviewEvidenceLookup =
   | {
       ref: ReviewEvidenceRef
@@ -20581,6 +20901,12 @@ export type ReviewEvidenceContent = {
     totalChars: number
     headChars: number
     tailChars: number
+  }
+  textRange?: {
+    offset: number
+    totalChars: number
+    more: boolean
+    nextOffset?: number
   }
   viewedImage?: {
     path: string
@@ -21606,6 +21932,7 @@ export type ToolName =
   | 'listCliAgentRunActions'
   | 'listDecidedCliAgentActions'
   | 'markCliAgentActionsCarried'
+  | 'keepCliAgentActionHostFacts'
   | 'carryOutCliAgentApprovals'
   | 'countPendingCliAgentActionsByChat'
   | 'requestCliAgentAction'
@@ -21665,6 +21992,7 @@ export type ToolName =
   | 'sendCompletion'
   | 'listConnectionItems'
   | 'getConnectionItem'
+  | 'listConnectionStatuses'
   | 'commentConnectionItem'
   | 'transitionConnectionItem'
   | 'searchJiraIssues'
@@ -22115,6 +22443,12 @@ export type UiServeFixtureCommits = {
   head: string
 }
 
+export type UiStackFixtureRepo = {
+  root: string
+  first: string
+  second: string
+}
+
 export type UiTarget = 'web' | 'electron'
 
 export type UiConnection = 'host' | 'sandbox' | 'cdp-remote'
@@ -22247,6 +22581,10 @@ export type UiServeAppResult = {
   builtFrom: UiBuildProvenance
   reused: boolean
   warnings?: Array<string>
+  patch?: {
+    summary: string
+    files: Array<string>
+  }
 }
 
 export type UiServedAppInfo = {
@@ -22261,6 +22599,49 @@ export type UiStopAppResult = {
   ok: boolean
   appId: string
   stopped: boolean
+}
+
+export type UiStackRefTarget = {
+  role: string
+  project: string
+  ref: string
+  patch?: string
+}
+
+export type UiStackTarget = {
+  role: string
+  project: string
+  ref: string
+  patch?: string
+  root: string
+}
+
+export type UiServeStackRequest = {
+  holder: string
+  setting: UiStackSetting
+  targets: Array<UiStackTarget>
+  ports?: {
+    [key: string]: number
+  }
+  signal?: unknown
+}
+
+export type UiServeHostTerms = {
+  holder: string
+  role: string
+  port: number
+  commands: {
+    build?: Array<string>
+    serve: Array<string>
+  }
+  env: {
+    [key: string]: string
+  }
+  files: Array<UiStackEnvFile>
+  package?: string
+  readyPath?: string
+  patch?: string
+  signal?: unknown
 }
 
 export type UiProjectAppCaptureLiveness = {
@@ -22301,6 +22682,11 @@ export type UiServeStep =
       kind: 'script'
       script: string
     }
+  | {
+      kind: 'command'
+      cmd: string
+      args: Array<string>
+    }
 
 export type UiServePlan = {
   build?:
@@ -22312,6 +22698,11 @@ export type UiServePlan = {
     | {
         kind: 'script'
         script: string
+      }
+    | {
+        kind: 'command'
+        cmd: string
+        args: Array<string>
       }
   serve: UiServeStep
   env: {
@@ -22335,6 +22726,7 @@ export type UiHostBoundOptions = {
     tree: string
     repo: string
   }
+  signal?: unknown
 }
 
 export type UiRawScreen = {
@@ -24020,6 +24412,14 @@ export type ProcessReportDocument = {
   text: string
 }
 
+export type ProcessVariant = {
+  id: string
+  label: string
+  values?: {
+    [key: string]: ProcessInputValue
+  }
+}
+
 export type ProcessSignOff = 'person' | 'automatic'
 
 export type ProcessDefinition = {
@@ -24028,6 +24428,7 @@ export type ProcessDefinition = {
   description?: string
   steps: Array<ProcessStep>
   loops: Array<ProcessLoop>
+  inputs?: Array<ProcessInput>
   version: number
   updatedAt: number
   scope?: 'global' | 'project'
@@ -24044,6 +24445,7 @@ export type ProcessDefinition = {
 export type ProcessLaunchContext = {
   features?: Array<ProcessSubject>
   featureProcessId?: string
+  inputs?: Array<ProcessInput>
 }
 
 export type ProcessRunStatistics = {
@@ -24383,6 +24785,19 @@ export type ProcessRunChatState = {
     standaloneTask?: {
       prompt: string
       contextFiles?: Array<string>
+    }
+    variant?: {
+      kind: 'variant'
+      id: string
+      title: string
+      input: string
+      values?: {
+        [key: string]: ProcessInputValue
+      }
+    }
+    served?: {
+      url: string
+      parts: Array<UiServedStackPart>
     }
     workBranch?: {
       name: string
@@ -25044,6 +25459,7 @@ export type ProcessIntegrationOptions = {
         }
     byRunId?: string
   }
+  nothingToMerge?: true
 }
 
 export type ProcessIntegrationForm = {
@@ -25103,6 +25519,7 @@ export type ProcessWorkBranchLandingCheck =
       baseRef: string
       tip: string
       landedBy: ProcessIntegrationLandedBy
+      committedNothing?: true
     }
   | {
       kind: 'not-on-base'
@@ -25235,6 +25652,19 @@ export type ProcessRunSummary = {
   standaloneTask?: {
     prompt: string
     contextFiles?: Array<string>
+  }
+  variant?: {
+    kind: 'variant'
+    id: string
+    title: string
+    input: string
+    values?: {
+      [key: string]: ProcessInputValue
+    }
+  }
+  served?: {
+    url: string
+    parts: Array<UiServedStackPart>
   }
   workBranch?: {
     name: string
@@ -25683,6 +26113,11 @@ export type ProcessNoProgress = {
   message: string
 }
 
+export type ProcessFanOutHeld = {
+  stepId: string
+  outcome: ProcessStepOutcome
+}
+
 export type ProcessCursorState = {
   cursor?: {
     stepId: string
@@ -25706,6 +26141,26 @@ export type ProcessCursorState = {
   spentUsd?: number
   elapsedMs?: number
   cancelled?: boolean
+  fanOutHeld?: {
+    stepId: string
+    outcome: ProcessStepOutcome
+  }
+}
+
+export type ProcessFanOutChild = {
+  stepId: string
+  label: string
+  childRunId: string
+}
+
+export type ProcessFanOutChildEvidence = {
+  label: string
+  runId: string
+  evidence: Array<{
+    id: string
+    kind: string
+    label?: string
+  }>
 }
 
 export type ProcessStepContinuation = {
@@ -25940,10 +26395,20 @@ export type StartProcessRunInput = {
   title: string
   storyId?: string
   featureId?: string
+  variant?: {
+    kind: 'variant'
+    id: string
+    title: string
+    input: string
+    values?: {
+      [key: string]: ProcessInputValue
+    }
+  }
   chatContextId?: string
   context?: {
     features?: Array<ProcessSubject>
     featureProcessId?: string
+    inputs?: Array<ProcessInput>
   }
   input?: {
     [key: string]: unknown
@@ -26018,6 +26483,10 @@ export type FreezePlanOptions = {
   context?: {
     features?: Array<ProcessSubject>
     featureProcessId?: string
+    inputs?: Array<ProcessInput>
+  }
+  input?: {
+    [key: string]: unknown
   }
   agentRoles?: {
     [key: string]: AgentRunType
@@ -26256,6 +26725,7 @@ export type ProcessStepState = {
     endedAt?: number
     suspendedMs?: number
     retriedAfterHostSleep?: true
+    stoppedWithRun?: true
     waitedMs?: number
     waitingSince?: number
     model?: {
@@ -27200,6 +27670,12 @@ export type AddMessagesInput = {
       cachedReadInputTokens?: number
       cacheWriteInputTokens?: number
       cacheWrite1hInputTokens?: number
+      requestShape?: {
+        items: number
+        images: number
+        firstChangedItem?: number
+        fixedChanged?: true
+      }
       reasoningTokens?: number
       cost?: number
       costInput?: number
@@ -28444,6 +28920,10 @@ export type ListProjectsGroupsResponses = {
       autoMerge?: boolean
       autoFollowUp?: boolean
     }
+    serveStack?: {
+      entry: string
+      parts: Array<UiStackPart>
+    }
     createdAt: string
     updatedAt: string
   }>
@@ -28493,6 +28973,10 @@ export type CreateProjectsGroupResponses = {
       connectorWriteBack?: boolean
       autoMerge?: boolean
       autoFollowUp?: boolean
+    }
+    serveStack?: {
+      entry: string
+      parts: Array<UiStackPart>
     }
     createdAt: string
     updatedAt: string
@@ -28779,6 +29263,10 @@ export type DeleteProjectsGroupResponses = {
       autoMerge?: boolean
       autoFollowUp?: boolean
     }
+    serveStack?: {
+      entry: string
+      parts: Array<UiStackPart>
+    }
     createdAt: string
     updatedAt: string
   }>
@@ -28830,6 +29318,10 @@ export type GetProjectsGroupResponses = {
       connectorWriteBack?: boolean
       autoMerge?: boolean
       autoFollowUp?: boolean
+    }
+    serveStack?: {
+      entry: string
+      parts: Array<UiStackPart>
     }
     createdAt: string
     updatedAt: string
@@ -28890,6 +29382,10 @@ export type UpdateProjectsGroupResponses = {
       autoMerge?: boolean
       autoFollowUp?: boolean
     }
+    serveStack?: {
+      entry: string
+      parts: Array<UiStackPart>
+    }
     createdAt: string
     updatedAt: string
   }
@@ -28943,6 +29439,10 @@ export type ReorderProjectInGroupResponses = {
       autoMerge?: boolean
       autoFollowUp?: boolean
     }
+    serveStack?: {
+      entry: string
+      parts: Array<UiStackPart>
+    }
     createdAt: string
     updatedAt: string
   }
@@ -28993,6 +29493,10 @@ export type ReorderProjectsGroupsResponses = {
       connectorWriteBack?: boolean
       autoMerge?: boolean
       autoFollowUp?: boolean
+    }
+    serveStack?: {
+      entry: string
+      parts: Array<UiStackPart>
     }
     createdAt: string
     updatedAt: string
@@ -30538,11 +31042,13 @@ export type PreviewProcessResponses = {
         | 'designer'
         | 'fixer'
       agentProves?: false
-      subject?: {
-        kind: 'feature'
-        id: string
-        title: string
-      }
+      subject?:
+        | {
+            kind: 'feature'
+            id: string
+            title: string
+          }
+        | ProcessVariantSubject
       processId?: string
       onlyWhenSentBack?: boolean
       children?: Array<unknown>
@@ -30745,6 +31251,243 @@ export type ListProcessRunsResponses = {
 
 export type ListProcessRunsResponse = ListProcessRunsResponses[keyof ListProcessRunsResponses]
 
+export type StartProcessRunData = {
+  body: {
+    /**
+     * The project the run works in.
+     */
+    projectId: string
+    /**
+     * The process to run.
+     */
+    processId: string
+    /**
+     * What the form holds, by input name.
+     */
+    inputValues?: {
+      [key: string]: ProcessInputValue | Array<ProcessVariant>
+    }
+    /**
+     * The run’s name; the process’s when absent.
+     */
+    title?: string
+    /**
+     * What every step’s agent should know.
+     */
+    note?: string
+    /**
+     * The branch to work off; the checkout’s current one when absent.
+     */
+    baseBranch?: string
+    runner?: 'api' | 'cli'
+    /**
+     * The CLI the run’s agents use.
+     */
+    cliTool?: string
+    /**
+     * That CLI’s model.
+     */
+    cliModel?: string
+    /**
+     * That CLI’s login.
+     */
+    cliCredentialId?: string
+    /**
+     * The stored API model; the one agent runs use when absent.
+     */
+    llmConfigId?: string
+    /**
+     * The reasoning effort its agents work at.
+     */
+    effort?: string
+    turnLimit?: {
+      limitTurns: boolean
+      maxTurns: number
+    }
+    spendCapUsd?: number
+    wallClockMs?: number
+    maxIterations?: number
+    questionCap?: number
+    checkTimeoutMs?: number
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/process-runs'
+}
+
+export type StartProcessRunErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type StartProcessRunError = StartProcessRunErrors[keyof StartProcessRunErrors]
+
+export type StartProcessRunResponses = {
+  /**
+   * Default Response
+   */
+  200: ProcessRun
+}
+
+export type StartProcessRunResponse = StartProcessRunResponses[keyof StartProcessRunResponses]
+
+export type PreviewProcessRunData = {
+  body: {
+    /**
+     * The project the run would work in.
+     */
+    projectId: string
+    /**
+     * The process to run.
+     */
+    processId: string
+    /**
+     * What the form holds, by input name.
+     */
+    inputValues?: {
+      [key: string]: ProcessInputValue | Array<ProcessVariant>
+    }
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/process-runs/preview'
+}
+
+export type PreviewProcessRunErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type PreviewProcessRunError = PreviewProcessRunErrors[keyof PreviewProcessRunErrors]
+
+export type PreviewProcessRunResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    proposal: {
+      processId: string
+      name: string
+      description?: string
+      scope?: 'global' | 'project'
+      steps: Array<{
+        id: string
+        name: string
+        kind: 'agent' | 'check' | 'capture' | 'judge' | 'report' | 'gate' | 'process' | 'cleanup'
+        description?: string
+        agent: boolean
+        agentType?: string
+        slot?: 'implementer' | 'verifier'
+        agentRole?:
+          | 'developer'
+          | 'developer-verifier'
+          | 'verifier'
+          | 'capture'
+          | 'judge'
+          | 'remedy'
+          | 'report'
+          | 'analyst'
+          | 'designer'
+          | 'fixer'
+        agentProves?: false
+        subject?:
+          | {
+              kind: 'feature'
+              id: string
+              title: string
+            }
+          | ProcessVariantSubject
+        processId?: string
+        onlyWhenSentBack?: boolean
+        children?: Array<unknown>
+        maxIterations?: number
+      }>
+      openWork?: {
+        runId: string
+        state: ProcessOpenWorkState
+        title: string
+        branch?: string
+        features: Array<ProcessSubject>
+        newFeatures: Array<ProcessSubject>
+        options: Array<ProcessOpenWorkOption>
+        startedAt: number
+      }
+      alreadyDone?: Array<ProcessFeatureDelivery>
+      baseBranches?: {
+        current?: string
+        preselected?: string
+        branches: Array<string>
+      }
+      proofPlans?: Array<LaunchProofPlan>
+      waitingOn?: Array<string>
+      overlap?: {
+        runs: Array<ProcessLaunchOverlapRun>
+        base?: {
+          baseRef: string
+          commits: number
+          files: Array<string>
+        }
+      }
+      agentTypes?: Array<AgentTypeOption>
+      agentTypeSlots?: Array<AgentTypeSlotProposal>
+      captureTarget?: 'android' | 'ios' | 'web'
+      defaultCaps?: {
+        spendUsdCap?: number
+        wallClockMs?: number
+        maxIterations?: number
+      }
+    }
+    /**
+     * What the form asks for.
+     */
+    inputs: Array<ProcessInput>
+    /**
+     * The first thing wrong with the values; absent when they hold.
+     */
+    problem?: string
+    baseBranches?: {
+      current?: string
+      preselected?: string
+      branches: Array<string>
+    }
+    defaultCaps?: {
+      spendUsdCap?: number
+      wallClockMs?: number
+      maxIterations?: number
+    }
+  }
+}
+
+export type PreviewProcessRunResponse = PreviewProcessRunResponses[keyof PreviewProcessRunResponses]
+
 export type GetProcessRunStatisticsData = {
   body?: never
   path?: never
@@ -30843,6 +31586,74 @@ export type GetProcessRunResponses = {
 }
 
 export type GetProcessRunResponse = GetProcessRunResponses[keyof GetProcessRunResponses]
+
+export type GetProcessRunEvidenceData = {
+  body?: never
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}/evidence'
+}
+
+export type GetProcessRunEvidenceErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetProcessRunEvidenceError =
+  GetProcessRunEvidenceErrors[keyof GetProcessRunEvidenceErrors]
+
+export type GetProcessRunEvidenceResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    runId: string
+    /**
+     * Every run of the tree, the run asked for first, then down each step.
+     */
+    groups: Array<{
+      runId: string
+      /**
+       * The run that started it.
+       */
+      parentRunId?: string
+      /**
+       * The step of the parent it ran for.
+       */
+      stepId?: string
+      /**
+       * The step’s name; the run’s title on the run asked for.
+       */
+      label: string
+      status: ProcessRunStatus
+      variant?: {
+        kind: 'variant'
+        id: string
+        title: string
+        input: string
+        values?: {
+          [key: string]: ProcessInputValue
+        }
+      }
+      /**
+       * A later attempt of its step, or of a step above it, took its place.
+       */
+      replaced?: true
+      evidence: Array<ReviewEvidenceRef>
+    }>
+  }
+}
+
+export type GetProcessRunEvidenceResponse =
+  GetProcessRunEvidenceResponses[keyof GetProcessRunEvidenceResponses]
 
 export type GetProcessRunTicketPostData = {
   body?: never
@@ -32796,6 +33607,34 @@ export type GetProcessGroupSignOffResponses = {
      */
     canEditOutputs: boolean
     tickets: Array<ExternalRef>
+    ticketPost: {
+      tickets: Array<{
+        provider: string
+        externalId: string
+        title?: string
+        url?: string
+        /**
+         * Approving posts the comment here.
+         */
+        posts: boolean
+        /**
+         * What stops the post, when it does not.
+         */
+        why?: string
+      }>
+      /**
+       * The comment, word for word. Absent when no ticket gets one.
+       */
+      comment?: string
+      /**
+       * The move made on each ticket once its comment is sent.
+       */
+      transition?: string
+      /**
+       * Why the story's own tickets are left out, when they are.
+       */
+      waiting?: string
+    }
     repos: Array<{
       legId: string
       projectId: string
@@ -32956,6 +33795,34 @@ export type SignOffProcessGroupRunResponses = {
      */
     canEditOutputs: boolean
     tickets: Array<ExternalRef>
+    ticketPost: {
+      tickets: Array<{
+        provider: string
+        externalId: string
+        title?: string
+        url?: string
+        /**
+         * Approving posts the comment here.
+         */
+        posts: boolean
+        /**
+         * What stops the post, when it does not.
+         */
+        why?: string
+      }>
+      /**
+       * The comment, word for word. Absent when no ticket gets one.
+       */
+      comment?: string
+      /**
+       * The move made on each ticket once its comment is sent.
+       */
+      transition?: string
+      /**
+       * Why the story's own tickets are left out, when they are.
+       */
+      waiting?: string
+    }
     repos: Array<{
       legId: string
       projectId: string
@@ -33104,6 +33971,34 @@ export type RetryProcessGroupPullRequestsResponses = {
      */
     canEditOutputs: boolean
     tickets: Array<ExternalRef>
+    ticketPost: {
+      tickets: Array<{
+        provider: string
+        externalId: string
+        title?: string
+        url?: string
+        /**
+         * Approving posts the comment here.
+         */
+        posts: boolean
+        /**
+         * What stops the post, when it does not.
+         */
+        why?: string
+      }>
+      /**
+       * The comment, word for word. Absent when no ticket gets one.
+       */
+      comment?: string
+      /**
+       * The move made on each ticket once its comment is sent.
+       */
+      transition?: string
+      /**
+       * Why the story's own tickets are left out, when they are.
+       */
+      waiting?: string
+    }
     repos: Array<{
       legId: string
       projectId: string
@@ -35947,10 +36842,34 @@ export type RevealGitCredentialTokenResponses = {
 export type RevealGitCredentialTokenResponse =
   RevealGitCredentialTokenResponses[keyof RevealGitCredentialTokenResponses]
 
+export type ReadProviderOAuthSetupData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/provider-connections/oauth/setup'
+}
+
+export type ReadProviderOAuthSetupResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    github: boolean
+    jira: boolean
+  }
+}
+
+export type ReadProviderOAuthSetupResponse =
+  ReadProviderOAuthSetupResponses[keyof ReadProviderOAuthSetupResponses]
+
 export type StartProviderOAuthData = {
   body: {
     name: string
     cloudId?: string
+    /**
+     * Renew this signed-in connection in place, instead of adding one.
+     */
+    connectionId?: string
   }
   path: {
     provider: string
@@ -35977,48 +36896,105 @@ export type StartProviderOAuthResponses = {
    * Default Response
    */
   200: {
+    /**
+     * Open this in the person’s browser.
+     */
     authorizationUrl: string
+    /**
+     * What `providerConnections:signIn` and the sign-in routes know this sign-in by.
+     */
+    signInId: string
   }
 }
 
 export type StartProviderOAuthResponse =
   StartProviderOAuthResponses[keyof StartProviderOAuthResponses]
 
-export type CompleteProviderOAuthData = {
-  body: {
-    code: string
+export type FinishProviderOAuthData = {
+  body?: never
+  path?: never
+  query: {
     state: string
+    code?: string
+    error?: string
+    error_description?: string
   }
-  path: {
-    provider: string
-  }
-  query?: never
-  url: '/api/v1/provider-connections/oauth/{provider}/callback'
+  url: '/api/v1/provider-connections/oauth/callback'
 }
 
-export type CompleteProviderOAuthErrors = {
+export type FinishProviderOAuthErrors = {
   /**
    * Default Response
    */
-  400: {
+  400: string
+}
+
+export type FinishProviderOAuthError = FinishProviderOAuthErrors[keyof FinishProviderOAuthErrors]
+
+export type FinishProviderOAuthResponses = {
+  /**
+   * Default Response
+   */
+  200: string
+}
+
+export type FinishProviderOAuthResponse =
+  FinishProviderOAuthResponses[keyof FinishProviderOAuthResponses]
+
+export type WithdrawProviderSignInData = {
+  body?: never
+  path: {
+    signInId: string
+  }
+  query?: never
+  url: '/api/v1/provider-connections/oauth/sign-ins/{signInId}'
+}
+
+export type WithdrawProviderSignInResponses = {
+  /**
+   * Default Response
+   */
+  204: void
+}
+
+export type WithdrawProviderSignInResponse =
+  WithdrawProviderSignInResponses[keyof WithdrawProviderSignInResponses]
+
+export type ReadProviderSignInData = {
+  body?: never
+  path: {
+    signInId: string
+  }
+  query?: never
+  url: '/api/v1/provider-connections/oauth/sign-ins/{signInId}'
+}
+
+export type ReadProviderSignInErrors = {
+  /**
+   * Default Response
+   */
+  404: {
     error: string
     code?: string
     requestId?: string
   }
 }
 
-export type CompleteProviderOAuthError =
-  CompleteProviderOAuthErrors[keyof CompleteProviderOAuthErrors]
+export type ReadProviderSignInError = ReadProviderSignInErrors[keyof ReadProviderSignInErrors]
 
-export type CompleteProviderOAuthResponses = {
+export type ReadProviderSignInResponses = {
   /**
    * Default Response
    */
-  200: RedactedProviderConnectionEntry
+  200: {
+    signInId: string
+    status: 'waiting' | 'signed-in' | 'declined' | 'failed'
+    connectionId?: string
+  }
 }
 
-export type CompleteProviderOAuthResponse =
-  CompleteProviderOAuthResponses[keyof CompleteProviderOAuthResponses]
+export type ReadProviderSignInResponse =
+  ReadProviderSignInResponses[keyof ReadProviderSignInResponses]
 
 export type ListProviderConnectionsData = {
   body?: never
@@ -37369,6 +38345,51 @@ export type ListConnectionAssignedItemsResponses = {
 
 export type ListConnectionAssignedItemsResponse =
   ListConnectionAssignedItemsResponses[keyof ListConnectionAssignedItemsResponses]
+
+export type ListConnectionStatusesData = {
+  body?: never
+  path: {
+    id: string
+  }
+  query?: {
+    projectKeys?: string
+  }
+  url: '/api/v1/provider-connections/{id}/statuses'
+}
+
+export type ListConnectionStatusesErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  502: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ListConnectionStatusesError =
+  ListConnectionStatusesErrors[keyof ListConnectionStatusesErrors]
+
+export type ListConnectionStatusesResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    statuses: Array<string>
+  }
+}
+
+export type ListConnectionStatusesResponse =
+  ListConnectionStatusesResponses[keyof ListConnectionStatusesResponses]
 
 export type ListConnectionNewItemsData = {
   body?: never
@@ -41932,6 +42953,12 @@ export type SendCompletionWithToolsResponses = {
             cachedReadInputTokens?: number
             cacheWriteInputTokens?: number
             cacheWrite1hInputTokens?: number
+            requestShape?: {
+              items: number
+              images: number
+              firstChangedItem?: number
+              fixedChanged?: true
+            }
             reasoningTokens?: number
             cost?: number
             costInput?: number
@@ -42092,6 +43119,12 @@ export type SendChatCompletionWithToolsData = {
         cachedReadInputTokens?: number
         cacheWriteInputTokens?: number
         cacheWrite1hInputTokens?: number
+        requestShape?: {
+          items: number
+          images: number
+          firstChangedItem?: number
+          fixedChanged?: true
+        }
         reasoningTokens?: number
         cost?: number
         costInput?: number
@@ -42255,6 +43288,12 @@ export type SendChatCompletionWithToolsResponses = {
             cachedReadInputTokens?: number
             cacheWriteInputTokens?: number
             cacheWrite1hInputTokens?: number
+            requestShape?: {
+              items: number
+              images: number
+              firstChangedItem?: number
+              fixedChanged?: true
+            }
             reasoningTokens?: number
             cost?: number
             costInput?: number
@@ -42421,6 +43460,12 @@ export type SendChatWithCliData = {
         cachedReadInputTokens?: number
         cacheWriteInputTokens?: number
         cacheWrite1hInputTokens?: number
+        requestShape?: {
+          items: number
+          images: number
+          firstChangedItem?: number
+          fixedChanged?: true
+        }
         reasoningTokens?: number
         cost?: number
         costInput?: number
@@ -42753,6 +43798,12 @@ export type ResumeCompletionResponses = {
             cachedReadInputTokens?: number
             cacheWriteInputTokens?: number
             cacheWrite1hInputTokens?: number
+            requestShape?: {
+              items: number
+              images: number
+              firstChangedItem?: number
+              fixedChanged?: true
+            }
             reasoningTokens?: number
             cost?: number
             costInput?: number

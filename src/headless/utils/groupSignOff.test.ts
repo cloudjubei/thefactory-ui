@@ -193,7 +193,7 @@ describe('groupSignOffScreen', () => {
     const post = {
       tickets: [{ provider: 'jira', externalId: 'ENG-7', posts: true }],
       comment: 'Signed off.',
-      transition: '31',
+      transition: 'Done',
     }
 
     it('says it on the repo while the decision is open', () => {
@@ -204,7 +204,7 @@ describe('groupSignOffScreen', () => {
       )
       expect(screen.phase).toBe('deciding')
       expect(screen.repos[0]!.ticketPost).toEqual({
-        line: 'Posts a comment on ENG-7, then makes transition 31.',
+        line: 'Posts a comment on ENG-7, then moves to Done.',
         notes: [],
         comment: 'Signed off.',
       })
@@ -230,6 +230,26 @@ describe('groupSignOffScreen', () => {
         line: 'ENG-7: Connector write-back is off, so nothing is posted.',
         notes: [],
       })
+    })
+
+    it('says what the group story’s own tickets get while the decision is open', () => {
+      const screen = groupSignOffScreen(data({ ticketPost: post }), state(), nameOf)
+      expect(screen.ticketPost).toEqual({
+        line: 'Posts a comment on ENG-7, then moves to Done.',
+        notes: [],
+        comment: 'Signed off.',
+      })
+    })
+
+    it('leaves the group’s out with no tickets to post to, and once it is decided', () => {
+      const none = groupSignOffScreen(data({ ticketPost: { tickets: [] } }), state(), nameOf)
+      expect(none).not.toHaveProperty('ticketPost')
+      const decided = groupSignOffScreen(
+        data({ canDecide: false, ticketPost: post }),
+        state(),
+        nameOf,
+      )
+      expect(decided).not.toHaveProperty('ticketPost')
     })
 
     it('leaves it out for a repo with no tickets', () => {

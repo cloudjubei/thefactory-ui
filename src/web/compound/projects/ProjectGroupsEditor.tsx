@@ -124,7 +124,7 @@ function GroupJiraModal({
     try {
       await onSave(value)
     } catch (err) {
-      setError(extractErrorMessage(err, 'Could not save the Jira connection. Try again.'))
+      setError(extractErrorMessage(err, 'Could not save the ticket connection. Try again.'))
     } finally {
       setSubmitting(false)
     }
@@ -134,7 +134,7 @@ function GroupJiraModal({
     <Modal
       isOpen
       onClose={submitting ? () => undefined : onClose}
-      title={`Jira for ${group.title}`}
+      title={`Tickets for ${group.title}`}
       size="md"
     >
       <div className="flex flex-col gap-3">
@@ -205,8 +205,8 @@ export default function ProjectGroupsEditor() {
                 </strong>
                 {g.ticketConnection ? (
                   <span className="text-xs text-(--text-secondary) truncate">
-                    Jira: {describeTicketBinding(g.ticketConnection, connections)}
-                    {g.type === 'SCOPE' ? ' — unused: only a main group passes Jira on' : ''}
+                    Tickets: {describeTicketBinding(g.ticketConnection, connections)}
+                    {g.type === 'SCOPE' ? ' — unused: only a main group passes tickets on' : ''}
                   </span>
                 ) : null}
               </div>
@@ -254,8 +254,8 @@ export default function ProjectGroupsEditor() {
                   variant={g.ticketConnection ? 'secondary' : 'outline'}
                   size="icon"
                   onClick={() => setJiraTargetId(g.id)}
-                  title={g.ticketConnection ? 'Change Jira connection' : 'Connect Jira'}
-                  aria-label={g.ticketConnection ? 'Change Jira connection' : 'Connect Jira'}
+                  title={g.ticketConnection ? 'Change ticket connection' : 'Connect tickets'}
+                  aria-label={g.ticketConnection ? 'Change ticket connection' : 'Connect tickets'}
                 >
                   <IconBoard className="w-4 h-4" />
                 </Button>

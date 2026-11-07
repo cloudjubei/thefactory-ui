@@ -73,6 +73,8 @@ export interface GroupSignOffData {
   canEditOutputs: boolean
   tickets: ExternalRef[]
   repos: GroupSignOffRepo[]
+  /** What approving would post to the group story's own tickets. */
+  ticketPost?: TicketPost
   outputs: SignOffOutputView[]
   goingLive: ProcessGroupGoingLive
   walkthrough: LoomWalkthroughItem[]
@@ -190,6 +192,8 @@ export interface GroupSignOffScreen {
   line: string
   tickets: TicketChipView[]
   repos: GroupSignOffRepoRow[]
+  /** What approving would post to the group story's own tickets, while that is still to decide. */
+  ticketPost?: TicketPostView
   /** What the decision does: which repos get a pull request. */
   plan?: string
   goingLive?: string

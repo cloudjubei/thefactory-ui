@@ -10,6 +10,7 @@ import {
   useProjects,
   useProjectsGroups,
   withTicketConnection,
+  TICKET_PICKER_COPY,
 } from '../../../headless'
 import { extractErrorMessage, updateProject } from '../../../headless/api'
 import TicketConnectionPicker, { type TicketConnectionPickerValue } from './TicketConnectionPicker'
@@ -18,7 +19,7 @@ export interface ProjectTicketSettingsProps {
   projectId: string
 }
 
-/** Native peer of web's `ProjectTicketSettings`: a project's Jira, following its main group by default. */
+/** Native peer of web's `ProjectTicketSettings`: a project's ticket connection, following its main group by default. */
 export default function ProjectTicketSettings({ projectId }: ProjectTicketSettingsProps) {
   const { theme } = useNativeTheme()
   const { projects } = useProjects()
@@ -52,7 +53,7 @@ export default function ProjectTicketSettings({ projectId }: ProjectTicketSettin
       })
       setSaved(true)
     } catch (err) {
-      setError(extractErrorMessage(err, 'Could not save the Jira setting. Try again.'))
+      setError(extractErrorMessage(err, 'Could not save the ticket setting. Try again.'))
     } finally {
       setSaving(false)
     }
@@ -60,11 +61,13 @@ export default function ProjectTicketSettings({ projectId }: ProjectTicketSettin
 
   return (
     <View style={{ gap: nativeSpace[3] }}>
-      <Text style={{ fontSize: 16, fontWeight: '600', color: theme.text.primary }}>Jira</Text>
+      <Text style={{ fontSize: 16, fontWeight: '600', color: theme.text.primary }}>
+        {TICKET_PICKER_COPY.label}
+      </Text>
       <Text style={{ fontSize: 13, color: theme.text.secondary }}>
         {mainGroup
-          ? `Agents in ${project.title} use ${mainGroup.title}'s Jira unless you choose otherwise here.`
-          : `${project.title} is in no main group, so its agents get Jira only if you choose a connection here.`}
+          ? `Agents in ${project.title} use ${mainGroup.title}'s connection unless you choose otherwise here.`
+          : `${project.title} is in no main group, so its agents get tickets only if you choose a connection here.`}
       </Text>
       {error ? <Alert>{error}</Alert> : null}
       <TicketConnectionPicker

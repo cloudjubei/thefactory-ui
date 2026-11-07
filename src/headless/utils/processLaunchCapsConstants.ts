@@ -45,4 +45,8 @@ export const LAUNCH_CAPS_COPY = {
 export const LAUNCH_CAP_MINUTE_MS = 60_000
 
 /** What a run's worst case counts its attempts across. */
-export const LAUNCH_WORST_CASE_THINGS = { feature: 'feature', leg: 'project' } as const
+export const LAUNCH_WORST_CASE_THINGS = {
+  feature: 'feature',
+  leg: 'project',
+  variant: 'variant',
+} as const

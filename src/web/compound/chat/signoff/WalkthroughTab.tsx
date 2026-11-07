@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, type ReactNode } from 'react'
 
 import { useReviewEvidenceImage, type EvidenceTile } from '../../../../headless'
 import { Button } from '../../../primitives/Button'
@@ -8,9 +8,19 @@ import { downloadDataUri } from './download'
 export type WalkthroughTabProps = {
   projectId: string
   recordings: readonly EvidenceTile[]
+  /** What each recording says under itself: whether it counts as proof. */
+  renderFooter?: (tile: EvidenceTile) => ReactNode
 }
 
-function Recording({ projectId, tile }: { projectId: string; tile: EvidenceTile }) {
+function Recording({
+  projectId,
+  tile,
+  footer,
+}: {
+  projectId: string
+  tile: EvidenceTile
+  footer?: ReactNode
+}) {
   const { dataUri, loading } = useReviewEvidenceImage(projectId, tile.ref.id, tile.ref.mediaType)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const stem = tile.caption.replace(/[^a-z0-9-]+/gi, '-').toLowerCase() || 'walkthrough'
@@ -59,16 +69,26 @@ function Recording({ projectId, tile }: { projectId: string; tile: EvidenceTile 
           {loading ? 'Loading the recording…' : 'The recording could not be loaded.'}
         </div>
       )}
+      {footer}
     </section>
   )
 }
 
 /** The verifier's screen recordings — proof of the PATH through the app, not just its screens. */
-export default function WalkthroughTab({ projectId, recordings }: WalkthroughTabProps) {
+export default function WalkthroughTab({
+  projectId,
+  recordings,
+  renderFooter,
+}: WalkthroughTabProps) {
   return (
     <div className="flex flex-col gap-2">
       {recordings.map((tile) => (
-        <Recording key={tile.ref.id} projectId={projectId} tile={tile} />
+        <Recording
+          key={tile.ref.id}
+          projectId={projectId}
+          tile={tile}
+          {...(renderFooter ? { footer: renderFooter(tile) } : {})}
+        />
       ))}
     </div>
   )

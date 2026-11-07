@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { FAKE_BACKEND_ROUTES } from './fakeBackendRoutes'
 import { answerFakeRequest, matchFakeRoute } from './fakeBackendUtils'
 import { STORY } from './fixtures/stories'
+import { FAKE_VARIANT_RUN_ID } from './fixtures/variantRun'
 
 const TOKEN = 'fake-token'
 
@@ -58,6 +59,19 @@ describe('FAKE_BACKEND_ROUTES', () => {
   it('leaves only the routes the real backend leaves open without a token', () => {
     const open = FAKE_BACKEND_ROUTES.filter((route) => route.isPublic).map((route) => route.path)
     expect(open.sort()).toEqual(['/health', '/health/startup'])
+  })
+
+  it('answers a run of variants, and what it filed by run', () => {
+    const run = get(`/api/v1/process-runs/${FAKE_VARIANT_RUN_ID}`)
+    expect(run.status).toBe(200)
+    const evidence = get(`/api/v1/process-runs/${FAKE_VARIANT_RUN_ID}/evidence`)
+    expect((evidence.body as { groups: unknown[] }).groups).toHaveLength(4)
+    expect(get('/api/v1/process-runs/other/evidence').body).toEqual({ runId: 'other', groups: [] })
+  })
+
+  it('offers the process that starts from a form', () => {
+    const ids = (get('/api/v1/processes').body as { id: string }[]).map((p) => p.id)
+    expect(ids).toContain('compare-variants')
   })
 
   it('answers the image check every client runs at start-up', () => {

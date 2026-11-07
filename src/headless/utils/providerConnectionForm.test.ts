@@ -18,11 +18,11 @@ import {
   providerConnectionLabel,
   providerConnectionLine,
   providerConnectionSpec,
+  offersProviderOAuth,
   providerOAuthDraftProblem,
   providerOAuthFailure,
-  providerOAuthReturnOf,
+  providerOAuthReconnectBody,
   providerOAuthStartBody,
-  providerOAuthStateOf,
   providerTokenFieldCopy,
 } from './providerConnectionForm'
 import {
@@ -571,66 +571,30 @@ describe('isProviderOAuthPage', () => {
   })
 })
 
-describe('providerOAuthStateOf', () => {
-  it('reads the state a sign-in page was started with', () => {
-    expect(providerOAuthStateOf('https://a.b/authorize?client_id=x&state=abc_-1&scope=y')).toBe(
-      'abc_-1',
-    )
-  })
+describe('offersProviderOAuth', () => {
+  const setup = { setup: { github: true, jira: false } }
 
-  it('has none to read on a page without one', () => {
-    expect(providerOAuthStateOf('https://a.b/authorize')).toBeUndefined()
-  })
-})
-
-describe('providerOAuthReturnOf', () => {
-  it('reads the code and state of the page the browser ended on', () => {
-    expect(
-      providerOAuthReturnOf('https://app.example/callback?code=c%2F1&state=s1&extra=1'),
-    ).toEqual({ kind: 'code', code: 'c/1', state: 's1' })
-  })
-
-  it('reads them after a fragment-free path, a plus sign and spaces round the paste', () => {
-    expect(providerOAuthReturnOf('  http://localhost:5173/cb?state=s+1&code=c1  ')).toEqual({
-      kind: 'code',
-      code: 'c1',
-      state: 's 1',
-    })
-  })
-
-  it('stops at a fragment', () => {
-    expect(providerOAuthReturnOf('https://a.b/cb?code=c&state=s#code=other')).toEqual({
-      kind: 'code',
-      code: 'c',
-      state: 's',
-    })
-  })
-
-  it('reads a refusal from the provider', () => {
-    expect(
-      providerOAuthReturnOf(
-        'https://a.b/cb?error=access_denied&error_description=The+user+said+no&state=s',
-      ),
-    ).toEqual({ kind: 'refused', reason: 'The user said no' })
-    expect(providerOAuthReturnOf('https://a.b/cb?error=access_denied')).toEqual({
-      kind: 'refused',
-      reason: 'access_denied',
-    })
+  it('offers it where the backend has it set up', () => {
+    expect(offersProviderOAuth('github', setup)).toBe(true)
   })
 
   it.each([
-    '',
-    'https://a.b/cb',
-    'https://a.b/cb?code=c',
-    'https://a.b/cb?state=s',
-    'not an address',
-  ])('cannot read %j', (text) => {
-    expect(providerOAuthReturnOf(text)).toEqual({ kind: 'unreadable' })
+    ['not set up', 'jira', setup],
+    ['with no sign-in to offer', 'azure-devops', { setup: { 'azure-devops': true } }],
+    ['an unknown provider', 'linear', { setup: { linear: true } }],
+    ['no answer yet', 'github', { setup: {} }],
+    ['no sign-in at all', 'github', undefined],
+    ['a name off Object', 'constructor', setup],
+  ])('does not offer it %s', (_shape, provider, oauth) => {
+    expect(offersProviderOAuth(provider, oauth)).toBe(false)
   })
+})
 
-  it('cannot read an address whose encoding is broken', () => {
-    expect(providerOAuthReturnOf('https://a.b/cb?code=%E0%A4%A&state=s')).toEqual({
-      kind: 'unreadable',
+describe('providerOAuthReconnectBody', () => {
+  it('sends the connection and its own name, not what the form holds', () => {
+    expect(providerOAuthReconnectBody({ id: 'c1', name: 'Acme' })).toEqual({
+      name: 'Acme',
+      connectionId: 'c1',
     })
   })
 })
@@ -640,10 +604,6 @@ describe('providerOAuthFailure', () => {
     expect(providerOAuthFailure('Provider OAuth is not configured')).toBe(
       PROVIDER_OAUTH_COPY.notSetUp,
     )
-  })
-
-  it('says a sign-in has run out', () => {
-    expect(providerOAuthFailure('Invalid or expired OAuth state')).toBe(PROVIDER_OAUTH_COPY.expired)
   })
 
   it('passes on anything else as the backend said it', () => {

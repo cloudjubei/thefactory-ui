@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Text, View } from 'react-native'
 
 import {
@@ -18,6 +19,8 @@ export type WalkthroughTabProps = {
   recordings: readonly EvidenceTile[]
   /** Saves a recording; omitted when the host cannot put a file anywhere. */
   onSaveFile?: SaveFileHandler
+  /** What each recording says under itself: whether it counts as proof. */
+  renderFooter?: (tile: EvidenceTile) => ReactNode
 }
 
 const STAGE_HEIGHT = 210
@@ -56,10 +59,12 @@ function Recording({
   projectId,
   tile,
   onSaveFile,
+  footer,
 }: {
   projectId: string
   tile: EvidenceTile
   onSaveFile?: SaveFileHandler
+  footer?: ReactNode
 }) {
   const { theme } = useNativeTheme()
   const { renderVideo } = useMediaHost()
@@ -144,6 +149,7 @@ function Recording({
           </StageNote>
         </Stage>
       )}
+      {footer}
     </View>
   )
 }
@@ -154,7 +160,12 @@ function Recording({
  * a host without one names and sizes each recording instead, and its bytes
  * are not fetched unless they can be saved.
  */
-export default function WalkthroughTab({ projectId, recordings, onSaveFile }: WalkthroughTabProps) {
+export default function WalkthroughTab({
+  projectId,
+  recordings,
+  onSaveFile,
+  renderFooter,
+}: WalkthroughTabProps) {
   return (
     <View style={{ gap: 8 }}>
       {recordings.map((tile) => (
@@ -163,6 +174,7 @@ export default function WalkthroughTab({ projectId, recordings, onSaveFile }: Wa
           projectId={projectId}
           tile={tile}
           {...(onSaveFile ? { onSaveFile } : {})}
+          {...(renderFooter ? { footer: renderFooter(tile) } : {})}
         />
       ))}
     </View>

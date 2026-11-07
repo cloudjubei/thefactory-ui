@@ -15,6 +15,9 @@ import {
   signoffMergeHold,
   signoffProofChips,
   signoffRequestOutcome,
+  signoffProofRecordings,
+  signoffRecordingsProofLine,
+  signoffRowsWithRecordings,
 } from './signoffPage'
 import type { ScreenPair } from './reviewEvidenceViewTypes'
 
@@ -273,6 +276,60 @@ describe('signoffEvidenceChips', () => {
       ['checks', 'tab'],
       ['lint', 'missing'],
     ])
+  })
+})
+
+describe('signoffProofRecordings', () => {
+  const tile = (id: string, over: Record<string, unknown> = {}) =>
+    ({ caption: id, ref: { id, kind: 'recording', ...over } }) as never
+
+  it('gathers what counts from every section, once each', () => {
+    const shared = tile('a')
+    const sections = new Map([
+      ['', { recordings: [shared, tile('b', { unvouchedReason: 'Seal lost' })] }],
+      ['feature', { recordings: [shared, tile('c')] }],
+    ])
+    expect(signoffProofRecordings(sections).map((t) => t.ref.id)).toEqual(['a', 'c'])
+  })
+
+  it('counts no typed note as a recording', () => {
+    const sections = new Map([['', { recordings: [tile('a', { inline: true })] }]])
+    expect(signoffProofRecordings(sections)).toEqual([])
+  })
+})
+
+describe('signoffRowsWithRecordings', () => {
+  const walkthrough = { id: 'walkthrough', state: 'unchecked', detail: 'None' } as CheckMethodRow
+  const other = { id: 'tests', state: 'unchecked' } as CheckMethodRow
+
+  it('passes the walkthrough on what the recordings come to', () => {
+    const [first, second] = signoffRowsWithRecordings([walkthrough, other], 2)
+    expect(first).toMatchObject({
+      state: 'passed',
+      tone: 'positive',
+      detail: '2 recordings that count as proof',
+    })
+    expect(second).toBe(other)
+  })
+
+  it('leaves it alone with nothing to show', () => {
+    expect(signoffRowsWithRecordings([walkthrough], 0)[0]).toBe(walkthrough)
+  })
+
+  it('never passes a walkthrough that failed', () => {
+    const failed = { ...walkthrough, state: 'failed' } as CheckMethodRow
+    expect(signoffRowsWithRecordings([failed], 1)[0]).toBe(failed)
+  })
+})
+
+describe('signoffRecordingsProofLine', () => {
+  it('speaks for recordings no walkthrough step does', () => {
+    expect(signoffRecordingsProofLine(1)).toEqual({
+      word: '1 recording that counts as proof',
+      line: undefined,
+      check: 'passed',
+    })
+    expect(signoffRecordingsProofLine(0)).toBeUndefined()
   })
 })
 

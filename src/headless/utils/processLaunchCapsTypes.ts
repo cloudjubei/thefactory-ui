@@ -42,5 +42,5 @@ export type LaunchCapFieldsInput = {
 export type LaunchWorstCaseInput = {
   attempts: number | undefined
   count: number
-  of: 'feature' | 'leg'
+  of: 'feature' | 'leg' | 'variant'
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 
 import {
   formatBadgeCount,
@@ -10,13 +10,18 @@ import {
   processRunSpend,
   processRunWaitingCount,
   processRunWorkLabel,
+  processStartsFromForm,
+  PROCESS_LAUNCH_COPY,
   useAppSettings,
   useDurationTimer,
   PROCESS_RUN_LIST_COPY,
   useProcessRunChatNews,
   useProcessRuns,
+  useProcessRunStart,
+  useProcesses,
   useProcessStopClock,
   type BadgeColor,
+  type LaunchModelChipSlot,
   type ProcessNodeRunRef,
   type RunModelChipSlot,
   type ProcessRun,
@@ -29,11 +34,13 @@ import { useChatsSeen } from '../compound/notifications/chatsSeen'
 import SegmentedControl from '../primitives/SegmentedControl'
 import Spinner from '../primitives/Spinner'
 import Tooltip from '../primitives/Tooltip'
-import { IconSettings, IconWorkflow } from '../icons'
+import { IconPlay, IconSettings, IconWorkflow } from '../icons'
 import CostChip from '../compound/chips/CostChip'
 import NotificationBadge from '../compound/NotificationBadge'
 import { DURATION_CHIP_CLASS } from '../compound/chat/ToolCall/StatusIcon'
 import ProcessPipeline from '../compound/process/ProcessPipeline'
+import OverflowMenu from '../compound/OverflowMenu'
+import ProcessLaunchDock from '../compound/chat/ProcessLaunchDock'
 import type { ChatContext } from '../../headless/api'
 
 export type ProcessRunsViewProps = {
@@ -65,6 +72,12 @@ export type ProcessRunsViewProps = {
    * a run is selected. A big-screen host omits it and keeps both panes.
    */
   narrow?: boolean
+  /** Offer Start a run for the processes that start from a form, on the person's agent. */
+  launch?: {
+    chatRunner: 'api' | 'cli'
+    agent?: Record<string, unknown>
+    renderModelChip?: (picked: LaunchModelChipSlot) => ReactNode
+  }
 }
 
 type Mode = 'current' | 'history'
@@ -91,8 +104,22 @@ export default function ProcessRunsView({
   renderModelChip,
   onOpenGroupRun,
   narrow = false,
+  launch,
 }: ProcessRunsViewProps) {
   const { isLoaded, runs, current, history } = useProcessRuns(projectId)
+  const { processes } = useProcesses(launch ? projectId : undefined)
+  const launchable = useMemo(() => processes.filter(processStartsFromForm), [processes])
+  const [launching, setLaunching] = useState<string | undefined>()
+  const startRun = useProcessRunStart(projectId, launching ?? '')
+  const closeLaunch = useCallback(() => setLaunching(undefined), [])
+  const onLaunch = useCallback(
+    async (metadata: Record<string, unknown>) => {
+      const run = await startRun(metadata)
+      setLaunching(undefined)
+      onSelectRun(run.id, run.projectId)
+    },
+    [startRun, onSelectRun],
+  )
   const { settings } = useAppSettings()
   const badgeColor = settings.notifications.badgeColors.processes
   const stopNow = useProcessStopClock()
@@ -149,6 +176,32 @@ export default function ProcessRunsView({
           ]}
           className="flex-1"
         />
+        {launch && launchable.length === 1 ? (
+          <Tooltip
+            placement="bottom"
+            content={<span className="text-xs">{PROCESS_LAUNCH_COPY.ask}</span>}
+          >
+            <button
+              type="button"
+              aria-label={PROCESS_LAUNCH_COPY.ask}
+              onClick={() => setLaunching(launchable[0]!.id)}
+              className="grid h-7 w-7 shrink-0 place-items-center rounded-md border border-(--border-default) bg-(--surface-raised) text-(--text-secondary) hover:border-(--border-strong) hover:text-(--text-primary)"
+            >
+              <IconPlay className="h-4 w-4" />
+            </button>
+          </Tooltip>
+        ) : launch && launchable.length > 1 ? (
+          <OverflowMenu
+            label={PROCESS_LAUNCH_COPY.ask}
+            icon={<IconPlay className="h-4 w-4" />}
+            items={launchable.map((definition) => ({
+              key: definition.id,
+              label: definition.name,
+              icon: <IconPlay className="size-4" />,
+              onSelect: () => setLaunching(definition.id),
+            }))}
+          />
+        ) : null}
         <Tooltip
           placement="bottom"
           content={<span className="text-xs">Process blueprints (Settings → Processes)</span>}
@@ -221,12 +274,34 @@ export default function ProcessRunsView({
     <EmptyDetail />
   )
 
-  if (narrow) return selectedRunId ? <div className="h-full min-h-0">{detail}</div> : sidebar
+  const dock =
+    launch && launching ? (
+      <ProcessLaunchDock
+        isOpen
+        projectId={projectId}
+        processId={launching}
+        chatRunner={launch.chatRunner}
+        {...(launch.agent ? { agent: launch.agent } : {})}
+        onLaunch={onLaunch}
+        onClose={closeLaunch}
+        {...(launch.renderModelChip ? { renderModelChip: launch.renderModelChip } : {})}
+      />
+    ) : null
+
+  if (narrow) {
+    return (
+      <>
+        {selectedRunId ? <div className="h-full min-h-0">{detail}</div> : sidebar}
+        {dock}
+      </>
+    )
+  }
 
   return (
     <div className="flex h-full min-h-0 w-full">
       {sidebar}
       {detail}
+      {dock}
     </div>
   )
 }

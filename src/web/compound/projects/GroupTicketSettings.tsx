@@ -7,6 +7,7 @@ import {
   useProjects,
   useProjectsGroups,
   useProviderConnections,
+  TICKET_PICKER_COPY,
 } from '../../../headless'
 import { extractErrorMessage } from '../../../headless/api'
 import TicketConnectionPicker, { type TicketConnectionPickerValue } from './TicketConnectionPicker'
@@ -16,7 +17,7 @@ export interface GroupTicketSettingsProps {
 }
 
 /**
- * A group's Jira in its Settings: the connection and access its projects
+ * A group's ticket connection in its Settings: the connection and access its projects
  * inherit, and — beneath it — what each of its projects actually gets, since a
  * project can choose its own or opt out.
  */
@@ -51,7 +52,7 @@ export default function GroupTicketSettings({ groupId }: GroupTicketSettingsProp
       })
       setSaved(true)
     } catch (err) {
-      setError(extractErrorMessage(err, 'Could not save the Jira connection. Try again.'))
+      setError(extractErrorMessage(err, 'Could not save the ticket connection. Try again.'))
     } finally {
       setSaving(false)
     }
@@ -60,11 +61,11 @@ export default function GroupTicketSettings({ groupId }: GroupTicketSettingsProp
   return (
     <section className="flex flex-col gap-3 max-w-2xl">
       <div className="flex flex-col gap-1">
-        <h3 className="text-base font-semibold">Jira</h3>
+        <h3 className="text-base font-semibold">{TICKET_PICKER_COPY.label}</h3>
         <p className="text-sm text-(--text-secondary)">
           {canBind
             ? `Projects whose main group is ${group.title} use this connection unless they choose their own in their Settings.`
-            : `${group.title} is a scope group. Jira is set on main groups; its projects follow their own main group.`}
+            : `${group.title} is a scope group. Tickets are set on main groups; its projects follow their own main group.`}
         </p>
       </div>
       {error ? <Alert>{error}</Alert> : null}

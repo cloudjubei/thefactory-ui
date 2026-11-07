@@ -2,6 +2,8 @@ import type { Feature, ProcessRun, ProcessRunStopHolder } from 'thefactory-tools
 import { processStepStates } from 'thefactory-tools/utils'
 
 import { processStepAcceptedUnchecked } from './processAcceptedUnchecked'
+import { processVariantHeading, processVariantSteps } from './processVariantView'
+import { PROCESS_VARIANT_COPY } from './processVariantViewConstants'
 import { processNodeBadge, processNodeState, processNodeTone } from './processView'
 import type { ProcessStatusTone } from './processView'
 import { acceptanceCriteriaLines } from './signoffPage'
@@ -143,7 +145,7 @@ export function processRunStripEntries(
   stopHolder?: ProcessRunStopHolder,
 ): StepsStripEntry[] {
   const parkStepId = run.park?.stepId
-  return processStepStates(run).map((state) => {
+  const entries = processStepStates(run).map((state) => {
     const stopped = processNodeState(state, parkStepId)
     const nodeState = stopped === 'parked' && stopHolder === 'manager' ? 'working' : stopped
     const phase: StepsStripPhase =
@@ -163,6 +165,28 @@ export function processRunStripEntries(
       ...(accepted ? { acceptedUnchecked: accepted.line } : {}),
     }
   })
+  return withVariantsFolded(run, entries)
+}
+
+const STRIP_PHASE_ORDER: readonly StepsStripPhase[] = ['current', 'upcoming', 'done']
+
+/** A run's variants as one entry: they run at once, so they are one step of the run. */
+function withVariantsFolded(run: ProcessRun, entries: StepsStripEntry[]): StepsStripEntry[] {
+  const members = new Set(processVariantSteps(run).map((step) => step.id))
+  if (members.size === 0) return entries
+  const folded = entries.filter((entry) => members.has(entry.key))
+  const first = folded[0]
+  if (!first) return entries
+  const lead =
+    STRIP_PHASE_ORDER.flatMap((phase) => folded.filter((entry) => entry.phase === phase))[0] ??
+    first
+  const entry: StepsStripEntry = {
+    key: first.key,
+    label: PROCESS_VARIANT_COPY.stripLabel(processVariantHeading(run), folded.length),
+    phase: lead.phase,
+    tone: lead.tone,
+  }
+  return entries.flatMap((one) => (one === first ? [entry] : members.has(one.key) ? [] : [one]))
 }
 
 /** The Steps card's line: how many of a run's steps are done — "10 of 11 done". Pure. */

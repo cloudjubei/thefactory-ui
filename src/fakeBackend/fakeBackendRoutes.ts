@@ -57,6 +57,10 @@ import type {
   GetProcessCapabilitiesData,
   GetProcessCapabilitiesResponse,
   GetProcessRunData,
+  GetProcessRunEvidenceData,
+  GetProcessRunEvidenceResponse,
+  PreviewProcessRunData,
+  PreviewProcessRunResponse,
   GetProcessRunStatisticsData,
   GetProcessRunStatisticsResponse,
   GetProcessRunResponse,
@@ -182,6 +186,13 @@ import {
   fakeProjectStorageUsage,
 } from './fixtures/account'
 import { GROUP_DATA, PROJECT_DATA } from './fixtures/agentTypes'
+import {
+  FAKE_VARIANT_PROCESS,
+  FAKE_VARIANT_RUN_ID,
+  fakeVariantEvidence,
+  fakeVariantPreview,
+  fakeVariantRun,
+} from './fixtures/variantRun'
 import { FAKE_CLI_RUN } from './fixtures/cliRuns'
 import {
   FAKE_CHAT_SETTINGS,
@@ -575,13 +586,42 @@ export const FAKE_BACKEND_ROUTES: readonly FakeRoute[] = [
     path: '/api/v1/process-runs/{runId}/ticket-post',
     answer: () => ({ tickets: [] }),
   },
+  read<GetProcessRunEvidenceData, GetProcessRunEvidenceResponse>(
+    '/api/v1/process-runs/{runId}/evidence',
+    ({ params }) =>
+      params.runId === FAKE_VARIANT_RUN_ID
+        ? fakeVariantEvidence('done')
+        : { runId: params.runId ?? '', groups: [] },
+  ),
+  {
+    method: 'GET',
+    path: '/api/v1/process-runs/{runId}/integration-options',
+    answer: () => ({
+      title: 'Sign-up trial',
+      commits: [],
+      fastForward: true,
+      identities: [],
+      accounts: [],
+      defaults: {},
+      nothingToMerge: true,
+    }),
+  },
+  readByPost<PreviewProcessRunData, PreviewProcessRunResponse>(
+    '/api/v1/process-runs/preview',
+    () => fakeVariantPreview() as PreviewProcessRunResponse,
+  ),
+  { method: 'POST', path: '/api/v1/process-runs', answer: () => fakeVariantRun('running') },
   read<GetProcessRunData, GetProcessRunResponse>(
     '/api/v1/process-runs/{runId}',
     ({ params, missing }) =>
+      (params.runId === FAKE_VARIANT_RUN_ID ? fakeVariantRun('done') : undefined) ??
       FAKE_PROCESS_RUNS.find((run) => run.id === params.runId) ??
       missing(`No fake run '${params.runId}'.`),
   ),
-  read<ListProcessesData, ListProcessesResponse>('/api/v1/processes', () => FAKE_PROCESSES),
+  read<ListProcessesData, ListProcessesResponse>('/api/v1/processes', () => [
+    ...FAKE_PROCESSES,
+    FAKE_VARIANT_PROCESS,
+  ]),
   read<GetProcessCapabilitiesData, GetProcessCapabilitiesResponse>(
     '/api/v1/processes/capabilities',
     () => ({ kinds: ['agent', 'check', 'gate'], implemented: ['agent', 'check', 'gate'] }),

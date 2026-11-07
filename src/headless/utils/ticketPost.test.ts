@@ -30,13 +30,13 @@ describe('ticketPostView', () => {
     })
   })
 
-  it('names the transition by its raw id: the binding has no label for it', () => {
+  it('names the status a binding moves to', () => {
     const view = ticketPostView({
       tickets: [ticket('ENG-7')],
       comment: COMMENT,
-      transition: '31',
+      transition: 'Done',
     })
-    expect(view?.line).toBe('Posts a comment on ENG-7, then makes transition 31.')
+    expect(view?.line).toBe('Posts a comment on ENG-7, then moves to Done.')
   })
 
   it('lists two and three tickets in words', () => {

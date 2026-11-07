@@ -47,6 +47,7 @@ import {
   isGitChangeGrant,
   isRunProposalGrant,
   isStartGroupWorkGrant,
+  isStartProcessRunGrant,
   LAUNCH_HOW_IT_RUNS_HEADING,
   launchFeaturePickMetadata,
   launchFeaturePickOffered,
@@ -100,6 +101,7 @@ import GitChangeApprovalPanel from './GitChangeApprovalPanel'
 import RunProposalApprovalPanel from './RunProposalApprovalPanel'
 import GitSetupApprovalPanel from './GitSetupApprovalPanel'
 import GroupWorkLaunchPanel from './GroupWorkLaunchPanel'
+import ProcessRunLaunchPanel from './ProcessRunLaunchPanel'
 import { TurnLimitField } from '../TurnLimitField'
 import SegmentedControl from '../../primitives/SegmentedControl'
 import LaunchSuggestionPanel from './LaunchSuggestionPanel'
@@ -153,6 +155,17 @@ export type ApprovalPanelProps = {
 export default function ApprovalPanel(props: ApprovalPanelProps) {
   // Putting a project on GitHub names an account, a repository and a
   // visibility the user must see and may change — it has its own card.
+  if (isStartProcessRunGrant(props.grant)) {
+    return (
+      <ProcessRunLaunchPanel
+        grant={props.grant}
+        {...(props.projectId !== undefined ? { projectId: props.projectId } : {})}
+        {...(props.renderModelChip ? { renderModelChip: props.renderModelChip } : {})}
+        onDecideLater={props.onDecideLater}
+        {...(props.onDecided ? { onDecided: props.onDecided } : {})}
+      />
+    )
+  }
   if (isStartGroupWorkGrant(props.grant)) {
     return (
       <GroupWorkLaunchPanel

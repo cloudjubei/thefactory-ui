@@ -61,6 +61,10 @@ export const SIGNOFF_DECISION_LABEL = 'Story sign-off'
 
 /** The approval names what it approves — the only decisions that keep their words. */
 export const SIGNOFF_APPROVE_LABEL = 'Approve story'
+
+/** What the recordings that count as proof come to. */
+export const SIGNOFF_RECORDINGS_LINE = (n: number): string =>
+  n === 1 ? '1 recording that counts as proof' : `${n} recordings that count as proof`
 export const SIGNOFF_REJECT_CONFIRM =
   'Reject ends this run without signing off. Its work is not brought in.'
 export const SIGNOFF_REJECT_CONFIRM_LABEL = 'Reject'

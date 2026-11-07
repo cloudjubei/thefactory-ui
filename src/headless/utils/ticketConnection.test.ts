@@ -7,8 +7,13 @@ import {
   describeTicketBinding,
   effectiveTicketBinding,
   formatJiraProjectKeys,
-  jiraConnectionsOf,
+  hasTicketProjects,
   parseJiraProjectKeys,
+  ticketAccessCopy,
+  ticketConnectionsOf,
+  ticketTransitionChoiceOf,
+  ticketTransitionChoices,
+  ticketTransitionOfChoice,
   readTicketConnection,
   ticketTransitionStanding,
   withSignOffTransition,
@@ -17,6 +22,7 @@ import {
 import {
   TICKET_PICKER_INHERIT,
   TICKET_PICKER_NONE,
+  TICKET_TRANSITION_LEAVE,
   TICKET_TRANSITION_STANDING,
 } from './ticketConnectionConstants'
 
@@ -49,16 +55,100 @@ describe('formatJiraProjectKeys', () => {
   })
 })
 
-describe('jiraConnectionsOf', () => {
-  it('keeps only Jira connections', () => {
+describe('ticketConnectionsOf', () => {
+  it('keeps what a binding can use: Azure DevOps stays out', () => {
     expect(
-      jiraConnectionsOf([connection('a', 'jira'), connection('b', 'github')]).map((c) => c.id),
-    ).toEqual(['a'])
+      ticketConnectionsOf([
+        connection('a', 'jira'),
+        connection('b', 'github'),
+        connection('c', 'azure-devops'),
+        connection('d', 'linear'),
+      ]).map((c) => c.id),
+    ).toEqual(['a', 'b'])
+  })
+})
+
+describe('what a provider’s binding offers', () => {
+  it('names projects for Jira alone', () => {
+    expect(hasTicketProjects('jira')).toBe(true)
+    expect(hasTicketProjects(undefined)).toBe(true)
+    expect(hasTicketProjects('github')).toBe(false)
+  })
+
+  it('says what the access choice is about', () => {
+    expect(ticketAccessCopy('jira').heading).toBe('What agents may do')
+    expect(ticketAccessCopy(undefined).heading).toBe('What agents may do')
+    expect(ticketAccessCopy('github').heading).toBe('What sign-off may do')
+    expect(ticketAccessCopy('github').descriptions.read).toContain('no GitHub tools')
+  })
+})
+
+describe('the transition list', () => {
+  const statuses = ['Done', 'In Review']
+
+  it('offers leaving it alone, then each status', () => {
+    expect(ticketTransitionChoices(statuses, '')).toEqual([
+      { value: TICKET_TRANSITION_LEAVE, label: 'Leave the ticket where it is' },
+      { value: 'Done', label: 'Done' },
+      { value: 'In Review', label: 'In Review' },
+    ])
+  })
+
+  it('keeps a saved value the list does not hold', () => {
+    const choices = ticketTransitionChoices(statuses, ' Shipped ')
+    expect(choices.at(-1)).toEqual({ value: 'Shipped', label: 'Shipped (not on this list)' })
+    expect(ticketTransitionChoiceOf(choices, ' Shipped ')).toBe('Shipped')
+  })
+
+  it('says nothing of a saved value while the list is on its way', () => {
+    expect(ticketTransitionChoices(undefined, 'Done').at(-1)).toEqual({
+      value: 'Done',
+      label: 'Done',
+    })
+    expect(ticketTransitionChoices(undefined, 'closed', 'github').at(-1)?.label).toBe('Closed')
+    expect(ticketTransitionChoices(undefined, '')).toHaveLength(1)
+  })
+
+  it('finds a saved status in any case, adding no row', () => {
+    const choices = ticketTransitionChoices(statuses, 'done')
+    expect(choices).toHaveLength(3)
+    expect(ticketTransitionChoiceOf(choices, 'done')).toBe('Done')
+  })
+
+  it('sits on leaving it alone with nothing saved', () => {
+    const choices = ticketTransitionChoices(statuses, '  ')
+    expect(choices).toHaveLength(3)
+    expect(ticketTransitionChoiceOf(choices, '  ')).toBe(TICKET_TRANSITION_LEAVE)
+  })
+
+  it('reads GitHub’s states as words, saving the state itself', () => {
+    expect(ticketTransitionChoices(['open', 'closed'], '', 'github').slice(1)).toEqual([
+      { value: 'open', label: 'Open' },
+      { value: 'closed', label: 'Closed' },
+    ])
+    expect(ticketTransitionChoices(['open'], '', 'jira').at(-1)?.label).toBe('open')
+  })
+
+  it('saves nothing for leaving it alone, and the status for any other row', () => {
+    expect(ticketTransitionOfChoice(TICKET_TRANSITION_LEAVE)).toBe('')
+    expect(ticketTransitionOfChoice('Done')).toBe('Done')
   })
 })
 
 describe('describeTicketBinding', () => {
-  const connections = [connection('jira-1', 'jira', 'Acme Jira')]
+  const connections = [
+    connection('jira-1', 'jira', 'Acme Jira'),
+    connection('gh-1', 'github', 'Acme GitHub'),
+  ]
+
+  it('says nothing of projects on a GitHub binding', () => {
+    expect(
+      describeTicketBinding(
+        { connectionId: 'gh-1', access: 'read-write', signOffTransition: 'closed' },
+        connections,
+      ),
+    ).toBe('Acme GitHub · Read & write · Sign-off moves to closed')
+  })
 
   it('names the connection, the access and every Jira project', () => {
     expect(describeTicketBinding({ connectionId: 'jira-1', access: 'read' }, connections)).toBe(
@@ -104,35 +194,41 @@ describe('readTicketConnection', () => {
 })
 
 describe('chooseTicketConnection', () => {
-  const ids = ['c1', 'c2']
+  const ids = [connection('c1', 'jira'), connection('c2', 'jira'), connection('g1', 'github')]
 
   it('follows the group, or opts out of it, for a project with a main group', () => {
     expect(
-      chooseTicketConnection(TICKET_PICKER_INHERIT, OWN, { inherits: true, connectionIds: ids }),
+      chooseTicketConnection(TICKET_PICKER_INHERIT, OWN, { inherits: true, connections: ids }),
     ).toEqual({ value: undefined })
     expect(
-      chooseTicketConnection(TICKET_PICKER_NONE, undefined, { inherits: true, connectionIds: ids }),
+      chooseTicketConnection(TICKET_PICKER_NONE, undefined, { inherits: true, connections: ids }),
     ).toEqual({ value: 'none' })
   })
 
   it('reads “not connected” as nothing to store where there is no group to opt out of', () => {
     expect(
-      chooseTicketConnection(TICKET_PICKER_NONE, OWN, { inherits: false, connectionIds: ids }),
+      chooseTicketConnection(TICKET_PICKER_NONE, OWN, { inherits: false, connections: ids }),
     ).toEqual({ value: undefined })
   })
 
+  it('drops Jira projects on a move to GitHub, which has none', () => {
+    expect(chooseTicketConnection('g1', OWN, { inherits: true, connections: ids })).toEqual({
+      value: { connectionId: 'g1', access: 'read-write' },
+    })
+  })
+
   it('binds a chosen connection, keeping the access and Jira projects already set', () => {
-    expect(chooseTicketConnection('c1', OWN, { inherits: true, connectionIds: ids })).toEqual({
+    expect(chooseTicketConnection('c1', OWN, { inherits: true, connections: ids })).toEqual({
       value: { connectionId: 'c1', access: 'read-write', projectKeys: ['ENG'] },
     })
-    expect(chooseTicketConnection('c2', 'none', { inherits: true, connectionIds: ids })).toEqual({
+    expect(chooseTicketConnection('c2', 'none', { inherits: true, connections: ids })).toEqual({
       value: { connectionId: 'c2', access: 'read' },
     })
   })
 
   it('keeps a binding to a deleted connection when that is what is picked again', () => {
     const gone = { connectionId: 'gone', access: 'read' as const }
-    expect(chooseTicketConnection('gone', gone, { inherits: false, connectionIds: ids })).toEqual({
+    expect(chooseTicketConnection('gone', gone, { inherits: false, connections: ids })).toEqual({
       value: gone,
     })
   })
@@ -143,14 +239,12 @@ describe('chooseTicketConnection', () => {
   // its "A deleted connection" item with value '' made Radix throw, blanking the app.
   it('is no choice at all for an empty value', () => {
     expect(
-      chooseTicketConnection('', undefined, { inherits: true, connectionIds: ids }),
+      chooseTicketConnection('', undefined, { inherits: true, connections: ids }),
     ).toBeUndefined()
   })
 
   it('is no choice at all for a value naming no known connection', () => {
-    expect(
-      chooseTicketConnection('c9', OWN, { inherits: true, connectionIds: ids }),
-    ).toBeUndefined()
+    expect(chooseTicketConnection('c9', OWN, { inherits: true, connections: ids })).toBeUndefined()
   })
 })
 
@@ -202,7 +296,7 @@ describe('describeEffectiveTicketBinding', () => {
   })
 
   it('says plainly when a project has no Jira', () => {
-    expect(describeEffectiveTicketBinding({ source: 'off' }, conns)).toBe('Jira turned off here')
+    expect(describeEffectiveTicketBinding({ source: 'off' }, conns)).toBe('Tickets turned off here')
     expect(describeEffectiveTicketBinding({ source: 'none' }, conns)).toBe('Not connected')
   })
 })
@@ -245,13 +339,16 @@ describe('withSignOffTransition', () => {
 
 describe('chooseTicketConnection and the sign-off transition', () => {
   const own = { connectionId: 'c1', access: 'read-write' as const, signOffTransition: '31' }
-  const options = { inherits: false, connectionIds: ['c1', 'c2'] }
+  const options = {
+    inherits: false,
+    connections: [connection('c1', 'jira'), connection('c2', 'jira')],
+  }
 
   it('keeps it when the same connection is picked again', () => {
     expect(chooseTicketConnection('c1', own, options)).toEqual({ value: own })
   })
 
-  it('drops it with a new connection: a transition id belongs to one Jira', () => {
+  it('drops it with a new connection: its statuses belong to that one', () => {
     expect(chooseTicketConnection('c2', own, options)).toEqual({
       value: { connectionId: 'c2', access: 'read-write' },
     })
@@ -265,7 +362,7 @@ describe('describeTicketBinding and the sign-off transition', () => {
         { connectionId: 'jira-1', access: 'read-write', signOffTransition: '31' },
         [connection('jira-1', 'jira', 'Acme Jira')],
       ),
-    ).toBe('Acme Jira · Read & write · all Jira projects · Sign-off transition 31')
+    ).toBe('Acme Jira · Read & write · all Jira projects · Sign-off moves to 31')
   })
 })
 
@@ -305,6 +402,34 @@ describe('connectorWriteBackOf', () => {
     expect(
       connectorWriteBackOf({ metadata: { capabilities: { connectorWriteBack: 'yes' } } }, []),
     ).toBe(false)
+  })
+})
+
+describe('ticketTransitionStanding on a GitHub connection', () => {
+  const github = { provider: 'github', tokenSource: 'api-key' as const }
+  const writable = { connectionId: 'g1', access: 'read-write' as const }
+
+  it('takes a plain token, which the policy only refuses for Jira', () => {
+    expect(
+      ticketTransitionStanding({ binding: writable, connection: github, writeBack: true }),
+    ).toBe(TICKET_TRANSITION_STANDING.commentOnly)
+  })
+
+  it('moves the issue when a state is set', () => {
+    const binding = { ...writable, signOffTransition: 'closed' }
+    expect(ticketTransitionStanding({ binding, connection: github, writeBack: true })).toBe(
+      TICKET_TRANSITION_STANDING.moves,
+    )
+  })
+
+  it('still needs Read & write, and write-back on', () => {
+    const binding = { ...writable, access: 'read' as const }
+    expect(ticketTransitionStanding({ binding, connection: github, writeBack: true })).toBe(
+      TICKET_TRANSITION_STANDING.readOnly,
+    )
+    expect(ticketTransitionStanding({ binding, connection: github, writeBack: false })).toBe(
+      TICKET_TRANSITION_STANDING.off,
+    )
   })
 })
 

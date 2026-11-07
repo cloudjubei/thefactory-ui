@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
 import {
+  getProcessRunEvidence,
   getReviewEvidenceContent,
   listReviewEvidence,
   listReviewEvidenceTexts,
@@ -24,6 +25,7 @@ import {
 import type { EvidenceTile } from '../utils/reviewEvidenceViewTypes'
 import { EvidenceContentCache } from './evidenceContentCache'
 import { EvidenceImageLoader, evidenceDataUri } from './evidenceImageLoader'
+import type { ProcessRunEvidenceGroupView } from '../utils/processVariantViewTypes'
 import { reviewEvidenceCache } from './processViewCache'
 
 type EvidenceQuery = { runId?: string; storyId?: string; featureId?: string }
@@ -257,4 +259,102 @@ export function useReviewEvidence(
     loadImage,
     reload,
   }
+}
+
+type ProcessRunEvidenceSnapshot = {
+  groups: readonly Omit<ProcessRunEvidenceGroupView, 'tiles'>[]
+  notes: Record<string, string>
+}
+
+async function readRunEvidence(key: string): Promise<ProcessRunEvidenceSnapshot> {
+  const [projectId = '', runId = ''] = key.split('|')
+  const { data } = await getProcessRunEvidence({ path: { runId }, throwOnError: true })
+  const groups = (data?.groups ?? []).map((group) => ({
+    ...group,
+    evidence: group.evidence.filter(isProofFiling),
+  }))
+  return {
+    groups,
+    notes: await evidenceContent.noteTexts(
+      projectId,
+      groups.flatMap((group) => group.evidence),
+    ),
+  }
+}
+
+const runEvidenceStores = new WeakMap<WsLike, LiveResourceStore<ProcessRunEvidenceSnapshot>>()
+
+/** One listing per run for the whole app, read again when anything in its project moves. */
+function runEvidenceStoreFor(ws: WsLike): LiveResourceStore<ProcessRunEvidenceSnapshot> {
+  const existing = runEvidenceStores.get(ws)
+  if (existing) return existing
+  const store = new LiveResourceStore<ProcessRunEvidenceSnapshot>({
+    load: readRunEvidence,
+    connect: (key, handle) => {
+      const [projectId = ''] = key.split('|')
+      const offRun = ws.on('cli:run-update', (data: unknown) => {
+        if (isRunStateUpdate(data) && isRunUpdateForProject(data, projectId)) {
+          void handle.refresh()
+        }
+      })
+      const offReconnect = ws.onReconnect(() => void handle.refresh())
+      return () => {
+        offRun()
+        offReconnect()
+      }
+    },
+    lingerMs: REVIEW_EVIDENCE_LINGER_MS,
+  })
+  runEvidenceStores.set(ws, store)
+  return store
+}
+
+const IDLE_RUN_SNAPSHOT: LiveResourceSnapshot<ProcessRunEvidenceSnapshot> = {
+  data: { groups: [], notes: {} },
+  settled: true,
+  error: null,
+}
+
+export type UseProcessRunEvidence = {
+  /** The run and every run it started, each with what it filed, the run itself first. */
+  groups: readonly ProcessRunEvidenceGroupView[]
+  /** The first read has finished; it stays true through live re-reads. */
+  loaded: boolean
+  error: string | undefined
+}
+
+/**
+ * What a run and the runs it started filed, grouped by run, from the run alone:
+ * nothing here needs a story. Kept live as `useReviewEvidence` is, with every
+ * report's text read in one request.
+ */
+export function useProcessRunEvidence(
+  projectId: string | undefined,
+  runId: string | undefined,
+): UseProcessRunEvidence {
+  const { ws } = useApi()
+  const store = runEvidenceStoreFor(ws)
+  const key = projectId && runId ? `${projectId}|${runId}` : undefined
+
+  useEffect(() => (key ? store.retain(key) : undefined), [store, key])
+
+  const listen = useCallback(
+    (onChange: () => void) => (key ? store.listen(key, onChange) : unlistened()),
+    [store, key],
+  )
+  const read = useCallback(() => (key ? store.snapshot(key) : IDLE_RUN_SNAPSHOT), [store, key])
+  const snapshot = useSyncExternalStore(listen, read, read)
+
+  const groups = useMemo(() => {
+    const notes = snapshot.data?.notes ?? NO_NOTES
+    return (snapshot.data?.groups ?? []).map((group) => ({
+      ...group,
+      tiles: group.evidence.map((ref) => {
+        const text = notes[ref.id]
+        return { ...toEvidenceTile(ref), ...(text ? { text } : {}) }
+      }),
+    }))
+  }, [snapshot.data])
+
+  return { groups, loaded: snapshot.settled, error: snapshot.error?.message }
 }

@@ -9,6 +9,7 @@ export const AGENT_TYPE_SLOT_LABELS: Readonly<Record<AgentTypeSlot, string>> = {
 /** Where a type comes from, as its tag says it. */
 export const AGENT_TYPE_SCOPE_LABELS: Readonly<Record<AgentTypeScope, string>> = {
   builtin: 'Built-in',
+  seeded: 'Built-in',
   group: 'Group',
   project: 'Project',
 }

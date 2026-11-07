@@ -13,7 +13,7 @@ export type TicketPost = {
   tickets: TicketPostTicket[]
   /** The comment, word for word. Absent when no ticket gets one. */
   comment?: string
-  /** The raw transition id from the binding: it has no label. */
+  /** The status the binding moves a ticket to, as it is saved. */
   transition?: string
   waiting?: string
 }

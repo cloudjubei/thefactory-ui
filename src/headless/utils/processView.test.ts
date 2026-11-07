@@ -1758,9 +1758,10 @@ describe('isProcessRunAtSignOff', () => {
 
   it('is a story run stopped at its sign-off gate', () => {
     expect(isProcessRunAtSignOff(at({}))).toBe(true)
+    expect(isProcessRunAtSignOff(at({ storyId: undefined }))).toBe(true)
   })
 
-  it('is never a design approval, a mirrored stop, another step, or a run with no story', () => {
+  it('is never a design approval, a mirrored stop or another step', () => {
     expect(isProcessRunAtSignOff(at({ plan: plan('design') }))).toBe(false)
     expect(
       isProcessRunAtSignOff(
@@ -1772,7 +1773,6 @@ describe('isProcessRunAtSignOff', () => {
         at({ park: { reason: 'gate', stepId: 'work', message: '', parkedAt: 0 } }),
       ),
     ).toBe(false)
-    expect(isProcessRunAtSignOff(at({ storyId: undefined }))).toBe(false)
     expect(isProcessRunAtSignOff(at({ status: 'running', park: undefined }))).toBe(false)
   })
 })

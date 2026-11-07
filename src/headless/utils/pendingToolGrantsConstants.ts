@@ -10,6 +10,9 @@ import { ACCEPT_REQUEST_TOOL } from './toolAskCardConstants'
  */
 export const START_FEATURE_WORK_TOOL_NAME = 'startFeatureWork'
 
+/** The tool that starts a process from its form rather than a story. */
+export const START_PROCESS_RUN_TOOL_NAME = 'startProcessRun'
+
 /**
  * The launches, whose approval keeps the composer's place instead of the
  * call's row: a feature-work or group launch, and accepting a feature request.
@@ -17,6 +20,7 @@ export const START_FEATURE_WORK_TOOL_NAME = 'startFeatureWork'
  */
 export const COMPOSER_LAUNCH_TOOL_NAMES: readonly string[] = [
   START_FEATURE_WORK_TOOL_NAME,
+  START_PROCESS_RUN_TOOL_NAME,
   START_GROUP_WORK_TOOL_NAME,
   ACCEPT_REQUEST_TOOL,
 ]

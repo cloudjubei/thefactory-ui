@@ -9,6 +9,11 @@ import {
   copyProcessDefinition,
   isProcessFork,
   isProcessGateLoop,
+  isSeededProcess,
+  processExpandChoices,
+  processExpandOf,
+  PROCESS_EDITOR_COPY,
+  withProcessExpand,
   PROCESS_GATE_LOOP_NO_LIMIT,
   processScopeLabel,
   processStepName,
@@ -33,6 +38,7 @@ import StepToolsAndExit from '../compound/process/StepToolsAndExit'
 import { Switch } from '../primitives/Switch'
 import { Textarea } from '../primitives/Textarea'
 import { IconSave } from '../icons'
+import ProcessInputsEditor from '../compound/process/ProcessInputsEditor'
 
 export type ProcessesViewProps = {
   /**
@@ -175,7 +181,9 @@ export default function ProcessesView({ narrow = false, selectedProcessId }: Pro
         ) : selected ? (
           <ProcessDetail
             definition={selected}
-            onEdit={() => setEditing(structuredClone(selected))}
+            {...(isSeededProcess(selected)
+              ? {}
+              : { onEdit: () => setEditing(structuredClone(selected)) })}
             onCopy={() => setEditing(copyProcessDefinition(selected))}
             statistics={statistics}
             onDelete={selected.scope === 'project' ? () => void remove(selected.id) : undefined}
@@ -211,7 +219,8 @@ function ProcessDetail({
 }: {
   definition: ProcessDefinition
   statistics: readonly ProcessRunStatistics[]
-  onEdit: () => void
+  /** Absent for a process that ships with Overseer: it can only be copied. */
+  onEdit?: () => void
   onCopy: () => void
   onDelete?: () => void
 }) {
@@ -223,9 +232,11 @@ function ProcessDetail({
         <ScopeBadge definition={definition} />
         <span className="text-[11px] text-(--text-secondary)">v{definition.version}</span>
         <div className="ml-auto flex gap-2">
-          <Button size="sm" onClick={onEdit}>
-            Edit
-          </Button>
+          {onEdit ? (
+            <Button size="sm" onClick={onEdit}>
+              Edit
+            </Button>
+          ) : null}
           <Button size="sm" variant="secondary" onClick={onCopy}>
             Copy from…
           </Button>
@@ -238,6 +249,9 @@ function ProcessDetail({
       </div>
       {definition.description ? (
         <p className="max-w-prose text-xs text-(--text-secondary)">{definition.description}</p>
+      ) : null}
+      {isSeededProcess(definition) ? (
+        <p className="text-[11px] text-(--text-secondary)">{PROCESS_EDITOR_COPY.seededNote}</p>
       ) : null}
       {definition.shadowsGlobal ? (
         <Alert variant="info">
@@ -385,6 +399,8 @@ function ProcessEditor({
         </Field>
       </div>
 
+      <ProcessInputsEditor definition={definition} onChange={onChange} />
+
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <h3 className="text-xs font-semibold">Steps</h3>
@@ -431,6 +447,9 @@ function ProcessEditor({
                   value={step.agentType ?? 'developer'}
                   onChange={(e) => patchStep(index, { agentType: e.target.value })}
                 >
+                  {step.agentType && !AGENT_RUN_TYPES.some((type) => type === step.agentType) ? (
+                    <option value={step.agentType}>{step.agentType}</option>
+                  ) : null}
                   {AGENT_RUN_TYPES.map((agentType) => (
                     <option key={agentType} value={agentType}>
                       {agentRoleLabel(agentType)}
@@ -445,6 +464,29 @@ function ProcessEditor({
                   value={step.processId ?? ''}
                   onChange={(e) => patchStep(index, { processId: e.target.value })}
                 />
+              ) : null}
+              {step.kind === 'process' ? (
+                <label className="flex items-center gap-1 text-[11px]">
+                  {PROCESS_EDITOR_COPY.expand}
+                  <NativeSelect
+                    className="w-40"
+                    aria-label={PROCESS_EDITOR_COPY.expand}
+                    value={processExpandOf(step)}
+                    onChange={(e) =>
+                      patch({
+                        steps: definition.steps.map((s, i) =>
+                          i === index ? withProcessExpand(s, e.target.value) : s,
+                        ),
+                      })
+                    }
+                  >
+                    {processExpandChoices(definition).map((choice) => (
+                      <option key={choice.value} value={choice.value}>
+                        {choice.label}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                </label>
               ) : null}
               <div className="ml-auto flex items-center gap-2">
                 <label className="flex items-center gap-1 text-[11px]">
@@ -472,6 +514,34 @@ function ProcessEditor({
             <div className="text-[11px] text-(--text-secondary)">
               {PROCESS_KIND_BLURB[step.kind]}
             </div>
+            {step.kind === 'agent' ? (
+              <div className="flex flex-wrap items-center gap-4">
+                <label
+                  className="flex items-center gap-1.5 text-[11px]"
+                  title={PROCESS_EDITOR_COPY.mayChangeNothingHint}
+                >
+                  <Switch
+                    checked={step.mayChangeNothing === true}
+                    onCheckedChange={(checked) =>
+                      patchStep(index, { mayChangeNothing: checked || undefined })
+                    }
+                  />
+                  {PROCESS_EDITOR_COPY.mayChangeNothing}
+                </label>
+                <label
+                  className="flex items-center gap-1.5 text-[11px]"
+                  title={PROCESS_EDITOR_COPY.serveVariantHint}
+                >
+                  <Switch
+                    checked={step.serveVariant === true}
+                    onCheckedChange={(checked) =>
+                      patchStep(index, { serveVariant: checked || undefined })
+                    }
+                  />
+                  {PROCESS_EDITOR_COPY.serveVariant}
+                </label>
+              </div>
+            ) : null}
           </Surface>
         ))}
       </div>

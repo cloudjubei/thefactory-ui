@@ -216,7 +216,11 @@ function Decision({
   onDecide,
   repoRows,
   requesting,
-}: Pick<GroupSignOffProps, 'screen' | 'acting' | 'actionError' | 'onDecide' | 'requesting'> & {
+  ticketPost,
+}: Pick<
+  GroupSignOffProps,
+  'screen' | 'acting' | 'actionError' | 'onDecide' | 'requesting' | 'ticketPost'
+> & {
   repoRows: ReactNode
 }) {
   const [selected, setSelected] = useState<string | undefined>(undefined)
@@ -235,6 +239,7 @@ function Decision({
       where={<ToneBadge tone={screen.badge.tone}>{screen.badge.label}</ToneBadge>}
     >
       <Head screen={screen} />
+      {screen.ticketPost ? <TicketPostNote view={screen.ticketPost} {...ticketPost} /> : null}
       {repoRows}
       {screen.plan ? (
         <span className="text-[13px] font-medium text-(--text-primary)">{screen.plan}</span>
@@ -617,6 +622,7 @@ export default function GroupSignOff(props: GroupSignOffProps) {
         actionError={actionError ?? null}
         onDecide={onDecide}
         requesting={requesting === true}
+        {...(ticketPost ? { ticketPost } : {})}
         repoRows={
           layout === 'decision-first' ? (
             <RepoRows repos={screen.repos} onOpenRun={onOpenRun} ticketPost={ticketPost} />

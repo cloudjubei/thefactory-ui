@@ -1,9 +1,9 @@
-import { processGroupLegMergeGate } from 'thefactory-tools/utils'
+import { isWalkthroughProof, processGroupLegMergeGate } from 'thefactory-tools/utils'
 import type { ProcessGroupRun } from 'thefactory-tools/types'
 
 import { acceptanceCriteriaLine } from './acceptanceJudgement'
 import type { AcceptanceJudgement } from './acceptanceJudgementTypes'
-import { CHECK_STATE_LABELS, REVIEW_TAB_LABELS } from './checkMethodConstants'
+import { CHECK_STATE_LABELS, CHECK_STATE_TONES, REVIEW_TAB_LABELS } from './checkMethodConstants'
 import { GROUP_SIGN_OFF_TEXT } from './groupSignOffConstants'
 import { checkRowLayout, isAbsentCheck } from './checkMethods'
 import type { CheckMethodRow, ReviewTab, ReviewTabId } from './checkMethodTypes'
@@ -21,6 +21,7 @@ import {
   SIGNOFF_REQUEST_NOT_MET,
   SIGNOFF_REQUEST_PAIRS,
   SIGNOFF_TAB_METHOD,
+  SIGNOFF_RECORDINGS_LINE,
 } from './signoffPageConstants'
 import type {
   SignoffAttentionInput,
@@ -32,8 +33,8 @@ import type {
   SignoffProofChip,
   SignoffRequestOutcome,
 } from './signoffPageTypes'
-import type { ScreenPair } from './reviewEvidenceViewTypes'
-import type { FixSignoff } from './storySignoffTypes'
+import type { EvidenceTile, ScreenPair } from './reviewEvidenceViewTypes'
+import type { FixSignoff, SignoffSection } from './storySignoffTypes'
 import type { VerifyAttemptStanding } from './verifyProofTypes'
 import type { RunReviewFacts } from './runReviewTypes'
 import type { VerifyReviewStatus } from './processView'
@@ -132,6 +133,50 @@ export function signoffEvidenceChips(
     (a, b) => tabRank(a, tabOrder) - tabRank(b, tabOrder),
   )
   return [...opened, ...chips.filter((c) => c.target.kind === 'missing')]
+}
+
+/**
+ * Every recording of a sign-off that counts as proof, whichever step and whichever
+ * feature filed it: a run with no walkthrough step still shows what it recorded,
+ * and one the backend no longer vouches for is proof of nothing. Pure.
+ */
+export function signoffProofRecordings(
+  sections: ReadonlyMap<string, Pick<SignoffSection, 'recordings'>>,
+): EvidenceTile[] {
+  const byId = new Map(
+    [...sections.values()]
+      .flatMap((section) => section.recordings)
+      .filter((tile) => isWalkthroughProof(tile.ref))
+      .map((tile) => [tile.ref.id, tile] as const),
+  )
+  return [...byId.values()]
+}
+
+/** The Walkthrough check as the recordings that count stand it: passed once there is one. Pure. */
+export function signoffRowsWithRecordings(
+  rows: readonly CheckMethodRow[],
+  recordings: number,
+): CheckMethodRow[] {
+  if (recordings === 0) return [...rows]
+  return rows.map((row) =>
+    row.id === 'walkthrough' && row.state !== 'failed'
+      ? {
+          ...row,
+          state: 'passed',
+          tone: CHECK_STATE_TONES.passed,
+          detail: SIGNOFF_RECORDINGS_LINE(recordings),
+        }
+      : row,
+  )
+}
+
+/** The proof line for recordings no walkthrough step speaks for. Pure. */
+export function signoffRecordingsProofLine(
+  recordings: number,
+): { word: string; line: undefined; check: 'passed' } | undefined {
+  return recordings > 0
+    ? { word: SIGNOFF_RECORDINGS_LINE(recordings), line: undefined, check: 'passed' }
+    : undefined
 }
 
 /** Two or more of the build, type, lint and format checks read as one "Checks" chip, at the worst of their states. */

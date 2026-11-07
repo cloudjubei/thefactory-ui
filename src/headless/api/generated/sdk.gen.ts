@@ -124,9 +124,6 @@ import type {
   CompleteOverseerGithubAuthData,
   CompleteOverseerGithubAuthErrors,
   CompleteOverseerGithubAuthResponses,
-  CompleteProviderOAuthData,
-  CompleteProviderOAuthErrors,
-  CompleteProviderOAuthResponses,
   ConfirmOverseerLocalOnlyData,
   ConfirmOverseerLocalOnlyResponses,
   ConsolidateChatData,
@@ -357,6 +354,9 @@ import type {
   FinishMcpServerSignInData,
   FinishMcpServerSignInErrors,
   FinishMcpServerSignInResponses,
+  FinishProviderOAuthData,
+  FinishProviderOAuthErrors,
+  FinishProviderOAuthResponses,
   GetActiveCliStateData,
   GetActiveCliStateResponses,
   GetActiveRunnerKindData,
@@ -531,6 +531,9 @@ import type {
   GetProcessRunClosureResponses,
   GetProcessRunData,
   GetProcessRunErrors,
+  GetProcessRunEvidenceData,
+  GetProcessRunEvidenceErrors,
+  GetProcessRunEvidenceResponses,
   GetProcessRunIntegrationOptionsData,
   GetProcessRunIntegrationOptionsErrors,
   GetProcessRunIntegrationOptionsResponses,
@@ -719,6 +722,9 @@ import type {
   ListConnectionAssignedItemsResponses,
   ListConnectionNewItemsData,
   ListConnectionNewItemsResponses,
+  ListConnectionStatusesData,
+  ListConnectionStatusesErrors,
+  ListConnectionStatusesResponses,
   ListCredentialCapturesData,
   ListCredentialCapturesErrors,
   ListCredentialCapturesResponses,
@@ -942,6 +948,9 @@ import type {
   PreviewProcessGroupRunData,
   PreviewProcessGroupRunResponses,
   PreviewProcessResponses,
+  PreviewProcessRunData,
+  PreviewProcessRunErrors,
+  PreviewProcessRunResponses,
   PreviewToolData,
   PreviewToolErrors,
   PreviewToolResponses,
@@ -982,6 +991,11 @@ import type {
   ReadProjectLiveDataData,
   ReadProjectLiveDataErrors,
   ReadProjectLiveDataResponses,
+  ReadProviderOAuthSetupData,
+  ReadProviderOAuthSetupResponses,
+  ReadProviderSignInData,
+  ReadProviderSignInErrors,
+  ReadProviderSignInResponses,
   RebuildChatOpenChangesData,
   RebuildChatOpenChangesErrors,
   RebuildChatOpenChangesResponses,
@@ -1271,6 +1285,9 @@ import type {
   StartProcessRunChangesData,
   StartProcessRunChangesErrors,
   StartProcessRunChangesResponses,
+  StartProcessRunData,
+  StartProcessRunErrors,
+  StartProcessRunResponses,
   StartProjectMcpServerSignInData,
   StartProjectMcpServerSignInErrors,
   StartProjectMcpServerSignInResponses,
@@ -1408,6 +1425,8 @@ import type {
   WithdrawProcessRunChangeData,
   WithdrawProcessRunChangeErrors,
   WithdrawProcessRunChangeResponses,
+  WithdrawProviderSignInData,
+  WithdrawProviderSignInResponses,
   WriteFileData,
   WriteFileErrors,
   WriteFileExactReplacesData,
@@ -2402,6 +2421,44 @@ export const listProcessRuns = <ThrowOnError extends boolean = false>(
   })
 
 /**
+ * Start a process with no story, from its id, a project and the values its form asks for, on the agent named. The run is returned at once; follow it on its updates.
+ */
+export const startProcessRun = <ThrowOnError extends boolean = false>(
+  options: Options<StartProcessRunData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<StartProcessRunResponses, StartProcessRunErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * The form a process with no story starts from: what it asks for, the steps these values would run, and the first thing wrong with them. Nothing starts.
+ */
+export const previewProcessRun = <ThrowOnError extends boolean = false>(
+  options: Options<PreviewProcessRunData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    PreviewProcessRunResponses,
+    PreviewProcessRunErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/preview',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
  * How each process of a project has done, version by version, over its ended runs: how many ran, the share that passed first time, the median iterations and the median cost, nested work counted in a run’s cost.
  */
 export const getProcessRunStatistics = <ThrowOnError extends boolean = false>(
@@ -2439,6 +2496,23 @@ export const getProcessRun = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/process-runs/{runId}',
+    ...options,
+  })
+
+/**
+ * The evidence of a run and all its children, grouped by run. Needs no story. A child a later attempt replaced keeps its group, marked `replaced`.
+ */
+export const getProcessRunEvidence = <ThrowOnError extends boolean = false>(
+  options: Options<GetProcessRunEvidenceData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetProcessRunEvidenceResponses,
+    GetProcessRunEvidenceErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/evidence',
     ...options,
   })
 
@@ -3363,7 +3437,7 @@ export const attachRunWalkthroughFile = <ThrowOnError extends boolean = false>(
   })
 
 /**
- * The project's design as it is kept: apps, screens, states, versions, proposals and tidy-up plans.
+ * The project's design as it is kept: apps, screens, states, versions, proposals and tidy-up plans. Tagged with its revision: a client sending that tag in `If-None-Match` gets an empty 304 until the design changes.
  */
 export const getProjectDesign = <ThrowOnError extends boolean = false>(
   options: Options<GetProjectDesignData, ThrowOnError>,
@@ -3785,7 +3859,7 @@ export const dismissDesignTidyPlan = <ThrowOnError extends boolean = false>(
   })
 
 /**
- * A version's file, with its media type. HTML and SVG are served sandboxed (CSP `sandbox allow-scripts`): embed them in an <iframe sandbox="allow-scripts">, with the version's `caseQuery` after the URL for a draft case. A link has no content here — open its url.
+ * A version's file, with its media type, tagged so a browser can keep it: a stored file for good, a project file by asking first (`If-None-Match` gets an empty 304). HTML and SVG are served sandboxed (CSP `sandbox allow-scripts`): embed them in an <iframe sandbox="allow-scripts">, with the version's `caseQuery` after the URL for a draft case. A link has no content here — open its url.
  */
 export const getDesignVersionContent = <ThrowOnError extends boolean = false>(
   options: Options<GetDesignVersionContentData, ThrowOnError>,
@@ -4061,6 +4135,22 @@ export const revealGitCredentialToken = <ThrowOnError extends boolean = false>(
     ...options,
   })
 
+/**
+ * Whether each provider can be signed in with: its client id, secret and redirect URL are all there. Says no more than that.
+ */
+export const readProviderOAuthSetup = <ThrowOnError extends boolean = false>(
+  options?: Options<ReadProviderOAuthSetupData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<ReadProviderOAuthSetupResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/provider-connections/oauth/setup',
+    ...options,
+  })
+
+/**
+ * Open the `authorizationUrl` in a browser. The sign-in ends in the browser: `providerConnections:signIn` says how, and `GET /provider-connections/oauth/sign-ins/:signInId` answers a client that missed it.
+ */
 export const startProviderOAuth = <ThrowOnError extends boolean = false>(
   options: Options<StartProviderOAuthData, ThrowOnError>,
 ) =>
@@ -4079,22 +4169,50 @@ export const startProviderOAuth = <ThrowOnError extends boolean = false>(
     },
   })
 
-export const completeProviderOAuth = <ThrowOnError extends boolean = false>(
-  options: Options<CompleteProviderOAuthData, ThrowOnError>,
+/**
+ * Where a provider sends the browser back to. Needs no bearer token, and answers a page telling the person to go back to the app.
+ */
+export const finishProviderOAuth = <ThrowOnError extends boolean = false>(
+  options: Options<FinishProviderOAuthData, ThrowOnError>,
 ) =>
-  (options.client ?? client).post<
-    CompleteProviderOAuthResponses,
-    CompleteProviderOAuthErrors,
+  (options.client ?? client).get<
+    FinishProviderOAuthResponses,
+    FinishProviderOAuthErrors,
+    ThrowOnError
+  >({
+    responseType: 'text',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/provider-connections/oauth/callback',
+    ...options,
+  })
+
+/**
+ * The person backed out: a browser that still comes back changes nothing.
+ */
+export const withdrawProviderSignIn = <ThrowOnError extends boolean = false>(
+  options: Options<WithdrawProviderSignInData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<WithdrawProviderSignInResponses, unknown, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/provider-connections/oauth/sign-ins/{signInId}',
+    ...options,
+  })
+
+/**
+ * Where a sign-in stands, for a client that was away when `providerConnections:signIn` went out. 404 when this backend no longer holds it.
+ */
+export const readProviderSignIn = <ThrowOnError extends boolean = false>(
+  options: Options<ReadProviderSignInData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ReadProviderSignInResponses,
+    ReadProviderSignInErrors,
     ThrowOnError
   >({
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/v1/provider-connections/oauth/{provider}/callback',
+    url: '/api/v1/provider-connections/oauth/sign-ins/{signInId}',
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
   })
 
 export const listProviderConnections = <ThrowOnError extends boolean = false>(
@@ -4558,6 +4676,23 @@ export const listConnectionAssignedItems = <ThrowOnError extends boolean = false
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/provider-connections/{id}/assigned-items',
+    ...options,
+  })
+
+/**
+ * The statuses a sign-off can move a ticket to through this connection, within `projectKeys` when given (comma-separated). Reads only, and needs no ticket. 502 says why the provider gave no list, for instance a token without the scope.
+ */
+export const listConnectionStatuses = <ThrowOnError extends boolean = false>(
+  options: Options<ListConnectionStatusesData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ListConnectionStatusesResponses,
+    ListConnectionStatusesErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/provider-connections/{id}/statuses',
     ...options,
   })
 

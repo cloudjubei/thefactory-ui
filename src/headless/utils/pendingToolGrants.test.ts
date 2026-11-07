@@ -1109,6 +1109,7 @@ const BACKEND_ASKS: ReadonlyArray<readonly [string, string]> = [
   ['stageGitChanges', 'project-git-change:stageGitChanges'],
   ['startAssistantConversation', 'tool-call'],
   ['startFeatureWork', 'tool-call'],
+  ['startProcessRun', 'tool-call'],
   ['startGroupWork', 'tool-call'],
   ['startMemberProcess', 'member-project:startMemberProcess'],
   ['startProjectActivity', 'project-data:startProjectActivity'],
@@ -1150,6 +1151,7 @@ const ROW_EXCEPTIONS = [
   'reportBlocked',
   'startFeatureWork',
   'startGroupWork',
+  'startProcessRun',
 ]
 
 describe('which asks are decided on their row', () => {

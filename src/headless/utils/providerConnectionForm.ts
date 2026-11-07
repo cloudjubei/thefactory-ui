@@ -16,7 +16,6 @@ import type {
   ProviderConnectionSpec,
   ProviderConnectionStored,
   ProviderFieldCopy,
-  ProviderOAuthReturn,
   ProviderOAuthStartBody,
 } from './providerConnectionFormTypes'
 
@@ -255,6 +254,27 @@ export function providerOAuthDraftProblem(draft: ProviderConnectionDraft): strin
     : undefined
 }
 
+/** Whether a form offers sign-in for a provider: it has a sign-in, and the backend has it set up. */
+export function offersProviderOAuth(
+  provider: string,
+  oauth: { setup: Readonly<Record<string, boolean>> } | undefined,
+): boolean {
+  return (
+    specOf(provider)?.oauth !== undefined &&
+    !!oauth &&
+    Object.hasOwn(oauth.setup, provider) &&
+    oauth.setup[provider] === true
+  )
+}
+
+/** What a reconnect sends: the connection's own name, and the backend keeps its site. */
+export function providerOAuthReconnectBody(connection: {
+  id: string
+  name: string
+}): ProviderOAuthStartBody {
+  return { name: connection.name, connectionId: connection.id }
+}
+
 export function providerOAuthStartBody(draft: ProviderConnectionDraft): ProviderOAuthStartBody {
   const needsCloudId = providerConnectionSpec(draft.provider).oauth?.cloudId === true
   return {
@@ -268,46 +288,8 @@ export function isProviderOAuthPage(url: string): boolean {
   return /^https:\/\/[^/\s]/i.test(url)
 }
 
-/** An address's query as decoded pairs, read by hand for React Native. Throws on broken encoding. */
-function queryOf(address: string): Record<string, string> {
-  const query = address.split('#')[0]?.split('?').slice(1).join('?') ?? ''
-  const pairs: Record<string, string> = {}
-  for (const part of query.split('&')) {
-    const at = part.indexOf('=')
-    if (at <= 0) continue
-    pairs[decodeURIComponent(part.slice(0, at))] = decodeURIComponent(
-      part.slice(at + 1).replace(/\+/g, ' '),
-    )
-  }
-  return pairs
-}
-
-/** The `state` a sign-in page was started with. */
-export function providerOAuthStateOf(page: string): string | undefined {
-  try {
-    return queryOf(page).state || undefined
-  } catch {
-    return undefined
-  }
-}
-
-/** What the page a sign-in ended on says. */
-export function providerOAuthReturnOf(text: string): ProviderOAuthReturn {
-  let query: Record<string, string>
-  try {
-    query = queryOf(text.trim())
-  } catch {
-    return { kind: 'unreadable' }
-  }
-  if (query.error) return { kind: 'refused', reason: query.error_description || query.error }
-  return query.code && query.state
-    ? { kind: 'code', code: query.code, state: query.state }
-    : { kind: 'unreadable' }
-}
-
 /** A failed sign-in in words a person can act on. */
 export function providerOAuthFailure(message: string): string {
   if (/not configured/i.test(message)) return PROVIDER_OAUTH_COPY.notSetUp
-  if (/expired/i.test(message)) return PROVIDER_OAUTH_COPY.expired
   return message
 }

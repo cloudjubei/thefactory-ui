@@ -883,13 +883,10 @@ export function processStepFinishedView(input: { changedFiles: boolean; role?: s
  * decision: its own stop (not one mirrored from a run below it), at the gate
  * that signs the work off — never a design approval. Pure.
  */
-export function isProcessRunAtSignOff(
-  run: Pick<ProcessRun, 'status' | 'park' | 'storyId' | 'plan'>,
-): boolean {
+export function isProcessRunAtSignOff(run: Pick<ProcessRun, 'status' | 'park' | 'plan'>): boolean {
   return (
     run.status === 'parked' &&
     run.park?.reason === 'gate' &&
-    !!run.storyId &&
     run.park.childRunId === undefined &&
     processSignOffGateId(run.plan) === run.park.stepId
   )

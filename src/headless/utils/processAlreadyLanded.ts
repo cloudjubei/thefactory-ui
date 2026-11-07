@@ -16,10 +16,14 @@ import {
 } from 'thefactory-tools/utils'
 
 import { processIntegrationChoices } from './processIntegration'
-import { PROCESS_ALREADY_LANDED_OFFER_DETAIL } from './processAlreadyLandedConstants'
+import {
+  PROCESS_ACCEPT_REPORT_COPY,
+  PROCESS_ALREADY_LANDED_OFFER_DETAIL,
+} from './processAlreadyLandedConstants'
 import type {
   ProcessAlreadyLandedOffer,
   ProcessAlreadyOnBaseSignOff,
+  ProcessNothingToMergeSignOff,
   ProcessRunLandingPreview,
 } from './processAlreadyLandedTypes'
 
@@ -84,5 +88,24 @@ export function processAlreadyOnBaseSignOff(
     ),
     approveLabel: PROCESS_ALREADY_LANDED_TEXT.approve(workBranch.baseRef),
     decision: { mode },
+  }
+}
+
+/**
+ * A sign-off whose work branch changed nothing: there is a report to accept and
+ * nothing to bring in, so it says so, the decision reads Accept report and no
+ * way of merging is asked for. `undefined` while the run has something to merge. Pure.
+ */
+export function processNothingToMergeSignOff(
+  workBranch: Pick<ProcessWorkBranch, 'name' | 'baseRef' | 'shadow'>,
+  nothingToMerge: boolean | undefined,
+  modes?: readonly ProcessIntegrationMode[],
+): ProcessNothingToMergeSignOff | undefined {
+  if (!nothingToMerge) return undefined
+  return {
+    notice: PROCESS_ACCEPT_REPORT_COPY.notice,
+    approveLabel: PROCESS_ACCEPT_REPORT_COPY.approve,
+    approveDoes: PROCESS_ACCEPT_REPORT_COPY.does,
+    decision: { mode: processIntegrationChoices(workBranch, modes)[0]?.mode ?? 'merge' },
   }
 }

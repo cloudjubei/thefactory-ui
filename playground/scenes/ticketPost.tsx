@@ -34,7 +34,7 @@ const CLASSIC =
   'Write-back is disabled for a classic Jira API token: it routes by site URL. Use a scoped API token or OAuth; nothing was written'
 
 const POSTS: TicketPost = { tickets: [ticket('ENG-214')], comment: COMMENT }
-const MOVES: TicketPost = { ...POSTS, transition: '31' }
+const MOVES: TicketPost = { ...POSTS, transition: 'Done' }
 
 function Note({
   post,

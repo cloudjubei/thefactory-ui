@@ -76,7 +76,9 @@ export function agentTypeSettingsView(
     owner.kind === 'project'
       ? types.filter((t) => t.scope === 'group').map((t) => rowOf(t, false))
       : []
-  const builtins = types.filter((t) => t.scope === 'builtin').map(agentTypeOptionView)
+  const builtins = types
+    .filter((t) => t.scope === 'builtin' || t.scope === 'seeded')
+    .map(agentTypeOptionView)
   const slots: AgentTypeSlotSettingView[] = AGENT_TYPE_SLOTS.map((slot) => {
     const value = owner.kind === 'project' ? data.ownSlotDefaults?.[slot] : data.slotDefaults[slot]
     const inheritedId = owner.kind === 'project' ? data.groupSlotDefaults?.[slot] : undefined

@@ -248,6 +248,7 @@ function Decision({
       where={<ToneBadge tone={screen.badge.tone} label={screen.badge.label} />}
     >
       <Head screen={screen} />
+      {screen.ticketPost ? <TicketPostNote view={screen.ticketPost} /> : null}
       {repoRows}
       {screen.plan ? (
         <Text style={{ fontSize: 13.5, fontWeight: '500', color: theme.text.primary }}>

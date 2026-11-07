@@ -17,5 +17,14 @@ export type TicketTransitionStanding = {
   text: string
 }
 
+/** The statuses a sign-off can move a ticket to, as far as the backend could tell. */
+export type TicketStatusList =
+  | { kind: 'reading' }
+  | { kind: 'ready'; statuses: readonly string[] }
+  | { kind: 'failed'; reason: string }
+
+/** One row of the transition setting's list. */
+export type TicketTransitionChoice = { value: string; label: string }
+
 /** How the transition setting sits under the Jira picker. */
 export type TicketTransitionLayout = 'inline' | 'fold' | 'panel'

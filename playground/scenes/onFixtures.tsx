@@ -58,6 +58,10 @@ const FIXTURE_ROUTES: FixtureRoutes = {
   }),
   '/api/v1/cli-runs/{runId}': () => FAKE_CLI_RUN,
   '/api/v1/llm-configs': () => FAKE_LLM_CONFIGS,
+  '/api/v1/provider-connections/oauth/setup': () => ({ github: true, jira: true }),
+  '/api/v1/provider-connections/{id}/statuses': () => ({
+    statuses: ['Done', 'In Progress', 'In Review', 'To Do'],
+  }),
   '/api/v1/settings/{key}': ({ key }) => ({ key, value: null }),
   '/api/v1/chats/summaries': () => [],
 }

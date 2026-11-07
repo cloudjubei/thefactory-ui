@@ -120,7 +120,19 @@ import {
   type ProcessWaitingView,
   isHeldForGroupSignOff,
   isProcessGroupOnBranch,
+  isProcessReportAccepted,
   isProcessRunAtSignOff,
+  isProcessVariantRun,
+  isProcessVariantStep,
+  PROCESS_ACCEPT_REPORT_COPY,
+  PROCESS_VARIANT_COPY,
+  processVariantJoinLine,
+  processVariantLanes,
+  processVariantReport,
+  processVariantRunView,
+  useProcessRunEvidence,
+  type ProcessVariantLane,
+  type ProcessVariantRunView,
   signoffGroupHold,
   useGroupSignOff,
   processWaitingTitleLine,
@@ -155,10 +167,13 @@ import { RunManagerChip } from './RunManagerChip'
 import RunChatButton, { type RunChatButtonProps } from './RunChatButton'
 import RunDiagnosticsView from './RunDiagnosticsView'
 import StorySignoffReview from './StorySignoffReview'
+import ProcessVariantLanes from './ProcessVariantLanes'
+import ProcessVariantReport, { ProcessVariantPage } from './ProcessVariantReport'
+import RunReportReview from './RunReportReview'
 import SignOffOutputPanel from './signoff/SignOffOutputPanel'
 import StepPreview from './pipeline/StepPreview'
 import StepScreen, { type StepPanelTarget } from './pipeline/StepScreen'
-import { RunModelChip, type SaveFileHandler } from '../chat/signoff'
+import { RunModelChip, VerdictBadge, type SaveFileHandler } from '../chat/signoff'
 import CostChip from '../chips/CostChip'
 import ToneBadge from '../chips/ToneBadge'
 import ChatKindTile from '../chat/ChatKindTile'
@@ -174,6 +189,8 @@ import { useNativeTheme } from '../../hooks/useNativeTheme'
 export type ProcessPipelineProps = {
   /** The top-level run. Drilling into a nested node stays inside this component. */
   runId: string
+  /** Push another run's own screen: how a variant opens. Without it the pipeline drills in place. */
+  onOpenRun?: (runId: string) => void
   /** Open the agent-run chat a step owns as a full page — the step screen's ↗. */
   onOpenAgentRun?: (ref: ProcessNodeRunRef) => void
   /**
@@ -247,6 +264,7 @@ export default function ProcessPipeline({
   renderModelChip,
   pickAnswerFiles,
   focusNeedsYouItemId,
+  onOpenRun,
 }: ProcessPipelineProps) {
   const { theme, status } = useNativeTheme()
   const [stack, setStack] = useState<string[]>([])
@@ -259,6 +277,14 @@ export default function ProcessPipeline({
   }, [focusNeedsYouItemId])
   const currentId = stack[stack.length - 1] ?? runId
   const own = useProcessRun(currentId)
+  const { run: variantParent } = useProcessRun(own.run?.variant ? own.run.parentRunId : undefined)
+  const variantRoot = own.run?.variant
+    ? variantParent
+    : own.run && isProcessVariantRun(own.run)
+      ? own.run
+      : undefined
+  const variantEvidence = useProcessRunEvidence(variantRoot?.projectId, variantRoot?.id)
+  const [variantView, setVariantView] = useState<ProcessVariantRunView | undefined>()
   const {
     isLoaded,
     loadError,
@@ -513,6 +539,12 @@ export default function ProcessPipeline({
       ? `${run.storyId}.${featureStep.subject.id}`
       : undefined
   const stopTone = stopPark?.reason === 'gate' ? 'review' : 'on_hold'
+  const stopVariant =
+    featureStep?.subject?.kind === 'variant'
+      ? processVariantLanes(run, variantEvidence.groups, now).lanes.find(
+          (lane) => lane.stepId === featureStep.id,
+        )
+      : undefined
   const showStopCard =
     run.status === 'parked' &&
     !signoff &&
@@ -526,19 +558,43 @@ export default function ProcessPipeline({
   const stripEntries = processRunStripEntries(run, stopHolder)
   const chooseAtTop = () => scrollRef.current?.scrollTo({ y: needsYouY.current, animated: true })
   const flush = { marginHorizontal: 0, marginTop: 0 }
+  const variantLanes =
+    variantRoot && !run.variant ? processVariantLanes(run, variantEvidence.groups, now) : undefined
+  const variantReport = variantRoot
+    ? processVariantReport(variantRoot, variantEvidence.groups, now)
+    : undefined
+  const variantSection = run.variant
+    ? variantReport?.sections.find((one) => one.lane.runId === run.id)
+    : undefined
+  const shownView = variantLanes ? processVariantRunView(run, signoff, variantView) : undefined
+  const joinLine = variantLanes ? processVariantJoinLine(variantLanes) : undefined
+  const pipelineStates = variantLanes
+    ? states.filter((state) => !isProcessVariantStep(state.step))
+    : states
+  const openVariant = (lane: ProcessVariantLane) => {
+    if (!lane.runId) return
+    if (onOpenRun) onOpenRun(lane.runId)
+    else drillTo(lane.runId)
+  }
   const stepsCard = (style?: typeof flush) => (
     <RunStepsCard
       line={runStepsLine(stripEntries)}
       total={stripEntries.length}
-      defaultOpen={stack.length > 0 || run.status === 'running'}
+      defaultOpen={stack.length > 0 || run.status === 'running' || (!!variantLanes && !signoff)}
       {...(style ? { style } : {})}
     >
-      {states.map((state, index) => (
+      {pipelineStates.map((state, index) => (
         <PipelineNode
           key={state.step.id}
           run={run}
           state={state}
-          isLast={index === states.length - 1}
+          isLast={index === pipelineStates.length - 1}
+          {...(joinLine &&
+          index === 0 &&
+          variantLanes &&
+          variantLanes.ended < variantLanes.lanes.length
+            ? { waitLine: joinLine }
+            : {})}
           now={now}
           stopHolder={stopHolder}
           managerLine={managerLine}
@@ -643,6 +699,10 @@ export default function ProcessPipeline({
                       interactive
                     />
                   ) : null}
+                  {stopVariant ? <ToneBadge tone={stopTone} label={stopVariant.label} /> : null}
+                  {stopVariant?.dayLine ? (
+                    <ToneBadge tone={stopTone} label={stopVariant.dayLine} />
+                  ) : null}
                   {stopStepName ? <ToneBadge tone={stopTone} label={stopStepName} /> : null}
                 </>
               }
@@ -705,12 +765,94 @@ export default function ProcessPipeline({
         {stack.length === 0 ? (
           <RunPendingChanges run={run} onStart={startChanges} onRemove={withdrawChange} />
         ) : null}
-        {signoff ? (
+        {variantLanes && shownView === 'lanes' ? (
+          <>
+            {signoff && variantReport ? (
+              <RunNeedsYouCard
+                tone="review"
+                where={
+                  <VerdictBadge
+                    verdict={variantReport.verdict}
+                    {...(variantReport.tally ? { tally: variantReport.tally } : {})}
+                  />
+                }
+              >
+                <Text style={{ fontSize: 17, fontWeight: '600', color: theme.text.primary }}>
+                  {PROCESS_VARIANT_COPY.reportReady}
+                </Text>
+                <Button size="sm" onPress={() => setVariantView('report')}>
+                  {PROCESS_VARIANT_COPY.readReport}
+                </Button>
+              </RunNeedsYouCard>
+            ) : null}
+            <ProcessVariantLanes
+              view={variantLanes}
+              onOpen={openVariant}
+              onOpenReport={() => setVariantView('report')}
+            />
+            {stepsCard()}
+            {runDetails()}
+          </>
+        ) : variantLanes && !signoff && variantReport ? (
+          <View style={{ paddingHorizontal: nativeSpace[3], paddingTop: nativeSpace[3] }}>
+            <ProcessVariantReport
+              view={variantReport}
+              projectId={run.projectId}
+              onOpenVariant={openVariant}
+              onOpenSteps={() => setVariantView('lanes')}
+              {...(isProcessReportAccepted(run)
+                ? {
+                    top: (
+                      <Text style={{ fontSize: 13, color: theme.text.primary }}>
+                        {PROCESS_ACCEPT_REPORT_COPY.accepted}
+                      </Text>
+                    ),
+                  }
+                : {})}
+              {...(onCopy ? { onCopy } : {})}
+              {...(onSaveFile ? { onSaveFile } : {})}
+            />
+            {runDetails(flush)}
+          </View>
+        ) : signoff && !run.storyId ? (
+          <View style={{ paddingHorizontal: nativeSpace[3], paddingTop: nativeSpace[3] }}>
+            <RunReportReview
+              run={run}
+              now={now}
+              choices={processRunParkChoices(run)}
+              {...(stopManager ? { manager: stopManager } : {})}
+              {...(canChat ? { onAskManager: () => void openRunChat() } : {})}
+              {...(run.workBranch && isIntegratingApproval(run, 'approve')
+                ? { workBranch: run.workBranch }
+                : {})}
+              {...(integrationModes ? { integrationModes } : {})}
+              {...(run.proofUnavailable ? { proofUnavailable: run.proofUnavailable } : {})}
+              integration={
+                <IntegrationResult
+                  run={run}
+                  embedded
+                  {...(integrationModes ? { modes: integrationModes } : {})}
+                  onRetry={retryIntegration}
+                  onResolve={resolveIntegrationConflict}
+                />
+              }
+              steps={stepsCard(flush)}
+              details={runDetails(flush)}
+              onChoose={choose}
+              error={actionError}
+              onOpenVariant={openVariant}
+              {...(variantLanes ? { onOpenSteps: () => setVariantView('lanes') } : {})}
+              onReportText={setReportText}
+              {...(onCopy ? { onCopy } : {})}
+              {...(onSaveFile ? { onSaveFile } : {})}
+            />
+          </View>
+        ) : signoff && run.storyId ? (
           <View style={{ paddingHorizontal: nativeSpace[3], paddingTop: nativeSpace[3] }}>
             <NeedsYouScope value={needsYouActions}>
               <StorySignoffReview
                 projectId={run.projectId}
-                storyId={run.storyId as string}
+                storyId={run.storyId}
                 storyRunId={run.id}
                 choices={processRunParkChoices(run)}
                 {...(stopManager ? { manager: stopManager } : {})}
@@ -768,6 +910,13 @@ export default function ProcessPipeline({
           </View>
         ) : (
           <>
+            {variantSection ? (
+              <ProcessVariantPage
+                section={variantSection}
+                projectId={run.projectId}
+                {...(onSaveFile ? { onSaveFile } : {})}
+              />
+            ) : null}
             {stepsCard()}
             {runDetails()}
           </>
@@ -1228,6 +1377,7 @@ function PipelineNode({
   onDrill,
   onOpenPanel,
   onChooseAtTop,
+  waitLine,
 }: {
   run: ProcessRun
   state: ReturnType<typeof processStepStates>[number]
@@ -1242,6 +1392,8 @@ function PipelineNode({
   onOpenPanel: (target: StepPanelTarget) => void
   /** Bring the "Needs you" card at the top of the run into view. */
   onChooseAtTop: () => void
+  /** What a step says while it waits for the run's variants. */
+  waitLine?: string
 }) {
   const { theme, status } = useNativeTheme()
   const { resolveDependency } = useStories()
@@ -1344,7 +1496,7 @@ function PipelineNode({
               </View>
             ) : null}
           </View>
-          {row.result ? (
+          {row.result || waitLine ? (
             <Text
               numberOfLines={2}
               style={{
@@ -1357,7 +1509,7 @@ function PipelineNode({
                     : theme.text.secondary,
               }}
             >
-              {row.result}
+              {row.result ?? waitLine}
             </Text>
           ) : null}
           {!row.inert && (duration || cost || stepModel) ? (

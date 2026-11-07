@@ -978,6 +978,37 @@ export {
   type WorkLaunchChooserProps,
 } from './compound/WorkLaunchChooser'
 export {
+  default as ProcessLaunchScreen,
+  ProcessLaunchVariantScreen,
+  processLaunchKey,
+  type ProcessLaunchScreenProps,
+  type ProcessLaunchVariantScreenProps,
+} from './compound/chat/ProcessLaunchScreen'
+export {
+  default as ProcessRunLaunchPanel,
+  type ProcessRunLaunchPanelProps,
+} from './compound/chat/ProcessRunLaunchPanel'
+export {
+  default as ProcessLaunchFields,
+  ProcessLaunchVariantForm,
+  type ProcessLaunchFieldsProps,
+  type ProcessLaunchNote,
+} from './compound/chat/ProcessLaunchFields'
+export {
+  default as ProcessVariantLanes,
+  type ProcessVariantLanesProps,
+} from './compound/process/ProcessVariantLanes'
+export {
+  default as ProcessVariantReport,
+  ProcessVariantPage,
+  type ProcessVariantReportProps,
+} from './compound/process/ProcessVariantReport'
+export {
+  default as RunReportReview,
+  RunReportDecision,
+  type RunReportReviewProps,
+} from './compound/process/RunReportReview'
+export {
   default as StoryLaunchDock,
   type StoryLaunchDockProps,
 } from './compound/chat/StoryLaunchDock'

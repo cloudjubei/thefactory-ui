@@ -10,6 +10,11 @@ import {
   blankProcessStep,
   copyProcessDefinition,
   isProcessFork,
+  isSeededProcess,
+  processExpandChoices,
+  processExpandOf,
+  PROCESS_EDITOR_COPY,
+  withProcessExpand,
   isProcessGateLoop,
   PROCESS_GATE_LOOP_NO_LIMIT,
   processScopeLabel,
@@ -34,7 +39,11 @@ import { Switch } from '../primitives/Switch'
 import { Textarea } from '../primitives/Textarea'
 import { useNativeTheme } from '../hooks/useNativeTheme'
 import ChainChip from '../compound/process/ChainChip'
+import ProcessInputsEditor from '../compound/process/ProcessInputsEditor'
 import StepToolsAndExit from '../compound/process/StepToolsAndExit'
+
+/** The picker's value for a step that runs once: a picker item cannot be blank. */
+const NO_EXPAND = '__once__'
 
 /**
  * Native peer of
@@ -121,7 +130,9 @@ export default function ProcessesView({ selectedProcessId }: ProcessesViewProps 
         <ProcessDetail
           definition={selected}
           statistics={statistics}
-          onEdit={() => setEditing(structuredClone(selected))}
+          {...(isSeededProcess(selected)
+            ? {}
+            : { onEdit: () => setEditing(structuredClone(selected)) })}
           onCopy={() => setEditing(copyProcessDefinition(selected))}
           {...(selected.scope === 'project' ? { onDelete: () => void remove(selected.id) } : {})}
         />
@@ -201,7 +212,8 @@ function ProcessDetail({
 }: {
   definition: ProcessDefinition
   statistics: readonly ProcessRunStatistics[]
-  onEdit: () => void
+  /** Absent for a process that ships with Overseer: it can only be copied. */
+  onEdit?: () => void
   onCopy: () => void
   onDelete?: () => void
 }) {
@@ -302,10 +314,17 @@ function ProcessDetail({
         </Text>
       ))}
 
-      <View style={{ flexDirection: 'row', gap: nativeSpace[2] }}>
-        <Button size="sm" onPress={onEdit}>
-          Edit
-        </Button>
+      {isSeededProcess(definition) ? (
+        <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+          {PROCESS_EDITOR_COPY.seededNote}
+        </Text>
+      ) : null}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: nativeSpace[2] }}>
+        {onEdit ? (
+          <Button size="sm" onPress={onEdit}>
+            Edit
+          </Button>
+        ) : null}
         <Button size="sm" variant="secondary" onPress={onCopy}>
           Copy from…
         </Button>
@@ -375,6 +394,8 @@ function ProcessEditor({
         />
       </Field>
 
+      <ProcessInputsEditor definition={definition} onChange={onChange} />
+
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}>
         <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text.primary, flex: 1 }}>
           Steps
@@ -439,6 +460,9 @@ function ProcessEditor({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  {step.agentType && !AGENT_RUN_TYPES.some((type) => type === step.agentType) ? (
+                    <SelectItem value={step.agentType}>{step.agentType}</SelectItem>
+                  ) : null}
                   {AGENT_RUN_TYPES.map((agentType) => (
                     <SelectItem key={agentType} value={agentType}>
                       {agentRoleLabel(agentType)}
@@ -457,9 +481,60 @@ function ProcessEditor({
               />
             </Field>
           ) : null}
+          {step.kind === 'process' ? (
+            <Field label={PROCESS_EDITOR_COPY.expand}>
+              <Select
+                value={processExpandOf(step) || NO_EXPAND}
+                onValueChange={(value) =>
+                  patch({
+                    steps: definition.steps.map((s, i) =>
+                      i === index ? withProcessExpand(s, value === NO_EXPAND ? '' : value) : s,
+                    ),
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {processExpandChoices(definition).map((choice) => (
+                    <SelectItem key={choice.value} value={choice.value || NO_EXPAND}>
+                      {choice.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          ) : null}
           <Text style={{ fontSize: 12, color: theme.text.secondary }}>
             {PROCESS_KIND_BLURB[step.kind]}
           </Text>
+          {step.kind === 'agent' ? (
+            <>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}>
+                <Switch
+                  checked={step.mayChangeNothing === true}
+                  onCheckedChange={(checked) =>
+                    patchStep(index, { mayChangeNothing: checked || undefined })
+                  }
+                />
+                <Text style={{ fontSize: 12, color: theme.text.secondary, flex: 1 }}>
+                  {PROCESS_EDITOR_COPY.mayChangeNothing}
+                </Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}>
+                <Switch
+                  checked={step.serveVariant === true}
+                  onCheckedChange={(checked) =>
+                    patchStep(index, { serveVariant: checked || undefined })
+                  }
+                />
+                <Text style={{ fontSize: 12, color: theme.text.secondary, flex: 1 }}>
+                  {PROCESS_EDITOR_COPY.serveVariant}
+                </Text>
+              </View>
+            </>
+          ) : null}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}>
             <Switch
               checked={step.enabled !== false}

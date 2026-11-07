@@ -16,6 +16,7 @@ import {
   judgeAcceptance,
   overlayPairsFor,
   processAlreadyOnBaseSignOff,
+  processNothingToMergeSignOff,
   processParkAnswersView,
   ranReviewChecks,
   requestChangesProofPreset,
@@ -32,7 +33,10 @@ import {
   signoffFeaturesDelivered,
   signoffLoadingLabel,
   signoffFixSectionProps,
+  signoffProofRecordings,
   signoffProofRows,
+  signoffRecordingsProofLine,
+  signoffRowsWithRecordings,
   signoffReportView,
   signoffRequestOutcome,
   signoffSectionProps,
@@ -339,9 +343,13 @@ function StorySignoffPanel({
   const { options: landingOptions } = useProcessIntegrationOptions(
     workBranch && !workBranch.shadow ? storyRunId : undefined,
   )
-  const alreadyOnBase = workBranch
-    ? processAlreadyOnBaseSignOff(workBranch, landingOptions?.alreadyOnBase, integrationModes)
+  const acceptReport = workBranch
+    ? processNothingToMergeSignOff(workBranch, landingOptions?.nothingToMerge, integrationModes)
     : undefined
+  const alreadyOnBase =
+    workBranch && !acceptReport
+      ? processAlreadyOnBaseSignOff(workBranch, landingOptions?.alreadyOnBase, integrationModes)
+      : undefined
 
   const story = getStory(storyId)
   const features = story?.features ?? []
@@ -589,10 +597,11 @@ function StorySignoffPanel({
   const overall = signoff.overall
   const { tests: testChecks, build: buildChecks } = reviewCheckGroups(overall?.verification)
   const testTotals = aggregateTestCounts(testChecks)
-  const overallRows = overall?.rows ?? []
+  const proofRecordings = signoffProofRecordings(sections)
+  const overallRows = signoffRowsWithRecordings(overall?.rows ?? [], proofRecordings.length)
   const tabs = reviewTabs({
     screens: overall ? requestPairs.length : 0,
-    walkthroughs: overall ? overallSection.recordings.length : 0,
+    walkthroughs: overall ? proofRecordings.length : 0,
     reports: overall ? overallSection.reports.length : 0,
     testCount: testTotals?.total ?? 0,
     testChecks: ranReviewChecks(testChecks).length,
@@ -641,10 +650,12 @@ function StorySignoffPanel({
     ),
   )
   const proof = signoffProofRows({
-    checks: overall?.rows ?? [],
+    checks: overallRows,
     testTotals,
     codeReview: overall?.steps.find((l) => l.key === 'code-review'),
-    walkthrough: overall?.steps.find((l) => l.key === 'walkthrough'),
+    walkthrough:
+      overall?.steps.find((l) => l.key === 'walkthrough') ??
+      signoffRecordingsProofLine(proofRecordings.length),
     verify: [
       ...(newestFix && newestFixVerify
         ? [{ label: newestFix.label, status: newestFix.statusLine }]
@@ -690,7 +701,12 @@ function StorySignoffPanel({
     .filter((c) => !(mergeHold && c.choice === 'approve'))
     .map((c) =>
       c.choice === 'approve'
-        ? { ...c, label: alreadyOnBase?.approveLabel ?? SIGNOFF_APPROVE_LABEL }
+        ? {
+            ...c,
+            label:
+              acceptReport?.approveLabel ?? alreadyOnBase?.approveLabel ?? SIGNOFF_APPROVE_LABEL,
+            ...(acceptReport ? { detail: acceptReport.approveDoes } : {}),
+          }
         : c,
     )
   const canDecide = offered.length > 0 && onChoose !== undefined
@@ -698,7 +714,8 @@ function StorySignoffPanel({
   const answers = processParkAnswersView(offered, manager, selected)
   const send = (answer: ParkAnswerView, note: string | undefined) => {
     if (answer.choice === 'approve' && workBranch) {
-      if (alreadyOnBase) return decide('approve', note, alreadyOnBase.decision)
+      const settled = acceptReport?.decision ?? alreadyOnBase?.decision
+      if (settled) return decide('approve', note, settled)
       if (soleMode) return decide('approve', note, { mode: soleMode })
       return setStep('integration')
     }
@@ -798,7 +815,7 @@ function StorySignoffPanel({
             {...save}
           />
         ) : current?.target.tab === 'walkthrough' ? (
-          <WalkthroughTab projectId={projectId} recordings={overallSection.recordings} {...save} />
+          <WalkthroughTab projectId={projectId} recordings={proofRecordings} {...save} />
         ) : current?.target.tab === 'loom' && loom.view ? (
           <LoomWalkthroughPanel
             view={loom.view}
@@ -867,7 +884,7 @@ function StorySignoffPanel({
 
         {integration}
 
-        {alreadyOnBase ? (
+        {(acceptReport ?? alreadyOnBase) ? (
           <View
             accessibilityRole="summary"
             style={{
@@ -878,7 +895,9 @@ function StorySignoffPanel({
               backgroundColor: status.done.softBg,
             }}
           >
-            <Text style={{ fontSize: 13, color: theme.text.primary }}>{alreadyOnBase.notice}</Text>
+            <Text style={{ fontSize: 13, color: theme.text.primary }}>
+              {(acceptReport ?? alreadyOnBase)?.notice}
+            </Text>
           </View>
         ) : null}
 

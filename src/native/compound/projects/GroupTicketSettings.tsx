@@ -10,6 +10,7 @@ import {
   useProjects,
   useProjectsGroups,
   useProviderConnections,
+  TICKET_PICKER_COPY,
 } from '../../../headless'
 import { extractErrorMessage } from '../../../headless/api'
 import TicketConnectionPicker, { type TicketConnectionPickerValue } from './TicketConnectionPicker'
@@ -18,7 +19,7 @@ export interface GroupTicketSettingsProps {
   groupId: string
 }
 
-/** Native peer of web's `GroupTicketSettings`: the group's Jira, and what each of its projects gets. */
+/** Native peer of web's `GroupTicketSettings`: the group's ticket connection, and what each of its projects gets. */
 export default function GroupTicketSettings({ groupId }: GroupTicketSettingsProps) {
   const { theme } = useNativeTheme()
   const { groups, updateGroup } = useProjectsGroups()
@@ -51,7 +52,7 @@ export default function GroupTicketSettings({ groupId }: GroupTicketSettingsProp
       })
       setSaved(true)
     } catch (err) {
-      setError(extractErrorMessage(err, 'Could not save the Jira connection. Try again.'))
+      setError(extractErrorMessage(err, 'Could not save the ticket connection. Try again.'))
     } finally {
       setSaving(false)
     }
@@ -59,11 +60,13 @@ export default function GroupTicketSettings({ groupId }: GroupTicketSettingsProp
 
   return (
     <View style={{ gap: nativeSpace[3] }}>
-      <Text style={{ fontSize: 16, fontWeight: '600', color: theme.text.primary }}>Jira</Text>
+      <Text style={{ fontSize: 16, fontWeight: '600', color: theme.text.primary }}>
+        {TICKET_PICKER_COPY.label}
+      </Text>
       <Text style={{ fontSize: 13, color: theme.text.secondary }}>
         {canBind
           ? `Projects whose main group is ${group.title} use this connection unless they choose their own in their Settings.`
-          : `${group.title} is a scope group. Jira is set on main groups; its projects follow their own main group.`}
+          : `${group.title} is a scope group. Tickets are set on main groups; its projects follow their own main group.`}
       </Text>
       {error ? <Alert>{error}</Alert> : null}
       {canBind ? (

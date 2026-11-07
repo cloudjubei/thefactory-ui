@@ -7,6 +7,7 @@ import {
   useProjects,
   useProjectsGroups,
   withTicketConnection,
+  TICKET_PICKER_COPY,
 } from '../../../headless'
 import { extractErrorMessage, updateProject } from '../../../headless/api'
 import TicketConnectionPicker, { type TicketConnectionPickerValue } from './TicketConnectionPicker'
@@ -16,7 +17,7 @@ export interface ProjectTicketSettingsProps {
 }
 
 /**
- * A project's Jira in its Settings: follow its main group, opt out, or choose
+ * A project's ticket connection in its Settings: follow its main group, opt out, or choose
  * its own connection and access. What the agents in this project actually get.
  */
 export default function ProjectTicketSettings({ projectId }: ProjectTicketSettingsProps) {
@@ -51,7 +52,7 @@ export default function ProjectTicketSettings({ projectId }: ProjectTicketSettin
       })
       setSaved(true)
     } catch (err) {
-      setError(extractErrorMessage(err, 'Could not save the Jira setting. Try again.'))
+      setError(extractErrorMessage(err, 'Could not save the ticket setting. Try again.'))
     } finally {
       setSaving(false)
     }
@@ -60,11 +61,11 @@ export default function ProjectTicketSettings({ projectId }: ProjectTicketSettin
   return (
     <section className="flex flex-col gap-3 max-w-2xl">
       <div className="flex flex-col gap-1">
-        <h3 className="text-base font-semibold">Jira</h3>
+        <h3 className="text-base font-semibold">{TICKET_PICKER_COPY.label}</h3>
         <p className="text-sm text-(--text-secondary)">
           {mainGroup
-            ? `Agents in ${project.title} use ${mainGroup.title}'s Jira unless you choose otherwise here.`
-            : `${project.title} is in no main group, so its agents get Jira only if you choose a connection here.`}
+            ? `Agents in ${project.title} use ${mainGroup.title}'s connection unless you choose otherwise here.`
+            : `${project.title} is in no main group, so its agents get tickets only if you choose a connection here.`}
         </p>
       </div>
       {error ? <Alert>{error}</Alert> : null}

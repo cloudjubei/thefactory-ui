@@ -51,22 +51,35 @@ export type ProviderConnectionSpec = {
   oauth?: { action: string; cloudId: boolean }
 }
 
-/** The page a sign-in ended on, as a person pasted it. */
-export type ProviderOAuthReturn =
-  | { kind: 'code'; code: string; state: string }
-  | { kind: 'refused'; reason: string }
-  | { kind: 'unreadable' }
+/** What starting a sign-in sends. `connectionId` renews that connection in place. */
+export type ProviderOAuthStartBody = { name: string; cloudId?: string; connectionId?: string }
 
-/** What starting a sign-in sends. */
-export type ProviderOAuthStartBody = { name: string; cloudId?: string }
+/** A sign-in the backend opened: the page for the browser, and what its end is told under. */
+export type ProviderOAuthStarted = { page: string; signInId: string }
 
-/** Where a sign-in stands. It holds no code: that goes from the paste straight to the backend. */
+/** How a sign-in stands, as the backend tells it. */
+export type ProviderSignInReport = {
+  signInId: string
+  status: 'waiting' | 'signed-in' | 'declined' | 'failed'
+  connectionId?: string
+}
+
+/** Where a sign-in stands here. The code goes from the provider to the backend, past every client. */
 export type ProviderOAuthState =
-  | { step: 'ready' | 'opening' | 'finishing' | 'done'; error: string | null }
-  | { step: 'waiting'; page: string; error: string | null }
+  | { step: 'ready' | 'opening' | 'done'; error: string | null }
+  | { step: 'waiting'; page: string; signInId: string; error: string | null }
 
-/** The two backend calls of a sign-in. */
-export type ProviderOAuthActions<C = unknown> = {
-  start: (provider: string, body: ProviderOAuthStartBody) => Promise<string>
-  finish: (provider: string, body: { code: string; state: string }) => Promise<C>
+/** What a form needs of the backend's sign-in. */
+export type ProviderOAuthActions = {
+  /** Which providers can be signed in with. One not named here cannot. */
+  setup: Readonly<Record<string, boolean>>
+  start: (provider: string, body: ProviderOAuthStartBody) => Promise<ProviderOAuthStarted>
+  /** Where a sign-in stands; `undefined` when the backend no longer holds it. */
+  read: (signInId: string) => Promise<ProviderSignInReport | undefined>
+  /** The person backed out: a browser that still comes back changes nothing. */
+  withdraw: (signInId: string) => Promise<void>
+  /** Told when a sign-in ends in the browser. Answers how to stop listening. */
+  onReport: (listener: (report: ProviderSignInReport) => void) => () => void
+  /** Told when the socket is back: what went out meanwhile was lost. */
+  onReconnect: (listener: () => void) => () => void
 }

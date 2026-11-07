@@ -196,6 +196,7 @@ export function groupSignOffScreen(
   const phase = groupSignOffPhase(data)
   const deciding = phase === 'deciding'
   const repos = data.repos.map((repo) => repoRow(repo, nameOf, deciding))
+  const ticketPost = deciding ? ticketPostView(data.ticketPost) : undefined
   const toOpen = data.repos.filter((r) => r.pullRequest.state === 'to-open').length
   const unsaved = outputSections(data).flatMap(({ output, key }) =>
     state.drafts[key] ? [output.label] : [],
@@ -208,6 +209,7 @@ export function groupSignOffScreen(
       ticketChipView({ key: ref.externalId, title: ref.title, url: ref.url }),
     ),
     repos,
+    ...(ticketPost ? { ticketPost } : {}),
     ...(deciding ? { plan: GROUP_SIGN_OFF_TEXT.plan(toOpen) } : {}),
     ...(data.goingLive.words ? { goingLive: data.goingLive.words } : {}),
     choices: deciding ? decisionChoices(toOpen) : [],

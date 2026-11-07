@@ -199,7 +199,7 @@ const POSTING_BE: GroupSignOffRepo = {
   ticketPost: {
     tickets: [{ provider: 'jira', externalId: 'ENG-214', posts: true }],
     comment: POST_COMMENT,
-    transition: '31',
+    transition: 'Done',
   },
 }
 const POSTING_WEB: GroupSignOffRepo = {
@@ -832,6 +832,48 @@ export const GROUP_SIGN_OFF_SCENES: Scene[] = [
             signOffBoard({
               view: data({ repos: [POSTING_BE, POSTING_WEB, SDK] }),
               ticketPost: { startOpen: true },
+            }),
+          ),
+      },
+      {
+        id: 'group-ticket-post',
+        title: 'The group story’s own ticket',
+        description:
+          'A ticket on the group story, not on one repo: it says so above the repos, in the decision.',
+        render: () =>
+          page(
+            signOffBoard({
+              view: data({
+                repos: [BE, WEB, SDK],
+                ticketPost: {
+                  tickets: [{ provider: 'jira', externalId: 'ENG-200', posts: true }],
+                  comment: POST_COMMENT,
+                  transition: 'Done',
+                },
+              }),
+            }),
+          ),
+      },
+      {
+        id: 'group-ticket-post-off',
+        title: 'The group story’s ticket, write-back off',
+        description: 'What stands today: nothing goes to the ticket, and it says why.',
+        render: () =>
+          page(
+            signOffBoard({
+              view: data({
+                repos: [BE, WEB, SDK],
+                ticketPost: {
+                  tickets: [
+                    {
+                      provider: 'jira',
+                      externalId: 'ENG-200',
+                      posts: false,
+                      why: 'Connector write-back is off, so nothing is posted',
+                    },
+                  ],
+                },
+              }),
             }),
           ),
       },

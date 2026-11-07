@@ -173,6 +173,11 @@ export function ProjectsGroupsProvider({ children }: { children: ReactNode }) {
   return <ProjectsGroupsContext.Provider value={value}>{children}</ProjectsGroupsContext.Provider>
 }
 
+/** The groups, where a host has them: a screen that can do without reads this. */
+export function useOptionalProjectsGroups(): ProjectsGroupsContextValue | null {
+  return useContext(ProjectsGroupsContext)
+}
+
 export function useProjectsGroups(): ProjectsGroupsContextValue {
   const ctx = useContext(ProjectsGroupsContext)
   if (!ctx) throw new Error('useProjectsGroups must be used within ProjectsGroupsProvider')

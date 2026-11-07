@@ -13,24 +13,25 @@ import {
   SelectValue,
 } from '../../primitives/Select'
 import {
+  TICKET_PICKER_COPY,
   TICKET_PICKER_INHERIT,
   TICKET_PICKER_NONE,
   chooseTicketConnection,
+  hasTicketProjects,
+  ticketAccessCopy,
+  ticketConnectionsOf,
   ticketTransitionStanding,
   useProviderConnections,
+  useTicketStatuses,
   withSignOffTransition,
 } from '../../../headless'
 import type { TicketConnectionAccess, TicketConnectionBinding } from '../../../headless/api'
 import {
   describeTicketBinding,
   formatJiraProjectKeys,
-  jiraConnectionsOf,
   parseJiraProjectKeys,
 } from '../../../headless/utils/ticketConnection'
-import {
-  TICKET_ACCESS_DESCRIPTIONS,
-  TICKET_ACCESS_LABELS,
-} from '../../../headless/utils/ticketConnectionConstants'
+import { TICKET_ACCESS_LABELS } from '../../../headless/utils/ticketConnectionConstants'
 import TicketTransitionField from './TicketTransitionField'
 
 /** A project's setting (`undefined` = inherit, `'none'` = opted out) or a group's (`undefined` = none). */
@@ -60,8 +61,8 @@ export default function TicketConnectionPicker({
   inherited,
   writeBack = false,
 }: TicketConnectionPickerProps) {
-  const { connections } = useProviderConnections()
-  const jiraConnections = jiraConnectionsOf(connections)
+  const { connections, listStatuses } = useProviderConnections()
+  const ticketConnections = ticketConnectionsOf(connections)
   const own = value !== undefined && value !== 'none' ? value : undefined
   const [keysText, setKeysText] = useState(formatJiraProjectKeys(own?.projectKeys))
   const [transitionText, setTransitionText] = useState(own?.signOffTransition ?? '')
@@ -71,12 +72,13 @@ export default function TicketConnectionPicker({
     : value === undefined && inherited
       ? TICKET_PICKER_INHERIT
       : TICKET_PICKER_NONE
-  const ownIsMissing = own !== undefined && !jiraConnections.some((c) => c.id === own.connectionId)
+  const ownIsMissing =
+    own !== undefined && !ticketConnections.some((c) => c.id === own.connectionId)
 
   const choose = (next: string) => {
     const choice = chooseTicketConnection(next, value, {
       inherits: inherited !== undefined,
-      connectionIds: jiraConnections.map((c) => c.id),
+      connections: ticketConnections,
     })
     if (!choice) return
     if (choice.value !== undefined && choice.value !== 'none') {
@@ -103,6 +105,10 @@ export default function TicketConnectionPicker({
     if (own) onChange(withSignOffTransition(own, text))
   }
 
+  const connection = ticketConnections.find((c) => c.id === own?.connectionId)
+  const statuses = useTicketStatuses(listStatuses, connection?.id, own?.projectKeys)
+  const accessCopy = ticketAccessCopy(connection?.provider)
+
   const inheritedSummary = inherited?.binding
     ? describeTicketBinding(inherited.binding, connections)
     : 'not connected'
@@ -110,27 +116,27 @@ export default function TicketConnectionPicker({
   return (
     <View style={{ gap: nativeSpace[4] }}>
       <Field
-        label="Jira"
+        label={TICKET_PICKER_COPY.label}
         hint={
-          jiraConnections.length === 0
-            ? 'No Jira connection yet — add one in Settings → Tickets.'
+          ticketConnections.length === 0
+            ? TICKET_PICKER_COPY.noConnections
             : selected === TICKET_PICKER_INHERIT
-              ? `Agents here use ${inherited?.groupTitle}'s Jira: ${inheritedSummary}.`
+              ? TICKET_PICKER_COPY.inherited(inherited?.groupTitle, inheritedSummary)
               : selected === TICKET_PICKER_NONE
-                ? 'Agents here get no Jira tools.'
+                ? TICKET_PICKER_COPY.notConnected
                 : undefined
         }
       >
         <Select value={selected} onValueChange={choose}>
           <SelectTrigger>
-            <SelectValue placeholder="Choose a Jira connection" />
+            <SelectValue placeholder={TICKET_PICKER_COPY.placeholder} />
           </SelectTrigger>
           <SelectContent>
             {inherited ? (
               <SelectItem value={TICKET_PICKER_INHERIT}>Same as {inherited.groupTitle}</SelectItem>
             ) : null}
             <SelectItem value={TICKET_PICKER_NONE}>Not connected</SelectItem>
-            {jiraConnections.map((c) => (
+            {ticketConnections.map((c) => (
               <SelectItem key={c.id} value={c.id}>
                 {c.name}
               </SelectItem>
@@ -144,9 +150,9 @@ export default function TicketConnectionPicker({
 
       {own ? (
         <>
-          <Field label="What agents may do" hint={TICKET_ACCESS_DESCRIPTIONS[own.access]}>
+          <Field label={accessCopy.heading} hint={accessCopy.descriptions[own.access]}>
             <SegmentedControl
-              ariaLabel="What agents may do in Jira"
+              ariaLabel={accessCopy.ariaLabel}
               value={own.access}
               onChange={setAccess}
               options={(['read', 'read-write'] as const).map((access) => ({
@@ -155,32 +161,28 @@ export default function TicketConnectionPicker({
               }))}
             />
           </Field>
-          <Field
-            label="Limit to Jira projects (optional)"
-            hint="Jira project keys, e.g. ENG, OPS. Leave blank to allow every project the connection's account can see."
-          >
-            <Input
-              value={keysText}
-              onChangeText={setKeys}
-              placeholder="ENG, OPS"
-              autoCapitalize="characters"
-              autoCorrect={false}
-            />
-          </Field>
+          {hasTicketProjects(connection?.provider) ? (
+            <Field
+              label="Limit to Jira projects (optional)"
+              hint="Jira project keys, e.g. ENG, OPS. Leave blank to allow every project the connection's account can see."
+            >
+              <Input
+                value={keysText}
+                onChangeText={setKeys}
+                placeholder="ENG, OPS"
+                autoCapitalize="characters"
+                autoCorrect={false}
+              />
+            </Field>
+          ) : null}
           <TicketTransitionField
             value={transitionText}
             onChange={setTransition}
-            standing={ticketTransitionStanding({
-              binding: own,
-              connection: jiraConnections.find((c) => c.id === own.connectionId),
-              writeBack,
-            })}
+            statuses={statuses}
+            {...(connection ? { provider: connection.provider } : {})}
+            standing={ticketTransitionStanding({ binding: own, connection, writeBack })}
           />
-          {ownIsMissing ? (
-            <Alert>
-              This connection was deleted, so agents here get no Jira tools. Choose another.
-            </Alert>
-          ) : null}
+          {ownIsMissing ? <Alert>{TICKET_PICKER_COPY.deleted}</Alert> : null}
         </>
       ) : null}
     </View>

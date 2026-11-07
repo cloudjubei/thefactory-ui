@@ -625,7 +625,7 @@ describe('checkMethodRows › uitests (agent-filled, command-proven)', () => {
   })
 })
 
-describe('checkMethodRows › filings the backend cannot vouch for count like any other', () => {
+describe('checkMethodRows › filings the backend cannot vouch for count like any other, but a recording', () => {
   const REASONS = [
     EVIDENCE_RECORD_UNVOUCHED_REASON,
     EVIDENCE_FILE_CHANGED_REASON,
@@ -639,11 +639,6 @@ describe('checkMethodRows › filings the backend cannot vouch for count like an
     {
       method: 'screens',
       filing: (id) => evidence({ id, phase: 'after', subject: 'login', path: `${id}.png` }),
-    },
-    {
-      method: 'walkthrough',
-      filing: (id) =>
-        evidence({ id, kind: 'recording', mediaType: 'video/mp4', path: `${id}.mp4` }),
     },
     {
       method: 'report',
@@ -2406,5 +2401,35 @@ describe('signoffVerdict › checks that did not finish', () => {
 
   it('reads a failure alone as before', () => {
     expect(signoffVerdict({ rows: [mk({})], verified: true }).title).toBe('Types failed')
+  })
+})
+
+describe('a recording the backend no longer vouches for', () => {
+  const recording = (id: string, over: Partial<ReviewEvidenceRef> = {}) =>
+    ({
+      id,
+      kind: 'recording',
+      mediaType: 'video/mp4',
+      path: `${id}.mp4`,
+      createdAt: 1,
+      ...over,
+    }) as ReviewEvidenceRef
+  const walkthrough = (evidence: ReviewEvidenceRef[]) =>
+    checkMethodRows({
+      verification: undefined,
+      approaches: [],
+      evidence,
+    }).find((row) => row.id === 'walkthrough')
+
+  it('does not pass the walkthrough', () => {
+    expect(walkthrough([recording('a', { unvouchedReason: 'Seal lost' })])?.state).not.toBe(
+      'passed',
+    )
+  })
+
+  it('leaves the ones that count to pass it, and counts them alone', () => {
+    const row = walkthrough([recording('a'), recording('b', { unvouchedReason: 'Seal lost' })])
+    expect(row?.state).toBe('passed')
+    expect(row?.detail).toBe('1 recording captured')
   })
 })

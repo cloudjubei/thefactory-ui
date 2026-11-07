@@ -6,6 +6,7 @@ import {
   processAlreadyLandedAsked,
   processAlreadyLandedOffer,
   processAlreadyOnBaseSignOff,
+  processNothingToMergeSignOff,
 } from './processAlreadyLanded'
 
 const SHA = '1d1ed0a8841681a62be9ccb503bffaee08dedbd8'
@@ -122,5 +123,28 @@ describe('processAlreadyOnBaseSignOff', () => {
 
   it('is nothing when the base does not hold the work', () => {
     expect(processAlreadyOnBaseSignOff(workBranch, undefined)).toBeUndefined()
+  })
+})
+
+describe('processNothingToMergeSignOff', () => {
+  const branch = { name: 'work', baseRef: 'main' }
+
+  it('accepts a report when the branch changed nothing, asking nothing more', () => {
+    expect(processNothingToMergeSignOff(branch, true)).toEqual({
+      notice: 'Nothing changed, so there is nothing to merge.',
+      approveLabel: 'Accept report',
+      approveDoes: 'Closes the run with this report.',
+      decision: { mode: 'merge' },
+    })
+  })
+
+  it('sends the first way the run allows', () => {
+    expect(processNothingToMergeSignOff(branch, true, ['pull-request'])?.decision).toEqual({
+      mode: 'pull-request',
+    })
+  })
+
+  it('stands aside while there is work to merge', () => {
+    expect(processNothingToMergeSignOff(branch, undefined)).toBeUndefined()
   })
 })

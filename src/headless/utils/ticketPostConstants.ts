@@ -3,7 +3,7 @@ import type { TicketPostLayout } from './ticketPostTypes'
 export const TICKET_POST_TEXT = {
   heading: 'On tickets',
   posts: (tickets: string, transition: string | undefined): string =>
-    `Posts a comment on ${tickets}${transition ? `, then makes transition ${transition}` : ''}.`,
+    `Posts a comment on ${tickets}${transition ? `, then moves to ${transition}` : ''}.`,
   held: (tickets: string, why: string): string => `${tickets}: ${why.replace(/\.+$/, '')}.`,
   noReason: 'Nothing is posted',
   showComment: 'Read the comment',

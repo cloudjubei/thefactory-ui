@@ -1246,9 +1246,9 @@ export { useCommitDetails } from './hooks/useCommitDetails'
 export { commitChangesLabel, commitDetailsState, commitGitViewPath } from './utils/commitDetails'
 export { COMMIT_DETAILS_TEXT } from './utils/commitDetailsConstants'
 export type { CommitChanges, CommitDetails, CommitDetailsState } from './utils/commitDetailsTypes'
-export { useReviewEvidence } from './hooks/useReviewEvidence'
+export { useProcessRunEvidence, useReviewEvidence } from './hooks/useReviewEvidence'
 export { useStepFiling } from './hooks/useStepFiling'
-export type { UseReviewEvidence } from './hooks/useReviewEvidence'
+export type { UseProcessRunEvidence, UseReviewEvidence } from './hooks/useReviewEvidence'
 export { useStorySignoff } from './hooks/useStorySignoff'
 export { useProjectChecks } from './hooks/useProjectChecks'
 export type { UseProjectChecks } from './hooks/useProjectChecks'
@@ -1488,6 +1488,9 @@ export {
   isEvidenceChipSelected,
   signoffAttentionItems,
   signoffEvidenceChips,
+  signoffProofRecordings,
+  signoffRecordingsProofLine,
+  signoffRowsWithRecordings,
   signoffFeatureRow,
   signoffFeaturesDelivered,
   signoffGroupHold,
@@ -2587,17 +2590,24 @@ export {
   withSignOffTransition,
   withTicketConnection,
   formatJiraProjectKeys,
-  jiraConnectionsOf,
+  hasTicketProjects,
+  ticketAccessCopy,
+  ticketConnectionsOf,
+  ticketTransitionChoiceOf,
+  ticketTransitionChoices,
+  ticketTransitionOfChoice,
   parseJiraProjectKeys,
 } from './utils/ticketConnection'
 export type {
   EffectiveTicketBinding,
+  TicketStatusList,
+  TicketTransitionChoice,
   TicketTransitionLayout,
   TicketTransitionStanding,
 } from './utils/ticketConnectionTypes'
 export {
-  TICKET_ACCESS_DESCRIPTIONS,
   TICKET_ACCESS_LABELS,
+  TICKET_PICKER_COPY,
   TICKET_PICKER_INHERIT,
   TICKET_PICKER_NONE,
   TICKET_TRANSITION_DEFAULT_LAYOUT,
@@ -2623,7 +2633,9 @@ export {
   providerConnectionLabel,
   providerConnectionLine,
   providerConnectionSpec,
+  offersProviderOAuth,
   providerOAuthDraftProblem,
+  providerOAuthReconnectBody,
   providerOAuthStartBody,
   providerTokenFieldCopy,
 } from './utils/providerConnectionForm'
@@ -2646,9 +2658,12 @@ export type {
   ProviderConnectionFormLayout,
   ProviderConnectionMethod,
   ProviderOAuthActions,
+  ProviderOAuthStarted,
   ProviderOAuthState,
+  ProviderSignInReport,
 } from './utils/providerConnectionFormTypes'
 export { useProviderOAuthFlow, type UseProviderOAuthFlow } from './hooks/useProviderOAuthFlow'
+export { useTicketStatuses } from './hooks/useTicketStatuses'
 export { useJiraCloudIdLookup } from './hooks/useJiraCloudIdLookup'
 // What approving a sign-off would post to its tickets.
 export { ticketPostView } from './utils/ticketPost'
@@ -2695,6 +2710,7 @@ export type {
 // of truth across clients. Listens to the `projectsGroups:updated` WS topic.
 export {
   ProjectsGroupsProvider,
+  useOptionalProjectsGroups,
   useProjectsGroups,
   type GroupType,
   type ProjectsGroup,
@@ -3006,8 +3022,10 @@ export type {
 export {
   processAlreadyLandedOffer,
   processAlreadyOnBaseSignOff,
+  processNothingToMergeSignOff,
 } from './utils/processAlreadyLanded'
 export {
+  PROCESS_ACCEPT_REPORT_COPY,
   PROCESS_ALREADY_LANDED_FEATURE_DONE,
   PROCESS_ALREADY_LANDED_FEATURE_STAYS,
   PROCESS_ALREADY_LANDED_FEATURES_HEAD,
@@ -3016,6 +3034,7 @@ export type {
   ProcessAlreadyLandedOffer,
   ProcessAlreadyMergedAction,
   ProcessAlreadyOnBaseSignOff,
+  ProcessNothingToMergeSignOff,
   ProcessRunLandingPreview,
 } from './utils/processAlreadyLandedTypes'
 export {
@@ -4525,3 +4544,98 @@ export { startRequestWork } from './hooks/useCrossProjectRequests'
 export { useStartWork, type StartWorkState } from './hooks/useStartWork'
 export type { StartWorkOutcome, StartWorkTarget } from './utils/workLaunchViewTypes'
 export { useFeatureRequestStart, type FeatureRequestStart } from './hooks/useFeatureRequestStart'
+
+export {
+  addProcessLaunchVariant,
+  isProcessLaunchOneRef,
+  processLaunchDraft,
+  processLaunchInputValues,
+  processLaunchLayout,
+  processLaunchPatchLabel,
+  processLaunchProblem,
+  processLaunchRefToggleLabel,
+  processLaunchRepos,
+  processLaunchShortRef,
+  processLaunchVariantId,
+  processLaunchVariantRows,
+  processLaunchVariants,
+  removeProcessLaunchVariant,
+  setProcessLaunchRef,
+  setProcessLaunchValue,
+  setProcessLaunchVariantField,
+  setProcessLaunchVariantLabel,
+  toggleProcessLaunchOneRef,
+} from './utils/processLaunchForm'
+export { PROCESS_LAUNCH_COPY } from './utils/processLaunchFormConstants'
+export type {
+  ProcessLaunchDraft,
+  ProcessLaunchFieldDraft,
+  ProcessLaunchInputValues,
+  ProcessLaunchLayout,
+  ProcessLaunchProblem,
+  ProcessLaunchRefDraft,
+  ProcessLaunchRepo,
+  ProcessLaunchRepos,
+  ProcessLaunchValueDraft,
+  ProcessLaunchVariantChip,
+  ProcessLaunchVariantDraft,
+  ProcessLaunchVariantRow,
+} from './utils/processLaunchFormTypes'
+export {
+  isProcessReportAccepted,
+  isProcessVariantRun,
+  isProcessVariantStep,
+  processVariantJoinLine,
+  processVariantRunView,
+  processVariantDayOf,
+  processVariantHeading,
+  processVariantLanes,
+  processVariantReport,
+  processVariantSteps,
+} from './utils/processVariantView'
+export { PROCESS_VARIANT_BADGE, PROCESS_VARIANT_COPY } from './utils/processVariantViewConstants'
+export type {
+  ProcessRunEvidenceGroupView,
+  ProcessVariantDayCell,
+  ProcessVariantFact,
+  ProcessVariantFindings,
+  ProcessVariantLane,
+  ProcessVariantLaneStatus,
+  ProcessVariantLanesView,
+  ProcessVariantRecording,
+  ProcessVariantReportView,
+  ProcessVariantReviewLook,
+  ProcessVariantRunView,
+  ProcessVariantSection,
+  ProcessVariantWeek,
+} from './utils/processVariantViewTypes'
+export {
+  isStartProcessRunGrant,
+  processRunAskView,
+  processRunLaunchGrant,
+  processRunStartBody,
+  startProcessRunGrantSummary,
+} from './utils/processRunLaunchGrant'
+export type {
+  ProcessRunGrantSummary,
+  ProcessRunLaunchGrantInput,
+  ProcessRunStartBody,
+} from './utils/processRunLaunchGrantTypes'
+export { processLaunchDrafts } from './hooks/processLaunchDrafts'
+export { useProcessRunLaunch, useProcessRunStart } from './hooks/useProcessRunLaunch'
+export type { UseProcessRunLaunch } from './hooks/useProcessRunLaunch'
+export { START_PROCESS_RUN_TOOL_NAME } from './utils/pendingToolGrantsConstants'
+export {
+  blankProcessInput,
+  blankProcessInputField,
+  isSeededProcess,
+  processExpandChoices,
+  processExpandOf,
+  PROCESS_EDITOR_COPY,
+  PROCESS_INPUT_KIND_LABELS,
+  processDefinitionInputProblems,
+  processInputKindChoices,
+  processStartsFromForm,
+  setProcessInput,
+  withProcessExpand,
+} from './utils/processEditorInputs'

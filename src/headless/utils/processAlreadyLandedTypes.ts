@@ -40,3 +40,15 @@ export interface ProcessAlreadyOnBaseSignOff {
   /** What Approve sends: the first way offered — nothing is merged, so nothing more is asked. */
   decision: ProcessIntegrationDecision
 }
+
+/** A sign-off whose work branch changed nothing. */
+export interface ProcessNothingToMergeSignOff {
+  /** What the decision card says up front. */
+  notice: string
+  /** The answer's name: Accept report. */
+  approveLabel: string
+  /** What accepting does. */
+  approveDoes: string
+  /** What accepting sends: nothing is merged, so nothing more is asked. */
+  decision: ProcessIntegrationDecision
+}

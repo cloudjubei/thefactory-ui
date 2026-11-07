@@ -3,6 +3,7 @@ import {
   TICKET_TRANSITION_LAYOUT_LABELS,
   TICKET_TRANSITION_LAYOUTS,
   TICKET_TRANSITION_STANDING,
+  type TicketStatusList,
   type TicketTransitionLayout,
   type TicketTransitionStanding,
 } from 'thefactory-ui/headless'
@@ -12,23 +13,39 @@ import type { Scene, SceneState } from '../showcase/types'
 const page = (node: ReactNode) => <div className="w-[640px] max-w-full p-4">{node}</div>
 const phone = (node: ReactNode) => <div className="w-[390px] max-w-full p-4">{node}</div>
 
+const JIRA_STATUSES: TicketStatusList = {
+  kind: 'ready',
+  statuses: ['Done', 'In Progress', 'In Review', 'To Do'],
+}
+const GITHUB_STATES: TicketStatusList = { kind: 'ready', statuses: ['open', 'closed'] }
+const NO_SCOPE: TicketStatusList = {
+  kind: 'failed',
+  reason: 'This token cannot read Jira statuses. It needs the read:jira-work scope.',
+}
+
 function Field({
   standing = TICKET_TRANSITION_STANDING.off,
   layout,
-  initial = '31',
+  initial = 'Done',
+  statuses = JIRA_STATUSES,
+  provider,
 }: {
   standing?: TicketTransitionStanding
   layout?: TicketTransitionLayout
   initial?: string
+  statuses?: TicketStatusList
+  provider?: string
 }) {
   const [value, setValue] = useState(initial)
   return (
     <TicketTransitionField
       value={value}
       onChange={setValue}
+      statuses={statuses}
       standing={standing}
       initialOpen
       {...(layout ? { layout } : {})}
+      {...(provider ? { provider } : {})}
     />
   )
 }
@@ -54,7 +71,7 @@ function ChooseLayout() {
 
 const LAYOUT_DESCRIPTIONS: Record<TicketTransitionLayout, string> = {
   inline:
-    'The default that ships. One more field under the Jira limits, with what a sign-off would do right under it: nothing to open, and the off state is always in sight.',
+    'The default that ships. One more list under the Jira limits, with what a sign-off would do right under it: nothing to open, and the off state is always in sight.',
   fold: 'Closed to one row under the picker, the state on the row: the shortest, and the words saying why are a click away.',
   panel: 'A panel of its own, the state at the top: the plainest, and the heaviest for one field.',
 }
@@ -74,11 +91,23 @@ const layoutStates: SceneState[] = TICKET_TRANSITION_LAYOUTS.flatMap((layout) =>
   },
 ])
 
+const listState = (
+  id: string,
+  title: string,
+  description: string,
+  props: { initial?: string; statuses?: TicketStatusList; provider?: string },
+): SceneState => ({
+  id,
+  title,
+  description,
+  render: () => page(<Field standing={TICKET_TRANSITION_STANDING.moves} {...props} />),
+})
+
 const standing = (
   id: string,
   title: string,
   value: TicketTransitionStanding,
-  initial = '31',
+  initial = 'Done',
 ): SceneState => ({
   id,
   title,
@@ -88,11 +117,11 @@ const standing = (
 export const TICKET_TRANSITION_SCENES: Scene[] = [
   {
     id: 'ticket-sign-off-transition',
-    title: 'Sign-off transition on a ticket connection',
+    title: 'Sign-off status on a ticket connection',
     component: 'TicketTransitionField',
     group: 'Settings',
     description:
-      'The Jira transition a sign-off applies, in the Jira section of Settings → Group and → Project on all three apps. Write-back is off for now, so it says plainly that nothing is written until it is on. Three layouts; in line ships.',
+      'The status a sign-off moves a ticket to, in the Tickets section of Settings → Group and → Project on all three apps. It lists what the connection can reach, and each ticket’s own move is found at sign-off, since transition ids differ per workflow. Write-back is off for now, so it says plainly that nothing is written until it is on. Three layouts; in line ships.',
     states: [
       {
         id: 'choose-layout',
@@ -101,6 +130,54 @@ export const TICKET_TRANSITION_SCENES: Scene[] = [
         render: () => page(<ChooseLayout />),
       },
       ...layoutStates,
+      listState(
+        'list-leave',
+        'Leave the ticket where it is',
+        'The first row, and what nothing saved means: sign-off comments and moves nothing.',
+        { initial: '' },
+      ),
+      listState(
+        'list-reading',
+        'Reading the statuses',
+        'The list waits for the connection, keeping what is saved in sight.',
+        { statuses: { kind: 'reading' } },
+      ),
+      listState(
+        'list-saved-off-list',
+        'A saved value not on the list',
+        'Such as a status since renamed. It stays shown, and a ticket with no move to it stays where it is and says so.',
+        { initial: 'Shipped' },
+      ),
+      listState(
+        'list-other-case',
+        'A saved status in another case',
+        'A sign-off matches in any case, so the list finds it rather than adding a row.',
+        { initial: 'done' },
+      ),
+      listState(
+        'list-failed',
+        'The list could not be read',
+        'It falls back to typing a status name, and says why: here a token without the scope.',
+        { statuses: NO_SCOPE },
+      ),
+      listState(
+        'list-failed-empty',
+        'Could not be read, nothing saved',
+        'Blank still means leave the ticket where it is.',
+        { statuses: NO_SCOPE, initial: '' },
+      ),
+      listState(
+        'github-closed',
+        'A GitHub connection',
+        'GitHub has two states and no workflow, so the list is fixed. No read of GitHub, so it cannot fail.',
+        { statuses: GITHUB_STATES, provider: 'github', initial: 'closed' },
+      ),
+      listState(
+        'github-leave',
+        'A GitHub connection, left alone',
+        'Comment only, the same as Jira.',
+        { statuses: GITHUB_STATES, provider: 'github', initial: '' },
+      ),
       standing('write-back-off', 'Write-back off', TICKET_TRANSITION_STANDING.off),
       standing(
         'write-back-off-empty',
@@ -130,11 +207,11 @@ export const TICKET_TRANSITION_SCENES: Scene[] = [
       ),
       standing(
         'comment-only',
-        'On, with no transition',
+        'On, leaving the ticket where it is',
         TICKET_TRANSITION_STANDING.commentOnly,
         '',
       ),
-      standing('moves', 'On, with a transition', TICKET_TRANSITION_STANDING.moves),
+      standing('moves', 'On, with a status', TICKET_TRANSITION_STANDING.moves),
     ],
   },
 ]

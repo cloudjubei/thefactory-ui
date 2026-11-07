@@ -131,6 +131,7 @@ export const RECOGNIZED_TOOL_PREVIEW_NAMES: ReadonlySet<string> = new Set([
   'writeFile',
   'updateStory',
   'startFeatureWork',
+  'startProcessRun',
   'startGroupWork',
   'mobileTestDoctor',
   'mobileTestBuildApp',
@@ -885,6 +886,19 @@ export function renderToolPreviewNative({
         ) : message ? (
           <SecondaryText>{message}</SecondaryText>
         ) : null}
+      </View>
+    )
+  }
+
+  if (name === 'startProcessRun') {
+    const processRunId = tryString(extract(result, ['processRunId']))
+    const errorText = tryString(extract(result, ['error']))
+    return (
+      <View style={{ gap: 8 }}>
+        {errorText ? <SecondaryText>{errorText}</SecondaryText> : null}
+        {hooks?.renderProcessRunLink && processRunId
+          ? hooks.renderProcessRunLink({ processRunId })
+          : null}
       </View>
     )
   }

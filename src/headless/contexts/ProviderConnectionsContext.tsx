@@ -1,14 +1,17 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
-  completeProviderOAuth,
   createProviderConnection,
   deleteProviderConnection,
   importConnectionItem,
   listConnectionAssignedItems,
+  listConnectionStatuses,
   listProviderConnections,
+  readProviderOAuthSetup,
+  readProviderSignIn,
   startProviderOAuth,
   updateProviderConnection,
+  withdrawProviderSignIn,
   type GetProviderConnectionResponse,
   type ImportConnectionItemResponse,
   type ListConnectionAssignedItemsResponse,
@@ -17,7 +20,11 @@ import {
 } from '../api/generated'
 import { useApi } from '../api'
 import { useAuth } from '../api/AuthContext'
-import { PROVIDER_CONNECTIONS_EVENT } from '../utils/credentialStoreEventConstants'
+import { errorStatus } from '../api/errorMessage'
+import {
+  PROVIDER_CONNECTIONS_EVENT,
+  PROVIDER_SIGN_IN_EVENT,
+} from '../utils/credentialStoreEventConstants'
 import { listConnectionNewItems, markConnectionItemsSeen } from '../api/connectorSyncApi'
 import {
   connectorNewItemsById,
@@ -26,7 +33,10 @@ import {
 } from '../utils/connectorNewItems'
 import { CONNECTOR_NEW_ITEMS_EVENT } from '../utils/connectorNewItemsConstants'
 import type { AssignedItemsToShow, ConnectorNewItems } from '../utils/connectorNewItemsTypes'
-import type { ProviderOAuthActions } from '../utils/providerConnectionFormTypes'
+import type {
+  ProviderOAuthActions,
+  ProviderSignInReport,
+} from '../utils/providerConnectionFormTypes'
 
 /** PATCH body for a provider connection (every create field, all optional). */
 export type ProviderConnectionEditInput = UpdateProviderConnectionData['body']
@@ -41,9 +51,11 @@ export type ProviderConnectionsContextValue = {
     patch: ProviderConnectionEditInput,
   ) => Promise<GetProviderConnectionResponse>
   deleteConnection: (id: string) => Promise<void>
-  /** Sign in with a provider: the page to open, then the code it gave back. */
-  oauth: ProviderOAuthActions<GetProviderConnectionResponse>
+  /** Sign in with a provider: which ones can, the page to open, and how it ended. */
+  oauth: ProviderOAuthActions
   refresh: () => Promise<void>
+  /** The statuses a sign-off can move a ticket to through this connection, within these project keys. */
+  listStatuses: (connectionId: string, projectKeys: readonly string[]) => Promise<string[]>
   /** Items currently assigned to the connection's user (a live provider fetch). */
   listAssignedItems: (connectionId: string) => Promise<ListConnectionAssignedItemsResponse>
   /** Each connection's tickets not shown yet, kept current in the background: the Import tickets badge. */
@@ -71,6 +83,7 @@ export function ProviderConnectionsProvider({ children }: { children: ReactNode 
   const [isLoaded, setIsLoaded] = useState(false)
   const [loadError, setLoadError] = useState<Error | null>(null)
   const [newItems, setNewItems] = useState<Record<string, ConnectorNewItems>>({})
+  const [oauthSetup, setOauthSetup] = useState<ProviderOAuthActions['setup']>({})
   const newItemsRef = useRef(newItems)
   newItemsRef.current = newItems
 
@@ -96,11 +109,21 @@ export function ProviderConnectionsProvider({ children }: { children: ReactNode 
     }
   }, [])
 
+  const loadOAuthSetup = useCallback(async () => {
+    try {
+      const { data } = await readProviderOAuthSetup({ throwOnError: true })
+      setOauthSetup(data)
+    } catch {
+      setOauthSetup({})
+    }
+  }, [])
+
   useEffect(() => {
     if (!token) return
     void refresh()
     void loadNewItems()
-  }, [token, refresh, loadNewItems])
+    void loadOAuthSetup()
+  }, [token, refresh, loadNewItems, loadOAuthSetup])
   // Whoever wrote it — another window, an agent's credential form or admin
   // tool — the list refetches, instead of staying the snapshot taken at login.
   // A changed connection may count under a new identity, so its badge does too.
@@ -143,23 +166,30 @@ export function ProviderConnectionsProvider({ children }: { children: ReactNode 
     [refresh],
   )
 
-  const oauth = useMemo<ProviderOAuthActions<GetProviderConnectionResponse>>(
+  const oauth = useMemo<ProviderOAuthActions>(
     () => ({
+      setup: oauthSetup,
       start: async (provider, body) => {
         const { data } = await startProviderOAuth({ path: { provider }, body, throwOnError: true })
-        return data.authorizationUrl
+        return { page: data.authorizationUrl, signInId: data.signInId }
       },
-      finish: async (provider, body) => {
-        const { data } = await completeProviderOAuth({
-          path: { provider },
-          body,
-          throwOnError: true,
-        })
-        await refresh()
-        return data
+      read: async (signInId) => {
+        try {
+          const { data } = await readProviderSignIn({ path: { signInId }, throwOnError: true })
+          if (data.status === 'signed-in') await refresh()
+          return data
+        } catch (err) {
+          if (errorStatus(err) === 404) return undefined
+          throw err
+        }
       },
+      withdraw: async (signInId) => {
+        await withdrawProviderSignIn({ path: { signInId }, throwOnError: true })
+      },
+      onReport: (listener) => ws.on<ProviderSignInReport>(PROVIDER_SIGN_IN_EVENT, listener),
+      onReconnect: (listener) => ws.onReconnect(listener),
     }),
-    [refresh],
+    [oauthSetup, refresh, ws],
   )
 
   const deleteConnection = useCallback(
@@ -169,6 +199,15 @@ export function ProviderConnectionsProvider({ children }: { children: ReactNode 
     },
     [refresh],
   )
+
+  const listStatuses = useCallback(async (connectionId: string, projectKeys: readonly string[]) => {
+    const { data } = await listConnectionStatuses({
+      path: { id: connectionId },
+      query: projectKeys.length ? { projectKeys: projectKeys.join(',') } : {},
+      throwOnError: true,
+    })
+    return data.statuses
+  }, [])
 
   const listAssignedItems = useCallback(async (connectionId: string) => {
     const { data } = await listConnectionAssignedItems({
@@ -224,6 +263,7 @@ export function ProviderConnectionsProvider({ children }: { children: ReactNode 
       deleteConnection,
       oauth,
       refresh,
+      listStatuses,
       listAssignedItems,
       newItems,
       listItemsToShow,
@@ -236,7 +276,9 @@ export function ProviderConnectionsProvider({ children }: { children: ReactNode 
       createConnection,
       updateConnection,
       deleteConnection,
+      oauth,
       refresh,
+      listStatuses,
       listAssignedItems,
       newItems,
       listItemsToShow,

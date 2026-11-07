@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Linking, Text, View } from 'react-native'
 import type {
   GetProviderConnectionResponse,
@@ -15,6 +15,7 @@ import {
   jiraCloudIdHint,
   jiraCloudIdProblem,
   jiraCloudIdSiteOf,
+  offersProviderOAuth,
   providerBaseUrlProblem,
   providerConnectionDraftOf,
   providerConnectionDraftProblem,
@@ -23,6 +24,7 @@ import {
   providerConnectionLabel,
   providerConnectionSpec,
   providerOAuthDraftProblem,
+  providerOAuthReconnectBody,
   providerOAuthStartBody,
   providerTokenFieldCopy,
   useJiraCloudIdLookup,
@@ -89,7 +91,9 @@ export default function ProviderConnectionsForm({
   const isCreate = mode.kind === 'create'
   const signedIn = initial !== undefined && isOAuthConnection(initial)
   const spec = providerConnectionSpec(draft.provider)
-  const offersSignIn = isCreate && oauth !== undefined && spec.oauth !== undefined
+  const hasSignIn = offersProviderOAuth(draft.provider, oauth)
+  const offersSignIn = isCreate && hasSignIn
+  const offersReconnect = signedIn && hasSignIn
   const method = offersSignIn ? chosenMethod : 'token'
   const urlProblem = providerBaseUrlProblem(draft)
   const set = (patch: Partial<ProviderConnectionDraft>) => setDraft({ ...draft, ...patch })
@@ -112,9 +116,16 @@ export default function ProviderConnectionsForm({
     if (page) await Linking.openURL(page)
   }
 
-  const finish = async (address: string) => {
-    if (await signIn.finish(address)) onCancel()
+  const reconnect = async () => {
+    if (!initial) return
+    const page = await signIn.start(draft.provider, providerOAuthReconnectBody(initial))
+    if (page) await Linking.openURL(page)
   }
+
+  useEffect(() => {
+    if (signIn.step === 'done') onCancel()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signIn.step])
 
   const submit = async () => {
     if (!canSubmit || submitting) return
@@ -132,17 +143,13 @@ export default function ProviderConnectionsForm({
     }
   }
 
-  if (signIn.step === 'waiting' || signIn.step === 'finishing') {
-    const page = signIn.step === 'waiting' ? signIn.page : undefined
+  if (signIn.step === 'waiting') {
+    const { page } = signIn
     return (
       <ProviderOAuthWaiting
         error={signIn.error}
-        finishing={signIn.step === 'finishing'}
-        onOpenAgain={() => {
-          if (page) void Linking.openURL(page)
-        }}
-        onFinish={(address) => void finish(address)}
-        onStartOver={signIn.reset}
+        onOpenAgain={() => void Linking.openURL(page)}
+        onBackOut={signIn.reset}
       />
     )
   }
@@ -161,9 +168,25 @@ export default function ProviderConnectionsForm({
       </Field>
 
       {signedIn ? (
-        <Text style={{ fontSize: 13, color: theme.text.secondary }}>
-          {PROVIDER_OAUTH_COPY.connected(providerConnectionLabel(draft.provider))}
-        </Text>
+        <View className="gap-2">
+          <Text style={{ fontSize: 13, color: theme.text.secondary }}>
+            {PROVIDER_OAUTH_COPY.connected(providerConnectionLabel(draft.provider))}
+          </Text>
+          {offersReconnect ? (
+            <View className="items-start gap-1">
+              <Button
+                variant="secondary"
+                loading={signIn.step === 'opening'}
+                onPress={() => void reconnect()}
+              >
+                {PROVIDER_OAUTH_COPY.reconnect}
+              </Button>
+              <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+                {PROVIDER_OAUTH_COPY.reconnectHint}
+              </Text>
+            </View>
+          ) : null}
+        </View>
       ) : (
         <Field label="Provider">
           <Select value={draft.provider} onValueChange={(provider) => set({ provider })}>

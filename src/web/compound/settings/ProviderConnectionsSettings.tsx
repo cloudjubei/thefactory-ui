@@ -132,6 +132,7 @@ export default function ProviderConnectionsSettings() {
               connection: modal.connection,
               onSubmit: (patch) => updateConnection(modal.connection.id, patch),
             }}
+            oauth={oauth}
             onCancel={() => setModal(null)}
           />
         </Modal>

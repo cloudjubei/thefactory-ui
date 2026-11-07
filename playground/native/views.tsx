@@ -11,6 +11,8 @@ import {
   type GroupConstellationLayout,
   type GroupHomeLayout,
   type GroupTicketsLayout,
+  type ProviderOAuthActions,
+  type TicketStatusList,
   type TicketTransitionStanding,
 } from 'thefactory-ui/headless'
 import GroupHomeConnected from '../../src/native/compound/GroupHomeConnected'
@@ -33,6 +35,7 @@ import { FAKE_GROUP_ID, MEMBERS } from '../../src/fakeBackend/fixtures/projects'
 import { FAKE_GROUP_STATUS_AT } from '../../src/fakeBackend/fixtures/projectsGroups'
 import { ticketsState } from '../scenes/groupTicketsFixtures'
 import { OnFixtures } from '../scenes/onFixtures'
+import { VARIANT_VIEWS } from './variantViews'
 
 const noop = () => {}
 const AT = Date.parse(FAKE_GROUP_STATUS_AT)
@@ -151,11 +154,33 @@ function SignOffOutputs() {
   )
 }
 
-function TicketTransition({ standing }: { standing: TicketTransitionStanding }) {
-  const [value, setValue] = useState('31')
+const TICKET_STATUSES: Record<string, TicketStatusList> = {
+  ready: { kind: 'ready', statuses: ['Done', 'In Progress', 'In Review', 'To Do'] },
+  reading: { kind: 'reading' },
+  failed: {
+    kind: 'failed',
+    reason: 'This token cannot read Jira statuses. It needs the read:jira-work scope.',
+  },
+  github: { kind: 'ready', statuses: ['open', 'closed'] },
+}
+
+function TicketTransition({
+  standing,
+  list,
+}: {
+  standing: TicketTransitionStanding
+  list: string | null
+}) {
+  const [value, setValue] = useState(list === 'github' ? 'closed' : 'Done')
   return (
     <View style={{ padding: 16 }}>
-      <TicketTransitionField value={value} onChange={setValue} standing={standing} />
+      <TicketTransitionField
+        value={value}
+        onChange={setValue}
+        statuses={TICKET_STATUSES[list ?? 'ready'] ?? TICKET_STATUSES.ready!}
+        standing={standing}
+        {...(list === 'github' ? { provider: 'github' } : {})}
+      />
     </View>
   )
 }
@@ -163,7 +188,7 @@ function TicketTransition({ standing }: { standing: TicketTransitionStanding }) 
 const POST_VIEW = ticketPostView({
   tickets: [{ provider: 'jira', externalId: 'ENG-214', posts: true }],
   comment: 'Signed off: Renewal date on the plan page.\n\n- Show it on the plan page',
-  transition: '31',
+  transition: 'Done',
 })
 const HELD_VIEW = ticketPostView({
   tickets: [
@@ -215,16 +240,52 @@ function SwitchTokenForm() {
   )
 }
 
+const OAUTH: ProviderOAuthActions = {
+  setup: { github: true, jira: true },
+  start: async () => ({
+    page: 'https://auth.atlassian.com/authorize?state=s1',
+    signInId: 'sign-in-1',
+  }),
+  read: async () => ({ signInId: 'sign-in-1', status: 'waiting' }),
+  withdraw: async () => undefined,
+  onReport: () => noop,
+  onReconnect: () => noop,
+}
+
 function ConnectionForm() {
   return (
     <View style={{ padding: 16 }}>
       <ProviderConnectionsForm
         mode={{ kind: 'create', onSubmit: async () => undefined }}
         onCancel={noop}
-        oauth={{
-          start: async () => 'https://auth.atlassian.com/authorize?state=s1',
-          finish: async () => undefined,
+        oauth={OAUTH}
+      />
+    </View>
+  )
+}
+
+function SignedInForm() {
+  return (
+    <View style={{ padding: 16 }}>
+      <ProviderConnectionsForm
+        mode={{
+          kind: 'edit',
+          onSubmit: async () => undefined,
+          connection: {
+            id: 'c1',
+            name: 'Acme Jira',
+            provider: 'jira',
+            tokenSource: 'oauth',
+            baseUrl: 'https://acme.atlassian.net',
+            hasToken: true,
+            hasRefreshToken: true,
+            createdAt: '2026-11-01T00:00:00.000Z',
+            updatedAt: '2026-11-01T00:00:00.000Z',
+          },
         }}
+        onCancel={noop}
+        oauth={OAUTH}
+        fixedCloudIdStatus="idle"
       />
     </View>
   )
@@ -328,10 +389,16 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
     render: () => <SwitchTokenForm />,
   },
   {
+    id: 'signed-in-connection',
+    title: 'A signed-in connection, with Reconnect',
+    render: () => <SignedInForm />,
+  },
+  {
     id: 'ticket-transition',
-    title: 'Sign-off transition',
+    title: 'Sign-off status',
     render: (address) => (
       <TicketTransition
+        list={address.get('list')}
         standing={
           address.get('standing') === 'moves'
             ? TICKET_TRANSITION_STANDING.moves
@@ -365,4 +432,5 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
     title: 'Ticket connection form',
     render: () => <ConnectionForm />,
   },
+  ...VARIANT_VIEWS,
 ]

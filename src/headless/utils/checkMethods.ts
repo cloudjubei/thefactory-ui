@@ -8,6 +8,7 @@ import {
   evidenceShowsNoChange,
   identicalPairExplanation,
   projectCheckRanInOf,
+  isWalkthroughProof,
 } from 'thefactory-tools/utils'
 import type {
   ProjectCheckRunMemory,
@@ -479,6 +480,7 @@ export function checkMethodRows(input: {
   for (const ref of evidence) {
     const id = evidenceMethodFor(ref)
     if (!id || evidenceShowsNoChange(ref)) continue
+    if (id === 'walkthrough' && !isWalkthroughProof(ref)) continue
     evidenceCounts.set(id, (evidenceCounts.get(id) ?? 0) + 1)
   }
   const driven = (evidenceCounts.get('screens') ?? 0) + (evidenceCounts.get('walkthrough') ?? 0)

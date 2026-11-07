@@ -1,6 +1,9 @@
 /** WS topic announcing that a ticket connection was created, updated or deleted — by anyone, an agent's form included. */
 export const PROVIDER_CONNECTIONS_EVENT = 'providerConnections:updated'
 
+/** WS topic saying how a provider sign-in ended in the browser, a failure included. */
+export const PROVIDER_SIGN_IN_EVENT = 'providerConnections:signIn'
+
 /** WS topic announcing that an LLM config was created, updated or deleted. */
 export const LLM_CONFIGS_EVENT = 'llmConfigs:updated'
 

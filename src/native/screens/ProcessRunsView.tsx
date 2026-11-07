@@ -18,6 +18,9 @@ import {
   useProcessRunChatNews,
   useProcessRuns,
   useProcessStopClock,
+  PROCESS_LAUNCH_COPY,
+  processStartsFromForm,
+  useProcesses,
   type BadgeColor,
   type ChatsSeenMap,
   type ProcessNodeRunRef,
@@ -32,7 +35,7 @@ import Spinner from '../primitives/Spinner'
 import { DurCostChips } from '../compound/chat/signoff'
 import CostChip from '../compound/chips/CostChip'
 import NotificationBadge from '../compound/NotificationBadge'
-import { IconSettings } from '../icons'
+import { IconPlay, IconSettings } from '../icons'
 import { useNativeTheme } from '../hooks/useNativeTheme'
 import type { ChatContext } from '../../headless/api'
 
@@ -53,6 +56,8 @@ export type ProcessRunsViewProps = {
   onOpenChat?: (context: ChatContext) => void
   /** Accepted for parity; mobile is always single-pane (push-nav). */
   narrow?: boolean
+  /** Push a process's launch screen; without it no Start a run is offered. */
+  onStartRun?: (processId: string) => void
   /** The chats the person has read, by chat key — what a run's own chat holds for them is read against it. */
   chatsSeen?: ChatsSeenMap
 }
@@ -73,6 +78,7 @@ export default function ProcessRunsView({
   selectedRunId,
   onSelectRun,
   onOpenSettings,
+  onStartRun,
   chatsSeen,
 }: ProcessRunsViewProps) {
   const { theme } = useNativeTheme()
@@ -96,6 +102,8 @@ export default function ProcessRunsView({
     if (selectedIsHistory) setMode('history')
   }, [selectedIsHistory])
   const rows = mode === 'current' ? current : history
+  const { processes } = useProcesses(onStartRun ? projectId : undefined)
+  const launchable = useMemo(() => processes.filter(processStartsFromForm), [processes])
   // One clock for the list — ticks while any run has a step working, so its
   // row's time advances; every other row is fixed at its ledger total.
   const now = useDurationTimer(current.some((r) => r.totals?.ticking === true))
@@ -158,6 +166,34 @@ export default function ProcessRunsView({
           <IconSettings size={16} color={theme.text.secondary} />
         </Pressable>
       </View>
+
+      {onStartRun
+        ? launchable.map((definition) => (
+            <Pressable
+              key={definition.id}
+              accessibilityRole="button"
+              accessibilityLabel={`${PROCESS_LAUNCH_COPY.ask}: ${definition.name}`}
+              onPress={() => onStartRun(definition.id)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: nativeSpace[2],
+                paddingHorizontal: nativeSpace[3],
+                paddingVertical: nativeSpace[2],
+                borderBottomWidth: 1,
+                borderBottomColor: theme.border.subtle,
+              }}
+            >
+              <IconPlay size={14} color={theme.accent.primary} />
+              <Text style={{ flex: 1, fontSize: 13, color: theme.text.primary }}>
+                {definition.name}
+              </Text>
+              <Text style={{ fontSize: 12, color: theme.accent.primary }}>
+                {PROCESS_LAUNCH_COPY.ask}
+              </Text>
+            </Pressable>
+          ))
+        : null}
 
       {!isLoaded ? (
         <Text style={{ padding: nativeSpace[3], fontSize: 12, color: theme.text.muted }}>
