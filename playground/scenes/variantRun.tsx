@@ -339,13 +339,13 @@ export const VARIANT_RUN_SCENES: Scene[] = [
     component: 'ProcessInputsEditor, ProcessesView',
     group: 'Process',
     description:
-      'The inputs a launch fills, and what a variant holds. A process that ships with Overseer offers Copy, never Edit or Delete.',
+      'The inputs a launch fills, and what a variant holds. A process that ships with Overseer can be edited or copied, never removed.',
     states: [
       { id: 'inputs', title: 'Inputs', render: () => <InputsEditor /> },
       {
         id: 'seeded-detail',
         title: 'A seeded process',
-        description: 'No Edit, no Remove: it can be copied.',
+        description: 'Edit and Copy, no Remove: a save makes it the project’s own.',
         render: () => <Library />,
       },
     ],

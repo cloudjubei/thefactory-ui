@@ -11012,6 +11012,17 @@
           "thefactory-tools/utils"
         ]
       },
+      "ChatListChat": {
+        "path": "src/headless/utils/chatListTypes.ts",
+        "description": "What the list reads of a chat — a summary or a loaded chat.",
+        "dependencies": [
+          "thefactory-tools/types/ChatContext",
+          "ChatNewsShape",
+          "ChatTimesShape",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types"
+        ]
+      },
       "ChatListEntry": {
         "path": "src/headless/utils/chatListEntry.ts",
         "description": "A chat in the chats list: a summary — every field but the messages, with",
@@ -11022,6 +11033,15 @@
           "thefactory-tools/utils/chatNeedsYouTimes",
           "thefactory-tools/utils/chatNewsTimes",
           "thefactory-tools/utils"
+        ]
+      },
+      "ChatListFilter": {
+        "path": "src/headless/utils/chatListTypes.ts",
+        "description": "The chips over the chat list.",
+        "dependencies": [
+          "thefactory-tools/types/ChatContext",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types"
         ]
       },
       "chatListFilterCounts": {
@@ -11056,6 +11076,24 @@
           "thefactory-tools/utils/isChatHiddenFromList",
           "thefactory-tools/utils/processStepStates",
           "thefactory-tools/utils"
+        ]
+      },
+      "ChatListNotice": {
+        "path": "src/headless/utils/chatListTypes.ts",
+        "description": "The line the list shows after a chat leaves or comes back to it, with what Undo puts back.",
+        "dependencies": [
+          "thefactory-tools/types/ChatContext",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types"
+        ]
+      },
+      "ChatListPlacement": {
+        "path": "src/headless/utils/chatListTypes.ts",
+        "description": "Where a chat stands with the person's list: hidden, closed, put back.",
+        "dependencies": [
+          "thefactory-tools/types/ChatContext",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types"
         ]
       },
       "chatListPool": {
@@ -11108,6 +11146,49 @@
           "thefactory-tools/utils"
         ]
       },
+      "ChatListRow": {
+        "path": "src/headless/utils/chatListTypes.ts",
+        "description": "One chat as a row of the list.",
+        "dependencies": [
+          "ProcessStatusTone",
+          "ChatKind",
+          "thefactory-tools/types/ChatContext",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types"
+        ]
+      },
+      "ChatListRowInput": {
+        "path": "src/headless/utils/chatListTypes.ts",
+        "description": "Everything the list knows about one chat.",
+        "dependencies": [
+          "ChatListWork",
+          "thefactory-tools/types/ProcessRun",
+          "ChatRowStatus",
+          "Pick",
+          "ChatListChat",
+          "thefactory-tools/types/ChatContext",
+          "thefactory-tools/types"
+        ]
+      },
+      "ChatListScope": {
+        "path": "src/headless/utils/chatListTypes.ts",
+        "description": "Whose chats the list shows: one project's, or a group's own with what needs the person in its projects.",
+        "dependencies": [
+          "thefactory-tools/types/ChatContext",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types"
+        ]
+      },
+      "ChatListSection": {
+        "path": "src/headless/utils/chatListTypes.ts",
+        "description": "A run of rows under one heading; `label` absent for the list's single section.",
+        "dependencies": [
+          "ChatListRow",
+          "thefactory-tools/types/ChatContext",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types"
+        ]
+      },
       "chatListSections": {
         "path": "src/headless/utils/chatList.ts",
         "description": "The list as drawn: one project's chats in one section; a group's own chats,",
@@ -11148,6 +11229,15 @@
         "path": "src/headless/utils/chatListConstants.ts",
         "description": "A chat shown in the list again, as the list says it — by name when it has one.",
         "dependencies": []
+      },
+      "ChatListWork": {
+        "path": "src/headless/utils/chatListTypes.ts",
+        "description": "The story or feature a chat is about, as the list names it.",
+        "dependencies": [
+          "thefactory-tools/types/ChatContext",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types"
+        ]
       },
       "ChatLiveState": {
         "path": "src/headless/contexts/createChatsContext.tsx",
@@ -17993,6 +18083,43 @@
         "dependencies": [
           "ChatContextFillLevel",
           "Record"
+        ]
+      },
+      "CONTEXT_FILL_SCENES": {
+        "path": "playground/scenes/contextFill.tsx",
+        "dependencies": [
+          "ContextFillChipAppearance",
+          "Scene",
+          "react/useState",
+          "thefactory-ui/web/ChatContextSettings",
+          "thefactory-ui/web/ChatDebugModal",
+          "thefactory-ui/web/ChatHeader",
+          "thefactory-ui/web/ChatKindTile",
+          "thefactory-ui/web/ContextFillChip",
+          "thefactory-ui/web/ContextFillPanel",
+          "thefactory-ui/web/CostChip",
+          "thefactory-ui/web/HeaderBar",
+          "thefactory-ui/web/MessageList",
+          "thefactory-ui/web/SegmentedControl",
+          "thefactory-ui/web/ToneBadge",
+          "thefactory-ui/web/type ChatMessageLike",
+          "thefactory-ui/web/type ContextFillChipAppearance",
+          "thefactory-ui/web",
+          "thefactory-ui/headless/AppSettingsProvider",
+          "thefactory-ui/headless/ChatActionsProvider",
+          "thefactory-ui/headless/chatCompactLine",
+          "thefactory-ui/headless/chatContextFillChip",
+          "thefactory-ui/headless/useChatHeaderView",
+          "thefactory-ui/headless/type ChatActions",
+          "thefactory-ui/headless/type ChatCompactLineView",
+          "thefactory-ui/headless/type ChatContextFillView",
+          "thefactory-ui/headless/type ChatHeaderView",
+          "thefactory-ui/headless/type SyncKVStorage",
+          "thefactory-ui/headless",
+          "thefactory-tools/types/ChatContext",
+          "thefactory-tools/types",
+          "thefactory-tools/utils/getChatContextKey",
+          "thefactory-tools/utils"
         ]
       },
       "contextBoundaryIndex": {
@@ -25130,6 +25257,20 @@
           "DocumentNonIndexableReason"
         ]
       },
+      "DOCUMENT_REPORT_SCENES": {
+        "path": "playground/scenes/documentReport.tsx",
+        "dependencies": [
+          "Scene",
+          "thefactory-ui/web/SignoffReportPanel",
+          "thefactory-ui/web",
+          "thefactory-ui/headless/reportBodyView",
+          "thefactory-ui/headless",
+          "thefactory-tools/constants/DOCUMENT_REPORT_APPROACH",
+          "thefactory-tools/constants",
+          "thefactory-tools/utils/processDocumentReportMarkdown",
+          "thefactory-tools/utils"
+        ]
+      },
       "DocumentChunk": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
@@ -27494,6 +27635,18 @@
         "path": "src/headless/utils/featureLinkConstants.ts",
         "description": "The story-page query parameter a feature link opens its feature with: `?feature=<featureId>`.",
         "dependencies": []
+      },
+      "FEATURE_POOL_SCENES": {
+        "path": "playground/scenes/featurePool.tsx",
+        "dependencies": [
+          "Scene",
+          "react/ReactNode",
+          "thefactory-ui/headless/featureWorkAskView",
+          "thefactory-ui/headless/featureWorkLaunchCheck",
+          "thefactory-ui/headless/launchFeaturePickRows",
+          "thefactory-ui/headless/type LaunchFeatureRow",
+          "thefactory-ui/headless"
+        ]
       },
       "FEATURE_PROCESS_COPY": {
         "path": "src/headless/utils/processFeatureProcessConstants.ts",
@@ -42351,7 +42504,7 @@
       },
       "isSeededProcess": {
         "path": "src/headless/utils/processEditorInputs.ts",
-        "description": "Whether a process ships with Overseer as it is: it can be copied, not edited or deleted. Pure.",
+        "description": "Whether a process ships with Overseer as it is, unedited: a save makes it the person's own. Pure.",
         "dependencies": [
           "thefactory-tools/types/ProcessDefinition",
           "Pick",
@@ -44761,7 +44914,7 @@
         ]
       },
       "listConnectionNewItems": {
-        "path": "src/headless/api/generated/sdk.gen.ts",
+        "path": "src/headless/api/connectorSyncApi.ts",
         "dependencies": [
           "ThrowOnError",
           "ListConnectionNewItemsResponses",
@@ -48376,7 +48529,7 @@
         ]
       },
       "markConnectionItemsSeen": {
-        "path": "src/headless/api/generated/sdk.gen.ts",
+        "path": "src/headless/api/connectorSyncApi.ts",
         "dependencies": [
           "ThrowOnError",
           "MarkConnectionItemsSeenErrors",
@@ -82657,6 +82810,34 @@
           "thefactory-tools/types"
         ]
       },
+      "STORY_WORK_SCENES": {
+        "path": "playground/scenes/storyWork.tsx",
+        "dependencies": [
+          "Scene",
+          "react/ReactNode",
+          "react-router-dom/MemoryRouter",
+          "thefactory-tools/constants/processWaitingOnBlockersMessage",
+          "thefactory-tools/constants",
+          "thefactory-tools/types/Feature",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types/ReferenceTarget",
+          "thefactory-tools/types",
+          "thefactory-ui/headless/FEATURE_KIND_HINTS",
+          "thefactory-ui/headless/FEATURE_KIND_OPTIONS",
+          "thefactory-ui/headless/featureWorkAskView",
+          "thefactory-ui/headless/ReferenceRenderingContext",
+          "thefactory-ui/headless/type ReferenceRendering",
+          "thefactory-ui/headless/type FeatureKind",
+          "thefactory-ui/headless/type PendingToolGrant",
+          "thefactory-ui/headless",
+          "thefactory-ui/web/DependencyBulletBase",
+          "thefactory-ui/web/FeatureCard",
+          "thefactory-ui/web/FeatureKindChip",
+          "thefactory-ui/web/SegmentedControl",
+          "thefactory-ui/web/type StoryStatus",
+          "thefactory-ui/web"
+        ]
+      },
       "storyAfterPatch": {
         "path": "src/headless/utils/toolPreview.ts",
         "description": "The story an `updateStory` call leaves behind: the one the call returned or",
@@ -91818,6 +91999,32 @@
         "description": "While `active`, read ahead the stories of the first few of `projectIds` — the",
         "dependencies": [
           "react/useEffect"
+        ]
+      },
+      "useProcessCleanup": {
+        "path": "src/headless/hooks/useProcessCleanup.ts",
+        "description": "A process run's cleanup list — what its cleanup step removes once its",
+        "dependencies": [
+          "thefactory-tools/types/ProcessCleanupList",
+          "Promise",
+          "thefactory-tools/types/ProcessRun",
+          "UseProcessCleanup",
+          "react/useCallback",
+          "react/useEffect",
+          "react/useState",
+          "thefactory-tools/types"
+        ]
+      },
+      "UseProcessCleanup": {
+        "path": "src/headless/hooks/useProcessCleanup.ts",
+        "dependencies": [
+          "Promise",
+          "thefactory-tools/types/ProcessCleanupList",
+          "react/useCallback",
+          "react/useEffect",
+          "react/useState",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types"
         ]
       },
       "useProcesses": {
@@ -153747,7 +153954,7 @@
       },
       "isSeededProcess": {
         "path": "headless/utils/processEditorInputs.ts",
-        "description": "Whether a process ships with Overseer as it is: it can be copied, not edited or deleted. Pure.",
+        "description": "Whether a process ships with Overseer as it is, unedited: a save makes it the person's own. Pure.",
         "dependencies": [
           "thefactory-tools/types/ProcessDefinition",
           "Pick",
@@ -158783,6 +158990,16 @@
         "dependencies": [
           "ChangesAreaKey",
           "ChangesArea"
+        ]
+      },
+      "LocalChangesPrimary": {
+        "path": "headless/hooks/useLocalChangesSelection.ts",
+        "dependencies": [
+          "ChangesArea",
+          "react/useEffect",
+          "react/useMemo",
+          "react/useRef",
+          "react/useState"
         ]
       },
       "localChangesRangeKeys": {
@@ -201699,6 +201916,32 @@
           "react/ReactNode"
         ]
       },
+      "useLocalChangesSelection": {
+        "path": "headless/hooks/useLocalChangesSelection.ts",
+        "description": "Selection model for the working-tree \"Local Changes\" pane, shared by the web",
+        "dependencies": [
+          "ChangesArea",
+          "LocalChangesPrimary",
+          "ChangesAreaKey",
+          "Set",
+          "UseLocalChangesSelection",
+          "react/useEffect",
+          "react/useMemo",
+          "react/useRef",
+          "react/useState"
+        ]
+      },
+      "UseLocalChangesSelection": {
+        "path": "headless/hooks/useLocalChangesSelection.ts",
+        "dependencies": [
+          "ChangesArea",
+          "LocalChangesPrimary",
+          "react/useEffect",
+          "react/useMemo",
+          "react/useRef",
+          "react/useState"
+        ]
+      },
       "useLocalStorageBool": {
         "path": "web/hooks/useLocalStorage.ts",
         "description": "Boolean value persisted to `window.localStorage` under `key` as `'1'` /",
@@ -208651,7 +208894,7 @@
       },
       "AgentTypeScope": {
         "path": "dist/agentType/agentTypeTypes.d.ts",
-        "description": "Where an agent type comes from, nearest last: code, the project's main group, the project.",
+        "description": "Where an agent type comes from, nearest last: code, what code seeds, the project's main group, the project.",
         "dependencies": []
       },
       "AgentTypeScopeDeps": {
@@ -210020,6 +210263,11 @@
       },
       "AZURE_DEVOPS_API_VERSION": {
         "path": "dist/git/azureDevOps/azureDevOpsConstants.js",
+        "dependencies": []
+      },
+      "AZURE_DEVOPS_NO_STATUSES": {
+        "path": "dist/connectors/items/connectorConstants.js",
+        "description": "Why Azure DevOps offers no statuses: bindings cannot use it, see `CONNECTOR_WRITE_POLICY_MESSAGES`.",
         "dependencies": []
       },
       "AZURE_DEVOPS_PR_DESCRIPTION_MAX": {
@@ -216791,6 +217039,16 @@
           "CompletionMessage"
         ]
       },
+      "COMPARE_VARIANT_PROCESS_ID": {
+        "path": "dist/workflow/workflowConstants.js",
+        "description": "The id of the process {@link COMPARE_VARIANTS_PROCESS_ID} runs once per variant.",
+        "dependencies": []
+      },
+      "COMPARE_VARIANTS_PROCESS_ID": {
+        "path": "dist/workflow/workflowConstants.js",
+        "description": "The id of the storyless process that lives a product at several versions and compares them.",
+        "dependencies": []
+      },
       "compareCheckWithBase": {
         "path": "dist/projectChecks/projectCheckBaselineUtils.js",
         "description": "How one failed check compares with the same check at the base, run in the",
@@ -217053,7 +217311,7 @@
       },
       "completionHistoryChars": {
         "path": "dist/completion/completionHistoryCeiling.js",
-        "description": "How many characters a message contributes to the history ceiling. Pure.",
+        "description": "How many characters a message contributes to the history ceiling: what it",
         "dependencies": []
       },
       "CompletionHistorySummarization": {
@@ -217624,6 +217882,27 @@
         "description": "Durable, JSON-serializable seen-items record owned by one connection and host-defined identity epoch.",
         "dependencies": [
           "ConnectorSeenItem"
+        ]
+      },
+      "ConnectorSignOffOwed": {
+        "path": "dist/connectors/items/connectorWriteTypes.d.ts",
+        "description": "A person approved a sign-off, so its post is owed. Marked before the run ends,",
+        "dependencies": [
+          "ConnectorSignOffOwedKind"
+        ]
+      },
+      "ConnectorSignOffOwedKind": {
+        "path": "dist/connectors/items/connectorWriteTypes.d.ts",
+        "description": "What a sign-off is owed for: a story run, or a group run posting to its group story.",
+        "dependencies": []
+      },
+      "ConnectorSignOffOwedStore": {
+        "path": "dist/connectors/items/connectorWriteTypes.d.ts",
+        "description": "The durable list of sign-offs owed, beside the writes they lead to.",
+        "dependencies": [
+          "Promise",
+          "ConnectorSignOffOwed",
+          "Omit"
         ]
       },
       "connectorSourceTenant": {
@@ -218769,7 +219048,7 @@
       },
       "createReviewEvidenceTools": {
         "path": "dist/reviewEvidence/ReviewEvidenceTools.js",
-        "description": "Store and recall the proof that a change was checked, on disk under the",
+        "description": "Store and recall the proof that a change was checked.",
         "dependencies": []
       },
       "createSandboxTools": {
@@ -222600,6 +222879,21 @@
           "node:fs/promises"
         ]
       },
+      "ensureEvidenceRoot": {
+        "path": "dist/reviewEvidence/reviewEvidenceHelpers.js",
+        "dependencies": [
+          "node:crypto/randomUUID",
+          "node:fs/promises/readFile",
+          "node:fs/promises/readdir",
+          "node:fs/promises/rm",
+          "node:fs/promises/stat",
+          "node:fs/promises/writeFile",
+          "node:fs/promises",
+          "node:os/tmpdir",
+          "node:path/isAbsolute",
+          "node:path/join"
+        ]
+      },
       "ensureMobileTestSessionDir": {
         "path": "dist/mobileTest/mobileTestHelpers.js",
         "dependencies": [
@@ -222929,6 +223223,11 @@
           "ResearchSource"
         ]
       },
+      "evidenceRecordProblem": {
+        "path": "dist/reviewEvidence/reviewEvidenceMoveUtils.js",
+        "description": "Why a record could not stand in the new store: it does not read, names a file",
+        "dependencies": []
+      },
       "EvidenceRecordReading": {
         "path": "dist/reviewEvidence/captureSealTypes.d.ts",
         "description": "A filed item's record as read back: `vouched` only when this process sealed",
@@ -222939,7 +223238,7 @@
       },
       "evidenceRunDir": {
         "path": "dist/reviewEvidence/reviewEvidenceUtils.js",
-        "description": "A run's evidence directory, relative to the project root.",
+        "description": "A run's evidence directory, relative to the store's home.",
         "dependencies": []
       },
       "evidenceShowsNoChange": {
@@ -224267,6 +224566,24 @@
           "FilesEmittedFilePreview"
         ]
       },
+      "fileServedLogs": {
+        "path": "dist/reviewEvidence/servedLogEvidenceHelpers.js",
+        "dependencies": [
+          "SERVED_LOG_APPROACH",
+          "SERVED_LOG_LABEL",
+          "node:crypto/randomUUID",
+          "node:fs/promises/readdir",
+          "node:fs/promises/rm",
+          "node:fs/promises/stat",
+          "node:fs/promises",
+          "node:path/join"
+        ]
+      },
+      "FileServedLogsOptions": {
+        "path": "dist/reviewEvidence/servedLogMaskTypes.d.ts",
+        "description": "How a run's served logs are filed.",
+        "dependencies": []
+      },
       "FilesResult": {
         "path": "dist/file/fileTypes.d.ts",
         "dependencies": [
@@ -224441,6 +224758,11 @@
       "FINAL_REPORT_APPROACH": {
         "path": "dist/reviewEvidence/reviewEvidenceConstants.js",
         "description": "The `approach` a run's closing write-up is filed under: the report of the whole run.",
+        "dependencies": []
+      },
+      "FINAL_REVIEWER_AGENT_TYPE_ID": {
+        "path": "dist/agentType/agentTypeConstants.js",
+        "description": "The id of the seeded type that compares every variant.",
         "dependencies": []
       },
       "finalizeIsolatedChatTurn": {
@@ -226253,6 +226575,11 @@
         "description": "Moving or removing a branch: done, or why not — with the worktree that has it checked out when that is why.",
         "dependencies": []
       },
+      "GITHUB_ISSUE_STATES": {
+        "path": "dist/connectors/items/connectorConstants.js",
+        "description": "The states a GitHub issue can be set to, which are all the moves it has.",
+        "dependencies": []
+      },
       "GithubConnector": {
         "path": "dist/connectors/items/GithubConnector.js",
         "description": "Reads GitHub issues for the connection's authenticated user. Talks REST through",
@@ -227187,6 +227514,7 @@
           "GroupStory",
           "GroupStoryUpdateInput",
           "GroupStoryCreateInput",
+          "StoredRecordPresence",
           "IFactoryTools"
         ]
       },
@@ -227424,6 +227752,11 @@
         "description": "A note as an agent is handed it: whole when it fits in `max` characters,",
         "dependencies": []
       },
+      "headTailOfEvidenceParts": {
+        "path": "dist/reviewEvidence/reviewEvidenceUtils.js",
+        "description": "{@link headTailEvidenceText} for a note too long to hold: `head` is as much of",
+        "dependencies": []
+      },
       "heapRatio": {
         "path": "dist/memoryGovernor/memoryGovernorUtils.js",
         "description": "Live-heap fraction of the ceiling in `[0, 1]`; `0` when the limit is unknown/non-positive.",
@@ -227482,6 +227815,11 @@
           "node:path/join",
           "node:path/resolve"
         ]
+      },
+      "HISTORY_CEILING_STEP_SHARE": {
+        "path": "dist/completion/completionConstants.js",
+        "description": "How far the history ceiling cuts at a time, as a share of the ceiling: what",
+        "dependencies": []
       },
       "HISTORY_CEILING_TOOL_RESULT_CHARS": {
         "path": "dist/completion/completionConstants.js",
@@ -229700,6 +230038,11 @@
         "description": "Whether an HTTP status is a transient provider failure worth retrying (overload/timeout).",
         "dependencies": []
       },
+      "isReviewEvidencePath": {
+        "path": "dist/reviewEvidence/reviewEvidenceUtils.js",
+        "description": "Whether a project-relative path is the evidence folder or something in it. Pure.",
+        "dependencies": []
+      },
       "isReviewLandedUnmerged": {
         "path": "dist/cliAgentRunner/cliAgentRunnerUtils.js",
         "description": "A run whose review is still OPEN: landed on its branch, not merged into the live",
@@ -229814,6 +230157,11 @@
       "isSecondaryComponentPart": {
         "path": "dist/recommend/recommendUtils.js",
         "description": "Is this component one the SOURCE ITSELF labelled as not-the-main-material — \"Materiał dodatkowy\",",
+        "dependencies": []
+      },
+      "isSeededAgentType": {
+        "path": "dist/agentType/agentTypeUtils.js",
+        "description": "Whether every project has this id as a seeded type, unless it or its group shadows it.",
         "dependencies": []
       },
       "isShadowGit": {
@@ -230134,6 +230482,11 @@
         "description": "The largest attachment the tools upload or download.",
         "dependencies": []
       },
+      "JIRA_NO_MOVE": {
+        "path": "dist/connectors/jira/jiraConstants.js",
+        "description": "Why a sign-off left a ticket where it is: nothing on it goes to that status now.",
+        "dependencies": []
+      },
       "JIRA_NO_STATUS_CATEGORY_KEY": {
         "path": "dist/connectors/jira/jiraConstants.js",
         "description": "The key Jira gives a status with no category.",
@@ -230147,6 +230500,16 @@
       "JIRA_SEARCH_MAX_RESULTS": {
         "path": "dist/connectors/jira/jiraConstants.js",
         "description": "The most issues one search page returns.",
+        "dependencies": []
+      },
+      "JIRA_STATUS_NO_PROJECT": {
+        "path": "dist/connectors/jira/jiraConstants.js",
+        "description": "Why one of a binding's project keys got no statuses.",
+        "dependencies": []
+      },
+      "JIRA_STATUS_SCOPE_REFUSAL": {
+        "path": "dist/connectors/jira/jiraConstants.js",
+        "description": "Why a token got no statuses. The scope is the classic one a connection's form asks for.",
         "dependencies": []
       },
       "JIRA_WRITE_TOOL_NAMES": {
@@ -230297,6 +230660,11 @@
         "description": "An issue link type.",
         "dependencies": []
       },
+      "jiraMoveTo": {
+        "path": "dist/connectors/jira/jiraUtils.js",
+        "description": "The move a binding's sign-off setting means on one ticket: the one going to a",
+        "dependencies": []
+      },
       "JiraProject": {
         "path": "dist/connectors/jira/jiraTypes.d.ts",
         "description": "A Jira project.",
@@ -230305,6 +230673,11 @@
       "JiraSprint": {
         "path": "dist/connectors/jira/jiraTypes.d.ts",
         "description": "A sprint.",
+        "dependencies": []
+      },
+      "jiraStatusNames": {
+        "path": "dist/connectors/jira/jiraUtils.js",
+        "description": "The status names in an answer of Jira's status API, sorted and each once: a flat",
         "dependencies": []
       },
       "JiraTools": {
@@ -230572,6 +230945,11 @@
       "keepImageDetails": {
         "path": "dist/recommend/recommendUtils.js",
         "description": "Only the entries of `details` for `urls`, the images a record actually has. Anything else reads as no details. Pure.",
+        "dependencies": []
+      },
+      "keepUiTestStackLogs": {
+        "path": "dist/uiTest/UiTestTools.js",
+        "description": "Bring the kept logs of the stack `holder` has served up to date, leaving it up.",
         "dependencies": []
       },
       "KERN_TIME_READ_TIMEOUT_MS": {
@@ -232544,9 +232922,40 @@
         "description": "A CLI run (or run result) with secret values removed from the prompt and the",
         "dependencies": []
       },
+      "MaskedServedLogCopy": {
+        "path": "dist/reviewEvidence/servedLogMaskTypes.d.ts",
+        "description": "The masked copy of a served log: how long it is and what it hashes to.",
+        "dependencies": []
+      },
       "maskSecretValues": {
         "path": "dist/projectNotes/secretValueMask.js",
         "description": "A copy of `value` with every secret replaced. `value` itself is not changed.",
+        "dependencies": []
+      },
+      "maskServedLogFile": {
+        "path": "dist/reviewEvidence/servedLogMaskHelpers.js",
+        "dependencies": [
+          "node:crypto/createHash",
+          "node:fs/createReadStream",
+          "node:fs/createWriteStream",
+          "node:fs/promises/readFile",
+          "node:fs/promises/readdir",
+          "node:stream/promises",
+          "node:path/isAbsolute",
+          "node:path/resolve",
+          "node:stream/Transform",
+          "node:stream/promises/pipeline",
+          "dotenv/parse"
+        ]
+      },
+      "maskServedLogLine": {
+        "path": "dist/reviewEvidence/servedLogMaskUtils.js",
+        "description": "A line of a served log with `secrets` and every generic token shape masked.",
+        "dependencies": []
+      },
+      "maskServedLogText": {
+        "path": "dist/reviewEvidence/servedLogMaskUtils.js",
+        "description": "A text of several lines with each line masked as {@link maskServedLogLine} does. Pure.",
         "dependencies": []
       },
       "MatchAgentResponse": {
@@ -233796,7 +234205,7 @@
       },
       "mergeAgentTypeDefinitions": {
         "path": "dist/agentType/agentTypeUtils.js",
-        "description": "A project's types beyond the built-ins, by id: its group's and its own, its",
+        "description": "A project's types beyond the built-ins, by id: the seeded ones, its group's",
         "dependencies": []
       },
       "mergeBranchIntoWorkspace": {
@@ -235792,6 +236201,19 @@
         "path": "dist/recommend/recommendConstants.js",
         "dependencies": []
       },
+      "moveAllReviewEvidence": {
+        "path": "dist/reviewEvidence/reviewEvidenceMoveHelpers.js",
+        "dependencies": [
+          "node:fs/promises"
+        ]
+      },
+      "MoveAllReviewEvidenceInput": {
+        "path": "dist/reviewEvidence/reviewEvidenceMoveTypes.d.ts",
+        "description": "What moving every project's evidence needs.",
+        "dependencies": [
+          "Promise"
+        ]
+      },
       "moveFileNoOverwrite": {
         "path": "dist/file/fileHelpers.js",
         "dependencies": [
@@ -235821,6 +236243,14 @@
           "node:os/tmpdir",
           "node:path/join",
           "node:path/resolve"
+        ]
+      },
+      "moveReviewEvidenceStore": {
+        "path": "dist/reviewEvidence/reviewEvidenceMoveHelpers.js",
+        "dependencies": [
+          "REVIEW_EVIDENCE_MOVE_NOT_A_FOLDER",
+          "REVIEW_EVIDENCE_MOVE_NEW_FILES",
+          "node:fs/promises"
         ]
       },
       "NAMED_VIDEOS_HEADING": {
@@ -238830,6 +239260,11 @@
         "description": "An attempt's line once it went in circles.",
         "dependencies": []
       },
+      "PROCESS_CLEANUP_HOLDS_OLD_STORE": {
+        "path": "dist/processCleanup/processCleanupConstants.js",
+        "description": "What a cleanup says of a project folder that still holds evidence not moved to Overseer's data.",
+        "dependencies": []
+      },
       "PROCESS_CLEANUP_HOST_REASONS": {
         "path": "dist/processCleanup/processCleanupConstants.js",
         "description": "Why the host lists each kind of item it finds itself.",
@@ -239037,6 +239472,11 @@
       "PROCESS_FAN_OUT_EVIDENCE_BRIEF_HEADING": {
         "path": "dist/workflow/processFanOutConstants.js",
         "description": "The heading over what a fan-out's children filed, in the brief of the step after them.",
+        "dependencies": []
+      },
+      "PROCESS_FAN_OUT_LONG_EVIDENCE": {
+        "path": "dist/workflow/processFanOutConstants.js",
+        "description": "What an item too long for one read says beside its kind.",
         "dependencies": []
       },
       "PROCESS_FAN_OUT_NO_EVIDENCE": {
@@ -240637,6 +241077,41 @@
       "PROCESS_SEND_TO_DEVELOPER_PARK_REASONS": {
         "path": "dist/workflow/processSendToDeveloperConstants.js",
         "description": "The checks stops a feature's work can be sent back to its developer from: it could not check, it failed, or its passes ran out.",
+        "dependencies": []
+      },
+      "PROCESS_SERVE_NO_CHECKOUT": {
+        "path": "dist/workflow/processServeConstants.js",
+        "description": "Why a part of a stack cannot be served from a project this host does not know.",
+        "dependencies": []
+      },
+      "PROCESS_SERVE_NO_REFS": {
+        "path": "dist/workflow/processServeConstants.js",
+        "description": "Why a step that serves its variant cannot start on a run for no variant's refs.",
+        "dependencies": []
+      },
+      "PROCESS_SERVE_NO_SETTING": {
+        "path": "dist/workflow/processServeConstants.js",
+        "description": "Why a step that serves its variant cannot start in a project that has not said how.",
+        "dependencies": []
+      },
+      "PROCESS_SERVED_BRIEF_HEADING": {
+        "path": "dist/workflow/processServeConstants.js",
+        "description": "The heading over what a run is serving, in the brief of a step that serves its variant.",
+        "dependencies": []
+      },
+      "PROCESS_SERVED_BRIEF_LEAD": {
+        "path": "dist/workflow/processServeConstants.js",
+        "description": "Where a step's agent opens what the run is serving.",
+        "dependencies": []
+      },
+      "PROCESS_SERVED_START_DONE": {
+        "path": "dist/workflow/processServeConstants.js",
+        "description": "How a stack's known start went, in its agent's brief.",
+        "dependencies": []
+      },
+      "PROCESS_SERVED_START_FAILED": {
+        "path": "dist/workflow/processServeConstants.js",
+        "description": "How a stack's known start failed, in its agent's brief.",
         "dependencies": []
       },
       "PROCESS_SIGN_OFF_STEP": {
@@ -242448,6 +242923,11 @@
         "description": "What kind of value a process input takes.",
         "dependencies": []
       },
+      "processInputNoteIds": {
+        "path": "dist/workflow/processInputUtils.js",
+        "description": "Every note a run's launch named: its own inputs, and the variant's it is for",
+        "dependencies": []
+      },
       "ProcessInputRef": {
         "path": "dist/workflow/workflowTypes.d.ts",
         "description": "One repo at one commit. A `refs` value lists one of these per repo, so a",
@@ -243976,6 +244456,7 @@
           "ProcessRunAlreadyMet",
           "ProcessRunIntegration",
           "ProcessWorkBranch",
+          "UiServedStack",
           "ProcessVariantSubject"
         ]
       },
@@ -244633,6 +245114,11 @@
         "description": "The back edge a feature run's checks stop sends its work to the developer",
         "dependencies": []
       },
+      "processServedBrief": {
+        "path": "dist/workflow/processServeUtils.js",
+        "description": "What a step's agent is told of the stack its run is serving. Pure.",
+        "dependencies": []
+      },
       "ProcessSettledQuestion": {
         "path": "dist/workflow/workflowTypes.d.ts",
         "description": "A completed wait whose question is settled: what must still stand for its answer to carry on.",
@@ -244680,6 +245166,7 @@
         "description": "What a step executor is handed.",
         "dependencies": [
           "Promise",
+          "UiServedStack",
           "ProcessWorkBranchRewind",
           "ProcessStepRetry",
           "ProcessRetryStart",
@@ -245048,6 +245535,11 @@
           "ProcessInputValue",
           "Record"
         ]
+      },
+      "processVariantRefs": {
+        "path": "dist/workflow/processServeUtils.js",
+        "description": "The refs of the variant a run is for: its `refs` value, whatever the process calls it. Pure.",
+        "dependencies": []
       },
       "ProcessVariantSubject": {
         "path": "dist/workflow/workflowTypes.d.ts",
@@ -248316,6 +248808,7 @@
         "path": "dist/project/projectTypes.d.ts",
         "description": "Per-project settings the clients keep alongside the project spec.",
         "dependencies": [
+          "UiStackSetting",
           "ProjectCheckEnvSetting",
           "CapabilitySettings",
           "WorkLaunchMode",
@@ -248466,6 +248959,7 @@
         "path": "dist/projectsgroups/projectsGroupsTypes.d.ts",
         "description": "Group of projects with a title and ordered list of project ids.",
         "dependencies": [
+          "UiStackSetting",
           "CapabilitySettings",
           "SignOffOutputDefinition",
           "McpServerConnection",
@@ -248494,6 +248988,7 @@
         "path": "dist/projectsgroups/projectsGroupsTypes.d.ts",
         "description": "Patch payload for updating a projects group. `ticketConnection: null` removes the group's binding.",
         "dependencies": [
+          "UiStackSetting",
           "CapabilitySettings",
           "TicketConnectionBinding",
           "ProjectsGroupCreateInput",
@@ -249359,6 +249854,11 @@
       "rangedEvidenceText": {
         "path": "dist/reviewEvidence/reviewEvidenceUtils.js",
         "description": "The part of a note a ranged read asks for, at most `max` characters and from",
+        "dependencies": []
+      },
+      "rangedEvidenceWindow": {
+        "path": "dist/reviewEvidence/reviewEvidenceUtils.js",
+        "description": "{@link rangedEvidenceText} for a note too long to hold: `window` is the part of",
         "dependencies": [
           "REVIEW_EVIDENCE_PAST_NOTE_END"
         ]
@@ -249786,6 +250286,24 @@
       "readEarlierDailySummaries": {
         "path": "dist/llmCosts/llmCostsHelpers.js",
         "dependencies": []
+      },
+      "readEvidenceHeadTail": {
+        "path": "dist/reviewEvidence/reviewEvidenceTextHelpers.js",
+        "dependencies": [
+          "node:fs/createReadStream",
+          "node:fs/promises/readFile",
+          "node:fs/promises/stat",
+          "node:fs/promises"
+        ]
+      },
+      "readEvidenceRange": {
+        "path": "dist/reviewEvidence/reviewEvidenceTextHelpers.js",
+        "dependencies": [
+          "node:fs/createReadStream",
+          "node:fs/promises/readFile",
+          "node:fs/promises/stat",
+          "node:fs/promises"
+        ]
       },
       "readFdSoftLimit": {
         "path": "dist/process/processHelpers.js",
@@ -250461,7 +250979,6 @@
           "REVIEW_EVIDENCE_NO_SUCH_STILL",
           "REVIEW_EVIDENCE_NOT_A_RECORDING",
           "REVIEW_EVIDENCE_BAD_RANGE",
-          "REVIEW_EVIDENCE_FILE_GONE",
           "node:crypto/randomUUID",
           "node:fs/promises/readFile",
           "node:fs/promises/readdir",
@@ -250558,6 +251075,44 @@
         "path": "dist/projectNotes/secretValueMask.js",
         "description": "The values to replace, longest first, with empties and duplicates dropped.",
         "dependencies": []
+      },
+      "readServedStackSecrets": {
+        "path": "dist/reviewEvidence/servedLogMaskHelpers.js",
+        "dependencies": [
+          "node:crypto/createHash",
+          "node:fs/createReadStream",
+          "node:fs/createWriteStream",
+          "node:fs/promises/readFile",
+          "node:fs/promises/readdir",
+          "node:stream/promises",
+          "node:path/isAbsolute",
+          "node:path/resolve",
+          "node:stream/Transform",
+          "node:stream/promises/pipeline",
+          "dotenv/parse"
+        ]
+      },
+      "readServedTreeSecrets": {
+        "path": "dist/reviewEvidence/servedLogMaskHelpers.js",
+        "dependencies": [
+          "node:crypto/createHash",
+          "node:fs/createReadStream",
+          "node:fs/createWriteStream",
+          "node:fs/promises/readFile",
+          "node:fs/promises/readdir",
+          "node:stream/promises",
+          "node:path/isAbsolute",
+          "node:path/resolve",
+          "node:stream/Transform",
+          "node:stream/promises/pipeline",
+          "dotenv/parse"
+        ]
+      },
+      "readShardedRecordPresence": {
+        "path": "dist/storage/storedRecordPresenceHelpers.js",
+        "dependencies": [
+          "node:fs/promises"
+        ]
       },
       "readSharedDesignIndex": {
         "path": "dist/design/designHelpers.js",
@@ -252070,6 +252625,17 @@
         "description": "How {@link GitRecordedBranchRemoval} removes a branch.",
         "dependencies": []
       },
+      "removeServedLogs": {
+        "path": "dist/reviewEvidence/servedLogEvidenceHelpers.js",
+        "dependencies": [
+          "node:crypto/randomUUID",
+          "node:fs/promises/readdir",
+          "node:fs/promises/rm",
+          "node:fs/promises/stat",
+          "node:fs/promises",
+          "node:path/join"
+        ]
+      },
       "removeTempDir": {
         "path": "dist/file/fileHelpers.js",
         "dependencies": [
@@ -253335,6 +253901,11 @@
         "description": "The argv and command line that run `script` with `args`, or why it cannot:",
         "dependencies": []
       },
+      "resolveProjectServeStack": {
+        "path": "dist/project/projectTypeValidations.js",
+        "description": "How a project's product is served: what it states, else its main group's.",
+        "dependencies": []
+      },
       "resolveProjectTicketConnection": {
         "path": "dist/connectors/items/connectorUtils.js",
         "description": "A project's effective ticket-connection binding: its own setting when it has",
@@ -253738,12 +254309,17 @@
       },
       "REVIEW_EVIDENCE_DIR_NAME": {
         "path": "dist/reviewEvidence/reviewEvidenceConstants.js",
-        "description": "Where review evidence lives, relative to the project root.",
+        "description": "Where evidence lives, relative to a store's home. A record's `path` starts",
         "dependencies": []
       },
       "REVIEW_EVIDENCE_FILE_GONE": {
         "path": "dist/reviewEvidence/reviewEvidenceConstants.js",
         "description": "What `readReviewEvidence` says of an item whose stored file is gone.",
+        "dependencies": []
+      },
+      "REVIEW_EVIDENCE_FILE_UNREADABLE": {
+        "path": "dist/reviewEvidence/reviewEvidenceConstants.js",
+        "description": "What `readReviewEvidence` says of an item whose stored file is there but will not read.",
         "dependencies": []
       },
       "REVIEW_EVIDENCE_GITIGNORE": {
@@ -253769,6 +254345,66 @@
       "REVIEW_EVIDENCE_META_SUFFIX": {
         "path": "dist/reviewEvidence/reviewEvidenceConstants.js",
         "description": "Metadata sidecar suffix. One per item, beside the file it describes.",
+        "dependencies": []
+      },
+      "REVIEW_EVIDENCE_MOVE_BAD_RECORD": {
+        "path": "dist/reviewEvidence/reviewEvidenceMoveConstants.js",
+        "description": "Why a run stayed: one of its records cannot be read.",
+        "dependencies": []
+      },
+      "REVIEW_EVIDENCE_MOVE_CHANGED": {
+        "path": "dist/reviewEvidence/reviewEvidenceMoveConstants.js",
+        "description": "Why a file stayed: it changed between being copied and being removed.",
+        "dependencies": []
+      },
+      "REVIEW_EVIDENCE_MOVE_COPY_DIFFERS": {
+        "path": "dist/reviewEvidence/reviewEvidenceMoveConstants.js",
+        "description": "Why a file stayed: its copy did not come out the same size and hash.",
+        "dependencies": []
+      },
+      "REVIEW_EVIDENCE_MOVE_IGNORE_FILE": {
+        "path": "dist/reviewEvidence/reviewEvidenceMoveConstants.js",
+        "description": "What makes an old store ignore itself in the project's git.",
+        "dependencies": []
+      },
+      "REVIEW_EVIDENCE_MOVE_NEW_FILES": {
+        "path": "dist/reviewEvidence/reviewEvidenceMoveConstants.js",
+        "description": "Why a folder stayed: a file arrived in it during the move.",
+        "dependencies": []
+      },
+      "REVIEW_EVIDENCE_MOVE_NO_REGISTRY": {
+        "path": "dist/reviewEvidence/reviewEvidenceMoveConstants.js",
+        "description": "Why a project was not moved: nothing says where it is.",
+        "dependencies": []
+      },
+      "REVIEW_EVIDENCE_MOVE_NOT_A_FILE": {
+        "path": "dist/reviewEvidence/reviewEvidenceMoveConstants.js",
+        "description": "Why something stayed: it is a link or another thing that is not a plain file.",
+        "dependencies": []
+      },
+      "REVIEW_EVIDENCE_MOVE_NOT_A_FOLDER": {
+        "path": "dist/reviewEvidence/reviewEvidenceMoveConstants.js",
+        "description": "Why a store stayed: the path of the store is a link or a file.",
+        "dependencies": []
+      },
+      "REVIEW_EVIDENCE_MOVE_OTHER_BYTES_THERE": {
+        "path": "dist/reviewEvidence/reviewEvidenceMoveConstants.js",
+        "description": "Why a file stayed: the new place already holds something else under its name.",
+        "dependencies": []
+      },
+      "REVIEW_EVIDENCE_MOVE_RECORD_HASH": {
+        "path": "dist/reviewEvidence/reviewEvidenceMoveConstants.js",
+        "description": "Why a run stayed: a record's hash is not that of the file it names.",
+        "dependencies": []
+      },
+      "REVIEW_EVIDENCE_MOVE_RECORD_PATH": {
+        "path": "dist/reviewEvidence/reviewEvidenceMoveConstants.js",
+        "description": "Why a run stayed: a record names a file its run does not hold.",
+        "dependencies": []
+      },
+      "REVIEW_EVIDENCE_MOVE_TEMP_SUFFIX": {
+        "path": "dist/reviewEvidence/reviewEvidenceMoveConstants.js",
+        "description": "Added to a file's name while its copy is being written and checked.",
         "dependencies": []
       },
       "REVIEW_EVIDENCE_NO_SUCH_STILL": {
@@ -253859,9 +254495,19 @@
         "description": "What `readReviewEvidence` says of a recording no stills could be made of, and why.",
         "dependencies": []
       },
+      "REVIEW_EVIDENCE_STORES_DIR_NAME": {
+        "path": "dist/reviewEvidence/reviewEvidenceConstants.js",
+        "description": "Where every project's evidence store sits, relative to Overseer's own data",
+        "dependencies": []
+      },
       "REVIEW_EVIDENCE_TEXT_CUT_MARKER": {
         "path": "dist/reviewEvidence/reviewEvidenceConstants.js",
         "description": "The marker `readReviewEvidence` leaves where it cut the middle of a long note, and how to read what it cut.",
+        "dependencies": []
+      },
+      "REVIEW_EVIDENCE_TEXTS_MAX_CHARS": {
+        "path": "dist/reviewEvidence/reviewEvidenceConstants.js",
+        "description": "The most of a note a sign-off is handed in one go, in characters. Past it, the",
         "dependencies": []
       },
       "REVIEW_EVIDENCE_TEXTS_MAX_IDS": {
@@ -253877,6 +254523,11 @@
       "REVIEW_EVIDENCE_VERDICT_CAUSES": {
         "path": "dist/reviewEvidence/reviewEvidenceConstants.js",
         "description": "Every cause a non-approving verdict can name.",
+        "dependencies": []
+      },
+      "REVIEW_EVIDENCE_WHOLE_READ_MAX_BYTES": {
+        "path": "dist/reviewEvidence/reviewEvidenceConstants.js",
+        "description": "The largest note read whole, in bytes. Past it a note is streamed: one near",
         "dependencies": []
       },
       "REVIEW_EXCERPT_MAX": {
@@ -254006,6 +254657,11 @@
         "path": "dist/reviewEvidence/reviewEvidenceTypes.d.ts",
         "dependencies": []
       },
+      "reviewEvidenceHomeOf": {
+        "path": "dist/reviewEvidence/reviewEvidenceUtils.js",
+        "description": "The folder of Overseer's own data a project's evidence store sits in — its",
+        "dependencies": []
+      },
       "ReviewEvidenceHostFields": {
         "path": "dist/reviewEvidence/reviewEvidenceHelpers.d.ts",
         "description": "What only the host files on an item: nothing an agent passes reaches these.",
@@ -254019,6 +254675,11 @@
         "description": "What a piece of evidence physically is.",
         "dependencies": []
       },
+      "ReviewEvidenceLeftBehind": {
+        "path": "dist/reviewEvidence/reviewEvidenceMoveTypes.d.ts",
+        "description": "Something the move left in the old store, and why.",
+        "dependencies": []
+      },
       "ReviewEvidenceLookup": {
         "path": "dist/reviewEvidence/reviewEvidenceTypes.d.ts",
         "description": "An item looked up by its id or the start of it: found, shared by several, or not filed.",
@@ -254026,10 +254687,22 @@
           "ReviewEvidenceRef"
         ]
       },
+      "reviewEvidenceMoveIsWhole": {
+        "path": "dist/reviewEvidence/reviewEvidenceMoveUtils.js",
+        "description": "Whether nothing that was found stayed behind. A missing path holds nothing to lose. Pure.",
+        "dependencies": []
+      },
       "ReviewEvidenceObservedBefore": {
         "path": "dist/reviewEvidence/reviewEvidenceTypes.d.ts",
         "description": "A before observed in place because its earlier state cannot be rebuilt.",
         "dependencies": []
+      },
+      "ReviewEvidenceProjectMove": {
+        "path": "dist/reviewEvidence/reviewEvidenceMoveTypes.d.ts",
+        "description": "How moving one project's evidence went.",
+        "dependencies": [
+          "ReviewEvidenceStoreMove"
+        ]
       },
       "ReviewEvidenceQuery": {
         "path": "dist/reviewEvidence/reviewEvidenceTypes.d.ts",
@@ -254069,6 +254742,26 @@
         "path": "dist/reviewEvidence/reviewEvidenceTypes.d.ts",
         "description": "What was on screen when a capture was taken, for telling the SAME screen",
         "dependencies": []
+      },
+      "ReviewEvidenceSourceEntry": {
+        "path": "dist/reviewEvidence/reviewEvidenceMoveTypes.d.ts",
+        "description": "What one entry of an old store holds.",
+        "dependencies": [
+          "ReviewEvidenceLeftBehind",
+          "ReviewEvidenceSourceFile"
+        ]
+      },
+      "ReviewEvidenceSourceFile": {
+        "path": "dist/reviewEvidence/reviewEvidenceMoveTypes.d.ts",
+        "description": "A file of an old store, read before any of it was copied.",
+        "dependencies": []
+      },
+      "ReviewEvidenceStoreMove": {
+        "path": "dist/reviewEvidence/reviewEvidenceMoveTypes.d.ts",
+        "description": "How moving one old store went.",
+        "dependencies": [
+          "ReviewEvidenceLeftBehind"
+        ]
       },
       "ReviewEvidenceTextCut": {
         "path": "dist/reviewEvidence/reviewEvidenceTypes.d.ts",
@@ -254263,6 +254956,11 @@
       "RUN_REFERENCE_SEGMENT": {
         "path": "dist/references/referencesConstants.js",
         "description": "What follows `&` (after a project id, in a chat over several) in a process run token, `&run/<runId>`.",
+        "dependencies": []
+      },
+      "RUN_REVIEWER_AGENT_TYPE_ID": {
+        "path": "dist/agentType/agentTypeConstants.js",
+        "description": "The id of the seeded type that reviews one variant's days.",
         "dependencies": []
       },
       "RUN_STORY_TOOL_NAMES": {
@@ -254484,6 +255182,11 @@
         "description": "Why an agent's run stopped before it finished, as its stop card says it:",
         "dependencies": []
       },
+      "runFileSha256s": {
+        "path": "dist/reviewEvidence/reviewEvidenceMoveUtils.js",
+        "description": "The hash of each file directly in run directory `runDir`, by its name. Pure.",
+        "dependencies": []
+      },
       "runGit": {
         "path": "dist/git/gitHelpers.js",
         "dependencies": [
@@ -254664,6 +255367,11 @@
           "T",
           "PanelReader"
         ]
+      },
+      "runRecordFiles": {
+        "path": "dist/reviewEvidence/reviewEvidenceMoveUtils.js",
+        "description": "The records directly in run directory `runDir`. Pure.",
+        "dependencies": []
       },
       "RUNS_DIR_NAME": {
         "path": "dist/file/fileConstants.js",
@@ -255892,6 +256600,18 @@
           "thefactory-db/SearchParams"
         ]
       },
+      "SEEDED_AGENT_TYPE_DEFINITIONS": {
+        "path": "dist/agentType/agentTypeConstants.js",
+        "description": "Types every project has until it or its group shadows one of the same id,",
+        "dependencies": [
+          "SIMULATED_PERSON_AGENT_TYPE_ID",
+          "SIMULATED_PERSON_BRIEF",
+          "RUN_REVIEWER_AGENT_TYPE_ID",
+          "RUN_REVIEWER_BRIEF",
+          "FINAL_REVIEWER_AGENT_TYPE_ID",
+          "FINAL_REVIEWER_BRIEF"
+        ]
+      },
       "SEEDED_PROCESS_DEFINITIONS": {
         "path": "dist/workflow/workflowConstants.js",
         "description": "The shared library as shipped.",
@@ -256139,6 +256859,144 @@
       "SerpApiOrganicResult": {
         "path": "dist/web/webTypes.d.ts",
         "description": "One SerpAPI `organic_results` row.",
+        "dependencies": []
+      },
+      "SERVED_ENV_CONNECTION_PASSWORD": {
+        "path": "dist/reviewEvidence/servedLogMaskConstants.js",
+        "description": "The password of a `Key=value;` connection string.",
+        "dependencies": []
+      },
+      "SERVED_ENV_LINE_END": {
+        "path": "dist/reviewEvidence/servedLogMaskConstants.js",
+        "description": "The line ends of a value of several lines, written out or not.",
+        "dependencies": []
+      },
+      "SERVED_ENV_PLAIN_VALUE": {
+        "path": "dist/reviewEvidence/servedLogMaskConstants.js",
+        "description": "A value too plain to search for, whatever its name: masking it would rewrite the log.",
+        "dependencies": []
+      },
+      "SERVED_ENV_SECRET_MIN_CHARS": {
+        "path": "dist/reviewEvidence/servedLogMaskConstants.js",
+        "description": "The shortest value searched for: anything less is found in ordinary words.",
+        "dependencies": []
+      },
+      "SERVED_ENV_SECRET_NAME": {
+        "path": "dist/reviewEvidence/servedLogMaskConstants.js",
+        "description": "Names that read as secret past the host's own {@link CHECK_HOST_ENV_SECRET_NAME}:",
+        "dependencies": []
+      },
+      "SERVED_ENV_URL_USERINFO": {
+        "path": "dist/reviewEvidence/servedLogMaskConstants.js",
+        "description": "The userinfo of each url in a value.",
+        "dependencies": []
+      },
+      "SERVED_LOG_APPROACH": {
+        "path": "dist/reviewEvidence/reviewEvidenceConstants.js",
+        "description": "Marks what a served product logged: its stdout, stderr or trail file, filed by the host.",
+        "dependencies": []
+      },
+      "SERVED_LOG_LABEL": {
+        "path": "dist/reviewEvidence/reviewEvidenceConstants.js",
+        "description": "What a served log is called to a reader.",
+        "dependencies": []
+      },
+      "SERVED_LOG_LINE_LEFT_OUT": {
+        "path": "dist/reviewEvidence/servedLogMaskConstants.js",
+        "description": "What stands in the masked copy for a line past the limit.",
+        "dependencies": []
+      },
+      "SERVED_LOG_MASK_LINE_MAX_CHARS": {
+        "path": "dist/reviewEvidence/servedLogMaskConstants.js",
+        "description": "Longest line masked. Past it a line is left out rather than cut: a cut could",
+        "dependencies": []
+      },
+      "SERVED_LOG_MASK_UNKNOWN_FAILURE": {
+        "path": "dist/reviewEvidence/servedLogMaskConstants.js",
+        "description": "What a thrown value that says nothing of itself is called.",
+        "dependencies": []
+      },
+      "SERVED_LOG_MASKED_SUFFIX": {
+        "path": "dist/reviewEvidence/servedLogMaskConstants.js",
+        "description": "What a masked copy is called after its log, ending as a log so it files as one.",
+        "dependencies": []
+      },
+      "SERVED_LOG_NOT_FILED_LABEL": {
+        "path": "dist/reviewEvidence/reviewEvidenceConstants.js",
+        "description": "What that note is called to a reader.",
+        "dependencies": []
+      },
+      "SERVED_LOG_NOT_FILED_SUBJECT": {
+        "path": "dist/reviewEvidence/reviewEvidenceConstants.js",
+        "description": "The subject of the note a served log leaves when it could not be masked: one per part and stream.",
+        "dependencies": []
+      },
+      "SERVED_LOG_NOT_FILED_TEXT": {
+        "path": "dist/reviewEvidence/reviewEvidenceConstants.js",
+        "description": "What that note says.",
+        "dependencies": []
+      },
+      "SERVED_LOG_SUBJECT": {
+        "path": "dist/reviewEvidence/reviewEvidenceConstants.js",
+        "description": "The subject of a served log, one per part and stream: a later filing replaces it.",
+        "dependencies": []
+      },
+      "SERVED_LOG_TOKEN_PATTERNS": {
+        "path": "dist/reviewEvidence/servedLogMaskConstants.js",
+        "description": "Token shapes masked in every served log, whatever the stack was told. Repeats",
+        "dependencies": [
+          "SECRET_VALUE_MASK",
+          "KI"
+        ]
+      },
+      "SERVED_LOGS_DIR_NAME": {
+        "path": "dist/reviewEvidence/reviewEvidenceConstants.js",
+        "description": "Where a store keeps what each run's served parts are logging, relative to its",
+        "dependencies": []
+      },
+      "servedEnvSecretValues": {
+        "path": "dist/reviewEvidence/servedLogMaskUtils.js",
+        "description": "The values to mask of an env: each whose name reads as secret and whose value",
+        "dependencies": []
+      },
+      "servedLogDirOf": {
+        "path": "dist/reviewEvidence/reviewEvidenceUtils.js",
+        "description": "Where a store keeps what a run's served parts are logging, a folder per part. Pure.",
+        "dependencies": []
+      },
+      "ServedLogFiling": {
+        "path": "dist/reviewEvidence/servedLogMaskTypes.d.ts",
+        "description": "What a filing of a run's served logs came to.",
+        "dependencies": [
+          "ServedLogNotFiled",
+          "ReviewEvidenceRef"
+        ]
+      },
+      "ServedLogMasker": {
+        "path": "dist/reviewEvidence/servedLogMaskUtils.js",
+        "description": "Masks a log as it streams past: only whole lines go out, so a value cut by a",
+        "dependencies": []
+      },
+      "ServedLogNotFiled": {
+        "path": "dist/reviewEvidence/servedLogMaskTypes.d.ts",
+        "description": "A served log that could not be masked, and so was not filed.",
+        "dependencies": []
+      },
+      "ServedLogTokenPattern": {
+        "path": "dist/reviewEvidence/servedLogMaskTypes.d.ts",
+        "description": "A shape of token masked in any served log, whoever gave it to the product.",
+        "dependencies": [
+          "RegExp"
+        ]
+      },
+      "ServedStackSecrets": {
+        "path": "dist/reviewEvidence/servedLogMaskTypes.d.ts",
+        "description": "What a stack was told that reads as secret, held in memory only and never written down.",
+        "dependencies": []
+      },
+      "serveUiTestStack": {
+        "path": "dist/uiTest/UiTestTools.js",
+        "description": "Serve a stack for its holder in this process, where the browser tools read",
         "dependencies": []
       },
       "SESSION_SPAWN_CONCURRENCY_ENV_VAR": {
@@ -256872,6 +257730,11 @@
       "similarDesignScreens": {
         "path": "dist/design/designUtils.js",
         "description": "The app's screens whose name, or a name they had, resembles `name` without being it.",
+        "dependencies": []
+      },
+      "SIMULATED_PERSON_AGENT_TYPE_ID": {
+        "path": "dist/agentType/agentTypeConstants.js",
+        "description": "The id of the seeded type that lives days of a product as a person.",
         "dependencies": []
       },
       "SINGLE_STEP_PROCESS_ID": {
@@ -257688,6 +258551,11 @@
         "description": "The chat line for a feature the run stopped on.",
         "dependencies": []
       },
+      "stopUiTestStack": {
+        "path": "dist/uiTest/UiTestTools.js",
+        "description": "Stop the stack `holder` has served, or is serving. True when there was anything to stop.",
+        "dependencies": []
+      },
       "STORAGE_WARNING_DISK_FRACTION": {
         "path": "dist/storageUsage/storageUsageConstants.js",
         "description": "Usage above this share of the disk's whole size warns, when that is lower.",
@@ -257761,6 +258629,13 @@
         "description": "Index of verified barcode → the catalog key it is ALREADY stored under, so a later run that meets the",
         "dependencies": []
       },
+      "StoredPendingAction": {
+        "path": "dist/actionBroker/actionBrokerTypes.d.ts",
+        "description": "An action as its file holds it: with what the host read beside it, which stays",
+        "dependencies": [
+          "PendingAction"
+        ]
+      },
       "StoredProjectNoteEntry": {
         "path": "dist/projectNotes/projectNoteTypes.d.ts",
         "description": "A note as persisted — a plain note's own file, or an entry of the secrets file. The project is",
@@ -257768,6 +258643,11 @@
           "ProjectNoteEntry",
           "Omit"
         ]
+      },
+      "StoredRecordPresence": {
+        "path": "dist/storage/fileStorageTypes.d.ts",
+        "description": "Whether a stored record is there. `unreadable` is a file that could hold it, or",
+        "dependencies": []
       },
       "storedUniversalIndex": {
         "path": "dist/recommend/recommendUtils.js",
@@ -258147,6 +259027,7 @@
           "Feature",
           "StoryEditInput",
           "StoryCreateInput",
+          "StoredRecordPresence",
           "StoryChangeHandler",
           "IFactoryTools"
         ]
@@ -260673,6 +261554,11 @@
         "description": "How long a started server has to answer before the serve is abandoned.",
         "dependencies": []
       },
+      "UI_SERVE_SHARED_HOLD_MS": {
+        "path": "dist/uiTest/uiTestConstants.js",
+        "description": "How long a run counts as using a shared app after it last served it or",
+        "dependencies": []
+      },
       "UI_SERVE_STOP_GRACE_MS": {
         "path": "dist/uiTest/uiTestConstants.js",
         "description": "How long a stopped server gets to exit on SIGTERM before it is killed.",
@@ -260706,6 +261592,66 @@
       "UI_SOURCE_FILE": {
         "path": "dist/proofPlan/uiChangeConstants.js",
         "description": "Kotlin and Swift files named for what they draw.",
+        "dependencies": []
+      },
+      "UI_STACK_ENV_FILE_MISSING": {
+        "path": "dist/uiTest/uiTestConstants.js",
+        "description": "Why a stack is not served: an env file the settings name that is not there.",
+        "dependencies": []
+      },
+      "UI_STACK_HOLE_PATTERN": {
+        "path": "dist/uiTest/uiTestConstants.js",
+        "description": "A hole in a stack part's commands or env: `{port}`, `{web.url}`.",
+        "dependencies": []
+      },
+      "UI_STACK_LOG_FILES": {
+        "path": "dist/uiTest/uiTestConstants.js",
+        "description": "What each of a part's logs is called in its folder.",
+        "dependencies": []
+      },
+      "UI_STACK_NO_REF": {
+        "path": "dist/uiTest/uiTestConstants.js",
+        "description": "Why a stack is not served: a part the variant names no ref for.",
+        "dependencies": []
+      },
+      "UI_STACK_PART_FAILED": {
+        "path": "dist/uiTest/uiTestConstants.js",
+        "description": "How a stack that failed on one part says so.",
+        "dependencies": []
+      },
+      "UI_STACK_PART_GONE": {
+        "path": "dist/uiTest/uiTestConstants.js",
+        "description": "Why a known start could not run: the part it runs in went down first.",
+        "dependencies": []
+      },
+      "UI_STACK_PATCH_NOT_APPLIED": {
+        "path": "dist/uiTest/uiTestConstants.js",
+        "description": "Why a stack is not served: a patch that did not go on.",
+        "dependencies": []
+      },
+      "UI_STACK_ROLE_PATTERN": {
+        "path": "dist/uiTest/uiTestConstants.js",
+        "description": "What a stack part's role, used in holes and refs, may be spelled with.",
+        "dependencies": []
+      },
+      "UI_STACK_START_OUTPUT_MAX_CHARS": {
+        "path": "dist/uiTest/uiTestConstants.js",
+        "description": "The most of what a known start said that is handed on, from its end.",
+        "dependencies": []
+      },
+      "UI_STACK_START_TIMEOUT_MS": {
+        "path": "dist/uiTest/uiTestConstants.js",
+        "description": "How long a stack's known start may take when its setting does not say.",
+        "dependencies": []
+      },
+      "UI_STACK_START_URL_PATTERN": {
+        "path": "dist/uiTest/uiTestConstants.js",
+        "description": "What a known start's address may begin with: an http one, or a hole that names one.",
+        "dependencies": []
+      },
+      "UI_STACK_UNKNOWN_REF": {
+        "path": "dist/uiTest/uiTestConstants.js",
+        "description": "Why a stack is not served: a ref no part answers to.",
         "dependencies": []
       },
       "UI_TARGETS": {
@@ -260936,10 +261882,34 @@
           "playwright/Page"
         ]
       },
+      "UiHeldApp": {
+        "path": "dist/uiTest/uiTestTypes.d.ts",
+        "description": "What the holder of an app can ask of it while it is up.",
+        "dependencies": [
+          "UiStackStartResult",
+          "Pick",
+          "Promise",
+          "AbortSignal",
+          "UiServeStep",
+          "playwright/Page"
+        ]
+      },
+      "uiHeldRecipe": {
+        "path": "dist/uiTest/uiTestStackUtils.js",
+        "description": "The recipe a part is recorded under, its role as what serves it: it reads",
+        "dependencies": []
+      },
+      "uiHeldServePlan": {
+        "path": "dist/uiTest/uiTestStackUtils.js",
+        "description": "The commands a host declared, as a serve runs them. Pure.",
+        "dependencies": []
+      },
       "UiHostBoundOptions": {
         "path": "dist/uiTest/uiTestTypes.d.ts",
         "description": "What a build or server step leaves behind for its launcher to clean when the host is gone.",
         "dependencies": [
+          "AbortSignal",
+          "UiServeKeptFile",
           "playwright/Page"
         ]
       },
@@ -261170,6 +262140,7 @@
         "path": "dist/uiTest/uiTestTypes.d.ts",
         "description": "A web app `uiTestServeApp` is serving.",
         "dependencies": [
+          "UiServedPatch",
           "UiBuildProvenance",
           "playwright/Page"
         ]
@@ -261179,6 +262150,9 @@
         "description": "A served app as the registry holds it: its record, the recipe it was served with, and how to stop it.",
         "dependencies": [
           "Promise",
+          "Map",
+          "UiHeldApp",
+          "UiServedPatch",
           "UiServeRecipe",
           "UiServedAppInfo",
           "playwright/Page"
@@ -261196,6 +262170,7 @@
         "path": "dist/uiTest/UiServedAppRegistry.js",
         "description": "Every web app `uiTestServeApp` is serving, for the whole process — like the",
         "dependencies": [
+          "UI_STACK_PART_GONE",
           "String"
         ]
       },
@@ -261218,6 +262193,21 @@
           "playwright/Page"
         ]
       },
+      "UiServedAppStart": {
+        "path": "dist/uiTest/uiTestTypes.d.ts",
+        "description": "A serve being built: the app it will be, and a shared one's runs, joined as they ask.",
+        "dependencies": [
+          "Map",
+          "UiServedApp",
+          "Promise",
+          "playwright/Page"
+        ]
+      },
+      "uiServedAppUsedBySeveral": {
+        "path": "dist/uiTest/uiTestUtils.js",
+        "description": "Whether at least two runs used a shared app within `holdMs` of `now`.",
+        "dependencies": []
+      },
       "UiServedFakeBackend": {
         "path": "dist/uiTest/uiTestTypes.d.ts",
         "description": "The fake backend an app is served against, as its serve records it.",
@@ -261230,6 +262220,30 @@
         "description": "What a session on `build` may reach: the app and its fake backend, or `undefined` for an app on neither.",
         "dependencies": []
       },
+      "UiServedPatch": {
+        "path": "dist/uiTest/uiTestTypes.d.ts",
+        "description": "What a patch changed in a throwaway checkout.",
+        "dependencies": [
+          "playwright/Page"
+        ]
+      },
+      "UiServedStack": {
+        "path": "dist/uiTest/uiTestTypes.d.ts",
+        "description": "A stack being served.",
+        "dependencies": [
+          "UiStackStartResult",
+          "UiServedStackPart",
+          "playwright/Page"
+        ]
+      },
+      "UiServedStackPart": {
+        "path": "dist/uiTest/uiTestTypes.d.ts",
+        "description": "One part of a served stack.",
+        "dependencies": [
+          "UiServedPatch",
+          "playwright/Page"
+        ]
+      },
       "UiServeFakeBackend": {
         "path": "dist/uiTest/uiTestTypes.d.ts",
         "description": "A stand-in for the app's backend, run beside the app so its own screens show",
@@ -261237,10 +262251,35 @@
           "playwright/Page"
         ]
       },
+      "UiServeHostTerms": {
+        "path": "dist/uiTest/uiTestTypes.d.ts",
+        "description": "What only a host may ask of a serve, kept apart from",
+        "dependencies": [
+          "UiServeLogs",
+          "AbortSignal",
+          "UiStackEnvFile",
+          "Record",
+          "playwright/Page"
+        ]
+      },
       "uiServeIdentity": {
         "path": "dist/uiTest/uiTestUtils.js",
         "description": "The identity of a serve: the same identity ⇒ the same code served the same",
         "dependencies": []
+      },
+      "UiServeKeptFile": {
+        "path": "dist/uiTest/uiTestTypes.d.ts",
+        "description": "A file to keep out of a tree that is going away.",
+        "dependencies": [
+          "playwright/Page"
+        ]
+      },
+      "UiServeLogs": {
+        "path": "dist/uiTest/uiTestTypes.d.ts",
+        "description": "Where a held app's logs are kept.",
+        "dependencies": [
+          "playwright/Page"
+        ]
       },
       "uiServePlan": {
         "path": "dist/uiTest/uiTestUtils.js",
@@ -261264,6 +262303,11 @@
           "playwright/Page"
         ]
       },
+      "uiServeProjectOwner": {
+        "path": "dist/uiTest/uiTestUtils.js",
+        "description": "Who a shared build's identity names: the project, as an unshared one names its root.",
+        "dependencies": []
+      },
       "UiServeRecipe": {
         "path": "dist/uiTest/uiTestTypes.d.ts",
         "description": "How to build and serve a project's web app. Passed to `uiTestServeApp`,",
@@ -261277,8 +262321,25 @@
         "path": "dist/uiTest/uiTestTypes.d.ts",
         "description": "A request to serve an app, with the tree it is built from.",
         "dependencies": [
+          "UiServeHostTerms",
           "ProjectAppBridgeHost",
           "UiServeAppOptions",
+          "playwright/Page"
+        ]
+      },
+      "uiServeShareable": {
+        "path": "dist/uiTest/uiTestUtils.js",
+        "description": "Whether every copy of a project may be handed this serve: it holds a commit",
+        "dependencies": []
+      },
+      "UiServeStackRequest": {
+        "path": "dist/uiTest/uiTestTypes.d.ts",
+        "description": "A request to serve a whole stack for whoever holds it.",
+        "dependencies": [
+          "AbortSignal",
+          "Record",
+          "UiStackTarget",
+          "UiStackSetting",
           "playwright/Page"
         ]
       },
@@ -261317,6 +262378,109 @@
           "playwright/Page"
         ]
       },
+      "UiStackEnvFile": {
+        "path": "dist/uiTest/uiTestTypes.d.ts",
+        "description": "A file a served repo needs that no commit holds, named in Overseer's settings.",
+        "dependencies": [
+          "playwright/Page"
+        ]
+      },
+      "uiStackFill": {
+        "path": "dist/uiTest/uiTestStackUtils.js",
+        "description": "`text` with every hole `values` knows filled; any other is left as it stands. Pure.",
+        "dependencies": []
+      },
+      "uiStackHostTerms": {
+        "path": "dist/uiTest/uiTestStackUtils.js",
+        "description": "What a serve of `part` is told: its commands and env with every hole filled.",
+        "dependencies": []
+      },
+      "UiStackPart": {
+        "path": "dist/uiTest/uiTestTypes.d.ts",
+        "description": "One repo of a product Overseer serves. Commands and env take holes: `{port}`",
+        "dependencies": [
+          "UiStackEnvFile",
+          "Record",
+          "playwright/Page"
+        ]
+      },
+      "uiStackPorts": {
+        "path": "dist/uiTest/uiTestStackUtils.js",
+        "description": "The port each part of a stack is on, by role, to serve it again where it was. Pure.",
+        "dependencies": []
+      },
+      "UiStackRefTarget": {
+        "path": "dist/uiTest/uiTestTypes.d.ts",
+        "description": "One part of a stack at the code it is served from.",
+        "dependencies": [
+          "playwright/Page"
+        ]
+      },
+      "UiStackSetting": {
+        "path": "dist/uiTest/uiTestTypes.d.ts",
+        "description": "How Overseer serves a project's product at chosen refs: every repo in a",
+        "dependencies": [
+          "UiStackStart",
+          "UiStackPart",
+          "playwright/Page"
+        ]
+      },
+      "UiStackStart": {
+        "path": "dist/uiTest/uiTestTypes.d.ts",
+        "description": "How a product is put at a known start: one command or one address.",
+        "dependencies": [
+          "UiStackStartRequest",
+          "UiStackStartCommand",
+          "playwright/Page"
+        ]
+      },
+      "UiStackStartCommand": {
+        "path": "dist/uiTest/uiTestTypes.d.ts",
+        "description": "Run a command to put a stack at its {@link UiStackSetting.start}. Takes the same holes as a part's commands.",
+        "dependencies": [
+          "playwright/Page"
+        ]
+      },
+      "uiStackStartPlan": {
+        "path": "dist/uiTest/uiTestStackUtils.js",
+        "description": "What a stack's `start` comes to on `ports`, or nothing for a stack with none.",
+        "dependencies": []
+      },
+      "UiStackStartPlan": {
+        "path": "dist/uiTest/uiTestTypes.d.ts",
+        "description": "A {@link UiStackStart} ready to run: its holes filled, its defaults taken.",
+        "dependencies": [
+          "UiServeStep",
+          "playwright/Page"
+        ]
+      },
+      "UiStackStartRequest": {
+        "path": "dist/uiTest/uiTestTypes.d.ts",
+        "description": "Call an address to put a stack at its {@link UiStackSetting.start}. Takes the same holes as a part's commands.",
+        "dependencies": [
+          "playwright/Page"
+        ]
+      },
+      "UiStackStartResult": {
+        "path": "dist/uiTest/uiTestTypes.d.ts",
+        "description": "How a stack's {@link UiStackSetting.start} went, told to whoever uses the stack.",
+        "dependencies": [
+          "playwright/Page"
+        ]
+      },
+      "UiStackTarget": {
+        "path": "dist/uiTest/uiTestTypes.d.ts",
+        "description": "A {@link UiStackRefTarget} with the checkout it was resolved to.",
+        "dependencies": [
+          "UiStackRefTarget",
+          "playwright/Page"
+        ]
+      },
+      "uiStackTargetsFor": {
+        "path": "dist/uiTest/uiTestStackUtils.js",
+        "description": "The code each part of a stack is served from, in the order they start: a ref",
+        "dependencies": []
+      },
       "UiStopAppResult": {
         "path": "dist/uiTest/uiTestTypes.d.ts",
         "description": "Result of `uiTestStopApp`.",
@@ -261349,6 +262513,19 @@
         "description": "Wait, bounded, until every image is decoded and two frames have been drawn",
         "dependencies": []
       },
+      "uiTestCallStartUrl": {
+        "path": "dist/uiTest/uiTestServeHelpers.js",
+        "dependencies": [
+          "String",
+          "node:fs/constants",
+          "node:fs/createReadStream",
+          "node:fs/createWriteStream",
+          "node:fs/existsSync",
+          "node:fs/mkdirSync",
+          "node:stream/promises/pipeline",
+          "node:fs/promises"
+        ]
+      },
       "uiTestCaptureDevice": {
         "path": "dist/uiTest/uiTestHelpers.js",
         "dependencies": []
@@ -261369,11 +262546,27 @@
         "path": "dist/uiTest/uiTestHelpers.js",
         "dependencies": []
       },
+      "uiTestCheckoutCanBuild": {
+        "path": "dist/uiTest/uiTestServeHelpers.js",
+        "dependencies": [
+          "node:fs/constants",
+          "node:fs/createReadStream",
+          "node:fs/createWriteStream",
+          "node:fs/existsSync",
+          "node:fs/mkdirSync",
+          "node:stream/promises/pipeline",
+          "node:fs/promises"
+        ]
+      },
       "uiTestCheckoutDeclaresFakeBackend": {
         "path": "dist/uiTest/uiTestServeHelpers.js",
         "dependencies": [
           "node:fs/constants",
+          "node:fs/createReadStream",
+          "node:fs/createWriteStream",
           "node:fs/existsSync",
+          "node:fs/mkdirSync",
+          "node:stream/promises/pipeline",
           "node:fs/promises"
         ]
       },
@@ -261395,6 +262588,18 @@
         "path": "dist/uiTest/uiTestHelpers.js",
         "dependencies": []
       },
+      "uiTestCopyStackEnvFiles": {
+        "path": "dist/uiTest/uiTestServeHelpers.js",
+        "dependencies": [
+          "node:fs/constants",
+          "node:fs/createReadStream",
+          "node:fs/createWriteStream",
+          "node:fs/existsSync",
+          "node:fs/mkdirSync",
+          "node:stream/promises/pipeline",
+          "node:fs/promises"
+        ]
+      },
       "uiTestDescribePage": {
         "path": "dist/uiTest/uiTestHelpers.js",
         "dependencies": []
@@ -261407,6 +262612,18 @@
         "path": "dist/uiTest/uiTestHelpers.js",
         "dependencies": []
       },
+      "uiTestFileSize": {
+        "path": "dist/uiTest/uiTestServeHelpers.js",
+        "dependencies": [
+          "node:fs/constants",
+          "node:fs/createReadStream",
+          "node:fs/createWriteStream",
+          "node:fs/existsSync",
+          "node:fs/mkdirSync",
+          "node:stream/promises/pipeline",
+          "node:fs/promises"
+        ]
+      },
       "uiTestFillRefs": {
         "path": "dist/uiTest/uiTestHelpers.js",
         "dependencies": []
@@ -261415,7 +262632,11 @@
         "path": "dist/uiTest/uiTestServeHelpers.js",
         "dependencies": [
           "node:fs/constants",
+          "node:fs/createReadStream",
+          "node:fs/createWriteStream",
           "node:fs/existsSync",
+          "node:fs/mkdirSync",
+          "node:stream/promises/pipeline",
           "node:fs/promises"
         ]
       },
@@ -261434,13 +262655,29 @@
           "IS_WINDOWS",
           "UI_SERVE_LAUNCHER_GRACE_MS",
           "node:fs/constants",
+          "node:fs/createReadStream",
+          "node:fs/createWriteStream",
           "node:fs/existsSync",
+          "node:fs/mkdirSync",
+          "node:stream/promises/pipeline",
           "node:fs/promises"
         ]
       },
       "uiTestHoverRef": {
         "path": "dist/uiTest/uiTestHelpers.js",
         "dependencies": []
+      },
+      "uiTestKeepFile": {
+        "path": "dist/uiTest/uiTestServeHelpers.js",
+        "dependencies": [
+          "node:fs/constants",
+          "node:fs/createReadStream",
+          "node:fs/createWriteStream",
+          "node:fs/existsSync",
+          "node:fs/mkdirSync",
+          "node:stream/promises/pipeline",
+          "node:fs/promises"
+        ]
       },
       "uiTestLaunchElectronApp": {
         "path": "dist/uiTest/uiTestHelpers.js",
@@ -261465,11 +262702,27 @@
         "description": "Pause every SVG's own (SMIL) animations at their start — a spinner drawn",
         "dependencies": []
       },
+      "uiTestPortIsFree": {
+        "path": "dist/uiTest/uiTestServeHelpers.js",
+        "dependencies": [
+          "node:fs/constants",
+          "node:fs/createReadStream",
+          "node:fs/createWriteStream",
+          "node:fs/existsSync",
+          "node:fs/mkdirSync",
+          "node:stream/promises/pipeline",
+          "node:fs/promises"
+        ]
+      },
       "uiTestPrepareBuildTree": {
         "path": "dist/uiTest/uiTestServeHelpers.js",
         "dependencies": [
           "node:fs/constants",
+          "node:fs/createReadStream",
+          "node:fs/createWriteStream",
           "node:fs/existsSync",
+          "node:fs/mkdirSync",
+          "node:stream/promises/pipeline",
           "node:fs/promises"
         ]
       },
@@ -261481,7 +262734,11 @@
         "path": "dist/uiTest/uiTestServeHelpers.js",
         "dependencies": [
           "node:fs/constants",
+          "node:fs/createReadStream",
+          "node:fs/createWriteStream",
           "node:fs/existsSync",
+          "node:fs/mkdirSync",
+          "node:stream/promises/pipeline",
           "node:fs/promises"
         ]
       },
@@ -261489,7 +262746,11 @@
         "path": "dist/uiTest/uiTestServeHelpers.js",
         "dependencies": [
           "node:fs/constants",
+          "node:fs/createReadStream",
+          "node:fs/createWriteStream",
           "node:fs/existsSync",
+          "node:fs/mkdirSync",
+          "node:stream/promises/pipeline",
           "node:fs/promises"
         ]
       },
@@ -261497,7 +262758,11 @@
         "path": "dist/uiTest/uiTestServeHelpers.js",
         "dependencies": [
           "node:fs/constants",
+          "node:fs/createReadStream",
+          "node:fs/createWriteStream",
           "node:fs/existsSync",
+          "node:fs/mkdirSync",
+          "node:stream/promises/pipeline",
           "node:fs/promises"
         ]
       },
@@ -261515,7 +262780,11 @@
         "path": "dist/uiTest/uiTestServeHelpers.js",
         "dependencies": [
           "node:fs/constants",
+          "node:fs/createReadStream",
+          "node:fs/createWriteStream",
           "node:fs/existsSync",
+          "node:fs/mkdirSync",
+          "node:stream/promises/pipeline",
           "node:fs/promises"
         ]
       },
@@ -261529,7 +262798,23 @@
         "path": "dist/uiTest/uiTestServeHelpers.js",
         "dependencies": [
           "node:fs/constants",
+          "node:fs/createReadStream",
+          "node:fs/createWriteStream",
           "node:fs/existsSync",
+          "node:fs/mkdirSync",
+          "node:stream/promises/pipeline",
+          "node:fs/promises"
+        ]
+      },
+      "uiTestRunStartCommand": {
+        "path": "dist/uiTest/uiTestServeHelpers.js",
+        "dependencies": [
+          "node:fs/constants",
+          "node:fs/createReadStream",
+          "node:fs/createWriteStream",
+          "node:fs/existsSync",
+          "node:fs/mkdirSync",
+          "node:stream/promises/pipeline",
           "node:fs/promises"
         ]
       },
@@ -261555,7 +262840,11 @@
         "description": "Send `name` to each pid that is still there. Synchronous, so it can run as the host exits.",
         "dependencies": [
           "node:fs/constants",
+          "node:fs/createReadStream",
+          "node:fs/createWriteStream",
           "node:fs/existsSync",
+          "node:fs/mkdirSync",
+          "node:stream/promises/pipeline",
           "node:fs/promises"
         ]
       },
@@ -261563,7 +262852,11 @@
         "path": "dist/uiTest/uiTestServeHelpers.js",
         "dependencies": [
           "node:fs/constants",
+          "node:fs/createReadStream",
+          "node:fs/createWriteStream",
           "node:fs/existsSync",
+          "node:fs/mkdirSync",
+          "node:stream/promises/pipeline",
           "node:fs/promises"
         ]
       },
@@ -261578,7 +262871,11 @@
         "description": "Start the server step, bound to the host like a build. It runs until killed;",
         "dependencies": [
           "node:fs/constants",
+          "node:fs/createReadStream",
+          "node:fs/createWriteStream",
           "node:fs/existsSync",
+          "node:fs/mkdirSync",
+          "node:stream/promises/pipeline",
           "node:fs/promises"
         ]
       },
@@ -261635,7 +262932,11 @@
         "dependencies": [
           "AbortSignal",
           "node:fs/constants",
+          "node:fs/createReadStream",
+          "node:fs/createWriteStream",
           "node:fs/existsSync",
+          "node:fs/mkdirSync",
+          "node:stream/promises/pipeline",
           "node:fs/promises"
         ]
       },
@@ -262325,6 +263626,11 @@
       },
       "validateTicketConnectionBinding": {
         "path": "dist/connectors/items/connectorTypeValidations.js",
+        "dependencies": []
+      },
+      "validateUiStackSetting": {
+        "path": "dist/uiTest/uiTestTypeValidations.js",
+        "description": "Check how a project or group says its product is served, before it is saved:",
         "dependencies": []
       },
       "ValidationResult": {

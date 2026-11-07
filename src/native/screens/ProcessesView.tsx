@@ -130,9 +130,7 @@ export default function ProcessesView({ selectedProcessId }: ProcessesViewProps 
         <ProcessDetail
           definition={selected}
           statistics={statistics}
-          {...(isSeededProcess(selected)
-            ? {}
-            : { onEdit: () => setEditing(structuredClone(selected)) })}
+          onEdit={() => setEditing(structuredClone(selected))}
           onCopy={() => setEditing(copyProcessDefinition(selected))}
           {...(selected.scope === 'project' ? { onDelete: () => void remove(selected.id) } : {})}
         />

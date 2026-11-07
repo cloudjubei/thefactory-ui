@@ -30,7 +30,8 @@ export const PROCESS_EDITOR_COPY = {
   mayChangeNothingHint: 'An attempt that commits nothing still passes.',
   serveVariant: 'Serve its variant',
   serveVariantHint: 'The product is up at the variant’s refs before the agent starts.',
-  seededNote: 'This process ships with Overseer. Copy it to make one of your own.',
+  seededNote:
+    'This process ships with Overseer. Once you edit it, it is yours and Overseer updates leave it alone.',
 } as const
 
 export const PROCESS_INPUT_KIND_LABELS: Readonly<Record<ProcessInputKind, string>> = {
@@ -125,7 +126,7 @@ export function processDefinitionInputProblems(
   return processInputDefinitionProblems(definition.inputs)
 }
 
-/** Whether a process ships with Overseer as it is: it can be copied, not edited or deleted. Pure. */
+/** Whether a process ships with Overseer as it is, unedited: a save makes it the person's own. Pure. */
 export function isSeededProcess(definition: Pick<ProcessDefinition, 'seeded'>): boolean {
   return definition.seeded === true
 }
