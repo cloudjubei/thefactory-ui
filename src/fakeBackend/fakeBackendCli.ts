@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { FAKE_BACKEND_TOKEN_PREFIX } from './fakeBackendConstants'
-import { FAKE_BACKEND_ROUTES } from './fakeBackendRoutes'
+import { fakeBackendRoutes } from './fakeBackendRoutes'
 import { FakeBackendServer } from './FakeBackendServer'
 import { readFakeBackendOptions } from './fakeBackendUtils'
 
@@ -15,7 +15,7 @@ export async function startFakeBackendCli(
     env,
     () => `${FAKE_BACKEND_TOKEN_PREFIX}${randomUUID()}`,
   )
-  const server = new FakeBackendServer({ token, port, routes: FAKE_BACKEND_ROUTES, log })
+  const server = new FakeBackendServer({ token, port, routes: fakeBackendRoutes(), log })
   await server.start()
   log(`Fake backend on ${server.url}`)
   if (tokenGenerated) log(`Throwaway token: ${token}`)

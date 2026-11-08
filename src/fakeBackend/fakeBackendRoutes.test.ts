@@ -1,11 +1,12 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { FAKE_BACKEND_ROUTES } from './fakeBackendRoutes'
+import { fakeBackendRoutes } from './fakeBackendRoutes'
 import { answerFakeRequest, matchFakeRoute } from './fakeBackendUtils'
 import { STORY } from './fixtures/stories'
 import { FAKE_VARIANT_RUN_ID } from './fixtures/variantRun'
 
 const TOKEN = 'fake-token'
+const FAKE_BACKEND_ROUTES = fakeBackendRoutes()
 
 const sdkOperations = () => {
   const sdk = readFileSync(new URL('../headless/api/generated/sdk.gen.ts', import.meta.url), 'utf8')
@@ -42,7 +43,7 @@ const post = (pathname: string, body: unknown) =>
     { routes: FAKE_BACKEND_ROUTES, token: TOKEN },
   )
 
-describe('FAKE_BACKEND_ROUTES', () => {
+describe('fakeBackendRoutes', () => {
   it('holds only operations the generated client knows, on their own method', () => {
     const operations = sdkOperations()
     const unknown = FAKE_BACKEND_ROUTES.map((route) => `${route.method} ${route.path}`).filter(
@@ -83,8 +84,80 @@ describe('FAKE_BACKEND_ROUTES', () => {
   it('answers the new-item counts every client reads, one per connection it lists', () => {
     const { status, body } = get('/api/v1/provider-connections/new-items')
     expect(status).toBe(200)
-    expect(body).toEqual([])
-    expect(body).toHaveLength((get('/api/v1/provider-connections').body as unknown[]).length)
+    const listed = get('/api/v1/provider-connections').body as { id: string }[]
+    expect((body as { connectionId: string }[]).map((c) => c.connectionId)).toEqual(
+      listed.map((c) => c.id),
+    )
+  })
+
+  it('lists a ticket connection with new tickets, so the badge can be shown', () => {
+    const [connection] = get('/api/v1/provider-connections').body as {
+      id: string
+      provider: string
+    }[]
+    expect(connection?.provider).toBe('jira')
+    const [counts] = get('/api/v1/provider-connections/new-items').body as { newCount: number }[]
+    expect(counts?.newCount).toBeGreaterThan(1)
+  })
+
+  it('lists the connection’s assigned tickets, and 404s another connection’s', () => {
+    const [connection] = get('/api/v1/provider-connections').body as { id: string }[]
+    const { status, body } = get(`/api/v1/provider-connections/${connection!.id}/assigned-items`)
+    expect(status).toBe(200)
+    expect((body as unknown[]).length).toBeGreaterThan(1)
+    expect(get('/api/v1/provider-connections/other/assigned-items').status).toBe(404)
+  })
+
+  it('clears the new tickets once the listed ones are marked seen, on that table only', () => {
+    const routes = fakeBackendRoutes()
+    const on = (method: 'GET' | 'POST', pathname: string, body?: unknown) =>
+      answerFakeRequest(
+        {
+          method,
+          pathname,
+          query: new URLSearchParams(),
+          authorization: `Bearer ${TOKEN}`,
+          body,
+        },
+        { routes, token: TOKEN },
+      )
+    const [counts] = on('GET', '/api/v1/provider-connections/new-items').body as {
+      connectionId: string
+      identityEpoch: string
+    }[]
+    const items = on('GET', `/api/v1/provider-connections/${counts!.connectionId}/assigned-items`)
+      .body as {
+      provider: string
+      externalId: string
+      sourceTenant?: string
+      sourceItemId?: string
+    }[]
+    const seen = on('POST', `/api/v1/provider-connections/${counts!.connectionId}/seen`, {
+      identityEpoch: counts!.identityEpoch,
+      items: items.map(({ provider, externalId, sourceTenant, sourceItemId }) => ({
+        provider,
+        externalId,
+        sourceTenant,
+        sourceItemId,
+      })),
+    })
+    expect(seen.status).toBe(200)
+    expect(seen.body).toMatchObject({ connectionId: counts!.connectionId, newCount: 0 })
+    expect(on('GET', '/api/v1/provider-connections/new-items').body).toMatchObject([
+      { newCount: 0 },
+    ])
+    expect(
+      (get('/api/v1/provider-connections/new-items').body as { newCount: number }[])[0]?.newCount,
+    ).toBeGreaterThan(0)
+  })
+
+  it('marks nothing seen under an identity the connection does not have', () => {
+    const [connection] = get('/api/v1/provider-connections').body as { id: string }[]
+    const refused = post(`/api/v1/provider-connections/${connection!.id}/seen`, {
+      identityEpoch: 'stale',
+      items: [],
+    })
+    expect(refused.status).toBe(404)
   })
 
   it('answers the run list with the project asked for only', () => {

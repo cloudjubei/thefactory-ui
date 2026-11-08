@@ -5,6 +5,7 @@ import {
   PARK_NOTE_MAX_LENGTH,
   PROOF_CHANGE_CANCEL_LABEL,
   PROOF_CHANGE_HEADING,
+  PROOF_CHANGE_KEPT_CHIP,
   PROOF_CHANGE_NOTE_PLACEHOLDER,
   PROOF_CHANGE_SAVE_LABEL,
   PROOF_CHANGE_SEND_LABEL,
@@ -13,28 +14,42 @@ import {
   toggleProofChangeKind,
   type ProcessProofChangeOffer,
   type ProofChangeDraft,
+  type ProofChangeKeptLook,
 } from '../../../headless'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { Button } from '../../primitives/Button'
 import { Switch } from '../../primitives/Switch'
+import ToneBadge from '../chips/ToneBadge'
 
 export type ProofChangeComposerProps = {
   offer: ProcessProofChangeOffer
   onSend: (draft: ProofChangeDraft) => void
   onCancel: () => void
+  /** How kinds it holds picked are shown; `reason` unless the design view switches it. */
+  keptLook?: ProofChangeKeptLook
 }
 
 /**
  * Change what proves the stopped work, written in place of the choice row:
  * each kind as a switch with how it stood, the ones this run cannot produce
- * held off unless the work already needed them, saving it to the feature on a
- * feature's run, and why.
+ * held off unless the work already needed them, the screens of a change that
+ * shows on screen held on with why, saving it to the feature on a feature's
+ * run, and why.
  */
-export default function ProofChangeComposer({ offer, onSend, onCancel }: ProofChangeComposerProps) {
+export default function ProofChangeComposer({
+  offer,
+  onSend,
+  onCancel,
+  keptLook = 'reason',
+}: ProofChangeComposerProps) {
   const { theme, status } = useNativeTheme()
   const [draft, setDraft] = useState<ProofChangeDraft>(() => proofChangeDraftStart(offer))
   const view = proofChangeView(offer, draft)
+  const kinds =
+    keptLook === 'hidden' ? view.kinds.filter((kind) => kind.kept === undefined) : view.kinds
+  const keptNotes =
+    keptLook === 'hidden' ? view.kinds.flatMap((kind) => (kind.kept ? [kind.kept] : [])) : []
 
   return (
     <View style={{ width: '100%', gap: nativeSpace[2] }}>
@@ -51,14 +66,29 @@ export default function ProofChangeComposer({ offer, onSend, onCancel }: ProofCh
         {PROOF_CHANGE_HEADING}
       </Text>
       <Text style={{ fontSize: 11, color: theme.text.secondary }}>{view.hint}</Text>
-      {view.kinds.map((kind) => (
+      {keptNotes.map((note) => (
+        <Text key={note} style={{ fontSize: 11, color: theme.text.secondary }}>
+          {note}
+        </Text>
+      ))}
+      {kinds.map((kind) => (
         <View key={kind.kind} style={{ gap: 2 }}>
-          <Switch
-            checked={kind.checked}
-            disabled={kind.disabled}
-            onCheckedChange={() => setDraft((d) => toggleProofChangeKind(d, kind.kind))}
-            label={kind.label}
-          />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}>
+            <Switch
+              checked={kind.checked}
+              disabled={kind.disabled}
+              onCheckedChange={() => setDraft((d) => toggleProofChangeKind(d, kind.kind))}
+              label={kind.label}
+            />
+            {keptLook === 'lock' && kind.kept ? (
+              <ToneBadge tone="empty" label={PROOF_CHANGE_KEPT_CHIP} />
+            ) : null}
+          </View>
+          {keptLook === 'reason' && kind.kept ? (
+            <Text style={{ fontSize: 10.5, color: theme.text.secondary, paddingLeft: 40 }}>
+              {kind.kept}
+            </Text>
+          ) : null}
           {kind.standing ? (
             <Text style={{ fontSize: 10.5, color: theme.text.secondary, paddingLeft: 40 }}>
               {kind.standing.word} — {kind.standing.detail}

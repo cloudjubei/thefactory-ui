@@ -26805,6 +26805,7 @@ export type ProcessProofChangeOffer = {
   current: Array<ProofKind>
   standings: Array<ProofKindStanding>
   unavailable: Array<ProofKindUnavailable>
+  keepsScreens?: true
 }
 
 export type ProcessParkChoice = {
@@ -26827,6 +26828,7 @@ export type ProcessParkChoice = {
     current: Array<ProofKind>
     standings: Array<ProofKindStanding>
     unavailable: Array<ProofKindUnavailable>
+    keepsScreens?: true
   }
 }
 

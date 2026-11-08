@@ -22,7 +22,12 @@ export interface ProofChangeKindView {
   standing?: { status: ProofKindStatus; word: string; tone: StoryStepTone; detail: string }
   /** Why the run cannot produce it here. */
   unavailable?: string
-  /** It cannot be picked: the run cannot produce it, and the feature did not already need it. */
+  /** Why it stays picked: the screens of a change that shows on screen. */
+  kept?: string
+  /**
+   * It cannot be changed: the run cannot produce it and the feature did not already need it, or
+   * it is `kept` and picked — a kept kind a draft dropped can be picked again, never unpicked.
+   */
   disabled: boolean
 }
 
@@ -41,3 +46,10 @@ export interface ProofChangeView {
   problem?: string
   canSend: boolean
 }
+
+/**
+ * How the editor shows kinds it holds picked: switched off with why beneath (`reason`, the
+ * pick), left out with a note under the heading (`hidden`), or ticked with a chip whose hover
+ * says why (`lock`). The other two stay for the design view.
+ */
+export type ProofChangeKeptLook = 'reason' | 'hidden' | 'lock'

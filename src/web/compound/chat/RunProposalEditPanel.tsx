@@ -73,7 +73,11 @@ export function RunProposalEditPanel({ edit, state, busy, onChange }: RunProposa
                 const next = toggleProofChangeKind({ ...picked, note: '' }, kind.kind)
                 onChange({ ...state, proofChange: { kinds: next.kinds, save: next.save } })
               }}
-              label={kind.unavailable ? `${kind.label} — ${kind.unavailable}` : kind.label}
+              label={
+                kind.kept || kind.unavailable
+                  ? `${kind.label} — ${kind.kept ?? kind.unavailable}`
+                  : kind.label
+              }
             />
           ))}
           {proof.canSave ? (

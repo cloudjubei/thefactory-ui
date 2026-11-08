@@ -172,6 +172,20 @@ describe('a change of what proves a stopped feature, on its card', () => {
     expect(runProposalEdit({ proofChange: { current: ['checks'] } })).toBeUndefined()
   })
 
+  it('reads that a change shown on screen keeps its screens', () => {
+    const shown = { proofChange: { ...detail.proofChange, keepsScreens: true } }
+    const edit = runProposalEdit(shown)!
+    expect(edit.proofChange?.keepsScreens).toBe(true)
+    expect(runProposalEditProblem(edit, { proofChange: { kinds: ['checks'], save: false } })).toBe(
+      'This change shows on screen, so before/after screens stay in what proves it.',
+    )
+  })
+
+  it('reads no kept screens from anything but true', () => {
+    const odd = { proofChange: { ...detail.proofChange, keepsScreens: 'yes' } }
+    expect(runProposalEdit(odd)?.proofChange).not.toHaveProperty('keepsScreens')
+  })
+
   it('starts from the kinds and the saving the agent proposed', () => {
     expect(runProposalEditStart(runProposalEdit(detail)!, detail).proofChange).toEqual({
       kinds: ['checks', 'code-review'],

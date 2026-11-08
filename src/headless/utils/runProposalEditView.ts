@@ -94,6 +94,7 @@ function proofChangeOf(value: unknown): ProcessProofChangeOffer | undefined {
     current: kindsOf(p.current),
     standings,
     unavailable,
+    ...(p.keepsScreens === true ? { keepsScreens: true as const } : {}),
   }
 }
 

@@ -6,6 +6,7 @@ import {
   proofChangeView,
   toggleProofChangeKind,
 } from './processProofChangeView'
+import { PROOF_CHANGE_SCREENS_KEPT } from './processProofChangeViewConstants'
 
 /** A feature run stopped on screens no screen of a library can show — the shape of run 5d5c17ce. */
 const library: ProcessProofChangeOffer = {
@@ -155,5 +156,61 @@ describe('proofChangeView at a story fix', () => {
   it('never saves it, whatever the draft says', () => {
     const view = proofChangeView(blockedFix, { kinds: ['checks'], save: true, note: '' })
     expect([view.save, view.canSend]).toEqual([false, true])
+  })
+})
+
+describe('proofChangeView of a change that shows on screen', () => {
+  const visible: ProcessProofChangeOffer = { ...library, keepsScreens: true }
+
+  it('starts with the screens kept, though they stopped the step', () => {
+    expect(proofChangeDraftStart(visible).kinds).toEqual([
+      'checks',
+      'code-review',
+      'ui-before-after',
+    ])
+  })
+
+  it('keeps the screens when they alone stopped it and nothing else proves it', () => {
+    const only = { ...blockedFix, unavailable: [], keepsScreens: true as const }
+    expect(proofChangeDraftStart(only).kinds).toEqual(['ui-before-after'])
+  })
+
+  it('shows the screens ticked and held, with why', () => {
+    const view = proofChangeView(visible, proofChangeDraftStart(visible))
+    expect(view.kinds.find((k) => k.kind === 'ui-before-after')).toMatchObject({
+      checked: true,
+      disabled: true,
+      kept: PROOF_CHANGE_SCREENS_KEPT,
+    })
+  })
+
+  it('holds no other kind', () => {
+    const view = proofChangeView(visible, proofChangeDraftStart(visible))
+    expect(view.kinds.filter((k) => k.kept).map((k) => k.kind)).toEqual(['ui-before-after'])
+    expect(view.kinds.find((k) => k.kind === 'checks')?.disabled).toBe(false)
+  })
+
+  it('lets a change that keeps the screens be sent', () => {
+    const view = proofChangeView(visible, {
+      kinds: ['checks', 'ui-before-after'],
+      save: false,
+      note: '',
+    })
+    expect([view.canSend, view.problem]).toEqual([true, undefined])
+  })
+
+  it('lets the screens be ticked again when a draft dropped them', () => {
+    const view = proofChangeView(visible, { kinds: ['checks'], save: false, note: '' })
+    expect(view.kinds.find((k) => k.kind === 'ui-before-after')).toMatchObject({
+      checked: false,
+      disabled: false,
+      kept: PROOF_CHANGE_SCREENS_KEPT,
+    })
+    expect(view.canSend).toBe(false)
+  })
+
+  it('holds nothing on a change that shows nothing', () => {
+    const view = proofChangeView(library, proofChangeDraftStart(library))
+    expect(view.kinds.some((k) => k.kept !== undefined)).toBe(false)
   })
 })

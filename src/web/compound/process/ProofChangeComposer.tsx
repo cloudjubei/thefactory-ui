@@ -4,6 +4,7 @@ import {
   PARK_NOTE_MAX_LENGTH,
   PROOF_CHANGE_CANCEL_LABEL,
   PROOF_CHANGE_HEADING,
+  PROOF_CHANGE_KEPT_CHIP,
   PROOF_CHANGE_NOTE_PLACEHOLDER,
   PROOF_CHANGE_SAVE_LABEL,
   PROOF_CHANGE_SEND_LABEL,
@@ -12,25 +13,39 @@ import {
   toggleProofChangeKind,
   type ProcessProofChangeOffer,
   type ProofChangeDraft,
+  type ProofChangeKeptLook,
 } from '../../../headless'
 import { Button } from '../../primitives/Button'
 import { Switch } from '../../primitives/Switch'
+import ToneBadge from '../chips/ToneBadge'
 
 export type ProofChangeComposerProps = {
   offer: ProcessProofChangeOffer
   onSend: (draft: ProofChangeDraft) => void
   onCancel: () => void
+  /** How kinds it holds picked are shown; `reason` unless the design view switches it. */
+  keptLook?: ProofChangeKeptLook
 }
 
 /**
  * Change what proves the stopped work, written in place of the choice row:
  * each kind as a switch with how it stood, the ones this run cannot produce
- * held off unless the work already needed them, saving it to the feature on a
- * feature's run, and why.
+ * held off unless the work already needed them, the screens of a change that
+ * shows on screen held on with why, saving it to the feature on a feature's
+ * run, and why.
  */
-export default function ProofChangeComposer({ offer, onSend, onCancel }: ProofChangeComposerProps) {
+export default function ProofChangeComposer({
+  offer,
+  onSend,
+  onCancel,
+  keptLook = 'reason',
+}: ProofChangeComposerProps) {
   const [draft, setDraft] = useState<ProofChangeDraft>(() => proofChangeDraftStart(offer))
   const view = proofChangeView(offer, draft)
+  const kinds =
+    keptLook === 'hidden' ? view.kinds.filter((kind) => kind.kept === undefined) : view.kinds
+  const keptNotes =
+    keptLook === 'hidden' ? view.kinds.flatMap((kind) => (kind.kept ? [kind.kept] : [])) : []
 
   return (
     <div className="flex w-full flex-col gap-2">
@@ -39,14 +54,29 @@ export default function ProofChangeComposer({ offer, onSend, onCancel }: ProofCh
           {PROOF_CHANGE_HEADING}
         </legend>
         <span className="text-[11px] text-(--text-secondary)">{view.hint}</span>
-        {view.kinds.map((kind) => (
+        {keptNotes.map((note) => (
+          <span key={note} className="text-[11px] text-(--text-secondary)">
+            {note}
+          </span>
+        ))}
+        {kinds.map((kind) => (
           <div key={kind.kind} className="flex flex-col gap-0.5">
-            <Switch
-              checked={kind.checked}
-              disabled={kind.disabled}
-              onCheckedChange={() => setDraft((d) => toggleProofChangeKind(d, kind.kind))}
-              label={kind.label}
-            />
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={kind.checked}
+                disabled={kind.disabled}
+                onCheckedChange={() => setDraft((d) => toggleProofChangeKind(d, kind.kind))}
+                label={kind.label}
+              />
+              {keptLook === 'lock' && kind.kept ? (
+                <ToneBadge tone="empty" title={kind.kept}>
+                  {PROOF_CHANGE_KEPT_CHIP}
+                </ToneBadge>
+              ) : null}
+            </div>
+            {keptLook === 'reason' && kind.kept ? (
+              <span className="pl-10 text-[10.5px] text-(--text-secondary)">{kind.kept}</span>
+            ) : null}
             {kind.standing ? (
               <span className="pl-10 text-[10.5px] text-(--text-secondary)">
                 {kind.standing.word} — {kind.standing.detail}

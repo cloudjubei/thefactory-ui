@@ -1,11 +1,17 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import type {
   ProcessProofChangeOffer,
   ProcessProposal,
   ProcessRun,
   ProofKindUnavailable,
 } from 'thefactory-tools/types'
-import { launchProofPlanRows, proofPlanMarkRows, requestProofChoices } from 'thefactory-ui/headless'
+import {
+  launchProofPlanRows,
+  proofPlanMarkRows,
+  requestProofChoices,
+  type ProofChangeKeptLook,
+} from 'thefactory-ui/headless'
+import { SegmentedControl, ToneBadge } from 'thefactory-ui/web'
 // Not on the package's public surface: the pipeline draws its stop and its composers itself. The
 // showcase reaches into the source for them, as the playground renders the library from source.
 import LaunchFeatureList from '../../src/web/compound/chat/LaunchFeatureList'
@@ -14,6 +20,7 @@ import { ParkBlock } from '../../src/web/compound/process/ProcessPipeline'
 import ProofChangeComposer from '../../src/web/compound/process/ProofChangeComposer'
 import ProofPlanMarks from '../../src/web/compound/process/ProofPlanMarks'
 import type { Scene } from '../showcase/types'
+import { KEPT_LOOKS, VISIBLE_CHANGE_OFFER } from './proofChangeFixtures'
 
 const noop = () => {}
 const resolved = async () => {}
@@ -198,6 +205,33 @@ const LAUNCH: Pick<ProcessProposal, 'proofPlans'> = {
 
 const frame = (node: ReactNode) => <div className="max-w-[640px] p-4">{node}</div>
 
+/** The three looks for screens that stay, switched on the board on the real editor. */
+function KeptAlternatives() {
+  const [look, setLook] = useState<ProofChangeKeptLook>('reason')
+  const shown = KEPT_LOOKS.find((l) => l.id === look) ?? KEPT_LOOKS[0]!
+  return (
+    <div className="flex w-full max-w-[640px] flex-col gap-3 p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <SegmentedControl
+          ariaLabel="Screens that stay"
+          value={look}
+          onChange={(value) => setLook(value as ProofChangeKeptLook)}
+          options={KEPT_LOOKS.map(({ id, label }) => ({ value: id, label }))}
+        />
+        {look === 'reason' ? <ToneBadge tone="done">The pick</ToneBadge> : null}
+      </div>
+      <p className="m-0 text-[13px] text-(--text-secondary)">{shown.note}</p>
+      <ProofChangeComposer
+        key={look}
+        offer={VISIBLE_CHANGE_OFFER}
+        onSend={noop}
+        onCancel={noop}
+        keptLook={look}
+      />
+    </div>
+  )
+}
+
 export const PROOF_CHANGE_SCENES: Scene[] = [
   {
     id: 'proof-change-stop',
@@ -266,6 +300,56 @@ export const PROOF_CHANGE_SCENES: Scene[] = [
           frame(<ProofChangeComposer offer={FEATURE_OFFER} onSend={noop} onCancel={noop} />),
       },
     ],
+  },
+  {
+    id: 'proof-change-keeps-screens',
+    title: 'Screens stay on a visible change',
+    component: 'ProofChangeComposer',
+    group: 'Process',
+    description:
+      'When the change shows on screen, before/after screens can’t be dropped from what proves it. The editor starts with them on and holds them there with why, instead of letting them be switched off and then showing the refusal. Held, with why is the pick; Left out and Stays chip are on the board.',
+    states: [
+      {
+        id: 'alternatives',
+        title: 'Alternatives',
+        description: 'Held, with why · Left out · Stays chip, switched here on the real editor.',
+        render: () => <KeptAlternatives />,
+      },
+      ...KEPT_LOOKS.map(({ id, label, note }) => ({
+        id,
+        title: id === 'reason' ? `${label} (the pick)` : label,
+        description: note,
+        render: () =>
+          frame(
+            <ProofChangeComposer
+              offer={VISIBLE_CHANGE_OFFER}
+              onSend={noop}
+              onCancel={noop}
+              keptLook={id}
+            />,
+          ),
+      })),
+    ],
+    controls: [
+      {
+        id: 'look',
+        label: 'Screens that stay',
+        kind: 'choice',
+        options: KEPT_LOOKS.map(({ id, label }) => ({ id, label })),
+        default: 'reason',
+      },
+    ],
+    presets: KEPT_LOOKS.map(({ id, label }) => ({ id, name: label, values: { look: id } })),
+    play: (values) =>
+      frame(
+        <ProofChangeComposer
+          key={values.look}
+          offer={VISIBLE_CHANGE_OFFER}
+          onSend={noop}
+          onCancel={noop}
+          keptLook={(values.look ?? 'reason') as ProofChangeKeptLook}
+        />,
+      ),
   },
   {
     id: 'proof-screens-not-needed',

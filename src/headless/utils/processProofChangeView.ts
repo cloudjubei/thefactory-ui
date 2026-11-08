@@ -3,20 +3,32 @@ import type { ProcessProofChangeOffer, ProofKind } from 'thefactory-tools/types'
 import { processProofChangeProblem } from 'thefactory-tools/utils'
 
 import type { ProofChangeDraft, ProofChangeView } from './processProofChangeViewTypes'
-import { PROOF_CHANGE_HINT, PROOF_CHANGE_HINT_RUN_ONLY } from './processProofChangeViewConstants'
+import {
+  PROOF_CHANGE_HINT,
+  PROOF_CHANGE_HINT_RUN_ONLY,
+  PROOF_CHANGE_SCREENS_KEPT,
+} from './processProofChangeViewConstants'
 import { PROOF_KIND_STATUS_TONES, PROOF_KIND_STATUS_WORDS } from './proofPlanViewConstants'
+
+const SCREENS: ProofKind = 'ui-before-after'
+
+const keptKind = (offer: Pick<ProcessProofChangeOffer, 'keepsScreens'>, kind: ProofKind) =>
+  offer.keepsScreens === true && kind === SCREENS
 
 /**
  * Where a change of proof starts: what proves the feature now, less the kinds
  * that stopped the step (unmet or unchecked) — what the person came to drop —
- * or all of it when nothing would be left. Nothing is saved and no why is said.
+ * or all of it when nothing would be left. The screens of a change that shows
+ * on screen (`keepsScreens`) are never dropped. Nothing is saved and no why is
+ * said.
  */
 export function proofChangeDraftStart(
-  offer: Pick<ProcessProofChangeOffer, 'current' | 'standings'>,
+  offer: Pick<ProcessProofChangeOffer, 'current' | 'standings' | 'keepsScreens'>,
 ): ProofChangeDraft {
   const stopped = new Set(
     offer.standings
       .filter((s) => s.status === 'unmet' || s.status === 'unchecked')
+      .filter((s) => !keptKind(offer, s.kind))
       .map((s) => s.kind),
   )
   const kept = offer.current.filter((kind) => !stopped.has(kind))
@@ -35,6 +47,7 @@ export function toggleProofChangeKind(draft: ProofChangeDraft, kind: ProofKind):
  * The change as its editor shows it: every kind of proof, picked or not, how
  * each the work needed stood when it stopped, the ones the run cannot produce
  * marked with why — and not pickable unless the work already needed them —
+ * the screens of a change that shows on screen held picked, with why —
  * whether it can be saved onto a feature (only on a feature's run), and
  * whether it can be sent as it stands.
  */
@@ -72,7 +85,10 @@ export function proofChangeView(
             }
           : {}),
         ...(reason ? { unavailable: reason } : {}),
-        disabled: reason !== undefined && !offer.current.includes(kind),
+        ...(keptKind(offer, kind) ? { kept: PROOF_CHANGE_SCREENS_KEPT } : {}),
+        disabled:
+          (keptKind(offer, kind) && draft.kinds.includes(kind)) ||
+          (reason !== undefined && !offer.current.includes(kind)),
       }
     }),
     hint: canSave ? PROOF_CHANGE_HINT : PROOF_CHANGE_HINT_RUN_ONLY,

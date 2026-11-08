@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { FAKE_BACKEND_ROUTES } from './fakeBackendRoutes'
+import { fakeBackendRoutes } from './fakeBackendRoutes'
 import { answerFakeRequest } from './fakeBackendUtils'
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url))
@@ -76,22 +76,23 @@ describe('holding no real credential', () => {
   })
 
   it('answers no secret field on any route it can read without a parameter', () => {
-    const answers = FAKE_BACKEND_ROUTES.filter(
-      ({ method, path }) => method === 'GET' && !path.includes('{'),
-    ).map(({ path }) =>
-      JSON.stringify(
-        answerFakeRequest(
-          {
-            method: 'GET',
-            pathname: path,
-            query: new URLSearchParams(),
-            authorization: `Bearer ${TOKEN}`,
-            body: undefined,
-          },
-          { routes: FAKE_BACKEND_ROUTES, token: TOKEN },
-        ).body,
-      ),
-    )
+    const routes = fakeBackendRoutes()
+    const answers = routes
+      .filter(({ method, path }) => method === 'GET' && !path.includes('{'))
+      .map(({ path }) =>
+        JSON.stringify(
+          answerFakeRequest(
+            {
+              method: 'GET',
+              pathname: path,
+              query: new URLSearchParams(),
+              authorization: `Bearer ${TOKEN}`,
+              body: undefined,
+            },
+            { routes, token: TOKEN },
+          ).body,
+        ),
+      )
     expect(answers.length).toBeGreaterThan(20)
     expect(answers.join('\n')).not.toMatch(/"(apiKey|token|password|secret|refreshToken)":/)
   })

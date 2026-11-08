@@ -10,7 +10,7 @@ import { chatToolCatalogQueryOf } from '../headless/hooks/useChatToolCatalog'
 import { buildChatToolToggles } from '../headless/utils/chatToolToggles'
 import { gitBundleQuery } from '../headless/utils/gitBundle'
 import { FakeBackendServer } from './FakeBackendServer'
-import { FAKE_BACKEND_ROUTES } from './fakeBackendRoutes'
+import { fakeBackendRoutes } from './fakeBackendRoutes'
 
 const TOKEN = 'fake-replay-token'
 const PROJECT = 'thefactory-tools'
@@ -151,7 +151,7 @@ const onStarting = vi.fn()
 let token: string | null = TOKEN
 
 beforeAll(async () => {
-  server = new FakeBackendServer({ token: TOKEN, routes: FAKE_BACKEND_ROUTES })
+  server = new FakeBackendServer({ token: TOKEN, routes: fakeBackendRoutes() })
   await server.start()
   configureBackendClient({
     baseUrl: server.url,

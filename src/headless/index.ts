@@ -3733,12 +3733,15 @@ export {
   PROOF_CHANGE_CANCEL_LABEL,
   PROOF_CHANGE_HEADING,
   PROOF_CHANGE_HINT,
+  PROOF_CHANGE_KEPT_CHIP,
   PROOF_CHANGE_NOTE_PLACEHOLDER,
   PROOF_CHANGE_SAVE_LABEL,
+  PROOF_CHANGE_SCREENS_KEPT,
   PROOF_CHANGE_SEND_LABEL,
 } from './utils/processProofChangeViewConstants'
 export type {
   ProofChangeDraft,
+  ProofChangeKeptLook,
   ProofChangeKindView,
   ProofChangeView,
 } from './utils/processProofChangeViewTypes'

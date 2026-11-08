@@ -11,6 +11,7 @@ import {
   type GroupConstellationLayout,
   type GroupHomeLayout,
   type GroupTicketsLayout,
+  type ProofChangeKeptLook,
   type ProviderOAuthActions,
   type TicketStatusList,
   type TicketTransitionStanding,
@@ -20,6 +21,7 @@ import GroupTicketsList from '../../src/native/compound/groupStories/GroupTicket
 import ProjectDefaultCapsField from '../../src/native/compound/projects/ProjectDefaultCapsField'
 import TicketTransitionField from '../../src/native/compound/projects/TicketTransitionField'
 import TicketPostNote from '../../src/native/compound/process/signoff/TicketPostNote'
+import ProofChangeComposer from '../../src/native/compound/process/ProofChangeComposer'
 import ProviderConnectionsForm from '../../src/native/compound/settings/ProviderConnectionsForm'
 import SignOffOutputSettingsPanel from '../../src/native/compound/settings/SignOffOutputSettingsPanel'
 import CaptureCardShell from '../../src/native/compound/chat/CaptureCardShell'
@@ -35,6 +37,7 @@ import { FAKE_GROUP_ID, MEMBERS } from '../../src/fakeBackend/fixtures/projects'
 import { FAKE_GROUP_STATUS_AT } from '../../src/fakeBackend/fixtures/projectsGroups'
 import { ticketsState } from '../scenes/groupTicketsFixtures'
 import { OnFixtures } from '../scenes/onFixtures'
+import { KEPT_LOOKS, VISIBLE_CHANGE_OFFER } from '../scenes/proofChangeFixtures'
 import { VARIANT_VIEWS } from './variantViews'
 
 const noop = () => {}
@@ -252,6 +255,21 @@ const OAUTH: ProviderOAuthActions = {
   onReconnect: () => noop,
 }
 
+/** The proof editor of a change that shows on screen, its screens held in the look `?look=` names. */
+function KeptScreens({ look }: { look: string | null }) {
+  const kept: ProofChangeKeptLook = KEPT_LOOKS.find((l) => l.id === look)?.id ?? 'reason'
+  return (
+    <View style={{ padding: 16, width: 390, maxWidth: '100%' }}>
+      <ProofChangeComposer
+        offer={VISIBLE_CHANGE_OFFER}
+        onSend={noop}
+        onCancel={noop}
+        keptLook={kept}
+      />
+    </View>
+  )
+}
+
 function ConnectionForm() {
   return (
     <View style={{ padding: 16 }}>
@@ -431,6 +449,11 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
     id: 'connection-form',
     title: 'Ticket connection form',
     render: () => <ConnectionForm />,
+  },
+  {
+    id: 'proof-change-keeps-screens',
+    title: 'Screens stay on a visible change',
+    render: (address) => <KeptScreens look={address.get('look')} />,
   },
   ...VARIANT_VIEWS,
 ]

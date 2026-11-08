@@ -102,6 +102,8 @@ import type {
   CheckCliImageUpdatesResponse,
   ListCliImageVersionsData,
   ListCliImageVersionsResponse,
+  ListConnectionAssignedItemsData,
+  ListConnectionAssignedItemsResponse,
   ListConnectionNewItemsData,
   ListConnectionNewItemsResponse,
   ListCredentialCapturesData,
@@ -150,6 +152,8 @@ import type {
   ListProjectsResponse,
   ListProviderConnectionsData,
   ListProviderConnectionsResponse,
+  MarkConnectionItemsSeenData,
+  MarkConnectionItemsSeenResponse,
   ListSourceRecordsData,
   ListSourceRecordsResponse,
   ListStoriesData,
@@ -220,6 +224,8 @@ import { FAKE_GROUP_ID, FAKE_GROUPS, FAKE_PROJECTS } from './fixtures/projects'
 import { FAKE_GROUP_CONSTELLATION, FAKE_GROUP_STATUS } from './fixtures/projectsGroups'
 import { FAKE_AT } from './fixtures/stamps'
 import { FAKE_STORIES_BY_PROJECT } from './fixtures/stories'
+import { FAKE_TICKET_CONNECTION } from './fixtures/ticketConnections'
+import { FakeTicketInbox } from './FakeTicketInbox'
 
 const FAKE_JIRA_CLOUD_ID = '11111111-2222-4333-8444-555555555555'
 
@@ -239,6 +245,7 @@ const route =
 
 const read = route('GET')
 const readByPost = route('POST')
+const write = route('POST')
 
 const publicRead = <TData extends ContractData, TResponse>(
   path: TData['url'],
@@ -298,7 +305,7 @@ const NO_COSTS: Omit<GetCostsByChatResponse, 'chatKey'> = {
 }
 
 /** Every read the clients make to reach their main screens. Nothing here writes. */
-export const FAKE_BACKEND_ROUTES: readonly FakeRoute[] = [
+const READS: readonly FakeRoute[] = [
   publicRead<HealthData, HealthResponse>('/health', () => HEALTH),
   publicRead<HealthStartupData, HealthStartupResponse>('/health/startup', () => STARTUP),
 
@@ -342,19 +349,11 @@ export const FAKE_BACKEND_ROUTES: readonly FakeRoute[] = [
     '/api/v1/web-search-keys',
     () => FAKE_WEB_SEARCH_KEYS,
   ),
-  read<ListProviderConnectionsData, ListProviderConnectionsResponse>(
-    '/api/v1/provider-connections',
-    () => [],
-  ),
   {
     method: 'GET',
     path: '/api/v1/provider-connections/jira-cloud-id',
     answer: () => ({ cloudId: FAKE_JIRA_CLOUD_ID }),
   },
-  read<ListConnectionNewItemsData, ListConnectionNewItemsResponse>(
-    '/api/v1/provider-connections/new-items',
-    () => [],
-  ),
   read<GetOverseerData, GetOverseerResponse>('/api/v1/overseer', () => FAKE_OVERSEER),
   read<ListOverseerAuthProvidersData, ListOverseerAuthProvidersResponse>(
     '/api/v1/overseer/auth-providers',
@@ -637,3 +636,42 @@ export const FAKE_BACKEND_ROUTES: readonly FakeRoute[] = [
     () => [],
   ),
 ]
+
+/** The ticket connection, its tickets, and marking them seen: the one write, held by `inbox`. */
+function ticketRoutes(inbox: FakeTicketInbox): FakeRoute[] {
+  return [
+    read<ListProviderConnectionsData, ListProviderConnectionsResponse>(
+      '/api/v1/provider-connections',
+      () => [FAKE_TICKET_CONNECTION],
+    ),
+    read<ListConnectionNewItemsData, ListConnectionNewItemsResponse>(
+      '/api/v1/provider-connections/new-items',
+      () => inbox.newItems(),
+    ),
+    read<ListConnectionAssignedItemsData, ListConnectionAssignedItemsResponse>(
+      '/api/v1/provider-connections/{id}/assigned-items',
+      ({ params, missing }) =>
+        inbox.assigned(params.id ?? '') ?? missing(`No fake connection '${params.id}'.`),
+    ),
+    write<MarkConnectionItemsSeenData, MarkConnectionItemsSeenResponse>(
+      '/api/v1/provider-connections/{id}/seen',
+      ({ params, body, missing }) => {
+        const { identityEpoch = '', items = [] } = (body ?? {}) as Partial<
+          MarkConnectionItemsSeenData['body']
+        >
+        return (
+          inbox.markSeen(params.id ?? '', identityEpoch, items) ??
+          missing(`No fake connection '${params.id}' under identity '${identityEpoch}'.`)
+        )
+      },
+    ),
+  ]
+}
+
+/**
+ * The route table one fake server answers from: every read, and the tickets it
+ * has shown, which start new for each table.
+ */
+export function fakeBackendRoutes(): readonly FakeRoute[] {
+  return [...READS, ...ticketRoutes(new FakeTicketInbox())]
+}

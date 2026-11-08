@@ -16,3 +16,9 @@ export const PROOF_CHANGE_NOTE_PLACEHOLDER = 'Why (optional)'
 /** The editor's buttons. */
 export const PROOF_CHANGE_SEND_LABEL = 'Change it'
 export const PROOF_CHANGE_CANCEL_LABEL = 'Cancel'
+
+/** Why the screens of a change that shows on screen stay picked. */
+export const PROOF_CHANGE_SCREENS_KEPT = 'Screens stay: this change shows on screen'
+
+/** The chip on held screens, in the lock-chip look the design view keeps as an alternative. */
+export const PROOF_CHANGE_KEPT_CHIP = 'Stays'
