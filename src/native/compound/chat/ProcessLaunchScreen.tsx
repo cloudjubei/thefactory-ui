@@ -95,7 +95,7 @@ export function ProcessLaunchVariantScreen({
     projectId,
     processId,
   })
-  const { notes, revealNote } = useProjectNotes(projectId)
+  const { notes } = useProjectNotes(projectId)
   const input = form?.inputs.find((one) => one.name === inputName)
   const variant = draft
     ? processLaunchVariants(draft, inputName).find((one) => one.key === variantKey)
@@ -116,7 +116,6 @@ export function ProcessLaunchVariantScreen({
           problem,
           marked: true,
           notes,
-          loadNote: revealNote,
           busy: false,
           onChange: setDraft,
         }}

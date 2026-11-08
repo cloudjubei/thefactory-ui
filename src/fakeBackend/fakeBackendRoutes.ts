@@ -102,6 +102,8 @@ import type {
   CheckCliImageUpdatesResponse,
   ListCliImageVersionsData,
   ListCliImageVersionsResponse,
+  ListConnectionNewItemsData,
+  ListConnectionNewItemsResponse,
   ListCredentialCapturesData,
   ListCredentialCapturesResponse,
   ListDataSourcesData,
@@ -349,6 +351,10 @@ export const FAKE_BACKEND_ROUTES: readonly FakeRoute[] = [
     path: '/api/v1/provider-connections/jira-cloud-id',
     answer: () => ({ cloudId: FAKE_JIRA_CLOUD_ID }),
   },
+  read<ListConnectionNewItemsData, ListConnectionNewItemsResponse>(
+    '/api/v1/provider-connections/new-items',
+    () => [],
+  ),
   read<GetOverseerData, GetOverseerResponse>('/api/v1/overseer', () => FAKE_OVERSEER),
   read<ListOverseerAuthProvidersData, ListOverseerAuthProvidersResponse>(
     '/api/v1/overseer/auth-providers',

@@ -17,6 +17,7 @@ import {
   toggleProcessLaunchOneRef,
   type ProcessLaunchDraft,
   type ProcessLaunchFieldDraft,
+  type ProcessLaunchNoteName,
   type ProcessLaunchProblem,
   type ProcessLaunchRefDraft,
   type ProcessLaunchRepos,
@@ -36,7 +37,7 @@ import { Textarea } from '../../primitives/Textarea'
 import RefChip from '../chips/RefChip'
 
 /** A note the form can pick. */
-export type ProcessLaunchNote = { id: string; label: string }
+export type ProcessLaunchNote = ProcessLaunchNoteName
 
 export type ProcessLaunchFieldsProps = {
   inputs: readonly ProcessInput[]
@@ -47,8 +48,6 @@ export type ProcessLaunchFieldsProps = {
   /** Mark the field that holds it: once the form was touched, or it came with one. */
   marked: boolean
   notes: readonly ProcessLaunchNote[]
-  /** Reads a note's text, for a patch. */
-  loadNote: (noteId: string) => Promise<string>
   busy: boolean
   onChange: (next: ProcessLaunchDraft) => void
 }
@@ -163,7 +162,6 @@ function RefRows({
   problem,
   marked,
   busy,
-  loadNote,
   onChange,
 }: {
   rows: readonly ProcessLaunchRefDraft[]
@@ -173,21 +171,19 @@ function RefRows({
   problem: ProcessLaunchProblem | undefined
   marked: boolean
   busy: boolean
-  loadNote: (noteId: string) => Promise<string>
   onChange: (rows: readonly ProcessLaunchRefDraft[]) => void
 }) {
-  const [picked, setPicked] = useState<Readonly<Record<string, string>>>({})
   const toggle = processLaunchRefToggleLabel(rows, repos)
   const bad = (row: ProcessLaunchRefDraft) =>
     marked && problem?.fieldKey === fieldKey && row.ref.trim() === ''
   const pickPatch = (row: ProcessLaunchRefDraft, noteId: string) => {
-    setPicked((prev) => ({ ...prev, [row.repo.key]: noteId }))
     if (!noteId) return onChange(setProcessLaunchRef(rows, row.repo.key, { patch: '' }))
     const label = notes.find((n) => n.id === noteId)?.label
-    void loadNote(noteId).then((patch) =>
-      onChange(
-        setProcessLaunchRef(rows, row.repo.key, { patch, ...(label ? { patchLabel: label } : {}) }),
-      ),
+    onChange(
+      setProcessLaunchRef(rows, row.repo.key, {
+        patchNote: noteId,
+        ...(label ? { patchLabel: label } : {}),
+      }),
     )
   }
   const one = isProcessLaunchOneRef(rows, repos)
@@ -222,7 +218,7 @@ function RefRows({
           <NoteField
             key={row.repo.key}
             label={processLaunchPatchLabel(row.repo, rows.length)}
-            value={picked[row.repo.key] ?? ''}
+            value={row.patchNote ?? ''}
             notes={notes}
             optional
             bad={false}
@@ -248,7 +244,7 @@ function InputField({
   props: ProcessLaunchFieldsProps
   onChange: (value: ProcessLaunchFieldDraft) => void
 }) {
-  const { problem, marked, busy, notes, repos, loadNote } = props
+  const { problem, marked, busy, notes, repos } = props
   const bad = marked && problem?.fieldKey === fieldKey
   if (field.kind === 'refs') {
     return (
@@ -260,7 +256,6 @@ function InputField({
         problem={problem}
         marked={marked}
         busy={busy}
-        loadNote={loadNote}
         onChange={onChange}
       />
     )
@@ -355,7 +350,7 @@ function VariantList({ input, props }: { input: ProcessInput; props: ProcessLaun
     variants.length === 1 && variants[0]!.label === '' ? variants[0]!.key : undefined,
   )
   const open = picked ?? (marked ? problem?.variantKey : undefined)
-  const rows = processLaunchVariantRows(variants, marked ? problem : undefined)
+  const rows = processLaunchVariantRows(variants, marked ? problem : undefined, props.notes)
   return (
     <div className="flex flex-col gap-1.5">
       <FieldLabel text={input.label} />

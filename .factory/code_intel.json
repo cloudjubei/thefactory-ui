@@ -138800,6 +138800,8 @@
           "ListOverseerAuthProvidersData",
           "GetOverseerResponse",
           "GetOverseerData",
+          "ListConnectionNewItemsResponse",
+          "ListConnectionNewItemsData",
           "ListProviderConnectionsResponse",
           "ListProviderConnectionsData",
           "ListWebSearchKeysResponse",
@@ -170044,7 +170046,6 @@
         "path": "native/compound/chat/ProcessLaunchFields.tsx",
         "dependencies": [
           "ProcessLaunchDraft",
-          "Promise",
           "ProcessLaunchNote",
           "ProcessLaunchProblem",
           "ProcessLaunchRepos",
@@ -170128,6 +170129,7 @@
         "path": "native/compound/chat/ProcessLaunchFields.tsx",
         "description": "A note the form can pick.",
         "dependencies": [
+          "ProcessLaunchNoteName",
           "react/useState",
           "react/type ReactNode",
           "react-native/Pressable",
@@ -170135,6 +170137,18 @@
           "react-native/View",
           "thefactory-tools/types/ProcessInput",
           "thefactory-tools/types/ProcessInputField",
+          "thefactory-tools/types"
+        ]
+      },
+      "ProcessLaunchNoteName": {
+        "path": "headless/utils/processLaunchFormTypes.ts",
+        "description": "A note as the form names it.",
+        "dependencies": [
+          "thefactory-tools/types/ProcessInput",
+          "thefactory-tools/types/ProcessInputField",
+          "thefactory-tools/types/ProcessInputRef",
+          "thefactory-tools/types/ProcessInputValue",
+          "thefactory-tools/types/ProcessVariant",
           "thefactory-tools/types"
         ]
       },
@@ -170416,9 +170430,10 @@
       },
       "processLaunchVariantRows": {
         "path": "headless/utils/processLaunchForm.ts",
-        "description": "Each variant folded to one line: its name, and the refs and patches it is made of. Pure.",
+        "description": "Each variant folded to one line: its name, and the refs and patches it is",
         "dependencies": [
           "ProcessLaunchVariantRow",
+          "ProcessLaunchNoteName",
           "ProcessLaunchProblem",
           "ProcessLaunchVariantDraft",
           "thefactory-tools/types/ProcessInput",
@@ -188142,7 +188157,7 @@
       },
       "setProcessLaunchRef": {
         "path": "headless/utils/processLaunchForm.ts",
-        "description": "One repo's row of a refs value, changed. Pure.",
+        "description": "One repo's row of a refs value, changed. A note taken as the patch replaces",
         "dependencies": [
           "ProcessLaunchRefDraft",
           "Pick",

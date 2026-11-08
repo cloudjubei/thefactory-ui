@@ -178,6 +178,33 @@ describe('refs', () => {
     expect(first).toEqual({ repo: STACK.repos[0], ref: 'abc', patch: '' })
   })
 
+  it('takes a note as the patch, holding the note and not its text', () => {
+    const [first] = setProcessLaunchRef(rows(), 'role:backend', {
+      patchNote: 'n1',
+      patchLabel: 'Trail',
+    })
+    expect(first).toEqual({
+      repo: STACK.repos[0],
+      ref: 'abc',
+      patch: '',
+      patchNote: 'n1',
+      patchLabel: 'Trail',
+    })
+  })
+
+  it('clears a patch note with its name', () => {
+    const picked = setProcessLaunchRef(rows(), 'role:backend', { patchNote: 'n1' })
+    const [first] = setProcessLaunchRef(picked, 'role:backend', { patch: '' })
+    expect(first).toEqual({ repo: STACK.repos[0], ref: 'abc', patch: '' })
+  })
+
+  it('keeps a patch note when folding to one ref and back', () => {
+    const picked = setProcessLaunchRef(rows(), 'role:backend', { patchNote: 'n1' })
+    const one = toggleProcessLaunchOneRef(picked, STACK)
+    expect(one[0]).toMatchObject({ patchNote: 'n1' })
+    expect(toggleProcessLaunchOneRef(one, STACK)[0]).toMatchObject({ patchNote: 'n1' })
+  })
+
   it('changes only the repo named', () => {
     const next = setProcessLaunchRef(rows(), 'role:web', { ref: 'zzz' })
     expect(next.map((r) => r.ref)).toEqual(['abc', 'zzz'])
@@ -243,6 +270,17 @@ describe('processLaunchInputValues', () => {
   it('keeps a number that cannot be read, for the launch to refuse', () => {
     const draft = setProcessLaunchValue(processLaunchDraft(INPUTS, ONE_REPO), 'days', 'two')
     expect(processLaunchInputValues(INPUTS, draft).days).toBe('two')
+  })
+
+  it('reads a patch note an agent named, and sends it on as the note', () => {
+    const refs = [{ project: 'app', ref: 'x', patchNote: 'n1' }]
+    const draft = processLaunchDraft(INPUTS, ONE_REPO, {
+      variants: [{ label: 'A', values: { refs } }],
+    })
+    expect(refsOf(draft)[0]).toMatchObject({ ref: 'x', patch: '', patchNote: 'n1' })
+    expect(processLaunchInputValues(INPUTS, draft).variants).toEqual([
+      { id: 'a', label: 'A', values: { refs } },
+    ])
   })
 
   it('sends a patch with its ref', () => {
@@ -346,6 +384,18 @@ describe('processLaunchVariantRows', () => {
       variantKey: variants[0]!.key,
     })
     expect(row).toMatchObject({ name: 'Variant 1', unnamed: true, bad: true, chips: [] })
+  })
+
+  it('names a patch note by its label', () => {
+    const draft = processLaunchDraft(INPUTS, ONE_REPO, {
+      variants: [{ label: 'A', values: { refs: [{ project: 'app', ref: 'x', patchNote: 'n1' }] } }],
+    })
+    const variants = processLaunchVariants(draft, 'variants')
+    const [row] = processLaunchVariantRows(variants, undefined, [{ id: 'n1', label: 'Trail' }])
+    expect(row!.chips.map((c) => [c.kind, c.text])).toEqual([
+      ['ref', 'x'],
+      ['patch', 'Trail'],
+    ])
   })
 
   it('calls a patch with no note a patch', () => {

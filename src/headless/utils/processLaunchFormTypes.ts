@@ -22,12 +22,17 @@ export type ProcessLaunchRepos = {
   one?: ProcessLaunchRepo
 }
 
+/** A note as the form names it. */
+export type ProcessLaunchNoteName = { id: string; label: string }
+
 /** One repo's row of a refs value as the form holds it. */
 export type ProcessLaunchRefDraft = {
   repo: ProcessLaunchRepo
   ref: string
   /** The patch's text, as the run takes it. */
   patch: string
+  /** The note the patch is in, read by the host when the run starts; the form holds no text for it. */
+  patchNote?: string
   /** What the form calls the patch: the note it came from. */
   patchLabel?: string
 }

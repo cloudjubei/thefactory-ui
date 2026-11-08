@@ -75,7 +75,7 @@ export default function ProcessRunLaunchPanel({
   const key = launchKey ?? `${projectId ?? ''}:${grant.id}`
   const launch = useProcessRunLaunch({ key, projectId, processId: summary.processId, asked })
   const { form, refusal, repos, draft, setDraft, inputValues, problem } = launch
-  const { notes, revealNote } = useProjectNotes(projectId)
+  const { notes } = useProjectNotes(projectId)
   const { pick: agentPick, slot: chipSlot } = useLaunchAgentPick()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -158,7 +158,6 @@ export default function ProcessRunLaunchPanel({
             problem={problem}
             marked={touched || hasAsked}
             notes={notes}
-            loadNote={revealNote}
             busy={busy}
             onChange={(next) => {
               setTouched(true)

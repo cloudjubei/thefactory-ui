@@ -159,7 +159,6 @@ function Form({ filled, bad }: { filled: boolean; bad: boolean }) {
           problem={undefined}
           marked={bad}
           notes={NOTES}
-          loadNote={async () => ''}
           busy={false}
           onChange={setDraft}
           onOpenVariant={noop}
@@ -188,7 +187,6 @@ function VariantForm() {
             problem: undefined,
             marked: false,
             notes: NOTES,
-            loadNote: async () => '',
             busy: false,
             onChange: setDraft,
           }}

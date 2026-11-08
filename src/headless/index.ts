@@ -4572,6 +4572,7 @@ export type {
   ProcessLaunchFieldDraft,
   ProcessLaunchInputValues,
   ProcessLaunchLayout,
+  ProcessLaunchNoteName,
   ProcessLaunchProblem,
   ProcessLaunchRefDraft,
   ProcessLaunchRepo,

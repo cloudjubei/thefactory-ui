@@ -80,6 +80,13 @@ describe('FAKE_BACKEND_ROUTES', () => {
     expect(body).toEqual(get('/api/v1/cli-images').body)
   })
 
+  it('answers the new-item counts every client reads, one per connection it lists', () => {
+    const { status, body } = get('/api/v1/provider-connections/new-items')
+    expect(status).toBe(200)
+    expect(body).toEqual([])
+    expect(body).toHaveLength((get('/api/v1/provider-connections').body as unknown[]).length)
+  })
+
   it('answers the run list with the project asked for only', () => {
     const { body } = get('/api/v1/process-runs', 'projectId=thefactory-backend')
     expect(body).toEqual([])

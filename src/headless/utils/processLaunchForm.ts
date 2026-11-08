@@ -12,6 +12,7 @@ import type {
   ProcessLaunchFieldDraft,
   ProcessLaunchInputValues,
   ProcessLaunchLayout,
+  ProcessLaunchNoteName,
   ProcessLaunchProblem,
   ProcessLaunchRefDraft,
   ProcessLaunchRepo,
@@ -108,6 +109,9 @@ function askedRefs(value: unknown, repos: ProcessLaunchRepos): ProcessLaunchRefD
     repo: askedRepo(entry, repos),
     ref: typeof entry.ref === 'string' ? entry.ref : '',
     patch: typeof entry.patch === 'string' ? entry.patch : '',
+    ...(typeof entry.patchNote === 'string' && entry.patchNote
+      ? { patchNote: entry.patchNote }
+      : {}),
   }))
 }
 
@@ -255,18 +259,35 @@ export function setProcessLaunchVariantField(
   }))
 }
 
-/** One repo's row of a refs value, changed. Pure. */
+/**
+ * One repo's row of a refs value, changed. A note taken as the patch replaces
+ * any patch text; an empty patch clears the patch, its note and its name. Pure.
+ */
 export function setProcessLaunchRef(
   refs: readonly ProcessLaunchRefDraft[],
   repoKey: string,
-  change: Partial<Pick<ProcessLaunchRefDraft, 'ref' | 'patch' | 'patchLabel'>>,
+  change: Partial<Pick<ProcessLaunchRefDraft, 'ref' | 'patch' | 'patchNote' | 'patchLabel'>>,
 ): ProcessLaunchRefDraft[] {
   return refs.map((row) => {
     if (row.repo.key !== repoKey) return row
+    if (change.patchNote) return { ...row, ...change, patch: '' }
     const next = { ...row, ...change }
-    if (change.patch === '') delete next.patchLabel
+    if (change.patch === '') {
+      delete next.patchNote
+      delete next.patchLabel
+    }
     return next
   })
+}
+
+function patchOf(
+  row: ProcessLaunchRefDraft | undefined,
+): Pick<ProcessLaunchRefDraft, 'patch' | 'patchNote' | 'patchLabel'> {
+  return {
+    patch: row?.patch ?? '',
+    ...(row?.patchNote ? { patchNote: row.patchNote } : {}),
+    ...(row?.patchLabel ? { patchLabel: row.patchLabel } : {}),
+  }
 }
 
 /** Whether a refs value is the one ref standing for every repo. Pure. */
@@ -288,18 +309,10 @@ export function toggleProcessLaunchOneRef(
     return repos.repos.map((repo, at) => ({
       repo,
       ref: at === 0 ? (first?.ref ?? '') : '',
-      patch: at === 0 ? (first?.patch ?? '') : '',
-      ...(at === 0 && first?.patchLabel ? { patchLabel: first.patchLabel } : {}),
+      ...patchOf(at === 0 ? first : undefined),
     }))
   }
-  return [
-    {
-      repo: repos.one,
-      ref: first?.ref ?? '',
-      patch: first?.patch ?? '',
-      ...(first?.patchLabel ? { patchLabel: first.patchLabel } : {}),
-    },
-  ]
+  return [{ repo: repos.one, ref: first?.ref ?? '', ...patchOf(first) }]
 }
 
 function numberOf(text: string): number | string {
@@ -314,7 +327,7 @@ function refsValue(rows: readonly ProcessLaunchRefDraft[]) {
       ...(row.repo.role ? { role: row.repo.role } : {}),
       ...(row.repo.project ? { project: row.repo.project } : {}),
       ref: row.ref.trim(),
-      ...(row.patch ? { patch: row.patch } : {}),
+      ...(row.patchNote ? { patchNote: row.patchNote } : row.patch ? { patch: row.patch } : {}),
     }))
 }
 
@@ -423,7 +436,14 @@ export function processLaunchShortRef(ref: string): string {
   return /^[0-9a-f]{12,}$/i.test(ref) ? ref.slice(0, PROCESS_LAUNCH_SHORT_REF) : ref
 }
 
-function variantChips(variant: ProcessLaunchVariantDraft): ProcessLaunchVariantChip[] {
+function variantChips(
+  variant: ProcessLaunchVariantDraft,
+  notes: readonly ProcessLaunchNoteName[],
+): ProcessLaunchVariantChip[] {
+  const patchName = (row: ProcessLaunchRefDraft) =>
+    row.patchLabel ??
+    notes.find((note) => note.id === row.patchNote)?.label ??
+    PROCESS_LAUNCH_COPY.patchWritten
   return Object.values(variant.values).flatMap((value) => {
     if (typeof value === 'string') return []
     return value.flatMap((row): ProcessLaunchVariantChip[] => [
@@ -436,12 +456,12 @@ function variantChips(variant: ProcessLaunchVariantDraft): ProcessLaunchVariantC
             },
           ]
         : []),
-      ...(row.patch
+      ...(row.patch || row.patchNote
         ? [
             {
               key: `patch:${row.repo.key}`,
               kind: 'patch' as const,
-              text: row.patchLabel ?? PROCESS_LAUNCH_COPY.patchWritten,
+              text: patchName(row),
             },
           ]
         : []),
@@ -449,10 +469,14 @@ function variantChips(variant: ProcessLaunchVariantDraft): ProcessLaunchVariantC
   })
 }
 
-/** Each variant folded to one line: its name, and the refs and patches it is made of. Pure. */
+/**
+ * Each variant folded to one line: its name, and the refs and patches it is
+ * made of, a patch in a note by the note's name from `notes`. Pure.
+ */
 export function processLaunchVariantRows(
   variants: readonly ProcessLaunchVariantDraft[],
   problem: ProcessLaunchProblem | undefined,
+  notes: readonly ProcessLaunchNoteName[] = [],
 ): ProcessLaunchVariantRow[] {
   return variants.map((variant, at) => {
     const name = variant.label.trim()
@@ -460,7 +484,7 @@ export function processLaunchVariantRows(
       key: variant.key,
       name: name || PROCESS_LAUNCH_COPY.unnamedVariant(at + 1),
       unnamed: name === '',
-      chips: variantChips(variant),
+      chips: variantChips(variant, notes),
       bad: problem?.variantKey === variant.key,
     }
   })
