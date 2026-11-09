@@ -5,7 +5,9 @@ import {
   fileNameSlug,
   formatBytes,
   useReviewEvidenceImage,
+  VIDEO_PAIRS_COPY,
   type EvidenceTile,
+  type ProofVideoPairView,
 } from '../../../../headless'
 import { nativeRadii } from '../../../../tokens/native'
 import { useNativeTheme } from '../../../hooks/useNativeTheme'
@@ -17,6 +19,8 @@ import type { SaveFileHandler } from './signoffTypes'
 export type WalkthroughTabProps = {
   projectId: string
   recordings: readonly EvidenceTile[]
+  /** The before/after recordings a proof judged, each pair played side by side above the rest. */
+  videoPairs?: readonly ProofVideoPairView[]
   /** Saves a recording; omitted when the host cannot put a file anywhere. */
   onSaveFile?: SaveFileHandler
   /** What each recording says under itself: whether it counts as proof. */
@@ -58,11 +62,14 @@ function StageNote({ children }: { children: string }) {
 function Recording({
   projectId,
   tile,
+  label,
   onSaveFile,
   footer,
 }: {
   projectId: string
   tile: EvidenceTile
+  /** Shown in place of the recording's own caption — a pair's "Before" or "After". */
+  label?: string
   onSaveFile?: SaveFileHandler
   footer?: ReactNode
 }) {
@@ -99,7 +106,7 @@ function Recording({
             color: theme.text.muted,
           }}
         >
-          {tile.caption}
+          {label ?? tile.caption}
         </Text>
         {onSaveFile ? (
           <Button
@@ -154,20 +161,165 @@ function Recording({
   )
 }
 
+/** One side of a recording pair: the recording, or why it is not here. */
+function PairSide({
+  projectId,
+  tile,
+  label,
+  absent,
+  onSaveFile,
+}: {
+  projectId: string
+  tile: EvidenceTile | undefined
+  label: string
+  absent: string | undefined
+  onSaveFile?: SaveFileHandler
+}) {
+  const { theme } = useNativeTheme()
+  if (tile) {
+    return (
+      <Recording
+        projectId={projectId}
+        tile={tile}
+        label={label}
+        {...(onSaveFile ? { onSaveFile } : {})}
+      />
+    )
+  }
+  return (
+    <View style={{ gap: 8 }}>
+      <Text
+        style={{
+          fontSize: 10,
+          fontWeight: '600',
+          letterSpacing: 0.8,
+          textTransform: 'uppercase',
+          color: theme.text.muted,
+        }}
+      >
+        {label}
+      </Text>
+      <Stage>
+        <StageNote>{absent ?? ''}</StageNote>
+      </Stage>
+    </View>
+  )
+}
+
+/** A before and an after recording of one path, side by side — a new screen's after alone. */
+function VideoPair({
+  projectId,
+  pair,
+  onSaveFile,
+}: {
+  projectId: string
+  pair: ProofVideoPairView
+  onSaveFile?: SaveFileHandler
+}) {
+  const { theme, status } = useNativeTheme()
+  const save = onSaveFile ? { onSaveFile } : {}
+  return (
+    <View
+      accessibilityLabel={pair.subject}
+      style={{
+        gap: 8,
+        padding: 10,
+        borderRadius: nativeRadii[3],
+        borderWidth: 1,
+        borderColor: theme.border.subtle,
+        backgroundColor: theme.surface.base,
+      }}
+    >
+      <View style={{ gap: 2 }}>
+        <Text
+          numberOfLines={1}
+          style={{ fontSize: 12.5, fontWeight: '600', color: theme.text.primary }}
+        >
+          {pair.subject}
+        </Text>
+        <Text
+          style={{
+            fontSize: 11.5,
+            color: pair.counted ? status.done.softFg : theme.text.secondary,
+          }}
+        >
+          {pair.verdict}
+        </Text>
+      </View>
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        {pair.newScreen ? null : (
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <PairSide
+              projectId={projectId}
+              tile={pair.before}
+              label={VIDEO_PAIRS_COPY.before}
+              absent={pair.beforeAbsent}
+              {...save}
+            />
+          </View>
+        )}
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <PairSide
+            projectId={projectId}
+            tile={pair.after}
+            label={VIDEO_PAIRS_COPY.after}
+            absent={pair.afterAbsent}
+            {...save}
+          />
+        </View>
+      </View>
+      {pair.note ? (
+        <Text style={{ fontSize: 11.5, color: theme.text.secondary }}>{pair.note}</Text>
+      ) : null}
+    </View>
+  )
+}
+
 /**
  * The verifier's screen recordings — proof of the PATH through the app, not
- * just its screens. Played by the host's video player (`MediaHostProvider`);
- * a host without one names and sizes each recording instead, and its bytes
- * are not fetched unless they can be saved.
+ * just its screens: the before/after pairs a proof judged first, each played
+ * side by side, then every other recording. Played by the host's video player
+ * (`MediaHostProvider`); a host without one names and sizes each recording
+ * instead, and its bytes are not fetched unless they can be saved.
  */
 export default function WalkthroughTab({
   projectId,
   recordings,
+  videoPairs = [],
   onSaveFile,
   renderFooter,
 }: WalkthroughTabProps) {
+  const { theme } = useNativeTheme()
   return (
     <View style={{ gap: 8 }}>
+      {videoPairs.length > 0 ? (
+        <View style={{ gap: 8 }}>
+          <View style={{ gap: 2 }}>
+            <Text
+              style={{
+                fontSize: 10,
+                fontWeight: '600',
+                letterSpacing: 0.5,
+                textTransform: 'uppercase',
+                color: theme.text.muted,
+              }}
+            >
+              {VIDEO_PAIRS_COPY.heading}
+            </Text>
+            <Text style={{ fontSize: 11.5, color: theme.text.secondary }}>
+              {VIDEO_PAIRS_COPY.hint}
+            </Text>
+          </View>
+          {videoPairs.map((pair) => (
+            <VideoPair
+              key={pair.key}
+              projectId={projectId}
+              pair={pair}
+              {...(onSaveFile ? { onSaveFile } : {})}
+            />
+          ))}
+        </View>
+      ) : null}
       {recordings.map((tile) => (
         <Recording
           key={tile.ref.id}

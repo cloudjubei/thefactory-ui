@@ -26886,6 +26886,13 @@
           "thefactory-tools/types"
         ]
       },
+      "FAKE_ASSIGNED_TICKETS": {
+        "path": "src/fakeBackend/fixtures/ticketConnections.ts",
+        "description": "The tickets assigned to the person on the connection, none shown yet.",
+        "dependencies": [
+          "ExternalItem"
+        ]
+      },
       "FAKE_AT": {
         "path": "src/fakeBackend/fixtures/stamps.ts",
         "description": "The one moment the fixtures were made, so every capture draws the same text.",
@@ -26923,177 +26930,6 @@
       "FAKE_BACKEND_NO_RECORD_CODE": {
         "path": "src/fakeBackend/fakeBackendConstants.ts",
         "dependencies": []
-      },
-      "FAKE_BACKEND_ROUTES": {
-        "path": "src/fakeBackend/fakeBackendRoutes.ts",
-        "description": "Every read the clients make to reach their main screens. Nothing here writes.",
-        "dependencies": [
-          "ListProcessGroupRunsResponse",
-          "ListProcessGroupRunsData",
-          "GetProcessCapabilitiesResponse",
-          "GetProcessCapabilitiesData",
-          "ListProcessesResponse",
-          "ListProcessesData",
-          "GetProcessRunResponse",
-          "GetProcessRunData",
-          "PreviewProcessRunResponse",
-          "PreviewProcessRunData",
-          "GetProcessRunEvidenceResponse",
-          "GetProcessRunEvidenceData",
-          "ListProcessRunsResponse",
-          "ListProcessRunsData",
-          "GetProcessRunStatisticsResponse",
-          "GetProcessRunStatisticsData",
-          "GetCliAgentRunResponse",
-          "GetCliAgentRunData",
-          "ListCliAgentRunSummariesResponse",
-          "ListCliAgentRunSummariesData",
-          "ListDecidedCliAgentActionsResponse",
-          "ListDecidedCliAgentActionsData",
-          "ListPendingCliAgentActionsResponse",
-          "ListPendingCliAgentActionsData",
-          "CountPendingCliAgentActionsByChatResponse",
-          "CountPendingCliAgentActionsByChatData",
-          "ListCredentialCapturesResponse",
-          "ListCredentialCapturesData",
-          "ListFeatureRequestsResponse",
-          "ListFeatureRequestsData",
-          "ListActionRulesResponse",
-          "ListActionRulesData",
-          "GetChatOpenChangesResponse",
-          "GetChatOpenChangesData",
-          "GetChatTurnResponse",
-          "GetChatTurnData",
-          "GetCostsByChatResponse",
-          "GetCostsByChatData",
-          "ListChatToolCatalogResponse",
-          "ListChatToolCatalogData",
-          "GetChatSummaryResponse",
-          "GetChatSummaryData",
-          "GetChatResponse",
-          "GetChatData",
-          "CompactChatNowResponse",
-          "CompactChatNowData",
-          "GetChatContextReadoutResponse",
-          "GetChatContextReadoutData",
-          "GetChatsSettingsResponse",
-          "GetChatsSettingsData",
-          "ListChatSummariesResponse",
-          "ListChatSummariesData",
-          "ListGroupAgentTypesResponse",
-          "ListGroupAgentTypesData",
-          "ListGroupStoriesResponse",
-          "ListGroupStoriesData",
-          "ListGroupNotesResponse",
-          "ListGroupNotesData",
-          "ListSourceRecordsResponse",
-          "ListSourceRecordsData",
-          "ListDataSourcesResponse",
-          "ListDataSourcesData",
-          "ListProjectDataSubscriptionsResponse",
-          "ListProjectDataSubscriptionsData",
-          "ListProjectAgentTypesResponse",
-          "ListProjectAgentTypesData",
-          "GetProjectStorageUsageResponse",
-          "GetProjectStorageUsageData",
-          "GetDesignPlaygroundResponse",
-          "GetDesignPlaygroundData",
-          "GetProjectDesignResponse",
-          "GetProjectDesignData",
-          "GetKnowledgeEvaluationSettingsResponse",
-          "GetKnowledgeEvaluationSettingsData",
-          "GetProjectKnowledgeOverviewResponse",
-          "GetProjectKnowledgeOverviewData",
-          "ListProjectNotesResponse",
-          "ListProjectNotesData",
-          "ListActivitiesResponse",
-          "ListActivitiesData",
-          "ListProjectDataResponse",
-          "ListProjectDataData",
-          "ListTestConfigCandidatesResponse",
-          "ListTestConfigCandidatesData",
-          "ListTestsResponse",
-          "ListTestsData",
-          "GetLastCoverageResponse",
-          "GetLastCoverageData",
-          "GetLastTestsCustomRunResponse",
-          "GetLastTestsCustomRunData",
-          "GetLastTestsRunResponse",
-          "GetLastTestsRunData",
-          "GetGitLocalDiffResponse",
-          "GetGitLocalDiffData",
-          "GetGitLogResponse",
-          "GetGitLogData",
-          "GetGitBundleResponse",
-          "GetGitBundleData",
-          "GetAllFileStatsResponse",
-          "GetAllFileStatsData",
-          "ListStoryGroupStoriesResponse",
-          "ListStoryGroupStoriesData",
-          "ListProjectGroupStoriesResponse",
-          "ListProjectGroupStoriesData",
-          "GetStoryResponse",
-          "GetStoryData",
-          "GetStoriesOrderResponse",
-          "GetStoriesOrderData",
-          "ListStoriesResponse",
-          "ListStoriesData",
-          "GetDbHealthResponse",
-          "GetDbHealthData",
-          "GetStorageUsageResponse",
-          "GetStorageUsageData",
-          "GetDailyUsageResponse",
-          "GetDailyUsageData",
-          "GetUserSettingResponse",
-          "GetUserSettingData",
-          "ListEntitiesResponse",
-          "ListEntitiesData",
-          "ListToolsResponse",
-          "ListToolsData",
-          "GetPricingResponse",
-          "GetPricingData",
-          "ListTemplatesResponse",
-          "ListTemplatesData",
-          "GetProjectsGroupConstellationResponse",
-          "GetProjectsGroupConstellationData",
-          "GetProjectsGroupStatusResponse",
-          "GetProjectsGroupStatusData",
-          "ListProjectsGroupsResponse",
-          "ListProjectsGroupsData",
-          "ListProjectsResponse",
-          "ListProjectsData",
-          "ListOverseerAuthProvidersResponse",
-          "ListOverseerAuthProvidersData",
-          "GetOverseerResponse",
-          "GetOverseerData",
-          "ListProviderConnectionsResponse",
-          "ListProviderConnectionsData",
-          "ListWebSearchKeysResponse",
-          "ListWebSearchKeysData",
-          "ListGitCredentialsResponse",
-          "ListGitCredentialsData",
-          "ListCliAgentModelsResponse",
-          "ListCliAgentModelsData",
-          "CheckCliImageUpdatesResponse",
-          "CheckCliImageUpdatesData",
-          "ListCliImageVersionsResponse",
-          "ListCliImageVersionsData",
-          "ListCliCapabilityScorecardsResponse",
-          "ListCliCapabilityScorecardsData",
-          "GetActiveCliStateResponse",
-          "GetActiveCliStateData",
-          "ListCliAuthCachesResponse",
-          "ListCliAuthCachesData",
-          "GetActiveRunnerKindResponse",
-          "GetActiveRunnerKindData",
-          "ListLlmConfigsResponse",
-          "ListLlmConfigsData",
-          "HealthStartupResponse",
-          "HealthStartupData",
-          "HealthResponse",
-          "HealthData",
-          "FakeRoute"
-        ]
       },
       "FAKE_BACKEND_TOKEN_PREFIX": {
         "path": "src/fakeBackend/fakeBackendConstants.ts",
@@ -27355,6 +27191,18 @@
           "TestsResult"
         ]
       },
+      "FAKE_TICKET_CONNECTION": {
+        "path": "src/fakeBackend/fixtures/ticketConnections.ts",
+        "description": "The one ticket connection the fake lists: a Jira site with tickets assigned to the person.",
+        "dependencies": [
+          "RedactedProviderConnectionEntry"
+        ]
+      },
+      "FAKE_TICKET_IDENTITY_EPOCH": {
+        "path": "src/fakeBackend/fixtures/ticketConnections.ts",
+        "description": "The identity the connection's new-item counts belong to.",
+        "dependencies": []
+      },
       "FAKE_TRANSPORT_TOOLS": {
         "path": "src/fakeBackend/fixtures/chatToolCatalog.ts",
         "dependencies": [
@@ -27421,6 +27269,13 @@
         "path": "src/fakeBackend/fakeBackendTypes.ts",
         "description": "What the fake backend's command line and environment settle on.",
         "dependencies": []
+      },
+      "fakeBackendRoutes": {
+        "path": "src/fakeBackend/fakeBackendRoutes.ts",
+        "description": "The route table one fake server answers from: every read, and the tickets it",
+        "dependencies": [
+          "FakeRoute"
+        ]
       },
       "FakeBackendServer": {
         "path": "src/fakeBackend/FakeBackendServer.ts",
@@ -27546,6 +27401,16 @@
         "dependencies": [
           "URLSearchParams",
           "Record"
+        ]
+      },
+      "FakeTicketInbox": {
+        "path": "src/fakeBackend/FakeTicketInbox.ts",
+        "description": "The fake's ticket connection and which of its assigned tickets the person was",
+        "dependencies": [
+          "MarkConnectionItemsSeenResponse",
+          "SeenItem",
+          "ExternalItem",
+          "ListConnectionNewItemsResponse"
         ]
       },
       "FakeToolCall": {
@@ -43038,6 +42903,16 @@
           "DesignProposal"
         ]
       },
+      "KEPT_LOOKS": {
+        "path": "playground/scenes/proofChangeFixtures.ts",
+        "description": "The looks for screens that stay, each with why it is or is not the pick.",
+        "dependencies": [
+          "thefactory-ui/headless/ProofChangeKeptLook",
+          "thefactory-tools/types/ProcessProofChangeOffer",
+          "thefactory-tools/types",
+          "thefactory-ui/headless"
+        ]
+      },
       "KindBadge": {
         "path": "src/web/compound/design/DesignInline.tsx",
         "description": "An app's kind, as a badge.",
@@ -50980,6 +50855,7 @@
           "thefactory-ui/headless/type GroupConstellationLayout",
           "thefactory-ui/headless/type GroupHomeLayout",
           "thefactory-ui/headless/type GroupTicketsLayout",
+          "thefactory-ui/headless/type ProofChangeKeptLook",
           "thefactory-ui/headless/type ProviderOAuthActions",
           "thefactory-ui/headless/type TicketStatusList",
           "thefactory-ui/headless/type TicketTransitionStanding",
@@ -51207,6 +51083,7 @@
           "thefactory-ui/headless/type GroupConstellationLayout",
           "thefactory-ui/headless/type GroupHomeLayout",
           "thefactory-ui/headless/type GroupTicketsLayout",
+          "thefactory-ui/headless/type ProofChangeKeptLook",
           "thefactory-ui/headless/type ProviderOAuthActions",
           "thefactory-ui/headless/type TicketStatusList",
           "thefactory-ui/headless/type TicketTransitionStanding",
@@ -59137,7 +59014,6 @@
         "path": "src/native/compound/chat/ProcessLaunchFields.tsx",
         "dependencies": [
           "ProcessLaunchDraft",
-          "Promise",
           "ProcessLaunchNote",
           "ProcessLaunchProblem",
           "ProcessLaunchRepos",
@@ -59221,6 +59097,7 @@
         "path": "src/native/compound/chat/ProcessLaunchFields.tsx",
         "description": "A note the form can pick.",
         "dependencies": [
+          "ProcessLaunchNoteName",
           "react/useState",
           "react/type ReactNode",
           "react-native/Pressable",
@@ -59228,6 +59105,18 @@
           "react-native/View",
           "thefactory-tools/types/ProcessInput",
           "thefactory-tools/types/ProcessInputField",
+          "thefactory-tools/types"
+        ]
+      },
+      "ProcessLaunchNoteName": {
+        "path": "src/headless/utils/processLaunchFormTypes.ts",
+        "description": "A note as the form names it.",
+        "dependencies": [
+          "thefactory-tools/types/ProcessInput",
+          "thefactory-tools/types/ProcessInputField",
+          "thefactory-tools/types/ProcessInputRef",
+          "thefactory-tools/types/ProcessInputValue",
+          "thefactory-tools/types/ProcessVariant",
           "thefactory-tools/types"
         ]
       },
@@ -59509,9 +59398,10 @@
       },
       "processLaunchVariantRows": {
         "path": "src/headless/utils/processLaunchForm.ts",
-        "description": "Each variant folded to one line: its name, and the refs and patches it is made of. Pure.",
+        "description": "Each variant folded to one line: its name, and the refs and patches it is",
         "dependencies": [
           "ProcessLaunchVariantRow",
+          "ProcessLaunchNoteName",
           "ProcessLaunchProblem",
           "ProcessLaunchVariantDraft",
           "thefactory-tools/types/ProcessInput",
@@ -66011,6 +65901,11 @@
         "description": "The line under the heading on a run that works no single feature, so nothing is saved.",
         "dependencies": []
       },
+      "PROOF_CHANGE_KEPT_CHIP": {
+        "path": "src/headless/utils/processProofChangeViewConstants.ts",
+        "description": "The chip on held screens, in the lock-chip look the design view keeps as an alternative.",
+        "dependencies": []
+      },
       "PROOF_CHANGE_NOTE_PLACEHOLDER": {
         "path": "src/headless/utils/processProofChangeViewConstants.ts",
         "description": "The note's placeholder.",
@@ -66024,8 +65919,10 @@
       "PROOF_CHANGE_SCENES": {
         "path": "playground/scenes/proofChange.tsx",
         "dependencies": [
+          "ProofChangeKeptLook",
           "Scene",
-          "react/ReactNode",
+          "react/useState",
+          "react/type ReactNode",
           "thefactory-tools/types/ProcessProofChangeOffer",
           "thefactory-tools/types/ProcessProposal",
           "thefactory-tools/types/ProcessRun",
@@ -66034,8 +65931,17 @@
           "thefactory-ui/headless/launchProofPlanRows",
           "thefactory-ui/headless/proofPlanMarkRows",
           "thefactory-ui/headless/requestProofChoices",
-          "thefactory-ui/headless"
+          "thefactory-ui/headless/type ProofChangeKeptLook",
+          "thefactory-ui/headless",
+          "thefactory-ui/web/SegmentedControl",
+          "thefactory-ui/web/ToneBadge",
+          "thefactory-ui/web"
         ]
+      },
+      "PROOF_CHANGE_SCREENS_KEPT": {
+        "path": "src/headless/utils/processProofChangeViewConstants.ts",
+        "description": "Why the screens of a change that shows on screen stay picked.",
+        "dependencies": []
       },
       "PROOF_CHANGE_SEND_LABEL": {
         "path": "src/headless/utils/processProofChangeViewConstants.ts",
@@ -66313,6 +66219,7 @@
       "ProofChangeComposerProps": {
         "path": "src/native/compound/process/ProofChangeComposer.tsx",
         "dependencies": [
+          "ProofChangeKeptLook",
           "ProofChangeDraft",
           "ProcessProofChangeOffer",
           "react/useState",
@@ -66345,6 +66252,15 @@
           "thefactory-tools/types",
           "thefactory-tools/utils/processProofChangeProblem",
           "thefactory-tools/utils"
+        ]
+      },
+      "ProofChangeKeptLook": {
+        "path": "src/headless/utils/processProofChangeViewTypes.ts",
+        "description": "How the editor shows kinds it holds picked: switched off with why beneath (`reason`, the",
+        "dependencies": [
+          "thefactory-tools/types/ProofKind",
+          "thefactory-tools/types/ProofKindStatus",
+          "thefactory-tools/types"
         ]
       },
       "ProofChangeKindView": {
@@ -77595,7 +77511,7 @@
       },
       "setProcessLaunchRef": {
         "path": "src/headless/utils/processLaunchForm.ts",
-        "description": "One repo's row of a refs value, changed. Pure.",
+        "description": "One repo's row of a refs value, changed. A note taken as the patch replaces",
         "dependencies": [
           "ProcessLaunchRefDraft",
           "Pick",
@@ -95669,6 +95585,16 @@
         "path": "src/native/nativewind-env.d.ts",
         "dependencies": []
       },
+      "VISIBLE_CHANGE_OFFER": {
+        "path": "playground/scenes/proofChangeFixtures.ts",
+        "description": "A feature run whose change shows on screen, stopped on screens it did not file: they stay.",
+        "dependencies": [
+          "thefactory-tools/types/ProcessProofChangeOffer",
+          "thefactory-tools/types",
+          "thefactory-ui/headless/ProofChangeKeptLook",
+          "thefactory-ui/headless"
+        ]
+      },
       "VisualProofAssessment": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": []
@@ -97250,6 +97176,17 @@
           "Scene"
         ]
       },
+      "BEFORE_AFTER_VIDEO_SCENES": {
+        "path": "scenes/beforeAfterVideo.tsx",
+        "dependencies": [
+          "Scene",
+          "react/ReactNode",
+          "thefactory-tools/types/ProcessProofVideoPair",
+          "thefactory-tools/types",
+          "thefactory-ui/headless/requestProofChoices",
+          "thefactory-ui/headless"
+        ]
+      },
       "BRANCH": {
         "path": "scenes/chatChanges.tsx",
         "dependencies": [
@@ -98024,6 +97961,16 @@
           "thefactory-ui/headless"
         ]
       },
+      "KEPT_LOOKS": {
+        "path": "scenes/proofChangeFixtures.ts",
+        "description": "The looks for screens that stay, each with why it is or is not the pick.",
+        "dependencies": [
+          "thefactory-ui/headless/ProofChangeKeptLook",
+          "thefactory-tools/types/ProcessProofChangeOffer",
+          "thefactory-tools/types",
+          "thefactory-ui/headless"
+        ]
+      },
       "KNOWLEDGE_EVALUATION_SCENES": {
         "path": "scenes/knowledgeEvaluation.tsx",
         "dependencies": [
@@ -98192,15 +98139,18 @@
           "react-native/Text",
           "react-native/View",
           "thefactory-ui/headless/CliConfigsProvider",
+          "thefactory-ui/headless/FilesProvider",
           "thefactory-ui/headless/SIGN_OFF_OUTPUT_COPY",
           "thefactory-ui/headless/TICKET_TRANSITION_STANDING",
           "thefactory-ui/headless/groupTicketsView",
+          "thefactory-ui/headless/requestProofChoices",
           "thefactory-ui/headless/signOffOutputSettingViews",
           "thefactory-ui/headless/ticketPostView",
           "thefactory-ui/headless/signOffTemplateChoices",
           "thefactory-ui/headless/type GroupConstellationLayout",
           "thefactory-ui/headless/type GroupHomeLayout",
           "thefactory-ui/headless/type GroupTicketsLayout",
+          "thefactory-ui/headless/type ProofChangeKeptLook",
           "thefactory-ui/headless/type ProviderOAuthActions",
           "thefactory-ui/headless/type TicketStatusList",
           "thefactory-ui/headless/type TicketTransitionStanding",
@@ -98220,15 +98170,18 @@
           "react-native/Text",
           "react-native/View",
           "thefactory-ui/headless/CliConfigsProvider",
+          "thefactory-ui/headless/FilesProvider",
           "thefactory-ui/headless/SIGN_OFF_OUTPUT_COPY",
           "thefactory-ui/headless/TICKET_TRANSITION_STANDING",
           "thefactory-ui/headless/groupTicketsView",
+          "thefactory-ui/headless/requestProofChoices",
           "thefactory-ui/headless/signOffOutputSettingViews",
           "thefactory-ui/headless/ticketPostView",
           "thefactory-ui/headless/signOffTemplateChoices",
           "thefactory-ui/headless/type GroupConstellationLayout",
           "thefactory-ui/headless/type GroupHomeLayout",
           "thefactory-ui/headless/type GroupTicketsLayout",
+          "thefactory-ui/headless/type ProofChangeKeptLook",
           "thefactory-ui/headless/type ProviderOAuthActions",
           "thefactory-ui/headless/type TicketStatusList",
           "thefactory-ui/headless/type TicketTransitionStanding",
@@ -98620,8 +98573,10 @@
       "PROOF_CHANGE_SCENES": {
         "path": "scenes/proofChange.tsx",
         "dependencies": [
+          "ProofChangeKeptLook",
           "Scene",
-          "react/ReactNode",
+          "react/useState",
+          "react/type ReactNode",
           "thefactory-tools/types/ProcessProofChangeOffer",
           "thefactory-tools/types/ProcessProposal",
           "thefactory-tools/types/ProcessRun",
@@ -98630,7 +98585,11 @@
           "thefactory-ui/headless/launchProofPlanRows",
           "thefactory-ui/headless/proofPlanMarkRows",
           "thefactory-ui/headless/requestProofChoices",
-          "thefactory-ui/headless"
+          "thefactory-ui/headless/type ProofChangeKeptLook",
+          "thefactory-ui/headless",
+          "thefactory-ui/web/SegmentedControl",
+          "thefactory-ui/web/ToneBadge",
+          "thefactory-ui/web"
         ]
       },
       "PROVIDER_CONNECTION_FORM_SCENES": {
@@ -98662,6 +98621,20 @@
           "thefactory-ui/headless/GroupTicketList",
           "thefactory-ui/headless/GroupTicket",
           "thefactory-ui/headless/GroupTicketsState",
+          "thefactory-ui/headless"
+        ]
+      },
+      "RECORDING_ROUTES": {
+        "path": "scenes/beforeAfterVideoFixtures.ts",
+        "dependencies": [
+          "FixtureRoutes",
+          "thefactory-tools/types/ProcessProofVideoPair",
+          "thefactory-tools/types/ProcessVerifyProof",
+          "thefactory-tools/types/ProofKind",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-ui/headless/verifyProofView",
+          "thefactory-ui/headless/type EvidenceTile",
           "thefactory-ui/headless"
         ]
       },
@@ -99329,6 +99302,72 @@
           "thefactory-ui/web"
         ]
       },
+      "VIDEO_COUNTED": {
+        "path": "scenes/beforeAfterVideoFixtures.ts",
+        "dependencies": [
+          "thefactory-tools/types/ProcessProofVideoPair",
+          "thefactory-tools/types/ProcessVerifyProof",
+          "thefactory-tools/types/ProofKind",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-ui/headless/verifyProofView",
+          "thefactory-ui/headless/type EvidenceTile",
+          "thefactory-ui/headless"
+        ]
+      },
+      "VIDEO_NEW_SCREEN": {
+        "path": "scenes/beforeAfterVideoFixtures.ts",
+        "dependencies": [
+          "thefactory-tools/types/ProcessProofVideoPair",
+          "thefactory-tools/types/ProcessVerifyProof",
+          "thefactory-tools/types/ProofKind",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-ui/headless/verifyProofView",
+          "thefactory-ui/headless/type EvidenceTile",
+          "thefactory-ui/headless"
+        ]
+      },
+      "VIDEO_NOT_COUNTED": {
+        "path": "scenes/beforeAfterVideoFixtures.ts",
+        "dependencies": [
+          "thefactory-tools/types/ProcessProofVideoPair",
+          "thefactory-tools/types/ProcessVerifyProof",
+          "thefactory-tools/types/ProofKind",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-ui/headless/verifyProofView",
+          "thefactory-ui/headless/type EvidenceTile",
+          "thefactory-ui/headless"
+        ]
+      },
+      "VIDEO_PROJECT": {
+        "path": "scenes/beforeAfterVideoFixtures.ts",
+        "dependencies": [
+          "thefactory-tools/types/ProcessProofVideoPair",
+          "thefactory-tools/types/ProcessVerifyProof",
+          "thefactory-tools/types/ProofKind",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-ui/headless/verifyProofView",
+          "thefactory-ui/headless/type EvidenceTile",
+          "thefactory-ui/headless"
+        ]
+      },
+      "VIDEO_REQUESTED": {
+        "path": "scenes/beforeAfterVideoFixtures.ts",
+        "description": "What a request for changes requires of a fix that must show the change moving.",
+        "dependencies": [
+          "thefactory-tools/types/ProofKind",
+          "thefactory-tools/types/ProcessProofVideoPair",
+          "thefactory-tools/types/ProcessVerifyProof",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-ui/headless/verifyProofView",
+          "thefactory-ui/headless/type EvidenceTile",
+          "thefactory-ui/headless"
+        ]
+      },
       "VIDEO_SETTINGS_SCENES": {
         "path": "scenes/videoSettings.tsx",
         "dependencies": [
@@ -99347,6 +99386,40 @@
           "thefactory-ui/headless",
           "thefactory-ui/web/VideoSettingsPanel",
           "thefactory-ui/web"
+        ]
+      },
+      "videoPairViews": {
+        "path": "scenes/beforeAfterVideoFixtures.ts",
+        "description": "The video pairs as the sign-off reads them off a passed proof: the real view over fixed data.",
+        "dependencies": [
+          "thefactory-tools/types/ProcessVerifyProof",
+          "thefactory-tools/types/ProcessProofVideoPair",
+          "thefactory-tools/types/ProofKind",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-ui/headless/verifyProofView",
+          "thefactory-ui/headless/type EvidenceTile",
+          "thefactory-ui/headless"
+        ]
+      },
+      "VISIBLE_CHANGE_OFFER": {
+        "path": "scenes/proofChangeFixtures.ts",
+        "description": "A feature run whose change shows on screen, stopped on screens it did not file: they stay.",
+        "dependencies": [
+          "thefactory-tools/types/ProcessProofChangeOffer",
+          "thefactory-tools/types",
+          "thefactory-ui/headless/ProofChangeKeptLook",
+          "thefactory-ui/headless"
+        ]
+      },
+      "VISIBLE_VIDEO_CHANGE_OFFER": {
+        "path": "scenes/proofChangeFixtures.ts",
+        "description": "The same run proven by a before/after video beside its screens, stopped on both: both stay.",
+        "dependencies": [
+          "thefactory-tools/types/ProcessProofChangeOffer",
+          "thefactory-tools/types",
+          "thefactory-ui/headless/ProofChangeKeptLook",
+          "thefactory-ui/headless"
         ]
       },
       "WebView": {
@@ -138620,6 +138693,13 @@
           "thefactory-tools/types"
         ]
       },
+      "FAKE_ASSIGNED_TICKETS": {
+        "path": "fakeBackend/fixtures/ticketConnections.ts",
+        "description": "The tickets assigned to the person on the connection, none shown yet.",
+        "dependencies": [
+          "ExternalItem"
+        ]
+      },
       "FAKE_AT": {
         "path": "fakeBackend/fixtures/stamps.ts",
         "description": "The one moment the fixtures were made, so every capture draws the same text.",
@@ -138657,179 +138737,6 @@
       "FAKE_BACKEND_NO_RECORD_CODE": {
         "path": "fakeBackend/fakeBackendConstants.ts",
         "dependencies": []
-      },
-      "FAKE_BACKEND_ROUTES": {
-        "path": "fakeBackend/fakeBackendRoutes.ts",
-        "description": "Every read the clients make to reach their main screens. Nothing here writes.",
-        "dependencies": [
-          "ListProcessGroupRunsResponse",
-          "ListProcessGroupRunsData",
-          "GetProcessCapabilitiesResponse",
-          "GetProcessCapabilitiesData",
-          "ListProcessesResponse",
-          "ListProcessesData",
-          "GetProcessRunResponse",
-          "GetProcessRunData",
-          "PreviewProcessRunResponse",
-          "PreviewProcessRunData",
-          "GetProcessRunEvidenceResponse",
-          "GetProcessRunEvidenceData",
-          "ListProcessRunsResponse",
-          "ListProcessRunsData",
-          "GetProcessRunStatisticsResponse",
-          "GetProcessRunStatisticsData",
-          "GetCliAgentRunResponse",
-          "GetCliAgentRunData",
-          "ListCliAgentRunSummariesResponse",
-          "ListCliAgentRunSummariesData",
-          "ListDecidedCliAgentActionsResponse",
-          "ListDecidedCliAgentActionsData",
-          "ListPendingCliAgentActionsResponse",
-          "ListPendingCliAgentActionsData",
-          "CountPendingCliAgentActionsByChatResponse",
-          "CountPendingCliAgentActionsByChatData",
-          "ListCredentialCapturesResponse",
-          "ListCredentialCapturesData",
-          "ListFeatureRequestsResponse",
-          "ListFeatureRequestsData",
-          "ListActionRulesResponse",
-          "ListActionRulesData",
-          "GetChatOpenChangesResponse",
-          "GetChatOpenChangesData",
-          "GetChatTurnResponse",
-          "GetChatTurnData",
-          "GetCostsByChatResponse",
-          "GetCostsByChatData",
-          "ListChatToolCatalogResponse",
-          "ListChatToolCatalogData",
-          "GetChatSummaryResponse",
-          "GetChatSummaryData",
-          "GetChatResponse",
-          "GetChatData",
-          "CompactChatNowResponse",
-          "CompactChatNowData",
-          "GetChatContextReadoutResponse",
-          "GetChatContextReadoutData",
-          "GetChatsSettingsResponse",
-          "GetChatsSettingsData",
-          "ListChatSummariesResponse",
-          "ListChatSummariesData",
-          "ListGroupAgentTypesResponse",
-          "ListGroupAgentTypesData",
-          "ListGroupStoriesResponse",
-          "ListGroupStoriesData",
-          "ListGroupNotesResponse",
-          "ListGroupNotesData",
-          "ListSourceRecordsResponse",
-          "ListSourceRecordsData",
-          "ListDataSourcesResponse",
-          "ListDataSourcesData",
-          "ListProjectDataSubscriptionsResponse",
-          "ListProjectDataSubscriptionsData",
-          "ListProjectAgentTypesResponse",
-          "ListProjectAgentTypesData",
-          "GetProjectStorageUsageResponse",
-          "GetProjectStorageUsageData",
-          "GetDesignPlaygroundResponse",
-          "GetDesignPlaygroundData",
-          "GetProjectDesignResponse",
-          "GetProjectDesignData",
-          "GetKnowledgeEvaluationSettingsResponse",
-          "GetKnowledgeEvaluationSettingsData",
-          "GetProjectKnowledgeOverviewResponse",
-          "GetProjectKnowledgeOverviewData",
-          "ListProjectNotesResponse",
-          "ListProjectNotesData",
-          "ListActivitiesResponse",
-          "ListActivitiesData",
-          "ListProjectDataResponse",
-          "ListProjectDataData",
-          "ListTestConfigCandidatesResponse",
-          "ListTestConfigCandidatesData",
-          "ListTestsResponse",
-          "ListTestsData",
-          "GetLastCoverageResponse",
-          "GetLastCoverageData",
-          "GetLastTestsCustomRunResponse",
-          "GetLastTestsCustomRunData",
-          "GetLastTestsRunResponse",
-          "GetLastTestsRunData",
-          "GetGitLocalDiffResponse",
-          "GetGitLocalDiffData",
-          "GetGitLogResponse",
-          "GetGitLogData",
-          "GetGitBundleResponse",
-          "GetGitBundleData",
-          "GetAllFileStatsResponse",
-          "GetAllFileStatsData",
-          "ListStoryGroupStoriesResponse",
-          "ListStoryGroupStoriesData",
-          "ListProjectGroupStoriesResponse",
-          "ListProjectGroupStoriesData",
-          "GetStoryResponse",
-          "GetStoryData",
-          "GetStoriesOrderResponse",
-          "GetStoriesOrderData",
-          "ListStoriesResponse",
-          "ListStoriesData",
-          "GetDbHealthResponse",
-          "GetDbHealthData",
-          "GetStorageUsageResponse",
-          "GetStorageUsageData",
-          "GetDailyUsageResponse",
-          "GetDailyUsageData",
-          "GetUserSettingResponse",
-          "GetUserSettingData",
-          "ListEntitiesResponse",
-          "ListEntitiesData",
-          "ListToolsResponse",
-          "ListToolsData",
-          "GetPricingResponse",
-          "GetPricingData",
-          "ListTemplatesResponse",
-          "ListTemplatesData",
-          "GetProjectsGroupConstellationResponse",
-          "GetProjectsGroupConstellationData",
-          "GetProjectsGroupStatusResponse",
-          "GetProjectsGroupStatusData",
-          "ListProjectsGroupsResponse",
-          "ListProjectsGroupsData",
-          "ListProjectsResponse",
-          "ListProjectsData",
-          "ListOverseerAuthProvidersResponse",
-          "ListOverseerAuthProvidersData",
-          "GetOverseerResponse",
-          "GetOverseerData",
-          "ListConnectionNewItemsResponse",
-          "ListConnectionNewItemsData",
-          "ListProviderConnectionsResponse",
-          "ListProviderConnectionsData",
-          "ListWebSearchKeysResponse",
-          "ListWebSearchKeysData",
-          "ListGitCredentialsResponse",
-          "ListGitCredentialsData",
-          "ListCliAgentModelsResponse",
-          "ListCliAgentModelsData",
-          "CheckCliImageUpdatesResponse",
-          "CheckCliImageUpdatesData",
-          "ListCliImageVersionsResponse",
-          "ListCliImageVersionsData",
-          "ListCliCapabilityScorecardsResponse",
-          "ListCliCapabilityScorecardsData",
-          "GetActiveCliStateResponse",
-          "GetActiveCliStateData",
-          "ListCliAuthCachesResponse",
-          "ListCliAuthCachesData",
-          "GetActiveRunnerKindResponse",
-          "GetActiveRunnerKindData",
-          "ListLlmConfigsResponse",
-          "ListLlmConfigsData",
-          "HealthStartupResponse",
-          "HealthStartupData",
-          "HealthResponse",
-          "HealthData",
-          "FakeRoute"
-        ]
       },
       "FAKE_BACKEND_TOKEN_PREFIX": {
         "path": "fakeBackend/fakeBackendConstants.ts",
@@ -139091,6 +138998,18 @@
           "TestsResult"
         ]
       },
+      "FAKE_TICKET_CONNECTION": {
+        "path": "fakeBackend/fixtures/ticketConnections.ts",
+        "description": "The one ticket connection the fake lists: a Jira site with tickets assigned to the person.",
+        "dependencies": [
+          "RedactedProviderConnectionEntry"
+        ]
+      },
+      "FAKE_TICKET_IDENTITY_EPOCH": {
+        "path": "fakeBackend/fixtures/ticketConnections.ts",
+        "description": "The identity the connection's new-item counts belong to.",
+        "dependencies": []
+      },
       "FAKE_TRANSPORT_TOOLS": {
         "path": "fakeBackend/fixtures/chatToolCatalog.ts",
         "dependencies": [
@@ -139157,6 +139076,13 @@
         "path": "fakeBackend/fakeBackendTypes.ts",
         "description": "What the fake backend's command line and environment settle on.",
         "dependencies": []
+      },
+      "fakeBackendRoutes": {
+        "path": "fakeBackend/fakeBackendRoutes.ts",
+        "description": "The route table one fake server answers from: every read, and the tickets it",
+        "dependencies": [
+          "FakeRoute"
+        ]
       },
       "FakeBackendServer": {
         "path": "fakeBackend/FakeBackendServer.ts",
@@ -139282,6 +139208,16 @@
         "dependencies": [
           "URLSearchParams",
           "Record"
+        ]
+      },
+      "FakeTicketInbox": {
+        "path": "fakeBackend/FakeTicketInbox.ts",
+        "description": "The fake's ticket connection and which of its assigned tickets the person was",
+        "dependencies": [
+          "MarkConnectionItemsSeenResponse",
+          "SeenItem",
+          "ExternalItem",
+          "ListConnectionNewItemsResponse"
         ]
       },
       "FakeToolCall": {
@@ -154949,6 +154885,11 @@
         "description": "The limits' words.",
         "dependencies": []
       },
+      "LAUNCH_FEATURE_ADDED": {
+        "path": "headless/utils/launchFeaturePickConstants.ts",
+        "description": "A feature the launch adds to the story before the person's own.",
+        "dependencies": []
+      },
       "LAUNCH_FEATURE_LEFT_OUT": {
         "path": "headless/utils/launchFeaturePickConstants.ts",
         "description": "A feature left out of the launch: it stays on the story for later.",
@@ -155213,10 +155154,26 @@
         "path": "web/compound/chat/LaunchFeatureList.tsx",
         "description": "The launch card's features, each once: its bullet and title, how it is proven",
         "dependencies": [
-          "LaunchFeaturePickRow",
+          "LaunchFeatureListItem",
           "ReadonlySet",
           "LaunchFeatureListProps",
           "react/useState"
+        ]
+      },
+      "LaunchFeatureListItem": {
+        "path": "headless/utils/launchFeaturePickTypes.ts",
+        "description": "One row the launch card lists: a feature to pick, or one the launch adds first, with why.",
+        "dependencies": [
+          "LaunchFeaturePickRow"
+        ]
+      },
+      "launchFeatureListItems": {
+        "path": "headless/utils/launchFeaturePick.ts",
+        "description": "What the launch card lists, each feature once: a feature the launch adds to",
+        "dependencies": [
+          "LaunchFeatureListItem",
+          "LaunchFeaturePickRow",
+          "LaunchFeatureRow"
         ]
       },
       "LaunchFeatureListProps": {
@@ -170529,6 +170486,7 @@
           "ReviewEvidenceVerdict",
           "ProofKindStanding",
           "ProcessProofUnpaired",
+          "ProcessProofVideoPair",
           "ProcessProofNewScreen",
           "ProcessProofPair",
           "ProcessCleanupOutcome",
@@ -171556,6 +171514,10 @@
         ]
       },
       "ProcessProofUnpaired": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "ProcessProofVideoPair": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": []
       },
@@ -173612,6 +173574,7 @@
           "ReviewEvidenceVerdict",
           "ProofKindStanding",
           "ProcessProofUnpaired",
+          "ProcessProofVideoPair",
           "ProcessProofNewScreen",
           "ProcessProofPair",
           "ProcessStepOutcome"
@@ -173662,6 +173625,7 @@
           "ReviewEvidenceVerdict",
           "ProofKindStanding",
           "ProcessProofUnpaired",
+          "ProcessProofVideoPair",
           "ProcessProofNewScreen",
           "ProcessProofPair",
           "ProcessCleanupOutcome",
@@ -174255,6 +174219,7 @@
           "Array",
           "ProofKindStanding",
           "ProcessProofUnpaired",
+          "ProcessProofVideoPair",
           "ProcessProofNewScreen",
           "ProcessProofPair"
         ]
@@ -176890,6 +176855,11 @@
         "description": "The line under the heading on a run that works no single feature, so nothing is saved.",
         "dependencies": []
       },
+      "PROOF_CHANGE_KEPT_CHIP": {
+        "path": "headless/utils/processProofChangeViewConstants.ts",
+        "description": "The chip on held screens, in the lock-chip look the design view keeps as an alternative.",
+        "dependencies": []
+      },
       "PROOF_CHANGE_NOTE_PLACEHOLDER": {
         "path": "headless/utils/processProofChangeViewConstants.ts",
         "description": "The note's placeholder.",
@@ -176900,9 +176870,19 @@
         "description": "The choice to write the change onto the feature.",
         "dependencies": []
       },
+      "PROOF_CHANGE_SCREENS_KEPT": {
+        "path": "headless/utils/processProofChangeViewConstants.ts",
+        "description": "Why the screens of a change that shows on screen stay picked.",
+        "dependencies": []
+      },
       "PROOF_CHANGE_SEND_LABEL": {
         "path": "headless/utils/processProofChangeViewConstants.ts",
         "description": "The editor's buttons.",
+        "dependencies": []
+      },
+      "PROOF_CHANGE_VIDEO_KEPT": {
+        "path": "headless/utils/processProofChangeViewConstants.ts",
+        "description": "Why the before/after video of a change that shows on screen stays picked.",
         "dependencies": []
       },
       "PROOF_KIND_STATUS_TONES": {
@@ -177176,6 +177156,7 @@
       "ProofChangeComposerProps": {
         "path": "native/compound/process/ProofChangeComposer.tsx",
         "dependencies": [
+          "ProofChangeKeptLook",
           "ProofChangeDraft",
           "ProcessProofChangeOffer",
           "react/useState",
@@ -177206,8 +177187,18 @@
           "thefactory-tools/constants",
           "thefactory-tools/types/ProofKind",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processProofChangeKeptKinds",
           "thefactory-tools/utils/processProofChangeProblem",
           "thefactory-tools/utils"
+        ]
+      },
+      "ProofChangeKeptLook": {
+        "path": "headless/utils/processProofChangeViewTypes.ts",
+        "description": "How the editor shows kinds it holds picked: switched off with why beneath (`reason`, the",
+        "dependencies": [
+          "thefactory-tools/types/ProofKind",
+          "thefactory-tools/types/ProofKindStatus",
+          "thefactory-tools/types"
         ]
       },
       "ProofChangeKindView": {
@@ -177264,6 +177255,7 @@
           "thefactory-tools/constants",
           "thefactory-tools/types/ProofKind",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processProofChangeKeptKinds",
           "thefactory-tools/utils/processProofChangeProblem",
           "thefactory-tools/utils"
         ]
@@ -177779,6 +177771,17 @@
       "ProofUnpairedView": {
         "path": "headless/utils/verifyProofTypes.ts",
         "description": "An after shown with what did not count: one the reviewer filed with no before under its subject.",
+        "dependencies": [
+          "EvidenceTile",
+          "thefactory-tools/types/ProcessLedgerEntry",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types/ProcessVerifyReview",
+          "thefactory-tools/types"
+        ]
+      },
+      "ProofVideoPairView": {
+        "path": "headless/utils/verifyProofTypes.ts",
+        "description": "One before/after pair of recordings the gate judged — the same path through",
         "dependencies": [
           "EvidenceTile",
           "thefactory-tools/types/ProcessLedgerEntry",
@@ -196420,6 +196423,7 @@
           "thefactory-tools/constants",
           "thefactory-tools/types/ProcessProofChangeOffer",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processProofChangeKeptKinds",
           "thefactory-tools/utils/processProofChangeProblem",
           "thefactory-tools/utils"
         ]
@@ -204968,6 +204972,7 @@
         "dependencies": [
           "ScreenPair",
           "VerifyProofSummary",
+          "ProofVideoPairView",
           "EvidenceTile",
           "ProofUnpairedView",
           "ProofScreenView",
@@ -205106,12 +205111,30 @@
         "description": "What a browser's `MediaError` says for a file it cannot decode or open.",
         "dependencies": []
       },
+      "VIDEO_NEW_SCREEN_NOTE": {
+        "path": "headless/utils/verifyProofConstants.ts",
+        "description": "Said under a recording of a screen the change adds: its after alone.",
+        "dependencies": [
+          "thefactory-tools/types/ProcessResumeChoice",
+          "thefactory-tools/types/ProcessStepOutcome",
+          "thefactory-tools/types"
+        ]
+      },
       "VIDEO_NOTICE_SEPARATOR": {
         "path": "headless/utils/videoAttachmentConstants.ts",
         "description": "Between the two figures of `videoTokenNotice`.",
         "dependencies": [
           "thefactory-tools/types/VideoDigestStage",
           "thefactory-tools/types/VideoTranscriptState",
+          "thefactory-tools/types"
+        ]
+      },
+      "VIDEO_PAIRS_COPY": {
+        "path": "headless/utils/verifyProofConstants.ts",
+        "description": "The heading over the before/after recordings a proof judged, and the captions of their sides.",
+        "dependencies": [
+          "thefactory-tools/types/ProcessResumeChoice",
+          "thefactory-tools/types/ProcessStepOutcome",
           "thefactory-tools/types"
         ]
       },
@@ -205923,7 +205946,7 @@
       },
       "WalkthroughTab": {
         "path": "web/compound/chat/signoff/WalkthroughTab.tsx",
-        "description": "The verifier's screen recordings — proof of the PATH through the app, not just its screens.",
+        "description": "The verifier's screen recordings — proof of the PATH through the app, not",
         "dependencies": [
           "WalkthroughTabProps",
           "react/useRef",
@@ -205936,6 +205959,7 @@
           "react/ReactNode",
           "EvidenceTile",
           "SaveFileHandler",
+          "ProofVideoPairView",
           "react-native/Text",
           "react-native/View"
         ]
@@ -208046,9 +208070,114 @@
         "description": "`adb` global options that take a value — skipped to find the command.",
         "dependencies": []
       },
+      "ADB_RAW_DEVICE_COMMANDS": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "`adb` commands a raw call may run on a capture emulator. Everything else is",
+        "dependencies": []
+      },
+      "ADB_RAW_EMU_COMMANDS": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "The emulator console commands a raw `adb emu` may send. The rest — `avd",
+        "dependencies": []
+      },
+      "ADB_RAW_EMU_READS": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "The emulator console reads a raw `adb emu` may send, word for word.",
+        "dependencies": []
+      },
+      "ADB_RAW_HOST_QUERIES": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "`adb` commands a raw call may run with no serial: they read the host's adb and touch no device.",
+        "dependencies": []
+      },
+      "ADB_RAW_LIST_FLAG": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "The one argument a list-only command takes.",
+        "dependencies": []
+      },
+      "ADB_RAW_LIST_ONLY_COMMANDS": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "`adb` commands a raw call may only list with ({@link ADB_RAW_LIST_FLAG}): a",
+        "dependencies": []
+      },
+      "ADB_RAW_SHELL_COMMANDS": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "`adb` commands whose arguments are a command line for the device's shell, read before it runs.",
+        "dependencies": []
+      },
+      "ADB_SERIAL_OPTION": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "The one `adb` global option a raw call may pass, once: the serial of the capture emulator it runs on.",
+        "dependencies": []
+      },
+      "ADB_SHELL_ASSIGNMENT_PATTERN": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "A `NAME=value` assignment ahead of a program, which runs nothing itself.",
+        "dependencies": []
+      },
+      "ADB_SHELL_CONTENT_WRITES": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "The `content` verbs that write, refused against the settings provider.",
+        "dependencies": []
+      },
       "ADB_SHELL_INSTALL_PATTERN": {
         "path": "dist/mobileTest/mobileTestConstants.js",
         "description": "An `adb shell` package-manager call that installs or removes an app.",
+        "dependencies": []
+      },
+      "ADB_SHELL_NETWORK_CMD_SERVICES": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "The `cmd` services that change how a device reaches a network.",
+        "dependencies": []
+      },
+      "ADB_SHELL_NETWORK_SETTING_PATTERN": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "A setting whose change reaches the network.",
+        "dependencies": []
+      },
+      "ADB_SHELL_NETWORK_SVC": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "What `svc` is refused for: the radios a capture emulator's cut turned off.",
+        "dependencies": []
+      },
+      "ADB_SHELL_OPTIONS_WITH_VALUE": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "`adb shell` options that take a value — skipped to find the command line.",
+        "dependencies": []
+      },
+      "ADB_SHELL_QUOTE_PATTERN": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "Quotes and escapes, dropped before a shell line is read: `s\"\"vc` runs `svc`.",
+        "dependencies": []
+      },
+      "ADB_SHELL_REFUSED_PROGRAMS": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "Device shell programs a raw call never runs: shells, wrappers and",
+        "dependencies": []
+      },
+      "ADB_SHELL_RUNTIME_PATTERN": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "A shell line that builds a command only when it runs: a variable or a command substitution.",
+        "dependencies": []
+      },
+      "ADB_SHELL_SEPARATOR_PATTERN": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "What splits a device shell line into the commands it runs: each one's first",
+        "dependencies": []
+      },
+      "ADB_SHELL_SETTINGS_PROVIDER": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "The settings provider's address, as a `content` write names it.",
+        "dependencies": []
+      },
+      "ADB_SHELL_SETTINGS_WRITES": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "The `settings` verbs that write; `reset` puts back every default, the network's included.",
+        "dependencies": []
+      },
+      "ADB_SHELL_SYSTEM_PATH_PREFIX": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "Where a program a raw shell line runs by path must live: the device's own system image.",
         "dependencies": []
       },
       "addCliRunUsage": {
@@ -209184,6 +209313,11 @@
       "ANDROID_DEFAULT_MODULE": {
         "path": "dist/mobileTest/mobileTestConstants.js",
         "description": "The Gradle module an Android build assembles when the caller names none.",
+        "dependencies": []
+      },
+      "ANDROID_EMULATOR_HOST_ALIAS": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "The host as an Android emulator reaches it: where the real backend would answer, were the network up.",
         "dependencies": []
       },
       "ANDROID_INSTALLED_APK_PATH_PATTERN": {
@@ -217278,6 +217412,16 @@
         "path": "dist/completion/completionConstants.js",
         "dependencies": []
       },
+      "COMPLETION_TURN_LIMIT_FINAL_NOTE": {
+        "path": "dist/completion/completionConstants.js",
+        "description": "What an agent reads beside a tool result once it is down to its last {@link COMPLETION_TURN_LIMIT_FINAL_TURNS}.",
+        "dependencies": []
+      },
+      "COMPLETION_TURN_LIMIT_FINAL_TURNS": {
+        "path": "dist/completion/completionConstants.js",
+        "description": "How many turns from the end the warning asks for the final reply instead.",
+        "dependencies": []
+      },
       "COMPLETION_TURN_LIMIT_NOTE": {
         "path": "dist/completion/completionConstants.js",
         "description": "What an agent reads beside a tool result in its last turns.",
@@ -217291,6 +217435,11 @@
       "COMPLETION_TURN_LIMIT_WARNING_TURNS": {
         "path": "dist/completion/completionConstants.js",
         "description": "How many turns from the end a limited run starts being told what it has left.",
+        "dependencies": []
+      },
+      "completionAnsweredOutOfTurns": {
+        "path": "dist/completion/completionUtils.js",
+        "description": "Whether a reply on `turn` came after the agent was asked for its final",
         "dependencies": []
       },
       "completionAnswerProblem": {
@@ -217562,7 +217711,9 @@
       "completionTurnLimitNote": {
         "path": "dist/completion/completionUtils.js",
         "description": "What an agent is told after `turn` of a run limited to `cap`, once it is",
-        "dependencies": []
+        "dependencies": [
+          "COMPLETION_TURN_LIMIT_NOTE"
+        ]
       },
       "CompletionUsage": {
         "path": "dist/completion/completionTypes.d.ts",
@@ -220579,7 +220730,7 @@
       },
       "DEFAULT_CHAT_HISTORY_CONTEXT_FRACTION": {
         "path": "dist/completion/completionConstants.js",
-        "description": "Share of the model's context window a seed or an API history may fill.",
+        "description": "Share of the model's context window a seed or an API history may fill. Set",
         "dependencies": []
       },
       "DEFAULT_CHAT_MAX_TURNS": {
@@ -230239,6 +230390,11 @@
         "description": "Whether an answer says the thing asked about is not done yet, or that the",
         "dependencies": []
       },
+      "isSubNoiseDifference": {
+        "path": "dist/reviewEvidence/reviewEvidenceUtils.js",
+        "description": "Whether a before and an after differ by no more than noise: at most",
+        "dependencies": []
+      },
       "isSupportedUiConnection": {
         "path": "dist/uiTest/uiTestTypeValidations.js",
         "description": "True iff `value` is a connection mode implemented in this phase.",
@@ -234544,6 +234700,11 @@
         "description": "Actionable blocker naming every missing required task context file.",
         "dependencies": []
       },
+      "MOBILE_APP_DECLARATION_FIELD": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "The `package.json` → `factory` field a mobile app declares itself for capture under.",
+        "dependencies": []
+      },
       "MOBILE_APP_ID_WITH_ACTIVITY": {
         "path": "dist/mobileTest/mobileTestConstants.js",
         "description": "Why `appId` refused a `package/Activity`, and what to pass instead.",
@@ -234574,9 +234735,64 @@
         "description": "How old a build left in the temp folder must be before a new process removes",
         "dependencies": []
       },
+      "MOBILE_BUILD_OFF_FAKE_BACKEND": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "What a build identity ends with when it is built without the fake backend the app declares.",
+        "dependencies": []
+      },
       "MOBILE_BUILD_PROVENANCE_SUFFIX": {
         "path": "dist/mobileTest/mobileTestConstants.js",
         "description": "Beside an APK or `.app` this tool built: which code went into it.",
+        "dependencies": []
+      },
+      "MOBILE_CAPTURE_AVD_PREFIX": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "The AVD name a capture build installs on starts with this: an emulator made for capture, which holds no one's own install or login.",
+        "dependencies": []
+      },
+      "MOBILE_CAPTURE_BUILD_ENV": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "Set at every capture build: Expo reads the checkout's `.env` files into the",
+        "dependencies": []
+      },
+      "MOBILE_CAPTURE_BUILD_FLAG": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "What a capture build's `captureEnv` is set to.",
+        "dependencies": []
+      },
+      "MOBILE_CAPTURE_CONFINE_COMMANDS": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "The `adb shell` commands that cut a capture emulator off every network but the port `adb reverse` forwards.",
+        "dependencies": []
+      },
+      "MOBILE_CAPTURE_IOS_UNSUPPORTED": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "dependencies": []
+      },
+      "MOBILE_CAPTURE_NOT_ANDROID_DEVICE": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "dependencies": []
+      },
+      "MOBILE_CAPTURE_NOT_CONFINED": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "dependencies": []
+      },
+      "MOBILE_CAPTURE_NOT_ON_CAPTURE_AVD": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "dependencies": []
+      },
+      "MOBILE_CAPTURE_PROBE_SECONDS": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "How long the device gets to reach the stand-in listener before the cut is taken as holding (s).",
+        "dependencies": []
+      },
+      "MOBILE_CAPTURE_PROBE_SETTLE_MS": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "How long the stand-in listener is given to count a connection the device made, once the probe returns (ms).",
+        "dependencies": []
+      },
+      "MOBILE_CAPTURE_REACHED_HOST": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
         "dependencies": []
       },
       "MOBILE_CAPTURE_SPAWN_LABEL": {
@@ -234592,6 +234808,39 @@
       "MOBILE_EXPO_PREBUILD_TIMEOUT_MS": {
         "path": "dist/mobileTest/mobileTestConstants.js",
         "description": "How long `expo prebuild` may take to generate one platform's native project (ms).",
+        "dependencies": []
+      },
+      "MOBILE_FAKE_BACKEND_DEVICE_HOST": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "The device loopback a capture build reaches its fake backend on.",
+        "dependencies": []
+      },
+      "MOBILE_FAKE_BACKEND_DEVICE_PORT": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "The device port a capture build reaches its fake backend on, forwarded to the host by `adb reverse`. Never the real backend's.",
+        "dependencies": []
+      },
+      "MOBILE_FAKE_BACKEND_DID_NOT_START": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "dependencies": []
+      },
+      "MOBILE_FAKE_BACKEND_NOT_FORWARDED": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "dependencies": []
+      },
+      "MOBILE_FAKE_BACKEND_READY_POLL_MS": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "How often a starting fake backend is asked whether it answers (ms).",
+        "dependencies": []
+      },
+      "MOBILE_FAKE_BACKEND_READY_TIMEOUT_MS": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "How long a fake backend gets to answer once started (ms).",
+        "dependencies": []
+      },
+      "MOBILE_FAKE_BACKEND_TOKEN_PREFIX": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "What a fake backend's throwaway token starts with, and all it takes.",
         "dependencies": []
       },
       "MOBILE_FROZEN_CLOCK_HHMM": {
@@ -234629,6 +234878,10 @@
         "description": "Where a React Native / Expo checkout keeps each platform's native project.",
         "dependencies": []
       },
+      "MOBILE_OLDER_THAN_FAKE_BACKEND": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "dependencies": []
+      },
       "MOBILE_PLATFORMS": {
         "path": "dist/mobileTest/mobileTestConstants.js",
         "description": "The platforms a session can target.",
@@ -234637,6 +234890,64 @@
       "MOBILE_POD_INSTALL_TIMEOUT_MS": {
         "path": "dist/mobileTest/mobileTestConstants.js",
         "description": "How long `pod install` may take (ms) — a cold one fetches every pod.",
+        "dependencies": []
+      },
+      "MOBILE_RAW_ADB_COMMAND": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "dependencies": []
+      },
+      "MOBILE_RAW_ADB_EMU": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "dependencies": []
+      },
+      "MOBILE_RAW_ADB_LIST_ONLY": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "dependencies": []
+      },
+      "MOBILE_RAW_ADB_NO_COMMAND": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "dependencies": []
+      },
+      "MOBILE_RAW_ADB_NO_SERIAL": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "dependencies": []
+      },
+      "MOBILE_RAW_ADB_NOT_CAPTURE_DEVICE": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "dependencies": []
+      },
+      "MOBILE_RAW_ADB_OPTION": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "dependencies": []
+      },
+      "MOBILE_RAW_ADB_REFUSED": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "Why a raw `adb` call was not run.",
+        "dependencies": []
+      },
+      "MOBILE_RAW_ADB_SHELL_EMPTY": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "dependencies": []
+      },
+      "MOBILE_RAW_ADB_SHELL_NETWORK": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "dependencies": []
+      },
+      "MOBILE_RAW_ADB_SHELL_PATH": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "dependencies": []
+      },
+      "MOBILE_RAW_ADB_SHELL_PROGRAM": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "dependencies": []
+      },
+      "MOBILE_RAW_ADB_SHELL_RUNTIME": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "dependencies": []
+      },
+      "MOBILE_RAW_REFUSED_EXIT_CODE": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "The exit code a refused raw call reports: it never ran.",
         "dependencies": []
       },
       "MOBILE_RECORDING_FIND_POLL_MS": {
@@ -234746,6 +235057,13 @@
         "description": "Seams every platform's build shares.",
         "dependencies": []
       },
+      "mobileBuildEnv": {
+        "path": "dist/mobileTest/mobileTestUtils.js",
+        "description": "The environment a build step runs with: what a toolchain finds itself by on",
+        "dependencies": [
+          "node:path/posix"
+        ]
+      },
       "mobileBuildIdentity": {
         "path": "dist/mobileTest/mobileTestUtils.js",
         "description": "The identity of a build: the same identity ⇒ the same app, safe to share.",
@@ -234764,7 +235082,9 @@
       "MobileBuildProvenance": {
         "path": "dist/mobileTest/mobileTestTypes.d.ts",
         "description": "Exactly which code an app holds — recorded by the build, never asserted by",
-        "dependencies": []
+        "dependencies": [
+          "MobileBuiltFakeBackend"
+        ]
       },
       "MobileBuildSweepOptions": {
         "path": "dist/mobileTest/mobileTestTypes.d.ts",
@@ -234776,10 +235096,46 @@
         "description": "What a build makes, with every default filled in as the build fills it: the",
         "dependencies": []
       },
+      "mobileBuiltFakeBackend": {
+        "path": "dist/mobileTest/mobileTestUtils.js",
+        "description": "What a capture build records of its fake backend, for a session to start it beside the app.",
+        "dependencies": [
+          "node:path/posix"
+        ]
+      },
+      "MobileBuiltFakeBackend": {
+        "path": "dist/mobileTest/mobileTestTypes.d.ts",
+        "description": "The fake backend a capture build was made for, kept in its sealed record: what",
+        "dependencies": []
+      },
+      "mobileCaptureAppEnv": {
+        "path": "dist/mobileTest/mobileTestUtils.js",
+        "description": "What a capture build is told at its native project's generation and its bundle: the fake backend's device-side url and token, and that it is one.",
+        "dependencies": [
+          "MOBILE_CAPTURE_BUILD_FLAG",
+          "node:path/posix"
+        ]
+      },
+      "mobileCaptureDeviceIds": {
+        "path": "dist/mobileTest/mobileTestUtils.js",
+        "description": "The Android devices sessions hold a fake backend on — the capture emulators raw adb may run on — once each.",
+        "dependencies": [
+          "node:path/posix"
+        ]
+      },
+      "mobileCaptureDeviceProblem": {
+        "path": "dist/mobileTest/mobileTestUtils.js",
+        "description": "Why a capture build may not be installed on a device, or `undefined` for an emulator made for capture.",
+        "dependencies": [
+          "MOBILE_CAPTURE_NOT_ON_CAPTURE_AVD",
+          "node:path/posix"
+        ]
+      },
       "MobileCheckout": {
         "path": "dist/mobileTest/mobileTestTypes.d.ts",
         "description": "What a checkout holds that decides how its app is built: where its native projects are, and whether it is a React Native app.",
         "dependencies": [
+          "MobileFakeBackend",
           "ReactNativeApp",
           "MobileProjectTree"
         ]
@@ -234825,6 +235181,36 @@
         "dependencies": [
           "MobileDevice",
           "MobileToolCheck"
+        ]
+      },
+      "MobileFakeBackend": {
+        "path": "dist/mobileTest/mobileTestTypes.d.ts",
+        "description": "A stand-in for the app's backend that a capture build is pointed at, declared",
+        "dependencies": [
+          "UiServeFakeBackend"
+        ]
+      },
+      "mobileFakeBackendDeclaration": {
+        "path": "dist/mobileTest/mobileTestUtils.js",
+        "description": "The fake backend a `package.json` declares for capture builds under",
+        "dependencies": [
+          "JSON",
+          "node:path/posix"
+        ]
+      },
+      "MobileFakeBackendDeclaration": {
+        "path": "dist/mobileTest/mobileTestTypes.d.ts",
+        "description": "What a `package.json` declares under `factory.mobileApp.fakeBackend`, read: the declaration, or why it is not one.",
+        "dependencies": [
+          "MobileFakeBackend"
+        ]
+      },
+      "mobileFakeBackendEnv": {
+        "path": "dist/mobileTest/mobileTestUtils.js",
+        "description": "What the fake backend itself is told: the host port to listen on, and the token built into the app.",
+        "dependencies": [
+          "String",
+          "node:path/posix"
         ]
       },
       "MobileLogcatOptions": {
@@ -234880,6 +235266,14 @@
         "description": "The names a checkout's native projects can live under: its root, and the",
         "dependencies": []
       },
+      "mobileRawAdbProblem": {
+        "path": "dist/mobileTest/mobileTestUtils.js",
+        "description": "Why a raw `adb` call is refused, as the agent is told it, or `undefined`",
+        "dependencies": [
+          "MOBILE_RAW_ADB_REFUSED",
+          "node:path/posix"
+        ]
+      },
       "MobileRawInstallTarget": {
         "path": "dist/mobileTest/mobileTestTypes.d.ts",
         "description": "Which device a raw command may have changed the installed app on; no `deviceId` means any.",
@@ -234927,6 +235321,13 @@
           "MobileBounds"
         ]
       },
+      "MobileRunningFakeBackend": {
+        "path": "dist/mobileTest/mobileTestTypes.d.ts",
+        "description": "A fake backend a session started beside a capture build.",
+        "dependencies": [
+          "Promise"
+        ]
+      },
       "mobileScreenExtent": {
         "path": "dist/mobileTest/mobileTestUtils.js",
         "description": "Largest right/bottom extent across node bounds — approximates the screen size.",
@@ -234945,10 +235346,18 @@
         "path": "dist/mobileTest/mobileTestTypes.d.ts",
         "description": "In-memory state for one open session, keyed by `sessionId`.",
         "dependencies": [
+          "MobileSessionFakeBackend",
           "ReviewEvidenceScreen",
           "MobileRefTarget",
           "Record",
           "MobilePlatform"
+        ]
+      },
+      "MobileSessionFakeBackend": {
+        "path": "dist/mobileTest/mobileTestTypes.d.ts",
+        "description": "A session's hold on the fake backend its capture build runs on.",
+        "dependencies": [
+          "Promise"
         ]
       },
       "MobileSessionInfo": {
@@ -235224,6 +235633,14 @@
           "node:stream/promises/finished"
         ]
       },
+      "mobileTestConfineCaptureDevice": {
+        "path": "dist/mobileTest/mobileTestCaptureHelpers.js",
+        "dependencies": [
+          "node:net/createServer",
+          "node:timers/promises/setTimeout",
+          "node:timers/promises"
+        ]
+      },
       "mobileTestDetectAppPlatforms": {
         "path": "dist/mobileTest/mobileTestHelpers.js",
         "dependencies": [
@@ -235309,6 +235726,14 @@
           "node:path/join",
           "node:path/posix",
           "node:stream/promises/finished"
+        ]
+      },
+      "mobileTestForwardFakeBackend": {
+        "path": "dist/mobileTest/mobileTestCaptureHelpers.js",
+        "dependencies": [
+          "node:net/createServer",
+          "node:timers/promises/setTimeout",
+          "node:timers/promises"
         ]
       },
       "mobileTestFreezeStatusBar": {
@@ -235542,6 +235967,14 @@
           "node:path/join",
           "node:path/posix",
           "node:stream/promises/finished"
+        ]
+      },
+      "mobileTestReadAvdName": {
+        "path": "dist/mobileTest/mobileTestCaptureHelpers.js",
+        "dependencies": [
+          "node:net/createServer",
+          "node:timers/promises/setTimeout",
+          "node:timers/promises"
         ]
       },
       "mobileTestReadBuildProvenance": {
@@ -235837,6 +236270,15 @@
           "node:stream/promises/finished"
         ]
       },
+      "mobileTestStartFakeBackend": {
+        "path": "dist/mobileTest/mobileTestCaptureHelpers.js",
+        "dependencies": [
+          "String",
+          "node:net/createServer",
+          "node:timers/promises/setTimeout",
+          "node:timers/promises"
+        ]
+      },
       "mobileTestStatusBarHeight": {
         "path": "dist/mobileTest/mobileTestHelpers.js",
         "dependencies": [
@@ -235864,6 +236306,14 @@
           "node:path/join",
           "node:path/posix",
           "node:stream/promises/finished"
+        ]
+      },
+      "mobileTestStopForwarding": {
+        "path": "dist/mobileTest/mobileTestCaptureHelpers.js",
+        "dependencies": [
+          "node:net/createServer",
+          "node:timers/promises/setTimeout",
+          "node:timers/promises"
         ]
       },
       "mobileTestSweepLeftBuilds": {
@@ -236035,6 +236485,14 @@
           "node:path/join",
           "node:path/posix",
           "node:stream/promises/finished"
+        ]
+      },
+      "mobileTestUninstallApp": {
+        "path": "dist/mobileTest/mobileTestCaptureHelpers.js",
+        "dependencies": [
+          "node:net/createServer",
+          "node:timers/promises/setTimeout",
+          "node:timers/promises"
         ]
       },
       "mobileTestWriteBuildProvenance": {
@@ -237551,6 +238009,13 @@
           "ChatReference"
         ]
       },
+      "parseEmulatorAvdName": {
+        "path": "dist/mobileTest/mobileTestUtils.js",
+        "description": "The AVD name `adb emu avd name` printed, or `undefined` when it printed none.",
+        "dependencies": [
+          "node:path/posix"
+        ]
+      },
       "parseFdSoftLimit": {
         "path": "dist/process/processUtils.js",
         "description": "Parse the soft \"Max open files\" limit out of `/proc/self/limits` content.",
@@ -238390,6 +238855,11 @@
       "planHostCheckpoint": {
         "path": "dist/chats/chatContextNotes.js",
         "description": "One checkpoint covers an end-of-turn gap and a full window. End-of-turn wins when both apply.",
+        "dependencies": []
+      },
+      "planHostNodeDependencies": {
+        "path": "dist/projectChecks/projectCheckSandboxUtils.js",
+        "description": "The install a build ON THE HOST plans for a node tree: the sandbox's own",
         "dependencies": []
       },
       "planLegacyNoteStores": {
@@ -240383,6 +240853,11 @@
         "description": "Refused: answering, retrying, raising or holding a stop whose attempt went in circles — the person decides it.",
         "dependencies": []
       },
+      "PROCESS_MANAGER_REFUSE_DONE_FEATURE_RETRY": {
+        "path": "dist/processManager/processManagerConstants.js",
+        "description": "Refused: retrying a feature already done, whose nested run was stopped — skipping it is the answer.",
+        "dependencies": []
+      },
       "PROCESS_MANAGER_REFUSE_GUARD": {
         "path": "dist/processManager/processManagerConstants.js",
         "dependencies": []
@@ -240684,6 +241159,11 @@
         "description": "What the answer does at a waiting agent's stop, in one line.",
         "dependencies": []
       },
+      "PROCESS_PROOF_CHANGE_KEEPS_SCREENS": {
+        "path": "dist/workflow/processProofChangeConstants.js",
+        "description": "Why a change that drops the screens of a change that shows on screen is refused.",
+        "dependencies": []
+      },
       "PROCESS_PROOF_CHANGE_LABEL": {
         "path": "dist/workflow/processProofChangeConstants.js",
         "description": "The answer's button.",
@@ -240716,7 +241196,7 @@
       },
       "PROCESS_PROOF_CHANGE_NOT_OFFERED": {
         "path": "dist/workflow/processProofChangeConstants.js",
-        "description": "Why a stop that offers no change of its proof refuses one.",
+        "description": "Why a stop that offers no change of its proof refuses one — including one short only of the screens a change that shows on screen keeps.",
         "dependencies": []
       },
       "PROCESS_PROOF_CHANGE_PARK_REASONS": {
@@ -241137,6 +241617,16 @@
       "PROCESS_SIGN_OFFS": {
         "path": "dist/workflow/workflowConstants.js",
         "description": "Who can sign a run's work off, in the order an authoring UI should offer them.",
+        "dependencies": []
+      },
+      "PROCESS_SKIP_DONE_FEATURE_DETAIL": {
+        "path": "dist/workflow/processChildDeliveryConstants.js",
+        "description": "What skipping a feature already done does, in one line.",
+        "dependencies": []
+      },
+      "PROCESS_SKIP_DONE_FEATURE_LABEL": {
+        "path": "dist/workflow/processChildDeliveryConstants.js",
+        "description": "The answer at a stop whose nested run's feature is already done: carry on past it.",
         "dependencies": []
       },
       "PROCESS_SLEEP_PARK_MARGIN_MS": {
@@ -242943,6 +243433,11 @@
         "description": "Every note a run's launch named: its own inputs, and the variant's it is for",
         "dependencies": []
       },
+      "processInputPatchNoteIds": {
+        "path": "dist/workflow/processInputUtils.js",
+        "description": "Each note a launch's refs name as their patch, once each, in the order named. Pure.",
+        "dependencies": []
+      },
       "ProcessInputRef": {
         "path": "dist/workflow/workflowTypes.d.ts",
         "description": "One repo at one commit. A `refs` value lists one of these per repo, so a",
@@ -243299,6 +243794,11 @@
       "processManagerAttemptCircling": {
         "path": "dist/processManager/processManagerUtils.js",
         "description": "The flag on the attempt `holder` is parked on, when it went in circles —",
+        "dependencies": []
+      },
+      "processManagerAttemptFeatureDone": {
+        "path": "dist/processManager/processManagerUtils.js",
+        "description": "Whether the run is stopped on a step whose newest attempt worked a feature",
         "dependencies": []
       },
       "ProcessManagerAutonomy": {
@@ -247471,6 +247971,11 @@
         "description": "What `reportUiImpact` answers where nothing records it.",
         "dependencies": []
       },
+      "PROJECT_WEB_BRING_BASE_IN": {
+        "path": "dist/capability/capabilityConstants.js",
+        "description": "What a commit older than the fake backend the project's checkout declares waits on: the base branch.",
+        "dependencies": []
+      },
       "PROJECT_WEB_OLDER_THAN_FAKE_BACKEND": {
         "path": "dist/capability/capabilityConstants.js",
         "description": "Why a commit older than the fake backend the project's checkout declares cannot be served.",
@@ -247483,7 +247988,7 @@
       },
       "ProjectAppBridgeHost": {
         "path": "dist/projectApp/projectAppTypes.d.ts",
-        "description": "The project data a host answers an App's bridge reads from — reads ONLY. A",
+        "description": "The project data a host answers an App's bridge reads from — reads ONLY,",
         "dependencies": [
           "Promise",
           "Record",
@@ -254427,6 +254932,11 @@
         "description": "What `readReviewEvidence` says of a still that was not taken.",
         "dependencies": []
       },
+      "REVIEW_EVIDENCE_NOISE_MAX_CHANGED_PIXELS": {
+        "path": "dist/reviewEvidence/reviewEvidenceConstants.js",
+        "description": "The most pixels two captures may differ by and still show no change: noise,",
+        "dependencies": []
+      },
       "REVIEW_EVIDENCE_NOT_A_NOTE": {
         "path": "dist/reviewEvidence/reviewEvidenceConstants.js",
         "description": "What `readReviewEvidence` says when asked for a part of an item that is not a note.",
@@ -256316,6 +256826,11 @@
       "screensNotNeeded": {
         "path": "dist/proofPlan/proofPlanUtils.js",
         "description": "Whether before/after screens the plan asks for are not needed: they were",
+        "dependencies": []
+      },
+      "screensWaitOnBaseBranch": {
+        "path": "dist/capability/capabilityUtils.js",
+        "description": "Whether a reason screens cannot be captured is the run's commit being older",
         "dependencies": []
       },
       "ScrollUiOptions": {
@@ -261474,6 +261989,11 @@
         "description": "Told with every proof of screens: which of the two routes a change takes.",
         "dependencies": []
       },
+      "UI_PROOF_ROUTE_MOBILE_FAKE_SERVER": {
+        "path": "dist/proofPlan/uiChangeConstants.js",
+        "description": "Where a change to a mobile app's own wiring is proved, in a project whose mobile app declares a fake server.",
+        "dependencies": []
+      },
       "UI_PROOF_ROUTE_NO_FAKE_SERVER": {
         "path": "dist/proofPlan/uiChangeConstants.js",
         "description": "Where a change to an app's own wiring is proved, in a project with no fake server yet.",
@@ -265485,6 +266005,11 @@
         "dependencies": [
           "node:path"
         ]
+      },
+      "withProcessInputPatchTexts": {
+        "path": "dist/workflow/processInputUtils.js",
+        "description": "A launch's values with each patch a ref names by note put in as its text,",
+        "dependencies": []
       },
       "withProcessRunTotals": {
         "path": "dist/workflow/workflowHelpers.js",

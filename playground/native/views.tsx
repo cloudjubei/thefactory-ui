@@ -2,9 +2,11 @@ import { useRef, useState, type ReactNode } from 'react'
 import { ScrollView, Text, View } from 'react-native'
 import {
   CliConfigsProvider,
+  FilesProvider,
   SIGN_OFF_OUTPUT_COPY,
   TICKET_TRANSITION_STANDING,
   groupTicketsView,
+  requestProofChoices,
   signOffOutputSettingViews,
   ticketPostView,
   signOffTemplateChoices,
@@ -21,10 +23,13 @@ import GroupTicketsList from '../../src/native/compound/groupStories/GroupTicket
 import ProjectDefaultCapsField from '../../src/native/compound/projects/ProjectDefaultCapsField'
 import TicketTransitionField from '../../src/native/compound/projects/TicketTransitionField'
 import TicketPostNote from '../../src/native/compound/process/signoff/TicketPostNote'
+import ParkNoteComposer from '../../src/native/compound/process/ParkNoteComposer'
 import ProofChangeComposer from '../../src/native/compound/process/ProofChangeComposer'
 import ProviderConnectionsForm from '../../src/native/compound/settings/ProviderConnectionsForm'
 import SignOffOutputSettingsPanel from '../../src/native/compound/settings/SignOffOutputSettingsPanel'
 import CaptureCardShell from '../../src/native/compound/chat/CaptureCardShell'
+import { MediaHostProvider } from '../../src/native/compound/chat/signoff/MediaHostContext'
+import WalkthroughTab from '../../src/native/compound/chat/signoff/WalkthroughTab'
 import CredentialCaptureCard from '../../src/native/compound/chat/CredentialCaptureCard'
 import McpServerSignInStep from '../../src/native/compound/chat/McpServerSignInStep'
 import type { CredentialCapture } from '../../src/headless/utils/credentialCaptureTypes'
@@ -35,9 +40,22 @@ import Field from '../../src/native/primitives/Field'
 import { Input } from '../../src/native/primitives/Input'
 import { FAKE_GROUP_ID, MEMBERS } from '../../src/fakeBackend/fixtures/projects'
 import { FAKE_GROUP_STATUS_AT } from '../../src/fakeBackend/fixtures/projectsGroups'
+import {
+  RECORDING_ROUTES,
+  VIDEO_COUNTED,
+  VIDEO_NEW_SCREEN,
+  VIDEO_NOT_COUNTED,
+  VIDEO_PROJECT,
+  VIDEO_REQUESTED,
+  videoPairViews,
+} from '../scenes/beforeAfterVideoFixtures'
 import { ticketsState } from '../scenes/groupTicketsFixtures'
 import { OnFixtures } from '../scenes/onFixtures'
-import { KEPT_LOOKS, VISIBLE_CHANGE_OFFER } from '../scenes/proofChangeFixtures'
+import {
+  KEPT_LOOKS,
+  VISIBLE_CHANGE_OFFER,
+  VISIBLE_VIDEO_CHANGE_OFFER,
+} from '../scenes/proofChangeFixtures'
 import { VARIANT_VIEWS } from './variantViews'
 
 const noop = () => {}
@@ -256,17 +274,74 @@ const OAUTH: ProviderOAuthActions = {
 }
 
 /** The proof editor of a change that shows on screen, its screens held in the look `?look=` names. */
-function KeptScreens({ look }: { look: string | null }) {
+function KeptScreens({ look, video }: { look: string | null; video: boolean }) {
   const kept: ProofChangeKeptLook = KEPT_LOOKS.find((l) => l.id === look)?.id ?? 'reason'
   return (
     <View style={{ padding: 16, width: 390, maxWidth: '100%' }}>
       <ProofChangeComposer
-        offer={VISIBLE_CHANGE_OFFER}
+        offer={video ? VISIBLE_VIDEO_CHANGE_OFFER : VISIBLE_CHANGE_OFFER}
         onSend={noop}
         onCancel={noop}
         keptLook={kept}
       />
     </View>
+  )
+}
+
+/** The host's player, as the app hands it to the review surfaces: here, the browser's own. */
+const PLAYER = {
+  renderVideo: (dataUri: string) => (
+    <video
+      src={dataUri}
+      controls
+      playsInline
+      style={{ width: '100%', height: '100%', backgroundColor: '#000000' }}
+    />
+  ),
+}
+
+/** The proof's recording pairs by `?state=`: counted, not-counted or new-screen. */
+const VIDEO_PAIR_STATES = {
+  counted: [VIDEO_COUNTED],
+  'not-counted': [VIDEO_NOT_COUNTED, VIDEO_COUNTED],
+  'new-screen': [VIDEO_NEW_SCREEN],
+}
+
+function VideoPairs({ state }: { state: string | null }) {
+  const pairs =
+    VIDEO_PAIR_STATES[(state ?? 'counted') as keyof typeof VIDEO_PAIR_STATES] ??
+    VIDEO_PAIR_STATES.counted
+  return (
+    <OnFixtures routes={RECORDING_ROUTES}>
+      <MediaHostProvider value={PLAYER}>
+        <ScrollView>
+          <View style={{ padding: 16, width: 390, maxWidth: '100%' }}>
+            <WalkthroughTab
+              projectId={VIDEO_PROJECT}
+              recordings={[]}
+              videoPairs={videoPairViews(pairs)}
+            />
+          </View>
+        </ScrollView>
+      </MediaHostProvider>
+    </OnFixtures>
+  )
+}
+
+function RequestVideo() {
+  return (
+    <OnFixtures>
+      <FilesProvider>
+        <View style={{ padding: 16, width: 390, maxWidth: '100%' }}>
+          <ParkNoteComposer
+            proofChoices={requestProofChoices()}
+            proofPreset={VIDEO_REQUESTED}
+            onSend={noop}
+            onCancel={noop}
+          />
+        </View>
+      </FilesProvider>
+    </OnFixtures>
   )
 }
 
@@ -453,7 +528,19 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   {
     id: 'proof-change-keeps-screens',
     title: 'Screens stay on a visible change',
-    render: (address) => <KeptScreens look={address.get('look')} />,
+    render: (address) => (
+      <KeptScreens look={address.get('look')} video={address.get('offer') === 'video'} />
+    ),
+  },
+  {
+    id: 'before-after-video',
+    title: 'Before/after video',
+    render: (address) => <VideoPairs state={address.get('state')} />,
+  },
+  {
+    id: 'request-video',
+    title: 'Request changes: Require a before/after video',
+    render: () => <RequestVideo />,
   },
   ...VARIANT_VIEWS,
 ]

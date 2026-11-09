@@ -186,6 +186,7 @@
       "portEnv": "PORT",
       "readyPath": "/"
     },
-    "designPlayground": "/"
+    "designPlayground": "/",
+    "designPlaygroundDir": "playground"
   }
 }

@@ -1,3 +1,6 @@
+/** A feature the launch adds to the story before the person's own. */
+export const LAUNCH_FEATURE_ADDED = 'Added'
+
 /** A feature left out of the launch: it stays on the story for later. */
 export const LAUNCH_FEATURE_LEFT_OUT = 'Not in this run'
 

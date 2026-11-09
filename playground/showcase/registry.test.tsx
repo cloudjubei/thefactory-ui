@@ -110,6 +110,21 @@ describe('showcase registry', () => {
     }
   })
 
+  it('draws each before/after video state with what it says, and the video asked for', () => {
+    const states = SCENES.find((s) => s.id === 'before-after-video')?.states ?? []
+    const markup = (id: string) =>
+      renderToStaticMarkup(<>{states.find((s) => s.id === id)?.render()}</>)
+    expect(markup('counted')).toContain('Shows the change')
+    expect(markup('not-counted')).toContain('Recorded on different devices')
+    expect(markup('not-counted').indexOf('Shows the change')).toBeLessThan(
+      markup('not-counted').indexOf('Recorded on different devices'),
+    )
+    expect(markup('new-screen')).toContain('recorded on the change alone')
+    expect(markup('new-screen')).not.toContain('>Before<')
+    expect(markup('narrow')).toContain('@md:grid-cols-2')
+    expect(markup('request-video')).toContain('Require a before/after video')
+  })
+
   it('draws a failed turn under a hidden notice exactly as the turn alone, Try again offered', () => {
     const states = SCENES.find((s) => s.id === 'chat-hidden-notice-tail')?.states ?? []
     const markup = (id: string) =>

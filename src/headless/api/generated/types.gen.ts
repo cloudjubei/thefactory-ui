@@ -1127,6 +1127,7 @@ export type ProofKind =
   | 'checks'
   | 'code-review'
   | 'ui-before-after'
+  | 'ui-video'
   | 'live-backend'
   | 'manual'
 
@@ -3768,7 +3769,13 @@ export type Feature = {
   acceptance?: string
   proofPlan?: {
     kinds: Array<
-      'unit-tests' | 'checks' | 'code-review' | 'ui-before-after' | 'live-backend' | 'manual'
+      | 'unit-tests'
+      | 'checks'
+      | 'code-review'
+      | 'ui-before-after'
+      | 'ui-video'
+      | 'live-backend'
+      | 'manual'
     >
     notes?: string
   }
@@ -3792,7 +3799,13 @@ export type Story = {
   rejection?: string
   proofPlan?: {
     kinds: Array<
-      'unit-tests' | 'checks' | 'code-review' | 'ui-before-after' | 'live-backend' | 'manual'
+      | 'unit-tests'
+      | 'checks'
+      | 'code-review'
+      | 'ui-before-after'
+      | 'ui-video'
+      | 'live-backend'
+      | 'manual'
     >
     notes?: string
   }
@@ -3861,7 +3874,13 @@ export type ChatContextArguments = {
     rejection?: string
     proofPlan?: {
       kinds: Array<
-        'unit-tests' | 'checks' | 'code-review' | 'ui-before-after' | 'live-backend' | 'manual'
+        | 'unit-tests'
+        | 'checks'
+        | 'code-review'
+        | 'ui-before-after'
+        | 'ui-video'
+        | 'live-backend'
+        | 'manual'
       >
       notes?: string
     }
@@ -3884,7 +3903,13 @@ export type ChatContextArguments = {
     acceptance?: string
     proofPlan?: {
       kinds: Array<
-        'unit-tests' | 'checks' | 'code-review' | 'ui-before-after' | 'live-backend' | 'manual'
+        | 'unit-tests'
+        | 'checks'
+        | 'code-review'
+        | 'ui-before-after'
+        | 'ui-video'
+        | 'live-backend'
+        | 'manual'
       >
       notes?: string
     }
@@ -4001,7 +4026,13 @@ export type ChatContextArgumentsStory = {
     rejection?: string
     proofPlan?: {
       kinds: Array<
-        'unit-tests' | 'checks' | 'code-review' | 'ui-before-after' | 'live-backend' | 'manual'
+        | 'unit-tests'
+        | 'checks'
+        | 'code-review'
+        | 'ui-before-after'
+        | 'ui-video'
+        | 'live-backend'
+        | 'manual'
       >
       notes?: string
     }
@@ -4029,7 +4060,13 @@ export type ChatContextArgumentsFeature = {
     rejection?: string
     proofPlan?: {
       kinds: Array<
-        'unit-tests' | 'checks' | 'code-review' | 'ui-before-after' | 'live-backend' | 'manual'
+        | 'unit-tests'
+        | 'checks'
+        | 'code-review'
+        | 'ui-before-after'
+        | 'ui-video'
+        | 'live-backend'
+        | 'manual'
       >
       notes?: string
     }
@@ -4052,7 +4089,13 @@ export type ChatContextArgumentsFeature = {
     acceptance?: string
     proofPlan?: {
       kinds: Array<
-        'unit-tests' | 'checks' | 'code-review' | 'ui-before-after' | 'live-backend' | 'manual'
+        | 'unit-tests'
+        | 'checks'
+        | 'code-review'
+        | 'ui-before-after'
+        | 'ui-video'
+        | 'live-backend'
+        | 'manual'
       >
       notes?: string
     }
@@ -4082,7 +4125,13 @@ export type ChatContextArgumentsAgentRun = {
     rejection?: string
     proofPlan?: {
       kinds: Array<
-        'unit-tests' | 'checks' | 'code-review' | 'ui-before-after' | 'live-backend' | 'manual'
+        | 'unit-tests'
+        | 'checks'
+        | 'code-review'
+        | 'ui-before-after'
+        | 'ui-video'
+        | 'live-backend'
+        | 'manual'
       >
       notes?: string
     }
@@ -4111,7 +4160,13 @@ export type ChatContextArgumentsAgentRunFeature = {
     rejection?: string
     proofPlan?: {
       kinds: Array<
-        'unit-tests' | 'checks' | 'code-review' | 'ui-before-after' | 'live-backend' | 'manual'
+        | 'unit-tests'
+        | 'checks'
+        | 'code-review'
+        | 'ui-before-after'
+        | 'ui-video'
+        | 'live-backend'
+        | 'manual'
       >
       notes?: string
     }
@@ -4134,7 +4189,13 @@ export type ChatContextArgumentsAgentRunFeature = {
     acceptance?: string
     proofPlan?: {
       kinds: Array<
-        'unit-tests' | 'checks' | 'code-review' | 'ui-before-after' | 'live-backend' | 'manual'
+        | 'unit-tests'
+        | 'checks'
+        | 'code-review'
+        | 'ui-before-after'
+        | 'ui-video'
+        | 'live-backend'
+        | 'manual'
       >
       notes?: string
     }
@@ -14680,6 +14741,15 @@ export type ProcessProofNewScreen = {
   afterId: string
 }
 
+export type ProcessProofVideoPair = {
+  subject: string
+  beforeId?: string
+  afterId: string
+  newScreen?: boolean
+  counted: boolean
+  reason?: string
+}
+
 export type ProcessProofUnpaired = {
   subject: string
   afterId: string
@@ -14714,6 +14784,7 @@ export type ProcessVerifyProof = {
   newScreenIds: Array<string>
   newScreensAfterOnly?: Array<ProcessProofNewScreen>
   recordingIds: Array<string>
+  videoPairs?: Array<ProcessProofVideoPair>
   mode?: 'live' | 'dry'
   dryAssumptions?: string
   outcome?: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
@@ -14949,6 +15020,7 @@ export type ProcessLedgerEntry = {
     newScreenIds: Array<string>
     newScreensAfterOnly?: Array<ProcessProofNewScreen>
     recordingIds: Array<string>
+    videoPairs?: Array<ProcessProofVideoPair>
     mode?: 'live' | 'dry'
     dryAssumptions?: string
     outcome?: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
@@ -21203,7 +21275,13 @@ export type LiveRunFeatureUpdateContext = {
     acceptance?: string
     proofPlan?: {
       kinds: Array<
-        'unit-tests' | 'checks' | 'code-review' | 'ui-before-after' | 'live-backend' | 'manual'
+        | 'unit-tests'
+        | 'checks'
+        | 'code-review'
+        | 'ui-before-after'
+        | 'ui-video'
+        | 'live-backend'
+        | 'manual'
       >
       notes?: string
     }
@@ -21223,7 +21301,13 @@ export type FeatureCreateInput = {
   acceptance?: string
   proofPlan?: {
     kinds: Array<
-      'unit-tests' | 'checks' | 'code-review' | 'ui-before-after' | 'live-backend' | 'manual'
+      | 'unit-tests'
+      | 'checks'
+      | 'code-review'
+      | 'ui-before-after'
+      | 'ui-video'
+      | 'live-backend'
+      | 'manual'
     >
     notes?: string
   }
@@ -21245,7 +21329,13 @@ export type FeatureEditInput = {
   acceptance?: string
   proofPlan?: {
     kinds: Array<
-      'unit-tests' | 'checks' | 'code-review' | 'ui-before-after' | 'live-backend' | 'manual'
+      | 'unit-tests'
+      | 'checks'
+      | 'code-review'
+      | 'ui-before-after'
+      | 'ui-video'
+      | 'live-backend'
+      | 'manual'
     >
     notes?: string
   }
@@ -21398,7 +21488,13 @@ export type StoryCreateInput = {
   externalIds?: Array<ExternalRef>
   proofPlan?: {
     kinds: Array<
-      'unit-tests' | 'checks' | 'code-review' | 'ui-before-after' | 'live-backend' | 'manual'
+      | 'unit-tests'
+      | 'checks'
+      | 'code-review'
+      | 'ui-before-after'
+      | 'ui-video'
+      | 'live-backend'
+      | 'manual'
     >
     notes?: string
   }
@@ -21412,7 +21508,13 @@ export type StoryEditInput = {
   rejection?: string
   proofPlan?: {
     kinds: Array<
-      'unit-tests' | 'checks' | 'code-review' | 'ui-before-after' | 'live-backend' | 'manual'
+      | 'unit-tests'
+      | 'checks'
+      | 'code-review'
+      | 'ui-before-after'
+      | 'ui-video'
+      | 'live-backend'
+      | 'manual'
     >
     notes?: string
   }
@@ -21436,7 +21538,13 @@ export type StoryUpdate = {
     rejection?: string
     proofPlan?: {
       kinds: Array<
-        'unit-tests' | 'checks' | 'code-review' | 'ui-before-after' | 'live-backend' | 'manual'
+        | 'unit-tests'
+        | 'checks'
+        | 'code-review'
+        | 'ui-before-after'
+        | 'ui-video'
+        | 'live-backend'
+        | 'manual'
       >
       notes?: string
     }
@@ -23304,7 +23412,13 @@ export type ChatWorkBriefInput = {
     acceptance?: string
     proofPlan?: {
       kinds: Array<
-        'unit-tests' | 'checks' | 'code-review' | 'ui-before-after' | 'live-backend' | 'manual'
+        | 'unit-tests'
+        | 'checks'
+        | 'code-review'
+        | 'ui-before-after'
+        | 'ui-video'
+        | 'live-backend'
+        | 'manual'
       >
       notes?: string
     }
@@ -26214,6 +26328,7 @@ export type ProcessStepResult = {
     newScreenIds: Array<string>
     newScreensAfterOnly?: Array<ProcessProofNewScreen>
     recordingIds: Array<string>
+    videoPairs?: Array<ProcessProofVideoPair>
     mode?: 'live' | 'dry'
     dryAssumptions?: string
     outcome?: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
@@ -26620,6 +26735,7 @@ export type ProcessStepState = {
       newScreenIds: Array<string>
       newScreensAfterOnly?: Array<ProcessProofNewScreen>
       recordingIds: Array<string>
+      videoPairs?: Array<ProcessProofVideoPair>
       mode?: 'live' | 'dry'
       dryAssumptions?: string
       outcome?: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
@@ -30372,7 +30488,13 @@ export type CreateStoryData = {
     externalIds?: Array<ExternalRef>
     proofPlan?: {
       kinds: Array<
-        'unit-tests' | 'checks' | 'code-review' | 'ui-before-after' | 'live-backend' | 'manual'
+        | 'unit-tests'
+        | 'checks'
+        | 'code-review'
+        | 'ui-before-after'
+        | 'ui-video'
+        | 'live-backend'
+        | 'manual'
       >
       notes?: string
     }

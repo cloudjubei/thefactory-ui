@@ -4,6 +4,7 @@ import { Pressable, Text, View } from 'react-native'
 import ReferenceTextarea from '../files/ReferenceTextarea'
 import ChainChip from '../process/ChainChip'
 import {
+  LAUNCH_FEATURE_ADDED,
   LAUNCH_FEATURE_LEFT_OUT,
   LAUNCH_FEATURES_HEADING,
   PROOF_PLAN_EDITED_LABEL,
@@ -12,7 +13,9 @@ import {
   PROOF_PLAN_EXTEND_NOTE,
   PROOF_PLAN_NOTES_PLACEHOLDER,
   PROOF_PLAN_SAVE_LABEL,
+  launchFeatureListItems,
   launchFeaturePickCount,
+  type LaunchFeatureListItem,
   type LaunchFeaturePickRow,
   type LaunchFeatureRow,
   type ProofKind,
@@ -86,12 +89,11 @@ export default function LaunchFeatureList({
   const [showSteps, setShowSteps] = useState(false)
   const hasSteps = rows.some((r) => r.chain.length > 0) || tail.length > 0
   const anyEdited = rows.some((r) => r.proof?.edited)
-  const listed = pick
-    ? pick.rows
-    : rows.map((r) => ({ featureId: r.featureId, title: r.title, picked: true }))
-  const pickedCount = listed.filter((item) => item.picked).length
-  const pickBox = (item: LaunchFeaturePickRow) =>
-    pick ? (
+  const listed = launchFeatureListItems(rows, pick?.rows)
+  const own = listed.filter((item) => !item.added)
+  const pickedCount = own.filter((item) => item.picked).length
+  const pickBox = (item: LaunchFeatureListItem) =>
+    pick && !item.added ? (
       <Pressable
         accessibilityRole="checkbox"
         accessibilityState={{ checked: item.picked, disabled: busy }}
@@ -154,7 +156,7 @@ export default function LaunchFeatureList({
           {LAUNCH_FEATURES_HEADING}
         </Text>
         <Text style={{ fontSize: 11, color: theme.text.muted, flexShrink: 1 }}>
-          {launchFeaturePickCount(pickedCount, listed.length)}
+          {launchFeaturePickCount(pickedCount, own.length)}
           {agentStepCount !== undefined
             ? ` · ${agentStepCount} agent step${agentStepCount === 1 ? '' : 's'}`
             : ''}
@@ -218,7 +220,7 @@ export default function LaunchFeatureList({
           <View key={row.featureId} style={cardStyle}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               {pickBox(item)}
-              {storyId ? (
+              {storyId && !item.added ? (
                 <DependencyBullet
                   resolved={resolveBullet(`${storyId}.${row.featureId}`)}
                   dependency={`${storyId}.${row.featureId}`}
@@ -232,7 +234,24 @@ export default function LaunchFeatureList({
               >
                 {row.title}
               </Text>
+              {item.added ? (
+                <View
+                  style={{
+                    borderRadius: nativeRadii.round,
+                    backgroundColor: status.review.softBg,
+                    paddingHorizontal: 8,
+                    paddingVertical: 1,
+                  }}
+                >
+                  <Text style={{ fontSize: 11, color: status.review.softFg }}>
+                    {LAUNCH_FEATURE_ADDED}
+                  </Text>
+                </View>
+              ) : null}
             </View>
+            {item.added ? (
+              <Text style={{ fontSize: 11, color: theme.text.secondary }}>{item.added}</Text>
+            ) : null}
 
             {proof ? (
               <View

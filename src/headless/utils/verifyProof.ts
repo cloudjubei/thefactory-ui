@@ -78,6 +78,7 @@ import {
   PROOF_THUMB_UNDER_ONE,
   PROVING_AGENT_TYPES,
   VERDICT_NOTE_WHO,
+  VIDEO_NEW_SCREEN_NOTE,
 } from './verifyProofConstants'
 import type {
   CaptureBuildCaption,
@@ -94,6 +95,7 @@ import type {
   ProofThumbnailFrame,
   ProofThumbnailSide,
   ProofUnpairedView,
+  ProofVideoPairView,
   VerifyAttempt,
   VerifyAttemptEvidence,
   VerifyAttemptRun,
@@ -423,6 +425,43 @@ function pairView(
   }
 }
 
+/**
+ * The recording pairs a proof judged, as they play: the counted ones first,
+ * each in the gate's order, its sides found by id among `tiles`. Pure.
+ */
+function videoPairViews(
+  proof: ProcessVerifyProof,
+  byId: ReadonlyMap<string, EvidenceTile>,
+  keyPrefix: string,
+  evidence: EvidenceLoadState,
+): ProofVideoPairView[] {
+  const pairs = proof.videoPairs ?? []
+  return [...pairs.filter((p) => p.counted), ...pairs.filter((p) => !p.counted)].map((p) => {
+    const before = p.beforeId ? byId.get(p.beforeId) : undefined
+    const after = byId.get(p.afterId)
+    const newScreen = p.newScreen === true
+    return {
+      key: `${keyPrefix}video:${p.beforeId ?? ''}>${p.afterId}`,
+      subject: p.subject,
+      counted: p.counted,
+      newScreen,
+      before,
+      after,
+      beforeAbsent: before || !p.beforeId ? undefined : ABSENT_CAPTURE[evidence],
+      afterAbsent: after ? undefined : ABSENT_CAPTURE[evidence],
+      verdict: p.counted ? PAIR_COUNTED_VERDICT : (trimmed(p.reason) ?? PAIR_NOT_COUNTED_VERDICT),
+      note: newScreen ? VIDEO_NEW_SCREEN_NOTE : undefined,
+    }
+  })
+}
+
+/** The ids of every recording a proof's recording pairs show. Pure. */
+function videoPairRecordingIds(proof: ProcessVerifyProof): Set<string> {
+  return new Set(
+    (proof.videoPairs ?? []).flatMap((p) => (p.beforeId ? [p.beforeId, p.afterId] : [p.afterId])),
+  )
+}
+
 function pairScreen(p: ProofPairView, shas: Partial<ScreenPair>): ScreenPair {
   return {
     key: p.key,
@@ -504,6 +543,7 @@ export function verifyProofView(
     }
   })
   const judged = proof.judged !== false
+  const inVideoPairs = videoPairRecordingIds(proof)
   const restsOnScreens = counted.length > 0 || proof.newScreenIds.length > 0
   const header =
     !judged || (standing === 'passed' && !restsOnScreens && proof.mode === undefined)
@@ -548,8 +588,10 @@ export function verifyProofView(
     unpaired,
     restsOnScreens,
     recordings: proof.recordingIds
+      .filter((id) => !inVideoPairs.has(id))
       .map((id) => byId.get(id))
       .filter((t): t is EvidenceTile => t !== undefined),
+    videoPairs: videoPairViews(proof, byId, keyPrefix, evidence),
     summary: proofSummary(
       counted.length,
       uncounted.length + unpaired.length,
@@ -645,7 +687,7 @@ export function verifyAttemptEvidence(
     keyPrefix,
     evidence,
   })
-  const covered = new Set(entryProof.recordingIds)
+  const covered = new Set([...entryProof.recordingIds, ...videoPairRecordingIds(entryProof)])
   return {
     proof,
     pairs: proof.screens,

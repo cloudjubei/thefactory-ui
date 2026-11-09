@@ -3,6 +3,7 @@ import ReferenceTextarea from '../files/ReferenceTextarea'
 import DependencyBullet from '../stories/DependencyBullet'
 import ChainChip from '../process/ChainChip'
 import {
+  LAUNCH_FEATURE_ADDED,
   LAUNCH_FEATURE_LEFT_OUT,
   LAUNCH_FEATURES_HEADING,
   PROOF_PLAN_EDITED_LABEL,
@@ -11,7 +12,9 @@ import {
   PROOF_PLAN_EXTEND_NOTE,
   PROOF_PLAN_NOTES_PLACEHOLDER,
   PROOF_PLAN_SAVE_LABEL,
+  launchFeatureListItems,
   launchFeaturePickCount,
+  type LaunchFeatureListItem,
   type LaunchFeaturePickRow,
   type LaunchFeatureRow,
   type ProofKind,
@@ -70,12 +73,11 @@ export default function LaunchFeatureList({
   const [showSteps, setShowSteps] = useState(false)
   const hasSteps = rows.some((r) => r.chain.length > 0) || tail.length > 0
   const anyEdited = rows.some((r) => r.proof?.edited)
-  const listed = pick
-    ? pick.rows
-    : rows.map((r) => ({ featureId: r.featureId, title: r.title, picked: true }))
-  const pickedCount = listed.filter((item) => item.picked).length
-  const pickBox = (item: LaunchFeaturePickRow) =>
-    pick ? (
+  const listed = launchFeatureListItems(rows, pick?.rows)
+  const own = listed.filter((item) => !item.added)
+  const pickedCount = own.filter((item) => item.picked).length
+  const pickBox = (item: LaunchFeatureListItem) =>
+    pick && !item.added ? (
       <input
         type="checkbox"
         checked={item.picked}
@@ -100,7 +102,7 @@ export default function LaunchFeatureList({
           {LAUNCH_FEATURES_HEADING}
         </span>
         <span className="text-[11px] text-(--text-muted)">
-          {launchFeaturePickCount(pickedCount, listed.length)}
+          {launchFeaturePickCount(pickedCount, own.length)}
           {agentStepCount !== undefined
             ? ` · ${agentStepCount} agent step${agentStepCount === 1 ? '' : 's'}`
             : ''}
@@ -152,12 +154,17 @@ export default function LaunchFeatureList({
             >
               <div className="flex min-h-[26px] flex-wrap items-center gap-x-2 gap-y-1">
                 {pickBox(item)}
-                {storyId ? (
+                {storyId && !item.added ? (
                   <DependencyBullet dependency={`${storyId}.${row.featureId}`} interactive />
                 ) : null}
                 <span className="min-w-[10rem] flex-1 truncate text-[12.5px] font-medium text-(--text-primary)">
                   {row.title}
                 </span>
+                {item.added ? (
+                  <span className="shrink-0 rounded-full bg-(--status-review-soft-bg) px-2 py-px text-[11px] text-(--status-review-soft-fg)">
+                    {LAUNCH_FEATURE_ADDED}
+                  </span>
+                ) : null}
                 {proof ? (
                   <span className="ml-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-x-2 gap-y-1">
                     {!open ? (
@@ -197,6 +204,9 @@ export default function LaunchFeatureList({
                 ) : null}
               </div>
 
+              {item.added ? (
+                <span className="text-[11px] text-(--text-secondary)">{item.added}</span>
+              ) : null}
               {proof?.flagged.map((flag) => (
                 <span
                   key={flag.kind}

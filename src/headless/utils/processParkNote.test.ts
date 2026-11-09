@@ -186,6 +186,12 @@ describe('requestProofChoices', () => {
     expect(requestProofChoices()).toEqual(REQUEST_PROOF_CHOICES)
   })
 
+  it('offers a before/after video beside the screens', () => {
+    expect(requestProofChoices().find((c) => c.kind === 'ui-video')?.label).toBe(
+      'Require a before/after video',
+    )
+  })
+
   it('holds off a kind the run cannot produce, saying why', () => {
     const choices = requestProofChoices([
       { kind: 'ui-before-after', reason: 'No runnable browser app.' },
@@ -193,6 +199,7 @@ describe('requestProofChoices', () => {
     ])
     expect(choices.map((c) => [c.kind, c.unavailable])).toEqual([
       ['ui-before-after', 'No runnable browser app.'],
+      ['ui-video', undefined],
       ['unit-tests', undefined],
       ['live-backend', undefined],
     ])

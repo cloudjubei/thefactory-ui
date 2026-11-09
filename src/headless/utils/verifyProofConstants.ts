@@ -63,6 +63,17 @@ export const PAIR_IDENTICAL = 'Pixel-identical'
 export const PAIR_UNMEASURED = 'Not measured'
 export const NEW_SCREEN_TITLE = 'New screen'
 export const NEW_SCREEN_NOTE = 'A screen the change adds — there is no before to compare it with.'
+
+/** Said under a recording of a screen the change adds: its after alone. */
+export const VIDEO_NEW_SCREEN_NOTE = 'A screen the change adds — recorded on the change alone.'
+
+/** The heading over the before/after recordings a proof judged, and the captions of their sides. */
+export const VIDEO_PAIRS_COPY = {
+  heading: 'Before/after video',
+  hint: 'The same path on the base and on the change — play them side by side.',
+  before: 'Before',
+  after: 'After',
+} as const
 export const NEW_SCREEN_ENTRY_NOTE =
   'A screen the change adds — beside the entry point on the base it opens from.'
 export const NEW_SCREEN_PAIR_CHANGE = 'A new screen, beside its entry point on the base'

@@ -177,7 +177,7 @@ describe('a change of what proves a stopped feature, on its card', () => {
     const edit = runProposalEdit(shown)!
     expect(edit.proofChange?.keepsScreens).toBe(true)
     expect(runProposalEditProblem(edit, { proofChange: { kinds: ['checks'], save: false } })).toBe(
-      'This change shows on screen, so before/after screens stay in what proves it.',
+      'This change shows on screen, so before/after screens must stay in what proves it.',
     )
   })
 

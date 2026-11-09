@@ -83,7 +83,8 @@ function launchDraft(plan: LaunchProofPlan, edits: LaunchProofPlanEdits): ProofP
  * they made one, else the proposal's — every kind marked picked or not, what
  * this host or process cannot prove marked with why and held off (never
  * picked, only dropped), flagged when the plan asks for it, and what the
- * feature's or story's own plan asked for that was dropped.
+ * feature's or story's own plan asked for that was dropped, and why the launch
+ * adds a feature the story does not hold yet.
  */
 export function launchProofPlanRows(
   proposal: Pick<ProcessProposal, 'proofPlans'> | undefined,
@@ -122,6 +123,7 @@ export function launchProofPlanRows(
           ? { uiHint: UI_CHANGE_WORDS_HINT }
           : { uiWarning: UI_CHANGE_PLAN_WARNING }
         : {}),
+      ...(plan.added ? { added: plan.added } : {}),
     }
   })
 }

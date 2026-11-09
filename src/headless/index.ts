@@ -1308,6 +1308,7 @@ export type {
   ProofThumbnailFrame,
   ProofThumbnailSide,
   ProofUnpairedView,
+  ProofVideoPairView,
   StatedProofMode,
   VerifyAttempt,
   VerifyAttemptEvidence,
@@ -1336,7 +1337,7 @@ export {
   signoffSections,
   signoffVerifyViews,
 } from './utils/storySignoff'
-export { CAPTURE_SAME_CODE_LABEL } from './utils/verifyProofConstants'
+export { CAPTURE_SAME_CODE_LABEL, VIDEO_PAIRS_COPY } from './utils/verifyProofConstants'
 export {
   EMPTY_SIGNOFF_SECTION,
   SIGNOFF_LOAD_FAILED,
@@ -3662,6 +3663,7 @@ export type {
   FeatureProcessOptionView,
 } from './utils/processFeatureProcessTypes'
 export {
+  launchFeatureListItems,
   launchFeaturePickMetadata,
   launchFeaturePickOffered,
   launchFeaturePickRows,
@@ -3670,11 +3672,13 @@ export {
   toggleLaunchFeaturePick,
 } from './utils/launchFeaturePick'
 export {
+  LAUNCH_FEATURE_ADDED,
   LAUNCH_FEATURE_LEFT_OUT,
   LAUNCH_FEATURE_PICK_NONE,
   launchFeaturePickCount,
 } from './utils/launchFeaturePickConstants'
 export type {
+  LaunchFeatureListItem,
   LaunchFeaturePickCandidate,
   LaunchFeaturePickMetadata,
   LaunchFeaturePickRow,
@@ -3738,6 +3742,7 @@ export {
   PROOF_CHANGE_SAVE_LABEL,
   PROOF_CHANGE_SCREENS_KEPT,
   PROOF_CHANGE_SEND_LABEL,
+  PROOF_CHANGE_VIDEO_KEPT,
 } from './utils/processProofChangeViewConstants'
 export type {
   ProofChangeDraft,

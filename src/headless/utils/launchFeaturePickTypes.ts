@@ -6,3 +6,6 @@ export type LaunchFeaturePickRow = { featureId: string; title: string; picked: b
 
 /** What the launch decision carries about the features picked. */
 export type LaunchFeaturePickMetadata = { featureIds: string[] }
+
+/** One row the launch card lists: a feature to pick, or one the launch adds first, with why. */
+export type LaunchFeatureListItem = LaunchFeaturePickRow & { added?: string }

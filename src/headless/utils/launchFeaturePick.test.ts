@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  launchFeatureListItems,
   launchFeaturePickMetadata,
   launchFeaturePickOffered,
   launchFeaturePickRows,
@@ -98,5 +99,67 @@ describe('launchFeaturePickMetadata — what the decision carries', () => {
 
   it('carries nothing for an empty pick', () => {
     expect(launchFeaturePickMetadata([])).toBeUndefined()
+  })
+})
+
+describe('launchFeatureListItems — what the launch card lists', () => {
+  const added = 'Added first: the app has no fake data yet.'
+  const row = (featureId: string, title: string, addedWhy?: string) => ({
+    featureId,
+    title,
+    chain: [],
+    proofLabels: [],
+    ...(addedWhy
+      ? {
+          proof: {
+            featureId,
+            title,
+            source: 'feature' as const,
+            sourceLabel: 'Set on the feature',
+            edited: false,
+            kinds: [],
+            flagged: [],
+            dropped: [],
+            notes: '',
+            empty: false,
+            added: addedWhy,
+          },
+        }
+      : {}),
+  })
+  const rows = [row('fake-data-setup', 'Fake data for the app', added), row('f1', 'Route')]
+
+  it('lists the feature the launch adds first, with why, before every feature to pick from', () => {
+    expect(
+      launchFeatureListItems(rows, [
+        { featureId: 'f1', title: 'Route', picked: true },
+        { featureId: 'f2', title: 'Docs', picked: false },
+      ]),
+    ).toEqual([
+      { featureId: 'fake-data-setup', title: 'Fake data for the app', picked: true, added },
+      { featureId: 'f1', title: 'Route', picked: true },
+      { featureId: 'f2', title: 'Docs', picked: false },
+    ])
+  })
+
+  it('lists the rows as they are when there is no pick to make', () => {
+    expect(launchFeatureListItems(rows, undefined)).toEqual([
+      { featureId: 'fake-data-setup', title: 'Fake data for the app', picked: true, added },
+      { featureId: 'f1', title: 'Route', picked: true },
+    ])
+  })
+
+  it('lists a feature to pick once, even when the pick names it too', () => {
+    expect(
+      launchFeatureListItems(rows, [
+        { featureId: 'fake-data-setup', title: 'Fake data for the app', picked: true },
+      ]).map((item) => item.featureId),
+    ).toEqual(['fake-data-setup'])
+  })
+
+  it('lists nothing added when the launch adds nothing', () => {
+    expect(launchFeatureListItems([row('f1', 'Route')], undefined)).toEqual([
+      { featureId: 'f1', title: 'Route', picked: true },
+    ])
   })
 })

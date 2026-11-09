@@ -60,6 +60,8 @@ export interface LaunchProofPlanRow {
    * screens — a hint, not a warning: screens only if the change shows on screen.
    */
   uiHint?: string
+  /** Why the launch adds this feature to the story before the person's own — it is not on the story yet. */
+  added?: string
 }
 
 /**

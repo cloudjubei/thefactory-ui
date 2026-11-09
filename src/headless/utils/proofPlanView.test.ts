@@ -43,6 +43,7 @@ describe('proofKindOptions', () => {
       'checks',
       'code-review',
       'ui-before-after',
+      'ui-video',
       'live-backend',
       'manual',
     ])
@@ -411,5 +412,26 @@ describe('launchFeatureRows', () => {
     expect(
       launchFeatureRows(undefined, launchProofPlanRows(proposal, {})).map((r) => r.title),
     ).toEqual(['ISO dates', 'Locale dates'])
+  })
+})
+
+describe('launchProofPlanRows — a feature the launch adds', () => {
+  it('carries why the launch adds it, and nothing on a feature of the story', () => {
+    const added = 'Added first: the app has no fake data yet.'
+    const withSetup: Pick<ProcessProposal, 'proofPlans'> = {
+      proofPlans: [
+        {
+          featureId: 'fake-data-setup',
+          title: 'Fake data for the app',
+          plan: { kinds: ['checks', 'code-review', 'ui-before-after'] },
+          source: 'feature',
+          added,
+        },
+        ...(proposal.proofPlans ?? []),
+      ],
+    }
+    const rows = launchProofPlanRows(withSetup, {})
+    expect(rows[0]?.added).toBe(added)
+    expect(rows.slice(1).some((r) => 'added' in r)).toBe(false)
   })
 })

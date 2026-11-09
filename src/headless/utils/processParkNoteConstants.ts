@@ -52,6 +52,7 @@ export const PARK_NOTE_CANCEL = 'Cancel'
 /** What a request for changes can require of its fix, in the order the composer offers it. */
 export const REQUEST_PROOF_CHOICES: readonly RequestProofChoice[] = [
   { kind: 'ui-before-after', label: 'Require on-screen proof (before/after screens)' },
+  { kind: 'ui-video', label: 'Require a before/after video' },
   { kind: 'unit-tests', label: 'Require tests that cover the change' },
   { kind: 'live-backend', label: 'Require a check against the live backend' },
 ]

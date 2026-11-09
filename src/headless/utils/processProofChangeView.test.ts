@@ -6,7 +6,10 @@ import {
   proofChangeView,
   toggleProofChangeKind,
 } from './processProofChangeView'
-import { PROOF_CHANGE_SCREENS_KEPT } from './processProofChangeViewConstants'
+import {
+  PROOF_CHANGE_SCREENS_KEPT,
+  PROOF_CHANGE_VIDEO_KEPT,
+} from './processProofChangeViewConstants'
 
 /** A feature run stopped on screens no screen of a library can show — the shape of run 5d5c17ce. */
 const library: ProcessProofChangeOffer = {
@@ -94,6 +97,7 @@ describe('proofChangeView', () => {
       'checks',
       'code-review',
       'ui-before-after',
+      'ui-video',
       'live-backend',
       'manual',
     ])
@@ -212,5 +216,58 @@ describe('proofChangeView of a change that shows on screen', () => {
   it('holds nothing on a change that shows nothing', () => {
     const view = proofChangeView(library, proofChangeDraftStart(library))
     expect(view.kinds.some((k) => k.kept !== undefined)).toBe(false)
+  })
+})
+
+describe('proofChangeView of a change that shows on screen, recorded on video', () => {
+  const recorded: ProcessProofChangeOffer = {
+    ...library,
+    current: ['checks', 'code-review', 'ui-before-after', 'ui-video'],
+    standings: [
+      ...library.standings,
+      { kind: 'ui-video', status: 'unmet', detail: 'No before/after recording shows the change.' },
+    ],
+    keepsScreens: true,
+  }
+
+  it('starts with the screens and the video kept, though they stopped the step', () => {
+    expect(proofChangeDraftStart(recorded).kinds).toEqual([
+      'checks',
+      'code-review',
+      'ui-before-after',
+      'ui-video',
+    ])
+  })
+
+  it('shows the video ticked and held beside the screens, each with why', () => {
+    const view = proofChangeView(recorded, proofChangeDraftStart(recorded))
+    expect(view.kinds.filter((k) => k.kept).map((k) => [k.kind, k.kept, k.disabled])).toEqual([
+      ['ui-before-after', PROOF_CHANGE_SCREENS_KEPT, true],
+      ['ui-video', PROOF_CHANGE_VIDEO_KEPT, true],
+    ])
+  })
+
+  it('refuses a draft that dropped the video, and lets it be ticked again', () => {
+    const view = proofChangeView(recorded, {
+      kinds: ['checks', 'ui-before-after'],
+      save: false,
+      note: '',
+    })
+    expect(view.kinds.find((k) => k.kind === 'ui-video')).toMatchObject({
+      checked: false,
+      disabled: false,
+      kept: PROOF_CHANGE_VIDEO_KEPT,
+    })
+    expect(view.canSend).toBe(false)
+  })
+
+  it('holds a video that alone shows the change', () => {
+    const alone: ProcessProofChangeOffer = {
+      ...recorded,
+      current: ['checks', 'ui-video'],
+      standings: recorded.standings.filter((s) => s.kind === 'checks' || s.kind === 'ui-video'),
+    }
+    const view = proofChangeView(alone, proofChangeDraftStart(alone))
+    expect(view.kinds.filter((k) => k.kept).map((k) => k.kind)).toEqual(['ui-video'])
   })
 })

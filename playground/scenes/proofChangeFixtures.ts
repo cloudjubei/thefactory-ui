@@ -19,6 +19,20 @@ export const VISIBLE_CHANGE_OFFER: ProcessProofChangeOffer = {
   keepsScreens: true,
 }
 
+/** The same run proven by a before/after video beside its screens, stopped on both: both stay. */
+export const VISIBLE_VIDEO_CHANGE_OFFER: ProcessProofChangeOffer = {
+  ...VISIBLE_CHANGE_OFFER,
+  current: [...VISIBLE_CHANGE_OFFER.current, 'ui-video'],
+  standings: [
+    ...VISIBLE_CHANGE_OFFER.standings,
+    {
+      kind: 'ui-video',
+      status: 'unmet',
+      detail: 'The verifier filed no before/after recording of scrolling back to the settings row.',
+    },
+  ],
+}
+
 /** The looks for screens that stay, each with why it is or is not the pick. */
 export const KEPT_LOOKS: { id: ProofChangeKeptLook; label: string; note: string }[] = [
   {

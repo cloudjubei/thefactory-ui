@@ -20,5 +20,8 @@ export const PROOF_CHANGE_CANCEL_LABEL = 'Cancel'
 /** Why the screens of a change that shows on screen stay picked. */
 export const PROOF_CHANGE_SCREENS_KEPT = 'Screens stay: this change shows on screen'
 
+/** Why the before/after video of a change that shows on screen stays picked. */
+export const PROOF_CHANGE_VIDEO_KEPT = 'Video stays: this change shows on screen'
+
 /** The chip on held screens, in the lock-chip look the design view keeps as an alternative. */
 export const PROOF_CHANGE_KEPT_CHIP = 'Stays'

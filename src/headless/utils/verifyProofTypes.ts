@@ -72,6 +72,29 @@ export type VerifyProofHeader = {
   seams: string[]
 }
 
+/**
+ * One before/after pair of recordings the gate judged — the same path through
+ * the change on the base and on the change — ready to play side by side. A
+ * screen the change adds has its after alone.
+ */
+export type ProofVideoPairView = {
+  key: string
+  subject: string
+  /** Whether the gate counted it as showing the change. */
+  counted: boolean
+  /** A screen the change adds, recorded on its after alone: there is no before. */
+  newScreen: boolean
+  before: EvidenceTile | undefined
+  after: EvidenceTile | undefined
+  /** What to show in place of a side that is not loaded; absent for a side there is none of. */
+  beforeAbsent: string | undefined
+  afterAbsent: string | undefined
+  /** "Shows the change" for a counted pair; otherwise the reason it does not count. */
+  verdict: string
+  /** Said under a new screen's after; absent for a pair. */
+  note: string | undefined
+}
+
 /** One before/after pair the gate judged, ready to render. */
 export type ProofPairView = {
   /** Unique across every surface sharing one comparison overlay. */
@@ -151,8 +174,10 @@ export type VerifyProofView = {
   unpaired: ProofUnpairedView[]
   /** Whether the gate's outcome rested on a counted pair or a new screen, as the gate judged it. */
   restsOnScreens: boolean
-  /** Recordings the approval covered, as far as they are loaded. */
+  /** Recordings the approval covered, as far as they are loaded — those a recording pair shows left out. */
   recordings: EvidenceTile[]
+  /** The before/after recordings the gate judged, the counted ones first. */
+  videoPairs: ProofVideoPairView[]
   summary: VerifyProofSummary
   /** Counted pairs, new screens, then the pairs and afters that did not count — the page's order. */
   screens: ScreenPair[]

@@ -1,26 +1,30 @@
 import { PROOF_KINDS, PROOF_KIND_LABELS, PROOF_KIND_MEANINGS } from 'thefactory-tools/constants'
 import type { ProcessProofChangeOffer, ProofKind } from 'thefactory-tools/types'
-import { processProofChangeProblem } from 'thefactory-tools/utils'
+import { processProofChangeKeptKinds, processProofChangeProblem } from 'thefactory-tools/utils'
 
 import type { ProofChangeDraft, ProofChangeView } from './processProofChangeViewTypes'
 import {
   PROOF_CHANGE_HINT,
   PROOF_CHANGE_HINT_RUN_ONLY,
   PROOF_CHANGE_SCREENS_KEPT,
+  PROOF_CHANGE_VIDEO_KEPT,
 } from './processProofChangeViewConstants'
 import { PROOF_KIND_STATUS_TONES, PROOF_KIND_STATUS_WORDS } from './proofPlanViewConstants'
 
-const SCREENS: ProofKind = 'ui-before-after'
+const keptKind = (
+  offer: Pick<ProcessProofChangeOffer, 'current' | 'keepsScreens'>,
+  kind: ProofKind,
+) => processProofChangeKeptKinds(offer).includes(kind)
 
-const keptKind = (offer: Pick<ProcessProofChangeOffer, 'keepsScreens'>, kind: ProofKind) =>
-  offer.keepsScreens === true && kind === SCREENS
+const keptWhy = (kind: ProofKind) =>
+  kind === 'ui-video' ? PROOF_CHANGE_VIDEO_KEPT : PROOF_CHANGE_SCREENS_KEPT
 
 /**
  * Where a change of proof starts: what proves the feature now, less the kinds
  * that stopped the step (unmet or unchecked) — what the person came to drop —
- * or all of it when nothing would be left. The screens of a change that shows
- * on screen (`keepsScreens`) are never dropped. Nothing is saved and no why is
- * said.
+ * or all of it when nothing would be left. The screens and video of a change
+ * that shows on screen (`keepsScreens`) are never dropped. Nothing is saved
+ * and no why is said.
  */
 export function proofChangeDraftStart(
   offer: Pick<ProcessProofChangeOffer, 'current' | 'standings' | 'keepsScreens'>,
@@ -47,7 +51,8 @@ export function toggleProofChangeKind(draft: ProofChangeDraft, kind: ProofKind):
  * The change as its editor shows it: every kind of proof, picked or not, how
  * each the work needed stood when it stopped, the ones the run cannot produce
  * marked with why — and not pickable unless the work already needed them —
- * the screens of a change that shows on screen held picked, with why —
+ * the screens and video of a change that shows on screen held picked, each
+ * with why —
  * whether it can be saved onto a feature (only on a feature's run), and
  * whether it can be sent as it stands.
  */
@@ -85,7 +90,7 @@ export function proofChangeView(
             }
           : {}),
         ...(reason ? { unavailable: reason } : {}),
-        ...(keptKind(offer, kind) ? { kept: PROOF_CHANGE_SCREENS_KEPT } : {}),
+        ...(keptKind(offer, kind) ? { kept: keptWhy(kind) } : {}),
         disabled:
           (keptKind(offer, kind) && draft.kinds.includes(kind)) ||
           (reason !== undefined && !offer.current.includes(kind)),

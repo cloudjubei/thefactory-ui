@@ -1,8 +1,10 @@
 import type {
+  LaunchFeatureListItem,
   LaunchFeaturePickCandidate,
   LaunchFeaturePickMetadata,
   LaunchFeaturePickRow,
 } from './launchFeaturePickTypes'
+import type { LaunchFeatureRow } from './proofPlanViewTypes'
 
 /**
  * The features a launch works, in story order: the person's pick once they
@@ -73,4 +75,23 @@ export function launchFeaturePickMetadata(
   picked: readonly string[],
 ): LaunchFeaturePickMetadata | undefined {
   return picked.length > 0 ? { featureIds: [...picked] } : undefined
+}
+
+/**
+ * What the launch card lists, each feature once: a feature the launch adds to
+ * the story first (its proof marked `added`) at the top, with why — never
+ * picked or left out — then every open feature to pick from, or, with no pick
+ * to make, the rows as they are. Pure.
+ */
+export function launchFeatureListItems(
+  rows: readonly LaunchFeatureRow[],
+  pick: readonly LaunchFeaturePickRow[] | undefined,
+): LaunchFeatureListItem[] {
+  const added = rows.flatMap((r) =>
+    r.proof?.added
+      ? [{ featureId: r.featureId, title: r.title, picked: true, added: r.proof.added }]
+      : [],
+  )
+  const rest = pick ?? rows.map((r) => ({ featureId: r.featureId, title: r.title, picked: true }))
+  return [...added, ...rest.filter((item) => !added.some((a) => a.featureId === item.featureId))]
 }

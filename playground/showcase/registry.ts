@@ -4,6 +4,7 @@ import { AGENT_TYPE_SCENES } from '../scenes/agentTypes'
 import { ANSWER_FILES_SCENES } from '../scenes/answerFiles'
 import { ASK_ROW_SCENES } from '../scenes/askRows'
 import { BACKEND_CONNECTION_SCENES } from '../scenes/backendConnection'
+import { BEFORE_AFTER_VIDEO_SCENES } from '../scenes/beforeAfterVideo'
 import { APP_BRIDGE_ASK_SCENES } from '../scenes/appBridgeAsks'
 import { APP_FEATURE_REQUEST_SCENES } from '../scenes/appFeatureRequest'
 import { APP_UNREAD_SCENES } from '../scenes/appUnread'
@@ -134,6 +135,7 @@ export const SCENES: readonly Scene[] = [
   ...PROCESS_MODEL_SCENES,
   ...PROCESS_STEP_TOOL_SCENES,
   ...PROOF_CHANGE_SCENES,
+  ...BEFORE_AFTER_VIDEO_SCENES,
   ...ANSWER_FILES_SCENES,
   ...VIDEO_SETTINGS_SCENES,
   ...PROJECT_DEVICE_SETTINGS_SCENES,

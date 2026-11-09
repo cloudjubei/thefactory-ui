@@ -260,13 +260,14 @@ export default function FeatureReviewSection({
 }: FeatureReviewSectionProps) {
   const [activeTab, setActiveTab] = useState<ReviewTabId | undefined>()
 
+  const videoPairs = proof?.videoPairs ?? []
   const { tests: testChecks, build: buildChecks } = reviewCheckGroups(verification)
   const testTotals = aggregateTestCounts(testChecks)
 
   const tabs = reviewTabs({
     screens: proof ? proof.screens.length : pairs.length,
     ...(proof ? { screensProof: proofScreensPane(proof).thumbnails.length } : {}),
-    walkthroughs: recordings.length + uncountedRecordings.length,
+    walkthroughs: recordings.length + uncountedRecordings.length + videoPairs.length,
     reports: reports.length,
     testCount: testTotals?.total ?? 0,
     testChecks: ranReviewChecks(testChecks).length,
@@ -373,8 +374,12 @@ export default function FeatureReviewSection({
               />
             ) : currentTab === 'walkthrough' ? (
               <div className="flex flex-col gap-3">
-                {recordings.length > 0 ? (
-                  <WalkthroughTab projectId={projectId} recordings={recordings} />
+                {recordings.length > 0 || videoPairs.length > 0 ? (
+                  <WalkthroughTab
+                    projectId={projectId}
+                    recordings={recordings}
+                    videoPairs={videoPairs}
+                  />
                 ) : null}
                 {uncountedRecordings.length > 0 ? (
                   <div className="flex flex-col gap-2">

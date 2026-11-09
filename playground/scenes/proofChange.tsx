@@ -20,7 +20,7 @@ import { ParkBlock } from '../../src/web/compound/process/ProcessPipeline'
 import ProofChangeComposer from '../../src/web/compound/process/ProofChangeComposer'
 import ProofPlanMarks from '../../src/web/compound/process/ProofPlanMarks'
 import type { Scene } from '../showcase/types'
-import { KEPT_LOOKS, VISIBLE_CHANGE_OFFER } from './proofChangeFixtures'
+import { KEPT_LOOKS, VISIBLE_CHANGE_OFFER, VISIBLE_VIDEO_CHANGE_OFFER } from './proofChangeFixtures'
 
 const noop = () => {}
 const resolved = async () => {}
@@ -203,6 +203,26 @@ const LAUNCH: Pick<ProcessProposal, 'proofPlans'> = {
   ],
 }
 
+/** A launch on an app with no fake data: the setup feature added first, then the person's own. */
+const LAUNCH_WITH_SETUP: Pick<ProcessProposal, 'proofPlans'> = {
+  proofPlans: [
+    {
+      featureId: 'fake-data-setup',
+      title: 'Fake data for the app',
+      plan: { kinds: ['checks', 'code-review', 'ui-before-after'] },
+      source: 'feature',
+      added:
+        'Added first: the app has no fake data yet, and the screens of the work after it are proved on the fake data this builds.',
+    },
+    {
+      featureId: 'f1',
+      title: 'Event list shows the venue',
+      plan: { kinds: ['checks', 'code-review', 'ui-before-after'] },
+      source: 'suggested',
+    },
+  ],
+}
+
 const frame = (node: ReactNode) => <div className="max-w-[640px] p-4">{node}</div>
 
 /** The three looks for screens that stay, switched on the board on the real editor. */
@@ -307,13 +327,28 @@ export const PROOF_CHANGE_SCENES: Scene[] = [
     component: 'ProofChangeComposer',
     group: 'Process',
     description:
-      'When the change shows on screen, before/after screens can’t be dropped from what proves it. The editor starts with them on and holds them there with why, instead of letting them be switched off and then showing the refusal. Held, with why is the pick; Left out and Stays chip are on the board.',
+      'When the change shows on screen, before/after screens — and a before/after video, when it is proven by one — can’t be dropped from what proves it. The editor starts with them on and holds them there with why, instead of letting them be switched off and then showing the refusal. Held, with why is the pick; Left out and Stays chip are on the board.',
     states: [
       {
         id: 'alternatives',
         title: 'Alternatives',
         description: 'Held, with why · Left out · Stays chip, switched here on the real editor.',
         render: () => <KeptAlternatives />,
+      },
+      {
+        id: 'video-held',
+        title: 'A before/after video stays too',
+        description:
+          'Proven by screens and a video, stopped on both: each is held on, with its own why.',
+        render: () =>
+          frame(
+            <ProofChangeComposer
+              offer={VISIBLE_VIDEO_CHANGE_OFFER}
+              onSend={noop}
+              onCancel={noop}
+              keptLook="reason"
+            />,
+          ),
       },
       ...KEPT_LOOKS.map(({ id, label, note }) => ({
         id,
@@ -431,6 +466,55 @@ export const PROOF_CHANGE_SCENES: Scene[] = [
               onToggleKind={noop}
               onNotesChange={noop}
               onSaveChange={noop}
+            />,
+          )
+        },
+      },
+    ],
+  },
+  {
+    id: 'launch-fake-data-setup',
+    title: 'Launch: fake data added first',
+    component: 'LaunchFeatureList',
+    group: 'Process',
+    description:
+      'Work proved on an app’s real screens, on a project with no fake data: the launch adds “Fake data for the app” to the story and works it first, marked Added with why — never picked or left out, and with no story bullet, as the story does not hold it yet.',
+    states: [
+      {
+        id: 'setup-added',
+        title: 'Added above the features to pick',
+        render: () => {
+          const [setup, own] = launchProofPlanRows(LAUNCH_WITH_SETUP, {})
+          return frame(
+            <LaunchFeatureList
+              rows={[
+                {
+                  featureId: setup!.featureId,
+                  title: setup!.title,
+                  chain: [],
+                  proof: setup!,
+                  proofLabels: ['Checks', 'Code review', 'Before/after screens'],
+                },
+                {
+                  featureId: own!.featureId,
+                  title: own!.title,
+                  chain: [],
+                  proof: own!,
+                  proofLabels: ['Checks', 'Code review', 'Before/after screens'],
+                },
+              ]}
+              tail={[]}
+              save={false}
+              onToggleKind={noop}
+              onNotesChange={noop}
+              onSaveChange={noop}
+              pick={{
+                rows: [
+                  { featureId: 'f1', title: 'Event list shows the venue', picked: true },
+                  { featureId: 'f2', title: 'Badge on the ticket', picked: false },
+                ],
+                onToggle: noop,
+              }}
             />,
           )
         },

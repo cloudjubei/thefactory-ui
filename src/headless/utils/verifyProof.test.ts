@@ -34,6 +34,7 @@ import {
   OBSERVED_BEFORE_LABEL,
   PAIR_COUNTED_VERDICT,
   PAIR_NOT_COUNTED_VERDICT,
+  VIDEO_NEW_SCREEN_NOTE,
 } from './verifyProofConstants'
 import {
   acceptedVerifyAttempt,
@@ -2451,5 +2452,86 @@ describe('codeReviewVerdictNote', () => {
       reason: 'Missing a test.',
       tone: 'stuck',
     })
+  })
+})
+
+describe('verifyProofView — before/after recordings', () => {
+  const rec = (id: string, phase: 'before' | 'after', subject: string) =>
+    tile({ id, kind: 'recording', mediaType: 'video/mp4', phase, subject })
+  const tiles = [
+    rec('vb', 'before', 'feed'),
+    rec('va', 'after', 'feed'),
+    rec('vw', 'after', 'wizard'),
+    rec('hb', 'before', 'tabs'),
+    rec('ha', 'after', 'tabs'),
+    tile({ id: 'walk', kind: 'recording', mediaType: 'video/mp4' }),
+  ]
+  const judged = proof({
+    recordingIds: ['vb', 'va', 'vw', 'hb', 'ha', 'walk'],
+    videoPairs: [
+      { subject: 'tabs', beforeId: 'hb', afterId: 'ha', counted: false, reason: 'Two devices.' },
+      { subject: 'feed', beforeId: 'vb', afterId: 'va', counted: true },
+      { subject: 'wizard', afterId: 'vw', newScreen: true, counted: true },
+    ],
+  })
+
+  it('pairs each recording with its other side, the counted ones first, saying what each shows', () => {
+    const v = verifyProofView(judged, tiles, { standing: 'passed', keyPrefix: 'f1::' })
+    expect(
+      v.videoPairs.map((p) => [p.key, p.subject, p.counted, p.before?.ref.id, p.after?.ref.id]),
+    ).toEqual([
+      ['f1::video:vb>va', 'feed', true, 'vb', 'va'],
+      ['f1::video:>vw', 'wizard', true, undefined, 'vw'],
+      ['f1::video:hb>ha', 'tabs', false, 'hb', 'ha'],
+    ])
+    expect(v.videoPairs.map((p) => p.verdict)).toEqual([
+      PAIR_COUNTED_VERDICT,
+      PAIR_COUNTED_VERDICT,
+      'Two devices.',
+    ])
+    expect(v.videoPairs[1]).toMatchObject({ newScreen: true, note: VIDEO_NEW_SCREEN_NOTE })
+    expect(v.videoPairs[0]?.note).toBeUndefined()
+  })
+
+  it('leaves the recordings a pair shows out of the walkthroughs', () => {
+    const v = verifyProofView(judged, tiles, { standing: 'passed' })
+    expect(v.recordings.map((t) => t.ref.id)).toEqual(['walk'])
+  })
+
+  it('says why a side is not there', () => {
+    const [feed] = verifyProofView(judged, [], { evidence: 'loading' }).videoPairs
+    expect([feed?.beforeAbsent, feed?.afterAbsent]).toEqual([CAPTURE_LOADING, CAPTURE_LOADING])
+    const [lost] = verifyProofView(judged, [], { evidence: 'loaded' }).videoPairs
+    expect(lost?.afterAbsent).toBe(CAPTURE_MISSING)
+    const [, wizard] = verifyProofView(judged, tiles).videoPairs
+    expect(wizard?.beforeAbsent).toBeUndefined()
+  })
+
+  it('pairs nothing for a proof with no recording pairs', () => {
+    expect(verifyProofView(proof(), tiles).videoPairs).toEqual([])
+  })
+
+  it('keeps a recording a pair shows out of the ones the gate did not cover, too', () => {
+    const ev = verifyAttemptEvidence(
+      {
+        entry: verify('v1', 'unchecked', 100, {
+          proof: proof({
+            videoPairs: [
+              {
+                subject: 'feed',
+                beforeId: 'vb',
+                afterId: 'va',
+                counted: false,
+                reason: 'No verdict.',
+              },
+            ],
+          }),
+        }),
+        review: { reviewedRunId: 'reviewed', filedSince: 0 },
+      },
+      tiles,
+    )
+    expect(ev.uncountedRecordings.map((t) => t.ref.id)).toEqual(['vw', 'hb', 'ha', 'walk'])
+    expect(ev.proof?.videoPairs.map((p) => p.subject)).toEqual(['feed'])
   })
 })
