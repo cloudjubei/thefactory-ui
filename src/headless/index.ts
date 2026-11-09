@@ -1520,7 +1520,12 @@ export type {
   SignoffProofChip,
   SignoffRequestOutcome,
 } from './utils/signoffPageTypes'
-export { processStageChips, processStepRowView, stepFilingOf } from './utils/processStepRow'
+export {
+  processStageChips,
+  processStepRowView,
+  stepFilingOf,
+  stepFilingsOf,
+} from './utils/processStepRow'
 export { processSignoffDiscussDraft, processSignoffRecord } from './utils/processSignoffRecord'
 export {
   PROCESS_SIGNOFF_DECISION_VIEW,
@@ -4564,6 +4569,7 @@ export {
   processLaunchRefToggleLabel,
   processLaunchRepos,
   processLaunchShortRef,
+  processLaunchShown,
   processLaunchVariantId,
   processLaunchVariantRows,
   processLaunchVariants,
@@ -4603,6 +4609,26 @@ export {
   processVariantSteps,
 } from './utils/processVariantView'
 export { PROCESS_VARIANT_BADGE, PROCESS_VARIANT_COPY } from './utils/processVariantViewConstants'
+export { journeyDays, journeyStepView } from './utils/journeyDaysView'
+export {
+  JOURNEY_DAYS_COPY,
+  JOURNEY_DECISION_LABELS,
+  JOURNEY_SOURCE_BADGES,
+  JOURNEY_STATUS_BADGES,
+  JOURNEY_TAKE_OVER_BADGES,
+} from './utils/journeyDaysViewConstants'
+export type {
+  JourneyBadge,
+  JourneyCardRow,
+  JourneyDayView,
+  JourneyDecisionRow,
+  JourneyGoalStatusRow,
+  JourneyProbeRow,
+  JourneyRemovedGoal,
+  JourneyReplacedGoal,
+  JourneyStepView,
+  JourneyTakeOverRow,
+} from './utils/journeyDaysViewTypes'
 export type {
   ProcessRunEvidenceGroupView,
   ProcessVariantDayCell,

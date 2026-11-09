@@ -40,6 +40,7 @@ export const PROCESS_INPUT_KIND_LABELS: Readonly<Record<ProcessInputKind, string
   number: 'Number',
   refs: 'Refs',
   variants: 'Variants',
+  choice: 'Choice',
 }
 
 /** The kinds an input can be; a variant's field holds anything but variants. Pure. */

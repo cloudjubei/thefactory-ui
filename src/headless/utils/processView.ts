@@ -303,6 +303,8 @@ export const PROCESS_KIND_BLURB: Record<ProcessStepKind, string> = {
   report: 'One model pass over the ledger. No tools, no workspace.',
   gate: 'Stop and wait for a person to decide.',
   process: 'A nested process, one level down.',
+  script:
+    'A journey script lives the days in the served product, asking for the person’s decisions as it goes. An agent steps in only to get past a snag.',
   cleanup:
     'Any process can end with it: after you approve its sign-off, removes what is on the run’s cleanup list — hand-over notes, captures, temporary files — once the work is merged. No agent.',
 }

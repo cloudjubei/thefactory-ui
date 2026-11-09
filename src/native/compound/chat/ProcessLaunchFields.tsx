@@ -9,6 +9,7 @@ import {
   processLaunchLayout,
   processLaunchPatchLabel,
   processLaunchRefToggleLabel,
+  processLaunchShown,
   processLaunchVariantRows,
   processLaunchVariants,
   removeProcessLaunchVariant,
@@ -29,6 +30,7 @@ import { nativeFontFamilies, nativeRadii, nativeSpace } from '../../../tokens/na
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { IconChevronRight, IconClose, IconDocument, IconPlus } from '../../icons'
 import { Input } from '../../primitives/Input'
+import SegmentedControl from '../../primitives/SegmentedControl'
 import {
   Select,
   SelectContent,
@@ -105,6 +107,33 @@ function NoteField({
           ))}
         </SelectContent>
       </Select>
+    </View>
+  )
+}
+
+function ChoiceField({
+  field,
+  value,
+  busy,
+  onPick,
+}: {
+  field: Pick<ProcessInputField, 'label' | 'options' | 'default'>
+  value: string
+  busy: boolean
+  onPick: (value: string) => void
+}) {
+  return (
+    <View style={{ gap: 4 }}>
+      <FieldLabel text={field.label} />
+      <SegmentedControl
+        size="sm"
+        ariaLabel={field.label}
+        options={field.options ?? []}
+        value={value || (field.default ?? '')}
+        onChange={(next) => {
+          if (!busy) onPick(next)
+        }}
+      />
     </View>
   )
 }
@@ -216,7 +245,7 @@ function InputField({
   props,
   onChange,
 }: {
-  field: Pick<ProcessInputField, 'kind' | 'label' | 'required'>
+  field: Pick<ProcessInputField, 'kind' | 'label' | 'required' | 'options' | 'default'>
   value: ProcessLaunchFieldDraft | undefined
   fieldKey: string
   props: ProcessLaunchFieldsProps
@@ -235,6 +264,9 @@ function InputField({
     )
   }
   const text = typeof value === 'string' ? value : ''
+  if (field.kind === 'choice') {
+    return <ChoiceField field={field} value={text} busy={busy} onPick={onChange} />
+  }
   if (field.kind === 'note-reference') {
     return (
       <NoteField
@@ -297,7 +329,7 @@ export function ProcessLaunchVariantForm({
           onChange(setProcessLaunchVariantLabel(draft, input.name, variant.key, label))
         }
       />
-      {(input.fields ?? []).map((field) => (
+      {processLaunchShown(input.fields ?? [], variant.values).map((field) => (
         <InputField
           key={field.name}
           field={field}
@@ -487,10 +519,12 @@ function Fill({
 
 /** Native peer of web's `ProcessLaunchFields`: the same form, one field under the other. */
 export default function ProcessLaunchFields(props: ProcessLaunchFieldsProps) {
-  const { short, long } = processLaunchLayout(props.inputs)
+  const { choices, short, long } = processLaunchLayout(
+    processLaunchShown(props.inputs, props.draft.values),
+  )
   return (
     <View style={{ gap: nativeSpace[4] }}>
-      {[...short, ...long].map((input) => (
+      {[...choices, ...short, ...long].map((input) => (
         <Fill key={input.name} input={input} props={props} />
       ))}
     </View>

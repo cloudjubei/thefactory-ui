@@ -204,6 +204,9 @@ export type PendingAction = {
   }
   deliveredInRun?: boolean
   carriedToAgentAt?: number
+}
+
+export type StoredPendingAction = PendingAction & {
   hostFacts?: unknown
 }
 
@@ -2112,6 +2115,9 @@ export type ProjectPlatformInput = {
   serveProblem?: string
   designPlayground?: string
   fakeBackend?: string
+  mobileFakeBackend?: string
+  mobileFakeData?: string
+  mobileCaptureProblem?: string
   changedPaths?: Array<string>
 }
 
@@ -3330,11 +3336,27 @@ export type UiStackPart = {
   }
   envFiles?: Array<UiStackEnvFile>
   readyPath?: string
+  trailFile?: string
 }
+
+export type UiStackStartCommand = {
+  command: Array<string>
+  role?: string
+  timeoutMs?: number
+}
+
+export type UiStackStartRequest = {
+  url: string
+  method?: 'GET' | 'POST'
+  timeoutMs?: number
+}
+
+export type UiStackStart = UiStackStartCommand | UiStackStartRequest
 
 export type UiStackSetting = {
   entry: string
   parts: Array<UiStackPart>
+  start?: UiStackStartCommand | UiStackStartRequest
 }
 
 export type ProjectsGroup = {
@@ -3359,6 +3381,7 @@ export type ProjectsGroup = {
   serveStack?: {
     entry: string
     parts: Array<UiStackPart>
+    start?: UiStackStartCommand | UiStackStartRequest
   }
   createdAt: string
   updatedAt: string
@@ -3661,6 +3684,7 @@ export type ProjectRegistryMetadata = {
   serveStack?: {
     entry: string
     parts: Array<UiStackPart>
+    start?: UiStackStartCommand | UiStackStartRequest
   }
   [key: string]: unknown
 }
@@ -3710,6 +3734,7 @@ export type ProjectRegistryEntry = {
     serveStack?: {
       entry: string
       parts: Array<UiStackPart>
+      start?: UiStackStartCommand | UiStackStartRequest
     }
     [key: string]: unknown
   }
@@ -3720,6 +3745,8 @@ export type ProjectRegistryEntry = {
 export type ProjectSpec = ProjectRegistryEntry & ProjectConfig
 
 export type Status = 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
+
+export type FeatureSetup = 'fake-data'
 
 export type FeatureQuestionKind = 'question' | 'blocker'
 
@@ -3766,6 +3793,7 @@ export type Feature = {
   plan?: string
   kind?: 'design' | 'code'
   followUp?: 'code-review'
+  setup?: 'fake-data'
   acceptance?: string
   proofPlan?: {
     kinds: Array<
@@ -3859,6 +3887,7 @@ export type ChatContextArguments = {
     serveStack?: {
       entry: string
       parts: Array<UiStackPart>
+      start?: UiStackStartCommand | UiStackStartRequest
     }
     createdAt: string
     updatedAt: string
@@ -3900,6 +3929,7 @@ export type ChatContextArguments = {
     plan?: string
     kind?: 'design' | 'code'
     followUp?: 'code-review'
+    setup?: 'fake-data'
     acceptance?: string
     proofPlan?: {
       kinds: Array<
@@ -3960,6 +3990,7 @@ export type ChatContextArgumentsGroup = {
     serveStack?: {
       entry: string
       parts: Array<UiStackPart>
+      start?: UiStackStartCommand | UiStackStartRequest
     }
     createdAt: string
     updatedAt: string
@@ -3992,6 +4023,7 @@ export type ChatContextArgumentsGroupTopic = {
     serveStack?: {
       entry: string
       parts: Array<UiStackPart>
+      start?: UiStackStartCommand | UiStackStartRequest
     }
     createdAt: string
     updatedAt: string
@@ -4086,6 +4118,7 @@ export type ChatContextArgumentsFeature = {
     plan?: string
     kind?: 'design' | 'code'
     followUp?: 'code-review'
+    setup?: 'fake-data'
     acceptance?: string
     proofPlan?: {
       kinds: Array<
@@ -4186,6 +4219,7 @@ export type ChatContextArgumentsAgentRunFeature = {
     plan?: string
     kind?: 'design' | 'code'
     followUp?: 'code-review'
+    setup?: 'fake-data'
     acceptance?: string
     proofPlan?: {
       kinds: Array<
@@ -11621,6 +11655,519 @@ export type SearchIndexChangeResult = {
   deleted: number
 }
 
+export type JourneyDecisionKind =
+  | 'energy'
+  | 'morning-review'
+  | 'replacement-pick'
+  | 'goal-status'
+  | 'journal'
+  | 'probe'
+  | 'card'
+  | 'reply'
+
+export type JourneyOption = {
+  id?: string
+  text: string
+  group?: string
+}
+
+export type JourneyDecisionRequest = {
+  kind: JourneyDecisionKind
+  day: number
+  screen: string
+  options: Array<JourneyOption>
+}
+
+export type JourneyGoalReview = {
+  id?: string
+  text: string
+  keep: boolean
+  reason?: string
+  replacementHint?: string
+}
+
+export type JourneyGoalStatusValue = 'done' | 'in_motion' | 'not_done' | 'not_yet'
+
+export type JourneyGoalHelped = 'yes' | 'somewhat' | 'no'
+
+export type JourneyGoalStatus = {
+  id?: string
+  text: string
+  status: JourneyGoalStatusValue
+  note?: string
+  helped?: 'yes' | 'somewhat' | 'no'
+}
+
+export type JourneyAnswers = {
+  energy: {
+    energy: string
+    dayNeed?: string
+  }
+  'morning-review': {
+    goals: Array<JourneyGoalReview>
+  }
+  'replacement-pick': {
+    pick: string | unknown
+    reason: string
+  }
+  'goal-status': {
+    statuses: Array<JourneyGoalStatus>
+  }
+  journal: {
+    write: boolean
+    text?: string
+  }
+  probe: {
+    choice: string
+    note?: string
+  }
+  card: {
+    reaction: string
+    note?: string
+  }
+  reply: {
+    text: string
+  }
+}
+
+export type JourneyDecisionSource = 'plan' | 'live'
+
+export type JourneyTakeOverRequest = {
+  goal: string
+  saw: string
+}
+
+export type JourneyTakeOverOutcome = 'handed-back' | 'failed'
+
+export type JourneyTakeOverResult = {
+  outcome: JourneyTakeOverOutcome
+  note: string
+  turns?: number
+  costUsd?: number
+}
+
+export type JourneyHostScope = {
+  projectId: string
+  runId: string
+  stepId: string
+  entryId: string
+  sessionId: string
+}
+
+export type JourneyHostGrant = {
+  projectId: string
+  runId: string
+  stepId: string
+  entryId: string
+  sessionId: string
+  token: string
+}
+
+export type JourneyDayLogKind =
+  | 'day-start'
+  | 'screen'
+  | 'goals-offered'
+  | 'goal-removed'
+  | 'goal-replaced'
+  | 'goals-accepted'
+  | 'goal-status'
+  | 'journal'
+  | 'probe'
+  | 'card'
+  | 'reply'
+  | 'decision'
+  | 'take-over'
+  | 'note'
+  | 'day-end'
+
+export type JourneyDayLogLine = {
+  at: string
+  day: number
+}
+
+export type JourneyLoggedGoal = {
+  id?: string
+  text: string
+}
+
+export type JourneyDayLogEntry = JourneyDayLogLine &
+  (
+    | {
+        kind: 'day-start'
+      }
+    | {
+        kind: 'screen'
+        text: string
+      }
+    | {
+        kind: 'goals-offered'
+        goals: Array<JourneyLoggedGoal>
+      }
+    | {
+        kind: 'goal-removed'
+        goal: string
+        reason?: string
+      }
+    | {
+        kind: 'goal-replaced'
+        from: string
+        to: string
+        reason?: string
+      }
+    | {
+        kind: 'goals-accepted'
+        goals?: Array<JourneyLoggedGoal>
+      }
+    | {
+        kind: 'goal-status'
+        goal: string
+        status: string
+      }
+    | {
+        kind: 'journal'
+        wrote: boolean
+        text?: string
+      }
+    | {
+        kind: 'probe'
+        question: string
+        choice?: string
+        note?: string
+      }
+    | {
+        kind: 'card'
+        card: string
+        reaction?: string
+      }
+    | {
+        kind: 'reply'
+        text: string
+      }
+    | {
+        kind: 'decision'
+        decision: JourneyDecisionKind
+        source: JourneyDecisionSource
+        answer: unknown
+        model?: string
+        costUsd?: number
+      }
+    | {
+        kind: 'take-over'
+        goal: string
+        saw: string
+        outcome: JourneyTakeOverOutcome
+        turns?: number
+        costUsd?: number
+      }
+    | {
+        kind: 'note'
+        text: string
+      }
+    | {
+        kind: 'day-end'
+      }
+  )
+
+export type JourneyDayLogProblem = {
+  line: number
+  problem: string
+}
+
+export type JourneyDayLog = {
+  entries: Array<JourneyDayLogEntry>
+  problems: Array<JourneyDayLogProblem>
+}
+
+export type JourneyStepInputs = {
+  scriptNote: string
+  personNote?: string
+  productNote?: string
+  days?: number
+}
+
+export type JourneyFiles = {
+  dir: string
+  specFile: string
+  configFile: string
+  logFile: string
+}
+
+export type JourneyScriptRun = {
+  cwd: string
+  specFile: string
+  configFile: string
+  env: {
+    [key: string]: string
+  }
+  signal: unknown
+}
+
+export type JourneyScriptExit = {
+  exitCode: number | unknown
+  signal?: string
+  aborted: boolean
+  notStarted?: string
+  outputTail: Array<string>
+}
+
+export type ReviewEvidenceScope = {
+  runId: string
+  projectId: string
+  storyId?: string
+  featureId?: string
+  chatContextId?: string
+}
+
+export type ReviewEvidenceKind = 'screenshot' | 'recording' | 'report' | 'log' | 'file'
+
+export type ReviewEvidenceObservedBefore = {
+  reason: string
+}
+
+export type ReviewEvidenceDesignAttribution = {
+  app: string
+  screen: string
+  state?: string
+  variant?: string
+}
+
+export type ReviewEvidenceVerdict = 'approved' | 'changes-requested' | 'rejected'
+
+export type ReviewEvidenceVerdictCause = 'defect' | 'proof-impossible'
+
+export type ReviewEvidenceVerificationMode = 'live' | 'dry'
+
+export type UiImpactStance = {
+  visible: boolean
+  reason: string
+}
+
+export type CodeReviewVerdictSection = {
+  headline: string
+  detail?: string
+  worthALook?: string
+}
+
+export type CodeReviewFindingSeverity = 'blocker' | 'major' | 'minor' | 'nit'
+
+export type CodeReviewFindingStanding = 'change' | 'base' | 'outside'
+
+export type CodeReviewFindingOrigin = 'unfixed' | 'introduced' | 'new'
+
+export type CodeReviewFinding = {
+  severity: CodeReviewFindingSeverity
+  where?: string
+  title?: string
+  text: string
+  standing?: 'change' | 'base' | 'outside'
+  origin?: 'unfixed' | 'introduced' | 'new'
+  reverses?: string
+}
+
+export type CodeReviewCriterionStatus = 'met' | 'partly' | 'not-met'
+
+export type CodeReviewCriterion = {
+  text: string
+  status: CodeReviewCriterionStatus
+  where?: string
+}
+
+export type CodeReviewEvidenceSection = {
+  shows: string
+  unproven: string
+}
+
+export type CodeReviewSections = {
+  verdict: CodeReviewVerdictSection
+  findings: Array<CodeReviewFinding>
+  criteria: Array<CodeReviewCriterion>
+  evidence: CodeReviewEvidenceSection
+}
+
+export type ReportOutcomeSection = {
+  headline: string
+  detail?: string
+}
+
+export type ReportProofStatus = 'proven' | 'unproven' | 'failed'
+
+export type ReportProofSource =
+  | 'tests'
+  | 'checks'
+  | 'code-review'
+  | 'verify'
+  | 'walkthrough'
+  | 'other'
+
+export type ReportProofLine = {
+  text: string
+  status: ReportProofStatus
+  source: ReportProofSource
+}
+
+export type ReportSections = {
+  outcome: ReportOutcomeSection
+  howProven: Array<ReportProofLine>
+  decisions: Array<string>
+  needsYou: Array<string>
+}
+
+export type LoomWalkthroughItemFields = {
+  title: string
+  open: string
+  steps: Array<string>
+  mustShow: Array<string>
+}
+
+export type RecordReviewEvidenceInput = {
+  runId: string
+  projectId: string
+  storyId?: string
+  featureId?: string
+  chatContextId?: string
+  sourcePath?: string
+  text?: string
+  kind: 'screenshot' | 'recording' | 'report' | 'log' | 'file'
+  label?: string
+  phase?: 'before' | 'after'
+  subject?: string
+  observedBefore?: {
+    reason: string
+  }
+  design?: {
+    app: string
+    screen: string
+    state?: string
+    variant?: string
+  }
+  approach?: string
+  capturedOn?: string
+  verdict?: 'approved' | 'changes-requested' | 'rejected'
+  verdictReason?: string
+  verdictCause?: 'defect' | 'proof-impossible'
+  verdictScreens?: Array<string>
+  verdictNewScreens?: Array<string>
+  verificationMode?: 'live' | 'dry'
+  dryAssumptions?: string
+  uiImpact?: {
+    visible: boolean
+    reason: string
+  }
+  reviewSections?: {
+    verdict: CodeReviewVerdictSection
+    findings: Array<CodeReviewFinding>
+    criteria: Array<CodeReviewCriterion>
+    evidence: CodeReviewEvidenceSection
+  }
+  reportSections?: {
+    outcome: ReportOutcomeSection
+    howProven: Array<ReportProofLine>
+    decisions: Array<string>
+    needsYou: Array<string>
+  }
+  walkthroughItem?: {
+    title: string
+    open: string
+    steps: Array<string>
+    mustShow: Array<string>
+  }
+}
+
+export type JourneyEvidence = {
+  sourcePath?: string
+  text?: string
+  kind: 'screenshot' | 'recording' | 'report' | 'log' | 'file'
+  label?: string
+  phase?: 'before' | 'after'
+  subject?: string
+  observedBefore?: {
+    reason: string
+  }
+  design?: {
+    app: string
+    screen: string
+    state?: string
+    variant?: string
+  }
+  approach?: string
+  capturedOn?: string
+  verdict?: 'approved' | 'changes-requested' | 'rejected'
+  verdictReason?: string
+  verdictCause?: 'defect' | 'proof-impossible'
+  verdictScreens?: Array<string>
+  verdictNewScreens?: Array<string>
+  verificationMode?: 'live' | 'dry'
+  dryAssumptions?: string
+  uiImpact?: {
+    visible: boolean
+    reason: string
+  }
+  reviewSections?: {
+    verdict: CodeReviewVerdictSection
+    findings: Array<CodeReviewFinding>
+    criteria: Array<CodeReviewCriterion>
+    evidence: CodeReviewEvidenceSection
+  }
+  reportSections?: {
+    outcome: ReportOutcomeSection
+    howProven: Array<ReportProofLine>
+    decisions: Array<string>
+    needsYou: Array<string>
+  }
+  walkthroughItem?: {
+    title: string
+    open: string
+    steps: Array<string>
+    mustShow: Array<string>
+  }
+} & {
+  label: string
+}
+
+export type JourneyPersona = {
+  personNoteId: string
+  person: string
+  product?: string
+  days: number
+}
+
+export type JourneyCompletionRequest = {
+  system: string
+  prompt: string
+  schemaHint: string
+}
+
+export type JourneyCompletion = {
+  text: string
+  model: string
+  costUsd?: number
+}
+
+export type JourneyAgentLaunch = {
+  grant: JourneyHostGrant
+  brief: string
+  sessionId: string
+  maxTurns: number
+  handBackTool: string
+}
+
+export type JourneyHandBack = {
+  outcome: JourneyTakeOverOutcome
+  note: string
+}
+
+export type JourneyAgentEnd = {
+  handBack?: unknown
+  lastWords?: string
+  turns?: number
+  costUsd?: number
+}
+
+export type JourneyFakeReply = {
+  text: string
+  costUsd?: number
+}
+
 export type KnowledgeEvaluationArmDepth = {
   activityId: string
   status: ActivityStatus
@@ -12701,12 +13248,48 @@ export type MobileSimulator = {
 }
 
 export type BuildAndroidAppOptions = {
+  fakeBackend?: false
+  fakeData?: false
   repoPath: string
   module?: string
   flavor?: string
   buildType?: string
   ref?: string
   overlayRefs?: Array<string>
+}
+
+export type UiServeFakeBackend = {
+  serve: string
+  portEnv?: string
+  urlEnv: string
+  tokenEnv: string
+}
+
+export type MobileFakeBackend = {
+  serve: string
+  portEnv?: string
+  urlEnv: string
+  tokenEnv: string
+  captureEnv: string
+}
+
+export type MobileBuiltFakeBackend = {
+  serve: string
+  portEnv?: string
+  tokenEnv: string
+  token: string
+  url: string
+  devicePort: number
+}
+
+export type MobileFakeDataAndroid = {
+  buildType: string
+  flavor?: string
+  startExtra?: string
+}
+
+export type MobileFakeData = {
+  android: MobileFakeDataAndroid
 }
 
 export type MobileBuildSweepOptions = {
@@ -12726,11 +13309,26 @@ export type MobileBuildProvenance = {
   flavor?: string
   buildType: string
   overlays?: Array<string>
+  fakeBackend?: {
+    serve: string
+    portEnv?: string
+    tokenEnv: string
+    token: string
+    url: string
+    devicePort: number
+  }
+  fakeData?: {
+    buildType: string
+    flavor?: string
+    startExtra?: string
+  }
   appId?: string
   artifactSha256?: string
 }
 
 export type BuildIosAppOptions = {
+  fakeBackend?: false
+  fakeData?: false
   repoPath: string
   scheme?: string
   configuration?: string
@@ -12751,6 +13349,8 @@ export type MobileBuildAppInput = {
   workspace?: string
   ref?: string
   overlayRefs?: Array<string>
+  fakeBackend?: false
+  fakeData?: false
 }
 
 export type BuildAndroidAppResult = {
@@ -12807,7 +13407,45 @@ export type MobileCheckout = {
   app?: {
     expo: boolean
   }
+  fakeBackend?: {
+    serve: string
+    portEnv?: string
+    urlEnv: string
+    tokenEnv: string
+    captureEnv: string
+  }
 }
+
+export type MobileFakeDataDeclaration =
+  | {
+      declared: false
+    }
+  | {
+      declared: true
+      fakeData: MobileFakeData
+    }
+  | {
+      declared: true
+      problem: string
+    }
+
+export type MobileStartScreen = {
+  extra: string
+  screen: string
+}
+
+export type MobileFakeBackendDeclaration =
+  | {
+      declared: false
+    }
+  | {
+      declared: true
+      fakeBackend: MobileFakeBackend
+    }
+  | {
+      declared: true
+      problem: string
+    }
 
 export type XcodeContainer = {
   kind: 'project' | 'workspace'
@@ -12840,6 +13478,7 @@ export type OpenMobileSessionOptions = {
   appId?: string
   activity?: string
   deviceId?: string
+  startScreen?: string
 }
 
 export type MobileSessionResult = {
@@ -12847,6 +13486,8 @@ export type MobileSessionResult = {
   platform: MobilePlatform
   deviceId: string
   appId?: string
+  fakeBackend?: string
+  fakeData?: string
 }
 
 export type MobileSessionInfo = {
@@ -12959,6 +13600,19 @@ export type MobileDeviceInstall = {
     flavor?: string
     buildType: string
     overlays?: Array<string>
+    fakeBackend?: {
+      serve: string
+      portEnv?: string
+      tokenEnv: string
+      token: string
+      url: string
+      devicePort: number
+    }
+    fakeData?: {
+      buildType: string
+      flavor?: string
+      startExtra?: string
+    }
     appId?: string
     artifactSha256?: string
   }
@@ -12967,37 +13621,6 @@ export type MobileDeviceInstall = {
 
 export type MobileRawInstallTarget = {
   deviceId?: string
-}
-
-export type ReviewEvidenceScreen = {
-  ids: Array<string>
-  texts: Array<string>
-  activity?: string
-  playgroundScene?: string
-}
-
-export type MobileSessionEntry = {
-  sessionId: string
-  platform: MobilePlatform
-  deviceId: string
-  appId?: string
-  activity?: string
-  lastRefs: {
-    [key: string]: MobileRefTarget
-  }
-  lastScreen?: {
-    ids: Array<string>
-    texts: Array<string>
-    activity?: string
-    playgroundScene?: string
-  }
-  screen?: {
-    width: number
-    height: number
-  }
-  screenshotSeq: number
-  recordingSeq?: number
-  createdAt: number
 }
 
 export type TransientSpawnEvent = {
@@ -13581,6 +14204,7 @@ export type ProcessManagerPolicyInput = {
   signature: string
   permissionPreApproved?: boolean
   attemptAgentNotStarted?: boolean
+  attemptFeatureDone?: boolean
   attemptCircling?: {
     summary: string
     signals: Array<ProcessCirclingSignal>
@@ -13628,6 +14252,7 @@ export type ProcessInputRef = {
   role?: string
   ref: string
   patch?: string
+  patchNote?: string
 }
 
 export type ProcessInputValue = string | number | Array<ProcessInputRef>
@@ -13659,11 +14284,23 @@ export type UiServedStackPart = {
     files: Array<string>
   }
   warnings?: Array<string>
+  checkoutDir?: string
+}
+
+export type UiStackStartResult = {
+  ok: boolean
+  ran: string
+  output: string
 }
 
 export type UiServedStack = {
   url: string
   parts: Array<UiServedStackPart>
+  start?: {
+    ok: boolean
+    ran: string
+    output: string
+  }
 }
 
 export type ProcessWorkBranchStack = {
@@ -13876,12 +14513,25 @@ export type ProcessStepKind =
   | 'gate'
   | 'process'
   | 'cleanup'
+  | 'script'
 
 export type ProcessInputExpansion = {
   input: string
 }
 
 export type ProcessStepExpansion = 'features' | ProcessInputExpansion
+
+export type ProcessInputCondition = {
+  input: string
+  is: string
+}
+
+export type ProcessJourneyInputs = {
+  script: string
+  person?: string
+  product?: string
+  days?: string
+}
 
 export type ProcessStep = {
   id: string
@@ -13902,6 +14552,16 @@ export type ProcessStep = {
   produces?: Array<string>
   mayChangeNothing?: boolean
   serveVariant?: boolean
+  runsWhen?: {
+    input: string
+    is: string
+  }
+  journey?: {
+    script: string
+    person?: string
+    product?: string
+    days?: string
+  }
   documents?: Array<string>
   documentSection?: Array<string>
 }
@@ -13916,7 +14576,16 @@ export type ProcessSubject = {
 export type ProcessPlanStep = {
   id: string
   name: string
-  kind: 'agent' | 'check' | 'capture' | 'judge' | 'report' | 'gate' | 'process' | 'cleanup'
+  kind:
+    | 'agent'
+    | 'check'
+    | 'capture'
+    | 'judge'
+    | 'report'
+    | 'gate'
+    | 'process'
+    | 'cleanup'
+    | 'script'
   description?: string
   enabled?: boolean
   agentType?: string
@@ -13932,6 +14601,16 @@ export type ProcessPlanStep = {
   produces?: Array<string>
   mayChangeNothing?: boolean
   serveVariant?: boolean
+  runsWhen?: {
+    input: string
+    is: string
+  }
+  journey?: {
+    script: string
+    person?: string
+    product?: string
+    days?: string
+  }
   documents?: Array<string>
   documentSection?: Array<string>
   subject?: ProcessSubject | ProcessVariantSubject
@@ -14191,20 +14870,37 @@ export type ProcessPlanAmendment = {
   }
 }
 
-export type ProcessInputKind = 'text' | 'note-reference' | 'number' | 'refs' | 'variants'
+export type ProcessInputKind = 'text' | 'note-reference' | 'number' | 'refs' | 'variants' | 'choice'
+
+export type ProcessInputOption = {
+  value: string
+  label: string
+}
 
 export type ProcessInputField = {
   name: string
   label: string
-  kind: 'text' | 'note-reference' | 'number' | 'refs'
+  kind: 'text' | 'note-reference' | 'number' | 'refs' | 'choice'
   required?: boolean
+  requiredWhen?: {
+    input: string
+    is: string
+  }
+  options?: Array<ProcessInputOption>
+  default?: string
 }
 
 export type ProcessInput = {
   name: string
   label: string
   required?: boolean
-  kind: 'text' | 'note-reference' | 'number' | 'refs' | 'variants'
+  requiredWhen?: {
+    input: string
+    is: string
+  }
+  options?: Array<ProcessInputOption>
+  default?: string
+  kind: 'text' | 'note-reference' | 'number' | 'refs' | 'variants' | 'choice'
   fields?: Array<ProcessInputField>
 }
 
@@ -14716,10 +15412,6 @@ export type ProcessAcceptedUnchecked = {
   note?: string
 }
 
-export type ReviewEvidenceObservedBefore = {
-  reason: string
-}
-
 export type ProcessProofPair = {
   subject: string
   beforeId: string
@@ -14802,13 +15494,6 @@ export type ProcessVerifyProof = {
     reason: string
     screens: boolean
   }
-}
-
-export type ReviewEvidenceVerdict = 'approved' | 'changes-requested' | 'rejected'
-
-export type UiImpactStance = {
-  visible: boolean
-  reason: string
 }
 
 export type ProcessReviewVerdict = {
@@ -15174,6 +15859,7 @@ export type ProcessLedgerEntry = {
     at: number
   }
   agentNotStarted?: string
+  featureDone?: true
   retryMode?: 'continue' | 'fresh'
   resumes?: string
   retries?: Array<ProcessStepRetry>
@@ -15384,6 +16070,11 @@ export type ProcessRun = {
   served?: {
     url: string
     parts: Array<UiServedStackPart>
+    start?: {
+      ok: boolean
+      ran: string
+      output: string
+    }
   }
   workBranch?: {
     name: string
@@ -16233,6 +16924,7 @@ export type ProjectSpecCreateInput = {
     serveStack?: {
       entry: string
       parts: Array<UiStackPart>
+      start?: UiStackStartCommand | UiStackStartRequest
     }
     [key: string]: unknown
   }
@@ -16325,6 +17017,7 @@ export type ProjectSpecEditInput = {
     serveStack?: {
       entry: string
       parts: Array<UiStackPart>
+      start?: UiStackStartCommand | UiStackStartRequest
     }
     [key: string]: unknown
   }
@@ -17314,6 +18007,7 @@ export type ProjectsGroupCreateInput = {
   serveStack?: {
     entry: string
     parts: Array<UiStackPart>
+    start?: UiStackStartCommand | UiStackStartRequest
   }
 }
 
@@ -17335,14 +18029,81 @@ export type ProjectsGroupUpdate = {
   groups: ProjectsGroups
 }
 
+export type FakeDataSetupPlatform = 'android' | 'react-native' | 'web' | 'ios'
+
+export type UiChangeSignal = 'files' | 'words'
+
+export type FakeDataSetupFeature = {
+  plan?: {
+    kinds: Array<ProofKind>
+    notes?: string
+  }
+  uiSignal?: 'files' | 'words'
+  paths?: Array<string>
+  setup?: 'fake-data'
+}
+
+export type UiChangeScope = {
+  appDir?: string
+}
+
+export type FakeDataSetupNeedInput = {
+  features: Array<FakeDataSetupFeature>
+  project: ProjectPlatformInput
+  storyHoldsSetup: boolean
+  scope?: {
+    appDir?: string
+  }
+}
+
+export type FakeDataSetupFeatureInput = {
+  project: ProjectPlatformInput
+  screensOf?: Array<string>
+}
+
+export type FeatureCreateInput = {
+  title: string
+  description: string
+  context: Array<string>
+} & {
+  status?: 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
+  plan?: string
+  kind?: 'design' | 'code'
+  followUp?: 'code-review'
+  setup?: 'fake-data'
+  acceptance?: string
+  proofPlan?: {
+    kinds: Array<
+      | 'unit-tests'
+      | 'checks'
+      | 'code-review'
+      | 'ui-before-after'
+      | 'ui-video'
+      | 'live-backend'
+      | 'manual'
+    >
+    notes?: string
+  }
+  blockers?: Array<string>
+  rejection?: string
+  questions?: Array<FeatureQuestion>
+  externalIds?: Array<ExternalRef>
+}
+
+export type FakeDataSetupBuild =
+  | {
+      feature: FeatureCreateInput
+    }
+  | {
+      unsupported: string
+    }
+
 export type ProofPlanSource = 'feature' | 'story' | 'suggested'
 
 export type ResolvedProofPlan = {
   plan: ProofPlan
   source: ProofPlanSource
 }
-
-export type UiChangeSignal = 'files' | 'words'
 
 export type LaunchProofPlan = {
   featureId: string
@@ -17353,6 +18114,7 @@ export type LaunchProofPlan = {
   dropped?: Array<ProofKindUnavailable>
   looksUi?: boolean
   looksUiByWords?: boolean
+  added?: string
 }
 
 export type ProofPlanStepFact = {
@@ -17392,6 +18154,9 @@ export type ProofPlanProverFact = {
   judged: boolean
   countedSubjects: Array<string>
   newScreenSubjects: Array<string>
+  countedVideoSubjects: Array<string>
+  newScreenVideoSubjects: Array<string>
+  uncountedVideo: Array<string>
   mode?: 'live' | 'dry'
   dryAssumptions?: string
   seamed: boolean
@@ -17400,13 +18165,13 @@ export type ProofPlanProverFact = {
 
 export type UiProofRoute = 'design-playground' | 'app-screens'
 
-export type UiChangeScope = {
-  appDir?: string
-}
-
 export type UiProofRouteInput = {
   designPlayground?: string
   fakeBackend?: string
+  mobileFakeBackend?: string
+  mobileFakeData?: string
+  projectApp?: string
+  platform?: 'android' | 'ios' | 'web' | 'unknown'
   changedPaths?: Array<string>
   scope?: {
     appDir?: string
@@ -17451,6 +18216,9 @@ export type ProofPlanFacts = {
     judged: boolean
     countedSubjects: Array<string>
     newScreenSubjects: Array<string>
+    countedVideoSubjects: Array<string>
+    newScreenVideoSubjects: Array<string>
+    uncountedVideo: Array<string>
     mode?: 'live' | 'dry'
     dryAssumptions?: string
     seamed: boolean
@@ -20458,6 +21226,11 @@ export type CopiedFile = {
   bytes: number
 }
 
+export type ReviewEvidenceOverlayFile = {
+  path: string
+  sha?: string
+}
+
 export type ReviewEvidenceBuild = {
   platform?: 'android' | 'ios' | 'web'
   sha: string
@@ -20465,8 +21238,18 @@ export type ReviewEvidenceBuild = {
   dirtyPaths?: Array<string>
   variant?: string
   overlays?: Array<string>
+  overlayFiles?: Array<ReviewEvidenceOverlayFile>
+  sceneOverlayHead?: string
   tree?: string
   fakeBackend?: string
+  fakeData?: string
+}
+
+export type ReviewEvidenceScreen = {
+  ids: Array<string>
+  texts: Array<string>
+  activity?: string
+  playgroundScene?: string
 }
 
 export type ReviewEvidenceCaptureDescription = {
@@ -20479,8 +21262,11 @@ export type ReviewEvidenceCaptureDescription = {
     dirtyPaths?: Array<string>
     variant?: string
     overlays?: Array<string>
+    overlayFiles?: Array<ReviewEvidenceOverlayFile>
+    sceneOverlayHead?: string
     tree?: string
     fakeBackend?: string
+    fakeData?: string
   }
   screen?: {
     ids: Array<string>
@@ -20502,23 +21288,6 @@ export type CaptureRecordReading =
       description: ReviewEvidenceCaptureDescription
     }
 
-export type ReviewEvidenceScope = {
-  runId: string
-  projectId: string
-  storyId?: string
-  featureId?: string
-  chatContextId?: string
-}
-
-export type ReviewEvidenceKind = 'screenshot' | 'recording' | 'report' | 'log' | 'file'
-
-export type ReviewEvidenceDesignAttribution = {
-  app: string
-  screen: string
-  state?: string
-  variant?: string
-}
-
 export type ReviewEvidenceComparison = {
   changedPixels: number
   totalPixels: number
@@ -20526,87 +21295,6 @@ export type ReviewEvidenceComparison = {
   resized: boolean
   unavailable?: string
   beforeId?: string
-}
-
-export type ReviewEvidenceVerdictCause = 'defect' | 'proof-impossible'
-
-export type ReviewEvidenceVerificationMode = 'live' | 'dry'
-
-export type CodeReviewVerdictSection = {
-  headline: string
-  detail?: string
-  worthALook?: string
-}
-
-export type CodeReviewFindingSeverity = 'blocker' | 'major' | 'minor' | 'nit'
-
-export type CodeReviewFindingStanding = 'change' | 'base' | 'outside'
-
-export type CodeReviewFindingOrigin = 'unfixed' | 'introduced' | 'new'
-
-export type CodeReviewFinding = {
-  severity: CodeReviewFindingSeverity
-  where?: string
-  title?: string
-  text: string
-  standing?: 'change' | 'base' | 'outside'
-  origin?: 'unfixed' | 'introduced' | 'new'
-  reverses?: string
-}
-
-export type CodeReviewCriterionStatus = 'met' | 'partly' | 'not-met'
-
-export type CodeReviewCriterion = {
-  text: string
-  status: CodeReviewCriterionStatus
-  where?: string
-}
-
-export type CodeReviewEvidenceSection = {
-  shows: string
-  unproven: string
-}
-
-export type CodeReviewSections = {
-  verdict: CodeReviewVerdictSection
-  findings: Array<CodeReviewFinding>
-  criteria: Array<CodeReviewCriterion>
-  evidence: CodeReviewEvidenceSection
-}
-
-export type ReportOutcomeSection = {
-  headline: string
-  detail?: string
-}
-
-export type ReportProofStatus = 'proven' | 'unproven' | 'failed'
-
-export type ReportProofSource =
-  | 'tests'
-  | 'checks'
-  | 'code-review'
-  | 'verify'
-  | 'walkthrough'
-  | 'other'
-
-export type ReportProofLine = {
-  text: string
-  status: ReportProofStatus
-  source: ReportProofSource
-}
-
-export type ReportSections = {
-  outcome: ReportOutcomeSection
-  howProven: Array<ReportProofLine>
-  decisions: Array<string>
-  needsYou: Array<string>
-}
-
-export type LoomWalkthroughItemFields = {
-  title: string
-  open: string
-  steps: Array<string>
-  mustShow: Array<string>
 }
 
 export type LoomWalkthroughAttachment = {
@@ -20697,8 +21385,11 @@ export type ReviewEvidenceRef = {
     dirtyPaths?: Array<string>
     variant?: string
     overlays?: Array<string>
+    overlayFiles?: Array<ReviewEvidenceOverlayFile>
+    sceneOverlayHead?: string
     tree?: string
     fakeBackend?: string
+    fakeData?: string
   }
   screen?: {
     ids: Array<string>
@@ -20831,6 +21522,13 @@ export type VisualProofAssessment = {
   hasProof: boolean
 }
 
+export type ReviewEvidenceCommitFiles = {
+  sha: string
+  files: {
+    [key: string]: string
+  }
+}
+
 export type CaptureBuildVariantParts =
   | {
       platform: 'android'
@@ -20876,60 +21574,6 @@ export type ReviewEvidenceQuery = {
   featureId?: string
   chatContextId?: string
   kind?: 'screenshot' | 'recording' | 'report' | 'log' | 'file'
-}
-
-export type RecordReviewEvidenceInput = {
-  runId: string
-  projectId: string
-  storyId?: string
-  featureId?: string
-  chatContextId?: string
-  sourcePath?: string
-  text?: string
-  kind: 'screenshot' | 'recording' | 'report' | 'log' | 'file'
-  label?: string
-  phase?: 'before' | 'after'
-  subject?: string
-  observedBefore?: {
-    reason: string
-  }
-  design?: {
-    app: string
-    screen: string
-    state?: string
-    variant?: string
-  }
-  approach?: string
-  capturedOn?: string
-  verdict?: 'approved' | 'changes-requested' | 'rejected'
-  verdictReason?: string
-  verdictCause?: 'defect' | 'proof-impossible'
-  verdictScreens?: Array<string>
-  verdictNewScreens?: Array<string>
-  verificationMode?: 'live' | 'dry'
-  dryAssumptions?: string
-  uiImpact?: {
-    visible: boolean
-    reason: string
-  }
-  reviewSections?: {
-    verdict: CodeReviewVerdictSection
-    findings: Array<CodeReviewFinding>
-    criteria: Array<CodeReviewCriterion>
-    evidence: CodeReviewEvidenceSection
-  }
-  reportSections?: {
-    outcome: ReportOutcomeSection
-    howProven: Array<ReportProofLine>
-    decisions: Array<string>
-    needsYou: Array<string>
-  }
-  walkthroughItem?: {
-    title: string
-    open: string
-    steps: Array<string>
-    mustShow: Array<string>
-  }
 }
 
 export type ReviewEvidenceTextCut = {
@@ -20996,6 +21640,32 @@ export type ReviewEvidenceBuildHint = {
   variant: string
   createdAt: number
   vouched: boolean
+}
+
+export type ServedLogTokenPattern = {
+  find: unknown
+  keep: string
+}
+
+export type MaskedServedLogCopy = {
+  bytes: number
+  sha256: string
+}
+
+export type ServedStackSecrets = {
+  values: Array<string>
+  unread: Array<string>
+}
+
+export type ServedLogNotFiled = {
+  role: string
+  stream: string
+  why: string
+}
+
+export type ServedLogFiling = {
+  filed: Array<ReviewEvidenceRef>
+  notFiled: Array<ServedLogNotFiled>
 }
 
 export type NetworkSpec =
@@ -21237,6 +21907,8 @@ export type CliRunFilterable = {
   createdAt: number
 }
 
+export type StoredRecordPresence = 'found' | 'absent' | 'unreadable'
+
 export type ProjectStorageUsage = {
   designBytes: number
   evidenceBytes: number
@@ -21289,34 +21961,6 @@ export type LiveRunFeatureUpdateContext = {
   }
 }
 
-export type FeatureCreateInput = {
-  title: string
-  description: string
-  context: Array<string>
-} & {
-  status?: 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
-  plan?: string
-  kind?: 'design' | 'code'
-  followUp?: 'code-review'
-  acceptance?: string
-  proofPlan?: {
-    kinds: Array<
-      | 'unit-tests'
-      | 'checks'
-      | 'code-review'
-      | 'ui-before-after'
-      | 'ui-video'
-      | 'live-backend'
-      | 'manual'
-    >
-    notes?: string
-  }
-  blockers?: Array<string>
-  rejection?: string
-  questions?: Array<FeatureQuestion>
-  externalIds?: Array<ExternalRef>
-}
-
 export type FeatureEditInput = {
   title?: string
   description?: string
@@ -21326,6 +21970,7 @@ export type FeatureEditInput = {
   plan?: string
   kind?: 'design' | 'code'
   followUp?: 'code-review'
+  setup?: 'fake-data'
   acceptance?: string
   proofPlan?: {
     kinds: Array<
@@ -22041,6 +22686,7 @@ export type ToolName =
   | 'listDecidedCliAgentActions'
   | 'markCliAgentActionsCarried'
   | 'keepCliAgentActionHostFacts'
+  | 'readCliAgentActionHostFacts'
   | 'carryOutCliAgentApprovals'
   | 'countPendingCliAgentActionsByChat'
   | 'requestCliAgentAction'
@@ -22272,6 +22918,7 @@ export type ToolName =
   | 'removeGroupNote'
   | 'listGroupStories'
   | 'getGroupStory'
+  | 'readGroupStoryPresence'
   | 'createGroupStory'
   | 'updateGroupStory'
   | 'deleteGroupStory'
@@ -22279,6 +22926,7 @@ export type ToolName =
   | 'ingestAll'
   | 'startIngestProject'
   | 'startIngestAll'
+  | 'handBackJourney'
   | 'listDataSources'
   | 'getDataSource'
   | 'createDataSource'
@@ -22435,6 +23083,7 @@ export type ToolName =
   | 'getStoryIdFromIndex'
   | 'reorderStory'
   | 'getStory'
+  | 'readStoryPresence'
   | 'addStory'
   | 'updateStory'
   | 'blockStory'
@@ -22577,6 +23226,14 @@ export type OpenWebUiSessionOptions = {
   record?: boolean
 }
 
+export type OpenSharedWebUiSessionOptions = {
+  headless?: boolean
+  viewport?: {
+    width: number
+    height: number
+  }
+}
+
 export type OpenElectronUiSessionOptions = {
   args?: Array<string>
   env?: {
@@ -22622,13 +23279,6 @@ export type ScreenshotUiOptions = {
 
 export type UiWebFramework = 'next' | 'vite'
 
-export type UiServeFakeBackend = {
-  serve: string
-  portEnv?: string
-  urlEnv: string
-  tokenEnv: string
-}
-
 export type UiServeRecipe = {
   projectApp?: string
   package?: string
@@ -22673,6 +23323,7 @@ export type UiBuildProvenance = {
   dirty: boolean
   dirtyPaths?: Array<string>
   overlays?: Array<string>
+  overlayFiles?: Array<ReviewEvidenceOverlayFile>
   tree?: string
   recipe: string
   origin: string
@@ -22709,6 +23360,38 @@ export type UiStopAppResult = {
   stopped: boolean
 }
 
+export type UiServeStep =
+  | {
+      kind: 'bin'
+      bin: string
+      args: Array<string>
+    }
+  | {
+      kind: 'script'
+      script: string
+    }
+  | {
+      kind: 'command'
+      cmd: string
+      args: Array<string>
+    }
+
+export type UiStackStartPlan = {
+  ran: string
+  timeoutMs: number
+} & (
+  | {
+      kind: 'command'
+      role: string
+      step: UiServeStep
+    }
+  | {
+      kind: 'url'
+      url: string
+      method: 'GET' | 'POST'
+    }
+)
+
 export type UiStackRefTarget = {
   role: string
   project: string
@@ -22732,6 +23415,12 @@ export type UiServeStackRequest = {
     [key: string]: number
   }
   signal?: unknown
+  logDir?: string
+}
+
+export type UiServeLogs = {
+  dir: string
+  trailFile?: string
 }
 
 export type UiServeHostTerms = {
@@ -22750,6 +23439,16 @@ export type UiServeHostTerms = {
   readyPath?: string
   patch?: string
   signal?: unknown
+  logs?: {
+    dir: string
+    trailFile?: string
+  }
+}
+
+export type UiServeKeptFile = {
+  from: string
+  to: string
+  after: number
 }
 
 export type UiProjectAppCaptureLiveness = {
@@ -22779,22 +23478,6 @@ export type UiTreeSnapshot = {
   dirtyPaths?: Array<string>
   tree?: string
 }
-
-export type UiServeStep =
-  | {
-      kind: 'bin'
-      bin: string
-      args: Array<string>
-    }
-  | {
-      kind: 'script'
-      script: string
-    }
-  | {
-      kind: 'command'
-      cmd: string
-      args: Array<string>
-    }
 
 export type UiServePlan = {
   build?:
@@ -22833,8 +23516,15 @@ export type UiHostBoundOptions = {
   cleanup?: {
     tree: string
     repo: string
+    keep?: {
+      from: string
+      to: string
+      after: number
+    }
   }
   signal?: unknown
+  logDir?: string
+  secrets?: Array<string>
 }
 
 export type UiRawScreen = {
@@ -22864,6 +23554,7 @@ export type UiCaptureBuildState = {
     dirty: boolean
     dirtyPaths?: Array<string>
     overlays?: Array<string>
+    overlayFiles?: Array<ReviewEvidenceOverlayFile>
     tree?: string
     recipe: string
     origin: string
@@ -22873,6 +23564,24 @@ export type UiCaptureBuildState = {
     }
   }
   playgroundScene?: string
+  playgroundDir?: string
+  head?: {
+    sha: string
+    files: {
+      [key: string]: string
+    }
+  }
+}
+
+export type UiSceneOverlayInput = {
+  served: UiBuildProvenance
+  playgroundDir?: string
+  head?: {
+    sha: string
+    files: {
+      [key: string]: string
+    }
+  }
 }
 
 export type UiRecordingBuildState = {
@@ -22887,6 +23596,7 @@ export type UiRecordingBuildState = {
     dirty: boolean
     dirtyPaths?: Array<string>
     overlays?: Array<string>
+    overlayFiles?: Array<ReviewEvidenceOverlayFile>
     tree?: string
     recipe: string
     origin: string
@@ -22902,6 +23612,7 @@ export type UiRecordingBuildState = {
     dirty: boolean
     dirtyPaths?: Array<string>
     overlays?: Array<string>
+    overlayFiles?: Array<ReviewEvidenceOverlayFile>
     tree?: string
     recipe: string
     origin: string
@@ -22918,6 +23629,14 @@ export type UiSessionResult = {
   target: UiTarget
   url?: string
   title?: string
+}
+
+export type UiSharedSessionResult = {
+  sessionId: string
+  target: 'web' | 'electron'
+  url?: string
+  title?: string
+  cdpEndpoint: string
 }
 
 export type UiSessionInfo = {
@@ -24459,6 +25178,7 @@ export type ProcessStepExitKind =
   | 'gate-decision'
   | 'nested-run'
   | 'cleanup'
+  | 'script-exit'
 
 export type ProcessStepKindMeta = {
   tools:
@@ -24492,6 +25212,7 @@ export type ProcessStepKindMeta = {
     | 'gate-decision'
     | 'nested-run'
     | 'cleanup'
+    | 'script-exit'
   exitLabel: string
 }
 
@@ -24518,6 +25239,7 @@ export type ProcessStepToolsAndExit = {
     | 'gate-decision'
     | 'nested-run'
     | 'cleanup'
+    | 'script-exit'
   exitLabel: string
 }
 
@@ -24912,6 +25634,11 @@ export type ProcessRunChatState = {
     served?: {
       url: string
       parts: Array<UiServedStackPart>
+      start?: {
+        ok: boolean
+        ran: string
+        output: string
+      }
     }
     workBranch?: {
       name: string
@@ -25779,6 +26506,11 @@ export type ProcessRunSummary = {
   served?: {
     url: string
     parts: Array<UiServedStackPart>
+    start?: {
+      ok: boolean
+      ran: string
+      output: string
+    }
   }
   workBranch?: {
     name: string
@@ -26274,6 +27006,8 @@ export type ProcessFanOutChildEvidence = {
     id: string
     kind: string
     label?: string
+    mediaType?: string
+    bytes?: number
   }>
 }
 
@@ -26889,6 +27623,7 @@ export type ProcessStepState = {
       at: number
     }
     agentNotStarted?: string
+    featureDone?: true
     retryMode?: 'continue' | 'fresh'
     resumes?: string
     retries?: Array<ProcessStepRetry>
@@ -29041,6 +29776,7 @@ export type ListProjectsGroupsResponses = {
     serveStack?: {
       entry: string
       parts: Array<UiStackPart>
+      start?: UiStackStartCommand | UiStackStartRequest
     }
     createdAt: string
     updatedAt: string
@@ -29095,6 +29831,7 @@ export type CreateProjectsGroupResponses = {
     serveStack?: {
       entry: string
       parts: Array<UiStackPart>
+      start?: UiStackStartCommand | UiStackStartRequest
     }
     createdAt: string
     updatedAt: string
@@ -29384,6 +30121,7 @@ export type DeleteProjectsGroupResponses = {
     serveStack?: {
       entry: string
       parts: Array<UiStackPart>
+      start?: UiStackStartCommand | UiStackStartRequest
     }
     createdAt: string
     updatedAt: string
@@ -29440,6 +30178,7 @@ export type GetProjectsGroupResponses = {
     serveStack?: {
       entry: string
       parts: Array<UiStackPart>
+      start?: UiStackStartCommand | UiStackStartRequest
     }
     createdAt: string
     updatedAt: string
@@ -29503,6 +30242,7 @@ export type UpdateProjectsGroupResponses = {
     serveStack?: {
       entry: string
       parts: Array<UiStackPart>
+      start?: UiStackStartCommand | UiStackStartRequest
     }
     createdAt: string
     updatedAt: string
@@ -29560,6 +30300,7 @@ export type ReorderProjectInGroupResponses = {
     serveStack?: {
       entry: string
       parts: Array<UiStackPart>
+      start?: UiStackStartCommand | UiStackStartRequest
     }
     createdAt: string
     updatedAt: string
@@ -29615,6 +30356,7 @@ export type ReorderProjectsGroupsResponses = {
     serveStack?: {
       entry: string
       parts: Array<UiStackPart>
+      start?: UiStackStartCommand | UiStackStartRequest
     }
     createdAt: string
     updatedAt: string
@@ -31061,10 +31803,10 @@ export type GetProcessCapabilitiesResponses = {
    */
   200: {
     kinds: Array<
-      'agent' | 'check' | 'capture' | 'judge' | 'report' | 'gate' | 'process' | 'cleanup'
+      'agent' | 'check' | 'capture' | 'judge' | 'report' | 'gate' | 'process' | 'cleanup' | 'script'
     >
     implemented: Array<
-      'agent' | 'check' | 'capture' | 'judge' | 'report' | 'gate' | 'process' | 'cleanup'
+      'agent' | 'check' | 'capture' | 'judge' | 'report' | 'gate' | 'process' | 'cleanup' | 'script'
     >
   }
 }
@@ -31149,7 +31891,16 @@ export type PreviewProcessResponses = {
     steps: Array<{
       id: string
       name: string
-      kind: 'agent' | 'check' | 'capture' | 'judge' | 'report' | 'gate' | 'process' | 'cleanup'
+      kind:
+        | 'agent'
+        | 'check'
+        | 'capture'
+        | 'judge'
+        | 'report'
+        | 'gate'
+        | 'process'
+        | 'cleanup'
+        | 'script'
       description?: string
       agent: boolean
       agentType?: string
@@ -31525,7 +32276,16 @@ export type PreviewProcessRunResponses = {
       steps: Array<{
         id: string
         name: string
-        kind: 'agent' | 'check' | 'capture' | 'judge' | 'report' | 'gate' | 'process' | 'cleanup'
+        kind:
+          | 'agent'
+          | 'check'
+          | 'capture'
+          | 'judge'
+          | 'report'
+          | 'gate'
+          | 'process'
+          | 'cleanup'
+          | 'script'
         description?: string
         agent: boolean
         agentType?: string
@@ -34681,6 +35441,139 @@ export type SetProcessRunCleanupOffResponses = {
 
 export type SetProcessRunCleanupOffResponse =
   SetProcessRunCleanupOffResponses[keyof SetProcessRunCleanupOffResponses]
+
+export type DecideJourneyData = {
+  body: JourneyDecisionRequest
+  path?: never
+  query?: never
+  url: '/api/v1/journeys/decide'
+}
+
+export type DecideJourneyErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  502: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type DecideJourneyError = DecideJourneyErrors[keyof DecideJourneyErrors]
+
+export type DecideJourneyResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    /**
+     * The person’s answer, in the shape the decision’s kind takes.
+     */
+    answer:
+      | {
+          energy: string
+          dayNeed?: string
+        }
+      | {
+          goals: Array<JourneyGoalReview>
+        }
+      | {
+          pick: string | unknown
+          reason: string
+        }
+      | {
+          statuses: Array<JourneyGoalStatus>
+        }
+      | {
+          write: boolean
+          text?: string
+        }
+      | {
+          choice: string
+          note?: string
+        }
+      | {
+          reaction: string
+          note?: string
+        }
+      | {
+          text: string
+        }
+    source: JourneyDecisionSource
+    /**
+     * The model a live answer came from.
+     */
+    model?: string
+    /**
+     * What a live answer cost.
+     */
+    costUsd?: number
+  }
+}
+
+export type DecideJourneyResponse = DecideJourneyResponses[keyof DecideJourneyResponses]
+
+export type TakeOverJourneyData = {
+  body: JourneyTakeOverRequest
+  path?: never
+  query?: never
+  url: '/api/v1/journeys/take-over'
+}
+
+export type TakeOverJourneyErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  502: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type TakeOverJourneyError = TakeOverJourneyErrors[keyof TakeOverJourneyErrors]
+
+export type TakeOverJourneyResponses = {
+  /**
+   * Default Response
+   */
+  200: JourneyTakeOverResult
+}
+
+export type TakeOverJourneyResponse = TakeOverJourneyResponses[keyof TakeOverJourneyResponses]
 
 export type ListReviewEvidenceData = {
   body?: never
@@ -38429,6 +39322,73 @@ export type CancelCredentialCaptureResponses = {
 export type CancelCredentialCaptureResponse =
   CancelCredentialCaptureResponses[keyof CancelCredentialCaptureResponses]
 
+export type PasteTicketData = {
+  body: {
+    text: string
+    ticketKey?: string
+    sourceRef?: string
+  }
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/tickets/paste'
+}
+
+export type PasteTicketErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  502: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type PasteTicketError = PasteTicketErrors[keyof PasteTicketErrors]
+
+export type PasteTicketResponses = {
+  /**
+   * Default Response
+   */
+  201: Story
+}
+
+export type PasteTicketResponse = PasteTicketResponses[keyof PasteTicketResponses]
+
 export type ListConnectionAssignedItemsData = {
   body?: never
   path: {
@@ -38656,6 +39616,22 @@ export type ImportConnectionItemErrors = {
    * Default Response
    */
   404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
     error: string
     code?: string
     requestId?: string

@@ -1999,6 +1999,7 @@
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -6540,6 +6541,17 @@
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
           "Array"
+        ]
+      },
+      "BEFORE_AFTER_VIDEO_SCENES": {
+        "path": "playground/scenes/beforeAfterVideo.tsx",
+        "dependencies": [
+          "Scene",
+          "react/ReactNode",
+          "thefactory-tools/types/ProcessProofVideoPair",
+          "thefactory-tools/types",
+          "thefactory-ui/headless/requestProofChoices",
+          "thefactory-ui/headless"
         ]
       },
       "BeginApiChatTurnOptions": {
@@ -42049,6 +42061,7 @@
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -43420,6 +43433,11 @@
         "description": "The limits' words.",
         "dependencies": []
       },
+      "LAUNCH_FEATURE_ADDED": {
+        "path": "src/headless/utils/launchFeaturePickConstants.ts",
+        "description": "A feature the launch adds to the story before the person's own.",
+        "dependencies": []
+      },
       "LAUNCH_FEATURE_LEFT_OUT": {
         "path": "src/headless/utils/launchFeaturePickConstants.ts",
         "description": "A feature left out of the launch: it stays on the story for later.",
@@ -43696,10 +43714,26 @@
         "path": "src/web/compound/chat/LaunchFeatureList.tsx",
         "description": "The launch card's features, each once: its bullet and title, how it is proven",
         "dependencies": [
-          "LaunchFeaturePickRow",
+          "LaunchFeatureListItem",
           "ReadonlySet",
           "LaunchFeatureListProps",
           "react/useState"
+        ]
+      },
+      "LaunchFeatureListItem": {
+        "path": "src/headless/utils/launchFeaturePickTypes.ts",
+        "description": "One row the launch card lists: a feature to pick, or one the launch adds first, with why.",
+        "dependencies": [
+          "LaunchFeaturePickRow"
+        ]
+      },
+      "launchFeatureListItems": {
+        "path": "src/headless/utils/launchFeaturePick.ts",
+        "description": "What the launch card lists, each feature once: a feature the launch adds to",
+        "dependencies": [
+          "LaunchFeatureListItem",
+          "LaunchFeaturePickRow",
+          "LaunchFeatureRow"
         ]
       },
       "LaunchFeatureListProps": {
@@ -50846,9 +50880,11 @@
           "react-native/Text",
           "react-native/View",
           "thefactory-ui/headless/CliConfigsProvider",
+          "thefactory-ui/headless/FilesProvider",
           "thefactory-ui/headless/SIGN_OFF_OUTPUT_COPY",
           "thefactory-ui/headless/TICKET_TRANSITION_STANDING",
           "thefactory-ui/headless/groupTicketsView",
+          "thefactory-ui/headless/requestProofChoices",
           "thefactory-ui/headless/signOffOutputSettingViews",
           "thefactory-ui/headless/ticketPostView",
           "thefactory-ui/headless/signOffTemplateChoices",
@@ -51074,9 +51110,11 @@
           "react-native/Text",
           "react-native/View",
           "thefactory-ui/headless/CliConfigsProvider",
+          "thefactory-ui/headless/FilesProvider",
           "thefactory-ui/headless/SIGN_OFF_OUTPUT_COPY",
           "thefactory-ui/headless/TICKET_TRANSITION_STANDING",
           "thefactory-ui/headless/groupTicketsView",
+          "thefactory-ui/headless/requestProofChoices",
           "thefactory-ui/headless/signOffOutputSettingViews",
           "thefactory-ui/headless/ticketPostView",
           "thefactory-ui/headless/signOffTemplateChoices",
@@ -58957,6 +58995,7 @@
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -59029,7 +59068,7 @@
       },
       "processLaunchInputValues": {
         "path": "src/headless/utils/processLaunchForm.ts",
-        "description": "What a form sends, by input name: what is left out is not sent, numbers are",
+        "description": "What a form sends, by input name: what is left out or does not show is not",
         "dependencies": [
           "ProcessLaunchInputValues",
           "ProcessLaunchFieldDraft",
@@ -59038,6 +59077,7 @@
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -59068,13 +59108,14 @@
       },
       "processLaunchLayout": {
         "path": "src/headless/utils/processLaunchForm.ts",
-        "description": "The form's inputs as it draws them: the short ones side by side, then each long one. Pure.",
+        "description": "The form's inputs as it draws them: each choice first, as it decides what",
         "dependencies": [
           "thefactory-tools/types/ProcessInput",
           "ProcessLaunchLayout",
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -59083,7 +59124,7 @@
       },
       "ProcessLaunchLayout": {
         "path": "src/headless/utils/processLaunchFormTypes.ts",
-        "description": "The form's inputs in the order they are drawn: a row of short fields, then each long one.",
+        "description": "The form's inputs in the order they are drawn: each choice, a row of short fields, then each long one.",
         "dependencies": [
           "thefactory-tools/types/ProcessInput",
           "thefactory-tools/types/ProcessInputField",
@@ -59148,6 +59189,7 @@
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -59164,6 +59206,7 @@
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -59205,6 +59248,7 @@
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -59234,6 +59278,7 @@
           "thefactory-tools/types/ProcessInput",
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -59284,6 +59329,26 @@
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
+          "thefactory-tools/utils/processInputsProblem",
+          "thefactory-tools/utils",
+          "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
+          "thefactory-tools/constants"
+        ]
+      },
+      "processLaunchShown": {
+        "path": "src/headless/utils/processLaunchForm.ts",
+        "description": "What of a form shows, as it is filled: an item required only while an input",
+        "dependencies": [
+          "T",
+          "ProcessLaunchValueDraft",
+          "Record",
+          "Readonly",
+          "thefactory-tools/types/ProcessInputField",
+          "thefactory-tools/types/ProcessInput",
+          "thefactory-tools/types/UiStackSetting",
+          "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -59377,6 +59442,7 @@
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -59408,6 +59474,7 @@
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -59424,6 +59491,7 @@
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -59497,6 +59565,7 @@
           "ReviewEvidenceVerdict",
           "ProofKindStanding",
           "ProcessProofUnpaired",
+          "ProcessProofVideoPair",
           "ProcessProofNewScreen",
           "ProcessProofPair",
           "ProcessCleanupOutcome",
@@ -60524,6 +60593,10 @@
         ]
       },
       "ProcessProofUnpaired": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "ProcessProofVideoPair": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": []
       },
@@ -62580,6 +62653,7 @@
           "ReviewEvidenceVerdict",
           "ProofKindStanding",
           "ProcessProofUnpaired",
+          "ProcessProofVideoPair",
           "ProcessProofNewScreen",
           "ProcessProofPair",
           "ProcessStepOutcome"
@@ -62630,6 +62704,7 @@
           "ReviewEvidenceVerdict",
           "ProofKindStanding",
           "ProcessProofUnpaired",
+          "ProcessProofVideoPair",
           "ProcessProofNewScreen",
           "ProcessProofPair",
           "ProcessCleanupOutcome",
@@ -63223,6 +63298,7 @@
           "Array",
           "ProofKindStanding",
           "ProcessProofUnpaired",
+          "ProcessProofVideoPair",
           "ProcessProofNewScreen",
           "ProcessProofPair"
         ]
@@ -65948,6 +66024,11 @@
         "description": "The editor's buttons.",
         "dependencies": []
       },
+      "PROOF_CHANGE_VIDEO_KEPT": {
+        "path": "src/headless/utils/processProofChangeViewConstants.ts",
+        "description": "Why the before/after video of a change that shows on screen stays picked.",
+        "dependencies": []
+      },
       "PROOF_KIND_STATUS_TONES": {
         "path": "src/headless/utils/proofPlanViewConstants.ts",
         "description": "The tone each standing is drawn in.",
@@ -66250,6 +66331,7 @@
           "thefactory-tools/constants",
           "thefactory-tools/types/ProofKind",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processProofChangeKeptKinds",
           "thefactory-tools/utils/processProofChangeProblem",
           "thefactory-tools/utils"
         ]
@@ -66317,6 +66399,7 @@
           "thefactory-tools/constants",
           "thefactory-tools/types/ProofKind",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processProofChangeKeptKinds",
           "thefactory-tools/utils/processProofChangeProblem",
           "thefactory-tools/utils"
         ]
@@ -66832,6 +66915,17 @@
       "ProofUnpairedView": {
         "path": "src/headless/utils/verifyProofTypes.ts",
         "description": "An after shown with what did not count: one the reviewer filed with no before under its subject.",
+        "dependencies": [
+          "EvidenceTile",
+          "thefactory-tools/types/ProcessLedgerEntry",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types/ProcessVerifyReview",
+          "thefactory-tools/types"
+        ]
+      },
+      "ProofVideoPairView": {
+        "path": "src/headless/utils/verifyProofTypes.ts",
+        "description": "One before/after pair of recordings the gate judged — the same path through",
         "dependencies": [
           "EvidenceTile",
           "thefactory-tools/types/ProcessLedgerEntry",
@@ -68743,6 +68837,20 @@
           "DailyUsageRecomputeResult"
         ]
       },
+      "RECORDING_ROUTES": {
+        "path": "playground/scenes/beforeAfterVideoFixtures.ts",
+        "dependencies": [
+          "FixtureRoutes",
+          "thefactory-tools/types/ProcessProofVideoPair",
+          "thefactory-tools/types/ProcessVerifyProof",
+          "thefactory-tools/types/ProofKind",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-ui/headless/verifyProofView",
+          "thefactory-ui/headless/type EvidenceTile",
+          "thefactory-ui/headless"
+        ]
+      },
       "RecordReviewEvidenceInput": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
@@ -69720,6 +69828,7 @@
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -77520,6 +77629,7 @@
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -77536,6 +77646,7 @@
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -77552,6 +77663,7 @@
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -77567,6 +77679,7 @@
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -86027,6 +86140,7 @@
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -86045,6 +86159,7 @@
           "thefactory-tools/constants",
           "thefactory-tools/types/ProcessProofChangeOffer",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processProofChangeKeptKinds",
           "thefactory-tools/utils/processProofChangeProblem",
           "thefactory-tools/utils"
         ]
@@ -92022,18 +92137,6 @@
           "thefactory-tools/types"
         ]
       },
-      "useProcessGroupRebuildPlans": {
-        "path": "src/headless/hooks/useProcessGroupRebuildPlans.ts",
-        "description": "The rebuild plans of a group run's legs, read from the server whenever the",
-        "dependencies": [
-          "thefactory-tools/types/ProcessGroupRebuildPlan",
-          "Record",
-          "Promise",
-          "react/useEffect",
-          "react/useState",
-          "thefactory-tools/types"
-        ]
-      },
       "useProcessGroupRun": {
         "path": "src/headless/hooks/useProcessGroupRun.ts",
         "description": "One group run, kept live. The server pushes the whole record — with its legs'",
@@ -94695,6 +94798,7 @@
         "dependencies": [
           "ScreenPair",
           "VerifyProofSummary",
+          "ProofVideoPairView",
           "EvidenceTile",
           "ProofUnpairedView",
           "ProofScreenView",
@@ -94850,10 +94954,58 @@
           "thefactory-tools/types"
         ]
       },
+      "VIDEO_COUNTED": {
+        "path": "playground/scenes/beforeAfterVideoFixtures.ts",
+        "dependencies": [
+          "thefactory-tools/types/ProcessProofVideoPair",
+          "thefactory-tools/types/ProcessVerifyProof",
+          "thefactory-tools/types/ProofKind",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-ui/headless/verifyProofView",
+          "thefactory-ui/headless/type EvidenceTile",
+          "thefactory-ui/headless"
+        ]
+      },
       "VIDEO_FORMAT_ERROR_CODES": {
         "path": "src/headless/utils/videoPlaybackConstants.ts",
         "description": "What a browser's `MediaError` says for a file it cannot decode or open.",
         "dependencies": []
+      },
+      "VIDEO_NEW_SCREEN": {
+        "path": "playground/scenes/beforeAfterVideoFixtures.ts",
+        "dependencies": [
+          "thefactory-tools/types/ProcessProofVideoPair",
+          "thefactory-tools/types/ProcessVerifyProof",
+          "thefactory-tools/types/ProofKind",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-ui/headless/verifyProofView",
+          "thefactory-ui/headless/type EvidenceTile",
+          "thefactory-ui/headless"
+        ]
+      },
+      "VIDEO_NEW_SCREEN_NOTE": {
+        "path": "src/headless/utils/verifyProofConstants.ts",
+        "description": "Said under a recording of a screen the change adds: its after alone.",
+        "dependencies": [
+          "thefactory-tools/types/ProcessResumeChoice",
+          "thefactory-tools/types/ProcessStepOutcome",
+          "thefactory-tools/types"
+        ]
+      },
+      "VIDEO_NOT_COUNTED": {
+        "path": "playground/scenes/beforeAfterVideoFixtures.ts",
+        "dependencies": [
+          "thefactory-tools/types/ProcessProofVideoPair",
+          "thefactory-tools/types/ProcessVerifyProof",
+          "thefactory-tools/types/ProofKind",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-ui/headless/verifyProofView",
+          "thefactory-ui/headless/type EvidenceTile",
+          "thefactory-ui/headless"
+        ]
       },
       "VIDEO_NOTICE_SEPARATOR": {
         "path": "src/headless/utils/videoAttachmentConstants.ts",
@@ -94861,6 +95013,15 @@
         "dependencies": [
           "thefactory-tools/types/VideoDigestStage",
           "thefactory-tools/types/VideoTranscriptState",
+          "thefactory-tools/types"
+        ]
+      },
+      "VIDEO_PAIRS_COPY": {
+        "path": "src/headless/utils/verifyProofConstants.ts",
+        "description": "The heading over the before/after recordings a proof judged, and the captions of their sides.",
+        "dependencies": [
+          "thefactory-tools/types/ProcessResumeChoice",
+          "thefactory-tools/types/ProcessStepOutcome",
           "thefactory-tools/types"
         ]
       },
@@ -94880,6 +95041,33 @@
         "path": "src/headless/utils/videoPlaybackConstants.ts",
         "description": "The widest a playing video's card grows.",
         "dependencies": []
+      },
+      "VIDEO_PROJECT": {
+        "path": "playground/scenes/beforeAfterVideoFixtures.ts",
+        "dependencies": [
+          "thefactory-tools/types/ProcessProofVideoPair",
+          "thefactory-tools/types/ProcessVerifyProof",
+          "thefactory-tools/types/ProofKind",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-ui/headless/verifyProofView",
+          "thefactory-ui/headless/type EvidenceTile",
+          "thefactory-ui/headless"
+        ]
+      },
+      "VIDEO_REQUESTED": {
+        "path": "playground/scenes/beforeAfterVideoFixtures.ts",
+        "description": "What a request for changes requires of a fix that must show the change moving.",
+        "dependencies": [
+          "thefactory-tools/types/ProofKind",
+          "thefactory-tools/types/ProcessProofVideoPair",
+          "thefactory-tools/types/ProcessVerifyProof",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-ui/headless/verifyProofView",
+          "thefactory-ui/headless/type EvidenceTile",
+          "thefactory-ui/headless"
+        ]
       },
       "VIDEO_SETTINGS_SCENES": {
         "path": "playground/scenes/videoSettings.tsx",
@@ -95197,6 +95385,20 @@
       "VideoMomentCandidate": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": []
+      },
+      "videoPairViews": {
+        "path": "playground/scenes/beforeAfterVideoFixtures.ts",
+        "description": "The video pairs as the sign-off reads them off a passed proof: the real view over fixed data.",
+        "dependencies": [
+          "thefactory-tools/types/ProcessVerifyProof",
+          "thefactory-tools/types/ProcessProofVideoPair",
+          "thefactory-tools/types/ProofKind",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-ui/headless/verifyProofView",
+          "thefactory-ui/headless/type EvidenceTile",
+          "thefactory-ui/headless"
+        ]
       },
       "VideoPlaybackAction": {
         "path": "src/headless/utils/videoPlaybackTypes.ts",
@@ -95595,6 +95797,16 @@
           "thefactory-ui/headless"
         ]
       },
+      "VISIBLE_VIDEO_CHANGE_OFFER": {
+        "path": "playground/scenes/proofChangeFixtures.ts",
+        "description": "The same run proven by a before/after video beside its screens, stopped on both: both stay.",
+        "dependencies": [
+          "thefactory-tools/types/ProcessProofChangeOffer",
+          "thefactory-tools/types",
+          "thefactory-ui/headless/ProofChangeKeptLook",
+          "thefactory-ui/headless"
+        ]
+      },
       "VisualProofAssessment": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": []
@@ -95702,7 +95914,7 @@
       },
       "WalkthroughTab": {
         "path": "src/web/compound/chat/signoff/WalkthroughTab.tsx",
-        "description": "The verifier's screen recordings — proof of the PATH through the app, not just its screens.",
+        "description": "The verifier's screen recordings — proof of the PATH through the app, not",
         "dependencies": [
           "WalkthroughTabProps",
           "react/useRef",
@@ -95715,6 +95927,7 @@
           "react/ReactNode",
           "EvidenceTile",
           "SaveFileHandler",
+          "ProofVideoPairView",
           "react-native/Text",
           "react-native/View"
         ]
@@ -98889,6 +99102,33 @@
           "thefactory-ui/headless/StoriesProvider",
           "thefactory-ui/headless/useApi",
           "thefactory-ui/headless/type SyncKVStorage",
+          "thefactory-ui/headless"
+        ]
+      },
+      "SCRIPTED_RUN_SCENES": {
+        "path": "scenes/scriptedRun.tsx",
+        "dependencies": [
+          "Scene",
+          "react/useEffect",
+          "react/type ReactNode",
+          "react-router-dom/MemoryRouter",
+          "thefactory-ui/headless/FilesProvider",
+          "thefactory-ui/headless/processRunLaunchGrant",
+          "thefactory-ui/headless/useProjects",
+          "thefactory-ui/headless"
+        ]
+      },
+      "SCRIPTED_VIEWS": {
+        "path": "native/scriptedViews.tsx",
+        "description": "Scripted persona runs on a phone: the launch card's switch (`?state=scripted`,",
+        "dependencies": [
+          "NativeView",
+          "react/useEffect",
+          "react/type ReactNode",
+          "react-native/ScrollView",
+          "react-native/View",
+          "thefactory-ui/headless/processLaunchDrafts",
+          "thefactory-ui/headless/processRunLaunchGrant",
           "thefactory-ui/headless"
         ]
       },
@@ -114401,6 +114641,7 @@
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -118364,22 +118605,6 @@
           "BackendStartupPass"
         ]
       },
-      "BackendResetCard": {
-        "path": "native/compound/settings/BackendResetCard.tsx",
-        "description": "\"Reset connection\" in the backend connection settings, as on web and desktop.",
-        "dependencies": [
-          "BackendResetCardProps",
-          "react-native/Text",
-          "react-native/View"
-        ]
-      },
-      "BackendResetCardProps": {
-        "path": "native/compound/settings/BackendResetCard.tsx",
-        "dependencies": [
-          "react-native/Text",
-          "react-native/View"
-        ]
-      },
       "BackendStartup": {
         "path": "headless/api/backendStartupTypes.ts",
         "description": "How far a starting backend got. `knowledgeMaps` is absent when the backend builds no maps at startup.",
@@ -122103,6 +122328,8 @@
           "Feature",
           "ProjectConfig",
           "ProjectRegistryEntry",
+          "UiStackStartRequest",
+          "UiStackStartCommand",
           "UiStackPart",
           "SignOffOutputDefinition",
           "McpServerConnection",
@@ -122151,6 +122378,8 @@
       "ChatContextArgumentsGroup": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
+          "UiStackStartRequest",
+          "UiStackStartCommand",
           "UiStackPart",
           "Array",
           "SignOffOutputDefinition",
@@ -122162,6 +122391,8 @@
       "ChatContextArgumentsGroupTopic": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
+          "UiStackStartRequest",
+          "UiStackStartCommand",
           "UiStackPart",
           "Array",
           "SignOffOutputDefinition",
@@ -123415,16 +123646,6 @@
           "ReadonlyMap"
         ]
       },
-      "ChatNewsNotification": {
-        "path": "headless/hooks/useChatNewsNotifier.ts",
-        "description": "What the host posts as an OS notification.",
-        "dependencies": [
-          "react/useEffect",
-          "react/useRef",
-          "thefactory-tools/utils/getChatContextKey",
-          "thefactory-tools/utils"
-        ]
-      },
       "ChatNewsShape": {
         "path": "headless/utils/chatListEntry.ts",
         "description": "What a chat's news is read from: its messages' times, when it was closed",
@@ -124261,19 +124482,6 @@
         "path": "headless/utils/chatToolTogglesTypes.ts",
         "description": "One catalogue row as the backend's `/tools/chat-catalog` serves it.",
         "dependencies": []
-      },
-      "chatToolCatalogQueryOf": {
-        "path": "headless/hooks/useChatToolCatalog.ts",
-        "description": "The GET /tools/chat-catalog query for this chat: context fields the",
-        "dependencies": [
-          "CatalogQuery",
-          "ChatToolRunner",
-          "ChatContext",
-          "react/useCallback",
-          "react/useEffect",
-          "react/useMemo",
-          "react/useSyncExternalStore"
-        ]
       },
       "chatToolPreviewOf": {
         "path": "headless/utils/toolPreview.ts",
@@ -127858,16 +128066,6 @@
         "path": "headless/types/settings.ts",
         "description": "Syntax-highlight theme for `<Code>` blocks (tool args / results etc.).",
         "dependencies": []
-      },
-      "CodeBlockThemeProvider": {
-        "path": "headless/hooks/useCodeBlockTheme.tsx",
-        "dependencies": [
-          "ReactNode",
-          "CodeBlockTheme",
-          "react/createContext",
-          "react/useContext",
-          "react/type ReactNode"
-        ]
       },
       "CodeGrammar": {
         "path": "headless/api/generated/types.gen.ts",
@@ -131961,6 +132159,8 @@
       "CreateProjectsGroupResponses": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
+          "UiStackStartRequest",
+          "UiStackStartCommand",
           "UiStackPart",
           "Array",
           "SignOffOutputDefinition",
@@ -133185,6 +133385,48 @@
           "GroupSignOffData",
           "Promise",
           "GroupSignOffDecisionBody"
+        ]
+      },
+      "decideJourney": {
+        "path": "headless/api/generated/sdk.gen.ts",
+        "description": "A running journey script asks what its person decides: answered from the persona’s plan, or by a small call to the run’s model that reads the screen. Takes the step attempt’s journey token, never the Overseer bearer.",
+        "dependencies": [
+          "ThrowOnError",
+          "DecideJourneyErrors",
+          "DecideJourneyResponses",
+          "DecideJourneyData",
+          "Options"
+        ]
+      },
+      "DecideJourneyData": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "JourneyDecisionRequest"
+        ]
+      },
+      "DecideJourneyError": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "DecideJourneyErrors"
+        ]
+      },
+      "DecideJourneyErrors": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "DecideJourneyResponse": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "DecideJourneyResponses"
+        ]
+      },
+      "DecideJourneyResponses": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "JourneyDecisionSource",
+          "JourneyGoalStatus",
+          "Array",
+          "JourneyGoalReview"
         ]
       },
       "DecideResult": {
@@ -134443,6 +134685,8 @@
       "DeleteProjectsGroupResponses": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
+          "UiStackStartRequest",
+          "UiStackStartCommand",
           "UiStackPart",
           "Array",
           "SignOffOutputDefinition",
@@ -138693,6 +138937,20 @@
           "thefactory-tools/types"
         ]
       },
+      "FAKE_AGENT_VALUES": {
+        "path": "fakeBackend/fixtures/scriptedRun.ts",
+        "description": "The same form switched to the agent: no journey script is asked for.",
+        "dependencies": [
+          "thefactory-tools/types/ProcessInput",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-tools/constants/JOURNEY_DAY_LOG_LABEL",
+          "thefactory-tools/constants/JOURNEY_RECORDING_LABEL",
+          "thefactory-tools/constants/JOURNEY_STOPPED_SCREENSHOT_LABEL",
+          "thefactory-tools/constants"
+        ]
+      },
       "FAKE_ASSIGNED_TICKETS": {
         "path": "fakeBackend/fixtures/ticketConnections.ts",
         "description": "The tickets assigned to the person on the connection, none shown yet.",
@@ -138843,6 +139101,23 @@
           "DataSubscription"
         ]
       },
+      "FAKE_DAY_LOGS": {
+        "path": "fakeBackend/fixtures/scriptedRun.ts",
+        "description": "The day log each state filed, as its text.",
+        "dependencies": [
+          "FakeScriptedState",
+          "Record",
+          "Readonly",
+          "thefactory-tools/types/ProcessInput",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-tools/constants/JOURNEY_DAY_LOG_LABEL",
+          "thefactory-tools/constants/JOURNEY_RECORDING_LABEL",
+          "thefactory-tools/constants/JOURNEY_STOPPED_SCREENSHOT_LABEL",
+          "thefactory-tools/constants"
+        ]
+      },
       "FAKE_DB_HEALTH": {
         "path": "fakeBackend/fixtures/account.ts",
         "dependencies": [
@@ -138960,6 +139235,89 @@
         "dependencies": [
           "Record",
           "Readonly"
+        ]
+      },
+      "FAKE_SCRIPTED_INPUTS": {
+        "path": "fakeBackend/fixtures/scriptedRun.ts",
+        "description": "The inputs of compare-variants v2: how the days are lived, and the journey script it needs.",
+        "dependencies": [
+          "thefactory-tools/types/ProcessInput",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-tools/constants/JOURNEY_DAY_LOG_LABEL",
+          "thefactory-tools/constants/JOURNEY_RECORDING_LABEL",
+          "thefactory-tools/constants/JOURNEY_STOPPED_SCREENSHOT_LABEL",
+          "thefactory-tools/constants"
+        ]
+      },
+      "FAKE_SCRIPTED_NOTES": {
+        "path": "fakeBackend/fixtures/scriptedRun.ts",
+        "dependencies": [
+          "thefactory-tools/types/ProcessInput",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-tools/constants/JOURNEY_DAY_LOG_LABEL",
+          "thefactory-tools/constants/JOURNEY_RECORDING_LABEL",
+          "thefactory-tools/constants/JOURNEY_STOPPED_SCREENSHOT_LABEL",
+          "thefactory-tools/constants"
+        ]
+      },
+      "FAKE_SCRIPTED_RUN_ID": {
+        "path": "fakeBackend/fixtures/scriptedRun.ts",
+        "dependencies": [
+          "thefactory-tools/types/ProcessInput",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-tools/constants/JOURNEY_DAY_LOG_LABEL",
+          "thefactory-tools/constants/JOURNEY_RECORDING_LABEL",
+          "thefactory-tools/constants/JOURNEY_STOPPED_SCREENSHOT_LABEL",
+          "thefactory-tools/constants"
+        ]
+      },
+      "FAKE_SCRIPTED_STEP_ID": {
+        "path": "fakeBackend/fixtures/scriptedRun.ts",
+        "dependencies": [
+          "thefactory-tools/types/ProcessInput",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-tools/constants/JOURNEY_DAY_LOG_LABEL",
+          "thefactory-tools/constants/JOURNEY_RECORDING_LABEL",
+          "thefactory-tools/constants/JOURNEY_STOPPED_SCREENSHOT_LABEL",
+          "thefactory-tools/constants"
+        ]
+      },
+      "FAKE_SCRIPTED_TEXTS": {
+        "path": "fakeBackend/fixtures/scriptedRun.ts",
+        "description": "What a filed day log's text reads, by evidence id.",
+        "dependencies": [
+          "Record",
+          "Readonly",
+          "thefactory-tools/types/ProcessInput",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-tools/constants/JOURNEY_DAY_LOG_LABEL",
+          "thefactory-tools/constants/JOURNEY_RECORDING_LABEL",
+          "thefactory-tools/constants/JOURNEY_STOPPED_SCREENSHOT_LABEL",
+          "thefactory-tools/constants"
+        ]
+      },
+      "FAKE_SCRIPTED_VALUES": {
+        "path": "fakeBackend/fixtures/scriptedRun.ts",
+        "description": "A filled form that lives the days by the journey script.",
+        "dependencies": [
+          "thefactory-tools/types/ProcessInput",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-tools/constants/JOURNEY_DAY_LOG_LABEL",
+          "thefactory-tools/constants/JOURNEY_RECORDING_LABEL",
+          "thefactory-tools/constants/JOURNEY_STOPPED_SCREENSHOT_LABEL",
+          "thefactory-tools/constants"
         ]
       },
       "FAKE_SOURCE_RECORDS": {
@@ -139149,6 +139507,38 @@
           "thefactory-tools/types"
         ]
       },
+      "FakeDataSetupBuild": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "FeatureCreateInput"
+        ]
+      },
+      "FakeDataSetupFeature": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Array",
+          "ProofKind"
+        ]
+      },
+      "FakeDataSetupFeatureInput": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Array",
+          "ProjectPlatformInput"
+        ]
+      },
+      "FakeDataSetupNeedInput": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "ProjectPlatformInput",
+          "FakeDataSetupFeature",
+          "Array"
+        ]
+      },
+      "FakeDataSetupPlatform": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
       "fakeGitBundle": {
         "path": "fakeBackend/fixtures/git.ts",
         "description": "A project's git as one read of the bundle: the log only when a screen asks for it.",
@@ -139208,6 +139598,65 @@
         "dependencies": [
           "URLSearchParams",
           "Record"
+        ]
+      },
+      "fakeScriptedEvidence": {
+        "path": "fakeBackend/fixtures/scriptedRun.ts",
+        "description": "What `GET /process-runs/:runId/evidence` answers for the scripted variant's run.",
+        "dependencies": [
+          "FakeScriptedState",
+          "thefactory-tools/types/ProcessInput",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-tools/constants/JOURNEY_DAY_LOG_LABEL",
+          "thefactory-tools/constants/JOURNEY_RECORDING_LABEL",
+          "thefactory-tools/constants/JOURNEY_STOPPED_SCREENSHOT_LABEL",
+          "thefactory-tools/constants"
+        ]
+      },
+      "fakeScriptedPreview": {
+        "path": "fakeBackend/fixtures/scriptedRun.ts",
+        "description": "What a launch's preview answers for the scripted form.",
+        "dependencies": [
+          "FAKE_SCRIPTED_INPUTS",
+          "thefactory-tools/types/ProcessInput",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-tools/constants/JOURNEY_DAY_LOG_LABEL",
+          "thefactory-tools/constants/JOURNEY_RECORDING_LABEL",
+          "thefactory-tools/constants/JOURNEY_STOPPED_SCREENSHOT_LABEL",
+          "thefactory-tools/constants"
+        ]
+      },
+      "fakeScriptedRun": {
+        "path": "fakeBackend/fixtures/scriptedRun.ts",
+        "description": "One variant's run that lived its days by the journey script, as `GET /process-runs/:runId` answers.",
+        "dependencies": [
+          "thefactory-tools/types/ProcessRun",
+          "FakeScriptedState",
+          "thefactory-tools/types/ProcessInput",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-tools/constants/JOURNEY_DAY_LOG_LABEL",
+          "thefactory-tools/constants/JOURNEY_RECORDING_LABEL",
+          "thefactory-tools/constants/JOURNEY_STOPPED_SCREENSHOT_LABEL",
+          "thefactory-tools/constants"
+        ]
+      },
+      "FakeScriptedState": {
+        "path": "fakeBackend/fixtures/scriptedRun.ts",
+        "description": "How a scripted step is shown: its days lived to the end, or stopped short on day 2.",
+        "dependencies": [
+          "thefactory-tools/types/ProcessInput",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-tools/constants/JOURNEY_DAY_LOG_LABEL",
+          "thefactory-tools/constants/JOURNEY_RECORDING_LABEL",
+          "thefactory-tools/constants/JOURNEY_STOPPED_SCREENSHOT_LABEL",
+          "thefactory-tools/constants"
         ]
       },
       "FakeTicketInbox": {
@@ -140850,6 +141299,10 @@
           "react-native/Text",
           "react-native/View"
         ]
+      },
+      "FeatureSetup": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
       },
       "FeatureShape": {
         "path": "native/compound/chat/toolPreviews/renderToolPreviewNative.tsx",
@@ -145001,6 +145454,8 @@
       "GetProjectsGroupResponses": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
+          "UiStackStartRequest",
+          "UiStackStartCommand",
           "UiStackPart",
           "Array",
           "SignOffOutputDefinition",
@@ -146294,23 +146749,6 @@
           "react-native/View"
         ]
       },
-      "GitCredentialsContextValue": {
-        "path": "headless/contexts/GitCredentialsContext.tsx",
-        "dependencies": [
-          "Promise",
-          "GetGitCredentialResponse",
-          "GitCredentialEditInput",
-          "GitCredentialCreateInput",
-          "Error",
-          "react/createContext",
-          "react/useCallback",
-          "react/useContext",
-          "react/useEffect",
-          "react/useMemo",
-          "react/useState",
-          "react/ReactNode"
-        ]
-      },
       "GitCredentialsForm": {
         "path": "web/compound/settings/GitCredentialsForm.tsx",
         "dependencies": [
@@ -146346,23 +146784,6 @@
           "react-native/Pressable",
           "react-native/Text",
           "react-native/View"
-        ]
-      },
-      "GitCredentialsProvider": {
-        "path": "headless/contexts/GitCredentialsContext.tsx",
-        "dependencies": [
-          "GitCredentialsContextValue",
-          "GitCredentialEditInput",
-          "GitCredentialCreateInput",
-          "Error",
-          "GetGitCredentialResponse",
-          "react/ReactNode",
-          "react/createContext",
-          "react/useCallback",
-          "react/useContext",
-          "react/useEffect",
-          "react/useMemo",
-          "react/useState"
         ]
       },
       "GitCredentialsSettings": {
@@ -153572,6 +153993,7 @@
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -154329,6 +154751,406 @@
           "thefactory-tools/utils/projectCheckRanInOf",
           "thefactory-tools/utils/isWalkthroughProof",
           "thefactory-tools/utils"
+        ]
+      },
+      "JOURNEY_DAYS_COPY": {
+        "path": "headless/utils/journeyDaysViewConstants.ts",
+        "description": "Every word of a script step's day view.",
+        "dependencies": [
+          "thefactory-tools/types/JourneyDecisionKind",
+          "thefactory-tools/types/JourneyDecisionSource",
+          "thefactory-tools/types/JourneyTakeOverOutcome",
+          "thefactory-tools/types"
+        ]
+      },
+      "JOURNEY_DECISION_LABELS": {
+        "path": "headless/utils/journeyDaysViewConstants.ts",
+        "description": "What each decision is called on its row.",
+        "dependencies": [
+          "thefactory-tools/types/JourneyDecisionKind",
+          "Record",
+          "Readonly",
+          "thefactory-tools/types/JourneyDecisionSource",
+          "thefactory-tools/types/JourneyTakeOverOutcome",
+          "thefactory-tools/types"
+        ]
+      },
+      "JOURNEY_SOURCE_BADGES": {
+        "path": "headless/utils/journeyDaysViewConstants.ts",
+        "description": "Where a decision's answer came from, as its badge says it.",
+        "dependencies": [
+          "JourneyBadge",
+          "thefactory-tools/types/JourneyDecisionSource",
+          "Record",
+          "Readonly",
+          "thefactory-tools/types/JourneyDecisionKind",
+          "thefactory-tools/types/JourneyTakeOverOutcome",
+          "thefactory-tools/types"
+        ]
+      },
+      "JOURNEY_STATUS_BADGES": {
+        "path": "headless/utils/journeyDaysViewConstants.ts",
+        "description": "How each goal status is said, and its tone; any other status is said as the log has it.",
+        "dependencies": [
+          "JourneyBadge",
+          "Record",
+          "Readonly",
+          "thefactory-tools/types/JourneyDecisionKind",
+          "thefactory-tools/types/JourneyDecisionSource",
+          "thefactory-tools/types/JourneyTakeOverOutcome",
+          "thefactory-tools/types"
+        ]
+      },
+      "JOURNEY_TAKE_OVER_BADGES": {
+        "path": "headless/utils/journeyDaysViewConstants.ts",
+        "description": "How a take-over ended, as its badge says it.",
+        "dependencies": [
+          "JourneyBadge",
+          "thefactory-tools/types/JourneyTakeOverOutcome",
+          "Record",
+          "Readonly",
+          "thefactory-tools/types/JourneyDecisionKind",
+          "thefactory-tools/types/JourneyDecisionSource",
+          "thefactory-tools/types"
+        ]
+      },
+      "JourneyAgentEnd": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyAgentLaunch": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "JourneyHostGrant"
+        ]
+      },
+      "JourneyAnswers": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "JourneyGoalStatus",
+          "Array",
+          "JourneyGoalReview"
+        ]
+      },
+      "JourneyBadge": {
+        "path": "headless/utils/journeyDaysViewTypes.ts",
+        "description": "A badge of the day view: its words and its tone.",
+        "dependencies": [
+          "ProcessStatusTone",
+          "thefactory-tools/types/JourneyDecisionKind",
+          "thefactory-tools/types/JourneyDecisionSource",
+          "thefactory-tools/types/JourneyTakeOverOutcome",
+          "thefactory-tools/types"
+        ]
+      },
+      "JourneyCardRow": {
+        "path": "headless/utils/journeyDaysViewTypes.ts",
+        "description": "A card the product showed, and the reaction picked.",
+        "dependencies": [
+          "thefactory-tools/types/JourneyDecisionKind",
+          "thefactory-tools/types/JourneyDecisionSource",
+          "thefactory-tools/types/JourneyTakeOverOutcome",
+          "thefactory-tools/types"
+        ]
+      },
+      "JourneyCompletion": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyCompletionRequest": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyDayLog": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "JourneyDayLogProblem",
+          "Array",
+          "JourneyDayLogEntry"
+        ]
+      },
+      "JourneyDayLogEntry": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "JourneyTakeOverOutcome",
+          "JourneyDecisionSource",
+          "JourneyDecisionKind",
+          "JourneyLoggedGoal",
+          "Array",
+          "JourneyDayLogLine"
+        ]
+      },
+      "JourneyDayLogKind": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyDayLogLine": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyDayLogProblem": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "journeyDays": {
+        "path": "headless/utils/journeyDaysView.ts",
+        "description": "A day log as days: each day once, in order, with what it offered, what was",
+        "dependencies": [
+          "thefactory-tools/types/JourneyDayLogEntry",
+          "JourneyDayView",
+          "thefactory-tools/types/JourneyDayLog",
+          "thefactory-tools/types/JourneyLoggedGoal",
+          "thefactory-tools/types/ProcessLedgerEntry",
+          "thefactory-tools/types",
+          "thefactory-tools/constants/JOURNEY_DAY_LOG_LABEL",
+          "thefactory-tools/constants/JOURNEY_RECORDING_LABEL",
+          "thefactory-tools/constants/JOURNEY_STOPPED_SCREENSHOT_LABEL",
+          "thefactory-tools/constants",
+          "thefactory-tools/utils/parseJourneyDayLog",
+          "thefactory-tools/utils"
+        ]
+      },
+      "JourneyDayView": {
+        "path": "headless/utils/journeyDaysViewTypes.ts",
+        "description": "One day as lived.",
+        "dependencies": [
+          "JourneyBadge",
+          "JourneyTakeOverRow",
+          "JourneyDecisionRow",
+          "JourneyCardRow",
+          "JourneyProbeRow",
+          "JourneyGoalStatusRow",
+          "JourneyReplacedGoal",
+          "JourneyRemovedGoal",
+          "thefactory-tools/types/JourneyDecisionKind",
+          "thefactory-tools/types/JourneyDecisionSource",
+          "thefactory-tools/types/JourneyTakeOverOutcome",
+          "thefactory-tools/types"
+        ]
+      },
+      "JourneyDecisionKind": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyDecisionRequest": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "JourneyOption",
+          "Array",
+          "JourneyDecisionKind"
+        ]
+      },
+      "JourneyDecisionRow": {
+        "path": "headless/utils/journeyDaysViewTypes.ts",
+        "description": "One decision the person made, and where its answer came from.",
+        "dependencies": [
+          "JourneyBadge",
+          "thefactory-tools/types/JourneyDecisionSource",
+          "thefactory-tools/types/JourneyDecisionKind",
+          "thefactory-tools/types/JourneyTakeOverOutcome",
+          "thefactory-tools/types"
+        ]
+      },
+      "JourneyDecisionSource": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyEvidence": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Array",
+          "ReportProofLine",
+          "ReportOutcomeSection",
+          "CodeReviewEvidenceSection",
+          "CodeReviewCriterion",
+          "CodeReviewFinding",
+          "CodeReviewVerdictSection"
+        ]
+      },
+      "JourneyFakeReply": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyFiles": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyGoalHelped": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyGoalReview": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyGoalStatus": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "JourneyGoalStatusValue"
+        ]
+      },
+      "JourneyGoalStatusRow": {
+        "path": "headless/utils/journeyDaysViewTypes.ts",
+        "description": "How a goal went, as the evening said it.",
+        "dependencies": [
+          "JourneyBadge",
+          "thefactory-tools/types/JourneyDecisionKind",
+          "thefactory-tools/types/JourneyDecisionSource",
+          "thefactory-tools/types/JourneyTakeOverOutcome",
+          "thefactory-tools/types"
+        ]
+      },
+      "JourneyGoalStatusValue": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyHandBack": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "JourneyTakeOverOutcome"
+        ]
+      },
+      "JourneyHostGrant": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyHostScope": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyLoggedGoal": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyOption": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyPersona": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyProbeRow": {
+        "path": "headless/utils/journeyDaysViewTypes.ts",
+        "description": "The evening question and the answer picked.",
+        "dependencies": [
+          "thefactory-tools/types/JourneyDecisionKind",
+          "thefactory-tools/types/JourneyDecisionSource",
+          "thefactory-tools/types/JourneyTakeOverOutcome",
+          "thefactory-tools/types"
+        ]
+      },
+      "JourneyRemovedGoal": {
+        "path": "headless/utils/journeyDaysViewTypes.ts",
+        "description": "A goal taken off the day, and why.",
+        "dependencies": [
+          "thefactory-tools/types/JourneyDecisionKind",
+          "thefactory-tools/types/JourneyDecisionSource",
+          "thefactory-tools/types/JourneyTakeOverOutcome",
+          "thefactory-tools/types"
+        ]
+      },
+      "JourneyReplacedGoal": {
+        "path": "headless/utils/journeyDaysViewTypes.ts",
+        "description": "A goal swapped for another, and why.",
+        "dependencies": [
+          "thefactory-tools/types/JourneyDecisionKind",
+          "thefactory-tools/types/JourneyDecisionSource",
+          "thefactory-tools/types/JourneyTakeOverOutcome",
+          "thefactory-tools/types"
+        ]
+      },
+      "JourneyScriptExit": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Array"
+        ]
+      },
+      "JourneyScriptRun": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyStepDays": {
+        "path": "web/compound/process/JourneyStepDays.tsx",
+        "description": "The days a script step lived, from its day log: a total line, the recording",
+        "dependencies": [
+          "JourneyStepDaysProps",
+          "react/useState",
+          "react/type ReactNode"
+        ]
+      },
+      "JourneyStepDaysProps": {
+        "path": "native/compound/process/JourneyStepDays.tsx",
+        "dependencies": [
+          "SaveFileHandler",
+          "JourneyStepView",
+          "react/useState",
+          "react/type ReactNode",
+          "react-native/Image",
+          "react-native/Pressable",
+          "react-native/Text",
+          "react-native/View"
+        ]
+      },
+      "JourneyStepInputs": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "journeyStepView": {
+        "path": "headless/utils/journeyDaysView.ts",
+        "description": "What a script step's attempt shows, from what its run filed: the days of",
+        "dependencies": [
+          "JourneyStepView",
+          "thefactory-tools/types/ProcessLedgerEntry",
+          "Pick",
+          "EvidenceTile",
+          "thefactory-tools/types/JourneyDayLog",
+          "thefactory-tools/types/JourneyDayLogEntry",
+          "thefactory-tools/types/JourneyLoggedGoal",
+          "thefactory-tools/types",
+          "thefactory-tools/constants/JOURNEY_DAY_LOG_LABEL",
+          "thefactory-tools/constants/JOURNEY_RECORDING_LABEL",
+          "thefactory-tools/constants/JOURNEY_STOPPED_SCREENSHOT_LABEL",
+          "thefactory-tools/constants",
+          "thefactory-tools/utils/parseJourneyDayLog",
+          "thefactory-tools/utils"
+        ]
+      },
+      "JourneyStepView": {
+        "path": "headless/utils/journeyDaysViewTypes.ts",
+        "description": "What a script step's view shows: the days from its day log, and the recording beside them.",
+        "dependencies": [
+          "EvidenceTile",
+          "JourneyDayView",
+          "thefactory-tools/types/JourneyDecisionKind",
+          "thefactory-tools/types/JourneyDecisionSource",
+          "thefactory-tools/types/JourneyTakeOverOutcome",
+          "thefactory-tools/types"
+        ]
+      },
+      "JourneyTakeOverOutcome": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyTakeOverRequest": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyTakeOverResult": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "JourneyTakeOverOutcome"
+        ]
+      },
+      "JourneyTakeOverRow": {
+        "path": "headless/utils/journeyDaysViewTypes.ts",
+        "description": "One time an agent took over the browser, and how it ended.",
+        "dependencies": [
+          "JourneyBadge",
+          "thefactory-tools/types/JourneyTakeOverOutcome",
+          "thefactory-tools/types/JourneyDecisionKind",
+          "thefactory-tools/types/JourneyDecisionSource",
+          "thefactory-tools/types"
         ]
       },
       "jsonBodySerializer": {
@@ -157684,6 +158506,8 @@
       "ListProjectsGroupsResponses": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
+          "UiStackStartRequest",
+          "UiStackStartCommand",
           "UiStackPart",
           "Array",
           "SignOffOutputDefinition",
@@ -160112,6 +160936,10 @@
           "thefactory-tools/utils"
         ]
       },
+      "MaskedServedLogCopy": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
       "maskSecret": {
         "path": "headless/utils/mask.ts",
         "description": "Mask a secret by showing the first and last 4 characters surrounded by",
@@ -161713,6 +162541,10 @@
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": []
       },
+      "MobileBuiltFakeBackend": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
       "MobileCheckout": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
@@ -161737,6 +162569,32 @@
           "Array",
           "MobileDevice",
           "MobileToolCheck"
+        ]
+      },
+      "MobileFakeBackend": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "MobileFakeBackendDeclaration": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "MobileFakeBackend"
+        ]
+      },
+      "MobileFakeData": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "MobileFakeDataAndroid"
+        ]
+      },
+      "MobileFakeDataAndroid": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "MobileFakeDataDeclaration": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "MobileFakeData"
         ]
       },
       "MobileLogcatOptions": {
@@ -161811,14 +162669,6 @@
           "Array"
         ]
       },
-      "MobileSessionEntry": {
-        "path": "headless/api/generated/types.gen.ts",
-        "dependencies": [
-          "Array",
-          "MobileRefTarget",
-          "MobilePlatform"
-        ]
-      },
       "MobileSessionInfo": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
@@ -161840,6 +162690,10 @@
         "dependencies": []
       },
       "MobileSnapshotResult": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "MobileStartScreen": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": []
       },
@@ -163895,6 +164749,10 @@
           "react/type ReactNode"
         ]
       },
+      "OpenSharedWebUiSessionOptions": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
       "openVideoSetupChat": {
         "path": "headless/api/generated/sdk.gen.ts",
         "dependencies": [
@@ -165249,6 +166107,42 @@
         "dependencies": [
           "EvidencePassage",
           "StructuredProduct"
+        ]
+      },
+      "pasteTicket": {
+        "path": "headless/api/generated/sdk.gen.ts",
+        "dependencies": [
+          "ThrowOnError",
+          "PasteTicketErrors",
+          "PasteTicketResponses",
+          "PasteTicketData",
+          "Options"
+        ]
+      },
+      "PasteTicketData": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "PasteTicketError": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "PasteTicketErrors"
+        ]
+      },
+      "PasteTicketErrors": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "PasteTicketResponse": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "PasteTicketResponses"
+        ]
+      },
+      "PasteTicketResponses": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Story"
         ]
       },
       "PatchPreview": {
@@ -169592,8 +170486,13 @@
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
           "ProcessInputField",
-          "Array"
+          "Array",
+          "ProcessInputOption"
         ]
+      },
+      "ProcessInputCondition": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
       },
       "ProcessInputExpansion": {
         "path": "headless/api/generated/types.gen.ts",
@@ -169601,7 +170500,10 @@
       },
       "ProcessInputField": {
         "path": "headless/api/generated/types.gen.ts",
-        "dependencies": []
+        "dependencies": [
+          "ProcessInputOption",
+          "Array"
+        ]
       },
       "ProcessInputKind": {
         "path": "headless/api/generated/types.gen.ts",
@@ -169621,6 +170523,10 @@
           "thefactory-tools/utils/processStorylessLaunchProblem",
           "thefactory-tools/utils"
         ]
+      },
+      "ProcessInputOption": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
       },
       "ProcessInputRef": {
         "path": "headless/api/generated/types.gen.ts",
@@ -169892,6 +170798,10 @@
           "thefactory-tools/utils"
         ]
       },
+      "ProcessJourneyInputs": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
       "ProcessKeptOneSide": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": []
@@ -169946,6 +170856,7 @@
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -169989,7 +170900,7 @@
       },
       "ProcessLaunchFields": {
         "path": "web/compound/chat/ProcessLaunchFields.tsx",
-        "description": "A process's form, drawn from what it asks for: the short inputs side by side,",
+        "description": "A process's form, drawn from what it asks for: each choice as a switch, the",
         "dependencies": [
           "ProcessLaunchFieldsProps",
           "react/useState",
@@ -170018,7 +170929,7 @@
       },
       "processLaunchInputValues": {
         "path": "headless/utils/processLaunchForm.ts",
-        "description": "What a form sends, by input name: what is left out is not sent, numbers are",
+        "description": "What a form sends, by input name: what is left out or does not show is not",
         "dependencies": [
           "ProcessLaunchInputValues",
           "ProcessLaunchFieldDraft",
@@ -170027,6 +170938,7 @@
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -170057,13 +170969,14 @@
       },
       "processLaunchLayout": {
         "path": "headless/utils/processLaunchForm.ts",
-        "description": "The form's inputs as it draws them: the short ones side by side, then each long one. Pure.",
+        "description": "The form's inputs as it draws them: each choice first, as it decides what",
         "dependencies": [
           "thefactory-tools/types/ProcessInput",
           "ProcessLaunchLayout",
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -170072,7 +170985,7 @@
       },
       "ProcessLaunchLayout": {
         "path": "headless/utils/processLaunchFormTypes.ts",
-        "description": "The form's inputs in the order they are drawn: a row of short fields, then each long one.",
+        "description": "The form's inputs in the order they are drawn: each choice, a row of short fields, then each long one.",
         "dependencies": [
           "thefactory-tools/types/ProcessInput",
           "thefactory-tools/types/ProcessInputField",
@@ -170137,6 +171050,7 @@
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -170153,6 +171067,7 @@
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -170194,6 +171109,7 @@
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -170223,6 +171139,7 @@
           "thefactory-tools/types/ProcessInput",
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -170273,6 +171190,26 @@
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
+          "thefactory-tools/utils/processInputsProblem",
+          "thefactory-tools/utils",
+          "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
+          "thefactory-tools/constants"
+        ]
+      },
+      "processLaunchShown": {
+        "path": "headless/utils/processLaunchForm.ts",
+        "description": "What of a form shows, as it is filled: an item required only while an input",
+        "dependencies": [
+          "T",
+          "ProcessLaunchValueDraft",
+          "Record",
+          "Readonly",
+          "thefactory-tools/types/ProcessInputField",
+          "thefactory-tools/types/ProcessInput",
+          "thefactory-tools/types/UiStackSetting",
+          "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -170366,6 +171303,7 @@
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -170397,6 +171335,7 @@
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -170413,6 +171352,7 @@
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -176292,6 +177232,8 @@
       "ProjectRegistryEntry": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
+          "UiStackStartRequest",
+          "UiStackStartCommand",
           "UiStackPart",
           "Array",
           "ProjectCheckEnvSecretRef",
@@ -176304,6 +177246,8 @@
       "ProjectRegistryMetadata": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
+          "UiStackStartRequest",
+          "UiStackStartCommand",
           "UiStackPart",
           "Array",
           "ProjectCheckEnvSecretRef",
@@ -176557,6 +177501,8 @@
       "ProjectsGroup": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
+          "UiStackStartRequest",
+          "UiStackStartCommand",
           "UiStackPart",
           "Array",
           "SignOffOutputDefinition",
@@ -176575,6 +177521,8 @@
       "ProjectsGroupCreateInput": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
+          "UiStackStartRequest",
+          "UiStackStartCommand",
           "UiStackPart",
           "Array",
           "TicketConnectionAccess"
@@ -176707,6 +177655,8 @@
           "PythonFramework",
           "JavaScriptFramework",
           "ProgrammingLanguage",
+          "UiStackStartRequest",
+          "UiStackStartCommand",
           "UiStackPart",
           "ProjectCheckEnvSecretRef",
           "SignOffOutputDefinition",
@@ -176720,6 +177670,8 @@
           "ProjectGuidelines",
           "ProjectCodeInfo",
           "Array",
+          "UiStackStartRequest",
+          "UiStackStartCommand",
           "UiStackPart",
           "ProjectCheckEnvSecretRef",
           "SignOffOutputDefinition",
@@ -178357,10 +179309,12 @@
         ]
       },
       "ProviderOAuthWaiting": {
-        "path": "web/compound/settings/ProviderOAuthWaiting.tsx",
-        "description": "The sign-in is in the browser. It moves on by itself, and waits as long as the person does.",
+        "path": "native/compound/settings/ProviderOAuthWaiting.tsx",
+        "description": "Native peer of the web `ProviderOAuthWaiting`.",
         "dependencies": [
-          "ProviderOAuthWaitingProps"
+          "ProviderOAuthWaitingProps",
+          "react-native/Text",
+          "react-native/View"
         ]
       },
       "ProviderOAuthWaitingProps": {
@@ -180619,6 +181573,7 @@
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -181051,6 +182006,8 @@
       "ReorderProjectInGroupResponses": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
+          "UiStackStartRequest",
+          "UiStackStartCommand",
           "UiStackPart",
           "Array",
           "SignOffOutputDefinition",
@@ -181092,6 +182049,8 @@
       "ReorderProjectsGroupsResponses": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
+          "UiStackStartRequest",
+          "UiStackStartCommand",
           "UiStackPart",
           "Array",
           "SignOffOutputDefinition",
@@ -183129,6 +184088,7 @@
       "ReviewEvidenceBuild": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
+          "ReviewEvidenceOverlayFile",
           "Array"
         ]
       },
@@ -183150,7 +184110,8 @@
       "ReviewEvidenceCaptureDescription": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
-          "Array"
+          "Array",
+          "ReviewEvidenceOverlayFile"
         ]
       },
       "ReviewEvidenceCheckRun": {
@@ -183159,6 +184120,10 @@
           "Array",
           "ProjectCheckKind"
         ]
+      },
+      "ReviewEvidenceCommitFiles": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
       },
       "ReviewEvidenceComparison": {
         "path": "headless/api/generated/types.gen.ts",
@@ -183198,6 +184163,10 @@
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": []
       },
+      "ReviewEvidenceOverlayFile": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
       "ReviewEvidenceProjectMove": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
@@ -183214,6 +184183,7 @@
         "dependencies": [
           "Array",
           "ProjectCheckKind",
+          "ReviewEvidenceOverlayFile",
           "ReportProofLine",
           "ReportOutcomeSection",
           "CodeReviewEvidenceSection",
@@ -187690,6 +188660,28 @@
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": []
       },
+      "ServedLogFiling": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "ServedLogNotFiled",
+          "Array",
+          "ReviewEvidenceRef"
+        ]
+      },
+      "ServedLogNotFiled": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "ServedLogTokenPattern": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "ServedStackSecrets": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Array"
+        ]
+      },
       "ServerError": {
         "path": "headless/api/helpers.ts",
         "description": "Structured view of an SDK error shaped by the backend's standard error",
@@ -188169,6 +189161,7 @@
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -188185,6 +189178,7 @@
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -188201,6 +189195,7 @@
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -188216,6 +189211,7 @@
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -192481,6 +193477,19 @@
           "thefactory-tools/types"
         ]
       },
+      "stepFilingsOf": {
+        "path": "headless/utils/processStepRow.ts",
+        "description": "What a step attempt filed, newest first: everything filed while it ran, or",
+        "dependencies": [
+          "EvidenceTile",
+          "thefactory-tools/types/ProcessLedgerEntry",
+          "Pick",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types/ProcessRunStopHolder",
+          "thefactory-tools/types/ProcessStepState",
+          "thefactory-tools/types"
+        ]
+      },
       "StepPanelTarget": {
         "path": "native/compound/process/pipeline/StepScreen.tsx",
         "description": "Which step's output the screen shows — an attempt of it, when one is named.",
@@ -193050,6 +194059,12 @@
           "thefactory-tools/types"
         ]
       },
+      "StoredPendingAction": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "PendingAction"
+        ]
+      },
       "StoredProjectNoteEntry": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
@@ -193057,6 +194072,10 @@
           "ProjectNoteAccess",
           "ProjectNoteKind"
         ]
+      },
+      "StoredRecordPresence": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
       },
       "StoredSecretCard": {
         "path": "web/compound/chat/StoredSecretCard.tsx",
@@ -194746,6 +195765,45 @@
           "ChatDraft"
         ]
       },
+      "takeOverJourney": {
+        "path": "headless/api/generated/sdk.gen.ts",
+        "description": "A running journey script that cannot go on hands its page to an agent, on the same browser, and waits: answered once the agent hands back, or fails to. Takes the step attempt’s journey token, never the Overseer bearer.",
+        "dependencies": [
+          "ThrowOnError",
+          "TakeOverJourneyErrors",
+          "TakeOverJourneyResponses",
+          "TakeOverJourneyData",
+          "Options"
+        ]
+      },
+      "TakeOverJourneyData": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "JourneyTakeOverRequest"
+        ]
+      },
+      "TakeOverJourneyError": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "TakeOverJourneyErrors"
+        ]
+      },
+      "TakeOverJourneyErrors": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "TakeOverJourneyResponse": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "TakeOverJourneyResponses"
+        ]
+      },
+      "TakeOverJourneyResponses": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "JourneyTakeOverResult"
+        ]
+      },
       "takePending": {
         "path": "headless/utils/chatDraft.ts",
         "description": "The queue alone as one message; the composer stays as typed.",
@@ -196405,6 +197463,7 @@
           "thefactory-tools/types/ProcessInputField",
           "thefactory-tools/types/UiStackSetting",
           "thefactory-tools/types",
+          "thefactory-tools/utils/processInputConditionHolds",
           "thefactory-tools/utils/processInputsProblem",
           "thefactory-tools/utils",
           "thefactory-tools/constants/PROCESS_INPUT_VALUES_KEY",
@@ -197878,12 +198937,14 @@
       "UiBuildProvenance": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
+          "ReviewEvidenceOverlayFile",
           "Array"
         ]
       },
       "UiCaptureBuildState": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
+          "ReviewEvidenceOverlayFile",
           "Array",
           "ScreenshotUiOptions",
           "UiConnection",
@@ -197940,7 +199001,9 @@
       },
       "UiHostBoundOptions": {
         "path": "headless/api/generated/types.gen.ts",
-        "dependencies": []
+        "dependencies": [
+          "Array"
+        ]
       },
       "UiImpactDecision": {
         "path": "headless/api/generated/types.gen.ts",
@@ -198058,9 +199121,16 @@
       "UiRecordingBuildState": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
+          "ReviewEvidenceOverlayFile",
           "Array",
           "UiConnection",
           "UiTarget"
+        ]
+      },
+      "UiSceneOverlayInput": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "UiBuildProvenance"
         ]
       },
       "UiScreenshotResult": {
@@ -198131,6 +199201,14 @@
           "Array"
         ]
       },
+      "UiServeKeptFile": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "UiServeLogs": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
       "UiServePlan": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
@@ -198171,6 +199249,10 @@
           "UiTarget"
         ]
       },
+      "UiSharedSessionResult": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
       "UiSnapshotResult": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": []
@@ -198197,9 +199279,38 @@
       "UiStackSetting": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
+          "UiStackStartRequest",
+          "UiStackStartCommand",
           "UiStackPart",
           "Array"
         ]
+      },
+      "UiStackStart": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "UiStackStartRequest",
+          "UiStackStartCommand"
+        ]
+      },
+      "UiStackStartCommand": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Array"
+        ]
+      },
+      "UiStackStartPlan": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "UiServeStep"
+        ]
+      },
+      "UiStackStartRequest": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "UiStackStartResult": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
       },
       "UiStackTarget": {
         "path": "headless/api/generated/types.gen.ts",
@@ -199242,6 +200353,8 @@
       "UpdateProjectsGroupResponses": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
+          "UiStackStartRequest",
+          "UiStackStartCommand",
           "UiStackPart",
           "Array",
           "SignOffOutputDefinition",
@@ -200567,20 +201680,6 @@
           "thefactory-tools/utils"
         ]
       },
-      "useChatNewsNotifier": {
-        "path": "headless/hooks/useChatNewsNotifier.ts",
-        "description": "Tells the host each time news reaches a chat, or an ask comes to wait on",
-        "dependencies": [
-          "ChatNotifyLevel",
-          "ReadonlyMap",
-          "ChatNewsMarks",
-          "ChatNewsNotification",
-          "react/useEffect",
-          "react/useRef",
-          "thefactory-tools/utils/getChatContextKey",
-          "thefactory-tools/utils"
-        ]
-      },
       "useChatNotifyLevel": {
         "path": "headless/hooks/useChatNotifyLevel.ts",
         "description": "A chat's \"Notify me\": what reaches the person of it, and how to change that for this chat alone.",
@@ -200665,21 +201764,6 @@
         "description": "React hook returning the current `ChatsSeenMap`. Use instead of",
         "dependencies": [
           "ChatsSeenMap",
-          "react/useSyncExternalStore"
-        ]
-      },
-      "useChatToolCatalog": {
-        "path": "headless/hooks/useChatToolCatalog.ts",
-        "description": "The tools a chat can be OFFERED, as the backend assembles them from the same",
-        "dependencies": [
-          "Promise",
-          "Error",
-          "ChatToolCatalogEntry",
-          "ChatToolRunner",
-          "ChatContext",
-          "react/useCallback",
-          "react/useEffect",
-          "react/useMemo",
           "react/useSyncExternalStore"
         ]
       },
@@ -200829,15 +201913,6 @@
           "react/useCallback",
           "react/useEffect",
           "react/useState"
-        ]
-      },
-      "useCodeBlockTheme": {
-        "path": "headless/hooks/useCodeBlockTheme.tsx",
-        "dependencies": [
-          "CodeBlockTheme",
-          "react/createContext",
-          "react/useContext",
-          "react/type ReactNode"
         ]
       },
       "useCommitDetails": {
@@ -201457,19 +202532,6 @@
           "GitCommitLinkResolution",
           "react/useEffect",
           "react/useMemo"
-        ]
-      },
-      "useGitCredentials": {
-        "path": "headless/contexts/GitCredentialsContext.tsx",
-        "dependencies": [
-          "GitCredentialsContextValue",
-          "react/createContext",
-          "react/useCallback",
-          "react/useContext",
-          "react/useEffect",
-          "react/useMemo",
-          "react/useState",
-          "react/ReactNode"
         ]
       },
       "useGitWithLog": {
@@ -202304,29 +203366,6 @@
           "react/useMemo",
           "react/useState",
           "thefactory-tools/types"
-        ]
-      },
-      "useProcessGroupLaunchPreview": {
-        "path": "headless/hooks/useProcessGroupLaunchPreview.ts",
-        "description": "What a group launch would start — every leg with its project, story and",
-        "dependencies": [
-          "ProcessGroupLaunchPreview",
-          "ProcessGroupLegRequest",
-          "Error",
-          "UseProcessGroupLaunchPreview",
-          "react/useEffect",
-          "react/useMemo",
-          "react/useState"
-        ]
-      },
-      "UseProcessGroupLaunchPreview": {
-        "path": "headless/hooks/useProcessGroupLaunchPreview.ts",
-        "dependencies": [
-          "ProcessGroupLaunchPreview",
-          "Error",
-          "react/useEffect",
-          "react/useMemo",
-          "react/useState"
         ]
       },
       "useProcessGroupLegLanding": {
@@ -208397,6 +209436,10 @@
         "description": "The only feature statuses an agent may write; every other status has an owner.",
         "dependencies": []
       },
+      "AGENT_SETUP_REFUSAL": {
+        "path": "dist/story/storyConstants.js",
+        "dependencies": []
+      },
       "AGENT_TYPE_DIR_NAME": {
         "path": "dist/agentType/agentTypeConstants.js",
         "description": "Where a project keeps its agent types, one JSON file per type, relative to its root.",
@@ -209325,6 +210368,16 @@
         "description": "An installed APK's path as `pm path` prints it — absolute, an `.apk`, and",
         "dependencies": []
       },
+      "ANDROID_INTENT_EXTRA_NAME_PATTERN": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "The name of the String intent extra a fake-data build opens a screen by: one `adb shell` passes as it is.",
+        "dependencies": []
+      },
+      "ANDROID_LAUNCHER_INTENT_ARGS": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "The `am start` intent that opens an app the way its launcher icon does.",
+        "dependencies": []
+      },
       "ANDROID_OUTPUT_METADATA_FILE": {
         "path": "dist/mobileTest/mobileTestConstants.js",
         "description": "What Gradle writes beside every APK it assembles, naming the applicationId it installs as.",
@@ -209394,6 +210447,13 @@
       "androidReleaseStatusBarCommand": {
         "path": "dist/mobileTest/mobileTestUtils.js",
         "description": "The `adb shell` arguments that hand the status bar back to the system.",
+        "dependencies": [
+          "node:path/posix"
+        ]
+      },
+      "androidStartOnScreenArgs": {
+        "path": "dist/mobileTest/mobileTestUtils.js",
+        "description": "The `adb` arguments that start an app on a screen: its launcher, or `activity`, handed the screen as a String extra.",
         "dependencies": [
           "node:path/posix"
         ]
@@ -212569,7 +213629,7 @@
       },
       "changeRequestScreensInWords": {
         "path": "dist/proofPlan/changeRequestUtils.js",
-        "description": "Whether the screens a change request requires were asked for only in words",
+        "description": "Whether the screens — or video — a change request requires were asked for",
         "dependencies": []
       },
       "changeRequestUnmetReason": {
@@ -217193,6 +218253,11 @@
         "description": "The id of the process {@link COMPARE_VARIANTS_PROCESS_ID} runs once per variant.",
         "dependencies": []
       },
+      "COMPARE_VARIANTS_LIVED_BY_INPUT": {
+        "path": "dist/workflow/workflowConstants.js",
+        "description": "The launch input of {@link COMPARE_VARIANTS_PROCESS_ID} that says how the days are lived.",
+        "dependencies": []
+      },
       "COMPARE_VARIANTS_PROCESS_ID": {
         "path": "dist/workflow/workflowConstants.js",
         "description": "The id of the storyless process that lives a product at several versions and compares them.",
@@ -217276,6 +218341,14 @@
         "path": "dist/compile/compileTypes.d.ts",
         "dependencies": [
           "ProcessEnv"
+        ]
+      },
+      "completeJourneyJson": {
+        "path": "dist/journey/journeyHelpers.js",
+        "dependencies": [
+          "node:crypto/createHash",
+          "node:crypto/randomBytes",
+          "node:fs/promises"
         ]
       },
       "COMPLETION_DYNAMIC_CONTEXT": {
@@ -218425,6 +219498,13 @@
           "node:fs/promises",
           "node:path/join",
           "node:path/resolve"
+        ]
+      },
+      "copyDependencyDir": {
+        "path": "dist/file/fileHelpers.js",
+        "dependencies": [
+          "node:crypto/createHash",
+          "node:fs/promises"
         ]
       },
       "copyFileWithSha256": {
@@ -221744,6 +222824,11 @@
         "description": "The longest note a proposal is sent back with.",
         "dependencies": []
       },
+      "DESIGN_PLAYGROUND_DIR_FIELD": {
+        "path": "dist/design/designConstants.js",
+        "description": "The `package.json` field, under `factory`, naming the folder (relative to that",
+        "dependencies": []
+      },
       "DESIGN_PLAYGROUND_FIELD": {
         "path": "dist/design/designConstants.js",
         "description": "The `package.json` field, under `factory`, naming the path a web app serves its design playground at.",
@@ -222062,6 +223147,11 @@
         "dependencies": [
           "DesignCaseAxisValue"
         ]
+      },
+      "designPlaygroundDir": {
+        "path": "dist/design/designPlaygroundUtils.js",
+        "description": "The folder a package says it keeps its design playground's files in, under",
+        "dependencies": []
       },
       "DesignPlaygroundManifest": {
         "path": "dist/design/designTypes.d.ts",
@@ -223407,6 +224497,16 @@
         "description": "A run's evidence directory, relative to the store's home.",
         "dependencies": []
       },
+      "evidenceSceneOverlayProblem": {
+        "path": "dist/reviewEvidence/reviewEvidenceUtils.js",
+        "description": "Why a before served with the head's scene files over the base does not show",
+        "dependencies": []
+      },
+      "evidenceSeamOverlays": {
+        "path": "dist/reviewEvidence/reviewEvidenceUtils.js",
+        "description": "The test-seam commits a capture's build was served with: its overlays, or",
+        "dependencies": []
+      },
       "evidenceShowsNoChange": {
         "path": "dist/reviewEvidence/reviewEvidenceUtils.js",
         "description": "Does this evidence actually SHOW a change?",
@@ -223872,6 +224972,119 @@
         "description": "The per-project (and per-overseer) state directory every toolset writes under.",
         "dependencies": []
       },
+      "FAKE_DATA_BUILD_NEEDED_PATTERN": {
+        "path": "dist/proofPlan/fakeDataSetupConstants.js",
+        "description": "Words in a reason a screen was left unchecked that say the project needs fake data first.",
+        "dependencies": []
+      },
+      "FAKE_DATA_BUILD_NEEDED_REASON": {
+        "path": "dist/proofPlan/fakeDataSetupConstants.js",
+        "description": "The reason a verifier files on screens of an app's own wiring when the",
+        "dependencies": []
+      },
+      "FAKE_DATA_SETUP_ACCEPTANCE": {
+        "path": "dist/proofPlan/fakeDataSetupConstants.js",
+        "description": "What done means for the setup feature.",
+        "dependencies": []
+      },
+      "FAKE_DATA_SETUP_ADDED_REASON": {
+        "path": "dist/proofPlan/fakeDataSetupConstants.js",
+        "description": "Said on a launch's card of the setup feature it adds.",
+        "dependencies": []
+      },
+      "FAKE_DATA_SETUP_ANDROID_GUIDE": {
+        "path": "dist/proofPlan/fakeDataSetupConstants.js",
+        "description": "The guide for a native Android app built with Gradle.",
+        "dependencies": []
+      },
+      "FAKE_DATA_SETUP_IOS_UNSUPPORTED": {
+        "path": "dist/proofPlan/fakeDataSetupConstants.js",
+        "description": "Why no setup feature is built for an iOS app.",
+        "dependencies": []
+      },
+      "FAKE_DATA_SETUP_NO_PLATFORM": {
+        "path": "dist/proofPlan/fakeDataSetupConstants.js",
+        "description": "Why no setup feature is built for a project with no app screens to capture.",
+        "dependencies": []
+      },
+      "FAKE_DATA_SETUP_PROOF_PLAN": {
+        "path": "dist/proofPlan/fakeDataSetupConstants.js",
+        "description": "How the setup feature is proved: a new screen, the app opened on fake data.",
+        "dependencies": []
+      },
+      "FAKE_DATA_SETUP_REACT_NATIVE_GUIDE": {
+        "path": "dist/proofPlan/fakeDataSetupConstants.js",
+        "description": "The guide for a React Native app, Expo's included: the fake server it is built against for capture.",
+        "dependencies": []
+      },
+      "FAKE_DATA_SETUP_SCREENS_OF": {
+        "path": "dist/proofPlan/fakeDataSetupConstants.js",
+        "description": "Said of the screens the story's other features change, which the fixtures must reach.",
+        "dependencies": []
+      },
+      "FAKE_DATA_SETUP_TITLE": {
+        "path": "dist/proofPlan/fakeDataSetupConstants.js",
+        "description": "The title of the feature a launch adds when its work needs an app's real screens and the project has no fake data.",
+        "dependencies": []
+      },
+      "FAKE_DATA_SETUP_WEB_GUIDE": {
+        "path": "dist/proofPlan/fakeDataSetupConstants.js",
+        "description": "The guide for a web app: the fake server it is served against.",
+        "dependencies": []
+      },
+      "FakeDataSetupBuild": {
+        "path": "dist/proofPlan/fakeDataSetupTypes.d.ts",
+        "description": "The setup feature to add, or why none can be built for the project.",
+        "dependencies": [
+          "FeatureCreateInput"
+        ]
+      },
+      "fakeDataSetupFeature": {
+        "path": "dist/proofPlan/fakeDataSetupUtils.js",
+        "description": "The setup feature for the project's app: \"Fake data for the app\", its",
+        "dependencies": [
+          "FAKE_DATA_SETUP_IOS_UNSUPPORTED",
+          "FAKE_DATA_SETUP_NO_PLATFORM",
+          "FAKE_DATA_SETUP_TITLE",
+          "GUIDES",
+          "FAKE_DATA_SETUP_ACCEPTANCE"
+        ]
+      },
+      "FakeDataSetupFeature": {
+        "path": "dist/proofPlan/fakeDataSetupTypes.d.ts",
+        "description": "One feature a launch works, as the setup decision reads it.",
+        "dependencies": [
+          "FeatureSetup",
+          "UiChangeSignal",
+          "ProofPlan"
+        ]
+      },
+      "FakeDataSetupFeatureInput": {
+        "path": "dist/proofPlan/fakeDataSetupTypes.d.ts",
+        "description": "What the setup feature is built for.",
+        "dependencies": [
+          "ProjectPlatformInput"
+        ]
+      },
+      "FakeDataSetupNeedInput": {
+        "path": "dist/proofPlan/fakeDataSetupTypes.d.ts",
+        "description": "What decides whether a launch adds the setup feature.",
+        "dependencies": [
+          "UiChangeScope",
+          "ProjectPlatformInput",
+          "FakeDataSetupFeature"
+        ]
+      },
+      "fakeDataSetupPlatform": {
+        "path": "dist/proofPlan/fakeDataSetupUtils.js",
+        "description": "What the project's fake data is built as ({@link FakeDataSetupPlatform}),",
+        "dependencies": []
+      },
+      "FakeDataSetupPlatform": {
+        "path": "dist/proofPlan/fakeDataSetupTypes.d.ts",
+        "description": "What a project's fake data is built as, by what the app is:",
+        "dependencies": []
+      },
       "fastForwardBranch": {
         "path": "dist/git/merge/gitMergeHelpers.js",
         "dependencies": []
@@ -223883,6 +225096,7 @@
           "ExternalRef",
           "FeatureQuestion",
           "ProofPlan",
+          "FeatureSetup",
           "Status"
         ]
       },
@@ -224378,6 +225592,11 @@
           "WorkLaunchMode"
         ]
       },
+      "FeatureSetup": {
+        "path": "dist/story/storyTypes.d.ts",
+        "description": "What a feature sets up for the rest of its story's work ({@link Feature.setup}).",
+        "dependencies": []
+      },
       "featuresInRunScope": {
         "path": "dist/story/storyUtils.js",
         "description": "The features a run's sign-off and bringing-in cover: those named by",
@@ -224424,6 +225643,11 @@
           "Feature",
           "Pick"
         ]
+      },
+      "featureTextLooksMotion": {
+        "path": "dist/proofPlan/uiChangeUtils.js",
+        "description": "Whether words say a change is about motion — scrolling, navigating,",
+        "dependencies": []
       },
       "featureTextLooksUi": {
         "path": "dist/proofPlan/uiChangeUtils.js",
@@ -224630,7 +225854,7 @@
       },
       "filedVerificationMode": {
         "path": "dist/reviewEvidence/reviewEvidenceUtils.js",
-        "description": "How a filed item says the change was seen. A capture served on a fake backend",
+        "description": "How a filed item says the change was seen. A capture served on a fake backend,",
         "dependencies": []
       },
       "fileFingerprint": {
@@ -224983,6 +226207,14 @@
         "path": "dist/agent/agentConstants.js",
         "description": "The roles whose output is FINDINGS, not a change: the step they fill is",
         "dependencies": []
+      },
+      "findJourneyPlaywright": {
+        "path": "dist/journey/journeyHelpers.js",
+        "dependencies": [
+          "node:crypto/createHash",
+          "node:crypto/randomBytes",
+          "node:fs/promises"
+        ]
       },
       "findMarketplacePrice": {
         "path": "dist/web/webStructuredDataUtils.js",
@@ -227388,6 +228620,11 @@
         "description": "The Gradle property a project turns its build cache on or off with.",
         "dependencies": []
       },
+      "GRADLE_ERROR_LINE": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "A line a failed Gradle build printed that says what broke: a compiler's own",
+        "dependencies": []
+      },
       "GRADLE_FAILURE_MAX_ERRORS": {
         "path": "dist/mobileTest/mobileTestConstants.js",
         "description": "How many distinct compiler errors a failed Gradle build reports back. One broken",
@@ -227396,6 +228633,11 @@
       "GRADLE_PROPERTIES_FILE": {
         "path": "dist/mobileTest/mobileTestConstants.js",
         "description": "The project file whose `org.gradle.caching` a build honours.",
+        "dependencies": []
+      },
+      "GRADLE_VARIANT_NAME_PATTERN": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "A Gradle build type or product flavor name a fake-data build declares: letters and digits, starting with a letter.",
         "dependencies": []
       },
       "gradleBlock": {
@@ -229508,6 +230750,11 @@
         "description": "Whether a URL's host is a hop-excluded resolver/paywall host ({@link HOP_EXCLUDE_HOSTS}), matched",
         "dependencies": []
       },
+      "isFakeDataSetupFeature": {
+        "path": "dist/proofPlan/fakeDataSetupUtils.js",
+        "description": "Whether a feature is the one that sets up the app's fake data. Pure.",
+        "dependencies": []
+      },
       "isFeatureContextRefusal": {
         "path": "dist/story/storyUtils.js",
         "description": "Whether a write was refused for its feature's context — by name, which survives a run boundary.",
@@ -230973,6 +232220,817 @@
         "description": "Notes for a run's prompt, joined; `undefined` when there are none. Pure.",
         "dependencies": []
       },
+      "JOURNEY_AGENT_ERRORED": {
+        "path": "dist/journey/journeyConstants.js",
+        "dependencies": []
+      },
+      "JOURNEY_ANSWER_SHAPES": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "The JSON each decision kind is answered in.",
+        "dependencies": []
+      },
+      "JOURNEY_BACKEND_ROLE": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "The served part the script's `BACKEND_URL` is, when the stack has one by that role.",
+        "dependencies": []
+      },
+      "JOURNEY_BAD_HAND_BACK": {
+        "path": "dist/journey/journeyConstants.js",
+        "dependencies": []
+      },
+      "JOURNEY_CONFIG_FILE": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "The Playwright config written beside it.",
+        "dependencies": []
+      },
+      "JOURNEY_DATA_MARKS": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "The marks a piece of text given as data is put between, by what it is.",
+        "dependencies": []
+      },
+      "JOURNEY_DATA_RULE": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "Why marks around text are given: it is a description, never instructions.",
+        "dependencies": []
+      },
+      "JOURNEY_DAY_FACT_NAMES": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "How a day's facts and stance are named in a decision's prompt.",
+        "dependencies": []
+      },
+      "JOURNEY_DAY_LOG_FILE": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "The day log's file name in {@link JOURNEY_DIR}.",
+        "dependencies": []
+      },
+      "JOURNEY_DAY_LOG_KINDS": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "Every kind of line a day log holds.",
+        "dependencies": []
+      },
+      "JOURNEY_DAY_LOG_LABEL": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "The label of the day log a scripted step files — what a reviewer looks it up by.",
+        "dependencies": []
+      },
+      "JOURNEY_DAY_NEED_GROUP": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "The `group` of an `energy` decision's day-need choices.",
+        "dependencies": []
+      },
+      "JOURNEY_DECISION_FAILED": {
+        "path": "dist/journey/journeyConstants.js",
+        "dependencies": []
+      },
+      "JOURNEY_DECISION_KINDS": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "Every decision a journey script may ask the host for.",
+        "dependencies": []
+      },
+      "JOURNEY_DECISION_RULES": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "What each decision kind is, and how it is answered — for the plan and for a live call.",
+        "dependencies": []
+      },
+      "JOURNEY_DECISION_SYSTEM": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "What the model answering one decision as the person is told.",
+        "dependencies": []
+      },
+      "JOURNEY_DIR": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "The scratch folder of the served checkout a journey runs from — two levels",
+        "dependencies": []
+      },
+      "JOURNEY_ENV": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "The environment a journey script is run with, by what each variable holds.",
+        "dependencies": []
+      },
+      "JOURNEY_FAILED": {
+        "path": "dist/journey/journeyConstants.js",
+        "dependencies": []
+      },
+      "JOURNEY_GOAL_HELPED": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "The answers \"Did this help?\" takes.",
+        "dependencies": []
+      },
+      "JOURNEY_GOAL_STATUSES": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "The statuses a goal can be given in the evening.",
+        "dependencies": []
+      },
+      "JOURNEY_HAND_BACK_TOOL_NAME": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "The tool an agent taking over ends with.",
+        "dependencies": []
+      },
+      "JOURNEY_HOST_PATHS": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "The paths the host answers a script on, under `JOURNEY_DECIDE_URL`.",
+        "dependencies": []
+      },
+      "JOURNEY_MEMORY_JOURNEYS": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "How many journeys' memories are kept at once, the oldest let go first.",
+        "dependencies": []
+      },
+      "JOURNEY_MEMORY_LINE_CHARS": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "The longest one remembered line may be.",
+        "dependencies": []
+      },
+      "JOURNEY_MEMORY_LINES": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "How many decisions and events of one journey the person is reminded of, newest kept.",
+        "dependencies": []
+      },
+      "JOURNEY_NO_CHECKOUT": {
+        "path": "dist/journey/journeyConstants.js",
+        "dependencies": []
+      },
+      "JOURNEY_NO_DAY_FACTS": {
+        "path": "dist/journey/journeyConstants.js",
+        "dependencies": []
+      },
+      "JOURNEY_NO_DAY_LOG": {
+        "path": "dist/journey/journeyConstants.js",
+        "dependencies": []
+      },
+      "JOURNEY_NO_HAND_BACK": {
+        "path": "dist/journey/journeyConstants.js",
+        "dependencies": []
+      },
+      "JOURNEY_NO_OPTIONS": {
+        "path": "dist/journey/journeyConstants.js",
+        "dependencies": []
+      },
+      "JOURNEY_NO_PLAYWRIGHT": {
+        "path": "dist/journey/journeyConstants.js",
+        "dependencies": []
+      },
+      "JOURNEY_NO_PRODUCT": {
+        "path": "dist/journey/journeyConstants.js",
+        "dependencies": []
+      },
+      "JOURNEY_NO_STANCE": {
+        "path": "dist/journey/journeyConstants.js",
+        "dependencies": []
+      },
+      "JOURNEY_NOTHING_REMEMBERED": {
+        "path": "dist/journey/journeyConstants.js",
+        "dependencies": []
+      },
+      "JOURNEY_OUTPUT_TAIL_LINES": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "How many of the script's last lines are kept, and shown when it fails.",
+        "dependencies": []
+      },
+      "JOURNEY_PASSED": {
+        "path": "dist/journey/journeyConstants.js",
+        "dependencies": []
+      },
+      "JOURNEY_PLAN_ASK": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "What a plan is asked to hold, after the person and the product.",
+        "dependencies": []
+      },
+      "JOURNEY_PLAN_FAILED": {
+        "path": "dist/journey/journeyConstants.js",
+        "dependencies": []
+      },
+      "JOURNEY_PLAN_HASH_CHARS": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "How many hex characters of the hash a plan's key holds.",
+        "dependencies": []
+      },
+      "JOURNEY_PLAN_SHAPE": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "The JSON a persona's plan is made in.",
+        "dependencies": []
+      },
+      "JOURNEY_PLAN_SYSTEM": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "What the model making a persona's plan is told.",
+        "dependencies": []
+      },
+      "JOURNEY_PLAYWRIGHT_BIN": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "Where the served checkout's own Playwright is, from a folder of it.",
+        "dependencies": []
+      },
+      "JOURNEY_PROMPT_HEADINGS": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "The headings of the parts of a prompt, before the data each one gives.",
+        "dependencies": []
+      },
+      "JOURNEY_RECORDING_LABEL": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "The label of the recording a scripted step files.",
+        "dependencies": []
+      },
+      "JOURNEY_RETRY_ASK": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "What a retry is told of the answer before it.",
+        "dependencies": []
+      },
+      "JOURNEY_SCRIPT_NOT_NAMED": {
+        "path": "dist/journey/journeyConstants.js",
+        "dependencies": []
+      },
+      "JOURNEY_SCRIPT_UNREADABLE": {
+        "path": "dist/journey/journeyConstants.js",
+        "dependencies": []
+      },
+      "JOURNEY_SPEC_FILE": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "The script's file name in {@link JOURNEY_DIR}: one Playwright test file.",
+        "dependencies": []
+      },
+      "JOURNEY_STEP_NAMES_NO_SCRIPT": {
+        "path": "dist/journey/journeyConstants.js",
+        "dependencies": []
+      },
+      "JOURNEY_STOPPED": {
+        "path": "dist/journey/journeyConstants.js",
+        "dependencies": []
+      },
+      "JOURNEY_STOPPED_PAGE_LABEL": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "The label of the page text filed when the script stops short.",
+        "dependencies": []
+      },
+      "JOURNEY_STOPPED_SCREENSHOT_LABEL": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "The label of the screenshot filed when the script stops short.",
+        "dependencies": []
+      },
+      "JOURNEY_TAKE_OVER_MAX_TURNS": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "How many turns an agent taking over a journey's browser has.",
+        "dependencies": []
+      },
+      "JOURNEY_TAKE_OVER_OUTCOMES": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "How a take-over can end.",
+        "dependencies": []
+      },
+      "JOURNEY_TAKE_OVER_RULES": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "What a take-over agent is told of its one job, its turns and how to end.",
+        "dependencies": []
+      },
+      "JOURNEY_TMP_DIR": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "The folder beside the script its run keeps its temporary files in, gone with the scratch folder.",
+        "dependencies": []
+      },
+      "JOURNEY_UNREAD_LINES": {
+        "path": "dist/journey/journeyConstants.js",
+        "dependencies": []
+      },
+      "JourneyAgentEnd": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "How an agent's take-over ended.",
+        "dependencies": []
+      },
+      "JourneyAgentLaunch": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "What an agent taking over the shared browser is launched with.",
+        "dependencies": [
+          "JourneyHostGrant"
+        ]
+      },
+      "JourneyAnswer": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "The answer of one decision kind, or of any.",
+        "dependencies": [
+          "K",
+          "JourneyAnswers",
+          "JourneyDecisionKind"
+        ]
+      },
+      "JourneyAnswers": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "The answer each decision kind takes.",
+        "dependencies": [
+          "JourneyGoalStatus",
+          "JourneyGoalReview"
+        ]
+      },
+      "JourneyChecked": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "A value read from a model's answer that holds, or why it does not.",
+        "dependencies": [
+          "T"
+        ]
+      },
+      "journeyCheckedAnswer": {
+        "path": "dist/journey/journeyUtils.js",
+        "description": "`answer` as the answer to `request`, or why it is not one. A choice given",
+        "dependencies": []
+      },
+      "JourneyCheckedCompletion": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "What a model's checked answer came to, with the model and what every call it took cost.",
+        "dependencies": [
+          "T",
+          "JourneyChecked"
+        ]
+      },
+      "JourneyComplete": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "Ask the run's model once, for the step attempt `grant` is minted for.",
+        "dependencies": [
+          "JourneyCompletion",
+          "Promise",
+          "JourneyCompletionRequest",
+          "JourneyHostGrant"
+        ]
+      },
+      "JourneyCompletion": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "What the run's model answered, and what it cost.",
+        "dependencies": []
+      },
+      "JourneyCompletionRequest": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "One call to the run's model: what it is told, what it is asked, and the JSON shape it answers in.",
+        "dependencies": []
+      },
+      "journeyDataBlock": {
+        "path": "dist/journey/journeyUtils.js",
+        "description": "`text` between marks named `label`, for a model to read as data — with any",
+        "dependencies": []
+      },
+      "JourneyDayLog": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "A day log as read: every line that holds, and why each other one does not.",
+        "dependencies": [
+          "JourneyDayLogProblem",
+          "JourneyDayLogEntry"
+        ]
+      },
+      "JourneyDayLogEntry": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "One line of a day log, written by the journey script to `JOURNEY_LOG`.",
+        "dependencies": [
+          "JourneyTakeOverOutcome",
+          "JourneyDecisionSource",
+          "JourneyDecisionKind",
+          "JourneyLoggedGoal",
+          "JourneyDayLogLine"
+        ]
+      },
+      "journeyDayLogEntryProblem": {
+        "path": "dist/journey/journeyUtils.js",
+        "description": "Why `value` is not a line of a day log: not an object, no ISO `at`, no `day`",
+        "dependencies": []
+      },
+      "JourneyDayLogKind": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "Every kind of line a day log holds.",
+        "dependencies": []
+      },
+      "JourneyDayLogLine": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "What every line of a day log carries.",
+        "dependencies": []
+      },
+      "JourneyDayLogProblem": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "A line of a day log that could not be read, by its line number from 1.",
+        "dependencies": []
+      },
+      "JourneyDecideResponse": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "What `POST <JOURNEY_DECIDE_URL>/decide` answers.",
+        "dependencies": [
+          "JourneyDecisionSource",
+          "JourneyAnswer"
+        ]
+      },
+      "JourneyDecisionKind": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "What the person is asked to decide, as the journey script asks it.",
+        "dependencies": []
+      },
+      "journeyDecisionPrompt": {
+        "path": "dist/journey/journeyUtils.js",
+        "description": "The one small call a decision the plan cannot answer is made with: the",
+        "dependencies": [
+          "JOURNEY_NO_OPTIONS",
+          "JOURNEY_NOTHING_REMEMBERED",
+          "JOURNEY_DECISION_SYSTEM"
+        ]
+      },
+      "JourneyDecisionRequest": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "What the script sends to `POST <JOURNEY_DECIDE_URL>/decide`.",
+        "dependencies": [
+          "JourneyOption",
+          "JourneyDecisionKind"
+        ]
+      },
+      "JourneyDecisionSource": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "Where an answer came from: the persona's plan, or a live call that read the screen.",
+        "dependencies": []
+      },
+      "JourneyDecisionTools": {
+        "path": "dist/journey/JourneyDecisionTools.js",
+        "description": "The person's decisions, as a journey script asks for them: from the",
+        "dependencies": []
+      },
+      "JourneyDecisionToolsDeps": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "What answers the person's decisions.",
+        "dependencies": [
+          "JourneyComplete",
+          "JourneyPlan",
+          "Promise",
+          "JourneyPersona",
+          "JourneyHostGrant"
+        ]
+      },
+      "JourneyEnvSource": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "What the script's environment is made from.",
+        "dependencies": [
+          "JourneyStepInputs",
+          "JourneyHostEndpoint",
+          "Pick"
+        ]
+      },
+      "JourneyEvidence": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "One piece a script step files, before it is scoped to its run.",
+        "dependencies": [
+          "ReviewEvidenceScope",
+          "RecordReviewEvidenceInput",
+          "Omit"
+        ]
+      },
+      "JourneyFiles": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "The files a journey is run from, in the served checkout's scratch folder.",
+        "dependencies": []
+      },
+      "JourneyGoalHelped": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "The person's answer to \"Did this help?\".",
+        "dependencies": []
+      },
+      "JourneyGoalReview": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "The person's call on one goal offered in the morning.",
+        "dependencies": []
+      },
+      "JourneyGoalStatus": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "The person's status for one goal in the evening.",
+        "dependencies": [
+          "JourneyGoalHelped",
+          "JourneyGoalStatusValue"
+        ]
+      },
+      "JourneyGoalStatusValue": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "How a goal went, as the evening asks it.",
+        "dependencies": []
+      },
+      "JourneyHandBack": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "What the agent handed back with — the arguments of its `handBackJourney` call.",
+        "dependencies": [
+          "JourneyTakeOverOutcome"
+        ]
+      },
+      "JourneyHandBackTools": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "The tool an agent taking over a journey's browser ends with.",
+        "dependencies": [
+          "Promise",
+          "JourneyTakeOverOutcome"
+        ]
+      },
+      "JourneyHostDeps": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "What the host does with a decision or a take-over, once the request holds.",
+        "dependencies": [
+          "JourneyTakeOverResult",
+          "Promise",
+          "JourneyTakeOverRequest",
+          "JourneyHostGrant",
+          "JourneyDecideResponse",
+          "JourneyDecisionRequest"
+        ]
+      },
+      "JourneyHostEndpoint": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "Where one attempt's script reaches the host, until it is closed.",
+        "dependencies": [
+          "Promise"
+        ]
+      },
+      "JourneyHostGrant": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "What one step attempt's script may ask of the host, the token included.",
+        "dependencies": [
+          "JourneyHostScope"
+        ]
+      },
+      "JourneyHostReply": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "What the host answers a script: the value, or why it is refused — the",
+        "dependencies": [
+          "T"
+        ]
+      },
+      "JourneyHostScope": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "The step attempt a token is minted for.",
+        "dependencies": []
+      },
+      "JourneyHostTools": {
+        "path": "dist/journey/JourneyHostTools.js",
+        "description": "What the host answers a journey script with, behind the routes that take its",
+        "dependencies": []
+      },
+      "JourneyLoggedGoal": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "A goal as the day log names it.",
+        "dependencies": []
+      },
+      "journeyMemoryLine": {
+        "path": "dist/journey/journeyUtils.js",
+        "description": "One line the person remembers a decision by: its day, its kind and the answer, cut to the limit. Pure.",
+        "dependencies": []
+      },
+      "journeyNormalText": {
+        "path": "dist/journey/journeyUtils.js",
+        "description": "Text as options are compared by: without case, accents, punctuation or",
+        "dependencies": []
+      },
+      "JourneyOption": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "One thing on screen to choose from: a goal offered, a status's goal, a",
+        "dependencies": []
+      },
+      "journeyOptionFor": {
+        "path": "dist/journey/journeyUtils.js",
+        "description": "The option `value` names, by its id or its text, compared tolerantly; `undefined` when none. Pure.",
+        "dependencies": []
+      },
+      "JourneyPersona": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "The person a journey lives the days of, as the run's launch names them.",
+        "dependencies": []
+      },
+      "JourneyPersonaDeps": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "Everything the host gives for a journey's decisions and take-overs to be answered as the person.",
+        "dependencies": [
+          "JourneyTakeOverToolsDeps",
+          "Pick",
+          "JourneyDecisionToolsDeps",
+          "JourneyPlanToolsDeps"
+        ]
+      },
+      "JourneyPersonaHostDeps": {
+        "path": "dist/journey/JourneyPersonaHostDeps.js",
+        "description": "What answers a journey script as the person, for {@link JourneyHostTools}:",
+        "dependencies": []
+      },
+      "JourneyPlan": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "A persona's plan for living the days of a product: one entry per day, in order.",
+        "dependencies": [
+          "JourneyPlanDay"
+        ]
+      },
+      "journeyPlanAnswer": {
+        "path": "dist/journey/journeyUtils.js",
+        "description": "The plan's ready answer to `request`, from the day's entry for its kind: the",
+        "dependencies": []
+      },
+      "JourneyPlanDay": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "One day of a persona's plan: what the day is like for the person, and how they decide in it.",
+        "dependencies": [
+          "JourneyPlanDecisions"
+        ]
+      },
+      "JourneyPlanDecision": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "How the person meets one decision kind on one day: the stance a live call",
+        "dependencies": [
+          "K",
+          "JourneyPlanReadyAnswer",
+          "JourneyDecisionKind"
+        ]
+      },
+      "JourneyPlanDecisions": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "The person's way with each decision kind on one day; a kind left out is judged live from the day's facts.",
+        "dependencies": [
+          "K",
+          "JourneyPlanDecision",
+          "JourneyDecisionKind"
+        ]
+      },
+      "journeyPlanKey": {
+        "path": "dist/journey/journeyHelpers.js",
+        "description": "The key a persona's plan is kept under: the person note's id, and a hash of",
+        "dependencies": [
+          "node:crypto/createHash",
+          "node:crypto/randomBytes",
+          "node:fs/promises"
+        ]
+      },
+      "journeyPlanPrompt": {
+        "path": "dist/journey/journeyUtils.js",
+        "description": "The one call a persona's plan is made with: the person and the product as data, the days and every kind. Pure.",
+        "dependencies": [
+          "JOURNEY_NO_PRODUCT",
+          "JOURNEY_PLAN_SYSTEM",
+          "JOURNEY_PLAN_SHAPE"
+        ]
+      },
+      "JourneyPlanReadyAnswer": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "A ready answer of one decision kind in a persona's plan, for any screen or only one that shows `when`.",
+        "dependencies": [
+          "K",
+          "JourneyAnswers",
+          "JourneyDecisionKind"
+        ]
+      },
+      "JourneyPlanRecord": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "A plan as it is kept, under the key of what it was made from, with the call that made it.",
+        "dependencies": [
+          "JourneyPlan"
+        ]
+      },
+      "JourneyPlanTools": {
+        "path": "dist/journey/JourneyPlanTools.js",
+        "description": "A persona's plan for living the days of a product, made once and reused:",
+        "dependencies": []
+      },
+      "JourneyPlanToolsDeps": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "What makes and keeps a persona's plan.",
+        "dependencies": [
+          "Promise",
+          "JourneyPlanRecord",
+          "JourneyHostGrant",
+          "JourneyComplete"
+        ]
+      },
+      "journeyPlaywrightConfig": {
+        "path": "dist/journey/journeyUtils.js",
+        "description": "The Playwright config a journey runs under, written beside it: the one",
+        "dependencies": []
+      },
+      "journeyRetryPrompt": {
+        "path": "dist/journey/journeyUtils.js",
+        "description": "`request` asked again, with the answer it had and why that did not hold. Pure.",
+        "dependencies": []
+      },
+      "journeyScriptEnv": {
+        "path": "dist/journey/journeyUtils.js",
+        "description": "The variables of a journey script's environment that are its contract, each only when known. Pure.",
+        "dependencies": [
+          "String"
+        ]
+      },
+      "JourneyScriptExit": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "How a journey script's run ended.",
+        "dependencies": []
+      },
+      "JourneyScriptRun": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "One run of a journey script with the served checkout's own Playwright.",
+        "dependencies": [
+          "AbortSignal",
+          "Record"
+        ]
+      },
+      "journeyServedTarget": {
+        "path": "dist/journey/journeyUtils.js",
+        "description": "Where a journey runs against a served stack: its entry's url and checkout,",
+        "dependencies": [
+          "JOURNEY_NO_CHECKOUT"
+        ]
+      },
+      "JourneyStepContext": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "What a script step's attempt is run from: its run, its step, its ledger entry and its stop.",
+        "dependencies": [
+          "ProcessStepContext",
+          "Pick"
+        ]
+      },
+      "journeyStepInputs": {
+        "path": "dist/journey/journeyUtils.js",
+        "description": "The launch values a script step's journey runs on, read off its run — a",
+        "dependencies": [
+          "JOURNEY_STEP_NAMES_NO_SCRIPT",
+          "JOURNEY_SCRIPT_NOT_NAMED"
+        ]
+      },
+      "JourneyStepInputs": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "The launch values a script step's journey runs on, read off its run.",
+        "dependencies": []
+      },
+      "journeyStepResult": {
+        "path": "dist/journey/journeyUtils.js",
+        "description": "What a script step's attempt ended as, from how its script ended and the day",
+        "dependencies": [
+          "JOURNEY_STOPPED",
+          "JOURNEY_NO_DAY_LOG"
+        ]
+      },
+      "JourneyStepTools": {
+        "path": "dist/journey/JourneyStepTools.js",
+        "description": "The body of a `script` step, once its host has served the variant: the",
+        "dependencies": [
+          "JOURNEY_SCRIPT_UNREADABLE",
+          "String",
+          "JOURNEY_RECORDING_LABEL",
+          "JOURNEY_DAY_LOG_LABEL",
+          "JOURNEY_STOPPED_SCREENSHOT_LABEL",
+          "JOURNEY_STOPPED_PAGE_LABEL"
+        ]
+      },
+      "JourneyStepToolsDeps": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "What a script step runner is given by its host.",
+        "dependencies": [
+          "JourneyScriptExit",
+          "Promise",
+          "JourneyScriptRun",
+          "RecordReviewEvidenceInput",
+          "JourneyHostEndpoint",
+          "JourneyHostScope",
+          "UiTestTools",
+          "Pick",
+          "UiSharedSessionResult"
+        ]
+      },
+      "journeyTakeOverBrief": {
+        "path": "dist/journey/journeyUtils.js",
+        "description": "What an agent taking over a journey's browser is told: the rules of its one",
+        "dependencies": []
+      },
+      "JourneyTakeOverOutcome": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "How a take-over ended: the agent handed the page back, or could not get past the snag.",
+        "dependencies": []
+      },
+      "JourneyTakeOverRequest": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "What the script sends to `POST <JOURNEY_DECIDE_URL>/take-over` when it cannot go on.",
+        "dependencies": []
+      },
+      "journeyTakeOverResult": {
+        "path": "dist/journey/journeyUtils.js",
+        "description": "How a take-over ended, from how its agent did: its hand-back when that",
+        "dependencies": [
+          "JOURNEY_BAD_HAND_BACK"
+        ]
+      },
+      "JourneyTakeOverResult": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "What `POST <JOURNEY_DECIDE_URL>/take-over` answers, once the agent hands back.",
+        "dependencies": [
+          "JourneyTakeOverOutcome"
+        ]
+      },
+      "JourneyTakeOverTools": {
+        "path": "dist/journey/JourneyTakeOverTools.js",
+        "description": "A journey script's snag, handed to an agent: launched on the run's model as",
+        "dependencies": [
+          "JOURNEY_TAKE_OVER_MAX_TURNS",
+          "JOURNEY_HAND_BACK_TOOL_NAME",
+          "JOURNEY_AGENT_ERRORED"
+        ]
+      },
+      "JourneyTakeOverToolsDeps": {
+        "path": "dist/journey/journeyTypes.d.ts",
+        "description": "What hands a snag to an agent.",
+        "dependencies": [
+          "JourneyAgentEnd",
+          "Promise",
+          "JourneyAgentLaunch",
+          "JourneyPersona",
+          "JourneyHostGrant"
+        ]
+      },
       "JS_TS_CONFIGS": {
         "path": "dist/codeIntel/codeIntelConstants.js",
         "dependencies": []
@@ -231431,6 +233489,11 @@
       "launchHoldOption": {
         "path": "dist/cliAgentRunner/cliAgentRunnerUtils.js",
         "description": "The sandbox option that tells a run's `progress` of a hold at the launch gate; none when nothing listens.",
+        "dependencies": []
+      },
+      "launchNeedsFakeDataSetup": {
+        "path": "dist/proofPlan/fakeDataSetupUtils.js",
+        "description": "Whether a launch adds the setup feature first: some feature it works other",
         "dependencies": []
       },
       "LaunchProofPlan": {
@@ -234680,6 +236743,15 @@
         "description": "The UNDER-CREDIT signal: a product whose composition WOULD soften to `partial` — a non-plastic body with a",
         "dependencies": []
       },
+      "mintJourneyHostToken": {
+        "path": "dist/journey/journeyHelpers.js",
+        "description": "A token for one step attempt's script to reach the host with: 32 random bytes, URL-safe.",
+        "dependencies": [
+          "node:crypto/createHash",
+          "node:crypto/randomBytes",
+          "node:fs/promises"
+        ]
+      },
       "missingCapabilities": {
         "path": "dist/checkRunner/checkDerivation.js",
         "description": "Which of a check's required capabilities this host does not have.",
@@ -234738,6 +236810,11 @@
       "MOBILE_BUILD_OFF_FAKE_BACKEND": {
         "path": "dist/mobileTest/mobileTestConstants.js",
         "description": "What a build identity ends with when it is built without the fake backend the app declares.",
+        "dependencies": []
+      },
+      "MOBILE_BUILD_OFF_FAKE_DATA": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "What a build identity ends with when it is built without the fake-data build the app declares.",
         "dependencies": []
       },
       "MOBILE_BUILD_PROVENANCE_SUFFIX": {
@@ -234810,6 +236887,11 @@
         "description": "How long `expo prebuild` may take to generate one platform's native project (ms).",
         "dependencies": []
       },
+      "MOBILE_FACTORY_MANIFEST_FILE": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "The file at a checkout's root holding what a `package.json` keeps under",
+        "dependencies": []
+      },
       "MOBILE_FAKE_BACKEND_DEVICE_HOST": {
         "path": "dist/mobileTest/mobileTestConstants.js",
         "description": "The device loopback a capture build reaches its fake backend on.",
@@ -234841,6 +236923,22 @@
       "MOBILE_FAKE_BACKEND_TOKEN_PREFIX": {
         "path": "dist/mobileTest/mobileTestConstants.js",
         "description": "What a fake backend's throwaway token starts with, and all it takes.",
+        "dependencies": []
+      },
+      "MOBILE_FAKE_DATA_IOS_UNSUPPORTED": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "dependencies": []
+      },
+      "MOBILE_FAKE_DATA_NOT_ANDROID_DEVICE": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "dependencies": []
+      },
+      "MOBILE_FAKE_DATA_OTHER_BUILD_TYPE": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "dependencies": []
+      },
+      "MOBILE_FAKE_DATA_WITH_FAKE_BACKEND": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
         "dependencies": []
       },
       "MOBILE_FROZEN_CLOCK_HHMM": {
@@ -234879,6 +236977,10 @@
         "dependencies": []
       },
       "MOBILE_OLDER_THAN_FAKE_BACKEND": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "dependencies": []
+      },
+      "MOBILE_OLDER_THAN_FAKE_DATA": {
         "path": "dist/mobileTest/mobileTestConstants.js",
         "dependencies": []
       },
@@ -234990,6 +237092,23 @@
         "description": "How many of the texts inside an unlabelled element are tried as its `within` selector.",
         "dependencies": []
       },
+      "MOBILE_START_SCREEN_NO_APP_ID": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "dependencies": []
+      },
+      "MOBILE_START_SCREEN_NOT_A_NAME": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "dependencies": []
+      },
+      "MOBILE_START_SCREEN_PATTERN": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "A screen a session opens a fake-data build on: a name the app reads from its start extra, which `adb shell` passes as it is.",
+        "dependencies": []
+      },
+      "MOBILE_START_SCREEN_UNDECLARED": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "dependencies": []
+      },
       "MOBILE_STATUS_BAR_SETTLE_MS": {
         "path": "dist/mobileTest/mobileTestConstants.js",
         "description": "How long SystemUI gets to redraw after the status bar is pinned, before the",
@@ -235083,6 +237202,7 @@
         "path": "dist/mobileTest/mobileTestTypes.d.ts",
         "description": "Exactly which code an app holds — recorded by the build, never asserted by",
         "dependencies": [
+          "MobileFakeDataAndroid",
           "MobileBuiltFakeBackend"
         ]
       },
@@ -235108,6 +237228,13 @@
         "description": "The fake backend a capture build was made for, kept in its sealed record: what",
         "dependencies": []
       },
+      "mobileBuiltFakeData": {
+        "path": "dist/mobileTest/mobileTestUtils.js",
+        "description": "What a fake-data build records of itself: the variant built, and the extra it opens a screen by.",
+        "dependencies": [
+          "node:path/posix"
+        ]
+      },
       "mobileCaptureAppEnv": {
         "path": "dist/mobileTest/mobileTestUtils.js",
         "description": "What a capture build is told at its native project's generation and its bundle: the fake backend's device-side url and token, and that it is one.",
@@ -235118,14 +237245,14 @@
       },
       "mobileCaptureDeviceIds": {
         "path": "dist/mobileTest/mobileTestUtils.js",
-        "description": "The Android devices sessions hold a fake backend on — the capture emulators raw adb may run on — once each.",
+        "description": "The Android devices sessions hold a fake backend on, or opened a fake-data",
         "dependencies": [
           "node:path/posix"
         ]
       },
       "mobileCaptureDeviceProblem": {
         "path": "dist/mobileTest/mobileTestUtils.js",
-        "description": "Why a capture build may not be installed on a device, or `undefined` for an emulator made for capture.",
+        "description": "Why a capture build may not be installed on a device, naming the capture AVDs among `configuredAvds`; `undefined` for an emulator made for capture.",
         "dependencies": [
           "MOBILE_CAPTURE_NOT_ON_CAPTURE_AVD",
           "node:path/posix"
@@ -235210,6 +237337,41 @@
         "description": "What the fake backend itself is told: the host port to listen on, and the token built into the app.",
         "dependencies": [
           "String",
+          "node:path/posix"
+        ]
+      },
+      "MobileFakeData": {
+        "path": "dist/mobileTest/mobileTestTypes.d.ts",
+        "description": "A fake-data build an app declares, in `factory.json` under `mobileApp.fakeData`",
+        "dependencies": [
+          "MobileFakeDataAndroid"
+        ]
+      },
+      "MobileFakeDataAndroid": {
+        "path": "dist/mobileTest/mobileTestTypes.d.ts",
+        "description": "The Android build of an app that answers every call from data bundled into",
+        "dependencies": []
+      },
+      "mobileFakeDataDeclaration": {
+        "path": "dist/mobileTest/mobileTestUtils.js",
+        "description": "The fake-data build a checkout declares under `mobileApp.fakeData`: none,",
+        "dependencies": [
+          "JSON",
+          "MOBILE_FAKE_DATA_WITH_FAKE_BACKEND",
+          "node:path/posix"
+        ]
+      },
+      "MobileFakeDataDeclaration": {
+        "path": "dist/mobileTest/mobileTestTypes.d.ts",
+        "description": "What a checkout declares under `mobileApp.fakeData`, read: the declaration, or why it is not one.",
+        "dependencies": [
+          "MobileFakeData"
+        ]
+      },
+      "mobileFakeDataRequestProblem": {
+        "path": "dist/mobileTest/mobileTestUtils.js",
+        "description": "Why a build request does not fit the fake-data build the app declares, or `undefined`: it builds the declared build type.",
+        "dependencies": [
           "node:path/posix"
         ]
       },
@@ -235346,6 +237508,8 @@
         "path": "dist/mobileTest/mobileTestTypes.d.ts",
         "description": "In-memory state for one open session, keyed by `sessionId`.",
         "dependencies": [
+          "MobileStartScreen",
+          "MobileFakeDataAndroid",
           "MobileSessionFakeBackend",
           "ReviewEvidenceScreen",
           "MobileRefTarget",
@@ -235388,6 +237552,21 @@
         "path": "dist/mobileTest/mobileTestTypes.d.ts",
         "description": "Result of an observation. `snapshot` is the device UI tree as indented text,",
         "dependencies": []
+      },
+      "MobileStartScreen": {
+        "path": "dist/mobileTest/mobileTestTypes.d.ts",
+        "description": "The screen a session opens a fake-data build on: the extra the build reads, and the screen named in it.",
+        "dependencies": []
+      },
+      "mobileStartScreenFor": {
+        "path": "dist/mobileTest/mobileTestUtils.js",
+        "description": "The screen a session opens a build on, or why it cannot: only a fake-data",
+        "dependencies": [
+          "MOBILE_START_SCREEN_UNDECLARED",
+          "MOBILE_START_SCREEN_NOT_A_NAME",
+          "MOBILE_START_SCREEN_NO_APP_ID",
+          "node:path/posix"
+        ]
       },
       "MobileStdoutCapture": {
         "path": "dist/mobileTest/mobileTestTypes.d.ts",
@@ -235940,6 +238119,64 @@
           "node:stream/promises/finished"
         ]
       },
+      "mobileTestLaunchOnScreen": {
+        "path": "dist/mobileTest/mobileTestHelpers.js",
+        "dependencies": [
+          "node:crypto/createHash",
+          "node:crypto/randomUUID",
+          "node:fs/constants",
+          "node:fs/accessSync",
+          "node:fs/createWriteStream",
+          "node:fs/existsSync",
+          "node:fs/statSync",
+          "node:fs/promises/cp",
+          "node:fs/promises/lstat",
+          "node:fs/promises/mkdtemp",
+          "node:fs/promises/readFile",
+          "node:fs/promises/readdir",
+          "node:fs/promises/rm",
+          "node:fs/promises/stat",
+          "node:fs/promises/unlink",
+          "node:fs/promises/writeFile",
+          "node:stream/promises",
+          "node:os/homedir",
+          "node:os/tmpdir",
+          "node:path/basename",
+          "node:path/dirname",
+          "node:path/join",
+          "node:path/posix",
+          "node:stream/promises/finished"
+        ]
+      },
+      "mobileTestListAvds": {
+        "path": "dist/mobileTest/mobileTestHelpers.js",
+        "dependencies": [
+          "node:crypto/createHash",
+          "node:crypto/randomUUID",
+          "node:fs/constants",
+          "node:fs/accessSync",
+          "node:fs/createWriteStream",
+          "node:fs/existsSync",
+          "node:fs/statSync",
+          "node:fs/promises/cp",
+          "node:fs/promises/lstat",
+          "node:fs/promises/mkdtemp",
+          "node:fs/promises/readFile",
+          "node:fs/promises/readdir",
+          "node:fs/promises/rm",
+          "node:fs/promises/stat",
+          "node:fs/promises/unlink",
+          "node:fs/promises/writeFile",
+          "node:stream/promises",
+          "node:os/homedir",
+          "node:os/tmpdir",
+          "node:path/basename",
+          "node:path/dirname",
+          "node:path/join",
+          "node:path/posix",
+          "node:stream/promises/finished"
+        ]
+      },
       "mobileTestQueryDevices": {
         "path": "dist/mobileTest/mobileTestHelpers.js",
         "dependencies": [
@@ -235970,11 +238207,32 @@
         ]
       },
       "mobileTestReadAvdName": {
-        "path": "dist/mobileTest/mobileTestCaptureHelpers.js",
+        "path": "dist/mobileTest/mobileTestHelpers.js",
         "dependencies": [
-          "node:net/createServer",
-          "node:timers/promises/setTimeout",
-          "node:timers/promises"
+          "node:crypto/createHash",
+          "node:crypto/randomUUID",
+          "node:fs/constants",
+          "node:fs/accessSync",
+          "node:fs/createWriteStream",
+          "node:fs/existsSync",
+          "node:fs/statSync",
+          "node:fs/promises/cp",
+          "node:fs/promises/lstat",
+          "node:fs/promises/mkdtemp",
+          "node:fs/promises/readFile",
+          "node:fs/promises/readdir",
+          "node:fs/promises/rm",
+          "node:fs/promises/stat",
+          "node:fs/promises/unlink",
+          "node:fs/promises/writeFile",
+          "node:stream/promises",
+          "node:os/homedir",
+          "node:os/tmpdir",
+          "node:path/basename",
+          "node:path/dirname",
+          "node:path/join",
+          "node:path/posix",
+          "node:stream/promises/finished"
         ]
       },
       "mobileTestReadBuildProvenance": {
@@ -236669,6 +238927,11 @@
         "dependencies": [
           "node:fs/existsSync"
         ]
+      },
+      "MOTION_TEXT_SIGNAL": {
+        "path": "dist/proofPlan/uiChangeConstants.js",
+        "description": "Words in a feature that say its change is about motion — what a still screen",
+        "dependencies": []
       },
       "MOULDED_TABLEWARE_FORM": {
         "path": "dist/recommend/recommendConstants.js",
@@ -237579,9 +239842,21 @@
         "description": "The entries on a story that still need a PERSON, across every feature.",
         "dependencies": []
       },
+      "OpenSharedWebUiSessionOptions": {
+        "path": "dist/uiTest/uiTestTypes.d.ts",
+        "description": "How the host opens a web session a script it runs shares over CDP. Always",
+        "dependencies": [
+          "UiViewport",
+          "playwright/Page"
+        ]
+      },
       "OpenToolCalls": {
         "path": "dist/cliAgentRunner/cliRunTimeUtils.js",
         "description": "The tool calls a live transcript has open, line by line — to tell when the",
+        "dependencies": []
+      },
+      "openUiTestSharedWebSession": {
+        "path": "dist/uiTest/UiTestTools.js",
         "dependencies": []
       },
       "OpenWebUiSessionOptions": {
@@ -237627,9 +239902,29 @@
         "description": "The work outside a story that a feature of it waits on: the story's own",
         "dependencies": []
       },
+      "OVERLAY_FILES_NOT_AT_HEAD": {
+        "path": "dist/reviewEvidence/reviewEvidenceConstants.js",
+        "description": "Why overlays holding files the head holds otherwise would show another scene than the head.",
+        "dependencies": []
+      },
+      "OVERLAY_FILES_REMOVED": {
+        "path": "dist/reviewEvidence/reviewEvidenceConstants.js",
+        "description": "Why overlays that remove files are not the head's own scene files.",
+        "dependencies": []
+      },
+      "OVERLAY_FILES_UNRECORDED": {
+        "path": "dist/reviewEvidence/reviewEvidenceConstants.js",
+        "description": "Why overlays that recorded no files cannot be read as the head's own: nothing says what they hold.",
+        "dependencies": []
+      },
       "OVERLAY_TYPE_SUFFIX": {
         "path": "dist/recommend/recommendConstants.js",
         "description": "Entity `type` suffix for the per-user product OVERLAY layer (`{recordType}-overlay`). Holds the user note",
+        "dependencies": []
+      },
+      "overlayFilesHeadProblem": {
+        "path": "dist/reviewEvidence/reviewEvidenceUtils.js",
+        "description": "Why overlay files are not exactly what `head` holds — a file removed, a file",
         "dependencies": []
       },
       "OWNED_TEMP_WORK_DIR_NAME": {
@@ -238101,6 +240396,11 @@
       "parseJestJsonSuites": {
         "path": "dist/projectChecks/projectCheckTestReportUtils.js",
         "description": "The suites of a Jest `--json` report — one per test file, named by its path",
+        "dependencies": []
+      },
+      "parseJourneyDayLog": {
+        "path": "dist/journey/journeyUtils.js",
+        "description": "A day log's text as lines that hold, in order, and the number of each line",
         "dependencies": []
       },
       "parseJUnitXmlSuites": {
@@ -240469,6 +242769,34 @@
         "path": "dist/workflow/processReviewStepConstants.js",
         "dependencies": []
       },
+      "PROCESS_INPUT_CHOICE_DEFAULT_UNKNOWN": {
+        "path": "dist/workflow/processInputConstants.js",
+        "dependencies": []
+      },
+      "PROCESS_INPUT_CHOICE_NO_OPTIONS": {
+        "path": "dist/workflow/processInputConstants.js",
+        "dependencies": []
+      },
+      "PROCESS_INPUT_CHOICE_OPTION_DUPLICATE": {
+        "path": "dist/workflow/processInputConstants.js",
+        "dependencies": []
+      },
+      "PROCESS_INPUT_CHOICE_OPTION_INVALID": {
+        "path": "dist/workflow/processInputConstants.js",
+        "dependencies": []
+      },
+      "PROCESS_INPUT_CONDITION_INVALID": {
+        "path": "dist/workflow/processInputConstants.js",
+        "dependencies": []
+      },
+      "PROCESS_INPUT_CONDITION_NOT_OFFERED": {
+        "path": "dist/workflow/processInputConstants.js",
+        "dependencies": []
+      },
+      "PROCESS_INPUT_CONDITION_UNKNOWN": {
+        "path": "dist/workflow/processInputConstants.js",
+        "dependencies": []
+      },
       "PROCESS_INPUT_FIELD_NESTED_VARIANTS": {
         "path": "dist/workflow/processInputConstants.js",
         "dependencies": []
@@ -240497,6 +242825,10 @@
         "path": "dist/workflow/processInputConstants.js",
         "dependencies": []
       },
+      "PROCESS_INPUT_NOT_CHOICE": {
+        "path": "dist/workflow/processInputConstants.js",
+        "dependencies": []
+      },
       "PROCESS_INPUT_NOT_NOTE": {
         "path": "dist/workflow/processInputConstants.js",
         "dependencies": []
@@ -240517,7 +242849,15 @@
         "path": "dist/workflow/processInputConstants.js",
         "dependencies": []
       },
+      "PROCESS_INPUT_OPTIONS_ONLY_ON_CHOICE": {
+        "path": "dist/workflow/processInputConstants.js",
+        "dependencies": []
+      },
       "PROCESS_INPUT_REQUIRED": {
+        "path": "dist/workflow/processInputConstants.js",
+        "dependencies": []
+      },
+      "PROCESS_INPUT_REQUIRED_WHEN": {
         "path": "dist/workflow/processInputConstants.js",
         "dependencies": []
       },
@@ -241161,7 +243501,7 @@
       },
       "PROCESS_PROOF_CHANGE_KEEPS_SCREENS": {
         "path": "dist/workflow/processProofChangeConstants.js",
-        "description": "Why a change that drops the screens of a change that shows on screen is refused.",
+        "description": "Why a change that drops the screens or video of a change that shows on screen is refused, naming each kind kept (`kinds`, in words).",
         "dependencies": []
       },
       "PROCESS_PROOF_CHANGE_LABEL": {
@@ -241196,7 +243536,7 @@
       },
       "PROCESS_PROOF_CHANGE_NOT_OFFERED": {
         "path": "dist/workflow/processProofChangeConstants.js",
-        "description": "Why a stop that offers no change of its proof refuses one — including one short only of the screens a change that shows on screen keeps.",
+        "description": "Why a stop that offers no change of its proof refuses one — including one short only of the screens or video a change that shows on screen keeps.",
         "dependencies": []
       },
       "PROCESS_PROOF_CHANGE_PARK_REASONS": {
@@ -243405,6 +245745,16 @@
           "Omit"
         ]
       },
+      "ProcessInputCondition": {
+        "path": "dist/workflow/workflowTypes.d.ts",
+        "description": "Holds when the input named holds `is` — a choice left out holds its default.",
+        "dependencies": []
+      },
+      "processInputConditionHolds": {
+        "path": "dist/workflow/processInputUtils.js",
+        "description": "Whether `condition` holds of the inputs beside it, as they hold `values` —",
+        "dependencies": []
+      },
       "processInputDefinitionProblems": {
         "path": "dist/workflow/processInputUtils.js",
         "description": "Everything wrong with the inputs a definition declares, for when it is saved. Pure.",
@@ -243419,6 +245769,8 @@
         "path": "dist/workflow/workflowTypes.d.ts",
         "description": "One value of a variant record: its name, what a form calls it, and its kind.",
         "dependencies": [
+          "ProcessInputOption",
+          "ProcessInputCondition",
           "ProcessInputKind",
           "Exclude"
         ]
@@ -243431,6 +245783,11 @@
       "processInputNoteIds": {
         "path": "dist/workflow/processInputUtils.js",
         "description": "Every note a run's launch named: its own inputs, and the variant's it is for",
+        "dependencies": []
+      },
+      "ProcessInputOption": {
+        "path": "dist/workflow/workflowTypes.d.ts",
+        "description": "One value a `choice` input offers: what is kept, and what a form shows.",
         "dependencies": []
       },
       "processInputPatchNoteIds": {
@@ -243453,9 +245810,14 @@
         "description": "Why a launch cannot start with these values: the first input left out,",
         "dependencies": []
       },
+      "processInputValue": {
+        "path": "dist/workflow/processInputUtils.js",
+        "description": "The value an input holds: what the launch filled, or — for a choice it left",
+        "dependencies": []
+      },
       "ProcessInputValue": {
         "path": "dist/workflow/workflowTypes.d.ts",
-        "description": "A value a text, note-reference, number or refs input holds.",
+        "description": "A value a text, note-reference, number, choice or refs input holds.",
         "dependencies": [
           "ProcessInputRef"
         ]
@@ -243637,6 +245999,11 @@
           "ProcessBaseConflict",
           "ProcessIntegrationLandedBy"
         ]
+      },
+      "ProcessJourneyInputs": {
+        "path": "dist/workflow/workflowTypes.d.ts",
+        "description": "The launch inputs a `script` step's journey runs on, each the",
+        "dependencies": []
       },
       "processKeptEvidenceIds": {
         "path": "dist/workflow/processEvidenceUtils.js",
@@ -244641,6 +247008,16 @@
         "description": "A prover's claim that the proof asked of it cannot be produced.",
         "dependencies": []
       },
+      "processProofChangeKeptKinds": {
+        "path": "dist/workflow/processProofChangeUtils.js",
+        "description": "The kinds a change of a stop's proof never drops: every kind it is proven",
+        "dependencies": []
+      },
+      "processProofChangeKeptLine": {
+        "path": "dist/workflow/processProofChangeUtils.js",
+        "description": "Why the kept kinds (`kinds`) stay in what proves a change that shows on screen, in one line. Pure.",
+        "dependencies": []
+      },
       "processProofChangeLine": {
         "path": "dist/workflow/processProofChangeUtils.js",
         "description": "A change of what proves the work, in one line: \"Proof changed from Checks · Before/after screens to Checks.\" Pure.",
@@ -244690,6 +247067,11 @@
       "ProcessProofUnpaired": {
         "path": "dist/workflow/workflowTypes.d.ts",
         "description": "An after the reviewer filed with no before of its subject that did not count, and why.",
+        "dependencies": []
+      },
+      "ProcessProofVideoPair": {
+        "path": "dist/workflow/workflowTypes.d.ts",
+        "description": "One before/after pair of recordings a verify gate judged — the same path",
         "dependencies": []
       },
       "ProcessProposal": {
@@ -245661,6 +248043,8 @@
         "path": "dist/workflow/workflowTypes.d.ts",
         "description": "One step of a definition — the editable shape.",
         "dependencies": [
+          "ProcessJourneyInputs",
+          "ProcessInputCondition",
           "ProcessStepExpansion",
           "AgentTypeSlot",
           "ProcessStepKind"
@@ -245812,6 +248196,11 @@
       "processStepRetryStart": {
         "path": "dist/workflow/processRetryModeUtils.js",
         "description": "How the executor of `entry` starts, read off the entry: fresh, or carrying",
+        "dependencies": []
+      },
+      "processStepRunsFor": {
+        "path": "dist/workflow/workflowUtils.js",
+        "description": "Whether a step runs for this launch: it names no condition, or the condition",
         "dependencies": []
       },
       "processStepStandaloneTask": {
@@ -246072,6 +248461,7 @@
           "ProofPlanJudgement",
           "ProcessProofUnpaired",
           "ProcessStepOutcome",
+          "ProcessProofVideoPair",
           "ProcessProofNewScreen",
           "ProcessProofPair"
         ]
@@ -246953,6 +249343,11 @@
         "description": "Where the shared App files are kept, relative to the package root.",
         "dependencies": []
       },
+      "PROJECT_BRING_BASE_IN": {
+        "path": "dist/capability/capabilityConstants.js",
+        "description": "What a commit older than the capture the project's checkout declares waits on: the base branch.",
+        "dependencies": []
+      },
       "PROJECT_CHECK_ALREADY_MET_RECORDED": {
         "path": "dist/projectChecks/projectChecksConstants.js",
         "description": "What `reportAcceptanceAlreadyMet` answers once the report is recorded.",
@@ -247811,6 +250206,16 @@
         "description": "The directories Overseer keeps in a project: `.factory`, and the layouts before it — `.stories`",
         "dependencies": []
       },
+      "PROJECT_MOBILE_CAPTURE_UNAVAILABLE": {
+        "path": "dist/capability/capabilityConstants.js",
+        "description": "Why screens are not possible for a mobile app that cannot be built for capture at the commit read.",
+        "dependencies": []
+      },
+      "PROJECT_MOBILE_OLDER_THAN_CAPTURE_BUILD": {
+        "path": "dist/capability/capabilityConstants.js",
+        "description": "Why a commit older than the capture build the project's checkout declares (`factory.mobileApp.fakeBackend`) cannot be built for capture.",
+        "dependencies": []
+      },
       "PROJECT_NOTE_FOLDERS": {
         "path": "dist/projectNotes/projectNoteConstants.js",
         "description": "The folder of the store holding each plain note as `<noteId>.json`, by who wrote it: the user's",
@@ -247834,6 +250239,11 @@
       "PROJECT_NOTES_SECRETS_FILE": {
         "path": "dist/projectNotes/projectNoteConstants.js",
         "description": "Secret-kind notes, whoever wrote them — encrypted with the host key.",
+        "dependencies": []
+      },
+      "PROJECT_OLDER_THAN_DECLARED_CAPTURE": {
+        "path": "dist/capability/capabilityConstants.js",
+        "description": "Why a commit older than the capture `declared` the project's checkout declares cannot be captured.",
         "dependencies": []
       },
       "PROJECT_OVERVIEW_MODEL_OFF_SETTING": {
@@ -247971,11 +250381,6 @@
         "description": "What `reportUiImpact` answers where nothing records it.",
         "dependencies": []
       },
-      "PROJECT_WEB_BRING_BASE_IN": {
-        "path": "dist/capability/capabilityConstants.js",
-        "description": "What a commit older than the fake backend the project's checkout declares waits on: the base branch.",
-        "dependencies": []
-      },
       "PROJECT_WEB_OLDER_THAN_FAKE_BACKEND": {
         "path": "dist/capability/capabilityConstants.js",
         "description": "Why a commit older than the fake backend the project's checkout declares cannot be served.",
@@ -248027,7 +250432,7 @@
       },
       "ProjectAppCaptureHtmlResult": {
         "path": "dist/projectApp/projectAppTypes.d.ts",
-        "description": "Successful `overseer:capture-html` result: the live document's HTML",
+        "description": "Successful `overseer:capture-html` result: the live document's HTML, not a",
         "dependencies": []
       },
       "projectAppCaptureHtmlResultOf": {
@@ -248184,6 +250589,13 @@
         "path": "dist/projectApp/projectAppUtils.js",
         "description": "The shared file a request beside an App's page asks for — `bridge.js` or",
         "dependencies": []
+      },
+      "projectCaptureUnavailableReason": {
+        "path": "dist/capability/capabilityUtils.js",
+        "description": "Why screens are not possible for a project whatever the host holds: for a",
+        "dependencies": [
+          "PROJECT_WEB_SERVE_UNAVAILABLE"
+        ]
       },
       "ProjectChangeHandler": {
         "path": "dist/project/projectTypes.d.ts",
@@ -249109,6 +251521,11 @@
           "Pick"
         ]
       },
+      "projectDeclaresFakeData": {
+        "path": "dist/proofPlan/fakeDataSetupUtils.js",
+        "description": "Whether the project declares fake data its app's real screens are proved",
+        "dependencies": []
+      },
       "ProjectFilesRegeneration": {
         "path": "dist/mergeRegenerate/mergeRegenerateTypes.d.ts",
         "description": "The project's build run to regenerate files: the ones of them it rewrote,",
@@ -249468,13 +251885,6 @@
           "thefactory-db/FindStaleDocumentsOptions"
         ]
       },
-      "projectServeUnavailableReason": {
-        "path": "dist/capability/capabilityUtils.js",
-        "description": "Why screens are not possible for a project because the browser tools cannot",
-        "dependencies": [
-          "PROJECT_WEB_SERVE_UNAVAILABLE"
-        ]
-      },
       "ProjectsGroup": {
         "path": "dist/projectsgroups/projectsGroupsTypes.d.ts",
         "description": "Group of projects with a title and ordered list of project ids.",
@@ -249775,6 +252185,21 @@
         "description": "The longest `notes` a plan keeps.",
         "dependencies": []
       },
+      "PROOF_SCREEN_KINDS": {
+        "path": "dist/proofPlan/proofPlanConstants.js",
+        "description": "The kinds that ask for what is on screen: still screens, and the change recorded moving.",
+        "dependencies": []
+      },
+      "PROOF_SCREENS_ADDED_REASON": {
+        "path": "dist/proofPlan/proofPlanConstants.js",
+        "description": "Why a change was decided to show on screen, when the person said no more: what shows it there (`kinds`, in words) was added.",
+        "dependencies": []
+      },
+      "PROOF_SCREENS_DROPPED_REASON": {
+        "path": "dist/proofPlan/proofPlanConstants.js",
+        "description": "Why a change was decided to show nothing on screen, when the person said no more: what showed it there (`kinds`, in words) was dropped.",
+        "dependencies": []
+      },
       "PROOF_SCREENS_NOT_NEEDED": {
         "path": "dist/proofPlan/proofPlanConstants.js",
         "description": "How screens asked for only in words stand when the change shows nothing on screen.",
@@ -249810,12 +252235,17 @@
       },
       "proofKindsAskedInWords": {
         "path": "dist/proofPlan/changeRequestUtils.js",
-        "description": "The proof a request's words ask for — today, only screens are read from words. Pure.",
+        "description": "The proof a request's words ask for — only what is on screen is read from",
         "dependencies": []
       },
       "proofKindsChoiceProblem": {
         "path": "dist/proofPlan/proofPlanUtils.js",
         "description": "Why a person's choice of proof is refused, or `undefined` when it can be",
+        "dependencies": []
+      },
+      "proofKindsInWords": {
+        "path": "dist/proofPlan/proofPlanUtils.js",
+        "description": "Kinds as a person reads them mid-sentence: \"before/after screens and before/after video\". Pure.",
         "dependencies": []
       },
       "ProofKindStanding": {
@@ -249833,7 +252263,7 @@
       },
       "proofKindsUnavailable": {
         "path": "dist/proofPlan/proofPlanUtils.js",
-        "description": "Every kind of proof a launch cannot produce, and why: screens the project or",
+        "description": "Every kind of proof a launch cannot produce, and why: screens or video the",
         "dependencies": []
       },
       "ProofKindUnavailable": {
@@ -249852,7 +252282,7 @@
       },
       "proofPlanAsksForScreens": {
         "path": "dist/proofPlan/proofPlanUtils.js",
-        "description": "Whether the plan asks for before/after screens — the only kind that does. Pure.",
+        "description": "Whether the plan asks for what is on screen: before/after screens, or a before/after video. Pure.",
         "dependencies": []
       },
       "proofPlanBriefLines": {
@@ -249988,12 +252418,22 @@
         "description": "What the plan's marks come to, as a step outcome.",
         "dependencies": []
       },
+      "proofPlanVideoInPlaceOfScreens": {
+        "path": "dist/proofPlan/proofPlanUtils.js",
+        "description": "Whether a before/after video is what shows the change on screen: the plan",
+        "dependencies": []
+      },
       "proofRequiredAddendum": {
         "path": "dist/agentRunner/agentRunnerSystemPrompt.js",
         "description": "Told to an agent whose run was started with PROOF REQUIRED.",
         "dependencies": [
           "NO_CAPTURE_STEP"
         ]
+      },
+      "proofScreenKindsOf": {
+        "path": "dist/proofPlan/proofPlanUtils.js",
+        "description": "The kinds of `kinds` that ask for what is on screen ({@link PROOF_SCREEN_KINDS}), in their order. Pure.",
+        "dependencies": []
       },
       "ProofSeamRoute": {
         "path": "dist/agentRunner/agentRunnerTypes.d.ts",
@@ -250520,6 +252960,11 @@
         "description": "A build type or configuration a React Native app runs as a dev build: its",
         "dependencies": []
       },
+      "REACT_NATIVE_FRAMEWORK": {
+        "path": "dist/proofPlan/fakeDataSetupConstants.js",
+        "description": "Framework or language words that say a project is a React Native app, Expo's included.",
+        "dependencies": []
+      },
       "REACT_NATIVE_IOS_CONFIGURATION": {
         "path": "dist/mobileTest/mobileTestConstants.js",
         "description": "The configuration a React Native app's iOS build uses when the caller names none.",
@@ -251042,6 +253487,14 @@
       "readIndexableContent": {
         "path": "dist/ingestion/ingestionHelpers.js",
         "dependencies": [
+          "node:fs/promises"
+        ]
+      },
+      "readJourneyDayLog": {
+        "path": "dist/journey/journeyHelpers.js",
+        "dependencies": [
+          "node:crypto/createHash",
+          "node:crypto/randomBytes",
           "node:fs/promises"
         ]
       },
@@ -251672,6 +254125,10 @@
       "readTestSeamManifest": {
         "path": "dist/cliAgentRunner/cliAgentRunnerUtils.js",
         "description": "The test seam a run declared, read from its changed files — or `undefined`",
+        "dependencies": []
+      },
+      "readUiTestSessionText": {
+        "path": "dist/uiTest/UiTestTools.js",
         "dependencies": []
       },
       "readValidators": {
@@ -252948,6 +255405,11 @@
           "DiscoveredSource"
         ]
       },
+      "rememberJourneyLine": {
+        "path": "dist/journey/journeyUtils.js",
+        "description": "`lines` with `line` after them, the newest {@link JOURNEY_MEMORY_LINES} kept. Pure.",
+        "dependencies": []
+      },
       "rememberProjectCheckFlakes": {
         "path": "dist/projectChecks/projectCheckFlakeUtils.js",
         "description": "The known-flakes register once a checks run found these tests flaky: each",
@@ -253016,6 +255478,14 @@
         "dependencies": [
           "CLI_IMAGE_INSPECT_TIMEOUT_MS",
           "node:url/fileURLToPath"
+        ]
+      },
+      "removeJourneyFiles": {
+        "path": "dist/journey/journeyHelpers.js",
+        "dependencies": [
+          "node:crypto/createHash",
+          "node:crypto/randomBytes",
+          "node:fs/promises"
         ]
       },
       "removeLandedProcessWorkBranch": {
@@ -253376,6 +255846,11 @@
       "requestAsksForScreens": {
         "path": "dist/proofPlan/uiChangeUtils.js",
         "description": "Whether a person's words ask for the work to be proven on screen: they name",
+        "dependencies": []
+      },
+      "requestAsksForVideo": {
+        "path": "dist/proofPlan/uiChangeUtils.js",
+        "description": "Whether a person's words ask for the change recorded moving: they name a",
         "dependencies": []
       },
       "requestChangesProofPreset": {
@@ -255140,6 +257615,7 @@
         "path": "dist/reviewEvidence/reviewEvidenceTypes.d.ts",
         "description": "Which code a capture shows — recorded by the build that produced the app, so",
         "dependencies": [
+          "ReviewEvidenceOverlayFile",
           "CapturePlatform"
         ]
       },
@@ -255162,6 +257638,13 @@
         "dependencies": [
           "ProjectCheckRunResult",
           "ProjectCheckKind"
+        ]
+      },
+      "ReviewEvidenceCommitFiles": {
+        "path": "dist/reviewEvidence/reviewEvidenceTypes.d.ts",
+        "description": "The content each of some files holds at one commit.",
+        "dependencies": [
+          "Record"
         ]
       },
       "ReviewEvidenceComparison": {
@@ -255220,6 +257703,11 @@
       "ReviewEvidenceObservedBefore": {
         "path": "dist/reviewEvidence/reviewEvidenceTypes.d.ts",
         "description": "A before observed in place because its earlier state cannot be rebuilt.",
+        "dependencies": []
+      },
+      "ReviewEvidenceOverlayFile": {
+        "path": "dist/reviewEvidence/reviewEvidenceTypes.d.ts",
+        "description": "One file a build's overlays change, as the build was served with it.",
         "dependencies": []
       },
       "ReviewEvidenceProjectMove": {
@@ -255749,6 +258237,15 @@
         "dependencies": [
           "ROOT",
           "node:module/createRequire",
+          "node:fs/promises"
+        ]
+      },
+      "runJourneyScript": {
+        "path": "dist/journey/journeyHelpers.js",
+        "dependencies": [
+          "JOURNEY_NO_PLAYWRIGHT",
+          "node:crypto/createHash",
+          "node:crypto/randomBytes",
           "node:fs/promises"
         ]
       },
@@ -256694,6 +259191,11 @@
           "node:fs/constants",
           "node:fs/promises"
         ]
+      },
+      "saysFakeDataBuildNeeded": {
+        "path": "dist/proofPlan/fakeDataSetupUtils.js",
+        "description": "Whether a reason screens were left unchecked says the project needs a fake-data build first. Pure.",
+        "dependencies": []
       },
       "scanFingerprintedProjectChecks": {
         "path": "dist/projectChecks/projectChecksHelpers.js",
@@ -259416,6 +261918,11 @@
           "node:fs/promises"
         ]
       },
+      "storyHoldsFakeDataSetup": {
+        "path": "dist/proofPlan/fakeDataSetupUtils.js",
+        "description": "Whether a story holds a setup feature, whatever its status. Pure.",
+        "dependencies": []
+      },
       "storyIdOfStoryFileSrc": {
         "path": "dist/searchHits/searchHitsUtils.js",
         "description": "The id of the story whose file `src` is, in the project's stories folder; else `undefined`.",
@@ -261909,16 +264416,6 @@
         "description": "Told with every judgement of a change: one that changes only data or results",
         "dependencies": []
       },
-      "UI_IMPACT_DECIDED_NOT_SHOWN": {
-        "path": "dist/proofPlan/uiChangeConstants.js",
-        "description": "Why a change was decided to show nothing on screen, when the person said no more.",
-        "dependencies": []
-      },
-      "UI_IMPACT_DECIDED_SHOWN": {
-        "path": "dist/proofPlan/uiChangeConstants.js",
-        "description": "Why a change was decided to show on screen, when the person said no more.",
-        "dependencies": []
-      },
       "UI_IMPACT_DECIDER_LABELS": {
         "path": "dist/proofPlan/uiChangeConstants.js",
         "description": "How whoever decided whether a change alters what users see is named at the start of a sentence.",
@@ -261989,19 +264486,34 @@
         "description": "Told with every proof of screens: which of the two routes a change takes.",
         "dependencies": []
       },
+      "UI_PROOF_ROUTE_MOBILE_FAKE_DATA": {
+        "path": "dist/proofPlan/uiChangeConstants.js",
+        "description": "Where a change to a mobile app's own wiring is proved, in a project whose mobile app declares a fake-data build of build type `buildType`.",
+        "dependencies": []
+      },
       "UI_PROOF_ROUTE_MOBILE_FAKE_SERVER": {
         "path": "dist/proofPlan/uiChangeConstants.js",
         "description": "Where a change to a mobile app's own wiring is proved, in a project whose mobile app declares a fake server.",
         "dependencies": []
       },
+      "UI_PROOF_ROUTE_NO_FAKE_DATA_IOS": {
+        "path": "dist/proofPlan/uiChangeConstants.js",
+        "description": "Where a change to an iOS app's own wiring is proved, in a project that declares no fake data.",
+        "dependencies": []
+      },
       "UI_PROOF_ROUTE_NO_FAKE_SERVER": {
         "path": "dist/proofPlan/uiChangeConstants.js",
-        "description": "Where a change to an app's own wiring is proved, in a project with no fake server yet.",
+        "description": "Where a change to an app's own wiring is proved, in a project that declares no fake data yet.",
         "dependencies": []
       },
       "UI_PROOF_ROUTE_PLAYGROUND": {
         "path": "dist/proofPlan/uiChangeConstants.js",
         "description": "Where a change to a shared component is proved, on a playground served at `path`.",
+        "dependencies": []
+      },
+      "UI_PROOF_ROUTE_PROJECT_APP": {
+        "path": "dist/proofPlan/uiChangeConstants.js",
+        "description": "Where a change to an Overseer App's own wiring is proved: on its page, its reads answered by the host.",
         "dependencies": []
       },
       "UI_PROOF_SETTLE_TIMEOUT_MS": {
@@ -262022,6 +264534,26 @@
       "UI_REF_PREFIX": {
         "path": "dist/uiTest/uiTestConstants.js",
         "description": "Prefix of a snapshot ref id (e.g. `e1`, `e42`).",
+        "dependencies": []
+      },
+      "UI_SCENE_OVERLAY_NO_DIR": {
+        "path": "dist/uiTest/uiTestConstants.js",
+        "description": "Why a scene over overlays records no build when the project declares no playground folder.",
+        "dependencies": []
+      },
+      "UI_SCENE_OVERLAY_NO_HEAD": {
+        "path": "dist/uiTest/uiTestConstants.js",
+        "description": "Why a scene over overlays records no build when the served repository's HEAD could not be read.",
+        "dependencies": []
+      },
+      "UI_SCENE_OVERLAY_OUTSIDE": {
+        "path": "dist/uiTest/uiTestConstants.js",
+        "description": "Why a scene over overlays that change files outside the playground folder records no build.",
+        "dependencies": []
+      },
+      "UI_SCENE_OVERLAY_UNRECORDED": {
+        "path": "dist/uiTest/uiTestConstants.js",
+        "description": "Why a scene over overlays records no build when the serve did not record what they change.",
         "dependencies": []
       },
       "UI_SCREEN_DESCRIPTION_MAX_ENTRIES": {
@@ -262292,6 +264824,7 @@
         "description": "Exactly which code a served web app holds — recorded by the serve, never",
         "dependencies": [
           "UiServedFakeBackend",
+          "ReviewEvidenceOverlayFile",
           "playwright/Page"
         ]
       },
@@ -262299,6 +264832,7 @@
         "path": "dist/uiTest/uiTestTypes.d.ts",
         "description": "What decides whether a capture may carry a build record.",
         "dependencies": [
+          "ReviewEvidenceCommitFiles",
           "UiBuildProvenance",
           "ScreenshotUiOptions",
           "UiConnection",
@@ -262313,6 +264847,16 @@
           "playwright/Page"
         ]
       },
+      "uiCdpEndpoint": {
+        "path": "dist/uiTest/uiTestUtils.js",
+        "description": "Where a browser launched with {@link uiCdpLaunchArgs} is reached over CDP. Pure.",
+        "dependencies": []
+      },
+      "uiCdpLaunchArgs": {
+        "path": "dist/uiTest/uiTestUtils.js",
+        "description": "What a browser is launched with to be driven over CDP too: a debugging port on the loopback only. Pure.",
+        "dependencies": []
+      },
       "UiChangeFeature": {
         "path": "dist/proofPlan/proofPlanTypes.d.ts",
         "description": "What a feature says about where it will work — read before its change exists.",
@@ -262321,6 +264865,11 @@
           "Pick",
           "Partial"
         ]
+      },
+      "uiChangeMotion": {
+        "path": "dist/proofPlan/uiChangeUtils.js",
+        "description": "Whether a feature's title, description or acceptance say its change is",
+        "dependencies": []
       },
       "uiChangePaths": {
         "path": "dist/proofPlan/uiChangeUtils.js",
@@ -262525,6 +265074,11 @@
           "playwright/Page"
         ]
       },
+      "uiOverlayFilesOfRawDiff": {
+        "path": "dist/uiTest/uiTestUtils.js",
+        "description": "The files a `git diff-tree -r -z --no-renames` / `git diff-index -z` raw",
+        "dependencies": []
+      },
       "UiPageDriver": {
         "path": "dist/uiTest/uiTestTypes.d.ts",
         "description": "A launched page bound to its owning browser/Electron process.",
@@ -262533,6 +265087,11 @@
           "playwright/Page",
           "UiTarget"
         ]
+      },
+      "uiPlaygroundDirOf": {
+        "path": "dist/uiTest/uiTestUtils.js",
+        "description": "The folder, from the top of the repository, an app keeps its design",
+        "dependencies": []
       },
       "uiPlaygroundSceneAt": {
         "path": "dist/uiTest/uiTestUtils.js",
@@ -262598,7 +265157,8 @@
         "path": "dist/proofPlan/proofPlanTypes.d.ts",
         "description": "What decides where a change to what users see is proved.",
         "dependencies": [
-          "UiChangeScope"
+          "UiChangeScope",
+          "ProjectPlatform"
         ]
       },
       "UiProofRouteOption": {
@@ -262611,9 +265171,7 @@
       "uiProofRoutes": {
         "path": "dist/proofPlan/uiChangeUtils.js",
         "description": "Where a change to what users see is proved, by what changed. A project with",
-        "dependencies": [
-          "UI_PROOF_ROUTE_NO_FAKE_SERVER"
-        ]
+        "dependencies": []
       },
       "UiRawScreen": {
         "path": "dist/uiTest/uiTestTypes.d.ts",
@@ -262650,6 +265208,20 @@
       "uiRefSelector": {
         "path": "dist/uiTest/uiTestUtils.js",
         "description": "Build the attribute selector that targets the element a ref was assigned to.",
+        "dependencies": []
+      },
+      "UiSceneOverlayInput": {
+        "path": "dist/uiTest/uiTestTypes.d.ts",
+        "description": "What decides whether a served build's overlays are only the head's own scene files.",
+        "dependencies": [
+          "ReviewEvidenceCommitFiles",
+          "UiBuildProvenance",
+          "playwright/Page"
+        ]
+      },
+      "uiSceneOverlayProblem": {
+        "path": "dist/uiTest/uiTestUtils.js",
+        "description": "Why a served build's overlays are not only the head's own design-playground",
         "dependencies": []
       },
       "UiScreenshotResult": {
@@ -262906,6 +265478,14 @@
           "playwright/Page"
         ]
       },
+      "UiSharedSessionResult": {
+        "path": "dist/uiTest/uiTestTypes.d.ts",
+        "description": "A session the host opened to share over CDP: the ordinary handle, and where a script attaches.",
+        "dependencies": [
+          "UiSessionResult",
+          "playwright/Page"
+        ]
+      },
       "UiSnapshotResult": {
         "path": "dist/uiTest/uiTestTypes.d.ts",
         "description": "Result of an observation. `snapshot` is a pruned, ref-annotated accessibility",
@@ -263119,6 +265699,18 @@
         "description": "The ids and texts on screen, read in the page. Only what is rendered and in",
         "dependencies": []
       },
+      "uiTestCommitFiles": {
+        "path": "dist/uiTest/uiTestServeHelpers.js",
+        "dependencies": [
+          "node:fs/constants",
+          "node:fs/createReadStream",
+          "node:fs/createWriteStream",
+          "node:fs/existsSync",
+          "node:fs/mkdirSync",
+          "node:stream/promises/pipeline",
+          "node:fs/promises"
+        ]
+      },
       "uiTestConnectWebPage": {
         "path": "dist/uiTest/uiTestHelpers.js",
         "dependencies": []
@@ -263231,6 +265823,18 @@
         "path": "dist/uiTest/uiTestHelpers.js",
         "description": "Parent env (undefined values dropped) merged with caller overrides; `undefined` when no overrides.",
         "dependencies": []
+      },
+      "uiTestOverlayFiles": {
+        "path": "dist/uiTest/uiTestServeHelpers.js",
+        "dependencies": [
+          "node:fs/constants",
+          "node:fs/createReadStream",
+          "node:fs/createWriteStream",
+          "node:fs/existsSync",
+          "node:fs/mkdirSync",
+          "node:stream/promises/pipeline",
+          "node:fs/promises"
+        ]
       },
       "uiTestPauseSvgAnimations": {
         "path": "dist/uiTest/uiTestHelpers.js",
@@ -264035,6 +266639,41 @@
         "path": "dist/story/storyTypeValidations.js",
         "dependencies": []
       },
+      "validateJourneyAnswer": {
+        "path": "dist/journey/journeyTypeValidations.js",
+        "description": "Whether `answer` answers `request` in the shape its kind takes, and — where",
+        "dependencies": []
+      },
+      "validateJourneyDecideResponse": {
+        "path": "dist/journey/journeyTypeValidations.js",
+        "description": "Whether `value` is what the host may answer `request` with: an answer that holds, and where it came from.",
+        "dependencies": []
+      },
+      "validateJourneyDecisionRequest": {
+        "path": "dist/journey/journeyTypeValidations.js",
+        "description": "Why `value` is not a decision a journey script may ask for: not an object, a",
+        "dependencies": []
+      },
+      "validateJourneyHandBack": {
+        "path": "dist/journey/journeyTypeValidations.js",
+        "description": "Whether `value` is what an agent may hand a journey's browser back with: an outcome, and a note of it.",
+        "dependencies": []
+      },
+      "validateJourneyPlan": {
+        "path": "dist/journey/journeyTypeValidations.js",
+        "description": "Whether `value` is a persona's plan of `days` days: one entry per day from 1,",
+        "dependencies": []
+      },
+      "validateJourneyTakeOverRequest": {
+        "path": "dist/journey/journeyTypeValidations.js",
+        "description": "Whether `value` is a take-over a script may ask for: what it was trying to do, and what it saw.",
+        "dependencies": []
+      },
+      "validateJourneyTakeOverResult": {
+        "path": "dist/journey/journeyTypeValidations.js",
+        "description": "Whether `value` is how a take-over may end: handed back or failed, with a note.",
+        "dependencies": []
+      },
       "validateLargeFileKey": {
         "path": "dist/storage/LargeFileStorage.js",
         "dependencies": [
@@ -264809,6 +267448,11 @@
       },
       "VIDEO_PROJECT_FILE_NOTE": {
         "path": "dist/video/videoConstants.js",
+        "dependencies": []
+      },
+      "VIDEO_PROOF_REQUEST": {
+        "path": "dist/proofPlan/uiChangeConstants.js",
+        "description": "Words in a request that ask for the change recorded moving: a video, a recording, a film.",
         "dependencies": []
       },
       "VIDEO_REASON_NO_FFMPEG": {
@@ -266622,6 +269266,14 @@
           "node:fs/promises/rm",
           "node:fs/promises",
           "node:path/dirname"
+        ]
+      },
+      "writeJourneyFiles": {
+        "path": "dist/journey/journeyHelpers.js",
+        "dependencies": [
+          "node:crypto/createHash",
+          "node:crypto/randomBytes",
+          "node:fs/promises"
         ]
       },
       "writeNewFileWithinRoot": {

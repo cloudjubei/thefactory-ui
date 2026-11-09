@@ -80,6 +80,7 @@ import { TICKET_NEW_ITEMS_SCENES } from '../scenes/ticketNewItems'
 import { UI_IMPACT_SCENES } from '../scenes/uiImpact'
 import { USAGE_SCENES } from '../scenes/usage'
 import { VARIANT_RUN_SCENES } from '../scenes/variantRun'
+import { SCRIPTED_RUN_SCENES } from '../scenes/scriptedRun'
 import { VIDEO_ATTACHMENT_SCENES } from '../scenes/videoAttachments'
 import { PROJECT_DEVICE_SETTINGS_SCENES } from '../scenes/projectDeviceSettings'
 import { VIDEO_SETTINGS_SCENES } from '../scenes/videoSettings'
@@ -128,6 +129,7 @@ export const SCENES: readonly Scene[] = [
   ...RUN_TIME_DETAILS_SCENES,
   ...PROCESS_LAUNCH_SCENES,
   ...VARIANT_RUN_SCENES,
+  ...SCRIPTED_RUN_SCENES,
   ...COST_CHIP_SCENES,
   ...PROCESS_CHECKS_SCENES,
   ...ACCEPTED_UNCHECKED_SCENES,

@@ -3,15 +3,18 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 import type { ProcessLedgerEntry, ProcessStepState } from 'thefactory-tools/types'
 
 import {
+  JOURNEY_DAYS_COPY,
   STEP_REPORT_AUTHORS,
   agentNeverStartedNote,
   attemptUiImpactNote,
+  journeyStepView,
   processAttemptLeaf,
   processLeafReview,
   processStepStates,
   reportBodyView,
   reviewUiImpactNote,
   useProcessRun,
+  useProcessRunEvidence,
   useStepFiling,
   type ProcessNodeRunRef,
   type ProcessRun,
@@ -24,6 +27,7 @@ import type { SaveFileHandler } from '../../chat/signoff'
 import ProcessCheckList from '../ProcessCheckList'
 import RunChatButton, { type RunChatButtonProps } from '../RunChatButton'
 import VerificationReview from '../VerificationReview'
+import JourneyStepDays from '../JourneyStepDays'
 import CodeReviewPanel from '../signoff/CodeReviewPanel'
 import SignoffReportPanel from '../signoff/SignoffReportPanel'
 import UiImpactNote from '../UiImpactNote'
@@ -218,6 +222,13 @@ function StepOutput({
       </ScrollView>
     )
   }
+  if (state.step.kind === 'script') {
+    return (
+      <ScrollView contentContainerStyle={pad}>
+        <ScriptOutput run={run} entry={entry} {...(onSaveFile ? { onSaveFile } : {})} />
+      </ScrollView>
+    )
+  }
   if (state.step.kind === 'check') {
     return (
       <ScrollView contentContainerStyle={pad}>
@@ -270,6 +281,32 @@ function ReviewOutput({
     <Text style={{ fontSize: 13, color: theme.text.secondary }}>
       {loaded ? (entry?.review?.reason ?? 'No code review was filed for this step.') : 'Loading…'}
     </Text>
+  )
+}
+
+function ScriptOutput({
+  run,
+  entry,
+  onSaveFile,
+}: {
+  run: ProcessRun
+  entry: ProcessLedgerEntry | undefined
+  onSaveFile?: SaveFileHandler
+}) {
+  const { theme } = useNativeTheme()
+  const { groups, loaded } = useProcessRunEvidence(run.projectId, run.id)
+  const tiles = groups.find((group) => group.runId === run.id)?.tiles ?? []
+  if (!loaded) {
+    return (
+      <Text style={{ fontSize: 13, color: theme.text.secondary }}>{JOURNEY_DAYS_COPY.loading}</Text>
+    )
+  }
+  return (
+    <JourneyStepDays
+      projectId={run.projectId}
+      view={journeyStepView(tiles, entry)}
+      {...(onSaveFile ? { onSaveFile } : {})}
+    />
   )
 }
 

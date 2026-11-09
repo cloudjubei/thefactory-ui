@@ -13,8 +13,8 @@ import {
 
 describe('buildChatContextSettings', () => {
   it('reads the defaults for a chat that has never set them', () => {
-    expect(buildChatContextSettings(undefined)).toEqual({ historyShare: 50, notesTurns: 3 })
-    expect(buildChatContextSettings({})).toEqual({ historyShare: 50, notesTurns: 3 })
+    expect(buildChatContextSettings(undefined)).toEqual({ historyShare: 35, notesTurns: 3 })
+    expect(buildChatContextSettings({})).toEqual({ historyShare: 35, notesTurns: 3 })
   })
 
   it('reads a share as a percent and keeps 0 turns as off', () => {

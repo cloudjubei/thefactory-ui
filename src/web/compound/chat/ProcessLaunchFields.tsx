@@ -7,6 +7,7 @@ import {
   processLaunchLayout,
   processLaunchPatchLabel,
   processLaunchRefToggleLabel,
+  processLaunchShown,
   processLaunchVariantRows,
   processLaunchVariants,
   removeProcessLaunchVariant,
@@ -26,6 +27,7 @@ import {
 import type { ProcessInput, ProcessInputField } from 'thefactory-tools/types'
 import { IconChevron, IconClose, IconDocument, IconPlus } from '../../icons'
 import { Input } from '../../primitives/Input'
+import SegmentedControl from '../../primitives/SegmentedControl'
 import {
   Select,
   SelectContent,
@@ -114,6 +116,34 @@ function NoteField({
           ))}
         </SelectContent>
       </Select>
+    </div>
+  )
+}
+
+function ChoiceField({
+  field,
+  value,
+  busy,
+  onPick,
+}: {
+  field: Pick<ProcessInputField, 'label' | 'options' | 'default'>
+  value: string
+  busy: boolean
+  onPick: (value: string) => void
+}) {
+  return (
+    <div className="flex min-w-0 flex-col gap-1">
+      <FieldLabel text={field.label} />
+      <SegmentedControl
+        size="sm"
+        className="w-fit"
+        ariaLabel={field.label}
+        options={field.options ?? []}
+        value={value || (field.default ?? '')}
+        onChange={(next) => {
+          if (!busy) onPick(next)
+        }}
+      />
     </div>
   )
 }
@@ -238,7 +268,7 @@ function InputField({
   props,
   onChange,
 }: {
-  field: Pick<ProcessInputField, 'kind' | 'label' | 'required'>
+  field: Pick<ProcessInputField, 'kind' | 'label' | 'required' | 'options' | 'default'>
   value: ProcessLaunchFieldDraft | undefined
   fieldKey: string
   props: ProcessLaunchFieldsProps
@@ -261,6 +291,9 @@ function InputField({
     )
   }
   const text = typeof value === 'string' ? value : ''
+  if (field.kind === 'choice') {
+    return <ChoiceField field={field} value={text} busy={busy} onPick={onChange} />
+  }
   if (field.kind === 'note-reference') {
     return (
       <NoteField
@@ -325,7 +358,7 @@ function VariantBody({
           onChange(setProcessLaunchVariantLabel(draft, input.name, variant.key, label))
         }
       />
-      {(input.fields ?? []).map((field) => (
+      {processLaunchShown(input.fields ?? [], variant.values).map((field) => (
         <InputField
           key={field.name}
           field={field}
@@ -454,14 +487,20 @@ function Fill({
 }
 
 /**
- * A process's form, drawn from what it asks for: the short inputs side by side,
- * then each long one, and each variant folded to one line of its refs and
- * patches until it is opened.
+ * A process's form, drawn from what it asks for: each choice as a switch, the
+ * short inputs side by side, then each long one, and each variant folded to
+ * one line of its refs and patches until it is opened. An input required only
+ * by a choice shows only while that choice is picked.
  */
 export default function ProcessLaunchFields(props: ProcessLaunchFieldsProps) {
-  const { short, long } = processLaunchLayout(props.inputs)
+  const { choices, short, long } = processLaunchLayout(
+    processLaunchShown(props.inputs, props.draft.values),
+  )
   return (
     <div className="flex flex-col gap-3">
+      {choices.map((input) => (
+        <Fill key={input.name} input={input} props={props} />
+      ))}
       {short.length > 0 ? (
         <div className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3">
           {short.map((input) => (

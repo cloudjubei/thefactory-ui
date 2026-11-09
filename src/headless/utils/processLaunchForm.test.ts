@@ -12,6 +12,7 @@ import {
   processLaunchRefToggleLabel,
   processLaunchRepos,
   processLaunchShortRef,
+  processLaunchShown,
   processLaunchVariantId,
   processLaunchVariantRows,
   processLaunchVariants,
@@ -418,8 +419,143 @@ describe('processLaunchShortRef', () => {
 describe('processLaunchLayout', () => {
   it('sets the short inputs side by side, then text, refs and variants', () => {
     const inputs: ProcessInput[] = [...INPUTS, { name: 'base', label: 'Base', kind: 'refs' }]
-    const { short, long } = processLaunchLayout(inputs)
+    const { choices, short, long } = processLaunchLayout(inputs)
+    expect(choices).toEqual([])
     expect(short.map((i) => i.name)).toEqual(['person', 'product', 'days'])
     expect(long.map((i) => i.name)).toEqual(['lookingFor', 'base', 'variants'])
+  })
+
+  it('draws each choice first, before the short inputs it decides', () => {
+    const { choices, short } = processLaunchLayout(LIVED_INPUTS)
+    expect(choices.map((i) => i.name)).toEqual(['livedBy'])
+    expect(short.map((i) => i.name)).toEqual(['person', 'product', 'days', 'journeyScript'])
+  })
+})
+
+const LIVED_BY: ProcessInput = {
+  name: 'livedBy',
+  label: 'How the days are lived',
+  kind: 'choice',
+  options: [
+    { value: 'scripted', label: 'Scripted' },
+    { value: 'agent', label: 'Agent (legacy)' },
+  ],
+  default: 'scripted',
+}
+
+const JOURNEY_SCRIPT: ProcessInput = {
+  name: 'journeyScript',
+  label: 'Journey script',
+  kind: 'note-reference',
+  requiredWhen: { input: 'livedBy', is: 'scripted' },
+}
+
+const LIVED_INPUTS: ProcessInput[] = [...INPUTS.slice(0, 4), LIVED_BY, JOURNEY_SCRIPT, INPUTS[4]!]
+
+function livedBy(choice: string | undefined, script = '') {
+  let draft = processLaunchDraft(LIVED_INPUTS, STACK, choice ? { livedBy: choice } : undefined)
+  const done = filled()
+  for (const name of ['person', 'days', 'lookingFor', 'variants']) {
+    draft = setProcessLaunchValue(draft, name, done.values[name]!)
+  }
+  return setProcessLaunchValue(draft, 'journeyScript', script)
+}
+
+describe('a choice', () => {
+  it('starts at its default, and at nothing when it has none', () => {
+    expect(processLaunchDraft(LIVED_INPUTS, STACK).values.livedBy).toBe('scripted')
+    const bare = { ...LIVED_BY, default: undefined } as ProcessInput
+    expect(processLaunchDraft([bare], STACK).values.livedBy).toBe('')
+  })
+
+  it('takes what an agent asked for only when it is offered', () => {
+    expect(livedBy('agent').values.livedBy).toBe('agent')
+    expect(livedBy('typed by hand').values.livedBy).toBe('scripted')
+  })
+
+  it('is sent as picked', () => {
+    expect(processLaunchInputValues(LIVED_INPUTS, livedBy('agent')).livedBy).toBe('agent')
+    expect(processLaunchInputValues(LIVED_INPUTS, livedBy(undefined, 'n9')).livedBy).toBe(
+      'scripted',
+    )
+  })
+})
+
+describe('processLaunchShown', () => {
+  it('shows an input required by a choice only while it is picked, and as required', () => {
+    const scripted = processLaunchShown(LIVED_INPUTS, livedBy('scripted').values)
+    expect(scripted.find((i) => i.name === 'journeyScript')).toMatchObject({ required: true })
+    const agent = processLaunchShown(LIVED_INPUTS, livedBy('agent').values)
+    expect(agent.map((i) => i.name)).not.toContain('journeyScript')
+    expect(agent).toHaveLength(LIVED_INPUTS.length - 1)
+  })
+
+  it('reads a choice left blank as its default', () => {
+    const values = { ...livedBy('agent').values, livedBy: '' }
+    expect(processLaunchShown(LIVED_INPUTS, values).map((i) => i.name)).toContain('journeyScript')
+  })
+
+  it('shows as declared an input whose condition names nothing beside it', () => {
+    const shown = processLaunchShown([JOURNEY_SCRIPT], {})
+    expect(shown).toEqual([JOURNEY_SCRIPT])
+  })
+
+  it('shows a variant field the same way, against the fields beside it', () => {
+    const fields = [
+      { ...LIVED_BY, kind: 'choice' as const },
+      { ...JOURNEY_SCRIPT, kind: 'note-reference' as const },
+    ]
+    expect(processLaunchShown(fields, { livedBy: 'agent' }).map((f) => f.name)).toEqual(['livedBy'])
+    expect(processLaunchShown(fields, { livedBy: 'scripted' })).toHaveLength(2)
+  })
+})
+
+describe('an input required by a choice', () => {
+  it('is sent while the choice asks for it', () => {
+    expect(processLaunchInputValues(LIVED_INPUTS, livedBy('scripted', 'n9')).journeyScript).toBe(
+      'n9',
+    )
+  })
+
+  it('is left out once the other choice is picked, even when filled', () => {
+    const sent = processLaunchInputValues(LIVED_INPUTS, livedBy('agent', 'n9'))
+    expect(sent).not.toHaveProperty('journeyScript')
+    expect(processLaunchProblem(LIVED_INPUTS, livedBy('agent'))).toBeUndefined()
+  })
+
+  it('is marked when the choice asks for it and it is left out', () => {
+    expect(processLaunchProblem(LIVED_INPUTS, livedBy('scripted'))).toEqual({
+      message: 'Journey script is required when How the days are lived is Scripted.',
+      fieldKey: 'journeyScript',
+    })
+    expect(processLaunchProblem(LIVED_INPUTS, livedBy('scripted', 'n9'))).toBeUndefined()
+  })
+
+  it('is marked inside the variant that leaves it out', () => {
+    const input: ProcessInput = {
+      name: 'variants',
+      label: 'Variants',
+      kind: 'variants',
+      required: true,
+      fields: [
+        { ...LIVED_BY, kind: 'choice' },
+        { ...JOURNEY_SCRIPT, kind: 'note-reference' },
+      ],
+    }
+    let draft = processLaunchDraft([input], ONE_REPO)
+    const key = processLaunchVariants(draft, 'variants')[0]!.key
+    draft = setProcessLaunchVariantLabel(draft, 'variants', key, 'Short')
+    expect(processLaunchProblem([input], draft)).toEqual({
+      message:
+        'Variants: Short: Journey script is required when How the days are lived is Scripted.',
+      fieldKey: `variants.${key}.journeyScript`,
+      variantKey: key,
+    })
+    draft = setProcessLaunchVariantField(draft, 'variants', key, 'livedBy', 'agent')
+    draft = setProcessLaunchVariantField(draft, 'variants', key, 'journeyScript', 'n9')
+    expect(processLaunchProblem([input], draft)).toBeUndefined()
+    expect(processLaunchInputValues([input], draft).variants).toEqual([
+      { id: 'short', label: 'Short', values: { livedBy: 'agent' } },
+    ])
   })
 })

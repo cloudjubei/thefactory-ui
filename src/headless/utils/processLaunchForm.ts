@@ -1,5 +1,5 @@
 import type { ProcessInput, ProcessInputField, UiStackSetting } from 'thefactory-tools/types'
-import { processInputsProblem } from 'thefactory-tools/utils'
+import { processInputConditionHolds, processInputsProblem } from 'thefactory-tools/utils'
 import { PROCESS_INPUT_VALUES_KEY } from 'thefactory-tools/constants'
 
 import {
@@ -67,11 +67,14 @@ function blankRefs(repos: ProcessLaunchRepos): ProcessLaunchRefDraft[] {
   return repos.repos.map((repo) => ({ repo, ref: '', patch: '' }))
 }
 
+type ProcessLaunchFieldShape = Pick<ProcessInputField, 'kind' | 'options' | 'default'>
+
 function blankField(
-  field: Pick<ProcessInputField, 'kind'>,
+  field: ProcessLaunchFieldShape,
   repos: ProcessLaunchRepos,
 ): ProcessLaunchFieldDraft {
-  return field.kind === 'refs' ? blankRefs(repos) : ''
+  if (field.kind === 'refs') return blankRefs(repos)
+  return field.kind === 'choice' ? (field.default ?? '') : ''
 }
 
 function blankVariant(
@@ -116,11 +119,15 @@ function askedRefs(value: unknown, repos: ProcessLaunchRepos): ProcessLaunchRefD
 }
 
 function askedField(
-  field: Pick<ProcessInputField, 'kind'>,
+  field: ProcessLaunchFieldShape,
   value: unknown,
   repos: ProcessLaunchRepos,
 ): ProcessLaunchFieldDraft {
   if (field.kind === 'refs') return askedRefs(value, repos)
+  if (field.kind === 'choice') {
+    const offered = (field.options ?? []).some((option) => option.value === value)
+    return offered ? String(value) : blankField(field, repos)
+  }
   return typeof value === 'string' || typeof value === 'number' ? String(value) : ''
 }
 
@@ -160,7 +167,8 @@ export function processLaunchDraft(
   const values = Object.fromEntries(
     inputs.map((input): [string, ProcessLaunchValueDraft] => {
       if (input.kind !== 'variants') {
-        return [input.name, askedField({ kind: input.kind }, asked?.[input.name], repos)]
+        const field = { ...input, kind: input.kind }
+        return [input.name, askedField(field, asked?.[input.name], repos)]
       }
       const variants = askedVariants(input, asked?.[input.name], repos)
       const rows = variants.length > 0 ? variants : [blankVariant(input, 0, repos)]
@@ -315,6 +323,30 @@ export function toggleProcessLaunchOneRef(
   return [{ repo: repos.one, ref: first?.ref ?? '', ...patchOf(first) }]
 }
 
+/**
+ * What of a form shows, as it is filled: an item required only while an input
+ * beside it holds a value shows only then, and as required; anything else
+ * shows as it is declared. `values` are the inputs beside them, as the form
+ * holds them. Pure.
+ */
+export function processLaunchShown<T extends ProcessInput | ProcessInputField>(
+  items: readonly T[],
+  values: Readonly<Record<string, ProcessLaunchValueDraft>>,
+): T[] {
+  return items.flatMap((item) => {
+    const when = item.requiredWhen
+    if (!when) return [item]
+    const holds = processInputConditionHolds(when, items, values)
+    if (holds === undefined) return [item]
+    return holds ? [{ ...item, required: true }] : []
+  })
+}
+
+const shownNames = (
+  items: readonly (ProcessInput | ProcessInputField)[],
+  values: Readonly<Record<string, ProcessLaunchValueDraft>>,
+): Set<string> => new Set(processLaunchShown(items, values).map((item) => item.name))
+
 function numberOf(text: string): number | string {
   const value = Number(text)
   return text.trim() !== '' && Number.isFinite(value) ? value : text
@@ -343,7 +375,10 @@ const isLeftOut = (value: unknown): boolean =>
   value === '' || (Array.isArray(value) && value.length === 0)
 
 function variantValue(input: ProcessInput, variant: ProcessLaunchVariantDraft) {
-  const entries = (input.fields ?? []).flatMap((field) => {
+  const fields = input.fields ?? []
+  const shown = shownNames(fields, variant.values)
+  const entries = fields.flatMap((field) => {
+    if (!shown.has(field.name)) return []
     const value = fieldValue(field.kind, variant.values[field.name])
     return isLeftOut(value) ? [] : [[field.name, value] as const]
   })
@@ -355,14 +390,17 @@ function variantValue(input: ProcessInput, variant: ProcessLaunchVariantDraft) {
 }
 
 /**
- * What a form sends, by input name: what is left out is not sent, numbers are
- * numbers once they can be, and a repo with no ref is no entry. Pure.
+ * What a form sends, by input name: what is left out or does not show is not
+ * sent, a choice is sent as picked, numbers are numbers once they can be, and
+ * a repo with no ref is no entry. Pure.
  */
 export function processLaunchInputValues(
   inputs: readonly ProcessInput[],
   draft: ProcessLaunchDraft,
 ): ProcessLaunchInputValues {
+  const shown = shownNames(inputs, draft.values)
   const entries = inputs.flatMap((input) => {
+    if (!shown.has(input.name)) return []
     const value =
       input.kind === 'variants'
         ? processLaunchVariants(draft, input.name).map((v) => variantValue(input, v))
@@ -377,6 +415,25 @@ function problemOf(
   values: Readonly<Record<string, unknown>>,
 ): string | undefined {
   return processInputsProblem(inputs, { [PROCESS_INPUT_VALUES_KEY]: values })
+}
+
+/** An item with the one beside it its requirement names, so it is checked as the form has it. */
+function withItsCondition<T extends ProcessInput | ProcessInputField>(
+  item: T,
+  items: readonly T[],
+): T[] {
+  const when = item.requiredWhen
+  const other = when ? items.find((one) => one.name === when.input && one !== item) : undefined
+  return other ? [item, other] : [item]
+}
+
+function valuesOf(
+  items: readonly (ProcessInput | ProcessInputField)[],
+  values: Readonly<Record<string, unknown>>,
+): Record<string, unknown> {
+  return Object.fromEntries(
+    items.flatMap((item) => (item.name in values ? [[item.name, values[item.name]]] : [])),
+  )
 }
 
 function variantProblem(
@@ -398,14 +455,15 @@ function variantProblem(
   }
   const alone = sent[at]!
   const filled: Record<string, unknown> = alone.values ?? {}
-  const field = (input.fields ?? []).find(
-    (one) =>
-      problemOf([{ ...input, fields: [one] }], {
-        [input.name]: [
-          { ...alone, values: one.name in filled ? { [one.name]: filled[one.name] } : {} },
-        ],
-      }) === message,
-  )
+  const fields = input.fields ?? []
+  const field = fields.find((one) => {
+    const checked = withItsCondition(one, fields)
+    return (
+      problemOf([{ ...input, fields: checked }], {
+        [input.name]: [{ ...alone, values: valuesOf(checked, filled) }],
+      }) === message
+    )
+  })
   return field ? { ...named, fieldKey: `${input.name}.${variant.key}.${field.name}` } : named
 }
 
@@ -420,10 +478,10 @@ export function processLaunchProblem(
   const values = processLaunchInputValues(inputs, draft)
   const message = problemOf(inputs, values)
   if (!message) return undefined
-  const input = inputs.find(
-    (one) =>
-      problemOf([one], one.name in values ? { [one.name]: values[one.name] } : {}) === message,
-  )
+  const input = inputs.find((one) => {
+    const checked = withItsCondition(one, inputs)
+    return problemOf(checked, valuesOf(checked, values)) === message
+  })
   if (!input) return { message, fieldKey: '' }
   if (input.kind === 'variants' && input.name in values) {
     return variantProblem(input, draft, message)
@@ -490,12 +548,17 @@ export function processLaunchVariantRows(
   })
 }
 
-/** The form's inputs as it draws them: the short ones side by side, then each long one. Pure. */
+/**
+ * The form's inputs as it draws them: each choice first, as it decides what
+ * else shows, then the short ones side by side, then each long one. Pure.
+ */
 export function processLaunchLayout(inputs: readonly ProcessInput[]): ProcessLaunchLayout {
   const rank = (input: ProcessInput) => (input.kind === 'text' ? 0 : input.kind === 'refs' ? 1 : 2)
+  const rest = inputs.filter((input) => input.kind !== 'choice')
   return {
-    short: inputs.filter((input) => PROCESS_LAUNCH_SHORT_KINDS.includes(input.kind)),
-    long: inputs
+    choices: inputs.filter((input) => input.kind === 'choice'),
+    short: rest.filter((input) => PROCESS_LAUNCH_SHORT_KINDS.includes(input.kind)),
+    long: rest
       .filter((input) => !PROCESS_LAUNCH_SHORT_KINDS.includes(input.kind))
       .sort((a, b) => rank(a) - rank(b)),
   }

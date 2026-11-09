@@ -183,6 +183,22 @@ export function processStageChips(
 }
 
 /**
+ * What a step attempt filed, newest first: everything filed while it ran, or
+ * just after, since a filing is often recorded a moment past the end. Pure.
+ */
+export function stepFilingsOf(
+  tiles: readonly EvidenceTile[],
+  entry: Pick<ProcessLedgerEntry, 'startedAt' | 'endedAt'> | undefined,
+): EvidenceTile[] {
+  if (!entry) return []
+  const until =
+    entry.endedAt === undefined ? Infinity : entry.endedAt + PROCESS_STEP_FILING_GRACE_MS
+  return tiles
+    .filter((t) => t.ref.createdAt >= entry.startedAt && t.ref.createdAt <= until)
+    .sort((a, b) => b.ref.createdAt - a.ref.createdAt)
+}
+
+/**
  * The report a step filed: the newest by one of `authors`, filed while its
  * attempt ran — or just after, since a filing can land a moment past the end.
  */
@@ -191,16 +207,7 @@ export function stepFilingOf(
   entry: Pick<ProcessLedgerEntry, 'startedAt' | 'endedAt'> | undefined,
   authors: readonly ReportAuthor[],
 ): EvidenceTile | undefined {
-  if (!entry) return undefined
-  const until =
-    entry.endedAt === undefined ? Infinity : entry.endedAt + PROCESS_STEP_FILING_GRACE_MS
-  return tiles
-    .filter(
-      (t) =>
-        t.ref.kind === 'report' &&
-        authors.includes(reportAuthor(t.ref)) &&
-        t.ref.createdAt >= entry.startedAt &&
-        t.ref.createdAt <= until,
-    )
-    .sort((a, b) => b.ref.createdAt - a.ref.createdAt)[0]
+  return stepFilingsOf(tiles, entry).find(
+    (t) => t.ref.kind === 'report' && authors.includes(reportAuthor(t.ref)),
+  )
 }

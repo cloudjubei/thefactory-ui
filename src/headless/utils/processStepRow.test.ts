@@ -6,7 +6,12 @@ import {
 } from 'thefactory-tools/constants'
 import type { ProcessLedgerEntry, ProcessStepState } from 'thefactory-tools/types'
 
-import { processStageChips, processStepRowView, stepFilingOf } from './processStepRow'
+import {
+  processStageChips,
+  processStepRowView,
+  stepFilingOf,
+  stepFilingsOf,
+} from './processStepRow'
 import { PROCESS_STEP_RESULT_MAX, PROCESS_STEP_WAITING_ON_YOU } from './processStepRowConstants'
 import type { EvidenceTile } from './reviewEvidenceViewTypes'
 
@@ -572,5 +577,29 @@ describe('stepFilingOf', () => {
 
   it('finds nothing without an attempt', () => {
     expect(stepFilingOf(tiles, undefined, ['code-review'])).toBeUndefined()
+  })
+})
+
+describe('stepFilingsOf', () => {
+  const tile = (kind: string, createdAt: number): EvidenceTile =>
+    ({ ref: { id: `${kind}-${createdAt}`, kind, createdAt }, caption: kind }) as EvidenceTile
+
+  it('takes every kind filed within the attempt or just after, newest first', () => {
+    const tiles = [
+      tile('log', 999),
+      tile('log', 1200),
+      tile('recording', 1900),
+      tile('screenshot', 2000 + 120_000),
+      tile('log', 2000 + 120_001),
+    ]
+    expect(stepFilingsOf(tiles, entry()).map((t) => t.ref.id)).toEqual([
+      'screenshot-122000',
+      'recording-1900',
+      'log-1200',
+    ])
+  })
+
+  it('takes nothing without an attempt', () => {
+    expect(stepFilingsOf([tile('log', 1200)], undefined)).toEqual([])
   })
 })

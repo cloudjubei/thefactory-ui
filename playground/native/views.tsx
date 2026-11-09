@@ -56,6 +56,7 @@ import {
   VISIBLE_CHANGE_OFFER,
   VISIBLE_VIDEO_CHANGE_OFFER,
 } from '../scenes/proofChangeFixtures'
+import { SCRIPTED_VIEWS } from './scriptedViews'
 import { VARIANT_VIEWS } from './variantViews'
 
 const noop = () => {}
@@ -543,4 +544,5 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
     render: () => <RequestVideo />,
   },
   ...VARIANT_VIEWS,
+  ...SCRIPTED_VIEWS,
 ]

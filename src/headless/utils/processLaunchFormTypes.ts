@@ -90,8 +90,9 @@ export type ProcessLaunchVariantRow = {
   bad: boolean
 }
 
-/** The form's inputs in the order they are drawn: a row of short fields, then each long one. */
+/** The form's inputs in the order they are drawn: each choice, a row of short fields, then each long one. */
 export type ProcessLaunchLayout = {
+  choices: readonly ProcessInput[]
   short: readonly ProcessInput[]
   long: readonly ProcessInput[]
 }

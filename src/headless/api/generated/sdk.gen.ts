@@ -214,6 +214,9 @@ import type {
   DecideDesignTidyMoveData,
   DecideDesignTidyMoveErrors,
   DecideDesignTidyMoveResponses,
+  DecideJourneyData,
+  DecideJourneyErrors,
+  DecideJourneyResponses,
   DelegateProcessRunAskData,
   DelegateProcessRunAskErrors,
   DelegateProcessRunAskResponses,
@@ -910,6 +913,9 @@ import type {
   PairRunnerData,
   PairRunnerErrors,
   PairRunnerResponses,
+  PasteTicketData,
+  PasteTicketErrors,
+  PasteTicketResponses,
   PlanGroupTicketData,
   PlanGroupTicketErrors,
   PlanGroupTicketResponses,
@@ -1320,6 +1326,9 @@ import type {
   SuggestLaunchSetupData,
   SuggestLaunchSetupErrors,
   SuggestLaunchSetupResponses,
+  TakeOverJourneyData,
+  TakeOverJourneyErrors,
+  TakeOverJourneyResponses,
   TestGroupMcpServerData,
   TestGroupMcpServerErrors,
   TestGroupMcpServerResponses,
@@ -3326,6 +3335,40 @@ export const setProcessRunCleanupOff = <ThrowOnError extends boolean = false>(
     },
   })
 
+/**
+ * A running journey script asks what its person decides: answered from the persona’s plan, or by a small call to the run’s model that reads the screen. Takes the step attempt’s journey token, never the Overseer bearer.
+ */
+export const decideJourney = <ThrowOnError extends boolean = false>(
+  options: Options<DecideJourneyData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<DecideJourneyResponses, DecideJourneyErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/journeys/decide',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * A running journey script that cannot go on hands its page to an agent, on the same browser, and waits: answered once the agent hands back, or fails to. Takes the step attempt’s journey token, never the Overseer bearer.
+ */
+export const takeOverJourney = <ThrowOnError extends boolean = false>(
+  options: Options<TakeOverJourneyData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<TakeOverJourneyResponses, TakeOverJourneyErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/journeys/take-over',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
 export const listReviewEvidence = <ThrowOnError extends boolean = false>(
   options: Options<ListReviewEvidenceData, ThrowOnError>,
 ) =>
@@ -4663,6 +4706,20 @@ export const cancelCredentialCapture = <ThrowOnError extends boolean = false>(
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/credential-captures/{id}/cancel',
     ...options,
+  })
+
+export const pasteTicket = <ThrowOnError extends boolean = false>(
+  options: Options<PasteTicketData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<PasteTicketResponses, PasteTicketErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/tickets/paste',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
   })
 
 export const listConnectionAssignedItems = <ThrowOnError extends boolean = false>(

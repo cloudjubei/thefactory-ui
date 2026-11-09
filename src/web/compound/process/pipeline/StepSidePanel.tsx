@@ -1,15 +1,18 @@
 import { useEffect, useState, type ReactNode } from 'react'
 
 import {
+  JOURNEY_DAYS_COPY,
   STEP_REPORT_AUTHORS,
   agentNeverStartedNote,
   attemptUiImpactNote,
+  journeyStepView,
   processAttemptLeaf,
   processLeafReview,
   processStepStates,
   reportBodyView,
   reviewUiImpactNote,
   useProcessRun,
+  useProcessRunEvidence,
   useStepFiling,
   type ProcessNodeRunRef,
   type ProcessRun,
@@ -20,6 +23,7 @@ import { IconClose, IconExternalLink } from '../../../icons'
 import ProcessCheckList from '../ProcessCheckList'
 import RunChatButton, { type RunChatButtonProps } from '../RunChatButton'
 import VerificationReview from '../VerificationReview'
+import JourneyStepDays from '../JourneyStepDays'
 import CodeReviewPanel from '../signoff/CodeReviewPanel'
 import SignoffReportPanel from '../signoff/SignoffReportPanel'
 import UiImpactNote from '../UiImpactNote'
@@ -197,6 +201,7 @@ function StepOutput({
 }) {
   if (state.step.kind === 'judge') return <ReviewOutput run={run} entry={entry} />
   if (state.step.kind === 'report') return <ReportOutput run={run} entry={entry} />
+  if (state.step.kind === 'script') return <ScriptOutput run={run} entry={entry} />
   if (state.step.kind === 'check') {
     return (
       <div className="p-4">
@@ -237,6 +242,17 @@ function ReviewOutput({ run, entry }: { run: ProcessRun; entry: ProcessLedgerEnt
       )}
     </div>
   )
+}
+
+function ScriptOutput({ run, entry }: { run: ProcessRun; entry: ProcessLedgerEntry | undefined }) {
+  const { groups, loaded } = useProcessRunEvidence(run.projectId, run.id)
+  const tiles = groups.find((group) => group.runId === run.id)?.tiles ?? []
+  if (!loaded) {
+    return (
+      <div className="p-4 text-[13px] text-(--text-secondary)">{JOURNEY_DAYS_COPY.loading}</div>
+    )
+  }
+  return <JourneyStepDays projectId={run.projectId} view={journeyStepView(tiles, entry)} />
 }
 
 function ReportOutput({ run, entry }: { run: ProcessRun; entry: ProcessLedgerEntry | undefined }) {
