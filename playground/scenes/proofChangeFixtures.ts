@@ -19,16 +19,37 @@ export const VISIBLE_CHANGE_OFFER: ProcessProofChangeOffer = {
   keepsScreens: true,
 }
 
-/** The same run proven by a before/after video beside its screens, stopped on both: both stay. */
+/**
+ * The same run proven by a before/after video beside its screens, its verify unable to judge
+ * either (the shape of run 59d1109e): one of the two can go, the other stays.
+ */
 export const VISIBLE_VIDEO_CHANGE_OFFER: ProcessProofChangeOffer = {
   ...VISIBLE_CHANGE_OFFER,
   current: [...VISIBLE_CHANGE_OFFER.current, 'ui-video'],
   standings: [
-    ...VISIBLE_CHANGE_OFFER.standings,
+    ...VISIBLE_CHANGE_OFFER.standings.slice(0, 2),
+    {
+      kind: 'ui-before-after',
+      status: 'unchecked',
+      detail: 'The verifier did not approve the before/after pair of the settings row.',
+    },
     {
       kind: 'ui-video',
-      status: 'unmet',
-      detail: 'The verifier filed no before/after recording of scrolling back to the settings row.',
+      status: 'unchecked',
+      detail: 'The verifier did not approve the recording of scrolling back to the settings row.',
+    },
+  ],
+}
+
+/** That run with its video counted and only its screens short: the screens start off, the video is held on. */
+export const VISIBLE_VIDEO_STAYS_OFFER: ProcessProofChangeOffer = {
+  ...VISIBLE_VIDEO_CHANGE_OFFER,
+  standings: [
+    ...VISIBLE_VIDEO_CHANGE_OFFER.standings.slice(0, 3),
+    {
+      kind: 'ui-video',
+      status: 'met',
+      detail: 'The before/after recording shows the list keeping its place.',
     },
   ],
 }

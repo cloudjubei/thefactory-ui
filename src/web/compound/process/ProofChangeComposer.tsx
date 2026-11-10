@@ -30,9 +30,10 @@ export type ProofChangeComposerProps = {
 /**
  * Change what proves the stopped work, written in place of the choice row:
  * each kind as a switch with how it stood, the ones this run cannot produce
- * held off unless the work already needed them, the screens of a change that
- * shows on screen held on with why, saving it to the feature on a feature's
- * run, and why.
+ * held off unless the work already needed them, of the screens and video of a
+ * change that shows on screen the last one on held on with why — each free to
+ * go while the other stays — saving it to the feature on a feature's run, and
+ * why.
  */
 export default function ProofChangeComposer({
   offer,
@@ -76,6 +77,9 @@ export default function ProofChangeComposer({
             </div>
             {keptLook === 'reason' && kind.kept ? (
               <span className="pl-10 text-[10.5px] text-(--text-secondary)">{kind.kept}</span>
+            ) : null}
+            {kind.canGo ? (
+              <span className="pl-10 text-[10.5px] text-(--text-secondary)">{kind.canGo}</span>
             ) : null}
             {kind.standing ? (
               <span className="pl-10 text-[10.5px] text-(--text-secondary)">

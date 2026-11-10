@@ -1,9 +1,11 @@
 import { Fragment, useMemo, type ReactNode } from 'react'
 import { splitReferences } from 'thefactory-tools/utils'
 import { useEffectiveReferenceRenderer } from '../../../headless/contexts/ReferenceRenderingContext'
-import { splitTextLinks } from '../../../headless/utils/textLinks'
+import { useTicketLinks } from '../../../headless/contexts/TicketLinksContext'
+import { splitTicketLinks } from '../../../headless/utils/ticketLinks'
 import type { ReferenceSegment, ReferenceTarget } from 'thefactory-tools/types'
 import type { UikitFileMeta } from './FileDisplay'
+import TicketLinkChip from '../chips/TicketLinkChip'
 import ProjectFileChip from './ProjectFileChip'
 
 /**
@@ -47,11 +49,17 @@ export type RichTextProps = {
   onReadPreview?: (relativePath: string) => Promise<string | null>
 }
 
-/** Plain text with its `[label](url)` links opening in a new tab. */
+/**
+ * Plain text with its `[label](url)` links opening in a new tab. In a chat bound
+ * to Jira, a link to a ticket on that site, written or bare, is its chip.
+ */
 function TextWithLinks({ text }: { text: string }) {
-  return splitTextLinks(text).map((part, idx) =>
+  const site = useTicketLinks()?.site
+  return splitTicketLinks(text, site).map((part, idx) =>
     part.type === 'text' ? (
       <Fragment key={idx}>{part.value}</Fragment>
+    ) : part.type === 'ticket' ? (
+      <TicketLinkChip key={idx} link={part} />
     ) : (
       <a
         key={idx}

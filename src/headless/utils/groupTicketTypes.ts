@@ -1,4 +1,5 @@
 import type { ChatContext, ExternalRef } from '../api'
+import type { TicketStatusTone } from './ticketCardTypes'
 
 /** A ticket of a group's Jira. Its text comes from Jira: it is shown as plain text. */
 export interface GroupTicket {
@@ -96,6 +97,8 @@ export type TicketChipLayout = 'joined' | 'split'
 export interface TicketChipView {
   key: string
   status?: string
+  /** The status's colour, from its Jira category; absent when none is known. */
+  statusTone?: Exclude<TicketStatusTone, 'unknown'>
   /** Only an http or https link; absent, the chip opens nothing. */
   url?: string
   /** The chip's words: the key and the status. */

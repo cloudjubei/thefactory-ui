@@ -153,3 +153,15 @@ describe('toolAskRowView', () => {
     ).toEqual({ headline: 'Commit 1 file', tone: 'ask' })
   })
 })
+
+describe('toolAskRowView — a Jira status move', () => {
+  it('reads compact as the move, opening to its card', () => {
+    expect(
+      toolAskRowView({
+        label: 'transitionJiraIssue',
+        toolName: 'transitionJiraIssue',
+        args: { issueKey: 'ZNR-780', transition: 'Done' },
+      }),
+    ).toEqual({ headline: 'Move ZNR-780 to Done', tone: 'ask' })
+  })
+})

@@ -2643,6 +2643,7 @@ export type {
 // B3 connectors: list assigned items + import a ticket into a project as a Story.
 export {
   ProviderConnectionsProvider,
+  useOptionalProviderConnections,
   useProviderConnections,
   type ProviderConnectionsContextValue,
   type ProviderConnectionEditInput,
@@ -2955,6 +2956,87 @@ export { useStoryGroupStories } from './hooks/useStoryGroupStories'
 export { useChatContextTickets } from './hooks/useChatContextTickets'
 export { splitTextLinks } from './utils/textLinks'
 export type { TextLinkSegment } from './utils/textLinksTypes'
+export {
+  chatTicketSite,
+  splitTicketLinks,
+  ticketLinkOf,
+  ticketSiteOf,
+  ticketUrlOnSite,
+} from './utils/ticketLinks'
+export type {
+  ChatTicketSiteInput,
+  TicketLink,
+  TicketLinkSegment,
+  TicketSite,
+} from './utils/ticketLinksTypes'
+export { ticketStatusLozenge, ticketStatusTone } from './utils/ticketStatus'
+export { ticketCardView } from './utils/ticketCard'
+export {
+  JIRA_STATUS_CATEGORY_TONE,
+  TICKET_CARD_DEFAULT_LAYOUT,
+  TICKET_CARD_LAYOUT_LABELS,
+  TICKET_CARD_LAYOUTS,
+  TICKET_CARD_TEXT,
+  TICKET_STATUS_TONE,
+} from './utils/ticketCardConstants'
+export type {
+  TicketCardFact,
+  TicketCardLayout,
+  TicketCardView,
+  TicketPreview,
+  TicketPreviewState,
+  TicketStatusLozengeView,
+  TicketStatusTone,
+} from './utils/ticketCardTypes'
+export { isTicketStatusMoveTool, ticketStatusMoveView } from './utils/ticketStatusMove'
+export {
+  TICKET_STATUS_MOVE_ASK,
+  TICKET_STATUS_MOVE_DEFAULT_LAYOUT,
+  TICKET_STATUS_MOVE_LAYOUT_LABELS,
+  TICKET_STATUS_MOVE_LAYOUTS,
+  TICKET_STATUS_MOVE_OUTCOME,
+  TICKET_STATUS_MOVE_TEXT,
+  TICKET_STATUS_MOVE_TOOL,
+} from './utils/ticketStatusMoveConstants'
+export type {
+  TicketStatusMoveInput,
+  TicketStatusMoveLayout,
+  TicketStatusMoveOutcome,
+  TicketStatusMoveView,
+} from './utils/ticketStatusMoveTypes'
+export {
+  isTicketStoryProposalTool,
+  partsOrderLine,
+  partsOrderSteps,
+  ticketStoryProposalView,
+} from './utils/ticketStoryProposal'
+export {
+  TICKET_STORY_DESCRIPTION_FOLD_CHARS,
+  TICKET_STORY_DESCRIPTION_FOLD_LINES,
+  TICKET_STORY_PROPOSAL_ASK,
+  TICKET_STORY_PROPOSAL_DEFAULT_LAYOUT,
+  TICKET_STORY_PROPOSAL_LAYOUT_LABELS,
+  TICKET_STORY_PROPOSAL_LAYOUTS,
+  TICKET_STORY_PROPOSAL_OUTCOME,
+  TICKET_STORY_PROPOSAL_TEXT,
+  TICKET_STORY_PROPOSAL_TOOL,
+} from './utils/ticketStoryProposalConstants'
+export type {
+  TicketStoryPartStory,
+  TicketStoryPartView,
+  TicketStoryProposalInput,
+  TicketStoryProposalLayout,
+  TicketStoryProposalOutcome,
+  TicketStoryProposalView,
+} from './utils/ticketStoryProposalTypes'
+export { TicketPreviewStore, ticketPreviewStoreFor } from './hooks/ticketPreviewStore'
+export {
+  ChatTicketLinksProvider,
+  TicketLinksProvider,
+  useTicketLinks,
+  useTicketPreview,
+  type TicketLinksValue,
+} from './contexts/TicketLinksContext'
 export { useProjectGroupStories } from './hooks/useProjectGroupStories'
 export {
   useGroupStoryRunPreview,
@@ -3798,6 +3880,7 @@ export type {
 } from './utils/proofPlanViewTypes'
 export {
   proofChangeDraftStart,
+  proofChangeKindLabel,
   proofChangeView,
   toggleProofChangeKind,
 } from './utils/processProofChangeView'
@@ -3808,8 +3891,10 @@ export {
   PROOF_CHANGE_KEPT_CHIP,
   PROOF_CHANGE_NOTE_PLACEHOLDER,
   PROOF_CHANGE_SAVE_LABEL,
+  PROOF_CHANGE_SCREENS_CAN_GO,
   PROOF_CHANGE_SCREENS_KEPT,
   PROOF_CHANGE_SEND_LABEL,
+  PROOF_CHANGE_VIDEO_CAN_GO,
   PROOF_CHANGE_VIDEO_KEPT,
 } from './utils/processProofChangeViewConstants'
 export type {

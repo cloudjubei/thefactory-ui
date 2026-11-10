@@ -524,3 +524,23 @@ describe('chatContextTickets', () => {
     expect(chatContextTickets({ metadata: { ticket } })[0]?.url).toBeUndefined()
   })
 })
+
+describe('ticketChipView — the status lozenge', () => {
+  it('colours the status by its Jira category', () => {
+    expect(
+      ticketChipView({ key: 'ENG-1', status: 'In Review', statusCategory: 'indeterminate' })
+        .statusTone,
+    ).toBe('progress')
+    expect(
+      ticketChipView({ key: 'ENG-1', status: 'Done', statusCategory: 'done' }).statusTone,
+    ).toBe('done')
+  })
+
+  it.each([
+    ['no category', { key: 'ENG-1', status: 'Triage' }],
+    ['a category Jira does not name', { key: 'ENG-1', status: 'Triage', statusCategory: 'other' }],
+    ['no status to colour', { key: 'ENG-1', statusCategory: 'done' }],
+  ])('keeps the chip as it was with %s', (_name, ticket) => {
+    expect(ticketChipView(ticket)).not.toHaveProperty('statusTone')
+  })
+})

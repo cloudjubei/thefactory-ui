@@ -20,7 +20,12 @@ import { ParkBlock } from '../../src/web/compound/process/ProcessPipeline'
 import ProofChangeComposer from '../../src/web/compound/process/ProofChangeComposer'
 import ProofPlanMarks from '../../src/web/compound/process/ProofPlanMarks'
 import type { Scene } from '../showcase/types'
-import { KEPT_LOOKS, VISIBLE_CHANGE_OFFER, VISIBLE_VIDEO_CHANGE_OFFER } from './proofChangeFixtures'
+import {
+  KEPT_LOOKS,
+  VISIBLE_CHANGE_OFFER,
+  VISIBLE_VIDEO_CHANGE_OFFER,
+  VISIBLE_VIDEO_STAYS_OFFER,
+} from './proofChangeFixtures'
 
 const noop = () => {}
 const resolved = async () => {}
@@ -327,7 +332,7 @@ export const PROOF_CHANGE_SCENES: Scene[] = [
     component: 'ProofChangeComposer',
     group: 'Process',
     description:
-      'When the change shows on screen, before/after screens — and a before/after video, when it is proven by one — can’t be dropped from what proves it. The editor starts with them on and holds them there with why, instead of letting them be switched off and then showing the refusal. Held, with why is the pick; Left out and Stays chip are on the board.',
+      'When the change shows on screen, one kind that shows it — before/after screens or a before/after video — always stays in what proves it. Proven by one, the editor starts with it on and holds it there with why, instead of letting it be switched off and then showing the refusal. Proven by both, either can be switched off while the other stays: each says so, and the last one on is held with why. Held, with why is the pick; Left out and Stays chip are on the board.',
     states: [
       {
         id: 'alternatives',
@@ -336,14 +341,29 @@ export const PROOF_CHANGE_SCENES: Scene[] = [
         render: () => <KeptAlternatives />,
       },
       {
-        id: 'video-held',
-        title: 'A before/after video stays too',
+        id: 'one-of-two',
+        title: 'Screens and video: one can go',
         description:
-          'Proven by screens and a video, stopped on both: each is held on, with its own why.',
+          'Run 59d1109e: proven by screens and a video, neither judged. Both start on and either can be switched off; the one left on is then held with why, and the other can be switched back on.',
         render: () =>
           frame(
             <ProofChangeComposer
               offer={VISIBLE_VIDEO_CHANGE_OFFER}
+              onSend={noop}
+              onCancel={noop}
+              keptLook="reason"
+            />,
+          ),
+      },
+      {
+        id: 'video-stays',
+        title: 'Screens off, video held',
+        description:
+          'The video is counted and only the screens are short: the editor starts with the screens off and holds the video on with why. Switching the screens back on frees both.',
+        render: () =>
+          frame(
+            <ProofChangeComposer
+              offer={VISIBLE_VIDEO_STAYS_OFFER}
               onSend={noop}
               onCancel={noop}
               keptLook="reason"

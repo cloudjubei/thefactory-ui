@@ -13,6 +13,7 @@ import {
   type GroupConstellationLayout,
   type GroupHomeLayout,
   type GroupTicketsLayout,
+  type ProcessProofChangeOffer,
   type ProofChangeKeptLook,
   type ProviderOAuthActions,
   type TicketStatusList,
@@ -55,10 +56,12 @@ import {
   KEPT_LOOKS,
   VISIBLE_CHANGE_OFFER,
   VISIBLE_VIDEO_CHANGE_OFFER,
+  VISIBLE_VIDEO_STAYS_OFFER,
 } from '../scenes/proofChangeFixtures'
 import { FAKE_DATA_VIEWS } from './fakeDataViews'
 import { FILE_PREVIEW_VIEWS } from './filePreviewViews'
 import { SCRIPTED_VIEWS } from './scriptedViews'
+import { TICKET_VIEWS } from './ticketViews'
 import { VARIANT_VIEWS } from './variantViews'
 
 const noop = () => {}
@@ -276,13 +279,22 @@ const OAUTH: ProviderOAuthActions = {
   onReconnect: () => noop,
 }
 
-/** The proof editor of a change that shows on screen, its screens held in the look `?look=` names. */
-function KeptScreens({ look, video }: { look: string | null; video: boolean }) {
+const KEPT_OFFERS: Record<string, ProcessProofChangeOffer> = {
+  video: VISIBLE_VIDEO_CHANGE_OFFER,
+  'video-stays': VISIBLE_VIDEO_STAYS_OFFER,
+}
+
+/**
+ * The proof editor of a change that shows on screen, its screens held in the look `?look=`
+ * names — or, with `?offer=video`, proven by screens and a video one of which can go, and with
+ * `?offer=video-stays` its screens off and its video held.
+ */
+function KeptScreens({ look, offer }: { look: string | null; offer: string | null }) {
   const kept: ProofChangeKeptLook = KEPT_LOOKS.find((l) => l.id === look)?.id ?? 'reason'
   return (
     <View style={{ padding: 16, width: 390, maxWidth: '100%' }}>
       <ProofChangeComposer
-        offer={video ? VISIBLE_VIDEO_CHANGE_OFFER : VISIBLE_CHANGE_OFFER}
+        offer={(offer && KEPT_OFFERS[offer]) || VISIBLE_CHANGE_OFFER}
         onSend={noop}
         onCancel={noop}
         keptLook={kept}
@@ -531,9 +543,7 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   {
     id: 'proof-change-keeps-screens',
     title: 'Screens stay on a visible change',
-    render: (address) => (
-      <KeptScreens look={address.get('look')} video={address.get('offer') === 'video'} />
-    ),
+    render: (address) => <KeptScreens look={address.get('look')} offer={address.get('offer')} />,
   },
   {
     id: 'before-after-video',
@@ -549,4 +559,5 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   ...SCRIPTED_VIEWS,
   ...FAKE_DATA_VIEWS,
   ...FILE_PREVIEW_VIEWS,
+  ...TICKET_VIEWS,
 ]

@@ -1,6 +1,7 @@
 import { useMemo, type ReactNode } from 'react'
 import { Linking, StyleSheet, Text, View, type TextStyle } from 'react-native'
 import MarkdownDisplay, {
+  MarkdownIt,
   type MarkdownProps as DisplayProps,
   type RenderRules,
 } from 'react-native-markdown-display'
@@ -13,6 +14,9 @@ import {
 import type { ReferenceTarget, ResourceLink } from 'thefactory-tools/types'
 import { useOptionalApi } from '../../headless/api/ApiContext'
 import { useEffectiveReferenceRenderer } from '../../headless/contexts/ReferenceRenderingContext'
+import { useTicketLinks } from '../../headless/contexts/TicketLinksContext'
+import { ticketLinkOf } from '../../headless/utils/ticketLinks'
+import TicketLinkChip from './chips/TicketLinkChip'
 
 import {
   nativeAlpha,
@@ -63,6 +67,8 @@ export type MarkdownProps = {
  * configured API base) map to a `ResourceLink` like web's Markdown, so they
  * navigate in place instead of opening a browser. With `renderReference`, the
  * references in the text and its `overseer://` / same-origin links show as chips.
+ * In a chat bound to Jira, a link to a ticket on that site shows as its chip; a
+ * bare address is read as a link only to find those, and any other stays text.
  */
 export default function Markdown({
   text,
@@ -75,6 +81,7 @@ export default function Markdown({
 }: MarkdownProps) {
   const renderReference = useEffectiveReferenceRenderer(ownRenderReference, typedReferences)
   const { theme } = useNativeTheme()
+  const ticketSite = useTicketLinks()?.site
   // Mobile has no `window.location`; the configured backend/app origin from
   // ApiProvider is the same-origin base web uses `window.location.origin` for.
   const appOrigin = useOptionalApi()?.apiBaseUrl ?? ''
@@ -103,11 +110,11 @@ export default function Markdown({
   )
 
   const rules = useMemo<RenderRules | undefined>(() => {
-    if (!renderReference) return undefined
+    if (!renderReference && !ticketSite) return undefined
     return {
       code_inline: (node, _children, _parent, ruleStyles, inheritedStyles = {}) => {
-        const parsed = parseReferenceToken(node.content)
-        const chip = parsed ? renderReference(parsed) : undefined
+        const parsed = renderReference ? parseReferenceToken(node.content) : undefined
+        const chip = parsed ? renderReference?.(parsed) : undefined
         if (chip !== undefined) return <Text key={node.key}>{chip}</Text>
         return (
           <Text key={node.key} style={[inheritedStyles, ruleStyles.code_inline]}>
@@ -117,8 +124,17 @@ export default function Markdown({
       },
       link: (node, children, _parent, ruleStyles) => {
         const href = String(node.attributes.href ?? '')
+        const ticket = ticketLinkOf(href, ticketSite)
+        if (ticket) {
+          return (
+            <Text key={node.key}>
+              <TicketLinkChip link={ticket} />
+            </Text>
+          )
+        }
+        if (node.markup === 'linkify') return <Text key={node.key}>{children}</Text>
         const link = parseResourceLink(href) ?? parseAppUrlAsResourceLink(href, appOrigin)
-        const chip = link ? renderReference({ type: 'link', link }) : undefined
+        const chip = link ? renderReference?.({ type: 'link', link }) : undefined
         if (chip !== undefined) return <Text key={node.key}>{chip}</Text>
         return (
           <Text key={node.key} style={ruleStyles.link} onPress={() => onLinkPress?.(href)}>
@@ -127,11 +143,23 @@ export default function Markdown({
         )
       },
     }
-  }, [renderReference, onLinkPress, appOrigin])
+  }, [renderReference, onLinkPress, appOrigin, ticketSite])
+
+  const markdownit = useMemo(() => {
+    if (!ticketSite) return undefined
+    const parser = MarkdownIt({ typographer: true, linkify: true })
+    parser.linkify.set({ fuzzyLink: false, fuzzyEmail: false })
+    return parser
+  }, [ticketSite])
 
   return (
     <View>
-      <MarkdownDisplay style={styles} onLinkPress={onLinkPress} {...(rules ? { rules } : {})}>
+      <MarkdownDisplay
+        style={styles}
+        onLinkPress={onLinkPress}
+        {...(rules ? { rules } : {})}
+        {...(markdownit ? { markdownit } : {})}
+      >
         {renderReference ? withReferencesAsCode(text) : text}
       </MarkdownDisplay>
     </View>

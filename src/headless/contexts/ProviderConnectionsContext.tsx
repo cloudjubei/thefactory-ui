@@ -293,6 +293,11 @@ export function ProviderConnectionsProvider({ children }: { children: ReactNode 
   )
 }
 
+/** The provider connections, or `null` outside a `ProviderConnectionsProvider`. */
+export function useOptionalProviderConnections(): ProviderConnectionsContextValue | null {
+  return useContext(ProviderConnectionsContext)
+}
+
 export function useProviderConnections(): ProviderConnectionsContextValue {
   const ctx = useContext(ProviderConnectionsContext)
   if (!ctx)

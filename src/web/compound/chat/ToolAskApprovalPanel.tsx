@@ -26,6 +26,8 @@ import type { ResourceLink } from 'thefactory-tools/types'
 import DesignAskBox from '../design/DesignAskBox'
 import EvaluationLaunchAskBody from './EvaluationLaunchAskBody'
 import MessageAskBody from './MessageAskBody'
+import { TicketStatusMoveConnected } from './TicketStatusMoveCard'
+import { TicketStoryProposalConnected } from './TicketStoryProposalCard'
 import WorkLaunchChooser from '../WorkLaunchChooser'
 import { useFeatureRequestRecord } from '../../../headless/hooks/useCrossProjectRequests'
 import { featureRequestSummary } from '../../../headless/utils/featureRequestView'
@@ -323,6 +325,17 @@ export default function ToolAskApprovalPanel({
         />
       ) : body.kind === 'evaluation-launch' ? (
         <EvaluationLaunchAskBody body={body} />
+      ) : body.kind === 'ticket-move' ? (
+        <div className="rounded-lg border border-(--border-subtle) px-3 py-2.5">
+          <TicketStatusMoveConnected
+            args={{ issueKey: body.ticketKey, transition: body.target, comment: body.comment }}
+            resultType="require_confirmation"
+          />
+        </div>
+      ) : body.kind === 'ticket-story' ? (
+        <div className="rounded-lg border border-(--border-subtle) px-3 py-2.5">
+          <TicketStoryProposalConnected args={body.proposal} resultType="require_confirmation" />
+        </div>
       ) : body.kind === 'references' ? (
         <div className="rounded-md bg-(--surface-muted) p-3 text-[13px]">
           <RichText text={body.text} />

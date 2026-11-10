@@ -30,6 +30,10 @@ import {
   sendChatMessageView,
 } from '../../../../headless/utils/sendChatMessageView'
 import SendChatMessageCard from '../SendChatMessageCard'
+import { isTicketStatusMoveTool } from '../../../../headless/utils/ticketStatusMove'
+import { TicketStatusMoveConnected } from '../TicketStatusMoveCard'
+import { isTicketStoryProposalTool } from '../../../../headless/utils/ticketStoryProposal'
+import { TicketStoryProposalConnected } from '../TicketStoryProposalCard'
 import StoredSecretCard from '../StoredSecretCard'
 import {
   isShowStoredSecretTool,
@@ -208,6 +212,8 @@ function ToolCallCardInner({
   const hasPopup = resultType !== 'aborted'
   const isRequireConfirm = resultType === 'require_confirmation'
   const reason = toolRowReason(resultType, result)
+  const ticketMove = isTicketStatusMoveTool(toolCall.name)
+  const ticketStory = isTicketStoryProposalTool(toolCall.name)
   const detail =
     resultType === 'errored'
       ? { code: jsonString(result), language: 'text' as const, label: 'View error' }
@@ -249,7 +255,7 @@ function ToolCallCardInner({
               </span>
               <span className="hidden flex-1 @max-md:block" aria-hidden />
             </>
-          ) : argDisplay ? (
+          ) : argDisplay && !ticketMove && !ticketStory ? (
             <>
               <ToolArgInline
                 display={argDisplay}
@@ -336,7 +342,7 @@ function ToolCallCardInner({
         </div>
       </div>
 
-      {reason ? (
+      {reason && !ticketMove && !ticketStory ? (
         <div className="-mt-1 px-3 pb-2">
           <p
             className={`line-clamp-3 text-xs leading-snug break-words ${resultType === 'errored' ? 'text-(--status-stuck-soft-fg)' : 'text-(--text-secondary)'}`}
@@ -368,6 +374,37 @@ function ToolCallCardInner({
               {...(sourceChatTitle ? { sourceChatTitle } : {})}
             />
           )}
+        </div>
+      ) : null}
+
+      {/* A Jira ticket's status move reads on the row itself: the ticket and the
+          statuses it moves between, or why it did not move. Its ask's card says
+          the same while it is open. */}
+      {ticketMove && !(askView && cardOpen) ? (
+        <div
+          className="border-t border-(--border-subtle) bg-(--surface-base) px-3 py-2.5"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <TicketStatusMoveConnected
+            args={toolCall.arguments}
+            result={result}
+            {...(resultType !== undefined ? { resultType } : {})}
+          />
+        </div>
+      ) : null}
+
+      {/* The group story proposed for a ticket reads on the row: what was asked
+          for, then the story that was made or why none was. */}
+      {ticketStory && !(askView && cardOpen) ? (
+        <div
+          className="border-t border-(--border-subtle) bg-(--surface-base) px-3 py-2.5"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <TicketStoryProposalConnected
+            args={toolCall.arguments}
+            result={result}
+            {...(resultType !== undefined ? { resultType } : {})}
+          />
         </div>
       ) : null}
 

@@ -52,6 +52,9 @@ import { PROVIDER_CONNECTION_FORM_SCENES } from '../scenes/providerConnectionFor
 import { SIGN_OFF_OUTPUT_SETTINGS_SCENES } from '../scenes/signOffOutputSettings'
 import { TICKET_POST_SCENES } from '../scenes/ticketPost'
 import { TICKET_TRANSITION_SCENES } from '../scenes/ticketTransition'
+import { TICKET_STATUS_MOVE_SCENES } from '../scenes/ticketStatusMove'
+import { TICKET_LINK_CHIP_SCENES } from '../scenes/ticketLinkChip'
+import { TICKET_STORY_PROPOSAL_SCENES } from '../scenes/ticketStoryProposal'
 import { MODEL_EFFORT_SCENES } from '../scenes/modelEffort'
 import { OPEN_RUN_SCENES } from '../scenes/openRun'
 import { PRIMITIVE_SCENES } from '../scenes/primitives'
@@ -168,6 +171,9 @@ export const SCENES: readonly Scene[] = [
   ...SIGN_OFF_OUTPUT_SETTINGS_SCENES,
   ...TICKET_POST_SCENES,
   ...TICKET_TRANSITION_SCENES,
+  ...TICKET_STATUS_MOVE_SCENES,
+  ...TICKET_LINK_CHIP_SCENES,
+  ...TICKET_STORY_PROPOSAL_SCENES,
   ...WORKFLOW_GUARD_SCENES,
   ...KNOWLEDGE_SCENES,
   ...GROUP_HOME_SCENES,

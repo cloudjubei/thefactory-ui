@@ -7,7 +7,8 @@ import {
 } from '../../../headless'
 import { blue } from '../../../tokens'
 import { IconJira } from '../../icons'
-import { GroupStoryChip, GroupStoryToneBadge } from '../groupStories/GroupStoryBits'
+import { GroupStoryChip } from '../groupStories/GroupStoryBits'
+import TicketStatusLozenge from './TicketStatusLozenge'
 
 export type TicketChipProps = {
   view: TicketChipView
@@ -35,7 +36,7 @@ export default function TicketChip({ view, layout = TICKET_CHIP_DEFAULT_LAYOUT }
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
       {chip}
-      <GroupStoryToneBadge tone="queued" label={pill} />
+      <TicketStatusLozenge view={{ label: pill, tone: view.statusTone ?? 'unknown' }} />
     </View>
   )
 }

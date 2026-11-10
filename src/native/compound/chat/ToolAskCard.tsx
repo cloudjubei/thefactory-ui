@@ -9,6 +9,7 @@ import {
   IconDownload,
   IconFile,
   IconGlobe,
+  IconJira,
   IconMerge,
   IconPackage,
   IconPlay,
@@ -40,6 +41,7 @@ const ICONS: Record<ToolAskIcon, ComponentType<{ size?: number; color?: string }
   delete: IconDelete,
   run: IconPlay,
   stop: IconStop,
+  ticket: IconJira,
   tool: IconWrench,
 }
 

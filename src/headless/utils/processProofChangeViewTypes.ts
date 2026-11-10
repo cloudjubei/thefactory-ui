@@ -22,8 +22,13 @@ export interface ProofChangeKindView {
   standing?: { status: ProofKindStatus; word: string; tone: StoryStepTone; detail: string }
   /** Why the run cannot produce it here. */
   unavailable?: string
-  /** Why it stays picked: the screens of a change that shows on screen. */
+  /**
+   * Why it stays picked: the screens or video of a change that shows on screen, when no other
+   * kind that shows it is picked — one of them always stays.
+   */
   kept?: string
+  /** It can be unpicked while another kind that shows the change on screen stays picked, said in one line. */
+  canGo?: string
   /**
    * It cannot be changed: the run cannot produce it and the feature did not already need it, or
    * it is `kept` and picked — a kept kind a draft dropped can be picked again, never unpicked.

@@ -994,9 +994,15 @@ import type {
   ReadFileRawData,
   ReadFileRawResponses,
   ReadFileResponses,
+  ReadGroupTicketPreviewData,
+  ReadGroupTicketPreviewErrors,
+  ReadGroupTicketPreviewResponses,
   ReadProjectLiveDataData,
   ReadProjectLiveDataErrors,
   ReadProjectLiveDataResponses,
+  ReadProjectTicketPreviewData,
+  ReadProjectTicketPreviewErrors,
+  ReadProjectTicketPreviewResponses,
   ReadProviderOAuthSetupData,
   ReadProviderOAuthSetupResponses,
   ReadProviderSignInData,
@@ -8037,6 +8043,40 @@ export const discussGroupTicket = <ThrowOnError extends boolean = false>(
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  })
+
+/**
+ * One ticket as a link to it previews it, read through the group’s Jira binding: type, title, status, priority and assignee by name. A key outside the binding’s Jira projects is refused.
+ */
+export const readGroupTicketPreview = <ThrowOnError extends boolean = false>(
+  options: Options<ReadGroupTicketPreviewData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ReadGroupTicketPreviewResponses,
+    ReadGroupTicketPreviewErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/tickets/{ticketKey}/preview',
+    ...options,
+  })
+
+/**
+ * One ticket as a link to it previews it, read through the project’s effective Jira binding: its own, else its main group’s. A key outside the binding’s Jira projects is refused.
+ */
+export const readProjectTicketPreview = <ThrowOnError extends boolean = false>(
+  options: Options<ReadProjectTicketPreviewData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ReadProjectTicketPreviewResponses,
+    ReadProjectTicketPreviewErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/tickets/{ticketKey}/preview',
+    ...options,
   })
 
 export const ingestAll = <ThrowOnError extends boolean = false>(

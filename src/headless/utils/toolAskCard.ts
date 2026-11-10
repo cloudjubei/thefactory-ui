@@ -17,6 +17,12 @@ import {
 } from './processGroupLaunchConstants'
 import type { StartGroupWorkGrantSummary } from './processGroupLaunchTypes'
 import type { RunProposalView } from './runProposalViewTypes'
+import { TICKET_STATUS_MOVE_ASK, TICKET_STATUS_MOVE_TOOL } from './ticketStatusMoveConstants'
+import {
+  TICKET_STORY_PROPOSAL_ASK,
+  TICKET_STORY_PROPOSAL_TEXT,
+  TICKET_STORY_PROPOSAL_TOOL,
+} from './ticketStoryProposalConstants'
 import {
   ACCEPT_REQUEST_ASK,
   ACCEPT_REQUEST_TOOL,
@@ -505,6 +511,42 @@ export function toolAskCardView(grant: GrantLike): ToolAskCardView {
         awaitReply: args.awaitReply === true,
         ...(incomplete ? { incomplete: true, ...(raw !== undefined ? { raw } : {}) } : {}),
       },
+    }
+  }
+  if (tool === TICKET_STATUS_MOVE_TOOL) {
+    const ticketKey = text(args.issueKey) ?? ''
+    const target = text(args.transition)
+    const comment = text(args.comment)
+    return {
+      ...base,
+      icon: 'ticket',
+      ask: TICKET_STATUS_MOVE_ASK.ask,
+      tag: TICKET_STATUS_MOVE_ASK.tag,
+      headline: ticketKey
+        ? TICKET_STATUS_MOVE_ASK.headline(ticketKey, target)
+        : TICKET_STATUS_MOVE_ASK.noTicket,
+      verb: TICKET_STATUS_MOVE_ASK.verb,
+      body: {
+        kind: 'ticket-move',
+        ticketKey,
+        ...(target ? { target } : {}),
+        ...(comment ? { comment } : {}),
+      },
+    }
+  }
+  if (tool === TICKET_STORY_PROPOSAL_TOOL) {
+    return {
+      ...base,
+      icon: 'ticket',
+      ask: TICKET_STORY_PROPOSAL_ASK.ask,
+      tag: TICKET_STORY_PROPOSAL_ASK.tag,
+      headline: TICKET_STORY_PROPOSAL_ASK.headline(
+        text(args.ticketKey),
+        text(args.title) ?? TICKET_STORY_PROPOSAL_TEXT.untitled,
+      ),
+      consequence: TICKET_STORY_PROPOSAL_ASK.consequence,
+      verb: TICKET_STORY_PROPOSAL_ASK.verb,
+      body: { kind: 'ticket-story', proposal: args },
     }
   }
   if (tool === 'writeProjectFile') {

@@ -232,6 +232,34 @@ export { default as TurnChip, type TurnChipProps } from './compound/chips/TurnCh
 export { default as CheckChip, type CheckChipProps } from './compound/chips/CheckChip'
 export { default as TicketChip, type TicketChipProps } from './compound/chips/TicketChip'
 export {
+  default as TicketStatusLozenge,
+  type TicketStatusLozengeProps,
+} from './compound/chips/TicketStatusLozenge'
+export {
+  default as TicketCard,
+  TicketKeyLink,
+  TicketPreviewPanel,
+  type TicketCardProps,
+  type TicketKeyLinkProps,
+  type TicketPreviewPanelProps,
+} from './compound/chips/TicketCard'
+export {
+  default as TicketLinkChip,
+  type TicketLinkChipProps,
+} from './compound/chips/TicketLinkChip'
+export {
+  default as TicketStatusMoveCard,
+  TicketStatusMoveConnected,
+  type TicketStatusMoveCardProps,
+  type TicketStatusMoveConnectedProps,
+} from './compound/chat/TicketStatusMoveCard'
+export {
+  default as TicketStoryProposalCard,
+  TicketStoryProposalConnected,
+  type TicketStoryProposalCardProps,
+  type TicketStoryProposalConnectedProps,
+} from './compound/chat/TicketStoryProposalCard'
+export {
   default as GroupTicketsList,
   type GroupTicketsListProps,
 } from './compound/groupStories/GroupTicketsList'

@@ -4,7 +4,7 @@ import {
   type TicketChipView,
 } from '../../../headless'
 import { IconJira } from '../../icons'
-import { GroupStoryToneBadge } from '../groupStories/GroupStoryBits'
+import TicketStatusLozenge from './TicketStatusLozenge'
 
 export type TicketChipProps = {
   view: TicketChipView
@@ -12,7 +12,8 @@ export type TicketChipProps = {
 }
 
 /**
- * A ticket as a chip: Jira's mark, its key and status, opening it in Jira in a new tab. It
+ * A ticket as a chip: Jira's mark, its key and status (the shared lozenge, coloured by
+ * its Jira category when one is known), opening it in Jira in a new tab. It
  * sits on rows that open on a press, so its own press stops with it. With no
  * status known it says the key; with no web link it opens nothing.
  */
@@ -43,7 +44,7 @@ export default function TicketChip({ view, layout = TICKET_CHIP_DEFAULT_LAYOUT }
   return (
     <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
       {chip}
-      <GroupStoryToneBadge tone="queued">{pill}</GroupStoryToneBadge>
+      <TicketStatusLozenge view={{ label: pill, tone: view.statusTone ?? 'unknown' }} />
     </span>
   )
 }

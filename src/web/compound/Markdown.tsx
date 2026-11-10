@@ -12,6 +12,9 @@ import {
 } from 'thefactory-tools/utils'
 import type { ReferenceTarget, ResourceLink } from 'thefactory-tools/types'
 import { useEffectiveReferenceRenderer } from '../../headless/contexts/ReferenceRenderingContext'
+import { useTicketLinks } from '../../headless/contexts/TicketLinksContext'
+import { ticketLinkOf } from '../../headless/utils/ticketLinks'
+import TicketLinkChip from './chips/TicketLinkChip'
 
 // Markdown renderer for chat / story content.
 //
@@ -271,6 +274,7 @@ export default function Markdown({
   onAccent = false,
 }: MarkdownProps) {
   const renderReference = useEffectiveReferenceRenderer(ownRenderReference, typedReferences)
+  const ticketSite = useTicketLinks()?.site
   const rehypePlugins = useMemo(() => {
     const plugins: NonNullable<Options['rehypePlugins']> = []
     if (allowHtml) {
@@ -360,9 +364,21 @@ export default function Markdown({
           },
         }
       : themed
-    if (!onResourceLink) return base
+    const linked: Partial<Components> = ticketSite
+      ? {
+          ...base,
+          a: (props) => {
+            const ticket =
+              typeof props.href === 'string' ? ticketLinkOf(props.href, ticketSite) : undefined
+            if (ticket) return <TicketLinkChip link={ticket} />
+            const A = base.a as FC<typeof props>
+            return <A {...props} />
+          },
+        }
+      : base
+    if (!onResourceLink) return linked
     return {
-      ...base,
+      ...linked,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       a: ({ children, href, target: _target, rel: _rel, ...props }) => {
         const link =
@@ -371,6 +387,8 @@ export default function Markdown({
             : undefined
         const chip = link && renderReference ? renderReference({ type: 'link', link }) : undefined
         if (chip !== undefined) return <>{chip}</>
+        const ticket = typeof href === 'string' ? ticketLinkOf(href, ticketSite) : undefined
+        if (ticket) return <TicketLinkChip link={ticket} />
         if (link) {
           return (
             <a
@@ -394,7 +412,7 @@ export default function Markdown({
         )
       },
     }
-  }, [onResourceLink, renderReference, appOrigin, onAccent])
+  }, [onResourceLink, renderReference, appOrigin, onAccent, ticketSite])
 
   const shownComponents = useMemo(
     () => (inline ? { ...activeComponents, ...INLINE_PARAGRAPH } : activeComponents),

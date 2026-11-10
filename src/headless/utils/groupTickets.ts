@@ -19,6 +19,7 @@ import type {
   TicketMoveFieldView,
   TicketMoveOutcome,
 } from './groupTicketTypes'
+import { ticketStatusTone } from './ticketStatus'
 
 /** A link a chip may open: only a web page, as a ticket's text and link come from outside. */
 export function ticketLink(url: string | undefined): string | undefined {
@@ -30,15 +31,18 @@ export function ticketLink(url: string | undefined): string | undefined {
 export function ticketChipView(ticket: {
   key: string
   status?: string | undefined
+  statusCategory?: string | undefined
   title?: string | undefined
   url?: string | undefined
 }): TicketChipView {
   const { key, status, title } = ticket
   const url = ticketLink(ticket.url)
   const named = title ?? key
+  const tone = status ? ticketStatusTone(ticket.statusCategory) : 'unknown'
   return {
     key,
     ...(status ? { status } : {}),
+    ...(tone !== 'unknown' ? { statusTone: tone } : {}),
     ...(url ? { url } : {}),
     label: status ? `${key} · ${status}` : key,
     hint: url ? `${named} — ${TICKET_CHIP_TEXT.open}` : named,
@@ -105,12 +109,13 @@ export function groupStoryTicketChip(
 }
 
 function ticketRow(ticket: GroupTicket, starting: GroupTicketsState['starting']): GroupTicketRow {
-  const { key, summary, priority, status, url, groupStory, canTake, chatOpen } = ticket
+  const { key, summary, priority, status, statusCategory, url, groupStory, canTake, chatOpen } =
+    ticket
   return {
     key,
     summary,
     ...(priority ? { priority } : {}),
-    chip: ticketChipView({ key, status, title: summary, url }),
+    chip: ticketChipView({ key, status, statusCategory, title: summary, url }),
     ...(groupStory ? { work: groupStory } : {}),
     chatOpen,
     canTake,

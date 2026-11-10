@@ -12,6 +12,12 @@ import {
 import { toolResultResourceLinks } from '../../../../headless/utils/toolResultLinks'
 import { runProposalView } from '../../../../headless/utils/runProposalView'
 import { RUN_PROPOSAL_TOOL_NAMES } from '../../../../headless/utils/runProposalViewConstants'
+import { isTicketStatusMoveTool } from '../../../../headless/utils/ticketStatusMove'
+import { TICKET_STATUS_MOVE_TOOL } from '../../../../headless/utils/ticketStatusMoveConstants'
+import { TicketStatusMoveConnected } from '../TicketStatusMoveCard'
+import { isTicketStoryProposalTool } from '../../../../headless/utils/ticketStoryProposal'
+import { TICKET_STORY_PROPOSAL_TOOL } from '../../../../headless/utils/ticketStoryProposalConstants'
+import { TicketStoryProposalConnected } from '../TicketStoryProposalCard'
 import { featureRequestBriefOfToolArgs } from '../../../../headless/utils/featureRequestView'
 import FeatureRequestBriefCard from '../../FeatureRequestBriefCard'
 import { parseResourceLink } from 'thefactory-tools/utils'
@@ -198,6 +204,8 @@ export const RECOGNIZED_TOOL_PREVIEW_NAMES: ReadonlySet<string> = new Set([
   'recommendTrainingExperiments',
   'queryProjectData',
   'updateProjectRecord',
+  TICKET_STATUS_MOVE_TOOL,
+  TICKET_STORY_PROPOSAL_TOOL,
   ...RUN_PROPOSAL_TOOL_NAMES,
 ])
 
@@ -251,6 +259,26 @@ export function renderToolPreviewNative({
   const args = (toolCall?.arguments as Record<string, unknown>) ?? {}
   const isInFlight =
     resultType === 'pending' || resultType === 'running' || resultType === 'require_confirmation'
+
+  if (isTicketStatusMoveTool(toolCall?.name)) {
+    return (
+      <TicketStatusMoveConnected
+        args={toolCall?.arguments}
+        result={result}
+        {...(resultType !== undefined ? { resultType } : {})}
+      />
+    )
+  }
+
+  if (isTicketStoryProposalTool(toolCall?.name)) {
+    return (
+      <TicketStoryProposalConnected
+        args={toolCall?.arguments}
+        result={result}
+        {...(resultType !== undefined ? { resultType } : {})}
+      />
+    )
+  }
 
   if (resultType === 'errored') {
     const msg = tryString(

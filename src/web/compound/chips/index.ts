@@ -16,6 +16,19 @@ export {
 export { default as TurnChip } from './TurnChip'
 export { default as CheckChip, type CheckChipProps } from './CheckChip'
 export { default as TicketChip, type TicketChipProps } from './TicketChip'
+export {
+  default as TicketStatusLozenge,
+  type TicketStatusLozengeProps,
+} from './TicketStatusLozenge'
+export {
+  default as TicketCard,
+  TicketKeyLink,
+  TicketPreviewPanel,
+  type TicketCardProps,
+  type TicketKeyLinkProps,
+  type TicketPreviewPanelProps,
+} from './TicketCard'
+export { default as TicketLinkChip, type TicketLinkChipProps } from './TicketLinkChip'
 export { default as HandoffButton, type HandoffButtonProps } from './HandoffButton'
 export { default as HelpChip, type HelpChipProps } from './HelpChip'
 export { default as RefChip, type RefChipKind, type RefChipProps } from './RefChip'

@@ -1255,3 +1255,77 @@ describe('acceptRequestDecisionMetadata', () => {
     expect(acceptRequestDecisionMetadata('process')).toEqual({ args: { mode: 'process' } })
   })
 })
+
+describe('toolAskCardView — moving a Jira ticket', () => {
+  it('shows a status move as the ticket and its target', () => {
+    expect(
+      toolAskCardView({
+        label: 'transitionJiraIssue',
+        toolName: 'transitionJiraIssue',
+        args: { issueKey: 'ZNR-780', transition: 'Done', comment: ' Shipped ' },
+      }),
+    ).toEqual({
+      tone: 'ask',
+      icon: 'ticket',
+      ask: 'The agent wants to move a ticket',
+      tag: 'Jira',
+      headline: 'Move ZNR-780 to Done',
+      verb: 'Move',
+      body: { kind: 'ticket-move', ticketKey: 'ZNR-780', target: 'Done', comment: 'Shipped' },
+    })
+  })
+
+  it('reads a CLI’s prefixed call, and its arguments from the payload when the grant has none', () => {
+    const view = toolAskCardView({
+      label: 'mcp__thefactory__transitionJiraIssue',
+      detail: {
+        tool: 'mcp__thefactory__transitionJiraIssue',
+        args: { issueKey: 'ENG-2', transition: '31' },
+      },
+    })
+    expect(view.headline).toBe('Move ENG-2 to 31')
+    expect(view.body).toEqual({ kind: 'ticket-move', ticketKey: 'ENG-2', target: '31' })
+  })
+
+  it('still asks when the agent named no ticket or target', () => {
+    const view = toolAskCardView({ label: 'transitionJiraIssue', args: {} })
+    expect(view.headline).toBe('Move a ticket')
+    expect(view.body).toEqual({ kind: 'ticket-move', ticketKey: '' })
+  })
+})
+
+describe('toolAskCardView — a ticket’s group story', () => {
+  const args = {
+    ticketKey: 'ZNR-780',
+    title: 'Renew sessions before uploads',
+    parts: [{ projectId: 'be' }],
+  }
+
+  it('shows the proposal as its own card, the arguments kept for it to draw', () => {
+    expect(
+      toolAskCardView({
+        label: 'proposeTicketGroupStory',
+        toolName: 'proposeTicketGroupStory',
+        args,
+      }),
+    ).toEqual({
+      tone: 'ask',
+      icon: 'ticket',
+      ask: 'The agent proposes a group story for a ticket',
+      tag: 'Tickets',
+      headline: 'ZNR-780: Renew sessions before uploads',
+      consequence: 'Approving makes the group story and links it to the ticket.',
+      verb: 'Create',
+      body: { kind: 'ticket-story', proposal: args },
+    })
+  })
+
+  it('reads a CLI’s prefixed call from the payload, and still asks with nothing named', () => {
+    const view = toolAskCardView({
+      label: 'mcp__thefactory__proposeTicketGroupStory',
+      detail: { tool: 'mcp__thefactory__proposeTicketGroupStory', args: {} },
+    })
+    expect(view.headline).toBe('Untitled group story')
+    expect(view.body).toEqual({ kind: 'ticket-story', proposal: {} })
+  })
+})

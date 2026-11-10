@@ -50547,6 +50547,152 @@ export type DiscussGroupTicketResponses = {
 export type DiscussGroupTicketResponse =
   DiscussGroupTicketResponses[keyof DiscussGroupTicketResponses]
 
+export type ReadGroupTicketPreviewData = {
+  body?: never
+  path: {
+    groupId: string
+    ticketKey: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/tickets/{ticketKey}/preview'
+}
+
+export type ReadGroupTicketPreviewErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  403: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  502: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ReadGroupTicketPreviewError =
+  ReadGroupTicketPreviewErrors[keyof ReadGroupTicketPreviewErrors]
+
+export type ReadGroupTicketPreviewResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    key: string
+    summary: string
+    url: string
+    status?: string
+    /**
+     * Jira’s category of the status: new, indeterminate or done.
+     */
+    statusCategory?: string
+    issueType?: string
+    priority?: string
+    /**
+     * Who it is assigned to, by name.
+     */
+    assignee?: string
+  }
+}
+
+export type ReadGroupTicketPreviewResponse =
+  ReadGroupTicketPreviewResponses[keyof ReadGroupTicketPreviewResponses]
+
+export type ReadProjectTicketPreviewData = {
+  body?: never
+  path: {
+    projectId: string
+    ticketKey: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/tickets/{ticketKey}/preview'
+}
+
+export type ReadProjectTicketPreviewErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  403: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  502: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ReadProjectTicketPreviewError =
+  ReadProjectTicketPreviewErrors[keyof ReadProjectTicketPreviewErrors]
+
+export type ReadProjectTicketPreviewResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    key: string
+    summary: string
+    url: string
+    status?: string
+    /**
+     * Jira’s category of the status: new, indeterminate or done.
+     */
+    statusCategory?: string
+    issueType?: string
+    priority?: string
+    /**
+     * Who it is assigned to, by name.
+     */
+    assignee?: string
+  }
+}
+
+export type ReadProjectTicketPreviewResponse =
+  ReadProjectTicketPreviewResponses[keyof ReadProjectTicketPreviewResponses]
+
 export type IngestAllData = {
   body?: never
   path?: never

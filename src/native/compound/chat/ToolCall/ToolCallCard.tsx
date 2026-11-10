@@ -28,6 +28,10 @@ import {
 } from '../../../../headless/utils/sendChatMessageView'
 import AlwaysAllowControl from '../AlwaysAllowControl'
 import SendChatMessageCard from '../SendChatMessageCard'
+import { isTicketStatusMoveTool } from '../../../../headless/utils/ticketStatusMove'
+import { TicketStatusMoveConnected } from '../TicketStatusMoveCard'
+import { isTicketStoryProposalTool } from '../../../../headless/utils/ticketStoryProposal'
+import { TicketStoryProposalConnected } from '../TicketStoryProposalCard'
 import StoredSecretCard from '../StoredSecretCard'
 import {
   isShowStoredSecretTool,
@@ -192,6 +196,8 @@ function ToolCallCardInner({
   const status = statusVisual(resultType)
   const isRequireConfirm = resultType === 'require_confirmation'
   const reason = toolRowReason(resultType, result)
+  const ticketMove = isTicketStatusMoveTool(toolCall.name)
+  const ticketStory = isTicketStoryProposalTool(toolCall.name)
   const detail =
     resultType === 'errored'
       ? { code: jsonString(result), language: 'text' as const, label: 'View error' }
@@ -364,7 +370,7 @@ function ToolCallCardInner({
         >
           {askView.headline}
         </Text>
-      ) : argDisplay ? (
+      ) : argDisplay && !ticketMove && !ticketStory ? (
         <View
           style={{
             flexDirection: 'row',
@@ -377,7 +383,7 @@ function ToolCallCardInner({
         </View>
       ) : null}
 
-      {reason ? (
+      {reason && !ticketMove && !ticketStory ? (
         <Text
           numberOfLines={3}
           style={{
@@ -417,6 +423,44 @@ function ToolCallCardInner({
               {...(sourceChatTitle ? { sourceChatTitle } : {})}
             />
           )}
+        </View>
+      ) : null}
+
+      {ticketMove && !(askView && cardOpen) ? (
+        <View
+          style={{
+            paddingHorizontal: PAD,
+            paddingTop: PAD,
+            paddingBottom: PAD,
+            borderTopWidth: 1,
+            borderTopColor: theme.border.subtle,
+            backgroundColor: theme.surface.base,
+          }}
+        >
+          <TicketStatusMoveConnected
+            args={toolCall.arguments}
+            result={result}
+            {...(resultType !== undefined ? { resultType } : {})}
+          />
+        </View>
+      ) : null}
+
+      {ticketStory && !(askView && cardOpen) ? (
+        <View
+          style={{
+            paddingHorizontal: PAD,
+            paddingTop: PAD,
+            paddingBottom: PAD,
+            borderTopWidth: 1,
+            borderTopColor: theme.border.subtle,
+            backgroundColor: theme.surface.base,
+          }}
+        >
+          <TicketStoryProposalConnected
+            args={toolCall.arguments}
+            result={result}
+            {...(resultType !== undefined ? { resultType } : {})}
+          />
         </View>
       ) : null}
 

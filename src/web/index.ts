@@ -183,6 +183,30 @@ export {
 } from './compound/chips'
 export { TicketChip, type TicketChipProps } from './compound/chips'
 export {
+  TicketCard,
+  TicketKeyLink,
+  TicketLinkChip,
+  TicketPreviewPanel,
+  TicketStatusLozenge,
+  type TicketCardProps,
+  type TicketKeyLinkProps,
+  type TicketLinkChipProps,
+  type TicketPreviewPanelProps,
+  type TicketStatusLozengeProps,
+} from './compound/chips'
+export {
+  default as TicketStatusMoveCard,
+  TicketStatusMoveConnected,
+  type TicketStatusMoveCardProps,
+  type TicketStatusMoveConnectedProps,
+} from './compound/chat/TicketStatusMoveCard'
+export {
+  default as TicketStoryProposalCard,
+  TicketStoryProposalConnected,
+  type TicketStoryProposalCardProps,
+  type TicketStoryProposalConnectedProps,
+} from './compound/chat/TicketStoryProposalCard'
+export {
   CommandPalette,
   type CommandPaletteItem,
   type CommandPaletteProps,

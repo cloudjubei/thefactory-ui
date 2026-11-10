@@ -43,6 +43,7 @@ import {
   ChatActionsProvider,
   type ChatActions,
 } from '../../../headless/contexts/ChatActionsContext'
+import { ChatTicketLinksProvider } from '../../../headless/contexts/TicketLinksContext'
 import { useChatOpenChanges } from '../../../headless/hooks/useChatOpenChanges'
 import { chatReviewLayout, chatReviewTarget } from '../../../headless/utils/chatChangesDock'
 import type { ChatReviewActions } from '../../../headless/utils/chatChangesDockTypes'
@@ -124,6 +125,8 @@ export type ChatBodyProps = {
   renderReference?: (target: ReferenceTarget) => ReactNode | undefined
   /** Route an in-app `overseer://…` resource link the assistant emitted. Forwarded to MessageList (F.2). */
   onResourceLink?: (link: ResourceLink) => void
+  /** Opens a group story, from a card that made one: a ticket's approved proposal. */
+  onOpenGroupStory?: (groupId: string, groupStoryId: string) => void
   /**
    * The full review of a CLI turn's changes. Given it (and a project), each turn
    * that changed files leaves a one-line marker in the conversation, the chat's
@@ -238,7 +241,7 @@ const NO_IDS: ReadonlySet<string> = new Set()
  * Presentational: all state comes from `messages` + `liveState` props,
  * and side effects fire through `onSend` / `onAbort` and the grants' own `decide`.
  */
-export default function ChatBody({
+function ChatBodyInner({
   chatId,
   renderApprovalModelChip,
   header,
@@ -254,6 +257,7 @@ export default function ChatBody({
   onResolveFile,
   renderReference,
   onResourceLink,
+  onOpenGroupStory,
   renderCliRunReview,
   renderProcessRun,
   renderProcessGroupRun,
@@ -443,8 +447,18 @@ export default function ChatBody({
       ...(groupId ? { groupId } : {}),
       ...(chatTitle ? { chatTitle } : {}),
       ...(onResourceLink ? { onResourceLink } : {}),
+      ...(onOpenGroupStory ? { openGroupStory: onOpenGroupStory } : {}),
     }),
-    [openReview, reviewTargetOf, draftMessage, projectId, groupId, chatTitle, onResourceLink],
+    [
+      openReview,
+      reviewTargetOf,
+      draftMessage,
+      projectId,
+      groupId,
+      chatTitle,
+      onResourceLink,
+      onOpenGroupStory,
+    ],
   )
   const receiptShas = useMemo(() => commitReceiptShas(decidedAsks), [decidedAsks])
   const renderChanges = useMemo(
@@ -674,5 +688,17 @@ export default function ChatBody({
         ) : null}
       </div>
     </ChatActionsProvider>
+  )
+}
+
+/**
+ * A chat's body, inside the ticket links of the chat's own Jira binding: a link
+ * in a message to a ticket on that site shows as its chip, with a preview.
+ */
+export default function ChatBody(props: ChatBodyProps) {
+  return (
+    <ChatTicketLinksProvider projectId={props.projectId} groupId={props.groupId}>
+      <ChatBodyInner {...props} />
+    </ChatTicketLinksProvider>
   )
 }

@@ -2,11 +2,13 @@ import { useMemo, type ReactNode } from 'react'
 import { Linking, Text, View, type TextStyle } from 'react-native'
 import { splitReferences } from 'thefactory-tools/utils'
 import { useEffectiveReferenceRenderer } from '../../../headless/contexts/ReferenceRenderingContext'
-import { splitTextLinks } from '../../../headless/utils/textLinks'
+import { useTicketLinks } from '../../../headless/contexts/TicketLinksContext'
+import { splitTicketLinks } from '../../../headless/utils/ticketLinks'
 import type { ReferenceTarget } from 'thefactory-tools/types'
 import { nativePalette, nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import type { UikitFileMeta } from './FileDisplay'
+import TicketLinkChip from '../chips/TicketLinkChip'
 import ProjectFileChip from './ProjectFileChip'
 
 export interface RichTextProps {
@@ -49,6 +51,7 @@ export default function RichText({
   }
   const renderReference = useEffectiveReferenceRenderer(ownRenderReference, typedReferences)
   const segments = useMemo(() => splitReferences(text ?? ''), [text])
+  const ticketSite = useTicketLinks()?.site
   const baseColor = textColor ?? theme.text.primary
 
   return (
@@ -57,9 +60,11 @@ export default function RichText({
         if (seg.type === 'text') {
           return (
             <Text key={idx} style={{ fontSize, fontWeight, color: baseColor }}>
-              {splitTextLinks(seg.value).map((part, at) =>
+              {splitTicketLinks(seg.value, ticketSite).map((part, at) =>
                 part.type === 'text' ? (
                   part.value
+                ) : part.type === 'ticket' ? (
+                  <TicketLinkChip key={at} link={part} />
                 ) : (
                   <Text
                     key={at}

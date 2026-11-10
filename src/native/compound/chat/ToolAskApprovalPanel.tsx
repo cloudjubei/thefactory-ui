@@ -30,6 +30,8 @@ import type { ResourceLink } from 'thefactory-tools/types'
 import DesignAskBox from '../design/DesignAskBox'
 import EvaluationLaunchAskBody from './EvaluationLaunchAskBody'
 import MessageAskBody from './MessageAskBody'
+import { TicketStatusMoveConnected } from './TicketStatusMoveCard'
+import { TicketStoryProposalConnected } from './TicketStoryProposalCard'
 import WorkLaunchChooser from '../WorkLaunchChooser'
 import { useFeatureRequestRecord } from '../../../headless/hooks/useCrossProjectRequests'
 import { featureRequestSummary } from '../../../headless/utils/featureRequestView'
@@ -367,6 +369,17 @@ export default function ToolAskApprovalPanel({
           />
         ) : body.kind === 'evaluation-launch' ? (
           <EvaluationLaunchAskBody body={body} />
+        ) : body.kind === 'ticket-move' ? (
+          <Boxed>
+            <TicketStatusMoveConnected
+              args={{ issueKey: body.ticketKey, transition: body.target, comment: body.comment }}
+              resultType="require_confirmation"
+            />
+          </Boxed>
+        ) : body.kind === 'ticket-story' ? (
+          <Boxed>
+            <TicketStoryProposalConnected args={body.proposal} resultType="require_confirmation" />
+          </Boxed>
         ) : body.kind === 'references' ? (
           <Boxed>
             <RichText text={body.text} textColor={theme.text.secondary} fontSize={13} />

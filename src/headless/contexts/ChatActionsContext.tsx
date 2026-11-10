@@ -17,6 +17,8 @@ export type ChatActions = {
   chatTitle?: string
   /** Route an in-app `overseer://…` link on a card. */
   onResourceLink?: (link: ResourceLink) => void
+  /** Opens a group story, for a card that made one. Without it the card names the story and opens nothing. */
+  openGroupStory?: (groupId: string, groupStoryId: string) => void
 }
 
 const ChatActionsContext = createContext<ChatActions | undefined>(undefined)

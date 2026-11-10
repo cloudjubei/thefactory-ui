@@ -15,6 +15,7 @@ export type ToolAskIcon =
   | 'delete'
   | 'run'
   | 'stop'
+  | 'ticket'
   | 'tool'
 
 /** An ordinary ask, or one that throws something away for good. */
@@ -80,6 +81,10 @@ export type ToolAskBody =
       /** New screens the agent says are not one of those they resemble. */
       newScreens: Array<{ name: string; closest: string[]; why: string }>
     }
+  /** A Jira ticket's status move: the ticket and the target the agent asked for. Nothing has moved yet. */
+  | { kind: 'ticket-move'; ticketKey: string; target?: string; comment?: string }
+  /** The group story an agent proposes for a ticket: its arguments, for the proposal's own card to draw. */
+  | { kind: 'ticket-story'; proposal: Record<string, unknown> }
   /** A knowledge evaluation launch: every resolved setting, the model, and what its dry run says it would do. */
   | ({ kind: 'evaluation-launch' } & EvaluationLaunchAskBodyView)
 
