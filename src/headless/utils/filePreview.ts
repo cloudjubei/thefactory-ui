@@ -1,18 +1,20 @@
 import type { ReferenceDescription } from 'thefactory-tools/types'
 import type { FileMeta } from '../api/generated'
 import { errorStatus, extractErrorMessage } from '../api/errorMessage'
-import { classifyFileByExtension } from './filePaneKind'
+import { classifyFileByExtension, type FilePaneKind } from './filePaneKind'
 import {
   FILE_PREVIEW_COPY,
   FILE_PREVIEW_FALLBACK_MEDIA_TYPE,
   FILE_PREVIEW_INFO_LABELS,
   FILE_PREVIEW_MEDIA_TYPES,
+  FILE_PREVIEW_PANES,
   FILE_PREVIEW_TEXT_MEDIA_TYPE,
 } from './filePreviewConstants'
 import type {
   FilePreviewContent,
   FilePreviewInfo,
   FilePreviewInfoRow,
+  FilePreviewPane,
   FilePreviewSource,
   FilePreviewState,
   FilePreviewTarget,
@@ -112,4 +114,30 @@ export function filePreviewName(path: string): string {
 export function filePreviewCaption(target: FilePreviewTarget): string {
   const what = REFERENCE_KIND_CAPTIONS.file
   return target.projectName ? `${what} in ${target.projectName}` : what
+}
+
+/**
+ * A file of the project on screen, described as a reference to it — so its
+ * chip offers the Preview and "Open in Files" any file reference does.
+ * Nothing for a folder, with no project on screen, or without its path. Pure.
+ */
+export function ownFileDescription(
+  projectId: string | null | undefined,
+  path: string | null | undefined,
+): ReferenceDescription | undefined {
+  if (!projectId || !path || path.endsWith('/')) return undefined
+  return { kind: 'file', label: path, link: { kind: 'file', projectId, path } }
+}
+
+/** The panes a file's switch offers, by its kind; none where there is one way to show it. Pure. */
+export function filePreviewPanes(kind: FilePaneKind): readonly FilePreviewPane[] {
+  return FILE_PREVIEW_PANES[kind] ?? []
+}
+
+/**
+ * The pane a file opens on: what it renders to — a markdown file being
+ * edited, its source beside that. Pure.
+ */
+export function filePreviewInitialPane(kind: FilePaneKind, editing: boolean): FilePreviewPane {
+  return kind === 'markdown' && editing ? 'both' : 'preview'
 }

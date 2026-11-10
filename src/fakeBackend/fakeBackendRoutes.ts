@@ -66,6 +66,8 @@ import type {
   GetProcessRunResponse,
   GetProjectDesignData,
   GetProjectDesignResponse,
+  GetProjectDeviceAutomationData,
+  GetProjectDeviceAutomationResponse,
   GetProjectKnowledgeOverviewData,
   GetProjectKnowledgeOverviewResponse,
   GetProjectStorageUsageData,
@@ -120,6 +122,10 @@ import type {
   ListGitCredentialsResponse,
   ListGroupAgentTypesData,
   ListGroupAgentTypesResponse,
+  ListGroupMcpServersData,
+  ListGroupMcpServersResponse,
+  ListGroupMcpServerStatusData,
+  ListGroupMcpServerStatusResponse,
   ListGroupNotesData,
   ListGroupNotesResponse,
   ListGroupStoriesData,
@@ -144,6 +150,10 @@ import type {
   ListProjectDataSubscriptionsResponse,
   ListProjectGroupStoriesData,
   ListProjectGroupStoriesResponse,
+  ListProjectMcpServersData,
+  ListProjectMcpServersResponse,
+  ListProjectMcpServerStatusData,
+  ListProjectMcpServerStatusResponse,
   ListProjectNotesData,
   ListProjectNotesResponse,
   ListProjectsData,
@@ -154,6 +164,8 @@ import type {
   ListProviderConnectionsResponse,
   MarkConnectionItemsSeenData,
   MarkConnectionItemsSeenResponse,
+  ReadProviderOAuthSetupData,
+  ReadProviderOAuthSetupResponse,
   ListSourceRecordsData,
   ListSourceRecordsResponse,
   ListStoriesData,
@@ -213,6 +225,12 @@ import { FAKE_FEATURE_REQUESTS } from './fixtures/featureRequests'
 import { fakeGitBundle, LOG } from './fixtures/git'
 import { codeOnlyOverview } from './fixtures/knowledge'
 import { FAKE_DATA_SUBSCRIPTIONS, FAKE_SOURCE_RECORDS, TASK_SOURCE } from './fixtures/liveData'
+import {
+  fakeGroupMcpServers,
+  fakeGroupMcpServerStatus,
+  fakeProjectMcpServers,
+  fakeProjectMcpServerStatus,
+} from './fixtures/mcpServers'
 import { API_CONFIG, CLI_MODELS, FAKE_LLM_CONFIGS } from './fixtures/models'
 import {
   FAKE_PROCESS_RUN_STATISTICS,
@@ -354,6 +372,10 @@ const READS: readonly FakeRoute[] = [
     path: '/api/v1/provider-connections/jira-cloud-id',
     answer: () => ({ cloudId: FAKE_JIRA_CLOUD_ID }),
   },
+  read<ReadProviderOAuthSetupData, ReadProviderOAuthSetupResponse>(
+    '/api/v1/provider-connections/oauth/setup',
+    () => ({ github: false, jira: false }),
+  ),
   read<GetOverseerData, GetOverseerResponse>('/api/v1/overseer', () => FAKE_OVERSEER),
   read<ListOverseerAuthProvidersData, ListOverseerAuthProvidersResponse>(
     '/api/v1/overseer/auth-providers',
@@ -375,6 +397,24 @@ const READS: readonly FakeRoute[] = [
       params.id === FAKE_GROUP_ID
         ? FAKE_GROUP_CONSTELLATION
         : missing(`No fake group '${params.id}'.`),
+  ),
+  read<ListGroupMcpServersData, ListGroupMcpServersResponse>(
+    '/api/v1/projects-groups/{id}/mcp-servers',
+    ({ params, missing }) =>
+      fakeGroupMcpServers(params.id) ?? missing(`No fake group '${params.id}'.`),
+  ),
+  read<ListGroupMcpServerStatusData, ListGroupMcpServerStatusResponse>(
+    '/api/v1/projects-groups/{id}/mcp-servers/status',
+    ({ params, missing }) =>
+      fakeGroupMcpServerStatus(params.id) ?? missing(`No fake group '${params.id}'.`),
+  ),
+  read<ListProjectMcpServersData, ListProjectMcpServersResponse>(
+    '/api/v1/projects/{id}/mcp-servers',
+    ({ params }) => fakeProjectMcpServers(params.id),
+  ),
+  read<ListProjectMcpServerStatusData, ListProjectMcpServerStatusResponse>(
+    '/api/v1/projects/{id}/mcp-servers/status',
+    ({ params }) => fakeProjectMcpServerStatus(params.id),
   ),
   read<ListTemplatesData, ListTemplatesResponse>('/api/v1/templates', () => ({ templates: [] })),
   read<GetPricingData, GetPricingResponse>('/api/v1/pricing', () => ({
@@ -481,6 +521,10 @@ const READS: readonly FakeRoute[] = [
   read<GetProjectStorageUsageData, GetProjectStorageUsageResponse>(
     '/api/v1/projects/{projectId}/storage-usage',
     ({ params }) => fakeProjectStorageUsage(params.projectId ?? ''),
+  ),
+  read<GetProjectDeviceAutomationData, GetProjectDeviceAutomationResponse>(
+    '/api/v1/projects/{projectId}/device-automation',
+    () => ({ enabled: false }),
   ),
   read<ListProjectAgentTypesData, ListProjectAgentTypesResponse>(
     '/api/v1/projects/{projectId}/agent-types',

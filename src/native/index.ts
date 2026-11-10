@@ -635,6 +635,14 @@ export {
   default as FilePreviewSheetConnected,
   type FilePreviewSheetConnectedProps,
 } from './compound/files/FilePreviewSheetConnected'
+export {
+  default as ProjectFileChip,
+  type ProjectFileChipProps,
+} from './compound/files/ProjectFileChip'
+// The app's clipboard, handed to the shared views through `ClipboardHostProvider`,
+// so this barrel stays free of `expo-clipboard`.
+export { ClipboardHostProvider, useClipboardHost } from './compound/ClipboardHostContext'
+export type { ClipboardHost } from './compound/clipboardHostTypes'
 
 // Search — a project's files, stories, features and notes in one search.
 export {

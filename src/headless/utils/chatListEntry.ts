@@ -59,6 +59,7 @@ export type ChatMessagesShape = {
  */
 export type ChatNewsShape = ChatMessagesShape & {
   archivedAt?: string | null
+  listHiddenAt?: string | null
   listShownAt?: string | null
 }
 

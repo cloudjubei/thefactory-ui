@@ -3,7 +3,8 @@ import { splitReferences } from 'thefactory-tools/utils'
 import { useEffectiveReferenceRenderer } from '../../../headless/contexts/ReferenceRenderingContext'
 import { splitTextLinks } from '../../../headless/utils/textLinks'
 import type { ReferenceSegment, ReferenceTarget } from 'thefactory-tools/types'
-import FileDisplay, { type UikitFileMeta } from './FileDisplay'
+import type { UikitFileMeta } from './FileDisplay'
+import ProjectFileChip from './ProjectFileChip'
 
 /**
  * The path of a segment that names a file of this project, else `undefined` —
@@ -42,7 +43,7 @@ export type RichTextProps = {
   renderReference?: (target: ReferenceTarget) => ReactNode | undefined
   /** Chip what was typed (`#3.2`, `&qa-login`) as well as what was sent as ids. */
   typedReferences?: boolean
-  /** Async preview loader forwarded to inline `FileDisplay`. Optional. */
+  /** Async preview loader forwarded to an inline file chip's hover card. Optional. */
   onReadPreview?: (relativePath: string) => Promise<string | null>
 }
 
@@ -138,14 +139,7 @@ export default function RichText({
         }
         return (
           <span key={idx} className="inline-block align-baseline">
-            <FileDisplay
-              file={meta}
-              density="compact"
-              interactive={false}
-              showPreviewOnHover
-              showMeta={false}
-              onReadPreview={onReadPreview}
-            />
+            <ProjectFileChip file={meta} {...(onReadPreview ? { onReadPreview } : {})} />
           </span>
         )
       })}

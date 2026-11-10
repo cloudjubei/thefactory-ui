@@ -184,6 +184,67 @@ describe('fakeBackendRoutes', () => {
     expect(get('/api/v1/projects-groups/nothing/constellation').status).toBe(404)
   })
 
+  it('lists a project’s MCP servers, its own and the ones its group gives it', () => {
+    const { status, body } = get('/api/v1/projects/thefactory-tools/mcp-servers')
+    expect(status).toBe(200)
+    const rows = body as { id: string; source: string; groupId?: string }[]
+    expect(rows.map((row) => row.source).sort()).toEqual(['group', 'project'])
+    expect(rows.find((row) => row.source === 'group')?.groupId).toBe('overseer')
+  })
+
+  it('gives another member of the group the group’s servers alone, and a project outside it none', () => {
+    const member = get('/api/v1/projects/thefactory-backend/mcp-servers').body
+    expect((member as { source: string }[]).map((row) => row.source)).toEqual(['group'])
+    expect(get('/api/v1/projects/wargames/mcp-servers')).toEqual({ status: 200, body: [] })
+    expect(get('/api/v1/projects/wargames/mcp-servers/status')).toEqual({ status: 200, body: [] })
+  })
+
+  it('answers how each MCP server a project lists stands, one standing per server', () => {
+    const rows = get('/api/v1/projects/thefactory-tools/mcp-servers').body as { id: string }[]
+    const { status, body } = get('/api/v1/projects/thefactory-tools/mcp-servers/status')
+    expect(status).toBe(200)
+    const standings = body as { serverId: string; toolCount: number; tools: unknown[] }[]
+    expect(standings.map((standing) => standing.serverId)).toEqual(rows.map((row) => row.id))
+    for (const standing of standings) expect(standing.tools).toHaveLength(standing.toolCount)
+    expect(standings.some((standing) => standing.toolCount > 0)).toBe(true)
+  })
+
+  it('lists a group’s MCP servers and how they stand, and 404s another group’s', () => {
+    const rows = get('/api/v1/projects-groups/overseer/mcp-servers').body as {
+      id: string
+      source: string
+    }[]
+    expect(rows.map((row) => row.source)).toEqual(['group'])
+    const standings = get('/api/v1/projects-groups/overseer/mcp-servers/status').body
+    expect((standings as { serverId: string }[]).map((standing) => standing.serverId)).toEqual(
+      rows.map((row) => row.id),
+    )
+    expect(get('/api/v1/projects-groups/nothing/mcp-servers').status).toBe(404)
+    expect(get('/api/v1/projects-groups/nothing/mcp-servers/status').status).toBe(404)
+  })
+
+  it('names no credential of an MCP server', () => {
+    const listed = [
+      get('/api/v1/projects/thefactory-tools/mcp-servers'),
+      get('/api/v1/projects-groups/overseer/mcp-servers'),
+    ]
+    expect(JSON.stringify(listed)).not.toMatch(/"(apiKey|token|password|secret|refreshToken)":/)
+  })
+
+  it('answers a project’s device automation switch as off', () => {
+    expect(get('/api/v1/projects/thefactory-tools/device-automation')).toEqual({
+      status: 200,
+      body: { enabled: false },
+    })
+  })
+
+  it('offers no provider sign-in, as the fake can finish none', () => {
+    expect(get('/api/v1/provider-connections/oauth/setup')).toEqual({
+      status: 200,
+      body: { github: false, jira: false },
+    })
+  })
+
   it('answers a CLI run it holds, and 404s one it does not', () => {
     const { status, body } = get('/api/v1/cli-runs/cli-run-reads')
     expect(status).toBe(200)

@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { View } from 'react-native'
+import { Text, View } from 'react-native'
 import {
   FILE_PREVIEW_DEFAULT_MODE,
   FILE_PREVIEW_LABEL,
@@ -10,10 +10,13 @@ import {
   type FilePreviewMode,
   type FilePreviewTarget,
 } from 'thefactory-ui/headless'
+import { ClipboardHostProvider } from '../../src/native/compound/ClipboardHostContext'
+import type { ClipboardHost } from '../../src/native/compound/clipboardHostTypes'
 import { DesignHostProvider } from '../../src/native/compound/design/DesignHostContext'
 import type { DesignHost } from '../../src/native/compound/design/designNativeTypes'
 import FilePreviewSheet from '../../src/native/compound/files/FilePreviewSheet'
 import FilePreviewSheetConnected from '../../src/native/compound/files/FilePreviewSheetConnected'
+import ProjectFileChip from '../../src/native/compound/files/ProjectFileChip'
 import ReferencePreviewSheet from '../../src/native/compound/chips/ReferencePreviewSheet'
 import { IconFile } from '../../src/native/icons'
 import { Button } from '../../src/native/primitives/Button'
@@ -23,6 +26,7 @@ import { useNativeTheme } from '../../src/native/hooks/useNativeTheme'
 import {
   FILE_PREVIEW_FILES,
   FILE_PREVIEW_ROUTES,
+  OWN_FILE,
   PROPOSAL_CHIP,
   useFakeEdits,
   type FilePreviewFile,
@@ -45,7 +49,26 @@ function BrowserPdf({ uri }: { uri: string }) {
   return <object type="application/pdf" data={src} style={{ width: '100%', height: '100%' }} />
 }
 
-const HOST: DesignHost = { renderPdf: (uri) => <BrowserPdf uri={uri} /> }
+/** The app's html page view, as a browser draws it: a frame that runs nothing and goes nowhere. */
+function BrowserHtml({ html }: { html: string }) {
+  return (
+    <iframe
+      title="HTML preview"
+      srcDoc={html}
+      sandbox=""
+      referrerPolicy="no-referrer"
+      style={{ width: '100%', height: '100%', border: 0, background: 'white' }}
+    />
+  )
+}
+
+const HOST: DesignHost = {
+  renderPdf: (uri) => <BrowserPdf uri={uri} />,
+  renderHtml: (html) => <BrowserHtml html={html} />,
+}
+
+/** The app's clipboard, as a browser has it. */
+const CLIPBOARD: ClipboardHost = { copyText: (text) => navigator.clipboard.writeText(text) }
 
 /** A phone's screen: its own overlay host, so the full-screen sheet covers it and not the board. */
 function Phone({ children }: { children: ReactNode }) {
@@ -75,7 +98,9 @@ function OnPhoneFixtures({ children }: { children: ReactNode }) {
     <OnFixtures routes={FILE_PREVIEW_ROUTES}>
       <FilesProvider>
         <DesignHostProvider value={HOST}>
-          <View style={{ flex: 1, alignItems: 'center', gap: 12, padding: 12 }}>{children}</View>
+          <ClipboardHostProvider value={CLIPBOARD}>
+            <View style={{ flex: 1, alignItems: 'center', gap: 12, padding: 12 }}>{children}</View>
+          </ClipboardHostProvider>
         </DesignHostProvider>
       </FilesProvider>
     </OnFixtures>
@@ -156,6 +181,35 @@ function ChipSheetOnPhone() {
   )
 }
 
+/** A file of the project on screen in a message: tap it for its sheet, then Preview. */
+function OwnFileChipOnPhone() {
+  const { theme } = useNativeTheme()
+  return (
+    <OnPhoneFixtures>
+      <Phone>
+        <View
+          style={{
+            flex: 1,
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            alignContent: 'center',
+            gap: 4,
+            padding: 16,
+          }}
+        >
+          <Text style={{ fontSize: 14, color: theme.text.primary }}>The proposal is in</Text>
+          <ProjectFileChip
+            file={OWN_FILE.meta}
+            projectId={OWN_FILE.projectId}
+            onOpenInFiles={noop}
+          />
+        </View>
+      </Phone>
+    </OnPhoneFixtures>
+  )
+}
+
 const fileOf = (address: URLSearchParams): FilePreviewFile => {
   const file = address.get('file')
   return FILE_PREVIEW_FILES.find((f) => f === file) ?? 'markdown'
@@ -167,12 +221,18 @@ const modeOf = (address: URLSearchParams): FilePreviewMode =>
 export const FILE_PREVIEW_VIEWS: readonly NativeView[] = [
   {
     id: 'file-preview',
-    title: 'File preview (?file=markdown|text|image|pdf|unknown|loading|error|gone&mode=view|edit)',
+    title:
+      'File preview, with Copy (?file=markdown|html|text|image|pdf|unknown|loading|error|gone&mode=view|edit)',
     render: (address) => <PreviewOnPhone file={fileOf(address)} mode={modeOf(address)} />,
   },
   {
     id: 'file-reference-sheet',
     title: 'File chip: long-press sheet with Preview',
     render: () => <ChipSheetOnPhone />,
+  },
+  {
+    id: 'project-file-chip',
+    title: 'File of the project on screen: tap for its sheet with Preview',
+    render: () => <OwnFileChipOnPhone />,
   },
 ]

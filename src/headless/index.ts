@@ -1758,11 +1758,14 @@ export {
   filePreviewFailure,
   filePreviewInfoOf,
   filePreviewInfoRows,
+  filePreviewInitialPane,
   filePreviewMediaType,
   filePreviewName,
+  filePreviewPanes,
   filePreviewSize,
   filePreviewSource,
   filePreviewTarget,
+  ownFileDescription,
 } from './utils/filePreview'
 export type {
   FilePreviewCalls,
@@ -1771,6 +1774,7 @@ export type {
   FilePreviewInfoRow,
   FilePreviewLayout,
   FilePreviewMode,
+  FilePreviewPane,
   FilePreviewSource,
   FilePreviewState,
   FilePreviewTarget,
@@ -1786,6 +1790,7 @@ export {
   FILE_PREVIEW_MODE_LABELS,
   FILE_PREVIEW_MODES,
   FILE_PREVIEW_PANE_LABELS,
+  FILE_PREVIEW_PANES,
 } from './utils/filePreviewConstants'
 export {
   PROJECT_FILE_CALLS,

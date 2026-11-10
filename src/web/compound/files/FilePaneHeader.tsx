@@ -16,6 +16,10 @@ export type FilePaneHeaderProps = {
   info?: FileInfoData
   /** Right-side action slot (icon buttons such as copy / save / rename / delete). */
   actions?: ReactNode
+  /** A small line over the name: where the file is from, in a popup. */
+  caption?: string
+  /** After the actions, set apart from them: a popup's own buttons. */
+  trailing?: ReactNode
 }
 
 function humanSize(n: number): string {
@@ -28,7 +32,15 @@ function humanSize(n: number): string {
   return `${gb < 10 ? gb.toFixed(1) : Math.round(gb)} GB`
 }
 
-export function FilePaneHeader({ name, path, size, info, actions }: FilePaneHeaderProps) {
+export function FilePaneHeader({
+  name,
+  path,
+  size,
+  info,
+  actions,
+  caption,
+  trailing,
+}: FilePaneHeaderProps) {
   const resolvedName = name ?? (path ? path.split('/').pop() : undefined) ?? ''
   return (
     <header
@@ -41,14 +53,28 @@ export function FilePaneHeader({ name, path, size, info, actions }: FilePaneHead
     >
       <div className="flex items-center gap-2 min-w-0">
         {info && <FileInfoButton info={info} />}
-        <code className="text-xs truncate font-medium" title={path ?? resolvedName}>
-          {resolvedName}
-        </code>
-        {typeof size === 'number' && (
-          <span className="text-xs text-(--text-muted) shrink-0">· {humanSize(size)}</span>
-        )}
+        <div className="flex min-w-0 flex-col">
+          {caption && (
+            <span className="truncate text-[10px] font-semibold uppercase leading-tight tracking-wide text-(--text-secondary)">
+              {caption}
+            </span>
+          )}
+          <div className="flex min-w-0 items-center gap-2">
+            <code className="text-xs truncate font-medium" title={path ?? resolvedName}>
+              {resolvedName}
+            </code>
+            {typeof size === 'number' && (
+              <span className="text-xs text-(--text-muted) shrink-0">· {humanSize(size)}</span>
+            )}
+          </div>
+        </div>
       </div>
-      {actions && <div className="flex items-center gap-1 shrink-0 h-full">{actions}</div>}
+      {(actions || trailing) && (
+        <div className="flex items-center gap-1 shrink-0 h-full">
+          {actions}
+          {trailing && <div className="flex items-center gap-1 pl-2">{trailing}</div>}
+        </div>
+      )}
     </header>
   )
 }

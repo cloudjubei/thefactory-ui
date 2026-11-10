@@ -18,6 +18,7 @@ import {
   Button,
   FilePreviewDialog,
   FilePreviewDialogConnected,
+  ProjectFileChip,
   ReferenceChip,
   ReferencePreviewCard,
   SegmentedControl,
@@ -29,7 +30,9 @@ import {
   FILE_PREVIEW_FILE_LABELS,
   FILE_PREVIEW_FILES,
   FILE_PREVIEW_ROUTES,
+  OWN_FILE,
   PROPOSAL_CHIP,
+  PROPOSAL_TEXT,
   useFakeEdits,
   type FilePreviewFile,
 } from './filePreviewFixtures'
@@ -68,6 +71,29 @@ function ChipInMessage() {
       <p className="max-w-xl p-6 text-sm leading-7 text-(--text-primary)">
         The pricing write-up is in <ReferenceChip description={PROPOSAL_CHIP} onOpen={noop} /> —
         read it before Thursday.
+      </p>
+    </OnFixtures>
+  )
+}
+
+/**
+ * A file of the project on screen, in a line of a message: hover it for its card, which
+ * shows the start of the file and Preview; Preview opens the real popup on the fixtures.
+ */
+function OwnFileChipInMessage() {
+  return (
+    <OnFixtures routes={FILE_PREVIEW_ROUTES}>
+      <p className="max-w-xl p-6 pt-40 text-sm leading-7 text-(--text-primary)">
+        I wrote the proposal up in{' '}
+        <span className="inline-block align-middle">
+          <ProjectFileChip
+            file={OWN_FILE.meta}
+            projectId={OWN_FILE.projectId}
+            onReadPreview={async () => PROPOSAL_TEXT}
+            onOpenInFiles={noop}
+          />
+        </span>{' '}
+        — have a look.
       </p>
     </OnFixtures>
   )
@@ -143,6 +169,7 @@ function PreviewBoard({
 const DESCRIPTIONS: Record<FilePreviewFile, string> = {
   markdown:
     'A markdown file from another project, opened on its preview; the switch in its header shows the source, both, or the preview.',
+  html: 'An html file, opened as the page it is — markup only, no scripts; the switch in its header shows the source.',
   text: 'A source file, as text: copy it, and see its info.',
   image: 'An image, with the Files pane’s zoom.',
   pdf: 'A PDF, in the browser’s own viewer.',
@@ -164,10 +191,10 @@ export const FILE_PREVIEW_SCENES: Scene[] = [
   {
     id: 'file-reference-card',
     title: 'File chip: Preview',
-    component: 'ReferencePreviewCard, ReferenceChip',
+    component: 'ReferencePreviewCard, ReferenceChip, ProjectFileChip',
     group: 'Chat',
     description:
-      'A file chip’s hover card offers Preview beside Open in Files; a folder’s does not. Preview opens the file in a popup, read from the file’s own project.',
+      'A file chip’s hover card offers Preview beside Open in Files; a folder’s does not. Preview opens the file in a popup, read from the file’s own project. A file of the project on screen has the same Preview on its own card. Left off on purpose where a file is being picked or attached: the file selector’s rows, a story’s context files, a message’s attachments.',
     states: [
       {
         id: 'file-with-preview',
@@ -187,6 +214,13 @@ export const FILE_PREVIEW_SCENES: Scene[] = [
         title: 'Chip in a message',
         description: 'Hover the chip for its card.',
         render: () => <ChipInMessage />,
+      },
+      {
+        id: 'own-project-file',
+        title: 'File of the project on screen',
+        description:
+          'Hover the chip: its card shows the start of the file and Preview. Press Preview: the same popup, read from the project on screen.',
+        render: () => <OwnFileChipInMessage />,
       },
     ],
   },

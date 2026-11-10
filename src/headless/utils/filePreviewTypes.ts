@@ -14,6 +14,9 @@ export type FilePreviewMode = 'view' | 'edit'
 /** Where the preview opens on a wide screen: a large centred popup, or a drawer on the right. */
 export type FilePreviewLayout = 'modal' | 'drawer'
 
+/** What a paned file shows: its source, its source beside what it renders to, or what it renders to. */
+export type FilePreviewPane = 'edit' | 'both' | 'preview'
+
 /** How a file's contents are read: as text, as raw bytes, or not at all. */
 export type FilePreviewSource = 'text' | 'bytes' | 'none'
 

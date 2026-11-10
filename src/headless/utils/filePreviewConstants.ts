@@ -1,4 +1,5 @@
-import type { FilePreviewLayout, FilePreviewMode } from './filePreviewTypes'
+import type { FilePaneKind } from './filePaneKind'
+import type { FilePreviewLayout, FilePreviewMode, FilePreviewPane } from './filePreviewTypes'
 
 /** The button beside "Open in Files" that opens a file in a popup. */
 export const FILE_PREVIEW_LABEL = 'Preview'
@@ -69,12 +70,22 @@ export const FILE_PREVIEW_FALLBACK_MEDIA_TYPE = 'application/octet-stream'
 /** What the text of a markdown, html or text file is. */
 export const FILE_PREVIEW_TEXT_MEDIA_TYPE = 'text/plain'
 
-/** What native's source / split / preview switch says, for a markdown file. */
-export const FILE_PREVIEW_PANE_LABELS = {
+/** What native's source / split / preview switch says, for a markdown or html file. */
+export const FILE_PREVIEW_PANE_LABELS: Record<FilePreviewPane, string> = {
   edit: 'Source',
   both: 'Split',
   preview: 'Preview',
-} as const
+}
+
+/**
+ * The panes each kind of file switches between, in the order the switch
+ * offers them: a markdown file its source, both, or its preview; an html file
+ * its source or the page — a phone has no room for both.
+ */
+export const FILE_PREVIEW_PANES: Partial<Record<FilePaneKind, readonly FilePreviewPane[]>> = {
+  markdown: ['edit', 'both', 'preview'],
+  html: ['edit', 'preview'],
+}
 
 /** The ways the preview can let a person work, in the order the switch offers them. */
 export const FILE_PREVIEW_MODES: readonly FilePreviewMode[] = ['view', 'edit']

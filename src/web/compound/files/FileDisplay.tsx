@@ -6,7 +6,9 @@ import {
   type MouseEvent,
   type ReactNode,
 } from 'react'
+import { Button } from '../../primitives/Button'
 import Tooltip from '../../primitives/Tooltip'
+import { FILE_PREVIEW_LABEL } from '../../../headless/utils/filePreviewConstants'
 import {
   extFromTypeOrName,
   formatBytes,
@@ -55,6 +57,8 @@ export interface FileDisplayProps {
   // Async loader for the preview tooltip body. Receives `file.relativePath` —
   // returns a string snippet to render, or `null` if no preview is available.
   onReadPreview?: (relativePath: string) => Promise<string | null>
+  /** Opens the whole file from its hover card; without it, the card offers no Preview. */
+  onPreview?: () => void
 }
 
 function defaultIconFor(file: UikitFileMeta): ReactNode {
@@ -112,9 +116,11 @@ function useFilePreviewContent(
 function FilePreviewCard({
   file,
   onReadPreview,
+  onPreview,
 }: {
   file: UikitFileMeta
   onReadPreview?: (relativePath: string) => Promise<string | null>
+  onPreview?: () => void
 }) {
   const sizeLabel = formatBytes(file.size ?? null)
   const dateLabel = formatFileDate(file.mtime ?? null)
@@ -151,6 +157,21 @@ function FilePreviewCard({
           <div className="file-preview-card__empty">No preview available</div>
         )}
       </div>
+      {onPreview ? (
+        <div className="file-preview-card__actions flex flex-wrap gap-2 pt-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              onPreview()
+            }}
+          >
+            {FILE_PREVIEW_LABEL}
+          </Button>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -178,6 +199,7 @@ export default function FileDisplay({
   previewPlacement = 'right',
   previewDelayMs = 300,
   onReadPreview,
+  onPreview,
 }: FileDisplayProps) {
   const sizeLabel = formatBytes(file.size ?? null)
   const dateLabel = formatFileDate(file.mtime ?? null)
@@ -224,7 +246,13 @@ export default function FileDisplay({
 
   return (
     <Tooltip
-      content={<FilePreviewCard file={file} onReadPreview={onReadPreview} />}
+      content={
+        <FilePreviewCard
+          file={file}
+          onReadPreview={onReadPreview}
+          {...(onPreview ? { onPreview } : {})}
+        />
+      }
       placement={previewPlacement}
       delayMs={previewDelayMs}
       disabled={!showPreviewOnHover}

@@ -448,3 +448,52 @@ describe('computeChatRowStatus — a closed chat', () => {
     expect(statusOf({ archivedAt: '2026-10-20T14:00:00Z' })).toMatchObject({ retired: true })
   })
 })
+
+describe('chatNotifyCountsOf — a chat hidden from the list', () => {
+  const HIDDEN_AT = '2026-10-20T14:00:00Z'
+  const NOTHING = { unreadMessages: 0, unreadNeedsYou: 0, pendingAsks: 0 }
+
+  it('counts nothing that came before it was hidden, seen or never seen', () => {
+    const hidden = {
+      listHiddenAt: HIDDEN_AT,
+      messageTimes: ['2026-10-15T09:00:00Z', '2026-10-15T12:00:00Z'],
+      needsYouTimes: ['2026-10-15T12:00:00Z'],
+    }
+    expect(chatNotifyCountsOf(hidden, undefined, 0)).toEqual(NOTHING)
+    expect(chatNotifyCountsOf(hidden, '2026-10-01T00:00:00Z', 0)).toEqual(NOTHING)
+  })
+
+  it('counts what came after it was hidden, and its asks', () => {
+    const hidden = {
+      listHiddenAt: HIDDEN_AT,
+      messageTimes: ['2026-10-15T09:00:00Z', '2026-10-21T08:00:00Z', '2026-10-21T09:00:00Z'],
+      needsYouTimes: ['2026-10-21T09:00:00Z'],
+    }
+    expect(chatNotifyCountsOf(hidden, undefined, 1)).toEqual({
+      unreadMessages: 2,
+      unreadNeedsYou: 1,
+      pendingAsks: 1,
+    })
+  })
+
+  it('reads from when it was seen, when that is later than when it was hidden', () => {
+    const hidden = {
+      listHiddenAt: HIDDEN_AT,
+      messages: [
+        { role: 'assistant', completedAt: '2026-10-21T08:00:00Z' },
+        { role: 'assistant', completedAt: '2026-10-22T08:00:00Z' },
+      ],
+    }
+    expect(chatNotifyCountsOf(hidden as never, '2026-10-21T12:00:00Z', 0).unreadMessages).toBe(1)
+  })
+
+  it('reads a closed and hidden chat from the later of the two', () => {
+    const both = {
+      archivedAt: '2026-10-10T00:00:00Z',
+      listHiddenAt: HIDDEN_AT,
+      messageTimes: ['2026-10-15T09:00:00Z'],
+      needsYouTimes: ['2026-10-15T09:00:00Z'],
+    }
+    expect(chatNotifyCountsOf(both, undefined, 0)).toEqual(NOTHING)
+  })
+})

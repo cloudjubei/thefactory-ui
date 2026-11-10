@@ -10,6 +10,8 @@ export type DesignHost = {
   /** A page (HTML, SVG) from `uri`; `interactive: false` draws it as a still miniature. */
   renderPage?: (uri: string, options: { interactive: boolean }) => ReactNode
   renderPdf?: (uri: string) => ReactNode
+  /** An html file's text drawn as the page it is — markup only: no scripts, no way out of it. */
+  renderHtml?: (html: string) => ReactNode
   renderVideo?: (uri: string) => ReactNode
   /** Save a file that cannot be previewed to a place the person picks. */
   downloadFile?: (uri: string, fileName: string) => Promise<void>

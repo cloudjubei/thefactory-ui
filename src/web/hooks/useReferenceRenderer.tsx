@@ -7,7 +7,8 @@ import ReferenceChip from '../compound/chips/ReferenceChip'
 import NeedsYouReferenceChip from '../compound/chips/NeedsYouReferenceChip'
 import RunReferenceChip from '../compound/chips/RunReferenceChip'
 import DesignReferenceChip from '../compound/design/DesignReferenceChip'
-import FileDisplay, { type UikitFileMeta } from '../compound/files/FileDisplay'
+import type { UikitFileMeta } from '../compound/files/FileDisplay'
+import ProjectFileChip from '../compound/files/ProjectFileChip'
 import {
   referencedNeedsYouItem,
   referencedRunId,
@@ -16,7 +17,8 @@ import {
 
 /**
  * The chip a chat shows for each thing its messages point at: a project file
- * the project has, with its preview on hover; a process run as a live
+ * the project has, with its preview on hover and a Preview there that opens
+ * the whole file; a process run as a live
  * {@link RunReferenceChip}, one of its "Needs you" items as a live
  * {@link NeedsYouReferenceChip}; any other reference or in-app link — a folder, a
  * process — as a {@link ReferenceChip} that opens it. `undefined` — so the token
@@ -53,13 +55,7 @@ export function useReferenceRenderer({
         if (!meta) return undefined
         return (
           <span className="inline-block align-middle">
-            <FileDisplay
-              file={meta}
-              density="compact"
-              interactive={false}
-              showPreviewOnHover
-              showMeta={false}
-            />
+            <ProjectFileChip file={meta} {...(onOpen ? { onOpenInFiles: onOpen } : {})} />
           </span>
         )
       }

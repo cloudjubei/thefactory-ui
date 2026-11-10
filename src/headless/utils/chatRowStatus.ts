@@ -79,7 +79,8 @@ export function chatUnreadMessages(
  * notification level says how much reaches them. Closing a chat (`archivedAt`)
  * settles what came before it: a closed chat holds only what calls the person
  * back — its asks, which never lapse, and what needs them since it was closed —
- * with the news since then; without those, nothing. Pure.
+ * with the news since then; without those, nothing. Hiding a chat from the
+ * list (`listHiddenAt`) reads it up to then: only what comes after counts. Pure.
  */
 export function chatNotifyCountsOf(
   chat: ChatNewsShape,
@@ -87,7 +88,7 @@ export function chatNotifyCountsOf(
   pendingAsks: number,
 ): ChatNotifyCounts {
   const closedAt = chat.archivedAt
-  const readTo = closedAt && (!seenAt || closedAt > seenAt) ? closedAt : seenAt
+  const readTo = latestOf(seenAt, closedAt, chat.listHiddenAt)
   const times = chatMessageTimes(chat)
   const latest = times[times.length - 1] ?? undefined
   const unread = latest !== undefined && (!readTo || latest > readTo)
@@ -100,6 +101,12 @@ export function chatNotifyCountsOf(
     unreadNeedsYou,
     pendingAsks,
   }
+}
+
+function latestOf(...times: (string | null | undefined)[]): string | undefined {
+  let latest: string | undefined
+  for (const time of times) if (time && (!latest || time > latest)) latest = time
+  return latest
 }
 
 /**

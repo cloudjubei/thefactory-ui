@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useReferenceRendering } from '../../../headless/contexts/ReferenceRenderingContext'
-import type { FormEvent } from 'react'
+import type { FormEvent, ReactNode } from 'react'
 
 import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
@@ -66,6 +66,10 @@ export type FilePaneProps = {
   focusLine?: number
   /** Which panes a markdown or html file opens with. Defaults to both. */
   initialPaneView?: MarkdownEditorPaneView
+  /** A small line over the name in the header: where the file is from, in a popup. */
+  headerCaption?: string
+  /** After the header's tools: a popup's own buttons. */
+  headerTrailing?: ReactNode
 }
 
 type ModalRoute = { kind: 'rename'; from: string } | { kind: 'delete'; path: string } | null
@@ -86,6 +90,8 @@ export function FilePane({
   fileInfo,
   focusLine,
   initialPaneView = 'both',
+  headerCaption,
+  headerTrailing,
 }: FilePaneProps) {
   const [draft, setDraft] = useState('')
   const [saving, setSaving] = useState(false)
@@ -290,6 +296,8 @@ export function FilePane({
         size={fileSize}
         info={fileInfo}
         actions={actions}
+        {...(headerCaption ? { caption: headerCaption } : {})}
+        {...(headerTrailing ? { trailing: headerTrailing } : {})}
       />
 
       {kind === 'markdown' ? (

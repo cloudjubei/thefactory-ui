@@ -6,7 +6,8 @@ import { splitTextLinks } from '../../../headless/utils/textLinks'
 import type { ReferenceTarget } from 'thefactory-tools/types'
 import { nativePalette, nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
-import FileDisplay, { type UikitFileMeta } from './FileDisplay'
+import type { UikitFileMeta } from './FileDisplay'
+import ProjectFileChip from './ProjectFileChip'
 
 export interface RichTextProps {
   text: string | null | undefined
@@ -112,7 +113,7 @@ export default function RichText({
               backgroundColor: nativePalette.blue[50],
             }}
           >
-            <FileDisplay file={meta} density="compact" showMeta={false} />
+            <ProjectFileChip file={meta} />
           </View>
         )
       })}

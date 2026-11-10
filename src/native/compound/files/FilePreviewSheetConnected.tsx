@@ -9,7 +9,7 @@ export type FilePreviewSheetConnectedProps = {
   onClose: () => void
   mode?: FilePreviewMode
   onOpenInFiles?: (link: ResourceLink) => void
-  /** The app's clipboard; without it the text stays selectable. */
+  /** Copies the file's text, in place of the app's clipboard. */
   onCopy?: (text: string) => void | Promise<unknown>
 }
 

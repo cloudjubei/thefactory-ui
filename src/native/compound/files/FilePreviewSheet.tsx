@@ -6,6 +6,8 @@ import { evidenceDataUri } from '../../../headless/hooks/evidenceImageLoader'
 import {
   filePreviewCaption,
   filePreviewInfoRows,
+  filePreviewInitialPane,
+  filePreviewPanes,
   filePreviewSize,
 } from '../../../headless/utils/filePreview'
 import {
@@ -16,6 +18,7 @@ import {
 import type {
   FilePreviewContent,
   FilePreviewMode,
+  FilePreviewPane,
   FilePreviewState,
   FilePreviewTarget,
 } from '../../../headless/utils/filePreviewTypes'
@@ -31,13 +34,12 @@ import { ConfirmDialog, Modal } from '../../primitives/Modal'
 import SegmentedControl from '../../primitives/SegmentedControl'
 import Spinner from '../../primitives/Spinner'
 import { Textarea } from '../../primitives/Textarea'
+import { useClipboardHost } from '../ClipboardHostContext'
 import { useDesignHost } from '../design/DesignHostContext'
 import Markdown from '../Markdown'
 import FilePaneHeader from './FilePaneHeader'
 import ImageViewer from './ImageViewer'
 import ReferenceTextarea from './ReferenceTextarea'
-
-type PaneView = 'edit' | 'both' | 'preview'
 
 export type FilePreviewSheetProps = {
   /** The file as it stands; `null` keeps the sheet closed. */
@@ -49,7 +51,7 @@ export type FilePreviewSheetProps = {
   onOpenInFiles?: (link: ResourceLink) => void
   /** Reads the file again after a failure. */
   onRetry?: () => void
-  /** The app's clipboard; without it the text stays selectable. */
+  /** Copies the file's text, in place of the app's clipboard; with neither, the text stays selectable. */
   onCopy?: (text: string) => void | Promise<unknown>
   /** The edit mode's calls, on the file's own project. Throw to show an error. */
   onWrite?: (content: string) => Promise<void>
@@ -62,7 +64,9 @@ export type FilePreviewSheetProps = {
  * the Files screen's tools across its top, read from the project it is in.
  * Read only by default — copy, the source / split / preview switch, its info
  * — or, in edit mode, Save, Rename and Delete too. "Open in Files" leaves it
- * for the Files screen. A PDF shows through the app's PDF view.
+ * for the Files screen. An html file opens as the page it is, drawn by the
+ * app's web view, with a switch to its source; a PDF shows through the app's
+ * PDF view. Copy uses the app's clipboard.
  */
 export default function FilePreviewSheet({
   state,
@@ -176,6 +180,8 @@ function ReadyBody({
 }) {
   const { theme } = useNativeTheme()
   const host = useDesignHost()
+  const clipboard = useClipboardHost()
+  const copy = onCopy ?? clipboard.copyText
   const { kind, text, bytes, mediaType } = content
   const isText = kind === 'markdown' || kind === 'html' || kind === 'text'
   const references = useReferenceRendering()?.references
@@ -196,7 +202,9 @@ function ReadyBody({
       typesReferences && references && text !== null ? references.canonicalize(value, text) : value,
     [typesReferences, references, text],
   )
-  const [paneView, setPaneView] = useState<PaneView>(editing ? 'both' : 'preview')
+  const renderHtml = host.renderHtml
+  const panes = kind === 'html' && !renderHtml ? [] : filePreviewPanes(kind)
+  const [paneView, setPaneView] = useState<FilePreviewPane>(filePreviewInitialPane(kind, editing))
   const [infoOpen, setInfoOpen] = useState(false)
   const [renameOpen, setRenameOpen] = useState(false)
   const [renameValue, setRenameValue] = useState(target.path)
@@ -246,11 +254,11 @@ function ReadyBody({
   const iconColor = theme.text.primary
   const actions = (
     <>
-      {isText && onCopy ? (
+      {isText && copy ? (
         <Button
           variant="secondary"
           size="icon"
-          onPress={() => void onCopy(draft)}
+          onPress={() => void copy(draft)}
           accessibilityLabel={FILE_PREVIEW_COPY.copy}
         >
           <IconCopy size={16} color={iconColor} />
@@ -330,6 +338,8 @@ function ReadyBody({
           </View>
         ) : null}
       </View>
+    ) : kind === 'html' && renderHtml && paneView !== 'edit' ? (
+      <View style={{ flex: 1, minHeight: 0 }}>{renderHtml(draft)}</View>
     ) : isText ? (
       source
     ) : kind === 'image' && binaryUri ? (
@@ -362,7 +372,7 @@ function ReadyBody({
         }
         actions={actions}
       />
-      {kind === 'markdown' ? (
+      {panes.length > 0 ? (
         <View
           style={{
             paddingHorizontal: nativeSpace[5],
@@ -375,8 +385,8 @@ function ReadyBody({
             size="sm"
             ariaLabel={FILE_PREVIEW_COPY.paneSwitch}
             value={paneView}
-            onChange={(v) => setPaneView(v as PaneView)}
-            options={(['edit', 'both', 'preview'] as const).map((value) => ({
+            onChange={(v) => setPaneView(v as FilePreviewPane)}
+            options={panes.map((value) => ({
               value,
               label: FILE_PREVIEW_PANE_LABELS[value],
             }))}

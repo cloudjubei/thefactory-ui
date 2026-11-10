@@ -1,15 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type { ResourceLink } from 'thefactory-tools/types'
 import {
   FILE_PREVIEW_COPY,
   FILE_PREVIEW_DEFAULT_LAYOUT,
   FILE_PREVIEW_DEFAULT_MODE,
 } from '../../../headless/utils/filePreviewConstants'
-import {
-  filePreviewCaption,
-  filePreviewName,
-  filePreviewSize,
-} from '../../../headless/utils/filePreview'
+import { filePreviewCaption, filePreviewSize } from '../../../headless/utils/filePreview'
 import type {
   FilePreviewContent,
   FilePreviewLayout,
@@ -22,7 +18,10 @@ import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
 import Spinner from '../../primitives/Spinner'
+import Tooltip from '../../primitives/Tooltip'
+import { IconClose } from '../../icons'
 import { FilePane } from './FilePane'
+import FilePaneHeader from './FilePaneHeader'
 
 export type FilePreviewDialogProps = {
   /** The file as it stands; `null` keeps the dialog closed. */
@@ -73,6 +72,21 @@ export default function FilePreviewDialog({
           onOpenInFiles({ kind: 'file', projectId: target.projectId, path: target.path })
         }
       : undefined
+  const caption = target ? filePreviewCaption(target) : undefined
+  const trailing = (
+    <>
+      {openInFiles ? (
+        <Button size="sm" variant="secondary" onClick={openInFiles}>
+          {REFERENCE_OPEN_LABELS.file}
+        </Button>
+      ) : null}
+      <Tooltip content={FILE_PREVIEW_COPY.close}>
+        <Button variant="ghost" size="icon" onClick={onClose} aria-label={FILE_PREVIEW_COPY.close}>
+          <IconClose className="w-4 h-4" />
+        </Button>
+      </Tooltip>
+    </>
+  )
   return (
     <Modal
       isOpen={state !== null}
@@ -80,21 +94,24 @@ export default function FilePreviewDialog({
       size="xl"
       placement={layout === 'drawer' ? 'right' : 'center'}
       panelClassName={PANEL_CLASS[layout]}
-      contentClassName="p-0 flex flex-col overflow-hidden"
-      title={target ? <PreviewTitle target={target} /> : undefined}
-      headerActions={
-        openInFiles ? (
-          <Button size="sm" variant="secondary" onClick={openInFiles}>
-            {REFERENCE_OPEN_LABELS.file}
-          </Button>
-        ) : undefined
-      }
+      contentClassName="p-0! flex flex-col overflow-hidden!"
+      hideHeader
     >
+      {state && state.status !== 'ready' ? (
+        <FilePaneHeader
+          name={state.target.path}
+          path={state.target.path}
+          trailing={trailing}
+          {...(caption ? { caption } : {})}
+        />
+      ) : null}
       {state?.status === 'ready' ? (
         <ReadyPane
           target={state.target}
           content={state}
           editing={mode === 'edit'}
+          trailing={trailing}
+          {...(caption ? { caption } : {})}
           {...(onWrite ? { onWrite } : {})}
           {...(onRename ? { onRename } : {})}
           {...(onDelete ? { onDelete } : {})}
@@ -126,24 +143,13 @@ export default function FilePreviewDialog({
   )
 }
 
-function PreviewTitle({ target }: { target: FilePreviewTarget }) {
-  return (
-    <span className="flex min-w-0 flex-col gap-0.5">
-      <span className="text-[10.5px] font-semibold uppercase tracking-wide text-(--text-secondary)">
-        {filePreviewCaption(target)}
-      </span>
-      <code className="break-all text-[13px] font-medium" title={target.path}>
-        {target.path}
-      </code>
-    </span>
-  )
-}
-
 /** A read file in the Files pane: its bytes as a blob URL for the image and PDF viewers. */
 function ReadyPane({
   target,
   content,
   editing,
+  caption,
+  trailing,
   onWrite,
   onRename,
   onDelete,
@@ -151,6 +157,8 @@ function ReadyPane({
   target: FilePreviewTarget
   content: FilePreviewContent
   editing: boolean
+  caption?: string
+  trailing: ReactNode
   onWrite?: (content: string) => Promise<void>
   onRename?: (to: string) => Promise<void>
   onDelete?: () => Promise<void>
@@ -188,7 +196,9 @@ function ReadyPane({
       <FilePane
         key={`${target.path}:${editing ? 'edit' : 'view'}`}
         filePath={target.path}
-        fileName={filePreviewName(target.path)}
+        fileName={target.path}
+        headerTrailing={trailing}
+        {...(caption ? { headerCaption: caption } : {})}
         fileSize={size}
         content={content.text}
         initialPaneView={editing ? 'both' : 'preview'}

@@ -5,6 +5,7 @@ import type { ReferenceDescription } from 'thefactory-tools/types'
 /** Every state the file preview shows, by the id its scene and native view use. */
 export const FILE_PREVIEW_FILES = [
   'markdown',
+  'html',
   'text',
   'image',
   'pdf',
@@ -18,6 +19,7 @@ export type FilePreviewFile = (typeof FILE_PREVIEW_FILES)[number]
 
 export const FILE_PREVIEW_FILE_LABELS: Record<FilePreviewFile, string> = {
   markdown: 'Markdown',
+  html: 'HTML',
   text: 'Text',
   image: 'Image',
   pdf: 'PDF',
@@ -74,6 +76,43 @@ rules a merchant sets are read in one place.
 const quote = await PricingEngine.quote(order)
 \`\`\`
 `
+
+export const PRICING_PAGE_PATH = 'docs/pricing-overview.html'
+
+export const PRICING_PAGE_TEXT = `<!doctype html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 24px; color: #1d2b4f; }
+      h1 { font-size: 22px; }
+      .tier { border: 1px solid #c9d4ea; border-radius: 10px; padding: 12px 16px; margin: 12px 0; }
+      .price { font-weight: 700; color: #2f9b5b; }
+    </style>
+  </head>
+  <body>
+    <h1>Pricing overview</h1>
+    <p>How a quote is worked out, tier by tier.</p>
+    <div class="tier">Catalogue discount <span class="price">−10%</span></div>
+    <div class="tier">Basket discount <span class="price">−5%</span></div>
+    <div class="tier">Voucher <span class="price">−€3.00</span></div>
+    <p><a href="https://example.com/pricing">A link goes nowhere from here.</a></p>
+    <script>document.body.innerHTML = 'Scripts do not run in the preview.'</script>
+  </body>
+</html>
+`
+
+/** A file of the project on screen, as a message's own file chip resolves it. */
+export const OWN_FILE = {
+  projectId: PROJECT.projectId,
+  meta: {
+    name: 'ZNR-780_PRICING_ENGINE_PROPOSAL.md',
+    relativePath: PROPOSAL_PATH,
+    type: 'md',
+    size: 1184,
+    mtime: MODIFIED,
+  },
+} as const
 
 export const CONFIG_TEXT = `export const PRICING_DEFAULTS = {
   currency: 'EUR',
@@ -146,6 +185,15 @@ export const FILE_PREVIEW_STATES: Record<FilePreviewFile, FilePreviewState> = {
     bytes: null,
     mediaType: 'text/plain',
     info: info(PROPOSAL_PATH, PROPOSAL_TEXT.length, 'markdown', 'md'),
+  },
+  html: {
+    status: 'ready',
+    target: target(PRICING_PAGE_PATH),
+    kind: 'html',
+    text: PRICING_PAGE_TEXT,
+    bytes: null,
+    mediaType: 'text/plain',
+    info: info(PRICING_PAGE_PATH, PRICING_PAGE_TEXT.length, 'html', 'html'),
   },
   text: {
     status: 'ready',

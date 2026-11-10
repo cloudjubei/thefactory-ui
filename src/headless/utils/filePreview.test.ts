@@ -5,11 +5,14 @@ import {
   filePreviewFailure,
   filePreviewInfoOf,
   filePreviewInfoRows,
+  filePreviewInitialPane,
   filePreviewMediaType,
   filePreviewName,
+  filePreviewPanes,
   filePreviewSize,
   filePreviewSource,
   filePreviewTarget,
+  ownFileDescription,
 } from './filePreview'
 import { FILE_PREVIEW_COPY } from './filePreviewConstants'
 import type { FilePreviewContent, FilePreviewTarget } from './filePreviewTypes'
@@ -246,5 +249,80 @@ describe('filePreviewName and filePreviewCaption', () => {
   it('captions a file with its project where the target names one', () => {
     expect(filePreviewCaption({ ...TARGET, projectName: 'Compass BE' })).toBe('File in Compass BE')
     expect(filePreviewCaption(TARGET)).toBe('File')
+  })
+})
+
+describe('ownFileDescription', () => {
+  it('describes a file of the project on screen by that project, with no project name', () => {
+    const description = ownFileDescription('p', 'src/app.ts')
+    expect(description).toEqual({
+      kind: 'file',
+      label: 'src/app.ts',
+      link: { kind: 'file', projectId: 'p', path: 'src/app.ts' },
+    })
+    expect(description && filePreviewTarget(description)).toEqual({
+      projectId: 'p',
+      path: 'src/app.ts',
+    })
+  })
+
+  it('describes a file at the root as it does a nested one', () => {
+    expect(ownFileDescription('compass-be', 'README.md')?.link).toEqual({
+      kind: 'file',
+      projectId: 'compass-be',
+      path: 'README.md',
+    })
+  })
+
+  it('describes nothing for a folder', () => {
+    expect(ownFileDescription('p', 'docs/')).toBeUndefined()
+  })
+
+  it('describes nothing with no project on screen', () => {
+    expect(ownFileDescription(undefined, 'src/app.ts')).toBeUndefined()
+    expect(ownFileDescription(null, 'src/app.ts')).toBeUndefined()
+    expect(ownFileDescription('', 'src/app.ts')).toBeUndefined()
+  })
+
+  it('describes nothing for a file with no path in the project', () => {
+    expect(ownFileDescription('p', undefined)).toBeUndefined()
+    expect(ownFileDescription('p', null)).toBeUndefined()
+    expect(ownFileDescription('p', '')).toBeUndefined()
+  })
+})
+
+describe('filePreviewPanes', () => {
+  it('offers a markdown file its source, both, or its preview', () => {
+    expect(filePreviewPanes('markdown')).toEqual(['edit', 'both', 'preview'])
+  })
+
+  it('offers an html file its source or the page, never both', () => {
+    expect(filePreviewPanes('html')).toEqual(['edit', 'preview'])
+  })
+
+  it('offers no switch for a file with one way to show it', () => {
+    for (const kind of ['text', 'image', 'pdf', 'binary'] as const) {
+      expect(filePreviewPanes(kind)).toEqual([])
+    }
+  })
+})
+
+describe('filePreviewInitialPane', () => {
+  it('opens a markdown file on its preview to read, on both to edit', () => {
+    expect(filePreviewInitialPane('markdown', false)).toBe('preview')
+    expect(filePreviewInitialPane('markdown', true)).toBe('both')
+  })
+
+  it('opens an html file on the page, read or edited', () => {
+    expect(filePreviewInitialPane('html', false)).toBe('preview')
+    expect(filePreviewInitialPane('html', true)).toBe('preview')
+  })
+
+  it('opens on a pane the kind offers, whenever it offers any', () => {
+    for (const kind of ['markdown', 'html'] as const) {
+      for (const editing of [true, false]) {
+        expect(filePreviewPanes(kind)).toContain(filePreviewInitialPane(kind, editing))
+      }
+    }
   })
 })

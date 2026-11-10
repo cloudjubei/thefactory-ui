@@ -27,6 +27,7 @@ export {
   default as FilePreviewDialogConnected,
   type FilePreviewDialogConnectedProps,
 } from './FilePreviewDialogConnected'
+export { default as ProjectFileChip, type ProjectFileChipProps } from './ProjectFileChip'
 export { default as HtmlEditor, type HtmlEditorPaneView, type HtmlEditorProps } from './HtmlEditor'
 export { default as ImageViewer, type ImageViewerProps } from './ImageViewer'
 export { default as PdfViewer, type PdfViewerProps } from './PdfViewer'
