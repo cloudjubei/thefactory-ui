@@ -1350,8 +1350,19 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
           cliStartedAt: null,
           sendError: null,
         })
-        await clearChatApi({ body: { context: ctx }, throwOnError: true })
-        await reloadChat(ctx)
+        const before = chatsRef.current.find((c) => sameContext(c.context, ctx))
+        setChats((prev) =>
+          prev.map((c) => (sameContext(c.context, ctx) ? { ...c, messages: [] } : c)),
+        )
+        try {
+          await clearChatApi({ body: { context: ctx }, throwOnError: true })
+        } catch (err) {
+          if (before) {
+            setChats((prev) => prev.map((c) => (sameContext(c.context, ctx) ? before : c)))
+          }
+          throw err
+        }
+        void reloadChat(ctx)
       },
       [reloadChat, getChatLiveState, updateLiveState],
     )

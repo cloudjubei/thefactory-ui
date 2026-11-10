@@ -101369,6 +101369,12 @@
           "react/useState"
         ]
       },
+      "FILE_TREE_SCENES": {
+        "path": "scenes/fileTree.tsx",
+        "dependencies": [
+          "Scene"
+        ]
+      },
       "FilePreviewFile": {
         "path": "scenes/filePreviewFixtures.ts",
         "dependencies": [
@@ -123528,6 +123534,7 @@
         "dependencies": [
           "DirNode",
           "TreeNode",
+          "FileTreePathEntry",
           "ReadonlyArray"
         ]
       },
@@ -145802,7 +145809,7 @@
       },
       "FileNode": {
         "path": "headless/utils/fileTree.ts",
-        "description": "Client-side tree construction from a flat list of paths. The backend",
+        "description": "Client-side tree construction from a flat list of paths or entries.",
         "dependencies": []
       },
       "FilePane": {
@@ -146303,6 +146310,10 @@
           "react-native/TextInput",
           "react-native/View"
         ]
+      },
+      "FileTreePathEntry": {
+        "path": "headless/utils/fileTree.ts",
+        "dependencies": []
       },
       "FileTreeProps": {
         "path": "native/compound/files/FileTree.tsx",
