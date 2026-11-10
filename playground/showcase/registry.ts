@@ -35,6 +35,7 @@ import { FEATURE_REQUEST_CARD_SCENES } from '../scenes/featureRequestCard'
 import { FEATURE_REQUEST_WAIT_CYCLE_SCENES } from '../scenes/featureRequestWaitCycle'
 import { FILE_PREVIEW_SCENES } from '../scenes/filePreview'
 import { FILE_SUGGESTION_SCENES } from '../scenes/fileSuggestions'
+import { FILE_TREE_SCENES } from '../scenes/fileTree'
 import { GIT_GRAPH_UNCOMMITTED_SCENES } from '../scenes/gitGraphUncommitted'
 import { GIT_PUSH_AFTER_SCENES } from '../scenes/gitPushAfter'
 import { GIT_STASH_SCENES } from '../scenes/gitStash'
@@ -111,6 +112,7 @@ export const SCENES: readonly Scene[] = [
   ...CHAT_LIST_CLOSED_SCENES,
   ...SEND_CHAT_MESSAGE_SCENES,
   ...FILE_SUGGESTION_SCENES,
+  ...FILE_TREE_SCENES,
   ...FILE_PREVIEW_SCENES,
   ...VIDEO_ATTACHMENT_SCENES,
   ...MODEL_EFFORT_SCENES,

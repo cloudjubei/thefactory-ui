@@ -1,8 +1,6 @@
 /**
- * Client-side tree construction from a flat list of paths. The backend
- * returns files as a flat `string[]` (e.g. `src/api/client.ts`); this turns
- * that into a hierarchical structure the tree view can render. Directories
- * are inferred from the prefix segments.
+ * Client-side tree construction from a flat list of paths or entries.
+ * Directories can be explicit entries or inferred from path prefixes.
  *
  * Lifted from thefactory-overseer-web/src/core/files/fileTree.ts so the
  * mobile FileTree native peer can consume the same builder + sort.
@@ -20,17 +18,22 @@ function sortChildren(children: TreeNode[]): TreeNode[] {
   })
 }
 
-export function buildFileTree(paths: ReadonlyArray<string>): TreeNode[] {
+export type FileTreePathEntry = { relativePath: string; isDir?: boolean }
+
+export function buildFileTree(paths: ReadonlyArray<string | FileTreePathEntry>): TreeNode[] {
   const root: DirNode = { kind: 'dir', path: '', name: '', children: [] }
   const dirs = new Map<string, DirNode>([['', root]])
 
-  for (const raw of paths) {
-    const path = raw.replace(/^\/+/, '')
-    if (path.length === 0) continue
+  for (const entry of paths) {
+    const raw = typeof entry === 'string' ? entry : entry.relativePath
+    const isDir = typeof entry !== 'string' && entry.isDir === true
+    const segments = raw.split('/').filter(Boolean)
+    if (segments.length === 0) continue
+    const path = segments.join('/')
 
-    const segments = path.split('/')
     let parent = root
-    for (let i = 0; i < segments.length - 1; i++) {
+    const dirSegments = isDir ? segments.length : segments.length - 1
+    for (let i = 0; i < dirSegments; i++) {
       const dirPath = segments.slice(0, i + 1).join('/')
       let dir = dirs.get(dirPath)
       if (!dir) {
@@ -41,8 +44,10 @@ export function buildFileTree(paths: ReadonlyArray<string>): TreeNode[] {
       parent = dir
     }
 
-    const name = segments[segments.length - 1]
-    parent.children.push({ kind: 'file', path, name })
+    if (!isDir) {
+      const name = segments[segments.length - 1]
+      parent.children.push({ kind: 'file', path, name })
+    }
   }
 
   const recurseSort = (node: DirNode): DirNode => ({

@@ -1694,6 +1694,7 @@ export {
   type DirNode,
   type FileNode,
   type TreeNode,
+  type FileTreePathEntry,
 } from './utils/fileTree'
 
 // Path / file-type helpers

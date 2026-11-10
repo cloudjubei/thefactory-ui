@@ -17,6 +17,8 @@ function countLeafFiles(node: DirNode): number {
 export type FileTreeEntry = {
   /** Project-relative path, e.g. `src/components/Foo.tsx`. */
   relativePath: string
+  /** True for directory entries, including empty folders. */
+  isDir?: boolean
   /** File basename (`Foo.tsx`). Falls back to the last `/`-segment. */
   name?: string
   /** Optional MIME / extension hint. Falls back to extension parsing. */
@@ -74,7 +76,8 @@ function buildTree(entries: FileTreeEntry[]): DirNode {
     const parts = entry.relativePath.split('/').filter(Boolean)
     if (parts.length === 0) continue
     let cur = root
-    for (let i = 0; i < parts.length - 1; i++) {
+    const dirSegments = entry.isDir ? parts.length : parts.length - 1
+    for (let i = 0; i < dirSegments; i++) {
       const segment = parts[i]
       const childRel = parts.slice(0, i + 1).join('/')
       let next = cur.dirs.find((d) => d.name === segment)
@@ -84,13 +87,15 @@ function buildTree(entries: FileTreeEntry[]): DirNode {
       }
       cur = next
     }
-    const leafName = entry.name ?? parts[parts.length - 1]
-    cur.files.push({
-      kind: 'file',
-      name: leafName,
-      relPath: entry.relativePath,
-      type: entry.type ?? null,
-    })
+    if (!entry.isDir) {
+      const leafName = entry.name ?? parts[parts.length - 1]
+      cur.files.push({
+        kind: 'file',
+        name: leafName,
+        relPath: entry.relativePath,
+        type: entry.type ?? null,
+      })
+    }
   }
   sortDir(root)
   return root

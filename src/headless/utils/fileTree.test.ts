@@ -47,6 +47,50 @@ describe('buildFileTree', () => {
     ])
   })
 
+  it('creates and merges explicit directories regardless of entry order', () => {
+    const entries = [
+      { relativePath: '/src/templates/empty/', isDir: true },
+      { relativePath: 'src/templates/file.ts' },
+      { relativePath: 'src', isDir: true },
+      { relativePath: 'src/templates', isDir: true },
+      { relativePath: 'src/templates/empty', isDir: true },
+      { relativePath: 'root-empty', isDir: true },
+    ]
+    const expected = [
+      { kind: 'dir', path: 'root-empty', name: 'root-empty', children: [] },
+      {
+        kind: 'dir',
+        path: 'src',
+        name: 'src',
+        children: [
+          {
+            kind: 'dir',
+            path: 'src/templates',
+            name: 'templates',
+            children: [
+              { kind: 'dir', path: 'src/templates/empty', name: 'empty', children: [] },
+              { kind: 'file', path: 'src/templates/file.ts', name: 'file.ts' },
+            ],
+          },
+        ],
+      },
+    ]
+    expect(buildFileTree(entries)).toEqual(expected)
+    expect(buildFileTree([...entries].reverse())).toEqual(expected)
+  })
+
+  it('supports mixed legacy paths and entries without treating directories as files', () => {
+    expect(buildFileTree(['folder/a.txt', { relativePath: 'folder', isDir: true }])).toEqual([
+      {
+        kind: 'dir',
+        path: 'folder',
+        name: 'folder',
+        children: [{ kind: 'file', path: 'folder/a.txt', name: 'a.txt' }],
+      },
+    ])
+    expect(buildFileTree([{ relativePath: '/', isDir: true }])).toEqual([])
+  })
+
   it('ignores empty path entries', () => {
     expect(buildFileTree(['', 'a.ts'])).toEqual([{ kind: 'file', path: 'a.ts', name: 'a.ts' }])
   })
@@ -72,6 +116,36 @@ describe('filterFileTree', () => {
     const out = filterFileTree(tree, 'lib')
     expect(out.length).toBe(1)
     expect(out[0].name).toBe('lib')
+  })
+
+  it('finds empty directories by name or full path without creating leaf files', () => {
+    const tree = buildFileTree([
+      { relativePath: 'scaffold/templates/empty', isDir: true },
+      { relativePath: 'other/file.txt' },
+    ])
+    expect(filterFileTree(tree, 'templates/empty')).toEqual([
+      {
+        kind: 'dir',
+        path: 'scaffold',
+        name: 'scaffold',
+        children: [
+          {
+            kind: 'dir',
+            path: 'scaffold/templates',
+            name: 'templates',
+            children: [
+              {
+                kind: 'dir',
+                path: 'scaffold/templates/empty',
+                name: 'empty',
+                children: [],
+              },
+            ],
+          },
+        ],
+      },
+    ])
+    expect(filterFileTree(tree, 'missing')).toEqual([])
   })
 
   it('drops directories with no matching descendants and no self match', () => {

@@ -29,6 +29,8 @@ import FileTypeIcon from './FileTypeIcon'
 export type FileTreeEntry = {
   /** Project-relative path, e.g. `src/components/Foo.tsx`. */
   relativePath: string
+  /** True for directory entries, including empty folders. */
+  isDir?: boolean
   /** Optional MIME / extension hint — accepted for parity with web; not
    *  surfaced visually in v1. */
   type?: string | null
@@ -92,7 +94,7 @@ export default function FileTree({
   onDeleteFolder,
 }: FileTreeProps) {
   const { theme } = useNativeTheme()
-  const tree = useMemo(() => buildFileTree(files.map((f) => f.relativePath)), [files])
+  const tree = useMemo(() => buildFileTree(files), [files])
 
   const [openSet, setOpenSet] = useState<Set<string>>(() => new Set<string>(['']))
 
