@@ -34375,6 +34375,7 @@ export type PreviewProcessGroupRunResponses = {
        * The features an earlier run already delivered, one line per run.
        */
       alreadyDone?: Array<string>
+      fakeDataInProduct?: 'ship' | 'keep-out'
     }>
     /**
      * Leg ids by dependency level: each level starts once the one before is merged.
@@ -50041,6 +50042,7 @@ export type PreviewGroupStoryRunResponses = {
        * The features an earlier run already delivered, one line per run.
        */
       alreadyDone?: Array<string>
+      fakeDataInProduct?: 'ship' | 'keep-out'
     }>
     /**
      * Leg ids by dependency level: each level starts once the one before is merged.
@@ -50120,6 +50122,12 @@ export type RunGroupStoryData = {
     ticketMove?: {
       ticketKey: string
       transitionId: string
+    }
+    /**
+     * Whether each part's app's fake-data code ships, by project id, as confirmed on the card; a project left out runs on its own setting.
+     */
+    fakeDataInProduct?: {
+      [key: string]: 'ship' | 'keep-out'
     }
   }
   path: {

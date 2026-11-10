@@ -3,6 +3,8 @@ import { ScrollView, Text, View } from 'react-native'
 
 import {
   extractErrorMessage,
+  groupLaunchFakeDataChoices,
+  groupLaunchFakeDataMetadata,
   groupRunStartedWords,
   launchAgentPickMetadata,
   launchAgentPickRunner,
@@ -20,6 +22,7 @@ import {
   ticketMoveField,
   TICKET_MOVE_DEFAULT_LAYOUT,
   useLaunchAgentPick,
+  type FakeDataInProduct,
   type GroupStoryRunBody,
   type GroupStoryRunPreview,
   type GroupStoryRunStartedAnswer,
@@ -33,6 +36,7 @@ import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
 import BaseBranchChooser from '../chat/BaseBranchChooser'
+import LaunchFakeDataChoice from '../chat/LaunchFakeDataChoice'
 import TicketMoveField from '../chat/TicketMoveField'
 import LaunchCapsFields from '../chat/LaunchCapsFields'
 import { TurnLimitField } from '../TurnLimitField'
@@ -87,12 +91,14 @@ export default function GroupStoryRunDialog({
   const [error, setError] = useState<string | null>(null)
   const [started, setStarted] = useState<GroupStoryRunStarted | undefined>(startedShown)
   const [moveTicket, setMoveTicket] = useState(true)
+  const [fakeDataPicks, setFakeDataPicks] = useState<Record<string, FakeDataInProduct>>({})
   const wasOpen = useRef(false)
   useEffect(() => {
     if (isOpen && !wasOpen.current) {
       setError(null)
       setStarted(startedShown)
       setMoveTicket(true)
+      setFakeDataPicks({})
     }
     wasOpen.current = isOpen
   }, [isOpen, startedShown])
@@ -116,6 +122,7 @@ export default function GroupStoryRunDialog({
   const legsByStep = (preview?.waves ?? []).map((wave) =>
     wave.flatMap((id) => preview?.legs.filter((l) => l.projectId === id) ?? []),
   )
+  const fakeData = groupLaunchFakeDataChoices(preview?.legs ?? [], fakeDataPicks)
   const ticket = ticketMoveField(preview?.ticketMove)
   const ticketMove = ticketMoveDecisionOf(ticket, moveTicket)
   const startedWords = started ? groupRunStartedWords(started) : undefined
@@ -130,6 +137,7 @@ export default function GroupStoryRunDialog({
       turnLimit: processTurnLimitOfView(turnLimit),
       ...capsMeta,
       ...(Object.keys(basePicks).length > 0 ? { baseBranches: { ...basePicks } } : {}),
+      ...groupLaunchFakeDataMetadata(preview?.legs ?? [], fakeDataPicks),
       ...(ticketMove ? { ticketMove } : {}),
     })
       .then(setStarted)
@@ -220,6 +228,15 @@ export default function GroupStoryRunDialog({
                         >
                           {`${leg.storyTitle ?? leg.storyId} · ${leg.features} feature${leg.features === 1 ? '' : 's'}`}
                         </Text>
+                        {fakeData[leg.projectId] ? (
+                          <LaunchFakeDataChoice
+                            value={fakeData[leg.projectId]}
+                            busy={busy}
+                            onChange={(value) =>
+                              setFakeDataPicks((prev) => ({ ...prev, [leg.projectId]: value }))
+                            }
+                          />
+                        ) : null}
                         {leg.baseBranches ? (
                           <BaseBranchChooser
                             options={leg.baseBranches}

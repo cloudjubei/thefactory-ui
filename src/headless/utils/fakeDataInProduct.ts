@@ -51,3 +51,28 @@ export function launchFakeDataMetadata(
 export function fakeDataInProductLine(value: FakeDataInProduct): string {
   return FAKE_DATA_IN_PRODUCT_OPTIONS.find((option) => option.value === value)?.line ?? ''
 }
+
+/**
+ * A group launch card's choices, by project id: each leg that offers one, at the person's pick,
+ * else the leg's own value. Legs that offer none are left out, and so are picks for them. Pure.
+ */
+export function groupLaunchFakeDataChoices(
+  legs: readonly { projectId: string; fakeDataInProduct?: FakeDataInProduct }[],
+  picks: Readonly<Record<string, FakeDataInProduct>>,
+): Record<string, FakeDataInProduct> {
+  return Object.fromEntries(
+    legs.flatMap((leg) => {
+      const choice = launchFakeDataChoice(launchFakeDataOffered(leg), picks[leg.projectId])
+      return choice === undefined ? [] : [[leg.projectId, choice] as const]
+    }),
+  )
+}
+
+/** What a group launch carries of the choices confirmed on its card; nothing while no leg offers one. Pure. */
+export function groupLaunchFakeDataMetadata(
+  legs: readonly { projectId: string; fakeDataInProduct?: FakeDataInProduct }[],
+  picks: Readonly<Record<string, FakeDataInProduct>>,
+): { fakeDataInProduct: Record<string, FakeDataInProduct> } | undefined {
+  const choices = groupLaunchFakeDataChoices(legs, picks)
+  return Object.keys(choices).length > 0 ? { fakeDataInProduct: choices } : undefined
+}

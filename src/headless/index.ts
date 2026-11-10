@@ -1753,6 +1753,51 @@ export type {
   RunReferencePreview,
 } from './utils/referencePreviewTypes'
 export { RUN_PREVIEW_OPEN_CHAT } from './utils/referencePreviewConstants'
+export {
+  filePreviewCaption,
+  filePreviewFailure,
+  filePreviewInfoOf,
+  filePreviewInfoRows,
+  filePreviewMediaType,
+  filePreviewName,
+  filePreviewSize,
+  filePreviewSource,
+  filePreviewTarget,
+} from './utils/filePreview'
+export type {
+  FilePreviewCalls,
+  FilePreviewContent,
+  FilePreviewInfo,
+  FilePreviewInfoRow,
+  FilePreviewLayout,
+  FilePreviewMode,
+  FilePreviewSource,
+  FilePreviewState,
+  FilePreviewTarget,
+} from './utils/filePreviewTypes'
+export {
+  FILE_PREVIEW_COPY,
+  FILE_PREVIEW_DEFAULT_LAYOUT,
+  FILE_PREVIEW_DEFAULT_MODE,
+  FILE_PREVIEW_INFO_LABELS,
+  FILE_PREVIEW_LABEL,
+  FILE_PREVIEW_LAYOUT_LABELS,
+  FILE_PREVIEW_LAYOUTS,
+  FILE_PREVIEW_MODE_LABELS,
+  FILE_PREVIEW_MODES,
+  FILE_PREVIEW_PANE_LABELS,
+} from './utils/filePreviewConstants'
+export {
+  PROJECT_FILE_CALLS,
+  deleteProjectFile,
+  readProjectFileBytes,
+  readProjectFileInfo,
+  readProjectFileText,
+  renameProjectFile,
+  writeProjectFile,
+} from './api/projectFileApi'
+export { FilePreviewLoader } from './hooks/filePreviewLoader'
+export { useFilePreview, type FilePreviewHandle } from './hooks/useFilePreview'
 export type { LinkedFeatureStep } from './utils/featureLinkTypes'
 export { dependencyResourceLink } from './utils/dependencyLink'
 export type { DependencyLinkTarget } from './utils/dependencyLinkTypes'
@@ -1819,6 +1864,8 @@ export type {
 } from './utils/processLaunchCapsTypes'
 export {
   fakeDataInProductLine,
+  groupLaunchFakeDataChoices,
+  groupLaunchFakeDataMetadata,
   isFakeDataInProduct,
   launchFakeDataChoice,
   launchFakeDataMetadata,

@@ -1,5 +1,6 @@
 import type { ProcessRun, ReferenceDescription, ResourceLink } from 'thefactory-tools/types'
 import { processStepStates } from 'thefactory-tools/utils'
+import { filePreviewTarget } from './filePreview'
 import { isHeldForGroupSignOff } from './groupSignOffHold'
 import {
   processRunBadge,
@@ -56,8 +57,9 @@ function statusPill(status: string | undefined): ReferencePreview['status'] {
 
 /**
  * A reference's preview card, from how it is described: what it is, its
- * number and title, its status, the facts it carries, and the button that
- * opens it — none for what is gone or still being looked up. Pure.
+ * number and title, its status, the facts it carries, the button that opens
+ * it — none for what is gone or still being looked up — and, for a file, the
+ * file its Preview shows. Pure.
  */
 export function referencePreview(description: ReferenceDescription): ReferencePreview {
   const status = description.loading ? undefined : statusPill(description.status)
@@ -73,6 +75,7 @@ export function referencePreview(description: ReferenceDescription): ReferencePr
         ? [{ label: '', value: description.detail }]
         : []
   const openable = description.link && !description.missing && !description.loading
+  const filePreview = filePreviewTarget(description)
   return {
     caption: caption(description),
     title,
@@ -81,6 +84,7 @@ export function referencePreview(description: ReferenceDescription): ReferencePr
     ...(openable && description.link
       ? { primary: { label: REFERENCE_OPEN_LABELS[description.kind], link: description.link } }
       : {}),
+    ...(filePreview ? { filePreview } : {}),
   }
 }
 

@@ -1,9 +1,10 @@
 import { useState, type ComponentType, type ReactNode } from 'react'
 import { Text } from 'react-native'
 import type { ReferenceDescription, ResourceLink } from 'thefactory-tools/types'
-import { referencePreview, type ReferencePreview } from '../../../headless'
+import { referencePreview, type FilePreviewTarget, type ReferencePreview } from '../../../headless'
 import { nativeRadii } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
+import FilePreviewSheetConnected from '../files/FilePreviewSheetConnected'
 import ReferencePreviewSheet from './ReferencePreviewSheet'
 import { referenceGlyph } from './referenceGlyphs'
 
@@ -28,8 +29,9 @@ export type ReferenceChipProps = {
 /**
  * Native peer of web's `ReferenceChip`: something a message points at, inline
  * in the text — its current number or name with its title and status, a tap
- * that opens it, and a long press that shows its preview. Something still
- * being looked up reads muted; something gone reads struck through and opens
+ * that opens it, and a long press that shows its preview — a file's offers a
+ * full-screen preview, read from its own project. Something still being
+ * looked up reads muted; something gone reads struck through and opens
  * nothing.
  */
 export default function ReferenceChip({
@@ -44,6 +46,7 @@ export default function ReferenceChip({
 }: ReferenceChipProps) {
   const { theme, status: tones } = useNativeTheme()
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [previewing, setPreviewing] = useState<FilePreviewTarget | null>(null)
   const view = preview ?? referencePreview(description)
   const pill = description.missing ? undefined : (status ?? view.status)
   const link = description.missing || description.loading ? undefined : description.link
@@ -80,12 +83,20 @@ export default function ReferenceChip({
           onClose={() => setSheetOpen(false)}
           view={view}
           glyph={glyph ?? referenceGlyph(description)}
+          onPreview={setPreviewing}
           {...(onOpen ? { onOpen } : {})}
           {...(secondary ? { secondary } : {})}
         >
           {children}
         </ReferencePreviewSheet>
       )}
+      {previewing ? (
+        <FilePreviewSheetConnected
+          target={previewing}
+          onClose={() => setPreviewing(null)}
+          {...(onOpen ? { onOpenInFiles: onOpen } : {})}
+        />
+      ) : null}
     </>
   )
 }

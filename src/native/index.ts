@@ -627,6 +627,14 @@ export {
   default as FilePaneHeader,
   type FilePaneHeaderProps,
 } from './compound/files/FilePaneHeader'
+export {
+  default as FilePreviewSheet,
+  type FilePreviewSheetProps,
+} from './compound/files/FilePreviewSheet'
+export {
+  default as FilePreviewSheetConnected,
+  type FilePreviewSheetConnectedProps,
+} from './compound/files/FilePreviewSheetConnected'
 
 // Search — a project's files, stories, features and notes in one search.
 export {

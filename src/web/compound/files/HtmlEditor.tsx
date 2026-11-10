@@ -31,6 +31,8 @@ export type HtmlEditorProps = {
   hideHeader?: boolean
   /** The edit pane's textarea — for a host that opens the file at a line. */
   textareaRef?: Ref<HTMLTextAreaElement>
+  /** Shows the source to read and select, not to change — a file's preview. */
+  readOnly?: boolean
 }
 
 export default function HtmlEditor({
@@ -45,6 +47,7 @@ export default function HtmlEditor({
   onViewChange,
   hideHeader = false,
   textareaRef,
+  readOnly = false,
 }: HtmlEditorProps) {
   const [internalView, setInternalView] = useState<HtmlEditorPaneView>(initialView)
   const view = controlledView ?? internalView
@@ -123,6 +126,7 @@ export default function HtmlEditor({
                 ref={textareaRef}
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
+                readOnly={readOnly}
                 spellCheck={false}
                 className="flex-1 w-full resize-none border-0 outline-none p-3 bg-transparent text-(--text-primary) font-mono text-[13px] leading-6"
               />

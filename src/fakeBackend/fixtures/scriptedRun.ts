@@ -1,11 +1,11 @@
 import type { ProcessInput, ProcessRun, ReviewEvidenceRef } from 'thefactory-tools/types'
-import {
-  JOURNEY_DAY_LOG_LABEL,
-  JOURNEY_RECORDING_LABEL,
-  JOURNEY_STOPPED_SCREENSHOT_LABEL,
-} from 'thefactory-tools/constants'
 
 import { FAKE_PROJECT_ID } from './projects'
+import {
+  FAKE_JOURNEY_DAY_LOG_LABEL,
+  FAKE_JOURNEY_RECORDING_LABEL,
+  FAKE_JOURNEY_STOPPED_SCREENSHOT_LABEL,
+} from './scriptedRunConstants'
 import { FAKE_VARIANT_INPUTS, FAKE_VARIANT_NOTES, FAKE_VARIANT_VALUES } from './variantRun'
 
 /** How a scripted step is shown: its days lived to the end, or stopped short on day 2. */
@@ -339,10 +339,10 @@ export function fakeScriptedEvidence(state: FakeScriptedState) {
         label: 'Short sign-up',
         status: state === 'lived' ? 'running' : 'parked',
         evidence: [
-          filed('days-recording', { label: JOURNEY_RECORDING_LABEL }),
+          filed('days-recording', { label: FAKE_JOURNEY_RECORDING_LABEL }),
           filed(DAY_LOG_ID(state), {
             kind: 'log',
-            label: JOURNEY_DAY_LOG_LABEL,
+            label: FAKE_JOURNEY_DAY_LOG_LABEL,
             mediaType: 'text/plain',
             path: 'day-log.txt',
           }),
@@ -350,7 +350,7 @@ export function fakeScriptedEvidence(state: FakeScriptedState) {
             ? [
                 filed('stopped-shot', {
                   kind: 'screenshot',
-                  label: JOURNEY_STOPPED_SCREENSHOT_LABEL,
+                  label: FAKE_JOURNEY_STOPPED_SCREENSHOT_LABEL,
                   mediaType: 'image/png',
                   path: 'stopped.png',
                 }),

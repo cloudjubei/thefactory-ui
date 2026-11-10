@@ -1,7 +1,8 @@
-import type { ComponentType, ReactNode } from 'react'
+import { useState, type ComponentType, type ReactNode, type SyntheticEvent } from 'react'
 import type { ReferenceDescription, ResourceLink } from 'thefactory-tools/types'
-import { referencePreview, type ReferencePreview } from '../../../headless'
+import { referencePreview, type FilePreviewTarget, type ReferencePreview } from '../../../headless'
 import Tooltip from '../../primitives/Tooltip'
+import FilePreviewDialogConnected from '../files/FilePreviewDialogConnected'
 import { PROCESS_TONE_BADGE } from '../process/signoff/tones'
 import ReferencePreviewCard from './ReferencePreviewCard'
 import { referenceGlyph } from './referenceGlyphs'
@@ -24,7 +25,8 @@ export type ReferenceChipProps = {
  * Something a message points at — a story, feature, process run or process,
  * note, attachment, file or in-app link — as a chip: its current number or
  * name with its title and status, a preview card on hover, and a click that
- * opens it. Something still being looked up shows neutral; something gone
+ * opens it — a file's card also previews it in a popup, read from its own
+ * project. Something still being looked up shows neutral; something gone
  * shows dashed and opens nothing.
  */
 export default function ReferenceChip({
@@ -35,6 +37,8 @@ export default function ReferenceChip({
   card,
   glyph,
 }: ReferenceChipProps) {
+  const [previewing, setPreviewing] = useState<FilePreviewTarget | null>(null)
+  const [previews, setPreviews] = useState(0)
   const Glyph = glyph ?? referenceGlyph(description)
   const view = referencePreview(description)
   const pill = status ?? view.status
@@ -63,44 +67,76 @@ export default function ReferenceChip({
       ) : null}
     </>
   )
+  const closePreview = () => {
+    setPreviewing(null)
+    setPreviews((n) => n + 1)
+  }
   return (
-    <Tooltip
-      placement="top"
-      allowedPlacements={['top', 'bottom']}
-      zIndex={2000}
-      content={
-        card ?? (
-          <ReferencePreviewCard view={view} glyph={Glyph} {...(onOpen ? { onOpen } : {})}>
-            {preview}
-          </ReferencePreviewCard>
-        )
-      }
-    >
-      {link && onOpen ? (
-        <button
-          type="button"
-          className={className}
-          onClick={(e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            onOpen(link)
-          }}
-          // The tooltip's anchor takes Enter and Space to pin itself; the chip's
-          // own keys open what it points at.
-          onKeyDown={(e) => {
-            if (e.key !== 'Enter' && e.key !== ' ') return
-            e.preventDefault()
-            e.stopPropagation()
-            onOpen(link)
-          }}
+    <>
+      <Tooltip
+        key={previews}
+        placement="top"
+        allowedPlacements={['top', 'bottom']}
+        zIndex={2000}
+        disabled={previewing !== null}
+        content={
+          card ?? (
+            <ReferencePreviewCard
+              view={view}
+              glyph={Glyph}
+              onPreview={setPreviewing}
+              {...(onOpen ? { onOpen } : {})}
+            >
+              {preview}
+            </ReferencePreviewCard>
+          )
+        }
+      >
+        {link && onOpen ? (
+          <button
+            type="button"
+            className={className}
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              onOpen(link)
+            }}
+            // The tooltip's anchor takes Enter and Space to pin itself; the chip's
+            // own keys open what it points at.
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter' && e.key !== ' ') return
+              e.preventDefault()
+              e.stopPropagation()
+              onOpen(link)
+            }}
+          >
+            {body}
+          </button>
+        ) : (
+          <span className={className} aria-busy={description.loading ? true : undefined}>
+            {body}
+          </span>
+        )}
+      </Tooltip>
+      {previewing ? (
+        <span
+          className="contents"
+          onClick={keepInside}
+          onMouseDown={keepInside}
+          onKeyDown={keepInside}
         >
-          {body}
-        </button>
-      ) : (
-        <span className={className} aria-busy={description.loading ? true : undefined}>
-          {body}
+          <FilePreviewDialogConnected
+            target={previewing}
+            onClose={closePreview}
+            {...(onOpen ? { onOpenInFiles: onOpen } : {})}
+          />
         </span>
-      )}
-    </Tooltip>
+      ) : null}
+    </>
   )
+}
+
+/** The popup is a portal: what happens in it stays out of the message the chip sits in. */
+function keepInside(e: SyntheticEvent) {
+  e.stopPropagation()
 }

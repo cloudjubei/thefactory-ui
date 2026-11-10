@@ -33,12 +33,15 @@ export type FilePaneProps = {
   content: string | null
   isContentLoading?: boolean
   contentError?: string | null
-  /** Persists the working draft. Throws to surface an error to the user. */
-  onWrite: (path: string, content: string) => Promise<void>
-  /** Renames the current file. Throws to surface an error. */
-  onRename: (from: string, to: string) => Promise<void>
-  /** Deletes the current file. Throws to surface an error. */
-  onDelete: (path: string) => Promise<void>
+  /**
+   * Persists the working draft. Throws to surface an error to the user.
+   * Without it the file is shown to read: no Save, and its text cannot change.
+   */
+  onWrite?: (path: string, content: string) => Promise<void>
+  /** Renames the current file. Throws to surface an error. Without it, no Rename. */
+  onRename?: (from: string, to: string) => Promise<void>
+  /** Deletes the current file. Throws to surface an error. Without it, no Delete. */
+  onDelete?: (path: string) => Promise<void>
   /**
    * Returns a URL the `<img>` / `<object>` can load. Typically a blob URL the
    * caller created via `fetch` (web) or `data:` URL (desktop, via IPC).
@@ -61,6 +64,8 @@ export type FilePaneProps = {
   fileInfo?: FileInfoData
   /** Opens a text file scrolled to this 1-based line, selected — where a search result matched. */
   focusLine?: number
+  /** Which panes a markdown or html file opens with. Defaults to both. */
+  initialPaneView?: MarkdownEditorPaneView
 }
 
 type ModalRoute = { kind: 'rename'; from: string } | { kind: 'delete'; path: string } | null
@@ -80,12 +85,13 @@ export function FilePane({
   classifyFile = classifyFileByExtension,
   fileInfo,
   focusLine,
+  initialPaneView = 'both',
 }: FilePaneProps) {
   const [draft, setDraft] = useState('')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [modal, setModal] = useState<ModalRoute>(null)
-  const [paneView, setPaneView] = useState<MarkdownEditorPaneView>('both')
+  const [paneView, setPaneView] = useState<MarkdownEditorPaneView>(initialPaneView)
   const [blobUrl, setBlobUrl] = useState<string | null>(null)
   const [blobError, setBlobError] = useState<string | null>(null)
 
@@ -175,7 +181,7 @@ export function FilePane({
   }, [filePath, kind, getBinaryUrl, revokeBinaryUrl])
 
   const save = useCallback(async () => {
-    if (!filePath) return
+    if (!filePath || !onWrite) return
     setSaving(true)
     setSaveError(null)
     try {
@@ -201,6 +207,7 @@ export function FilePane({
   }
 
   const isText = kind === 'text' || kind === 'markdown' || kind === 'html'
+  const readOnly = !onWrite
   const hasPaneToggle = kind === 'markdown' || kind === 'html'
   const isDirty = isText && shown !== null && draft !== shown
 
@@ -221,7 +228,7 @@ export function FilePane({
           </Button>
         </Tooltip>
       )}
-      {isText && (
+      {isText && !readOnly && (
         <Tooltip content={isDirty ? 'Save' : 'No unsaved changes'}>
           <Button
             variant="secondary"
@@ -248,26 +255,30 @@ export function FilePane({
           hideLabels
         />
       )}
-      <Tooltip content="Rename">
-        <Button
-          variant="secondary"
-          size="icon"
-          onClick={() => setModal({ kind: 'rename', from: filePath })}
-          aria-label="Rename file"
-        >
-          <IconEdit className="w-4 h-4" />
-        </Button>
-      </Tooltip>
-      <Tooltip content="Delete">
-        <Button
-          variant="danger"
-          size="icon"
-          onClick={() => setModal({ kind: 'delete', path: filePath })}
-          aria-label="Delete file"
-        >
-          <IconDelete className="w-4 h-4" />
-        </Button>
-      </Tooltip>
+      {onRename && (
+        <Tooltip content="Rename">
+          <Button
+            variant="secondary"
+            size="icon"
+            onClick={() => setModal({ kind: 'rename', from: filePath })}
+            aria-label="Rename file"
+          >
+            <IconEdit className="w-4 h-4" />
+          </Button>
+        </Tooltip>
+      )}
+      {onDelete && (
+        <Tooltip content="Delete">
+          <Button
+            variant="danger"
+            size="icon"
+            onClick={() => setModal({ kind: 'delete', path: filePath })}
+            aria-label="Delete file"
+          >
+            <IconDelete className="w-4 h-4" />
+          </Button>
+        </Tooltip>
+      )}
     </>
   )
 
@@ -301,6 +312,7 @@ export function FilePane({
               onViewChange={setPaneView}
               hideHeader
               textareaRef={editorRef}
+              readOnly={readOnly}
               {...(previewText !== undefined ? { previewText } : {})}
             />
           </div>
@@ -324,6 +336,7 @@ export function FilePane({
               onViewChange={setPaneView}
               hideHeader
               textareaRef={editorRef}
+              readOnly={readOnly}
             />
           </div>
         </div>
@@ -366,6 +379,7 @@ export function FilePane({
               ref={editorRef}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
+              readOnly={readOnly}
               className="flex-1 min-h-0 font-mono text-xs resize-none border-0 outline-none rounded-none"
               spellCheck={false}
             />
@@ -383,10 +397,10 @@ export function FilePane({
         </div>
       )}
 
-      {modal?.kind === 'rename' && (
+      {modal?.kind === 'rename' && onRename && (
         <RenameDialog from={modal.from} onClose={() => setModal(null)} onRename={onRename} />
       )}
-      {modal?.kind === 'delete' && (
+      {modal?.kind === 'delete' && onDelete && (
         <ConfirmDialog
           isOpen
           onClose={() => setModal(null)}

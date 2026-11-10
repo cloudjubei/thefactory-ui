@@ -8,6 +8,8 @@ import type { LaunchModelChipSlot } from '../../../headless/utils/launchAgentPic
 
 import {
   groupBaseBranchMetadata,
+  groupLaunchFakeDataChoices,
+  groupLaunchFakeDataMetadata,
   LAUNCH_NOTE_MAX_CHARS,
   processGroupLegWaitsFor,
   processGrantTurnLimitView,
@@ -24,6 +26,7 @@ import {
   ticketMoveDecisionOf,
   ticketMoveField,
   useProcessGroupLaunchPreview,
+  type FakeDataInProduct,
   type PendingToolGrant,
   type LaunchCapsTyped,
 } from '../../../headless'
@@ -36,6 +39,7 @@ import { IconChevron } from '../../icons'
 import { TurnLimitField } from '../TurnLimitField'
 import LaunchCapsFields from './LaunchCapsFields'
 import BaseBranchChooser from './BaseBranchChooser'
+import LaunchFakeDataChoice from './LaunchFakeDataChoice'
 import TicketMoveField from './TicketMoveField'
 import ToolAskCard from './ToolAskCard'
 
@@ -98,6 +102,8 @@ export default function GroupWorkLaunchPanel({
   // agent asked, else that project's current branch.
   const [basePicks, setBasePicks] = useState<Record<string, string>>({})
   const baseBranchMeta = groupBaseBranchMetadata(preview?.legs ?? [], basePicks)
+  const [fakeDataPicks, setFakeDataPicks] = useState<Record<string, FakeDataInProduct>>({})
+  const fakeData = groupLaunchFakeDataChoices(preview?.legs ?? [], fakeDataPicks)
   const [capsTyped, setCapsTyped] = useState<LaunchCapsTyped>({})
   const capFields = launchCapFields({
     asked: launchCapsOfArgs(runProposalArgs(grant)),
@@ -132,6 +138,7 @@ export default function GroupWorkLaunchPanel({
               ...capsMeta,
               ...launchAgentPickMetadata(agentPick),
               ...(baseBranchMeta ?? {}),
+              ...groupLaunchFakeDataMetadata(preview?.legs ?? [], fakeDataPicks),
               ...(ticketMove ? { ticketMove } : {}),
             }
           : undefined,
@@ -198,6 +205,15 @@ export default function GroupWorkLaunchPanel({
                           launchCapsSummary(launchCapsOfDefaults(leg.defaultCaps)),
                         )}
                       </span>
+                    ) : null}
+                    {fakeData[leg.projectId] ? (
+                      <LaunchFakeDataChoice
+                        value={fakeData[leg.projectId]}
+                        busy={busy}
+                        onChange={(value) =>
+                          setFakeDataPicks((prev) => ({ ...prev, [leg.projectId]: value }))
+                        }
+                      />
                     ) : null}
                     {leg.baseBranches ? (
                       <div className="flex">

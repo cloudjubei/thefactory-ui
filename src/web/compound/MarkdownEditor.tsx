@@ -56,7 +56,12 @@ export type MarkdownEditorProps = {
   previewText?: string
   /** The edit pane's textarea — for a host that opens the file at a line. */
   textareaRef?: Ref<HTMLTextAreaElement>
+  /** Shows the source to read and select, not to change — a file's preview. */
+  readOnly?: boolean
 }
+
+const SOURCE_CLASS =
+  'resize-none border-0 outline-none p-3 bg-transparent text-(--text-primary) font-mono text-[13px] leading-6'
 
 export const MARKDOWN_PANE_OPTIONS = [
   {
@@ -105,6 +110,7 @@ export default function MarkdownEditor({
   hideHeader = false,
   previewText,
   textareaRef,
+  readOnly = false,
 }: MarkdownEditorProps) {
   const [internalView, setInternalView] = useState<MarkdownEditorPaneView>(initialView)
   const view = controlledView ?? internalView
@@ -179,14 +185,24 @@ export default function MarkdownEditor({
               >
                 Edit view
               </div>
-              <ReferenceTextarea
-                ref={textareaRef}
-                value={value}
-                onChange={onChange}
-                spellCheck={false}
-                containerClassName="flex-1 min-h-0 flex flex-col"
-                className="flex-1 h-full resize-none rounded-none border-0 outline-none p-3 bg-transparent text-(--text-primary) font-mono text-[13px] leading-6"
-              />
+              {readOnly ? (
+                <textarea
+                  ref={textareaRef}
+                  value={value}
+                  readOnly
+                  spellCheck={false}
+                  className={`flex-1 min-h-0 w-full ${SOURCE_CLASS}`}
+                />
+              ) : (
+                <ReferenceTextarea
+                  ref={textareaRef}
+                  value={value}
+                  onChange={onChange}
+                  spellCheck={false}
+                  containerClassName="flex-1 min-h-0 flex flex-col"
+                  className={`flex-1 h-full rounded-none ${SOURCE_CLASS}`}
+                />
+              )}
             </section>
           )}
 

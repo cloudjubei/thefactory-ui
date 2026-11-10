@@ -17,7 +17,13 @@ export { Chip, type ChipProps } from './primitives/Chip'
 export { DotBadge, type DotBadgeProps } from './primitives/DotBadge'
 export { default as Field, type FieldProps } from './primitives/Field'
 export { Input, type InputProps, type InputSize } from './primitives/Input'
-export { ConfirmDialog, Modal, type ModalProps, type ModalSize } from './primitives/Modal'
+export {
+  ConfirmDialog,
+  Modal,
+  type ModalPlacement,
+  type ModalProps,
+  type ModalSize,
+} from './primitives/Modal'
 export {
   Select,
   SelectContent,
@@ -91,6 +97,8 @@ export {
   FileInfoButton,
   FilePane,
   FilePaneHeader,
+  FilePreviewDialog,
+  FilePreviewDialogConnected,
   FileSelector,
   HtmlEditor,
   FileTree,
@@ -108,6 +116,8 @@ export {
   type FilePaneHeaderProps,
   type FilePaneKind,
   type FilePaneProps,
+  type FilePreviewDialogConnectedProps,
+  type FilePreviewDialogProps,
   type FileSelectorProps,
   type FileTreeEntry,
   type FileTreeProps,

@@ -7,13 +7,19 @@ import {
   useProjects,
   type FakeDataInProduct,
 } from 'thefactory-ui/headless'
-import { ProjectFakeDataInProductField } from 'thefactory-ui/web'
+import { GroupStoryRunDialog, ProjectFakeDataInProductField } from 'thefactory-ui/web'
 import ApprovalPanel from '../../src/web/compound/chat/ApprovalPanel'
 import { FAKE_PROJECT_ID } from '../../src/fakeBackend/fixtures/projects'
 import type { Scene } from '../showcase/types'
 import {
+  FAKE_DATA_GROUP_ID,
   FAKE_DATA_STORY_ID,
+  fakeDataGroupGrant,
+  fakeDataGroupLaunchRoutes,
+  fakeDataGroupPreview,
   fakeDataLaunchRoutes,
+  fakeDataSentLine,
+  type FakeDataGroupLaunch,
   type FakeDataLaunch,
 } from './fakeDataInProductFixtures'
 import { OnFixtures } from './onFixtures'
@@ -57,6 +63,45 @@ function LaunchCard({ launch, start }: { launch: FakeDataLaunch; start?: FakeDat
         </MemoryRouter>
       </FilesProvider>
     </OnFixtures>
+  )
+}
+
+/** The real group launch card on a fixture preview; what Start run sent shows under it. */
+function GroupLaunchCard({ launch }: { launch: FakeDataGroupLaunch }) {
+  const [sent, setSent] = useState<string>()
+  return (
+    <OnFixtures routes={fakeDataGroupLaunchRoutes(launch)}>
+      <FilesProvider>
+        <MemoryRouter>
+          <div className="flex w-full max-w-[640px] flex-col gap-2">
+            <ApprovalPanel
+              grant={fakeDataGroupGrant((metadata) => setSent(fakeDataSentLine(metadata)))}
+              groupId={FAKE_DATA_GROUP_ID}
+              onDecideLater={noop}
+            />
+            {sent !== undefined ? (
+              <code className="px-3 text-[11px] text-(--text-muted)">{sent}</code>
+            ) : null}
+          </div>
+        </MemoryRouter>
+      </FilesProvider>
+    </OnFixtures>
+  )
+}
+
+/** The group story's Run dialog on a fixture preview; Start says what it sent. */
+function GroupRunDialog({ launch }: { launch: FakeDataGroupLaunch }) {
+  return (
+    <GroupStoryRunDialog
+      isOpen
+      onClose={noop}
+      title="Read receipts"
+      preview={fakeDataGroupPreview(launch)}
+      basePicks={{}}
+      onPickBase={noop}
+      onStart={async (body) => ({ groupRunId: 'group-run-1', message: fakeDataSentLine(body) })}
+      onOpenRun={noop}
+    />
   )
 }
 
@@ -130,6 +175,38 @@ export const FAKE_DATA_IN_PRODUCT_SCENES: Scene[] = [
     play: (values) => (
       <LaunchCard key={startOf(values)} launch="setup-added" start={startOf(values)} />
     ),
+  },
+  {
+    id: 'group-launch-fake-data-in-product',
+    title: 'Group launch: fake data in the product',
+    component:
+      'ApprovalPanel (startGroupWork) · GroupWorkLaunchPanel · GroupStoryRunDialog · LaunchFakeDataChoice',
+    group: 'Process',
+    description:
+      'A group launch confirms the choice per project, on every launch: each part whose work is proved on its app’s screens shows the same “Fake data in the product” row as a single launch, under that part’s own lines (its limits line on the chat card, its story line in the Run dialog), starting from that project’s setting and switchable on its own. A part not proved on screens — or following an open run — shows no row. Start sends one map of the confirmed choices by project id, only for the parts that offered one; a project left out runs on its own setting.',
+    states: [
+      {
+        id: 'card',
+        title: 'Chat card: one ships, one keeps it out, one not offered',
+        description:
+          'The agent’s startGroupWork ask. Overseer Web starts on Ship it, Overseer Mobile on Keep it out, TheFactory Backend (not proved on screens) shows no row. Start run shows what was sent under the card.',
+        render: () => <GroupLaunchCard launch="mixed" />,
+      },
+      {
+        id: 'dialog',
+        title: 'Run dialog: one ships, one keeps it out, one not offered',
+        description:
+          'The group story’s Run dialog on the same preview; Start shows what it sent in place of the started message.',
+        overlay: true,
+        render: () => <GroupRunDialog launch="mixed" />,
+      },
+      {
+        id: 'none-offered',
+        title: 'No part proved on screens',
+        description: 'No part offers a choice: no row on the card, and nothing is sent.',
+        render: () => <GroupLaunchCard launch="none-offered" />,
+      },
+    ],
   },
   {
     id: 'project-fake-data-in-product',

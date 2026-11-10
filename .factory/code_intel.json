@@ -9770,12 +9770,10 @@
         ]
       },
       "ChatChangesBarProps": {
-        "path": "src/native/compound/chat/ChatChangesBar.tsx",
+        "path": "src/web/compound/chat/ChatChangesBar.tsx",
         "dependencies": [
           "ChatChangesBarView",
-          "react-native/Pressable",
-          "react-native/Text",
-          "react-native/View"
+          "react/useState"
         ]
       },
       "chatChangesBarView": {
@@ -9834,7 +9832,7 @@
         ]
       },
       "ChatChangesMarkerConnectedProps": {
-        "path": "src/native/compound/chat/ChatChangesMarkerConnected.tsx",
+        "path": "src/web/compound/chat/ChatChangesMarkerConnected.tsx",
         "dependencies": []
       },
       "ChatChangesMarkerInput": {
@@ -10093,6 +10091,8 @@
           "Feature",
           "ProjectConfig",
           "ProjectRegistryEntry",
+          "UiStackStartRequest",
+          "UiStackStartCommand",
           "UiStackPart",
           "SignOffOutputDefinition",
           "McpServerConnection",
@@ -10141,6 +10141,8 @@
       "ChatContextArgumentsGroup": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
+          "UiStackStartRequest",
+          "UiStackStartCommand",
           "UiStackPart",
           "Array",
           "SignOffOutputDefinition",
@@ -10152,6 +10154,8 @@
       "ChatContextArgumentsGroupTopic": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
+          "UiStackStartRequest",
+          "UiStackStartCommand",
           "UiStackPart",
           "Array",
           "SignOffOutputDefinition",
@@ -10756,19 +10760,10 @@
         ]
       },
       "ChatHeaderProps": {
-        "path": "src/native/compound/chat/ChatHeader.tsx",
+        "path": "src/web/compound/chat/ChatHeader.tsx",
         "dependencies": [
-          "ReactNode",
-          "ChatHeaderView",
-          "react/useEffect",
-          "react/useRef",
-          "react/useState",
-          "react/type ReactNode",
-          "react-native/Animated",
-          "react-native/Pressable",
-          "react-native/Text",
-          "react-native/View",
-          "react-native/type LayoutChangeEvent"
+          "react/ReactNode",
+          "ChatHeaderView"
         ]
       },
       "chatHeaderView": {
@@ -11766,17 +11761,6 @@
           "thefactory-tools/utils"
         ]
       },
-      "ChatReviewScreen": {
-        "path": "src/native/compound/chat/ChatReviewScreen.tsx",
-        "description": "A turn's full review as a screen of its own, pushed over the chat: \"‹ Chat\"",
-        "dependencies": [
-          "ChatReviewScreenProps",
-          "react/ReactNode",
-          "react-native/Pressable",
-          "react-native/Text",
-          "react-native/View"
-        ]
-      },
       "ChatReviewScreenConnected": {
         "path": "src/native/compound/chat/ChatReviewScreenConnected.tsx",
         "description": "A run's review screen, its head read off the run.",
@@ -11789,16 +11773,6 @@
         "path": "src/native/compound/chat/ChatReviewScreenConnected.tsx",
         "dependencies": [
           "react/ReactNode"
-        ]
-      },
-      "ChatReviewScreenProps": {
-        "path": "src/native/compound/chat/ChatReviewScreen.tsx",
-        "dependencies": [
-          "react/ReactNode",
-          "ChatReviewHeaderView",
-          "react-native/Pressable",
-          "react-native/Text",
-          "react-native/View"
         ]
       },
       "chatReviewTarget": {
@@ -12443,7 +12417,7 @@
         ]
       },
       "ChatVideoAttachmentProps": {
-        "path": "src/native/compound/chat/ChatVideoAttachment.tsx",
+        "path": "src/web/compound/chat/ChatVideoAttachment.tsx",
         "dependencies": [
           "ReactNode",
           "ChatVideoAttachments",
@@ -20075,6 +20049,8 @@
       "CreateProjectsGroupResponses": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
+          "UiStackStartRequest",
+          "UiStackStartCommand",
           "UiStackPart",
           "Array",
           "SignOffOutputDefinition",
@@ -21311,6 +21287,48 @@
           "GroupSignOffData",
           "Promise",
           "GroupSignOffDecisionBody"
+        ]
+      },
+      "decideJourney": {
+        "path": "src/headless/api/generated/sdk.gen.ts",
+        "description": "A running journey script asks what its person decides: answered from the persona’s plan, or by a small call to the run’s model that reads the screen. Takes the step attempt’s journey token, never the Overseer bearer.",
+        "dependencies": [
+          "ThrowOnError",
+          "DecideJourneyErrors",
+          "DecideJourneyResponses",
+          "DecideJourneyData",
+          "Options"
+        ]
+      },
+      "DecideJourneyData": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "JourneyDecisionRequest"
+        ]
+      },
+      "DecideJourneyError": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "DecideJourneyErrors"
+        ]
+      },
+      "DecideJourneyErrors": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "DecideJourneyResponse": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "DecideJourneyResponses"
+        ]
+      },
+      "DecideJourneyResponses": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "JourneyDecisionSource",
+          "JourneyGoalStatus",
+          "Array",
+          "JourneyGoalReview"
         ]
       },
       "DecideResult": {
@@ -22569,6 +22587,8 @@
       "DeleteProjectsGroupResponses": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
+          "UiStackStartRequest",
+          "UiStackStartCommand",
           "UiStackPart",
           "Array",
           "SignOffOutputDefinition",
@@ -26898,6 +26918,20 @@
           "thefactory-tools/types"
         ]
       },
+      "FAKE_AGENT_VALUES": {
+        "path": "src/fakeBackend/fixtures/scriptedRun.ts",
+        "description": "The same form switched to the agent: no journey script is asked for.",
+        "dependencies": [
+          "thefactory-tools/types/ProcessInput",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-tools/constants/JOURNEY_DAY_LOG_LABEL",
+          "thefactory-tools/constants/JOURNEY_RECORDING_LABEL",
+          "thefactory-tools/constants/JOURNEY_STOPPED_SCREENSHOT_LABEL",
+          "thefactory-tools/constants"
+        ]
+      },
       "FAKE_ASSIGNED_TICKETS": {
         "path": "src/fakeBackend/fixtures/ticketConnections.ts",
         "description": "The tickets assigned to the person on the connection, none shown yet.",
@@ -27042,10 +27076,85 @@
           "thefactory-tools/types"
         ]
       },
+      "FAKE_DATA_IN_PRODUCT_COPY": {
+        "path": "src/headless/utils/fakeDataInProductConstants.ts",
+        "dependencies": []
+      },
+      "FAKE_DATA_IN_PRODUCT_OPTIONS": {
+        "path": "src/headless/utils/fakeDataInProductConstants.ts",
+        "dependencies": [
+          "FakeDataInProductOption"
+        ]
+      },
+      "FAKE_DATA_IN_PRODUCT_SCENES": {
+        "path": "playground/scenes/fakeDataInProduct.tsx",
+        "dependencies": [
+          "Scene",
+          "react/useEffect",
+          "react/useState",
+          "react/type ReactNode",
+          "react-router-dom/MemoryRouter",
+          "thefactory-ui/headless/FAKE_DATA_IN_PRODUCT_OPTIONS",
+          "thefactory-ui/headless/FilesProvider",
+          "thefactory-ui/headless/storyLaunchGrant",
+          "thefactory-ui/headless/useProjects",
+          "thefactory-ui/headless/type FakeDataInProduct",
+          "thefactory-ui/headless",
+          "thefactory-ui/web/ProjectFakeDataInProductField",
+          "thefactory-ui/web"
+        ]
+      },
+      "FAKE_DATA_STORY_ID": {
+        "path": "playground/scenes/fakeDataInProductFixtures.ts",
+        "description": "The story the launch works: the fake project's \"Agent-to-agent chat messaging\".",
+        "dependencies": [
+          "thefactory-tools/types/LaunchProofPlan",
+          "thefactory-tools/types/ProcessProposal",
+          "thefactory-tools/types/ProofKind",
+          "thefactory-tools/types",
+          "thefactory-ui/headless/FakeDataInProduct",
+          "thefactory-ui/headless"
+        ]
+      },
       "FAKE_DATA_SUBSCRIPTIONS": {
         "path": "src/fakeBackend/fixtures/liveData.ts",
         "dependencies": [
           "DataSubscription"
+        ]
+      },
+      "FAKE_DATA_VIEWS": {
+        "path": "playground/native/fakeDataViews.tsx",
+        "description": "\"Fake data in the product\" on a phone: the launch card (`?state=ship`, `keep-out`, `declared`",
+        "dependencies": [
+          "NativeView",
+          "react/useEffect",
+          "react/useState",
+          "react/type ReactNode",
+          "react-native/ScrollView",
+          "react-native/Text",
+          "react-native/View",
+          "thefactory-ui/headless/FilesProvider",
+          "thefactory-ui/headless/storyLaunchGrant",
+          "thefactory-ui/headless/useProjects",
+          "thefactory-ui/headless/type FakeDataInProduct",
+          "thefactory-ui/headless"
+        ]
+      },
+      "FAKE_DAY_LOGS": {
+        "path": "src/fakeBackend/fixtures/scriptedRun.ts",
+        "description": "The day log each state filed, as its text.",
+        "dependencies": [
+          "FakeScriptedState",
+          "Record",
+          "Readonly",
+          "thefactory-tools/types/ProcessInput",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-tools/constants/JOURNEY_DAY_LOG_LABEL",
+          "thefactory-tools/constants/JOURNEY_RECORDING_LABEL",
+          "thefactory-tools/constants/JOURNEY_STOPPED_SCREENSHOT_LABEL",
+          "thefactory-tools/constants"
         ]
       },
       "FAKE_DB_HEALTH": {
@@ -27165,6 +27274,89 @@
         "dependencies": [
           "Record",
           "Readonly"
+        ]
+      },
+      "FAKE_SCRIPTED_INPUTS": {
+        "path": "src/fakeBackend/fixtures/scriptedRun.ts",
+        "description": "The inputs of compare-variants v2: how the days are lived, and the journey script it needs.",
+        "dependencies": [
+          "thefactory-tools/types/ProcessInput",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-tools/constants/JOURNEY_DAY_LOG_LABEL",
+          "thefactory-tools/constants/JOURNEY_RECORDING_LABEL",
+          "thefactory-tools/constants/JOURNEY_STOPPED_SCREENSHOT_LABEL",
+          "thefactory-tools/constants"
+        ]
+      },
+      "FAKE_SCRIPTED_NOTES": {
+        "path": "src/fakeBackend/fixtures/scriptedRun.ts",
+        "dependencies": [
+          "thefactory-tools/types/ProcessInput",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-tools/constants/JOURNEY_DAY_LOG_LABEL",
+          "thefactory-tools/constants/JOURNEY_RECORDING_LABEL",
+          "thefactory-tools/constants/JOURNEY_STOPPED_SCREENSHOT_LABEL",
+          "thefactory-tools/constants"
+        ]
+      },
+      "FAKE_SCRIPTED_RUN_ID": {
+        "path": "src/fakeBackend/fixtures/scriptedRun.ts",
+        "dependencies": [
+          "thefactory-tools/types/ProcessInput",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-tools/constants/JOURNEY_DAY_LOG_LABEL",
+          "thefactory-tools/constants/JOURNEY_RECORDING_LABEL",
+          "thefactory-tools/constants/JOURNEY_STOPPED_SCREENSHOT_LABEL",
+          "thefactory-tools/constants"
+        ]
+      },
+      "FAKE_SCRIPTED_STEP_ID": {
+        "path": "src/fakeBackend/fixtures/scriptedRun.ts",
+        "dependencies": [
+          "thefactory-tools/types/ProcessInput",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-tools/constants/JOURNEY_DAY_LOG_LABEL",
+          "thefactory-tools/constants/JOURNEY_RECORDING_LABEL",
+          "thefactory-tools/constants/JOURNEY_STOPPED_SCREENSHOT_LABEL",
+          "thefactory-tools/constants"
+        ]
+      },
+      "FAKE_SCRIPTED_TEXTS": {
+        "path": "src/fakeBackend/fixtures/scriptedRun.ts",
+        "description": "What a filed day log's text reads, by evidence id.",
+        "dependencies": [
+          "Record",
+          "Readonly",
+          "thefactory-tools/types/ProcessInput",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-tools/constants/JOURNEY_DAY_LOG_LABEL",
+          "thefactory-tools/constants/JOURNEY_RECORDING_LABEL",
+          "thefactory-tools/constants/JOURNEY_STOPPED_SCREENSHOT_LABEL",
+          "thefactory-tools/constants"
+        ]
+      },
+      "FAKE_SCRIPTED_VALUES": {
+        "path": "src/fakeBackend/fixtures/scriptedRun.ts",
+        "description": "A filled form that lives the days by the journey script.",
+        "dependencies": [
+          "thefactory-tools/types/ProcessInput",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-tools/constants/JOURNEY_DAY_LOG_LABEL",
+          "thefactory-tools/constants/JOURNEY_RECORDING_LABEL",
+          "thefactory-tools/constants/JOURNEY_STOPPED_SCREENSHOT_LABEL",
+          "thefactory-tools/constants"
         ]
       },
       "FAKE_SOURCE_RECORDS": {
@@ -27354,6 +27546,96 @@
           "thefactory-tools/types"
         ]
       },
+      "FakeDataInProduct": {
+        "path": "src/headless/utils/fakeDataInProductTypes.ts",
+        "description": "Whether the code that makes an app's fake data possible is committed with the work, or used",
+        "dependencies": []
+      },
+      "fakeDataInProductLine": {
+        "path": "src/headless/utils/fakeDataInProduct.ts",
+        "description": "The one line under the switch: what the picked choice does. Pure.",
+        "dependencies": [
+          "FakeDataInProduct"
+        ]
+      },
+      "FakeDataInProductOption": {
+        "path": "src/headless/utils/fakeDataInProductTypes.ts",
+        "description": "One choice of the switch, as the launch card and the project editor show it.",
+        "dependencies": [
+          "FakeDataInProduct"
+        ]
+      },
+      "FakeDataLaunch": {
+        "path": "playground/scenes/fakeDataInProductFixtures.ts",
+        "description": "What the launch's preview is of.",
+        "dependencies": [
+          "thefactory-tools/types/LaunchProofPlan",
+          "thefactory-tools/types/ProcessProposal",
+          "thefactory-tools/types/ProofKind",
+          "thefactory-tools/types",
+          "thefactory-ui/headless/FakeDataInProduct",
+          "thefactory-ui/headless"
+        ]
+      },
+      "fakeDataLaunchProposal": {
+        "path": "playground/scenes/fakeDataInProductFixtures.ts",
+        "description": "The preview of a launch of the fake project's story. Work proved on the app's screens carries",
+        "dependencies": [
+          "thefactory-tools/types/LaunchProofPlan",
+          "thefactory-ui/headless/FakeDataInProduct",
+          "thefactory-tools/types/ProcessProposal",
+          "FakeDataLaunch",
+          "thefactory-tools/types/ProofKind",
+          "thefactory-tools/types",
+          "thefactory-ui/headless"
+        ]
+      },
+      "fakeDataLaunchRoutes": {
+        "path": "playground/scenes/fakeDataInProductFixtures.ts",
+        "description": "The reads the launch card makes, its preview the given launch's.",
+        "dependencies": [
+          "FixtureRoutes",
+          "thefactory-ui/headless/FakeDataInProduct",
+          "FakeDataLaunch",
+          "thefactory-tools/types/LaunchProofPlan",
+          "thefactory-tools/types/ProcessProposal",
+          "thefactory-tools/types/ProofKind",
+          "thefactory-tools/types",
+          "thefactory-ui/headless"
+        ]
+      },
+      "FakeDataSetupBuild": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "FeatureCreateInput"
+        ]
+      },
+      "FakeDataSetupFeature": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Array",
+          "ProofKind"
+        ]
+      },
+      "FakeDataSetupFeatureInput": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Array",
+          "ProjectPlatformInput"
+        ]
+      },
+      "FakeDataSetupNeedInput": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "ProjectPlatformInput",
+          "FakeDataSetupFeature",
+          "Array"
+        ]
+      },
+      "FakeDataSetupPlatform": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
       "fakeGitBundle": {
         "path": "src/fakeBackend/fixtures/git.ts",
         "description": "A project's git as one read of the bundle: the log only when a screen asks for it.",
@@ -27413,6 +27695,65 @@
         "dependencies": [
           "URLSearchParams",
           "Record"
+        ]
+      },
+      "fakeScriptedEvidence": {
+        "path": "src/fakeBackend/fixtures/scriptedRun.ts",
+        "description": "What `GET /process-runs/:runId/evidence` answers for the scripted variant's run.",
+        "dependencies": [
+          "FakeScriptedState",
+          "thefactory-tools/types/ProcessInput",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-tools/constants/JOURNEY_DAY_LOG_LABEL",
+          "thefactory-tools/constants/JOURNEY_RECORDING_LABEL",
+          "thefactory-tools/constants/JOURNEY_STOPPED_SCREENSHOT_LABEL",
+          "thefactory-tools/constants"
+        ]
+      },
+      "fakeScriptedPreview": {
+        "path": "src/fakeBackend/fixtures/scriptedRun.ts",
+        "description": "What a launch's preview answers for the scripted form.",
+        "dependencies": [
+          "FAKE_SCRIPTED_INPUTS",
+          "thefactory-tools/types/ProcessInput",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-tools/constants/JOURNEY_DAY_LOG_LABEL",
+          "thefactory-tools/constants/JOURNEY_RECORDING_LABEL",
+          "thefactory-tools/constants/JOURNEY_STOPPED_SCREENSHOT_LABEL",
+          "thefactory-tools/constants"
+        ]
+      },
+      "fakeScriptedRun": {
+        "path": "src/fakeBackend/fixtures/scriptedRun.ts",
+        "description": "One variant's run that lived its days by the journey script, as `GET /process-runs/:runId` answers.",
+        "dependencies": [
+          "thefactory-tools/types/ProcessRun",
+          "FakeScriptedState",
+          "thefactory-tools/types/ProcessInput",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-tools/constants/JOURNEY_DAY_LOG_LABEL",
+          "thefactory-tools/constants/JOURNEY_RECORDING_LABEL",
+          "thefactory-tools/constants/JOURNEY_STOPPED_SCREENSHOT_LABEL",
+          "thefactory-tools/constants"
+        ]
+      },
+      "FakeScriptedState": {
+        "path": "src/fakeBackend/fixtures/scriptedRun.ts",
+        "description": "How a scripted step is shown: its days lived to the end, or stopped short on day 2.",
+        "dependencies": [
+          "thefactory-tools/types/ProcessInput",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types/ReviewEvidenceRef",
+          "thefactory-tools/types",
+          "thefactory-tools/constants/JOURNEY_DAY_LOG_LABEL",
+          "thefactory-tools/constants/JOURNEY_RECORDING_LABEL",
+          "thefactory-tools/constants/JOURNEY_STOPPED_SCREENSHOT_LABEL",
+          "thefactory-tools/constants"
         ]
       },
       "FakeTicketInbox": {
@@ -29095,6 +29436,10 @@
           "react-native/Text",
           "react-native/View"
         ]
+      },
+      "FeatureSetup": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
       },
       "FeatureShape": {
         "path": "src/native/compound/chat/toolPreviews/renderToolPreviewNative.tsx",
@@ -33312,6 +33657,8 @@
       "GetProjectsGroupResponses": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
+          "UiStackStartRequest",
+          "UiStackStartCommand",
           "UiStackPart",
           "Array",
           "SignOffOutputDefinition",
@@ -41671,6 +42018,13 @@
           "thefactory-tools/types"
         ]
       },
+      "isFakeDataInProduct": {
+        "path": "src/headless/utils/fakeDataInProduct.ts",
+        "description": "Whether a value is one of the two choices. Pure.",
+        "dependencies": [
+          "FakeDataInProduct"
+        ]
+      },
       "isFeatureInLiveRun": {
         "path": "src/headless/utils/processStatusOverlay.ts",
         "description": "Whether a feature is in a story's LIVE process run — still pending, running",
@@ -42821,6 +43175,406 @@
           "thefactory-tools/utils"
         ]
       },
+      "JOURNEY_DAYS_COPY": {
+        "path": "src/headless/utils/journeyDaysViewConstants.ts",
+        "description": "Every word of a script step's day view.",
+        "dependencies": [
+          "thefactory-tools/types/JourneyDecisionKind",
+          "thefactory-tools/types/JourneyDecisionSource",
+          "thefactory-tools/types/JourneyTakeOverOutcome",
+          "thefactory-tools/types"
+        ]
+      },
+      "JOURNEY_DECISION_LABELS": {
+        "path": "src/headless/utils/journeyDaysViewConstants.ts",
+        "description": "What each decision is called on its row.",
+        "dependencies": [
+          "thefactory-tools/types/JourneyDecisionKind",
+          "Record",
+          "Readonly",
+          "thefactory-tools/types/JourneyDecisionSource",
+          "thefactory-tools/types/JourneyTakeOverOutcome",
+          "thefactory-tools/types"
+        ]
+      },
+      "JOURNEY_SOURCE_BADGES": {
+        "path": "src/headless/utils/journeyDaysViewConstants.ts",
+        "description": "Where a decision's answer came from, as its badge says it.",
+        "dependencies": [
+          "JourneyBadge",
+          "thefactory-tools/types/JourneyDecisionSource",
+          "Record",
+          "Readonly",
+          "thefactory-tools/types/JourneyDecisionKind",
+          "thefactory-tools/types/JourneyTakeOverOutcome",
+          "thefactory-tools/types"
+        ]
+      },
+      "JOURNEY_STATUS_BADGES": {
+        "path": "src/headless/utils/journeyDaysViewConstants.ts",
+        "description": "How each goal status is said, and its tone; any other status is said as the log has it.",
+        "dependencies": [
+          "JourneyBadge",
+          "Record",
+          "Readonly",
+          "thefactory-tools/types/JourneyDecisionKind",
+          "thefactory-tools/types/JourneyDecisionSource",
+          "thefactory-tools/types/JourneyTakeOverOutcome",
+          "thefactory-tools/types"
+        ]
+      },
+      "JOURNEY_TAKE_OVER_BADGES": {
+        "path": "src/headless/utils/journeyDaysViewConstants.ts",
+        "description": "How a take-over ended, as its badge says it.",
+        "dependencies": [
+          "JourneyBadge",
+          "thefactory-tools/types/JourneyTakeOverOutcome",
+          "Record",
+          "Readonly",
+          "thefactory-tools/types/JourneyDecisionKind",
+          "thefactory-tools/types/JourneyDecisionSource",
+          "thefactory-tools/types"
+        ]
+      },
+      "JourneyAgentEnd": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyAgentLaunch": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "JourneyHostGrant"
+        ]
+      },
+      "JourneyAnswers": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "JourneyGoalStatus",
+          "Array",
+          "JourneyGoalReview"
+        ]
+      },
+      "JourneyBadge": {
+        "path": "src/headless/utils/journeyDaysViewTypes.ts",
+        "description": "A badge of the day view: its words and its tone.",
+        "dependencies": [
+          "ProcessStatusTone",
+          "thefactory-tools/types/JourneyDecisionKind",
+          "thefactory-tools/types/JourneyDecisionSource",
+          "thefactory-tools/types/JourneyTakeOverOutcome",
+          "thefactory-tools/types"
+        ]
+      },
+      "JourneyCardRow": {
+        "path": "src/headless/utils/journeyDaysViewTypes.ts",
+        "description": "A card the product showed, and the reaction picked.",
+        "dependencies": [
+          "thefactory-tools/types/JourneyDecisionKind",
+          "thefactory-tools/types/JourneyDecisionSource",
+          "thefactory-tools/types/JourneyTakeOverOutcome",
+          "thefactory-tools/types"
+        ]
+      },
+      "JourneyCompletion": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyCompletionRequest": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyDayLog": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "JourneyDayLogProblem",
+          "Array",
+          "JourneyDayLogEntry"
+        ]
+      },
+      "JourneyDayLogEntry": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "JourneyTakeOverOutcome",
+          "JourneyDecisionSource",
+          "JourneyDecisionKind",
+          "JourneyLoggedGoal",
+          "Array",
+          "JourneyDayLogLine"
+        ]
+      },
+      "JourneyDayLogKind": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyDayLogLine": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyDayLogProblem": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "journeyDays": {
+        "path": "src/headless/utils/journeyDaysView.ts",
+        "description": "A day log as days: each day once, in order, with what it offered, what was",
+        "dependencies": [
+          "thefactory-tools/types/JourneyDayLogEntry",
+          "JourneyDayView",
+          "thefactory-tools/types/JourneyDayLog",
+          "thefactory-tools/types/JourneyLoggedGoal",
+          "thefactory-tools/types/ProcessLedgerEntry",
+          "thefactory-tools/types",
+          "thefactory-tools/constants/JOURNEY_DAY_LOG_LABEL",
+          "thefactory-tools/constants/JOURNEY_RECORDING_LABEL",
+          "thefactory-tools/constants/JOURNEY_STOPPED_SCREENSHOT_LABEL",
+          "thefactory-tools/constants",
+          "thefactory-tools/utils/parseJourneyDayLog",
+          "thefactory-tools/utils"
+        ]
+      },
+      "JourneyDayView": {
+        "path": "src/headless/utils/journeyDaysViewTypes.ts",
+        "description": "One day as lived.",
+        "dependencies": [
+          "JourneyBadge",
+          "JourneyTakeOverRow",
+          "JourneyDecisionRow",
+          "JourneyCardRow",
+          "JourneyProbeRow",
+          "JourneyGoalStatusRow",
+          "JourneyReplacedGoal",
+          "JourneyRemovedGoal",
+          "thefactory-tools/types/JourneyDecisionKind",
+          "thefactory-tools/types/JourneyDecisionSource",
+          "thefactory-tools/types/JourneyTakeOverOutcome",
+          "thefactory-tools/types"
+        ]
+      },
+      "JourneyDecisionKind": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyDecisionRequest": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "JourneyOption",
+          "Array",
+          "JourneyDecisionKind"
+        ]
+      },
+      "JourneyDecisionRow": {
+        "path": "src/headless/utils/journeyDaysViewTypes.ts",
+        "description": "One decision the person made, and where its answer came from.",
+        "dependencies": [
+          "JourneyBadge",
+          "thefactory-tools/types/JourneyDecisionSource",
+          "thefactory-tools/types/JourneyDecisionKind",
+          "thefactory-tools/types/JourneyTakeOverOutcome",
+          "thefactory-tools/types"
+        ]
+      },
+      "JourneyDecisionSource": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyEvidence": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Array",
+          "ReportProofLine",
+          "ReportOutcomeSection",
+          "CodeReviewEvidenceSection",
+          "CodeReviewCriterion",
+          "CodeReviewFinding",
+          "CodeReviewVerdictSection"
+        ]
+      },
+      "JourneyFakeReply": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyFiles": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyGoalHelped": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyGoalReview": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyGoalStatus": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "JourneyGoalStatusValue"
+        ]
+      },
+      "JourneyGoalStatusRow": {
+        "path": "src/headless/utils/journeyDaysViewTypes.ts",
+        "description": "How a goal went, as the evening said it.",
+        "dependencies": [
+          "JourneyBadge",
+          "thefactory-tools/types/JourneyDecisionKind",
+          "thefactory-tools/types/JourneyDecisionSource",
+          "thefactory-tools/types/JourneyTakeOverOutcome",
+          "thefactory-tools/types"
+        ]
+      },
+      "JourneyGoalStatusValue": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyHandBack": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "JourneyTakeOverOutcome"
+        ]
+      },
+      "JourneyHostGrant": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyHostScope": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyLoggedGoal": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyOption": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyPersona": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyProbeRow": {
+        "path": "src/headless/utils/journeyDaysViewTypes.ts",
+        "description": "The evening question and the answer picked.",
+        "dependencies": [
+          "thefactory-tools/types/JourneyDecisionKind",
+          "thefactory-tools/types/JourneyDecisionSource",
+          "thefactory-tools/types/JourneyTakeOverOutcome",
+          "thefactory-tools/types"
+        ]
+      },
+      "JourneyRemovedGoal": {
+        "path": "src/headless/utils/journeyDaysViewTypes.ts",
+        "description": "A goal taken off the day, and why.",
+        "dependencies": [
+          "thefactory-tools/types/JourneyDecisionKind",
+          "thefactory-tools/types/JourneyDecisionSource",
+          "thefactory-tools/types/JourneyTakeOverOutcome",
+          "thefactory-tools/types"
+        ]
+      },
+      "JourneyReplacedGoal": {
+        "path": "src/headless/utils/journeyDaysViewTypes.ts",
+        "description": "A goal swapped for another, and why.",
+        "dependencies": [
+          "thefactory-tools/types/JourneyDecisionKind",
+          "thefactory-tools/types/JourneyDecisionSource",
+          "thefactory-tools/types/JourneyTakeOverOutcome",
+          "thefactory-tools/types"
+        ]
+      },
+      "JourneyScriptExit": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Array"
+        ]
+      },
+      "JourneyScriptRun": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyStepDays": {
+        "path": "src/web/compound/process/JourneyStepDays.tsx",
+        "description": "The days a script step lived, from its day log: a total line, the recording",
+        "dependencies": [
+          "JourneyStepDaysProps",
+          "react/useState",
+          "react/type ReactNode"
+        ]
+      },
+      "JourneyStepDaysProps": {
+        "path": "src/native/compound/process/JourneyStepDays.tsx",
+        "dependencies": [
+          "SaveFileHandler",
+          "JourneyStepView",
+          "react/useState",
+          "react/type ReactNode",
+          "react-native/Image",
+          "react-native/Pressable",
+          "react-native/Text",
+          "react-native/View"
+        ]
+      },
+      "JourneyStepInputs": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "journeyStepView": {
+        "path": "src/headless/utils/journeyDaysView.ts",
+        "description": "What a script step's attempt shows, from what its run filed: the days of",
+        "dependencies": [
+          "JourneyStepView",
+          "thefactory-tools/types/ProcessLedgerEntry",
+          "Pick",
+          "EvidenceTile",
+          "thefactory-tools/types/JourneyDayLog",
+          "thefactory-tools/types/JourneyDayLogEntry",
+          "thefactory-tools/types/JourneyLoggedGoal",
+          "thefactory-tools/types",
+          "thefactory-tools/constants/JOURNEY_DAY_LOG_LABEL",
+          "thefactory-tools/constants/JOURNEY_RECORDING_LABEL",
+          "thefactory-tools/constants/JOURNEY_STOPPED_SCREENSHOT_LABEL",
+          "thefactory-tools/constants",
+          "thefactory-tools/utils/parseJourneyDayLog",
+          "thefactory-tools/utils"
+        ]
+      },
+      "JourneyStepView": {
+        "path": "src/headless/utils/journeyDaysViewTypes.ts",
+        "description": "What a script step's view shows: the days from its day log, and the recording beside them.",
+        "dependencies": [
+          "EvidenceTile",
+          "JourneyDayView",
+          "thefactory-tools/types/JourneyDecisionKind",
+          "thefactory-tools/types/JourneyDecisionSource",
+          "thefactory-tools/types/JourneyTakeOverOutcome",
+          "thefactory-tools/types"
+        ]
+      },
+      "JourneyTakeOverOutcome": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyTakeOverRequest": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "JourneyTakeOverResult": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "JourneyTakeOverOutcome"
+        ]
+      },
+      "JourneyTakeOverRow": {
+        "path": "src/headless/utils/journeyDaysViewTypes.ts",
+        "description": "One time an agent took over the browser, and how it ended.",
+        "dependencies": [
+          "JourneyBadge",
+          "thefactory-tools/types/JourneyTakeOverOutcome",
+          "thefactory-tools/types/JourneyDecisionKind",
+          "thefactory-tools/types/JourneyDecisionSource",
+          "thefactory-tools/types"
+        ]
+      },
       "jsonBodySerializer": {
         "path": "src/headless/api/generated/core/bodySerializer.gen.ts",
         "dependencies": []
@@ -43708,6 +44462,43 @@
           "thefactory-tools/types",
           "thefactory-tools/utils/projectWorkLaunchMode",
           "thefactory-tools/utils"
+        ]
+      },
+      "launchFakeDataChoice": {
+        "path": "src/headless/utils/fakeDataInProduct.ts",
+        "description": "The card's choice: the person's pick, else the preview's. None while the preview offers none. Pure.",
+        "dependencies": [
+          "FakeDataInProduct"
+        ]
+      },
+      "LaunchFakeDataChoice": {
+        "path": "src/web/compound/chat/LaunchFakeDataChoice.tsx",
+        "description": "The launch card's \"Fake data in the product\": whether the code that makes the app's fake data",
+        "dependencies": [
+          "FakeDataInProduct",
+          "LaunchFakeDataChoiceProps"
+        ]
+      },
+      "LaunchFakeDataChoiceProps": {
+        "path": "src/native/compound/chat/LaunchFakeDataChoice.tsx",
+        "dependencies": [
+          "FakeDataInProduct",
+          "react-native/Text",
+          "react-native/View"
+        ]
+      },
+      "launchFakeDataMetadata": {
+        "path": "src/headless/utils/fakeDataInProduct.ts",
+        "description": "What a launch carries of the choice confirmed on its card. Pure.",
+        "dependencies": [
+          "FakeDataInProduct"
+        ]
+      },
+      "launchFakeDataOffered": {
+        "path": "src/headless/utils/fakeDataInProduct.ts",
+        "description": "The choice a launch preview offers: the project's, present only when the launch's work is",
+        "dependencies": [
+          "FakeDataInProduct"
         ]
       },
       "LaunchFeatureList": {
@@ -46263,6 +47054,8 @@
       "ListProjectsGroupsResponses": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
+          "UiStackStartRequest",
+          "UiStackStartCommand",
           "UiStackPart",
           "Array",
           "SignOffOutputDefinition",
@@ -48697,6 +49490,10 @@
           "thefactory-tools/utils"
         ]
       },
+      "MaskedServedLogCopy": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
       "maskSecret": {
         "path": "src/headless/utils/mask.ts",
         "description": "Mask a secret by showing the first and last 4 characters surrounded by",
@@ -50348,6 +51145,10 @@
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": []
       },
+      "MobileBuiltFakeBackend": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
       "MobileCheckout": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
@@ -50372,6 +51173,32 @@
           "Array",
           "MobileDevice",
           "MobileToolCheck"
+        ]
+      },
+      "MobileFakeBackend": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "MobileFakeBackendDeclaration": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "MobileFakeBackend"
+        ]
+      },
+      "MobileFakeData": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "MobileFakeDataAndroid"
+        ]
+      },
+      "MobileFakeDataAndroid": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "MobileFakeDataDeclaration": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "MobileFakeData"
         ]
       },
       "MobileLogcatOptions": {
@@ -50446,14 +51273,6 @@
           "Array"
         ]
       },
-      "MobileSessionEntry": {
-        "path": "src/headless/api/generated/types.gen.ts",
-        "dependencies": [
-          "Array",
-          "MobileRefTarget",
-          "MobilePlatform"
-        ]
-      },
       "MobileSessionInfo": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
@@ -50475,6 +51294,10 @@
         "dependencies": []
       },
       "MobileSnapshotResult": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "MobileStartScreen": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": []
       },
@@ -52726,6 +53549,10 @@
           "react/type ReactNode"
         ]
       },
+      "OpenSharedWebUiSessionOptions": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
       "openVideoSetupChat": {
         "path": "src/headless/api/generated/sdk.gen.ts",
         "dependencies": [
@@ -54103,6 +54930,42 @@
         "dependencies": [
           "EvidencePassage",
           "StructuredProduct"
+        ]
+      },
+      "pasteTicket": {
+        "path": "src/headless/api/generated/sdk.gen.ts",
+        "dependencies": [
+          "ThrowOnError",
+          "PasteTicketErrors",
+          "PasteTicketResponses",
+          "PasteTicketData",
+          "Options"
+        ]
+      },
+      "PasteTicketData": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "PasteTicketError": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "PasteTicketErrors"
+        ]
+      },
+      "PasteTicketErrors": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "PasteTicketResponse": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "PasteTicketResponses"
+        ]
+      },
+      "PasteTicketResponses": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Story"
         ]
       },
       "PatchPreview": {
@@ -55729,6 +56592,11 @@
           "thefactory-tools/utils/processStorylessLaunchProblem",
           "thefactory-tools/utils"
         ]
+      },
+      "PROCESS_FAKE_DATA_IN_PRODUCT_KEY": {
+        "path": "src/headless/utils/fakeDataInProductConstants.ts",
+        "description": "The project metadata key a project's choice is kept under.",
+        "dependencies": []
       },
       "PROCESS_FEATURE_SCENES": {
         "path": "playground/scenes/processFeatures.tsx",
@@ -58641,8 +59509,13 @@
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
           "ProcessInputField",
-          "Array"
+          "Array",
+          "ProcessInputOption"
         ]
+      },
+      "ProcessInputCondition": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
       },
       "ProcessInputExpansion": {
         "path": "src/headless/api/generated/types.gen.ts",
@@ -58650,7 +59523,10 @@
       },
       "ProcessInputField": {
         "path": "src/headless/api/generated/types.gen.ts",
-        "dependencies": []
+        "dependencies": [
+          "ProcessInputOption",
+          "Array"
+        ]
       },
       "ProcessInputKind": {
         "path": "src/headless/api/generated/types.gen.ts",
@@ -58670,6 +59546,10 @@
           "thefactory-tools/utils/processStorylessLaunchProblem",
           "thefactory-tools/utils"
         ]
+      },
+      "ProcessInputOption": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
       },
       "ProcessInputRef": {
         "path": "src/headless/api/generated/types.gen.ts",
@@ -58941,6 +59821,10 @@
           "thefactory-tools/utils"
         ]
       },
+      "ProcessJourneyInputs": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
       "ProcessKeptOneSide": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": []
@@ -59039,7 +59923,7 @@
       },
       "ProcessLaunchFields": {
         "path": "src/web/compound/chat/ProcessLaunchFields.tsx",
-        "description": "A process's form, drawn from what it asks for: the short inputs side by side,",
+        "description": "A process's form, drawn from what it asks for: each choice as a switch, the",
         "dependencies": [
           "ProcessLaunchFieldsProps",
           "react/useState",
@@ -61475,6 +62359,7 @@
         "description": "The launch card of a process that starts from a form: what it asks for, drawn",
         "dependencies": [
           "PendingToolGrantDecision",
+          "FakeDataInProduct",
           "LaunchCapsTyped",
           "ProcessRunLaunchPanelProps",
           "react/useMemo",
@@ -64866,6 +65751,22 @@
           "react-native/View"
         ]
       },
+      "ProjectFakeDataInProductField": {
+        "path": "src/web/compound/projects/ProjectFakeDataInProductField.tsx",
+        "description": "Whether a project's fake-data code ships with the work: where every launch's choice starts.",
+        "dependencies": [
+          "FakeDataInProduct",
+          "ProjectFakeDataInProductFieldProps"
+        ]
+      },
+      "ProjectFakeDataInProductFieldProps": {
+        "path": "src/native/compound/projects/ProjectFakeDataInProductField.tsx",
+        "dependencies": [
+          "Record",
+          "react-native/Text",
+          "react-native/View"
+        ]
+      },
       "projectFileMention": {
         "path": "src/headless/utils/mention.ts",
         "description": "A suggestion from {@link rankProjectMentionMatches} split into its project and path.",
@@ -65414,6 +66315,8 @@
       "ProjectRegistryEntry": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
+          "UiStackStartRequest",
+          "UiStackStartCommand",
           "UiStackPart",
           "Array",
           "ProjectCheckEnvSecretRef",
@@ -65426,6 +66329,8 @@
       "ProjectRegistryMetadata": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
+          "UiStackStartRequest",
+          "UiStackStartCommand",
           "UiStackPart",
           "Array",
           "ProjectCheckEnvSecretRef",
@@ -65679,6 +66584,8 @@
       "ProjectsGroup": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
+          "UiStackStartRequest",
+          "UiStackStartCommand",
           "UiStackPart",
           "Array",
           "SignOffOutputDefinition",
@@ -65697,6 +66604,8 @@
       "ProjectsGroupCreateInput": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
+          "UiStackStartRequest",
+          "UiStackStartCommand",
           "UiStackPart",
           "Array",
           "TicketConnectionAccess"
@@ -65829,6 +66738,8 @@
           "PythonFramework",
           "JavaScriptFramework",
           "ProgrammingLanguage",
+          "UiStackStartRequest",
+          "UiStackStartCommand",
           "UiStackPart",
           "ProjectCheckEnvSecretRef",
           "SignOffOutputDefinition",
@@ -65842,6 +66753,8 @@
           "ProjectGuidelines",
           "ProjectCodeInfo",
           "Array",
+          "UiStackStartRequest",
+          "UiStackStartCommand",
           "UiStackPart",
           "ProjectCheckEnvSecretRef",
           "SignOffOutputDefinition",
@@ -68454,6 +69367,13 @@
           "thefactory-tools/types"
         ]
       },
+      "readProcessFakeDataInProduct": {
+        "path": "src/headless/utils/fakeDataInProduct.ts",
+        "description": "A project's choice as its metadata holds it: free JSON, so anything but keep-out ships. Pure.",
+        "dependencies": [
+          "FakeDataInProduct"
+        ]
+      },
       "readProcessRunTicketPost": {
         "path": "src/headless/api/ticketPostApi.ts",
         "dependencies": [
@@ -70261,6 +71181,8 @@
       "ReorderProjectInGroupResponses": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
+          "UiStackStartRequest",
+          "UiStackStartCommand",
           "UiStackPart",
           "Array",
           "SignOffOutputDefinition",
@@ -70302,6 +71224,8 @@
       "ReorderProjectsGroupsResponses": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
+          "UiStackStartRequest",
+          "UiStackStartCommand",
           "UiStackPart",
           "Array",
           "SignOffOutputDefinition",
@@ -72339,6 +73263,7 @@
       "ReviewEvidenceBuild": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
+          "ReviewEvidenceOverlayFile",
           "Array"
         ]
       },
@@ -72360,7 +73285,8 @@
       "ReviewEvidenceCaptureDescription": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
-          "Array"
+          "Array",
+          "ReviewEvidenceOverlayFile"
         ]
       },
       "ReviewEvidenceCheckRun": {
@@ -72369,6 +73295,10 @@
           "Array",
           "ProjectCheckKind"
         ]
+      },
+      "ReviewEvidenceCommitFiles": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
       },
       "ReviewEvidenceComparison": {
         "path": "src/headless/api/generated/types.gen.ts",
@@ -72408,6 +73338,10 @@
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": []
       },
+      "ReviewEvidenceOverlayFile": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
       "ReviewEvidenceProjectMove": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
@@ -72424,6 +73358,7 @@
         "dependencies": [
           "Array",
           "ProjectCheckKind",
+          "ReviewEvidenceOverlayFile",
           "ReportProofLine",
           "ReportOutcomeSection",
           "CodeReviewEvidenceSection",
@@ -75791,6 +76726,33 @@
           "react-native/View"
         ]
       },
+      "SCRIPTED_RUN_SCENES": {
+        "path": "playground/scenes/scriptedRun.tsx",
+        "dependencies": [
+          "Scene",
+          "react/useEffect",
+          "react/type ReactNode",
+          "react-router-dom/MemoryRouter",
+          "thefactory-ui/headless/FilesProvider",
+          "thefactory-ui/headless/processRunLaunchGrant",
+          "thefactory-ui/headless/useProjects",
+          "thefactory-ui/headless"
+        ]
+      },
+      "SCRIPTED_VIEWS": {
+        "path": "playground/native/scriptedViews.tsx",
+        "description": "Scripted persona runs on a phone: the launch card's switch (`?state=scripted`,",
+        "dependencies": [
+          "NativeView",
+          "react/useEffect",
+          "react/type ReactNode",
+          "react-native/ScrollView",
+          "react-native/View",
+          "thefactory-ui/headless/processLaunchDrafts",
+          "thefactory-ui/headless/processRunLaunchGrant",
+          "thefactory-ui/headless"
+        ]
+      },
       "ScrollUiOptions": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": []
@@ -77149,6 +78111,28 @@
       "ServeDesignPlaygroundResponses": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": []
+      },
+      "ServedLogFiling": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "ServedLogNotFiled",
+          "Array",
+          "ReviewEvidenceRef"
+        ]
+      },
+      "ServedLogNotFiled": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "ServedLogTokenPattern": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "ServedStackSecrets": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Array"
+        ]
       },
       "ServerError": {
         "path": "src/headless/api/helpers.ts",
@@ -81984,6 +82968,19 @@
           "thefactory-tools/types"
         ]
       },
+      "stepFilingsOf": {
+        "path": "src/headless/utils/processStepRow.ts",
+        "description": "What a step attempt filed, newest first: everything filed while it ran, or",
+        "dependencies": [
+          "EvidenceTile",
+          "thefactory-tools/types/ProcessLedgerEntry",
+          "Pick",
+          "thefactory-tools/types/ProcessRun",
+          "thefactory-tools/types/ProcessRunStopHolder",
+          "thefactory-tools/types/ProcessStepState",
+          "thefactory-tools/types"
+        ]
+      },
       "StepPanelTarget": {
         "path": "src/native/compound/process/pipeline/StepScreen.tsx",
         "description": "Which step's output the screen shows — an attempt of it, when one is named.",
@@ -82553,6 +83550,12 @@
           "thefactory-tools/types"
         ]
       },
+      "StoredPendingAction": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "PendingAction"
+        ]
+      },
       "StoredProjectNoteEntry": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
@@ -82560,6 +83563,10 @@
           "ProjectNoteAccess",
           "ProjectNoteKind"
         ]
+      },
+      "StoredRecordPresence": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
       },
       "StoredSecretCard": {
         "path": "src/web/compound/chat/StoredSecretCard.tsx",
@@ -84333,6 +85340,45 @@
           "OutgoingChatMessage",
           "ChatDraftTake",
           "ChatDraft"
+        ]
+      },
+      "takeOverJourney": {
+        "path": "src/headless/api/generated/sdk.gen.ts",
+        "description": "A running journey script that cannot go on hands its page to an agent, on the same browser, and waits: answered once the agent hands back, or fails to. Takes the step attempt’s journey token, never the Overseer bearer.",
+        "dependencies": [
+          "ThrowOnError",
+          "TakeOverJourneyErrors",
+          "TakeOverJourneyResponses",
+          "TakeOverJourneyData",
+          "Options"
+        ]
+      },
+      "TakeOverJourneyData": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "JourneyTakeOverRequest"
+        ]
+      },
+      "TakeOverJourneyError": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "TakeOverJourneyErrors"
+        ]
+      },
+      "TakeOverJourneyErrors": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "TakeOverJourneyResponse": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "TakeOverJourneyResponses"
+        ]
+      },
+      "TakeOverJourneyResponses": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "JourneyTakeOverResult"
         ]
       },
       "takePending": {
@@ -87631,12 +88677,14 @@
       "UiBuildProvenance": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
+          "ReviewEvidenceOverlayFile",
           "Array"
         ]
       },
       "UiCaptureBuildState": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
+          "ReviewEvidenceOverlayFile",
           "Array",
           "ScreenshotUiOptions",
           "UiConnection",
@@ -87693,7 +88741,9 @@
       },
       "UiHostBoundOptions": {
         "path": "src/headless/api/generated/types.gen.ts",
-        "dependencies": []
+        "dependencies": [
+          "Array"
+        ]
       },
       "UiImpactDecision": {
         "path": "src/headless/api/generated/types.gen.ts",
@@ -87811,9 +88861,16 @@
       "UiRecordingBuildState": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
+          "ReviewEvidenceOverlayFile",
           "Array",
           "UiConnection",
           "UiTarget"
+        ]
+      },
+      "UiSceneOverlayInput": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "UiBuildProvenance"
         ]
       },
       "UiScreenshotResult": {
@@ -87884,6 +88941,14 @@
           "Array"
         ]
       },
+      "UiServeKeptFile": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "UiServeLogs": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
       "UiServePlan": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
@@ -87924,6 +88989,10 @@
           "UiTarget"
         ]
       },
+      "UiSharedSessionResult": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
       "UiSnapshotResult": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": []
@@ -87950,9 +89019,38 @@
       "UiStackSetting": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
+          "UiStackStartRequest",
+          "UiStackStartCommand",
           "UiStackPart",
           "Array"
         ]
+      },
+      "UiStackStart": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "UiStackStartRequest",
+          "UiStackStartCommand"
+        ]
+      },
+      "UiStackStartCommand": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Array"
+        ]
+      },
+      "UiStackStartPlan": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "UiServeStep"
+        ]
+      },
+      "UiStackStartRequest": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "UiStackStartResult": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
       },
       "UiStackTarget": {
         "path": "src/headless/api/generated/types.gen.ts",
@@ -88995,6 +90093,8 @@
       "UpdateProjectsGroupResponses": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
+          "UiStackStartRequest",
+          "UiStackStartCommand",
           "UiStackPart",
           "Array",
           "SignOffOutputDefinition",
@@ -91207,16 +92307,6 @@
           "react/ReactNode"
         ]
       },
-      "useFixCommitChecks": {
-        "path": "src/headless/hooks/useFixCommitChecks.ts",
-        "description": "Start a chat that fixes the commit checks that stopped a commit: a new topic",
-        "dependencies": [
-          "thefactory-tools/types/ChatContext",
-          "Promise",
-          "react/useCallback",
-          "thefactory-tools/types"
-        ]
-      },
       "useGit": {
         "path": "src/headless/contexts/GitContext.tsx",
         "dependencies": [
@@ -92134,6 +93224,18 @@
           "react/useState",
           "thefactory-tools/types/ProcessGroupLegLandingCheck",
           "thefactory-tools/types/ProcessGroupLegLandingClaim",
+          "thefactory-tools/types"
+        ]
+      },
+      "useProcessGroupRebuildPlans": {
+        "path": "src/headless/hooks/useProcessGroupRebuildPlans.ts",
+        "description": "The rebuild plans of a group run's legs, read from the server whenever the",
+        "dependencies": [
+          "thefactory-tools/types/ProcessGroupRebuildPlan",
+          "Record",
+          "Promise",
+          "react/useEffect",
+          "react/useState",
           "thefactory-tools/types"
         ]
       },
@@ -96471,6 +97573,15 @@
           "thefactory-tools/utils"
         ]
       },
+      "withProcessFakeDataInProduct": {
+        "path": "src/headless/utils/fakeDataInProduct.ts",
+        "description": "A project's metadata with its choice as edited, every other key as it was. Pure.",
+        "dependencies": [
+          "T",
+          "FakeDataInProduct",
+          "Record"
+        ]
+      },
       "withProcessRunClosurePick": {
         "path": "src/headless/utils/processRunClosureView.ts",
         "description": "The rows with one feature's pick changed.",
@@ -97748,6 +98859,18 @@
           "thefactory-ui/headless"
         ]
       },
+      "CONFIG_TEXT": {
+        "path": "scenes/filePreviewFixtures.ts",
+        "dependencies": [
+          "react/useEffect",
+          "react/useState",
+          "thefactory-ui/headless/FilePreviewState",
+          "thefactory-ui/headless/FilePreviewTarget",
+          "thefactory-ui/headless",
+          "thefactory-tools/types/ReferenceDescription",
+          "thefactory-tools/types"
+        ]
+      },
       "CONTEXT_FILL_SCENES": {
         "path": "scenes/contextFill.tsx",
         "dependencies": [
@@ -97821,6 +98944,18 @@
           "thefactory-tools/utils"
         ]
       },
+      "DIAGRAM_BYTES": {
+        "path": "scenes/filePreviewFixtures.ts",
+        "dependencies": [
+          "react/useEffect",
+          "react/useState",
+          "thefactory-ui/headless/FilePreviewState",
+          "thefactory-ui/headless/FilePreviewTarget",
+          "thefactory-ui/headless",
+          "thefactory-tools/types/ReferenceDescription",
+          "thefactory-tools/types"
+        ]
+      },
       "Dock": {
         "path": "scenes/askRows.tsx",
         "description": "Sized like the dock it replaces the composer in.",
@@ -97842,6 +98977,19 @@
           "thefactory-ui/web/renderToolPreview",
           "thefactory-ui/web/type ToolCallCardProps",
           "thefactory-ui/web"
+        ]
+      },
+      "DOCS_FOLDER_CHIP": {
+        "path": "scenes/filePreviewFixtures.ts",
+        "description": "A folder chip: it opens in Files, and offers no preview.",
+        "dependencies": [
+          "thefactory-tools/types/ReferenceDescription",
+          "react/useEffect",
+          "react/useState",
+          "thefactory-ui/headless/FilePreviewState",
+          "thefactory-ui/headless/FilePreviewTarget",
+          "thefactory-ui/headless",
+          "thefactory-tools/types"
         ]
       },
       "DOCUMENT_REPORT_SCENES": {
@@ -97890,6 +99038,93 @@
           "react-native/View"
         ]
       },
+      "FAKE_DATA_IN_PRODUCT_SCENES": {
+        "path": "scenes/fakeDataInProduct.tsx",
+        "dependencies": [
+          "Scene",
+          "react/useEffect",
+          "react/useState",
+          "react/type ReactNode",
+          "react-router-dom/MemoryRouter",
+          "thefactory-ui/headless/FAKE_DATA_IN_PRODUCT_OPTIONS",
+          "thefactory-ui/headless/FilesProvider",
+          "thefactory-ui/headless/storyLaunchGrant",
+          "thefactory-ui/headless/useProjects",
+          "thefactory-ui/headless/type FakeDataInProduct",
+          "thefactory-ui/headless",
+          "thefactory-ui/web/ProjectFakeDataInProductField",
+          "thefactory-ui/web"
+        ]
+      },
+      "FAKE_DATA_STORY_ID": {
+        "path": "scenes/fakeDataInProductFixtures.ts",
+        "description": "The story the launch works: the fake project's \"Agent-to-agent chat messaging\".",
+        "dependencies": [
+          "thefactory-tools/types/LaunchProofPlan",
+          "thefactory-tools/types/ProcessProposal",
+          "thefactory-tools/types/ProofKind",
+          "thefactory-tools/types",
+          "thefactory-ui/headless/FakeDataInProduct",
+          "thefactory-ui/headless"
+        ]
+      },
+      "FAKE_DATA_VIEWS": {
+        "path": "native/fakeDataViews.tsx",
+        "description": "\"Fake data in the product\" on a phone: the launch card (`?state=ship`, `keep-out`, `declared`",
+        "dependencies": [
+          "NativeView",
+          "react/useEffect",
+          "react/useState",
+          "react/type ReactNode",
+          "react-native/ScrollView",
+          "react-native/Text",
+          "react-native/View",
+          "thefactory-ui/headless/FilesProvider",
+          "thefactory-ui/headless/storyLaunchGrant",
+          "thefactory-ui/headless/useProjects",
+          "thefactory-ui/headless/type FakeDataInProduct",
+          "thefactory-ui/headless"
+        ]
+      },
+      "FakeDataLaunch": {
+        "path": "scenes/fakeDataInProductFixtures.ts",
+        "description": "What the launch's preview is of.",
+        "dependencies": [
+          "thefactory-tools/types/LaunchProofPlan",
+          "thefactory-tools/types/ProcessProposal",
+          "thefactory-tools/types/ProofKind",
+          "thefactory-tools/types",
+          "thefactory-ui/headless/FakeDataInProduct",
+          "thefactory-ui/headless"
+        ]
+      },
+      "fakeDataLaunchProposal": {
+        "path": "scenes/fakeDataInProductFixtures.ts",
+        "description": "The preview of a launch of the fake project's story. Work proved on the app's screens carries",
+        "dependencies": [
+          "thefactory-tools/types/LaunchProofPlan",
+          "thefactory-ui/headless/FakeDataInProduct",
+          "thefactory-tools/types/ProcessProposal",
+          "FakeDataLaunch",
+          "thefactory-tools/types/ProofKind",
+          "thefactory-tools/types",
+          "thefactory-ui/headless"
+        ]
+      },
+      "fakeDataLaunchRoutes": {
+        "path": "scenes/fakeDataInProductFixtures.ts",
+        "description": "The reads the launch card makes, its preview the given launch's.",
+        "dependencies": [
+          "FixtureRoutes",
+          "thefactory-ui/headless/FakeDataInProduct",
+          "FakeDataLaunch",
+          "thefactory-tools/types/LaunchProofPlan",
+          "thefactory-tools/types/ProcessProposal",
+          "thefactory-tools/types/ProofKind",
+          "thefactory-tools/types",
+          "thefactory-ui/headless"
+        ]
+      },
       "FEATURE_POOL_SCENES": {
         "path": "scenes/featurePool.tsx",
         "dependencies": [
@@ -97930,6 +99165,117 @@
           "thefactory-ui/web"
         ]
       },
+      "FILE_PREVIEW_FILE_LABELS": {
+        "path": "scenes/filePreviewFixtures.ts",
+        "dependencies": [
+          "FilePreviewFile",
+          "Record",
+          "react/useEffect",
+          "react/useState",
+          "thefactory-ui/headless/FilePreviewState",
+          "thefactory-ui/headless/FilePreviewTarget",
+          "thefactory-ui/headless",
+          "thefactory-tools/types/ReferenceDescription",
+          "thefactory-tools/types"
+        ]
+      },
+      "FILE_PREVIEW_FILES": {
+        "path": "scenes/filePreviewFixtures.ts",
+        "description": "Every state the file preview shows, by the id its scene and native view use.",
+        "dependencies": [
+          "react/useEffect",
+          "react/useState",
+          "thefactory-ui/headless/FilePreviewState",
+          "thefactory-ui/headless/FilePreviewTarget",
+          "thefactory-ui/headless",
+          "thefactory-tools/types/ReferenceDescription",
+          "thefactory-tools/types"
+        ]
+      },
+      "FILE_PREVIEW_ROUTES": {
+        "path": "scenes/filePreviewFixtures.ts",
+        "description": "The reads a chip's Preview makes, answered from the fixtures for the proposal.",
+        "dependencies": [
+          "PROPOSAL_TEXT",
+          "PROPOSAL_PATH",
+          "react/useEffect",
+          "react/useState",
+          "thefactory-ui/headless/FilePreviewState",
+          "thefactory-ui/headless/FilePreviewTarget",
+          "thefactory-ui/headless",
+          "thefactory-tools/types/ReferenceDescription",
+          "thefactory-tools/types"
+        ]
+      },
+      "FILE_PREVIEW_SCENES": {
+        "path": "scenes/filePreview.tsx",
+        "dependencies": [
+          "FilePreviewLayout",
+          "FilePreviewMode",
+          "FilePreviewFile",
+          "Scene",
+          "react/useEffect",
+          "react/useState",
+          "thefactory-ui/headless/FILE_PREVIEW_DEFAULT_LAYOUT",
+          "thefactory-ui/headless/FILE_PREVIEW_DEFAULT_MODE",
+          "thefactory-ui/headless/FILE_PREVIEW_LABEL",
+          "thefactory-ui/headless/FILE_PREVIEW_LAYOUT_LABELS",
+          "thefactory-ui/headless/FILE_PREVIEW_LAYOUTS",
+          "thefactory-ui/headless/FILE_PREVIEW_MODE_LABELS",
+          "thefactory-ui/headless/FILE_PREVIEW_MODES",
+          "thefactory-ui/headless/FilesProvider",
+          "thefactory-ui/headless/referencePreview",
+          "thefactory-ui/headless/type FilePreviewLayout",
+          "thefactory-ui/headless/type FilePreviewMode",
+          "thefactory-ui/headless/type FilePreviewTarget",
+          "thefactory-ui/headless",
+          "thefactory-tools/types/ReferenceDescription",
+          "thefactory-tools/types",
+          "thefactory-ui/web/Button",
+          "thefactory-ui/web/FilePreviewDialog",
+          "thefactory-ui/web/FilePreviewDialogConnected",
+          "thefactory-ui/web/ReferenceChip",
+          "thefactory-ui/web/ReferencePreviewCard",
+          "thefactory-ui/web/SegmentedControl",
+          "thefactory-ui/web",
+          "thefactory-ui/web/icons/IconFile",
+          "thefactory-ui/web/icons"
+        ]
+      },
+      "FILE_PREVIEW_STATES": {
+        "path": "scenes/filePreviewFixtures.ts",
+        "description": "Each state, read: fixed text and bytes, nothing on the network.",
+        "dependencies": [
+          "thefactory-ui/headless/FilePreviewState",
+          "FilePreviewFile",
+          "Record",
+          "react/useEffect",
+          "react/useState",
+          "thefactory-ui/headless/FilePreviewTarget",
+          "thefactory-ui/headless",
+          "thefactory-tools/types/ReferenceDescription",
+          "thefactory-tools/types"
+        ]
+      },
+      "FILE_PREVIEW_VIEWS": {
+        "path": "native/filePreviewViews.tsx",
+        "dependencies": [
+          "NativeView",
+          "react/useMemo",
+          "react/useState",
+          "react/type ReactNode",
+          "react-native/View",
+          "thefactory-ui/headless/FILE_PREVIEW_DEFAULT_MODE",
+          "thefactory-ui/headless/FILE_PREVIEW_LABEL",
+          "thefactory-ui/headless/FILE_PREVIEW_MODE_LABELS",
+          "thefactory-ui/headless/FILE_PREVIEW_MODES",
+          "thefactory-ui/headless/FilesProvider",
+          "thefactory-ui/headless/referencePreview",
+          "thefactory-ui/headless/type FilePreviewMode",
+          "thefactory-ui/headless/type FilePreviewTarget",
+          "thefactory-ui/headless"
+        ]
+      },
       "FILE_SUGGESTION_SCENES": {
         "path": "scenes/fileSuggestions.tsx",
         "dependencies": [
@@ -97938,6 +99284,18 @@
           "react/useEffect",
           "react/useRef",
           "react/useState"
+        ]
+      },
+      "FilePreviewFile": {
+        "path": "scenes/filePreviewFixtures.ts",
+        "dependencies": [
+          "react/useEffect",
+          "react/useState",
+          "thefactory-ui/headless/FilePreviewState",
+          "thefactory-ui/headless/FilePreviewTarget",
+          "thefactory-ui/headless",
+          "thefactory-tools/types/ReferenceDescription",
+          "thefactory-tools/types"
         ]
       },
       "FixtureRoutes": {
@@ -98545,6 +99903,18 @@
           "thefactory-ui/headless"
         ]
       },
+      "PDF_BYTES": {
+        "path": "scenes/filePreviewFixtures.ts",
+        "dependencies": [
+          "react/useEffect",
+          "react/useState",
+          "thefactory-ui/headless/FilePreviewState",
+          "thefactory-ui/headless/FilePreviewTarget",
+          "thefactory-ui/headless",
+          "thefactory-tools/types/ReferenceDescription",
+          "thefactory-tools/types"
+        ]
+      },
       "Picked": {
         "path": "scenes/onFixtures.tsx",
         "description": "Chooses a value in each named picker of what it wraps once the picker offers",
@@ -98803,6 +100173,43 @@
           "thefactory-ui/web/SegmentedControl",
           "thefactory-ui/web/ToneBadge",
           "thefactory-ui/web"
+        ]
+      },
+      "PROPOSAL_CHIP": {
+        "path": "scenes/filePreviewFixtures.ts",
+        "description": "The file chip a group chat shows for a proposal in another project.",
+        "dependencies": [
+          "thefactory-tools/types/ReferenceDescription",
+          "react/useEffect",
+          "react/useState",
+          "thefactory-ui/headless/FilePreviewState",
+          "thefactory-ui/headless/FilePreviewTarget",
+          "thefactory-ui/headless",
+          "thefactory-tools/types"
+        ]
+      },
+      "PROPOSAL_PATH": {
+        "path": "scenes/filePreviewFixtures.ts",
+        "dependencies": [
+          "react/useEffect",
+          "react/useState",
+          "thefactory-ui/headless/FilePreviewState",
+          "thefactory-ui/headless/FilePreviewTarget",
+          "thefactory-ui/headless",
+          "thefactory-tools/types/ReferenceDescription",
+          "thefactory-tools/types"
+        ]
+      },
+      "PROPOSAL_TEXT": {
+        "path": "scenes/filePreviewFixtures.ts",
+        "dependencies": [
+          "react/useEffect",
+          "react/useState",
+          "thefactory-ui/headless/FilePreviewState",
+          "thefactory-ui/headless/FilePreviewTarget",
+          "thefactory-ui/headless",
+          "thefactory-tools/types/ReferenceDescription",
+          "thefactory-tools/types"
         ]
       },
       "PROVIDER_CONNECTION_FORM_SCENES": {
@@ -99462,6 +100869,20 @@
         "path": "native/stubs/nativewind.ts",
         "description": "The theme the page's address asks for: `?theme=dark`, else light.",
         "dependencies": []
+      },
+      "useFakeEdits": {
+        "path": "scenes/filePreviewFixtures.ts",
+        "description": "A file's state with the edits a person makes kept on the page: nothing is sent.",
+        "dependencies": [
+          "thefactory-ui/headless/FilePreviewState",
+          "FilePreviewFile",
+          "react/useEffect",
+          "react/useState",
+          "thefactory-ui/headless/FilePreviewTarget",
+          "thefactory-ui/headless",
+          "thefactory-tools/types/ReferenceDescription",
+          "thefactory-tools/types"
+        ]
       },
       "useSharedValue": {
         "path": "native/stubs/reanimated.tsx",
@@ -118605,6 +120026,22 @@
           "BackendStartupPass"
         ]
       },
+      "BackendResetCard": {
+        "path": "native/compound/settings/BackendResetCard.tsx",
+        "description": "\"Reset connection\" in the backend connection settings, as on web and desktop.",
+        "dependencies": [
+          "BackendResetCardProps",
+          "react-native/Text",
+          "react-native/View"
+        ]
+      },
+      "BackendResetCardProps": {
+        "path": "native/compound/settings/BackendResetCard.tsx",
+        "dependencies": [
+          "react-native/Text",
+          "react-native/View"
+        ]
+      },
       "BackendStartup": {
         "path": "headless/api/backendStartupTypes.ts",
         "description": "How far a starting backend got. `knowledgeMaps` is absent when the backend builds no maps at startup.",
@@ -119655,16 +121092,6 @@
         "dependencies": [
           "ChatTurnLimit",
           "ChatTurnLimitSettings"
-        ]
-      },
-      "buildClientParams": {
-        "path": "headless/api/generated/core/params.gen.ts",
-        "dependencies": [
-          "Record",
-          "Slot",
-          "FieldsConfig",
-          "Params",
-          "ReadonlyArray"
         ]
       },
       "buildColumns": {
@@ -123646,6 +125073,16 @@
           "ReadonlyMap"
         ]
       },
+      "ChatNewsNotification": {
+        "path": "headless/hooks/useChatNewsNotifier.ts",
+        "description": "What the host posts as an OS notification.",
+        "dependencies": [
+          "react/useEffect",
+          "react/useRef",
+          "thefactory-tools/utils/getChatContextKey",
+          "thefactory-tools/utils"
+        ]
+      },
       "ChatNewsShape": {
         "path": "headless/utils/chatListEntry.ts",
         "description": "What a chat's news is read from: its messages' times, when it was closed",
@@ -124238,14 +125675,6 @@
           "thefactory-tools/utils"
         ]
       },
-      "chatShownMessages": {
-        "path": "headless/utils/chatShownMessages.ts",
-        "description": "The chat's messages a client draws, in order: a message no client draws",
-        "dependencies": [
-          "M",
-          "DrawableMessage"
-        ]
-      },
       "ChatSidebarPanel": {
         "path": "web/compound/ChatSidebarPanel.tsx",
         "dependencies": [
@@ -124482,6 +125911,19 @@
         "path": "headless/utils/chatToolTogglesTypes.ts",
         "description": "One catalogue row as the backend's `/tools/chat-catalog` serves it.",
         "dependencies": []
+      },
+      "chatToolCatalogQueryOf": {
+        "path": "headless/hooks/useChatToolCatalog.ts",
+        "description": "The GET /tools/chat-catalog query for this chat: context fields the",
+        "dependencies": [
+          "CatalogQuery",
+          "ChatToolRunner",
+          "ChatContext",
+          "react/useCallback",
+          "react/useEffect",
+          "react/useMemo",
+          "react/useSyncExternalStore"
+        ]
       },
       "chatToolPreviewOf": {
         "path": "headless/utils/toolPreview.ts",
@@ -126160,14 +127602,6 @@
           "CliCapabilityCardView",
           "react-native/Text",
           "react-native/View"
-        ]
-      },
-      "cliCapabilityCardView": {
-        "path": "headless/utils/cliCapabilityCard.ts",
-        "description": "A capability battery's card as the CLI settings form shows it: passes out",
-        "dependencies": [
-          "CliCapabilityCardView",
-          "CliCapabilityCard"
         ]
       },
       "CliCapabilityCardView": {
@@ -128066,6 +129500,16 @@
         "path": "headless/types/settings.ts",
         "description": "Syntax-highlight theme for `<Code>` blocks (tool args / results etc.).",
         "dependencies": []
+      },
+      "CodeBlockThemeProvider": {
+        "path": "headless/hooks/useCodeBlockTheme.tsx",
+        "dependencies": [
+          "ReactNode",
+          "CodeBlockTheme",
+          "react/createContext",
+          "react/useContext",
+          "react/type ReactNode"
+        ]
       },
       "CodeGrammar": {
         "path": "headless/api/generated/types.gen.ts",
@@ -134619,6 +136063,12 @@
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": []
       },
+      "deleteProjectFile": {
+        "path": "headless/api/projectFileApi.ts",
+        "dependencies": [
+          "Promise"
+        ]
+      },
       "deleteProjectNote": {
         "path": "headless/api/generated/sdk.gen.ts",
         "dependencies": [
@@ -137565,11 +139015,6 @@
           "react/useState"
         ]
       },
-      "DrawableMessage": {
-        "path": "headless/utils/chatShownMessages.ts",
-        "description": "The only shape deciding whether a client draws a message needs.",
-        "dependencies": []
-      },
       "DroppedChangesNote": {
         "path": "web/compound/process/DroppedChangesNote.tsx",
         "description": "The changes an earlier merge into a run's work branch dropped and the person",
@@ -139095,6 +140540,16 @@
           "thefactory-tools/types"
         ]
       },
+      "FAKE_DATA_IN_PRODUCT_COPY": {
+        "path": "headless/utils/fakeDataInProductConstants.ts",
+        "dependencies": []
+      },
+      "FAKE_DATA_IN_PRODUCT_OPTIONS": {
+        "path": "headless/utils/fakeDataInProductConstants.ts",
+        "dependencies": [
+          "FakeDataInProductOption"
+        ]
+      },
       "FAKE_DATA_SUBSCRIPTIONS": {
         "path": "fakeBackend/fixtures/liveData.ts",
         "dependencies": [
@@ -139505,6 +140960,25 @@
           "Partial",
           "thefactory-tools/types/ChatContextCheckpointEvent",
           "thefactory-tools/types"
+        ]
+      },
+      "FakeDataInProduct": {
+        "path": "headless/utils/fakeDataInProductTypes.ts",
+        "description": "Whether the code that makes an app's fake data possible is committed with the work, or used",
+        "dependencies": []
+      },
+      "fakeDataInProductLine": {
+        "path": "headless/utils/fakeDataInProduct.ts",
+        "description": "The one line under the switch: what the picked choice does. Pure.",
+        "dependencies": [
+          "FakeDataInProduct"
+        ]
+      },
+      "FakeDataInProductOption": {
+        "path": "headless/utils/fakeDataInProductTypes.ts",
+        "description": "One choice of the switch, as the launch card and the project editor show it.",
+        "dependencies": [
+          "FakeDataInProduct"
         ]
       },
       "FakeDataSetupBuild": {
@@ -141483,7 +142957,7 @@
         "dependencies": []
       },
       "Field": {
-        "path": "headless/api/generated/core/params.gen.ts",
+        "path": "web/primitives/Field.tsx",
         "description": "Label + input + optional hint. The surrounding `<label>` element wires up",
         "dependencies": [
           "FieldProps",
@@ -141519,24 +142993,6 @@
           "react-native/View"
         ]
       },
-      "Fields": {
-        "path": "headless/api/generated/core/params.gen.ts",
-        "dependencies": [
-          "Field",
-          "ReadonlyArray",
-          "Slot",
-          "Record",
-          "Partial"
-        ]
-      },
-      "FieldsConfig": {
-        "path": "headless/api/generated/core/params.gen.ts",
-        "dependencies": [
-          "Fields",
-          "Field",
-          "ReadonlyArray"
-        ]
-      },
       "FILE_DRAG_TYPE": {
         "path": "headless/utils/chatDropConstants.ts",
         "description": "The DataTransfer type an OS file drag carries; internal drags (board, git staging) do not.",
@@ -141550,6 +143006,88 @@
       "FILE_LINE_PARAM": {
         "path": "headless/utils/fileLocationConstants.ts",
         "description": "The query parameter a file link names the line to open at with: `/projects/<id>/files/<path>?line=12`.",
+        "dependencies": []
+      },
+      "FILE_PREVIEW_COPY": {
+        "path": "headless/utils/filePreviewConstants.ts",
+        "description": "The words the preview shows around the file itself.",
+        "dependencies": []
+      },
+      "FILE_PREVIEW_DEFAULT_LAYOUT": {
+        "path": "headless/utils/filePreviewConstants.ts",
+        "description": "Where the preview opens on a wide screen until the product call is made.",
+        "dependencies": [
+          "FilePreviewLayout"
+        ]
+      },
+      "FILE_PREVIEW_DEFAULT_MODE": {
+        "path": "headless/utils/filePreviewConstants.ts",
+        "description": "What the preview lets a person do until the product call is made: read only.",
+        "dependencies": [
+          "FilePreviewMode"
+        ]
+      },
+      "FILE_PREVIEW_FALLBACK_MEDIA_TYPE": {
+        "path": "headless/utils/filePreviewConstants.ts",
+        "description": "What bytes of no known kind are.",
+        "dependencies": []
+      },
+      "FILE_PREVIEW_INFO_LABELS": {
+        "path": "headless/utils/filePreviewConstants.ts",
+        "description": "What each line of a file's info says.",
+        "dependencies": []
+      },
+      "FILE_PREVIEW_LABEL": {
+        "path": "headless/utils/filePreviewConstants.ts",
+        "description": "The button beside \"Open in Files\" that opens a file in a popup.",
+        "dependencies": []
+      },
+      "FILE_PREVIEW_LAYOUT_LABELS": {
+        "path": "headless/utils/filePreviewConstants.ts",
+        "description": "What each place is called, on the switch that compares them.",
+        "dependencies": [
+          "FilePreviewLayout",
+          "Record"
+        ]
+      },
+      "FILE_PREVIEW_LAYOUTS": {
+        "path": "headless/utils/filePreviewConstants.ts",
+        "description": "Where the preview can open on a wide screen, in the order the switch offers them.",
+        "dependencies": [
+          "FilePreviewLayout"
+        ]
+      },
+      "FILE_PREVIEW_MEDIA_TYPES": {
+        "path": "headless/utils/filePreviewConstants.ts",
+        "description": "What the bytes of a previewed image or PDF are, by extension.",
+        "dependencies": [
+          "Record",
+          "Readonly"
+        ]
+      },
+      "FILE_PREVIEW_MODE_LABELS": {
+        "path": "headless/utils/filePreviewConstants.ts",
+        "description": "What each way of working is called, on the switch that compares them.",
+        "dependencies": [
+          "FilePreviewMode",
+          "Record"
+        ]
+      },
+      "FILE_PREVIEW_MODES": {
+        "path": "headless/utils/filePreviewConstants.ts",
+        "description": "The ways the preview can let a person work, in the order the switch offers them.",
+        "dependencies": [
+          "FilePreviewMode"
+        ]
+      },
+      "FILE_PREVIEW_PANE_LABELS": {
+        "path": "headless/utils/filePreviewConstants.ts",
+        "description": "What native's source / split / preview switch says, for a markdown file.",
+        "dependencies": []
+      },
+      "FILE_PREVIEW_TEXT_MEDIA_TYPE": {
+        "path": "headless/utils/filePreviewConstants.ts",
+        "description": "What the text of a markdown, html or text file is.",
         "dependencies": []
       },
       "fileDesignProposalEntry": {
@@ -141780,6 +143318,7 @@
       "FilePaneProps": {
         "path": "web/compound/files/FilePane.tsx",
         "dependencies": [
+          "MarkdownEditorPaneView",
           "FileInfoData",
           "FilePaneKind",
           "Promise",
@@ -141797,6 +143336,268 @@
         "dependencies": [
           "QuestionPickerItem"
         ]
+      },
+      "FilePreviewCalls": {
+        "path": "headless/utils/filePreviewTypes.ts",
+        "description": "The calls a preview reads and changes a file with, each on the file's own project.",
+        "dependencies": [
+          "Promise",
+          "FilePreviewInfo",
+          "ArrayBuffer"
+        ]
+      },
+      "filePreviewCaption": {
+        "path": "headless/utils/filePreview.ts",
+        "description": "What the preview is captioned: a file, in its project where that is named. Pure.",
+        "dependencies": [
+          "FilePreviewTarget",
+          "thefactory-tools/types/ReferenceDescription",
+          "thefactory-tools/types"
+        ]
+      },
+      "FilePreviewContent": {
+        "path": "headless/utils/filePreviewTypes.ts",
+        "description": "A file's contents, read the way its kind is read.",
+        "dependencies": [
+          "FilePreviewInfo",
+          "ArrayBuffer",
+          "FilePaneKind"
+        ]
+      },
+      "FilePreviewDialog": {
+        "path": "web/compound/files/FilePreviewDialog.tsx",
+        "description": "A file in a popup, with the Files pane's tools across its top: the file a",
+        "dependencies": [
+          "FilePreviewDialogProps",
+          "react/useCallback",
+          "react/useEffect",
+          "react/useState",
+          "thefactory-tools/types/ResourceLink",
+          "thefactory-tools/types"
+        ]
+      },
+      "FilePreviewDialogConnected": {
+        "path": "web/compound/files/FilePreviewDialogConnected.tsx",
+        "description": "{@link FilePreviewDialog} on the backend: the file read from the project its",
+        "dependencies": [
+          "FilePreviewDialogConnectedProps",
+          "thefactory-tools/types/ResourceLink",
+          "thefactory-tools/types"
+        ]
+      },
+      "FilePreviewDialogConnectedProps": {
+        "path": "web/compound/files/FilePreviewDialogConnected.tsx",
+        "dependencies": [
+          "thefactory-tools/types/ResourceLink",
+          "FilePreviewLayout",
+          "FilePreviewMode",
+          "FilePreviewTarget",
+          "thefactory-tools/types"
+        ]
+      },
+      "FilePreviewDialogProps": {
+        "path": "web/compound/files/FilePreviewDialog.tsx",
+        "dependencies": [
+          "Promise",
+          "thefactory-tools/types/ResourceLink",
+          "FilePreviewLayout",
+          "FilePreviewMode",
+          "FilePreviewState",
+          "react/useCallback",
+          "react/useEffect",
+          "react/useState",
+          "thefactory-tools/types"
+        ]
+      },
+      "filePreviewFailure": {
+        "path": "headless/utils/filePreview.ts",
+        "description": "A failed read as the preview shows it: a 404 is a file that is gone. Pure.",
+        "dependencies": [
+          "FilePreviewState",
+          "FilePreviewTarget",
+          "thefactory-tools/types/ReferenceDescription",
+          "thefactory-tools/types"
+        ]
+      },
+      "FilePreviewHandle": {
+        "path": "headless/hooks/useFilePreview.ts",
+        "dependencies": [
+          "Promise",
+          "FilePreviewState",
+          "react/useEffect",
+          "react/useMemo",
+          "react/useRef",
+          "react/useState"
+        ]
+      },
+      "FilePreviewInfo": {
+        "path": "headless/utils/filePreviewTypes.ts",
+        "description": "What the Files list knows about a file, shown as its info.",
+        "dependencies": []
+      },
+      "filePreviewInfoOf": {
+        "path": "headless/utils/filePreview.ts",
+        "description": "What the Files list knows about a file, kept for its info. Pure.",
+        "dependencies": [
+          "FilePreviewInfo",
+          "FileMeta",
+          "thefactory-tools/types/ReferenceDescription",
+          "thefactory-tools/types"
+        ]
+      },
+      "FilePreviewInfoRow": {
+        "path": "headless/utils/filePreviewTypes.ts",
+        "description": "One line of a file's info: what it says, and its value.",
+        "dependencies": []
+      },
+      "filePreviewInfoRows": {
+        "path": "headless/utils/filePreview.ts",
+        "description": "A previewed file's info, a line each — what native shows behind its info button. Pure.",
+        "dependencies": [
+          "FilePreviewInfoRow",
+          "FilePreviewContent",
+          "FilePreviewTarget",
+          "thefactory-tools/types/ReferenceDescription",
+          "thefactory-tools/types"
+        ]
+      },
+      "FilePreviewLayout": {
+        "path": "headless/utils/filePreviewTypes.ts",
+        "description": "Where the preview opens on a wide screen: a large centred popup, or a drawer on the right.",
+        "dependencies": []
+      },
+      "FilePreviewLoader": {
+        "path": "headless/hooks/filePreviewLoader.ts",
+        "description": "Reads one file for its preview, by the project the file is in: its text or",
+        "dependencies": [
+          "FilePreviewState",
+          "FilePreviewInfo",
+          "Promise",
+          "FilePreviewTarget",
+          "FilePreviewCalls"
+        ]
+      },
+      "filePreviewMediaType": {
+        "path": "headless/utils/filePreview.ts",
+        "description": "What a previewed file's contents are, named for a viewer. Pure.",
+        "dependencies": [
+          "thefactory-tools/types/ReferenceDescription",
+          "thefactory-tools/types"
+        ]
+      },
+      "FilePreviewMode": {
+        "path": "headless/utils/filePreviewTypes.ts",
+        "description": "What the preview lets a person do: read the file, or work on it as the Files pane does.",
+        "dependencies": []
+      },
+      "filePreviewName": {
+        "path": "headless/utils/filePreview.ts",
+        "description": "A file's name: the last segment of its path. Pure.",
+        "dependencies": [
+          "thefactory-tools/types/ReferenceDescription",
+          "thefactory-tools/types"
+        ]
+      },
+      "FilePreviewSheet": {
+        "path": "native/compound/files/FilePreviewSheet.tsx",
+        "description": "Native peer of web's `FilePreviewDialog`: a file in a full-screen sheet with",
+        "dependencies": [
+          "FilePreviewSheetProps",
+          "react/useCallback",
+          "react/useEffect",
+          "react/useMemo",
+          "react/useRef",
+          "react/useState",
+          "react/type ReactNode",
+          "react-native/ScrollView",
+          "react-native/Text",
+          "react-native/View",
+          "thefactory-tools/types/ResourceLink",
+          "thefactory-tools/types"
+        ]
+      },
+      "FilePreviewSheetConnected": {
+        "path": "native/compound/files/FilePreviewSheetConnected.tsx",
+        "description": "{@link FilePreviewSheet} on the backend: the file read from the project its",
+        "dependencies": [
+          "FilePreviewSheetConnectedProps",
+          "thefactory-tools/types/ResourceLink",
+          "thefactory-tools/types"
+        ]
+      },
+      "FilePreviewSheetConnectedProps": {
+        "path": "native/compound/files/FilePreviewSheetConnected.tsx",
+        "dependencies": [
+          "Promise",
+          "thefactory-tools/types/ResourceLink",
+          "FilePreviewMode",
+          "FilePreviewTarget",
+          "thefactory-tools/types"
+        ]
+      },
+      "FilePreviewSheetProps": {
+        "path": "native/compound/files/FilePreviewSheet.tsx",
+        "dependencies": [
+          "Promise",
+          "thefactory-tools/types/ResourceLink",
+          "FilePreviewMode",
+          "FilePreviewState",
+          "react/useCallback",
+          "react/useEffect",
+          "react/useMemo",
+          "react/useRef",
+          "react/useState",
+          "react/type ReactNode",
+          "react-native/ScrollView",
+          "react-native/Text",
+          "react-native/View",
+          "thefactory-tools/types"
+        ]
+      },
+      "filePreviewSize": {
+        "path": "headless/utils/filePreview.ts",
+        "description": "A previewed file's size: what the Files list knows, else the bytes read. Pure.",
+        "dependencies": [
+          "FilePreviewContent",
+          "thefactory-tools/types/ReferenceDescription",
+          "thefactory-tools/types"
+        ]
+      },
+      "filePreviewSource": {
+        "path": "headless/utils/filePreview.ts",
+        "description": "How a file's contents are read for its preview, by its kind. Pure.",
+        "dependencies": [
+          "FilePreviewSource",
+          "thefactory-tools/types/ReferenceDescription",
+          "thefactory-tools/types"
+        ]
+      },
+      "FilePreviewSource": {
+        "path": "headless/utils/filePreviewTypes.ts",
+        "description": "How a file's contents are read: as text, as raw bytes, or not at all.",
+        "dependencies": []
+      },
+      "FilePreviewState": {
+        "path": "headless/utils/filePreviewTypes.ts",
+        "description": "A preview as it stands: being read, read, failed, or the file is gone.",
+        "dependencies": [
+          "FilePreviewTarget",
+          "FilePreviewContent"
+        ]
+      },
+      "filePreviewTarget": {
+        "path": "headless/utils/filePreview.ts",
+        "description": "The file a reference's Preview opens: a file — never a folder — that is",
+        "dependencies": [
+          "FilePreviewTarget",
+          "thefactory-tools/types/ReferenceDescription",
+          "thefactory-tools/types"
+        ]
+      },
+      "FilePreviewTarget": {
+        "path": "headless/utils/filePreviewTypes.ts",
+        "description": "The file a preview shows: by its own project, which may not be the one on screen.",
+        "dependencies": []
       },
       "FileRenameMove": {
         "path": "headless/api/generated/types.gen.ts",
@@ -146749,6 +148550,23 @@
           "react-native/View"
         ]
       },
+      "GitCredentialsContextValue": {
+        "path": "headless/contexts/GitCredentialsContext.tsx",
+        "dependencies": [
+          "Promise",
+          "GetGitCredentialResponse",
+          "GitCredentialEditInput",
+          "GitCredentialCreateInput",
+          "Error",
+          "react/createContext",
+          "react/useCallback",
+          "react/useContext",
+          "react/useEffect",
+          "react/useMemo",
+          "react/useState",
+          "react/ReactNode"
+        ]
+      },
       "GitCredentialsForm": {
         "path": "web/compound/settings/GitCredentialsForm.tsx",
         "dependencies": [
@@ -146784,6 +148602,23 @@
           "react-native/Pressable",
           "react-native/Text",
           "react-native/View"
+        ]
+      },
+      "GitCredentialsProvider": {
+        "path": "headless/contexts/GitCredentialsContext.tsx",
+        "dependencies": [
+          "GitCredentialsContextValue",
+          "GitCredentialEditInput",
+          "GitCredentialCreateInput",
+          "Error",
+          "GetGitCredentialResponse",
+          "react/ReactNode",
+          "react/createContext",
+          "react/useCallback",
+          "react/useContext",
+          "react/useEffect",
+          "react/useMemo",
+          "react/useState"
         ]
       },
       "GitCredentialsSettings": {
@@ -153603,6 +155438,13 @@
           "thefactory-tools/types"
         ]
       },
+      "isFakeDataInProduct": {
+        "path": "headless/utils/fakeDataInProduct.ts",
+        "description": "Whether a value is one of the two choices. Pure.",
+        "dependencies": [
+          "FakeDataInProduct"
+        ]
+      },
       "isFeatureInLiveRun": {
         "path": "headless/utils/processStatusOverlay.ts",
         "description": "Whether a feature is in a story's LIVE process run — still pending, running",
@@ -155970,6 +157812,43 @@
           "thefactory-tools/types",
           "thefactory-tools/utils/projectWorkLaunchMode",
           "thefactory-tools/utils"
+        ]
+      },
+      "launchFakeDataChoice": {
+        "path": "headless/utils/fakeDataInProduct.ts",
+        "description": "The card's choice: the person's pick, else the preview's. None while the preview offers none. Pure.",
+        "dependencies": [
+          "FakeDataInProduct"
+        ]
+      },
+      "LaunchFakeDataChoice": {
+        "path": "web/compound/chat/LaunchFakeDataChoice.tsx",
+        "description": "The launch card's \"Fake data in the product\": whether the code that makes the app's fake data",
+        "dependencies": [
+          "FakeDataInProduct",
+          "LaunchFakeDataChoiceProps"
+        ]
+      },
+      "LaunchFakeDataChoiceProps": {
+        "path": "native/compound/chat/LaunchFakeDataChoice.tsx",
+        "dependencies": [
+          "FakeDataInProduct",
+          "react-native/Text",
+          "react-native/View"
+        ]
+      },
+      "launchFakeDataMetadata": {
+        "path": "headless/utils/fakeDataInProduct.ts",
+        "description": "What a launch carries of the choice confirmed on its card. Pure.",
+        "dependencies": [
+          "FakeDataInProduct"
+        ]
+      },
+      "launchFakeDataOffered": {
+        "path": "headless/utils/fakeDataInProduct.ts",
+        "description": "The choice a launch preview offers: the project's, present only when the launch's work is",
+        "dependencies": [
+          "FakeDataInProduct"
         ]
       },
       "LaunchFeatureList": {
@@ -159725,6 +161604,20 @@
       "loadProjectFilePaths": {
         "path": "headless/contexts/FilesContext.tsx",
         "dependencies": [
+          "Promise",
+          "react/createContext",
+          "react/useCallback",
+          "react/useContext",
+          "react/useEffect",
+          "react/useMemo",
+          "react/useRef",
+          "react/useState",
+          "react/ReactNode"
+        ]
+      },
+      "loadProjectFiles": {
+        "path": "headless/contexts/FilesContext.tsx",
+        "dependencies": [
           "FileMeta",
           "Promise",
           "react/createContext",
@@ -162713,6 +164606,22 @@
           "MouseEvent",
           "HTMLElement",
           "ModalProps",
+          "react/useCallback",
+          "react/useEffect",
+          "react/useId",
+          "react/useLayoutEffect",
+          "react/useRef",
+          "react/type KeyboardEvent",
+          "react/type MouseEvent",
+          "react/type ReactNode",
+          "react/type RefObject",
+          "react-dom/createPortal"
+        ]
+      },
+      "ModalPlacement": {
+        "path": "web/primitives/Modal.tsx",
+        "description": "Where the dialog sits: centred, or as a full-height drawer on the right edge.",
+        "dependencies": [
           "react/useCallback",
           "react/useEffect",
           "react/useId",
@@ -167690,6 +169599,11 @@
           "thefactory-tools/utils/processStorylessLaunchProblem",
           "thefactory-tools/utils"
         ]
+      },
+      "PROCESS_FAKE_DATA_IN_PRODUCT_KEY": {
+        "path": "headless/utils/fakeDataInProductConstants.ts",
+        "description": "The project metadata key a project's choice is kept under.",
+        "dependencies": []
       },
       "PROCESS_GATE_LOOP_NO_LIMIT": {
         "path": "headless/utils/processViewConstants.ts",
@@ -173336,6 +175250,7 @@
         "description": "The launch card of a process that starts from a form: what it asks for, drawn",
         "dependencies": [
           "PendingToolGrantDecision",
+          "FakeDataInProduct",
           "LaunchCapsTyped",
           "ProcessRunLaunchPanelProps",
           "react/useMemo",
@@ -175726,6 +177641,13 @@
         "path": "headless/utils/projectDeviceAutomationConstants.ts",
         "dependencies": []
       },
+      "PROJECT_FILE_CALLS": {
+        "path": "headless/api/projectFileApi.ts",
+        "description": "The calls a file preview reads and changes a file of any project with.",
+        "dependencies": [
+          "FilePreviewCalls"
+        ]
+      },
       "PROJECT_FLAKES_HEADING": {
         "path": "headless/utils/projectFlakesConstants.ts",
         "description": "The heading over a project's known flaky tests.",
@@ -176680,6 +178602,22 @@
           "Pick",
           "react/useState",
           "react-native/Pressable",
+          "react-native/Text",
+          "react-native/View"
+        ]
+      },
+      "ProjectFakeDataInProductField": {
+        "path": "web/compound/projects/ProjectFakeDataInProductField.tsx",
+        "description": "Whether a project's fake-data code ships with the work: where every launch's choice starts.",
+        "dependencies": [
+          "FakeDataInProduct",
+          "ProjectFakeDataInProductFieldProps"
+        ]
+      },
+      "ProjectFakeDataInProductFieldProps": {
+        "path": "native/compound/projects/ProjectFakeDataInProductField.tsx",
+        "dependencies": [
+          "Record",
           "react-native/Text",
           "react-native/View"
         ]
@@ -179309,12 +181247,10 @@
         ]
       },
       "ProviderOAuthWaiting": {
-        "path": "native/compound/settings/ProviderOAuthWaiting.tsx",
-        "description": "Native peer of the web `ProviderOAuthWaiting`.",
+        "path": "web/compound/settings/ProviderOAuthWaiting.tsx",
+        "description": "The sign-in is in the browser. It moves on by itself, and waits as long as the person does.",
         "dependencies": [
-          "ProviderOAuthWaitingProps",
-          "react-native/Text",
-          "react-native/View"
+          "ProviderOAuthWaitingProps"
         ]
       },
       "ProviderOAuthWaitingProps": {
@@ -180232,6 +182168,13 @@
           "thefactory-tools/types"
         ]
       },
+      "readProcessFakeDataInProduct": {
+        "path": "headless/utils/fakeDataInProduct.ts",
+        "description": "A project's choice as its metadata holds it: free JSON, so anything but keep-out ships. Pure.",
+        "dependencies": [
+          "FakeDataInProduct"
+        ]
+      },
       "readProcessRunTicketPost": {
         "path": "headless/api/ticketPostApi.ts",
         "dependencies": [
@@ -180245,6 +182188,26 @@
       },
       "readProjectDeviceAutomation": {
         "path": "headless/api/projectDeviceAutomationApi.ts",
+        "dependencies": [
+          "Promise"
+        ]
+      },
+      "readProjectFileBytes": {
+        "path": "headless/api/projectFileApi.ts",
+        "dependencies": [
+          "ArrayBuffer",
+          "Promise"
+        ]
+      },
+      "readProjectFileInfo": {
+        "path": "headless/api/projectFileApi.ts",
+        "dependencies": [
+          "FilePreviewInfo",
+          "Promise"
+        ]
+      },
+      "readProjectFileText": {
+        "path": "headless/api/projectFileApi.ts",
         "dependencies": [
           "Promise"
         ]
@@ -180743,9 +182706,12 @@
         "path": "web/compound/chips/ReferenceChip.tsx",
         "description": "Something a message points at — a story, feature, process run or process,",
         "dependencies": [
+          "FilePreviewTarget",
           "ReferenceChipProps",
-          "react/ComponentType",
-          "react/ReactNode",
+          "react/useState",
+          "react/type ComponentType",
+          "react/type ReactNode",
+          "react/type SyntheticEvent",
           "thefactory-tools/types/ReferenceDescription",
           "thefactory-tools/types/ResourceLink",
           "thefactory-tools/types"
@@ -180859,6 +182825,7 @@
         "path": "headless/utils/referencePreviewTypes.ts",
         "description": "A reference's preview card, arranged for one render on every client.",
         "dependencies": [
+          "FilePreviewTarget",
           "ReferencePreviewAction",
           "ReadonlyArray",
           "ProcessStatusTone",
@@ -180889,6 +182856,7 @@
         "path": "web/compound/chips/ReferencePreviewCard.tsx",
         "dependencies": [
           "react/ReactNode",
+          "FilePreviewTarget",
           "thefactory-tools/types/ResourceLink",
           "react/ComponentType",
           "ReferencePreview",
@@ -180912,6 +182880,7 @@
         "path": "native/compound/chips/ReferencePreviewSheet.tsx",
         "dependencies": [
           "react/ReactNode",
+          "FilePreviewTarget",
           "thefactory-tools/types/ResourceLink",
           "react/ComponentType",
           "ReferencePreview",
@@ -181771,6 +183740,12 @@
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
           "Array"
+        ]
+      },
+      "renameProjectFile": {
+        "path": "headless/api/projectFileApi.ts",
+        "dependencies": [
+          "Promise"
         ]
       },
       "renameSymbol": {
@@ -201680,6 +203655,20 @@
           "thefactory-tools/utils"
         ]
       },
+      "useChatNewsNotifier": {
+        "path": "headless/hooks/useChatNewsNotifier.ts",
+        "description": "Tells the host each time news reaches a chat, or an ask comes to wait on",
+        "dependencies": [
+          "ChatNotifyLevel",
+          "ReadonlyMap",
+          "ChatNewsMarks",
+          "ChatNewsNotification",
+          "react/useEffect",
+          "react/useRef",
+          "thefactory-tools/utils/getChatContextKey",
+          "thefactory-tools/utils"
+        ]
+      },
       "useChatNotifyLevel": {
         "path": "headless/hooks/useChatNotifyLevel.ts",
         "description": "A chat's \"Notify me\": what reaches the person of it, and how to change that for this chat alone.",
@@ -201764,6 +203753,21 @@
         "description": "React hook returning the current `ChatsSeenMap`. Use instead of",
         "dependencies": [
           "ChatsSeenMap",
+          "react/useSyncExternalStore"
+        ]
+      },
+      "useChatToolCatalog": {
+        "path": "headless/hooks/useChatToolCatalog.ts",
+        "description": "The tools a chat can be OFFERED, as the backend assembles them from the same",
+        "dependencies": [
+          "Promise",
+          "Error",
+          "ChatToolCatalogEntry",
+          "ChatToolRunner",
+          "ChatContext",
+          "react/useCallback",
+          "react/useEffect",
+          "react/useMemo",
           "react/useSyncExternalStore"
         ]
       },
@@ -201913,6 +203917,15 @@
           "react/useCallback",
           "react/useEffect",
           "react/useState"
+        ]
+      },
+      "useCodeBlockTheme": {
+        "path": "headless/hooks/useCodeBlockTheme.tsx",
+        "dependencies": [
+          "CodeBlockTheme",
+          "react/createContext",
+          "react/useContext",
+          "react/type ReactNode"
         ]
       },
       "useCommitDetails": {
@@ -202487,6 +204500,21 @@
           "react/useState"
         ]
       },
+      "useFilePreview": {
+        "path": "headless/hooks/useFilePreview.ts",
+        "description": "One file, read for its preview from the project it is in — not the one on",
+        "dependencies": [
+          "FilePreviewLoader",
+          "FilePreviewState",
+          "FilePreviewHandle",
+          "FilePreviewCalls",
+          "FilePreviewTarget",
+          "react/useEffect",
+          "react/useMemo",
+          "react/useRef",
+          "react/useState"
+        ]
+      },
       "useFiles": {
         "path": "headless/contexts/FilesContext.tsx",
         "dependencies": [
@@ -202532,6 +204560,19 @@
           "GitCommitLinkResolution",
           "react/useEffect",
           "react/useMemo"
+        ]
+      },
+      "useGitCredentials": {
+        "path": "headless/contexts/GitCredentialsContext.tsx",
+        "dependencies": [
+          "GitCredentialsContextValue",
+          "react/createContext",
+          "react/useCallback",
+          "react/useContext",
+          "react/useEffect",
+          "react/useMemo",
+          "react/useState",
+          "react/ReactNode"
         ]
       },
       "useGitWithLog": {
@@ -203366,6 +205407,29 @@
           "react/useMemo",
           "react/useState",
           "thefactory-tools/types"
+        ]
+      },
+      "useProcessGroupLaunchPreview": {
+        "path": "headless/hooks/useProcessGroupLaunchPreview.ts",
+        "description": "What a group launch would start — every leg with its project, story and",
+        "dependencies": [
+          "ProcessGroupLaunchPreview",
+          "ProcessGroupLegRequest",
+          "Error",
+          "UseProcessGroupLaunchPreview",
+          "react/useEffect",
+          "react/useMemo",
+          "react/useState"
+        ]
+      },
+      "UseProcessGroupLaunchPreview": {
+        "path": "headless/hooks/useProcessGroupLaunchPreview.ts",
+        "dependencies": [
+          "ProcessGroupLaunchPreview",
+          "Error",
+          "react/useEffect",
+          "react/useMemo",
+          "react/useState"
         ]
       },
       "useProcessGroupLegLanding": {
@@ -205202,30 +207266,6 @@
           "react/useEffect",
           "react/useMemo",
           "react/useState"
-        ]
-      },
-      "useVerifyAttemptEvidence": {
-        "path": "headless/hooks/useVerifyAttemptEvidence.ts",
-        "description": "One verify attempt's evidence, whole.",
-        "dependencies": [
-          "UseVerifyAttemptEvidence",
-          "thefactory-tools/types/ProcessVerifyReview",
-          "thefactory-tools/types/ProcessLedgerEntry",
-          "react/useCallback",
-          "react/useMemo",
-          "thefactory-tools/types"
-        ]
-      },
-      "UseVerifyAttemptEvidence": {
-        "path": "headless/hooks/useVerifyAttemptEvidence.ts",
-        "dependencies": [
-          "Promise",
-          "VerifyAttemptEvidence",
-          "react/useCallback",
-          "react/useMemo",
-          "thefactory-tools/types/ProcessLedgerEntry",
-          "thefactory-tools/types/ProcessVerifyReview",
-          "thefactory-tools/types"
         ]
       },
       "useVideoDigest": {
@@ -207482,14 +209522,6 @@
           "thefactory-tools/utils"
         ]
       },
-      "withoutUndrawnTail": {
-        "path": "headless/utils/chatShownMessages.ts",
-        "description": "The messages up to the last one a client draws: trailing messages no client",
-        "dependencies": [
-          "M",
-          "DrawableMessage"
-        ]
-      },
       "withProcessChecks": {
         "path": "headless/utils/processChecksView.ts",
         "description": "A run's own verification record with its process's checks step read over it.",
@@ -207533,6 +209565,15 @@
           "thefactory-tools/utils/processInputDefinitionProblems",
           "thefactory-tools/utils/processStorylessLaunchProblem",
           "thefactory-tools/utils"
+        ]
+      },
+      "withProcessFakeDataInProduct": {
+        "path": "headless/utils/fakeDataInProduct.ts",
+        "description": "A project's metadata with its choice as edited, every other key as it was. Pure.",
+        "dependencies": [
+          "T",
+          "FakeDataInProduct",
+          "Record"
         ]
       },
       "withProcessRunClosurePick": {
@@ -208060,6 +210101,12 @@
       },
       "writeProjectDeviceAutomation": {
         "path": "headless/api/projectDeviceAutomationApi.ts",
+        "dependencies": [
+          "Promise"
+        ]
+      },
+      "writeProjectFile": {
+        "path": "headless/api/projectFileApi.ts",
         "dependencies": [
           "Promise"
         ]
@@ -210338,6 +212385,16 @@
         "path": "dist/codeIntel/javascript/codeIntelValueFlowJavascript.js",
         "dependencies": []
       },
+      "ANDROID_ABI_BY_HOST_ARCH": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "The ABI a capture emulator on a host runs, by the host's `process.arch`: its",
+        "dependencies": []
+      },
+      "ANDROID_ABIS": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "The ABIs an Android device can run, as Gradle and the device name them.",
+        "dependencies": []
+      },
       "ANDROID_BOOT_FIELDS": {
         "path": "dist/mobileTest/mobileTestConstants.js",
         "description": "The boot options only an Android emulator takes, as `mobileTestBootDevice` names them.",
@@ -210397,6 +212454,13 @@
         "path": "dist/proofPlan/uiChangeConstants.js",
         "description": "Android `values` files that change the screen: themes, styles, fonts, colours, dimensions, text.",
         "dependencies": []
+      },
+      "androidAbiForHostArch": {
+        "path": "dist/mobileTest/mobileTestUtils.js",
+        "description": "The ABI a capture emulator on a host of `arch` (`process.arch`) runs, or `undefined` for a host none is made for.",
+        "dependencies": [
+          "node:path/posix"
+        ]
       },
       "androidApplicationIdFromMetadata": {
         "path": "dist/mobileTest/mobileTestUtils.js",
@@ -221724,7 +223788,7 @@
       },
       "DEFAULT_ANDROID_BUILD_TIMEOUT_MS": {
         "path": "dist/mobileTest/mobileTestConstants.js",
-        "description": "How long a full Android app assemble may take before we give up (ms).",
+        "description": "How long a full Android app assemble may take before we give up (ms). A",
         "dependencies": []
       },
       "DEFAULT_ANSWER_READERS": {
@@ -231292,6 +233356,11 @@
       "isProcessWorkBranch": {
         "path": "dist/workflow/processBaseBranchUtils.js",
         "description": "Whether a branch is a process run's work branch (`factory/…`), which only its run brings in or ends. Pure.",
+        "dependencies": []
+      },
+      "isProcessWorkBranchBaseUpdateMessage": {
+        "path": "dist/workflow/processBaseUpdateUtils.js",
+        "description": "Whether a commit subject is the one {@link processWorkBranchBaseUpdateMessage}",
         "dependencies": []
       },
       "isProductPageUrl": {
@@ -244173,6 +246242,11 @@
         "description": "Why a pending request is closed when the person stopped the process.",
         "dependencies": []
       },
+      "PROCESS_WORK_BRANCH_BASE_UPDATE_SUBJECT": {
+        "path": "dist/workflow/workflowConstants.js",
+        "description": "The subject of the merge a process run makes bringing its base branch into",
+        "dependencies": []
+      },
       "PROCESS_WORK_BRANCH_KEPT": {
         "path": "dist/workflow/workflowConstants.js",
         "description": "What the log says when a work branch was kept rather than removed, and why.",
@@ -252955,6 +255029,11 @@
         "description": "The build type a React Native app's Android build assembles when the caller",
         "dependencies": []
       },
+      "REACT_NATIVE_ARCHITECTURES_PROPERTY": {
+        "path": "dist/mobileTest/mobileTestConstants.js",
+        "description": "React Native's Gradle property naming the ABIs its native code compiles for;",
+        "dependencies": []
+      },
       "REACT_NATIVE_DEV_BUILD_PATTERN": {
         "path": "dist/mobileTest/mobileTestConstants.js",
         "description": "A build type or configuration a React Native app runs as a dev build: its",
@@ -257581,6 +259660,11 @@
           "thefactory-db/MatchParams",
           "thefactory-db/SearchParams"
         ]
+      },
+      "ReviewBaseUpdateMerge": {
+        "path": "dist/cliAgentRunner/cliAgentRunnerTypes.d.ts",
+        "description": "A merge a process run made bringing its base branch into a review's branch.",
+        "dependencies": []
       },
       "ReviewBranchMergeGate": {
         "path": "dist/cliAgentRunner/cliAgentRunnerTypes.d.ts",

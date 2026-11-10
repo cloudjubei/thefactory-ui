@@ -24,10 +24,10 @@ import { afterPrimaryLoads } from '../utils/afterPrimaryLoads'
 const filesCache = new ProjectResourceCache<FileMeta[]>()
 
 /**
- * A project's file paths, revalidated against the same cache the provider
- * keeps — what a chat over several projects offers after `@`.
+ * A project's files with what is known about each, revalidated against the
+ * same cache the provider keeps — any project, not only the active one.
  */
-export async function loadProjectFilePaths(projectId: string): Promise<string[]> {
+export async function loadProjectFiles(projectId: string): Promise<FileMeta[]> {
   const cached = filesCache.get(projectId)
   const res = await getAllFileStats({
     path: { projectId },
@@ -40,6 +40,15 @@ export async function loadProjectFilePaths(projectId: string): Promise<string[]>
     files = (res.data ?? []) as FileMeta[]
     filesCache.set(projectId, files, readEtagHeader(res.headers))
   }
+  return files
+}
+
+/**
+ * A project's file paths, revalidated against the same cache the provider
+ * keeps — what a chat over several projects offers after `@`.
+ */
+export async function loadProjectFilePaths(projectId: string): Promise<string[]> {
+  const files = await loadProjectFiles(projectId)
   return files.map((f) => f.relativePath ?? f.absolutePath).filter(Boolean) as string[]
 }
 

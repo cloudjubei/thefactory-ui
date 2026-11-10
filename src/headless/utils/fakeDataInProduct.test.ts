@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import {
   fakeDataInProductLine,
+  groupLaunchFakeDataChoices,
+  groupLaunchFakeDataMetadata,
   isFakeDataInProduct,
   launchFakeDataChoice,
   launchFakeDataMetadata,
@@ -122,5 +124,70 @@ describe('fakeDataInProductLine', () => {
   it('has one line per option, each different', () => {
     const lines = FAKE_DATA_IN_PRODUCT_OPTIONS.map((o) => fakeDataInProductLine(o.value))
     expect(new Set(lines).size).toBe(FAKE_DATA_IN_PRODUCT_OPTIONS.length)
+  })
+})
+
+describe('groupLaunchFakeDataChoices', () => {
+  const legs = [
+    { projectId: 'web', fakeDataInProduct: 'ship' as const },
+    { projectId: 'mobile', fakeDataInProduct: 'keep-out' as const },
+    { projectId: 'backend' },
+  ]
+
+  it('starts each offering leg from its own value and leaves out the legs that offer none', () => {
+    expect(groupLaunchFakeDataChoices(legs, {})).toEqual({ web: 'ship', mobile: 'keep-out' })
+  })
+
+  it('is the person’s pick for a leg once they made one, the others as offered', () => {
+    expect(groupLaunchFakeDataChoices(legs, { web: 'keep-out' })).toEqual({
+      web: 'keep-out',
+      mobile: 'keep-out',
+    })
+    expect(groupLaunchFakeDataChoices(legs, { mobile: 'ship', web: 'ship' })).toEqual({
+      web: 'ship',
+      mobile: 'ship',
+    })
+  })
+
+  it('drops a pick for a leg that offers none, or that is not in the launch', () => {
+    expect(groupLaunchFakeDataChoices(legs, { backend: 'keep-out', gone: 'keep-out' })).toEqual({
+      web: 'ship',
+      mobile: 'keep-out',
+    })
+  })
+
+  it('reads a leg’s offer as loosely as a single preview’s: anything not a choice offers none', () => {
+    const loose = [
+      { projectId: 'a', fakeDataInProduct: 'keep' },
+      { projectId: 'b', fakeDataInProduct: undefined },
+      { projectId: 'c', fakeDataInProduct: true },
+    ] as unknown as Parameters<typeof groupLaunchFakeDataChoices>[0]
+    expect(groupLaunchFakeDataChoices(loose, { a: 'ship' })).toEqual({})
+  })
+
+  it('is empty for a launch with no legs', () => {
+    expect(groupLaunchFakeDataChoices([], { web: 'ship' })).toEqual({})
+  })
+})
+
+describe('groupLaunchFakeDataMetadata', () => {
+  it('carries the confirmed choice of every offering leg by project id', () => {
+    expect(
+      groupLaunchFakeDataMetadata(
+        [
+          { projectId: 'web', fakeDataInProduct: 'ship' },
+          { projectId: 'mobile', fakeDataInProduct: 'keep-out' },
+          { projectId: 'backend' },
+        ],
+        { web: 'keep-out' },
+      ),
+    ).toEqual({ fakeDataInProduct: { web: 'keep-out', mobile: 'keep-out' } })
+  })
+
+  it('carries nothing when no leg offers a choice, whatever was picked', () => {
+    expect(groupLaunchFakeDataMetadata([{ projectId: 'backend' }], { backend: 'ship' })).toBe(
+      undefined,
+    )
+    expect(groupLaunchFakeDataMetadata([], {})).toBeUndefined()
   })
 })

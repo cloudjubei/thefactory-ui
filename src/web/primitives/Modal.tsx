@@ -14,6 +14,9 @@ import { Button } from './Button'
 
 export type ModalSize = 'sm' | 'md' | 'lg' | 'xl'
 
+/** Where the dialog sits: centred, or as a full-height drawer on the right edge. */
+export type ModalPlacement = 'center' | 'right'
+
 export type ModalProps = {
   isOpen: boolean
   onClose: () => void
@@ -52,6 +55,8 @@ export type ModalProps = {
    * the responsive `w-full`) so the side panel always sits flush beside it.
    */
   sidePanel?: ReactNode
+  /** Where the dialog sits. Defaults to centred; `right` docks it full-height on the right. */
+  placement?: ModalPlacement
 }
 
 const SIZE_CLASS: Record<ModalSize, string> = {
@@ -103,6 +108,7 @@ export function Modal({
   contentClassName,
   panelClassName,
   sidePanel,
+  placement = 'center',
 }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement | null>(null)
   const panelRef = useRef<HTMLDivElement | null>(null)
@@ -184,8 +190,12 @@ export function Modal({
         'relative',
         sidePanel
           ? `${SIZE_WIDTH[size]} shrink-0 rounded-l-lg border`
-          : `z-10 w-full ${SIZE_CLASS[size]} rounded-lg border shadow-xl`,
-        'max-h-[calc(100dvh-1.5rem)] sm:max-h-[90vh] flex flex-col outline-none',
+          : placement === 'right'
+            ? `z-10 w-full ${SIZE_CLASS[size]} h-full border-l shadow-xl`
+            : `z-10 w-full ${SIZE_CLASS[size]} rounded-lg border shadow-xl`,
+        placement === 'right'
+          ? 'max-h-full flex flex-col outline-none'
+          : 'max-h-[calc(100dvh-1.5rem)] sm:max-h-[90vh] flex flex-col outline-none',
         panelClassName,
       ]
         .filter(Boolean)
@@ -234,7 +244,9 @@ export function Modal({
   // ancestor's `overflow`/`transform` (e.g. the sidebar, which is the
   // containing block for fixed descendants while it's a drawer).
   return createPortal(
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center">
+    <div
+      className={`fixed inset-0 z-[1000] flex ${placement === 'right' ? 'items-stretch justify-end' : 'items-center justify-center'}`}
+    >
       <div
         ref={overlayRef}
         className="absolute inset-0 bg-black/40"

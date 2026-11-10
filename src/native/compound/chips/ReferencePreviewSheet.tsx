@@ -1,7 +1,8 @@
 import type { ComponentType, ReactNode } from 'react'
 import { Text, View } from 'react-native'
 import type { ResourceLink } from 'thefactory-tools/types'
-import type { ReferencePreview } from '../../../headless'
+import type { FilePreviewTarget, ReferencePreview } from '../../../headless'
+import { FILE_PREVIEW_LABEL } from '../../../headless/utils/filePreviewConstants'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import BottomSheet from '../../primitives/BottomSheet'
@@ -14,6 +15,8 @@ export type ReferencePreviewSheetProps = {
   glyph: ComponentType<{ size?: number; color?: string }>
   /** Opens what the sheet is about; without it, the sheet offers no button. */
   onOpen?: (link: ResourceLink) => void
+  /** Opens a file in a full-screen preview, beside "Open in Files"; only a file's sheet offers it. */
+  onPreview?: (target: FilePreviewTarget) => void
   /** A second action beside the open button — a run's chat. */
   secondary?: { label: string; onSelect: () => void }
   /** More to show under the lines — a design's miniature. */
@@ -23,7 +26,8 @@ export type ReferencePreviewSheetProps = {
 /**
  * Native peer of web's `ReferencePreviewCard`: what a reference is, in a sheet
  * a long press opens — its kind, its number and title, its status, a line or
- * two about it, and the button that opens it.
+ * two about it, and the button that opens it — for a file, a second that
+ * previews it.
  */
 export default function ReferencePreviewSheet({
   isOpen,
@@ -31,11 +35,13 @@ export default function ReferencePreviewSheet({
   view,
   glyph: Glyph,
   onOpen,
+  onPreview,
   secondary,
   children,
 }: ReferencePreviewSheetProps) {
   const { theme, status } = useNativeTheme()
   const primary = view.primary && onOpen ? view.primary : undefined
+  const filePreview = view.filePreview && onPreview ? view.filePreview : undefined
   const pill = view.status ? status[view.status.tone] : undefined
   return (
     <BottomSheet
@@ -74,7 +80,7 @@ export default function ReferencePreviewSheet({
         </View>
       }
       footer={
-        primary || secondary ? (
+        primary || filePreview || secondary ? (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: nativeSpace[2] }}>
             {primary ? (
               <Button
@@ -85,6 +91,17 @@ export default function ReferencePreviewSheet({
                 }}
               >
                 {primary.label}
+              </Button>
+            ) : null}
+            {filePreview ? (
+              <Button
+                variant="secondary"
+                onPress={() => {
+                  onClose()
+                  onPreview?.(filePreview)
+                }}
+              >
+                {FILE_PREVIEW_LABEL}
               </Button>
             ) : null}
             {secondary ? (

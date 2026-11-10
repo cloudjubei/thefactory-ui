@@ -1,6 +1,7 @@
 import type { ComponentType, ReactNode } from 'react'
 import type { ResourceLink } from 'thefactory-tools/types'
-import type { ReferencePreview } from '../../../headless'
+import type { FilePreviewTarget, ReferencePreview } from '../../../headless'
+import { FILE_PREVIEW_LABEL } from '../../../headless/utils/filePreviewConstants'
 import { Button } from '../../primitives/Button'
 import { PROCESS_TONE_BADGE } from '../process/signoff/tones'
 
@@ -9,6 +10,8 @@ export type ReferencePreviewCardProps = {
   glyph: ComponentType<{ className?: string }>
   /** Opens what the card is about; without it, the card offers no button. */
   onOpen?: (link: ResourceLink) => void
+  /** Opens a file in a popup, beside "Open in Files"; only a file's card offers it. */
+  onPreview?: (target: FilePreviewTarget) => void
   /** A second action beside the open button — a run's chat. */
   secondary?: { label: string; onSelect: () => void }
   /** More to show under the lines — a design's miniature. */
@@ -17,16 +20,19 @@ export type ReferencePreviewCardProps = {
 
 /**
  * What a reference is, on hover: its kind, its number and title, its status,
- * a line or two about it, and one click that opens it.
+ * a line or two about it, and one click that opens it — for a file, a second
+ * that previews it in a popup.
  */
 export default function ReferencePreviewCard({
   view,
   glyph: Glyph,
   onOpen,
+  onPreview,
   secondary,
   children,
 }: ReferencePreviewCardProps) {
   const primary = view.primary && onOpen ? view.primary : undefined
+  const filePreview = view.filePreview && onPreview ? view.filePreview : undefined
   return (
     <div className="flex w-72 max-w-full flex-col gap-2.5 text-[12.5px]">
       <div className="flex items-center gap-2.5">
@@ -62,7 +68,7 @@ export default function ReferencePreviewCard({
         </div>
       ) : null}
       {children}
-      {primary || secondary ? (
+      {primary || filePreview || secondary ? (
         <div className="flex flex-wrap gap-2">
           {primary ? (
             <Button
@@ -75,6 +81,19 @@ export default function ReferencePreviewCard({
               }}
             >
               {primary.label}
+            </Button>
+          ) : null}
+          {filePreview ? (
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                onPreview?.(filePreview)
+              }}
+            >
+              {FILE_PREVIEW_LABEL}
             </Button>
           ) : null}
           {secondary ? (

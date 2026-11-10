@@ -57,6 +57,7 @@ import {
   VISIBLE_VIDEO_CHANGE_OFFER,
 } from '../scenes/proofChangeFixtures'
 import { FAKE_DATA_VIEWS } from './fakeDataViews'
+import { FILE_PREVIEW_VIEWS } from './filePreviewViews'
 import { SCRIPTED_VIEWS } from './scriptedViews'
 import { VARIANT_VIEWS } from './variantViews'
 
@@ -547,4 +548,5 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   ...VARIANT_VIEWS,
   ...SCRIPTED_VIEWS,
   ...FAKE_DATA_VIEWS,
+  ...FILE_PREVIEW_VIEWS,
 ]

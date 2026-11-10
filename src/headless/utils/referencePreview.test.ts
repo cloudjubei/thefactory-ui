@@ -83,6 +83,49 @@ describe('referencePreview', () => {
     })
   })
 
+  it('offers a file in another project a preview by that project, beside opening it in Files', () => {
+    const link = {
+      kind: 'file',
+      projectId: 'compass-be',
+      path: 'docs/ZNR-780_PROPOSAL.md',
+    } as const
+    expect(
+      referencePreview({
+        kind: 'file',
+        label: 'Compass BE docs/ZNR-780_PROPOSAL.md',
+        projectName: 'Compass BE',
+        link,
+      }),
+    ).toEqual({
+      caption: 'File in Compass BE',
+      title: 'docs/ZNR-780_PROPOSAL.md',
+      lines: [],
+      primary: { label: 'Open in Files', link },
+      filePreview: {
+        projectId: 'compass-be',
+        path: 'docs/ZNR-780_PROPOSAL.md',
+        projectName: 'Compass BE',
+      },
+    })
+  })
+
+  it('offers no preview of a folder, nor of a file that is gone', () => {
+    const folder = referencePreview({
+      kind: 'file',
+      label: 'docs/',
+      link: { kind: 'file', projectId: 'p', path: 'docs/' },
+    })
+    expect(folder.filePreview).toBeUndefined()
+    expect(folder.primary?.label).toBe('Open in Files')
+    const gone = referencePreview({
+      kind: 'file',
+      label: 'docs/old.md',
+      missing: true,
+      link: { kind: 'file', projectId: 'p', path: 'docs/old.md' },
+    })
+    expect(gone).not.toHaveProperty('filePreview')
+  })
+
   it('says a reference is being looked up while its project loads, with nothing to open', () => {
     expect(
       referencePreview({

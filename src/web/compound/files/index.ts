@@ -22,6 +22,11 @@ export {
   type FileInfoData,
 } from './FileInfoButton'
 export { default as FilePaneHeader, type FilePaneHeaderProps } from './FilePaneHeader'
+export { default as FilePreviewDialog, type FilePreviewDialogProps } from './FilePreviewDialog'
+export {
+  default as FilePreviewDialogConnected,
+  type FilePreviewDialogConnectedProps,
+} from './FilePreviewDialogConnected'
 export { default as HtmlEditor, type HtmlEditorPaneView, type HtmlEditorProps } from './HtmlEditor'
 export { default as ImageViewer, type ImageViewerProps } from './ImageViewer'
 export { default as PdfViewer, type PdfViewerProps } from './PdfViewer'

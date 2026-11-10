@@ -1,4 +1,5 @@
 import type { ResourceLink } from 'thefactory-tools/types'
+import type { FilePreviewTarget } from './filePreviewTypes'
 import type { ProcessStatusTone } from './processView'
 
 /** What a preview card's button opens, and what it says. */
@@ -15,6 +16,8 @@ export type ReferencePreview = {
   lines: ReadonlyArray<{ label: string; value: string }>
   /** The one click that opens it; absent for what is gone or still being looked up. */
   primary?: ReferencePreviewAction
+  /** The file its Preview shows in a popup — a file that is there, never a folder. */
+  filePreview?: FilePreviewTarget
 }
 
 /** A process run's preview card: its own, plus whether it offers the run's chat. */
