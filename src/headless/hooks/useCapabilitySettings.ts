@@ -98,6 +98,10 @@ export function useCapabilitySettings(owner: CapabilitySettingsOwner): UseCapabi
     owner.kind === 'project' ? `project:${owner.projectId}` : `group:${owner.groupId}`
   const ownerKeyRef = useRef(ownerKey)
   ownerKeyRef.current = ownerKey
+  // A finished save applies only while this epoch still matches — a newer
+  // save, or leaving and coming back to the same owner, bumps it so the
+  // stale request cannot roll the new toggle back or clear its busy flag.
+  const saveEpochRef = useRef(0)
   const [flags, showFlags] = useHeld(ownerKey, serverFlagKey, serverFlags)
 
   const [toolContent, setToolContent] = useState<unknown>(undefined)
@@ -109,12 +113,17 @@ export function useCapabilitySettings(owner: CapabilitySettingsOwner): UseCapabi
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   // A panel that stays mounted (project switcher, one group then another) must
-  // not keep the previous owner's error or a save that is still in flight.
+  // not keep the previous owner's error, tool rows, or a save still in flight.
   const [seenOwner, setSeenOwner] = useState(ownerKey)
   if (seenOwner !== ownerKey) {
     setSeenOwner(ownerKey)
     setError(null)
     setBusy(false)
+    saveEpochRef.current += 1
+    setToolContent(undefined)
+    setToolKey(toolSetsKey(undefined))
+    setHeldToolKey(null)
+    setToolStatus(owner.kind === 'project' ? 'loading' : 'ready')
   }
 
   useEffect(() => {
@@ -158,6 +167,7 @@ export function useCapabilitySettings(owner: CapabilitySettingsOwner): UseCapabi
   const saveFlags = useCallback(
     async (next: unknown, previous: unknown) => {
       const savedFor = ownerKey
+      const epoch = ++saveEpochRef.current
       setBusy(true)
       setError(null)
       showFlags(next, capabilityFlagsKey(next))
@@ -187,11 +197,11 @@ export function useCapabilitySettings(owner: CapabilitySettingsOwner): UseCapabi
           })
         }
       } catch (err) {
-        if (ownerKeyRef.current !== savedFor) return
+        if (ownerKeyRef.current !== savedFor || saveEpochRef.current !== epoch) return
         showFlags(previous, capabilityFlagsKey(previous))
         fail(err)
       } finally {
-        if (ownerKeyRef.current === savedFor) setBusy(false)
+        if (ownerKeyRef.current === savedFor && saveEpochRef.current === epoch) setBusy(false)
       }
     },
     [fail, owner, ownerKey, project, showFlags],
@@ -201,6 +211,7 @@ export function useCapabilitySettings(owner: CapabilitySettingsOwner): UseCapabi
     async (next: { toolSets: string[]; deviceAutomation: boolean }, previous: unknown) => {
       if (owner.kind !== 'project') return
       const savedFor = ownerKey
+      const epoch = ++saveEpochRef.current
       setBusy(true)
       setError(null)
       setToolContent(next)
@@ -212,12 +223,12 @@ export function useCapabilitySettings(owner: CapabilitySettingsOwner): UseCapabi
           content: next,
         })
       } catch (err) {
-        if (ownerKeyRef.current !== savedFor) return
+        if (ownerKeyRef.current !== savedFor || saveEpochRef.current !== epoch) return
         setToolContent(previous)
         setHeldToolKey(toolSetsKey(previous))
         fail(err)
       } finally {
-        if (ownerKeyRef.current === savedFor) setBusy(false)
+        if (ownerKeyRef.current === savedFor && saveEpochRef.current === epoch) setBusy(false)
       }
     },
     [fail, owner, ownerKey],

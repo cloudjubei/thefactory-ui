@@ -473,4 +473,84 @@ describe('useCapabilitySettings', () => {
       content: { toolSets: [], deviceAutomation: false },
     })
   })
+
+  it('ignores a same-owner save that finishes after leave, return, and a new toggle', async () => {
+    harness.groups = [group('east', { autoMerge: true }), group('west')]
+    await show({ kind: 'group', groupId: 'east' })
+    const save = openGate()
+    harness.updateProjectsGroup.mockImplementation(save.start)
+    await act(async () => {
+      panel().toggle(flag('flag-connectorWriteBack'), true)
+    })
+    expect(flag('flag-connectorWriteBack').on).toBe(true)
+    expect(panel().busy).toBe(true)
+
+    await show({ kind: 'group', groupId: 'west' })
+    await show({ kind: 'group', groupId: 'east' })
+    expect(flag('flag-connectorWriteBack').on).toBe(false)
+    expect(panel().busy).toBe(false)
+
+    await act(async () => {
+      panel().toggle(flag('flag-autoFollowUp'), true)
+    })
+    expect(flag('flag-autoFollowUp').on).toBe(true)
+    expect(panel().busy).toBe(true)
+
+    save.pending[0]?.reject(new Error('first east save failed'))
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(panel().error).toBeNull()
+    expect(flag('flag-autoFollowUp').on).toBe(true)
+    expect(flag('flag-connectorWriteBack').on).toBe(false)
+    expect(panel().busy).toBe(true)
+
+    save.pending[1]?.resolve({})
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(panel().busy).toBe(false)
+    expect(flag('flag-autoFollowUp').on).toBe(true)
+  })
+
+  it('clears tool rows on the render that switches project, before the fetch runs', async () => {
+    const tools: Record<string, unknown> = {
+      alpha: { toolSets: ['trainer'], deviceAutomation: true },
+      beta: { toolSets: [], deviceAutomation: false },
+    }
+    const fetch = openGate()
+    harness.queryProjectData.mockImplementation(
+      (projectId: string) =>
+        fetch.start().then(() => {
+          const content = tools[projectId]
+          return content === undefined ? [] : [{ content }]
+        }) as Promise<Array<{ content: unknown }>>,
+    )
+    harness.projects = [project('alpha', { icon: 'box' }), project('beta', { icon: 'beta' })]
+
+    await act(async () => {
+      root?.render(<Host owner={{ kind: 'project', projectId: 'alpha' }} />)
+    })
+    fetch.pending[0]?.resolve()
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(flag('device-automation').on).toBe(true)
+    expect(flag('tool-set-trainer').on).toBe(true)
+
+    await act(async () => {
+      root?.render(<Host owner={{ kind: 'project', projectId: 'beta' }} />)
+    })
+    expect(latest.current?.loading).toBe(true)
+    expect(latest.current?.view).toBeUndefined()
+    expect(latest.current?.busy).toBe(false)
+    expect(latest.current?.error).toBeNull()
+
+    fetch.pending[1]?.resolve()
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(flag('device-automation').on).toBe(false)
+    expect(flag('tool-set-trainer').on).toBe(false)
+  })
 })
