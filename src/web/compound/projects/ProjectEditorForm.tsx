@@ -42,6 +42,7 @@ import {
 import ProjectCheckEnvField from './ProjectCheckEnvField'
 import ProjectCodeInfoModal, { type CodeInfoValue } from './ProjectCodeInfoModal'
 import ProjectDefaultCapsField from './ProjectDefaultCapsField'
+import ProjectFakeDataInProductField from './ProjectFakeDataInProductField'
 import ProjectEvaluationDefaultsField from './ProjectEvaluationDefaultsField'
 import TicketConnectionPicker from './TicketConnectionPicker'
 import type { ProjectCheckEnvSetting } from 'thefactory-tools/types'
@@ -445,6 +446,13 @@ export function ProjectEditorForm({
           onErrorChange={setCapsError}
         />
       </div>
+
+      <ProjectFakeDataInProductField
+        metadata={form.metadata}
+        onChange={(metadata) =>
+          setForm((s) => ({ ...s, metadata: metadata as ProjectFormState['metadata'] }))
+        }
+      />
 
       {mode === 'edit' && evaluation.settings?.available ? (
         <ProjectEvaluationDefaultsField

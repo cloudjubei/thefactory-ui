@@ -137,6 +137,14 @@ describe('processRunStartBody', () => {
       spendCapUsd: 5,
     })
   })
+
+  it('sends the fake-data choice confirmed on the card', () => {
+    expect(processRunStartBody('p', 'x', { fakeDataInProduct: 'keep-out' })).toEqual({
+      projectId: 'p',
+      processId: 'x',
+      fakeDataInProduct: 'keep-out',
+    })
+  })
 })
 
 describe('processRunAskView', () => {

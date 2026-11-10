@@ -187,6 +187,11 @@ export function FilePane({
     }
   }, [filePath, draft, onWrite, toSave])
 
+  const previewText = useMemo(
+    () => (typesReferences ? toSave(draft) : undefined),
+    [typesReferences, toSave, draft],
+  )
+
   if (!filePath) {
     return (
       <div className="flex items-center justify-center h-full opacity-60 text-sm">
@@ -198,10 +203,6 @@ export function FilePane({
   const isText = kind === 'text' || kind === 'markdown' || kind === 'html'
   const hasPaneToggle = kind === 'markdown' || kind === 'html'
   const isDirty = isText && shown !== null && draft !== shown
-  const previewText = useMemo(
-    () => (typesReferences ? toSave(draft) : undefined),
-    [typesReferences, toSave, draft],
-  )
 
   const copyAll = async () => {
     try {

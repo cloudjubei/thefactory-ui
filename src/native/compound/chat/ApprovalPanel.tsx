@@ -66,6 +66,9 @@ import {
   launchCapsOfArgs,
   launchCapsSummary,
   launchCapsValid,
+  launchFakeDataChoice,
+  launchFakeDataMetadata,
+  launchFakeDataOffered,
   launchWorstCaseLine,
   processStatisticsLine,
   processTurnLimitOfView,
@@ -79,6 +82,7 @@ import {
 } from '../../../headless'
 import type {
   AgentTypeSlotPicks,
+  FakeDataInProduct,
   LaunchProofPlanEdits,
   PendingToolGrant,
   LaunchCapsTyped,
@@ -94,6 +98,7 @@ import LaunchOverlapNote from './LaunchOverlapNote'
 import OpenWorkChooser from './OpenWorkChooser'
 import AlreadyDoneNote from './AlreadyDoneNote'
 import LaunchCapsFields from './LaunchCapsFields'
+import LaunchFakeDataChoice from './LaunchFakeDataChoice'
 import LaunchFeatureList from './LaunchFeatureList'
 import ProjectNoteChip from '../chips/ProjectNoteChip'
 import ActivityStopApprovalPanel from './ActivityStopApprovalPanel'
@@ -380,6 +385,11 @@ function ToolApprovalPanel({
   const [saveProofPlans, setSaveProofPlans] = useState(false)
   const proofPlanRows = launchProofPlanRows(proposal, proofPlanEdits)
   const featureRows = launchFeatureRows(proposalView, proofPlanRows)
+  const [fakeDataPick, setFakeDataPick] = useState<FakeDataInProduct | undefined>(undefined)
+  const fakeData = joinsOpenRun
+    ? undefined
+    : launchFakeDataChoice(launchFakeDataOffered(proposal), fakeDataPick)
+  const fakeDataMeta = launchFakeDataMetadata(fakeData)
   const worstCase = launchWorstCaseLine({
     attempts:
       capsMeta.maxIterations ?? Math.max(0, ...featureRows.map((r) => r.maxIterations ?? 0)),
@@ -490,6 +500,7 @@ function ToolApprovalPanel({
                   ...(decision === 'once' && slotMeta ? slotMeta : {}),
                   ...(decision === 'once' && proofPlanMeta ? proofPlanMeta : {}),
                   ...(decision === 'once' && pickMeta ? pickMeta : {}),
+                  ...(decision === 'once' && fakeDataMeta ? fakeDataMeta : {}),
                 }
               : undefined,
         ),
@@ -781,6 +792,10 @@ function ToolApprovalPanel({
               ))
             )}
           </View>
+        ) : null}
+
+        {!inChat && fakeData ? (
+          <LaunchFakeDataChoice value={fakeData} busy={busy} onChange={setFakeDataPick} />
         ) : null}
 
         {isLaunch ? <WorkFilesList files={summary.files} /> : null}

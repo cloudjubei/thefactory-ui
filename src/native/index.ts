@@ -481,6 +481,14 @@ export {
   type ProjectDefaultCapsFieldProps,
 } from './compound/projects/ProjectDefaultCapsField'
 export {
+  default as ProjectFakeDataInProductField,
+  type ProjectFakeDataInProductFieldProps,
+} from './compound/projects/ProjectFakeDataInProductField'
+export {
+  default as LaunchFakeDataChoice,
+  type LaunchFakeDataChoiceProps,
+} from './compound/chat/LaunchFakeDataChoice'
+export {
   default as StuckCard,
   type StuckCardLayout,
   type StuckCardProps,

@@ -3669,6 +3669,7 @@ export type ProjectRegistryMetadata = {
     wallClockMs?: number
     maxIterations?: number
   }
+  processFakeDataInProduct?: 'ship' | 'keep-out'
   workLaunchMode?: 'process' | 'chat'
   capabilities?: {
     connectorWriteBack?: boolean
@@ -3719,6 +3720,7 @@ export type ProjectRegistryEntry = {
       wallClockMs?: number
       maxIterations?: number
     }
+    processFakeDataInProduct?: 'ship' | 'keep-out'
     workLaunchMode?: 'process' | 'chat'
     capabilities?: {
       connectorWriteBack?: boolean
@@ -16909,6 +16911,7 @@ export type ProjectSpecCreateInput = {
       wallClockMs?: number
       maxIterations?: number
     }
+    processFakeDataInProduct?: 'ship' | 'keep-out'
     workLaunchMode?: 'process' | 'chat'
     capabilities?: {
       connectorWriteBack?: boolean
@@ -17002,6 +17005,7 @@ export type ProjectSpecEditInput = {
       wallClockMs?: number
       maxIterations?: number
     }
+    processFakeDataInProduct?: 'ship' | 'keep-out'
     workLaunchMode?: 'process' | 'chat'
     capabilities?: {
       connectorWriteBack?: boolean
@@ -25394,6 +25398,7 @@ export type ProcessLaunchDecision = {
     implementer?: string
     verifier?: string
   }
+  fakeDataInProduct?: 'ship' | 'keep-out'
 }
 
 export type ProcessLaunchOverlapRun = {
@@ -31963,6 +31968,7 @@ export type PreviewProcessResponses = {
       wallClockMs?: number
       maxIterations?: number
     }
+    fakeDataInProduct?: 'ship' | 'keep-out'
   }
 }
 
@@ -32184,6 +32190,7 @@ export type StartProcessRunData = {
     maxIterations?: number
     questionCap?: number
     checkTimeoutMs?: number
+    fakeDataInProduct?: 'ship' | 'keep-out'
   }
   path?: never
   query?: never
@@ -32348,6 +32355,7 @@ export type PreviewProcessRunResponses = {
         wallClockMs?: number
         maxIterations?: number
       }
+      fakeDataInProduct?: 'ship' | 'keep-out'
     }
     /**
      * What the form asks for.

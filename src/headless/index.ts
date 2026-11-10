@@ -1817,6 +1817,17 @@ export type {
   LaunchCapsTyped,
   LaunchWorstCaseInput,
 } from './utils/processLaunchCapsTypes'
+export {
+  fakeDataInProductLine,
+  isFakeDataInProduct,
+  launchFakeDataChoice,
+  launchFakeDataMetadata,
+  launchFakeDataOffered,
+  readProcessFakeDataInProduct,
+  withProcessFakeDataInProduct,
+} from './utils/fakeDataInProduct'
+export * from './utils/fakeDataInProductConstants'
+export type { FakeDataInProduct, FakeDataInProductOption } from './utils/fakeDataInProductTypes'
 export { processStatisticsLine, processStatisticsRows } from './utils/processRunStatistics'
 export * from './utils/processRunStatisticsConstants'
 export type { ProcessStatisticsRow } from './utils/processRunStatisticsTypes'

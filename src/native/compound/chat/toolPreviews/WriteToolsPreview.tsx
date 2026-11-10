@@ -51,10 +51,6 @@ export function WriteToolsPreview({ toolCall, result, resultType }: WriteToolsPr
   const isPreviewObject = !!(result && typeof result === 'object' && 'status' in (result as object))
   const preview = isPreviewObject ? (result as ToolPreview) : undefined
 
-  if (preview?.status === 'error') {
-    return <ErrorContent message={preview.error || 'Preview failed'} />
-  }
-
   const actualData = useMemo(() => {
     if (preview) {
       if (preview.status === 'ready') {
@@ -85,6 +81,10 @@ export function WriteToolsPreview({ toolCall, result, resultType }: WriteToolsPr
     if (typeof actualData === 'string') return actualData
     return undefined
   }, [actualData])
+
+  if (preview?.status === 'error') {
+    return <ErrorContent message={preview.error || 'Preview failed'} />
+  }
 
   const isNewFile = toolName === 'writeFile' ? isCompletelyNewFile(actualData, successPatch) : false
 

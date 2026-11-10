@@ -64,6 +64,7 @@ import { PROCESS_STEP_TOOL_SCENES } from '../scenes/processStepTools'
 import { PROJECT_EDITOR_LIMIT_SCENES } from '../scenes/projectEditorLimits'
 import { PROJECT_OVERVIEW_MODEL_SCENES } from '../scenes/projectOverviewModel'
 import { PROOF_CHANGE_SCENES } from '../scenes/proofChange'
+import { FAKE_DATA_IN_PRODUCT_SCENES } from '../scenes/fakeDataInProduct'
 import { REGENERATED_MERGE_SCENES } from '../scenes/regeneratedMerge'
 import { NEEDS_YOU_REFERENCE_SCENES } from '../scenes/needsYouReferences'
 import { RUN_ACCESS_SCENES } from '../scenes/runAccess'
@@ -137,6 +138,7 @@ export const SCENES: readonly Scene[] = [
   ...PROCESS_MODEL_SCENES,
   ...PROCESS_STEP_TOOL_SCENES,
   ...PROOF_CHANGE_SCENES,
+  ...FAKE_DATA_IN_PRODUCT_SCENES,
   ...BEFORE_AFTER_VIDEO_SCENES,
   ...ANSWER_FILES_SCENES,
   ...VIDEO_SETTINGS_SCENES,

@@ -10,6 +10,9 @@ import {
   launchCapsOfArgs,
   launchCapsSummary,
   launchCapsValid,
+  launchFakeDataChoice,
+  launchFakeDataMetadata,
+  launchFakeDataOffered,
   launchWorstCaseLine,
   processGrantTurnLimitView,
   processLaunchVariants,
@@ -18,6 +21,7 @@ import {
   startProcessRunGrantSummary,
   useProcessRunLaunch,
   useProjectNotes,
+  type FakeDataInProduct,
   type LaunchCapsTyped,
   type PendingToolGrant,
 } from '../../../headless'
@@ -39,6 +43,7 @@ import { Textarea } from '../../primitives/Textarea'
 import { TurnLimitField } from '../TurnLimitField'
 import BaseBranchChooser from './BaseBranchChooser'
 import LaunchCapsFields from './LaunchCapsFields'
+import LaunchFakeDataChoice from './LaunchFakeDataChoice'
 import ProcessLaunchFields from './ProcessLaunchFields'
 import ToolAskCard from './ToolAskCard'
 
@@ -97,6 +102,8 @@ export default function ProcessRunLaunchPanel({
     typed: capsTyped,
   })
   const capsMeta = launchCapsMetadata(capFields)
+  const [fakeDataPick, setFakeDataPick] = useState<FakeDataInProduct | undefined>(undefined)
+  const fakeData = launchFakeDataChoice(launchFakeDataOffered(form?.proposal), fakeDataPick)
   const baseBranch = baseBranchChoice(form?.baseBranches, summary.baseBranch, basePick)
   const variantCount = (form?.inputs ?? [])
     .filter((input) => input.kind === 'variants')
@@ -125,6 +132,7 @@ export default function ProcessRunLaunchPanel({
               turnLimit: processTurnLimitOfView(turnLimit),
               ...capsMeta,
               ...baseBranchMetadata(baseBranch),
+              ...launchFakeDataMetadata(fakeData),
             }
           : undefined,
       )
@@ -201,6 +209,10 @@ export default function ProcessRunLaunchPanel({
             onChange={(capKey, text) => setCapsTyped((prev) => ({ ...prev, [capKey]: text }))}
           />
         </div>
+
+        {fakeData ? (
+          <LaunchFakeDataChoice value={fakeData} busy={busy} onChange={setFakeDataPick} />
+        ) : null}
 
         {noteOpen ? (
           <label className="flex flex-col gap-1">

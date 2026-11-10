@@ -125,6 +125,23 @@ describe('showcase registry', () => {
     expect(markup('request-video')).toContain('Require a before/after video')
   })
 
+  it('draws the project’s fake-data setting with the line of the choice it holds', () => {
+    const states = SCENES.find((s) => s.id === 'project-fake-data-in-product')?.states ?? []
+    const markup = (id: string) =>
+      renderToStaticMarkup(<>{states.find((s) => s.id === id)?.render()}</>)
+    const ship = 'Fake-data code is committed with the work.'
+    const keepOut = 'Fake-data code is used for proof only and left out when the work is merged.'
+    for (const id of ['ship', 'keep-out']) {
+      expect(markup(id), id).toContain('Fake data in the product')
+      expect(markup(id), id).toContain('Ship it')
+      expect(markup(id), id).toContain('Keep it out')
+    }
+    expect(markup('ship')).toContain(ship)
+    expect(markup('ship')).not.toContain(keepOut)
+    expect(markup('keep-out')).toContain(keepOut)
+    expect(markup('keep-out')).not.toContain(ship)
+  })
+
   it('draws a failed turn under a hidden notice exactly as the turn alone, Try again offered', () => {
     const states = SCENES.find((s) => s.id === 'chat-hidden-notice-tail')?.states ?? []
     const markup = (id: string) =>

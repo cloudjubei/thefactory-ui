@@ -387,13 +387,7 @@ function StorySignoffPanel({
 
   const hasSignoff =
     signoff.features.length > 0 || signoff.fixes.length > 0 || signoff.overall !== undefined
-  if (!hasSignoff && evidence.tiles.length === 0 && extraChips.length === 0) {
-    return (
-      <div className="text-[12px] text-(--text-secondary)">
-        No evidence was filed for this story’s features.
-      </div>
-    )
-  }
+  const noEvidenceFiled = !hasSignoff && evidence.tiles.length === 0 && extraChips.length === 0
 
   const ownReviewOf = (featureId: string) => {
     const own = sectionOf(featureId).codeReviews[0]
@@ -612,6 +606,14 @@ function StorySignoffPanel({
   useEffect(() => {
     if (needsYouFocus && reportChipKey) setChipKey(reportChipKey)
   }, [needsYouFocus, reportChipKey])
+
+  if (noEvidenceFiled) {
+    return (
+      <div className="text-[12px] text-(--text-secondary)">
+        No evidence was filed for this story’s features.
+      </div>
+    )
+  }
 
   const criteriaCount = features.reduce(
     (n, f) => n + acceptanceCriteriaLines(f.acceptance).length,

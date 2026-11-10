@@ -87,6 +87,7 @@ const START_BODY_KEYS: readonly string[] = [
   'maxIterations',
   'questionCap',
   'checkTimeoutMs',
+  'fakeDataInProduct',
 ]
 
 /** What `POST /process-runs` takes of a card's decision: nothing it would refuse. Pure. */

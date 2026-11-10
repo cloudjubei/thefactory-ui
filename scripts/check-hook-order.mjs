@@ -21,6 +21,12 @@ const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', 'src')
 
 /** A top-level `return`/`if (...) return` inside a component body. */
 const EARLY_RETURN = /^ {2}(return\b|if\s*\(.*\)\s*return\b)/
+/** A top-level `if (...) {` / `} else {` that opens a block of the component body. */
+const IF_BLOCK_OPEN = /^ {2}(?:\}\s*else\s+)?(?:if\s*\(.*\)|\}?\s*else)\s*\{\s*$/
+/** The `}` closing such a block. */
+const IF_BLOCK_CLOSE = /^ {2}\}/
+/** A `return` directly inside that block: `if (!x) {\n    return null\n  }`. */
+const RETURN_IN_IF_BLOCK = /^ {4}return\b/
 /** A top-level hook call: `const x = useThing(` / `useThing(`. */
 const HOOK_CALL = /^ {2}(?:const\s+[[{\w].*?=\s*)?(use[A-Z]\w*)\s*\(/
 /**
@@ -46,10 +52,24 @@ for (const file of walk(SRC)) {
   if (file.includes('.test.')) continue
   const lines = readFileSync(file, 'utf8').split('\n')
   let sawEarlyReturn = 0
+  let inIfBlock = false
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i]
     if (NEW_TOP_LEVEL.test(line)) {
       sawEarlyReturn = 0
+      inIfBlock = false
+      continue
+    }
+    if (IF_BLOCK_OPEN.test(line)) {
+      inIfBlock = true
+      continue
+    }
+    if (inIfBlock && IF_BLOCK_CLOSE.test(line)) {
+      inIfBlock = false
+      continue
+    }
+    if (inIfBlock && RETURN_IN_IF_BLOCK.test(line)) {
+      if (sawEarlyReturn === 0) sawEarlyReturn = i + 1
       continue
     }
     if (EARLY_RETURN.test(line)) {
