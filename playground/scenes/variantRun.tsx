@@ -24,6 +24,7 @@ import {
   type FakeVariantRunState,
 } from '../../src/fakeBackend/fixtures/variantRun'
 import type { Scene } from '../showcase/types'
+import { Click } from './clickOnce'
 import { OnFixtures, type FixtureRoutes } from './onFixtures'
 
 const noop = () => {}
@@ -68,29 +69,6 @@ function runRoutes(state: FakeVariantRunState, nothingToMerge: boolean): Fixture
     '/api/v1/process-runs/{runId}/diagnostics': () => ({}),
     '/api/v1/process-runs/{runId}/cleanup': () => ({ items: [], off: false }),
   }
-}
-
-/** Opens one view of the run by the link its page offers, once it has drawn. */
-function Click({ label, children }: { label: string | undefined; children: ReactNode }) {
-  const [host, setHost] = useState<HTMLDivElement | null>(null)
-  useEffect(() => {
-    if (!host || !label) return undefined
-    const timer = setInterval(() => {
-      const found = [...host.querySelectorAll('button,[role="button"]')].find(
-        (el) => el.textContent === label || el.getAttribute('aria-label') === label,
-      )
-      if (found) {
-        ;(found as HTMLElement).click()
-        clearInterval(timer)
-      }
-    }, 50)
-    return () => clearInterval(timer)
-  }, [host, label])
-  return (
-    <div ref={setHost} className="h-full">
-      {children}
-    </div>
-  )
 }
 
 function Run({
@@ -150,7 +128,7 @@ const launchRoutes = (problem?: string): FixtureRoutes => ({
 
 function Launch({ asked }: { asked?: Record<string, unknown> }) {
   const grant = processRunLaunchGrant({
-    processId: 'compare-variants',
+    processId: 'try-variants',
     chatRunner: 'cli',
     ...(asked ? { agent: { inputValues: asked } } : {}),
     onLaunch: async () => {},
@@ -194,7 +172,7 @@ function Library() {
       <MemoryRouter>
         <div className="h-[420px] w-full">
           <InProject>
-            <ProcessesView selectedProcessId="compare-variants" />
+            <ProcessesView selectedProcessId="try-variants" />
           </InProject>
         </div>
       </MemoryRouter>
@@ -253,31 +231,41 @@ export const VARIANT_RUN_SCENES: Scene[] = [
     group: 'Process',
     wide: true,
     description:
-      'Design proposal 49d5e7ed, day lanes: a lane per variant with a cell per day. The real ProcessPipeline on fixtures. A lane opens the variant’s page; Report opens the report at any time. A lived day is the last day its recordings name; one review runs at the end of the days, so one diamond closes each lane.',
+      'A lane per variant: the run fanned out for it, its steps, status, time and cost, and the last thing it filed by its own label. The real ProcessPipeline on fixtures. A lane opens the variant’s page; Report opens the report at any time..',
     states: [
       {
         id: 'running',
         title: 'Running',
-        description: 'Each variant at its own day; one in review.',
+        description:
+          'One variant still in its script step, two in review after it. Each lane shows its own steps.',
         render: () => <Run state="running" />,
       },
       {
         id: 'parked',
         title: 'One variant parked',
-        description: 'The stopped variant leads the page with its day; the others keep going.',
+        description:
+          'The variant whose script stopped short leads the page; the others keep going.',
         render: () => <Run state="parked" />,
       },
       {
         id: 'done',
         title: 'All done',
         description: 'Back on the lanes at sign-off: The report is ready.',
-        render: () => <Run state="done" open="Day lanes" />,
+        render: () => <Run state="done" open="Lanes" />,
       },
       {
         id: 'variant-page',
         title: 'A variant’s page',
-        description: 'A lane opens its variant: where it got to, what it filed, then its steps.',
+        description:
+          'A lane opens its variant: what it filed in the order filed, its script step’s log, then its steps.',
         render: () => <Run state="running" open="Short sign-up" />,
+      },
+      {
+        id: 'variant-page-stopped',
+        title: 'A stopped variant’s page',
+        description:
+          'The script stopped short: its step log ends where it stopped, with the screenshot of where.',
+        render: () => <Run state="parked" open="Short sign-up" />,
       },
     ],
   },
@@ -312,7 +300,7 @@ export const VARIANT_RUN_SCENES: Scene[] = [
         id: 'variant-open',
         title: 'A variant open',
         description:
-          'Recordings beside the review. The one the backend no longer vouches for says Not proof and is left out of the count.',
+          'Recordings beside the reports, each in the order filed and by its own label, then the script step’s log. The one the backend no longer vouches for says Not proof and is left out of the count.',
         render: () => <Run state="done" open="Morning reminder" />,
       },
       {

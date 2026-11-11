@@ -4,7 +4,6 @@ import type { ProcessRun, ReviewEvidenceRef } from 'thefactory-tools/types'
 import {
   isProcessReportAccepted,
   isProcessVariantRun,
-  processVariantDayOf,
   processVariantHeading,
   processVariantJoinLine,
   processVariantLanes,
@@ -18,7 +17,7 @@ const variantStep = (id: string, title: string, refs = true) => ({
   id: `variants:${id}`,
   name: title,
   kind: 'process' as const,
-  processId: 'compare-variant',
+  processId: 'try-variant',
   fanOut: 'variants',
   subject: {
     kind: 'variant' as const,
@@ -35,32 +34,29 @@ const run = (over: Partial<ProcessRun> = {}): ProcessRun =>
   ({
     id: 'root',
     projectId: 'p',
-    processId: 'compare-variants',
-    title: 'Sign-up trial',
+    processId: 'try-variants',
+    title: 'Compare versions',
     status: 'running',
-    input: { inputValues: { days: 14 } },
+    input: { inputValues: {} },
     plan: {
-      definitionId: 'compare-variants',
+      definitionId: 'try-variants',
       definitionScope: 'global',
       definitionVersion: 1,
-      name: 'Compare variants',
+      name: 'Try variants',
       frozenAt: 0,
       loops: [],
-      inputs: [
-        { name: 'variants', label: 'Versions', kind: 'variants', fields: [] },
-        { name: 'days', label: 'Days', kind: 'number' },
-      ],
+      inputs: [{ name: 'variants', label: 'Versions', kind: 'variants', fields: [] }],
       steps: [
-        variantStep('current', 'Current'),
-        variantStep('short', 'Short sign-up', false),
-        { id: 'final-review', name: 'Final review', kind: 'agent', agentType: 'final-reviewer' },
+        variantStep('a', 'Version A'),
+        variantStep('b', 'Version B', false),
+        { id: 'final-review', name: 'Final review', kind: 'agent', agentType: 'reviewer' },
         { id: 'sign-off', name: 'Sign-off', kind: 'gate' },
       ],
     },
     ledger: [
       {
         id: 'e1',
-        stepId: 'variants:current',
+        stepId: 'variants:a',
         attempt: 1,
         status: 'running',
         startedAt: 1,
@@ -68,7 +64,7 @@ const run = (over: Partial<ProcessRun> = {}): ProcessRun =>
       },
       {
         id: 'e2',
-        stepId: 'variants:short',
+        stepId: 'variants:b',
         attempt: 1,
         status: 'running',
         startedAt: 1,
@@ -108,17 +104,7 @@ const group = (
   ...over,
 })
 
-const days = (...n: number[]) => n.map((day) => ref(`r${day}`, { label: `Day ${day}: opened it` }))
-
-describe('processVariantDayOf', () => {
-  it('reads the last day a label names', () => {
-    expect(processVariantDayOf('Day 3: opened it')).toBe(3)
-    expect(processVariantDayOf('Week 1 · days 1–7')).toBe(7)
-    expect(processVariantDayOf('days 8 to 14')).toBe(14)
-    expect(processVariantDayOf('Birthday 3')).toBeUndefined()
-    expect(processVariantDayOf(undefined)).toBeUndefined()
-  })
-})
+const recorded = (...labels: string[]) => labels.map((label, at) => ref(`r${at + 1}`, { label }))
 
 describe('isProcessVariantRun', () => {
   it('is true for a run that fans out over variants only', () => {
@@ -136,133 +122,156 @@ describe('processVariantHeading', () => {
 })
 
 describe('processVariantLanes', () => {
-  it('reads how far each variant got from its recordings', () => {
+  it('makes a lane per variant, each by its run and what it filed last', () => {
     const view = processVariantLanes(
       run(),
       [
         group('root', undefined, 'running', []),
-        group('c1', 'variants:current', 'running', days(1, 2, 3)),
-        group('c2', 'variants:short', 'parked', days(1, 2, 3, 4, 5)),
+        group('c1', 'variants:a', 'running', recorded('Opened the form', 'Saved it')),
+        group('c2', 'variants:b', 'parked', recorded('Opened the form')),
       ],
       0,
     )
-    expect(view).toMatchObject({ heading: 'Versions', sub: '2 at once', days: 14, ended: 0 })
-    expect(view.weekLabels).toEqual(['Week 1', 'Week 2'])
-    const [current, short] = view.lanes
-    expect(current).toMatchObject({
-      status: 'running',
-      lived: 3,
-      dayLine: 'Day 4 of 14',
-      line: 'Day 3: opened it',
-      runId: 'c1',
+    expect(view).toEqual({
+      heading: 'Versions',
+      sub: '2 at once',
+      lanes: expect.any(Array),
+      ended: 0,
     })
-    expect(current!.weeks[0]!.cells.map((c) => c.look).slice(0, 5)).toEqual([
-      'lived',
-      'lived',
-      'lived',
-      'today',
-      'to-come',
-    ])
-    expect(short).toMatchObject({ status: 'parked', dayLine: 'Day 6 of 14' })
-    expect(short!.badge).toEqual({ label: 'Needs you', tone: 'on_hold' })
-    expect(short!.weeks[0]!.cells[5]!.look).toBe('parked')
+    const [a, b] = view.lanes
+    expect(a).toMatchObject({
+      id: 'a',
+      label: 'Version A',
+      stepId: 'variants:a',
+      status: 'running',
+      line: 'Saved it',
+      runId: 'c1',
+      badge: { label: 'Running', tone: 'running' },
+    })
+    expect(b).toMatchObject({ id: 'b', status: 'parked', runId: 'c2' })
+    expect(b!.badge).toEqual({ label: 'Needs you', tone: 'on_hold' })
+  })
+
+  it('says what was filed last, a report or a recording, in the order filed', () => {
+    const refs = [
+      ref('r5', { kind: 'report', label: 'Notes so far' }),
+      ref('r2', { label: 'First screen' }),
+    ]
+    const view = processVariantLanes(run(), [group('c1', 'variants:a', 'running', refs)], 0)
+    expect(view.lanes[0]!.line).toBe('Notes so far')
+  })
+
+  it('falls back on a filing’s caption when its label is blank', () => {
+    const lineOf = (tile: ProcessRunEvidenceGroupView['tiles'][number]) =>
+      processVariantLanes(
+        run(),
+        [{ ...group('c1', 'variants:a', 'running', [tile.ref]), tiles: [tile] }],
+        0,
+      ).lanes[0]!.line
+    expect(lineOf({ ref: ref('r1', { label: ' ' }), caption: 'Clip' })).toBe('Clip')
+    expect(lineOf({ ref: ref('r1'), caption: '' })).toBe('Starting')
+  })
+
+  it('leaves out a code review and logs from what a lane says it filed', () => {
+    const refs = [
+      ref('r1', { label: 'First screen' }),
+      ref('r2', { kind: 'report', label: 'Code review', approach: 'code-review' }),
+      ref('r3', { kind: 'log', label: 'Step log', mediaType: 'text/plain' }),
+    ]
+    const view = processVariantLanes(run(), [group('c1', 'variants:a', 'running', refs)], 0)
+    expect(view.lanes[0]!.line).toBe('First screen')
+  })
+
+  it('says a variant that filed nothing yet is starting', () => {
+    const view = processVariantLanes(run(), [group('c1', 'variants:a', 'running', [])], 0)
+    expect(view.lanes[0]!.line).toBe('Starting')
   })
 
   it('names the stop a parked variant is on when its run reflects it', () => {
     const view = processVariantLanes(
       run({
-        park: { stepId: 'variants:short', childRunId: 'c2', message: 'The code never came' },
+        park: { stepId: 'variants:b', childRunId: 'c2', message: 'The code never came' },
       } as Partial<ProcessRun>),
-      [group('c2', 'variants:short', 'parked', days(1))],
+      [group('c2', 'variants:b', 'parked', recorded('Opened the form'))],
       0,
     )
     expect(view.lanes[1]!.line).toBe('The code never came')
   })
 
   it('says a variant needs you when the stop shown is another’s', () => {
-    const view = processVariantLanes(run(), [group('c2', 'variants:short', 'parked', [])], 0)
+    const view = processVariantLanes(run(), [group('c2', 'variants:b', 'parked', [])], 0)
     expect(view.lanes[1]!.line).toBe('Stopped here. It needs you.')
   })
 
-  it('counts recordings as days when none names one', () => {
-    const refs = [ref('r1', { label: 'Morning' }), ref('r2', { label: 'Evening' })]
-    const view = processVariantLanes(run(), [group('c1', 'variants:current', 'running', refs)], 0)
-    expect(view.lanes[0]!.lived).toBe(2)
-    expect(view.lanes[0]!.line).toBe('Evening')
-  })
-
-  it('shows a finished variant as every day lived, with its review filed', () => {
-    const review = ref('r9', { kind: 'report', label: 'Review' })
+  it('reads a finished variant by its last report', () => {
+    const report = ref('r9', { kind: 'report', label: 'Review' })
     const view = processVariantLanes(
       run(),
-      [group('c1', 'variants:current', 'succeeded', [...days(1), review])],
+      [group('c1', 'variants:a', 'succeeded', [...recorded('First screen'), report])],
       0,
     )
-    const lane = view.lanes[0]!
-    expect(lane).toMatchObject({ status: 'done', lived: 14, dayLine: 'Day 14 of 14' })
-    expect(lane.line).toBe('Finding of r9')
-    expect(lane.weeks.at(-1)!.review).toBe('done')
+    expect(view.lanes[0]).toMatchObject({ status: 'done', line: 'Finding of r9' })
     expect(view.ended).toBe(1)
+  })
+
+  it('says a finished variant finished when nothing it filed says more', () => {
+    const view = processVariantLanes(run(), [group('c1', 'variants:a', 'succeeded', [])], 0)
+    expect(view.lanes[0]!.line).toBe('Finished')
   })
 
   it('prefers what the step said it came to', () => {
     const base = run()
     const finished = {
       ...base,
-      ledger: [{ ...base.ledger[0]!, status: 'done', outcome: 'passed', summary: 'Met 1 of 3' }],
+      ledger: [
+        { ...base.ledger[0]!, status: 'done', outcome: 'passed', summary: ' Passed 1 of 3 ' },
+      ],
     } as ProcessRun
-    const view = processVariantLanes(
-      finished,
-      [group('c1', 'variants:current', 'succeeded', [])],
-      0,
-    )
-    expect(view.lanes[0]!.line).toBe('Met 1 of 3')
-  })
-
-  it('marks the review under way once the last day is lived', () => {
-    const refs = days(14)
-    const view = processVariantLanes(run(), [group('c1', 'variants:current', 'running', refs)], 0)
-    expect(view.lanes[0]!.line).toBe('In review')
-    expect(view.lanes[0]!.weeks.at(-1)!.review).toBe('now')
-    expect(view.lanes[0]!.weeks[0]!.review).toBeUndefined()
-  })
-
-  it('follows reviews filed week by week', () => {
-    const refs = [...days(7), ref('r20', { kind: 'report', label: 'Review of week 1' })]
-    const view = processVariantLanes(run(), [group('c1', 'variants:current', 'running', refs)], 0)
-    expect(view.lanes[0]!.weeks.map((w) => w.review)).toEqual(['done', 'wait'])
-  })
-
-  it('keeps an odd number of days in the right rows', () => {
-    const view = processVariantLanes(
-      run({ input: { inputValues: { days: 9 } } }),
-      [group('c1', 'variants:current', 'running', [])],
-      0,
-    )
-    expect(view.lanes[0]!.weeks.map((w) => w.cells.length)).toEqual([7, 2])
-  })
-
-  it('has no cells when the launch names no days', () => {
-    const view = processVariantLanes(run({ input: {} }), [], 0)
-    expect(view).toMatchObject({ days: undefined, weekLabels: [] })
-    expect(view.lanes[0]).toMatchObject({ weeks: [], dayLine: undefined, status: 'running' })
+    const view = processVariantLanes(finished, [group('c1', 'variants:a', 'succeeded', [])], 0)
+    expect(view.lanes[0]!.line).toBe('Passed 1 of 3')
   })
 
   it('shows a variant not started yet as queued', () => {
     const view = processVariantLanes(run({ ledger: [] }), [], 0)
     expect(view.lanes[0]).toMatchObject({ status: 'queued', line: 'Not started', runId: undefined })
-    expect(view.lanes[0]!.weeks[0]!.cells[0]!.look).toBe('to-come')
+    expect(view.lanes[0]!.badge.label).toBe('Queued')
   })
 
-  it('ends a stopped variant at the day it reached', () => {
-    const view = processVariantLanes(
-      run(),
-      [group('c1', 'variants:current', 'cancelled', days(1, 2))],
+  it('takes a lane’s run from its step when nothing was filed yet', () => {
+    const view = processVariantLanes(run(), [], 0)
+    expect(view.lanes.map((lane) => [lane.runId, lane.status])).toEqual([
+      ['c1', 'running'],
+      ['c2', 'running'],
+    ])
+  })
+
+  it('reads a run’s own status into its lane', () => {
+    const statuses = (['pending', 'cancelled', 'failed'] as const).map(
+      (status) =>
+        processVariantLanes(run(), [group('c1', 'variants:a', status, [])], 0).lanes[0]!.status,
+    )
+    expect(statuses).toEqual(['running', 'stopped', 'stopped'])
+    const queued = processVariantLanes(
+      run({ ledger: [] }),
+      [group('c1', 'variants:a', 'pending', [])],
       0,
     )
-    expect(view.lanes[0]).toMatchObject({ status: 'stopped', lived: 2 })
-    expect(view.lanes[0]!.weeks[0]!.cells[2]!.look).toBe('to-come')
-    expect(view.ended).toBe(1)
+    expect(queued.lanes[0]!.status).toBe('queued')
+  })
+
+  it('says what stopped a variant, or that it stopped', () => {
+    const base = run()
+    const stopped = {
+      ...base,
+      ledger: [{ ...base.ledger[0]!, status: 'failed', summary: 'Exit code 1' }, base.ledger[1]!],
+    } as ProcessRun
+    const view = processVariantLanes(
+      stopped,
+      [group('c1', 'variants:a', 'failed', []), group('c2', 'variants:b', 'cancelled', [])],
+      0,
+    )
+    expect(view.lanes.map((lane) => lane.line)).toEqual(['Exit code 1', 'Stopped'])
+    expect(view.ended).toBe(2)
   })
 
   it('reads the refs and a patch off the variant, short', () => {
@@ -274,12 +283,23 @@ describe('processVariantLanes', () => {
     expect(view.lanes[1]!.facts).toEqual([])
   })
 
+  it('skips values that are not refs', () => {
+    const odd = variantStep('a', 'Version A')
+    const values = {
+      note: 'text',
+      refs: [{ role: 'web' }, { role: 'api', ref: 'abcdef0123', patch: '' }],
+    }
+    const plan = { ...run().plan, steps: [{ ...odd, subject: { ...odd.subject, values } }] }
+    const view = processVariantLanes(run({ plan } as Partial<ProcessRun>), [], 0)
+    expect(view.lanes[0]!.facts.map((f) => [f.kind, f.text])).toEqual([['ref', 'abcdef0123']])
+  })
+
   it('takes the later attempt of a step, not one it replaced', () => {
     const view = processVariantLanes(
       run(),
       [
-        group('old', 'variants:current', 'failed', [], { replaced: true }),
-        group('new', 'variants:current', 'running', []),
+        group('old', 'variants:a', 'failed', [], { replaced: true }),
+        group('new', 'variants:a', 'running', []),
       ],
       0,
     )
@@ -290,15 +310,53 @@ describe('processVariantLanes', () => {
     const view = processVariantLanes(
       run(),
       [
-        group('c1', 'variants:current', 'running', [
-          ...days(1, 2),
-          ref('r3', { label: 'Day 3', unvouchedReason: 'Seal lost' }),
-          ref('r4', { label: 'Day 4', inline: true }),
+        group('c1', 'variants:a', 'running', [
+          ...recorded('First', 'Second'),
+          ref('r3', { label: 'Third', unvouchedReason: 'Seal lost' }),
+          ref('r4', { label: 'Fourth', inline: true }),
         ]),
       ],
       0,
     )
     expect(view.lanes[0]!.proof).toEqual({ count: 2, total: 4 })
+    expect(view.lanes[0]!.chip).toEqual({ label: 'Walkthrough · 2 of 4', state: 'unchecked' })
+  })
+
+  it('marks the walkthrough chip passed when every recording counts, flagged when parked short', () => {
+    const whole = processVariantLanes(
+      run(),
+      [group('c1', 'variants:a', 'running', recorded('First'))],
+      0,
+    )
+    expect(whole.lanes[0]!.chip.state).toBe('passed')
+    const parked = processVariantLanes(
+      run(),
+      [group('c2', 'variants:b', 'parked', [ref('r1', { unvouchedReason: 'x' })])],
+      0,
+    )
+    expect(parked.lanes[1]!.chip.state).toBe('flagged')
+  })
+
+  it('carries what a variant’s step cost and how long it worked', () => {
+    const base = run()
+    const costed = {
+      ...base,
+      totals: {
+        workMs: 120_000,
+        at: 0,
+        ticking: false,
+        costUsd: 1.5,
+        steps: { 'variants:a': { workMs: 120_000, costUsd: 1.5, time: { workMs: 120_000 } } },
+      },
+      ledger: [
+        { ...base.ledger[0]!, status: 'done', outcome: 'passed', endedAt: 120_001 },
+        base.ledger[1]!,
+      ],
+    } as unknown as ProcessRun
+    const view = processVariantLanes(costed, [], 0)
+    expect(view.lanes[0]!.time).toBeDefined()
+    expect(view.lanes[0]!.cost).toBeDefined()
+    expect(view.lanes[1]!.time).toBeUndefined()
   })
 })
 
@@ -307,11 +365,13 @@ describe('processVariantReport', () => {
   const post = ref('r31', { kind: 'report', label: 'The post' })
   const groups = [
     group('root', undefined, 'parked', [report, post]),
-    group('c1', 'variants:current', 'succeeded', [
-      ...days(1, 2),
+    group('c1', 'variants:a', 'succeeded', [
+      ref('r2', { label: 'Second screen' }),
+      ref('r1', { label: 'First screen' }),
       ref('r9', { kind: 'report', label: 'Review' }),
+      ref('r4', { kind: 'report', label: 'Notes' }),
     ]),
-    group('c2', 'variants:short', 'succeeded', days(1)),
+    group('c2', 'variants:b', 'succeeded', recorded('Only screen')),
   ]
 
   it('tells the final report from the post', () => {
@@ -323,7 +383,7 @@ describe('processVariantReport', () => {
   })
 
   it('leads with what the report concluded', () => {
-    const body = { outcome: { headline: 'Short sign-up met all 3 goals' } }
+    const body = { outcome: { headline: 'Version B passed every check' } }
     const filed = {
       ...groups[0]!,
       tiles: [
@@ -342,21 +402,18 @@ describe('processVariantReport', () => {
       ],
     } as ProcessRunEvidenceGroupView
     const view = processVariantReport(run(), [filed, ...groups.slice(1)], 0)
-    expect(view.headline).toBe('Short sign-up met all 3 goals')
-    expect(view.report?.outcome?.summary).toBe('Short sign-up met all 3 goals')
+    expect(view.headline).toBe('Version B passed every check')
+    expect(view.report?.outcome?.summary).toBe('Version B passed every check')
   })
 
   it('leads with the run’s name when no report is filed', () => {
-    expect(processVariantReport(run(), [], 0).headline).toBe('Sign-up trial')
+    expect(processVariantReport(run(), [], 0).headline).toBe('Compare versions')
   })
 
   it('says how many are still to finish before the report comes', () => {
     const view = processVariantReport(
       run(),
-      [
-        group('c1', 'variants:current', 'succeeded', []),
-        group('c2', 'variants:short', 'running', []),
-      ],
+      [group('c1', 'variants:a', 'succeeded', []), group('c2', 'variants:b', 'running', [])],
       0,
     )
     expect(view.report).toBeUndefined()
@@ -367,66 +424,61 @@ describe('processVariantReport', () => {
   it('says so when every variant ended and no report was filed', () => {
     const view = processVariantReport(
       run(),
-      [
-        group('c1', 'variants:current', 'succeeded', []),
-        group('c2', 'variants:short', 'failed', []),
-      ],
+      [group('c1', 'variants:a', 'succeeded', []), group('c2', 'variants:b', 'failed', [])],
       0,
     )
     expect(view.waiting).toEqual({ sub: '', line: 'No final report was filed.' })
   })
 
-  it('files each variant’s recordings and findings under it', () => {
+  it('files each variant’s recordings and reports under it, in the order filed, by their own labels', () => {
     const view = processVariantReport(run(), groups, 0)
-    const [current, short] = view.sections
-    expect(current!.recordings.map((r) => r.label)).toEqual([
-      'Proof · reached day 1',
-      'Proof · reached day 2',
+    const [a, b] = view.sections
+    expect(a!.recordings.map((r) => [r.tile.ref.label, r.label])).toEqual([
+      ['First screen', 'Proof'],
+      ['Second screen', 'Proof'],
     ])
-    expect(current!.findings).toMatchObject([{ title: 'Review', text: expect.any(String) }])
-    expect(current!.findingsNote).toBeUndefined()
-    expect(short!.findings).toEqual([])
+    expect(a!.findings.map((f) => f.title)).toEqual(['Notes', 'Review'])
+    expect(a!.findings[0]!.text).toContain('Finding of r4')
+    expect(a!.findingsNote).toBeUndefined()
+    expect(a!.tiles.map((t) => t.ref.id)).toEqual(['r2', 'r1', 'r9', 'r4'])
+    expect(b!.findings).toEqual([])
+    expect(b!.findingsNote).toBeUndefined()
+  })
+
+  it('calls a report with no label a report', () => {
+    const view = processVariantReport(
+      run(),
+      [group('c1', 'variants:a', 'running', [ref('r1', { kind: 'report', label: ' ' })])],
+      0,
+    )
+    expect(view.sections[0]!.findings[0]!.title).toBe('Report')
+  })
+
+  it('says a report shows once filed while a variant works, and nothing of a section with no run', () => {
+    const view = processVariantReport(
+      run(),
+      [group('c1', 'variants:a', 'running', recorded('First'))],
+      0,
+    )
+    expect(view.sections[0]!.findingsNote).toBe('Shows here once one is filed.')
+    expect(view.sections[1]!.tiles).toEqual([])
   })
 
   it('says why a recording does not count', () => {
     const view = processVariantReport(
       run(),
       [
-        group('c1', 'variants:current', 'running', [
-          ref('r5', { label: 'Day 5', unvouchedReason: 'Seal lost' }),
+        group('c1', 'variants:a', 'running', [
+          ref('r5', { label: 'Fifth', unvouchedReason: 'Seal lost' }),
+          ref('r6', { label: 'Sixth', inline: true }),
         ]),
       ],
       0,
     )
-    expect(view.sections[0]!.recordings[0]).toMatchObject({
-      proof: false,
-      label: 'Not proof',
-      title: 'Seal lost',
-    })
-  })
-
-  it('shows the day being recorded and when the findings come', () => {
-    const view = processVariantReport(
-      run(),
-      [group('c1', 'variants:current', 'running', days(2))],
-      0,
-    )
-    expect(view.sections[0]).toMatchObject({
-      recordingNow: true,
-      findingsNote: 'After the days end.',
-    })
-  })
-
-  it('stops expecting a recording once the days are lived', () => {
-    const view = processVariantReport(
-      run(),
-      [group('c1', 'variants:current', 'running', days(14))],
-      0,
-    )
-    expect(view.sections[0]).toMatchObject({
-      recordingNow: false,
-      findingsNote: 'The findings show here once the review is filed.',
-    })
+    expect(view.sections[0]!.recordings.map((r) => [r.proof, r.label, r.title])).toEqual([
+      [false, 'Not proof', 'Seal lost'],
+      [false, 'Not proof', ''],
+    ])
   })
 
   it('keeps recordings no variant filed, whatever step did', () => {
@@ -446,20 +498,27 @@ describe('processVariantReport', () => {
   it('says what was asked and what was proven on its tiles', () => {
     const view = processVariantReport(run(), groups, 0)
     expect(view.tiles.map((t) => [t.label, t.value, t.sub])).toEqual([
-      ['Asked', '2 variants', '14 days each'],
+      ['Asked', '2 variants', undefined],
       ['Proven', '3 of 3 recordings', 'Each reached the end'],
       ['Time', '—', undefined],
       ['Cost', '—', undefined],
     ])
     expect(view.tiles[1]!.tone).toBe('done')
+    expect(view.verdict).toMatchObject({ key: 'proven', hollow: false })
+    expect(view.tally).toEqual({ label: '3/3', title: '3 of 3 recordings count as proof' })
+  })
+
+  it('says one variant in the singular', () => {
+    const one = run({ plan: { ...run().plan, steps: [run().plan.steps[0]!] } })
+    expect(processVariantReport(one, [], 0).tiles[0]!.value).toBe('1 variant')
   })
 
   it('leaves a partial proof short of whole', () => {
     const view = processVariantReport(
       run(),
       [
-        group('c1', 'variants:current', 'running', [
-          ...days(1),
+        group('c1', 'variants:a', 'running', [
+          ...recorded('First'),
           ref('r3', { unvouchedReason: 'x' }),
         ]),
       ],
@@ -471,29 +530,48 @@ describe('processVariantReport', () => {
       tone: 'working',
     })
     expect(view.proofRows[0]).toMatchObject({
-      text: 'Current: 1 of 2 recordings count',
+      text: 'Version A: 1 of 2 recordings count',
       status: 'unproven',
       mark: '!',
     })
+    expect(view.verdict.key).toBe('partly')
   })
 
   it('says how many fall short once every variant ended', () => {
     const view = processVariantReport(
       run(),
       [
-        group('c1', 'variants:current', 'succeeded', [ref('r3', { unvouchedReason: 'x' })]),
-        group('c2', 'variants:short', 'succeeded', days(1)),
+        group('c1', 'variants:a', 'succeeded', [ref('r3', { unvouchedReason: 'x' })]),
+        group('c2', 'variants:b', 'succeeded', recorded('Only')),
       ],
       0,
     )
     expect(view.tiles[1]?.sub).toBe('1 does not count')
+    const two = processVariantReport(
+      run(),
+      [
+        group('c1', 'variants:a', 'succeeded', [
+          ref('r3', { unvouchedReason: 'x' }),
+          ref('r4', { unvouchedReason: 'y' }),
+        ]),
+        group('c2', 'variants:b', 'succeeded', []),
+      ],
+      0,
+    )
+    expect(two.tiles[1]?.sub).toBe('2 do not count')
+  })
+
+  it('has nothing to count when nothing was recorded', () => {
+    const view = processVariantReport(run(), [], 0)
+    expect(view.verdict).toMatchObject({ key: 'not-run', hollow: true })
+    expect(view.tally).toBeUndefined()
   })
 
   it('lines proof up per variant, each only once it filed something', () => {
     const view = processVariantReport(run(), groups, 0)
     expect(view.proofRows.map((r) => r.text)).toEqual([
-      'Current: every recording counts',
-      'Short sign-up: every recording counts',
+      'Version A: every recording counts',
+      'Version B: every recording counts',
     ])
     expect(view.report?.howProven?.summary).toBe('3 of 3 recordings count as proof')
   })
@@ -569,7 +647,7 @@ describe('processVariantJoinLine', () => {
     expect(processVariantJoinLine(processVariantLanes(run(), [], 0))).toBe(
       'Waits for all 2 variants',
     )
-    const one = processVariantLanes(run(), [group('c1', 'variants:current', 'succeeded', [])], 0)
+    const one = processVariantLanes(run(), [group('c1', 'variants:a', 'succeeded', [])], 0)
     expect(processVariantJoinLine(one)).toBe('Waits for the rest')
   })
 })

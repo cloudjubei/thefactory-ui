@@ -2,16 +2,18 @@ import { Pressable, Text, View } from 'react-native'
 
 import {
   PROCESS_VARIANT_COPY,
-  type ProcessVariantDayCell,
+  processVariantChildView,
+  useProcessRun,
   type ProcessVariantLane,
   type ProcessVariantLanesView,
-  type ProcessVariantReviewLook,
 } from '../../../headless'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { IconChevronRight } from '../../icons'
+import CostChip from '../chips/CostChip'
 import DurationChip from '../chips/DurationChip'
 import ToneBadge from '../chips/ToneBadge'
+import StepsStrip from './StepsStrip'
 
 export type ProcessVariantLanesProps = {
   view: ProcessVariantLanesView
@@ -21,41 +23,22 @@ export type ProcessVariantLanesProps = {
   onOpenReport?: () => void
 }
 
-function useCellLook() {
-  const { theme, status } = useNativeTheme()
-  return (look: ProcessVariantDayCell['look']) =>
-    look === 'lived'
-      ? { backgroundColor: status.done.softBg, borderColor: status.done.softBorder }
-      : look === 'today'
-        ? { backgroundColor: status.running.softBg, borderColor: status.running.bg }
-        : look === 'parked'
-          ? { backgroundColor: status.on_hold.bg, borderColor: status.on_hold.bg }
-          : { borderColor: theme.border.default, borderStyle: 'dashed' as const }
-}
+const NO_TILES = [] as const
 
-function Review({ look }: { look: ProcessVariantReviewLook }) {
-  const { theme, status } = useNativeTheme()
+/** The steps of the run fanned out for a lane, once it is read. */
+function LaneSteps({ runId }: { runId: string | undefined }) {
+  const { run } = useProcessRun(runId)
+  const { steps } = processVariantChildView(run, NO_TILES)
+  if (steps.length === 0) return null
   return (
-    <View
-      accessibilityLabel={PROCESS_VARIANT_COPY.review}
-      style={{
-        width: 8,
-        height: 8,
-        borderRadius: 2,
-        transform: [{ rotate: '45deg' }],
-        ...(look === 'done'
-          ? { backgroundColor: status.done.bg }
-          : look === 'now'
-            ? { backgroundColor: status.running.bg }
-            : { borderWidth: 1, borderColor: theme.border.strong, borderStyle: 'dashed' }),
-      }}
-    />
+    <View style={{ marginHorizontal: -nativeSpace[3] }}>
+      <StepsStrip model={{ label: PROCESS_VARIANT_COPY.steps, entries: [...steps] }} />
+    </View>
   )
 }
 
 function Lane({ lane, onOpen }: { lane: ProcessVariantLane; onOpen: () => void }) {
   const { theme, status } = useNativeTheme()
-  const cellLook = useCellLook()
   return (
     <Pressable
       accessibilityRole="button"
@@ -80,41 +63,19 @@ function Lane({ lane, onOpen }: { lane: ProcessVariantLane; onOpen: () => void }
         <ToneBadge tone={lane.badge.tone} label={lane.badge.label} />
         <IconChevronRight size={14} color={theme.text.muted} />
       </View>
-      {lane.weeks.length > 0 ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          {lane.weeks.map((week) => (
-            <View
-              key={week.label}
-              style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 2 }}
-            >
-              {week.cells.map((cell) => (
-                <View
-                  key={cell.day}
-                  style={{
-                    flex: 1,
-                    height: 10,
-                    borderRadius: 3,
-                    borderWidth: 1,
-                    ...cellLook(cell.look),
-                  }}
-                />
-              ))}
-              {week.review ? <Review look={week.review} /> : null}
-            </View>
-          ))}
-        </View>
-      ) : null}
+      <LaneSteps runId={lane.runId} />
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <Text numberOfLines={1} style={{ flex: 1, fontSize: 12, color: theme.text.secondary }}>
-          {lane.dayLine ?? lane.line}
+          {lane.line}
         </Text>
         {lane.time ? <DurationChip label={lane.time} /> : null}
+        {lane.cost ? <CostChip label={lane.cost} /> : null}
       </View>
     </Pressable>
   )
 }
 
-/** Native peer of web's `ProcessVariantLanes`: a row per variant, its days as small cells. */
+/** Native peer of web's `ProcessVariantLanes`: a row per variant with the steps of its run. */
 export default function ProcessVariantLanes({
   view,
   onOpen,

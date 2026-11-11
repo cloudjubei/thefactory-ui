@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { ProcessDefinition, ProcessStepKind } from 'thefactory-tools/types'
+import type { ProcessDefinition, ProcessStepKind, ProcessWriteScope } from 'thefactory-tools/types'
 import {
   deleteProcess,
   getProcessCapabilities,
@@ -12,7 +12,7 @@ import { useAuth } from '../api/AuthContext'
 export type UseProcesses = {
   isLoaded: boolean
   loadError: Error | null
-  /** Both scopes resolved: the shared library plus this project's own, by name. */
+  /** Every scope resolved: the shared library, the project's group's and its own, by name. */
   processes: ProcessDefinition[]
   /** Every kind the model knows — the editor greys out the ones it cannot use. */
   kinds: ProcessStepKind[]
@@ -20,13 +20,14 @@ export type UseProcesses = {
   implementedKinds: ProcessStepKind[]
   refresh: () => Promise<void>
   /**
-   * Write a definition. Inside a project this always writes the PROJECT's copy,
-   * so saving a shared process forks it rather than editing the library
-   * everyone else uses. Throws with the validation errors when it is refused.
+   * Write a definition. Inside a project this writes the project's copy, or
+   * the group's when `scope` says so, so saving a shared process forks it
+   * rather than editing the library everyone else uses. Throws with the
+   * validation errors when it is refused.
    */
-  save: (definition: ProcessDefinition) => Promise<ProcessDefinition>
-  /** Remove this project's copy, revealing the shared definition it shadowed. */
-  remove: (processId: string) => Promise<void>
+  save: (definition: ProcessDefinition, scope?: ProcessWriteScope) => Promise<ProcessDefinition>
+  /** Remove the project's copy, or the group's, revealing the definition it shadowed. */
+  remove: (processId: string, scope?: ProcessWriteScope) => Promise<void>
   /** Check a draft without saving it, for live feedback in the editor. */
   check: (definition: ProcessDefinition) => Promise<{ valid: boolean; errors: string[] }>
 }
@@ -46,6 +47,14 @@ export function useProcesses(projectId: string | undefined): UseProcesses {
   const [loadError, setLoadError] = useState<Error | null>(null)
 
   const scope = useMemo(() => (projectId ? { projectId } : {}), [projectId])
+  const writeQuery = useCallback(
+    (write: ProcessWriteScope | undefined): typeof scope => {
+      const query: typeof scope & { scope?: ProcessWriteScope } = { ...scope }
+      if (projectId && write) query.scope = write
+      return query
+    },
+    [scope, projectId],
+  )
 
   const refresh = useCallback(async () => {
     try {
@@ -70,25 +79,25 @@ export function useProcesses(projectId: string | undefined): UseProcesses {
   }, [token, refresh])
 
   const save = useCallback(
-    async (definition: ProcessDefinition) => {
+    async (definition: ProcessDefinition, write?: ProcessWriteScope) => {
       const { data } = await saveProcess({
         path: { processId: definition.id },
-        query: scope,
+        query: writeQuery(write),
         body: definition as never,
         throwOnError: true,
       })
       await refresh()
       return data as ProcessDefinition
     },
-    [scope, refresh],
+    [writeQuery, refresh],
   )
 
   const remove = useCallback(
-    async (processId: string) => {
-      await deleteProcess({ path: { processId }, query: scope, throwOnError: true })
+    async (processId: string, write?: ProcessWriteScope) => {
+      await deleteProcess({ path: { processId }, query: writeQuery(write), throwOnError: true })
       await refresh()
     },
-    [scope, refresh],
+    [writeQuery, refresh],
   )
 
   const check = useCallback(async (definition: ProcessDefinition) => {

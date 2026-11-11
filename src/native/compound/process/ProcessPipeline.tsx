@@ -700,9 +700,6 @@ export default function ProcessPipeline({
                     />
                   ) : null}
                   {stopVariant ? <ToneBadge tone={stopTone} label={stopVariant.label} /> : null}
-                  {stopVariant?.dayLine ? (
-                    <ToneBadge tone={stopTone} label={stopVariant.dayLine} />
-                  ) : null}
                   {stopStepName ? <ToneBadge tone={stopTone} label={stopStepName} /> : null}
                 </>
               }

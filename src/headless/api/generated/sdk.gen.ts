@@ -66,6 +66,9 @@ import type {
   AskAgentAboutProcessRunParkData,
   AskAgentAboutProcessRunParkErrors,
   AskAgentAboutProcessRunParkResponses,
+  AskScriptHostData,
+  AskScriptHostErrors,
+  AskScriptHostResponses,
   AttachChatCliRunnerData,
   AttachChatCliRunnerErrors,
   AttachChatCliRunnerResponses,
@@ -214,9 +217,6 @@ import type {
   DecideDesignTidyMoveData,
   DecideDesignTidyMoveErrors,
   DecideDesignTidyMoveResponses,
-  DecideJourneyData,
-  DecideJourneyErrors,
-  DecideJourneyResponses,
   DelegateProcessRunAskData,
   DelegateProcessRunAskErrors,
   DelegateProcessRunAskResponses,
@@ -284,6 +284,7 @@ import type {
   DeleteLlmConfigErrors,
   DeleteLlmConfigResponses,
   DeleteProcessData,
+  DeleteProcessErrors,
   DeleteProcessGroupRunData,
   DeleteProcessGroupRunErrors,
   DeleteProcessGroupRunResponses,
@@ -711,8 +712,10 @@ import type {
   ListCliAgentModelsErrors,
   ListCliAgentModelsResponses,
   ListCliAgentRunsData,
+  ListCliAgentRunsErrors,
   ListCliAgentRunsResponses,
   ListCliAgentRunSummariesData,
+  ListCliAgentRunSummariesErrors,
   ListCliAgentRunSummariesResponses,
   ListCliAuthCachesData,
   ListCliAuthCachesResponses,
@@ -1332,9 +1335,9 @@ import type {
   SuggestLaunchSetupData,
   SuggestLaunchSetupErrors,
   SuggestLaunchSetupResponses,
-  TakeOverJourneyData,
-  TakeOverJourneyErrors,
-  TakeOverJourneyResponses,
+  TakeOverScriptHostData,
+  TakeOverScriptHostErrors,
+  TakeOverScriptHostResponses,
   TestGroupMcpServerData,
   TestGroupMcpServerErrors,
   TestGroupMcpServerResponses,
@@ -2378,7 +2381,7 @@ export const previewProcess = <ThrowOnError extends boolean = false>(
 export const deleteProcess = <ThrowOnError extends boolean = false>(
   options: Options<DeleteProcessData, ThrowOnError>,
 ) =>
-  (options.client ?? client).delete<DeleteProcessResponses, unknown, ThrowOnError>({
+  (options.client ?? client).delete<DeleteProcessResponses, DeleteProcessErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/processes/{processId}',
     ...options,
@@ -2408,6 +2411,9 @@ export const saveProcess = <ThrowOnError extends boolean = false>(
     },
   })
 
+/**
+ * Check a draft against the rules a save into the same `projectId` and `scope` applies — the agent types that scope may name among them — without saving it.
+ */
 export const validateProcess = <ThrowOnError extends boolean = false>(
   options: Options<ValidateProcessData, ThrowOnError>,
 ) =>
@@ -2453,7 +2459,7 @@ export const startProcessRun = <ThrowOnError extends boolean = false>(
   })
 
 /**
- * The form a process with no story starts from: what it asks for, the steps these values would run, and the first thing wrong with them. Nothing starts.
+ * The form a process with no story starts from: where the process comes from for the project (`scope`), what it asks for, the steps these values would run, and the first thing wrong with them. Nothing starts.
  */
 export const previewProcessRun = <ThrowOnError extends boolean = false>(
   options: Options<PreviewProcessRunData, ThrowOnError>,
@@ -3342,15 +3348,15 @@ export const setProcessRunCleanupOff = <ThrowOnError extends boolean = false>(
   })
 
 /**
- * A running journey script asks what its person decides: answered from the persona’s plan, or by a small call to the run’s model that reads the screen. Takes the step attempt’s journey token, never the Overseer bearer.
+ * A running script step’s script asks the run’s model for an answer of the shape it sends: checked against that shape and asked once more when it does not fit, then refused (502). A keyed ask on a step with a memory is answered by the answer pinned under its key while it still fits. Takes the step attempt’s script token, never the Overseer bearer.
  */
-export const decideJourney = <ThrowOnError extends boolean = false>(
-  options: Options<DecideJourneyData, ThrowOnError>,
+export const askScriptHost = <ThrowOnError extends boolean = false>(
+  options: Options<AskScriptHostData, ThrowOnError>,
 ) =>
-  (options.client ?? client).post<DecideJourneyResponses, DecideJourneyErrors, ThrowOnError>({
+  (options.client ?? client).post<AskScriptHostResponses, AskScriptHostErrors, ThrowOnError>({
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/v1/journeys/decide',
+    url: '/api/v1/script-steps/ask',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -3359,15 +3365,19 @@ export const decideJourney = <ThrowOnError extends boolean = false>(
   })
 
 /**
- * A running journey script that cannot go on hands its page to an agent, on the same browser, and waits: answered once the agent hands back, or fails to. Takes the step attempt’s journey token, never the Overseer bearer.
+ * A running script step’s script that cannot go on hands its page to an agent of the type its step names, on the same browser, and waits: answered once the agent hands back, or fails to. Refused (400) on a step that names no take-over agent type. Takes the step attempt’s script token, never the Overseer bearer.
  */
-export const takeOverJourney = <ThrowOnError extends boolean = false>(
-  options: Options<TakeOverJourneyData, ThrowOnError>,
+export const takeOverScriptHost = <ThrowOnError extends boolean = false>(
+  options: Options<TakeOverScriptHostData, ThrowOnError>,
 ) =>
-  (options.client ?? client).post<TakeOverJourneyResponses, TakeOverJourneyErrors, ThrowOnError>({
+  (options.client ?? client).post<
+    TakeOverScriptHostResponses,
+    TakeOverScriptHostErrors,
+    ThrowOnError
+  >({
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/v1/journeys/take-over',
+    url: '/api/v1/script-steps/take-over',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -7188,20 +7198,30 @@ export const abortCliAgentRun = <ThrowOnError extends boolean = false>(
     },
   })
 
+/**
+ * Unfiltered requests return a bounded page (default 50 candidates, maximum 200). Supplying limit or cursor also pages filtered requests; otherwise filtered requests retain complete legacy results. Pass X-Next-Cursor as cursor with the same filters until the header is absent. An empty array does not necessarily mean the last page.
+ */
 export const listCliAgentRuns = <ThrowOnError extends boolean = false>(
   options?: Options<ListCliAgentRunsData, ThrowOnError>,
 ) =>
-  (options?.client ?? client).get<ListCliAgentRunsResponses, unknown, ThrowOnError>({
+  (options?.client ?? client).get<ListCliAgentRunsResponses, ListCliAgentRunsErrors, ThrowOnError>({
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/cli-runs',
     ...options,
   })
 
+/**
+ * Requests without limit or cursor return complete legacy results, with or without filters. Supplying limit or cursor opts into paging (default 50 candidates, maximum 200). Pass X-Next-Cursor as cursor with the same filters until the header is absent. An empty array does not necessarily mean the last page.
+ */
 export const listCliAgentRunSummaries = <ThrowOnError extends boolean = false>(
   options?: Options<ListCliAgentRunSummariesData, ThrowOnError>,
 ) =>
-  (options?.client ?? client).get<ListCliAgentRunSummariesResponses, unknown, ThrowOnError>({
+  (options?.client ?? client).get<
+    ListCliAgentRunSummariesResponses,
+    ListCliAgentRunSummariesErrors,
+    ThrowOnError
+  >({
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/cli-runs/summaries',

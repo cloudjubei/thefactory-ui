@@ -7,15 +7,10 @@ import { processLaunchShortRef } from './processLaunchForm'
 import {
   PROCESS_VARIANT_BADGE,
   PROCESS_VARIANT_COPY,
-  PROCESS_VARIANT_DAYS_INPUT,
-  PROCESS_VARIANT_DAYS_PATTERN,
   PROCESS_VARIANT_POST_PATTERN,
-  PROCESS_VARIANT_WEEK_DAYS,
-  PROCESS_VARIANT_WEEK_PATTERN,
 } from './processVariantViewConstants'
 import type {
   ProcessRunEvidenceGroupView,
-  ProcessVariantDayCell,
   ProcessVariantFact,
   ProcessVariantFindings,
   ProcessVariantLane,
@@ -23,10 +18,8 @@ import type {
   ProcessVariantLanesView,
   ProcessVariantRecording,
   ProcessVariantReportView,
-  ProcessVariantReviewLook,
   ProcessVariantRunView,
   ProcessVariantSection,
-  ProcessVariantWeek,
 } from './processVariantViewTypes'
 import {
   formatProcessDuration,
@@ -71,24 +64,6 @@ export function processVariantHeading(run: Pick<ProcessRun, 'plan'>): string {
   return input?.label ?? PROCESS_VARIANT_COPY.heading
 }
 
-function launchDays(run: Pick<ProcessRun, 'input' | 'plan'>): number | undefined {
-  const declared = run.plan.inputs?.find(
-    (input) => input.name === PROCESS_VARIANT_DAYS_INPUT && input.kind === 'number',
-  )
-  const values = (run.input as { inputValues?: Record<string, unknown> } | undefined)?.inputValues
-  const days = declared ? values?.[declared.name] : undefined
-  return typeof days === 'number' && Number.isFinite(days) && days > 0
-    ? Math.floor(days)
-    : undefined
-}
-
-/** The last day a label names, `Day 3` or `Days 1–7`. Pure. */
-export function processVariantDayOf(label: string | undefined): number | undefined {
-  const match = label ? PROCESS_VARIANT_DAYS_PATTERN.exec(label) : null
-  if (!match) return undefined
-  return Number(match[2] ?? match[1])
-}
-
 const byFiling = (a: EvidenceTile, b: EvidenceTile) => a.ref.createdAt - b.ref.createdAt
 
 function recordingsOf(group: ProcessRunEvidenceGroupView | undefined): EvidenceTile[] {
@@ -99,12 +74,6 @@ function reviewsOf(group: ProcessRunEvidenceGroupView | undefined): EvidenceTile
   return (group?.tiles ?? [])
     .filter((tile) => tile.ref.kind === 'report' && reportAuthor(tile.ref) !== 'code-review')
     .sort(byFiling)
-}
-
-/** How far a variant got: the last day its recordings name, else one a recording. Pure. */
-function livedDays(recordings: readonly EvidenceTile[]): number {
-  const named = recordings.flatMap((tile) => processVariantDayOf(tile.ref.label) ?? [])
-  return named.length > 0 ? Math.max(...named) : recordings.length
 }
 
 function laneStatus(
@@ -126,61 +95,6 @@ function laneStatus(
     default:
       return entered ? 'running' : 'queued'
   }
-}
-
-function dayCells(
-  days: number,
-  lived: number,
-  status: ProcessVariantLaneStatus,
-): ProcessVariantDayCell[] {
-  return Array.from({ length: days }, (_, at) => {
-    const day = at + 1
-    if (day <= lived) return { day, look: 'lived' as const }
-    if (day === lived + 1 && status === 'parked') return { day, look: 'parked' as const }
-    if (day === lived + 1 && status === 'running') return { day, look: 'today' as const }
-    return { day, look: 'to-come' as const }
-  })
-}
-
-function reviewedWeeks(reviews: readonly EvidenceTile[]): Set<number> {
-  return new Set(
-    reviews.flatMap((tile) => {
-      const match = PROCESS_VARIANT_WEEK_PATTERN.exec(tile.ref.label ?? '')
-      return match ? [Number(match[1])] : []
-    }),
-  )
-}
-
-function lastReview(
-  reviews: readonly EvidenceTile[],
-  status: ProcessVariantLaneStatus,
-  lived: number,
-  days: number,
-): ProcessVariantReviewLook {
-  if (status === 'done' || reviews.length > 0) return 'done'
-  return status === 'running' && lived >= days ? 'now' : 'wait'
-}
-
-function weeksOf(
-  days: number,
-  cells: readonly ProcessVariantDayCell[],
-  reviews: readonly EvidenceTile[],
-  status: ProcessVariantLaneStatus,
-  lived: number,
-): ProcessVariantWeek[] {
-  const named = reviewedWeeks(reviews)
-  const count = Math.ceil(days / PROCESS_VARIANT_WEEK_DAYS)
-  const ending = lastReview(reviews, status, lived, days)
-  const reviewOf = (week: number): ProcessVariantReviewLook | undefined => {
-    if (named.has(week)) return 'done'
-    if (named.size > 0) return status === 'done' ? 'done' : 'wait'
-    return week === count ? ending : undefined
-  }
-  return Array.from({ length: count }, (_, at) => ({
-    label: PROCESS_VARIANT_COPY.week(at + 1),
-    cells: cells.slice(at * PROCESS_VARIANT_WEEK_DAYS, (at + 1) * PROCESS_VARIANT_WEEK_DAYS),
-    review: reviewOf(at + 1),
-  }))
 }
 
 function factsOf(values: Readonly<Record<string, unknown>> | undefined): ProcessVariantFact[] {
@@ -207,13 +121,16 @@ function firstLine(text: string | undefined): string | undefined {
   return line ? plainMarkdownLine(line) : undefined
 }
 
+function filedOf(group: ProcessRunEvidenceGroupView | undefined): EvidenceTile[] {
+  return [...recordingsOf(group), ...reviewsOf(group)].sort(byFiling)
+}
+
 function laneLine(
   status: ProcessVariantLaneStatus,
-  recordings: readonly EvidenceTile[],
+  filed: readonly EvidenceTile[],
   reviews: readonly EvidenceTile[],
   summary: string | undefined,
   parkMessage: string | undefined,
-  reviewing: boolean,
 ): string {
   if (status === 'queued') return PROCESS_VARIANT_COPY.queued
   if (status === 'parked') return parkMessage ?? PROCESS_VARIANT_COPY.needsYou
@@ -221,19 +138,8 @@ function laneLine(
   if (status === 'done') {
     return summary ?? firstLine(reviews.at(-1)?.text) ?? PROCESS_VARIANT_COPY.finished
   }
-  if (reviewing) return PROCESS_VARIANT_COPY.reviewing
-  return recordings.at(-1)?.caption ?? PROCESS_VARIANT_COPY.starting
-}
-
-function dayLineOf(
-  days: number | undefined,
-  lived: number,
-  status: ProcessVariantLaneStatus,
-): string | undefined {
-  if (days === undefined) return undefined
-  const day =
-    status === 'done' ? days : status === 'queued' ? 1 : Math.min(days, Math.max(lived + 1, 1))
-  return PROCESS_VARIANT_COPY.dayOf(day, days)
+  const last = filed.at(-1)
+  return last?.ref.label?.trim() || last?.caption || PROCESS_VARIANT_COPY.starting
 }
 
 function walkthroughChip(
@@ -256,28 +162,22 @@ function liveGroupFor(
 }
 
 /**
- * A lane per variant of a run: how far each got, in a cell per day when the
- * launch says how many, read from what each has filed. A run nested under a
- * variant files under that variant's run. Pure.
+ * A lane per variant of a run: the run fanned out for it, how it stands, what
+ * it cost and what it filed last, read from what it filed. A run nested under
+ * a variant files under that variant's run. Pure.
  */
 export function processVariantLanes(
   run: ProcessRun,
   groups: readonly ProcessRunEvidenceGroupView[],
   now: number,
 ): ProcessVariantLanesView {
-  const days = launchDays(run)
   const states = processStepStates(run)
   const steps = processVariantSteps(run)
   const lanes = steps.map((step): ProcessVariantLane => {
     const state = states.find((one) => one.step.id === step.id)
     const group = liveGroupFor(groups, step.id)
     const recordings = recordingsOf(group)
-    const reviews = reviewsOf(group)
     const status = laneStatus(group, (state?.entries.length ?? 0) > 0)
-    const filed = livedDays(recordings)
-    const lived = status === 'done' && days !== undefined ? days : Math.min(filed, days ?? filed)
-    const cells = days !== undefined ? dayCells(days, lived, status) : []
-    const weeks = days !== undefined ? weeksOf(days, cells, reviews, status, lived) : []
     const workMs = state ? processStepWorkMs(run, state, now) : undefined
     const subject = step.subject?.kind === 'variant' ? step.subject : undefined
     const parkMessage = group && run.park?.childRunId === group.runId ? run.park.message : undefined
@@ -294,15 +194,11 @@ export function processVariantLanes(
       badge: PROCESS_VARIANT_BADGE[status],
       line: laneLine(
         status,
-        recordings,
-        reviews,
+        filedOf(group),
+        reviewsOf(group),
         state?.latest?.summary?.trim() || undefined,
         parkMessage,
-        status === 'running' && days !== undefined && lived >= days,
       ),
-      dayLine: dayLineOf(days, lived, status),
-      lived,
-      weeks,
       time: workMs !== undefined && workMs > 0 ? formatProcessDuration(workMs) : undefined,
       cost: processStepCostLabel(run, step.id),
       facts: factsOf(subject?.values),
@@ -313,8 +209,6 @@ export function processVariantLanes(
   return {
     heading: processVariantHeading(run),
     sub: PROCESS_VARIANT_COPY.atOnce(lanes.length),
-    days,
-    weekLabels: lanes[0]?.weeks.map((week) => week.label) ?? [],
     lanes,
     ended: lanes.filter((lane) => lane.status === 'done' || lane.status === 'stopped').length,
   }
@@ -322,15 +216,10 @@ export function processVariantLanes(
 
 function recordingView(tile: EvidenceTile): ProcessVariantRecording {
   const proof = isWalkthroughProof(tile.ref)
-  const day = processVariantDayOf(tile.ref.label)
   return {
     tile,
     proof,
-    label: proof
-      ? day !== undefined
-        ? PROCESS_VARIANT_COPY.proofReached(day)
-        : PROCESS_VARIANT_COPY.proof
-      : PROCESS_VARIANT_COPY.notProof,
+    label: proof ? PROCESS_VARIANT_COPY.proof : PROCESS_VARIANT_COPY.notProof,
     title: proof ? PROCESS_VARIANT_COPY.proofTitle : (tile.ref.unvouchedReason ?? ''),
   }
 }
@@ -349,23 +238,20 @@ function findingsNote(
 ): string | undefined {
   if (reviews.length > 0) return undefined
   if (lane.status === 'stopped' || lane.status === 'done') return undefined
-  return lane.line === PROCESS_VARIANT_COPY.reviewing
-    ? PROCESS_VARIANT_COPY.reviewSoon
-    : PROCESS_VARIANT_COPY.reviewLater
+  return PROCESS_VARIANT_COPY.reviewLater
 }
 
 function sectionOf(
   lane: ProcessVariantLane,
   group: ProcessRunEvidenceGroupView | undefined,
-  days: number | undefined,
 ): ProcessVariantSection {
   const reviews = reviewsOf(group)
   return {
     lane,
     recordings: recordingsOf(group).map(recordingView),
-    recordingNow: lane.status === 'running' && (days === undefined || lane.lived < days),
     findings: findingsOf(reviews),
     findingsNote: findingsNote(lane, reviews),
+    tiles: group?.tiles ?? [],
   }
 }
 
@@ -401,7 +287,7 @@ function tilesOf(
       key: 'asked',
       label: REPORT_TILE_LABELS.asked,
       value: PROCESS_VARIANT_COPY.asked(lanes.lanes.length),
-      sub: lanes.days !== undefined ? PROCESS_VARIANT_COPY.daysEach(lanes.days) : undefined,
+      sub: undefined,
       tone: 'neutral',
     },
     {
@@ -460,9 +346,7 @@ export function processVariantReport(
   const root = groups.find((group) => group.runId === run.id)
   const inLanes = new Set(lanes.lanes.flatMap((lane) => lane.runId ?? []))
   const rest = groups.filter((group) => !group.replaced && !inLanes.has(group.runId))
-  const sections = lanes.lanes.map((lane) =>
-    sectionOf(lane, liveGroupFor(groups, lane.stepId), lanes.days),
-  )
+  const sections = lanes.lanes.map((lane) => sectionOf(lane, liveGroupFor(groups, lane.stepId)))
   const recordings = rest.flatMap((group) => recordingsOf(group).map(recordingView))
   const filed = reviewsOf(root)
   const post = filed.filter(isPost).at(-1)

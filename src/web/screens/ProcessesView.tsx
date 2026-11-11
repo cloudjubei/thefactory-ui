@@ -7,7 +7,6 @@ import {
   blankProcessDefinition,
   blankProcessStep,
   copyProcessDefinition,
-  isProcessFork,
   isProcessGateLoop,
   isSeededProcess,
   processExpandChoices,
@@ -15,23 +14,32 @@ import {
   PROCESS_EDITOR_COPY,
   withProcessExpand,
   PROCESS_GATE_LOOP_NO_LIMIT,
+  PROCESS_SCOPE_COPY,
+  processDefaultSaveTarget,
+  processForkNote,
+  processRemoval,
+  processSaveTargets,
   processScopeLabel,
+  processShadowNote,
   processStepName,
   useActiveProject,
   PROCESS_STATISTICS_COPY,
   processStatisticsLine,
   processStatisticsRows,
   useProcessRunStatistics,
+  useProcessLibraryGroup,
   useProcesses,
   type ProcessDefinition,
   type ProcessStep,
   type ProcessStepKind,
+  type ProcessWriteScope,
 } from '../../headless'
 import Alert from '../primitives/Alert'
 import { Button } from '../primitives/Button'
 import Field from '../primitives/Field'
 import { Input } from '../primitives/Input'
 import { NativeSelect } from '../primitives/NativeSelect'
+import SegmentedControl from '../primitives/SegmentedControl'
 import Surface from '../primitives/Surface'
 import ChainChip from '../compound/process/ChainChip'
 import StepToolsAndExit from '../compound/process/StepToolsAndExit'
@@ -55,18 +63,28 @@ export type ProcessesViewProps = {
 }
 
 /**
- * The process library for one project: the shared definitions and the
- * project's own, in one list.
+ * The process library for one project: the shared definitions, its group's
+ * and the project's own, in one list.
  *
- * The rule the screen exists to make visible is the SHADOW: a project entry
- * that overrides a shared one by id says so on its row, because "why is this
+ * The rule the screen exists to make visible is the SHADOW: a project or group
+ * entry that overrides another by id says so on its row, because "why is this
  * different here" is the only question this list is asked.
  */
 export default function ProcessesView({ narrow = false, selectedProcessId }: ProcessesViewProps) {
   const { projectId } = useActiveProject()
   const { isLoaded, loadError, processes, implementedKinds, save, remove } = useProcesses(projectId)
   const statistics = useProcessRunStatistics(projectId)
-  const [editing, setEditing] = useState<ProcessDefinition | undefined>(undefined)
+  const group = useProcessLibraryGroup(projectId)
+  const saveTargets = useMemo(() => processSaveTargets(group), [group])
+  const [editing, setEditingDraft] = useState<ProcessDefinition | undefined>(undefined)
+  const [saveTarget, setSaveTarget] = useState<ProcessWriteScope>('project')
+  const setEditing = useCallback(
+    (next: ProcessDefinition | undefined, startEditing = false) => {
+      setEditingDraft(next)
+      if (next && startEditing) setSaveTarget(processDefaultSaveTarget(next, group !== undefined))
+    },
+    [group],
+  )
   const [selectedId, setSelectedId] = useState<string | undefined>(selectedProcessId)
   useEffect(() => {
     if (selectedProcessId) setSelectedId(selectedProcessId)
@@ -79,17 +97,17 @@ export default function ProcessesView({ narrow = false, selectedProcessId }: Pro
   )
 
   const onSave = useCallback(
-    async (definition: ProcessDefinition) => {
+    async (definition: ProcessDefinition, target: ProcessWriteScope) => {
       setSaveError(undefined)
       try {
-        const saved = await save(definition)
+        const saved = await save(definition, saveTargets.length > 0 ? target : undefined)
         setEditing(undefined)
         setSelectedId(saved.id)
       } catch (err) {
         setSaveError(err instanceof Error ? err.message : String(err))
       }
     },
-    [save],
+    [save, saveTargets, setEditing],
   )
 
   const showDetail = Boolean(editing || selected)
@@ -111,7 +129,7 @@ export default function ProcessesView({ narrow = false, selectedProcessId }: Pro
       >
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold">Processes</h2>
-          <Button size="sm" onClick={() => setEditing(blankProcessDefinition())}>
+          <Button size="sm" onClick={() => setEditing(blankProcessDefinition(), true)}>
             New
           </Button>
         </div>
@@ -137,7 +155,7 @@ export default function ProcessesView({ narrow = false, selectedProcessId }: Pro
           >
             <div className="flex items-center gap-2">
               <span className="truncate text-xs font-medium">{definition.name}</span>
-              <ScopeBadge definition={definition} />
+              <ScopeBadge definition={definition} groupName={group?.name} />
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-1">
               {definition.steps
@@ -173,18 +191,22 @@ export default function ProcessesView({ narrow = false, selectedProcessId }: Pro
           <ProcessEditor
             definition={editing}
             implementedKinds={implementedKinds}
-            isFork={isProcessFork(editing)}
+            forkNote={processForkNote(editing, saveTarget)}
+            saveTargets={saveTargets}
+            saveTarget={saveTarget}
+            onSaveTarget={setSaveTarget}
             onChange={setEditing}
             onCancel={() => setEditing(undefined)}
-            onSave={() => void onSave(editing)}
+            onSave={() => void onSave(editing, saveTarget)}
           />
         ) : selected ? (
           <ProcessDetail
             definition={selected}
-            onEdit={() => setEditing(structuredClone(selected))}
-            onCopy={() => setEditing(copyProcessDefinition(selected))}
+            groupName={group?.name}
+            onEdit={() => setEditing(structuredClone(selected), true)}
+            onCopy={() => setEditing(copyProcessDefinition(selected), true)}
             statistics={statistics}
-            onDelete={selected.scope === 'project' ? () => void remove(selected.id) : undefined}
+            onDelete={(scope) => void remove(selected.id, scope)}
           />
         ) : (
           <div className="text-sm text-(--text-secondary)">
@@ -196,8 +218,14 @@ export default function ProcessesView({ narrow = false, selectedProcessId }: Pro
   )
 }
 
-function ScopeBadge({ definition }: { definition: ProcessDefinition }) {
-  const label = processScopeLabel(definition)
+function ScopeBadge({
+  definition,
+  groupName,
+}: {
+  definition: ProcessDefinition
+  groupName: string | undefined
+}) {
+  const label = processScopeLabel(definition, groupName)
   return (
     <span
       className="shrink-0 rounded px-1 py-px text-[9px] tracking-wide text-(--text-secondary)"
@@ -210,24 +238,29 @@ function ScopeBadge({ definition }: { definition: ProcessDefinition }) {
 
 function ProcessDetail({
   definition,
+  groupName,
   statistics,
   onEdit,
   onCopy,
   onDelete,
 }: {
   definition: ProcessDefinition
+  groupName: string | undefined
   statistics: readonly ProcessRunStatistics[]
   /** Absent for a process that ships with Overseer: it can only be copied. */
   onEdit?: () => void
   onCopy: () => void
-  onDelete?: () => void
+  /** Remove the copy kept in `scope`; offered only for a project or group copy. */
+  onDelete: (scope: ProcessWriteScope) => void
 }) {
   const rows = processStatisticsRows(statistics, definition.id)
+  const removal = processRemoval(definition)
+  const shadowNote = processShadowNote(definition)
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="text-base font-semibold">{definition.name}</h2>
-        <ScopeBadge definition={definition} />
+        <ScopeBadge definition={definition} groupName={groupName} />
         <span className="text-[11px] text-(--text-secondary)">v{definition.version}</span>
         <div className="ml-auto flex gap-2">
           {onEdit ? (
@@ -238,9 +271,9 @@ function ProcessDetail({
           <Button size="sm" variant="secondary" onClick={onCopy}>
             Copy from…
           </Button>
-          {onDelete ? (
-            <Button size="sm" variant="secondary" onClick={onDelete}>
-              Remove this project&rsquo;s copy
+          {removal ? (
+            <Button size="sm" variant="secondary" onClick={() => onDelete(removal.scope)}>
+              {removal.label}
             </Button>
           ) : null}
         </div>
@@ -251,11 +284,7 @@ function ProcessDetail({
       {isSeededProcess(definition) ? (
         <p className="text-[11px] text-(--text-secondary)">{PROCESS_EDITOR_COPY.seededNote}</p>
       ) : null}
-      {definition.shadowsGlobal ? (
-        <Alert variant="info">
-          This project has its own copy of a shared process. Removing it brings the shared one back.
-        </Alert>
-      ) : null}
+      {shadowNote ? <Alert variant="info">{shadowNote}</Alert> : null}
 
       {rows.length > 0 ? (
         <div className="space-y-1">
@@ -324,14 +353,22 @@ function ProcessDetail({
 function ProcessEditor({
   definition,
   implementedKinds,
-  isFork,
+  forkNote,
+  saveTargets,
+  saveTarget,
+  onSaveTarget,
   onChange,
   onCancel,
   onSave,
 }: {
   definition: ProcessDefinition
   implementedKinds: ProcessStepKind[]
-  isFork: boolean
+  /** What saving forks, said in a line; absent when it forks nothing. */
+  forkNote: string | undefined
+  /** Where a save can go; empty when the project is in no group. */
+  saveTargets: readonly { value: ProcessWriteScope; label: string }[]
+  saveTarget: ProcessWriteScope
+  onSaveTarget: (target: ProcessWriteScope) => void
   onChange: (next: ProcessDefinition) => void
   onCancel: () => void
   onSave: () => void
@@ -370,12 +407,20 @@ function ProcessEditor({
         </div>
       </div>
 
-      {isFork ? (
-        <Alert variant="info">
-          Saving makes this project its own copy. The shared process everyone else uses is left
-          exactly as it is.
-        </Alert>
+      {saveTargets.length > 0 ? (
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-(--text-secondary)">{PROCESS_SCOPE_COPY.saveTo}</span>
+          <SegmentedControl
+            size="sm"
+            ariaLabel={PROCESS_SCOPE_COPY.saveTo}
+            value={saveTarget}
+            onChange={(v) => onSaveTarget(v === 'group' ? 'group' : 'project')}
+            options={saveTargets.map((target) => ({ value: target.value, label: target.label }))}
+          />
+        </div>
       ) : null}
+
+      {forkNote ? <Alert variant="info">{forkNote}</Alert> : null}
 
       <div className="grid max-w-xl gap-3">
         <Field label="Id">

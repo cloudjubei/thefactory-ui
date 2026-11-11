@@ -21,6 +21,8 @@ export type StepsStripProps = {
    * strip folds the same way once its steps do not fit.
    */
   narrow?: boolean
+  /** Drawn inside a row rather than under a header: no rule, fill or side padding of its own. */
+  bare?: boolean
 }
 
 type StripFit = { key: string; fullWidth: number; room: number }
@@ -97,7 +99,7 @@ function doneChipStyle(tone: ProcessStatusTone) {
  * header, on one line. A long list folds — finished steps into `✓ N done`, the
  * rest into `+N more` — and either chip opens the whole list.
  */
-export default function StepsStrip({ model, narrow = false }: StepsStripProps) {
+export default function StepsStrip({ model, narrow = false, bare = false }: StepsStripProps) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement | null>(null)
   const measureKey = useMemo(() => stepsStripMeasureKey(model.entries), [model.entries])
@@ -151,7 +153,7 @@ export default function StepsStrip({ model, narrow = false }: StepsStripProps) {
   return (
     <div
       ref={rootRef}
-      className={`relative flex min-w-0 shrink-0 ${folds ? 'flex-wrap gap-y-1' : 'flex-nowrap'} items-center gap-x-1.5 border-b border-(--border-subtle) bg-(--surface-raised) px-3.5 py-2 text-[12px]`}
+      className={`relative flex min-w-0 shrink-0 ${folds ? 'flex-wrap gap-y-1' : 'flex-nowrap'} items-center gap-x-1.5 ${bare ? 'py-1' : 'border-b border-(--border-subtle) bg-(--surface-raised) px-3.5 py-2'} text-[12px]`}
     >
       <span className="mr-1 shrink-0 text-[10.5px] font-semibold uppercase tracking-wider text-(--text-muted)">
         {model.label}

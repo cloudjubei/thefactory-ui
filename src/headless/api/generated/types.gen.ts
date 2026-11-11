@@ -31,6 +31,8 @@ export type ExtraMcpToolHandler = unknown
 
 export type EntityFilter = unknown
 
+export type ScriptAnswerShape = unknown
+
 export type PendingActionStatus = 'pending' | 'approved' | 'denied' | 'expired'
 
 export type ToolAskPayload = {
@@ -3669,7 +3671,6 @@ export type ProjectRegistryMetadata = {
     wallClockMs?: number
     maxIterations?: number
   }
-  processFakeDataInProduct?: 'ship' | 'keep-out'
   workLaunchMode?: 'process' | 'chat'
   capabilities?: {
     connectorWriteBack?: boolean
@@ -3720,7 +3721,6 @@ export type ProjectRegistryEntry = {
       wallClockMs?: number
       maxIterations?: number
     }
-    processFakeDataInProduct?: 'ship' | 'keep-out'
     workLaunchMode?: 'process' | 'chat'
     capabilities?: {
       connectorWriteBack?: boolean
@@ -6134,6 +6134,12 @@ export type ReviewTestSeamResult =
       error: string
     }
 
+export type ReviewBaseUpdateMerge = {
+  sha: string
+  parent: string
+  brought: string
+}
+
 export type TestSeamManifest = {
   description: string
   paths: Array<string>
@@ -6926,6 +6932,18 @@ export type CompletionStopDetail = {
 }
 
 export type ToolCallFailureStep = 'succeeded' | 'failed' | 'neither'
+
+export type HistoryStepBounds = {
+  minChars: number
+  maxChars: number
+  minTurns: number
+}
+
+export type CompletionHistoryForms = {
+  sent: Array<CompletionMessage>
+  whole: Array<CompletionMessage>
+  older: Array<CompletionMessage>
+}
 
 export type RestartableMessage = {
   role: string
@@ -7919,6 +7937,27 @@ export type JiraTransition = {
   name: string
   toStatus?: string
   toStatusCategory?: string
+}
+
+export type JiraStatusRef = {
+  status: string
+  statusCategory?: string
+}
+
+export type JiraTransitionResult = {
+  key: string
+  id?: string
+  summary?: string
+  url: string
+  from?: {
+    status: string
+    statusCategory?: string
+  }
+  to?: {
+    status: string
+    statusCategory?: string
+  }
+  transition: string
 }
 
 export type JiraProject = {
@@ -11073,6 +11112,12 @@ export type GitApplyStashOptions = {
 export type ResolvedCommitWorktree = {
   sha: string
   overlays: Array<string>
+  fileOverlay?: string
+}
+
+export type CommitWorktreeFileOverlay = {
+  from: string
+  paths: Array<string>
 }
 
 export type GitLogOptions = {
@@ -11655,519 +11700,6 @@ export type SearchIndexSyncResult = {
 export type SearchIndexChangeResult = {
   upserted: number
   deleted: number
-}
-
-export type JourneyDecisionKind =
-  | 'energy'
-  | 'morning-review'
-  | 'replacement-pick'
-  | 'goal-status'
-  | 'journal'
-  | 'probe'
-  | 'card'
-  | 'reply'
-
-export type JourneyOption = {
-  id?: string
-  text: string
-  group?: string
-}
-
-export type JourneyDecisionRequest = {
-  kind: JourneyDecisionKind
-  day: number
-  screen: string
-  options: Array<JourneyOption>
-}
-
-export type JourneyGoalReview = {
-  id?: string
-  text: string
-  keep: boolean
-  reason?: string
-  replacementHint?: string
-}
-
-export type JourneyGoalStatusValue = 'done' | 'in_motion' | 'not_done' | 'not_yet'
-
-export type JourneyGoalHelped = 'yes' | 'somewhat' | 'no'
-
-export type JourneyGoalStatus = {
-  id?: string
-  text: string
-  status: JourneyGoalStatusValue
-  note?: string
-  helped?: 'yes' | 'somewhat' | 'no'
-}
-
-export type JourneyAnswers = {
-  energy: {
-    energy: string
-    dayNeed?: string
-  }
-  'morning-review': {
-    goals: Array<JourneyGoalReview>
-  }
-  'replacement-pick': {
-    pick: string | unknown
-    reason: string
-  }
-  'goal-status': {
-    statuses: Array<JourneyGoalStatus>
-  }
-  journal: {
-    write: boolean
-    text?: string
-  }
-  probe: {
-    choice: string
-    note?: string
-  }
-  card: {
-    reaction: string
-    note?: string
-  }
-  reply: {
-    text: string
-  }
-}
-
-export type JourneyDecisionSource = 'plan' | 'live'
-
-export type JourneyTakeOverRequest = {
-  goal: string
-  saw: string
-}
-
-export type JourneyTakeOverOutcome = 'handed-back' | 'failed'
-
-export type JourneyTakeOverResult = {
-  outcome: JourneyTakeOverOutcome
-  note: string
-  turns?: number
-  costUsd?: number
-}
-
-export type JourneyHostScope = {
-  projectId: string
-  runId: string
-  stepId: string
-  entryId: string
-  sessionId: string
-}
-
-export type JourneyHostGrant = {
-  projectId: string
-  runId: string
-  stepId: string
-  entryId: string
-  sessionId: string
-  token: string
-}
-
-export type JourneyDayLogKind =
-  | 'day-start'
-  | 'screen'
-  | 'goals-offered'
-  | 'goal-removed'
-  | 'goal-replaced'
-  | 'goals-accepted'
-  | 'goal-status'
-  | 'journal'
-  | 'probe'
-  | 'card'
-  | 'reply'
-  | 'decision'
-  | 'take-over'
-  | 'note'
-  | 'day-end'
-
-export type JourneyDayLogLine = {
-  at: string
-  day: number
-}
-
-export type JourneyLoggedGoal = {
-  id?: string
-  text: string
-}
-
-export type JourneyDayLogEntry = JourneyDayLogLine &
-  (
-    | {
-        kind: 'day-start'
-      }
-    | {
-        kind: 'screen'
-        text: string
-      }
-    | {
-        kind: 'goals-offered'
-        goals: Array<JourneyLoggedGoal>
-      }
-    | {
-        kind: 'goal-removed'
-        goal: string
-        reason?: string
-      }
-    | {
-        kind: 'goal-replaced'
-        from: string
-        to: string
-        reason?: string
-      }
-    | {
-        kind: 'goals-accepted'
-        goals?: Array<JourneyLoggedGoal>
-      }
-    | {
-        kind: 'goal-status'
-        goal: string
-        status: string
-      }
-    | {
-        kind: 'journal'
-        wrote: boolean
-        text?: string
-      }
-    | {
-        kind: 'probe'
-        question: string
-        choice?: string
-        note?: string
-      }
-    | {
-        kind: 'card'
-        card: string
-        reaction?: string
-      }
-    | {
-        kind: 'reply'
-        text: string
-      }
-    | {
-        kind: 'decision'
-        decision: JourneyDecisionKind
-        source: JourneyDecisionSource
-        answer: unknown
-        model?: string
-        costUsd?: number
-      }
-    | {
-        kind: 'take-over'
-        goal: string
-        saw: string
-        outcome: JourneyTakeOverOutcome
-        turns?: number
-        costUsd?: number
-      }
-    | {
-        kind: 'note'
-        text: string
-      }
-    | {
-        kind: 'day-end'
-      }
-  )
-
-export type JourneyDayLogProblem = {
-  line: number
-  problem: string
-}
-
-export type JourneyDayLog = {
-  entries: Array<JourneyDayLogEntry>
-  problems: Array<JourneyDayLogProblem>
-}
-
-export type JourneyStepInputs = {
-  scriptNote: string
-  personNote?: string
-  productNote?: string
-  days?: number
-}
-
-export type JourneyFiles = {
-  dir: string
-  specFile: string
-  configFile: string
-  logFile: string
-}
-
-export type JourneyScriptRun = {
-  cwd: string
-  specFile: string
-  configFile: string
-  env: {
-    [key: string]: string
-  }
-  signal: unknown
-}
-
-export type JourneyScriptExit = {
-  exitCode: number | unknown
-  signal?: string
-  aborted: boolean
-  notStarted?: string
-  outputTail: Array<string>
-}
-
-export type ReviewEvidenceScope = {
-  runId: string
-  projectId: string
-  storyId?: string
-  featureId?: string
-  chatContextId?: string
-}
-
-export type ReviewEvidenceKind = 'screenshot' | 'recording' | 'report' | 'log' | 'file'
-
-export type ReviewEvidenceObservedBefore = {
-  reason: string
-}
-
-export type ReviewEvidenceDesignAttribution = {
-  app: string
-  screen: string
-  state?: string
-  variant?: string
-}
-
-export type ReviewEvidenceVerdict = 'approved' | 'changes-requested' | 'rejected'
-
-export type ReviewEvidenceVerdictCause = 'defect' | 'proof-impossible'
-
-export type ReviewEvidenceVerificationMode = 'live' | 'dry'
-
-export type UiImpactStance = {
-  visible: boolean
-  reason: string
-}
-
-export type CodeReviewVerdictSection = {
-  headline: string
-  detail?: string
-  worthALook?: string
-}
-
-export type CodeReviewFindingSeverity = 'blocker' | 'major' | 'minor' | 'nit'
-
-export type CodeReviewFindingStanding = 'change' | 'base' | 'outside'
-
-export type CodeReviewFindingOrigin = 'unfixed' | 'introduced' | 'new'
-
-export type CodeReviewFinding = {
-  severity: CodeReviewFindingSeverity
-  where?: string
-  title?: string
-  text: string
-  standing?: 'change' | 'base' | 'outside'
-  origin?: 'unfixed' | 'introduced' | 'new'
-  reverses?: string
-}
-
-export type CodeReviewCriterionStatus = 'met' | 'partly' | 'not-met'
-
-export type CodeReviewCriterion = {
-  text: string
-  status: CodeReviewCriterionStatus
-  where?: string
-}
-
-export type CodeReviewEvidenceSection = {
-  shows: string
-  unproven: string
-}
-
-export type CodeReviewSections = {
-  verdict: CodeReviewVerdictSection
-  findings: Array<CodeReviewFinding>
-  criteria: Array<CodeReviewCriterion>
-  evidence: CodeReviewEvidenceSection
-}
-
-export type ReportOutcomeSection = {
-  headline: string
-  detail?: string
-}
-
-export type ReportProofStatus = 'proven' | 'unproven' | 'failed'
-
-export type ReportProofSource =
-  | 'tests'
-  | 'checks'
-  | 'code-review'
-  | 'verify'
-  | 'walkthrough'
-  | 'other'
-
-export type ReportProofLine = {
-  text: string
-  status: ReportProofStatus
-  source: ReportProofSource
-}
-
-export type ReportSections = {
-  outcome: ReportOutcomeSection
-  howProven: Array<ReportProofLine>
-  decisions: Array<string>
-  needsYou: Array<string>
-}
-
-export type LoomWalkthroughItemFields = {
-  title: string
-  open: string
-  steps: Array<string>
-  mustShow: Array<string>
-}
-
-export type RecordReviewEvidenceInput = {
-  runId: string
-  projectId: string
-  storyId?: string
-  featureId?: string
-  chatContextId?: string
-  sourcePath?: string
-  text?: string
-  kind: 'screenshot' | 'recording' | 'report' | 'log' | 'file'
-  label?: string
-  phase?: 'before' | 'after'
-  subject?: string
-  observedBefore?: {
-    reason: string
-  }
-  design?: {
-    app: string
-    screen: string
-    state?: string
-    variant?: string
-  }
-  approach?: string
-  capturedOn?: string
-  verdict?: 'approved' | 'changes-requested' | 'rejected'
-  verdictReason?: string
-  verdictCause?: 'defect' | 'proof-impossible'
-  verdictScreens?: Array<string>
-  verdictNewScreens?: Array<string>
-  verificationMode?: 'live' | 'dry'
-  dryAssumptions?: string
-  uiImpact?: {
-    visible: boolean
-    reason: string
-  }
-  reviewSections?: {
-    verdict: CodeReviewVerdictSection
-    findings: Array<CodeReviewFinding>
-    criteria: Array<CodeReviewCriterion>
-    evidence: CodeReviewEvidenceSection
-  }
-  reportSections?: {
-    outcome: ReportOutcomeSection
-    howProven: Array<ReportProofLine>
-    decisions: Array<string>
-    needsYou: Array<string>
-  }
-  walkthroughItem?: {
-    title: string
-    open: string
-    steps: Array<string>
-    mustShow: Array<string>
-  }
-}
-
-export type JourneyEvidence = {
-  sourcePath?: string
-  text?: string
-  kind: 'screenshot' | 'recording' | 'report' | 'log' | 'file'
-  label?: string
-  phase?: 'before' | 'after'
-  subject?: string
-  observedBefore?: {
-    reason: string
-  }
-  design?: {
-    app: string
-    screen: string
-    state?: string
-    variant?: string
-  }
-  approach?: string
-  capturedOn?: string
-  verdict?: 'approved' | 'changes-requested' | 'rejected'
-  verdictReason?: string
-  verdictCause?: 'defect' | 'proof-impossible'
-  verdictScreens?: Array<string>
-  verdictNewScreens?: Array<string>
-  verificationMode?: 'live' | 'dry'
-  dryAssumptions?: string
-  uiImpact?: {
-    visible: boolean
-    reason: string
-  }
-  reviewSections?: {
-    verdict: CodeReviewVerdictSection
-    findings: Array<CodeReviewFinding>
-    criteria: Array<CodeReviewCriterion>
-    evidence: CodeReviewEvidenceSection
-  }
-  reportSections?: {
-    outcome: ReportOutcomeSection
-    howProven: Array<ReportProofLine>
-    decisions: Array<string>
-    needsYou: Array<string>
-  }
-  walkthroughItem?: {
-    title: string
-    open: string
-    steps: Array<string>
-    mustShow: Array<string>
-  }
-} & {
-  label: string
-}
-
-export type JourneyPersona = {
-  personNoteId: string
-  person: string
-  product?: string
-  days: number
-}
-
-export type JourneyCompletionRequest = {
-  system: string
-  prompt: string
-  schemaHint: string
-}
-
-export type JourneyCompletion = {
-  text: string
-  model: string
-  costUsd?: number
-}
-
-export type JourneyAgentLaunch = {
-  grant: JourneyHostGrant
-  brief: string
-  sessionId: string
-  maxTurns: number
-  handBackTool: string
-}
-
-export type JourneyHandBack = {
-  outcome: JourneyTakeOverOutcome
-  note: string
-}
-
-export type JourneyAgentEnd = {
-  handBack?: unknown
-  lastWords?: string
-  turns?: number
-  costUsd?: number
-}
-
-export type JourneyFakeReply = {
-  text: string
-  costUsd?: number
 }
 
 export type KnowledgeEvaluationArmDepth = {
@@ -12948,7 +12480,7 @@ export type FakeRequest = {
   body: string
 }
 
-export type McpHostJobStatus = 'running' | 'succeeded' | 'failed'
+export type McpHostJobStatus = 'running' | 'succeeded' | 'failed' | 'cancelled'
 
 export type McpHostJobNote = {
   reason: string
@@ -13007,7 +12539,7 @@ export type McpHostJobView =
   | {
       jobId: string
       call: string
-      status: 'succeeded' | 'failed'
+      status: 'succeeded' | 'failed' | 'cancelled'
       tookSec: number
       result: string
     }
@@ -13294,6 +12826,23 @@ export type MobileFakeData = {
   android: MobileFakeDataAndroid
 }
 
+export type AndroidFakeDataVariant = {
+  module?: string
+  flavor?: string
+  buildType: string
+}
+
+export type ReviewEvidenceOverlayFile = {
+  path: string
+  sha?: string
+}
+
+export type MobileFakeDataOverlay = {
+  head: string
+  paths: Array<string>
+  files: Array<ReviewEvidenceOverlayFile>
+}
+
 export type MobileBuildSweepOptions = {
   parent?: string
   now?: number
@@ -13324,7 +12873,10 @@ export type MobileBuildProvenance = {
     flavor?: string
     startExtra?: string
   }
+  fakeDataOverlayHead?: string
+  overlayFiles?: Array<ReviewEvidenceOverlayFile>
   appId?: string
+  abi?: string
   artifactSha256?: string
 }
 
@@ -13615,7 +13167,10 @@ export type MobileDeviceInstall = {
       flavor?: string
       startExtra?: string
     }
+    fakeDataOverlayHead?: string
+    overlayFiles?: Array<ReviewEvidenceOverlayFile>
     appId?: string
+    abi?: string
     artifactSha256?: string
   }
   appId?: string
@@ -14504,7 +14059,7 @@ export type ProcessRunAlreadyMet = {
   at: number
 }
 
-export type ProcessScope = 'global' | 'project'
+export type ProcessScope = 'global' | 'group' | 'project'
 
 export type ProcessStepKind =
   | 'agent'
@@ -14528,11 +14083,13 @@ export type ProcessInputCondition = {
   is: string
 }
 
-export type ProcessJourneyInputs = {
-  script: string
-  person?: string
-  product?: string
-  days?: string
+export type ProcessScriptStepConfig = {
+  note: string
+  inputs?: {
+    [key: string]: string
+  }
+  takeOverAgentType?: string
+  memory?: string
 }
 
 export type ProcessStep = {
@@ -14558,11 +14115,13 @@ export type ProcessStep = {
     input: string
     is: string
   }
-  journey?: {
-    script: string
-    person?: string
-    product?: string
-    days?: string
+  script?: {
+    note: string
+    inputs?: {
+      [key: string]: string
+    }
+    takeOverAgentType?: string
+    memory?: string
   }
   documents?: Array<string>
   documentSection?: Array<string>
@@ -14607,11 +14166,13 @@ export type ProcessPlanStep = {
     input: string
     is: string
   }
-  journey?: {
-    script: string
-    person?: string
-    product?: string
-    days?: string
+  script?: {
+    note: string
+    inputs?: {
+      [key: string]: string
+    }
+    takeOverAgentType?: string
+    memory?: string
   }
   documents?: Array<string>
   documentSection?: Array<string>
@@ -15414,6 +14975,10 @@ export type ProcessAcceptedUnchecked = {
   note?: string
 }
 
+export type ReviewEvidenceObservedBefore = {
+  reason: string
+}
+
 export type ProcessProofPair = {
   subject: string
   beforeId: string
@@ -15496,6 +15061,13 @@ export type ProcessVerifyProof = {
     reason: string
     screens: boolean
   }
+}
+
+export type ReviewEvidenceVerdict = 'approved' | 'changes-requested' | 'rejected'
+
+export type UiImpactStance = {
+  visible: boolean
+  reason: string
 }
 
 export type ProcessReviewVerdict = {
@@ -16041,6 +15613,8 @@ export type ProcessRunPendingChange =
   | ProcessRunFeaturePendingChange
   | ProcessRunStepRerunPendingChange
 
+export type FakeDataInProduct = 'ship' | 'keep-out'
+
 export type ProcessRun = {
   id: string
   projectId: string
@@ -16494,6 +16068,7 @@ export type ProcessRun = {
     }
     reversedKeys?: Array<string>
   }
+  fakeDataInProduct?: 'ship' | 'keep-out'
 }
 
 export type ProcessManagerCardStandingRun = {
@@ -16911,7 +16486,6 @@ export type ProjectSpecCreateInput = {
       wallClockMs?: number
       maxIterations?: number
     }
-    processFakeDataInProduct?: 'ship' | 'keep-out'
     workLaunchMode?: 'process' | 'chat'
     capabilities?: {
       connectorWriteBack?: boolean
@@ -17005,7 +16579,6 @@ export type ProjectSpecEditInput = {
       wallClockMs?: number
       maxIterations?: number
     }
-    processFakeDataInProduct?: 'ship' | 'keep-out'
     workLaunchMode?: 'process' | 'chat'
     capabilities?: {
       connectorWriteBack?: boolean
@@ -18063,6 +17636,7 @@ export type FakeDataSetupNeedInput = {
 export type FakeDataSetupFeatureInput = {
   project: ProjectPlatformInput
   screensOf?: Array<string>
+  fakeDataInProduct?: 'ship' | 'keep-out'
 }
 
 export type FeatureCreateInput = {
@@ -21230,11 +20804,6 @@ export type CopiedFile = {
   bytes: number
 }
 
-export type ReviewEvidenceOverlayFile = {
-  path: string
-  sha?: string
-}
-
 export type ReviewEvidenceBuild = {
   platform?: 'android' | 'ios' | 'web'
   sha: string
@@ -21244,6 +20813,7 @@ export type ReviewEvidenceBuild = {
   overlays?: Array<string>
   overlayFiles?: Array<ReviewEvidenceOverlayFile>
   sceneOverlayHead?: string
+  fakeDataOverlayHead?: string
   tree?: string
   fakeBackend?: string
   fakeData?: string
@@ -21268,6 +20838,7 @@ export type ReviewEvidenceCaptureDescription = {
     overlays?: Array<string>
     overlayFiles?: Array<ReviewEvidenceOverlayFile>
     sceneOverlayHead?: string
+    fakeDataOverlayHead?: string
     tree?: string
     fakeBackend?: string
     fakeData?: string
@@ -21292,6 +20863,23 @@ export type CaptureRecordReading =
       description: ReviewEvidenceCaptureDescription
     }
 
+export type ReviewEvidenceScope = {
+  runId: string
+  projectId: string
+  storyId?: string
+  featureId?: string
+  chatContextId?: string
+}
+
+export type ReviewEvidenceKind = 'screenshot' | 'recording' | 'report' | 'log' | 'file'
+
+export type ReviewEvidenceDesignAttribution = {
+  app: string
+  screen: string
+  state?: string
+  variant?: string
+}
+
 export type ReviewEvidenceComparison = {
   changedPixels: number
   totalPixels: number
@@ -21299,6 +20887,87 @@ export type ReviewEvidenceComparison = {
   resized: boolean
   unavailable?: string
   beforeId?: string
+}
+
+export type ReviewEvidenceVerdictCause = 'defect' | 'proof-impossible'
+
+export type ReviewEvidenceVerificationMode = 'live' | 'dry'
+
+export type CodeReviewVerdictSection = {
+  headline: string
+  detail?: string
+  worthALook?: string
+}
+
+export type CodeReviewFindingSeverity = 'blocker' | 'major' | 'minor' | 'nit'
+
+export type CodeReviewFindingStanding = 'change' | 'base' | 'outside'
+
+export type CodeReviewFindingOrigin = 'unfixed' | 'introduced' | 'new'
+
+export type CodeReviewFinding = {
+  severity: CodeReviewFindingSeverity
+  where?: string
+  title?: string
+  text: string
+  standing?: 'change' | 'base' | 'outside'
+  origin?: 'unfixed' | 'introduced' | 'new'
+  reverses?: string
+}
+
+export type CodeReviewCriterionStatus = 'met' | 'partly' | 'not-met'
+
+export type CodeReviewCriterion = {
+  text: string
+  status: CodeReviewCriterionStatus
+  where?: string
+}
+
+export type CodeReviewEvidenceSection = {
+  shows: string
+  unproven: string
+}
+
+export type CodeReviewSections = {
+  verdict: CodeReviewVerdictSection
+  findings: Array<CodeReviewFinding>
+  criteria: Array<CodeReviewCriterion>
+  evidence: CodeReviewEvidenceSection
+}
+
+export type ReportOutcomeSection = {
+  headline: string
+  detail?: string
+}
+
+export type ReportProofStatus = 'proven' | 'unproven' | 'failed'
+
+export type ReportProofSource =
+  | 'tests'
+  | 'checks'
+  | 'code-review'
+  | 'verify'
+  | 'walkthrough'
+  | 'other'
+
+export type ReportProofLine = {
+  text: string
+  status: ReportProofStatus
+  source: ReportProofSource
+}
+
+export type ReportSections = {
+  outcome: ReportOutcomeSection
+  howProven: Array<ReportProofLine>
+  decisions: Array<string>
+  needsYou: Array<string>
+}
+
+export type LoomWalkthroughItemFields = {
+  title: string
+  open: string
+  steps: Array<string>
+  mustShow: Array<string>
 }
 
 export type LoomWalkthroughAttachment = {
@@ -21391,6 +21060,7 @@ export type ReviewEvidenceRef = {
     overlays?: Array<string>
     overlayFiles?: Array<ReviewEvidenceOverlayFile>
     sceneOverlayHead?: string
+    fakeDataOverlayHead?: string
     tree?: string
     fakeBackend?: string
     fakeData?: string
@@ -21511,6 +21181,21 @@ export type ReviewEvidenceSourceEntry = {
   leftBehind: Array<ReviewEvidenceLeftBehind>
 }
 
+export type ReviewEvidenceTextSearch = {
+  search: string
+  matches: number
+  shown: number
+  offset: number
+  totalChars: number
+  nextOffset?: number
+}
+
+export type EvidenceSearchResult = {
+  text: string
+  textSearch: ReviewEvidenceTextSearch
+  note: string
+}
+
 export type CodeReviewFindingsJudgement = {
   blocking: Array<CodeReviewFinding>
   followUps: Array<CodeReviewFinding>
@@ -21580,6 +21265,60 @@ export type ReviewEvidenceQuery = {
   kind?: 'screenshot' | 'recording' | 'report' | 'log' | 'file'
 }
 
+export type RecordReviewEvidenceInput = {
+  runId: string
+  projectId: string
+  storyId?: string
+  featureId?: string
+  chatContextId?: string
+  sourcePath?: string
+  text?: string
+  kind: 'screenshot' | 'recording' | 'report' | 'log' | 'file'
+  label?: string
+  phase?: 'before' | 'after'
+  subject?: string
+  observedBefore?: {
+    reason: string
+  }
+  design?: {
+    app: string
+    screen: string
+    state?: string
+    variant?: string
+  }
+  approach?: string
+  capturedOn?: string
+  verdict?: 'approved' | 'changes-requested' | 'rejected'
+  verdictReason?: string
+  verdictCause?: 'defect' | 'proof-impossible'
+  verdictScreens?: Array<string>
+  verdictNewScreens?: Array<string>
+  verificationMode?: 'live' | 'dry'
+  dryAssumptions?: string
+  uiImpact?: {
+    visible: boolean
+    reason: string
+  }
+  reviewSections?: {
+    verdict: CodeReviewVerdictSection
+    findings: Array<CodeReviewFinding>
+    criteria: Array<CodeReviewCriterion>
+    evidence: CodeReviewEvidenceSection
+  }
+  reportSections?: {
+    outcome: ReportOutcomeSection
+    howProven: Array<ReportProofLine>
+    decisions: Array<string>
+    needsYou: Array<string>
+  }
+  walkthroughItem?: {
+    title: string
+    open: string
+    steps: Array<string>
+    mustShow: Array<string>
+  }
+}
+
 export type ReviewEvidenceTextCut = {
   totalChars: number
   headChars: number
@@ -21596,6 +21335,11 @@ export type ReviewEvidenceTextRange = {
   totalChars: number
   more: boolean
   nextOffset?: number
+}
+
+export type ReviewEvidenceTextSearchRequest = {
+  search: string
+  offset?: number
 }
 
 export type ReviewEvidenceLookup =
@@ -21626,6 +21370,14 @@ export type ReviewEvidenceContent = {
     offset: number
     totalChars: number
     more: boolean
+    nextOffset?: number
+  }
+  textSearch?: {
+    search: string
+    matches: number
+    shown: number
+    offset: number
+    totalChars: number
     nextOffset?: number
   }
   viewedImage?: {
@@ -21728,6 +21480,272 @@ export type SandboxProxySidecarOptions = {
 export type SandboxProxyDenialReport = {
   runId: string
   denials: number
+}
+
+export type ScriptAnswerScalar = string | number | boolean | unknown
+
+export type ScriptObjectShape = {
+  type: 'object'
+  properties: {
+    [key: string]: ScriptAnswerShape
+  }
+  required?: Array<string>
+  description?: string
+}
+
+export type ScriptArrayShape = {
+  type: 'array'
+  items: ScriptAnswerShape
+  description?: string
+}
+
+export type ScriptStringShape = {
+  type: 'string'
+  enum?: Array<string>
+  option?: boolean
+  description?: string
+}
+
+export type ScriptNumberShape = {
+  type: 'number'
+  description?: string
+}
+
+export type ScriptBooleanShape = {
+  type: 'boolean'
+  description?: string
+}
+
+export type ScriptEnumShape = {
+  enum: Array<ScriptAnswerScalar>
+  description?: string
+}
+
+export type ScriptAskOption = {
+  id?: string
+  text: string
+}
+
+export type ScriptAskRequest = {
+  key?: string
+  instructions: string
+  data?: unknown
+  options?: Array<ScriptAskOption>
+  answer: ScriptAnswerShape
+}
+
+export type ScriptAskSource = 'pinned' | 'live'
+
+export type ScriptAskResponse = {
+  answer: unknown
+  source: ScriptAskSource
+  model?: string
+  costUsd?: number
+}
+
+export type ScriptTakeOverRequest = {
+  goal: string
+  saw: string
+}
+
+export type ScriptTakeOverOutcome = 'handed-back' | 'failed'
+
+export type ScriptTakeOverResult = {
+  outcome: ScriptTakeOverOutcome
+  note: string
+  turns?: number
+  costUsd?: number
+}
+
+export type ScriptHostScope = {
+  projectId: string
+  runId: string
+  stepId: string
+  entryId: string
+  sessionId: string
+  memoryScope?: string
+  takeOverAgentType?: string
+}
+
+export type ScriptHostGrant = {
+  projectId: string
+  runId: string
+  stepId: string
+  entryId: string
+  sessionId: string
+  memoryScope?: string
+  takeOverAgentType?: string
+  token: string
+}
+
+export type ScriptCompletionRequest = {
+  system: string
+  prompt: string
+  answer: ScriptAnswerShape
+}
+
+export type ScriptCompletion = {
+  text: string
+  model: string
+  costUsd?: number
+}
+
+export type ScriptPinRef = {
+  scope: string
+  key: string
+}
+
+export type ScriptPinnedAnswer = {
+  scope: string
+  key: string
+  answer: unknown
+  model?: string
+  pinnedAt: number
+}
+
+export type ScriptAgentLaunch = {
+  grant: ScriptHostGrant
+  agentType: string
+  brief: string
+  sessionId: string
+  maxTurns: number
+  handBackTool: string
+}
+
+export type ScriptHandBack = {
+  outcome: ScriptTakeOverOutcome
+  note: string
+}
+
+export type ScriptAgentEnd = {
+  handBack?: unknown
+  lastWords?: string
+  turns?: number
+  costUsd?: number
+}
+
+export type ScriptLogLine = {
+  at: string
+  section: string
+  kind: string
+  title: string
+  detail?: string
+  items?: Array<string>
+  source?: 'pinned' | 'live'
+  costUsd?: number
+  [key: string]: unknown
+}
+
+export type ScriptLogProblem = {
+  line: number
+  problem: string
+}
+
+export type ScriptLog = {
+  lines: Array<ScriptLogLine>
+  problems: Array<ScriptLogProblem>
+}
+
+export type ScriptStepInput = {
+  env: string
+  value: string
+  noteId?: string
+}
+
+export type ScriptStepInputs = {
+  scriptNote: string
+  inputs: Array<ScriptStepInput>
+  memoryScope?: string
+  takeOverAgentType?: string
+}
+
+export type ScriptFiles = {
+  dir: string
+  specFile: string
+  configFile: string
+  logFile: string
+  noteFiles: {
+    [key: string]: string
+  }
+}
+
+export type ScriptNoteText = {
+  env: string
+  text: string
+}
+
+export type ScriptRun = {
+  cwd: string
+  specFile: string
+  configFile: string
+  env: {
+    [key: string]: string
+  }
+  signal: unknown
+}
+
+export type ScriptExit = {
+  exitCode: number | unknown
+  signal?: string
+  aborted: boolean
+  notStarted?: string
+  outputTail: Array<string>
+}
+
+export type ScriptEvidence = {
+  sourcePath?: string
+  text?: string
+  kind: 'screenshot' | 'recording' | 'report' | 'log' | 'file'
+  label?: string
+  phase?: 'before' | 'after'
+  subject?: string
+  observedBefore?: {
+    reason: string
+  }
+  design?: {
+    app: string
+    screen: string
+    state?: string
+    variant?: string
+  }
+  approach?: string
+  capturedOn?: string
+  verdict?: 'approved' | 'changes-requested' | 'rejected'
+  verdictReason?: string
+  verdictCause?: 'defect' | 'proof-impossible'
+  verdictScreens?: Array<string>
+  verdictNewScreens?: Array<string>
+  verificationMode?: 'live' | 'dry'
+  dryAssumptions?: string
+  uiImpact?: {
+    visible: boolean
+    reason: string
+  }
+  reviewSections?: {
+    verdict: CodeReviewVerdictSection
+    findings: Array<CodeReviewFinding>
+    criteria: Array<CodeReviewCriterion>
+    evidence: CodeReviewEvidenceSection
+  }
+  reportSections?: {
+    outcome: ReportOutcomeSection
+    howProven: Array<ReportProofLine>
+    decisions: Array<string>
+    needsYou: Array<string>
+  }
+  walkthroughItem?: {
+    title: string
+    open: string
+    steps: Array<string>
+    mustShow: Array<string>
+  }
+} & {
+  label: string
+}
+
+export type ScriptFakeReply = {
+  text: string
+  costUsd?: number
 }
 
 export type SearchRecordAudience = 'person' | 'agent'
@@ -22930,7 +22948,6 @@ export type ToolName =
   | 'ingestAll'
   | 'startIngestProject'
   | 'startIngestAll'
-  | 'handBackJourney'
   | 'listDataSources'
   | 'getDataSource'
   | 'createDataSource'
@@ -23083,6 +23100,7 @@ export type ToolName =
   | 'killSandbox'
   | 'pauseSandbox'
   | 'unpauseSandbox'
+  | 'handBackScript'
   | 'getStoriesOrder'
   | 'getStoryIdFromIndex'
   | 'reorderStory'
@@ -23297,9 +23315,18 @@ export type UiServeRecipe = {
   timezoneId?: string
 }
 
+export type UiSceneOverlay = {
+  from: string
+  paths: Array<string>
+}
+
 export type UiServeAppOptions = {
   ref?: string
   overlayRefs?: Array<string>
+  sceneOverlay?: {
+    from: string
+    paths: Array<string>
+  }
   recipe?: {
     projectApp?: string
     package?: string
@@ -23315,6 +23342,12 @@ export type UiServeAppOptions = {
   }
 }
 
+export type UiSceneOverlayRequestInput = {
+  ref?: string
+  sceneOverlay: UiSceneOverlay
+  playgroundDir?: string
+}
+
 export type UiServedFakeBackend = {
   serve: string
   url: string
@@ -23328,6 +23361,7 @@ export type UiBuildProvenance = {
   dirtyPaths?: Array<string>
   overlays?: Array<string>
   overlayFiles?: Array<ReviewEvidenceOverlayFile>
+  sceneOverlayFrom?: string
   tree?: string
   recipe: string
   origin: string
@@ -23559,6 +23593,7 @@ export type UiCaptureBuildState = {
     dirtyPaths?: Array<string>
     overlays?: Array<string>
     overlayFiles?: Array<ReviewEvidenceOverlayFile>
+    sceneOverlayFrom?: string
     tree?: string
     recipe: string
     origin: string
@@ -23601,12 +23636,20 @@ export type UiRecordingBuildState = {
     dirtyPaths?: Array<string>
     overlays?: Array<string>
     overlayFiles?: Array<ReviewEvidenceOverlayFile>
+    sceneOverlayFrom?: string
     tree?: string
     recipe: string
     origin: string
     fakeBackend?: {
       serve: string
       url: string
+    }
+  }
+  playgroundDir?: string
+  head?: {
+    sha: string
+    files: {
+      [key: string]: string
     }
   }
   recordedBuild?: {
@@ -23617,6 +23660,7 @@ export type UiRecordingBuildState = {
     dirtyPaths?: Array<string>
     overlays?: Array<string>
     overlayFiles?: Array<ReviewEvidenceOverlayFile>
+    sceneOverlayFrom?: string
     tree?: string
     recipe: string
     origin: string
@@ -24698,6 +24742,21 @@ export type GroupLegs = {
   legs: Array<ProcessGroupLeg>
 }
 
+export type ProcessKeepOutDeclaration = {
+  file: string
+  key: Array<string>
+}
+
+export type ProcessReplayKeepOut = {
+  paths: Array<string>
+  declarations?: Array<ProcessKeepOutDeclaration>
+}
+
+export type ProcessKeepOutLeak = {
+  paths: Array<string>
+  declarations: Array<ProcessKeepOutDeclaration>
+}
+
 export type LoopedRun = {
   plan: {
     steps: Array<ProcessPlanStep>
@@ -25106,6 +25165,99 @@ export type ClosureRun = {
   }
 }
 
+export type SendToDeveloperRun = {
+  plan: ProcessPlan
+  park?: {
+    reason: ProcessParkReason
+    stepId?: string
+    loopId?: string
+    message: string
+    parkedAt: number
+    pending?: {
+      cursor: ProcessRunCursor
+      viaLoopId?: string
+      continuesEntryId?: string
+      retryMode?: 'continue' | 'fresh'
+      resumesEntryId?: string
+      rechecksEntryId?: string
+    }
+    ask?: {
+      kind: ProcessWaitingKind
+      agent: string
+      title: string
+      detail: string
+      request?: {
+        actionId: string
+        actionKind: string
+        toolName?: string
+        host?: string
+        packageName?: string
+        ecosystem?: string
+        url?: string
+        args?: {
+          [key: string]: unknown
+        }
+      }
+      items?: Array<ProcessWaitingItem>
+      featureQuestionId?: string
+      runRef?: {
+        runId: string
+        agentRunId?: string
+        chatContextId?: string
+        runner?: 'api' | 'cli'
+      }
+      delegatedTo?: {
+        chatContextId: string
+        topicId: string
+        at: number
+      }
+      agentFailed?: true
+    }
+    questionGrantId?: string
+    stepInFlight?: boolean
+    childRunId?: string
+    baseConflict?: {
+      baseRef: string
+      baseSha: string
+      commits: number
+      paths: Array<string>
+      workSha?: string
+      keptOneSide?: Array<ProcessKeptOneSide>
+      lostExports?: Array<CodeIntelExportedSymbol>
+      notRebuilt?: {
+        paths: Array<string>
+        reason: string
+      }
+    }
+    waitingOn?: Array<string>
+    circling?: {
+      summary: string
+      signals: Array<ProcessCirclingSignal>
+      ranOut: boolean
+      turnsUsed?: number
+      maxTurns?: number
+      changed?: boolean
+      repeatedActions?: Array<ProcessCirclingRepeat>
+      flipFlopFiles?: Array<string>
+      sameFailures?: Array<string>
+      streak: number
+      afterRaise?: true
+      afterRetry?: true
+      afterManager?: true
+      tip?: string
+      at: number
+    }
+  }
+  featureId?: string
+} & {
+  loopCounts?: {
+    [key: string]: number
+  }
+  iterationGrants?: {
+    [key: string]: number
+  }
+}
+
 export type TicketWriteReason =
   | ConnectorWriteReason
   | 'reservation-failed'
@@ -25150,6 +25302,8 @@ export type ChainLink = {
 } & {
   stepId?: string
 }
+
+export type ProcessWriteScope = 'project' | 'group'
 
 export type ProcessStepToolSource =
   | {
@@ -25271,8 +25425,9 @@ export type ProcessDefinition = {
   inputs?: Array<ProcessInput>
   version: number
   updatedAt: number
-  scope?: 'global' | 'project'
+  scope?: 'global' | 'group' | 'project'
   shadowsGlobal?: boolean
+  shadowsGroup?: boolean
   seeded?: boolean
   manager?: {
     enabled?: boolean
@@ -25398,7 +25553,6 @@ export type ProcessLaunchDecision = {
     implementer?: string
     verifier?: string
   }
-  fakeDataInProduct?: 'ship' | 'keep-out'
 }
 
 export type ProcessLaunchOverlapRun = {
@@ -26061,6 +26215,7 @@ export type ProcessRunChatState = {
       }
       reversedKeys?: Array<string>
     }
+    fakeDataInProduct?: 'ship' | 'keep-out'
   }
   alreadyOnBase?: {
     commit: string
@@ -26478,6 +26633,10 @@ export type PushProcessWorkBranchInput = {
   username: string
   token: string
   onto?: string
+  keepOut?: {
+    paths: Array<string>
+    declarations?: Array<ProcessKeepOutDeclaration>
+  }
 }
 
 export type ProcessRunSummary = {
@@ -26827,6 +26986,7 @@ export type ProcessRunSummary = {
     }
     off?: boolean
   }
+  fakeDataInProduct?: 'ship' | 'keep-out'
 } & {
   manager?: {
     turn?: {
@@ -27331,6 +27491,11 @@ export type ValidateProcessOptions = {
   agentTypeIds?: Array<string>
 }
 
+export type ProcessDefinitionMigration = {
+  moved: Array<string>
+  conflicts: Array<string>
+}
+
 export type FreezePlanOptions = {
   scope: ProcessScope
   now: number
@@ -27686,6 +27851,7 @@ export type ProcessParkChoice = {
     unavailable: Array<ProofKindUnavailable>
     keepsScreens?: true
   }
+  noteRequired?: true
 }
 
 export type ProcessSettledQuestion = {
@@ -28144,6 +28310,12 @@ export type ParkChoicesRun = {
   storyId?: string
   parentRunId?: string
   groupRunId?: string
+  loopCounts?: {
+    [key: string]: number
+  }
+  iterationGrants?: {
+    [key: string]: number
+  }
 }
 
 export type ChunkKind = 'code' | 'markdown' | 'text' | 'summary'
@@ -31984,9 +32156,26 @@ export type DeleteProcessData = {
      * Resolve against a project: its own definitions shadow the shared library, and a save FORKS a shared definition into the project rather than editing it. Omit to read or write the shared library itself.
      */
     projectId?: string
+    /**
+     * Which of the project's scopes to write: `project` (the default) its own definitions, `group` its main group's, which every project of the group runs unless it has its own of the same id. Needs `projectId`.
+     */
+    scope?: 'project' | 'group'
   }
   url: '/api/v1/processes/{processId}'
 }
+
+export type DeleteProcessErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type DeleteProcessError = DeleteProcessErrors[keyof DeleteProcessErrors]
 
 export type DeleteProcessResponses = {
   /**
@@ -32043,6 +32232,10 @@ export type SaveProcessData = {
      * Resolve against a project: its own definitions shadow the shared library, and a save FORKS a shared definition into the project rather than editing it. Omit to read or write the shared library itself.
      */
     projectId?: string
+    /**
+     * Which of the project's scopes to write: `project` (the default) its own definitions, `group` its main group's, which every project of the group runs unless it has its own of the same id. Needs `projectId`.
+     */
+    scope?: 'project' | 'group'
   }
   url: '/api/v1/processes/{processId}'
 }
@@ -32072,7 +32265,16 @@ export type SaveProcessResponse = SaveProcessResponses[keyof SaveProcessResponse
 export type ValidateProcessData = {
   body: ProcessDefinition
   path?: never
-  query?: never
+  query?: {
+    /**
+     * Resolve against a project: its own definitions shadow the shared library, and a save FORKS a shared definition into the project rather than editing it. Omit to read or write the shared library itself.
+     */
+    projectId?: string
+    /**
+     * Which of the project's scopes to write: `project` (the default) its own definitions, `group` its main group's, which every project of the group runs unless it has its own of the same id. Needs `projectId`.
+     */
+    scope?: 'project' | 'group'
+  }
   url: '/api/v1/processes/validate'
 }
 
@@ -32275,6 +32477,7 @@ export type PreviewProcessRunResponses = {
    * Default Response
    */
   200: {
+    scope?: 'global' | 'group' | 'project'
     proposal: {
       processId: string
       name: string
@@ -35451,14 +35654,14 @@ export type SetProcessRunCleanupOffResponses = {
 export type SetProcessRunCleanupOffResponse =
   SetProcessRunCleanupOffResponses[keyof SetProcessRunCleanupOffResponses]
 
-export type DecideJourneyData = {
-  body: JourneyDecisionRequest
+export type AskScriptHostData = {
+  body: ScriptAskRequest
   path?: never
   query?: never
-  url: '/api/v1/journeys/decide'
+  url: '/api/v1/script-steps/ask'
 }
 
-export type DecideJourneyErrors = {
+export type AskScriptHostErrors = {
   /**
    * Default Response
    */
@@ -35485,68 +35688,25 @@ export type DecideJourneyErrors = {
   }
 }
 
-export type DecideJourneyError = DecideJourneyErrors[keyof DecideJourneyErrors]
+export type AskScriptHostError = AskScriptHostErrors[keyof AskScriptHostErrors]
 
-export type DecideJourneyResponses = {
+export type AskScriptHostResponses = {
   /**
    * Default Response
    */
-  200: {
-    /**
-     * The person’s answer, in the shape the decision’s kind takes.
-     */
-    answer:
-      | {
-          energy: string
-          dayNeed?: string
-        }
-      | {
-          goals: Array<JourneyGoalReview>
-        }
-      | {
-          pick: string | unknown
-          reason: string
-        }
-      | {
-          statuses: Array<JourneyGoalStatus>
-        }
-      | {
-          write: boolean
-          text?: string
-        }
-      | {
-          choice: string
-          note?: string
-        }
-      | {
-          reaction: string
-          note?: string
-        }
-      | {
-          text: string
-        }
-    source: JourneyDecisionSource
-    /**
-     * The model a live answer came from.
-     */
-    model?: string
-    /**
-     * What a live answer cost.
-     */
-    costUsd?: number
-  }
+  200: ScriptAskResponse
 }
 
-export type DecideJourneyResponse = DecideJourneyResponses[keyof DecideJourneyResponses]
+export type AskScriptHostResponse = AskScriptHostResponses[keyof AskScriptHostResponses]
 
-export type TakeOverJourneyData = {
-  body: JourneyTakeOverRequest
+export type TakeOverScriptHostData = {
+  body: ScriptTakeOverRequest
   path?: never
   query?: never
-  url: '/api/v1/journeys/take-over'
+  url: '/api/v1/script-steps/take-over'
 }
 
-export type TakeOverJourneyErrors = {
+export type TakeOverScriptHostErrors = {
   /**
    * Default Response
    */
@@ -35573,16 +35733,17 @@ export type TakeOverJourneyErrors = {
   }
 }
 
-export type TakeOverJourneyError = TakeOverJourneyErrors[keyof TakeOverJourneyErrors]
+export type TakeOverScriptHostError = TakeOverScriptHostErrors[keyof TakeOverScriptHostErrors]
 
-export type TakeOverJourneyResponses = {
+export type TakeOverScriptHostResponses = {
   /**
    * Default Response
    */
-  200: JourneyTakeOverResult
+  200: ScriptTakeOverResult
 }
 
-export type TakeOverJourneyResponse = TakeOverJourneyResponses[keyof TakeOverJourneyResponses]
+export type TakeOverScriptHostResponse =
+  TakeOverScriptHostResponses[keyof TakeOverScriptHostResponses]
 
 export type ListReviewEvidenceData = {
   body?: never
@@ -47450,9 +47611,38 @@ export type ListCliAgentRunsData = {
     storyId?: string
     status?: 'running' | 'awaiting-approval' | 'succeeded' | 'errored' | 'aborted' | 'paused'
     chatContextId?: string
+    /**
+     * Maximum page candidates (default 50); also opts filtered requests into paging.
+     */
+    limit?: number
+    /**
+     * Opaque X-Next-Cursor from the previous page with the same filters.
+     */
+    cursor?: string
   }
   url: '/api/v1/cli-runs'
 }
+
+export type ListCliAgentRunsErrors = {
+  /**
+   * Invalid paging parameters or an invalid or mismatched cursor.
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * The run index is not ready; retry after the indicated delay.
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ListCliAgentRunsError = ListCliAgentRunsErrors[keyof ListCliAgentRunsErrors]
 
 export type ListCliAgentRunsResponses = {
   /**
@@ -47471,9 +47661,39 @@ export type ListCliAgentRunSummariesData = {
     storyId?: string
     status?: 'running' | 'awaiting-approval' | 'succeeded' | 'errored' | 'aborted' | 'paused'
     chatContextId?: string
+    /**
+     * Maximum page candidates (default 50); also opts filtered requests into paging.
+     */
+    limit?: number
+    /**
+     * Opaque X-Next-Cursor from the previous page with the same filters.
+     */
+    cursor?: string
   }
   url: '/api/v1/cli-runs/summaries'
 }
+
+export type ListCliAgentRunSummariesErrors = {
+  /**
+   * Invalid paging parameters or an invalid or mismatched cursor.
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * The run index is not ready; retry after the indicated delay.
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ListCliAgentRunSummariesError =
+  ListCliAgentRunSummariesErrors[keyof ListCliAgentRunSummariesErrors]
 
 export type ListCliAgentRunSummariesResponses = {
   /**
@@ -50127,7 +50347,7 @@ export type RunGroupStoryData = {
      * Whether each part's app's fake-data code ships, by project id, as confirmed on the card; a project left out runs on its own setting.
      */
     fakeDataInProduct?: {
-      [key: string]: 'ship' | 'keep-out'
+      [key: string]: FakeDataInProduct
     }
   }
   path: {

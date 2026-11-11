@@ -60,7 +60,7 @@ import {
 } from '../scenes/proofChangeFixtures'
 import { FAKE_DATA_VIEWS } from './fakeDataViews'
 import { FILE_PREVIEW_VIEWS } from './filePreviewViews'
-import { SCRIPTED_VIEWS } from './scriptedViews'
+import { SCRIPT_STEP_VIEWS } from './scriptStepViews'
 import { SEND_TO_DEVELOPER_VIEWS } from './sendToDeveloperViews'
 import { TICKET_VIEWS } from './ticketViews'
 import { VARIANT_VIEWS } from './variantViews'
@@ -557,7 +557,7 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
     render: () => <RequestVideo />,
   },
   ...VARIANT_VIEWS,
-  ...SCRIPTED_VIEWS,
+  ...SCRIPT_STEP_VIEWS,
   ...FAKE_DATA_VIEWS,
   ...FILE_PREVIEW_VIEWS,
   ...TICKET_VIEWS,

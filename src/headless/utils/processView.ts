@@ -10,6 +10,7 @@ import type {
   ProcessStepKind,
   ProcessStepOutcome,
   ProcessVerifyReview,
+  ProcessWriteScope,
 } from 'thefactory-tools/types'
 import { costChipLabel, formatCostUSD } from './costDetails'
 import { GROUP_SIGN_OFF_TEXT } from './groupSignOffConstants'
@@ -23,6 +24,8 @@ import { processRunManagerLine } from './processRunStop'
 import {
   PROCESS_RUN_PERSON_ENDING_VIEW,
   PROCESS_RUN_WORDS,
+  PROCESS_SCOPE_BADGES,
+  PROCESS_SCOPE_COPY,
   PROCESS_SPEND_CAP_TITLE,
   PROCESS_SPEND_TITLE,
   PROCESS_STEP_FINISHED_COPY,
@@ -304,7 +307,7 @@ export const PROCESS_KIND_BLURB: Record<ProcessStepKind, string> = {
   gate: 'Stop and wait for a person to decide.',
   process: 'A nested process, one level down.',
   script:
-    'A journey script lives the days in the served product, asking for the person’s decisions as it goes. An agent steps in only to get past a snag.',
+    'A script drives the served product, asking a model for an answer only where it needs one. An agent steps in only to get past a snag.',
   cleanup:
     'Any process can end with it: after you approve its sign-off, removes what is on the run’s cleanup list — hand-over notes, captures, temporary files — once the work is merged. No agent.',
 }
@@ -325,10 +328,94 @@ export function processStepToolsView(
   }
 }
 
-/** Where a definition came from, as the list row says it. */
-export function processScopeLabel(definition: ProcessDefinition): string {
-  if (definition.scope !== 'project') return 'SHARED'
-  return definition.shadowsGlobal ? 'OVERRIDES SHARED' : 'THIS PROJECT'
+/**
+ * Where a definition came from, as the list row says it: shared, the group's
+ * — by the group's name when it is known — or this project's, and which copy
+ * it overrides when it shadows one. Pure.
+ */
+export function processScopeLabel(
+  definition: Pick<ProcessDefinition, 'scope' | 'shadowsGlobal' | 'shadowsGroup'>,
+  groupName?: string,
+): string {
+  if (definition.scope === 'group') {
+    const group = groupName?.trim() ? groupName.trim().toUpperCase() : PROCESS_SCOPE_BADGES.group
+    return definition.shadowsGlobal ? `${group} · ${PROCESS_SCOPE_BADGES.overridesShared}` : group
+  }
+  if (definition.scope !== 'project') return PROCESS_SCOPE_BADGES.shared
+  if (definition.shadowsGroup) return PROCESS_SCOPE_BADGES.overridesGroup
+  return definition.shadowsGlobal
+    ? PROCESS_SCOPE_BADGES.overridesShared
+    : PROCESS_SCOPE_BADGES.project
+}
+
+/** What a definition's page says of the copy it shadows, when it shadows one. Pure. */
+export function processShadowNote(
+  definition: Pick<ProcessDefinition, 'scope' | 'shadowsGlobal' | 'shadowsGroup'>,
+): string | undefined {
+  if (definition.scope === 'group') {
+    return definition.shadowsGlobal ? PROCESS_SCOPE_COPY.groupShadowsShared : undefined
+  }
+  if (definition.scope !== 'project') return undefined
+  if (definition.shadowsGroup) return PROCESS_SCOPE_COPY.projectShadowsGroup
+  return definition.shadowsGlobal ? PROCESS_SCOPE_COPY.projectShadowsShared : undefined
+}
+
+/**
+ * The removal a definition's page offers: this project's copy or the group's,
+ * with the button's words. None for a shared one — a project screen never
+ * edits the library. Pure.
+ */
+export function processRemoval(
+  definition: Pick<ProcessDefinition, 'scope'>,
+): { scope: ProcessWriteScope; label: string } | undefined {
+  if (definition.scope === 'project') {
+    return { scope: 'project', label: PROCESS_SCOPE_COPY.removeProjectCopy }
+  }
+  if (definition.scope === 'group') {
+    return { scope: 'group', label: PROCESS_SCOPE_COPY.removeGroupCopy }
+  }
+  return undefined
+}
+
+/**
+ * The group a project's process library reads from: its main group, by id
+ * and title. `undefined` when the project is in none. Pure.
+ */
+export function processLibraryGroup(
+  project: { mainGroupId?: string | null } | undefined,
+  groups: readonly { id: string; title?: string }[],
+): { id: string; name: string | undefined } | undefined {
+  const id = project?.mainGroupId
+  if (!id) return undefined
+  const group = groups.find((one) => one.id === id)
+  return { id, name: group?.title }
+}
+
+/**
+ * Where a save is offered to go: this project and, when the project is in a
+ * group, the group — by its name when known. Empty when there is no group,
+ * so there is nothing to pick and the save goes to the project. Pure.
+ */
+export function processSaveTargets(
+  group: { name?: string } | undefined,
+): { value: ProcessWriteScope; label: string }[] {
+  if (!group) return []
+  return [
+    { value: 'project', label: PROCESS_SCOPE_COPY.thisProject },
+    { value: 'group', label: group.name?.trim() || PROCESS_SCOPE_COPY.theGroup },
+  ]
+}
+
+/**
+ * Where a draft is saved by default: the group for a group copy when the
+ * project is in a group — editing it there edits it there — else the project.
+ * Pure.
+ */
+export function processDefaultSaveTarget(
+  draft: Pick<ProcessDefinition, 'scope'>,
+  hasGroup: boolean,
+): ProcessWriteScope {
+  return hasGroup && draft.scope === 'group' ? 'group' : 'project'
 }
 
 /** A step's display name from its id, for a loop description. */
@@ -376,8 +463,28 @@ export function copyProcessDefinition(definition: ProcessDefinition): ProcessDef
  * who renames the id mid-edit is doing exactly the thing the warning explains,
  * and a lookup-based rule made the explanation vanish at that moment.
  */
-export function isProcessFork(draft: ProcessDefinition): boolean {
-  return draft.scope === 'global'
+export function isProcessFork(
+  draft: Pick<ProcessDefinition, 'scope'>,
+  target: ProcessWriteScope = 'project',
+): boolean {
+  return processForkNote(draft, target) !== undefined
+}
+
+/**
+ * What the editor says when saving forks a copy: a shared process into the
+ * project or the group, or the group's into the project. Pure.
+ */
+export function processForkNote(
+  draft: Pick<ProcessDefinition, 'scope'>,
+  target: ProcessWriteScope = 'project',
+): string | undefined {
+  if (draft.scope === 'global') {
+    return target === 'group'
+      ? PROCESS_SCOPE_COPY.forkSharedToGroup
+      : PROCESS_SCOPE_COPY.forkSharedToProject
+  }
+  if (draft.scope === 'group' && target === 'project') return PROCESS_SCOPE_COPY.forkGroupToProject
+  return undefined
 }
 
 /**

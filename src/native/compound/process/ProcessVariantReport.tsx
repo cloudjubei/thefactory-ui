@@ -3,6 +3,8 @@ import { Pressable, Text, View } from 'react-native'
 
 import {
   PROCESS_VARIANT_COPY,
+  processVariantChildView,
+  useProcessRun,
   type EvidenceTile,
   type ProcessVariantFact,
   type ProcessVariantLane,
@@ -21,6 +23,7 @@ import DurationChip from '../chips/DurationChip'
 import RefChip from '../chips/RefChip'
 import ToneBadge from '../chips/ToneBadge'
 import Markdown from '../Markdown'
+import ScriptStepLog from './ScriptStepLog'
 import SignoffReportPanel from './signoff/SignoffReportPanel'
 
 export type ProcessVariantReportProps = {
@@ -118,19 +121,16 @@ function ProofBadge({ recording }: { recording: ProcessVariantRecording }) {
   return <ToneBadge tone={recording.proof ? 'done' : 'review'} label={recording.label} />
 }
 
-/** Recordings with their proof badges, and where the day being lived will show. */
+/** Recordings in the order filed, each by its own label, with its proof badge. */
 export function VariantRecordings({
   projectId,
   recordings,
-  recordingNow = false,
   onSaveFile,
 }: {
   projectId: string
   recordings: readonly ProcessVariantRecording[]
-  recordingNow?: boolean
   onSaveFile?: SaveFileHandler
 }) {
-  const { theme } = useNativeTheme()
   const byId = new Map(recordings.map((one) => [one.tile.ref.id, one]))
   const footer = (tile: EvidenceTile) => {
     const recording = byId.get(tile.ref.id)
@@ -144,24 +144,11 @@ export function VariantRecordings({
         renderFooter={footer}
         {...(onSaveFile ? { onSaveFile } : {})}
       />
-      {recordingNow ? (
-        <View
-          style={{
-            padding: nativeSpace[4],
-            borderRadius: nativeRadii[2],
-            backgroundColor: theme.surface.muted,
-          }}
-        >
-          <Text style={{ fontSize: 12.5, textAlign: 'center', color: theme.text.secondary }}>
-            {PROCESS_VARIANT_COPY.stillRecording}
-          </Text>
-        </View>
-      ) : null}
     </View>
   )
 }
 
-/** What a variant's reviews found. */
+/** The reports a variant filed, in the order filed, each by its own label. */
 export function VariantFindings({ section }: { section: ProcessVariantSection }) {
   const { theme } = useNativeTheme()
   return (
@@ -186,7 +173,37 @@ export function VariantFindings({ section }: { section: ProcessVariantSection })
   )
 }
 
-/** A variant's own page: where it got to, then what it filed. */
+/** The step log of each script step the variant's run reached. */
+function VariantStepLogs({
+  section,
+  projectId,
+  onSaveFile,
+}: {
+  section: ProcessVariantSection
+  projectId: string
+  onSaveFile?: SaveFileHandler
+}) {
+  const { run } = useProcessRun(section.lane.runId)
+  const { stepLogs } = processVariantChildView(run, section.tiles)
+  return (
+    <>
+      {stepLogs.map((log) => (
+        <Card key={log.stepId} label={log.title}>
+          <CardHead title={log.title} sub={PROCESS_VARIANT_COPY.stepLog} />
+          <View style={{ padding: nativeSpace[4], paddingTop: 0 }}>
+            <ScriptStepLog
+              projectId={projectId}
+              view={log.view}
+              {...(onSaveFile ? { onSaveFile } : {})}
+            />
+          </View>
+        </Card>
+      ))}
+    </>
+  )
+}
+
+/** A variant's own page: how it stands, then what it filed and its step logs. */
 export function ProcessVariantPage({
   section,
   projectId,
@@ -204,9 +221,6 @@ export function ProcessVariantPage({
     >
       <Card label={lane.label}>
         <View style={{ gap: 8, padding: nativeSpace[4] }}>
-          {lane.dayLine ? (
-            <Text style={{ fontSize: 12.5, color: theme.text.muted }}>{lane.dayLine}</Text>
-          ) : null}
           <VariantFacts facts={lane.facts} />
           <Text style={{ fontSize: 12.5, color: theme.text.secondary }}>{lane.line}</Text>
         </View>
@@ -220,12 +234,16 @@ export function ProcessVariantPage({
           <VariantRecordings
             projectId={projectId}
             recordings={section.recordings}
-            recordingNow={section.recordingNow}
             {...(onSaveFile ? { onSaveFile } : {})}
           />
           <VariantFindings section={section} />
         </View>
       </Card>
+      <VariantStepLogs
+        section={section}
+        projectId={projectId}
+        {...(onSaveFile ? { onSaveFile } : {})}
+      />
     </View>
   )
 }

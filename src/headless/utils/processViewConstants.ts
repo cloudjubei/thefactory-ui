@@ -105,3 +105,33 @@ export const PROCESS_STEP_RECHECKED = (sha: string | undefined) =>
 /** The line a step's tools fold under, in the Processes view. */
 export const PROCESS_STEP_TOOLS_LABEL = (count: number): string =>
   `${count} ${count === 1 ? 'tool' : 'tools'}`
+
+/** Where a process definition is kept, as its row's badge says it. */
+export const PROCESS_SCOPE_BADGES = {
+  shared: 'SHARED',
+  project: 'THIS PROJECT',
+  group: 'GROUP',
+  overridesShared: 'OVERRIDES SHARED',
+  overridesGroup: 'OVERRIDES GROUP',
+} as const
+
+/** Every word the process library says of where a definition is kept and what saving it does. */
+export const PROCESS_SCOPE_COPY = {
+  saveTo: 'Save to',
+  thisProject: 'This project',
+  theGroup: 'The group',
+  removeProjectCopy: 'Remove this project’s copy',
+  removeGroupCopy: 'Remove the group’s copy',
+  projectShadowsShared:
+    'This project has its own copy of a shared process. Removing it brings the shared one back.',
+  projectShadowsGroup:
+    'This project has its own copy of the group’s process. Removing it brings the group’s one back.',
+  groupShadowsShared:
+    'The group has its own copy of a shared process. Removing it brings the shared one back.',
+  forkSharedToProject:
+    'Saving makes this project its own copy. The shared process everyone else uses is left exactly as it is.',
+  forkSharedToGroup:
+    'Saving makes the group its own copy. The shared process everyone else uses is left exactly as it is.',
+  forkGroupToProject:
+    'Saving makes this project its own copy. The group’s process the other projects use is left exactly as it is.',
+} as const

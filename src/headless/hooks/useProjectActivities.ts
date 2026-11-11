@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useSyncExternalStore } from 'react'
 import { listActivities } from '../api/generated'
 import { useApi } from '../api/ApiContext'
+import { useProjects } from '../contexts/ProjectsContext'
+import { projectShowsShellTab } from '../utils/shellNav'
 import {
   activitiesSnapshot,
   liveRunningForScope,
@@ -22,7 +24,7 @@ export interface ProjectActivitiesState {
   liveForScope: (scope: string | undefined) => number
   /** Paused (running-but-not-live) count for ANY scope. */
   pausedForScope: (scope: string | undefined) => number
-  /** Runs in a scope that finished after `sinceIso` — the unseen-results badge count. */
+  /** Runs in a scope that finished after `sinceIso` — the unseen-results badge count; none without an App tab. */
   unseenForScope: (scope: string | undefined, sinceIso: string | undefined) => number
 }
 
@@ -46,6 +48,7 @@ async function seedProjectActivities(projectId: string): Promise<void> {
 export function useProjectActivities(projectId: string | undefined): ProjectActivitiesState {
   const { ws } = useApi()
   const snapshot = useSyncExternalStore(subscribeActivities, activitiesSnapshot)
+  const { projects } = useProjects()
 
   useEffect(() => ws.on('activity:updated', (run) => upsertActivityRun(run as object)), [ws])
 
@@ -63,8 +66,13 @@ export function useProjectActivities(projectId: string | undefined): ProjectActi
   )
   const unseenForScope = useCallback(
     (scope: string | undefined, sinceIso: string | undefined) =>
-      unseenFinishedForScope(snapshot, scope, sinceIso),
-    [snapshot],
+      unseenFinishedForScope(
+        snapshot,
+        scope,
+        sinceIso,
+        projectShowsShellTab('app', projects.find((p) => p.id === scope)?.metadata),
+      ),
+    [snapshot, projects],
   )
   const runningCount = liveForScope(projectId)
   return {

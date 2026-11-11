@@ -2,6 +2,8 @@ import { useState, type ReactNode } from 'react'
 
 import {
   PROCESS_VARIANT_COPY,
+  processVariantChildView,
+  useProcessRun,
   type EvidenceTile,
   type ProcessVariantFact,
   type ProcessVariantRecording,
@@ -18,6 +20,7 @@ import DurationChip from '../chips/DurationChip'
 import RefChip from '../chips/RefChip'
 import ToneBadge from '../chips/ToneBadge'
 import Markdown from '../Markdown'
+import ScriptStepLog from './ScriptStepLog'
 import SignoffReportPanel from './signoff/SignoffReportPanel'
 
 export type ProcessVariantReportProps = {
@@ -71,15 +74,13 @@ function ProofBadge({ recording }: { recording: ProcessVariantRecording }) {
   )
 }
 
-/** Recordings with their proof badges, and where the day being lived will show. */
+/** Recordings in the order filed, each by its own label, with its proof badge. */
 export function VariantRecordings({
   projectId,
   recordings,
-  recordingNow = false,
 }: {
   projectId: string
   recordings: readonly ProcessVariantRecording[]
-  recordingNow?: boolean
 }) {
   const byId = new Map(recordings.map((one) => [one.tile.ref.id, one]))
   const footer = (tile: EvidenceTile) => {
@@ -93,16 +94,11 @@ export function VariantRecordings({
         recordings={recordings.map((one) => one.tile)}
         renderFooter={footer}
       />
-      {recordingNow ? (
-        <div className="rounded-md border border-(--border-subtle) bg-(--surface-muted) px-3 py-6 text-center text-[12.5px] text-(--text-secondary)">
-          {PROCESS_VARIANT_COPY.stillRecording}
-        </div>
-      ) : null}
     </div>
   )
 }
 
-/** What a variant's reviews found. */
+/** The reports a variant filed, in the order filed, each by its own label. */
 export function VariantFindings({ section }: { section: ProcessVariantSection }) {
   return (
     <div className="flex flex-col gap-3">
@@ -128,6 +124,35 @@ export function VariantFindings({ section }: { section: ProcessVariantSection })
   )
 }
 
+/** The step log of each script step the variant's run reached. */
+function VariantStepLogs({
+  section,
+  projectId,
+}: {
+  section: ProcessVariantSection
+  projectId: string
+}) {
+  const { run } = useProcessRun(section.lane.runId)
+  const { stepLogs } = processVariantChildView(run, section.tiles)
+  if (stepLogs.length === 0) return null
+  return (
+    <div className="flex flex-col gap-2">
+      {stepLogs.map((log) => (
+        <div
+          key={log.stepId}
+          className="overflow-hidden rounded-lg border border-(--border-subtle) bg-(--surface-muted)"
+        >
+          <div className="flex items-center gap-2 px-4 pt-3">
+            <span className="text-[13px] font-semibold text-(--text-primary)">{log.title}</span>
+            <span className="text-[12px] text-(--text-muted)">{PROCESS_VARIANT_COPY.stepLog}</span>
+          </div>
+          <ScriptStepLog projectId={projectId} view={log.view} />
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function VariantBody({
   section,
   projectId,
@@ -135,28 +160,21 @@ function VariantBody({
   section: ProcessVariantSection
   projectId: string
 }) {
-  const nothing =
-    section.recordings.length === 0 &&
-    !section.recordingNow &&
-    section.findings.length === 0 &&
-    !section.findingsNote
+  const filed = section.recordings.length > 0 || section.findings.length > 0
   return (
     <div className="flex flex-col gap-3 px-4 pb-4 sm:px-5">
       <VariantFacts facts={section.lane.facts} />
-      {nothing ? (
+      {filed || section.findingsNote ? (
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <VariantRecordings projectId={projectId} recordings={section.recordings} />
+          <VariantFindings section={section} />
+        </div>
+      ) : (
         <span className="text-[12.5px] text-(--text-muted)">
           {PROCESS_VARIANT_COPY.nothingFiled}
         </span>
-      ) : (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <VariantRecordings
-            projectId={projectId}
-            recordings={section.recordings}
-            recordingNow={section.recordingNow}
-          />
-          <VariantFindings section={section} />
-        </div>
       )}
+      <VariantStepLogs section={section} projectId={projectId} />
     </div>
   )
 }
@@ -211,7 +229,7 @@ function VariantRow({
   )
 }
 
-/** A variant's own page: where it got to, then what it filed. */
+/** A variant's own page: how it stands, then what it filed and its step logs. */
 export function ProcessVariantPage({
   section,
   projectId,
@@ -226,9 +244,6 @@ export function ProcessVariantPage({
         <div className="flex flex-col gap-2 px-4 py-3 sm:px-5">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="m-0 text-[14px] font-semibold text-(--text-primary)">{lane.label}</h3>
-            {lane.dayLine ? (
-              <span className="text-[12.5px] text-(--text-muted)">{lane.dayLine}</span>
-            ) : null}
           </div>
           <VariantFacts facts={lane.facts} />
           <span className="text-[12.5px] text-(--text-secondary)">{lane.line}</span>

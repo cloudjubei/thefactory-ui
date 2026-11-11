@@ -49,8 +49,8 @@ const TYPES: ResolvedAgentType[] = [
 
 describe('agentTypeSettingsView — a seeded type', () => {
   const seeded: ResolvedAgentType = {
-    id: 'run-reviewer',
-    label: 'Run reviewer',
+    id: 'run-checker',
+    label: 'Run checker',
     scope: 'seeded',
     baseRole: 'analyst',
     contextDocs: [],
@@ -61,8 +61,8 @@ describe('agentTypeSettingsView — a seeded type', () => {
   )
 
   it('shows with the built-in roles: nothing to edit, nothing to delete', () => {
-    expect(view.builtins.map((t) => t.label)).toContain('Run reviewer')
-    expect([...view.own, ...view.inherited].map((t) => t.id)).not.toContain('run-reviewer')
+    expect(view.builtins.map((t) => t.label)).toContain('Run checker')
+    expect([...view.own, ...view.inherited].map((t) => t.id)).not.toContain('run-checker')
   })
 })
 

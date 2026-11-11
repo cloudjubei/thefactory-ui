@@ -26,15 +26,17 @@ import {
   FAKE_VARIANT_INPUTS,
   FAKE_VARIANT_NOTES,
   FAKE_VARIANT_PROCESS,
+  FAKE_VARIANT_RUN_ID,
   FAKE_VARIANT_TEXTS,
   FAKE_VARIANT_VALUES,
+  fakeVariantChildRun,
   fakeVariantEvidence,
   fakeVariantPreview,
   fakeVariantRun,
   type FakeVariantRunState,
 } from '../../src/fakeBackend/fixtures/variantRun'
 import { processRunParkChoices } from 'thefactory-tools/utils'
-import { OnFixtures } from '../scenes/onFixtures'
+import { OnFixtures, type FixtureRoutes } from '../scenes/onFixtures'
 import type { NativeView } from './views'
 
 const noop = () => {}
@@ -52,6 +54,17 @@ const groupsOf = (state: FakeVariantRunState): ProcessRunEvidenceGroupView[] =>
 const stateOf = (address: URLSearchParams): FakeVariantRunState =>
   (address.get('state') ?? 'running') as FakeVariantRunState
 
+/** The runs a lane or a variant's page reads: each variant's own run. */
+const childRoutes = (state: FakeVariantRunState): FixtureRoutes => ({
+  '/api/v1/process-runs/{runId}': ({ runId }) =>
+    runId === FAKE_VARIANT_RUN_ID
+      ? fakeVariantRun(state)
+      : fakeVariantChildRun(
+          state,
+          (runId ?? '').replace('run-variant-', '') as 'current' | 'short' | 'morning',
+        ),
+})
+
 function Phone({ children }: { children: ReactNode }) {
   return (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }}>
@@ -62,13 +75,15 @@ function Phone({ children }: { children: ReactNode }) {
 
 function Lanes({ state }: { state: FakeVariantRunState }) {
   return (
-    <Phone>
-      <ProcessVariantLanes
-        view={processVariantLanes(fakeVariantRun(state), groupsOf(state), NOW)}
-        onOpen={noop}
-        onOpenReport={noop}
-      />
-    </Phone>
+    <OnFixtures routes={childRoutes(state)}>
+      <Phone>
+        <ProcessVariantLanes
+          view={processVariantLanes(fakeVariantRun(state), groupsOf(state), NOW)}
+          onOpen={noop}
+          onOpenReport={noop}
+        />
+      </Phone>
+    </OnFixtures>
   )
 }
 
@@ -121,7 +136,7 @@ function VariantPage({ state }: { state: FakeVariantRunState }) {
   const view = processVariantReport(fakeVariantRun(state), groupsOf(state), NOW)
   const section = view.sections[1]
   return (
-    <OnFixtures>
+    <OnFixtures routes={childRoutes(state)}>
       <Phone>
         {section ? <ProcessVariantPage section={section} projectId={FAKE_PROJECT_ID} /> : null}
       </Phone>
@@ -208,7 +223,7 @@ function Card() {
       <Phone>
         <ProcessRunLaunchPanel
           grant={processRunLaunchGrant({
-            processId: 'compare-variants',
+            processId: 'try-variants',
             chatRunner: 'cli',
             agent: { inputValues: FAKE_VARIANT_VALUES },
             onLaunch: async () => {},
@@ -247,7 +262,7 @@ export const VARIANT_VIEWS: NativeView[] = [
   { id: 'launch-card', title: 'Start a run: card in a chat', render: () => <Card /> },
   {
     id: 'variant-lanes',
-    title: 'Day lanes',
+    title: 'Variant lanes',
     render: (address) => <Lanes state={stateOf(address)} />,
   },
   {

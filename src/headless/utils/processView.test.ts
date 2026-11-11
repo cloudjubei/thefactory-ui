@@ -16,6 +16,12 @@ import {
   blankProcessDefinition,
   blankProcessStep,
   isProcessFork,
+  processDefaultSaveTarget,
+  processForkNote,
+  processLibraryGroup,
+  processRemoval,
+  processSaveTargets,
+  processShadowNote,
   parkedRunRef,
   processStepName,
   processRunChain,
@@ -653,6 +659,97 @@ describe('the editor helpers both peers share', () => {
     )
     expect(processScopeLabel({ ...d, scope: 'project' })).toBe('THIS PROJECT')
     expect(processScopeLabel({ ...d, scope: 'global' })).toBe('SHARED')
+    expect(processScopeLabel({ ...d, scope: undefined })).toBe('SHARED')
+  })
+
+  it('labels a project copy of its group’s process as overriding the group, over the shared', () => {
+    expect(processScopeLabel({ scope: 'project', shadowsGroup: true, shadowsGlobal: true })).toBe(
+      'OVERRIDES GROUP',
+    )
+  })
+
+  it('labels a group copy by the group’s name when it is known', () => {
+    expect(processScopeLabel({ scope: 'group' }, 'Mobile apps')).toBe('MOBILE APPS')
+    expect(processScopeLabel({ scope: 'group' }, '  ')).toBe('GROUP')
+    expect(processScopeLabel({ scope: 'group' })).toBe('GROUP')
+    expect(processScopeLabel({ scope: 'group', shadowsGlobal: true }, 'Web')).toBe(
+      'WEB · OVERRIDES SHARED',
+    )
+  })
+
+  it('says which copy a definition shadows, and none for a shared one', () => {
+    expect(processShadowNote({ scope: 'project', shadowsGlobal: true })).toMatch(/shared one back/)
+    expect(
+      processShadowNote({ scope: 'project', shadowsGroup: true, shadowsGlobal: true }),
+    ).toMatch(/group’s one back/)
+    expect(processShadowNote({ scope: 'group', shadowsGlobal: true })).toMatch(/^The group has/)
+    expect(processShadowNote({ scope: 'group' })).toBeUndefined()
+    expect(processShadowNote({ scope: 'project' })).toBeUndefined()
+    expect(processShadowNote({ scope: 'global', shadowsGlobal: true })).toBeUndefined()
+  })
+
+  it('offers to remove a project or group copy, never a shared one', () => {
+    expect(processRemoval({ scope: 'project' })).toEqual({
+      scope: 'project',
+      label: 'Remove this project’s copy',
+    })
+    expect(processRemoval({ scope: 'group' })).toEqual({
+      scope: 'group',
+      label: 'Remove the group’s copy',
+    })
+    expect(processRemoval({ scope: 'global' })).toBeUndefined()
+    expect(processRemoval({})).toBeUndefined()
+  })
+
+  it('offers the group as a place to save only when the project is in one', () => {
+    expect(processSaveTargets(undefined)).toEqual([])
+    expect(processSaveTargets({ name: 'Mobile apps' })).toEqual([
+      { value: 'project', label: 'This project' },
+      { value: 'group', label: 'Mobile apps' },
+    ])
+    expect(processSaveTargets({ name: undefined })[1]).toEqual({
+      value: 'group',
+      label: 'The group',
+    })
+  })
+
+  it('saves a group copy back to the group by default, anything else to the project', () => {
+    expect(processDefaultSaveTarget({ scope: 'group' }, true)).toBe('group')
+    expect(processDefaultSaveTarget({ scope: 'group' }, false)).toBe('project')
+    expect(processDefaultSaveTarget({ scope: 'global' }, true)).toBe('project')
+    expect(processDefaultSaveTarget({ scope: 'project' }, true)).toBe('project')
+  })
+
+  it('finds the project’s main group by id, with its name when the groups list it', () => {
+    const groups = [{ id: 'g1', title: 'Mobile apps' }]
+    expect(processLibraryGroup({ mainGroupId: 'g1' }, groups)).toEqual({
+      id: 'g1',
+      name: 'Mobile apps',
+    })
+    expect(processLibraryGroup({ mainGroupId: 'g2' }, groups)).toEqual({
+      id: 'g2',
+      name: undefined,
+    })
+    expect(processLibraryGroup({ mainGroupId: null }, groups)).toBeUndefined()
+    expect(processLibraryGroup(undefined, groups)).toBeUndefined()
+  })
+
+  it('treats saving a shared process anywhere, or a group’s into the project, as a fork', () => {
+    expect(isProcessFork({ scope: 'global' })).toBe(true)
+    expect(isProcessFork({ scope: 'global' }, 'group')).toBe(true)
+    expect(isProcessFork({ scope: 'group' }, 'project')).toBe(true)
+    expect(isProcessFork({ scope: 'group' })).toBe(true)
+    expect(isProcessFork({ scope: 'group' }, 'group')).toBe(false)
+    expect(isProcessFork({ scope: 'project' }, 'group')).toBe(false)
+    expect(isProcessFork({ scope: 'project' })).toBe(false)
+    expect(isProcessFork({})).toBe(false)
+  })
+
+  it('says what each fork leaves as it is', () => {
+    expect(processForkNote({ scope: 'global' }, 'project')).toMatch(/^Saving makes this project/)
+    expect(processForkNote({ scope: 'global' }, 'group')).toMatch(/^Saving makes the group/)
+    expect(processForkNote({ scope: 'group' }, 'project')).toMatch(/group’s process the other/)
+    expect(processForkNote({ scope: 'group' }, 'group')).toBeUndefined()
   })
 
   it('resets the version on a copy — it has no history of its own', () => {

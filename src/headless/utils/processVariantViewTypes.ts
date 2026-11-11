@@ -3,7 +3,9 @@ import type { ProcessRun, ReviewEvidenceRef } from 'thefactory-tools/types'
 import type { CheckMethodState, SignoffVerdict } from './checkMethodTypes'
 import type { ProcessStatusTone } from './processView'
 import type { EvidenceTile } from './reviewEvidenceViewTypes'
+import type { ScriptStepLogView } from './scriptStepLogViewTypes'
 import type { ReportProofRow, ReportTile, SignoffReportView } from './signoffReportTypes'
+import type { StepsStripEntry } from './stepsStripTypes'
 import type { SignoffTally } from './storySignoffTypes'
 
 /** What one run of a tree filed, as `GET /process-runs/:runId/evidence` says, ready to draw. */
@@ -21,22 +23,6 @@ export type ProcessRunEvidenceGroupView = {
 
 export type ProcessVariantLaneStatus = 'queued' | 'running' | 'parked' | 'done' | 'stopped'
 
-/** One day of a lane. */
-export type ProcessVariantDayCell = {
-  day: number
-  look: 'lived' | 'today' | 'parked' | 'to-come'
-}
-
-/** Where a review stands: filed, under way, or not due. */
-export type ProcessVariantReviewLook = 'done' | 'now' | 'wait'
-
-/** Seven days of a lane, and the review after them when one falls there. */
-export type ProcessVariantWeek = {
-  label: string
-  cells: readonly ProcessVariantDayCell[]
-  review: ProcessVariantReviewLook | undefined
-}
-
 /** A ref or patch of a variant, as a chip. */
 export type ProcessVariantFact = {
   key: string
@@ -53,13 +39,8 @@ export type ProcessVariantLane = {
   runId: string | undefined
   status: ProcessVariantLaneStatus
   badge: { label: string; tone: ProcessStatusTone }
-  /** What it is doing, or came to. */
+  /** What it came to, or the last thing it filed while it works. */
   line: string
-  /** `Day 9 of 14`, when the launch said how many. */
-  dayLine: string | undefined
-  /** How far it got. */
-  lived: number
-  weeks: readonly ProcessVariantWeek[]
   time: string | undefined
   cost: string | undefined
   facts: readonly ProcessVariantFact[]
@@ -72,9 +53,6 @@ export type ProcessVariantLane = {
 export type ProcessVariantLanesView = {
   heading: string
   sub: string
-  /** The days each variant lives; absent when the launch names none, and the lanes have no cells. */
-  days: number | undefined
-  weekLabels: readonly string[]
   lanes: readonly ProcessVariantLane[]
   /** How many have ended, one way or the other. */
   ended: number
@@ -89,7 +67,7 @@ export type ProcessVariantRecording = {
   title: string
 }
 
-/** A review of a variant. */
+/** A report a variant filed. */
 export type ProcessVariantFindings = {
   key: string
   title: string
@@ -100,12 +78,27 @@ export type ProcessVariantFindings = {
 /** A variant's section of the report. */
 export type ProcessVariantSection = {
   lane: ProcessVariantLane
+  /** Its recordings, in the order filed. */
   recordings: readonly ProcessVariantRecording[]
-  /** The day being recorded now: nothing to play yet. */
-  recordingNow: boolean
+  /** Its reports, in the order filed. */
   findings: readonly ProcessVariantFindings[]
-  /** Why no findings are there. */
+  /** Why no reports are there. */
   findingsNote: string | undefined
+  /** Everything its run filed, for the step logs of its steps. */
+  tiles: readonly EvidenceTile[]
+}
+
+/** A script step of a variant's run and its step log. */
+export type ProcessVariantStepLog = {
+  stepId: string
+  title: string
+  view: ScriptStepLogView
+}
+
+/** What a variant's own run adds to its lane: its steps, and the step logs of its script steps. */
+export type ProcessVariantChildView = {
+  steps: readonly StepsStripEntry[]
+  stepLogs: readonly ProcessVariantStepLog[]
 }
 
 /** The report of a run that worked variants, or of any run with no story. */

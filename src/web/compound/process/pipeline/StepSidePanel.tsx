@@ -1,11 +1,11 @@
 import { useEffect, useState, type ReactNode } from 'react'
 
 import {
-  JOURNEY_DAYS_COPY,
+  SCRIPT_STEP_LOG_COPY,
   STEP_REPORT_AUTHORS,
   agentNeverStartedNote,
   attemptUiImpactNote,
-  journeyStepView,
+  scriptStepLogView,
   processAttemptLeaf,
   processLeafReview,
   processStepStates,
@@ -23,7 +23,7 @@ import { IconClose, IconExternalLink } from '../../../icons'
 import ProcessCheckList from '../ProcessCheckList'
 import RunChatButton, { type RunChatButtonProps } from '../RunChatButton'
 import VerificationReview from '../VerificationReview'
-import JourneyStepDays from '../JourneyStepDays'
+import ScriptStepLog from '../ScriptStepLog'
 import CodeReviewPanel from '../signoff/CodeReviewPanel'
 import SignoffReportPanel from '../signoff/SignoffReportPanel'
 import UiImpactNote from '../UiImpactNote'
@@ -249,10 +249,10 @@ function ScriptOutput({ run, entry }: { run: ProcessRun; entry: ProcessLedgerEnt
   const tiles = groups.find((group) => group.runId === run.id)?.tiles ?? []
   if (!loaded) {
     return (
-      <div className="p-4 text-[13px] text-(--text-secondary)">{JOURNEY_DAYS_COPY.loading}</div>
+      <div className="p-4 text-[13px] text-(--text-secondary)">{SCRIPT_STEP_LOG_COPY.loading}</div>
     )
   }
-  return <JourneyStepDays projectId={run.projectId} view={journeyStepView(tiles, entry)} />
+  return <ScriptStepLog projectId={run.projectId} view={scriptStepLogView(tiles, entry)} />
 }
 
 function ReportOutput({ run, entry }: { run: ProcessRun; entry: ProcessLedgerEntry | undefined }) {

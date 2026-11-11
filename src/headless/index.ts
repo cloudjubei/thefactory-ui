@@ -3113,6 +3113,7 @@ export {
   type ReferenceRendering,
 } from './contexts/ReferenceRenderingContext'
 export { useProcesses, type UseProcesses } from './hooks/useProcesses'
+export { useProcessLibraryGroup } from './hooks/useProcessLibraryGroup'
 export {
   useProcessRun,
   type UseProcessRun,
@@ -3334,7 +3335,13 @@ export {
   copyProcessDefinition,
   isProcessFork,
   parkedRunRef,
+  processDefaultSaveTarget,
+  processForkNote,
+  processLibraryGroup,
+  processRemoval,
+  processSaveTargets,
   processScopeLabel,
+  processShadowNote,
   processStepName,
   processRunChain,
   processRunChipLabel,
@@ -3410,6 +3417,8 @@ export {
   PROCESS_RUN_PERSON_ENDING_VIEW,
   PROCESS_RUN_WORDS,
   PROCESS_REVIVE_COPY,
+  PROCESS_SCOPE_BADGES,
+  PROCESS_SCOPE_COPY,
   PROCESS_SEND_BACK_COPY,
   PROCESS_SPEND_CAP_TITLE,
   PROCESS_STOP_CONFIRM_COPY,
@@ -4154,6 +4163,7 @@ export type {
   RunDiagnostics,
   RunDiagnosticsEvent,
   ProcessScope,
+  ProcessWriteScope,
   ProcessStep,
   ProcessStepKind,
   ProcessStepOutcome,
@@ -4755,36 +4765,30 @@ export {
   isProcessVariantStep,
   processVariantJoinLine,
   processVariantRunView,
-  processVariantDayOf,
   processVariantHeading,
   processVariantLanes,
   processVariantReport,
   processVariantSteps,
 } from './utils/processVariantView'
+export { processVariantChildView } from './utils/processVariantChild'
 export { PROCESS_VARIANT_BADGE, PROCESS_VARIANT_COPY } from './utils/processVariantViewConstants'
-export { journeyDays, journeyStepView } from './utils/journeyDaysView'
+export { scriptLogSections, scriptStepLogView } from './utils/scriptStepLogView'
 export {
-  JOURNEY_DAYS_COPY,
-  JOURNEY_DECISION_LABELS,
-  JOURNEY_SOURCE_BADGES,
-  JOURNEY_STATUS_BADGES,
-  JOURNEY_TAKE_OVER_BADGES,
-} from './utils/journeyDaysViewConstants'
+  SCRIPT_ASK_BADGE,
+  SCRIPT_SOURCE_BADGES,
+  SCRIPT_STEP_LOG_COPY,
+  SCRIPT_TAKE_OVER_BADGE,
+  SCRIPT_TAKE_OVER_BADGES,
+} from './utils/scriptStepLogViewConstants'
 export type {
-  JourneyBadge,
-  JourneyCardRow,
-  JourneyDayView,
-  JourneyDecisionRow,
-  JourneyGoalStatusRow,
-  JourneyProbeRow,
-  JourneyRemovedGoal,
-  JourneyReplacedGoal,
-  JourneyStepView,
-  JourneyTakeOverRow,
-} from './utils/journeyDaysViewTypes'
+  ScriptLogBadge,
+  ScriptLogRowView,
+  ScriptLogSectionView,
+  ScriptStepLogView,
+} from './utils/scriptStepLogViewTypes'
 export type {
   ProcessRunEvidenceGroupView,
-  ProcessVariantDayCell,
+  ProcessVariantChildView,
   ProcessVariantFact,
   ProcessVariantFindings,
   ProcessVariantLane,
@@ -4792,10 +4796,9 @@ export type {
   ProcessVariantLanesView,
   ProcessVariantRecording,
   ProcessVariantReportView,
-  ProcessVariantReviewLook,
   ProcessVariantRunView,
   ProcessVariantSection,
-  ProcessVariantWeek,
+  ProcessVariantStepLog,
 } from './utils/processVariantViewTypes'
 export {
   isStartProcessRunGrant,

@@ -72,7 +72,7 @@ describe('fakeBackendRoutes', () => {
 
   it('offers the process that starts from a form', () => {
     const ids = (get('/api/v1/processes').body as { id: string }[]).map((p) => p.id)
-    expect(ids).toContain('compare-variants')
+    expect(ids).toContain('try-variants')
   })
 
   it('answers the image check every client runs at start-up', () => {

@@ -111,12 +111,17 @@ export function pausedForScope(
   return (snapshot[scope] ?? []).filter((a) => a.status === 'running' && !a.live).length
 }
 
-/** Runs in a scope that finished after `sinceIso` — the unseen-results badge count. */
+/**
+ * Runs in a scope that finished after `sinceIso` — the unseen-results badge
+ * count. Only the App tab marks them seen, so a project without one counts
+ * none: a badge nobody can open never lights.
+ */
 export function unseenFinishedForScope(
   snapshot: Record<string, ActivityLite[]>,
   scope: string | undefined,
   sinceIso: string | undefined,
+  showsApp: boolean,
 ): number {
-  if (!scope) return 0
+  if (!scope || !showsApp) return 0
   return countUnseenFinished(snapshot[scope] ?? [], sinceIso)
 }

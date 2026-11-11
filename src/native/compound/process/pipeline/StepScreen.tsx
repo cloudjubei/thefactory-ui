@@ -3,11 +3,11 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 import type { ProcessLedgerEntry, ProcessStepState } from 'thefactory-tools/types'
 
 import {
-  JOURNEY_DAYS_COPY,
+  SCRIPT_STEP_LOG_COPY,
   STEP_REPORT_AUTHORS,
   agentNeverStartedNote,
   attemptUiImpactNote,
-  journeyStepView,
+  scriptStepLogView,
   processAttemptLeaf,
   processLeafReview,
   processStepStates,
@@ -27,7 +27,7 @@ import type { SaveFileHandler } from '../../chat/signoff'
 import ProcessCheckList from '../ProcessCheckList'
 import RunChatButton, { type RunChatButtonProps } from '../RunChatButton'
 import VerificationReview from '../VerificationReview'
-import JourneyStepDays from '../JourneyStepDays'
+import ScriptStepLog from '../ScriptStepLog'
 import CodeReviewPanel from '../signoff/CodeReviewPanel'
 import SignoffReportPanel from '../signoff/SignoffReportPanel'
 import UiImpactNote from '../UiImpactNote'
@@ -298,13 +298,15 @@ function ScriptOutput({
   const tiles = groups.find((group) => group.runId === run.id)?.tiles ?? []
   if (!loaded) {
     return (
-      <Text style={{ fontSize: 13, color: theme.text.secondary }}>{JOURNEY_DAYS_COPY.loading}</Text>
+      <Text style={{ fontSize: 13, color: theme.text.secondary }}>
+        {SCRIPT_STEP_LOG_COPY.loading}
+      </Text>
     )
   }
   return (
-    <JourneyStepDays
+    <ScriptStepLog
       projectId={run.projectId}
-      view={journeyStepView(tiles, entry)}
+      view={scriptStepLogView(tiles, entry)}
       {...(onSaveFile ? { onSaveFile } : {})}
     />
   )

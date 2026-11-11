@@ -284,6 +284,39 @@ describe('chatListRow — what a row shows of its state', () => {
     ).toBe(true)
   })
 
+  it('sits with the archived chats once its run is done, and in the list while it is current', () => {
+    const done = run({
+      status: 'succeeded',
+      integration: { status: 'integrated' },
+    } as Partial<ProcessRun>)
+    expect(row({ chat: { context: RUN_CHAT }, run: done }).retired).toBe(true)
+    expect(row({ chat: { context: RUN_CHAT }, run: run() }).retired).toBe(false)
+    expect(row({ chat: { context: RUN_CHAT } }).retired).toBe(false)
+    const parked = run({
+      status: 'parked',
+      park: { reason: 'gate', message: 'Sign off', parkedAt: 0 },
+    } as Partial<ProcessRun>)
+    expect(row({ chat: { context: RUN_CHAT }, run: parked }).retired).toBe(false)
+    expect(row({ chat: { context: TOPIC }, run: done }).retired).toBe(false)
+  })
+
+  it('keeps a done run’s chat in the list while it has unread news', () => {
+    const done = run({
+      status: 'succeeded',
+      integration: { status: 'integrated' },
+    } as Partial<ProcessRun>)
+    const project: ChatListScope = { kind: 'project', projectId: 'p1' }
+    const read = row({ chat: { context: RUN_CHAT }, run: done })
+    const unread = row({
+      chat: { context: RUN_CHAT },
+      run: done,
+      status: { ...QUIET, unreadCount: 1 },
+    })
+    expect(chatListPool([read], project, false)).toEqual([])
+    expect(chatListPool([read], project, true)).toEqual([read])
+    expect(chatListPool([unread], project, false)).toEqual([unread])
+  })
+
   it('is still once its run finished', () => {
     expect(row({ chat: { context: RUN_CHAT }, run: run({ status: 'succeeded' }) }).running).toBe(
       false,
@@ -369,7 +402,7 @@ describe('byChatListAttention', () => {
 describe('matchesChatListFilter', () => {
   it.each([
     ['all', listRow({}), true],
-    ['all', listRow({ kind: 'run', context: RUN_CHAT }), false],
+    ['all', listRow({ kind: 'run', context: RUN_CHAT }), true],
     ['all', listRow({ kind: 'run', context: RUN_CHAT, fresh: true }), true],
     ['needs-you', listRow({ kind: 'run', context: RUN_CHAT, fresh: true }), false],
     ['stories', listRow({ kind: 'run', context: RUN_CHAT, fresh: true }), false],
@@ -400,7 +433,7 @@ describe('chatListFilterCounts', () => {
       listRow({ kind: 'project' }),
     ]
     expect(chatListFilterCounts(rows)).toEqual({
-      all: 3,
+      all: 5,
       'needs-you': 1,
       running: 1,
       runs: 2,
@@ -446,7 +479,9 @@ describe('chatListSections — one project', () => {
     const [section] = chatListSections({ rows, scope, filter: 'runs', archived: false })
     expect(section?.rows.map((r) => r.key)).toEqual(['run'])
     const [all] = chatListSections({ rows, scope, filter: 'all', archived: false })
-    expect(all?.rows.map((r) => r.key)).toEqual(['story'])
+    expect(all?.rows.map((r) => r.key)).toEqual(['run', 'story'])
+    const [stories] = chatListSections({ rows, scope, filter: 'stories', archived: false })
+    expect(stories?.rows.map((r) => r.key)).toEqual(['story'])
   })
 
   it('shows only the archived chats in the archived view, without their badges', () => {
@@ -489,7 +524,7 @@ describe('chatListSections — a group', () => {
     ])
   })
 
-  it('lists its projects’ run chats only under Runs, in their own section', () => {
+  it('lists its projects’ run chats under All and Runs, in their own section', () => {
     const runChat = listRow({ key: 'run', kind: 'run', context: RUN_CHAT, projectId: 'p1' })
     const outsideRun = listRow({ key: 'run-out', kind: 'run', context: RUN_CHAT, projectId: 'p9' })
     const rows = [groupMain, asking, runChat, outsideRun]
@@ -498,11 +533,33 @@ describe('chatListSections — a group', () => {
       ['group-runs', CHAT_LIST_COPY.groupRuns, ['run']],
     ])
     const all = chatListSections({ rows, scope, filter: 'all', archived: false })
-    expect(all.flatMap((s) => s.rows.map((r) => r.key))).toEqual(['general', 'asking'])
+    expect(all.map((s) => [s.id, s.rows.map((r) => r.key)])).toEqual([
+      ['group-chats', ['general']],
+      ['group-needs-you', ['asking']],
+      ['group-runs', ['run']],
+    ])
     expect(chatListFilterCounts(chatListPool(rows, scope, false))).toMatchObject({
-      all: 2,
+      all: 3,
       runs: 1,
     })
+  })
+
+  it('lists its projects’ chats with unread news in their own section', () => {
+    const unread = listRow({ key: 'unread', projectId: 'p1', fresh: true })
+    const unreadRun = listRow({
+      key: 'unread-run',
+      kind: 'run',
+      context: RUN_CHAT,
+      projectId: 'p1',
+      fresh: true,
+    })
+    const rows = [groupMain, unread, unreadRun, quiet]
+    const all = chatListSections({ rows, scope, filter: 'all', archived: false })
+    expect(all.map((s) => [s.id, s.label, s.rows.map((r) => r.key)])).toEqual([
+      ['group-chats', CHAT_LIST_COPY.groupChats, ['general']],
+      ['group-unread', CHAT_LIST_COPY.groupUnread, ['unread']],
+      ['group-runs', CHAT_LIST_COPY.groupRuns, ['unread-run']],
+    ])
   })
 
   it('drops a section with nothing in it', () => {

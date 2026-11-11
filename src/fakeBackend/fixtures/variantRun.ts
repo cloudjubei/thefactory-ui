@@ -6,6 +6,12 @@ import type {
   ReviewEvidenceRef,
 } from '../../headless/api/generated/types.gen'
 import { FAKE_PROJECT_ID } from './projects'
+import { FAKE_SCRIPT_LOGS } from './scriptStepRun'
+import {
+  FAKE_SCRIPT_LOG_LABEL,
+  FAKE_SCRIPT_RECORDING_LABEL,
+  FAKE_SCRIPT_STOPPED_SCREENSHOT_LABEL,
+} from './scriptStepRunConstants'
 
 /** The states a run of variants is shown in. */
 export type FakeVariantRunState = 'running' | 'parked' | 'done'
@@ -42,9 +48,8 @@ const VARIANTS = [
 type VariantId = (typeof VARIANTS)[number]['id']
 
 export const FAKE_VARIANT_INPUTS: ProcessInput[] = [
-  { name: 'person', label: 'Who', kind: 'note-reference', required: true },
-  { name: 'days', label: 'Days', kind: 'number', required: true },
-  { name: 'lookingFor', label: 'What we’re looking for', kind: 'text', required: true },
+  { name: 'account', label: 'Test account', kind: 'note-reference', required: true },
+  { name: 'focus', label: 'What to check', kind: 'text', required: true },
   {
     name: 'variants',
     label: 'Variants',
@@ -55,19 +60,19 @@ export const FAKE_VARIANT_INPUTS: ProcessInput[] = [
 ]
 
 export const FAKE_VARIANT_PROCESS: ProcessDefinition = {
-  id: 'compare-variants',
-  name: 'Compare variants',
-  description: 'A simulated person lives days of a product on each variant at once.',
+  id: 'try-variants',
+  name: 'Try variants',
+  description: 'Runs the same check on each variant at once.',
   inputs: FAKE_VARIANT_INPUTS,
   steps: [
     {
       id: 'variants',
       name: 'Each variant',
       kind: 'process',
-      processId: 'compare-variant',
+      processId: 'try-variant',
       expand: { input: 'variants' },
     },
-    { id: 'final-review', name: 'Final review', kind: 'agent', agentType: 'final-reviewer' },
+    { id: 'final-review', name: 'Final review', kind: 'agent', agentType: 'reviewer' },
     { id: 'sign-off', name: 'Sign-off', kind: 'gate' },
   ],
   loops: [],
@@ -78,10 +83,10 @@ export const FAKE_VARIANT_PROCESS: ProcessDefinition = {
 }
 
 export const FAKE_VARIANT_NOTES = [
-  { id: 'n1', label: 'Test user: busy parent' },
-  { id: 'n2', label: 'Test user: night shifts' },
-  { id: 'n3', label: 'Log sign-up steps' },
-  { id: 'n4', label: 'Log reminder taps' },
+  { id: 'n1', label: 'Test account: new sign-up' },
+  { id: 'n2', label: 'Test account: returning' },
+  { id: 'n3', label: 'Script: sign-up' },
+  { id: 'n4', label: 'Script: reminders' },
 ].map((note) => ({
   ...note,
   projectId: FAKE_PROJECT_ID,
@@ -94,10 +99,8 @@ export const FAKE_VARIANT_NOTES = [
 
 /** What a filled form holds. */
 export const FAKE_VARIANT_VALUES = {
-  person: 'n1',
-  days: 14,
-  lookingFor:
-    'Does the person come back without a push? Where do they stop? Does any step feel like a chore?',
+  account: 'n1',
+  focus: 'Does sign-up finish without a reminder? Where does it stop? Which step takes longest?',
   variants: VARIANTS.map((variant, at) => ({
     id: variant.id,
     label: variant.title,
@@ -111,10 +114,16 @@ export const FAKE_VARIANT_VALUES = {
   })),
 }
 
-const LIVED: Record<FakeVariantRunState, Record<VariantId, number>> = {
-  running: { current: 8, short: 10, morning: 14 },
-  parked: { current: 10, short: 5, morning: 8 },
-  done: { current: 14, short: 14, morning: 14 },
+/**
+ * How far each variant's run got: its script running, its review running
+ * after the script, or done. The parked variant's script stopped short.
+ */
+type Stage = 'script' | 'stopped' | 'review' | 'done'
+
+const STAGE: Record<FakeVariantRunState, Record<VariantId, Stage>> = {
+  running: { current: 'script', short: 'review', morning: 'review' },
+  parked: { current: 'review', short: 'stopped', morning: 'review' },
+  done: { current: 'done', short: 'done', morning: 'done' },
 }
 
 const WORK_MS: Record<FakeVariantRunState, Record<VariantId, number>> = {
@@ -130,22 +139,22 @@ const COST: Record<FakeVariantRunState, Record<VariantId, number>> = {
 }
 
 const SUMMARY: Record<VariantId, string> = {
-  current: 'Met 1 of 3 goals',
-  short: 'Met 3 of 3 goals',
-  morning: 'Met 1 of 3 goals',
+  current: 'Passed 1 of 3 checks',
+  short: 'Passed 3 of 3 checks',
+  morning: 'Passed 1 of 3 checks',
 }
 
 const stepId = (id: VariantId): string => `variants:${id}`
 const childId = (id: VariantId): string => `run-variant-${id}`
 
-const PARK_MESSAGE = 'The sign-in code never came on day 6, so this variant stopped there.'
+const PARK_MESSAGE = 'The sign-in code never came, so this variant stopped there.'
 
 function variantSteps(): ProcessRun['plan']['steps'] {
   return VARIANTS.map((variant, at) => ({
     id: stepId(variant.id),
     name: variant.title,
     kind: 'process' as const,
-    processId: 'compare-variant',
+    processId: 'try-variant',
     fanOut: 'variants',
     subject: {
       kind: 'variant' as const,
@@ -232,14 +241,14 @@ export function fakeVariantRun(state: FakeVariantRunState): ProcessRun {
           }
         : {}),
     plan: {
-      definitionId: 'compare-variants',
+      definitionId: 'try-variants',
       definitionScope: 'global',
       definitionVersion: 1,
-      name: 'Compare variants',
+      name: 'Try variants',
       inputs: FAKE_VARIANT_INPUTS,
       steps: [
         ...variantSteps(),
-        { id: 'final-review', name: 'Final review', kind: 'agent', agentType: 'final-reviewer' },
+        { id: 'final-review', name: 'Final review', kind: 'agent', agentType: 'reviewer' },
         { id: 'sign-off', name: 'Sign-off', kind: 'gate' },
       ],
       loops: [],
@@ -248,55 +257,59 @@ export function fakeVariantRun(state: FakeVariantRunState): ProcessRun {
   } as unknown as ProcessRun
 }
 
+const SCRIPT_ENDED = 10
+
+const STOPPED_AT = 6
+
+function childLedger(stage: Stage): ProcessRun['ledger'] {
+  const script = {
+    id: 'run-1',
+    stepId: 'run',
+    iteration: 1,
+    startedAt: 1,
+  }
+  const review = { id: 'review-1', stepId: 'review', iteration: 1, startedAt: 11 }
+  if (stage === 'script') return [{ ...script, status: 'running' }] as ProcessRun['ledger']
+  if (stage === 'stopped') {
+    return [
+      { ...script, endedAt: STOPPED_AT, status: 'done', outcome: 'failed', summary: PARK_MESSAGE },
+    ] as ProcessRun['ledger']
+  }
+  const ran = { ...script, endedAt: SCRIPT_ENDED, status: 'done', outcome: 'passed' }
+  return (
+    stage === 'review'
+      ? [ran, { ...review, status: 'running' }]
+      : [ran, { ...review, endedAt: 16, status: 'done', outcome: 'passed' }]
+  ) as ProcessRun['ledger']
+}
+
 /** One variant's own run, as a lane opens it. */
 export function fakeVariantChildRun(state: FakeVariantRunState, id: VariantId): ProcessRun {
   const at = VARIANTS.findIndex((variant) => variant.id === id)
-  const parked = state === 'parked' && id === 'short'
-  const done = state === 'done'
+  const stage = STAGE[state][id]
   return {
     id: childId(id),
     projectId: FAKE_PROJECT_ID,
     parentRunId: FAKE_VARIANT_RUN_ID,
     parentStepId: stepId(id),
     title: VARIANTS[at]!.title,
-    status: done ? 'succeeded' : parked ? 'parked' : 'running',
+    status: stage === 'done' ? 'succeeded' : stage === 'stopped' ? 'parked' : 'running',
     variant: variantSteps()[at]!.subject,
     loopCounts: {},
     startedAt: 0,
     updatedAt: 0,
-    ledger: [
-      {
-        id: 'live-1',
-        stepId: 'live',
-        iteration: 1,
-        startedAt: 1,
-        status: done ? 'done' : 'running',
-        ...(done ? { outcome: 'passed' } : {}),
-      },
-      ...(done
-        ? [
-            {
-              id: 'review-1',
-              stepId: 'review',
-              iteration: 1,
-              startedAt: 2,
-              status: 'done',
-              outcome: 'passed',
-            },
-          ]
-        : []),
-    ],
-    ...(parked
-      ? { park: { reason: 'step-failed', stepId: 'live', message: PARK_MESSAGE, parkedAt: 0 } }
+    ledger: childLedger(stage),
+    ...(stage === 'stopped'
+      ? { park: { reason: 'step-failed', stepId: 'run', message: PARK_MESSAGE, parkedAt: 0 } }
       : {}),
     plan: {
-      definitionId: 'compare-variant',
+      definitionId: 'try-variant',
       definitionScope: 'global',
       definitionVersion: 1,
-      name: 'Compare one variant',
+      name: 'Try one variant',
       steps: [
-        { id: 'live', name: 'Live the days', kind: 'agent', agentType: 'simulated-person' },
-        { id: 'review', name: 'Review', kind: 'agent', agentType: 'run-reviewer' },
+        { id: 'run', name: 'Run the check', kind: 'script', script: { note: 'script' } },
+        { id: 'review', name: 'Review', kind: 'agent', agentType: 'reviewer' },
       ],
       loops: [],
       frozenAt: 0,
@@ -315,28 +328,83 @@ const filed = (id: string, over: Partial<ReviewEvidenceRef>): ReviewEvidenceRef 
     ...over,
   }) as ReviewEvidenceRef
 
-const FIRST_LINE: Record<VariantId, string> = {
-  current: 'opened it after a reminder',
-  short: 'opened it unprompted',
-  morning: 'back at the reminder',
+const LOG: Record<VariantId, keyof typeof FAKE_SCRIPT_LOGS> = {
+  current: 'two-sections',
+  short: 'take-overs',
+  morning: 'two-sections',
 }
 
-function recordings(id: VariantId, lived: number): ReviewEvidenceRef[] {
-  return Array.from({ length: lived }, (_, at) =>
-    filed(`${id}-day-${at + 1}`, {
-      label: `Day ${at + 1}: ${FIRST_LINE[id]}`,
-      createdAt: at + 1,
-      ...(id === 'morning' && at === 3
+const logId = (id: VariantId, stage: Stage): string =>
+  `${id}-${stage === 'stopped' ? 'stopped' : 'step'}-log`
+
+/** What a variant's run filed by the stage it reached, in the order filed, each by its own label. */
+function filings(id: VariantId, stage: Stage): ReviewEvidenceRef[] {
+  const runId = childId(id)
+  const first = filed(`${id}-sign-up`, { label: 'Sign-up form', createdAt: 2, runId })
+  if (stage === 'script') return [first]
+  if (stage === 'stopped') {
+    return [
+      first,
+      filed(logId(id, stage), {
+        kind: 'log',
+        label: FAKE_SCRIPT_LOG_LABEL,
+        mediaType: 'text/plain',
+        path: 'step-log.jsonl',
+        createdAt: STOPPED_AT,
+        runId,
+      }),
+      filed(`${id}-stopped`, {
+        kind: 'screenshot',
+        label: FAKE_SCRIPT_STOPPED_SCREENSHOT_LABEL,
+        mediaType: 'image/png',
+        path: 'stopped.png',
+        createdAt: STOPPED_AT,
+        runId,
+      }),
+    ]
+  }
+  return [
+    first,
+    filed(`${id}-welcome`, {
+      label: 'Welcome screen',
+      createdAt: 4,
+      runId,
+      ...(id === 'morning'
         ? { unvouchedReason: 'The backend restarted, so it cannot vouch for this file.' }
         : {}),
     }),
-  )
+    filed(`${id}-script-recording`, {
+      label: FAKE_SCRIPT_RECORDING_LABEL,
+      createdAt: SCRIPT_ENDED - 1,
+      runId,
+    }),
+    filed(logId(id, stage), {
+      kind: 'log',
+      label: FAKE_SCRIPT_LOG_LABEL,
+      mediaType: 'text/plain',
+      path: 'step-log.jsonl',
+      createdAt: SCRIPT_ENDED - 1,
+      runId,
+    }),
+    ...(stage === 'done'
+      ? [
+          filed(`${id}-review`, {
+            kind: 'report',
+            label: 'Review',
+            mediaType: 'text/markdown',
+            path: 'review.md',
+            createdAt: 15,
+            runId,
+          }),
+        ]
+      : []),
+  ]
 }
 
 const REVIEW: Record<VariantId, string> = {
-  current: '- Finished sign-up on day 1.\n- Came back on day 3 only after a reminder.',
-  short: '- Finished sign-up in under a minute.\n- Opened the app every day but one.',
-  morning: '- Back every morning at the reminder.\n- Called the reminder a nag on day 10.',
+  current: '- Finished sign-up.\n- Needed a reminder to come back.',
+  short: '- Finished sign-up in under a minute.\n- Came back every round but one.',
+  morning: '- Came back at each reminder.\n- The reminder showed twice in one round.',
 }
 
 const FINAL_REPORT = [
@@ -344,9 +412,9 @@ const FINAL_REPORT = [
   '',
   '## Outcome',
   '',
-  'Short sign-up met all 3 goals',
+  'Short sign-up passed every check',
   '',
-  'The person came back on their own from day 3 and finished sign-up first try. Current kept them only with a reminder.',
+  'Short sign-up finished first try with no reminder. Current finished only after one.',
   '',
   '## How it was proven',
   '',
@@ -358,13 +426,15 @@ const FINAL_REPORT = [
 ].join('\n')
 
 const POST =
-  'We tried three versions of sign-up. The shorter sign-up kept people coming back with no reminders.\n\nNext: ship it.'
+  'We tried three versions of sign-up. The shorter sign-up finished every check with no reminders.\n\nNext: ship it.'
 
 /** What a filed report's text reads, by evidence id. */
 export const FAKE_VARIANT_TEXTS: Readonly<Record<string, string>> = {
   'final-report': FINAL_REPORT,
   'final-post': POST,
   ...Object.fromEntries(VARIANTS.map((v) => [`${v.id}-review`, REVIEW[v.id]])),
+  ...Object.fromEntries(VARIANTS.map((v) => [logId(v.id, 'review'), FAKE_SCRIPT_LOGS[LOG[v.id]]])),
+  ...Object.fromEntries(VARIANTS.map((v) => [logId(v.id, 'stopped'), FAKE_SCRIPT_LOGS.stopped])),
 }
 
 /** The body of `GET /process-runs/:runId/evidence`. */
@@ -373,8 +443,10 @@ export type FakeVariantEvidence = GetProcessRunEvidenceResponse
 /** What `GET /process-runs/:runId/evidence` answers for a run of variants. */
 export function fakeVariantEvidence(state: FakeVariantRunState): FakeVariantEvidence {
   const done = state === 'done'
-  const statusOf = (id: VariantId): ProcessRun['status'] =>
-    done ? 'succeeded' : state === 'parked' && id === 'short' ? 'parked' : 'running'
+  const statusOf = (id: VariantId): ProcessRun['status'] => {
+    const stage = STAGE[state][id]
+    return stage === 'done' ? 'succeeded' : stage === 'stopped' ? 'parked' : 'running'
+  }
   return {
     runId: FAKE_VARIANT_RUN_ID,
     groups: [
@@ -406,20 +478,7 @@ export function fakeVariantEvidence(state: FakeVariantRunState): FakeVariantEvid
         label: variant.title,
         status: statusOf(variant.id),
         variant: variantSteps()[at]!.subject as NonNullable<ProcessRun['variant']>,
-        evidence: [
-          ...recordings(variant.id, LIVED[state][variant.id]),
-          ...(LIVED[state][variant.id] === 14 && (done || variant.id !== 'morning')
-            ? [
-                filed(`${variant.id}-review`, {
-                  kind: 'report',
-                  label: 'Review',
-                  mediaType: 'text/markdown',
-                  path: 'review.md',
-                  createdAt: 20,
-                }),
-              ]
-            : []),
-        ],
+        evidence: filings(variant.id, STAGE[state][variant.id]),
       })),
     ],
   }
@@ -428,7 +487,7 @@ export function fakeVariantEvidence(state: FakeVariantRunState): FakeVariantEvid
 /** What a launch's preview answers for what the form holds. */
 export function fakeVariantPreview(problem?: string) {
   return {
-    proposal: { processId: 'compare-variants', name: 'Compare variants', steps: [] },
+    proposal: { processId: 'try-variants', name: 'Try variants', steps: [] },
     inputs: FAKE_VARIANT_INPUTS,
     ...(problem ? { problem } : {}),
     baseBranches: { current: 'main', preselected: 'main', branches: ['main', 'dev'] },

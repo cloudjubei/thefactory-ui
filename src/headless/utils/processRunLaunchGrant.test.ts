@@ -25,8 +25,8 @@ describe('startProcessRunGrantSummary', () => {
     expect(
       startProcessRunGrantSummary({
         args: {
-          processId: 'compare-variants',
-          inputValues: { days: 7 },
+          processId: 'check-a-flow',
+          inputValues: { rounds: 7 },
           title: 'Trial',
           note: 'Be gentle',
           baseBranch: 'dev',
@@ -38,8 +38,8 @@ describe('startProcessRunGrantSummary', () => {
         },
       }),
     ).toEqual({
-      processId: 'compare-variants',
-      inputValues: { days: 7 },
+      processId: 'check-a-flow',
+      inputValues: { rounds: 7 },
       title: 'Trial',
       note: 'Be gentle',
       baseBranch: 'dev',
@@ -91,11 +91,11 @@ describe('processRunLaunchGrant', () => {
 
   it('launches with the card’s picks over the person’s agent', async () => {
     const { grant, onLaunch } = grantWith()
-    await grant.decide('once', { cliTool: 'codex', inputValues: { days: 7 } })
+    await grant.decide('once', { cliTool: 'codex', inputValues: { rounds: 7 } })
     expect(onLaunch).toHaveBeenCalledWith({
       runner: 'cli',
       cliTool: 'codex',
-      inputValues: { days: 7 },
+      inputValues: { rounds: 7 },
     })
   })
 
@@ -123,7 +123,7 @@ describe('processRunStartBody', () => {
   it('sends what the route takes and nothing it would refuse', () => {
     expect(
       processRunStartBody('p', 'x', {
-        inputValues: { days: 7 },
+        inputValues: { rounds: 7 },
         mode: 'process',
         runner: 'cli',
         note: undefined,
@@ -132,7 +132,7 @@ describe('processRunStartBody', () => {
     ).toEqual({
       projectId: 'p',
       processId: 'x',
-      inputValues: { days: 7 },
+      inputValues: { rounds: 7 },
       runner: 'cli',
       spendCapUsd: 5,
     })
@@ -149,9 +149,9 @@ describe('processRunStartBody', () => {
 
 describe('processRunAskView', () => {
   it('names the process, and asks the plain way when it cannot', () => {
-    expect(processRunAskView('Compare variants')).toMatchObject({
+    expect(processRunAskView('Check a flow')).toMatchObject({
       ask: 'Start a run',
-      headline: 'Compare variants',
+      headline: 'Check a flow',
       verb: 'Start run',
       icon: 'run',
     })

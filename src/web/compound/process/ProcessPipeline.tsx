@@ -647,9 +647,6 @@ export default function ProcessPipeline({
                     <DependencyBullet dependency={stopFeatureRef} interactive />
                   ) : null}
                   {stopVariant ? <ToneBadge tone={stopTone}>{stopVariant.label}</ToneBadge> : null}
-                  {stopVariant?.dayLine ? (
-                    <ToneBadge tone={stopTone}>{stopVariant.dayLine}</ToneBadge>
-                  ) : null}
                   {stopStepName ? <ToneBadge tone={stopTone}>{stopStepName}</ToneBadge> : null}
                 </>
               }

@@ -9,7 +9,6 @@ import {
   blankProcessDefinition,
   blankProcessStep,
   copyProcessDefinition,
-  isProcessFork,
   isSeededProcess,
   processExpandChoices,
   processExpandOf,
@@ -17,23 +16,32 @@ import {
   withProcessExpand,
   isProcessGateLoop,
   PROCESS_GATE_LOOP_NO_LIMIT,
+  PROCESS_SCOPE_COPY,
+  processDefaultSaveTarget,
+  processForkNote,
+  processRemoval,
+  processSaveTargets,
   processScopeLabel,
+  processShadowNote,
   processStepName,
   useActiveProject,
   PROCESS_STATISTICS_COPY,
   processStatisticsLine,
   processStatisticsRows,
   useProcessRunStatistics,
+  useProcessLibraryGroup,
   useProcesses,
   type ProcessDefinition,
   type ProcessStep,
   type ProcessStepKind,
+  type ProcessWriteScope,
 } from '../../headless'
 import { nativeRadii, nativeSpace } from '../../tokens/native'
 import Alert from '../primitives/Alert'
 import { Button } from '../primitives/Button'
 import Field from '../primitives/Field'
 import { Input } from '../primitives/Input'
+import SegmentedControl from '../primitives/SegmentedControl'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../primitives/Select'
 import { Switch } from '../primitives/Switch'
 import { Textarea } from '../primitives/Textarea'
@@ -51,8 +59,8 @@ const NO_EXPAND = '__once__'
  * one pane at a time — the small-screen shape web collapses to under
  * `narrow`.
  *
- * The rule the screen exists to make visible is the SHADOW: a project entry
- * that overrides a shared one by id says so on its row.
+ * The rule the screen exists to make visible is the SHADOW: a project or group
+ * entry that overrides another by id says so on its row.
  */
 export type ProcessesViewProps = {
   /** The process to open on, as a link to it names it. */
@@ -64,7 +72,17 @@ export default function ProcessesView({ selectedProcessId }: ProcessesViewProps 
   const { projectId } = useActiveProject()
   const { isLoaded, loadError, processes, implementedKinds, save, remove } = useProcesses(projectId)
   const statistics = useProcessRunStatistics(projectId)
-  const [editing, setEditing] = useState<ProcessDefinition | undefined>(undefined)
+  const group = useProcessLibraryGroup(projectId)
+  const saveTargets = useMemo(() => processSaveTargets(group), [group])
+  const [editing, setEditingDraft] = useState<ProcessDefinition | undefined>(undefined)
+  const [saveTarget, setSaveTarget] = useState<ProcessWriteScope>('project')
+  const setEditing = useCallback(
+    (next: ProcessDefinition | undefined, startEditing = false) => {
+      setEditingDraft(next)
+      if (next && startEditing) setSaveTarget(processDefaultSaveTarget(next, group !== undefined))
+    },
+    [group],
+  )
   const [selectedId, setSelectedId] = useState<string | undefined>(selectedProcessId)
   useEffect(() => {
     if (selectedProcessId) setSelectedId(selectedProcessId)
@@ -77,17 +95,17 @@ export default function ProcessesView({ selectedProcessId }: ProcessesViewProps 
   )
 
   const onSave = useCallback(
-    async (definition: ProcessDefinition) => {
+    async (definition: ProcessDefinition, target: ProcessWriteScope) => {
       setSaveError(undefined)
       try {
-        const saved = await save(definition)
+        const saved = await save(definition, saveTargets.length > 0 ? target : undefined)
         setEditing(undefined)
         setSelectedId(saved.id)
       } catch (err) {
         setSaveError(err instanceof Error ? err.message : String(err))
       }
     },
-    [save],
+    [save, saveTargets, setEditing],
   )
 
   const back = () => {
@@ -113,9 +131,12 @@ export default function ProcessesView({ selectedProcessId }: ProcessesViewProps 
         <ProcessEditor
           definition={editing}
           implementedKinds={implementedKinds}
-          isFork={isProcessFork(editing)}
+          forkNote={processForkNote(editing, saveTarget)}
+          saveTargets={saveTargets}
+          saveTarget={saveTarget}
+          onSaveTarget={setSaveTarget}
           onChange={setEditing}
-          onSave={() => void onSave(editing)}
+          onSave={() => void onSave(editing, saveTarget)}
         />
       </ScrollView>
     )
@@ -129,10 +150,11 @@ export default function ProcessesView({ selectedProcessId }: ProcessesViewProps 
         </Pressable>
         <ProcessDetail
           definition={selected}
+          groupName={group?.name}
           statistics={statistics}
-          onEdit={() => setEditing(structuredClone(selected))}
-          onCopy={() => setEditing(copyProcessDefinition(selected))}
-          {...(selected.scope === 'project' ? { onDelete: () => void remove(selected.id) } : {})}
+          onEdit={() => setEditing(structuredClone(selected), true)}
+          onCopy={() => setEditing(copyProcessDefinition(selected), true)}
+          onDelete={(scope) => void remove(selected.id, scope)}
         />
       </ScrollView>
     )
@@ -144,7 +166,7 @@ export default function ProcessesView({ selectedProcessId }: ProcessesViewProps 
         <Text style={{ fontSize: 17, fontWeight: '600', color: theme.text.primary, flex: 1 }}>
           Processes
         </Text>
-        <Button size="sm" onPress={() => setEditing(blankProcessDefinition())}>
+        <Button size="sm" onPress={() => setEditing(blankProcessDefinition(), true)}>
           New
         </Button>
       </View>
@@ -175,7 +197,7 @@ export default function ProcessesView({ selectedProcessId }: ProcessesViewProps 
               {definition.name}
             </Text>
             <Text style={{ fontSize: 10, color: theme.text.muted }}>
-              {processScopeLabel(definition)}
+              {processScopeLabel(definition, group?.name)}
             </Text>
           </View>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 4 }}>
@@ -203,20 +225,25 @@ export default function ProcessesView({ selectedProcessId }: ProcessesViewProps 
 
 function ProcessDetail({
   definition,
+  groupName,
   statistics,
   onEdit,
   onCopy,
   onDelete,
 }: {
   definition: ProcessDefinition
+  groupName: string | undefined
   statistics: readonly ProcessRunStatistics[]
   /** Absent for a process that ships with Overseer: it can only be copied. */
   onEdit?: () => void
   onCopy: () => void
-  onDelete?: () => void
+  /** Remove the copy kept in `scope`; offered only for a project or group copy. */
+  onDelete: (scope: ProcessWriteScope) => void
 }) {
   const { theme } = useNativeTheme()
   const rows = processStatisticsRows(statistics, definition.id)
+  const removal = processRemoval(definition)
+  const shadowNote = processShadowNote(definition)
   return (
     <View style={{ gap: nativeSpace[3] }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}>
@@ -224,17 +251,13 @@ function ProcessDetail({
           {definition.name}
         </Text>
         <Text style={{ fontSize: 10, color: theme.text.muted }}>
-          {processScopeLabel(definition)}
+          {processScopeLabel(definition, groupName)}
         </Text>
       </View>
       {definition.description ? (
         <Text style={{ fontSize: 13, color: theme.text.secondary }}>{definition.description}</Text>
       ) : null}
-      {definition.shadowsGlobal ? (
-        <Alert variant="info">
-          This project has its own copy of a shared process. Removing it brings the shared one back.
-        </Alert>
-      ) : null}
+      {shadowNote ? <Alert variant="info">{shadowNote}</Alert> : null}
 
       {rows.length > 0 ? (
         <View style={{ gap: nativeSpace[1] }}>
@@ -326,9 +349,9 @@ function ProcessDetail({
         <Button size="sm" variant="secondary" onPress={onCopy}>
           Copy from…
         </Button>
-        {onDelete ? (
-          <Button size="sm" variant="secondary" onPress={onDelete}>
-            Remove this project&rsquo;s copy
+        {removal ? (
+          <Button size="sm" variant="secondary" onPress={() => onDelete(removal.scope)}>
+            {removal.label}
           </Button>
         ) : null}
       </View>
@@ -339,13 +362,21 @@ function ProcessDetail({
 function ProcessEditor({
   definition,
   implementedKinds,
-  isFork,
+  forkNote,
+  saveTargets,
+  saveTarget,
+  onSaveTarget,
   onChange,
   onSave,
 }: {
   definition: ProcessDefinition
   implementedKinds: ProcessStepKind[]
-  isFork: boolean
+  /** What saving forks, said in a line; absent when it forks nothing. */
+  forkNote: string | undefined
+  /** Where a save can go; empty when the project is in no group. */
+  saveTargets: readonly { value: ProcessWriteScope; label: string }[]
+  saveTarget: ProcessWriteScope
+  onSaveTarget: (target: ProcessWriteScope) => void
   onChange: (next: ProcessDefinition) => void
   onSave: () => void
 }) {
@@ -368,12 +399,21 @@ function ProcessEditor({
         {isNew ? 'New process' : `Editing ${definition.name || definition.id}`}
       </Text>
 
-      {isFork ? (
-        <Alert variant="info">
-          Saving makes this project its own copy. The shared process everyone else uses is left
-          exactly as it is.
-        </Alert>
+      {saveTargets.length > 0 ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}>
+          <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+            {PROCESS_SCOPE_COPY.saveTo}
+          </Text>
+          <SegmentedControl
+            size="sm"
+            value={saveTarget}
+            onChange={(v) => onSaveTarget(v === 'group' ? 'group' : 'project')}
+            options={saveTargets.map((target) => ({ value: target.value, label: target.label }))}
+          />
+        </View>
       ) : null}
+
+      {forkNote ? <Alert variant="info">{forkNote}</Alert> : null}
 
       <Field label="Id">
         <Input

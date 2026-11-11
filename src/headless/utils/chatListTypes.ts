@@ -85,7 +85,14 @@ export type ChatListRow = {
 
 /** A run of rows under one heading; `label` absent for the list's single section. */
 export type ChatListSection = {
-  id: 'chats' | 'archived' | 'group-chats' | 'group-needs-you' | 'group-running' | 'group-runs'
+  id:
+    | 'chats'
+    | 'archived'
+    | 'group-chats'
+    | 'group-needs-you'
+    | 'group-running'
+    | 'group-unread'
+    | 'group-runs'
   label?: string
   tone?: 'neutral' | 'needs-you' | 'running'
   rows: ChatListRow[]
