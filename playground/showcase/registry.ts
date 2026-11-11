@@ -30,6 +30,7 @@ import { CROSS_PROJECT_RESUME_SCENES } from '../scenes/crossProjectResume'
 import { DESIGN_SCENES } from '../scenes/design'
 import { DOCUMENT_REPORT_SCENES } from '../scenes/documentReport'
 import { DROPPED_CHANGE_SCENES } from '../scenes/droppedChange'
+import { SEND_TO_DEVELOPER_UNCHECKED_SCENES } from '../scenes/sendToDeveloperUnchecked'
 import { FEATURE_POOL_SCENES } from '../scenes/featurePool'
 import { FEATURE_REQUEST_CARD_SCENES } from '../scenes/featureRequestCard'
 import { FEATURE_REQUEST_WAIT_CYCLE_SCENES } from '../scenes/featureRequestWaitCycle'
@@ -154,6 +155,7 @@ export const SCENES: readonly Scene[] = [
   ...UI_IMPACT_SCENES,
   ...PARK_CLOSING_SCENES,
   ...DROPPED_CHANGE_SCENES,
+  ...SEND_TO_DEVELOPER_UNCHECKED_SCENES,
   ...CIRCLING_SCENES,
   ...REGENERATED_MERGE_SCENES,
   ...RUN_ACCESS_SCENES,

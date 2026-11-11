@@ -3,6 +3,8 @@ import {
   ASSISTANT_NAV_DEF,
   GROUP_TAB_DEFS,
   SHELL_TAB_DEFS,
+  groupShowsTab,
+  groupTabForGroup,
   groupTabToProjectTab,
   isGroupTabKey,
   isShellTabKey,
@@ -218,6 +220,32 @@ describe('projectShowsShellTab', () => {
 
   it('shows every other tab whatever the metadata says', () => {
     expect(projectShowsShellTab('files', { hasApp: false, isUiApp: false })).toBe(true)
+  })
+})
+
+describe('groupShowsTab', () => {
+  const jira = { ticketConnection: { connectionId: 'c1', access: 'read' } }
+
+  it('shows Tickets only for a group with a ticket connection', () => {
+    expect(groupShowsTab('tickets', jira)).toBe(true)
+    expect(groupShowsTab('tickets', {})).toBe(false)
+    expect(groupShowsTab('tickets', { ticketConnection: undefined })).toBe(false)
+    expect(groupShowsTab('tickets', undefined)).toBe(false)
+  })
+
+  it('shows every other tab whatever the group holds', () => {
+    for (const tab of ['home', 'stories', 'chat', 'notes', 'tools', 'processes'] as const) {
+      expect(groupShowsTab(tab, {})).toBe(true)
+    }
+  })
+})
+
+describe('groupTabForGroup', () => {
+  it('keeps a tab the group shows and lands on Home for one it does not', () => {
+    const jira = { ticketConnection: { connectionId: 'c1', access: 'read' } }
+    expect(groupTabForGroup('tickets', jira)).toBe('tickets')
+    expect(groupTabForGroup('tickets', {})).toBe('home')
+    expect(groupTabForGroup('chat', {})).toBe('chat')
   })
 })
 

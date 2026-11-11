@@ -151,6 +151,20 @@ export const GROUP_TAB_DEFS: readonly GroupTabDef[] = [
   { key: 'settings', label: 'Settings', icon: 'settings', hiddenInSidebar: true },
 ]
 
+/** What a group holds that decides which of its tabs exist. */
+export type GroupTabFlags = { ticketConnection?: unknown } | undefined
+
+/** Whether a group has this tab: Tickets only when it is bound to a ticket connection, every other tab always. */
+export function groupShowsTab(tab: GroupTabKey, group: GroupTabFlags): boolean {
+  if (tab === 'tickets') return group?.ticketConnection != null
+  return true
+}
+
+/** The tab to land on in a group: the one asked for if the group has it, else Home. */
+export function groupTabForGroup(tab: GroupTabKey, group: GroupTabFlags): GroupTabKey {
+  return groupShowsTab(tab, group) ? tab : 'home'
+}
+
 export function isGroupTabKey(v: string | undefined): v is GroupTabKey {
   return GROUP_TAB_DEFS.some((t) => t.key === v)
 }

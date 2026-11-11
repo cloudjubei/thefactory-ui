@@ -4,6 +4,7 @@ import {
   getChatContextKey,
   isAgentRunChatContext,
   isChatHiddenFromList,
+  processRunIdOfChatContext,
   processStepStates,
 } from 'thefactory-tools/utils'
 
@@ -129,6 +130,7 @@ export function chatListRow(input: ChatListRowInput): ChatListRow {
   const kind = chatKindOf(chat.context)
   const onChat = chatChannelOf(chat.context) === 'chat'
   const status = onChat ? input.status : QUIET_STATUS
+  const showsNews = onChat || processRunIdOfChatContext(chat.context) !== undefined
   const runWorking = onChat && isRunWorking(run)
   const pill = rowPill(input, kind)
   const lastActivityAt = chatLastActivityAt(chat)
@@ -143,7 +145,7 @@ export function chatListRow(input: ChatListRowInput): ChatListRow {
     needsYou: status.muted ? 0 : status.needsYou,
     running: status.isThinking || status.isAgentRunning || runWorking,
     runningChannel: runWorking ? 'processes' : 'chat',
-    fresh: status.unreadCount > 0,
+    fresh: showsNews && input.status.unreadCount > 0,
     ...(lastActivityAt ? { lastActivityAt } : {}),
     hidden: isChatHiddenFromList({ listHiddenAt: chat.listHiddenAt ?? undefined }),
     muted: input.status.muted,
@@ -170,12 +172,12 @@ export function byChatListAttention(a: ChatListRow, b: ChatListRow): number {
 }
 
 /**
- * Whether a row stays under a filter chip. A process run's chat stays only
- * under Runs — it counts on Processes, never with the chats. Pure.
+ * Whether a row stays under a filter chip. A process run's chat stays under
+ * Runs, and under All only while it holds unread news. Pure.
  */
 export function matchesChatListFilter(row: ChatListRow, filter: ChatListFilter): boolean {
   if (filter === 'runs') return row.kind === 'run'
-  if (chatChannelOf(row.context) !== 'chat') return false
+  if (chatChannelOf(row.context) !== 'chat') return filter === 'all' && row.fresh
   switch (filter) {
     case 'needs-you':
       return row.needsYou > 0
@@ -213,6 +215,10 @@ export function isChatInScopePool(context: ChatContext, scope: ChatListScope): b
   return context.projectId !== undefined && scope.projectIds.includes(context.projectId)
 }
 
+function isPutAway(row: ChatListRow): boolean {
+  return (row.hidden || row.retired) && !row.fresh
+}
+
 function isGroupsOwn(row: ChatListRow, groupId: string): boolean {
   return row.kind === 'group' && row.context.groupId === groupId
 }
@@ -220,10 +226,12 @@ function isGroupsOwn(row: ChatListRow, groupId: string): boolean {
 /**
  * The rows a scope's list draws from, before a filter: a project's chats, or a
  * group's own chats with whatever needs the person or runs in its projects,
- * and its projects' process run chats (only Runs shows them).
+ * its projects' chats with unread news, and its projects' process run chats
+ * (only Runs shows them, and All while they hold unread news).
  * The archived view draws from the chats hidden from the list and the closed
  * ones nothing calls the person back to — a group's own only — and the current
- * view from the rest. Pure.
+ * view from the rest. A hidden or closed chat with unread news stays in the
+ * current view until it is read, so every dot has a chat to open. Pure.
  */
 export function chatListPool(
   rows: readonly ChatListRow[],
@@ -231,13 +239,13 @@ export function chatListPool(
   archived: boolean,
 ): ChatListRow[] {
   return rows.filter((row) => {
-    if ((row.hidden || row.retired) !== archived) return false
+    if (isPutAway(row) !== archived) return false
     if (scope.kind === 'project') return row.projectId === scope.projectId
     if (isGroupsOwn(row, scope.groupId)) return true
     if (archived || row.projectId === undefined) return false
     return (
       scope.projectIds.includes(row.projectId) &&
-      (row.needsYou > 0 || row.running || row.kind === 'run')
+      (row.needsYou > 0 || row.running || row.fresh || row.kind === 'run')
     )
   })
 }

@@ -21,6 +21,7 @@ import {
   REQUEST_PROOF_CHOICES,
   RETRY_NOTE_COPY,
   SEND_TO_DEVELOPER_NOTE_COPY,
+  SEND_TO_DEVELOPER_UNCHECKED_NOTE_COPY,
 } from './processParkNoteConstants'
 
 const EVERY_CHOICE: ProcessParkAction[] = [
@@ -65,6 +66,24 @@ describe('parkNoteCopy', () => {
     })
   })
 
+  it('asks what the developer should change when a proving step that could not check sends work to it', () => {
+    expect(parkNoteCopy('send-to-developer', { noteRequired: true })).toBe(
+      SEND_TO_DEVELOPER_UNCHECKED_NOTE_COPY,
+    )
+    expect(SEND_TO_DEVELOPER_UNCHECKED_NOTE_COPY).toEqual({
+      prompt: 'What should the developer change? Why it could not check goes with it.',
+      submitLabel: 'Send to the developer',
+    })
+  })
+
+  it('keeps the checks’ words when the send-back needs no note', () => {
+    expect(parkNoteCopy('send-to-developer', {})).toBe(SEND_TO_DEVELOPER_NOTE_COPY)
+  })
+
+  it('keeps each other choice’s words whatever the stop says of its note', () => {
+    expect(parkNoteCopy('retry', { noteRequired: true })).toBe(RETRY_NOTE_COPY)
+  })
+
   it('asks what to do differently when a step is tried again with a note', () => {
     expect(parkNoteCopy('retry')).toBe(RETRY_NOTE_COPY)
     expect(RETRY_NOTE_COPY.submitLabel).toBe('Try again')
@@ -85,7 +104,18 @@ describe('parkNoteCopy', () => {
 
 describe('parkNoteRequired', () => {
   it('will not send "more info", an answer, or an accepted dropped change blank — the words are the answer', () => {
-    expect(EVERY_CHOICE.filter(parkNoteRequired)).toEqual(['more-info', 'accept-dropped-change'])
+    expect(EVERY_CHOICE.filter((c) => parkNoteRequired(c))).toEqual([
+      'more-info',
+      'accept-dropped-change',
+    ])
+  })
+
+  it('will not send an answer blank that the stop says needs a note', () => {
+    expect(parkNoteRequired('send-to-developer', { noteRequired: true })).toBe(true)
+  })
+
+  it('sends the checks’ send-back without a note, as the stop offers it', () => {
+    expect(parkNoteRequired('send-to-developer', {})).toBe(false)
   })
 })
 

@@ -4,10 +4,11 @@ import {
   PROCESS_RETRY_MODE_LABELS,
   processTurnLimitOfView,
   type ProcessRetryOffer,
+  type ProcessRetryMode,
   type ProcessRetryPick,
   type ProcessTurnLimitView,
 } from '../../../headless'
-import { Button } from '../../primitives/Button'
+import SegmentedControl from '../../primitives/SegmentedControl'
 import { TurnLimitField } from '../TurnLimitField'
 
 export type RetryChoiceOptionsProps = {
@@ -19,10 +20,12 @@ export type RetryChoiceOptionsProps = {
   onPick: (pick: ProcessRetryPick) => void
 }
 
+const RETRY_MODES = ['continue', 'fresh'] as const
+
 /**
  * What trying a step again lets the person pick beside the button: whether its
- * agent carries on where it left off or starts fresh — the step's default
- * picked, with why — and, at a spent turn limit, the limit it runs on.
+ * agent carries on where it left off or starts fresh, as a toggle so it never
+ * reads as a second button to press — the step's default picked, with why — and, at a spent turn limit, the limit it runs on.
  */
 export function RetryChoiceOptions({
   retry,
@@ -38,21 +41,23 @@ export function RetryChoiceOptions({
           <span className="text-[11px] font-semibold text-(--text-secondary)">
             {PROCESS_RETRY_MODE_HEADING}
           </span>
-          <div className="flex flex-wrap gap-2" role="radiogroup">
-            {(['continue', 'fresh'] as const).map((mode) => (
-              <Button
-                key={mode}
-                size="sm"
-                variant={pick.retryMode === mode ? 'primary' : 'secondary'}
-                disabled={mode === 'continue' && !retry.canContinue}
-                aria-pressed={pick.retryMode === mode}
-                title={PROCESS_RETRY_MODE_DETAILS[mode]}
-                onClick={() => onPick({ ...pick, retryMode: mode })}
-              >
-                {PROCESS_RETRY_MODE_LABELS[mode]}
-              </Button>
-            ))}
-          </div>
+          {retry.canContinue ? (
+            <SegmentedControl
+              size="sm"
+              ariaLabel={PROCESS_RETRY_MODE_HEADING}
+              className="self-start"
+              options={RETRY_MODES.map((mode) => ({
+                value: mode,
+                label: PROCESS_RETRY_MODE_LABELS[mode],
+              }))}
+              value={pick.retryMode ?? 'continue'}
+              onChange={(mode) => onPick({ ...pick, retryMode: mode as ProcessRetryMode })}
+            />
+          ) : (
+            <span className="text-[12px] font-medium text-(--text-primary)">
+              {PROCESS_RETRY_MODE_LABELS.fresh}
+            </span>
+          )}
           <span className="text-[10px] text-(--text-tertiary)">
             {pick.retryMode ? PROCESS_RETRY_MODE_DETAILS[pick.retryMode] : ''} {retry.reason}
           </span>

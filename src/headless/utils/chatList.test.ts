@@ -238,7 +238,7 @@ describe('chatListRow — what a row shows of its state', () => {
     expect(row({ chat: { context: TOPIC }, status: { ...QUIET, needsYou: 2 } }).needsYou).toBe(2)
   })
 
-  it('shows no badge on a process run’s chat, whatever waits, runs or is unread in it', () => {
+  it('shows nothing waiting or running on a process run’s chat, but its unread news', () => {
     const parked = run({
       status: 'parked',
       park: { reason: 'gate', message: 'Sign off', parkedAt: 0 },
@@ -248,8 +248,9 @@ describe('chatListRow — what a row shows of its state', () => {
       expect(row({ chat: { context: RUN_CHAT }, run: r, status: busy })).toMatchObject({
         needsYou: 0,
         running: false,
-        fresh: false,
+        fresh: true,
       })
+      expect(row({ chat: { context: RUN_CHAT }, run: r }).fresh).toBe(false)
     }
     const stepAgent: ChatContext = {
       type: 'AGENT_RUN_STORY',
@@ -369,6 +370,9 @@ describe('matchesChatListFilter', () => {
   it.each([
     ['all', listRow({}), true],
     ['all', listRow({ kind: 'run', context: RUN_CHAT }), false],
+    ['all', listRow({ kind: 'run', context: RUN_CHAT, fresh: true }), true],
+    ['needs-you', listRow({ kind: 'run', context: RUN_CHAT, fresh: true }), false],
+    ['stories', listRow({ kind: 'run', context: RUN_CHAT, fresh: true }), false],
     ['needs-you', listRow({ kind: 'run', context: RUN_CHAT, needsYou: 1 }), false],
     ['running', listRow({ kind: 'run', context: RUN_CHAT, running: true }), false],
     ['runs', listRow({ kind: 'run', context: RUN_CHAT }), true],
@@ -448,7 +452,8 @@ describe('chatListSections — one project', () => {
   it('shows only the archived chats in the archived view, without their badges', () => {
     const rows = [
       listRow({ key: 'shown' }),
-      listRow({ key: 'hidden', hidden: true, needsYou: 2, running: true, fresh: true }),
+      listRow({ key: 'hidden', hidden: true, needsYou: 2, running: true }),
+      listRow({ key: 'hidden-new', hidden: true, fresh: true }),
     ]
     expect(chatListSections({ rows, scope, filter: 'running', archived: true })).toEqual([
       {
@@ -676,6 +681,37 @@ describe('chatListPool', () => {
   it('leaves a quiet chat of a group’s project out of the group’s list', () => {
     const rows = [groupMain, listRow({ key: 'quiet' }), listRow({ key: 'busy', running: true })]
     expect(chatListPool(rows, group, false).map((r) => r.key)).toEqual(['general', 'busy'])
+  })
+
+  it('keeps a hidden or closed chat with unread news in the list until it is read', () => {
+    const project: ChatListScope = { kind: 'project', projectId: 'p1' }
+    const rows = [
+      listRow({ key: 'hidden-new', hidden: true, fresh: true }),
+      listRow({ key: 'closed-new', retired: true, fresh: true }),
+      listRow({ key: 'hidden-run-new', hidden: true, fresh: true, kind: 'run', context: RUN_CHAT }),
+      listRow({ key: 'hidden-read', hidden: true }),
+    ]
+    expect(chatListPool(rows, project, false).map((r) => r.key)).toEqual([
+      'hidden-new',
+      'closed-new',
+      'hidden-run-new',
+    ])
+    expect(chatListPool(rows, project, true).map((r) => r.key)).toEqual(['hidden-read'])
+  })
+
+  it('brings a group’s project chat with unread news into the group’s list', () => {
+    const rows = [
+      groupMain,
+      listRow({ key: 'new', fresh: true }),
+      listRow({ key: 'hidden-new', hidden: true, fresh: true }),
+      listRow({ key: 'quiet' }),
+    ]
+    expect(chatListPool(rows, group, false).map((r) => r.key)).toEqual([
+      'general',
+      'new',
+      'hidden-new',
+    ])
+    expect(chatListPool(rows, group, true)).toEqual([])
   })
 
   it('leaves out a row with no project when it is not the group’s own', () => {

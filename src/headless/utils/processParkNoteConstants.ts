@@ -35,6 +35,12 @@ export const SEND_TO_DEVELOPER_NOTE_COPY: ParkNoteCopy = {
   submitLabel: 'Send back',
 }
 
+/** The composer's words when a proving step that could not check sends the work to the developer: the note is required. */
+export const SEND_TO_DEVELOPER_UNCHECKED_NOTE_COPY: ParkNoteCopy = {
+  prompt: 'What should the developer change? Why it could not check goes with it.',
+  submitLabel: 'Send to the developer',
+}
+
 /** The composer's words when a person tries a step again with a note of their own. */
 export const RETRY_NOTE_COPY: ParkNoteCopy = {
   prompt: 'What should the agent do differently this time?',

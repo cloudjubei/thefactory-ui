@@ -7193,6 +7193,7 @@
         "dependencies": [
           "DirNode",
           "TreeNode",
+          "FileTreePathEntry",
           "ReadonlyArray"
         ]
       },
@@ -28454,6 +28455,23 @@
           "react-native/useWindowDimensions"
         ]
       },
+      "FeatureFormInitialValues": {
+        "path": "src/headless/hooks/useFeatureForm.ts",
+        "description": "Headless state machine for the \"create / edit feature\" form used by both",
+        "dependencies": [
+          "ReadonlyArray",
+          "StoryStatus",
+          "thefactory-tools/types/ProofPlan",
+          "FeatureKind",
+          "react/useCallback",
+          "react/useEffect",
+          "react/useMemo",
+          "react/useRef",
+          "react/useState",
+          "thefactory-tools/types/ProofKind",
+          "thefactory-tools/types"
+        ]
+      },
       "FeatureFormProps": {
         "path": "src/native/compound/stories/FeatureForm.tsx",
         "dependencies": [
@@ -28477,6 +28495,21 @@
           "react-native/Text",
           "react-native/View",
           "react-native/useWindowDimensions"
+        ]
+      },
+      "FeatureFormValues": {
+        "path": "src/headless/hooks/useFeatureForm.ts",
+        "dependencies": [
+          "StoryStatus",
+          "thefactory-tools/types/ProofPlan",
+          "FeatureKind",
+          "react/useCallback",
+          "react/useEffect",
+          "react/useMemo",
+          "react/useRef",
+          "react/useState",
+          "thefactory-tools/types/ProofKind",
+          "thefactory-tools/types"
         ]
       },
       "FeatureKind": {
@@ -30136,6 +30169,12 @@
           "react/useState"
         ]
       },
+      "FILE_TREE_SCENES": {
+        "path": "playground/scenes/fileTree.tsx",
+        "dependencies": [
+          "Scene"
+        ]
+      },
       "fileDesignProposalEntry": {
         "path": "src/headless/api/generated/sdk.gen.ts",
         "description": "File one image of a proposal as a state of a screen — an existing one by id, a new one by name.",
@@ -30324,7 +30363,7 @@
       },
       "FileNode": {
         "path": "src/headless/utils/fileTree.ts",
-        "description": "Client-side tree construction from a flat list of paths. The backend",
+        "description": "Client-side tree construction from a flat list of paths or entries.",
         "dependencies": []
       },
       "FilePane": {
@@ -30837,6 +30876,10 @@
           "react-native/TextInput",
           "react-native/View"
         ]
+      },
+      "FileTreePathEntry": {
+        "path": "src/headless/utils/fileTree.ts",
+        "dependencies": []
       },
       "FileTreeProps": {
         "path": "src/native/compound/files/FileTree.tsx",
@@ -93958,14 +94001,6 @@
           "react/MouseEvent"
         ]
       },
-      "useDurationTimer": {
-        "path": "src/headless/hooks/useDurationTimer.ts",
-        "description": "Returns a re-rendering \"now\" timestamp that ticks every `intervalMs` while",
-        "dependencies": [
-          "react/useEffect",
-          "react/useState"
-        ]
-      },
       "useEffectiveReferenceRenderer": {
         "path": "src/headless/contexts/ReferenceRenderingContext.ts",
         "description": "The renderer a text surface uses: its own, else the app's. Unless the text is",
@@ -94046,6 +94081,61 @@
           "thefactory-ui/headless/FilePreviewTarget",
           "thefactory-ui/headless",
           "thefactory-tools/types/ReferenceDescription",
+          "thefactory-tools/types"
+        ]
+      },
+      "useFeatureForm": {
+        "path": "src/headless/hooks/useFeatureForm.ts",
+        "dependencies": [
+          "thefactory-tools/types/ProofKind",
+          "StoryStatus",
+          "ProofPlanDraft",
+          "FeatureKind",
+          "FeatureFormValues",
+          "ShownText",
+          "UseFeatureForm",
+          "UseFeatureFormOptions",
+          "react/useCallback",
+          "react/useEffect",
+          "react/useMemo",
+          "react/useRef",
+          "react/useState",
+          "thefactory-tools/types/ProofPlan",
+          "thefactory-tools/types"
+        ]
+      },
+      "UseFeatureForm": {
+        "path": "src/headless/hooks/useFeatureForm.ts",
+        "dependencies": [
+          "Promise",
+          "ReadonlySet",
+          "StoryStatus",
+          "thefactory-tools/types/ProofKind",
+          "ProofPlanDraft",
+          "FeatureKind",
+          "FeatureFormValues",
+          "react/useCallback",
+          "react/useEffect",
+          "react/useMemo",
+          "react/useRef",
+          "react/useState",
+          "thefactory-tools/types/ProofPlan",
+          "thefactory-tools/types"
+        ]
+      },
+      "UseFeatureFormOptions": {
+        "path": "src/headless/hooks/useFeatureForm.ts",
+        "dependencies": [
+          "Promise",
+          "FeatureFormValues",
+          "FeatureFormInitialValues",
+          "react/useCallback",
+          "react/useEffect",
+          "react/useMemo",
+          "react/useRef",
+          "react/useState",
+          "thefactory-tools/types/ProofKind",
+          "thefactory-tools/types/ProofPlan",
           "thefactory-tools/types"
         ]
       },
@@ -124309,34 +124399,6 @@
           "thefactory-tools/utils"
         ]
       },
-      "CapabilityDraftContext": {
-        "path": "headless/utils/capabilityChatDraftTypes.ts",
-        "description": "What the draft is built from — every part optional, and left out of the draft when unknown.",
-        "dependencies": [
-          "VerificationApproachOption",
-          "ProjectPlatform",
-          "ProjectChecksListing"
-        ]
-      },
-      "CapabilityDraftTarget": {
-        "path": "headless/utils/capabilityChatDraftTypes.ts",
-        "description": "The missing capability a draft asks the agent to set up.",
-        "dependencies": [
-          "CapabilityMethodId",
-          "CheckMethodRow",
-          "Pick"
-        ]
-      },
-      "CapabilityEcosystemTable": {
-        "path": "headless/utils/capabilityChatDraftTypes.ts",
-        "description": "Per ecosystem, a sentence or list for each capability method; absent when there is nothing factual to say.",
-        "dependencies": [
-          "CapabilityMethodId",
-          "Record",
-          "Partial",
-          "CheckEcosystem"
-        ]
-      },
       "CapabilityFlagKey": {
         "path": "headless/utils/capabilitySettingsTypes.ts",
         "description": "The three host-side flags stored on a project and on a group. Each is off",
@@ -124382,22 +124444,9 @@
         "path": "headless/utils/capabilitySettingsConstants.ts",
         "dependencies": []
       },
-      "CapabilityKind": {
-        "path": "headless/utils/capabilityChatDraftTypes.ts",
-        "description": "How a capability gets into the project: a command the checks scan detects, or a capture of the running app.",
-        "dependencies": []
-      },
       "CapabilityLibraryPath": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": []
-      },
-      "CapabilityMethodId": {
-        "path": "headless/utils/capabilityChatDraftTypes.ts",
-        "description": "The methods a project can be set up to provide — a check command, or a way to capture the app.",
-        "dependencies": [
-          "CheckMethodId",
-          "Extract"
-        ]
       },
       "CapabilityOverrides": {
         "path": "headless/api/generated/types.gen.ts",
@@ -223707,6 +223756,11 @@
         "description": "The id of the storyless process that lives a product at several versions and compares them.",
         "dependencies": []
       },
+      "COMPARE_VARIANTS_REVIEWS_INPUT": {
+        "path": "dist/workflow/workflowConstants.js",
+        "description": "The launch input of {@link COMPARE_VARIANTS_PROCESS_ID} that says whether each variant is reviewed, or one review covers them all.",
+        "dependencies": []
+      },
       "compareCheckWithBase": {
         "path": "dist/projectChecks/projectCheckBaselineUtils.js",
         "description": "How one failed check compares with the same check at the base, run in the",
@@ -229924,6 +229978,15 @@
         "description": "What a file a person gave is, by its extension: a video, a picture, else a plain file. Pure.",
         "dependencies": []
       },
+      "EvidenceLineSearch": {
+        "path": "dist/reviewEvidence/reviewEvidenceSearchUtils.js",
+        "description": "A search of a note fed one line at a time, without its newline: every line",
+        "dependencies": [
+          "REVIEW_EVIDENCE_PAST_NOTE_END",
+          "REVIEW_EVIDENCE_SEARCH_NO_MATCH",
+          "REVIEW_EVIDENCE_SEARCH_MORE"
+        ]
+      },
       "evidenceMatchesQuery": {
         "path": "dist/reviewEvidence/reviewEvidenceUtils.js",
         "description": "Whether one item satisfies a query. Every supplied field must match; an",
@@ -229971,6 +230034,18 @@
       "evidenceSeamOverlays": {
         "path": "dist/reviewEvidence/reviewEvidenceUtils.js",
         "description": "The test-seam commits a capture's build was served with: its overlays, or",
+        "dependencies": []
+      },
+      "EvidenceSearchResult": {
+        "path": "dist/reviewEvidence/reviewEvidenceSearchUtils.d.ts",
+        "description": "What a search hands back: the blocks of lines it shows, what it found, and what to say of it.",
+        "dependencies": [
+          "ReviewEvidenceTextSearch"
+        ]
+      },
+      "evidenceSearchWords": {
+        "path": "dist/reviewEvidence/reviewEvidenceSearchUtils.js",
+        "description": "The words of a search, each a line must hold, in lower case. Pure.",
         "dependencies": []
       },
       "evidenceShowsNoChange": {
@@ -236309,6 +236384,11 @@
         "description": "Whether a ranged read names a part of a note: a whole `offset` from 0, a whole `limit` from 1.",
         "dependencies": []
       },
+      "isEvidenceTextSearch": {
+        "path": "dist/reviewEvidence/reviewEvidenceTypeValidations.js",
+        "description": "Whether a search names words to find: a string with at least one word in it.",
+        "dependencies": []
+      },
       "isExactCliVersion": {
         "path": "dist/cliImage/cliImageUtils.js",
         "dependencies": []
@@ -238021,6 +238101,11 @@
       },
       "JOURNEY_NO_STANCE": {
         "path": "dist/journey/journeyConstants.js",
+        "dependencies": []
+      },
+      "JOURNEY_NOT_READ_BACK": {
+        "path": "dist/journey/journeyConstants.js",
+        "description": "What a journey script logs as a replacement goal it could not read back off the page.",
         "dependencies": []
       },
       "JOURNEY_NOTHING_REMEMBERED": {
@@ -259035,6 +259120,15 @@
           "node:fs/promises"
         ]
       },
+      "readEvidenceSearch": {
+        "path": "dist/reviewEvidence/reviewEvidenceTextHelpers.js",
+        "dependencies": [
+          "node:fs/createReadStream",
+          "node:fs/promises/readFile",
+          "node:fs/promises/stat",
+          "node:fs/promises"
+        ]
+      },
       "readFdSoftLimit": {
         "path": "dist/process/processHelpers.js",
         "description": "Best-effort read of THIS process's soft open-files limit (`ulimit -n`).",
@@ -259711,12 +259805,15 @@
         "dependencies": [
           "REVIEW_EVIDENCE_AMBIGUOUS_ID",
           "REVIEW_EVIDENCE_NOT_FILED",
+          "REVIEW_EVIDENCE_SEARCH_NOT_A_NOTE",
           "REVIEW_EVIDENCE_NOT_A_NOTE",
           "REVIEW_EVIDENCE_RECORDING_STILLS",
           "REVIEW_EVIDENCE_NOT_VIEWABLE",
           "REVIEW_EVIDENCE_NO_SUCH_STILL",
           "REVIEW_EVIDENCE_NOT_A_RECORDING",
           "REVIEW_EVIDENCE_BAD_RANGE",
+          "REVIEW_EVIDENCE_SEARCH_WITH_LIMIT",
+          "REVIEW_EVIDENCE_SEARCH_NO_WORDS",
           "node:crypto/randomUUID",
           "node:fs/promises/readFile",
           "node:fs/promises/readdir",
@@ -263245,6 +263342,56 @@
         "description": "How much a screen's own resource ids weigh against its visible text when both",
         "dependencies": []
       },
+      "REVIEW_EVIDENCE_SEARCH_ALL_SHOWN": {
+        "path": "dist/reviewEvidence/reviewEvidenceConstants.js",
+        "description": "What `readReviewEvidence` says when a search shows every line it found.",
+        "dependencies": []
+      },
+      "REVIEW_EVIDENCE_SEARCH_BLOCK_HEADER": {
+        "path": "dist/reviewEvidence/reviewEvidenceConstants.js",
+        "description": "The heading of a block of lines a search shows: where it starts, to read on from.",
+        "dependencies": []
+      },
+      "REVIEW_EVIDENCE_SEARCH_CONTEXT_LINES": {
+        "path": "dist/reviewEvidence/reviewEvidenceConstants.js",
+        "description": "How many lines a search shows either side of each matching line.",
+        "dependencies": []
+      },
+      "REVIEW_EVIDENCE_SEARCH_LINE_CUT": {
+        "path": "dist/reviewEvidence/reviewEvidenceConstants.js",
+        "description": "What a search shows where it cut a long line.",
+        "dependencies": []
+      },
+      "REVIEW_EVIDENCE_SEARCH_LINE_MAX_CHARS": {
+        "path": "dist/reviewEvidence/reviewEvidenceConstants.js",
+        "description": "The most of one line a search shows, in characters: a longer matching line",
+        "dependencies": []
+      },
+      "REVIEW_EVIDENCE_SEARCH_MORE": {
+        "path": "dist/reviewEvidence/reviewEvidenceConstants.js",
+        "description": "What `readReviewEvidence` says when a search found more lines than one read holds.",
+        "dependencies": []
+      },
+      "REVIEW_EVIDENCE_SEARCH_NO_MATCH": {
+        "path": "dist/reviewEvidence/reviewEvidenceConstants.js",
+        "description": "What `readReviewEvidence` says when a search found no line.",
+        "dependencies": []
+      },
+      "REVIEW_EVIDENCE_SEARCH_NO_WORDS": {
+        "path": "dist/reviewEvidence/reviewEvidenceConstants.js",
+        "description": "What `readReviewEvidence` says of a search with no word in it.",
+        "dependencies": []
+      },
+      "REVIEW_EVIDENCE_SEARCH_NOT_A_NOTE": {
+        "path": "dist/reviewEvidence/reviewEvidenceConstants.js",
+        "description": "What `readReviewEvidence` says when asked to search an item that is not a note.",
+        "dependencies": []
+      },
+      "REVIEW_EVIDENCE_SEARCH_WITH_LIMIT": {
+        "path": "dist/reviewEvidence/reviewEvidenceConstants.js",
+        "description": "What `readReviewEvidence` says of a search given a `limit`.",
+        "dependencies": []
+      },
       "REVIEW_EVIDENCE_STILL_FILE": {
         "path": "dist/reviewEvidence/reviewEvidenceConstants.js",
         "description": "A recording still's file name in its digest, which sorts by time.",
@@ -263426,6 +263573,7 @@
         "path": "dist/reviewEvidence/reviewEvidenceTypes.d.ts",
         "dependencies": [
           "ViewedImage",
+          "ReviewEvidenceTextSearch",
           "ReviewEvidenceTextRange",
           "ReviewEvidenceTextCut",
           "ReviewEvidenceKind"
@@ -263559,6 +263707,16 @@
       "ReviewEvidenceTextRangeRequest": {
         "path": "dist/reviewEvidence/reviewEvidenceTypes.d.ts",
         "description": "The part of a note `readReviewEvidence` is asked for.",
+        "dependencies": []
+      },
+      "ReviewEvidenceTextSearch": {
+        "path": "dist/reviewEvidence/reviewEvidenceTypes.d.ts",
+        "description": "What a search of a note found, and how much of it `text` shows.",
+        "dependencies": []
+      },
+      "ReviewEvidenceTextSearchRequest": {
+        "path": "dist/reviewEvidence/reviewEvidenceTypes.d.ts",
+        "description": "What `readReviewEvidence` is asked to find in a note.",
         "dependencies": []
       },
       "ReviewEvidenceTools": {
@@ -265219,6 +265377,11 @@
       "searchEngineQueryUrl": {
         "path": "dist/web/webUtils.js",
         "description": "Build a region-targeted search URL for a browser-scraped engine. DuckDuckGo uses its static html",
+        "dependencies": []
+      },
+      "searchEvidenceText": {
+        "path": "dist/reviewEvidence/reviewEvidenceSearchUtils.js",
+        "description": "Search a whole note as {@link EvidenceLineSearch} does: lines split at each",
         "dependencies": []
       },
       "searchHandleReferences": {
@@ -266897,6 +267060,11 @@
       "splitSandboxRewriteReport": {
         "path": "dist/projectChecks/projectCheckSandboxUtils.js",
         "description": "A check container's output split from the report its script appends: the",
+        "dependencies": []
+      },
+      "splitsCharacter": {
+        "path": "dist/reviewEvidence/reviewEvidenceUtils.js",
+        "description": "Whether `at` falls between the two halves of one character. Pure.",
         "dependencies": []
       },
       "splitUnifiedDiffIntoHunks": {

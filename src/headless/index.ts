@@ -1632,6 +1632,8 @@ export {
   ASSISTANT_NAV_DEF,
   GROUP_TAB_DEFS,
   SHELL_TAB_DEFS,
+  groupShowsTab,
+  groupTabForGroup,
   groupTabToProjectTab,
   isGroupTabKey,
   isShellTabKey,
@@ -1640,6 +1642,7 @@ export {
   shellTabForProject,
   splitGroupsAndProjects,
   type GroupTabDef,
+  type GroupTabFlags,
   type GroupTabKey,
   type NavGroupLike,
   type NavIconKey,
@@ -3443,6 +3446,7 @@ export {
   REQUEST_PROOF_HEADING,
   RETRY_NOTE_COPY,
   SEND_TO_DEVELOPER_NOTE_COPY,
+  SEND_TO_DEVELOPER_UNCHECKED_NOTE_COPY,
   WAITING_NOTE_COPY,
 } from './utils/processParkNoteConstants'
 export {

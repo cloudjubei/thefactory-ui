@@ -1718,6 +1718,7 @@ function ParkBlock({
     )
   const answers = processParkAnswersView(offered, manager, selected)
   const ownChoice = parkOwnAnswerChoice(offered)
+  const noteOffer = offered.find((c) => c.choice === noteFor)
   const pick =
     retryPick ?? (retryChoice ? processRetryPickStart(retryChoice, manager?.moreTries) : undefined)
   const send = (answer: ParkAnswerView, note: string | undefined) => {
@@ -1765,8 +1766,8 @@ function ParkBlock({
       {manager && !reflected ? <ManagerLine view={manager} /> : null}
       {noteFor ? (
         <ParkNoteComposer
-          copy={parkNoteCopy(noteFor)}
-          required={parkNoteRequired(noteFor)}
+          copy={parkNoteCopy(noteFor, noteOffer)}
+          required={parkNoteRequired(noteFor, noteOffer)}
           {...(noteFor === 'request-changes'
             ? { proofChoices: requestProofChoices(run.proofUnavailable) }
             : {})}

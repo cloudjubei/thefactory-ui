@@ -1,5 +1,6 @@
 import type {
   ProcessParkAction,
+  ProcessParkChoice,
   ProcessWaitingKind,
   ProofKind,
   ProofKindUnavailable,
@@ -18,6 +19,7 @@ import {
   REQUEST_PROOF_CHOICES,
   RETRY_NOTE_COPY,
   SEND_TO_DEVELOPER_NOTE_COPY,
+  SEND_TO_DEVELOPER_UNCHECKED_NOTE_COPY,
   WAITING_NOTE_COPY,
 } from './processParkNoteConstants'
 import type { ParkNoteCopy, RequestProofChoice } from './processParkNoteTypes'
@@ -27,17 +29,29 @@ export function choiceTakesNote(choice: ProcessParkAction): boolean {
   return PARK_NOTE_CHOICES.has(choice)
 }
 
-/** The composer's words for a park choice that takes a note: sending work back to the developer, accepting a dropped change, trying again, else a request for changes. */
-export function parkNoteCopy(choice: ProcessParkAction): ParkNoteCopy {
-  if (choice === 'send-to-developer') return SEND_TO_DEVELOPER_NOTE_COPY
+/**
+ * The composer's words for a park choice that takes a note: sending work to the developer — from a
+ * proving step that could not check when the stop's `offer` needs the note, else from the checks —
+ * accepting a dropped change, trying again, else a request for changes.
+ */
+export function parkNoteCopy(
+  choice: ProcessParkAction,
+  offer?: Pick<ProcessParkChoice, 'noteRequired'>,
+): ParkNoteCopy {
+  if (choice === 'send-to-developer') {
+    return offer?.noteRequired ? SEND_TO_DEVELOPER_UNCHECKED_NOTE_COPY : SEND_TO_DEVELOPER_NOTE_COPY
+  }
   if (choice === 'accept-dropped-change') return ACCEPT_DROPPED_NOTE_COPY
   if (choice === 'retry') return RETRY_NOTE_COPY
   return PARK_NOTE_COPY
 }
 
-/** Whether the note IS the answer, so the composer will not send it blank. */
-export function parkNoteRequired(choice: ProcessParkAction): boolean {
-  return PARK_NOTE_REQUIRED_CHOICES.has(choice)
+/** Whether the note IS the answer — by its choice, or as the stop's `offer` says — so the composer will not send it blank. */
+export function parkNoteRequired(
+  choice: ProcessParkAction,
+  offer?: Pick<ProcessParkChoice, 'noteRequired'>,
+): boolean {
+  return PARK_NOTE_REQUIRED_CHOICES.has(choice) || offer?.noteRequired === true
 }
 
 /** The composer's words for answering a waiting agent: an answer to a question, else more info. */

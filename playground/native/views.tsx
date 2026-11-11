@@ -61,6 +61,7 @@ import {
 import { FAKE_DATA_VIEWS } from './fakeDataViews'
 import { FILE_PREVIEW_VIEWS } from './filePreviewViews'
 import { SCRIPTED_VIEWS } from './scriptedViews'
+import { SEND_TO_DEVELOPER_VIEWS } from './sendToDeveloperViews'
 import { TICKET_VIEWS } from './ticketViews'
 import { VARIANT_VIEWS } from './variantViews'
 
@@ -560,4 +561,5 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   ...FAKE_DATA_VIEWS,
   ...FILE_PREVIEW_VIEWS,
   ...TICKET_VIEWS,
+  ...SEND_TO_DEVELOPER_VIEWS,
 ]
