@@ -3779,6 +3779,7 @@ export type {
   ProjectCheckRerunInput,
   ProjectCheckRunMemory,
   ProjectCheckRunResult,
+  ProjectCheckSeamFailures,
   ProjectChecksFingerprint,
   ProjectChecksGateResult,
   ProjectCheckSiblingSnapshot,

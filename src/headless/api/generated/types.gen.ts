@@ -16940,6 +16940,12 @@ export type ProjectCheckPlacementDecision =
       }
     }
 
+export type ProjectCheckSeamFailures = {
+  files: Array<string>
+  all: boolean
+  note: string
+}
+
 export type ProjectCheckSnapshotNotMade = {
   reason: string
 }
@@ -17246,6 +17252,11 @@ export type ProjectCheckRunResult = {
   tests?: Array<string>
   ranIn?: 'sandbox' | 'host'
   hostReason?: string
+  testSeams?: {
+    files: Array<string>
+    all: boolean
+    note: string
+  }
 }
 
 export type ProjectCheckDetailSection = {
@@ -32064,7 +32075,7 @@ export type PreviewProcessResponses = {
     processId: string
     name: string
     description?: string
-    scope?: 'global' | 'project'
+    scope?: 'global' | 'group' | 'project'
     steps: Array<{
       id: string
       name: string
@@ -32482,7 +32493,7 @@ export type PreviewProcessRunResponses = {
       processId: string
       name: string
       description?: string
-      scope?: 'global' | 'project'
+      scope?: 'global' | 'group' | 'project'
       steps: Array<{
         id: string
         name: string
@@ -32903,6 +32914,18 @@ export type ResumeProcessRunData = {
      * With an answer to a waiting agent (more-info, resolved): project files to hand it, project-relative — an uploaded chat attachment or any file in the checkout. Staged into its workspace at the same paths.
      */
     files?: Array<string>
+    /**
+     * With retry: turns only the retried attempt gets, 1–500 — the run’s own limit stays. Not with `turnLimit`.
+     */
+    attemptTurns?: number
+    /**
+     * As `answerRunPark` and `decideRunGate` take it: with change-proof, `proofPlan.kinds`; with request-changes, `requestedProof`. Not with either of those.
+     */
+    proofKinds?: Array<ProofKind>
+    /**
+     * As `answerRunPark` takes it: `saveProofPlan`. Not with it.
+     */
+    saveToFeature?: boolean
   }
   path: {
     runId: string
