@@ -5,4 +5,6 @@ export type SignoffSpecCriteriaGroup = {
   dependency: string
   title: string
   criteria: string[]
+  /** What the run moved out of it into follow-ups, one line each. */
+  moved?: string[]
 }

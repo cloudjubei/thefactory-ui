@@ -23,6 +23,7 @@ export const PROCESS_SIGNOFF_DECISION_VIEW: Record<
   recheck: { label: 'Checks run again', tone: 'empty' },
   'accept-dropped-change': { label: 'Dropped change accepted', tone: 'empty' },
   'accept-with-follow-ups': { label: 'Accepted — follow-ups filed', tone: 'empty' },
+  'split-follow-up': { label: 'Moved to a follow-up', tone: 'empty' },
 }
 
 /** Where a person decided, as a decision's record says it. */

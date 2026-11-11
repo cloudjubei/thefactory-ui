@@ -70,10 +70,12 @@ import { PROCESS_STEP_TOOL_SCENES } from '../scenes/processStepTools'
 import { PROJECT_EDITOR_LIMIT_SCENES } from '../scenes/projectEditorLimits'
 import { PROJECT_OVERVIEW_MODEL_SCENES } from '../scenes/projectOverviewModel'
 import { PROOF_CHANGE_SCENES } from '../scenes/proofChange'
+import { FEATURE_SPLIT_SCENES } from '../scenes/featureSplit'
 import { FAKE_DATA_IN_PRODUCT_SCENES } from '../scenes/fakeDataInProduct'
 import { REGENERATED_MERGE_SCENES } from '../scenes/regeneratedMerge'
 import { NEEDS_YOU_REFERENCE_SCENES } from '../scenes/needsYouReferences'
 import { RUN_ACCESS_SCENES } from '../scenes/runAccess'
+import { TRY_ON_PHONE_SCENES } from '../scenes/tryOnPhone'
 import { RUN_NEEDS_YOU_SCENES } from '../scenes/runNeedsYou'
 import { RUNNING_TONE_SCENES } from '../scenes/runningTone'
 import { RUN_TIME_DETAILS_SCENES } from '../scenes/runTimeDetails'
@@ -146,6 +148,7 @@ export const SCENES: readonly Scene[] = [
   ...PROCESS_MODEL_SCENES,
   ...PROCESS_STEP_TOOL_SCENES,
   ...PROOF_CHANGE_SCENES,
+  ...FEATURE_SPLIT_SCENES,
   ...FAKE_DATA_IN_PRODUCT_SCENES,
   ...BEFORE_AFTER_VIDEO_SCENES,
   ...ANSWER_FILES_SCENES,
@@ -159,6 +162,7 @@ export const SCENES: readonly Scene[] = [
   ...CIRCLING_SCENES,
   ...REGENERATED_MERGE_SCENES,
   ...RUN_ACCESS_SCENES,
+  ...TRY_ON_PHONE_SCENES,
   ...RUN_NEEDS_YOU_SCENES,
   ...NEEDS_YOU_REFERENCE_SCENES,
   ...RUNNING_TONE_SCENES,

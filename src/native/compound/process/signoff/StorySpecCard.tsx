@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import type { ProcessRunFeatureSplit } from 'thefactory-tools/types'
 import { Pressable, Text, View } from 'react-native'
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg'
 
@@ -21,6 +22,8 @@ export type StorySpecCardProps = {
   title: string
   description: string | undefined
   features: readonly { id: string; title: string; acceptance?: string }[]
+  /** What the run moved out of its features into follow-ups, said under each feature. */
+  featureSplits?: readonly ProcessRunFeatureSplit[]
   onOpenStory?: () => void
 }
 
@@ -40,6 +43,7 @@ export default function StorySpecCard({
   title,
   description,
   features,
+  featureSplits,
   onOpenStory,
 }: StorySpecCardProps) {
   const { theme } = useNativeTheme()
@@ -51,8 +55,9 @@ export default function StorySpecCard({
       signoffSpecCriteria(
         storyId,
         features.map((f) => ({ id: f.id, title: f.title, acceptance: f.acceptance })),
+        featureSplits,
       ),
-    [storyId, features],
+    [storyId, features, featureSplits],
   )
   const text = description?.trim()
   const maxHeight = SIGNOFF_SPEC_DESCRIPTION_LINES * LINE_HEIGHT
@@ -194,6 +199,11 @@ export default function StorySpecCard({
                     />
                   </View>
                 </View>
+              ))}
+              {group.moved?.map((line) => (
+                <Text key={line} style={{ fontSize: 12, color: theme.text.secondary }}>
+                  {line}
+                </Text>
               ))}
             </View>
           ))

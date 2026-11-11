@@ -34,6 +34,8 @@ import { loadProjectFilePaths } from '../contexts/FilesContext'
 import { cachedProcessRun, processRunCache } from './processViewCache'
 import type { ProcessRetryPick } from '../utils/processTurnLimitViewTypes'
 import type { ProofChangeDraft } from '../utils/processProofChangeViewTypes'
+import { featureSplitResumeFields } from '../utils/processFeatureSplitView'
+import type { FeatureSplitDraft } from '../utils/processFeatureSplitViewTypes'
 import type { LaunchAgentPick } from '../utils/launchAgentPickTypes'
 import { runModelChangeBody } from '../utils/runModelChange'
 
@@ -87,6 +89,12 @@ export type UseProcessRun = {
    * stop's "Change what proves it" — saving it onto the feature when asked.
    */
   changeProof: (draft: ProofChangeDraft) => Promise<boolean>
+  /**
+   * Move picked points of the stopped feature's acceptance into a new
+   * follow-up on its story — the stop's "Move to a follow-up" — changing what
+   * proves it too when asked.
+   */
+  splitFollowUp: (draft: FeatureSplitDraft) => Promise<boolean>
   /**
    * Decide ONE of several requests the waiting agent left open; the run carries
    * on once the last is decided. Resolves `false` when it was refused; the
@@ -341,6 +349,30 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
         return true
       } catch (err) {
         setActionError(extractErrorMessage(err, 'The proof could not be changed.'))
+        return false
+      }
+    },
+    [runId, client, setRun],
+  )
+
+  const splitFollowUp = useCallback(
+    async (draft: FeatureSplitDraft) => {
+      if (!runId) return false
+      setActionError(null)
+      try {
+        const { data } = await resumeProcessRun({
+          path: { runId },
+          body: {
+            choice: 'split-follow-up',
+            decidedVia: client,
+            ...featureSplitResumeFields(draft),
+          },
+          throwOnError: true,
+        })
+        setRun(data as ProcessRun)
+        return true
+      } catch (err) {
+        setActionError(extractErrorMessage(err, 'The points could not be moved.'))
         return false
       }
     },
@@ -623,6 +655,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       uploadAnswerFile,
       loadAnswerProjectFiles,
       changeProof,
+      splitFollowUp,
       answerWaitingRequest,
       setTurnLimit,
       setManager,
@@ -650,6 +683,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       uploadAnswerFile,
       loadAnswerProjectFiles,
       changeProof,
+      splitFollowUp,
       answerWaitingRequest,
       setTurnLimit,
       setManager,

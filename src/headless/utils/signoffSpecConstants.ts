@@ -11,3 +11,7 @@ export const SIGNOFF_SPEC_DESCRIPTION_TOGGLE = {
   more: 'Show the whole description',
   less: 'Show less',
 } as const
+
+/** What a run moved out of a feature into a follow-up, as the spec card says it under the feature. */
+export const SIGNOFF_SPEC_MOVED = (title: string, points: readonly string[]): string =>
+  `Moved to “${title}”: ${points.join('; ')}`

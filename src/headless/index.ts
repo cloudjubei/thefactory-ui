@@ -1421,6 +1421,7 @@ export type {
 export { signoffSpecCriteria } from './utils/signoffSpec'
 export {
   SIGNOFF_SPEC_CRITERIA_CAPTION,
+  SIGNOFF_SPEC_MOVED,
   SIGNOFF_SPEC_CRITERIA_CHIP,
   SIGNOFF_SPEC_DESCRIPTION_LINES,
   SIGNOFF_SPEC_DESCRIPTION_TOGGLE,
@@ -3918,6 +3919,33 @@ export type {
   ProofChangeView,
 } from './utils/processProofChangeViewTypes'
 export {
+  featureSplitDraftStart,
+  featureSplitResumeFields,
+  featureSplitView,
+  parkChoicesWithSplit,
+  toggleFeatureSplitPoint,
+} from './utils/processFeatureSplitView'
+export {
+  FEATURE_SPLIT_CANCEL_LABEL,
+  FEATURE_SPLIT_CHANGE_PROOF_LABEL,
+  FEATURE_SPLIT_COUNT,
+  FEATURE_SPLIT_HEADING,
+  FEATURE_SPLIT_HINT,
+  FEATURE_SPLIT_MOVES_CHIP,
+  FEATURE_SPLIT_NOTE_PLACEHOLDER,
+  FEATURE_SPLIT_PICK_POINTS,
+  FEATURE_SPLIT_SEND_LABEL,
+  FEATURE_SPLIT_STAYS_CHIP,
+  FEATURE_SPLIT_TITLE_PLACEHOLDER,
+} from './utils/processFeatureSplitViewConstants'
+export type {
+  FeatureSplitDraft,
+  FeatureSplitPointLook,
+  FeatureSplitPointView,
+  FeatureSplitResumeFields,
+  FeatureSplitView,
+} from './utils/processFeatureSplitViewTypes'
+export {
   processAmendmentView,
   processOpenWorkMetadata,
   processOpenWorkView,
@@ -3984,6 +4012,7 @@ export type {
   ProcessBaseMoved,
   ProcessBaseUpdate,
   ProcessParkChoice,
+  ProcessFeatureSplitOffer,
   ProcessProofChangeOffer,
   ProcessStepState,
   ProcessVerifyReview,
@@ -4026,6 +4055,12 @@ export type {
   RunPendingChangeItem,
   RunPendingChangesView,
 } from './utils/runPendingChangesViewTypes'
+export { runCarriedOutChangesView } from './utils/runCarriedOutChangesView'
+export { RUN_CARRIED_OUT_CHANGES_TITLE } from './utils/runCarriedOutChangesViewConstants'
+export type {
+  RunCarriedOutChangeItem,
+  RunCarriedOutChangesView,
+} from './utils/runCarriedOutChangesViewTypes'
 export {
   NEEDS_YOU_DISCUSS_LABEL,
   NEEDS_YOU_TRIAGE_LABEL,
@@ -4626,10 +4661,35 @@ export {
 export {
   PROCESS_CLEANUP_BY_LABELS,
   PROCESS_CLEANUP_COPY,
+  PROCESS_CLEANUP_DEVICE_OUTCOME_LABELS,
   PROCESS_CLEANUP_KIND_LABELS,
   PROCESS_CLEANUP_OUTCOME_LABELS,
 } from './utils/processCleanupViewConstants'
 export type { ProcessCleanupRow } from './utils/processCleanupViewTypes'
+export { readProcessTryBuild } from './api/processTryBuildApi'
+export { useProcessTryBuild, type UseProcessTryBuild } from './hooks/useProcessTryBuild'
+export {
+  processTryBuildDisplay,
+  processTryBuildLinkExpired,
+  processTryBuildRefreshDelay,
+} from './utils/processTryBuildView'
+export {
+  PROCESS_TRY_BUILD_COPY,
+  PROCESS_TRY_BUILD_LINK_REFRESH_LEAD_MS,
+  PROCESS_TRY_BUILD_REFRESH_FLOOR_MS,
+} from './utils/processTryBuildViewConstants'
+export type {
+  ProcessTryBuildCheck,
+  ProcessTryBuildCheckRow,
+  ProcessTryBuildDisplay,
+  ProcessTryBuildDownload,
+  ProcessTryBuildStatus,
+  ProcessTryBuildTone,
+  ProcessTryBuildView,
+} from './utils/processTryBuildViewTypes'
+export { qrCodePath } from './utils/qrCodePath'
+export { QR_CODE_QUIET_MODULES } from './utils/qrCodePathConstants'
+export type { QrCodePath } from './utils/qrCodePathTypes'
 export {
   storyNoteAuthorLabel,
   storyNoteFormError,

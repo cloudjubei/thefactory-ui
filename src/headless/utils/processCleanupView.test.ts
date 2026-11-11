@@ -8,6 +8,7 @@ import {
 import {
   PROCESS_CLEANUP_BY_LABELS,
   PROCESS_CLEANUP_COPY,
+  PROCESS_CLEANUP_DEVICE_OUTCOME_LABELS,
   PROCESS_CLEANUP_KIND_LABELS,
   PROCESS_CLEANUP_OUTCOME_LABELS,
 } from './processCleanupViewConstants'
@@ -86,6 +87,56 @@ describe('processCleanupRows', () => {
         outcome: { status: 'removed', label: PROCESS_CLEANUP_OUTCOME_LABELS.removed },
       }),
     ])
+  })
+  it('words a device the run started, and what stopping it came to', () => {
+    const rows = processCleanupRows(
+      list({
+        items: [
+          item('d1', { kind: 'device', label: 'Android emulator Pixel_7 (emulator-5554)' }),
+          item('d2', { kind: 'device', label: 'iOS simulator iPhone 16' }),
+          item('d3', { kind: 'device', label: 'Android emulator Pixel_8' }),
+          item('d4', { kind: 'device', label: 'Android emulator Tablet' }),
+          item('p1'),
+        ],
+        report: {
+          outcomes: [
+            { itemId: 'd1', kind: 'device', label: 'Pixel_7', status: 'removed' },
+            { itemId: 'd2', kind: 'device', label: 'iPhone 16', status: 'not-found' },
+            { itemId: 'd3', kind: 'device', label: 'Pixel_8', status: 'refused' },
+            { itemId: 'd4', kind: 'device', label: 'Tablet', status: 'failed', detail: 'adb: no' },
+            { itemId: 'p1', kind: 'path', label: 'p1', status: 'removed' },
+          ],
+          keptIds: [],
+        },
+      }),
+    )
+    expect(rows.map((r) => [r.kindLabel, r.outcome?.label])).toEqual([
+      ['Device', 'Stopped'],
+      ['Device', 'Not running'],
+      ['Device', 'Kept — not allowed'],
+      ['Device', 'Could not stop'],
+      [PROCESS_CLEANUP_KIND_LABELS.path, PROCESS_CLEANUP_OUTCOME_LABELS.removed],
+    ])
+    expect(rows[0].label).toBe('Android emulator Pixel_7 (emulator-5554)')
+    expect(rows[3].outcome?.detail).toBe('adb: no')
+    expect(PROCESS_CLEANUP_DEVICE_OUTCOME_LABELS.removed).toBe('Stopped')
+  })
+
+  it('words a stopped device the list no longer holds the same way', () => {
+    const rows = processCleanupRows(
+      list({
+        report: {
+          outcomes: [{ itemId: 'd', kind: 'device', label: 'Pixel_7', status: 'removed' }],
+          keptIds: [],
+        },
+      }),
+    )
+    expect(rows[0]).toEqual(
+      expect.objectContaining({
+        kindLabel: 'Device',
+        outcome: { status: 'removed', label: 'Stopped' },
+      }),
+    )
   })
 })
 

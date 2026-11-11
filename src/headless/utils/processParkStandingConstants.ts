@@ -20,6 +20,7 @@ export const PROCESS_PARK_ANSWER_WORDS: Record<ProcessResumeChoice, string> = {
   'close-unmerged': 'closed the run without merging',
   'accept-dropped-change': 'accepted the dropped change',
   'accept-with-follow-ups': 'accepted it with the follow-ups filed',
+  'split-follow-up': 'moved part of it into a follow-up',
 }
 
 /** Who answered a park, as a closing line names them. */

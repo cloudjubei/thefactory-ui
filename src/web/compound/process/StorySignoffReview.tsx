@@ -82,6 +82,7 @@ import {
   type UseReviewEvidence,
   useRunNeedsYou,
 } from '../../../headless'
+import type { ProcessRunFeatureSplit } from 'thefactory-tools/types'
 import type { ProjectChecksListing } from '../../../headless/api'
 import { Button } from '../../primitives/Button'
 import { IconChevronRight, IconGroup } from '../../icons'
@@ -129,6 +130,8 @@ export type StorySignoffReviewProps = {
   storyId: string
   /** The story run being signed off — each feature shows where its run under it stands. */
   storyRunId: string
+  /** What the run moved out of its features into follow-ups, said under each feature's criteria. */
+  featureSplits?: readonly ProcessRunFeatureSplit[]
   /** The gate's decision choices — the decision bar acts on the whole story. */
   choices?: readonly ProcessParkChoice[]
   /** Set when approving must say how the work comes in — the run's work branch. */
@@ -271,6 +274,7 @@ function StorySignoffPanel({
   projectId,
   storyId,
   storyRunId,
+  featureSplits,
   choices,
   workBranch,
   integrationModes,
@@ -949,6 +953,7 @@ function StorySignoffPanel({
             title={story?.title ?? 'Story'}
             description={story?.description}
             features={features}
+            featureSplits={featureSplits}
             onOpenStory={() => navigate(`/projects/${projectId}/stories/${storyId}`)}
           />
         </div>

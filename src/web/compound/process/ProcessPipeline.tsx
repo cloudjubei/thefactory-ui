@@ -85,6 +85,8 @@ import {
   type AnswerFilesSource,
   type ProcessIntegrationDecision,
   type ProofChangeDraft,
+  type FeatureSplitDraft,
+  parkChoicesWithSplit,
   type ProofKind,
   type ProcessNodeRunRef,
   type ProcessResumeChoice,
@@ -147,7 +149,9 @@ import DurationChip from '../chips/DurationChip'
 import { downloadDataUri } from '../chat/signoff/download'
 import RunModelChip from '../chat/signoff/RunModelChip'
 import DependencyBullet from '../stories/DependencyBullet'
+import RunCarriedOutChanges from './RunCarriedOutChanges'
 import RunPendingChanges from './RunPendingChanges'
+import ProcessTryBuildCard from './signoff/ProcessTryBuildCard'
 import AlreadyMergedOffer from './AlreadyMergedOffer'
 import CloseUnmergedConfirm from './CloseUnmergedConfirm'
 import WorkBranchChangesNote from './WorkBranchChangesNote'
@@ -155,6 +159,7 @@ import DroppedChangesNote from './DroppedChangesNote'
 import IntegrationResult from './IntegrationResult'
 import { CirclingChip, CirclingNotice } from './CirclingNotice'
 import ParkNoteComposer from './ParkNoteComposer'
+import FeatureSplitComposer from './FeatureSplitComposer'
 import ProofChangeComposer from './ProofChangeComposer'
 import RetryChoiceOptions from './RetryChoiceOptions'
 import ParkAnswers from './ParkAnswers'
@@ -572,6 +577,12 @@ export default function ProcessPipeline({
       {...(className !== undefined ? { className } : {})}
     />
   )
+  const signoffDetails = (className?: string) => (
+    <>
+      <ProcessTryBuildCard runId={run.id} />
+      {runDetails(className)}
+    </>
+  )
 
   return (
     <RunChatDraftScope open={canChat ? (draft) => void openRunChat(draft) : undefined}>
@@ -665,6 +676,7 @@ export default function ProcessPipeline({
                   void stopActions.resume(choice, note, integration, requestedProof, retry, files)
                 }
                 onChangeProof={(draft) => void stopActions.changeProof(draft)}
+                onSplitFollowUp={(draft) => void stopActions.splitFollowUp(draft)}
                 onAnswerRequest={(actionId, choice) =>
                   void stopActions.answerWaitingRequest(actionId, choice)
                 }
@@ -705,6 +717,7 @@ export default function ProcessPipeline({
           {stack.length === 0 ? (
             <RunPendingChanges run={run} onStart={startChanges} onRemove={withdrawChange} />
           ) : null}
+          {stack.length === 0 && signoff ? <RunCarriedOutChanges run={run} /> : null}
 
           {variantLanes && shownView === 'lanes' ? (
             <>
@@ -780,7 +793,7 @@ export default function ProcessPipeline({
                   />
                 }
                 steps={stepsCard('')}
-                details={runDetails('')}
+                details={signoffDetails('')}
                 onChoose={choose}
                 error={actionError}
                 {...(variantLanes ? { onOpenSteps: () => setVariantView('lanes') } : {})}
@@ -795,6 +808,7 @@ export default function ProcessPipeline({
                   projectId={run.projectId}
                   storyId={run.storyId}
                   storyRunId={run.id}
+                  {...(run.featureSplits ? { featureSplits: run.featureSplits } : {})}
                   choices={processRunParkChoices(run)}
                   {...(stopManager ? { manager: stopManager } : {})}
                   {...(canChat ? { onAskManager: () => void openRunChat() } : {})}
@@ -808,7 +822,7 @@ export default function ProcessPipeline({
                     />
                   }
                   steps={stepsCard('')}
-                  details={runDetails('')}
+                  details={signoffDetails('')}
                   droppedAccepted={processDroppedChangeRows(run)}
                   {...(run.proofUnavailable ? { proofUnavailable: run.proofUnavailable } : {})}
                   {...(run.changeUiPaths ? { changeUiPaths: run.changeUiPaths } : {})}
@@ -1422,6 +1436,7 @@ export function ParkBlock({
   answerFiles,
   onChoose,
   onChangeProof,
+  onSplitFollowUp,
   onAnswerRequest,
   onDelegate,
   onAskAgent,
@@ -1451,6 +1466,8 @@ export function ParkBlock({
     files?: readonly string[],
   ) => void
   onChangeProof: (draft: ProofChangeDraft) => void
+  /** Move picked acceptance points into a follow-up; without it the stop does not offer it. */
+  onSplitFollowUp?: (draft: FeatureSplitDraft) => void
   onAnswerRequest: (actionId: string, choice: ProcessWaitingItemChoice) => void
   /** Hand a waiting agent's ask to another agent, with the brief it starts from. */
   onDelegate: (note?: string) => Promise<void>
@@ -1462,6 +1479,7 @@ export function ParkBlock({
 }) {
   const [noteFor, setNoteFor] = useState<ProcessResumeChoice | undefined>()
   const [changingProof, setChangingProof] = useState(false)
+  const [splitting, setSplitting] = useState(false)
   const [asking, setAsking] = useState(false)
   const retryChoice = processRetryChoiceOf(run.park ? processRunParkChoices(run) : [])
   const [retryPick, setRetryPick] = useState<ProcessRetryPick | undefined>()
@@ -1506,6 +1524,7 @@ export function ParkBlock({
             : {})}
           onChoose={choose}
           onChangeProof={onChangeProof}
+          {...(onSplitFollowUp ? { onSplitFollowUp } : {})}
           onAnswerRequest={onAnswerRequest}
           onDelegate={onDelegate}
           {...(onOpenChat ? { onOpenChat } : {})}
@@ -1516,8 +1535,9 @@ export function ParkBlock({
     )
   }
   const reflected = isReflectedPark(park)
-  const choices = processRunParkChoices(run)
+  const choices = parkChoicesWithSplit(processRunParkChoices(run), !!onSplitFollowUp)
   const proofChange = choices.find((c) => c.choice === 'change-proof')?.proofChange
+  const featureSplit = choices.find((c) => c.choice === 'split-follow-up')?.featureSplit
   const circling = processParkStuckView(run) ?? processParkCirclingView(run, root ?? run)
   const tone = managerLine ? PROCESS_LIVE_TONE : park.reason === 'gate' ? 'review' : 'on_hold'
   const offered = choices
@@ -1534,6 +1554,7 @@ export function ParkBlock({
     retryPick ?? (retryChoice ? processRetryPickStart(retryChoice, manager?.moreTries) : undefined)
   const send = (answer: ParkAnswerView, note: string | undefined) => {
     if (answer.choice === 'change-proof') return setChangingProof(true)
+    if (answer.choice === 'split-follow-up') return setSplitting(true)
     if (answer.choice === 'close-unmerged') return setConfirmingClose(true)
     if (!note && choiceTakesNote(answer.choice)) {
       return setNoteFor(answer.choice as ProcessResumeChoice)
@@ -1599,6 +1620,15 @@ export function ParkBlock({
             onChangeProof(draft)
           }}
           onCancel={() => setChangingProof(false)}
+        />
+      ) : splitting && featureSplit && onSplitFollowUp ? (
+        <FeatureSplitComposer
+          offer={featureSplit}
+          onSend={(draft) => {
+            setSplitting(false)
+            onSplitFollowUp(draft)
+          }}
+          onCancel={() => setSplitting(false)}
         />
       ) : (
         <div className="flex flex-col gap-2">
@@ -1788,6 +1818,7 @@ function WaitingCard({
   retry,
   onChoose,
   onChangeProof,
+  onSplitFollowUp,
   onAnswerRequest,
   onDelegate,
   onOpenChat,
@@ -1818,6 +1849,8 @@ function WaitingCard({
   ) => void
   /** Change what proves the work, where the agent's block is proof the run cannot give. */
   onChangeProof: (draft: ProofChangeDraft) => void
+  /** Move picked acceptance points into a follow-up; without it the ask does not offer it. */
+  onSplitFollowUp?: (draft: FeatureSplitDraft) => void
   onAnswerRequest: (actionId: string, choice: ProcessWaitingItemChoice) => void
   onDelegate: (note?: string) => Promise<void>
   onOpenChat?: (context: ChatContext) => void
@@ -1825,15 +1858,18 @@ function WaitingCard({
 }) {
   const [noteFor, setNoteFor] = useState<ProcessResumeChoice | undefined>()
   const [changingProof, setChangingProof] = useState(false)
+  const [splitting, setSplitting] = useState(false)
   const [selected, setSelected] = useState<string | undefined>()
-  const proofChange = view.choices.find((c) => c.choice === 'change-proof')?.proofChange
+  const choices = parkChoicesWithSplit(view.choices, !!onSplitFollowUp)
+  const proofChange = choices.find((c) => c.choice === 'change-proof')?.proofChange
+  const featureSplit = choices.find((c) => c.choice === 'split-follow-up')?.featureSplit
   const [delegating, setDelegating] = useState(false)
   const transcript = view.transcript
   const delegated = view.delegated
   const tone = managerLine ? PROCESS_LIVE_TONE : 'on_hold'
   const titleLine = processWaitingTitleLine(view.title, managerLine ?? view.heading)
-  const answers = processParkAnswersView(view.choices, manager, selected)
-  const ownChoice = parkOwnAnswerChoice(view.choices)
+  const answers = processParkAnswersView(choices, manager, selected)
+  const ownChoice = parkOwnAnswerChoice(choices)
   const send = (answer: ParkAnswerView, note: string | undefined) => {
     if (answer.choice === 'delegate') {
       setDelegating(true)
@@ -1841,6 +1877,7 @@ function WaitingCard({
       return
     }
     if (answer.choice === 'change-proof') return setChangingProof(true)
+    if (answer.choice === 'split-follow-up') return setSplitting(true)
     if (!note && choiceTakesNote(answer.choice)) {
       return setNoteFor(answer.choice as ProcessResumeChoice)
     }
@@ -1933,6 +1970,15 @@ function WaitingCard({
             onChangeProof(draft)
           }}
           onCancel={() => setChangingProof(false)}
+        />
+      ) : splitting && featureSplit && onSplitFollowUp ? (
+        <FeatureSplitComposer
+          offer={featureSplit}
+          onSend={(draft) => {
+            setSplitting(false)
+            onSplitFollowUp(draft)
+          }}
+          onCancel={() => setSplitting(false)}
         />
       ) : (
         <ParkAnswers

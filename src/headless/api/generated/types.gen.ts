@@ -32873,6 +32873,7 @@ export type ResumeProcessRunData = {
       | 'close-unmerged'
       | 'accept-dropped-change'
       | 'accept-with-follow-ups'
+      | 'split-follow-up'
     /**
      * The app the person decided on — recorded on the decision with `decidedBy: person`. Required: a decision nobody can attribute is refused.
      */
@@ -32926,6 +32927,14 @@ export type ResumeProcessRunData = {
      * As `answerRunPark` takes it: `saveProofPlan`. Not with it.
      */
     saveToFeature?: boolean
+    /**
+     * With split-follow-up: the acceptance points to move into the follow-up, each its text as offered or its number from 1. At least one stays on the feature.
+     */
+    movePoints?: Array<string | number>
+    /**
+     * With split-follow-up: the new follow-up feature’s title.
+     */
+    followUpTitle?: string
   }
   path: {
     runId: string

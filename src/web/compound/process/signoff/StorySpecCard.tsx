@@ -1,4 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import type { ProcessRunFeatureSplit } from 'thefactory-tools/types'
 
 import {
   SIGNOFF_SPEC_CRITERIA_CAPTION,
@@ -16,6 +17,8 @@ export type StorySpecCardProps = {
   title: string
   description: string | undefined
   features: readonly { id: string; title: string; acceptance?: string }[]
+  /** What the run moved out of its features into follow-ups, said under each feature. */
+  featureSplits?: readonly ProcessRunFeatureSplit[]
   /** Open the story itself. */
   onOpenStory?: () => void
 }
@@ -33,6 +36,7 @@ export default function StorySpecCard({
   title,
   description,
   features,
+  featureSplits,
   onOpenStory,
 }: StorySpecCardProps) {
   const [expanded, setExpanded] = useState(false)
@@ -44,8 +48,9 @@ export default function StorySpecCard({
       signoffSpecCriteria(
         storyId,
         features.map((f) => ({ id: f.id, title: f.title, acceptance: f.acceptance })),
+        featureSplits,
       ),
-    [storyId, features],
+    [storyId, features, featureSplits],
   )
   const text = description?.trim()
 
@@ -151,6 +156,11 @@ export default function StorySpecCard({
                   </li>
                 ))}
               </ul>
+              {group.moved?.map((line) => (
+                <span key={line} className="text-[12px] text-(--text-secondary)">
+                  {line}
+                </span>
+              ))}
             </div>
           ))}
         </div>

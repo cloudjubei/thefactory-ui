@@ -26,6 +26,8 @@ import TicketTransitionField from '../../src/native/compound/projects/TicketTran
 import TicketPostNote from '../../src/native/compound/process/signoff/TicketPostNote'
 import ParkNoteComposer from '../../src/native/compound/process/ParkNoteComposer'
 import ProofChangeComposer from '../../src/native/compound/process/ProofChangeComposer'
+import FeatureSplitComposer from '../../src/native/compound/process/FeatureSplitComposer'
+import { SPLIT_STATES } from '../scenes/featureSplitFixtures'
 import ProviderConnectionsForm from '../../src/native/compound/settings/ProviderConnectionsForm'
 import SignOffOutputSettingsPanel from '../../src/native/compound/settings/SignOffOutputSettingsPanel'
 import CaptureCardShell from '../../src/native/compound/chat/CaptureCardShell'
@@ -63,6 +65,7 @@ import { FILE_PREVIEW_VIEWS } from './filePreviewViews'
 import { SCRIPT_STEP_VIEWS } from './scriptStepViews'
 import { SEND_TO_DEVELOPER_VIEWS } from './sendToDeveloperViews'
 import { TICKET_VIEWS } from './ticketViews'
+import { TRY_ON_PHONE_VIEWS } from './tryOnPhoneViews'
 import { VARIANT_VIEWS } from './variantViews'
 
 const noop = () => {}
@@ -299,6 +302,26 @@ function KeptScreens({ look, offer }: { look: string | null; offer: string | nul
         onSend={noop}
         onCancel={noop}
         keptLook={kept}
+      />
+    </View>
+  )
+}
+
+/**
+ * Moving acceptance points into a follow-up, in the state `?state=` names (start, picked, proof,
+ * every-point, unchecked) and the point look `?look=row` switches to.
+ */
+function FeatureSplit({ state, look }: { state: string | null; look: string | null }) {
+  const shown = (state && SPLIT_STATES[state]) || SPLIT_STATES.picked!
+  return (
+    <View style={{ padding: 16, width: 390, maxWidth: '100%' }}>
+      <FeatureSplitComposer
+        key={`${state}-${look}`}
+        offer={shown.offer}
+        initial={shown.draft}
+        pointLook={look === 'row' ? 'row' : 'switch'}
+        onSend={noop}
+        onCancel={noop}
       />
     </View>
   )
@@ -547,6 +570,11 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
     render: (address) => <KeptScreens look={address.get('look')} offer={address.get('offer')} />,
   },
   {
+    id: 'feature-split',
+    title: 'Move to a follow-up',
+    render: (address) => <FeatureSplit state={address.get('state')} look={address.get('look')} />,
+  },
+  {
     id: 'before-after-video',
     title: 'Before/after video',
     render: (address) => <VideoPairs state={address.get('state')} />,
@@ -557,6 +585,7 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
     render: () => <RequestVideo />,
   },
   ...VARIANT_VIEWS,
+  ...TRY_ON_PHONE_VIEWS,
   ...SCRIPT_STEP_VIEWS,
   ...FAKE_DATA_VIEWS,
   ...FILE_PREVIEW_VIEWS,

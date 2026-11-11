@@ -5,6 +5,7 @@ export const PROCESS_CLEANUP_KIND_LABELS: Record<ProcessCleanupItemKind, string>
   'story-note': 'Story note',
   path: 'File',
   branch: 'Branch',
+  device: 'Device',
 }
 
 export const PROCESS_CLEANUP_BY_LABELS = {
@@ -17,6 +18,14 @@ export const PROCESS_CLEANUP_OUTCOME_LABELS: Record<ProcessCleanupOutcomeStatus,
   'not-found': 'Already gone',
   refused: 'Kept — not allowed',
   failed: 'Could not remove',
+}
+
+/** What came of a device the run started: its cleanup stops it rather than removing it. */
+export const PROCESS_CLEANUP_DEVICE_OUTCOME_LABELS: Record<ProcessCleanupOutcomeStatus, string> = {
+  removed: 'Stopped',
+  'not-found': 'Not running',
+  refused: 'Kept — not allowed',
+  failed: 'Could not stop',
 }
 
 /** The words of the cleanup card, shared by web and native. */

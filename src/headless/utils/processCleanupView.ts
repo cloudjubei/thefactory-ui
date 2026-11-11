@@ -6,15 +6,20 @@ import { processCleanupSummary } from 'thefactory-tools/utils'
 import {
   PROCESS_CLEANUP_BY_LABELS,
   PROCESS_CLEANUP_COPY,
+  PROCESS_CLEANUP_DEVICE_OUTCOME_LABELS,
   PROCESS_CLEANUP_KIND_LABELS,
   PROCESS_CLEANUP_OUTCOME_LABELS,
 } from './processCleanupViewConstants'
 import type { ProcessCleanupRow } from './processCleanupViewTypes'
 
 function outcomeOf(outcome: ProcessCleanupOutcome): NonNullable<ProcessCleanupRow['outcome']> {
+  const labels =
+    outcome.kind === 'device'
+      ? PROCESS_CLEANUP_DEVICE_OUTCOME_LABELS
+      : PROCESS_CLEANUP_OUTCOME_LABELS
   return {
     status: outcome.status,
-    label: PROCESS_CLEANUP_OUTCOME_LABELS[outcome.status],
+    label: labels[outcome.status],
     ...(outcome.detail ? { detail: outcome.detail } : {}),
   }
 }
