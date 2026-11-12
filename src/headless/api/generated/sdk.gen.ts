@@ -550,6 +550,11 @@ import type {
   GetProcessRunTicketPostData,
   GetProcessRunTicketPostErrors,
   GetProcessRunTicketPostResponses,
+  GetProcessRunTryBuildApkData,
+  GetProcessRunTryBuildApkResponses,
+  GetProcessRunTryBuildData,
+  GetProcessRunTryBuildErrors,
+  GetProcessRunTryBuildResponses,
   GetProjectData,
   GetProjectDesignData,
   GetProjectDesignErrors,
@@ -3345,6 +3350,35 @@ export const setProcessRunCleanupOff = <ThrowOnError extends boolean = false>(
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  })
+
+/**
+ * The build a person tries a fake-data run’s work with on their own phone: its status, links to the APK, and the steps to repeat.
+ */
+export const getProcessRunTryBuild = <ThrowOnError extends boolean = false>(
+  options: Options<GetProcessRunTryBuildData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetProcessRunTryBuildResponses,
+    GetProcessRunTryBuildErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/try-build',
+    ...options,
+  })
+
+/**
+ * The APK of a run’s build to try. Takes the bearer, or the `viewToken` of a link the view handed out.
+ */
+export const getProcessRunTryBuildApk = <ThrowOnError extends boolean = false>(
+  options: Options<GetProcessRunTryBuildApkData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<GetProcessRunTryBuildApkResponses, unknown, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/try-build/app.apk',
+    ...options,
   })
 
 /**

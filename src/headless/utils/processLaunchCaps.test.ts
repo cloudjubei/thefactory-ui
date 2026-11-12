@@ -23,6 +23,7 @@ describe('launchCapsOfArgs', () => {
     expect(
       launchCapsOfArgs({
         spendCapUsd: 5,
+        stepSpendCapUsd: 1.5,
         wallClockMs: 3_600_000,
         maxIterations: 3,
         questionCap: 0,
@@ -31,6 +32,7 @@ describe('launchCapsOfArgs', () => {
       }),
     ).toEqual({
       spendCapUsd: 5,
+      stepSpendCapUsd: 1.5,
       wallClockMs: 3_600_000,
       maxIterations: 3,
       questionCap: 0,
@@ -40,15 +42,22 @@ describe('launchCapsOfArgs', () => {
 
   it('leaves out what cannot be a cap, as the backend would', () => {
     expect(
-      launchCapsOfArgs({ spendCapUsd: -1, maxIterations: 1.5, questionCap: -2, wallClockMs: 'x' }),
+      launchCapsOfArgs({
+        spendCapUsd: -1,
+        stepSpendCapUsd: 0,
+        maxIterations: 1.5,
+        questionCap: -2,
+        wallClockMs: 'x',
+      }),
     ).toEqual({})
   })
 })
 
 describe('launchCapFields', () => {
-  it('offers the five caps in order', () => {
+  it('offers the six caps in order, spend per step beside the run’s spend', () => {
     expect(launchCapFields({}).map((f) => f.key)).toEqual([
       'spendCapUsd',
+      'stepSpendCapUsd',
       'wallClockMs',
       'maxIterations',
       'questionCap',
@@ -66,6 +75,16 @@ describe('launchCapFields', () => {
     expect(fields.wallClockMs).toMatchObject({ text: '120', fromProject: true })
     expect(fields.maxIterations).toMatchObject({ text: '2', fromProject: true })
     expect(fields.questionCap).toMatchObject({ text: '', fromProject: false })
+  })
+
+  it('starts spend per step empty — no limit — unless the project set one', () => {
+    expect(byKey(launchCapFields({})).stepSpendCapUsd).toMatchObject({
+      text: '',
+      fromProject: false,
+    })
+    expect(
+      byKey(launchCapFields({ defaults: { stepSpendUsdCap: 2 } })).stepSpendCapUsd,
+    ).toMatchObject({ text: '2', fromProject: true })
   })
 
   it('takes what the agent asked over the project’s default', () => {
@@ -104,6 +123,8 @@ describe('launchCapFields', () => {
   it.each([
     ['spendCapUsd', '0'],
     ['spendCapUsd', 'lots'],
+    ['stepSpendCapUsd', '0'],
+    ['stepSpendCapUsd', '-3'],
     ['wallClockMs', '-1'],
     ['maxIterations', '1.5'],
     ['maxIterations', '0'],
@@ -169,13 +190,19 @@ describe('launchCapsMetadata', () => {
 
 describe('launchCapsOfDefaults', () => {
   it('reads a project’s defaults under the launch’s names', () => {
-    expect(launchCapsOfDefaults({ spendUsdCap: 4, wallClockMs: 60_000, maxIterations: 2 })).toEqual(
-      {
-        spendCapUsd: 4,
+    expect(
+      launchCapsOfDefaults({
+        spendUsdCap: 4,
+        stepSpendUsdCap: 1,
         wallClockMs: 60_000,
         maxIterations: 2,
-      },
-    )
+      }),
+    ).toEqual({
+      spendCapUsd: 4,
+      stepSpendCapUsd: 1,
+      wallClockMs: 60_000,
+      maxIterations: 2,
+    })
   })
 
   it('names only what the project set', () => {
@@ -188,12 +215,13 @@ describe('launchCapsSummary', () => {
     expect(
       launchCapsSummary({
         spendCapUsd: 5,
+        stepSpendCapUsd: 1.5,
         wallClockMs: 5_400_000,
         maxIterations: 3,
         questionCap: 2,
         checkTimeoutMs: 120_000,
       }),
-    ).toBe('$5 · 1h 30m · 3 attempts · 2 questions · 2m a check')
+    ).toBe('$5 · $1.5 a step · 1h 30m · 3 attempts · 2 questions · 2m a check')
   })
 
   it('says no limits when none are set', () => {
@@ -233,26 +261,40 @@ describe('launchWorstCaseLine', () => {
 describe('project default caps', () => {
   it('reads only what can be a cap, as the metadata is free JSON', () => {
     expect(
-      readProcessDefaultCaps({ spendUsdCap: 10, wallClockMs: 'soon', maxIterations: 2, other: 1 }),
-    ).toEqual({ spendUsdCap: 10, maxIterations: 2 })
+      readProcessDefaultCaps({
+        spendUsdCap: 10,
+        stepSpendUsdCap: 2,
+        wallClockMs: 'soon',
+        maxIterations: 2,
+        other: 1,
+      }),
+    ).toEqual({ spendUsdCap: 10, stepSpendUsdCap: 2, maxIterations: 2 })
+    expect(readProcessDefaultCaps({ stepSpendUsdCap: 0 })).toEqual({})
     expect(readProcessDefaultCaps(undefined)).toEqual({})
     expect(readProcessDefaultCaps('x')).toEqual({})
   })
 
-  it('offers the three a project can set, in the field’s unit', () => {
-    const fields = processDefaultCapFields({ spendUsdCap: 10, wallClockMs: 3_600_000 }, {})
+  it('offers the four a project can set, in the field’s unit', () => {
+    const fields = processDefaultCapFields(
+      { spendUsdCap: 10, stepSpendUsdCap: 2.5, wallClockMs: 3_600_000 },
+      {},
+    )
     expect(fields.map((f) => [f.key, f.text])).toEqual([
       ['spendCapUsd', '10'],
+      ['stepSpendCapUsd', '2.5'],
       ['wallClockMs', '60'],
       ['maxIterations', ''],
     ])
   })
 
   it('writes the fields back under the names the backend reads', () => {
-    const fields = processDefaultCapFields({}, { spendCapUsd: '4', maxIterations: '2' })
+    const fields = processDefaultCapFields(
+      {},
+      { spendCapUsd: '4', stepSpendCapUsd: '1.25', maxIterations: '2' },
+    )
     expect(withProcessDefaultCaps({ icon: 'x' }, fields)).toEqual({
       icon: 'x',
-      processDefaultCaps: { spendUsdCap: 4, maxIterations: 2 },
+      processDefaultCaps: { spendUsdCap: 4, stepSpendUsdCap: 1.25, maxIterations: 2 },
     })
   })
 

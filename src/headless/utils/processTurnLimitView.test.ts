@@ -62,6 +62,16 @@ describe('processRetryChoiceOf', () => {
     expect(processRetryChoiceOf([retry])).toBe(retry)
   })
 
+  it('finds the retry that raises a spend limit, even with nothing else to pick', () => {
+    const raise = {
+      choice: 'retry' as const,
+      label: 'Allow more and try again',
+      detail: 'd',
+      spendCap: { cap: 'step' as const, currentUsd: 2, suggestedUsd: 4 },
+    }
+    expect(processRetryChoiceOf([raise])).toBe(raise)
+  })
+
   it('finds none for a plain retry', () => {
     expect(processRetryChoiceOf([{ choice: 'retry', label: 'Try again', detail: 'd' }])).toBe(
       undefined,
@@ -84,6 +94,17 @@ describe('processRetryPickStart', () => {
       limitTurns: true,
       maxTurns: 100,
     })
+  })
+
+  it('starts a spend raise from the offered amount', () => {
+    expect(
+      processRetryPickStart({
+        choice: 'retry',
+        label: 'Allow more and try again',
+        detail: 'd',
+        spendCap: { cap: 'run', currentUsd: 10, suggestedUsd: 20 },
+      }),
+    ).toEqual({ spendText: '20', spendUsd: 20 })
   })
 
   it('picks nothing a retry does not offer', () => {

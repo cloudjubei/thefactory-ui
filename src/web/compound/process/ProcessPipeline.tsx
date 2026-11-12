@@ -12,6 +12,7 @@ import {
   useProcessRunAlreadyLanded,
   type ProcessAlreadyMergedAction,
   parkNoteCopy,
+  liveCheckWatchView,
   markSeen,
   RunChatDraftProvider,
   RunNeedsYouProvider,
@@ -35,6 +36,9 @@ import {
   type ProcessNodeLook,
   processRetryChoiceOf,
   processRetryPickStart,
+  processRetrySpendPick,
+  processRetrySpendReady,
+  processRetrySpendView,
   processRetryTurnLimitView,
   processDroppedChangeRows,
   processRunParkChoices,
@@ -169,6 +173,7 @@ import RunStepsCard from './RunStepsCard'
 import RunNeedsYouCard, { ManagerLine, RUN_NEEDS_YOU_CARD_ID } from './RunNeedsYouCard'
 import RunClosurePanel from './RunClosurePanel'
 import RunTurnLimitChip from './RunTurnLimitChip'
+import RunStepSpendChip from './RunStepSpendChip'
 import RunModelControl from './RunModelControl'
 import { RunManagerChip } from './RunManagerChip'
 import RunDiagnosticsView from './RunDiagnosticsView'
@@ -184,6 +189,7 @@ import SignOffOutputPanel from './signoff/SignOffOutputPanel'
 import StepPreview from './pipeline/StepPreview'
 import StepSidePanel, { type StepPanelTarget } from './pipeline/StepSidePanel'
 import NeedsYouLinkParam from './signoff/NeedsYouLinkParam'
+import LiveCheckWatchHeader from './LiveCheckWatchHeader'
 import { type ProcessRunBranch } from '../../../headless'
 import type { ChatContext } from '../../../headless/api'
 import { getChatContextKey } from 'thefactory-tools/utils'
@@ -1150,6 +1156,7 @@ export function RunHead({
               run={run}
               {...(stoppable && onSetTurnLimit ? { onSet: onSetTurnLimit } : {})}
             />
+            <RunStepSpendChip run={run} />
             {onOpenGroup && depth === 0 ? (
               <button
                 type="button"
@@ -1539,6 +1546,7 @@ export function ParkBlock({
   const proofChange = choices.find((c) => c.choice === 'change-proof')?.proofChange
   const featureSplit = choices.find((c) => c.choice === 'split-follow-up')?.featureSplit
   const circling = processParkStuckView(run) ?? processParkCirclingView(run, root ?? run)
+  const watch = liveCheckWatchView(run, choices)
   const tone = managerLine ? PROCESS_LIVE_TONE : park.reason === 'gate' ? 'review' : 'on_hold'
   const offered = choices
     .filter(isResumeParkChoice)
@@ -1560,6 +1568,7 @@ export function ParkBlock({
       return setNoteFor(answer.choice as ProcessResumeChoice)
     }
     if (answer.choice === 'retry' && pick) {
+      if (retryChoice && !processRetrySpendReady(retryChoice, pick)) return
       return onChoose('retry', note, undefined, undefined, pick)
     }
     onChoose(answer.choice as ProcessResumeChoice, note)
@@ -1577,16 +1586,20 @@ export function ParkBlock({
             }
       }
     >
-      <div
-        className={
-          embedded
-            ? 'text-[17px] font-semibold leading-snug text-(--text-primary)'
-            : 'text-[13px] font-semibold'
-        }
-        style={embedded ? undefined : { color: `var(--status-${tone}-soft-fg)` }}
-      >
-        <RichText text={managerLine ?? park.message} />
-      </div>
+      {watch && !managerLine ? (
+        <LiveCheckWatchHeader view={watch} embedded={embedded} />
+      ) : (
+        <div
+          className={
+            embedded
+              ? 'text-[17px] font-semibold leading-snug text-(--text-primary)'
+              : 'text-[13px] font-semibold'
+          }
+          style={embedded ? undefined : { color: `var(--status-${tone}-soft-fg)` }}
+        >
+          <RichText text={managerLine ?? park.message} />
+        </div>
+      )}
       {circling ? <CirclingNotice view={circling} /> : null}
       {reflected && park.childRunId ? (
         <button
@@ -1600,7 +1613,7 @@ export function ParkBlock({
       {manager && !reflected ? <ManagerLine view={manager} /> : null}
       {noteFor ? (
         <ParkNoteComposer
-          copy={parkNoteCopy(noteFor, noteOffer)}
+          copy={parkNoteCopy(noteFor, noteOffer, watch !== undefined)}
           required={parkNoteRequired(noteFor, noteOffer)}
           {...(noteFor === 'request-changes'
             ? { proofChoices: requestProofChoices(run.proofUnavailable) }
@@ -1651,6 +1664,19 @@ export function ParkBlock({
                                 run,
                                 pick.turnLimit ?? retryChoice.turnLimit.current,
                               ),
+                            }
+                          : {})}
+                        {...(retryChoice.spendCap
+                          ? {
+                              spendView: processRetrySpendView(
+                                run,
+                                retryChoice.spendCap,
+                                pick.spendText ?? '',
+                              ),
+                              onSpendChange: (text: string) =>
+                                setRetryPick(
+                                  processRetrySpendPick(pick, run, retryChoice.spendCap!, text),
+                                ),
                             }
                           : {})}
                         pick={pick}

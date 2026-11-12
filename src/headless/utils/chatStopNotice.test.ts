@@ -34,6 +34,17 @@ describe('chatStopCardView', () => {
     expect(view).not.toHaveProperty('askAgentDraft')
   })
 
+  it('says a run the host stopped at a limit reached it, blaming no one', () => {
+    const view = chatStopCardView({
+      cause: 'limit',
+      reason: 'Its agent reached the $2.00 spend limit for one step before it finished.',
+    })
+    expect(view.pill).toEqual(CHAT_STOP_CAUSE_PILL.limit)
+    expect(view.tone).toBe('empty')
+    expect(view.primaryLabel).toBe(CHAT_STOP_COPY.tryAgain)
+    expect(view).not.toHaveProperty('askAgentDraft')
+  })
+
   it('treats a blank feature title or raw text as absent', () => {
     const view = chatStopCardView({ cause: 'overseer', featureTitle: '  ', reason: 'x', raw: ' ' })
     expect(view.title).toBe('This turn stopped')

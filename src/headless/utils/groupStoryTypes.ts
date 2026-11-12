@@ -1,4 +1,5 @@
 import type { ProcessGroupBuildMode } from 'thefactory-tools/types'
+import type { GroupLaunchLiveCheckMetadata } from './liveCheckLaunchTypes'
 import type {
   CreateGroupStoryData,
   ExternalRef,
@@ -35,6 +36,8 @@ export type GroupStoryWriteBody = NonNullable<CreateGroupStoryData['body']>
 export type GroupStoryRunBody = NonNullable<RunGroupStoryData['body']> & {
   /** The move the person approved; left out to launch without moving the ticket. */
   ticketMove?: TicketMoveDecision
+  /** The live checks switched on, by project id then feature id. */
+  liveChecks?: GroupLaunchLiveCheckMetadata['liveChecks']
 }
 
 /** A group run that started from its group story. */

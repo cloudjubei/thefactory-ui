@@ -603,3 +603,63 @@ describe('stepFilingsOf', () => {
     expect(stepFilingsOf([tile('log', 1200)], undefined)).toEqual([])
   })
 })
+
+describe('live check steps', () => {
+  it('says a required live check’s verdict, as a code review’s', () => {
+    const row = processStepRowView(
+      state(
+        {
+          id: 'live-check',
+          name: 'Live check',
+          agentType: 'verifier',
+          liveCheck: { mode: 'required' },
+        },
+        {
+          latest: entry({
+            stepId: 'live-check',
+            outcome: 'failed',
+            review: { verdict: 'changes-requested', reason: 'The reply opened in the main list.' },
+          }),
+        },
+      ),
+      undefined,
+    )
+    expect(row.result).toBe('Changes requested · The reply opened in the main list.')
+  })
+
+  it('marks the verdict on a required live check’s stage chip', () => {
+    const [chip] = processStageChips(
+      [
+        state(
+          {
+            id: 'live-check',
+            name: 'Live check',
+            agentType: 'verifier',
+            liveCheck: { mode: 'required' },
+          },
+          { latest: entry({ stepId: 'live-check', review: { verdict: 'approved' } }) },
+        ),
+      ],
+      undefined,
+    )
+    expect(chip?.note).toBe('approved')
+  })
+
+  it('says what the person answered at a Watch it live, and never opens as a sign-off', () => {
+    const watched = state(
+      { id: 'live-check-watch', name: 'Watch it live', kind: 'gate', gateKind: 'live-check' },
+      { latest: entry({ stepId: 'live-check-watch', override: { choice: 'approve', at: 2 } }) },
+    )
+    const row = processStepRowView(watched, undefined, { storyId: 's1' })
+    expect(row.result).toBe('Looks right')
+    expect(row.preview).toBe('none')
+  })
+
+  it('keeps a story run’s own sign-off opening to its decision', () => {
+    const signoff = state(
+      { id: 'sign-off', name: 'Sign-off', kind: 'gate' },
+      { latest: entry({ stepId: 'sign-off', override: { choice: 'approve', at: 2 } }) },
+    )
+    expect(processStepRowView(signoff, undefined, { storyId: 's1' }).preview).toBe('signoff')
+  })
+})

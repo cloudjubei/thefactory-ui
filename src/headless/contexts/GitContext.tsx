@@ -75,6 +75,7 @@ import { gitBundleQuery, gitBundleShows, nextGitBundle } from '../utils/gitBundl
 import type { GitBundle } from '../utils/gitBundleTypes'
 import { commitThenPush } from '../utils/gitCommitPush'
 import type { GitCommitPushPhase } from '../utils/gitCommitPushTypes'
+import { credentialSettingsOpener } from '../utils/gitOpError'
 
 /** SWR cache keyed by projectId — instant render on switch back to a
  *  previously-seen project (no spinner while git status / branches / log /
@@ -227,6 +228,12 @@ export type GitContextValue = {
    */
   credentialError: GitCredentialError | null
   clearCredentialError: () => void
+  /**
+   * Opens the host's git credentials settings for the active project — what
+   * every "Update credentials" button calls. Undefined when the host gave no
+   * `onOpenCredentialSettings` or no project is active.
+   */
+  openCredentialSettings?: () => void
 }
 
 export type GitCredentialError = {
@@ -296,9 +303,11 @@ export interface GitProviderProps {
    * `AppSettingsProvider` and `useStorageBackedState`.
    */
   storage: SyncKVStorage
+  /** Takes the person to the git credentials settings of `projectId`; exposed as `useGit().openCredentialSettings`. */
+  onOpenCredentialSettings?: (projectId: string) => void
 }
 
-export function GitProvider({ children, storage }: GitProviderProps) {
+export function GitProvider({ children, storage, onOpenCredentialSettings }: GitProviderProps) {
   const { ws } = useApi()
   const { projectId, project } = useActiveProject()
 
@@ -343,6 +352,10 @@ export function GitProvider({ children, storage }: GitProviderProps) {
   )
   const [credentialError, setCredentialError] = useState<GitCredentialError | null>(null)
   const clearCredentialError = useCallback(() => setCredentialError(null), [])
+  const openCredentialSettings = useMemo(
+    () => credentialSettingsOpener(onOpenCredentialSettings, projectId),
+    [onOpenCredentialSettings, projectId],
+  )
   // Auto-clear the credential error when the active project changes — a new
   // project might have working credentials, and a stale modal would just be
   // noise. Push/pull/fetch will re-trigger if the new project fails too.
@@ -1083,6 +1096,7 @@ export function GitProvider({ children, storage }: GitProviderProps) {
       refresh,
       credentialError,
       clearCredentialError,
+      ...(openCredentialSettings ? { openCredentialSettings } : {}),
     }),
     [
       isLoaded,
@@ -1133,6 +1147,7 @@ export function GitProvider({ children, storage }: GitProviderProps) {
       refresh,
       credentialError,
       clearCredentialError,
+      openCredentialSettings,
     ],
   )
 

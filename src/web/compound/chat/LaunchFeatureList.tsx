@@ -2,6 +2,7 @@ import { useState } from 'react'
 import ReferenceTextarea from '../files/ReferenceTextarea'
 import DependencyBullet from '../stories/DependencyBullet'
 import ChainChip from '../process/ChainChip'
+import LaunchLiveCheckRow from './LaunchLiveCheckRow'
 import {
   LAUNCH_FEATURE_ADDED,
   LAUNCH_FEATURE_LEFT_OUT,
@@ -17,6 +18,7 @@ import {
   type LaunchFeatureListItem,
   type LaunchFeaturePickRow,
   type LaunchFeatureRow,
+  type LiveCheckDraft,
   type ProofKind,
   type ProposalChip,
 } from '../../../headless'
@@ -39,6 +41,10 @@ export type LaunchFeatureListProps = {
   onToggleKind: (featureId: string, kind: ProofKind) => void
   onNotesChange: (featureId: string, notes: string) => void
   onSaveChange: (save: boolean) => void
+  /** A feature's live check changed — only features the preview offers one show the row. */
+  onLiveCheckChange?: (featureId: string, change: Partial<LiveCheckDraft>) => void
+  /** The project whose logins note a live check's secret hint opens. */
+  projectId?: string
   /**
    * The story's open features to pick from — every one listed, those left out
    * dimmed, each ticked in or out. Absent: the launch works the rows as they are.
@@ -67,6 +73,8 @@ export default function LaunchFeatureList({
   onToggleKind,
   onNotesChange,
   onSaveChange,
+  onLiveCheckChange,
+  projectId,
   pick,
 }: LaunchFeatureListProps) {
   const [editing, setEditing] = useState<ReadonlySet<string>>(new Set())
@@ -167,6 +175,21 @@ export default function LaunchFeatureList({
                 ) : null}
                 {proof ? (
                   <span className="ml-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-x-2 gap-y-1">
+                    {!open && proof.liveCheck ? (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => toggleEditing(row.featureId)}
+                        aria-label={`${proof.liveCheck.chip}: ${row.title}`}
+                        className={`rounded-full border px-2 py-px text-[11px] enabled:hover:border-(--accent-primary) ${
+                          proof.liveCheck.choice === 'off'
+                            ? 'border-(--border-default) text-(--text-muted)'
+                            : 'border-transparent bg-(--accent-primary)/10 text-(--text-primary)'
+                        }`}
+                      >
+                        {proof.liveCheck.chip}
+                      </button>
+                    ) : null}
                     {!open ? (
                       <span className="flex min-w-0 flex-wrap justify-end gap-1">
                         {row.proofLabels.length > 0 ? (
@@ -266,6 +289,16 @@ export default function LaunchFeatureList({
                     <span className="text-[11px] text-(--text-muted)">
                       {PROOF_PLAN_EMPTY_LABEL}
                     </span>
+                  ) : null}
+                  {proof.liveCheck && onLiveCheckChange ? (
+                    <div className="rounded-md border border-(--border-subtle) bg-(--surface-raised) px-2 py-1.5">
+                      <LaunchLiveCheckRow
+                        view={proof.liveCheck}
+                        busy={busy}
+                        {...(projectId ? { projectId } : {})}
+                        onChange={(change) => onLiveCheckChange(row.featureId, change)}
+                      />
+                    </div>
                   ) : null}
                   <ReferenceTextarea
                     rows={1}

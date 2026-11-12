@@ -11,6 +11,9 @@ import {
   groupBaseBranchMetadata,
   groupLaunchFakeDataChoices,
   groupLaunchFakeDataMetadata,
+  changeGroupLiveCheckPick,
+  groupLaunchLiveCheckMetadata,
+  type GroupLaunchLiveCheckPicks,
   LAUNCH_NOTE_MAX_CHARS,
   processGroupLegWaitsFor,
   processGrantTurnLimitView,
@@ -42,6 +45,7 @@ import { TurnLimitField } from '../TurnLimitField'
 import LaunchCapsFields from './LaunchCapsFields'
 import BaseBranchChooser from './BaseBranchChooser'
 import LaunchFakeDataChoice from './LaunchFakeDataChoice'
+import GroupLegLiveChecks from './GroupLegLiveChecks'
 import TicketMoveField from './TicketMoveField'
 import ToolAskCard from './ToolAskCard'
 
@@ -105,6 +109,7 @@ export default function GroupWorkLaunchPanel({
   const [basePicks, setBasePicks] = useState<Record<string, string>>({})
   const baseBranchMeta = groupBaseBranchMetadata(preview?.legs ?? [], basePicks)
   const [fakeDataPicks, setFakeDataPicks] = useState<Record<string, FakeDataInProduct>>({})
+  const [liveCheckPicks, setLiveCheckPicks] = useState<GroupLaunchLiveCheckPicks>({})
   const fakeData = groupLaunchFakeDataChoices(preview?.legs ?? [], fakeDataPicks)
   const [capsTyped, setCapsTyped] = useState<LaunchCapsTyped>({})
   const capFields = launchCapFields({
@@ -141,6 +146,7 @@ export default function GroupWorkLaunchPanel({
               ...launchAgentPickMetadata(agentPick),
               ...(baseBranchMeta ?? {}),
               ...groupLaunchFakeDataMetadata(preview?.legs ?? [], fakeDataPicks),
+              ...groupLaunchLiveCheckMetadata(preview?.legs ?? [], liveCheckPicks),
               ...(ticketMove ? { ticketMove } : {}),
             }
           : undefined,
@@ -251,6 +257,22 @@ export default function GroupWorkLaunchPanel({
                           }
                         />
                       ) : null}
+                      <GroupLegLiveChecks
+                        leg={leg}
+                        picks={liveCheckPicks}
+                        busy={busy}
+                        onChange={(featureId, change) =>
+                          setLiveCheckPicks((prev) =>
+                            changeGroupLiveCheckPick(
+                              preview?.legs ?? [],
+                              prev,
+                              leg.projectId,
+                              featureId,
+                              change,
+                            ),
+                          )
+                        }
+                      />
                       <BaseBranchChooser
                         options={leg.baseBranches}
                         {...(leg.baseBranch !== undefined ? { asked: leg.baseBranch } : {})}

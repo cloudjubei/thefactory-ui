@@ -37,6 +37,7 @@ export const PROCESS_RUN_NEED_DECISIONS = {
   'step-errored': (step: string) => `${step} did not complete`,
   'step-unchecked': (step: string) => `${step} checked nothing`,
   'turn-limit': (step: string) => `${step} ran out of turns`,
+  'spend-limit': (step: string) => `${step} reached its spend limit`,
   'budget-spent': () => 'the budget is spent',
   'time-spent': () => 'the time limit is up',
   'questions-spent': () => 'the question limit is reached',

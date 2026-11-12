@@ -300,6 +300,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
               : {}),
             ...(retry?.retryMode ? { retryMode: retry.retryMode } : {}),
             ...(retry?.turnLimit ? { turnLimit: retry.turnLimit } : {}),
+            ...(retry?.spendUsd !== undefined ? { attemptSpendUsd: retry.spendUsd } : {}),
             ...(files && files.length > 0 ? { files: [...files] } : {}),
           },
           throwOnError: true,

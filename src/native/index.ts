@@ -753,6 +753,7 @@ export {
   type GitCredentialErrorModalProps,
   type GitCredentialErrorOp,
 } from './compound/git/GitCredentialErrorModal'
+export { default as GitErrorAlert, type GitErrorAlertProps } from './compound/git/GitErrorAlert'
 export {
   default as DiffOptionsToolbar,
   type DiffOptionsToolbarProps,

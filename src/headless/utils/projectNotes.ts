@@ -10,11 +10,15 @@ import {
   NOTE_AGENT_AUTHOR_LABEL,
   NOTE_KIND_LABELS,
   NOTE_LABEL_REQUIRED,
+  NOTE_PURPOSE_HELP,
+  NOTE_PURPOSE_OPTIONS,
   NOTE_SECRET_HIDDEN,
+  NOTE_TEST_ACCOUNTS_HIDDEN,
   NOTE_VALUE_REQUIRED,
 } from './projectNotesConstants'
 import type {
   LinkedNoteState,
+  NotePurposeChoice,
   NoteSummary,
   ProjectNoteChipView,
   ProjectNoteCreateBody,
@@ -44,6 +48,7 @@ export function noteFormValues(
     value: '',
     description: toTyped(note.description ?? ''),
     access: note.access,
+    purpose: note.purpose ?? 'none',
   }
 }
 
@@ -91,6 +96,7 @@ export function noteCreateBody(values: ProjectNoteFormValues): ProjectNoteCreate
   }
   const description = values.description.trim()
   if (description) body.description = description
+  if (values.purpose !== 'none') body.purpose = values.purpose
   return body
 }
 
@@ -112,6 +118,9 @@ export function notePatchBody(
   if (description !== (note.description ?? '')) patch.description = description
   const value = values.value.trim()
   if (value) patch.value = value
+  if (values.purpose !== (note.purpose ?? 'none')) {
+    patch.purpose = values.purpose === 'none' ? null : values.purpose
+  }
   return patch
 }
 
@@ -128,9 +137,34 @@ export function sortNotes<N extends NoteSummary>(notes: N[]): N[] {
   })
 }
 
-/** Whether a per-note Reveal action applies (only a secret hides its value). */
+/** Whether a note's value is kept off the screen: a secret's, and an open note's that holds test logins. */
+export function noteHidesValue(
+  note: Pick<NoteSummary, 'kind'> & Partial<Pick<NoteSummary, 'purpose'>>,
+): boolean {
+  return note.kind === 'secret' || note.purpose === 'test-accounts'
+}
+
+/** Whether a per-note Reveal action applies: only a secret; test logins in an open note stay hidden. */
 export function canRevealNote(note: NoteSummary): boolean {
   return note.kind === 'secret'
+}
+
+/** The open notes holding test logins — any agent can read them, so each is best made a secret. */
+export function openTestAccountNotes<N extends Pick<NoteSummary, 'kind' | 'purpose'>>(
+  notes: readonly N[],
+): N[] {
+  return notes.filter((n) => n.kind === 'note' && n.purpose === 'test-accounts')
+}
+
+/** A note's "Used for" chip: what the host uses it for; nothing for a note that is only read. */
+export function notePurposeLabel(purpose: NoteSummary['purpose']): string | undefined {
+  if (!purpose) return undefined
+  return NOTE_PURPOSE_OPTIONS.find((o) => o.value === purpose)?.label
+}
+
+/** What the "Used for" choice does, in one line. */
+export function notePurposeHelp(purpose: NotePurposeChoice): string {
+  return NOTE_PURPOSE_HELP[purpose]
 }
 
 export function noteKindLabel(kind: NoteSummary['kind']): string {
@@ -155,8 +189,10 @@ export function noteAccessHelp(access: NoteSummary['access']): string {
  * label; a plain note's text is shown on hover, a secret's value never.
  */
 export function projectNoteChipView(
-  note: Pick<NoteSummary, 'label' | 'kind'> & Partial<Pick<NoteSummary, 'access' | 'description'>>,
+  note: Pick<NoteSummary, 'label' | 'kind'> &
+    Partial<Pick<NoteSummary, 'access' | 'description' | 'purpose'>>,
 ): ProjectNoteChipView {
+  const hidden = noteHidesValue(note)
   return {
     label: note.label,
     kind: note.kind,
@@ -165,8 +201,12 @@ export function projectNoteChipView(
     ...(note.access
       ? { accessLabel: NOTE_ACCESS_LABELS[note.access], accessHelp: NOTE_ACCESS_HELP[note.access] }
       : {}),
-    showsValue: note.kind === 'note' && note.access !== undefined,
-    ...(note.kind === 'secret' ? { hiddenValue: NOTE_SECRET_HIDDEN } : {}),
+    showsValue: !hidden && note.access !== undefined,
+    ...(note.kind === 'secret'
+      ? { hiddenValue: NOTE_SECRET_HIDDEN }
+      : hidden
+        ? { hiddenValue: NOTE_TEST_ACCOUNTS_HIDDEN }
+        : {}),
   }
 }
 

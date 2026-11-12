@@ -22,6 +22,7 @@ import {
   processStepStuckView,
   computeChatRowStatus,
   parkNoteCopy,
+  liveCheckWatchView,
   RunChatDraftProvider,
   RunNeedsYouProvider,
   runNeedsYouDiscussDraft,
@@ -53,6 +54,9 @@ import {
   type ProcessNodeLook,
   processRetryChoiceOf,
   processRetryPickStart,
+  processRetrySpendPick,
+  processRetrySpendReady,
+  processRetrySpendView,
   processRetryTurnLimitView,
   processDroppedChangeRows,
   processRunParkChoices,
@@ -145,6 +149,7 @@ import type { ProcessRunBranch } from '../../../headless'
 import Alert from '../../primitives/Alert'
 import ActionMenu, { type ActionMenuItem } from '../ActionMenu'
 import RichText from '../files/RichText'
+import LiveCheckWatchHeader from './LiveCheckWatchHeader'
 import AlreadyMergedOffer from './AlreadyMergedOffer'
 import CloseUnmergedConfirm from './CloseUnmergedConfirm'
 import WorkBranchChangesNote from './WorkBranchChangesNote'
@@ -167,6 +172,7 @@ import RunStepsCard from './RunStepsCard'
 import RunNeedsYouCard, { ManagerLine } from './RunNeedsYouCard'
 import RunClosurePanel from './RunClosurePanel'
 import RunTurnLimitChip from './RunTurnLimitChip'
+import RunStepSpendChip from './RunStepSpendChip'
 import RunModelControl from './RunModelControl'
 import { RunManagerChip } from './RunManagerChip'
 import RunChatButton, { type RunChatButtonProps } from './RunChatButton'
@@ -1252,6 +1258,7 @@ function RunHead({
             run={run}
             {...(stoppable && onSetTurnLimit ? { onSet: onSetTurnLimit } : {})}
           />
+          <RunStepSpendChip run={run} />
           {onOpenGroup && depth === 0 ? (
             <HeadAction label={SIGNOFF_GROUP_CHIP_TITLE} onPress={onOpenGroup}>
               <IconGroup size={16} color={theme.text.secondary} />
@@ -1721,6 +1728,7 @@ function ParkBlock({
   const proofChange = choices.find((c) => c.choice === 'change-proof')?.proofChange
   const featureSplit = choices.find((c) => c.choice === 'split-follow-up')?.featureSplit
   const circling = processParkStuckView(run) ?? processParkCirclingView(run, root ?? run)
+  const watch = liveCheckWatchView(run, choices)
   const variant = managerLine
     ? status[PROCESS_LIVE_TONE]
     : park.reason === 'gate'
@@ -1746,6 +1754,7 @@ function ParkBlock({
       return setNoteFor(answer.choice as ProcessResumeChoice)
     }
     if (answer.choice === 'retry' && pick) {
+      if (retryChoice && !processRetrySpendReady(retryChoice, pick)) return
       return onChoose('retry', note, undefined, undefined, pick)
     }
     onChoose(answer.choice as ProcessResumeChoice, note)
@@ -1767,12 +1776,16 @@ function ParkBlock({
             }
       }
     >
-      <RichText
-        text={managerLine ?? park.message}
-        textColor={embedded ? theme.text.primary : variant.softFg}
-        fontSize={embedded ? 16 : 13}
-        fontWeight="600"
-      />
+      {watch && !managerLine ? (
+        <LiveCheckWatchHeader view={watch} embedded={embedded} />
+      ) : (
+        <RichText
+          text={managerLine ?? park.message}
+          textColor={embedded ? theme.text.primary : variant.softFg}
+          fontSize={embedded ? 16 : 13}
+          fontWeight="600"
+        />
+      )}
       {circling ? <CirclingNotice view={circling} /> : null}
       {reflected && park.childRunId ? (
         <Pressable onPress={() => onDrill(park.childRunId as string)} accessibilityRole="button">
@@ -1784,7 +1797,7 @@ function ParkBlock({
       {manager && !reflected ? <ManagerLine view={manager} /> : null}
       {noteFor ? (
         <ParkNoteComposer
-          copy={parkNoteCopy(noteFor, noteOffer)}
+          copy={parkNoteCopy(noteFor, noteOffer, watch !== undefined)}
           required={parkNoteRequired(noteFor, noteOffer)}
           {...(noteFor === 'request-changes'
             ? { proofChoices: requestProofChoices(run.proofUnavailable) }
@@ -1835,6 +1848,19 @@ function ParkBlock({
                                 run,
                                 pick.turnLimit ?? retryChoice.turnLimit.current,
                               ),
+                            }
+                          : {})}
+                        {...(retryChoice.spendCap
+                          ? {
+                              spendView: processRetrySpendView(
+                                run,
+                                retryChoice.spendCap,
+                                pick.spendText ?? '',
+                              ),
+                              onSpendChange: (text: string) =>
+                                setRetryPick(
+                                  processRetrySpendPick(pick, run, retryChoice.spendCap!, text),
+                                ),
                             }
                           : {})}
                         pick={pick}

@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useActiveProject } from '../../../../headless'
-import { GIT_COMMIT_PUSH_TEXT, GitPushAfterCommitError, useGit } from '../../../../headless'
+import {
+  GIT_COMMIT_PUSH_TEXT,
+  GitPushAfterCommitError,
+  gitOpError,
+  useGit,
+  type GitOpError,
+} from '../../../../headless'
 import {
   hasConflictMarkers,
   parseConflictSegments,
@@ -12,6 +18,7 @@ import {
 import { readFile as readFileSdk, writeFile as writeFileSdk } from '../../../../headless/api'
 import type { GitConflictEntry } from '../../../../headless/api'
 import { Alert, Button, Modal, Spinner } from '../../..'
+import GitErrorAlert from '../GitErrorAlert'
 
 export type MergeConflictResolverProps = {
   isOpen: boolean
@@ -39,7 +46,15 @@ export default function MergeConflictResolver({
   initialPath,
 }: MergeConflictResolverProps) {
   const { projectId } = useActiveProject()
-  const { stage, commitAndPush, resetAll, abortMerge, getFileContent, status } = useGit()
+  const {
+    stage,
+    commitAndPush,
+    resetAll,
+    abortMerge,
+    getFileContent,
+    status,
+    openCredentialSettings,
+  } = useGit()
   const mergeMessage = status?.merging?.message
   const firstPath = initialPath ?? conflicts[0]?.path ?? null
 
@@ -47,6 +62,7 @@ export default function MergeConflictResolver({
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pushError, setPushError] = useState<GitOpError | null>(null)
   const [content, setContent] = useState<string>('')
   const [segments, setSegments] = useState<Segment[]>([])
   const [dirty, setDirty] = useState(false)
@@ -236,6 +252,7 @@ export default function MergeConflictResolver({
     if (finalizing) return
     setFinalizing(true)
     setError(null)
+    setPushError(null)
     try {
       try {
         await stage(conflicts.map((c) => c.path))
@@ -246,13 +263,9 @@ export default function MergeConflictResolver({
       await commitAndPush({ message }, { push: pushImmediately })
       onClose()
     } catch (err) {
-      setError(
-        err instanceof GitPushAfterCommitError
-          ? GIT_COMMIT_PUSH_TEXT.pushFailed(err.message)
-          : err instanceof Error
-            ? err.message
-            : 'Failed to finalize merge',
-      )
+      if (err instanceof GitPushAfterCommitError)
+        setPushError(gitOpError(err.cause, GIT_COMMIT_PUSH_TEXT.pushFailed(err.message)))
+      else setError(err instanceof Error ? err.message : 'Failed to finalize merge')
     } finally {
       setFinalizing(false)
     }
@@ -264,6 +277,19 @@ export default function MergeConflictResolver({
     <Modal isOpen={isOpen} onClose={onClose} title="Resolve merge conflicts" size="xl">
       <div className="flex flex-col gap-3 min-h-[480px]">
         {error && <Alert>{error}</Alert>}
+        {pushError ? (
+          <GitErrorAlert
+            error={pushError}
+            {...(openCredentialSettings
+              ? {
+                  onUpdateCredentials: () => {
+                    onClose()
+                    openCredentialSettings()
+                  },
+                }
+              : {})}
+          />
+        ) : null}
 
         <div className="flex items-center justify-end gap-3 text-xs">
           <label className="inline-flex items-center gap-1">

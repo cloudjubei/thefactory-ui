@@ -3,6 +3,7 @@ import type { ProjectProcessDefaultCaps } from 'thefactory-tools/types'
 /** A launch's caps, under the names the approval's decision carries them. */
 export type LaunchCaps = {
   spendCapUsd?: number
+  stepSpendCapUsd?: number
   wallClockMs?: number
   maxIterations?: number
   questionCap?: number

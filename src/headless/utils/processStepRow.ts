@@ -5,6 +5,7 @@ import type {
   ProcessStepState,
 } from 'thefactory-tools/types'
 
+import { isLiveCheckWatchStep, liveCheckWatchDecidedLine } from './liveCheckWatch'
 import { processAcceptedByWord, processStepAcceptedUnchecked } from './processAcceptedUnchecked'
 import {
   formatProcessDuration,
@@ -49,7 +50,9 @@ function previewKind(
     case 'check':
       return 'checks'
     case 'gate':
-      return run?.storyId && !run.parentRunId && state.latest?.override ? 'signoff' : 'none'
+      return run?.storyId && !run.parentRunId && !state.step.gateKind && state.latest?.override
+        ? 'signoff'
+        : 'none'
     default:
       return state.latest?.runRef ? 'attempt' : 'none'
   }
@@ -89,8 +92,12 @@ function resultLine(
     return summary ?? (state.step.onlyWhenSentBack ? PROCESS_STEP_NOT_NEEDED : PROCESS_STEP_SKIPPED)
   }
   if (nodeState === 'queued') return undefined
-  if (state.step.kind === 'judge' && !state.requeued) {
+  if ((state.step.kind === 'judge' || state.step.liveCheck) && !state.requeued) {
     const line = reviewLine(state.latest)
+    if (line) return line
+  }
+  if (isLiveCheckWatchStep(state.step)) {
+    const line = liveCheckWatchDecidedLine(state.latest?.override?.choice)
     if (line) return line
   }
   if (summary) return summary
@@ -159,7 +166,7 @@ export function processStageChips(
       s.latest !== undefined &&
       s.step.agentType === 'verifier' &&
       verifyAttemptStanding(s.latest) === 'accepted'
-    const review = s.step.kind === 'judge' ? s.latest?.review : undefined
+    const review = s.step.kind === 'judge' || s.step.liveCheck ? s.latest?.review : undefined
     const note = accepted
       ? `accepted by ${processAcceptedByWord(s.latest?.override?.decidedBy)}`
       : review && !s.requeued && !unchecked

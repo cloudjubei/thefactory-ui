@@ -7,13 +7,16 @@ import {
   commitButtonLabel,
   extractErrorMessage,
   gitHookRejection,
+  gitOpError,
   useFixCommitChecks,
   useGit,
   type GitCommitAndPushOptions,
   type GitCommitPushPhase,
+  type GitOpError,
 } from '../../../../headless'
 import type { GitStatus } from '../../../../headless/api'
 import { Alert, Button, Field, Modal, TerminalOutput, Textarea } from '../../..'
+import GitErrorAlert from '../GitErrorAlert'
 
 export type CommitDialogProps = {
   isOpen: boolean
@@ -39,11 +42,13 @@ export type CommitDialogViewProps = {
     stagedFiles: readonly string[]
     message: string
   }) => Promise<void>
-  initial?: { message?: string; hookOutput?: string; pushError?: string }
+  /** Takes the person to the git credentials settings; offered beside a push refused for its credentials. */
+  onUpdateCredentials?: () => void
+  initial?: { message?: string; hookOutput?: string; pushError?: string; credentialError?: boolean }
 }
 
 export default function CommitDialog({ isOpen, onClose, onOpenChat }: CommitDialogProps) {
-  const { commitAndPush, push, status } = useGit()
+  const { commitAndPush, push, status, openCredentialSettings } = useGit()
   const fixCommitChecks = useFixCommitChecks()
   return (
     <CommitDialogView
@@ -52,6 +57,7 @@ export default function CommitDialog({ isOpen, onClose, onOpenChat }: CommitDial
       status={status}
       onCommit={commitAndPush}
       onPush={() => push()}
+      {...(openCredentialSettings ? { onUpdateCredentials: openCredentialSettings } : {})}
       {...(onOpenChat
         ? { onFixWithAgent: async (input) => onOpenChat(await fixCommitChecks(input)) }
         : {})}
@@ -66,6 +72,7 @@ export function CommitDialogView({
   onCommit,
   onPush,
   onFixWithAgent,
+  onUpdateCredentials,
   initial,
 }: CommitDialogViewProps) {
   const [fixing, setFixing] = useState(false)
@@ -74,7 +81,11 @@ export function CommitDialogView({
   const [pushAfter, setPushAfter] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [phase, setPhase] = useState<GitCommitPushPhase | undefined>(undefined)
-  const [pushError, setPushError] = useState<string | null>(initial?.pushError ?? null)
+  const [pushError, setPushError] = useState<GitOpError | null>(
+    initial?.pushError !== undefined
+      ? { message: initial.pushError, credential: !!initial.credentialError }
+      : null,
+  )
   const [error, setError] = useState<string | null>(null)
   const [hookOutput, setHookOutput] = useState<string | null>(initial?.hookOutput ?? null)
 
@@ -118,7 +129,7 @@ export function CommitDialogView({
       await onPush()
       finish()
     } catch (err) {
-      setPushError(extractErrorMessage(err, 'Failed to push'))
+      setPushError(gitOpError(err, extractErrorMessage(err, 'Failed to push')))
     } finally {
       setPhase(undefined)
       setSubmitting(false)
@@ -143,7 +154,7 @@ export function CommitDialogView({
       if (err instanceof GitPushAfterCommitError) {
         setMessage('')
         setAmend(false)
-        setPushError(extractErrorMessage(err.cause, 'Failed to push'))
+        setPushError(gitOpError(err.cause, extractErrorMessage(err.cause, 'Failed to push')))
       } else if (rejection !== undefined) setHookOutput(rejection)
       else setError(extractErrorMessage(err, 'Failed to commit'))
     } finally {
@@ -185,7 +196,21 @@ export function CommitDialogView({
     >
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         {error && <Alert>{error}</Alert>}
-        {pushError !== null ? <Alert>{GIT_COMMIT_PUSH_TEXT.pushFailed(pushError)}</Alert> : null}
+        {pushError !== null ? (
+          <GitErrorAlert
+            error={pushError}
+            {...(onUpdateCredentials
+              ? {
+                  onUpdateCredentials: () => {
+                    onClose()
+                    onUpdateCredentials()
+                  },
+                }
+              : {})}
+          >
+            {GIT_COMMIT_PUSH_TEXT.pushFailed(pushError.message)}
+          </GitErrorAlert>
+        ) : null}
         {hookOutput !== null ? (
           <div className="flex flex-col gap-2">
             <Alert>The commit checks stopped this commit. Nothing was committed.</Alert>

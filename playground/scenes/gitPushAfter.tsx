@@ -9,6 +9,7 @@ import {
 } from 'thefactory-ui/headless'
 import type { GitStatus } from '../../src/headless/api'
 import { CommitDialogView } from '../../src/web/compound/git/dialogs/CommitDialog'
+import GitCredentialErrorModal from '../../src/web/compound/git/GitCredentialErrorModal'
 import MergeBranchSheet from '../../src/web/compound/git/dialogs/MergeBranchSheet'
 import type { Scene } from '../showcase/types'
 
@@ -21,6 +22,11 @@ const STATUS: GitStatus = { staged: [], unstaged: [], untracked: [] }
 
 const REJECTED =
   'git push origin dev failed: ! [rejected] dev -> dev (fetch first) — the remote has work you do not have locally.'
+
+const REFUSED =
+  "git push origin dev failed: fatal: could not read Password for 'https://Perpetuating@dev.azure.com': terminal prompts disabled"
+
+const REPO = 'https://Perpetuating@dev.azure.com/perpetuating/covision/_git/covision-android'
 
 /** The project's git with no backend: nothing is fetched, every list is empty. */
 function Offline({ children }: { children: ReactNode }) {
@@ -58,7 +64,53 @@ export const GIT_PUSH_AFTER_SCENES: Scene[] = [
             status={STATUS}
             onCommit={done}
             onPush={done}
+            onUpdateCredentials={noop}
             initial={{ pushError: REJECTED }}
+          />
+        ),
+      },
+      {
+        id: 'push-credentials',
+        title: 'Committed, the credentials were refused',
+        description:
+          'The push failed because the git host refused the stored credentials: the error keeps its words and offers “Update credentials”, which closes the dialog and opens the project’s Git settings. An ordinary push failure (above) shows no such button.',
+        overlay: true,
+        render: () => (
+          <CommitDialogView
+            isOpen
+            onClose={noop}
+            status={STATUS}
+            onCommit={done}
+            onPush={done}
+            onUpdateCredentials={noop}
+            initial={{ pushError: REFUSED, credentialError: true }}
+          />
+        ),
+      },
+    ],
+  },
+  {
+    id: 'git-credentials-popup',
+    title: 'Git credentials needed',
+    component: 'GitCredentialErrorModal',
+    group: 'Project',
+    description:
+      'Shown app-wide when a push, pull or fetch is refused for its credentials, on any git host. “Update credentials” opens the project’s Git settings, where the token can be replaced or other credentials picked.',
+    states: [
+      {
+        id: 'push-refused',
+        title: 'Push refused',
+        description:
+          'An Azure DevOps token rejected on push, with the repository and the raw git message.',
+        overlay: true,
+        render: () => (
+          <GitCredentialErrorModal
+            isOpen
+            onClose={noop}
+            onOpenSettings={noop}
+            op="push"
+            message={REFUSED}
+            repoUrl={REPO}
           />
         ),
       },

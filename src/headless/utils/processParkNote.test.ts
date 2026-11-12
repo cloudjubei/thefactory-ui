@@ -13,6 +13,7 @@ import {
   addAnswerFiles,
   answerTakesFiles,
 } from './processParkNote'
+import { LIVE_CHECK_SEND_NOTE_COPY } from './liveCheckWatchConstants'
 import {
   ACCEPT_DROPPED_NOTE_COPY,
   PARK_NOTE_COPY,
@@ -257,5 +258,17 @@ describe('addAnswerFiles', () => {
     const many = Array.from({ length: 12 }, (_, i) => `f${i}`)
     expect(addAnswerFiles(['first'], many)).toHaveLength(10)
     expect(addAnswerFiles(['first'], many)[0]).toBe('first')
+  })
+})
+
+describe('parkNoteCopy at a Watch it live', () => {
+  it('asks what the person saw when they send it to the developer', () => {
+    expect(parkNoteCopy('send-to-developer', { noteRequired: true }, true)).toBe(
+      LIVE_CHECK_SEND_NOTE_COPY,
+    )
+  })
+
+  it('leaves every other choice’s words as they were', () => {
+    expect(parkNoteCopy('retry', undefined, true)).toBe(RETRY_NOTE_COPY)
   })
 })

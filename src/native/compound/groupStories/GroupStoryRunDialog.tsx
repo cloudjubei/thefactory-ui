@@ -5,6 +5,9 @@ import {
   extractErrorMessage,
   groupLaunchFakeDataChoices,
   groupLaunchFakeDataMetadata,
+  changeGroupLiveCheckPick,
+  groupLaunchLiveCheckMetadata,
+  type GroupLaunchLiveCheckPicks,
   groupRunStartedWords,
   launchAgentPickMetadata,
   launchAgentPickRunner,
@@ -37,6 +40,7 @@ import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
 import BaseBranchChooser from '../chat/BaseBranchChooser'
 import LaunchFakeDataChoice from '../chat/LaunchFakeDataChoice'
+import GroupLegLiveChecks from '../chat/GroupLegLiveChecks'
 import TicketMoveField from '../chat/TicketMoveField'
 import LaunchCapsFields from '../chat/LaunchCapsFields'
 import { TurnLimitField } from '../TurnLimitField'
@@ -92,6 +96,7 @@ export default function GroupStoryRunDialog({
   const [started, setStarted] = useState<GroupStoryRunStarted | undefined>(startedShown)
   const [moveTicket, setMoveTicket] = useState(true)
   const [fakeDataPicks, setFakeDataPicks] = useState<Record<string, FakeDataInProduct>>({})
+  const [liveCheckPicks, setLiveCheckPicks] = useState<GroupLaunchLiveCheckPicks>({})
   const wasOpen = useRef(false)
   useEffect(() => {
     if (isOpen && !wasOpen.current) {
@@ -99,6 +104,7 @@ export default function GroupStoryRunDialog({
       setStarted(startedShown)
       setMoveTicket(true)
       setFakeDataPicks({})
+      setLiveCheckPicks({})
     }
     wasOpen.current = isOpen
   }, [isOpen, startedShown])
@@ -138,6 +144,7 @@ export default function GroupStoryRunDialog({
       ...capsMeta,
       ...(Object.keys(basePicks).length > 0 ? { baseBranches: { ...basePicks } } : {}),
       ...groupLaunchFakeDataMetadata(preview?.legs ?? [], fakeDataPicks),
+      ...groupLaunchLiveCheckMetadata(preview?.legs ?? [], liveCheckPicks),
       ...(ticketMove ? { ticketMove } : {}),
     })
       .then(setStarted)
@@ -237,6 +244,22 @@ export default function GroupStoryRunDialog({
                             }
                           />
                         ) : null}
+                        <GroupLegLiveChecks
+                          leg={leg}
+                          picks={liveCheckPicks}
+                          busy={busy}
+                          onChange={(featureId, change) =>
+                            setLiveCheckPicks((prev) =>
+                              changeGroupLiveCheckPick(
+                                preview?.legs ?? [],
+                                prev,
+                                leg.projectId,
+                                featureId,
+                                change,
+                              ),
+                            )
+                          }
+                        />
                         {leg.baseBranches ? (
                           <BaseBranchChooser
                             options={leg.baseBranches}

@@ -19,6 +19,16 @@ import {
 } from 'thefactory-tools/utils'
 
 import {
+  changeLiveCheckDraft,
+  launchLiveCheckView,
+  launchStartDraft,
+  liveCheckDraftOf,
+  withLiveCheckChip,
+  withLiveCheckDraft,
+} from './liveCheckLaunch'
+import { LIVE_CHECK_PROOF_KIND } from './liveCheckLaunchConstants'
+import type { LiveCheckDraft } from './liveCheckLaunchTypes'
+import {
   PROOF_KIND_STATUS_TONES,
   PROOF_KIND_STATUS_WORDS,
   PROOF_PLAN_CLEARED_TEXT,
@@ -48,7 +58,11 @@ export function proofKindOptions(): ProofKindOptionView[] {
 
 /** A stored plan as an editor holds it. */
 export function proofPlanDraftOf(plan: ProofPlan | undefined): ProofPlanDraft {
-  return { kinds: plan ? [...plan.kinds] : [], notes: plan?.notes ?? '' }
+  return {
+    kinds: plan ? [...plan.kinds] : [],
+    notes: plan?.notes ?? '',
+    ...(plan?.liveCheck ? { liveCheck: { ...plan.liveCheck } } : {}),
+  }
 }
 
 /** The draft with `kind` picked or unpicked, kinds kept in their canonical order. */
@@ -61,7 +75,11 @@ export function toggleProofPlanDraftKind(draft: ProofPlanDraft, kind: ProofKind)
 
 /** The plan a draft saves as — `undefined` when no kind is picked. */
 export function proofPlanOfDraft(draft: ProofPlanDraft): ProofPlan | undefined {
-  return normalizeProofPlan({ kinds: draft.kinds, notes: draft.notes })
+  return normalizeProofPlan({
+    kinds: draft.kinds,
+    notes: draft.notes,
+    ...(draft.liveCheck ? { liveCheck: draft.liveCheck } : {}),
+  })
 }
 
 /** Whether two drafts save as the same plan. */
@@ -75,7 +93,7 @@ export function proofPlanSummaryLine(plan: ProofPlan): string {
 }
 
 function launchDraft(plan: LaunchProofPlan, edits: LaunchProofPlanEdits): ProofPlanDraft {
-  return edits[plan.featureId] ?? proofPlanDraftOf(plan.plan)
+  return edits[plan.featureId] ?? launchStartDraft(plan)
 }
 
 /**
@@ -93,7 +111,8 @@ export function launchProofPlanRows(
   return (proposal?.proofPlans ?? []).map((plan) => {
     const draft = launchDraft(plan, edits)
     const unavailable = new Map((plan.unavailable ?? []).map((u) => [u.kind, u.reason]))
-    const kinds = proofKindOptions().map((option) => {
+    const offer = plan.liveCheckOffer
+    const allKinds = proofKindOptions().map((option) => {
       const checked = draft.kinds.includes(option.kind)
       const reason = unavailable.get(option.kind)
       return {
@@ -103,6 +122,9 @@ export function launchProofPlanRows(
         disabled: reason !== undefined && !checked,
       }
     })
+    const kinds = allKinds.filter(
+      (k) => k.kind !== LIVE_CHECK_PROOF_KIND || (offer === undefined && k.checked),
+    )
     return {
       featureId: plan.featureId,
       title: plan.title,
@@ -110,7 +132,7 @@ export function launchProofPlanRows(
       sourceLabel: PROOF_PLAN_SOURCE_LABELS[plan.source],
       edited: edits[plan.featureId] !== undefined,
       kinds,
-      flagged: kinds.flatMap((k) =>
+      flagged: allKinds.flatMap((k) =>
         k.checked && k.unavailable ? [{ kind: k.kind, label: k.label, reason: k.unavailable }] : [],
       ),
       dropped: (plan.dropped ?? []).map((u) =>
@@ -124,8 +146,27 @@ export function launchProofPlanRows(
           : { uiWarning: UI_CHANGE_PLAN_WARNING }
         : {}),
       ...(plan.added ? { added: plan.added } : {}),
+      ...(offer ? { liveCheck: launchLiveCheckView(offer, liveCheckDraftOf(draft)) } : {}),
     }
   })
+}
+
+/**
+ * The launch's edits with one feature's live check changed — switched between
+ * off, required and ask me, or its before and after toggled. A feature the
+ * preview offers no live check is left as it is.
+ */
+export function setLaunchLiveCheck(
+  proposal: Pick<ProcessProposal, 'proofPlans'> | undefined,
+  edits: LaunchProofPlanEdits,
+  featureId: string,
+  change: Partial<LiveCheckDraft>,
+): LaunchProofPlanEdits {
+  const plan = proposal?.proofPlans?.find((p) => p.featureId === featureId)
+  if (!plan?.liveCheckOffer) return edits
+  const draft = launchDraft(plan, edits)
+  const live = changeLiveCheckDraft(liveCheckDraftOf(draft), change)
+  return { ...edits, [featureId]: withLiveCheckDraft(draft, live) }
 }
 
 /** The launch's edits with `kind` toggled on one feature's plan. */
@@ -225,13 +266,20 @@ export function launchFeatureRows(
 ): LaunchFeatureRow[] {
   const proofOf = new Map(proofRows.map((row) => [row.featureId, row]))
   const labels = (row: LaunchProofPlanRow | undefined): string[] =>
-    row ? row.kinds.filter((k) => k.checked).map((k) => k.label) : []
+    row
+      ? row.kinds
+          .filter((k) => k.checked && !(row.liveCheck && k.kind === LIVE_CHECK_PROOF_KIND))
+          .map((k) => k.label)
+      : []
   const rows: LaunchFeatureRow[] = (view?.features ?? []).map((feature) => {
     const proof = proofOf.get(feature.id)
     return {
       featureId: feature.id,
       title: feature.title,
-      chain: feature.chain,
+      chain:
+        proof?.liveCheck && feature.chain.length > 0
+          ? withLiveCheckChip(feature.chain, proof.liveCheck)
+          : feature.chain,
       ...(feature.maxIterations !== undefined ? { maxIterations: feature.maxIterations } : {}),
       ...(proof ? { proof } : {}),
       proofLabels: labels(proof),

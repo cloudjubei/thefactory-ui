@@ -1,4 +1,5 @@
-import type { ProcessDefinition, ProcessRun } from '../../headless/api/generated/types.gen'
+import type { ProcessRun } from 'thefactory-tools/types'
+import type { ProcessDefinition } from '../../headless/api/generated/types.gen'
 import { UI_REQUEST } from './featureRequests'
 import { FAKE_PROJECT_ID } from './projects'
 import { STORY } from './stories'

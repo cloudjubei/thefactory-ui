@@ -18,11 +18,14 @@ import {
   linkedNoteState,
   noteAccessLabel,
   noteAuthorLabel,
+  noteHidesValue,
   noteKindLabel,
+  notePurposeLabel,
 } from '../../../headless/utils/projectNotes'
 import {
   NOTE_ACCESS_NOTE,
   NOTE_LINK_MISSING,
+  NOTE_TEST_ACCOUNTS_HIDDEN,
   NOTE_VALUE_MASK,
   NOTES_SCREEN_COPY,
 } from '../../../headless/utils/projectNotesConstants'
@@ -224,6 +227,13 @@ export default function NotesSettings({
                               <Text style={chipPillTextStyle(theme)}>{noteAuthorLabel(note)}</Text>
                             </View>
                           ) : null}
+                          {notePurposeLabel(note.purpose) ? (
+                            <View style={chipPillStyle(theme)}>
+                              <Text style={chipPillTextStyle(theme)}>
+                                {notePurposeLabel(note.purpose)}
+                              </Text>
+                            </View>
+                          ) : null}
                         </View>
                         {note.description ? (
                           <RichText
@@ -233,7 +243,7 @@ export default function NotesSettings({
                             textColor={theme.text.secondary}
                           />
                         ) : null}
-                        {note.kind === 'secret' ? (
+                        {noteHidesValue(note) ? (
                           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                             <Text
                               selectable={isRevealed}
@@ -245,7 +255,9 @@ export default function NotesSettings({
                             >
                               {isRevealed && revealedValue !== null
                                 ? revealedValue
-                                : NOTE_VALUE_MASK}
+                                : note.kind === 'secret'
+                                  ? NOTE_VALUE_MASK
+                                  : NOTE_TEST_ACCOUNTS_HIDDEN}
                             </Text>
                           </ScrollView>
                         ) : noteTexts.has(note.id) ? (

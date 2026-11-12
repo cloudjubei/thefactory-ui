@@ -146,3 +146,32 @@ describe('processProposalView', () => {
     })
   })
 })
+
+describe('processProposalView — a live check step', () => {
+  it('carries each step’s kind, and marks the live check', () => {
+    const base = proposal()
+    const first = base.steps[0]!
+    const view = processProposalView({
+      ...base,
+      steps: [
+        {
+          ...first,
+          children: [
+            ...(first.children ?? []).slice(0, 2),
+            {
+              id: 'live-check',
+              name: 'Live check',
+              kind: 'agent',
+              agent: true,
+              liveCheck: { mode: 'required' },
+            },
+            ...(first.children ?? []).slice(2),
+          ],
+        },
+      ],
+    })
+    const chain = view.features[0]?.chain ?? []
+    expect(chain.map((c) => c.stepKind)).toEqual(['agent', 'agent', 'agent', 'report'])
+    expect(chain.filter((c) => c.liveCheck).map((c) => c.id)).toEqual(['live-check'])
+  })
+})

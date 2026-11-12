@@ -16,11 +16,14 @@ import {
   linkedNoteState,
   noteAccessLabel,
   noteAuthorLabel,
+  noteHidesValue,
   noteKindLabel,
+  notePurposeLabel,
 } from '../../../headless/utils/projectNotes'
 import {
   NOTE_ACCESS_NOTE,
   NOTE_LINK_MISSING,
+  NOTE_TEST_ACCOUNTS_HIDDEN,
   NOTE_VALUE_MASK,
   NOTES_SCREEN_COPY,
 } from '../../../headless/utils/projectNotesConstants'
@@ -143,6 +146,9 @@ export default function NotesSettings({
                     {noteAuthorLabel(note) && (
                       <span className={CHIP_PILL_NEUTRAL}>{noteAuthorLabel(note)}</span>
                     )}
+                    {notePurposeLabel(note.purpose) && (
+                      <span className={CHIP_PILL_NEUTRAL}>{notePurposeLabel(note.purpose)}</span>
+                    )}
                   </div>
                   {note.description && (
                     <div className="text-sm text-(--text-secondary) wrap-break-word">
@@ -153,9 +159,13 @@ export default function NotesSettings({
                       />
                     </div>
                   )}
-                  {note.kind === 'secret' ? (
+                  {noteHidesValue(note) ? (
                     <div className="font-mono text-xs text-(--text-secondary) wrap-break-word">
-                      {isRevealed && revealedValue !== null ? revealedValue : NOTE_VALUE_MASK}
+                      {isRevealed && revealedValue !== null
+                        ? revealedValue
+                        : note.kind === 'secret'
+                          ? NOTE_VALUE_MASK
+                          : NOTE_TEST_ACCOUNTS_HIDDEN}
                     </div>
                   ) : noteTexts.has(note.id) ? (
                     <div className="text-xs text-(--text-secondary) whitespace-pre-wrap wrap-break-word">

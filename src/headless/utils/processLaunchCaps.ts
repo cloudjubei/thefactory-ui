@@ -17,13 +17,19 @@ import type {
 
 const LAUNCH_CAP_KEYS: readonly LaunchCapKey[] = [
   'spendCapUsd',
+  'stepSpendCapUsd',
   'wallClockMs',
   'maxIterations',
   'questionCap',
   'checkTimeoutMs',
 ]
 
-const PROJECT_CAP_KEYS: readonly LaunchCapKey[] = ['spendCapUsd', 'wallClockMs', 'maxIterations']
+const PROJECT_CAP_KEYS: readonly LaunchCapKey[] = [
+  'spendCapUsd',
+  'stepSpendCapUsd',
+  'wallClockMs',
+  'maxIterations',
+]
 
 const isPositive = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value) && value > 0
@@ -35,6 +41,7 @@ const isCount = (value: unknown): value is number =>
 /** Each cap's check on what it stores, and its reason in the field's words. */
 const CAP_RULES: Record<LaunchCapKey, { valid: (value: unknown) => boolean; error: string }> = {
   spendCapUsd: { valid: isPositive, error: LAUNCH_CAPS_COPY.invalidAmount },
+  stepSpendCapUsd: { valid: isPositive, error: LAUNCH_CAPS_COPY.invalidAmount },
   wallClockMs: { valid: isWhole, error: LAUNCH_CAPS_COPY.invalidMinutes },
   maxIterations: { valid: isWhole, error: LAUNCH_CAPS_COPY.invalidWhole },
   questionCap: { valid: isCount, error: LAUNCH_CAPS_COPY.invalidCount },
@@ -60,6 +67,7 @@ function defaultOf(
   defaults: ProjectProcessDefaultCaps | undefined,
 ): number | undefined {
   if (key === 'spendCapUsd') return defaults?.spendUsdCap
+  if (key === 'stepSpendCapUsd') return defaults?.stepSpendUsdCap
   if (key === 'wallClockMs') return defaults?.wallClockMs
   return key === 'maxIterations' ? defaults?.maxIterations : undefined
 }
@@ -152,9 +160,11 @@ const counted = (count: number, one: string): string => `${count} ${one}${count 
 
 /** The limits set, in short: the line the folded section reads. Pure. */
 export function launchCapsSummary(caps: LaunchCaps): string {
-  const { spendCapUsd, wallClockMs, maxIterations, questionCap, checkTimeoutMs } = caps
+  const { spendCapUsd, stepSpendCapUsd, wallClockMs, maxIterations, questionCap, checkTimeoutMs } =
+    caps
   const parts = [
     spendCapUsd !== undefined ? `$${spendCapUsd}` : undefined,
+    stepSpendCapUsd !== undefined ? LAUNCH_CAPS_COPY.perStep(`$${stepSpendCapUsd}`) : undefined,
     wallClockMs !== undefined ? durationLabel(wallClockMs) : undefined,
     maxIterations !== undefined ? counted(maxIterations, 'attempt') : undefined,
     questionCap === 0
@@ -184,9 +194,13 @@ export function launchWorstCaseLine({
 /** The default caps a project's metadata holds. It is free JSON, so only real caps count. Pure. */
 export function readProcessDefaultCaps(stored: unknown): ProjectProcessDefaultCaps {
   if (typeof stored !== 'object' || stored === null) return {}
-  const { spendUsdCap, wallClockMs, maxIterations } = stored as Record<string, unknown>
+  const { spendUsdCap, stepSpendUsdCap, wallClockMs, maxIterations } = stored as Record<
+    string,
+    unknown
+  >
   return {
     ...(isPositive(spendUsdCap) ? { spendUsdCap } : {}),
+    ...(isPositive(stepSpendUsdCap) ? { stepSpendUsdCap } : {}),
     ...(isWhole(wallClockMs) ? { wallClockMs } : {}),
     ...(isWhole(maxIterations) ? { maxIterations } : {}),
   }
@@ -194,15 +208,16 @@ export function readProcessDefaultCaps(stored: unknown): ProjectProcessDefaultCa
 
 /** A project's default caps under the names a launch carries them. Pure. */
 export function launchCapsOfDefaults(defaults: ProjectProcessDefaultCaps): LaunchCaps {
-  const { spendUsdCap, wallClockMs, maxIterations } = defaults
+  const { spendUsdCap, stepSpendUsdCap, wallClockMs, maxIterations } = defaults
   return {
     ...(spendUsdCap !== undefined ? { spendCapUsd: spendUsdCap } : {}),
+    ...(stepSpendUsdCap !== undefined ? { stepSpendCapUsd: stepSpendUsdCap } : {}),
     ...(wallClockMs !== undefined ? { wallClockMs } : {}),
     ...(maxIterations !== undefined ? { maxIterations } : {}),
   }
 }
 
-/** The project editor's fields: the three limits a project can set. Pure. */
+/** The project editor's fields: the four limits a project can set. Pure. */
 export function processDefaultCapFields(
   defaults: ProjectProcessDefaultCaps,
   typed: LaunchCapsTyped,
@@ -230,12 +245,13 @@ export function withProcessDefaultCaps<T extends Record<string, unknown>>(
   const inError = fields.flatMap(({ key, error }) =>
     error && held[key] !== undefined ? [[key, held[key]]] : [],
   )
-  const { spendCapUsd, wallClockMs, maxIterations } = {
+  const { spendCapUsd, stepSpendCapUsd, wallClockMs, maxIterations } = {
     ...capsOf(fields),
     ...(Object.fromEntries(inError) as LaunchCaps),
   }
   const caps: ProjectProcessDefaultCaps = {
     ...(spendCapUsd !== undefined ? { spendUsdCap: spendCapUsd } : {}),
+    ...(stepSpendCapUsd !== undefined ? { stepSpendUsdCap: stepSpendCapUsd } : {}),
     ...(wallClockMs !== undefined ? { wallClockMs } : {}),
     ...(maxIterations !== undefined ? { maxIterations } : {}),
   }

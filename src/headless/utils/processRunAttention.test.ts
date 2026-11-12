@@ -311,6 +311,10 @@ describe('processRunNeedLine — Needs you', () => {
     ],
     [{ reason: 'step-unchecked' as const, stepId: 'verify' }, 'Decide: Verify checked nothing'],
     [{ reason: 'turn-limit' as const, stepId: 'implement' }, 'Decide: Implement ran out of turns'],
+    [
+      { reason: 'spend-limit' as const, stepId: 'implement' },
+      'Decide: Implement reached its spend limit',
+    ],
     [{ reason: 'budget-spent' as const, stepId: 'implement' }, 'Decide: the budget is spent'],
     [
       { reason: 'questions-spent' as const, stepId: 'implement' },

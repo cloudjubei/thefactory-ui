@@ -3,6 +3,7 @@ import { Pressable, Text, View } from 'react-native'
 
 import ReferenceTextarea from '../files/ReferenceTextarea'
 import ChainChip from '../process/ChainChip'
+import LaunchLiveCheckRow from './LaunchLiveCheckRow'
 import {
   LAUNCH_FEATURE_ADDED,
   LAUNCH_FEATURE_LEFT_OUT,
@@ -18,6 +19,7 @@ import {
   type LaunchFeatureListItem,
   type LaunchFeaturePickRow,
   type LaunchFeatureRow,
+  type LiveCheckDraft,
   type ProofKind,
   type ProposalChip,
 } from '../../../headless'
@@ -47,6 +49,10 @@ export type LaunchFeatureListProps = {
   onToggleKind: (featureId: string, kind: ProofKind) => void
   onNotesChange: (featureId: string, notes: string) => void
   onSaveChange: (save: boolean) => void
+  /** A feature's live check changed — only features the preview offers one show the row. */
+  onLiveCheckChange?: (featureId: string, change: Partial<LiveCheckDraft>) => void
+  /** The project whose logins note a live check's secret hint opens. */
+  projectId?: string
   /**
    * Open a feature's dependency bullet — the host's resource-link handler.
    * Absent: bullets stay inert (a control that looks tappable and does nothing
@@ -81,6 +87,8 @@ export default function LaunchFeatureList({
   onToggleKind,
   onNotesChange,
   onSaveChange,
+  onLiveCheckChange,
+  projectId,
   onOpenDependency,
   pick,
 }: LaunchFeatureListProps) {
@@ -304,6 +312,37 @@ export default function LaunchFeatureList({
                     </Text>
                   </Pressable>
                 ))}
+                {!open && proof.liveCheck ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`${proof.liveCheck.chip}: ${row.title}`}
+                    disabled={busy}
+                    onPress={() => toggleEditing(row.featureId)}
+                    testID="launch-live-check-chip"
+                    style={{
+                      minHeight: 32,
+                      justifyContent: 'center',
+                      borderWidth: 1,
+                      borderColor:
+                        proof.liveCheck.choice === 'off'
+                          ? theme.border.default
+                          : theme.accent.primary,
+                      backgroundColor: theme.surface.raised,
+                      borderRadius: nativeRadii.round,
+                      paddingHorizontal: 10,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color:
+                          proof.liveCheck.choice === 'off' ? theme.text.muted : theme.text.primary,
+                      }}
+                    >
+                      {proof.liveCheck.chip}
+                    </Text>
+                  </Pressable>
+                ) : null}
                 {!open && row.proofLabels.length === 0 ? (
                   <Text style={{ fontSize: 12, color: theme.text.muted }}>
                     {PROOF_PLAN_EMPTY_SHORT}
@@ -381,6 +420,24 @@ export default function LaunchFeatureList({
                   <Text style={{ fontSize: 11, color: theme.text.muted }}>
                     {PROOF_PLAN_EMPTY_LABEL}
                   </Text>
+                ) : null}
+                {proof.liveCheck && onLiveCheckChange ? (
+                  <View
+                    style={{
+                      borderWidth: 1,
+                      borderColor: theme.border.subtle,
+                      backgroundColor: theme.surface.raised,
+                      borderRadius: nativeRadii[2],
+                      padding: 8,
+                    }}
+                  >
+                    <LaunchLiveCheckRow
+                      view={proof.liveCheck}
+                      busy={busy}
+                      {...(projectId ? { projectId } : {})}
+                      onChange={(change) => onLiveCheckChange(row.featureId, change)}
+                    />
+                  </View>
                 ) : null}
                 <ReferenceTextarea
                   rows={1}

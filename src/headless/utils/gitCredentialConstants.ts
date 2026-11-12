@@ -40,3 +40,26 @@ export const GIT_CREDENTIAL_TOKEN_PLACEHOLDER = 'Paste your access token'
 
 export const GIT_CREDENTIAL_PAT_NOTE =
   'Use an access token for any git host — Azure DevOps, GitLab, Bitbucket, or a fine-grained / CI token for GitHub.'
+
+/**
+ * The words offered wherever a git op fails because its credentials were
+ * refused: the inline "Update credentials" button and the app-wide popup.
+ * Host-neutral on purpose; the credentials may be for any git host.
+ */
+export const GIT_CREDENTIAL_FIX_TEXT = {
+  update: 'Update credentials',
+  dismiss: 'Dismiss',
+  title: 'Git credentials needed',
+  refused: (verb: string) =>
+    `Couldn't ${verb}: the git credentials for this project don't have access to its repository.`,
+  hint: "Update the access token in the project's Git settings, or pick credentials that have access to this repository.",
+  repository: 'Repository:',
+  details: 'Show technical details',
+  anyOp: 'reach the repository',
+  ops: {
+    push: 'push',
+    pull: 'pull',
+    fetch: 'fetch',
+    commit: 'commit and push',
+  },
+} as const

@@ -1,6 +1,7 @@
 import type { ProposalChip } from './processProposalView'
 import type { ProofKind, ProofPlan, ProofPlanSource } from 'thefactory-tools/types'
 
+import type { LaunchLiveCheckView, LiveCheckOptions } from './liveCheckLaunchTypes'
 import type { StoryStepTone } from './storySignoffTypes'
 
 /** One kind of proof as every picker offers it. */
@@ -15,6 +16,8 @@ export interface ProofKindOptionView {
 export interface ProofPlanDraft {
   kinds: ProofKind[]
   notes: string
+  /** How the live check runs, while the kinds hold `live-check`. */
+  liveCheck?: LiveCheckOptions
 }
 
 /** One kind on a launch's confirmation row. */
@@ -62,6 +65,8 @@ export interface LaunchProofPlanRow {
   uiHint?: string
   /** Why the launch adds this feature to the story before the person's own — it is not on the story yet. */
   added?: string
+  /** The "Live check" row, present only when the preview offers one for this feature. */
+  liveCheck?: LaunchLiveCheckView
 }
 
 /**

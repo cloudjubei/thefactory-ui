@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
+import { noteHidesValue } from '../utils/projectNotes'
 import type { NoteSummary } from '../utils/projectNotesTypes'
 
 /**
  * The text of each plain note in a list, read once per version (`updatedAt`) of
- * the note. A secret is never read here — its value is revealed on demand.
+ * the note. A secret, or an open note holding test logins, is never read here — its value is
+ * revealed on demand.
  * A note whose text could not be read is absent.
  */
 export function useProjectNoteTexts(
@@ -12,12 +14,12 @@ export function useProjectNoteTexts(
 ): ReadonlyMap<string, string> {
   const [texts, setTexts] = useState<ReadonlyMap<string, string>>(new Map())
   const versionKey = notes
-    .filter((n) => n.kind !== 'secret')
+    .filter((n) => !noteHidesValue(n))
     .map((n) => `${n.id}@${n.updatedAt}`)
     .join('\n')
   useEffect(() => {
     let live = true
-    const plain = notes.filter((n) => n.kind !== 'secret')
+    const plain = notes.filter((n) => !noteHidesValue(n))
     void Promise.all(
       plain.map((n) =>
         readNote(n.id).then(

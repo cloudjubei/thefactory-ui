@@ -6,8 +6,11 @@ import {
   type ProcessRetryOffer,
   type ProcessRetryMode,
   type ProcessRetryPick,
+  type ProcessRetrySpendView,
   type ProcessTurnLimitView,
 } from '../../../headless'
+import Field from '../../primitives/Field'
+import { Input } from '../../primitives/Input'
 import SegmentedControl from '../../primitives/SegmentedControl'
 import { TurnLimitField } from '../TurnLimitField'
 
@@ -16,6 +19,10 @@ export type RetryChoiceOptionsProps = {
   retry?: ProcessRetryOffer
   /** The turn-limit control's words and range, when the retry raises the limit. */
   turnLimitView?: ProcessTurnLimitView
+  /** The spend raise's field, when the retry raises a spend limit. */
+  spendView?: ProcessRetrySpendView
+  /** The raise as the person types it. */
+  onSpendChange?: (text: string) => void
   pick: ProcessRetryPick
   onPick: (pick: ProcessRetryPick) => void
 }
@@ -25,11 +32,14 @@ const RETRY_MODES = ['continue', 'fresh'] as const
 /**
  * What trying a step again lets the person pick beside the button: whether its
  * agent carries on where it left off or starts fresh, as a toggle so it never
- * reads as a second button to press — the step's default picked, with why — and, at a spent turn limit, the limit it runs on.
+ * reads as a second button to press — the step's default picked, with why — and, at a spent turn limit, the limit it runs on;
+ * at a spend limit, the amount it may spend.
  */
 export function RetryChoiceOptions({
   retry,
   turnLimitView,
+  spendView,
+  onSpendChange,
   pick,
   onPick,
 }: RetryChoiceOptionsProps) {
@@ -70,6 +80,21 @@ export function RetryChoiceOptions({
           maxTurns={limit.maxTurns}
           onChange={(next) => onPick({ ...pick, turnLimit: processTurnLimitOfView(next) })}
         />
+      ) : null}
+      {spendView && onSpendChange ? (
+        <Field
+          label={`${spendView.label} (${spendView.unit})`}
+          hint={spendView.hint}
+          {...(spendView.error ? { error: spendView.error } : {})}
+        >
+          <Input
+            value={spendView.text}
+            invalid={Boolean(spendView.error)}
+            inputMode="decimal"
+            aria-label={spendView.label}
+            onChange={(e) => onSpendChange(e.target.value)}
+          />
+        </Field>
       ) : null}
     </div>
   )

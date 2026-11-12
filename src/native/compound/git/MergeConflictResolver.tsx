@@ -3,8 +3,10 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 import {
   GIT_COMMIT_PUSH_TEXT,
   GitPushAfterCommitError,
+  gitOpError,
   useActiveProject,
   useGit,
+  type GitOpError,
 } from '../../../headless'
 import {
   hasConflictMarkers,
@@ -19,6 +21,7 @@ import type { GitConflictEntry } from '../../../headless/api'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { IconChevronDown, IconChevronRight } from '../../icons'
 import Alert from '../../primitives/Alert'
+import GitErrorAlert from './GitErrorAlert'
 import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
 import SegmentedControl from '../../primitives/SegmentedControl'
@@ -61,7 +64,15 @@ export default function MergeConflictResolver({
   initialPath,
 }: MergeConflictResolverProps) {
   const { projectId } = useActiveProject()
-  const { stage, commitAndPush, resetAll, abortMerge, getFileContent, status } = useGit()
+  const {
+    stage,
+    commitAndPush,
+    resetAll,
+    abortMerge,
+    getFileContent,
+    status,
+    openCredentialSettings,
+  } = useGit()
   const mergeMessage = status?.merging?.message
   const firstPath = initialPath ?? conflicts[0]?.path ?? null
 
@@ -69,6 +80,7 @@ export default function MergeConflictResolver({
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pushError, setPushError] = useState<GitOpError | null>(null)
   const [content, setContent] = useState('')
   const [segments, setSegments] = useState<Segment[]>([])
   const [dirty, setDirty] = useState(false)
@@ -260,6 +272,7 @@ export default function MergeConflictResolver({
     if (finalizing) return
     setFinalizing(true)
     setError(null)
+    setPushError(null)
     try {
       try {
         await stage(conflicts.map((c) => c.path))
@@ -270,13 +283,9 @@ export default function MergeConflictResolver({
       await commitAndPush({ message }, { push: pushImmediately })
       onClose()
     } catch (err) {
-      setError(
-        err instanceof GitPushAfterCommitError
-          ? GIT_COMMIT_PUSH_TEXT.pushFailed(err.message)
-          : err instanceof Error
-            ? err.message
-            : 'Failed to finalize merge',
-      )
+      if (err instanceof GitPushAfterCommitError)
+        setPushError(gitOpError(err.cause, GIT_COMMIT_PUSH_TEXT.pushFailed(err.message)))
+      else setError(err instanceof Error ? err.message : 'Failed to finalize merge')
     } finally {
       setFinalizing(false)
     }
@@ -288,6 +297,19 @@ export default function MergeConflictResolver({
     <Modal isOpen={isOpen} onClose={onClose} title="Resolve merge conflicts" size="xl">
       <View className="gap-3">
         {error ? <Alert variant="error">{error}</Alert> : null}
+        {pushError ? (
+          <GitErrorAlert
+            error={pushError}
+            {...(openCredentialSettings
+              ? {
+                  onUpdateCredentials: () => {
+                    onClose()
+                    openCredentialSettings()
+                  },
+                }
+              : {})}
+          />
+        ) : null}
 
         <View className="flex-row items-center justify-between">
           <Text className="text-xs text-[var(--text-muted)]">

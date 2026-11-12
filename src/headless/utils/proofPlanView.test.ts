@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { UI_CHANGE_PLAN_WARNING, UI_CHANGE_WORDS_HINT } from 'thefactory-tools/constants'
+import {
+  PROOF_KIND_LABELS,
+  UI_CHANGE_PLAN_WARNING,
+  UI_CHANGE_WORDS_HINT,
+} from 'thefactory-tools/constants'
 import type { ProcessProposal, ProcessRun } from 'thefactory-tools/types'
 
 import {
@@ -13,6 +17,7 @@ import {
   proofPlanMetadata,
   proofPlanOfDraft,
   proofPlanSummaryLine,
+  setLaunchLiveCheck,
   setLaunchProofNotes,
   toggleLaunchProofKind,
   toggleProofPlanDraftKind,
@@ -45,6 +50,7 @@ describe('proofKindOptions', () => {
       'ui-before-after',
       'ui-video',
       'live-backend',
+      'live-check',
       'manual',
     ])
   })
@@ -433,5 +439,96 @@ describe('launchProofPlanRows — a feature the launch adds', () => {
     const rows = launchProofPlanRows(withSetup, {})
     expect(rows[0]?.added).toBe(added)
     expect(rows.slice(1).some((r) => 'added' in r)).toBe(false)
+  })
+})
+
+describe('live check on the launch', () => {
+  const advice = 'Recommended: ask me.'
+  const offered: Pick<ProcessProposal, 'proofPlans'> = {
+    proofPlans: [
+      {
+        featureId: 'f1',
+        title: 'Feed',
+        plan: { kinds: ['checks', 'ui-before-after'] },
+        source: 'feature',
+        liveCheckOffer: { platform: 'web', accounts: ['qa'], recommended: 'ask-me', advice },
+      },
+      {
+        featureId: 'f2',
+        title: 'Inbox',
+        plan: { kinds: ['checks', 'live-check'], liveCheck: { mode: 'required' } },
+        source: 'feature',
+      },
+    ],
+  }
+
+  it('shows the row only on a feature the preview offers one, at the advised mode', () => {
+    const rows = launchProofPlanRows(offered, {})
+    expect(rows[0]?.liveCheck?.choice).toBe('ask-me')
+    expect(rows[0]?.liveCheck?.advice).toBe(advice)
+    expect(rows[1]?.liveCheck).toBeUndefined()
+  })
+
+  it('keeps the kind off the picker where the row holds it, and on it to drop otherwise', () => {
+    const rows = launchProofPlanRows(offered, {})
+    expect(rows[0]?.kinds.map((k) => k.kind)).not.toContain('live-check')
+    expect(rows[1]?.kinds.find((k) => k.kind === 'live-check')?.checked).toBe(true)
+  })
+
+  it('sends the advised live check with the plan, untouched', () => {
+    expect(proofPlanMetadata(offered, {}, false)?.proofPlans.f1).toEqual({
+      kinds: ['checks', 'ui-before-after', 'live-check'],
+      liveCheck: { mode: 'ask-me' },
+    })
+  })
+
+  it('sends the person’s change: before and after on, then off altogether', () => {
+    const both = setLaunchLiveCheck(offered, {}, 'f1', { beforeAndAfter: true })
+    expect(proofPlanMetadata(offered, both, false)?.proofPlans.f1?.liveCheck).toEqual({
+      mode: 'ask-me',
+      beforeAndAfter: true,
+    })
+    const off = setLaunchLiveCheck(offered, both, 'f1', { choice: 'off' })
+    expect(proofPlanMetadata(offered, off, false)?.proofPlans.f1).toEqual({
+      kinds: ['checks', 'ui-before-after'],
+    })
+    expect(launchProofPlanRows(offered, off)[0]?.edited).toBe(true)
+  })
+
+  it('leaves a feature offered none as it is', () => {
+    const edits = {}
+    expect(setLaunchLiveCheck(offered, edits, 'f2', { choice: 'off' })).toBe(edits)
+    expect(setLaunchLiveCheck(undefined, edits, 'f1', { choice: 'off' })).toBe(edits)
+  })
+
+  it('keeps a stored plan’s live check through a draft', () => {
+    const draft = proofPlanDraftOf({ kinds: ['live-check'], liveCheck: { mode: 'ask-me' } })
+    expect(proofPlanOfDraft(draft)).toEqual({
+      kinds: ['live-check'],
+      liveCheck: { mode: 'ask-me' },
+    })
+  })
+
+  it('puts the picked check on the feature’s steps and keeps it off the proof labels', () => {
+    const view = {
+      features: [
+        {
+          id: 'f1',
+          title: 'Feed',
+          chain: [
+            { id: 'implement', name: 'Implement', agent: true, stepKind: 'agent' as const },
+            { id: 'report', name: 'Report', agent: true, stepKind: 'report' as const },
+          ],
+        },
+      ],
+      tail: [],
+      agentStepCount: 2,
+    }
+    const rows = launchFeatureRows(view, launchProofPlanRows(offered, {}))
+    expect(rows[0]?.chain.map((c) => c.name)).toEqual(['Implement', 'Watch it live', 'Report'])
+    expect(rows[0]?.proofLabels).toEqual([
+      PROOF_KIND_LABELS.checks,
+      PROOF_KIND_LABELS['ui-before-after'],
+    ])
   })
 })

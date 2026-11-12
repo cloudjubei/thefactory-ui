@@ -3,13 +3,21 @@
 // generated backend client; these describe what the settings form holds and
 // what it sends.
 
+import type { ProjectNotePurpose } from 'thefactory-tools/types'
+
 import type { ProjectNoteAccess, ProjectNoteKind, ProjectNoteSummary } from '../api'
+
+/** The "Used for" picker's choices: what the host uses a note for, or nothing. */
+export type NotePurposeChoice = ProjectNotePurpose | 'none'
 
 /**
  * A note as listed, whoever holds it — a project or a group. Everything the
  * notes UI reads; the owner is the screen's, not the note's.
  */
-export type NoteSummary = Omit<ProjectNoteSummary, 'projectId'>
+export type NoteSummary = Omit<ProjectNoteSummary, 'projectId'> & {
+  /** What the host uses the note for; absent for a note that is only read. */
+  purpose?: ProjectNotePurpose
+}
 
 /** Whose notes a notes screen manages. An undefined id idles the screen. */
 export type NotesOwner =
@@ -30,6 +38,7 @@ export type ProjectNoteFormValues = {
   value: string
   description: string
   access: ProjectNoteAccess
+  purpose: NotePurposeChoice
 }
 
 /** Per-field validation messages; absent keys are valid. */
@@ -45,6 +54,7 @@ export type ProjectNoteCreateBody = {
   value: string
   description?: string
   access: ProjectNoteAccess
+  purpose?: ProjectNotePurpose
 }
 
 /** PATCH body carrying only the fields the user actually changed. */
@@ -54,7 +64,12 @@ export type ProjectNotePatchBody = {
   value?: string
   description?: string
   access?: ProjectNoteAccess
+  /** `null` takes the purpose off. */
+  purpose?: ProjectNotePurpose | null
 }
+
+/** A patch as the generated client types it, which has no `null` for taking a purpose off yet. */
+export type NotePatchWire = Omit<ProjectNotePatchBody, 'purpose'> & { purpose?: ProjectNotePurpose }
 
 /** What a note's chip and its hover card show. */
 export type ProjectNoteChipView = {

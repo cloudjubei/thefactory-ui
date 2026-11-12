@@ -1,5 +1,5 @@
 import type { ProjectNoteAccess, ProjectNoteKind } from '../api'
-import type { NotesOwner, ProjectNoteFormValues } from './projectNotesTypes'
+import type { NotePurposeChoice, NotesOwner, ProjectNoteFormValues } from './projectNotesTypes'
 
 export const NOTE_KIND_LABELS: Record<ProjectNoteKind, string> = {
   note: 'Note',
@@ -50,7 +50,28 @@ export const EMPTY_NOTE_FORM: ProjectNoteFormValues = {
   value: '',
   description: '',
   access: 'ask',
+  purpose: 'none',
 }
+
+/** The "Used for" picker's choices, in order. */
+export const NOTE_PURPOSE_OPTIONS: readonly { value: NotePurposeChoice; label: string }[] = [
+  { value: 'none', label: 'None' },
+  { value: 'test-accounts', label: 'Test accounts' },
+  { value: 'test-device', label: 'Testing device' },
+]
+
+/** What each "Used for" choice does, in one line. */
+export const NOTE_PURPOSE_HELP: Record<NotePurposeChoice, string> = {
+  none: 'Agents read it when they need it.',
+  'test-accounts': 'Logins a live check signs in with. Agents name them by label only.',
+  'test-device': 'The emulator a live check runs on.',
+}
+
+/** The picker's label. */
+export const NOTE_PURPOSE_LABEL = 'Used for'
+
+/** Said in place of an open note's text when it holds test logins. */
+export const NOTE_TEST_ACCOUNTS_HIDDEN = 'Test logins — not shown here. Best kept as a secret.'
 
 /** What a notes screen says, by whose notes it manages. `addWhat` finishes "add …" in the empty state. */
 export const NOTES_SCREEN_COPY: Record<

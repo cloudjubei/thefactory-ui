@@ -4,6 +4,7 @@ import {
   GIT_MERGE_TEXT,
   commitsToBringInLabel,
   formatDurationMs,
+  gitOpError,
   mergeBlockedReason,
   mergeChecksOnByDefault,
   mergeLeftBranchToPush,
@@ -12,6 +13,7 @@ import {
   useCommitsToBringIn,
   useDurationTimer,
   useGit,
+  type GitOpError,
   type MergeChecks,
 } from '../../../headless'
 import { extractServerError, type GitMergeBranchResult } from '../../../headless/api'
@@ -26,6 +28,7 @@ import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { BranchChip } from '../BranchChip'
 import RefChip from '../chips/RefChip'
 import MergeChecksResult from './MergeChecksResult'
+import GitErrorAlert from './GitErrorAlert'
 
 export type MergeBranchSheetProps = {
   isOpen: boolean
@@ -38,7 +41,7 @@ export type MergeBranchSheetProps = {
   /** Called once git has merged, fast-forwarded, staged or stopped on conflicts; a refusal stays in the sheet. */
   onMerged: (outcome: GitMergeBranchResult) => void
   /** Opens with the push already picked, or already failed after the merge — for the showcase. */
-  initial?: { pushAfter?: boolean; pushError?: string }
+  initial?: { pushAfter?: boolean; pushError?: string; credentialError?: boolean }
 }
 
 /**
@@ -59,7 +62,7 @@ export default function MergeBranchSheet({
   initial,
 }: MergeBranchSheetProps) {
   const { theme } = useNativeTheme()
-  const { branches, status, mergeBranch, push } = useGit()
+  const { branches, status, mergeBranch, push, openCredentialSettings } = useGit()
   const current = branches.find((b) => b.current)?.name
   const target = into ?? current
   const [query, setQuery] = useState('')
@@ -69,7 +72,11 @@ export default function MergeBranchSheet({
   const [checkFirstPick, setCheckFirstPick] = useState<boolean | undefined>(undefined)
   const [pushAfter, setPushAfter] = useState(initial?.pushAfter ?? false)
   const [pushing, setPushing] = useState(false)
-  const [pushError, setPushError] = useState<string | null>(initial?.pushError ?? null)
+  const [pushError, setPushError] = useState<GitOpError | null>(
+    initial?.pushError !== undefined
+      ? { message: initial.pushError, credential: !!initial.credentialError }
+      : null,
+  )
   const [submitting, setSubmitting] = useState(false)
   const [startedAt, setStartedAt] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -84,10 +91,14 @@ export default function MergeBranchSheet({
     setCommitNow(true)
     setCheckFirstPick(undefined)
     setPushAfter(initial?.pushAfter ?? false)
-    setPushError(initial?.pushError ?? null)
+    setPushError(
+      initial?.pushError !== undefined
+        ? { message: initial.pushError, credential: !!initial.credentialError }
+        : null,
+    )
     setError(null)
     setFailedChecks(null)
-  }, [isOpen, initialSource, initial?.pushAfter, initial?.pushError])
+  }, [isOpen, initialSource, initial?.pushAfter, initial?.pushError, initial?.credentialError])
 
   const options = useMemo(
     () => mergeSourceOptions(branches, current, query, into),
@@ -110,7 +121,7 @@ export default function MergeBranchSheet({
       await push({ branch })
       return true
     } catch (err) {
-      setPushError(extractServerError(err, 'The push failed').message)
+      setPushError(gitOpError(err, extractServerError(err, 'The push failed').message))
       return false
     } finally {
       setPushing(false)
@@ -335,7 +346,19 @@ export default function MergeBranchSheet({
         ) : null}
         {error ? <Alert variant="error">{error}</Alert> : null}
         {into && pushError !== null ? (
-          <Alert variant="error">{GIT_MERGE_TEXT.pushFailedAfterMerge(into, pushError)}</Alert>
+          <GitErrorAlert
+            error={pushError}
+            {...(openCredentialSettings
+              ? {
+                  onUpdateCredentials: () => {
+                    onClose()
+                    openCredentialSettings()
+                  },
+                }
+              : {})}
+          >
+            {GIT_MERGE_TEXT.pushFailedAfterMerge(into, pushError.message)}
+          </GitErrorAlert>
         ) : null}
         {failedChecks ? <MergeChecksResult checks={failedChecks} /> : null}
       </View>

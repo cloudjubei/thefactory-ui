@@ -22,6 +22,7 @@ import {
   SEND_TO_DEVELOPER_UNCHECKED_NOTE_COPY,
   WAITING_NOTE_COPY,
 } from './processParkNoteConstants'
+import { LIVE_CHECK_SEND_NOTE_COPY } from './liveCheckWatchConstants'
 import type { ParkNoteCopy, RequestProofChoice } from './processParkNoteTypes'
 
 /** Whether choosing this at a park opens a note composer rather than acting at once. */
@@ -37,8 +38,11 @@ export function choiceTakesNote(choice: ProcessParkAction): boolean {
 export function parkNoteCopy(
   choice: ProcessParkAction,
   offer?: Pick<ProcessParkChoice, 'noteRequired'>,
+  /** The stop is a "Watch it live": the note says what the person saw. */
+  watched?: boolean,
 ): ParkNoteCopy {
   if (choice === 'send-to-developer') {
+    if (watched) return LIVE_CHECK_SEND_NOTE_COPY
     return offer?.noteRequired ? SEND_TO_DEVELOPER_UNCHECKED_NOTE_COPY : SEND_TO_DEVELOPER_NOTE_COPY
   }
   if (choice === 'accept-dropped-change') return ACCEPT_DROPPED_NOTE_COPY

@@ -30,6 +30,7 @@ export const CHAT_STOP_CAUSE_PILL: Record<
   overseer: { label: 'Overseer fault — not the agent', tone: 'review' },
   provider: { label: 'The model provider failed', tone: 'review' },
   agent: { label: 'The agent’s work failed', tone: 'blocked' },
+  limit: { label: 'A limit was reached', tone: 'empty' },
 }
 
 /** The tone of a stop that used all its turns: nothing failed. */

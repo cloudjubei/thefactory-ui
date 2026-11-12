@@ -12,11 +12,14 @@ import {
   noteFormErrors,
   noteFormValues,
   notePatchBody,
+  notePurposeHelp,
 } from '../../../headless/utils/projectNotes'
 import {
   NOTE_ACCESS_LABELS,
   NOTE_KIND_HELP,
   NOTE_KIND_LABELS,
+  NOTE_PURPOSE_LABEL,
+  NOTE_PURPOSE_OPTIONS,
   NOTE_VALUE_UNCHANGED_HINT,
 } from '../../../headless/utils/projectNotesConstants'
 import type {
@@ -199,6 +202,16 @@ export default function ProjectNotesForm({
           value={values.access}
           onChange={(value) => set('access', value as ProjectNoteFormValues['access'])}
           ariaLabel="Access"
+        />
+      </Field>
+
+      <Field label={NOTE_PURPOSE_LABEL} hint={notePurposeHelp(values.purpose)}>
+        <SegmentedControl
+          options={NOTE_PURPOSE_OPTIONS.map(({ value, label }) => ({ value, label }))}
+          value={values.purpose}
+          onChange={(value) => set('purpose', value as ProjectNoteFormValues['purpose'])}
+          ariaLabel={NOTE_PURPOSE_LABEL}
+          testID="note-purpose"
         />
       </Field>
 

@@ -155,10 +155,14 @@ function Fields({ typed, note, open }: { typed?: LaunchCapsTyped; note?: string;
 const MEMORY: SyncKVStorage = { get: () => null, set: noop }
 const NO_TOKEN = { read: () => null, write: noop }
 
-function ProjectDefaults() {
+function ProjectDefaults({
+  caps = { spendUsdCap: 10, maxIterations: 2 },
+}: {
+  caps?: Record<string, number>
+}) {
   const [metadata, setMetadata] = useState<Record<string, unknown>>({
     icon: 'folder',
-    processDefaultCaps: { spendUsdCap: 10, maxIterations: 2 },
+    processDefaultCaps: caps,
   })
   return (
     <div className="flex w-full max-w-[640px] flex-col gap-3">
@@ -337,7 +341,7 @@ export const PROCESS_LAUNCH_SCENES: Scene[] = [
     component: 'ApprovalPanel (startFeatureWork) · LaunchCapsFields',
     group: 'Process',
     description:
-      'The launch card’s limits: spend, time, attempts, questions and each check’s timeout, folded to one line with the worst case the attempts come to. Each starts from the agent’s ask, else the project’s default, and goes with the approval. The device the capture and verify steps drive, and how the process has done, sit on the same card.',
+      'The launch card’s limits: spend, spend per step, time, attempts, questions and each check’s timeout, folded to one line with the worst case the attempts come to. Each starts from the agent’s ask, else the project’s default, and goes with the approval. The device the capture and verify steps drive, and how the process has done, sit on the same card.',
     states: [
       {
         id: 'card',
@@ -377,6 +381,13 @@ export const PROCESS_LAUNCH_SCENES: Scene[] = [
         render: () => <Fields typed={{ maxIterations: '0', questionCap: '-1' }} />,
       },
       {
+        id: 'step-spend',
+        title: 'Spend per step set',
+        description:
+          'The most one step may spend, beside the run’s spend limit. Empty — no limit — unless the project or the agent set one; a step that reaches it stops after that turn and waits.',
+        render: () => <Fields open typed={{ stepSpendCapUsd: '2' }} />,
+      },
+      {
         id: 'group',
         title: 'Across a group',
         description: 'A group’s limits leave each project’s defaults in force when empty.',
@@ -407,6 +418,12 @@ export const PROCESS_LAUNCH_SCENES: Scene[] = [
         title: 'Two set',
         description: 'A spend limit and attempts; the time limit is left to each launch.',
         render: () => <ProjectDefaults />,
+      },
+      {
+        id: 'step-spend',
+        title: 'Spend per step set',
+        description: 'The project starts every launch with a $2 limit on each step.',
+        render: () => <ProjectDefaults caps={{ spendUsdCap: 10, stepSpendUsdCap: 2 }} />,
       },
     ],
     play: () => <ProjectDefaults />,

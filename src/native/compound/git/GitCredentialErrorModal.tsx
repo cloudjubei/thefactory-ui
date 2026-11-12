@@ -1,4 +1,5 @@
 import { Text, View } from 'react-native'
+import { GIT_CREDENTIAL_FIX_TEXT } from '../../../headless'
 import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
@@ -10,26 +11,18 @@ export type GitCredentialErrorOp = 'push' | 'pull' | 'fetch' | 'commit'
 export interface GitCredentialErrorModalProps {
   isOpen: boolean
   onClose: () => void
-  /** Navigate to git credentials settings (mobile route:
-   *  `/settings/github`). Called instead of `onClose` so the host can
-   *  navigate AND dismiss in one go. */
+  /** Opens the git credentials settings — hosts pass `useGit().openCredentialSettings`
+   *  after dismissing. Called instead of `onClose`. */
   onOpenSettings: () => void
   op?: GitCredentialErrorOp
   message?: string
   repoUrl?: string
 }
 
-const OP_LABEL: Record<GitCredentialErrorOp, string> = {
-  push: 'push',
-  pull: 'pull',
-  fetch: 'fetch',
-  commit: 'commit and push',
-}
-
 /**
  * Native peer of web's [GitCredentialErrorModal](../../../web/compound/git/GitCredentialErrorModal.tsx)
  * — same prop surface, same content, rendered in a `Modal` with two
- * footer buttons (Dismiss + Open GitHub Settings).
+ * footer buttons (Dismiss + Update credentials).
  */
 export default function GitCredentialErrorModal({
   isOpen,
@@ -40,29 +33,27 @@ export default function GitCredentialErrorModal({
   repoUrl,
 }: GitCredentialErrorModalProps) {
   const { theme } = useNativeTheme()
-  const verb = op ? OP_LABEL[op] : 'access'
+  const verb = op ? GIT_CREDENTIAL_FIX_TEXT.ops[op] : GIT_CREDENTIAL_FIX_TEXT.anyOp
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Git credentials needed"
+      title={GIT_CREDENTIAL_FIX_TEXT.title}
       size="md"
       footer={
         <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: nativeSpace[2] }}>
           <Button variant="secondary" onPress={onClose}>
-            Dismiss
+            {GIT_CREDENTIAL_FIX_TEXT.dismiss}
           </Button>
-          <Button onPress={onOpenSettings}>Open GitHub Settings</Button>
+          <Button onPress={onOpenSettings}>{GIT_CREDENTIAL_FIX_TEXT.update}</Button>
         </View>
       }
     >
       <View style={{ gap: nativeSpace[3] }}>
-        <Alert variant="error">
-          {`Couldn't ${verb} — the git credentials configured for this project don't have access to its repository.`}
-        </Alert>
+        <Alert variant="error">{GIT_CREDENTIAL_FIX_TEXT.refused(verb)}</Alert>
         {repoUrl ? (
           <Text style={{ fontSize: 12, color: theme.text.muted }}>
-            Repository:{' '}
+            {GIT_CREDENTIAL_FIX_TEXT.repository}{' '}
             <Text style={{ fontFamily: 'Menlo', color: theme.text.secondary }}>{repoUrl}</Text>
           </Text>
         ) : null}
@@ -88,8 +79,7 @@ export default function GitCredentialErrorModal({
           </View>
         ) : null}
         <Text style={{ fontSize: 13, color: theme.text.secondary }}>
-          Update the access token in Settings → Git, or pick a credential set that has access to
-          this repository.
+          {GIT_CREDENTIAL_FIX_TEXT.hint}
         </Text>
       </View>
     </Modal>

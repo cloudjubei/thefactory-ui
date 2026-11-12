@@ -15,4 +15,8 @@ export interface ProcessTurnLimitView {
 export interface ProcessRetryPick {
   retryMode?: 'continue' | 'fresh'
   turnLimit?: ProcessTurnLimit
+  /** At a spend-limit stop: the raise as typed. */
+  spendText?: string
+  /** At a spend-limit stop: the amount the raise comes to, once it can be used. */
+  spendUsd?: number
 }

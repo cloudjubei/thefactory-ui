@@ -56,6 +56,7 @@ import {
   launchFeaturePreviewIds,
   launchFeatureRows,
   launchProofPlanRows,
+  setLaunchLiveCheck,
   processOpenWorkMetadata,
   processOpenWorkView,
   proofPlanMetadata,
@@ -761,6 +762,10 @@ function ToolApprovalPanel({
             onNotesChange={(featureId, notes) =>
               setProofPlanEdits((prev) => setLaunchProofNotes(proposal, prev, featureId, notes))
             }
+            onLiveCheckChange={(featureId, change) =>
+              setProofPlanEdits((prev) => setLaunchLiveCheck(proposal, prev, featureId, change))
+            }
+            {...(projectId ? { projectId } : {})}
             onSaveChange={setSaveProofPlans}
           />
         ) : features.length > 0 || check.problem === undefined ? (

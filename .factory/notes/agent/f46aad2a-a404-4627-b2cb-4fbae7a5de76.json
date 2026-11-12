@@ -1,0 +1,11 @@
+{
+  "label": "Native playground needs host react-native-web",
+  "value": "playground:native:build (uiTestServeApp throwaway worktrees) resolves node_modules from the host checkout (/Users/cloud/Documents/Work/thefactory-ui), not the sandbox /workspace. react-native-web is declared in package.json (^0.21.4) but must exist under that host node_modules. requestInstallPackage / allow + npm install in the sandbox does not fix native serve failures; run npm install on the host checkout instead. Sandbox still cannot run vite without a Rollup native binary — see also the note on serving the playground from a sandbox copy for THEFACTORY_TOOLS_DIR.",
+  "description": "Before native uiTestServeApp / playground:native:build captures",
+  "kind": "note",
+  "access": "open",
+  "author": "agent",
+  "id": "f46aad2a-a404-4627-b2cb-4fbae7a5de76",
+  "createdAt": "2026-11-11T14:44:04.949Z",
+  "updatedAt": "2026-11-11T14:44:04.949Z"
+}

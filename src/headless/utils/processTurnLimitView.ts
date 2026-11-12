@@ -17,6 +17,7 @@ import type {
   ProcessTurnLimit,
 } from 'thefactory-tools/types'
 
+import { processRetrySpendStart } from './processRetrySpendView'
 import { PROCESS_TURN_LIMIT_SLIDER_LABEL } from './processTurnLimitViewConstants'
 import type { ProcessRetryPick, ProcessTurnLimitView } from './processTurnLimitViewTypes'
 
@@ -66,11 +67,11 @@ export function processTurnLimitOfView(
   return { limitTurns: view.limited, maxTurns: view.maxTurns }
 }
 
-/** The retry choice of a park, when trying again lets the person pick how the step's agent starts or its limit. */
+/** The retry choice of a park, when trying again lets the person pick how the step's agent starts, its turns or its spend. */
 export function processRetryChoiceOf(
   choices: readonly ProcessParkChoice[],
 ): ProcessParkChoice | undefined {
-  return choices.find((c) => c.choice === 'retry' && (c.retry || c.turnLimit))
+  return choices.find((c) => c.choice === 'retry' && (c.retry || c.turnLimit || c.spendCap))
 }
 
 /**
@@ -83,8 +84,10 @@ export function processRetryPickStart(
   moreTries?: ProcessManagerMoreTries,
 ): ProcessRetryPick {
   const limit = choice.turnLimit
+  const spend = choice.spendCap
   return {
     ...(choice.retry ? { retryMode: choice.retry.defaultMode } : {}),
+    ...(spend ? { spendText: processRetrySpendStart(spend), spendUsd: spend.suggestedUsd } : {}),
     ...(limit
       ? {
           turnLimit:

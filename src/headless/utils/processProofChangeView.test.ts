@@ -103,6 +103,7 @@ describe('proofChangeView', () => {
       'ui-before-after',
       'ui-video',
       'live-backend',
+      'live-check',
       'manual',
     ])
   })

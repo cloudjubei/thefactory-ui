@@ -6,6 +6,11 @@ export const LAUNCH_CAP_LABELS: Record<
   { label: string; unit: string; hint: string }
 > = {
   spendCapUsd: { label: 'Spend limit', unit: '$', hint: 'For the whole run.' },
+  stepSpendCapUsd: {
+    label: 'Spend per step',
+    unit: '$',
+    hint: 'The most one step may spend before it stops for you.',
+  },
   wallClockMs: { label: 'Time limit', unit: 'minutes', hint: 'From launch to the end.' },
   maxIterations: {
     label: 'Attempts',
@@ -25,6 +30,7 @@ export const LAUNCH_CAPS_COPY = {
   heading: 'Limits',
   noLimits: 'No limits',
   noQuestions: 'No questions',
+  perStep: (amount: string) => `${amount} a step`,
   fromProject: 'Project default',
   projectDefault: (text: string) => `Project default: ${text}`,
   agentAsked: (text: string) => `Agent asked: ${text}`,

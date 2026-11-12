@@ -14,6 +14,10 @@ export interface ProposalChip {
   agent: boolean
   /** The device a capture or verify step drives, when the host named one. */
   device?: string
+  /** The step's kind — where a live check placed on the card goes. */
+  stepKind?: ProcessProposalNode['kind']
+  /** The step is a feature's live check on a test account. */
+  liveCheck?: true
 }
 
 /** One feature row of the proposal: the feature, and the pipeline it will run through. */
@@ -59,7 +63,9 @@ function chip(node: ProcessProposalNode, device: string | undefined): ProposalCh
     id: node.id,
     name,
     agent: node.agent,
+    stepKind: node.kind,
     ...(device && drivesDevice(node) ? { device } : {}),
+    ...(node.liveCheck ? { liveCheck: true as const } : {}),
   }
 }
 

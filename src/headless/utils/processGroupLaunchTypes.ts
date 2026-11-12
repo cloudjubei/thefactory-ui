@@ -4,6 +4,7 @@ import type {
   ProjectProcessDefaultCaps,
 } from 'thefactory-tools/types'
 import type { FakeDataInProduct } from './fakeDataInProductTypes'
+import type { GroupLegLiveCheckOffer } from './liveCheckLaunchTypes'
 import type { TicketLaunchMove } from './groupTicketTypes'
 
 /** One project's part of a group run, as a launch asks for it. */
@@ -41,6 +42,8 @@ export interface ProcessGroupLaunchLeg {
   alreadyDone?: string[]
   /** The project's fake-data choice, present only when this leg's work is proved on app screens. */
   fakeDataInProduct?: FakeDataInProduct
+  /** The features of this leg offered a live check on a test account; absent when none is. */
+  liveCheckOffers?: GroupLegLiveCheckOffer[]
 }
 
 /** What a group launch would start, and why it cannot when it cannot. */

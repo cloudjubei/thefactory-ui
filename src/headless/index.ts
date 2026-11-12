@@ -2620,8 +2620,11 @@ export {
   GIT_CREDENTIALS_EVENT,
   GIT_CREDENTIALS_TIP,
   GIT_CREDENTIALS_TITLE,
+  GIT_CREDENTIAL_FIX_TEXT,
   GIT_CREDENTIAL_HOST_UNKNOWN,
 } from './utils/gitCredentialConstants'
+export { credentialSettingsOpener, gitOpError } from './utils/gitOpError'
+export type { GitOpError } from './utils/gitOpErrorTypes'
 export {
   AGENT_RUNNER_EVENT,
   LLM_CONFIGS_EVENT,
@@ -3146,6 +3149,24 @@ export {
   PROCESS_TURN_LIMIT_SAVE_LABEL,
   PROCESS_TURN_LIMIT_SLIDER_LABEL,
 } from './utils/processTurnLimitViewConstants'
+export { processRunStepSpendChip } from './utils/processStepSpendView'
+export {
+  processRetrySpendAmount,
+  processRetrySpendPick,
+  processRetrySpendReady,
+  processRetrySpendStart,
+  processRetrySpendView,
+} from './utils/processRetrySpendView'
+export type { ProcessRetrySpendView } from './utils/processRetrySpendViewTypes'
+export {
+  PROCESS_RETRY_SPEND_HINT,
+  PROCESS_RETRY_SPEND_LABEL,
+  PROCESS_RETRY_SPEND_TOO_LOW,
+} from './utils/processRetrySpendViewConstants'
+export {
+  PROCESS_STEP_SPEND_CHIP,
+  PROCESS_STEP_SPEND_TITLE,
+} from './utils/processStepSpendViewConstants'
 export { projectManagerSettingsOf, processRunManagerView } from './utils/processManagerView'
 export type { ProcessManagerAutonomy, ProcessRunStopHolder } from 'thefactory-tools/types'
 export { processRunStopHolder, processRunStopHolderOf } from 'thefactory-tools/utils'
@@ -3859,10 +3880,49 @@ export {
   proofPlanMetadata,
   proofPlanOfDraft,
   proofPlanSummaryLine,
+  setLaunchLiveCheck,
   setLaunchProofNotes,
   toggleLaunchProofKind,
   toggleProofPlanDraftKind,
 } from './utils/proofPlanView'
+export {
+  changeGroupLiveCheckPick,
+  changeLiveCheckDraft,
+  groupLaunchLiveCheckMetadata,
+  groupLegLiveCheckRows,
+  isLiveCheckMode,
+  launchLiveCheckView,
+  launchStartDraft,
+  liveCheckDraftOf,
+  liveCheckOfferDraft,
+  liveCheckOptionsOf,
+  liveCheckSecretHint,
+  withLiveCheckChip,
+  withLiveCheckDraft,
+} from './utils/liveCheckLaunch'
+export * from './utils/liveCheckLaunchConstants'
+export type {
+  GroupLaunchLiveCheckMetadata,
+  GroupLaunchLiveCheckPicks,
+  GroupLegLiveCheckOffer,
+  GroupLegLiveCheckRow,
+  LaunchLiveCheckView,
+  LiveCheckChoice,
+  LiveCheckChoiceOption,
+  LiveCheckDraft,
+  LiveCheckMode,
+  LiveCheckOffer,
+  LiveCheckOptions,
+} from './utils/liveCheckLaunchTypes'
+export {
+  isLiveCheckStep,
+  isLiveCheckWatchStep,
+  liveCheckWatchDecidedLine,
+  liveCheckWatchState,
+  liveCheckWatchView,
+} from './utils/liveCheckWatch'
+export * from './utils/liveCheckWatchConstants'
+export type { LiveCheckWatchState, LiveCheckWatchView } from './utils/liveCheckWatchTypes'
 export {
   PROOF_KIND_STATUS_TONES,
   PROOF_KIND_STATUS_WORDS,
@@ -4216,7 +4276,11 @@ export {
   noteFormErrors,
   noteFormValues,
   noteKindLabel,
+  noteHidesValue,
   notePatchBody,
+  notePurposeHelp,
+  notePurposeLabel,
+  openTestAccountNotes,
   projectNoteChipView,
   sortNotes,
   linkedNoteState,
@@ -4237,9 +4301,14 @@ export {
   NOTE_VALUE_UNCHANGED_HINT,
   NOTE_LINK_PARAM,
   NOTE_LINK_MISSING,
+  NOTE_PURPOSE_HELP,
+  NOTE_PURPOSE_LABEL,
+  NOTE_PURPOSE_OPTIONS,
+  NOTE_TEST_ACCOUNTS_HIDDEN,
 } from './utils/projectNotesConstants'
 export type {
   LinkedNoteState,
+  NotePurposeChoice,
   ProjectNoteChipView,
   ProjectNoteCreateBody,
   ProjectNoteFormErrors,

@@ -10,7 +10,11 @@ import {
 import { useAuth } from '../api/AuthContext'
 import { invalidateReferenceProject } from './useReferences'
 import { sortNotes } from '../utils/projectNotes'
-import type { ProjectNoteCreateBody, ProjectNotePatchBody } from '../utils/projectNotesTypes'
+import type {
+  NotePatchWire,
+  ProjectNoteCreateBody,
+  ProjectNotePatchBody,
+} from '../utils/projectNotesTypes'
 
 /** A notes store — a project's or a group's — as the notes UI drives it. */
 export type UseNotes<N> = {
@@ -92,7 +96,7 @@ export function useProjectNotes(projectId: string | undefined): UseProjectNotes 
     async (noteId: string, patch: ProjectNotePatchBody) => {
       await updateProjectNote({
         path: { projectId: requireProject(), noteId },
-        body: patch,
+        body: patch as NotePatchWire,
         throwOnError: true,
       })
       invalidateReferenceProject(requireProject())

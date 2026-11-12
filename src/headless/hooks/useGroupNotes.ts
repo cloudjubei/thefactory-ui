@@ -10,7 +10,11 @@ import {
 import { useAuth } from '../api/AuthContext'
 import { invalidateReferenceGroup } from './useReferences'
 import { sortNotes } from '../utils/projectNotes'
-import type { ProjectNoteCreateBody, ProjectNotePatchBody } from '../utils/projectNotesTypes'
+import type {
+  NotePatchWire,
+  ProjectNoteCreateBody,
+  ProjectNotePatchBody,
+} from '../utils/projectNotesTypes'
 import type { UseNotes } from './useProjectNotes'
 
 /**
@@ -68,7 +72,7 @@ export function useGroupNotes(groupId: string | undefined): UseNotes<GroupNoteSu
     async (noteId: string, patch: ProjectNotePatchBody) => {
       await updateGroupNote({
         path: { groupId: requireGroup(), noteId },
-        body: patch,
+        body: patch as NotePatchWire,
         throwOnError: true,
       })
       invalidateReferenceGroup(requireGroup())

@@ -35,6 +35,7 @@ export {
   type GitCredentialErrorModalProps,
   type GitCredentialErrorOp,
 } from './GitCredentialErrorModal'
+export { default as GitErrorAlert, type GitErrorAlertProps } from './GitErrorAlert'
 
 // Dialog family for the per-project Git view — each takes `isOpen` /
 // `onClose` and drives the corresponding mutation via `useGit()`.

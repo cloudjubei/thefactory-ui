@@ -2,9 +2,9 @@ import type {
   GetProcessRunEvidenceResponse,
   ProcessDefinition,
   ProcessInput,
-  ProcessRun,
   ReviewEvidenceRef,
 } from '../../headless/api/generated/types.gen'
+import type { ProcessRun } from 'thefactory-tools/types'
 import { FAKE_PROJECT_ID } from './projects'
 import { FAKE_SCRIPT_LOGS } from './scriptStepRun'
 import {

@@ -72,6 +72,7 @@ import { PROJECT_OVERVIEW_MODEL_SCENES } from '../scenes/projectOverviewModel'
 import { PROOF_CHANGE_SCENES } from '../scenes/proofChange'
 import { FEATURE_SPLIT_SCENES } from '../scenes/featureSplit'
 import { FAKE_DATA_IN_PRODUCT_SCENES } from '../scenes/fakeDataInProduct'
+import { LIVE_CHECK_SCENES } from '../scenes/liveCheck'
 import { REGENERATED_MERGE_SCENES } from '../scenes/regeneratedMerge'
 import { NEEDS_YOU_REFERENCE_SCENES } from '../scenes/needsYouReferences'
 import { RUN_ACCESS_SCENES } from '../scenes/runAccess'
@@ -82,6 +83,7 @@ import { RUN_TIME_DETAILS_SCENES } from '../scenes/runTimeDetails'
 import { SEND_CHAT_MESSAGE_SCENES } from '../scenes/sendChatMessage'
 import { STORY_CHANGE_ERROR_SCENES } from '../scenes/storyChangeErrors'
 import { STUCK_SCENES } from '../scenes/stuck'
+import { SPEND_LIMIT_SCENES } from '../scenes/spendLimit'
 import { STORY_WORK_SCENES } from '../scenes/storyWork'
 import { GROUP_TICKETS_SCENES } from '../scenes/groupTickets'
 import { TICKET_SCENES } from '../scenes/ticketFlow'
@@ -150,6 +152,7 @@ export const SCENES: readonly Scene[] = [
   ...PROOF_CHANGE_SCENES,
   ...FEATURE_SPLIT_SCENES,
   ...FAKE_DATA_IN_PRODUCT_SCENES,
+  ...LIVE_CHECK_SCENES,
   ...BEFORE_AFTER_VIDEO_SCENES,
   ...ANSWER_FILES_SCENES,
   ...VIDEO_SETTINGS_SCENES,
@@ -160,6 +163,7 @@ export const SCENES: readonly Scene[] = [
   ...DROPPED_CHANGE_SCENES,
   ...SEND_TO_DEVELOPER_UNCHECKED_SCENES,
   ...CIRCLING_SCENES,
+  ...SPEND_LIMIT_SCENES,
   ...REGENERATED_MERGE_SCENES,
   ...RUN_ACCESS_SCENES,
   ...TRY_ON_PHONE_SCENES,

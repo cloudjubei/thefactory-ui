@@ -83,6 +83,7 @@ const START_BODY_KEYS: readonly string[] = [
   'effort',
   'turnLimit',
   'spendCapUsd',
+  'stepSpendCapUsd',
   'wallClockMs',
   'maxIterations',
   'questionCap',

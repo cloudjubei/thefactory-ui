@@ -61,8 +61,11 @@ import {
   VISIBLE_VIDEO_STAYS_OFFER,
 } from '../scenes/proofChangeFixtures'
 import { FAKE_DATA_VIEWS } from './fakeDataViews'
+import { LIVE_CHECK_VIEWS } from './liveCheckViews'
 import { FILE_PREVIEW_VIEWS } from './filePreviewViews'
+import { GIT_CREDENTIAL_VIEWS } from './gitCredentialViews'
 import { SCRIPT_STEP_VIEWS } from './scriptStepViews'
+import { SPEND_LIMIT_VIEWS } from './spendLimitViews'
 import { SEND_TO_DEVELOPER_VIEWS } from './sendToDeveloperViews'
 import { TICKET_VIEWS } from './ticketViews'
 import { TRY_ON_PHONE_VIEWS } from './tryOnPhoneViews'
@@ -587,8 +590,11 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   ...VARIANT_VIEWS,
   ...TRY_ON_PHONE_VIEWS,
   ...SCRIPT_STEP_VIEWS,
+  ...SPEND_LIMIT_VIEWS,
   ...FAKE_DATA_VIEWS,
+  ...LIVE_CHECK_VIEWS,
   ...FILE_PREVIEW_VIEWS,
+  ...GIT_CREDENTIAL_VIEWS,
   ...TICKET_VIEWS,
   ...SEND_TO_DEVELOPER_VIEWS,
 ]

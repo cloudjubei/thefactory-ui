@@ -1,3 +1,4 @@
+import { GIT_CREDENTIAL_FIX_TEXT } from '../../../headless'
 import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
@@ -7,10 +8,8 @@ export type GitCredentialErrorOp = 'push' | 'pull' | 'fetch' | 'commit'
 export type GitCredentialErrorModalProps = {
   isOpen: boolean
   onClose: () => void
-  /** Navigate the user to wherever the host renders the git credentials
-   *  settings (web: `/settings?tab=github`, desktop: same, mobile:
-   *  `/settings/github`). Called instead of `onClose` so the host can
-   *  navigate AND dismiss in one go if it wants. */
+  /** Opens the git credentials settings — hosts pass `useGit().openCredentialSettings`
+   *  after dismissing. Called instead of `onClose`. */
   onOpenSettings: () => void
   /** Which remote op tripped the error — drives the verb in the headline. */
   op?: GitCredentialErrorOp
@@ -20,16 +19,9 @@ export type GitCredentialErrorModalProps = {
   repoUrl?: string
 }
 
-const OP_LABEL: Record<GitCredentialErrorOp, string> = {
-  push: 'push',
-  pull: 'pull',
-  fetch: 'fetch',
-  commit: 'commit and push',
-}
-
 /**
- * App-wide modal shown when a git op fails because the configured GitHub
- * credentials don't grant access to the project's repo. Mounted once per
+ * App-wide modal shown when a git op fails because the configured git
+ * credentials don't grant access to the project's repo, on any git host. Mounted once per
  * app (web + desktop) by reading `useGit().credentialError` and gating
  * `isOpen` on it. The native peer ([./GitCredentialErrorModal] native)
  * mirrors the prop surface for mobile.
@@ -42,37 +34,33 @@ export default function GitCredentialErrorModal({
   message,
   repoUrl,
 }: GitCredentialErrorModalProps) {
-  const verb = op ? OP_LABEL[op] : 'access'
+  const verb = op ? GIT_CREDENTIAL_FIX_TEXT.ops[op] : GIT_CREDENTIAL_FIX_TEXT.anyOp
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Git credentials needed" size="md">
+    <Modal isOpen={isOpen} onClose={onClose} title={GIT_CREDENTIAL_FIX_TEXT.title} size="md">
       <div className="flex flex-col gap-3">
-        <Alert variant="error">
-          {`Couldn't ${verb} — the git credentials configured for this project don't have access to its repository.`}
-        </Alert>
+        <Alert variant="error">{GIT_CREDENTIAL_FIX_TEXT.refused(verb)}</Alert>
         {repoUrl ? (
           <div className="text-xs text-(--text-muted)">
-            Repository: <code className="font-mono text-(--text-secondary)">{repoUrl}</code>
+            {GIT_CREDENTIAL_FIX_TEXT.repository}{' '}
+            <code className="font-mono text-(--text-secondary)">{repoUrl}</code>
           </div>
         ) : null}
         {message ? (
           <details className="text-xs text-(--text-secondary)">
             <summary className="cursor-pointer select-none text-(--text-muted)">
-              Show technical details
+              {GIT_CREDENTIAL_FIX_TEXT.details}
             </summary>
             <pre className="mt-1 overflow-auto whitespace-pre-wrap break-words rounded border border-(--border-subtle) bg-(--surface-muted) p-2 font-mono text-[11px] text-(--text-primary)">
               {message}
             </pre>
           </details>
         ) : null}
-        <p className="text-sm text-(--text-secondary)">
-          Update the access token in Settings → Git, or pick a credential set that has access to
-          this repository.
-        </p>
+        <p className="text-sm text-(--text-secondary)">{GIT_CREDENTIAL_FIX_TEXT.hint}</p>
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={onClose}>
-            Dismiss
+            {GIT_CREDENTIAL_FIX_TEXT.dismiss}
           </Button>
-          <Button onClick={onOpenSettings}>Open GitHub Settings</Button>
+          <Button onClick={onOpenSettings}>{GIT_CREDENTIAL_FIX_TEXT.update}</Button>
         </div>
       </div>
     </Modal>

@@ -608,6 +608,7 @@ export type AgentToolsResultType =
   | 'errored_repeated'
   | 'max_turns_reached'
   | 'stuck'
+  | 'host_stopped'
   | 'force_finish'
 
 export type CompletionProviderState = {
@@ -1134,11 +1135,23 @@ export type ProofKind =
   | 'ui-before-after'
   | 'ui-video'
   | 'live-backend'
+  | 'live-check'
   | 'manual'
+
+export type LiveCheckMode = 'required' | 'ask-me'
+
+export type LiveCheckOptions = {
+  mode: LiveCheckMode
+  beforeAndAfter?: boolean
+}
 
 export type ProofPlan = {
   kinds: Array<ProofKind>
   notes?: string
+  liveCheck?: {
+    mode: LiveCheckMode
+    beforeAndAfter?: boolean
+  }
 }
 
 export type AgentRunCaptureAccess = {
@@ -1147,6 +1160,10 @@ export type AgentRunCaptureAccess = {
   proofPlan?: {
     kinds: Array<ProofKind>
     notes?: string
+    liveCheck?: {
+      mode: LiveCheckMode
+      beforeAndAfter?: boolean
+    }
   }
 }
 
@@ -1183,6 +1200,7 @@ export type ProcessParkReason =
   | 'step-unchecked'
   | 'step-errored'
   | 'turn-limit'
+  | 'spend-limit'
   | 'loop-exhausted'
   | 'no-steps'
   | 'unknown-step'
@@ -1407,6 +1425,7 @@ export type ProcessResumeChoice =
   | 'close-unmerged'
   | 'accept-dropped-change'
   | 'accept-with-follow-ups'
+  | 'split-follow-up'
 
 export type ProcessParkAction = ProcessResumeChoice | 'delegate'
 
@@ -1480,7 +1499,7 @@ export type ChatOpenQuestionsCard = {
   featureIds?: Array<string>
 }
 
-export type CompletionStopCause = 'overseer' | 'provider' | 'agent' | 'turns'
+export type CompletionStopCause = 'overseer' | 'provider' | 'agent' | 'turns' | 'limit'
 
 export type CompletionStopNotice = {
   cause: CompletionStopCause
@@ -2062,6 +2081,26 @@ export type AgentTypeSlotProposal = {
 export type AgentTypeLaunchOffer = {
   agentTypes: Array<AgentTypeOption>
   agentTypeSlots: Array<AgentTypeSlotProposal>
+}
+
+export type ProvingStepShape = {
+  agentType?: string
+  agentRole?:
+    | 'developer'
+    | 'developer-verifier'
+    | 'verifier'
+    | 'capture'
+    | 'judge'
+    | 'remedy'
+    | 'report'
+    | 'analyst'
+    | 'designer'
+    | 'fixer'
+  agentProves?: false
+  liveCheck?: {
+    mode: LiveCheckMode
+    beforeAndAfter?: boolean
+  }
 }
 
 export type CapabilityId =
@@ -3627,6 +3666,7 @@ export type ProcessManagerSettingsInput = {
 
 export type ProcessBudget = {
   spendUsdCap?: number
+  stepSpendUsdCap?: number
   wallClockMs?: number
   questionCap?: number
   checkTimeoutMs?: number
@@ -3635,6 +3675,7 @@ export type ProcessBudget = {
 
 export type ProjectProcessDefaultCaps = {
   spendUsdCap?: number
+  stepSpendUsdCap?: number
   wallClockMs?: number
   maxIterations?: number
 }
@@ -3668,6 +3709,7 @@ export type ProjectRegistryMetadata = {
   }
   processDefaultCaps?: {
     spendUsdCap?: number
+    stepSpendUsdCap?: number
     wallClockMs?: number
     maxIterations?: number
   }
@@ -3718,6 +3760,7 @@ export type ProjectRegistryEntry = {
     }
     processDefaultCaps?: {
       spendUsdCap?: number
+      stepSpendUsdCap?: number
       wallClockMs?: number
       maxIterations?: number
     }
@@ -3805,9 +3848,14 @@ export type Feature = {
       | 'ui-before-after'
       | 'ui-video'
       | 'live-backend'
+      | 'live-check'
       | 'manual'
     >
     notes?: string
+    liveCheck?: {
+      mode: 'required' | 'ask-me'
+      beforeAndAfter?: boolean
+    }
   }
   blockers?: Array<string>
   rejection?: string
@@ -3835,9 +3883,14 @@ export type Story = {
       | 'ui-before-after'
       | 'ui-video'
       | 'live-backend'
+      | 'live-check'
       | 'manual'
     >
     notes?: string
+    liveCheck?: {
+      mode: 'required' | 'ask-me'
+      beforeAndAfter?: boolean
+    }
   }
   externalIds?: Array<ExternalRef>
   notes?: Array<StoryNote>
@@ -3911,9 +3964,14 @@ export type ChatContextArguments = {
         | 'ui-before-after'
         | 'ui-video'
         | 'live-backend'
+        | 'live-check'
         | 'manual'
       >
       notes?: string
+      liveCheck?: {
+        mode: 'required' | 'ask-me'
+        beforeAndAfter?: boolean
+      }
     }
     externalIds?: Array<ExternalRef>
     notes?: Array<StoryNote>
@@ -3941,9 +3999,14 @@ export type ChatContextArguments = {
         | 'ui-before-after'
         | 'ui-video'
         | 'live-backend'
+        | 'live-check'
         | 'manual'
       >
       notes?: string
+      liveCheck?: {
+        mode: 'required' | 'ask-me'
+        beforeAndAfter?: boolean
+      }
     }
     blockers?: Array<string>
     rejection?: string
@@ -4066,9 +4129,14 @@ export type ChatContextArgumentsStory = {
         | 'ui-before-after'
         | 'ui-video'
         | 'live-backend'
+        | 'live-check'
         | 'manual'
       >
       notes?: string
+      liveCheck?: {
+        mode: 'required' | 'ask-me'
+        beforeAndAfter?: boolean
+      }
     }
     externalIds?: Array<ExternalRef>
     notes?: Array<StoryNote>
@@ -4100,9 +4168,14 @@ export type ChatContextArgumentsFeature = {
         | 'ui-before-after'
         | 'ui-video'
         | 'live-backend'
+        | 'live-check'
         | 'manual'
       >
       notes?: string
+      liveCheck?: {
+        mode: 'required' | 'ask-me'
+        beforeAndAfter?: boolean
+      }
     }
     externalIds?: Array<ExternalRef>
     notes?: Array<StoryNote>
@@ -4130,9 +4203,14 @@ export type ChatContextArgumentsFeature = {
         | 'ui-before-after'
         | 'ui-video'
         | 'live-backend'
+        | 'live-check'
         | 'manual'
       >
       notes?: string
+      liveCheck?: {
+        mode: 'required' | 'ask-me'
+        beforeAndAfter?: boolean
+      }
     }
     blockers?: Array<string>
     rejection?: string
@@ -4166,9 +4244,14 @@ export type ChatContextArgumentsAgentRun = {
         | 'ui-before-after'
         | 'ui-video'
         | 'live-backend'
+        | 'live-check'
         | 'manual'
       >
       notes?: string
+      liveCheck?: {
+        mode: 'required' | 'ask-me'
+        beforeAndAfter?: boolean
+      }
     }
     externalIds?: Array<ExternalRef>
     notes?: Array<StoryNote>
@@ -4201,9 +4284,14 @@ export type ChatContextArgumentsAgentRunFeature = {
         | 'ui-before-after'
         | 'ui-video'
         | 'live-backend'
+        | 'live-check'
         | 'manual'
       >
       notes?: string
+      liveCheck?: {
+        mode: 'required' | 'ask-me'
+        beforeAndAfter?: boolean
+      }
     }
     externalIds?: Array<ExternalRef>
     notes?: Array<StoryNote>
@@ -4231,9 +4319,14 @@ export type ChatContextArgumentsAgentRunFeature = {
         | 'ui-before-after'
         | 'ui-video'
         | 'live-backend'
+        | 'live-check'
         | 'manual'
       >
       notes?: string
+      liveCheck?: {
+        mode: 'required' | 'ask-me'
+        beforeAndAfter?: boolean
+      }
     }
     blockers?: Array<string>
     rejection?: string
@@ -5547,6 +5640,7 @@ export type CliRunResult = {
     reason: string
     key: string
   }
+  hostStop?: string
 }
 
 export type CliTurnLimits = {
@@ -11307,6 +11401,8 @@ export type ShadowGitState =
 
 export type ProjectNoteKind = 'note' | 'secret'
 
+export type ProjectNotePurpose = 'test-accounts' | 'test-device'
+
 export type ProjectNoteEntry = {
   id: string
   projectId: string
@@ -11316,6 +11412,7 @@ export type ProjectNoteEntry = {
   description?: string
   access: ProjectNoteAccess
   author: ProjectNoteAuthor
+  purpose?: 'test-accounts' | 'test-device'
   createdAt: string
   updatedAt: string
 }
@@ -11328,6 +11425,7 @@ export type GroupNoteEntry = {
   description?: string
   access: ProjectNoteAccess
   author: ProjectNoteAuthor
+  purpose?: 'test-accounts' | 'test-device'
   createdAt: string
   updatedAt: string
 } & {
@@ -11341,6 +11439,7 @@ export type GroupNoteCreateInput = {
   description?: string
   access: ProjectNoteAccess
   author: ProjectNoteAuthor
+  purpose?: 'test-accounts' | 'test-device'
 } & {
   groupId: string
 }
@@ -11353,6 +11452,7 @@ export type ProjectNoteCreateInput = {
   description?: string
   access: ProjectNoteAccess
   author: ProjectNoteAuthor
+  purpose?: 'test-accounts' | 'test-device'
 }
 
 export type ProjectNoteUpdateInput = {
@@ -11362,6 +11462,7 @@ export type ProjectNoteUpdateInput = {
   description?: string
   access?: 'open' | 'ask'
   author?: 'user' | 'agent'
+  purpose?: 'test-accounts' | 'test-device'
 }
 
 export type GroupNoteSummary = {
@@ -11371,6 +11472,7 @@ export type GroupNoteSummary = {
   description?: string
   access: ProjectNoteAccess
   author: ProjectNoteAuthor
+  purpose?: 'test-accounts' | 'test-device'
   createdAt: string
   updatedAt: string
 } & {
@@ -11716,6 +11818,62 @@ export type KnowledgeEvaluationDepthResume = {
   role: 'baseline' | 'after'
   fromMinDepth: number
   toMinDepth: number
+}
+
+export type TestAccountsSummary = {
+  labels: Array<string>
+  openNotes: Array<string>
+  unreadNotes: Array<string>
+}
+
+export type LiveCheckProjectFacts = {
+  platform?: {
+    language?: string
+    framework?: string
+    webRecipe?: string
+    projectApp?: string
+    serveProblem?: string
+    designPlayground?: string
+    fakeBackend?: string
+    mobileFakeBackend?: string
+    mobileFakeData?: string
+    mobileCaptureProblem?: string
+    changedPaths?: Array<string>
+  }
+  accounts: TestAccountsSummary
+  watchable?: boolean
+}
+
+export type ChangeScreensNeed = 'required' | 'not-required' | 'unknown'
+
+export type UiChangeFeature = {
+  title: string
+  description: string
+} & {
+  acceptance?: string
+  files?: Array<string>
+  context?: Array<string>
+}
+
+export type LiveCheckChangeFacts = {
+  screens: ChangeScreensNeed
+  features?: Array<UiChangeFeature>
+  note?: string
+}
+
+export type LiveCheckOfferInput = {
+  project: LiveCheckProjectFacts
+  change: LiveCheckChangeFacts
+}
+
+export type FakeDataSetupPlatform = 'android' | 'react-native' | 'web' | 'ios'
+
+export type LiveCheckOffer = {
+  platform: FakeDataSetupPlatform
+  accounts: Array<string>
+  recommended?: 'required' | 'ask-me'
+  advice: string
+  openNote?: true
 }
 
 export type HistoryPoint = {
@@ -12659,7 +12817,41 @@ export type ProjectFilesRegeneration =
       reason: string
     }
 
+export type MobileLiveSessionInput = {
+  deviceId: string
+  avd?: string
+  build?: {
+    fakeData?: unknown
+    fakeBackend?: unknown
+  }
+  captureDeviceIds: Array<string>
+}
+
 export type MobilePlatform = 'android' | 'ios'
+
+export type MobileSecretTypingSession = {
+  platform: MobilePlatform
+  deviceId: string
+  live?: true
+  fakeData?: unknown
+  fakeBackend?: unknown
+}
+
+export type LiveCheckAvdChoice =
+  | {
+      avd: string
+      note?: string
+    }
+  | {
+      problem: string
+    }
+
+export type TestAccountPart = 'username' | 'password'
+
+export type TestAccountSecretRequest = {
+  account: string
+  part: TestAccountPart
+}
 
 export type MobileBounds = {
   x: number
@@ -12684,6 +12876,7 @@ export type MobileNode = {
   clickable?: boolean
   focused?: boolean
   password?: boolean
+  scrollable?: boolean
 }
 
 export type MobileNodeSelector = {
@@ -12771,6 +12964,21 @@ export type BootEmulatorResult = {
   platform: MobilePlatform
   avd?: string
   name?: string
+  started: boolean
+}
+
+export type MobileStartedDevice = {
+  platform: MobilePlatform
+  deviceId: string
+  avd?: string
+  name?: string
+}
+
+export type MobileDeviceStopStatus = 'stopped' | 'not-running' | 'refused'
+
+export type MobileDeviceStop = {
+  status: MobileDeviceStopStatus
+  detail?: string
 }
 
 export type MobileSimulator = {
@@ -13033,6 +13241,7 @@ export type OpenMobileSessionOptions = {
   activity?: string
   deviceId?: string
   startScreen?: string
+  live?: boolean
 }
 
 export type MobileSessionResult = {
@@ -13042,6 +13251,7 @@ export type MobileSessionResult = {
   appId?: string
   fakeBackend?: string
   fakeData?: string
+  live?: true
 }
 
 export type MobileSessionInfo = {
@@ -13103,13 +13313,81 @@ export type MobileRecordingStep =
   | {
       restartApp: true
     }
+  | {
+      scrollTo: MobileNodeSelector
+      at?: number
+    }
+
+export type MobileScrolledTo = {
+  topPx: number
+  targetPx: number
+  atPx: number
+  moves: number
+}
 
 export type MobileRecordingStepResult = {
   step: number
   ok: boolean
   detail?: string
   error?: string
+  scrolledTo?: {
+    topPx: number
+    targetPx: number
+    atPx: number
+    moves: number
+  }
 }
+
+export type MobileRecordingStepOutcome = {
+  sessionId: string
+  ok: boolean
+  error?: string
+  detail?: string
+  scrolledTo?: {
+    topPx: number
+    targetPx: number
+    atPx: number
+    moves: number
+  }
+}
+
+export type MobileSwipeLine = {
+  x1: number
+  y1: number
+  x2: number
+  y2: number
+}
+
+export type MobileScrollSearchDirection = 'forward' | 'back'
+
+export type MobileScrollSearch = {
+  direction: MobileScrollSearchDirection
+  turned: boolean
+}
+
+export type MobileScrollPlanInput = {
+  topPx: number
+  container: MobileBounds
+  atPx: number
+  lossPx: number
+  tolerancePx: number
+}
+
+export type MobileScrollPlan =
+  | {
+      kind: 'in-place'
+      offsetPx: number
+    }
+  | {
+      kind: 'swipe'
+      offsetPx: number
+      swipedPx: number
+      swipe: MobileSwipeLine
+    }
+  | {
+      kind: 'outside'
+      offsetPx: number
+    }
 
 export type MobileScreenshotResult = {
   sessionId: string
@@ -13226,12 +13504,14 @@ export type SessionCeilingEvent = {
   }
 }
 
-export type ProcessCleanupItemKind = 'project-note' | 'story-note' | 'path' | 'branch'
+export type ProcessCleanupAgentItemKind = 'project-note' | 'story-note' | 'path' | 'branch'
+
+export type ProcessCleanupItemKind = ProcessCleanupAgentItemKind | 'device'
 
 export type ProcessCleanupRegistrar = 'agent' | 'host'
 
 export type ProcessCleanupItemInput = {
-  kind: ProcessCleanupItemKind
+  kind: ProcessCleanupAgentItemKind
   ref: string
   reason: string
   storyId?: string
@@ -13247,6 +13527,12 @@ export type ProcessCleanupItem = {
   registeredBy: ProcessCleanupRegistrar
   defaultSelected: boolean
   at?: number
+  device?: {
+    platform: MobilePlatform
+    deviceId: string
+    avd?: string
+    name?: string
+  }
 }
 
 export type ProcessRunCleanup = {
@@ -13259,7 +13545,7 @@ export type ProcessRunCleanup = {
 
 export type ProcessCleanupListItem = {
   id: string
-  kind: 'project-note' | 'story-note' | 'path' | 'branch'
+  kind: ProcessCleanupAgentItemKind | 'device'
   ref: string
   storyId?: string
   label: string
@@ -13267,6 +13553,12 @@ export type ProcessCleanupListItem = {
   registeredBy: 'agent' | 'host'
   defaultSelected: boolean
   at?: number
+  device?: {
+    platform: MobilePlatform
+    deviceId: string
+    avd?: string
+    name?: string
+  }
   selected: boolean
 }
 
@@ -14072,6 +14364,8 @@ export type ProcessStepKind =
   | 'cleanup'
   | 'script'
 
+export type ProcessGateKind = 'design' | 'live-check'
+
 export type ProcessInputExpansion = {
   input: string
 }
@@ -14100,7 +14394,11 @@ export type ProcessStep = {
   enabled?: boolean
   agentType?: string
   slot?: 'implementer' | 'verifier'
-  gateKind?: 'design'
+  gateKind?: 'design' | 'live-check'
+  liveCheck?: {
+    mode: LiveCheckMode
+    beforeAndAfter?: boolean
+  }
   processId?: string
   expand?:
     | 'features'
@@ -14151,7 +14449,11 @@ export type ProcessPlanStep = {
   enabled?: boolean
   agentType?: string
   slot?: 'implementer' | 'verifier'
-  gateKind?: 'design'
+  gateKind?: 'design' | 'live-check'
+  liveCheck?: {
+    mode: LiveCheckMode
+    beforeAndAfter?: boolean
+  }
   processId?: string
   expand?:
     | 'features'
@@ -14667,6 +14969,22 @@ export type ProcessProofPlanChange = {
   }
 }
 
+export type ProcessFeatureSplit = {
+  featureId: string
+  stepId?: string
+  moved: Array<string>
+  acceptance: string
+  followUp: {
+    title: string
+    featureId?: string
+  }
+  outcome: 'moved-on' | 'rerun'
+  rejudged?: {
+    outcome: ProcessStepOutcome
+    summary?: string
+  }
+}
+
 export type ProcessDecidedBy = 'person' | 'agent' | 'manager'
 
 export type ProcessHostDecision = {
@@ -14705,12 +15023,28 @@ export type ProcessEntryOverride = {
     limitTurns: boolean
     maxTurns: number
   }
+  attemptStepSpendUsdCap?: number
   proofChange?: {
     featureId?: string
     stepId?: string
     from: Array<ProofKind>
     to: Array<ProofKind>
     saved?: boolean
+    outcome: 'moved-on' | 'rerun'
+    rejudged?: {
+      outcome: ProcessStepOutcome
+      summary?: string
+    }
+  }
+  featureSplit?: {
+    featureId: string
+    stepId?: string
+    moved: Array<string>
+    acceptance: string
+    followUp: {
+      title: string
+      featureId?: string
+    }
     outcome: 'moved-on' | 'rerun'
     rejudged?: {
       outcome: ProcessStepOutcome
@@ -14833,6 +15167,11 @@ export type ProcessNeedsYouResolution = {
   at: number
 }
 
+export type ProcessFeatureSplitRequest = {
+  movePoints: Array<string | number>
+  followUpTitle: string
+}
+
 export type ProcessResumeOptions = {
   requestedProof?: Array<ProofKind>
   needsYouResolution?: {
@@ -14892,9 +15231,18 @@ export type ProcessResumeOptions = {
     limitTurns: boolean
     maxTurns: number
   }
+  attemptStepSpendUsdCap?: number
   proofPlan?: {
     kinds: Array<ProofKind>
     notes?: string
+    liveCheck?: {
+      mode: LiveCheckMode
+      beforeAndAfter?: boolean
+    }
+  }
+  featureSplit?: {
+    movePoints: Array<string | number>
+    followUpTitle: string
   }
   saveProofPlan?: boolean
   files?: Array<string>
@@ -15046,6 +15394,7 @@ export type ProcessVerifyProof = {
   videoPairs?: Array<ProcessProofVideoPair>
   mode?: 'live' | 'dry'
   dryAssumptions?: string
+  standInScreen?: string
   outcome?: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
   reason?: string
   reasons?: Array<string>
@@ -15147,7 +15496,14 @@ export type ProcessBaseUpdate = {
   exportsUnchecked?: Array<string>
 }
 
-export type ProcessAgentStop = 'turn-limit' | 'interrupted' | 'stuck'
+export type ProcessAgentStop = 'turn-limit' | 'spend-limit' | 'interrupted' | 'stuck'
+
+export type ProcessSpendStop = {
+  cap: 'step' | 'run'
+  capUsd: number
+  attemptUsd: number
+  runUsd?: number
+}
 
 export type ProcessCirclingEvidence = {
   turnsUsed?: number
@@ -15244,12 +15600,28 @@ export type ProcessLedgerEntry = {
       limitTurns: boolean
       maxTurns: number
     }
+    attemptStepSpendUsdCap?: number
     proofChange?: {
       featureId?: string
       stepId?: string
       from: Array<ProofKind>
       to: Array<ProofKind>
       saved?: boolean
+      outcome: 'moved-on' | 'rerun'
+      rejudged?: {
+        outcome: ProcessStepOutcome
+        summary?: string
+      }
+    }
+    featureSplit?: {
+      featureId: string
+      stepId?: string
+      moved: Array<string>
+      acceptance: string
+      followUp: {
+        title: string
+        featureId?: string
+      }
       outcome: 'moved-on' | 'rerun'
       rejudged?: {
         outcome: ProcessStepOutcome
@@ -15282,6 +15654,7 @@ export type ProcessLedgerEntry = {
     videoPairs?: Array<ProcessProofVideoPair>
     mode?: 'live' | 'dry'
     dryAssumptions?: string
+    standInScreen?: string
     outcome?: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
     reason?: string
     reasons?: Array<string>
@@ -15398,7 +15771,14 @@ export type ProcessLedgerEntry = {
     limitTurns: boolean
     maxTurns: number
   }
-  agentStop?: 'turn-limit' | 'interrupted' | 'stuck'
+  stepSpendUsdCap?: number
+  agentStop?: 'turn-limit' | 'spend-limit' | 'interrupted' | 'stuck'
+  spendStop?: {
+    cap: 'step' | 'run'
+    capUsd: number
+    attemptUsd: number
+    runUsd?: number
+  }
   stuck?: {
     kind: StuckSignalKind
     toolName: string
@@ -15551,7 +15931,18 @@ export type ProofKindUnavailable = {
   reason: string
 }
 
-export type ChangeScreensNeed = 'required' | 'not-required' | 'unknown'
+export type ProcessRunFeatureSplit = {
+  runId: string
+  entryId: string
+  at: number
+  featureId: string
+  moved: Array<string>
+  acceptance: string
+  followUp: {
+    title: string
+    featureId?: string
+  }
+}
 
 export type ChangeScreensBasis =
   | 'plan'
@@ -15585,6 +15976,12 @@ export type ProcessRunPendingChangeBase = {
   at: number
 }
 
+export type ProcessRunFeatureEdit = {
+  description?: string
+  acceptance?: string
+  proofPlan?: ProofPlan | unknown
+}
+
 export type ProcessRunFeaturePendingChange = {
   id: string
   title: string
@@ -15595,6 +15992,11 @@ export type ProcessRunFeaturePendingChange = {
   featureId: string
   note?: string
   proofKinds?: Array<ProofKind>
+  edit?: {
+    description?: string
+    acceptance?: string
+    proofPlan?: ProofPlan | unknown
+  }
 }
 
 export type ProcessRunStepRerunPendingChange = {
@@ -15612,6 +16014,13 @@ export type ProcessRunStepRerunPendingChange = {
 export type ProcessRunPendingChange =
   | ProcessRunFeaturePendingChange
   | ProcessRunStepRerunPendingChange
+
+export type ProcessRunCarriedOutChange = {
+  change: ProcessRunFeaturePendingChange
+  at: number
+  runId: string
+  entryId: string
+}
 
 export type FakeDataInProduct = 'ship' | 'keep-out'
 
@@ -15746,6 +16155,7 @@ export type ProcessRun = {
   }
   budget?: {
     spendUsdCap?: number
+    stepSpendUsdCap?: number
     wallClockMs?: number
     questionCap?: number
     checkTimeoutMs?: number
@@ -15753,6 +16163,7 @@ export type ProcessRun = {
   }
   budgetGrants?: {
     spendUsdCap?: number
+    stepSpendUsdCap?: number
     wallClockMs?: number
     questionCap?: number
     checkTimeoutMs?: number
@@ -15951,6 +16362,8 @@ export type ProcessRun = {
   }
   workBranchTip?: string
   proofUnavailable?: Array<ProofKindUnavailable>
+  featureAcceptance?: string
+  featureSplits?: Array<ProcessRunFeatureSplit>
   changeUiPaths?: Array<string>
   changeScreensDecision?: {
     need: ChangeScreensNeed
@@ -15963,6 +16376,7 @@ export type ProcessRun = {
   }
   reruns?: Array<ProcessStepRerun>
   pendingChanges?: Array<ProcessRunPendingChange>
+  carriedOutChanges?: Array<ProcessRunCarriedOutChange>
   workBranchChanges?: Array<ProcessWorkBranchChange>
   accessRecords?: Array<AccessRecord>
   cleanup?: {
@@ -16483,6 +16897,7 @@ export type ProjectSpecCreateInput = {
     }
     processDefaultCaps?: {
       spendUsdCap?: number
+      stepSpendUsdCap?: number
       wallClockMs?: number
       maxIterations?: number
     }
@@ -16576,6 +16991,7 @@ export type ProjectSpecEditInput = {
     }
     processDefaultCaps?: {
       spendUsdCap?: number
+      stepSpendUsdCap?: number
       wallClockMs?: number
       maxIterations?: number
     }
@@ -17387,6 +17803,7 @@ export type StoredProjectNoteEntry = {
   description?: string
   access: ProjectNoteAccess
   author: ProjectNoteAuthor
+  purpose?: 'test-accounts' | 'test-device'
   createdAt: string
   updatedAt: string
 }
@@ -17399,6 +17816,7 @@ export type ProjectNoteSummary = {
   description?: string
   access: ProjectNoteAccess
   author: ProjectNoteAuthor
+  purpose?: 'test-accounts' | 'test-device'
   createdAt: string
   updatedAt: string
 }
@@ -17446,6 +17864,32 @@ export type LegacyProjectNotesMigration =
   | {
       kind: 'blocked'
       reason: string
+    }
+
+export type ParsedTestAccount = {
+  label?: string
+  username: string
+  password: string
+}
+
+export type ProjectTestAccount = {
+  label: string
+  username: string
+  password: string
+  noteId: string
+  noteLabel: string
+  kind: ProjectNoteKind
+  access: ProjectNoteAccess
+}
+
+export type TestAccountLookup =
+  | {
+      ok: true
+      value: string
+    }
+  | {
+      ok: false
+      error: string
     }
 
 export type LegacyNoteStore = {
@@ -17617,14 +18061,16 @@ export type ProjectsGroupUpdate = {
   groups: ProjectsGroups
 }
 
-export type FakeDataSetupPlatform = 'android' | 'react-native' | 'web' | 'ios'
-
 export type UiChangeSignal = 'files' | 'words'
 
 export type FakeDataSetupFeature = {
   plan?: {
     kinds: Array<ProofKind>
     notes?: string
+    liveCheck?: {
+      mode: LiveCheckMode
+      beforeAndAfter?: boolean
+    }
   }
   uiSignal?: 'files' | 'words'
   paths?: Array<string>
@@ -17669,9 +18115,14 @@ export type FeatureCreateInput = {
       | 'ui-before-after'
       | 'ui-video'
       | 'live-backend'
+      | 'live-check'
       | 'manual'
     >
     notes?: string
+    liveCheck?: {
+      mode: 'required' | 'ask-me'
+      beforeAndAfter?: boolean
+    }
   }
   blockers?: Array<string>
   rejection?: string
@@ -17703,6 +18154,13 @@ export type LaunchProofPlan = {
   dropped?: Array<ProofKindUnavailable>
   looksUi?: boolean
   looksUiByWords?: boolean
+  liveCheckOffer?: {
+    platform: FakeDataSetupPlatform
+    accounts: Array<string>
+    recommended?: 'required' | 'ask-me'
+    advice: string
+    openNote?: true
+  }
   added?: string
 }
 
@@ -17748,6 +18206,7 @@ export type ProofPlanProverFact = {
   uncountedVideo: Array<string>
   mode?: 'live' | 'dry'
   dryAssumptions?: string
+  standInScreen?: string
   seamed: boolean
   reason?: string
 }
@@ -17773,10 +18232,17 @@ export type UiProofRouteOption = {
   line: string
 }
 
+export type ProofPlanLiveCheckFact = {
+  outcome: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
+  summary?: string
+  mode: 'required' | 'ask-me'
+}
+
 export type ProofPlanStepsAhead = {
   checks?: boolean
   review?: boolean
   prover?: boolean
+  liveCheck?: boolean
 }
 
 export type ProofPlanFacts = {
@@ -17810,8 +18276,14 @@ export type ProofPlanFacts = {
     uncountedVideo: Array<string>
     mode?: 'live' | 'dry'
     dryAssumptions?: string
+    standInScreen?: string
     seamed: boolean
     reason?: string
+  }
+  liveCheck?: {
+    outcome: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
+    summary?: string
+    mode: 'required' | 'ask-me'
   }
   changeTests?: Array<string>
   captureUnavailable?: string
@@ -17820,6 +18292,7 @@ export type ProofPlanFacts = {
     checks?: boolean
     review?: boolean
     prover?: boolean
+    liveCheck?: boolean
   }
   alreadyMet?: boolean
 }
@@ -17844,15 +18317,7 @@ export type ProofPlanCapacity = {
   screensUnavailable?: string
   detectedChecks?: Array<ProjectCheckKind>
   liveCheckEnv?: boolean
-}
-
-export type UiChangeFeature = {
-  title: string
-  description: string
-} & {
-  acceptance?: string
-  files?: Array<string>
-  context?: Array<string>
+  liveCheckUnavailable?: string
 }
 
 export type UiImpactJudgement = UiImpactStance & {
@@ -17870,6 +18335,10 @@ export type ChangeScreensInput = {
   plan?: {
     kinds: Array<ProofKind>
     notes?: string
+    liveCheck?: {
+      mode: LiveCheckMode
+      beforeAndAfter?: boolean
+    }
   }
   uiPaths?: Array<string>
   features?: Array<UiChangeFeature>
@@ -17922,6 +18391,10 @@ export type JudgingProofPlanInput = {
   plan?: {
     kinds: Array<ProofKind>
     notes?: string
+    liveCheck?: {
+      mode: LiveCheckMode
+      beforeAndAfter?: boolean
+    }
   }
   screensRequired: boolean
   shape: ProofPlanStepShape
@@ -21040,6 +21513,7 @@ export type ReviewEvidenceRef = {
   }
   verificationMode?: 'live' | 'dry'
   dryAssumptions?: string
+  standInScreen?: string
   reviewSections?: {
     verdict: CodeReviewVerdictSection
     findings: Array<CodeReviewFinding>
@@ -21306,6 +21780,7 @@ export type RecordReviewEvidenceInput = {
   verdictNewScreens?: Array<string>
   verificationMode?: 'live' | 'dry'
   dryAssumptions?: string
+  standInScreen?: string
   uiImpact?: {
     visible: boolean
     reason: string
@@ -21728,6 +22203,7 @@ export type ScriptEvidence = {
   verdictNewScreens?: Array<string>
   verificationMode?: 'live' | 'dry'
   dryAssumptions?: string
+  standInScreen?: string
   uiImpact?: {
     visible: boolean
     reason: string
@@ -21969,6 +22445,10 @@ export type LiveRunFeatureRun = {
   }
   featureId?: string
   withdrawnFeatureIds?: Array<string>
+  input?: {
+    [key: string]: unknown
+  }
+  featureSplits?: Array<ProcessRunFeatureSplit>
 }
 
 export type LiveRunFeatureUpdateContext = {
@@ -21986,9 +22466,14 @@ export type LiveRunFeatureUpdateContext = {
         | 'ui-before-after'
         | 'ui-video'
         | 'live-backend'
+        | 'live-check'
         | 'manual'
       >
       notes?: string
+      liveCheck?: {
+        mode: 'required' | 'ask-me'
+        beforeAndAfter?: boolean
+      }
     }
     blockers?: Array<string>
   }
@@ -22013,9 +22498,14 @@ export type FeatureEditInput = {
       | 'ui-before-after'
       | 'ui-video'
       | 'live-backend'
+      | 'live-check'
       | 'manual'
     >
     notes?: string
+    liveCheck?: {
+      mode: 'required' | 'ask-me'
+      beforeAndAfter?: boolean
+    }
   }
   blockers?: Array<string>
   rejection?: string
@@ -22041,6 +22531,11 @@ export type LiveRunFeatureUpdateRework = {
     featureId: string
     note?: string
     proofKinds?: Array<ProofKind>
+    edit?: {
+      description?: string
+      acceptance?: string
+      proofPlan?: ProofPlan | unknown
+    }
   }
 }
 
@@ -22172,9 +22667,14 @@ export type StoryCreateInput = {
       | 'ui-before-after'
       | 'ui-video'
       | 'live-backend'
+      | 'live-check'
       | 'manual'
     >
     notes?: string
+    liveCheck?: {
+      mode: 'required' | 'ask-me'
+      beforeAndAfter?: boolean
+    }
   }
 }
 
@@ -22192,9 +22692,14 @@ export type StoryEditInput = {
       | 'ui-before-after'
       | 'ui-video'
       | 'live-backend'
+      | 'live-check'
       | 'manual'
     >
     notes?: string
+    liveCheck?: {
+      mode: 'required' | 'ask-me'
+      beforeAndAfter?: boolean
+    }
   }
   externalIds?: Array<ExternalRef>
   completedAt?: string
@@ -22222,9 +22727,14 @@ export type StoryUpdate = {
         | 'ui-before-after'
         | 'ui-video'
         | 'live-backend'
+        | 'live-check'
         | 'manual'
       >
       notes?: string
+      liveCheck?: {
+        mode: 'required' | 'ask-me'
+        beforeAndAfter?: boolean
+      }
     }
     externalIds?: Array<ExternalRef>
     notes?: Array<StoryNote>
@@ -22997,6 +23507,7 @@ export type ToolName =
   | 'mobileTestTap'
   | 'mobileTestTapSelector'
   | 'mobileTestType'
+  | 'mobileTestTypeSecret'
   | 'mobileTestPressKey'
   | 'mobileTestSwipe'
   | 'mobileTestScreenshot'
@@ -23154,6 +23665,7 @@ export type ToolName =
   | 'uiTestClick'
   | 'uiTestType'
   | 'uiTestPressKey'
+  | 'uiTestTypeSecret'
   | 'uiTestWaitFor'
   | 'uiTestScreenshot'
   | 'uiTestServeApp'
@@ -23257,6 +23769,7 @@ export type OpenWebUiSessionOptions = {
   connection?: 'host' | 'sandbox' | 'cdp-remote'
   cdpEndpoint?: string
   record?: boolean
+  live?: boolean
 }
 
 export type OpenSharedWebUiSessionOptions = {
@@ -23721,6 +24234,7 @@ export type UiActionResult = {
   url: string
   title: string
   error?: string
+  detail?: string
 }
 
 export type UiScreenshotResult = {
@@ -24196,9 +24710,14 @@ export type ChatWorkBriefInput = {
         | 'ui-before-after'
         | 'ui-video'
         | 'live-backend'
+        | 'live-check'
         | 'manual'
       >
       notes?: string
+      liveCheck?: {
+        mode: 'required' | 'ask-me'
+        beforeAndAfter?: boolean
+      }
     }
     files?: Array<string>
   }>
@@ -24466,6 +24985,101 @@ export type ProcessDroppedChangeAcceptedRow = {
   mergeSha: string
   note: string
   text: string
+}
+
+export type FeatureSplitRun = {
+  park?: {
+    reason: ProcessParkReason
+    stepId?: string
+    loopId?: string
+    message: string
+    parkedAt: number
+    pending?: {
+      cursor: ProcessRunCursor
+      viaLoopId?: string
+      continuesEntryId?: string
+      retryMode?: 'continue' | 'fresh'
+      resumesEntryId?: string
+      rechecksEntryId?: string
+    }
+    ask?: {
+      kind: ProcessWaitingKind
+      agent: string
+      title: string
+      detail: string
+      request?: {
+        actionId: string
+        actionKind: string
+        toolName?: string
+        host?: string
+        packageName?: string
+        ecosystem?: string
+        url?: string
+        args?: {
+          [key: string]: unknown
+        }
+      }
+      items?: Array<ProcessWaitingItem>
+      featureQuestionId?: string
+      runRef?: {
+        runId: string
+        agentRunId?: string
+        chatContextId?: string
+        runner?: 'api' | 'cli'
+      }
+      delegatedTo?: {
+        chatContextId: string
+        topicId: string
+        at: number
+      }
+      agentFailed?: true
+    }
+    questionGrantId?: string
+    stepInFlight?: boolean
+    childRunId?: string
+    baseConflict?: {
+      baseRef: string
+      baseSha: string
+      commits: number
+      paths: Array<string>
+      workSha?: string
+      keptOneSide?: Array<ProcessKeptOneSide>
+      lostExports?: Array<CodeIntelExportedSymbol>
+      notRebuilt?: {
+        paths: Array<string>
+        reason: string
+      }
+    }
+    waitingOn?: Array<string>
+    circling?: {
+      summary: string
+      signals: Array<ProcessCirclingSignal>
+      ranOut: boolean
+      turnsUsed?: number
+      maxTurns?: number
+      changed?: boolean
+      repeatedActions?: Array<ProcessCirclingRepeat>
+      flipFlopFiles?: Array<string>
+      sameFailures?: Array<string>
+      streak: number
+      afterRaise?: true
+      afterRetry?: true
+      afterManager?: true
+      tip?: string
+      at: number
+    }
+  }
+  plan: ProcessPlan
+  ledger: Array<ProcessLedgerEntry>
+} & {
+  featureId?: string
+  featureAcceptance?: string
+  input?: {
+    [key: string]: unknown
+  }
+  status?: 'pending' | 'running' | 'parked' | 'succeeded' | 'failed' | 'cancelled'
+  proofUnavailable?: Array<ProofKindUnavailable>
+  changeUiPaths?: Array<string>
 }
 
 export type ProcessGroupLegStatus =
@@ -24774,6 +25388,28 @@ export type LoopedRun = {
     loops: Array<ProcessLoop>
   }
   ledger: Array<ProcessLedgerEntry>
+}
+
+export type CarryingRun = {
+  id: string
+  plan: ProcessPlan
+  ledger: Array<ProcessLedgerEntry>
+} & {
+  input?: {
+    [key: string]: unknown
+  }
+  featureId?: string
+  pendingChanges?: Array<ProcessRunPendingChange>
+  withdrawnFeatureIds?: Array<string>
+}
+
+export type ProvingRun = {
+  id: string
+  ledger: Array<ProcessLedgerEntry>
+} & {
+  input?: {
+    [key: string]: unknown
+  }
 }
 
 export type ProofChangeRun = {
@@ -25412,6 +26048,14 @@ export type ProcessStepToolsAndExit = {
   exitLabel: string
 }
 
+export type ProcessLiveCheckPreparation =
+  | {
+      ready: string
+    }
+  | {
+      problem: string
+    }
+
 export type ProcessReportDocument = {
   path: string
   text: string
@@ -25614,6 +26258,18 @@ export type ProcessRetryOffer = {
   reason: string
 }
 
+export type ProcessStepSpendCaps = {
+  stepCapUsd?: number
+  runCapUsd?: number
+  spentBeforeUsd: number
+}
+
+export type ProcessSpendCapOffer = {
+  cap: 'step' | 'run'
+  currentUsd: number
+  suggestedUsd: number
+}
+
 export type ProcessTurnLimitOffer = {
   current: ProcessTurnLimit
   suggested: number
@@ -25627,7 +26283,7 @@ export type ProcessRetryStart =
       mode: 'continue'
       entryId: string
       runRef: ProcessNodeRunRef
-      agentStop?: 'turn-limit' | 'interrupted' | 'stuck'
+      agentStop?: 'turn-limit' | 'spend-limit' | 'interrupted' | 'stuck'
       summary?: string
     }
 
@@ -25664,6 +26320,11 @@ export type StageProcessRunChangeInput =
       featureId: string
       note?: string
       proofKinds?: Array<ProofKind>
+      edit?: {
+        description?: string
+        acceptance?: string
+        proofPlan?: ProofPlan | unknown
+      }
     }
   | {
       title: string
@@ -25904,6 +26565,7 @@ export type ProcessRunChatState = {
     }
     budget?: {
       spendUsdCap?: number
+      stepSpendUsdCap?: number
       wallClockMs?: number
       questionCap?: number
       checkTimeoutMs?: number
@@ -25911,6 +26573,7 @@ export type ProcessRunChatState = {
     }
     budgetGrants?: {
       spendUsdCap?: number
+      stepSpendUsdCap?: number
       wallClockMs?: number
       questionCap?: number
       checkTimeoutMs?: number
@@ -26109,6 +26772,8 @@ export type ProcessRunChatState = {
     }
     workBranchTip?: string
     proofUnavailable?: Array<ProofKindUnavailable>
+    featureAcceptance?: string
+    featureSplits?: Array<ProcessRunFeatureSplit>
     changeUiPaths?: Array<string>
     changeScreensDecision?: {
       need: ChangeScreensNeed
@@ -26121,6 +26786,7 @@ export type ProcessRunChatState = {
     }
     reruns?: Array<ProcessStepRerun>
     pendingChanges?: Array<ProcessRunPendingChange>
+    carriedOutChanges?: Array<ProcessRunCarriedOutChange>
     workBranchChanges?: Array<ProcessWorkBranchChange>
     accessRecords?: Array<AccessRecord>
     cleanup?: {
@@ -26781,6 +27447,7 @@ export type ProcessRunSummary = {
   }
   budget?: {
     spendUsdCap?: number
+    stepSpendUsdCap?: number
     wallClockMs?: number
     questionCap?: number
     checkTimeoutMs?: number
@@ -26788,6 +27455,7 @@ export type ProcessRunSummary = {
   }
   budgetGrants?: {
     spendUsdCap?: number
+    stepSpendUsdCap?: number
     wallClockMs?: number
     questionCap?: number
     checkTimeoutMs?: number
@@ -26983,6 +27651,8 @@ export type ProcessRunSummary = {
   }
   workBranchTip?: string
   proofUnavailable?: Array<ProofKindUnavailable>
+  featureAcceptance?: string
+  featureSplits?: Array<ProcessRunFeatureSplit>
   changeUiPaths?: Array<string>
   changeScreensDecision?: {
     need: ChangeScreensNeed
@@ -27120,6 +27790,7 @@ export type ProcessRunDecision =
         | 'close-unmerged'
         | 'accept-dropped-change'
         | 'accept-with-follow-ups'
+        | 'split-follow-up'
       note?: string
     }
   | {
@@ -27146,7 +27817,13 @@ export type ProcessCursorState = {
     iteration: number
   }
   lastOutcome?: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
-  lastAgentStop?: 'turn-limit' | 'interrupted' | 'stuck'
+  lastAgentStop?: 'turn-limit' | 'spend-limit' | 'interrupted' | 'stuck'
+  lastSpendStop?: {
+    cap: 'step' | 'run'
+    capUsd: number
+    attemptUsd: number
+    runUsd?: number
+  }
   loopCounts?: {
     [key: string]: number
   }
@@ -27155,6 +27832,7 @@ export type ProcessCursorState = {
   }
   budget?: {
     spendUsdCap?: number
+    stepSpendUsdCap?: number
     wallClockMs?: number
     questionCap?: number
     checkTimeoutMs?: number
@@ -27241,6 +27919,7 @@ export type ProcessStepResult = {
     videoPairs?: Array<ProcessProofVideoPair>
     mode?: 'live' | 'dry'
     dryAssumptions?: string
+    standInScreen?: string
     outcome?: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
     reason?: string
     reasons?: Array<string>
@@ -27364,7 +28043,13 @@ export type ProcessStepResult = {
     }
     agentFailed?: true
   }
-  agentStop?: 'turn-limit' | 'interrupted' | 'stuck'
+  agentStop?: 'turn-limit' | 'spend-limit' | 'interrupted' | 'stuck'
+  spendStop?: {
+    cap: 'step' | 'run'
+    capUsd: number
+    attemptUsd: number
+    runUsd?: number
+  }
   stuck?: {
     kind: StuckSignalKind
     toolName: string
@@ -27454,6 +28139,7 @@ export type StartProcessRunInput = {
   }
   budget?: {
     spendUsdCap?: number
+    stepSpendUsdCap?: number
     wallClockMs?: number
     questionCap?: number
     checkTimeoutMs?: number
@@ -27615,12 +28301,28 @@ export type ProcessStepState = {
         limitTurns: boolean
         maxTurns: number
       }
+      attemptStepSpendUsdCap?: number
       proofChange?: {
         featureId?: string
         stepId?: string
         from: Array<ProofKind>
         to: Array<ProofKind>
         saved?: boolean
+        outcome: 'moved-on' | 'rerun'
+        rejudged?: {
+          outcome: ProcessStepOutcome
+          summary?: string
+        }
+      }
+      featureSplit?: {
+        featureId: string
+        stepId?: string
+        moved: Array<string>
+        acceptance: string
+        followUp: {
+          title: string
+          featureId?: string
+        }
         outcome: 'moved-on' | 'rerun'
         rejudged?: {
           outcome: ProcessStepOutcome
@@ -27653,6 +28355,7 @@ export type ProcessStepState = {
       videoPairs?: Array<ProcessProofVideoPair>
       mode?: 'live' | 'dry'
       dryAssumptions?: string
+      standInScreen?: string
       outcome?: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
       reason?: string
       reasons?: Array<string>
@@ -27769,7 +28472,14 @@ export type ProcessStepState = {
       limitTurns: boolean
       maxTurns: number
     }
-    agentStop?: 'turn-limit' | 'interrupted' | 'stuck'
+    stepSpendUsdCap?: number
+    agentStop?: 'turn-limit' | 'spend-limit' | 'interrupted' | 'stuck'
+    spendStop?: {
+      cap: 'step' | 'run'
+      capUsd: number
+      attemptUsd: number
+      runUsd?: number
+    }
     stuck?: {
       kind: StuckSignalKind
       toolName: string
@@ -27840,6 +28550,57 @@ export type ProcessProofChangeOffer = {
   keepsScreens?: true
 }
 
+export type ProcessFeatureSplitOffer = {
+  featureId: string
+  stepId: string
+  points: Array<string>
+  proofChange?: {
+    featureId?: string
+    stepId: string
+    current: Array<ProofKind>
+    standings: Array<ProofKindStanding>
+    unavailable: Array<ProofKindUnavailable>
+    keepsScreens?: true
+  }
+}
+
+export type ProcessFeatureSplitWrite = {
+  featureId: string
+  acceptance: string
+  proofPlan?: {
+    kinds: Array<ProofKind>
+    notes?: string
+    liveCheck?: {
+      mode: LiveCheckMode
+      beforeAndAfter?: boolean
+    }
+  }
+  followUp: {
+    title: string
+    description: string
+    acceptance: string
+  }
+}
+
+export type ProcessRunFeatureRead = {
+  [key: string]: unknown
+}
+
+export type ProcessFeatureSplitAnswer = {
+  offer: ProcessFeatureSplitOffer
+  feature: ProcessRunFeatureRead
+  moved: Array<number>
+  followUpTitle: string
+  plan?: {
+    kinds: Array<ProofKind>
+    notes?: string
+    liveCheck?: {
+      mode: LiveCheckMode
+      beforeAndAfter?: boolean
+    }
+  }
+}
+
 export type ProcessParkChoice = {
   choice: ProcessParkAction
   label: string
@@ -27854,6 +28615,11 @@ export type ProcessParkChoice = {
     current: ProcessTurnLimit
     suggested: number
   }
+  spendCap?: {
+    cap: 'step' | 'run'
+    currentUsd: number
+    suggestedUsd: number
+  }
   proofChange?: {
     featureId?: string
     stepId: string
@@ -27861,6 +28627,19 @@ export type ProcessParkChoice = {
     standings: Array<ProofKindStanding>
     unavailable: Array<ProofKindUnavailable>
     keepsScreens?: true
+  }
+  featureSplit?: {
+    featureId: string
+    stepId: string
+    points: Array<string>
+    proofChange?: {
+      featureId?: string
+      stepId: string
+      current: Array<ProofKind>
+      standings: Array<ProofKindStanding>
+      unavailable: Array<ProofKindUnavailable>
+      keepsScreens?: true
+    }
   }
   noteRequired?: true
 }
@@ -28316,6 +29095,7 @@ export type ParkChoicesRun = {
   baseUpdates?: Array<ProcessBaseUpdate>
   workBranchChanges?: Array<ProcessWorkBranchChange>
   featureId?: string
+  featureAcceptance?: string
   status?: 'pending' | 'running' | 'parked' | 'succeeded' | 'failed' | 'cancelled'
   proofUnavailable?: Array<ProofKindUnavailable>
   storyId?: string
@@ -31424,9 +32204,14 @@ export type CreateStoryData = {
         | 'ui-before-after'
         | 'ui-video'
         | 'live-backend'
+        | 'live-check'
         | 'manual'
       >
       notes?: string
+      liveCheck?: {
+        mode: 'required' | 'ask-me'
+        beforeAndAfter?: boolean
+      }
     }
     /**
      * Project-relative files handed over with the story, kept as they are now; every agent that works it gets them at the same paths.
@@ -32148,6 +32933,7 @@ export type PreviewProcessResponses = {
     captureTarget?: 'android' | 'ios' | 'web'
     defaultCaps?: {
       spendUsdCap?: number
+      stepSpendUsdCap?: number
       wallClockMs?: number
       maxIterations?: number
     }
@@ -32399,6 +33185,10 @@ export type StartProcessRunData = {
       maxTurns: number
     }
     spendCapUsd?: number
+    /**
+     * The most one step attempt may spend, in dollars.
+     */
+    stepSpendCapUsd?: number
     wallClockMs?: number
     maxIterations?: number
     questionCap?: number
@@ -32566,6 +33356,7 @@ export type PreviewProcessRunResponses = {
       captureTarget?: 'android' | 'ios' | 'web'
       defaultCaps?: {
         spendUsdCap?: number
+        stepSpendUsdCap?: number
         wallClockMs?: number
         maxIterations?: number
       }
@@ -32586,6 +33377,7 @@ export type PreviewProcessRunResponses = {
     }
     defaultCaps?: {
       spendUsdCap?: number
+      stepSpendUsdCap?: number
       wallClockMs?: number
       maxIterations?: number
     }
@@ -32906,6 +33698,10 @@ export type ResumeProcessRunData = {
     proofPlan?: {
       kinds: Array<ProofKind>
       notes?: string
+      liveCheck?: {
+        mode: LiveCheckMode
+        beforeAndAfter?: boolean
+      }
     }
     /**
      * With change-proof: also write the plan onto the feature, so later runs start from it.
@@ -32920,7 +33716,11 @@ export type ResumeProcessRunData = {
      */
     attemptTurns?: number
     /**
-     * As `answerRunPark` and `decideRunGate` take it: with change-proof, `proofPlan.kinds`; with request-changes, `requestedProof`. Not with either of those.
+     * With retry: the most the retried attempt alone may spend, in dollars — the run’s own step limit stays.
+     */
+    attemptSpendUsd?: number
+    /**
+     * As `answerRunPark` and `decideRunGate` take it: with change-proof, `proofPlan.kinds`; with split-follow-up, what proves the feature from now on, if it changes; with request-changes, `requestedProof`. Not with either of those.
      */
     proofKinds?: Array<ProofKind>
     /**
@@ -34591,6 +35391,7 @@ export type PreviewProcessGroupRunResponses = {
       baseBranch?: string
       defaultCaps?: {
         spendUsdCap?: number
+        stepSpendUsdCap?: number
         wallClockMs?: number
         maxIterations?: number
       }
@@ -35685,6 +36486,95 @@ export type SetProcessRunCleanupOffResponses = {
 
 export type SetProcessRunCleanupOffResponse =
   SetProcessRunCleanupOffResponses[keyof SetProcessRunCleanupOffResponses]
+
+export type GetProcessRunTryBuildData = {
+  body?: never
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}/try-build'
+}
+
+export type GetProcessRunTryBuildErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetProcessRunTryBuildError =
+  GetProcessRunTryBuildErrors[keyof GetProcessRunTryBuildErrors]
+
+export type GetProcessRunTryBuildResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    runId: string
+    /**
+     * Whether the run’s screen proof was made on fake data, so a build is offered.
+     */
+    offered: boolean
+    status?: 'building' | 'ready' | 'failed' | 'unavailable'
+    /**
+     * Why it failed, or why no build is made for this app.
+     */
+    reason?: string
+    /**
+     * The Android variant, e.g. covisionTestDebug.
+     */
+    variant?: string
+    /**
+     * The commit built, short.
+     */
+    builtFrom?: string
+    startedAt?: number
+    finishedAt?: number
+    fileName?: string
+    bytes?: number
+    /**
+     * The APK, relative to the API base, with a signed token in it.
+     */
+    downloadUrl?: string
+    /**
+     * The APK on an address a phone on the same network reaches.
+     */
+    phoneUrl?: string
+    /**
+     * When the links’ token stops working.
+     */
+    expiresAt?: string
+    steps: Array<{
+      title: string
+      open?: string
+      steps: Array<string>
+    }>
+  }
+}
+
+export type GetProcessRunTryBuildResponse =
+  GetProcessRunTryBuildResponses[keyof GetProcessRunTryBuildResponses]
+
+export type GetProcessRunTryBuildApkData = {
+  body?: never
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}/try-build/app.apk'
+}
+
+export type GetProcessRunTryBuildApkResponses = {
+  /**
+   * Default Response
+   */
+  200: unknown
+}
 
 export type AskScriptHostData = {
   body: ScriptAskRequest
@@ -49348,6 +50238,7 @@ export type CreateProjectNoteData = {
     value: string
     description?: string
     access: ProjectNoteAccess
+    purpose?: 'test-accounts' | 'test-device'
   }
   path: {
     projectId: string
@@ -49433,6 +50324,7 @@ export type UpdateProjectNoteData = {
     value?: string
     description?: string
     access?: 'open' | 'ask'
+    purpose?: 'test-accounts' | 'test-device'
   }
   path: {
     projectId: string
@@ -49560,6 +50452,7 @@ export type CreateGroupNoteData = {
     value: string
     description?: string
     access: ProjectNoteAccess
+    purpose?: 'test-accounts' | 'test-device'
   } & {
     [key: string]: unknown
   }
@@ -49655,6 +50548,7 @@ export type UpdateGroupNoteData = {
     value?: string
     description?: string
     access?: 'open' | 'ask'
+    purpose?: 'test-accounts' | 'test-device'
   } & {
     [key: string]: unknown
   }
@@ -50275,6 +51169,7 @@ export type PreviewGroupStoryRunResponses = {
       baseBranch?: string
       defaultCaps?: {
         spendUsdCap?: number
+        stepSpendUsdCap?: number
         wallClockMs?: number
         maxIterations?: number
       }
@@ -50337,6 +51232,10 @@ export type RunGroupStoryData = {
      * A spending cap for EACH part, in dollars.
      */
     spendCapUsd?: number
+    /**
+     * The most one step attempt of EACH part may spend, in dollars.
+     */
+    stepSpendCapUsd?: number
     /**
      * A time limit for EACH part, in milliseconds.
      */

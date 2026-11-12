@@ -1,7 +1,10 @@
 import type { ProcessStatusTone } from './processView'
 
-/** Whose problem a stop was: Overseer's own fault, the model provider, the agent's work, or the turn limit. */
-export type ChatStopCause = 'overseer' | 'provider' | 'agent' | 'turns'
+/**
+ * Whose problem a stop was: Overseer's own fault, the model provider, the agent's work, the turn
+ * limit, or another limit the host holds the run to.
+ */
+export type ChatStopCause = 'overseer' | 'provider' | 'agent' | 'turns' | 'limit'
 
 /**
  * Why a turn or a story run stopped, as the host wrote it on the message. Mirrors the tools'

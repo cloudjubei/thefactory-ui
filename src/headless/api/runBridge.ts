@@ -1,4 +1,5 @@
-import { getProcessRun, listProcessRuns, type ProcessRun } from './generated'
+import type { ProcessRun } from 'thefactory-tools/types'
+import { getProcessRun, listProcessRuns } from './generated'
 import { errorStatus, extractErrorMessage } from './errorMessage'
 import { bridgeMessageName, type BridgeRequest } from '../utils/appBridge'
 import { RUN_READ_MESSAGE } from '../utils/appBridgeConstants'

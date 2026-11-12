@@ -10,6 +10,10 @@ import {
   noteCreateBody,
   noteFormErrors,
   noteFormValues,
+  noteHidesValue,
+  notePurposeHelp,
+  notePurposeLabel,
+  openTestAccountNotes,
   noteAuthorLabel,
   noteKindLabel,
   notePatchBody,
@@ -17,7 +21,13 @@ import {
   sortNotes,
   linkedNoteState,
 } from './projectNotes'
-import { NOTE_LABEL_REQUIRED, NOTE_VALUE_REQUIRED } from './projectNotesConstants'
+import {
+  NOTE_LABEL_REQUIRED,
+  NOTE_PURPOSE_HELP,
+  NOTE_SECRET_HIDDEN,
+  NOTE_TEST_ACCOUNTS_HIDDEN,
+  NOTE_VALUE_REQUIRED,
+} from './projectNotesConstants'
 import type { ProjectNoteSummary } from '../api'
 import type { ProjectNoteFormValues } from './projectNotesTypes'
 
@@ -43,6 +53,7 @@ function form(overrides: Partial<ProjectNoteFormValues> = {}): ProjectNoteFormVa
     value: '',
     description: 'Account for the app under test',
     access: 'ask',
+    purpose: 'none',
     ...overrides,
   }
 }
@@ -55,6 +66,7 @@ describe('emptyNoteForm', () => {
       value: '',
       description: '',
       access: 'ask',
+      purpose: 'none',
     })
   })
 
@@ -73,6 +85,7 @@ describe('noteFormValues', () => {
       value: '',
       description: 'Account for the app under test',
       access: 'ask',
+      purpose: 'none',
     })
   })
 
@@ -331,5 +344,79 @@ describe('linkedNoteState', () => {
     expect(linkedNoteState(notes, 'n2', true)).toBe('found')
     expect(linkedNoteState(notes, 'n9', true)).toBe('missing')
     expect(linkedNoteState([], 'n1', true)).toBe('missing')
+  })
+})
+
+describe('note purpose', () => {
+  it('seeds the picker from the stored purpose, None when there is none', () => {
+    expect(noteFormValues(summary({ purpose: 'test-accounts' })).purpose).toBe('test-accounts')
+    expect(noteFormValues(summary()).purpose).toBe('none')
+  })
+
+  it('sends a purpose on create only when one is picked', () => {
+    expect(noteCreateBody(form({ value: 'x', purpose: 'test-device' })).purpose).toBe('test-device')
+    expect('purpose' in noteCreateBody(form({ value: 'x' }))).toBe(false)
+  })
+
+  it('patches a changed purpose, null when it is taken off, nothing when unchanged', () => {
+    const stored = summary({ purpose: 'test-accounts' })
+    expect(notePatchBody(form({ purpose: 'test-device' }), stored).purpose).toBe('test-device')
+    expect(notePatchBody(form({ purpose: 'none' }), stored).purpose).toBeNull()
+    expect('purpose' in notePatchBody(form({ purpose: 'test-accounts' }), stored)).toBe(false)
+    expect('purpose' in notePatchBody(form(), summary())).toBe(false)
+  })
+
+  it('hides the value of a secret and of an open note holding test logins', () => {
+    expect(noteHidesValue({ kind: 'secret' })).toBe(true)
+    expect(noteHidesValue({ kind: 'note', purpose: 'test-accounts' })).toBe(true)
+    expect(noteHidesValue({ kind: 'note', purpose: 'test-device' })).toBe(false)
+    expect(noteHidesValue({ kind: 'note' })).toBe(false)
+  })
+
+  it('offers no Reveal for an open test-accounts note', () => {
+    expect(canRevealNote(summary({ kind: 'note', purpose: 'test-accounts' }))).toBe(false)
+    expect(canRevealNote(summary({ kind: 'note' }))).toBe(false)
+  })
+
+  it('never shows test logins on a chip, and says why', () => {
+    const open = projectNoteChipView({
+      label: 'QA logins',
+      kind: 'note',
+      access: 'open',
+      purpose: 'test-accounts',
+    })
+    expect(open.showsValue).toBe(false)
+    expect(open.hiddenValue).toBe(NOTE_TEST_ACCOUNTS_HIDDEN)
+    const secret = projectNoteChipView({ label: 'QA', kind: 'secret', purpose: 'test-accounts' })
+    expect(secret.hiddenValue).toBe(NOTE_SECRET_HIDDEN)
+    expect(
+      projectNoteChipView({ label: 'Device', kind: 'note', access: 'open', purpose: 'test-device' })
+        .showsValue,
+    ).toBe(true)
+  })
+
+  it('says what each choice does', () => {
+    expect(notePurposeHelp('test-accounts')).toBe(NOTE_PURPOSE_HELP['test-accounts'])
+    expect(notePurposeHelp('none')).toBe(NOTE_PURPOSE_HELP.none)
+  })
+})
+
+describe('openTestAccountNotes', () => {
+  it('finds the open notes marked as test accounts only', () => {
+    const notes = [
+      summary({ id: 'a', kind: 'note', purpose: 'test-accounts' }),
+      summary({ id: 'b', kind: 'secret', purpose: 'test-accounts' }),
+      summary({ id: 'c', kind: 'note', purpose: 'test-device' }),
+      summary({ id: 'd', kind: 'note' }),
+    ]
+    expect(openTestAccountNotes(notes).map((n) => n.id)).toEqual(['a'])
+  })
+})
+
+describe('notePurposeLabel', () => {
+  it('names a purpose, nothing for none', () => {
+    expect(notePurposeLabel('test-accounts')).toBe('Test accounts')
+    expect(notePurposeLabel('test-device')).toBe('Testing device')
+    expect(notePurposeLabel(undefined)).toBeUndefined()
   })
 })
