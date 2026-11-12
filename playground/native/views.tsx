@@ -64,6 +64,7 @@ import { FAKE_DATA_VIEWS } from './fakeDataViews'
 import { LIVE_CHECK_VIEWS } from './liveCheckViews'
 import { FILE_PREVIEW_VIEWS } from './filePreviewViews'
 import { GIT_CREDENTIAL_VIEWS } from './gitCredentialViews'
+import { FILE_TREE_VIEWS } from './fileTreeViews'
 import { SCRIPT_STEP_VIEWS } from './scriptStepViews'
 import { SPEND_LIMIT_VIEWS } from './spendLimitViews'
 import { SEND_TO_DEVELOPER_VIEWS } from './sendToDeveloperViews'
@@ -595,6 +596,7 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   ...LIVE_CHECK_VIEWS,
   ...FILE_PREVIEW_VIEWS,
   ...GIT_CREDENTIAL_VIEWS,
+  ...FILE_TREE_VIEWS,
   ...TICKET_VIEWS,
   ...SEND_TO_DEVELOPER_VIEWS,
 ]
