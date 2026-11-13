@@ -24,6 +24,7 @@ import type { Scene } from '../showcase/types'
 
 const noop = () => {}
 const resolved = async () => {}
+const handedOn = async () => true
 
 const FEATURE_PLAN: ProcessPlan = {
   definitionId: 'feature-default',
@@ -143,6 +144,18 @@ const BLOCKED_FIX = featureRun({
     parkedAt: 5,
   },
 })
+
+/** #60's fix once the person handed the merge to another agent: its chat is working on it. */
+const BLOCKED_FIX_HANDED_ON: ProcessRun = {
+  ...BLOCKED_FIX,
+  park: {
+    ...BLOCKED_FIX.park!,
+    ask: {
+      ...FIXER_BLOCKED,
+      delegatedTo: { chatContextId: '/projects/p/topics/unblock-60', topicId: 'unblock-60', at: 6 },
+    },
+  },
+}
 
 const escalation = (
   over: Partial<ProcessManagerEscalationView> &
@@ -308,7 +321,8 @@ const card = (
         onChoose={noop}
         onChangeProof={noop}
         onAnswerRequest={noop}
-        onDelegate={resolved}
+        onDelegate={handedOn}
+        onOpenChat={noop}
         onDrill={noop}
       />
     </RunNeedsYouCard>,
@@ -489,6 +503,13 @@ export const RUN_NEEDS_YOU_SCENES: Scene[] = [
         description:
           'The fixer of #60 cannot conclude a merge. The manager’s pick hands the merge to another agent with the brief it starts from; “I finished the merge myself — carry on” is the other answer.',
         render: () => card(BLOCKED_FIX, { step: 'Fix' }, BLOCKED_MANAGER),
+      },
+      {
+        id: 'agent-blocked-handed-on',
+        title: 'The blocked ask is with another agent',
+        description:
+          'Sending “Hand the merge to another agent” changes the card the moment it is pressed — “Handing this to another agent…” — before the backend answers; once the hand-off is recorded it reads “Another agent is working on this” with an “Open the chat” button to the unblocking chat. The answers stay below, since the person still answers here once it is sorted; sending the hand-off again keeps the one chat.',
+        render: () => card(BLOCKED_FIX_HANDED_ON, { step: 'Fix' }, BLOCKED_MANAGER),
       },
       {
         id: 'plain-choices',

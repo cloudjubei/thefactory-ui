@@ -27,6 +27,7 @@ export const LIVE_CHECK_COPY = {
   beforeAndAfterOff: 'Only the change is checked.',
   secretHint: 'The test logins are in a note any agent can read. Make it a secret.',
   openNote: 'Open the note',
+  clearsLogins: 'Picking a check lets this run use the test logins.',
   chip: (label: string) => `Live check: ${label}`,
 } as const
 

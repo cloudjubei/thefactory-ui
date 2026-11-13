@@ -22,7 +22,15 @@ export default function RunModelControl({ view, chip }: RunModelControlProps) {
   const pending = view.pending
   const caption = { fontSize: 11.5, color: theme.text.muted }
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: 6,
+        maxWidth: '100%',
+      }}
+    >
       {pending ? <Text style={caption}>{pending.from} →</Text> : null}
       {chip}
       {pending ? <Text style={caption}>{RUN_MODEL_PENDING_SUFFIX}</Text> : null}

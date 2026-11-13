@@ -225,7 +225,7 @@ function NoteForm({ state }: { state: string }) {
 
 /**
  * Live check on a test account on a phone: the launch row (`?state=off`, `required`, `ask-me`,
- * `before-and-after`, `secret-hint`, `card`, `whole-card` or `not-offered`), the group dialog, the "Watch it
+ * `before-and-after`, `secret-hint`, `ask-first-note`, `card`, `whole-card` or `not-offered`), the group dialog, the "Watch it
  * live" stop (`?state=ready`, `problem`, `no-passes-left` or `send-note`) and a note's "Used for".
  */
 export const LIVE_CHECK_VIEWS: NativeView[] = [

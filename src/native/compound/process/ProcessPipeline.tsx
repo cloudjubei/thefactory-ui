@@ -88,6 +88,7 @@ import {
   processRunStripEntries,
   runStepsLine,
   STEPS_STRIP_LABELS,
+  processWaitingDelegatedView,
   processWaitingView,
   signoffMergeHold,
   SIGNOFF_GROUP_CHIP_LABEL,
@@ -196,6 +197,7 @@ import { Modal } from '../../primitives/Modal'
 import { IconChevronLeft, IconChevronRight, IconDotsVertical, IconGroup } from '../../icons'
 import { getChatContextKey } from 'thefactory-tools/utils'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
+import WaitingDelegated from './WaitingDelegated'
 
 export type ProcessPipelineProps = {
   /** The top-level run. Drilling into a nested node stays inside this component. */
@@ -739,7 +741,7 @@ export default function ProcessPipeline({
                 onAnswerRequest={(actionId, choice) =>
                   void stopActions.answerWaitingRequest(actionId, choice)
                 }
-                onDelegate={(note) => stopActions.delegate(note).then(() => undefined)}
+                onDelegate={(note) => stopActions.delegate(note).then((d) => d !== undefined)}
                 {...(canChat && atTop && !nested.run ? { onAskAgent: askAgentAboutStep } : {})}
                 {...(onOpenChat ? { onOpenChat } : {})}
                 onDrill={drillTo}
@@ -1246,7 +1248,15 @@ function RunHead({
             {spend ? <CostChip label={spend.label} cost={run.totals} title={spend.title} /> : null}
           </View>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 6,
+            maxWidth: '100%',
+          }}
+        >
           {manager && depth === 0 ? (
             <RunManagerChip
               view={manager.view}
@@ -1658,7 +1668,8 @@ function ParkBlock({
   onSplitFollowUp?: (draft: FeatureSplitDraft) => void
   onAnswerRequest: (actionId: string, choice: ProcessWaitingItemChoice) => void
   /** Hand a waiting agent's ask to another agent, with the brief it starts from. */
-  onDelegate: (note?: string) => Promise<void>
+  /** Hand the ask to another agent: whether it went. */
+  onDelegate: (note?: string) => Promise<boolean>
   onAskAgent?: () => Promise<void>
   onOpenChat?: (context: ChatContext) => void
   /** Open the agent run that is waiting, to read its transcript. */
@@ -2022,7 +2033,8 @@ function WaitingCard({
   /** Move picked acceptance points into a follow-up; without it the ask does not offer it. */
   onSplitFollowUp?: (draft: FeatureSplitDraft) => void
   onAnswerRequest: (actionId: string, choice: ProcessWaitingItemChoice) => void
-  onDelegate: (note?: string) => Promise<void>
+  /** Hand the ask to another agent: whether it went. */
+  onDelegate: (note?: string) => Promise<boolean>
   onOpenChat?: (context: ChatContext) => void
   onOpenTranscript?: (ref: ProcessNodeRunRef) => void
 }) {
@@ -2034,17 +2046,20 @@ function WaitingCard({
   const choices = parkChoicesWithSplit(view.choices, !!onSplitFollowUp)
   const proofChange = choices.find((c) => c.choice === 'change-proof')?.proofChange
   const featureSplit = choices.find((c) => c.choice === 'split-follow-up')?.featureSplit
-  const [delegating, setDelegating] = useState(false)
+  const [handingOn, setHandingOn] = useState(false)
   const variant = managerLine ? status[PROCESS_LIVE_TONE] : status.on_hold
   const titleLine = processWaitingTitleLine(view.title, managerLine ?? view.heading)
   const transcript = view.transcript
-  const delegated = view.delegated
+  const delegated =
+    view.delegated ?? (handingOn ? processWaitingDelegatedView(undefined) : undefined)
   const answers = processParkAnswersView(choices, manager, selected)
   const ownChoice = parkOwnAnswerChoice(choices)
   const send = (answer: ParkAnswerView, note: string | undefined) => {
     if (answer.choice === 'delegate') {
-      setDelegating(true)
-      void onDelegate(note).finally(() => setDelegating(false))
+      setHandingOn(true)
+      void onDelegate(note).then((went) => {
+        if (!went) setHandingOn(false)
+      })
       return
     }
     if (answer.choice === 'change-proof') return setChangingProof(true)
@@ -2088,6 +2103,9 @@ function WaitingCard({
           <Text style={{ fontSize: 12, color: theme.text.secondary }}>{titleLine}</Text>
         ) : null}
       </View>
+      {delegated ? (
+        <WaitingDelegated view={delegated} {...(onOpenChat ? { onOpenChat } : {})} />
+      ) : null}
       <View
         style={{
           borderLeftWidth: 2,
@@ -2114,17 +2132,6 @@ function WaitingCard({
         <Pressable onPress={() => onOpenTranscript(transcript)} accessibilityRole="button">
           <Text style={{ fontSize: 12, color: theme.text.secondary }}>{view.transcriptLabel}</Text>
         </Pressable>
-      ) : null}
-      {delegated ? (
-        onOpenChat ? (
-          <Pressable onPress={() => onOpenChat(delegated.chatContext)} accessibilityRole="button">
-            <Text style={{ fontSize: 12, fontWeight: '600', color: theme.text.primary }}>
-              {delegated.label} →
-            </Text>
-          </Pressable>
-        ) : (
-          <Text style={{ fontSize: 12, color: theme.text.secondary }}>{delegated.label}</Text>
-        )
       ) : null}
       {manager ? <ManagerLine view={manager} /> : null}
       {noteFor ? (
@@ -2165,7 +2172,6 @@ function WaitingCard({
       ) : (
         <ParkAnswers
           view={answers}
-          busy={delegating}
           onSelect={setSelected}
           onSend={send}
           {...(ownChoice

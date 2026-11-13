@@ -39,6 +39,13 @@ export const LIVE_CHECK_OFFERS = {
     advice: `${ADVICE_ASK_ME}${ADVICE_OPEN_NOTE}`,
     openNote: true,
   },
+  'ask-first-note': {
+    platform: 'web',
+    accounts: ['qa'],
+    recommended: 'required',
+    advice: ADVICE_REQUIRED,
+    askFirstNote: true,
+  },
 } as const satisfies Record<string, LiveCheckOffer>
 
 /** What a row starts at in each state the scenes show. */
@@ -51,6 +58,10 @@ export const LIVE_CHECK_ROW_STATES: Record<
   'ask-me': { offer: 'ask-me', draft: { choice: 'ask-me', beforeAndAfter: false } },
   'before-and-after': { offer: 'ask-me', draft: { choice: 'ask-me', beforeAndAfter: true } },
   'secret-hint': { offer: 'open-note', draft: { choice: 'ask-me', beforeAndAfter: false } },
+  'ask-first-note': {
+    offer: 'ask-first-note',
+    draft: { choice: 'required', beforeAndAfter: false },
+  },
 }
 
 /** The open note the secret hint opens: its label only is ever shown. */

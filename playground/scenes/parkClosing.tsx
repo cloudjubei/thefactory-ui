@@ -10,6 +10,7 @@ import type { Scene } from '../showcase/types'
 
 const noop = () => {}
 const resolved = async () => {}
+const handedOn = async () => true
 
 const TIP = 'eed65867fafd5db86d293c9d41496af1f75de980'
 
@@ -157,7 +158,7 @@ const park = (run: ProcessRun, alreadyMerged?: ProcessAlreadyMergedAction) =>
       onChoose={noop}
       onChangeProof={noop}
       onAnswerRequest={noop}
-      onDelegate={resolved}
+      onDelegate={handedOn}
       onDrill={noop}
     />,
   )

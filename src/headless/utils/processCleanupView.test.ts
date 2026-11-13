@@ -122,6 +122,34 @@ describe('processCleanupRows', () => {
     expect(PROCESS_CLEANUP_DEVICE_OUTCOME_LABELS.removed).toBe('Stopped')
   })
 
+  it('words a browser window the run opened, and what closing it came to', () => {
+    const rows = processCleanupRows(
+      list({
+        items: [
+          item('w1', { kind: 'browser-window', label: 'Watch window' }),
+          item('w2', { kind: 'browser-window', label: 'Base window' }),
+          item('w3', { kind: 'browser-window', label: 'Kept window' }),
+          item('w4', { kind: 'browser-window', label: 'Stuck window' }),
+        ],
+        report: {
+          outcomes: [
+            { itemId: 'w1', kind: 'browser-window', label: 'w1', status: 'removed' },
+            { itemId: 'w2', kind: 'browser-window', label: 'w2', status: 'not-found' },
+            { itemId: 'w3', kind: 'browser-window', label: 'w3', status: 'refused' },
+            { itemId: 'w4', kind: 'browser-window', label: 'w4', status: 'failed' },
+          ],
+          keptIds: [],
+        },
+      }),
+    )
+    expect(rows.map((r) => [r.kindLabel, r.outcome?.label])).toEqual([
+      ['Browser window', 'Closed'],
+      ['Browser window', 'Already closed'],
+      ['Browser window', 'Kept — not allowed'],
+      ['Browser window', 'Could not close'],
+    ])
+  })
+
   it('words a stopped device the list no longer holds the same way', () => {
     const rows = processCleanupRows(
       list({

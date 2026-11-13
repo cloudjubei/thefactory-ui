@@ -6,6 +6,7 @@ export const PROCESS_CLEANUP_KIND_LABELS: Record<ProcessCleanupItemKind, string>
   path: 'File',
   branch: 'Branch',
   device: 'Device',
+  'browser-window': 'Browser window',
 }
 
 export const PROCESS_CLEANUP_BY_LABELS = {
@@ -26,6 +27,14 @@ export const PROCESS_CLEANUP_DEVICE_OUTCOME_LABELS: Record<ProcessCleanupOutcome
   'not-found': 'Not running',
   refused: 'Kept — not allowed',
   failed: 'Could not stop',
+}
+
+/** What came of a browser window the run opened: its cleanup closes it. */
+export const PROCESS_CLEANUP_WINDOW_OUTCOME_LABELS: Record<ProcessCleanupOutcomeStatus, string> = {
+  removed: 'Closed',
+  'not-found': 'Already closed',
+  refused: 'Kept — not allowed',
+  failed: 'Could not close',
 }
 
 /** The words of the cleanup card, shared by web and native. */

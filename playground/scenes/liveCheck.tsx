@@ -53,6 +53,7 @@ import { OnFixtures } from './onFixtures'
 
 const noop = () => {}
 const resolved = async () => {}
+const handedOn = async () => true
 const MEMORY: SyncKVStorage = { get: () => null, set: noop }
 const NO_TOKEN = { read: () => null, write: noop }
 const NOW = Date.parse('2026-11-12T09:00:00Z')
@@ -211,7 +212,7 @@ function park(run: ProcessRun): ReactNode {
       onChoose={noop}
       onChangeProof={noop}
       onAnswerRequest={noop}
-      onDelegate={resolved}
+      onDelegate={handedOn}
       onDrill={noop}
     />,
   )
@@ -245,6 +246,7 @@ const ROW_CHOICES = [
   { id: 'ask-me', label: 'Ask me' },
   { id: 'before-and-after', label: 'Before and after' },
   { id: 'secret-hint', label: 'Open logins note' },
+  { id: 'ask-first-note', label: 'Logins note asks first' },
 ]
 
 export const LIVE_CHECK_SCENES: Scene[] = [
@@ -254,7 +256,7 @@ export const LIVE_CHECK_SCENES: Scene[] = [
     component: 'LaunchLiveCheckRow · LaunchFeatureList · ApprovalPanel (startFeatureWork)',
     group: 'Process',
     description:
-      'Only for a project with an app or web page to sign in to, test accounts in its notes, and a change that shows on screen: the preview then offers a live check per feature, and every other feature shows nothing. The row is always optional. Off, Required (an agent signs in and checks it) or Ask me (a device is set up and signed in, and you say if it looks right), starting at what the agent advises — Off when it advises none — with its advice under the switch. “Before and after” shows only while a mode is on and starts off: only the after is checked by default. When the logins sit in an open note, a hint asks to make it a secret and opens that note — its label only, never its text. On the card the row lives in the feature’s proof editor; collapsed, a “Live check: …” chip says the choice and opens it. The chosen mode is placed on the feature’s steps before Report.',
+      'Only for a project with an app or web page to sign in to, test accounts in its notes, and a change that shows on screen: the preview then offers a live check per feature, and every other feature shows nothing. The row is always optional. Off, Required (an agent signs in and checks it) or Ask me (a device is set up and signed in, and you say if it looks right), starting at what the agent advises — Off when it advises none — with its advice under the switch. “Before and after” shows only while a mode is on and starts off: only the after is checked by default. When the logins sit in an open note, a hint asks to make it a secret and opens that note — its label only, never its text. When they sit in a note that asks first, one line says picking a check lets this run use the test logins: the launch clears that note for the run. On the card the row lives in the feature’s proof editor; collapsed, a “Live check: …” chip says the choice and opens it. The chosen mode is placed on the feature’s steps before Report.',
     states: [
       {
         id: 'off',
@@ -288,6 +290,13 @@ export const LIVE_CHECK_SCENES: Scene[] = [
         description:
           'The hint asks to make the note a secret; the chip opens the note, by label only.',
         render: () => <Row state="secret-hint" />,
+      },
+      {
+        id: 'ask-first-note',
+        title: 'Logins in a note that asks first',
+        description:
+          'A line under the row says picking a check lets this run use the test logins: choosing one on the card clears that note for the run, so it never stops to ask.',
+        render: () => <Row state="ask-first-note" />,
       },
       {
         id: 'card',

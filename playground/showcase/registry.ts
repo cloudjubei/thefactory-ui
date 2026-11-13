@@ -24,6 +24,7 @@ import { COMMIT_CHECKS_SCENES } from '../scenes/commitChecks'
 import { COMMIT_RECEIPT_SCENES } from '../scenes/commitReceipt'
 import { CHAT_TICKET_SCENES } from '../scenes/chatTicketContext'
 import { CONTEXT_FILL_SCENES } from '../scenes/contextFill'
+import { PLAN_WINDOW_SCENES } from '../scenes/planWindow'
 import { COST_CHIP_SCENES } from '../scenes/costChip'
 import { CHAT_PAUSED_RUN_SCENES } from '../scenes/chatPausedRun'
 import { CROSS_PROJECT_RESUME_SCENES } from '../scenes/crossProjectResume'
@@ -123,6 +124,7 @@ export const SCENES: readonly Scene[] = [
   ...MODEL_EFFORT_SCENES,
   ...CHAT_TICKET_SCENES,
   ...CONTEXT_FILL_SCENES,
+  ...PLAN_WINDOW_SCENES,
   ...STUCK_SCENES,
   ...CHAT_STOP_SCENES,
   ...CHAT_HIDDEN_TAIL_SCENES,

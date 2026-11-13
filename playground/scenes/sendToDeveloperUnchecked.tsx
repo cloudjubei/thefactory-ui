@@ -17,6 +17,7 @@ import { SEND_TO_DEVELOPER_SPENT_RUN, sendToDeveloperRun } from './sendToDevelop
 
 const noop = () => {}
 const resolved = async () => {}
+const handedOn = async () => true
 const MEMORY: SyncKVStorage = { get: () => null, set: noop }
 const NO_TOKEN = { read: () => null, write: noop }
 
@@ -47,7 +48,7 @@ function park(run: ReturnType<typeof sendToDeveloperRun>): ReactNode {
       onChoose={noop}
       onChangeProof={noop}
       onAnswerRequest={noop}
-      onDelegate={resolved}
+      onDelegate={handedOn}
       onDrill={noop}
     />,
   )

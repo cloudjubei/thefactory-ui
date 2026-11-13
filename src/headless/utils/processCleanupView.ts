@@ -9,14 +9,18 @@ import {
   PROCESS_CLEANUP_DEVICE_OUTCOME_LABELS,
   PROCESS_CLEANUP_KIND_LABELS,
   PROCESS_CLEANUP_OUTCOME_LABELS,
+  PROCESS_CLEANUP_WINDOW_OUTCOME_LABELS,
 } from './processCleanupViewConstants'
 import type { ProcessCleanupRow } from './processCleanupViewTypes'
 
+function outcomeLabels(kind: ProcessCleanupOutcome['kind']) {
+  if (kind === 'device') return PROCESS_CLEANUP_DEVICE_OUTCOME_LABELS
+  if (kind === 'browser-window') return PROCESS_CLEANUP_WINDOW_OUTCOME_LABELS
+  return PROCESS_CLEANUP_OUTCOME_LABELS
+}
+
 function outcomeOf(outcome: ProcessCleanupOutcome): NonNullable<ProcessCleanupRow['outcome']> {
-  const labels =
-    outcome.kind === 'device'
-      ? PROCESS_CLEANUP_DEVICE_OUTCOME_LABELS
-      : PROCESS_CLEANUP_OUTCOME_LABELS
+  const labels = outcomeLabels(outcome.kind)
   return {
     status: outcome.status,
     label: labels[outcome.status],

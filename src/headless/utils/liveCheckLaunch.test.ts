@@ -247,6 +247,16 @@ describe('launchLiveCheckView', () => {
     ).toBe(LIVE_CHECK_COPY.secretHint)
   })
 
+  it('says picking a check lets the run use logins kept in a note that asks first', () => {
+    expect(
+      launchLiveCheckView(offer({ askFirstNote: true }), { choice: 'off', beforeAndAfter: false })
+        .clearsLogins,
+    ).toBe(LIVE_CHECK_COPY.clearsLogins)
+    expect(
+      launchLiveCheckView(offer(), { choice: 'required', beforeAndAfter: false }),
+    ).not.toHaveProperty('clearsLogins')
+  })
+
   it('never names an account', () => {
     const view = launchLiveCheckView(offer({ accounts: ['qa-admin'] }), {
       choice: 'ask-me',

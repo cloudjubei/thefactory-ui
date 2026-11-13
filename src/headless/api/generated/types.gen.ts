@@ -11823,6 +11823,7 @@ export type KnowledgeEvaluationDepthResume = {
 export type TestAccountsSummary = {
   labels: Array<string>
   openNotes: Array<string>
+  askNotes: Array<string>
   unreadNotes: Array<string>
 }
 
@@ -11874,6 +11875,7 @@ export type LiveCheckOffer = {
   recommended?: 'required' | 'ask-me'
   advice: string
   openNote?: true
+  askFirstNote?: true
 }
 
 export type HistoryPoint = {
@@ -13506,7 +13508,15 @@ export type SessionCeilingEvent = {
 
 export type ProcessCleanupAgentItemKind = 'project-note' | 'story-note' | 'path' | 'branch'
 
-export type ProcessCleanupItemKind = ProcessCleanupAgentItemKind | 'device'
+export type ProcessCleanupItemKind = ProcessCleanupAgentItemKind | 'device' | 'browser-window'
+
+export type ProcessCleanupBrowserWindow = {
+  sessionId: string
+  url: string
+  appId?: string
+}
+
+export type ProcessCleanupBrowserWindowClose = 'closed' | 'not-open'
 
 export type ProcessCleanupRegistrar = 'agent' | 'host'
 
@@ -13533,6 +13543,11 @@ export type ProcessCleanupItem = {
     avd?: string
     name?: string
   }
+  browserWindow?: {
+    sessionId: string
+    url: string
+    appId?: string
+  }
 }
 
 export type ProcessRunCleanup = {
@@ -13545,7 +13560,7 @@ export type ProcessRunCleanup = {
 
 export type ProcessCleanupListItem = {
   id: string
-  kind: ProcessCleanupAgentItemKind | 'device'
+  kind: ProcessCleanupAgentItemKind | 'device' | 'browser-window'
   ref: string
   storyId?: string
   label: string
@@ -13558,6 +13573,11 @@ export type ProcessCleanupListItem = {
     deviceId: string
     avd?: string
     name?: string
+  }
+  browserWindow?: {
+    sessionId: string
+    url: string
+    appId?: string
   }
   selected: boolean
 }
@@ -18160,6 +18180,7 @@ export type LaunchProofPlan = {
     recommended?: 'required' | 'ask-me'
     advice: string
     openNote?: true
+    askFirstNote?: true
   }
   added?: string
 }
@@ -33716,7 +33737,7 @@ export type ResumeProcessRunData = {
      */
     attemptTurns?: number
     /**
-     * With retry: the most the retried attempt alone may spend, in dollars — the run’s own step limit stays.
+     * With retry, in dollars: the most the retried attempt alone may spend — the run’s own step limit stays — or, at a stop on the run’s whole spend limit, the run’s new limit, above what it has spent.
      */
     attemptSpendUsd?: number
     /**
@@ -33870,13 +33891,9 @@ export type DelegateProcessRunAskResponses = {
      */
     chatContextId: string
     /**
-     * The project topic the chat was opened under.
+     * The project topic the chat was opened under. Its agent is briefed and started after this answers; when it cannot start, the ask waits in the chat.
      */
     topicId: string
-    /**
-     * Whether the chat agent’s first turn was started; false leaves the ask in the chat for the user to send on.
-     */
-    turnStarted: boolean
   }
 }
 
@@ -35412,6 +35429,14 @@ export type PreviewProcessGroupRunResponses = {
        */
       alreadyDone?: Array<string>
       fakeDataInProduct?: 'ship' | 'keep-out'
+      /**
+       * The live check on a test account each of the leg’s features is offered, with its advice; absent when none is.
+       */
+      liveCheckOffers?: Array<{
+        featureId: string
+        title: string
+        offer: LiveCheckOffer
+      }>
     }>
     /**
      * Leg ids by dependency level: each level starts once the one before is merged.
@@ -50324,7 +50349,7 @@ export type UpdateProjectNoteData = {
     value?: string
     description?: string
     access?: 'open' | 'ask'
-    purpose?: 'test-accounts' | 'test-device'
+    purpose?: ProjectNotePurpose | unknown
   }
   path: {
     projectId: string
@@ -51190,6 +51215,14 @@ export type PreviewGroupStoryRunResponses = {
        */
       alreadyDone?: Array<string>
       fakeDataInProduct?: 'ship' | 'keep-out'
+      /**
+       * The live check on a test account each of the leg’s features is offered, with its advice; absent when none is.
+       */
+      liveCheckOffers?: Array<{
+        featureId: string
+        title: string
+        offer: LiveCheckOffer
+      }>
     }>
     /**
      * Leg ids by dependency level: each level starts once the one before is merged.
@@ -51279,6 +51312,14 @@ export type RunGroupStoryData = {
      */
     fakeDataInProduct?: {
       [key: string]: FakeDataInProduct
+    }
+    /**
+     * The live checks on a test account turned on at the card, by project id then feature id — only features a part offers one for; a check left off is left out.
+     */
+    liveChecks?: {
+      [key: string]: {
+        [key: string]: LiveCheckOptions
+      }
     }
   }
   path: {

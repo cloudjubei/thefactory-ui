@@ -15,7 +15,10 @@ import {
 
 import {
   WAITING_BLOCKER_HEADING,
-  WAITING_DELEGATED_LABEL,
+  WAITING_DELEGATED_DETAIL,
+  WAITING_DELEGATED_HEADING,
+  WAITING_DELEGATED_OPEN,
+  WAITING_DELEGATING_HEADING,
   WAITING_DETAIL_LABELS,
   WAITING_PERMISSION_HEADING,
   WAITING_PERMISSION_HEADINGS,
@@ -26,6 +29,7 @@ import {
 } from './processWaitingViewConstants'
 import type { ChatContext } from '../api'
 import type {
+  ProcessWaitingDelegatedView,
   ProcessWaitingDetail,
   ProcessWaitingRequestView,
   ProcessWaitingView,
@@ -97,6 +101,18 @@ function processWaitingRequestView(item: ProcessWaitingItem): ProcessWaitingRequ
   }
 }
 
+/** What the card says of an ask handed to another agent: on its way while `chatContext` is unknown. */
+export function processWaitingDelegatedView(
+  chatContext: ChatContext | undefined,
+): ProcessWaitingDelegatedView {
+  return {
+    ...(chatContext ? { chatContext } : {}),
+    heading: chatContext ? WAITING_DELEGATED_HEADING : WAITING_DELEGATING_HEADING,
+    detail: WAITING_DELEGATED_DETAIL,
+    openLabel: WAITING_DELEGATED_OPEN,
+  }
+}
+
 /**
  * The card for a run parked on an agent waiting on the person, or `undefined`
  * for any other park — including a story's mirror of one, which is answered on
@@ -124,7 +140,7 @@ export function processWaitingView(
     transcriptLabel: `Open the ${processAgentLabel(ask.agent)}’s transcript →`,
     choices: processRunParkChoices(run),
     ...(ask.items ? { requests: ask.items.map(processWaitingRequestView) } : {}),
-    ...(chatContext ? { delegated: { chatContext, label: WAITING_DELEGATED_LABEL } } : {}),
+    ...(chatContext ? { delegated: processWaitingDelegatedView(chatContext) } : {}),
   }
 }
 

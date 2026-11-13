@@ -1841,6 +1841,25 @@ export type {
 } from './utils/chatContextSettingsTypes'
 export { useChatContextFill } from './hooks/useChatContextFill'
 export {
+  claudePlanUsage,
+  codexPlanUsage,
+  planWindowChip,
+  planWindowName,
+  planWindowResetLabel,
+  planWindowStatus,
+} from './utils/planWindowUsage'
+export * from './utils/planWindowUsageConstants'
+export type {
+  ClaudeRateLimitInfo,
+  CliPlanUsage,
+  CodexRateLimits,
+  CodexRateLimitWindow,
+  PlanWindowChipView,
+  PlanWindowChipWindow,
+  PlanWindowStatus,
+  PlanWindowUsage,
+} from './utils/planWindowUsageTypes'
+export {
   canSendStuckHint,
   processParkStuckView,
   processStepStuckView,
@@ -3485,9 +3504,15 @@ export {
   processWaitingDetails,
   processWaitingHeading,
   processWaitingTitleLine,
+  processWaitingDelegatedView,
   processWaitingView,
 } from './utils/processWaitingView'
-export { WAITING_DELEGATED_LABEL } from './utils/processWaitingViewConstants'
+export {
+  WAITING_DELEGATED_DETAIL,
+  WAITING_DELEGATED_HEADING,
+  WAITING_DELEGATED_OPEN,
+  WAITING_DELEGATING_HEADING,
+} from './utils/processWaitingViewConstants'
 export type {
   ProcessWaitingDelegatedView,
   ProcessWaitingDetail,

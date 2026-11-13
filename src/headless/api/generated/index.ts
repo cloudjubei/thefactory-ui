@@ -3440,6 +3440,8 @@ export type {
   ProcessCirclingSignal,
   ProcessCirclingToolCall,
   ProcessCleanupAgentItemKind,
+  ProcessCleanupBrowserWindow,
+  ProcessCleanupBrowserWindowClose,
   ProcessCleanupItem,
   ProcessCleanupItemInput,
   ProcessCleanupItemKind,
