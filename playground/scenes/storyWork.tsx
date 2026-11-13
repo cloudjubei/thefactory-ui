@@ -27,6 +27,7 @@ import type { Scene } from '../showcase/types'
 
 const noop = () => {}
 const resolved = async () => {}
+const handedOn = async () => true
 
 const STORY_ID = '30782ee5-6b1d-4c1e-9a52-0d1f7e3b9c64'
 const BLOCKING_STORY_ID = '6c7c9075-2f0a-4b8e-8c3d-51e9a7b4d210'
@@ -255,7 +256,7 @@ const park = (run: ProcessRun) =>
         onChoose={noop}
         onChangeProof={noop}
         onAnswerRequest={noop}
-        onDelegate={resolved}
+        onDelegate={handedOn}
         onDrill={noop}
       />,
     ),

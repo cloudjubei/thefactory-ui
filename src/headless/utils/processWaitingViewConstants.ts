@@ -21,7 +21,16 @@ export const WAITING_DETAIL_LABELS = {
   tool: 'Tool',
 } as const
 
-export const WAITING_DELEGATED_LABEL = 'Delegated to another agent — open the chat'
+/** The card's line while the ask is on its way to another agent, before its chat exists. */
+export const WAITING_DELEGATING_HEADING = 'Handing this to another agent…'
+
+/** The card's line once another agent has the ask. */
+export const WAITING_DELEGATED_HEADING = 'Another agent is working on this'
+
+export const WAITING_DELEGATED_DETAIL =
+  'It reads the run, does what it can and tells you in its chat what only you can do. Once it’s sorted, answer here and the agent carries on.'
+
+export const WAITING_DELEGATED_OPEN = 'Open the chat'
 
 /** A card's heading when the agent left several requests waiting — the agent's label goes first. */
 export const WAITING_REQUESTS_HEADING = 'needs your approval on several requests'

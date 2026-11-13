@@ -6,10 +6,14 @@ import {
   processWaitingDetails,
   processWaitingHeading,
   processWaitingTitleLine,
+  processWaitingDelegatedView,
   processWaitingView,
 } from './processWaitingView'
 import {
-  WAITING_DELEGATED_LABEL,
+  WAITING_DELEGATED_DETAIL,
+  WAITING_DELEGATED_HEADING,
+  WAITING_DELEGATED_OPEN,
+  WAITING_DELEGATING_HEADING,
   WAITING_REQUEST_DECIDED,
   WAITING_REQUESTS_HEADING,
   WAITING_REQUESTS_WORDS,
@@ -316,7 +320,9 @@ describe('processWaitingView', () => {
     )!
     expect(view.delegated).toEqual({
       chatContext: { type: 'PROJECT_TOPIC', projectId: 'p', topicId: 't1' },
-      label: WAITING_DELEGATED_LABEL,
+      heading: WAITING_DELEGATED_HEADING,
+      detail: WAITING_DELEGATED_DETAIL,
+      openLabel: WAITING_DELEGATED_OPEN,
     })
   })
 
@@ -419,5 +425,23 @@ describe('isResumeParkChoice', () => {
     expect(isResumeParkChoice({ choice: 'allow', label: 'a', detail: 'd' })).toBe(true)
     expect(isResumeParkChoice({ choice: 'approve', label: 'a', detail: 'd' })).toBe(true)
     expect(isResumeParkChoice({ choice: 'delegate', label: 'a', detail: 'd' })).toBe(false)
+  })
+})
+
+describe('processWaitingDelegatedView', () => {
+  it('says the ask is on its way to another agent before its chat exists', () => {
+    expect(processWaitingDelegatedView(undefined)).toEqual({
+      heading: WAITING_DELEGATING_HEADING,
+      detail: WAITING_DELEGATED_DETAIL,
+      openLabel: WAITING_DELEGATED_OPEN,
+    })
+  })
+
+  it('offers the chat once the ask is handed on', () => {
+    const chat = { type: 'PROJECT_TOPIC', projectId: 'p', topicId: 't1' } as const
+    expect(processWaitingDelegatedView(chat)).toMatchObject({
+      chatContext: chat,
+      heading: WAITING_DELEGATED_HEADING,
+    })
   })
 })

@@ -79,6 +79,9 @@ export default function LaunchLiveCheckRow({
       ) : null}
       <Text style={{ fontSize: 11.5, color: theme.text.secondary }}>{view.line}</Text>
       <Text style={{ fontSize: 11, color: theme.text.muted }}>{view.advice}</Text>
+      {view.clearsLogins ? (
+        <Text style={{ fontSize: 11, color: theme.text.secondary }}>{view.clearsLogins}</Text>
+      ) : null}
       {view.secretHint ? (
         <View
           style={{

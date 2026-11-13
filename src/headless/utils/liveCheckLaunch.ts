@@ -120,6 +120,7 @@ export function launchLiveCheckView(
     ...(offer.recommended ? { recommended: offer.recommended } : {}),
     chip: LIVE_CHECK_COPY.chip(label),
     ...(secretHint ? { secretHint } : {}),
+    ...(offer.askFirstNote ? { clearsLogins: LIVE_CHECK_COPY.clearsLogins } : {}),
   }
 }
 

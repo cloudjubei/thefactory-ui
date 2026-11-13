@@ -22,6 +22,7 @@ import type { Scene } from '../showcase/types'
 
 const noop = () => {}
 const resolved = async () => {}
+const handedOn = async () => true
 const PARKED_AT = Date.parse('2026-10-18T09:40:00Z')
 const LIMIT_50 = { limitTurns: true, maxTurns: 50 }
 const LIMIT_100 = { limitTurns: true, maxTurns: 100 }
@@ -287,7 +288,7 @@ const park = (run: ProcessRun) =>
       onChoose={noop}
       onChangeProof={noop}
       onAnswerRequest={noop}
-      onDelegate={resolved}
+      onDelegate={handedOn}
       onDrill={noop}
     />,
   )

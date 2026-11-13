@@ -41,6 +41,8 @@ export interface LaunchLiveCheckView {
   chip: string
   /** The test logins sit in a note any agent may read: make it a secret. */
   secretHint?: string
+  /** The test logins sit in a note that asks first: picking a check clears it for the run. */
+  clearsLogins?: string
 }
 
 /** A feature of a group launch's leg that offers a live check. */

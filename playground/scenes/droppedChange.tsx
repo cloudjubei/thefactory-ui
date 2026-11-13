@@ -22,6 +22,7 @@ import type { Scene } from '../showcase/types'
 
 const noop = () => {}
 const resolved = async () => {}
+const handedOn = async () => true
 
 const TEST_FILE = 'src/routes/completions.integration.test.ts'
 const MERGE = 'cf9386d1b7e04a2f9c35d8e6a0b1c2d3e4f5a6b7'
@@ -175,7 +176,7 @@ export const DROPPED_CHANGE_SCENES: Scene[] = [
               onChoose={noop}
               onChangeProof={noop}
               onAnswerRequest={noop}
-              onDelegate={resolved}
+              onDelegate={handedOn}
               onDrill={noop}
             />,
           ),

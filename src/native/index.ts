@@ -220,6 +220,10 @@ export {
   type ContextFillBodyProps,
 } from './compound/chips/ContextFillBody'
 export { default as CostChip, type CostChipProps } from './compound/chips/CostChip'
+export {
+  default as PlanWindowChip,
+  type PlanWindowChipProps,
+} from './compound/chips/PlanWindowChip'
 export { default as ToneBadge, type ToneBadgeProps } from './compound/chips/ToneBadge'
 export { default as DurationChip, type DurationChipProps } from './compound/chips/DurationChip'
 export { default as ProjectChip, type ProjectChipProps } from './compound/chips/ProjectChip'

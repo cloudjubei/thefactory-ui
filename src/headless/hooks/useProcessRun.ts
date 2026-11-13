@@ -43,7 +43,7 @@ import { runModelChangeBody } from '../utils/runModelChange'
 export type ProcessRunBranch = { projectId: string; branch: string }
 
 /** The chat an ask was handed to. */
-export type ProcessRunDelegation = { chatContextId: string; topicId: string; turnStarted: boolean }
+export type ProcessRunDelegation = { chatContextId: string; topicId: string }
 
 /** A run's own chat, as opening it returns it. */
 export type ProcessRunChatOpened = { chatContextId: string; context: ChatContext }
@@ -470,11 +470,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
         })
         const result = data as { run: ProcessRun } & ProcessRunDelegation
         setRun(result.run)
-        return {
-          chatContextId: result.chatContextId,
-          topicId: result.topicId,
-          turnStarted: result.turnStarted,
-        }
+        return { chatContextId: result.chatContextId, topicId: result.topicId }
       } catch (err) {
         setActionError(extractErrorMessage(err, 'The ask could not be handed on.'))
         return undefined

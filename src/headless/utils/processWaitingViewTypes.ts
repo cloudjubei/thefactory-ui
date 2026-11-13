@@ -28,10 +28,13 @@ export interface ProcessWaitingRequestView {
 }
 
 /** Where the ask went when the person handed it to another agent. */
+/** Another agent has the ask, or it is on its way to one. */
 export interface ProcessWaitingDelegatedView {
-  /** The chat to open. */
-  chatContext: ChatContext
-  label: string
+  /** The chat to open; absent while the ask is still being handed on. */
+  chatContext?: ChatContext
+  heading: string
+  detail: string
+  openLabel: string
 }
 
 /**

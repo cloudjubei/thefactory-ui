@@ -29,6 +29,7 @@ import {
 
 const noop = () => {}
 const resolved = async () => {}
+const handedOn = async () => true
 
 const NO_SCREENS: ProofKindUnavailable[] = [
   {
@@ -279,7 +280,7 @@ export const PROOF_CHANGE_SCENES: Scene[] = [
               onChoose={noop}
               onChangeProof={noop}
               onAnswerRequest={noop}
-              onDelegate={resolved}
+              onDelegate={handedOn}
               onDrill={noop}
             />,
           ),
@@ -297,7 +298,7 @@ export const PROOF_CHANGE_SCENES: Scene[] = [
               onChoose={noop}
               onChangeProof={noop}
               onAnswerRequest={noop}
-              onDelegate={resolved}
+              onDelegate={handedOn}
               onDrill={noop}
             />,
           ),

@@ -62,6 +62,9 @@ export default function LaunchLiveCheckRow({
       </div>
       <span className="text-[11.5px] text-(--text-secondary)">{view.line}</span>
       <span className="text-[11px] text-(--text-muted)">{view.advice}</span>
+      {view.clearsLogins ? (
+        <span className="text-[11px] text-(--text-secondary)">{view.clearsLogins}</span>
+      ) : null}
       {view.secretHint ? (
         <div className="flex flex-wrap items-center gap-1.5 rounded bg-(--status-review-soft-bg) px-2 py-1">
           <span role="note" className="text-[11px] text-(--status-review-soft-fg)">

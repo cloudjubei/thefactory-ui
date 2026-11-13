@@ -43,6 +43,7 @@ import { OnFixtures, type FixtureRoutes } from './onFixtures'
 
 const noop = () => {}
 const resolved = async () => {}
+const handedOn = async () => true
 
 const nodeOf = (id: string, title: string, attempts: number): ProcessProposal['steps'][number] => ({
   id: `features:${id}`,
@@ -245,7 +246,7 @@ function Spent() {
           onChoose={noop}
           onChangeProof={noop}
           onAnswerRequest={noop}
-          onDelegate={resolved}
+          onDelegate={handedOn}
           onDrill={noop}
         />
       </div>

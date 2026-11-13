@@ -68,6 +68,7 @@ import {
   processRunStripEntries,
   runStepsLine,
   STEPS_STRIP_LABELS,
+  processWaitingDelegatedView,
   processWaitingView,
   signoffMergeHold,
   SIGNOFF_GROUP_CHIP_LABEL,
@@ -178,6 +179,7 @@ import RunModelControl from './RunModelControl'
 import { RunManagerChip } from './RunManagerChip'
 import RunDiagnosticsView from './RunDiagnosticsView'
 import RunChatButton, { type RunChatButtonProps } from './RunChatButton'
+import WaitingDelegated from './WaitingDelegated'
 import RunChatDock from './RunChatDock'
 import { readChatsSeen, useChatsSeen, writeChatsSeen } from '../notifications/chatsSeen'
 import StorySignoffReview from './StorySignoffReview'
@@ -686,9 +688,9 @@ export default function ProcessPipeline({
                 onAnswerRequest={(actionId, choice) =>
                   void stopActions.answerWaitingRequest(actionId, choice)
                 }
-                onDelegate={(note) => stopActions.delegate(note).then(() => undefined)}
+                onDelegate={(note) => stopActions.delegate(note).then((d) => d !== undefined)}
                 {...(canChat && atTop && !nested.run ? { onAskAgent: askAgentAboutStep } : {})}
-                {...(onOpenChat ? { onOpenChat } : {})}
+                {...(renderChat || onOpenChat ? { onOpenChat: showRunChat } : {})}
                 onDrill={drillTo}
                 {...(renderAgentRun && stopState
                   ? {
@@ -1477,7 +1479,8 @@ export function ParkBlock({
   onSplitFollowUp?: (draft: FeatureSplitDraft) => void
   onAnswerRequest: (actionId: string, choice: ProcessWaitingItemChoice) => void
   /** Hand a waiting agent's ask to another agent, with the brief it starts from. */
-  onDelegate: (note?: string) => Promise<void>
+  /** Hand the ask to another agent: whether it went. */
+  onDelegate: (note?: string) => Promise<boolean>
   onAskAgent?: () => Promise<void>
   onOpenChat?: (context: ChatContext) => void
   /** Open the agent run that is waiting, to read its transcript. */
@@ -1878,7 +1881,8 @@ function WaitingCard({
   /** Move picked acceptance points into a follow-up; without it the ask does not offer it. */
   onSplitFollowUp?: (draft: FeatureSplitDraft) => void
   onAnswerRequest: (actionId: string, choice: ProcessWaitingItemChoice) => void
-  onDelegate: (note?: string) => Promise<void>
+  /** Hand the ask to another agent: whether it went. */
+  onDelegate: (note?: string) => Promise<boolean>
   onOpenChat?: (context: ChatContext) => void
   onOpenTranscript?: (ref: ProcessNodeRunRef) => void
 }) {
@@ -1889,17 +1893,20 @@ function WaitingCard({
   const choices = parkChoicesWithSplit(view.choices, !!onSplitFollowUp)
   const proofChange = choices.find((c) => c.choice === 'change-proof')?.proofChange
   const featureSplit = choices.find((c) => c.choice === 'split-follow-up')?.featureSplit
-  const [delegating, setDelegating] = useState(false)
+  const [handingOn, setHandingOn] = useState(false)
   const transcript = view.transcript
-  const delegated = view.delegated
+  const delegated =
+    view.delegated ?? (handingOn ? processWaitingDelegatedView(undefined) : undefined)
   const tone = managerLine ? PROCESS_LIVE_TONE : 'on_hold'
   const titleLine = processWaitingTitleLine(view.title, managerLine ?? view.heading)
   const answers = processParkAnswersView(choices, manager, selected)
   const ownChoice = parkOwnAnswerChoice(choices)
   const send = (answer: ParkAnswerView, note: string | undefined) => {
     if (answer.choice === 'delegate') {
-      setDelegating(true)
-      void onDelegate(note).finally(() => setDelegating(false))
+      setHandingOn(true)
+      void onDelegate(note).then((went) => {
+        if (!went) setHandingOn(false)
+      })
       return
     }
     if (answer.choice === 'change-proof') return setChangingProof(true)
@@ -1938,6 +1945,9 @@ function WaitingCard({
         </div>
         {titleLine ? <div className="text-[12px] text-(--text-secondary)">{titleLine}</div> : null}
       </div>
+      {delegated ? (
+        <WaitingDelegated view={delegated} {...(onOpenChat ? { onOpenChat } : {})} />
+      ) : null}
       <blockquote className="m-0 whitespace-pre-wrap rounded-md border-l-2 border-(--border-strong) bg-(--surface-base) px-2.5 py-1.5 text-[12.5px] leading-relaxed text-(--text-primary)">
         {view.words}
       </blockquote>
@@ -1962,19 +1972,6 @@ function WaitingCard({
           >
             {view.transcriptLabel}
           </button>
-        ) : null}
-        {delegated ? (
-          onOpenChat ? (
-            <button
-              type="button"
-              className="text-[11px] font-medium underline text-(--text-primary)"
-              onClick={() => onOpenChat(delegated.chatContext)}
-            >
-              {delegated.label} →
-            </button>
-          ) : (
-            <span className="text-[11px] text-(--text-secondary)">{delegated.label}</span>
-          )
         ) : null}
       </div>
       {manager ? <ManagerLine view={manager} /> : null}
@@ -2009,7 +2006,6 @@ function WaitingCard({
       ) : (
         <ParkAnswers
           view={answers}
-          busy={delegating}
           onSelect={setSelected}
           onSend={send}
           {...(ownChoice
