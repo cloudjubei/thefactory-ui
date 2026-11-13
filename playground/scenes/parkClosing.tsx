@@ -9,7 +9,6 @@ import { ParkBlock } from '../../src/web/compound/process/ProcessPipeline'
 import type { Scene } from '../showcase/types'
 
 const noop = () => {}
-const resolved = async () => {}
 const handedOn = async () => true
 
 const TIP = 'eed65867fafd5db86d293c9d41496af1f75de980'

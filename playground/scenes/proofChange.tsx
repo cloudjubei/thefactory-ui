@@ -28,7 +28,6 @@ import {
 } from './proofChangeFixtures'
 
 const noop = () => {}
-const resolved = async () => {}
 const handedOn = async () => true
 
 const NO_SCREENS: ProofKindUnavailable[] = [

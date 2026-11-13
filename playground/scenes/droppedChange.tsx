@@ -21,7 +21,6 @@ import SignoffDecisionList from '../../src/web/compound/process/signoff/SignoffD
 import type { Scene } from '../showcase/types'
 
 const noop = () => {}
-const resolved = async () => {}
 const handedOn = async () => true
 
 const TEST_FILE = 'src/routes/completions.integration.test.ts'

@@ -16,7 +16,6 @@ import type { Scene } from '../showcase/types'
 import { SEND_TO_DEVELOPER_SPENT_RUN, sendToDeveloperRun } from './sendToDeveloperUncheckedFixtures'
 
 const noop = () => {}
-const resolved = async () => {}
 const handedOn = async () => true
 const MEMORY: SyncKVStorage = { get: () => null, set: noop }
 const NO_TOKEN = { read: () => null, write: noop }

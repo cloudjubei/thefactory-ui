@@ -9,7 +9,6 @@ import type { Scene } from '../showcase/types'
 import { SPLIT_FEATURE_RUN, SPLIT_POINT_LOOKS, SPLIT_STATES } from './featureSplitFixtures'
 
 const noop = () => {}
-const resolved = async () => {}
 const handedOn = async () => true
 
 const frame = (node: ReactNode) => <div className="max-w-[640px] p-4">{node}</div>

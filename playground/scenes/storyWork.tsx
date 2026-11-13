@@ -26,7 +26,6 @@ import { ParkBlock, RunHead } from '../../src/web/compound/process/ProcessPipeli
 import type { Scene } from '../showcase/types'
 
 const noop = () => {}
-const resolved = async () => {}
 const handedOn = async () => true
 
 const STORY_ID = '30782ee5-6b1d-4c1e-9a52-0d1f7e3b9c64'

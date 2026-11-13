@@ -23,7 +23,6 @@ import {
 import type { Scene } from '../showcase/types'
 
 const noop = () => {}
-const resolved = async () => {}
 const handedOn = async () => true
 
 const frame = (node: ReactNode) => (

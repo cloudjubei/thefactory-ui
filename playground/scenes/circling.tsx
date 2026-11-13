@@ -21,7 +21,6 @@ import { ParkBlock } from '../../src/web/compound/process/ProcessPipeline'
 import type { Scene } from '../showcase/types'
 
 const noop = () => {}
-const resolved = async () => {}
 const handedOn = async () => true
 const PARKED_AT = Date.parse('2026-10-18T09:40:00Z')
 const LIMIT_50 = { limitTurns: true, maxTurns: 50 }
