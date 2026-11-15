@@ -38,6 +38,7 @@ import {
   WalkthroughTab,
 } from '../chat/signoff'
 import { saveSideBySide } from '../chat/signoff/download'
+import { NotShownList } from './PartialProofLists'
 import ProofBanner from './ProofBanner'
 import ProofPlanMarks from './ProofPlanMarks'
 import ProofScreens from './ProofScreens'
@@ -261,6 +262,8 @@ export default function FeatureReviewSection({
   const [activeTab, setActiveTab] = useState<ReviewTabId | undefined>()
 
   const videoPairs = proof?.videoPairs ?? []
+  const notShownAlone =
+    proof && proof.screens.length === 0 ? proofScreensPane(proof).partial : undefined
   const { tests: testChecks, build: buildChecks } = reviewCheckGroups(verification)
   const testTotals = aggregateTestCounts(testChecks)
 
@@ -329,6 +332,8 @@ export default function FeatureReviewSection({
           {proof.summary.text}
         </span>
       ) : null}
+
+      {notShownAlone ? <NotShownList view={notShownAlone} /> : null}
 
       <AgentRow agents={agents} />
 

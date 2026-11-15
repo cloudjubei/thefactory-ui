@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { ProcessParkChoice } from 'thefactory-tools/types'
 
-import { parkOwnAnswerChoice, processParkAnswersView } from './processParkAnswers'
+import {
+  parkAnswerIsMinor,
+  parkOwnAnswerChoice,
+  processParkAnswersView,
+} from './processParkAnswers'
 
 const choice = (c: ProcessParkChoice['choice'], extra: Partial<ProcessParkChoice> = {}) => ({
   choice: c,
@@ -147,5 +151,43 @@ describe('parkOwnAnswerChoice', () => {
 
   it('offers none where no choice takes words', () => {
     expect(parkOwnAnswerChoice([choice('continue'), choice('abandon')])).toBeUndefined()
+  })
+})
+
+const brk = {
+  source: 'checks' as const,
+  checks: ['Unit tests'],
+  files: ['Tests/A.swift'],
+  baseRef: 'main',
+  headline: 'Tests/A.swift:1: error',
+}
+
+describe('parkAnswerIsMinor', () => {
+  it('keeps carrying on and the endings quiet', () => {
+    for (const c of ['continue', 'abandon', 'reject', 'close-unmerged'] as const) {
+      expect(parkAnswerIsMinor(choice(c))).toBe(true)
+    }
+    expect(parkAnswerIsMinor(choice('retry'))).toBe(false)
+  })
+
+  it('makes leaving a break out a button, while its stop stays a quiet link', () => {
+    expect(parkAnswerIsMinor(choice('continue', { preExistingBreak: brk }))).toBe(false)
+    expect(parkAnswerIsMinor(choice('abandon', { preExistingBreak: brk }))).toBe(true)
+    expect(parkAnswerIsMinor(choice('send-to-developer', { preExistingBreak: brk }))).toBe(false)
+  })
+})
+
+describe('processParkAnswersView at a break already at the base', () => {
+  it('leads with the repair, offers leaving it out beside it, and asks before it stops', () => {
+    const view = processParkAnswersView([
+      choice('send-to-developer', { primary: true, preExistingBreak: brk }),
+      choice('continue', { preExistingBreak: brk }),
+      choice('abandon', { label: 'Stop', preExistingBreak: brk }),
+    ])
+    expect(view.lead?.choice).toBe('send-to-developer')
+    expect(view.others.map((a) => a.choice)).toEqual(['continue'])
+    expect(view.minor.map((a) => [a.choice, a.label, !!a.confirm])).toEqual([
+      ['abandon', 'Stop', true],
+    ])
   })
 })

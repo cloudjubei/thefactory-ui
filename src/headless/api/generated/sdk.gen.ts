@@ -1158,6 +1158,9 @@ import type {
   RunTestsResponses,
   RunTrainerToolData,
   RunTrainerToolResponses,
+  SaveChatFileToProjectData,
+  SaveChatFileToProjectErrors,
+  SaveChatFileToProjectResponses,
   SaveGroupAgentTypeData,
   SaveGroupAgentTypeErrors,
   SaveGroupAgentTypeResponses,
@@ -5310,6 +5313,27 @@ export const uploadAnyChatAttachment = <ThrowOnError extends boolean = false>(
     ...options,
     headers: {
       'Content-Type': 'application/octet-stream',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Copy a file shown in one of the project’s chats — a path in its chat attachment store — into the project’s folder. Nothing is committed. A file already at the destination is kept (409, `exists`) unless `overwrite`.
+ */
+export const saveChatFileToProject = <ThrowOnError extends boolean = false>(
+  options: Options<SaveChatFileToProjectData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    SaveChatFileToProjectResponses,
+    SaveChatFileToProjectErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/chat-files/save',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
       ...options.headers,
     },
   })

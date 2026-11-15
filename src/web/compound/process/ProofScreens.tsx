@@ -15,6 +15,7 @@ import {
 import { IconChevronRight, IconDownload } from '../../icons'
 import { Button } from '../../primitives/Button'
 import SegmentedControl from '../../primitives/SegmentedControl'
+import { NotShownList, ShownTitle } from './PartialProofLists'
 
 export type ProofScreensProps = {
   view: VerifyProofView
@@ -284,7 +285,10 @@ export default function ProofScreens({
 
       {pane.thumbnails.length > 0 ? (
         <div className="flex flex-col gap-2.5">
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <div
+            className={`flex flex-wrap items-center gap-2 ${pane.partial ? 'justify-between' : 'justify-end'}`}
+          >
+            {pane.partial ? <ShownTitle view={pane.partial} /> : null}
             {pane.hasBefore ? (
               <SegmentedControl
                 size="sm"
@@ -316,6 +320,8 @@ export default function ProofScreens({
           </div>
         </div>
       ) : null}
+
+      {pane.partial ? <NotShownList view={pane.partial} /> : null}
 
       {pane.notCounted ? (
         <div className="flex flex-col gap-1.5">

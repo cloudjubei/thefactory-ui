@@ -3,6 +3,7 @@ import type { ProcessParkAction } from 'thefactory-tools/types'
 
 import {
   choiceTakesNote,
+  parkAnswerOpensNote,
   parkNoteCopy,
   parkNoteCounter,
   parkNoteRequired,
@@ -270,5 +271,36 @@ describe('parkNoteCopy at a Watch it live', () => {
 
   it('leaves every other choice’s words as they were', () => {
     expect(parkNoteCopy('retry', undefined, true)).toBe(RETRY_NOTE_COPY)
+  })
+})
+
+describe('parkAnswerOpensNote', () => {
+  const brk = {
+    source: 'developer' as const,
+    checks: ['Unit tests'],
+    files: [],
+    baseRef: 'main',
+    headline: 'x',
+  }
+  const partial = { stepId: 'verify', entryId: 'v1', shown: ['A'], notShown: ['B'] }
+
+  it('opens the composer for a choice that takes a note, sent without one', () => {
+    expect(parkAnswerOpensNote({ choice: 'send-to-developer' }, undefined)).toBe(true)
+    expect(parkAnswerOpensNote({ choice: 'more-info' }, undefined)).toBe(true)
+  })
+
+  it('sends at once with a note, or for a choice that takes none', () => {
+    expect(parkAnswerOpensNote({ choice: 'send-to-developer' }, 'fix it')).toBe(false)
+    expect(parkAnswerOpensNote({ choice: 'continue' }, undefined)).toBe(false)
+  })
+
+  it('sends a ready answer at once: its brief is written', () => {
+    expect(parkAnswerOpensNote({ choice: 'more-info', preExistingBreak: brk }, undefined)).toBe(
+      false,
+    )
+    expect(
+      parkAnswerOpensNote({ choice: 'send-to-developer', preExistingBreak: brk }, undefined),
+    ).toBe(false)
+    expect(parkAnswerOpensNote({ choice: 'retry', partialProof: partial }, undefined)).toBe(false)
   })
 })

@@ -15,7 +15,13 @@ import {
 import {
   accessRecordProjectNames,
   accessRecordSection,
-  choiceTakesNote,
+  parkAnswerOpensNote,
+  partialProofOfChoices,
+  partialProofView,
+  preExistingBreakOfChoices,
+  preExistingBreakView,
+  signoffCarriedView,
+  type SignoffCarriedView,
   processParkCirclingView,
   processParkStuckView,
   processStepCirclingView,
@@ -158,6 +164,7 @@ import DroppedChangesNote from './DroppedChangesNote'
 import RunCarriedOutChanges from './RunCarriedOutChanges'
 import RunPendingChanges from './RunPendingChanges'
 import ProcessTryBuildCard from './signoff/ProcessTryBuildCard'
+import SignoffCarriedCard from './signoff/SignoffCarriedCard'
 import IntegrationResult from './IntegrationResult'
 import { CirclingChip, CirclingNotice } from './CirclingNotice'
 import ParkNoteComposer from './ParkNoteComposer'
@@ -167,6 +174,8 @@ import FeatureSplitComposer from './FeatureSplitComposer'
 import ProofChangeComposer from './ProofChangeComposer'
 import RetryChoiceOptions from './RetryChoiceOptions'
 import ParkAnswers from './ParkAnswers'
+import PartialProofLists from './PartialProofLists'
+import PreExistingBreakNotice from './PreExistingBreakNotice'
 import RunDetails from './RunDetails'
 import RunManagerBar from './RunManagerBar'
 import RunStepsCard from './RunStepsCard'
@@ -632,9 +641,10 @@ export default function ProcessPipeline({
       {...(style ? { style } : {})}
     />
   )
-  const signoffDetails = (style?: typeof flush) => (
+  const signoffDetails = (style?: typeof flush, carried?: SignoffCarriedView) => (
     <>
       <ProcessTryBuildCard runId={run.id} />
+      {carried ? <SignoffCarriedCard view={carried} /> : null}
       {runDetails(style)}
     </>
   )
@@ -855,7 +865,7 @@ export default function ProcessPipeline({
                 />
               }
               steps={stepsCard(flush)}
-              details={signoffDetails(flush)}
+              details={signoffDetails(flush, signoffCarriedView([run]))}
               onChoose={choose}
               error={actionError}
               onOpenVariant={openVariant}
@@ -1739,6 +1749,10 @@ function ParkBlock({
   const proofChange = choices.find((c) => c.choice === 'change-proof')?.proofChange
   const featureSplit = choices.find((c) => c.choice === 'split-follow-up')?.featureSplit
   const circling = processParkStuckView(run) ?? processParkCirclingView(run, root ?? run)
+  const partial = partialProofOfChoices(choices)
+  const partialView = partial ? partialProofView(partial) : undefined
+  const broken = preExistingBreakOfChoices(choices)
+  const brokenView = broken ? preExistingBreakView(broken) : undefined
   const watch = liveCheckWatchView(run, choices)
   const variant = managerLine
     ? status[PROCESS_LIVE_TONE]
@@ -1761,7 +1775,7 @@ function ParkBlock({
     if (answer.choice === 'change-proof') return setChangingProof(true)
     if (answer.choice === 'split-follow-up') return setSplitting(true)
     if (answer.choice === 'close-unmerged') return setConfirmingClose(true)
-    if (!note && choiceTakesNote(answer.choice)) {
+    if (parkAnswerOpensNote(answer.offer, note)) {
       return setNoteFor(answer.choice as ProcessResumeChoice)
     }
     if (answer.choice === 'retry' && pick) {
@@ -1791,13 +1805,15 @@ function ParkBlock({
         <LiveCheckWatchHeader view={watch} embedded={embedded} />
       ) : (
         <RichText
-          text={managerLine ?? park.message}
+          text={managerLine ?? brokenView?.headline ?? park.message}
           textColor={embedded ? theme.text.primary : variant.softFg}
           fontSize={embedded ? 16 : 13}
           fontWeight="600"
         />
       )}
       {circling ? <CirclingNotice view={circling} /> : null}
+      {brokenView ? <PreExistingBreakNotice view={brokenView} heading={false} /> : null}
+      {partialView ? <PartialProofLists view={partialView} /> : null}
       {reflected && park.childRunId ? (
         <Pressable onPress={() => onDrill(park.childRunId as string)} accessibilityRole="button">
           <Text style={{ fontSize: 11, color: theme.text.secondary }}>
@@ -2064,7 +2080,7 @@ function WaitingCard({
     }
     if (answer.choice === 'change-proof') return setChangingProof(true)
     if (answer.choice === 'split-follow-up') return setSplitting(true)
-    if (!note && choiceTakesNote(answer.choice)) {
+    if (parkAnswerOpensNote(answer.offer, note)) {
       return setNoteFor(answer.choice as ProcessResumeChoice)
     }
     if (answer.choice === 'retry' && retry) {
@@ -2106,20 +2122,24 @@ function WaitingCard({
       {delegated ? (
         <WaitingDelegated view={delegated} {...(onOpenChat ? { onOpenChat } : {})} />
       ) : null}
-      <View
-        style={{
-          borderLeftWidth: 2,
-          borderLeftColor: theme.border.strong,
-          backgroundColor: theme.surface.base,
-          borderRadius: nativeRadii[2],
-          paddingHorizontal: nativeSpace[2],
-          paddingVertical: nativeSpace[1],
-        }}
-      >
-        <Text style={{ fontSize: 13, lineHeight: 19, color: theme.text.primary }}>
-          {view.words}
-        </Text>
-      </View>
+      {view.preExistingBreak ? (
+        <PreExistingBreakNotice view={view.preExistingBreak} heading={false} />
+      ) : (
+        <View
+          style={{
+            borderLeftWidth: 2,
+            borderLeftColor: theme.border.strong,
+            backgroundColor: theme.surface.base,
+            borderRadius: nativeRadii[2],
+            paddingHorizontal: nativeSpace[2],
+            paddingVertical: nativeSpace[1],
+          }}
+        >
+          <Text style={{ fontSize: 13, lineHeight: 19, color: theme.text.primary }}>
+            {view.words}
+          </Text>
+        </View>
+      )}
       <WaitingDetails details={view.details} />
       {view.requests?.map((request) => (
         <WaitingRequestRow

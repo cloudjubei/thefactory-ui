@@ -11,6 +11,7 @@ import SystemPromptBubble from './SystemPromptBubble'
 import ThinkingRow from './ThinkingRow'
 import MessageRow from './MessageRow'
 import CliRunMessages from './CliRunMessages'
+import type { ChatFileSaving } from '../../../headless/utils/chatFileSaveTypes'
 import ToolApprovalFooter from './ToolApprovalFooter'
 import AgentExchangeBlock from './AgentExchangeBlock'
 import ToolStepsFold from './ToolStepsFold'
@@ -171,6 +172,8 @@ export interface MessageListProps {
   /** Shows the images sent with a message as thumbnails that open full size. */
   attachmentImages?: NativeAttachmentImages
   videoAttachments?: ChatVideoAttachments
+  /** Where the files an agent's reply showed are saved: the chat's project. */
+  fileSaving?: ChatFileSaving
   renderReference?: (target: ReferenceTarget) => ReactNode | undefined
   /** Renders what a CLI-agent reply changed — `ChatBody` passes the turn's changes marker. Forwarded to MessageRow. */
   renderCliRunArtifact?: (runId: string) => ReactNode
@@ -233,6 +236,7 @@ export default function MessageList({
   chatTitle,
   attachmentImages,
   videoAttachments,
+  fileSaving,
   renderReference,
   renderCliRunArtifact,
   renderProcessRun,
@@ -645,6 +649,8 @@ export default function MessageList({
                       renderReference={renderReference}
                       onResourceLink={onResourceLink}
                       attachmentImages={attachmentImages}
+                      videoAttachments={videoAttachments}
+                      fileSaving={fileSaving}
                       renderProcessRun={renderProcessRun}
                       renderProcessGroupRun={renderProcessGroupRun}
                       onShowUsage={onShowUsage}
@@ -681,6 +687,10 @@ export default function MessageList({
                   onShowUsage={onShowUsage}
                   coldStart={msg.cliRunId === firstCliRunId}
                   storedReply={msg.content}
+                  {...(msg.files?.length ? { storedFiles: msg.files } : {})}
+                  attachmentImages={attachmentImages}
+                  videoAttachments={videoAttachments}
+                  fileSaving={fileSaving}
                   {...(msg.stopNotice ? { stopNotice: msg.stopNotice } : {})}
                   {...(cliBlockedOn && msg.cliRunId === pendingCliRunId
                     ? { blockedOn: cliBlockedOn }
@@ -725,6 +735,7 @@ export default function MessageList({
                   onResourceLink={onResourceLink}
                   attachmentImages={attachmentImages}
                   videoAttachments={videoAttachments}
+                  fileSaving={fileSaving}
                   renderCliRunArtifact={renderCliRunArtifact}
                   renderProcessRun={renderProcessRun}
                   renderProcessGroupRun={renderProcessGroupRun}

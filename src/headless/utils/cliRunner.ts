@@ -1507,6 +1507,24 @@ export function withCliStopNotice<M extends ChatMessageLike>(
 }
 
 /**
+ * A CLI turn's rows with the files its agent showed, as the chat stored them on
+ * the turn's reply, under its last reply. A turn that wrote no reply gets one to
+ * carry them. Unchanged when it showed none. Pure.
+ */
+export function withCliShownFiles<M extends ChatMessageLike>(
+  rows: M[],
+  files: readonly string[] | undefined,
+): (M | ChatMessageLike)[] {
+  if (!files?.length) return rows
+  let last = -1
+  rows.forEach((row, i) => {
+    if (row.role === 'assistant' && !row.toolCall) last = i
+  })
+  if (last < 0) return [...rows, { role: 'assistant', content: '', files: [...files] }]
+  return rows.map((row, i) => (i === last ? { ...row, files: [...files] } : row))
+}
+
+/**
  * What a row whose ask has since been decided shows: an approval carried out —
  * in a later turn, the agent calling again — as that call's outcome, one not
  * carried out yet as under way, and a declined or expired ask as not run, and

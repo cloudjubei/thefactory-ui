@@ -87,6 +87,7 @@ import type { ProjectChecksListing } from '../../../headless/api'
 import { Button } from '../../primitives/Button'
 import { IconChevronRight, IconGroup } from '../../icons'
 import CheckChip from '../chips/CheckChip'
+import SignoffCarriedCard from './signoff/SignoffCarriedCard'
 import SetUpWithAgentButton from '../chips/SetUpWithAgentButton'
 import {
   ChecksTab,
@@ -1075,6 +1076,8 @@ function StorySignoffPanel({
       </section>
 
       {screensNote ? <ScreensDecisionNote note={screensNote} /> : null}
+
+      {signoff.carried ? <SignoffCarriedCard view={signoff.carried} /> : null}
 
       {details}
 

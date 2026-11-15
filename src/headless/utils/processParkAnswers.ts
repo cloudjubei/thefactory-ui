@@ -41,15 +41,27 @@ export function processParkAnswersView(
   const lead =
     all.find((a) => a.key === selectedKey) ??
     all.find((a) => a.pick) ??
-    all.find((a) => !PARK_MINOR_CHOICES.has(a.choice)) ??
+    all.find((a) => !parkAnswerIsMinor(a.offer)) ??
     all[0]
   const rest = all.filter((a) => a !== lead)
   return {
     lead,
-    others: rest.filter((a) => !PARK_MINOR_CHOICES.has(a.choice)),
-    minor: rest.filter((a) => PARK_MINOR_CHOICES.has(a.choice)),
+    others: rest.filter((a) => !parkAnswerIsMinor(a.offer)),
+    minor: rest.filter((a) => parkAnswerIsMinor(a.offer)),
     fromManager: fromManager.length > 0,
   }
+}
+
+/**
+ * Whether an answer is a quiet link rather than a button: carrying on
+ * unchecked and the endings — except a ready answer about a break already at
+ * the base, whose leaving-out is one of its buttons. Pure.
+ */
+export function parkAnswerIsMinor(
+  offer: Pick<ProcessParkChoice, 'choice' | 'preExistingBreak'>,
+): boolean {
+  if (!PARK_MINOR_CHOICES.has(offer.choice)) return false
+  return !offer.preExistingBreak || offer.choice === 'abandon'
 }
 
 /** The choice an answer in the person's own words goes with at a stop — none when the stop takes no words. Pure. */

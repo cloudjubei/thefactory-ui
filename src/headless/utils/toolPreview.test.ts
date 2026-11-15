@@ -128,6 +128,32 @@ describe('toolArgDisplay', () => {
     })
   })
 
+  it('shows the files a showing call shows, and where a saving call puts each', () => {
+    expect(
+      toolArgDisplay({
+        name: 'showFiles',
+        arguments: { paths: ['out/map.png', 'out/notes.md'], caption: 'The map' },
+      }),
+    ).toEqual({ kind: 'paths', paths: ['out/map.png', 'out/notes.md'] })
+    expect(
+      toolArgDisplay({
+        name: 'saveFilesToProject',
+        arguments: {
+          files: [
+            { from: '.factory/chat-attachments/c1/ab12-map.png', to: 'art/map.png' },
+            { from: 'x.md', to: ' ' },
+            { from: 'y.md' },
+            'loose',
+          ],
+          overwrite: true,
+        },
+      }),
+    ).toEqual({ kind: 'paths', paths: ['art/map.png'] })
+    expect(
+      toolArgDisplay({ name: 'saveFilesToProject', arguments: { files: [{ from: 'x' }] } }),
+    ).toBeNull()
+  })
+
   it('shows a single path for our file tools (path beats pattern for grepFile)', () => {
     expect(toolArgDisplay({ name: 'listContents', arguments: { path: 'src' } })).toEqual({
       kind: 'path',

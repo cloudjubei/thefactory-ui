@@ -17,6 +17,7 @@ import {
   cliTranscriptToMessages,
   parseCliAgentModelTag,
   withCliRunFailure,
+  withCliShownFiles,
   withCliStopNotice,
   withStoredCliReply,
 } from '../../../headless/utils/cliRunner'
@@ -30,6 +31,8 @@ import { CLI_TURN_DELETE_ACTION_LABEL } from '../../../headless/utils/chatMessag
 import type { MessageDeleteControl } from '../../../headless/utils/chatMessageDeleteTypes'
 import { IconDelete } from '../../icons'
 import type { UikitFileMeta } from '../files/FileDisplay'
+import type { ChatFileSaving } from '../../../headless/utils/chatFileSaveTypes'
+import type { ChatVideoAttachments } from '../../../headless/utils/videoAttachmentTypes'
 import MessageRow from './MessageRow'
 import ToolStepsFold from './ToolStepsFold'
 import ThinkingRow from './ThinkingRow'
@@ -67,6 +70,14 @@ export type CliRunMessagesProps = {
   coldStart?: boolean
   /** The reply the chat stored for this turn — shown until the run record arrives. */
   storedReply?: string
+  /** The files the agent showed, as the chat stored them on the turn: under its last reply. */
+  storedFiles?: readonly string[]
+  /** Forwarded to each row: a viewable URL for a file on a message. */
+  getAttachmentPreviewUrl?: (path: string) => Promise<string | null>
+  /** Forwarded to each row: where this chat's videos read how they stand. */
+  videoAttachments?: ChatVideoAttachments
+  /** Forwarded to each row: where the files the agent showed are saved. */
+  fileSaving?: ChatFileSaving
   /** Why the turn stopped, as the chat stored it — shown as the stop card on the turn's last reply. */
   stopNotice?: ChatStopNotice
   /** Route an in-app `overseer://…` link (or a link into this app) the agent wrote, in place. */
@@ -130,6 +141,10 @@ export default function CliRunMessages({
   renderProcessGroupRun,
   coldStart = false,
   storedReply,
+  storedFiles,
+  getAttachmentPreviewUrl,
+  videoAttachments,
+  fileSaving,
   stopNotice,
   onResourceLink,
   chatTitle,
@@ -201,12 +216,19 @@ export default function CliRunMessages({
   const approvals = useInlineApprovals(runId, messages, cliAsks, onClaimAsks, settled)
   const shown = useMemo(
     () =>
-      withCliStopNotice(
-        withStoredCliReply(messages, { content: storedReply, ...(model ? { model } : {}) }, active),
-        active ? undefined : stopNotice,
-        storedReply,
+      withCliShownFiles(
+        withCliStopNotice(
+          withStoredCliReply(
+            messages,
+            { content: storedReply, ...(model ? { model } : {}) },
+            active,
+          ),
+          active ? undefined : stopNotice,
+          storedReply,
+        ),
+        storedFiles,
       ),
-    [messages, storedReply, model, active, stopNotice],
+    [messages, storedReply, model, active, stopNotice, storedFiles],
   )
   const total = baseIndex + shown.length + 1
   const toolSteps = useMemo(() => toolStepLayout(shown, { openTail: active }), [shown, active])
@@ -298,6 +320,9 @@ export default function CliRunMessages({
                 getToolHeaderPath={getToolHeaderPath}
                 onResolveFile={onResolveFile}
                 renderReference={renderReference}
+                getAttachmentPreviewUrl={getAttachmentPreviewUrl}
+                videoAttachments={videoAttachments}
+                fileSaving={fileSaving}
               />
             )
           }

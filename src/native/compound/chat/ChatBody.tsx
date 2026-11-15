@@ -413,6 +413,7 @@ function ChatBodyInner({
   // A turn's changes leave a marker where they happened; the decision on the
   // chat's open ones waits in the bar above the message box; the review opens
   // as a screen of its own.
+  const fileSaving = useMemo(() => (projectId ? { projectId } : undefined), [projectId])
   const reviewProjectId = onOpenReview ? projectId : undefined
   const openChanges = useChatOpenChanges(
     reviewProjectId && chatId && !isAgentRunChatKey(chatId)
@@ -535,6 +536,7 @@ function ChatBodyInner({
             {...(chatTitle ? { chatTitle } : {})}
             attachmentImages={inputProps?.attachmentImages}
             videoAttachments={inputProps?.videoAttachments}
+            fileSaving={fileSaving}
             renderCliRunArtifact={renderChanges}
             renderProcessRun={renderProcessRun}
             renderProcessGroupRun={renderProcessGroupRun}

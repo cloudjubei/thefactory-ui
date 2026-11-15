@@ -429,6 +429,76 @@ describe('buildStorySignoff', () => {
     expect(signoff.accessRecords?.map((record) => record.tool)).toEqual(['readPaths', 'sign-off'])
   })
 
+  it('carries the points to try and the targets left out from the story run and its features, never another run', () => {
+    const plan = {
+      steps: [
+        { id: 'checks', kind: 'check' },
+        { id: 'verify', kind: 'agent', agentType: 'verifier' },
+      ],
+      loops: [],
+    }
+    const brk = {
+      source: 'checks',
+      checks: ['Unit tests'],
+      files: ['Tests/A.swift'],
+      baseRef: 'main',
+      headline: 'x',
+    }
+    const leftOut = {
+      id: 'c1',
+      stepId: 'checks',
+      iteration: 1,
+      status: 'done',
+      outcome: 'failed',
+      startedAt: 1,
+      preExistingBreak: brk,
+      override: { choice: 'continue', at: 2 },
+    }
+    const carriedOn = {
+      id: 'v1',
+      stepId: 'verify',
+      iteration: 1,
+      status: 'done',
+      outcome: 'unchecked',
+      startedAt: 3,
+      proof: {
+        pairs: [{ beforeId: 'b', afterId: 'a', subject: 'Tile', counted: true }],
+        newScreenIds: [],
+        recordingIds: [],
+        outcome: 'unchecked',
+        notShown: ['Push'],
+      },
+      override: { choice: 'continue', at: 4 },
+    }
+    const signoff = buildStorySignoff({
+      features,
+      storyRunId: 'story',
+      processRuns: [
+        { id: 'story', plan, ledger: [leftOut] } as unknown as StorySignoffProcessRun,
+        {
+          id: 'feature',
+          featureId: 'f1',
+          parentRunId: 'story',
+          plan,
+          ledger: [carriedOn],
+        } as unknown as StorySignoffProcessRun,
+        { id: 'other', plan, ledger: [leftOut, carriedOn] } as unknown as StorySignoffProcessRun,
+      ],
+      cliRuns: [],
+      evidence: [],
+    })
+    expect(signoff.carried?.tryThese?.groups.map((g) => [g.key, g.points])).toEqual([
+      ['feature:v1', ['Push']],
+    ])
+    expect(signoff.carried?.leftOut?.rows.map((r) => r.key)).toEqual(['story:c1'])
+  })
+
+  it('carries nothing when no process run scopes the story', () => {
+    expect(
+      buildStorySignoff({ features, processRuns: [], cliRuns: [], evidence: [] }).carried,
+    ).toBeUndefined()
+  })
+
   it('attributes a run to its feature via the child process run id', () => {
     const signoff = buildStorySignoff({
       features,

@@ -1426,6 +1426,7 @@ export type ProcessResumeChoice =
   | 'accept-dropped-change'
   | 'accept-with-follow-ups'
   | 'split-follow-up'
+  | 'recapture'
 
 export type ProcessParkAction = ProcessResumeChoice | 'delegate'
 
@@ -1843,6 +1844,7 @@ export type CompletionAssistantMessage = {
   }
   suggestedActions?: Array<string>
   thinking?: string
+  files?: Array<string>
   toolsAttached?: number
   turnToolNames?: Array<string>
   cliRunId?: string
@@ -2144,7 +2146,7 @@ export type VerificationApproachId =
   | 'screenshot-diff'
   | 'screen-recording'
   | 'code-explanation'
-  | 'adversarial-review'
+  | 'code-review'
 
 export type ProjectPlatform = 'android' | 'ios' | 'web' | 'unknown'
 
@@ -2158,6 +2160,7 @@ export type ProjectPlatformInput = {
   fakeBackend?: string
   mobileFakeBackend?: string
   mobileFakeData?: string
+  mobileFakeDataIos?: string
   mobileCaptureProblem?: string
   changedPaths?: Array<string>
 }
@@ -2195,6 +2198,571 @@ export type ProjectPlatformSource = {
   }
 }
 
+export type ToolName =
+  | 'getToolNamesForAgent'
+  | 'callTool'
+  | 'previewTool'
+  | 'spawnAgent'
+  | 'spawnPanel'
+  | 'spawnTriagePanel'
+  | 'spawnApproachPanel'
+  | 'spawnAnswerPanel'
+  | 'sendChatCompletion'
+  | 'sendChatCompletionWithTools'
+  | 'startChatCompletionWithToolsCli'
+  | 'restartChatCompletionWithToolsCli'
+  | 'resumeChatCompletionWithToolsCli'
+  | 'carryOutChatApprovalsCli'
+  | 'retryChatCompletionWithTools'
+  | 'resumeChatCompletionWithTools'
+  | 'startAgentRun'
+  | 'listAgentTypes'
+  | 'getAgentType'
+  | 'saveAgentType'
+  | 'deleteAgentType'
+  | 'validateAgentType'
+  | 'getAgentTypeSlotDefaults'
+  | 'getOwnAgentTypeSlotDefaults'
+  | 'saveAgentTypeSlotDefaults'
+  | 'getAgentTypeLaunchOffer'
+  | 'listGroupAgentTypes'
+  | 'saveGroupAgentType'
+  | 'deleteGroupAgentType'
+  | 'getGroupAgentTypeSlotDefaults'
+  | 'saveGroupAgentTypeSlotDefaults'
+  | 'getHostCapabilities'
+  | 'getVerificationOptions'
+  | 'getChatsDir'
+  | 'listChats'
+  | 'listChatSummaries'
+  | 'getChatSummary'
+  | 'listChatsByType'
+  | 'updateChatMetadata'
+  | 'rateChat'
+  | 'getChat'
+  | 'peekChat'
+  | 'createChat'
+  | 'createTopicChat'
+  | 'saveChat'
+  | 'updateChat'
+  | 'attachChatCliRunner'
+  | 'detachChatCliRunner'
+  | 'addChatMessages'
+  | 'deleteLastChatMessage'
+  | 'clearChat'
+  | 'archiveChat'
+  | 'hideChatFromList'
+  | 'showChatInList'
+  | 'returnChatToList'
+  | 'raiseChatOpenChanges'
+  | 'updateDynamicContext'
+  | 'deleteChat'
+  | 'getChatSettings'
+  | 'resetChatSettings'
+  | 'updateCompletionSettings'
+  | 'getSettingsPrompt'
+  | 'updateSettingsPrompt'
+  | 'resetSettingsPrompt'
+  | 'startCliAgentRun'
+  | 'getCliAgentRun'
+  | 'deleteCliAgentRun'
+  | 'linkReviewRun'
+  | 'replaceReviewTestSeam'
+  | 'appendReviewTestSeam'
+  | 'recycleCliAgentSessions'
+  | 'refreshCliAgentRunIndex'
+  | 'listCliAgentRuns'
+  | 'listCliAgentRunSummaries'
+  | 'listCliAgentRunsPage'
+  | 'listCliAgentRunSummariesPage'
+  | 'getCliAgentRunSubscriptionStatus'
+  | 'listAvailableModels'
+  | 'listAvailableEfforts'
+  | 'listLiveModels'
+  | 'checkCliAuthStatus'
+  | 'startCliReauth'
+  | 'abortCliAgentRun'
+  | 'stageCliAgentRunFiles'
+  | 'listPendingCliAgentActions'
+  | 'listCliAgentRunActions'
+  | 'listDecidedCliAgentActions'
+  | 'markCliAgentActionsCarried'
+  | 'keepCliAgentActionHostFacts'
+  | 'readCliAgentActionHostFacts'
+  | 'carryOutCliAgentApprovals'
+  | 'countPendingCliAgentActionsByChat'
+  | 'requestCliAgentAction'
+  | 'requestPendingCliAgentAction'
+  | 'decideCliAgentAction'
+  | 'listCliAgentActionRules'
+  | 'trustCliSite'
+  | 'removeCliAgentActionRule'
+  | 'cancelCliAgentAction'
+  | 'withdrawCliAgentAction'
+  | 'subscribeCliAgentActions'
+  | 'subscribeBackgroundJobResults'
+  | 'getResidentSessionFreshness'
+  | 'getCliAgentAction'
+  | 'claimCliAgentActionExecution'
+  | 'recordCliAgentActionExecution'
+  | 'releaseCliAgentActionExecution'
+  | 'applyCliAgentArtifact'
+  | 'previewCliAgentArtifact'
+  | 'supersedeEarlierChatChanges'
+  | 'discardCliAgentArtifact'
+  | 'landCliRunOnBranch'
+  | 'landApiAgentRun'
+  | 'prepareIsolatedChatWorkspace'
+  | 'finalizeIsolatedChatTurn'
+  | 'snapshotIsolatedChatWorkspace'
+  | 'readChatOpenChanges'
+  | 'rebuildChatReviewOnCheckout'
+  | 'verifyCliRunReview'
+  | 'setCliRunVerdict'
+  | 'recordCliRunDiffReview'
+  | 'setCliRunFileViewed'
+  | 'rejectCliRunReview'
+  | 'readCliRunApprovalPlan'
+  | 'approveCliRunReview'
+  | 'planCliRunVerification'
+  | 'startCliAuthLogin'
+  | 'getProjectChat'
+  | 'getProjectMetadata'
+  | 'listProjectsMetadata'
+  | 'requestNetworkUnlock'
+  | 'requestInstallPackage'
+  | 'requestExternalFetch'
+  | 'requestWorkspaceLimitRaise'
+  | 'askUser'
+  | 'reportBlocked'
+  | 'scanDependencies'
+  | 'getCode'
+  | 'getCodeIntelCatalogue'
+  | 'astGetOutline'
+  | 'astEditNode'
+  | 'astRenameSymbol'
+  | 'detectCodeProjectEnvironment'
+  | 'compileCheck'
+  | 'sendCompletionWithTools'
+  | 'resumeCompletionTools'
+  | 'sendCompletion'
+  | 'listConnectionItems'
+  | 'getConnectionItem'
+  | 'listConnectionStatuses'
+  | 'commentConnectionItem'
+  | 'transitionConnectionItem'
+  | 'searchJiraIssues'
+  | 'getJiraIssue'
+  | 'getJiraIssueChangelog'
+  | 'listJiraTransitions'
+  | 'listJiraProjects'
+  | 'getJiraCreateFields'
+  | 'getJiraEditFields'
+  | 'searchJiraUsers'
+  | 'listJiraLinkTypes'
+  | 'listJiraBoards'
+  | 'listJiraSprints'
+  | 'listJiraWorklogs'
+  | 'listJiraWatchers'
+  | 'downloadJiraAttachment'
+  | 'createJiraIssue'
+  | 'updateJiraIssue'
+  | 'transitionJiraIssue'
+  | 'assignJiraIssue'
+  | 'addJiraComment'
+  | 'updateJiraComment'
+  | 'deleteJiraComment'
+  | 'linkJiraIssues'
+  | 'deleteJiraIssueLink'
+  | 'deleteJiraIssue'
+  | 'moveJiraIssuesToSprint'
+  | 'moveJiraIssuesToBacklog'
+  | 'addJiraWorklog'
+  | 'updateJiraWorklog'
+  | 'deleteJiraWorklog'
+  | 'addJiraWatcher'
+  | 'removeJiraWatcher'
+  | 'addJiraAttachment'
+  | 'deleteJiraAttachment'
+  | 'listLLMConfigs'
+  | 'getLLMConfig'
+  | 'addLLMConfig'
+  | 'updateLLMConfig'
+  | 'removeLLMConfig'
+  | 'getActiveLLMConfig'
+  | 'setActiveLLMConfig'
+  | 'getRecentLLMConfigs'
+  | 'bumpRecentLLMConfig'
+  | 'listGitCredentials'
+  | 'getGitCredential'
+  | 'addGitCredential'
+  | 'updateGitCredential'
+  | 'removeGitCredential'
+  | 'listProviderConnections'
+  | 'getProviderConnection'
+  | 'addProviderConnection'
+  | 'updateProviderConnection'
+  | 'removeProviderConnection'
+  | 'listCliAuthCaches'
+  | 'getCliAuthCache'
+  | 'addCliAuthCache'
+  | 'updateCliAuthCache'
+  | 'recordCliAuthEvent'
+  | 'listCliAuthEvents'
+  | 'removeCliAuthCache'
+  | 'getActiveCliState'
+  | 'setActiveCli'
+  | 'setCliEnabled'
+  | 'setCliDefaultModel'
+  | 'setCliEffort'
+  | 'setCliModelEffort'
+  | 'getActiveRunnerKind'
+  | 'setActiveRunnerKind'
+  | 'listWebSearchKeys'
+  | 'getWebSearchKey'
+  | 'setWebSearchKey'
+  | 'removeWebSearchKey'
+  | 'getWebSearchApiKeys'
+  | 'planResearch'
+  | 'discoverSources'
+  | 'gather'
+  | 'extract'
+  | 'verifyClaim'
+  | 'createDecision'
+  | 'getDecision'
+  | 'listDecisions'
+  | 'setDecisionOptions'
+  | 'selectDecisionOption'
+  | 'addDecisionQuestion'
+  | 'answerDecisionQuestion'
+  | 'signOffDecision'
+  | 'proposeDecisionOptions'
+  | 'listContents'
+  | 'readFile'
+  | 'readFileRange'
+  | 'grepFile'
+  | 'readFileRanges'
+  | 'grepFiles'
+  | 'readPaths'
+  | 'getAllFileStats'
+  | 'writeFile'
+  | 'writeStrictPatch'
+  | 'writeFuzzyPatch'
+  | 'writeExactReplaces'
+  | 'writeStructuredDiffToFile'
+  | 'renamePaths'
+  | 'deletePaths'
+  | 'searchFilesAndRead'
+  | 'searchFiles'
+  | 'searchFilePaths'
+  | 'searchFilesByKeywords'
+  | 'searchFilesByExact'
+  | 'uploadFile'
+  | 'viewImage'
+  | 'viewVideo'
+  | 'getAbsolutePath'
+  | 'gitStatus'
+  | 'listRemotes'
+  | 'gitFetch'
+  | 'gitPull'
+  | 'gitPush'
+  | 'gitStageFiles'
+  | 'gitStageAll'
+  | 'gitUnstageFiles'
+  | 'gitUnstageAll'
+  | 'gitResetFiles'
+  | 'gitResetAll'
+  | 'gitDiscardUnstagedFiles'
+  | 'gitDiscardStagedFiles'
+  | 'gitPushAll'
+  | 'gitCreateBranch'
+  | 'gitCheckoutBranch'
+  | 'gitDeleteBranch'
+  | 'gitDeleteRemoteBranch'
+  | 'gitRenameBranch'
+  | 'setUpstream'
+  | 'gitListBranches'
+  | 'listUnifiedBranches'
+  | 'getCurrentBranch'
+  | 'getFileContent'
+  | 'getTextRecovery'
+  | 'applyTextRecovery'
+  | 'gitCommit'
+  | 'mergeBranch'
+  | 'abortMerge'
+  | 'gitDiff'
+  | 'gitApplyPatch'
+  | 'gitLog'
+  | 'getBranchDiffSummary'
+  | 'resolveChangesToStories'
+  | 'buildBranchReport'
+  | 'buildWorkspaceReport'
+  | 'acceptFiles'
+  | 'rejectFiles'
+  | 'commitSelection'
+  | 'gitCreateMergePlan'
+  | 'gitApplyMerge'
+  | 'buildMergeReport'
+  | 'getLocalStatus'
+  | 'selectCommits'
+  | 'planCherryPick'
+  | 'applyCherryPick'
+  | 'fetchRefs'
+  | 'gitListStashes'
+  | 'gitAddStash'
+  | 'gitRemoveStash'
+  | 'gitApplyStash'
+  | 'listGroupNoteEntries'
+  | 'listGroupNoteSummaries'
+  | 'getGroupNote'
+  | 'addGroupNote'
+  | 'updateGroupNote'
+  | 'removeGroupNote'
+  | 'listGroupStories'
+  | 'getGroupStory'
+  | 'readGroupStoryPresence'
+  | 'createGroupStory'
+  | 'updateGroupStory'
+  | 'deleteGroupStory'
+  | 'ingestProject'
+  | 'ingestAll'
+  | 'startIngestProject'
+  | 'startIngestAll'
+  | 'listDataSources'
+  | 'getDataSource'
+  | 'createDataSource'
+  | 'updateDataSource'
+  | 'deleteDataSource'
+  | 'subscribeDataSource'
+  | 'unsubscribeDataSource'
+  | 'listDataSubscriptions'
+  | 'listProjectDataSources'
+  | 'syncProjectDataSources'
+  | 'refreshDataSource'
+  | 'readSubscribedRecords'
+  | 'listSourceRecords'
+  | 'appendCost'
+  | 'priceSpend'
+  | 'getCost'
+  | 'getCostSince'
+  | 'recomputeDailySummaries'
+  | 'sweepPendingFolds'
+  | 'getDailySummaries'
+  | 'listPrices'
+  | 'upsertPrices'
+  | 'getPrice'
+  | 'calculateCost'
+  | 'refreshPrices'
+  | 'loadPricingConfig'
+  | 'savePricingConfig'
+  | 'mobileTestDoctor'
+  | 'mobileTestListDevices'
+  | 'mobileTestBootDevice'
+  | 'mobileTestBuildApp'
+  | 'mobileTestOpenSession'
+  | 'mobileTestCloseSession'
+  | 'mobileTestListSessions'
+  | 'mobileTestSnapshot'
+  | 'mobileTestTap'
+  | 'mobileTestTapSelector'
+  | 'mobileTestType'
+  | 'mobileTestTypeSecret'
+  | 'mobileTestPressKey'
+  | 'mobileTestSwipe'
+  | 'mobileTestScreenshot'
+  | 'mobileTestReplayCaptureRoute'
+  | 'mobileTestRecordScreen'
+  | 'mobileTestLogcat'
+  | 'mobileTestAdb'
+  | 'mobileTestIdb'
+  | 'listProcessCleanup'
+  | 'registerCleanupItem'
+  | 'setProcessCleanupItem'
+  | 'setProcessCleanupOff'
+  | 'getProjectDir'
+  | 'listProjects'
+  | 'getProject'
+  | 'createProject'
+  | 'updateProject'
+  | 'setProjectActive'
+  | 'updateProjectCodeInfo'
+  | 'deleteProject'
+  | 'getProjectDataPaths'
+  | 'getProjectStoriesRoot'
+  | 'getProjectDataLocation'
+  | 'setProjectDataLocation'
+  | 'guessCodeProjectInfo'
+  | 'listProjectChecks'
+  | 'runProjectCheck'
+  | 'reportProjectCheckNotCaused'
+  | 'reportPreExistingBreak'
+  | 'reportAcceptanceAlreadyMet'
+  | 'reportUiImpact'
+  | 'listProjectNoteEntries'
+  | 'listProjectNoteSummaries'
+  | 'getProjectNote'
+  | 'addProjectNote'
+  | 'updateProjectNote'
+  | 'removeProjectNote'
+  | 'listProjectScripts'
+  | 'runProjectScript'
+  | 'getProjectsGroups'
+  | 'getProjectsGroup'
+  | 'createProjectsGroup'
+  | 'updateProjectsGroup'
+  | 'deleteProjectsGroup'
+  | 'getProjectIdFromIndex'
+  | 'reorderProject'
+  | 'reorderGroup'
+  | 'discoverSuppliers'
+  | 'buildProductCatalog'
+  | 'buildProductCatalogToTarget'
+  | 'findMoreOffers'
+  | 'findMoreReviews'
+  | 'findMoreProducts'
+  | 'enrichProduct'
+  | 'checkProduct'
+  | 'searchProductCandidates'
+  | 'rankProductCandidates'
+  | 'recommendProducts'
+  | 'resolveProductGoal'
+  | 'listProductCategories'
+  | 'putProductCategories'
+  | 'reverifyProductCriterion'
+  | 'discoverProductBrands'
+  | 'listProductBrands'
+  | 'stockFromLibrary'
+  | 'registerProductCriterion'
+  | 'listProductCriteria'
+  | 'removeProductCriterion'
+  | 'clearCatalog'
+  | 'listProductBacklinks'
+  | 'listProductLeads'
+  | 'listMakerRecords'
+  | 'listProductMarketOffers'
+  | 'compareProductPrices'
+  | 'deleteProduct'
+  | 'getProductRecord'
+  | 'createProductRecord'
+  | 'updateProductRecord'
+  | 'addProductLink'
+  | 'removeProductLink'
+  | 'putProductChild'
+  | 'listProductChildren'
+  | 'removeProductChild'
+  | 'searchProductChildren'
+  | 'registerCriterionKnowledge'
+  | 'getCriterionKnowledge'
+  | 'removeCriterionKnowledge'
+  | 'listProductSources'
+  | 'curateProductSource'
+  | 'setProductNote'
+  | 'researchMaterial'
+  | 'seedMaterials'
+  | 'seedBrands'
+  | 'seedSources'
+  | 'listMaterials'
+  | 'getMaterial'
+  | 'setMaterialVerdict'
+  | 'listMaterialProposals'
+  | 'dismissMaterialProposal'
+  | 'listRulingProposals'
+  | 'dismissRulingProposal'
+  | 'getCatalogHealth'
+  | 'getEscalationReport'
+  | 'verifyProductImagery'
+  | 'classifyProductImagery'
+  | 'researchWeb'
+  | 'recordReviewEvidence'
+  | 'listReviewEvidence'
+  | 'getReviewEvidence'
+  | 'readReviewEvidence'
+  | 'deleteReviewEvidence'
+  | 'runSandbox'
+  | 'startSandboxProxy'
+  | 'killSandbox'
+  | 'pauseSandbox'
+  | 'unpauseSandbox'
+  | 'handBackScript'
+  | 'getStoriesOrder'
+  | 'getStoryIdFromIndex'
+  | 'reorderStory'
+  | 'getStory'
+  | 'readStoryPresence'
+  | 'addStory'
+  | 'updateStory'
+  | 'blockStory'
+  | 'getFeature'
+  | 'getFeatureFromIndex'
+  | 'addFeature'
+  | 'updateFeature'
+  | 'reorderFeature'
+  | 'blockFeature'
+  | 'answerFeatureQuestion'
+  | 'completeAssignment'
+  | 'listStoryNotes'
+  | 'listStories'
+  | 'deleteStory'
+  | 'deleteFeature'
+  | 'setFeatureStatus'
+  | 'removeBlocker'
+  | 'addStoryNote'
+  | 'updateStoryNote'
+  | 'removeStoryNote'
+  | 'listTests'
+  | 'runTests'
+  | 'runAllTests'
+  | 'runTestsCoverage'
+  | 'runAllTestsCoverage'
+  | 'getLastTestsRun'
+  | 'getLastTestsCustom'
+  | 'getLastTestsCoverage'
+  | 'uiTestOpenWebSession'
+  | 'uiTestOpenElectronSession'
+  | 'uiTestCloseSession'
+  | 'uiTestListSessions'
+  | 'uiTestNavigate'
+  | 'uiTestSnapshot'
+  | 'uiTestClick'
+  | 'uiTestType'
+  | 'uiTestPressKey'
+  | 'uiTestTypeSecret'
+  | 'uiTestWaitFor'
+  | 'uiTestScreenshot'
+  | 'uiTestServeApp'
+  | 'uiTestStopApp'
+  | 'uiTestListApps'
+  | 'uiTestGetConsole'
+  | 'uiTestGetNetwork'
+  | 'uiTestMeasure'
+  | 'uiTestFillForm'
+  | 'uiTestHover'
+  | 'uiTestSelectOption'
+  | 'uiTestScroll'
+  | 'uiTestEvaluate'
+  | 'uiTestEvaluateMain'
+  | 'webSearch'
+  | 'webReadURLs'
+  | 'webCheckProviderHealth'
+  | 'webReadURLsFull'
+  | 'webReadPages'
+  | 'webReadRevalidationReport'
+  | 'webReadCacheReport'
+  | 'webInteract'
+  | 'listProcesses'
+  | 'getProcess'
+  | 'saveProcess'
+  | 'deleteProcess'
+  | 'validateProcess'
+  | 'getProcessRun'
+  | 'listProcessRuns'
+  | 'getProcessRunStatistics'
+  | 'listProcessRunSummaries'
+  | 'getProcessGroupRun'
+  | 'listProcessGroupRuns'
+  | 'deleteProcessRun'
+  | 'getRunDiagnostics'
+
 export type VerificationApproachSpec = {
   id: VerificationApproachId
   label: string
@@ -2209,16 +2777,20 @@ export type VerificationApproachSpec = {
   }
   appliesTo?: Array<ProjectPlatform>
   drivenBy?: {
-    android?: Array<string>
-    ios?: Array<string>
-    web?: Array<string>
-    unknown?: Array<string>
+    android?: Array<ToolName>
+    ios?: Array<ToolName>
+    web?: Array<ToolName>
+    unknown?: Array<ToolName>
   } & {
-    default?: Array<string>
+    default?: Array<ToolName>
   }
 }
 
 export type ApproachAvailability =
+  | {
+      status: 'unimplemented'
+      reason: string
+    }
   | {
       status: 'available'
     }
@@ -4797,6 +5369,11 @@ export type CliRunStatus =
   | 'aborted'
   | 'paused'
 
+export type CliRunAssistantMessage = {
+  text: string
+  afterTool: boolean
+}
+
 export type CliRunUsage = {
   tokensIn: number
   tokensOut: number
@@ -5641,6 +6218,7 @@ export type CliRunResult = {
     key: string
   }
   hostStop?: string
+  shownFiles?: Array<string>
 }
 
 export type CliTurnLimits = {
@@ -11838,6 +12416,7 @@ export type LiveCheckProjectFacts = {
     fakeBackend?: string
     mobileFakeBackend?: string
     mobileFakeData?: string
+    mobileFakeDataIos?: string
     mobileCaptureProblem?: string
     changedPaths?: Array<string>
   }
@@ -13032,9 +13611,28 @@ export type MobileFakeDataAndroid = {
   startExtra?: string
 }
 
-export type MobileFakeData = {
-  android: MobileFakeDataAndroid
+export type MobileFakeDataIos = {
+  configuration: string
+  scheme?: string
+  dirs: Array<string>
+  startArgument?: string
 }
+
+export type MobileFakeData = {
+  android?: {
+    buildType: string
+    flavor?: string
+    startExtra?: string
+  }
+  ios?: {
+    configuration: string
+    scheme?: string
+    dirs: Array<string>
+    startArgument?: string
+  }
+}
+
+export type MobileBuiltFakeData = MobileFakeDataAndroid | MobileFakeDataIos
 
 export type AndroidFakeDataVariant = {
   module?: string
@@ -13078,11 +13676,7 @@ export type MobileBuildProvenance = {
     url: string
     devicePort: number
   }
-  fakeData?: {
-    buildType: string
-    flavor?: string
-    startExtra?: string
-  }
+  fakeData?: MobileFakeDataAndroid | MobileFakeDataIos
   fakeDataOverlayHead?: string
   overlayFiles?: Array<ReviewEvidenceOverlayFile>
   appId?: string
@@ -13271,6 +13865,87 @@ export type MobileSnapshotResult = {
   error?: string
 }
 
+export type SwipeMobileOptions = {
+  direction: 'up' | 'down' | 'left' | 'right'
+}
+
+export type MobileCaptureRouteStep =
+  | {
+      kind: 'tap'
+      selector: MobileNodeSelector
+    }
+  | {
+      kind: 'type'
+      selector: MobileNodeSelector
+      text: string
+    }
+  | {
+      kind: 'key'
+      key: string
+    }
+  | {
+      kind: 'swipe'
+      direction: 'up' | 'down' | 'left' | 'right'
+    }
+  | {
+      kind: 'wait'
+      ms: number
+    }
+  | {
+      kind: 'shot'
+    }
+
+export type MobileCaptureRoute = {
+  subject: string
+  phase: 'before' | 'after'
+  steps: Array<MobileCaptureRouteStep>
+}
+
+export type MobileScrolledTo = {
+  topPx: number
+  targetPx: number
+  atPx: number
+  moves: number
+}
+
+export type MobileRecordingStepResult = {
+  step: number
+  ok: boolean
+  detail?: string
+  error?: string
+  scrolledTo?: {
+    topPx: number
+    targetPx: number
+    atPx: number
+    moves: number
+  }
+}
+
+export type MobileScreenshotResult = {
+  sessionId: string
+  ok: boolean
+  path?: string
+  capturedOn?: string
+  steps?: Array<MobileRecordingStepResult>
+  width?: number
+  height?: number
+  error?: string
+}
+
+export type MobileCaptureRouteShot = {
+  step: number
+  subject: string
+  phase: 'before' | 'after'
+  capture: MobileScreenshotResult
+}
+
+export type MobileCaptureRouteResult = {
+  outcome: 'passed' | 'unchecked'
+  shots: Array<MobileCaptureRouteShot>
+  step?: number
+  summary: string
+}
+
 export type MobileActionResult = {
   sessionId: string
   ok: boolean
@@ -13290,10 +13965,6 @@ export type MobileLogcatResult = {
   lines: Array<string>
   truncated: boolean
   error?: string
-}
-
-export type SwipeMobileOptions = {
-  direction: 'up' | 'down' | 'left' | 'right'
 }
 
 export type MobileRecordingStep =
@@ -13319,26 +13990,6 @@ export type MobileRecordingStep =
       scrollTo: MobileNodeSelector
       at?: number
     }
-
-export type MobileScrolledTo = {
-  topPx: number
-  targetPx: number
-  atPx: number
-  moves: number
-}
-
-export type MobileRecordingStepResult = {
-  step: number
-  ok: boolean
-  detail?: string
-  error?: string
-  scrolledTo?: {
-    topPx: number
-    targetPx: number
-    atPx: number
-    moves: number
-  }
-}
 
 export type MobileRecordingStepOutcome = {
   sessionId: string
@@ -13391,17 +14042,6 @@ export type MobileScrollPlan =
       offsetPx: number
     }
 
-export type MobileScreenshotResult = {
-  sessionId: string
-  ok: boolean
-  path?: string
-  capturedOn?: string
-  steps?: Array<MobileRecordingStepResult>
-  width?: number
-  height?: number
-  error?: string
-}
-
 export type MobileShellResult = {
   ok: boolean
   exitCode: number
@@ -13442,11 +14082,7 @@ export type MobileDeviceInstall = {
       url: string
       devicePort: number
     }
-    fakeData?: {
-      buildType: string
-      flavor?: string
-      startExtra?: string
-    }
+    fakeData?: MobileFakeDataAndroid | MobileFakeDataIos
     fakeDataOverlayHead?: string
     overlayFiles?: Array<ReviewEvidenceOverlayFile>
     appId?: string
@@ -14410,6 +15046,11 @@ export type ProcessStep = {
   id: string
   name: string
   kind: ProcessStepKind
+  route?: {
+    subject: string
+    phase: 'before' | 'after'
+    steps: Array<MobileCaptureRouteStep>
+  }
   description?: string
   enabled?: boolean
   agentType?: string
@@ -14465,6 +15106,11 @@ export type ProcessPlanStep = {
     | 'process'
     | 'cleanup'
     | 'script'
+  route?: {
+    subject: string
+    phase: 'before' | 'after'
+    steps: Array<MobileCaptureRouteStep>
+  }
   description?: string
   enabled?: boolean
   agentType?: string
@@ -14938,6 +15584,17 @@ export type ProcessWaitingDelegation = {
   at: number
 }
 
+export type ProcessPreExistingBreakSource = 'checks' | 'developer'
+
+export type ProcessPreExistingBreak = {
+  source: ProcessPreExistingBreakSource
+  checks: Array<string>
+  files: Array<string>
+  baseRef: string
+  baseSha?: string
+  headline: string
+}
+
 export type ProcessWaitingAsk = {
   kind: ProcessWaitingKind
   agent: string
@@ -14969,6 +15626,14 @@ export type ProcessWaitingAsk = {
     at: number
   }
   agentFailed?: true
+  preExistingBreak?: {
+    source: ProcessPreExistingBreakSource
+    checks: Array<string>
+    files: Array<string>
+    baseRef: string
+    baseSha?: string
+    headline: string
+  }
 }
 
 export type ProcessTurnLimit = {
@@ -15126,6 +15791,14 @@ export type ProcessPark = {
       at: number
     }
     agentFailed?: true
+    preExistingBreak?: {
+      source: ProcessPreExistingBreakSource
+      checks: Array<string>
+      files: Array<string>
+      baseRef: string
+      baseSha?: string
+      headline: string
+    }
   }
   questionGrantId?: string
   stepInFlight?: boolean
@@ -15430,6 +16103,7 @@ export type ProcessVerifyProof = {
     reason: string
     screens: boolean
   }
+  notShown?: Array<string>
 }
 
 export type ReviewEvidenceVerdict = 'approved' | 'changes-requested' | 'rejected'
@@ -15438,6 +16112,8 @@ export type UiImpactStance = {
   visible: boolean
   reason: string
 }
+
+export type ReviewEvidenceVerdictCause = 'defect' | 'proof-impossible'
 
 export type ProcessReviewVerdict = {
   verdict: ReviewEvidenceVerdict
@@ -15448,6 +16124,8 @@ export type ProcessReviewVerdict = {
     reason: string
   }
   followUps?: Array<string>
+  cause?: 'defect' | 'proof-impossible'
+  notShown?: Array<string>
 }
 
 export type ProcessAlreadyMet = {
@@ -15584,6 +16262,14 @@ export type ProcessLedgerEntry = {
       at: number
     }
     agentFailed?: true
+    preExistingBreak?: {
+      source: ProcessPreExistingBreakSource
+      checks: Array<string>
+      files: Array<string>
+      baseRef: string
+      baseSha?: string
+      headline: string
+    }
   }
   questionCapReached?: boolean
   questionCounted?: boolean
@@ -15690,6 +16376,7 @@ export type ProcessLedgerEntry = {
       reason: string
       screens: boolean
     }
+    notShown?: Array<string>
   }
   review?: {
     verdict: ReviewEvidenceVerdict
@@ -15700,6 +16387,8 @@ export type ProcessLedgerEntry = {
       reason: string
     }
     followUps?: Array<string>
+    cause?: 'defect' | 'proof-impossible'
+    notShown?: Array<string>
   }
   outsideScope?: Array<string>
   alreadyMet?: {
@@ -15738,6 +16427,14 @@ export type ProcessLedgerEntry = {
   }
   reusedChecksOf?: string
   notCaused?: Array<ProjectCheckNotCausedReport>
+  preExistingBreak?: {
+    source: ProcessPreExistingBreakSource
+    checks: Array<string>
+    files: Array<string>
+    baseRef: string
+    baseSha?: string
+    headline: string
+  }
   baseUpdate?: {
     baseRef: string
     baseSha: string
@@ -16290,6 +16987,14 @@ export type ProcessRun = {
         at: number
       }
       agentFailed?: true
+      preExistingBreak?: {
+        source: ProcessPreExistingBreakSource
+        checks: Array<string>
+        files: Array<string>
+        baseRef: string
+        baseSha?: string
+        headline: string
+      }
     }
     questionGrantId?: string
     stepInFlight?: boolean
@@ -16553,6 +17258,14 @@ export type ProcessManagerCardStandingRun = {
         at: number
       }
       agentFailed?: true
+      preExistingBreak?: {
+        source: ProcessPreExistingBreakSource
+        checks: Array<string>
+        files: Array<string>
+        baseRef: string
+        baseSha?: string
+        headline: string
+      }
     }
     questionGrantId?: string
     stepInFlight?: boolean
@@ -17397,6 +18110,7 @@ export type ProjectCheckTestReportFormat =
   | 'jest-json'
   | 'go-test-json'
   | 'cargo-test-text'
+  | 'xcresult'
 
 export type ProjectCheckTestReportPlan = {
   format: ProjectCheckTestReportFormat
@@ -17411,6 +18125,11 @@ export type ProjectCheckTestReportRead =
   | {
       missing: VerificationTestReportMissingCause
     }
+
+export type XcresultTestSummary = {
+  count: VerificationTestCount
+  suites: Array<VerificationTestSuite>
+}
 
 export type ProjectCheckRerunInput = {
   failing: Array<string>
@@ -17703,6 +18422,13 @@ export type ProjectCheckDetailSection = {
 export type ProjectChecksGateResult = {
   scan: ProjectChecksScan
   verification: RunVerification
+}
+
+export type ProjectCheckPreExistingReport = {
+  check: ProjectCheckKind
+  files: Array<string>
+  evidence: string
+  reportedAt: number
 }
 
 export type ProjectCheckAlreadyMetReport = {
@@ -18158,6 +18884,17 @@ export type FakeDataSetupBuild =
       unsupported: string
     }
 
+export type FakeDataSources = {
+  android?: {
+    module?: string
+    flavor?: string
+    buildType: string
+  }
+  ios?: {
+    dirs: Array<string>
+  }
+}
+
 export type ProofPlanSource = 'feature' | 'story' | 'suggested'
 
 export type ResolvedProofPlan = {
@@ -18239,6 +18976,7 @@ export type UiProofRouteInput = {
   fakeBackend?: string
   mobileFakeBackend?: string
   mobileFakeData?: string
+  mobileFakeDataIos?: string
   projectApp?: string
   platform?: 'android' | 'ios' | 'web' | 'unknown'
   changedPaths?: Array<string>
@@ -21319,6 +22057,7 @@ export type ReviewEvidenceBuild = {
   overlayFiles?: Array<ReviewEvidenceOverlayFile>
   sceneOverlayHead?: string
   fakeDataOverlayHead?: string
+  fakeDataDirs?: Array<string>
   tree?: string
   fakeBackend?: string
   fakeData?: string
@@ -21344,6 +22083,7 @@ export type ReviewEvidenceCaptureDescription = {
     overlayFiles?: Array<ReviewEvidenceOverlayFile>
     sceneOverlayHead?: string
     fakeDataOverlayHead?: string
+    fakeDataDirs?: Array<string>
     tree?: string
     fakeBackend?: string
     fakeData?: string
@@ -21376,7 +22116,7 @@ export type ReviewEvidenceScope = {
   chatContextId?: string
 }
 
-export type ReviewEvidenceKind = 'screenshot' | 'recording' | 'report' | 'log' | 'file'
+export type ReviewEvidenceKind = 'screenshot' | 'recording' | 'report' | 'log' | 'file' | 'trace'
 
 export type ReviewEvidenceDesignAttribution = {
   app: string
@@ -21393,8 +22133,6 @@ export type ReviewEvidenceComparison = {
   unavailable?: string
   beforeId?: string
 }
-
-export type ReviewEvidenceVerdictCause = 'defect' | 'proof-impossible'
 
 export type ReviewEvidenceVerificationMode = 'live' | 'dry'
 
@@ -21496,7 +22234,7 @@ export type ReviewEvidenceRef = {
   featureId?: string
   chatContextId?: string
   id: string
-  kind: 'screenshot' | 'recording' | 'report' | 'log' | 'file'
+  kind: 'screenshot' | 'recording' | 'report' | 'log' | 'file' | 'trace'
   path: string
   label?: string
   phase?: 'before' | 'after'
@@ -21527,6 +22265,7 @@ export type ReviewEvidenceRef = {
   verdictReason?: string
   verdictCause?: 'defect' | 'proof-impossible'
   verdictScreens?: Array<string>
+  verdictNotShown?: Array<string>
   verdictNewScreens?: Array<string>
   uiImpact?: {
     visible: boolean
@@ -21567,6 +22306,7 @@ export type ReviewEvidenceRef = {
     overlayFiles?: Array<ReviewEvidenceOverlayFile>
     sceneOverlayHead?: string
     fakeDataOverlayHead?: string
+    fakeDataDirs?: Array<string>
     tree?: string
     fakeBackend?: string
     fakeData?: string
@@ -21747,19 +22487,2834 @@ export type ScreenIdPatterns = {
 }
 
 export type CaptureToolSet = {
-  doctor?: string
-  boot?: string
-  build: string
-  open: string
-  snapshot: string
-  tap: string
-  type: string
-  scroll: string
-  screenshot: string
-  record?: string
-  close?: string
-  logs: string
-  stop?: string
+  doctor?:
+    | 'getToolNamesForAgent'
+    | 'callTool'
+    | 'previewTool'
+    | 'spawnAgent'
+    | 'spawnPanel'
+    | 'spawnTriagePanel'
+    | 'spawnApproachPanel'
+    | 'spawnAnswerPanel'
+    | 'sendChatCompletion'
+    | 'sendChatCompletionWithTools'
+    | 'startChatCompletionWithToolsCli'
+    | 'restartChatCompletionWithToolsCli'
+    | 'resumeChatCompletionWithToolsCli'
+    | 'carryOutChatApprovalsCli'
+    | 'retryChatCompletionWithTools'
+    | 'resumeChatCompletionWithTools'
+    | 'startAgentRun'
+    | 'listAgentTypes'
+    | 'getAgentType'
+    | 'saveAgentType'
+    | 'deleteAgentType'
+    | 'validateAgentType'
+    | 'getAgentTypeSlotDefaults'
+    | 'getOwnAgentTypeSlotDefaults'
+    | 'saveAgentTypeSlotDefaults'
+    | 'getAgentTypeLaunchOffer'
+    | 'listGroupAgentTypes'
+    | 'saveGroupAgentType'
+    | 'deleteGroupAgentType'
+    | 'getGroupAgentTypeSlotDefaults'
+    | 'saveGroupAgentTypeSlotDefaults'
+    | 'getHostCapabilities'
+    | 'getVerificationOptions'
+    | 'getChatsDir'
+    | 'listChats'
+    | 'listChatSummaries'
+    | 'getChatSummary'
+    | 'listChatsByType'
+    | 'updateChatMetadata'
+    | 'rateChat'
+    | 'getChat'
+    | 'peekChat'
+    | 'createChat'
+    | 'createTopicChat'
+    | 'saveChat'
+    | 'updateChat'
+    | 'attachChatCliRunner'
+    | 'detachChatCliRunner'
+    | 'addChatMessages'
+    | 'deleteLastChatMessage'
+    | 'clearChat'
+    | 'archiveChat'
+    | 'hideChatFromList'
+    | 'showChatInList'
+    | 'returnChatToList'
+    | 'raiseChatOpenChanges'
+    | 'updateDynamicContext'
+    | 'deleteChat'
+    | 'getChatSettings'
+    | 'resetChatSettings'
+    | 'updateCompletionSettings'
+    | 'getSettingsPrompt'
+    | 'updateSettingsPrompt'
+    | 'resetSettingsPrompt'
+    | 'startCliAgentRun'
+    | 'getCliAgentRun'
+    | 'deleteCliAgentRun'
+    | 'linkReviewRun'
+    | 'replaceReviewTestSeam'
+    | 'appendReviewTestSeam'
+    | 'recycleCliAgentSessions'
+    | 'refreshCliAgentRunIndex'
+    | 'listCliAgentRuns'
+    | 'listCliAgentRunSummaries'
+    | 'listCliAgentRunsPage'
+    | 'listCliAgentRunSummariesPage'
+    | 'getCliAgentRunSubscriptionStatus'
+    | 'listAvailableModels'
+    | 'listAvailableEfforts'
+    | 'listLiveModels'
+    | 'checkCliAuthStatus'
+    | 'startCliReauth'
+    | 'abortCliAgentRun'
+    | 'stageCliAgentRunFiles'
+    | 'listPendingCliAgentActions'
+    | 'listCliAgentRunActions'
+    | 'listDecidedCliAgentActions'
+    | 'markCliAgentActionsCarried'
+    | 'keepCliAgentActionHostFacts'
+    | 'readCliAgentActionHostFacts'
+    | 'carryOutCliAgentApprovals'
+    | 'countPendingCliAgentActionsByChat'
+    | 'requestCliAgentAction'
+    | 'requestPendingCliAgentAction'
+    | 'decideCliAgentAction'
+    | 'listCliAgentActionRules'
+    | 'trustCliSite'
+    | 'removeCliAgentActionRule'
+    | 'cancelCliAgentAction'
+    | 'withdrawCliAgentAction'
+    | 'subscribeCliAgentActions'
+    | 'subscribeBackgroundJobResults'
+    | 'getResidentSessionFreshness'
+    | 'getCliAgentAction'
+    | 'claimCliAgentActionExecution'
+    | 'recordCliAgentActionExecution'
+    | 'releaseCliAgentActionExecution'
+    | 'applyCliAgentArtifact'
+    | 'previewCliAgentArtifact'
+    | 'supersedeEarlierChatChanges'
+    | 'discardCliAgentArtifact'
+    | 'landCliRunOnBranch'
+    | 'landApiAgentRun'
+    | 'prepareIsolatedChatWorkspace'
+    | 'finalizeIsolatedChatTurn'
+    | 'snapshotIsolatedChatWorkspace'
+    | 'readChatOpenChanges'
+    | 'rebuildChatReviewOnCheckout'
+    | 'verifyCliRunReview'
+    | 'setCliRunVerdict'
+    | 'recordCliRunDiffReview'
+    | 'setCliRunFileViewed'
+    | 'rejectCliRunReview'
+    | 'readCliRunApprovalPlan'
+    | 'approveCliRunReview'
+    | 'planCliRunVerification'
+    | 'startCliAuthLogin'
+    | 'getProjectChat'
+    | 'getProjectMetadata'
+    | 'listProjectsMetadata'
+    | 'requestNetworkUnlock'
+    | 'requestInstallPackage'
+    | 'requestExternalFetch'
+    | 'requestWorkspaceLimitRaise'
+    | 'askUser'
+    | 'reportBlocked'
+    | 'scanDependencies'
+    | 'getCode'
+    | 'getCodeIntelCatalogue'
+    | 'astGetOutline'
+    | 'astEditNode'
+    | 'astRenameSymbol'
+    | 'detectCodeProjectEnvironment'
+    | 'compileCheck'
+    | 'sendCompletionWithTools'
+    | 'resumeCompletionTools'
+    | 'sendCompletion'
+    | 'listConnectionItems'
+    | 'getConnectionItem'
+    | 'listConnectionStatuses'
+    | 'commentConnectionItem'
+    | 'transitionConnectionItem'
+    | 'searchJiraIssues'
+    | 'getJiraIssue'
+    | 'getJiraIssueChangelog'
+    | 'listJiraTransitions'
+    | 'listJiraProjects'
+    | 'getJiraCreateFields'
+    | 'getJiraEditFields'
+    | 'searchJiraUsers'
+    | 'listJiraLinkTypes'
+    | 'listJiraBoards'
+    | 'listJiraSprints'
+    | 'listJiraWorklogs'
+    | 'listJiraWatchers'
+    | 'downloadJiraAttachment'
+    | 'createJiraIssue'
+    | 'updateJiraIssue'
+    | 'transitionJiraIssue'
+    | 'assignJiraIssue'
+    | 'addJiraComment'
+    | 'updateJiraComment'
+    | 'deleteJiraComment'
+    | 'linkJiraIssues'
+    | 'deleteJiraIssueLink'
+    | 'deleteJiraIssue'
+    | 'moveJiraIssuesToSprint'
+    | 'moveJiraIssuesToBacklog'
+    | 'addJiraWorklog'
+    | 'updateJiraWorklog'
+    | 'deleteJiraWorklog'
+    | 'addJiraWatcher'
+    | 'removeJiraWatcher'
+    | 'addJiraAttachment'
+    | 'deleteJiraAttachment'
+    | 'listLLMConfigs'
+    | 'getLLMConfig'
+    | 'addLLMConfig'
+    | 'updateLLMConfig'
+    | 'removeLLMConfig'
+    | 'getActiveLLMConfig'
+    | 'setActiveLLMConfig'
+    | 'getRecentLLMConfigs'
+    | 'bumpRecentLLMConfig'
+    | 'listGitCredentials'
+    | 'getGitCredential'
+    | 'addGitCredential'
+    | 'updateGitCredential'
+    | 'removeGitCredential'
+    | 'listProviderConnections'
+    | 'getProviderConnection'
+    | 'addProviderConnection'
+    | 'updateProviderConnection'
+    | 'removeProviderConnection'
+    | 'listCliAuthCaches'
+    | 'getCliAuthCache'
+    | 'addCliAuthCache'
+    | 'updateCliAuthCache'
+    | 'recordCliAuthEvent'
+    | 'listCliAuthEvents'
+    | 'removeCliAuthCache'
+    | 'getActiveCliState'
+    | 'setActiveCli'
+    | 'setCliEnabled'
+    | 'setCliDefaultModel'
+    | 'setCliEffort'
+    | 'setCliModelEffort'
+    | 'getActiveRunnerKind'
+    | 'setActiveRunnerKind'
+    | 'listWebSearchKeys'
+    | 'getWebSearchKey'
+    | 'setWebSearchKey'
+    | 'removeWebSearchKey'
+    | 'getWebSearchApiKeys'
+    | 'planResearch'
+    | 'discoverSources'
+    | 'gather'
+    | 'extract'
+    | 'verifyClaim'
+    | 'createDecision'
+    | 'getDecision'
+    | 'listDecisions'
+    | 'setDecisionOptions'
+    | 'selectDecisionOption'
+    | 'addDecisionQuestion'
+    | 'answerDecisionQuestion'
+    | 'signOffDecision'
+    | 'proposeDecisionOptions'
+    | 'listContents'
+    | 'readFile'
+    | 'readFileRange'
+    | 'grepFile'
+    | 'readFileRanges'
+    | 'grepFiles'
+    | 'readPaths'
+    | 'getAllFileStats'
+    | 'writeFile'
+    | 'writeStrictPatch'
+    | 'writeFuzzyPatch'
+    | 'writeExactReplaces'
+    | 'writeStructuredDiffToFile'
+    | 'renamePaths'
+    | 'deletePaths'
+    | 'searchFilesAndRead'
+    | 'searchFiles'
+    | 'searchFilePaths'
+    | 'searchFilesByKeywords'
+    | 'searchFilesByExact'
+    | 'uploadFile'
+    | 'viewImage'
+    | 'viewVideo'
+    | 'getAbsolutePath'
+    | 'gitStatus'
+    | 'listRemotes'
+    | 'gitFetch'
+    | 'gitPull'
+    | 'gitPush'
+    | 'gitStageFiles'
+    | 'gitStageAll'
+    | 'gitUnstageFiles'
+    | 'gitUnstageAll'
+    | 'gitResetFiles'
+    | 'gitResetAll'
+    | 'gitDiscardUnstagedFiles'
+    | 'gitDiscardStagedFiles'
+    | 'gitPushAll'
+    | 'gitCreateBranch'
+    | 'gitCheckoutBranch'
+    | 'gitDeleteBranch'
+    | 'gitDeleteRemoteBranch'
+    | 'gitRenameBranch'
+    | 'setUpstream'
+    | 'gitListBranches'
+    | 'listUnifiedBranches'
+    | 'getCurrentBranch'
+    | 'getFileContent'
+    | 'getTextRecovery'
+    | 'applyTextRecovery'
+    | 'gitCommit'
+    | 'mergeBranch'
+    | 'abortMerge'
+    | 'gitDiff'
+    | 'gitApplyPatch'
+    | 'gitLog'
+    | 'getBranchDiffSummary'
+    | 'resolveChangesToStories'
+    | 'buildBranchReport'
+    | 'buildWorkspaceReport'
+    | 'acceptFiles'
+    | 'rejectFiles'
+    | 'commitSelection'
+    | 'gitCreateMergePlan'
+    | 'gitApplyMerge'
+    | 'buildMergeReport'
+    | 'getLocalStatus'
+    | 'selectCommits'
+    | 'planCherryPick'
+    | 'applyCherryPick'
+    | 'fetchRefs'
+    | 'gitListStashes'
+    | 'gitAddStash'
+    | 'gitRemoveStash'
+    | 'gitApplyStash'
+    | 'listGroupNoteEntries'
+    | 'listGroupNoteSummaries'
+    | 'getGroupNote'
+    | 'addGroupNote'
+    | 'updateGroupNote'
+    | 'removeGroupNote'
+    | 'listGroupStories'
+    | 'getGroupStory'
+    | 'readGroupStoryPresence'
+    | 'createGroupStory'
+    | 'updateGroupStory'
+    | 'deleteGroupStory'
+    | 'ingestProject'
+    | 'ingestAll'
+    | 'startIngestProject'
+    | 'startIngestAll'
+    | 'listDataSources'
+    | 'getDataSource'
+    | 'createDataSource'
+    | 'updateDataSource'
+    | 'deleteDataSource'
+    | 'subscribeDataSource'
+    | 'unsubscribeDataSource'
+    | 'listDataSubscriptions'
+    | 'listProjectDataSources'
+    | 'syncProjectDataSources'
+    | 'refreshDataSource'
+    | 'readSubscribedRecords'
+    | 'listSourceRecords'
+    | 'appendCost'
+    | 'priceSpend'
+    | 'getCost'
+    | 'getCostSince'
+    | 'recomputeDailySummaries'
+    | 'sweepPendingFolds'
+    | 'getDailySummaries'
+    | 'listPrices'
+    | 'upsertPrices'
+    | 'getPrice'
+    | 'calculateCost'
+    | 'refreshPrices'
+    | 'loadPricingConfig'
+    | 'savePricingConfig'
+    | 'mobileTestDoctor'
+    | 'mobileTestListDevices'
+    | 'mobileTestBootDevice'
+    | 'mobileTestBuildApp'
+    | 'mobileTestOpenSession'
+    | 'mobileTestCloseSession'
+    | 'mobileTestListSessions'
+    | 'mobileTestSnapshot'
+    | 'mobileTestTap'
+    | 'mobileTestTapSelector'
+    | 'mobileTestType'
+    | 'mobileTestTypeSecret'
+    | 'mobileTestPressKey'
+    | 'mobileTestSwipe'
+    | 'mobileTestScreenshot'
+    | 'mobileTestReplayCaptureRoute'
+    | 'mobileTestRecordScreen'
+    | 'mobileTestLogcat'
+    | 'mobileTestAdb'
+    | 'mobileTestIdb'
+    | 'listProcessCleanup'
+    | 'registerCleanupItem'
+    | 'setProcessCleanupItem'
+    | 'setProcessCleanupOff'
+    | 'getProjectDir'
+    | 'listProjects'
+    | 'getProject'
+    | 'createProject'
+    | 'updateProject'
+    | 'setProjectActive'
+    | 'updateProjectCodeInfo'
+    | 'deleteProject'
+    | 'getProjectDataPaths'
+    | 'getProjectStoriesRoot'
+    | 'getProjectDataLocation'
+    | 'setProjectDataLocation'
+    | 'guessCodeProjectInfo'
+    | 'listProjectChecks'
+    | 'runProjectCheck'
+    | 'reportProjectCheckNotCaused'
+    | 'reportPreExistingBreak'
+    | 'reportAcceptanceAlreadyMet'
+    | 'reportUiImpact'
+    | 'listProjectNoteEntries'
+    | 'listProjectNoteSummaries'
+    | 'getProjectNote'
+    | 'addProjectNote'
+    | 'updateProjectNote'
+    | 'removeProjectNote'
+    | 'listProjectScripts'
+    | 'runProjectScript'
+    | 'getProjectsGroups'
+    | 'getProjectsGroup'
+    | 'createProjectsGroup'
+    | 'updateProjectsGroup'
+    | 'deleteProjectsGroup'
+    | 'getProjectIdFromIndex'
+    | 'reorderProject'
+    | 'reorderGroup'
+    | 'discoverSuppliers'
+    | 'buildProductCatalog'
+    | 'buildProductCatalogToTarget'
+    | 'findMoreOffers'
+    | 'findMoreReviews'
+    | 'findMoreProducts'
+    | 'enrichProduct'
+    | 'checkProduct'
+    | 'searchProductCandidates'
+    | 'rankProductCandidates'
+    | 'recommendProducts'
+    | 'resolveProductGoal'
+    | 'listProductCategories'
+    | 'putProductCategories'
+    | 'reverifyProductCriterion'
+    | 'discoverProductBrands'
+    | 'listProductBrands'
+    | 'stockFromLibrary'
+    | 'registerProductCriterion'
+    | 'listProductCriteria'
+    | 'removeProductCriterion'
+    | 'clearCatalog'
+    | 'listProductBacklinks'
+    | 'listProductLeads'
+    | 'listMakerRecords'
+    | 'listProductMarketOffers'
+    | 'compareProductPrices'
+    | 'deleteProduct'
+    | 'getProductRecord'
+    | 'createProductRecord'
+    | 'updateProductRecord'
+    | 'addProductLink'
+    | 'removeProductLink'
+    | 'putProductChild'
+    | 'listProductChildren'
+    | 'removeProductChild'
+    | 'searchProductChildren'
+    | 'registerCriterionKnowledge'
+    | 'getCriterionKnowledge'
+    | 'removeCriterionKnowledge'
+    | 'listProductSources'
+    | 'curateProductSource'
+    | 'setProductNote'
+    | 'researchMaterial'
+    | 'seedMaterials'
+    | 'seedBrands'
+    | 'seedSources'
+    | 'listMaterials'
+    | 'getMaterial'
+    | 'setMaterialVerdict'
+    | 'listMaterialProposals'
+    | 'dismissMaterialProposal'
+    | 'listRulingProposals'
+    | 'dismissRulingProposal'
+    | 'getCatalogHealth'
+    | 'getEscalationReport'
+    | 'verifyProductImagery'
+    | 'classifyProductImagery'
+    | 'researchWeb'
+    | 'recordReviewEvidence'
+    | 'listReviewEvidence'
+    | 'getReviewEvidence'
+    | 'readReviewEvidence'
+    | 'deleteReviewEvidence'
+    | 'runSandbox'
+    | 'startSandboxProxy'
+    | 'killSandbox'
+    | 'pauseSandbox'
+    | 'unpauseSandbox'
+    | 'handBackScript'
+    | 'getStoriesOrder'
+    | 'getStoryIdFromIndex'
+    | 'reorderStory'
+    | 'getStory'
+    | 'readStoryPresence'
+    | 'addStory'
+    | 'updateStory'
+    | 'blockStory'
+    | 'getFeature'
+    | 'getFeatureFromIndex'
+    | 'addFeature'
+    | 'updateFeature'
+    | 'reorderFeature'
+    | 'blockFeature'
+    | 'answerFeatureQuestion'
+    | 'completeAssignment'
+    | 'listStoryNotes'
+    | 'listStories'
+    | 'deleteStory'
+    | 'deleteFeature'
+    | 'setFeatureStatus'
+    | 'removeBlocker'
+    | 'addStoryNote'
+    | 'updateStoryNote'
+    | 'removeStoryNote'
+    | 'listTests'
+    | 'runTests'
+    | 'runAllTests'
+    | 'runTestsCoverage'
+    | 'runAllTestsCoverage'
+    | 'getLastTestsRun'
+    | 'getLastTestsCustom'
+    | 'getLastTestsCoverage'
+    | 'uiTestOpenWebSession'
+    | 'uiTestOpenElectronSession'
+    | 'uiTestCloseSession'
+    | 'uiTestListSessions'
+    | 'uiTestNavigate'
+    | 'uiTestSnapshot'
+    | 'uiTestClick'
+    | 'uiTestType'
+    | 'uiTestPressKey'
+    | 'uiTestTypeSecret'
+    | 'uiTestWaitFor'
+    | 'uiTestScreenshot'
+    | 'uiTestServeApp'
+    | 'uiTestStopApp'
+    | 'uiTestListApps'
+    | 'uiTestGetConsole'
+    | 'uiTestGetNetwork'
+    | 'uiTestMeasure'
+    | 'uiTestFillForm'
+    | 'uiTestHover'
+    | 'uiTestSelectOption'
+    | 'uiTestScroll'
+    | 'uiTestEvaluate'
+    | 'uiTestEvaluateMain'
+    | 'webSearch'
+    | 'webReadURLs'
+    | 'webCheckProviderHealth'
+    | 'webReadURLsFull'
+    | 'webReadPages'
+    | 'webReadRevalidationReport'
+    | 'webReadCacheReport'
+    | 'webInteract'
+    | 'listProcesses'
+    | 'getProcess'
+    | 'saveProcess'
+    | 'deleteProcess'
+    | 'validateProcess'
+    | 'getProcessRun'
+    | 'listProcessRuns'
+    | 'getProcessRunStatistics'
+    | 'listProcessRunSummaries'
+    | 'getProcessGroupRun'
+    | 'listProcessGroupRuns'
+    | 'deleteProcessRun'
+    | 'getRunDiagnostics'
+  boot?:
+    | 'getToolNamesForAgent'
+    | 'callTool'
+    | 'previewTool'
+    | 'spawnAgent'
+    | 'spawnPanel'
+    | 'spawnTriagePanel'
+    | 'spawnApproachPanel'
+    | 'spawnAnswerPanel'
+    | 'sendChatCompletion'
+    | 'sendChatCompletionWithTools'
+    | 'startChatCompletionWithToolsCli'
+    | 'restartChatCompletionWithToolsCli'
+    | 'resumeChatCompletionWithToolsCli'
+    | 'carryOutChatApprovalsCli'
+    | 'retryChatCompletionWithTools'
+    | 'resumeChatCompletionWithTools'
+    | 'startAgentRun'
+    | 'listAgentTypes'
+    | 'getAgentType'
+    | 'saveAgentType'
+    | 'deleteAgentType'
+    | 'validateAgentType'
+    | 'getAgentTypeSlotDefaults'
+    | 'getOwnAgentTypeSlotDefaults'
+    | 'saveAgentTypeSlotDefaults'
+    | 'getAgentTypeLaunchOffer'
+    | 'listGroupAgentTypes'
+    | 'saveGroupAgentType'
+    | 'deleteGroupAgentType'
+    | 'getGroupAgentTypeSlotDefaults'
+    | 'saveGroupAgentTypeSlotDefaults'
+    | 'getHostCapabilities'
+    | 'getVerificationOptions'
+    | 'getChatsDir'
+    | 'listChats'
+    | 'listChatSummaries'
+    | 'getChatSummary'
+    | 'listChatsByType'
+    | 'updateChatMetadata'
+    | 'rateChat'
+    | 'getChat'
+    | 'peekChat'
+    | 'createChat'
+    | 'createTopicChat'
+    | 'saveChat'
+    | 'updateChat'
+    | 'attachChatCliRunner'
+    | 'detachChatCliRunner'
+    | 'addChatMessages'
+    | 'deleteLastChatMessage'
+    | 'clearChat'
+    | 'archiveChat'
+    | 'hideChatFromList'
+    | 'showChatInList'
+    | 'returnChatToList'
+    | 'raiseChatOpenChanges'
+    | 'updateDynamicContext'
+    | 'deleteChat'
+    | 'getChatSettings'
+    | 'resetChatSettings'
+    | 'updateCompletionSettings'
+    | 'getSettingsPrompt'
+    | 'updateSettingsPrompt'
+    | 'resetSettingsPrompt'
+    | 'startCliAgentRun'
+    | 'getCliAgentRun'
+    | 'deleteCliAgentRun'
+    | 'linkReviewRun'
+    | 'replaceReviewTestSeam'
+    | 'appendReviewTestSeam'
+    | 'recycleCliAgentSessions'
+    | 'refreshCliAgentRunIndex'
+    | 'listCliAgentRuns'
+    | 'listCliAgentRunSummaries'
+    | 'listCliAgentRunsPage'
+    | 'listCliAgentRunSummariesPage'
+    | 'getCliAgentRunSubscriptionStatus'
+    | 'listAvailableModels'
+    | 'listAvailableEfforts'
+    | 'listLiveModels'
+    | 'checkCliAuthStatus'
+    | 'startCliReauth'
+    | 'abortCliAgentRun'
+    | 'stageCliAgentRunFiles'
+    | 'listPendingCliAgentActions'
+    | 'listCliAgentRunActions'
+    | 'listDecidedCliAgentActions'
+    | 'markCliAgentActionsCarried'
+    | 'keepCliAgentActionHostFacts'
+    | 'readCliAgentActionHostFacts'
+    | 'carryOutCliAgentApprovals'
+    | 'countPendingCliAgentActionsByChat'
+    | 'requestCliAgentAction'
+    | 'requestPendingCliAgentAction'
+    | 'decideCliAgentAction'
+    | 'listCliAgentActionRules'
+    | 'trustCliSite'
+    | 'removeCliAgentActionRule'
+    | 'cancelCliAgentAction'
+    | 'withdrawCliAgentAction'
+    | 'subscribeCliAgentActions'
+    | 'subscribeBackgroundJobResults'
+    | 'getResidentSessionFreshness'
+    | 'getCliAgentAction'
+    | 'claimCliAgentActionExecution'
+    | 'recordCliAgentActionExecution'
+    | 'releaseCliAgentActionExecution'
+    | 'applyCliAgentArtifact'
+    | 'previewCliAgentArtifact'
+    | 'supersedeEarlierChatChanges'
+    | 'discardCliAgentArtifact'
+    | 'landCliRunOnBranch'
+    | 'landApiAgentRun'
+    | 'prepareIsolatedChatWorkspace'
+    | 'finalizeIsolatedChatTurn'
+    | 'snapshotIsolatedChatWorkspace'
+    | 'readChatOpenChanges'
+    | 'rebuildChatReviewOnCheckout'
+    | 'verifyCliRunReview'
+    | 'setCliRunVerdict'
+    | 'recordCliRunDiffReview'
+    | 'setCliRunFileViewed'
+    | 'rejectCliRunReview'
+    | 'readCliRunApprovalPlan'
+    | 'approveCliRunReview'
+    | 'planCliRunVerification'
+    | 'startCliAuthLogin'
+    | 'getProjectChat'
+    | 'getProjectMetadata'
+    | 'listProjectsMetadata'
+    | 'requestNetworkUnlock'
+    | 'requestInstallPackage'
+    | 'requestExternalFetch'
+    | 'requestWorkspaceLimitRaise'
+    | 'askUser'
+    | 'reportBlocked'
+    | 'scanDependencies'
+    | 'getCode'
+    | 'getCodeIntelCatalogue'
+    | 'astGetOutline'
+    | 'astEditNode'
+    | 'astRenameSymbol'
+    | 'detectCodeProjectEnvironment'
+    | 'compileCheck'
+    | 'sendCompletionWithTools'
+    | 'resumeCompletionTools'
+    | 'sendCompletion'
+    | 'listConnectionItems'
+    | 'getConnectionItem'
+    | 'listConnectionStatuses'
+    | 'commentConnectionItem'
+    | 'transitionConnectionItem'
+    | 'searchJiraIssues'
+    | 'getJiraIssue'
+    | 'getJiraIssueChangelog'
+    | 'listJiraTransitions'
+    | 'listJiraProjects'
+    | 'getJiraCreateFields'
+    | 'getJiraEditFields'
+    | 'searchJiraUsers'
+    | 'listJiraLinkTypes'
+    | 'listJiraBoards'
+    | 'listJiraSprints'
+    | 'listJiraWorklogs'
+    | 'listJiraWatchers'
+    | 'downloadJiraAttachment'
+    | 'createJiraIssue'
+    | 'updateJiraIssue'
+    | 'transitionJiraIssue'
+    | 'assignJiraIssue'
+    | 'addJiraComment'
+    | 'updateJiraComment'
+    | 'deleteJiraComment'
+    | 'linkJiraIssues'
+    | 'deleteJiraIssueLink'
+    | 'deleteJiraIssue'
+    | 'moveJiraIssuesToSprint'
+    | 'moveJiraIssuesToBacklog'
+    | 'addJiraWorklog'
+    | 'updateJiraWorklog'
+    | 'deleteJiraWorklog'
+    | 'addJiraWatcher'
+    | 'removeJiraWatcher'
+    | 'addJiraAttachment'
+    | 'deleteJiraAttachment'
+    | 'listLLMConfigs'
+    | 'getLLMConfig'
+    | 'addLLMConfig'
+    | 'updateLLMConfig'
+    | 'removeLLMConfig'
+    | 'getActiveLLMConfig'
+    | 'setActiveLLMConfig'
+    | 'getRecentLLMConfigs'
+    | 'bumpRecentLLMConfig'
+    | 'listGitCredentials'
+    | 'getGitCredential'
+    | 'addGitCredential'
+    | 'updateGitCredential'
+    | 'removeGitCredential'
+    | 'listProviderConnections'
+    | 'getProviderConnection'
+    | 'addProviderConnection'
+    | 'updateProviderConnection'
+    | 'removeProviderConnection'
+    | 'listCliAuthCaches'
+    | 'getCliAuthCache'
+    | 'addCliAuthCache'
+    | 'updateCliAuthCache'
+    | 'recordCliAuthEvent'
+    | 'listCliAuthEvents'
+    | 'removeCliAuthCache'
+    | 'getActiveCliState'
+    | 'setActiveCli'
+    | 'setCliEnabled'
+    | 'setCliDefaultModel'
+    | 'setCliEffort'
+    | 'setCliModelEffort'
+    | 'getActiveRunnerKind'
+    | 'setActiveRunnerKind'
+    | 'listWebSearchKeys'
+    | 'getWebSearchKey'
+    | 'setWebSearchKey'
+    | 'removeWebSearchKey'
+    | 'getWebSearchApiKeys'
+    | 'planResearch'
+    | 'discoverSources'
+    | 'gather'
+    | 'extract'
+    | 'verifyClaim'
+    | 'createDecision'
+    | 'getDecision'
+    | 'listDecisions'
+    | 'setDecisionOptions'
+    | 'selectDecisionOption'
+    | 'addDecisionQuestion'
+    | 'answerDecisionQuestion'
+    | 'signOffDecision'
+    | 'proposeDecisionOptions'
+    | 'listContents'
+    | 'readFile'
+    | 'readFileRange'
+    | 'grepFile'
+    | 'readFileRanges'
+    | 'grepFiles'
+    | 'readPaths'
+    | 'getAllFileStats'
+    | 'writeFile'
+    | 'writeStrictPatch'
+    | 'writeFuzzyPatch'
+    | 'writeExactReplaces'
+    | 'writeStructuredDiffToFile'
+    | 'renamePaths'
+    | 'deletePaths'
+    | 'searchFilesAndRead'
+    | 'searchFiles'
+    | 'searchFilePaths'
+    | 'searchFilesByKeywords'
+    | 'searchFilesByExact'
+    | 'uploadFile'
+    | 'viewImage'
+    | 'viewVideo'
+    | 'getAbsolutePath'
+    | 'gitStatus'
+    | 'listRemotes'
+    | 'gitFetch'
+    | 'gitPull'
+    | 'gitPush'
+    | 'gitStageFiles'
+    | 'gitStageAll'
+    | 'gitUnstageFiles'
+    | 'gitUnstageAll'
+    | 'gitResetFiles'
+    | 'gitResetAll'
+    | 'gitDiscardUnstagedFiles'
+    | 'gitDiscardStagedFiles'
+    | 'gitPushAll'
+    | 'gitCreateBranch'
+    | 'gitCheckoutBranch'
+    | 'gitDeleteBranch'
+    | 'gitDeleteRemoteBranch'
+    | 'gitRenameBranch'
+    | 'setUpstream'
+    | 'gitListBranches'
+    | 'listUnifiedBranches'
+    | 'getCurrentBranch'
+    | 'getFileContent'
+    | 'getTextRecovery'
+    | 'applyTextRecovery'
+    | 'gitCommit'
+    | 'mergeBranch'
+    | 'abortMerge'
+    | 'gitDiff'
+    | 'gitApplyPatch'
+    | 'gitLog'
+    | 'getBranchDiffSummary'
+    | 'resolveChangesToStories'
+    | 'buildBranchReport'
+    | 'buildWorkspaceReport'
+    | 'acceptFiles'
+    | 'rejectFiles'
+    | 'commitSelection'
+    | 'gitCreateMergePlan'
+    | 'gitApplyMerge'
+    | 'buildMergeReport'
+    | 'getLocalStatus'
+    | 'selectCommits'
+    | 'planCherryPick'
+    | 'applyCherryPick'
+    | 'fetchRefs'
+    | 'gitListStashes'
+    | 'gitAddStash'
+    | 'gitRemoveStash'
+    | 'gitApplyStash'
+    | 'listGroupNoteEntries'
+    | 'listGroupNoteSummaries'
+    | 'getGroupNote'
+    | 'addGroupNote'
+    | 'updateGroupNote'
+    | 'removeGroupNote'
+    | 'listGroupStories'
+    | 'getGroupStory'
+    | 'readGroupStoryPresence'
+    | 'createGroupStory'
+    | 'updateGroupStory'
+    | 'deleteGroupStory'
+    | 'ingestProject'
+    | 'ingestAll'
+    | 'startIngestProject'
+    | 'startIngestAll'
+    | 'listDataSources'
+    | 'getDataSource'
+    | 'createDataSource'
+    | 'updateDataSource'
+    | 'deleteDataSource'
+    | 'subscribeDataSource'
+    | 'unsubscribeDataSource'
+    | 'listDataSubscriptions'
+    | 'listProjectDataSources'
+    | 'syncProjectDataSources'
+    | 'refreshDataSource'
+    | 'readSubscribedRecords'
+    | 'listSourceRecords'
+    | 'appendCost'
+    | 'priceSpend'
+    | 'getCost'
+    | 'getCostSince'
+    | 'recomputeDailySummaries'
+    | 'sweepPendingFolds'
+    | 'getDailySummaries'
+    | 'listPrices'
+    | 'upsertPrices'
+    | 'getPrice'
+    | 'calculateCost'
+    | 'refreshPrices'
+    | 'loadPricingConfig'
+    | 'savePricingConfig'
+    | 'mobileTestDoctor'
+    | 'mobileTestListDevices'
+    | 'mobileTestBootDevice'
+    | 'mobileTestBuildApp'
+    | 'mobileTestOpenSession'
+    | 'mobileTestCloseSession'
+    | 'mobileTestListSessions'
+    | 'mobileTestSnapshot'
+    | 'mobileTestTap'
+    | 'mobileTestTapSelector'
+    | 'mobileTestType'
+    | 'mobileTestTypeSecret'
+    | 'mobileTestPressKey'
+    | 'mobileTestSwipe'
+    | 'mobileTestScreenshot'
+    | 'mobileTestReplayCaptureRoute'
+    | 'mobileTestRecordScreen'
+    | 'mobileTestLogcat'
+    | 'mobileTestAdb'
+    | 'mobileTestIdb'
+    | 'listProcessCleanup'
+    | 'registerCleanupItem'
+    | 'setProcessCleanupItem'
+    | 'setProcessCleanupOff'
+    | 'getProjectDir'
+    | 'listProjects'
+    | 'getProject'
+    | 'createProject'
+    | 'updateProject'
+    | 'setProjectActive'
+    | 'updateProjectCodeInfo'
+    | 'deleteProject'
+    | 'getProjectDataPaths'
+    | 'getProjectStoriesRoot'
+    | 'getProjectDataLocation'
+    | 'setProjectDataLocation'
+    | 'guessCodeProjectInfo'
+    | 'listProjectChecks'
+    | 'runProjectCheck'
+    | 'reportProjectCheckNotCaused'
+    | 'reportPreExistingBreak'
+    | 'reportAcceptanceAlreadyMet'
+    | 'reportUiImpact'
+    | 'listProjectNoteEntries'
+    | 'listProjectNoteSummaries'
+    | 'getProjectNote'
+    | 'addProjectNote'
+    | 'updateProjectNote'
+    | 'removeProjectNote'
+    | 'listProjectScripts'
+    | 'runProjectScript'
+    | 'getProjectsGroups'
+    | 'getProjectsGroup'
+    | 'createProjectsGroup'
+    | 'updateProjectsGroup'
+    | 'deleteProjectsGroup'
+    | 'getProjectIdFromIndex'
+    | 'reorderProject'
+    | 'reorderGroup'
+    | 'discoverSuppliers'
+    | 'buildProductCatalog'
+    | 'buildProductCatalogToTarget'
+    | 'findMoreOffers'
+    | 'findMoreReviews'
+    | 'findMoreProducts'
+    | 'enrichProduct'
+    | 'checkProduct'
+    | 'searchProductCandidates'
+    | 'rankProductCandidates'
+    | 'recommendProducts'
+    | 'resolveProductGoal'
+    | 'listProductCategories'
+    | 'putProductCategories'
+    | 'reverifyProductCriterion'
+    | 'discoverProductBrands'
+    | 'listProductBrands'
+    | 'stockFromLibrary'
+    | 'registerProductCriterion'
+    | 'listProductCriteria'
+    | 'removeProductCriterion'
+    | 'clearCatalog'
+    | 'listProductBacklinks'
+    | 'listProductLeads'
+    | 'listMakerRecords'
+    | 'listProductMarketOffers'
+    | 'compareProductPrices'
+    | 'deleteProduct'
+    | 'getProductRecord'
+    | 'createProductRecord'
+    | 'updateProductRecord'
+    | 'addProductLink'
+    | 'removeProductLink'
+    | 'putProductChild'
+    | 'listProductChildren'
+    | 'removeProductChild'
+    | 'searchProductChildren'
+    | 'registerCriterionKnowledge'
+    | 'getCriterionKnowledge'
+    | 'removeCriterionKnowledge'
+    | 'listProductSources'
+    | 'curateProductSource'
+    | 'setProductNote'
+    | 'researchMaterial'
+    | 'seedMaterials'
+    | 'seedBrands'
+    | 'seedSources'
+    | 'listMaterials'
+    | 'getMaterial'
+    | 'setMaterialVerdict'
+    | 'listMaterialProposals'
+    | 'dismissMaterialProposal'
+    | 'listRulingProposals'
+    | 'dismissRulingProposal'
+    | 'getCatalogHealth'
+    | 'getEscalationReport'
+    | 'verifyProductImagery'
+    | 'classifyProductImagery'
+    | 'researchWeb'
+    | 'recordReviewEvidence'
+    | 'listReviewEvidence'
+    | 'getReviewEvidence'
+    | 'readReviewEvidence'
+    | 'deleteReviewEvidence'
+    | 'runSandbox'
+    | 'startSandboxProxy'
+    | 'killSandbox'
+    | 'pauseSandbox'
+    | 'unpauseSandbox'
+    | 'handBackScript'
+    | 'getStoriesOrder'
+    | 'getStoryIdFromIndex'
+    | 'reorderStory'
+    | 'getStory'
+    | 'readStoryPresence'
+    | 'addStory'
+    | 'updateStory'
+    | 'blockStory'
+    | 'getFeature'
+    | 'getFeatureFromIndex'
+    | 'addFeature'
+    | 'updateFeature'
+    | 'reorderFeature'
+    | 'blockFeature'
+    | 'answerFeatureQuestion'
+    | 'completeAssignment'
+    | 'listStoryNotes'
+    | 'listStories'
+    | 'deleteStory'
+    | 'deleteFeature'
+    | 'setFeatureStatus'
+    | 'removeBlocker'
+    | 'addStoryNote'
+    | 'updateStoryNote'
+    | 'removeStoryNote'
+    | 'listTests'
+    | 'runTests'
+    | 'runAllTests'
+    | 'runTestsCoverage'
+    | 'runAllTestsCoverage'
+    | 'getLastTestsRun'
+    | 'getLastTestsCustom'
+    | 'getLastTestsCoverage'
+    | 'uiTestOpenWebSession'
+    | 'uiTestOpenElectronSession'
+    | 'uiTestCloseSession'
+    | 'uiTestListSessions'
+    | 'uiTestNavigate'
+    | 'uiTestSnapshot'
+    | 'uiTestClick'
+    | 'uiTestType'
+    | 'uiTestPressKey'
+    | 'uiTestTypeSecret'
+    | 'uiTestWaitFor'
+    | 'uiTestScreenshot'
+    | 'uiTestServeApp'
+    | 'uiTestStopApp'
+    | 'uiTestListApps'
+    | 'uiTestGetConsole'
+    | 'uiTestGetNetwork'
+    | 'uiTestMeasure'
+    | 'uiTestFillForm'
+    | 'uiTestHover'
+    | 'uiTestSelectOption'
+    | 'uiTestScroll'
+    | 'uiTestEvaluate'
+    | 'uiTestEvaluateMain'
+    | 'webSearch'
+    | 'webReadURLs'
+    | 'webCheckProviderHealth'
+    | 'webReadURLsFull'
+    | 'webReadPages'
+    | 'webReadRevalidationReport'
+    | 'webReadCacheReport'
+    | 'webInteract'
+    | 'listProcesses'
+    | 'getProcess'
+    | 'saveProcess'
+    | 'deleteProcess'
+    | 'validateProcess'
+    | 'getProcessRun'
+    | 'listProcessRuns'
+    | 'getProcessRunStatistics'
+    | 'listProcessRunSummaries'
+    | 'getProcessGroupRun'
+    | 'listProcessGroupRuns'
+    | 'deleteProcessRun'
+    | 'getRunDiagnostics'
+  build: ToolName
+  open: ToolName
+  snapshot: ToolName
+  tap: ToolName
+  type: ToolName
+  scroll: ToolName
+  screenshot: ToolName
+  record?:
+    | 'getToolNamesForAgent'
+    | 'callTool'
+    | 'previewTool'
+    | 'spawnAgent'
+    | 'spawnPanel'
+    | 'spawnTriagePanel'
+    | 'spawnApproachPanel'
+    | 'spawnAnswerPanel'
+    | 'sendChatCompletion'
+    | 'sendChatCompletionWithTools'
+    | 'startChatCompletionWithToolsCli'
+    | 'restartChatCompletionWithToolsCli'
+    | 'resumeChatCompletionWithToolsCli'
+    | 'carryOutChatApprovalsCli'
+    | 'retryChatCompletionWithTools'
+    | 'resumeChatCompletionWithTools'
+    | 'startAgentRun'
+    | 'listAgentTypes'
+    | 'getAgentType'
+    | 'saveAgentType'
+    | 'deleteAgentType'
+    | 'validateAgentType'
+    | 'getAgentTypeSlotDefaults'
+    | 'getOwnAgentTypeSlotDefaults'
+    | 'saveAgentTypeSlotDefaults'
+    | 'getAgentTypeLaunchOffer'
+    | 'listGroupAgentTypes'
+    | 'saveGroupAgentType'
+    | 'deleteGroupAgentType'
+    | 'getGroupAgentTypeSlotDefaults'
+    | 'saveGroupAgentTypeSlotDefaults'
+    | 'getHostCapabilities'
+    | 'getVerificationOptions'
+    | 'getChatsDir'
+    | 'listChats'
+    | 'listChatSummaries'
+    | 'getChatSummary'
+    | 'listChatsByType'
+    | 'updateChatMetadata'
+    | 'rateChat'
+    | 'getChat'
+    | 'peekChat'
+    | 'createChat'
+    | 'createTopicChat'
+    | 'saveChat'
+    | 'updateChat'
+    | 'attachChatCliRunner'
+    | 'detachChatCliRunner'
+    | 'addChatMessages'
+    | 'deleteLastChatMessage'
+    | 'clearChat'
+    | 'archiveChat'
+    | 'hideChatFromList'
+    | 'showChatInList'
+    | 'returnChatToList'
+    | 'raiseChatOpenChanges'
+    | 'updateDynamicContext'
+    | 'deleteChat'
+    | 'getChatSettings'
+    | 'resetChatSettings'
+    | 'updateCompletionSettings'
+    | 'getSettingsPrompt'
+    | 'updateSettingsPrompt'
+    | 'resetSettingsPrompt'
+    | 'startCliAgentRun'
+    | 'getCliAgentRun'
+    | 'deleteCliAgentRun'
+    | 'linkReviewRun'
+    | 'replaceReviewTestSeam'
+    | 'appendReviewTestSeam'
+    | 'recycleCliAgentSessions'
+    | 'refreshCliAgentRunIndex'
+    | 'listCliAgentRuns'
+    | 'listCliAgentRunSummaries'
+    | 'listCliAgentRunsPage'
+    | 'listCliAgentRunSummariesPage'
+    | 'getCliAgentRunSubscriptionStatus'
+    | 'listAvailableModels'
+    | 'listAvailableEfforts'
+    | 'listLiveModels'
+    | 'checkCliAuthStatus'
+    | 'startCliReauth'
+    | 'abortCliAgentRun'
+    | 'stageCliAgentRunFiles'
+    | 'listPendingCliAgentActions'
+    | 'listCliAgentRunActions'
+    | 'listDecidedCliAgentActions'
+    | 'markCliAgentActionsCarried'
+    | 'keepCliAgentActionHostFacts'
+    | 'readCliAgentActionHostFacts'
+    | 'carryOutCliAgentApprovals'
+    | 'countPendingCliAgentActionsByChat'
+    | 'requestCliAgentAction'
+    | 'requestPendingCliAgentAction'
+    | 'decideCliAgentAction'
+    | 'listCliAgentActionRules'
+    | 'trustCliSite'
+    | 'removeCliAgentActionRule'
+    | 'cancelCliAgentAction'
+    | 'withdrawCliAgentAction'
+    | 'subscribeCliAgentActions'
+    | 'subscribeBackgroundJobResults'
+    | 'getResidentSessionFreshness'
+    | 'getCliAgentAction'
+    | 'claimCliAgentActionExecution'
+    | 'recordCliAgentActionExecution'
+    | 'releaseCliAgentActionExecution'
+    | 'applyCliAgentArtifact'
+    | 'previewCliAgentArtifact'
+    | 'supersedeEarlierChatChanges'
+    | 'discardCliAgentArtifact'
+    | 'landCliRunOnBranch'
+    | 'landApiAgentRun'
+    | 'prepareIsolatedChatWorkspace'
+    | 'finalizeIsolatedChatTurn'
+    | 'snapshotIsolatedChatWorkspace'
+    | 'readChatOpenChanges'
+    | 'rebuildChatReviewOnCheckout'
+    | 'verifyCliRunReview'
+    | 'setCliRunVerdict'
+    | 'recordCliRunDiffReview'
+    | 'setCliRunFileViewed'
+    | 'rejectCliRunReview'
+    | 'readCliRunApprovalPlan'
+    | 'approveCliRunReview'
+    | 'planCliRunVerification'
+    | 'startCliAuthLogin'
+    | 'getProjectChat'
+    | 'getProjectMetadata'
+    | 'listProjectsMetadata'
+    | 'requestNetworkUnlock'
+    | 'requestInstallPackage'
+    | 'requestExternalFetch'
+    | 'requestWorkspaceLimitRaise'
+    | 'askUser'
+    | 'reportBlocked'
+    | 'scanDependencies'
+    | 'getCode'
+    | 'getCodeIntelCatalogue'
+    | 'astGetOutline'
+    | 'astEditNode'
+    | 'astRenameSymbol'
+    | 'detectCodeProjectEnvironment'
+    | 'compileCheck'
+    | 'sendCompletionWithTools'
+    | 'resumeCompletionTools'
+    | 'sendCompletion'
+    | 'listConnectionItems'
+    | 'getConnectionItem'
+    | 'listConnectionStatuses'
+    | 'commentConnectionItem'
+    | 'transitionConnectionItem'
+    | 'searchJiraIssues'
+    | 'getJiraIssue'
+    | 'getJiraIssueChangelog'
+    | 'listJiraTransitions'
+    | 'listJiraProjects'
+    | 'getJiraCreateFields'
+    | 'getJiraEditFields'
+    | 'searchJiraUsers'
+    | 'listJiraLinkTypes'
+    | 'listJiraBoards'
+    | 'listJiraSprints'
+    | 'listJiraWorklogs'
+    | 'listJiraWatchers'
+    | 'downloadJiraAttachment'
+    | 'createJiraIssue'
+    | 'updateJiraIssue'
+    | 'transitionJiraIssue'
+    | 'assignJiraIssue'
+    | 'addJiraComment'
+    | 'updateJiraComment'
+    | 'deleteJiraComment'
+    | 'linkJiraIssues'
+    | 'deleteJiraIssueLink'
+    | 'deleteJiraIssue'
+    | 'moveJiraIssuesToSprint'
+    | 'moveJiraIssuesToBacklog'
+    | 'addJiraWorklog'
+    | 'updateJiraWorklog'
+    | 'deleteJiraWorklog'
+    | 'addJiraWatcher'
+    | 'removeJiraWatcher'
+    | 'addJiraAttachment'
+    | 'deleteJiraAttachment'
+    | 'listLLMConfigs'
+    | 'getLLMConfig'
+    | 'addLLMConfig'
+    | 'updateLLMConfig'
+    | 'removeLLMConfig'
+    | 'getActiveLLMConfig'
+    | 'setActiveLLMConfig'
+    | 'getRecentLLMConfigs'
+    | 'bumpRecentLLMConfig'
+    | 'listGitCredentials'
+    | 'getGitCredential'
+    | 'addGitCredential'
+    | 'updateGitCredential'
+    | 'removeGitCredential'
+    | 'listProviderConnections'
+    | 'getProviderConnection'
+    | 'addProviderConnection'
+    | 'updateProviderConnection'
+    | 'removeProviderConnection'
+    | 'listCliAuthCaches'
+    | 'getCliAuthCache'
+    | 'addCliAuthCache'
+    | 'updateCliAuthCache'
+    | 'recordCliAuthEvent'
+    | 'listCliAuthEvents'
+    | 'removeCliAuthCache'
+    | 'getActiveCliState'
+    | 'setActiveCli'
+    | 'setCliEnabled'
+    | 'setCliDefaultModel'
+    | 'setCliEffort'
+    | 'setCliModelEffort'
+    | 'getActiveRunnerKind'
+    | 'setActiveRunnerKind'
+    | 'listWebSearchKeys'
+    | 'getWebSearchKey'
+    | 'setWebSearchKey'
+    | 'removeWebSearchKey'
+    | 'getWebSearchApiKeys'
+    | 'planResearch'
+    | 'discoverSources'
+    | 'gather'
+    | 'extract'
+    | 'verifyClaim'
+    | 'createDecision'
+    | 'getDecision'
+    | 'listDecisions'
+    | 'setDecisionOptions'
+    | 'selectDecisionOption'
+    | 'addDecisionQuestion'
+    | 'answerDecisionQuestion'
+    | 'signOffDecision'
+    | 'proposeDecisionOptions'
+    | 'listContents'
+    | 'readFile'
+    | 'readFileRange'
+    | 'grepFile'
+    | 'readFileRanges'
+    | 'grepFiles'
+    | 'readPaths'
+    | 'getAllFileStats'
+    | 'writeFile'
+    | 'writeStrictPatch'
+    | 'writeFuzzyPatch'
+    | 'writeExactReplaces'
+    | 'writeStructuredDiffToFile'
+    | 'renamePaths'
+    | 'deletePaths'
+    | 'searchFilesAndRead'
+    | 'searchFiles'
+    | 'searchFilePaths'
+    | 'searchFilesByKeywords'
+    | 'searchFilesByExact'
+    | 'uploadFile'
+    | 'viewImage'
+    | 'viewVideo'
+    | 'getAbsolutePath'
+    | 'gitStatus'
+    | 'listRemotes'
+    | 'gitFetch'
+    | 'gitPull'
+    | 'gitPush'
+    | 'gitStageFiles'
+    | 'gitStageAll'
+    | 'gitUnstageFiles'
+    | 'gitUnstageAll'
+    | 'gitResetFiles'
+    | 'gitResetAll'
+    | 'gitDiscardUnstagedFiles'
+    | 'gitDiscardStagedFiles'
+    | 'gitPushAll'
+    | 'gitCreateBranch'
+    | 'gitCheckoutBranch'
+    | 'gitDeleteBranch'
+    | 'gitDeleteRemoteBranch'
+    | 'gitRenameBranch'
+    | 'setUpstream'
+    | 'gitListBranches'
+    | 'listUnifiedBranches'
+    | 'getCurrentBranch'
+    | 'getFileContent'
+    | 'getTextRecovery'
+    | 'applyTextRecovery'
+    | 'gitCommit'
+    | 'mergeBranch'
+    | 'abortMerge'
+    | 'gitDiff'
+    | 'gitApplyPatch'
+    | 'gitLog'
+    | 'getBranchDiffSummary'
+    | 'resolveChangesToStories'
+    | 'buildBranchReport'
+    | 'buildWorkspaceReport'
+    | 'acceptFiles'
+    | 'rejectFiles'
+    | 'commitSelection'
+    | 'gitCreateMergePlan'
+    | 'gitApplyMerge'
+    | 'buildMergeReport'
+    | 'getLocalStatus'
+    | 'selectCommits'
+    | 'planCherryPick'
+    | 'applyCherryPick'
+    | 'fetchRefs'
+    | 'gitListStashes'
+    | 'gitAddStash'
+    | 'gitRemoveStash'
+    | 'gitApplyStash'
+    | 'listGroupNoteEntries'
+    | 'listGroupNoteSummaries'
+    | 'getGroupNote'
+    | 'addGroupNote'
+    | 'updateGroupNote'
+    | 'removeGroupNote'
+    | 'listGroupStories'
+    | 'getGroupStory'
+    | 'readGroupStoryPresence'
+    | 'createGroupStory'
+    | 'updateGroupStory'
+    | 'deleteGroupStory'
+    | 'ingestProject'
+    | 'ingestAll'
+    | 'startIngestProject'
+    | 'startIngestAll'
+    | 'listDataSources'
+    | 'getDataSource'
+    | 'createDataSource'
+    | 'updateDataSource'
+    | 'deleteDataSource'
+    | 'subscribeDataSource'
+    | 'unsubscribeDataSource'
+    | 'listDataSubscriptions'
+    | 'listProjectDataSources'
+    | 'syncProjectDataSources'
+    | 'refreshDataSource'
+    | 'readSubscribedRecords'
+    | 'listSourceRecords'
+    | 'appendCost'
+    | 'priceSpend'
+    | 'getCost'
+    | 'getCostSince'
+    | 'recomputeDailySummaries'
+    | 'sweepPendingFolds'
+    | 'getDailySummaries'
+    | 'listPrices'
+    | 'upsertPrices'
+    | 'getPrice'
+    | 'calculateCost'
+    | 'refreshPrices'
+    | 'loadPricingConfig'
+    | 'savePricingConfig'
+    | 'mobileTestDoctor'
+    | 'mobileTestListDevices'
+    | 'mobileTestBootDevice'
+    | 'mobileTestBuildApp'
+    | 'mobileTestOpenSession'
+    | 'mobileTestCloseSession'
+    | 'mobileTestListSessions'
+    | 'mobileTestSnapshot'
+    | 'mobileTestTap'
+    | 'mobileTestTapSelector'
+    | 'mobileTestType'
+    | 'mobileTestTypeSecret'
+    | 'mobileTestPressKey'
+    | 'mobileTestSwipe'
+    | 'mobileTestScreenshot'
+    | 'mobileTestReplayCaptureRoute'
+    | 'mobileTestRecordScreen'
+    | 'mobileTestLogcat'
+    | 'mobileTestAdb'
+    | 'mobileTestIdb'
+    | 'listProcessCleanup'
+    | 'registerCleanupItem'
+    | 'setProcessCleanupItem'
+    | 'setProcessCleanupOff'
+    | 'getProjectDir'
+    | 'listProjects'
+    | 'getProject'
+    | 'createProject'
+    | 'updateProject'
+    | 'setProjectActive'
+    | 'updateProjectCodeInfo'
+    | 'deleteProject'
+    | 'getProjectDataPaths'
+    | 'getProjectStoriesRoot'
+    | 'getProjectDataLocation'
+    | 'setProjectDataLocation'
+    | 'guessCodeProjectInfo'
+    | 'listProjectChecks'
+    | 'runProjectCheck'
+    | 'reportProjectCheckNotCaused'
+    | 'reportPreExistingBreak'
+    | 'reportAcceptanceAlreadyMet'
+    | 'reportUiImpact'
+    | 'listProjectNoteEntries'
+    | 'listProjectNoteSummaries'
+    | 'getProjectNote'
+    | 'addProjectNote'
+    | 'updateProjectNote'
+    | 'removeProjectNote'
+    | 'listProjectScripts'
+    | 'runProjectScript'
+    | 'getProjectsGroups'
+    | 'getProjectsGroup'
+    | 'createProjectsGroup'
+    | 'updateProjectsGroup'
+    | 'deleteProjectsGroup'
+    | 'getProjectIdFromIndex'
+    | 'reorderProject'
+    | 'reorderGroup'
+    | 'discoverSuppliers'
+    | 'buildProductCatalog'
+    | 'buildProductCatalogToTarget'
+    | 'findMoreOffers'
+    | 'findMoreReviews'
+    | 'findMoreProducts'
+    | 'enrichProduct'
+    | 'checkProduct'
+    | 'searchProductCandidates'
+    | 'rankProductCandidates'
+    | 'recommendProducts'
+    | 'resolveProductGoal'
+    | 'listProductCategories'
+    | 'putProductCategories'
+    | 'reverifyProductCriterion'
+    | 'discoverProductBrands'
+    | 'listProductBrands'
+    | 'stockFromLibrary'
+    | 'registerProductCriterion'
+    | 'listProductCriteria'
+    | 'removeProductCriterion'
+    | 'clearCatalog'
+    | 'listProductBacklinks'
+    | 'listProductLeads'
+    | 'listMakerRecords'
+    | 'listProductMarketOffers'
+    | 'compareProductPrices'
+    | 'deleteProduct'
+    | 'getProductRecord'
+    | 'createProductRecord'
+    | 'updateProductRecord'
+    | 'addProductLink'
+    | 'removeProductLink'
+    | 'putProductChild'
+    | 'listProductChildren'
+    | 'removeProductChild'
+    | 'searchProductChildren'
+    | 'registerCriterionKnowledge'
+    | 'getCriterionKnowledge'
+    | 'removeCriterionKnowledge'
+    | 'listProductSources'
+    | 'curateProductSource'
+    | 'setProductNote'
+    | 'researchMaterial'
+    | 'seedMaterials'
+    | 'seedBrands'
+    | 'seedSources'
+    | 'listMaterials'
+    | 'getMaterial'
+    | 'setMaterialVerdict'
+    | 'listMaterialProposals'
+    | 'dismissMaterialProposal'
+    | 'listRulingProposals'
+    | 'dismissRulingProposal'
+    | 'getCatalogHealth'
+    | 'getEscalationReport'
+    | 'verifyProductImagery'
+    | 'classifyProductImagery'
+    | 'researchWeb'
+    | 'recordReviewEvidence'
+    | 'listReviewEvidence'
+    | 'getReviewEvidence'
+    | 'readReviewEvidence'
+    | 'deleteReviewEvidence'
+    | 'runSandbox'
+    | 'startSandboxProxy'
+    | 'killSandbox'
+    | 'pauseSandbox'
+    | 'unpauseSandbox'
+    | 'handBackScript'
+    | 'getStoriesOrder'
+    | 'getStoryIdFromIndex'
+    | 'reorderStory'
+    | 'getStory'
+    | 'readStoryPresence'
+    | 'addStory'
+    | 'updateStory'
+    | 'blockStory'
+    | 'getFeature'
+    | 'getFeatureFromIndex'
+    | 'addFeature'
+    | 'updateFeature'
+    | 'reorderFeature'
+    | 'blockFeature'
+    | 'answerFeatureQuestion'
+    | 'completeAssignment'
+    | 'listStoryNotes'
+    | 'listStories'
+    | 'deleteStory'
+    | 'deleteFeature'
+    | 'setFeatureStatus'
+    | 'removeBlocker'
+    | 'addStoryNote'
+    | 'updateStoryNote'
+    | 'removeStoryNote'
+    | 'listTests'
+    | 'runTests'
+    | 'runAllTests'
+    | 'runTestsCoverage'
+    | 'runAllTestsCoverage'
+    | 'getLastTestsRun'
+    | 'getLastTestsCustom'
+    | 'getLastTestsCoverage'
+    | 'uiTestOpenWebSession'
+    | 'uiTestOpenElectronSession'
+    | 'uiTestCloseSession'
+    | 'uiTestListSessions'
+    | 'uiTestNavigate'
+    | 'uiTestSnapshot'
+    | 'uiTestClick'
+    | 'uiTestType'
+    | 'uiTestPressKey'
+    | 'uiTestTypeSecret'
+    | 'uiTestWaitFor'
+    | 'uiTestScreenshot'
+    | 'uiTestServeApp'
+    | 'uiTestStopApp'
+    | 'uiTestListApps'
+    | 'uiTestGetConsole'
+    | 'uiTestGetNetwork'
+    | 'uiTestMeasure'
+    | 'uiTestFillForm'
+    | 'uiTestHover'
+    | 'uiTestSelectOption'
+    | 'uiTestScroll'
+    | 'uiTestEvaluate'
+    | 'uiTestEvaluateMain'
+    | 'webSearch'
+    | 'webReadURLs'
+    | 'webCheckProviderHealth'
+    | 'webReadURLsFull'
+    | 'webReadPages'
+    | 'webReadRevalidationReport'
+    | 'webReadCacheReport'
+    | 'webInteract'
+    | 'listProcesses'
+    | 'getProcess'
+    | 'saveProcess'
+    | 'deleteProcess'
+    | 'validateProcess'
+    | 'getProcessRun'
+    | 'listProcessRuns'
+    | 'getProcessRunStatistics'
+    | 'listProcessRunSummaries'
+    | 'getProcessGroupRun'
+    | 'listProcessGroupRuns'
+    | 'deleteProcessRun'
+    | 'getRunDiagnostics'
+  close?:
+    | 'getToolNamesForAgent'
+    | 'callTool'
+    | 'previewTool'
+    | 'spawnAgent'
+    | 'spawnPanel'
+    | 'spawnTriagePanel'
+    | 'spawnApproachPanel'
+    | 'spawnAnswerPanel'
+    | 'sendChatCompletion'
+    | 'sendChatCompletionWithTools'
+    | 'startChatCompletionWithToolsCli'
+    | 'restartChatCompletionWithToolsCli'
+    | 'resumeChatCompletionWithToolsCli'
+    | 'carryOutChatApprovalsCli'
+    | 'retryChatCompletionWithTools'
+    | 'resumeChatCompletionWithTools'
+    | 'startAgentRun'
+    | 'listAgentTypes'
+    | 'getAgentType'
+    | 'saveAgentType'
+    | 'deleteAgentType'
+    | 'validateAgentType'
+    | 'getAgentTypeSlotDefaults'
+    | 'getOwnAgentTypeSlotDefaults'
+    | 'saveAgentTypeSlotDefaults'
+    | 'getAgentTypeLaunchOffer'
+    | 'listGroupAgentTypes'
+    | 'saveGroupAgentType'
+    | 'deleteGroupAgentType'
+    | 'getGroupAgentTypeSlotDefaults'
+    | 'saveGroupAgentTypeSlotDefaults'
+    | 'getHostCapabilities'
+    | 'getVerificationOptions'
+    | 'getChatsDir'
+    | 'listChats'
+    | 'listChatSummaries'
+    | 'getChatSummary'
+    | 'listChatsByType'
+    | 'updateChatMetadata'
+    | 'rateChat'
+    | 'getChat'
+    | 'peekChat'
+    | 'createChat'
+    | 'createTopicChat'
+    | 'saveChat'
+    | 'updateChat'
+    | 'attachChatCliRunner'
+    | 'detachChatCliRunner'
+    | 'addChatMessages'
+    | 'deleteLastChatMessage'
+    | 'clearChat'
+    | 'archiveChat'
+    | 'hideChatFromList'
+    | 'showChatInList'
+    | 'returnChatToList'
+    | 'raiseChatOpenChanges'
+    | 'updateDynamicContext'
+    | 'deleteChat'
+    | 'getChatSettings'
+    | 'resetChatSettings'
+    | 'updateCompletionSettings'
+    | 'getSettingsPrompt'
+    | 'updateSettingsPrompt'
+    | 'resetSettingsPrompt'
+    | 'startCliAgentRun'
+    | 'getCliAgentRun'
+    | 'deleteCliAgentRun'
+    | 'linkReviewRun'
+    | 'replaceReviewTestSeam'
+    | 'appendReviewTestSeam'
+    | 'recycleCliAgentSessions'
+    | 'refreshCliAgentRunIndex'
+    | 'listCliAgentRuns'
+    | 'listCliAgentRunSummaries'
+    | 'listCliAgentRunsPage'
+    | 'listCliAgentRunSummariesPage'
+    | 'getCliAgentRunSubscriptionStatus'
+    | 'listAvailableModels'
+    | 'listAvailableEfforts'
+    | 'listLiveModels'
+    | 'checkCliAuthStatus'
+    | 'startCliReauth'
+    | 'abortCliAgentRun'
+    | 'stageCliAgentRunFiles'
+    | 'listPendingCliAgentActions'
+    | 'listCliAgentRunActions'
+    | 'listDecidedCliAgentActions'
+    | 'markCliAgentActionsCarried'
+    | 'keepCliAgentActionHostFacts'
+    | 'readCliAgentActionHostFacts'
+    | 'carryOutCliAgentApprovals'
+    | 'countPendingCliAgentActionsByChat'
+    | 'requestCliAgentAction'
+    | 'requestPendingCliAgentAction'
+    | 'decideCliAgentAction'
+    | 'listCliAgentActionRules'
+    | 'trustCliSite'
+    | 'removeCliAgentActionRule'
+    | 'cancelCliAgentAction'
+    | 'withdrawCliAgentAction'
+    | 'subscribeCliAgentActions'
+    | 'subscribeBackgroundJobResults'
+    | 'getResidentSessionFreshness'
+    | 'getCliAgentAction'
+    | 'claimCliAgentActionExecution'
+    | 'recordCliAgentActionExecution'
+    | 'releaseCliAgentActionExecution'
+    | 'applyCliAgentArtifact'
+    | 'previewCliAgentArtifact'
+    | 'supersedeEarlierChatChanges'
+    | 'discardCliAgentArtifact'
+    | 'landCliRunOnBranch'
+    | 'landApiAgentRun'
+    | 'prepareIsolatedChatWorkspace'
+    | 'finalizeIsolatedChatTurn'
+    | 'snapshotIsolatedChatWorkspace'
+    | 'readChatOpenChanges'
+    | 'rebuildChatReviewOnCheckout'
+    | 'verifyCliRunReview'
+    | 'setCliRunVerdict'
+    | 'recordCliRunDiffReview'
+    | 'setCliRunFileViewed'
+    | 'rejectCliRunReview'
+    | 'readCliRunApprovalPlan'
+    | 'approveCliRunReview'
+    | 'planCliRunVerification'
+    | 'startCliAuthLogin'
+    | 'getProjectChat'
+    | 'getProjectMetadata'
+    | 'listProjectsMetadata'
+    | 'requestNetworkUnlock'
+    | 'requestInstallPackage'
+    | 'requestExternalFetch'
+    | 'requestWorkspaceLimitRaise'
+    | 'askUser'
+    | 'reportBlocked'
+    | 'scanDependencies'
+    | 'getCode'
+    | 'getCodeIntelCatalogue'
+    | 'astGetOutline'
+    | 'astEditNode'
+    | 'astRenameSymbol'
+    | 'detectCodeProjectEnvironment'
+    | 'compileCheck'
+    | 'sendCompletionWithTools'
+    | 'resumeCompletionTools'
+    | 'sendCompletion'
+    | 'listConnectionItems'
+    | 'getConnectionItem'
+    | 'listConnectionStatuses'
+    | 'commentConnectionItem'
+    | 'transitionConnectionItem'
+    | 'searchJiraIssues'
+    | 'getJiraIssue'
+    | 'getJiraIssueChangelog'
+    | 'listJiraTransitions'
+    | 'listJiraProjects'
+    | 'getJiraCreateFields'
+    | 'getJiraEditFields'
+    | 'searchJiraUsers'
+    | 'listJiraLinkTypes'
+    | 'listJiraBoards'
+    | 'listJiraSprints'
+    | 'listJiraWorklogs'
+    | 'listJiraWatchers'
+    | 'downloadJiraAttachment'
+    | 'createJiraIssue'
+    | 'updateJiraIssue'
+    | 'transitionJiraIssue'
+    | 'assignJiraIssue'
+    | 'addJiraComment'
+    | 'updateJiraComment'
+    | 'deleteJiraComment'
+    | 'linkJiraIssues'
+    | 'deleteJiraIssueLink'
+    | 'deleteJiraIssue'
+    | 'moveJiraIssuesToSprint'
+    | 'moveJiraIssuesToBacklog'
+    | 'addJiraWorklog'
+    | 'updateJiraWorklog'
+    | 'deleteJiraWorklog'
+    | 'addJiraWatcher'
+    | 'removeJiraWatcher'
+    | 'addJiraAttachment'
+    | 'deleteJiraAttachment'
+    | 'listLLMConfigs'
+    | 'getLLMConfig'
+    | 'addLLMConfig'
+    | 'updateLLMConfig'
+    | 'removeLLMConfig'
+    | 'getActiveLLMConfig'
+    | 'setActiveLLMConfig'
+    | 'getRecentLLMConfigs'
+    | 'bumpRecentLLMConfig'
+    | 'listGitCredentials'
+    | 'getGitCredential'
+    | 'addGitCredential'
+    | 'updateGitCredential'
+    | 'removeGitCredential'
+    | 'listProviderConnections'
+    | 'getProviderConnection'
+    | 'addProviderConnection'
+    | 'updateProviderConnection'
+    | 'removeProviderConnection'
+    | 'listCliAuthCaches'
+    | 'getCliAuthCache'
+    | 'addCliAuthCache'
+    | 'updateCliAuthCache'
+    | 'recordCliAuthEvent'
+    | 'listCliAuthEvents'
+    | 'removeCliAuthCache'
+    | 'getActiveCliState'
+    | 'setActiveCli'
+    | 'setCliEnabled'
+    | 'setCliDefaultModel'
+    | 'setCliEffort'
+    | 'setCliModelEffort'
+    | 'getActiveRunnerKind'
+    | 'setActiveRunnerKind'
+    | 'listWebSearchKeys'
+    | 'getWebSearchKey'
+    | 'setWebSearchKey'
+    | 'removeWebSearchKey'
+    | 'getWebSearchApiKeys'
+    | 'planResearch'
+    | 'discoverSources'
+    | 'gather'
+    | 'extract'
+    | 'verifyClaim'
+    | 'createDecision'
+    | 'getDecision'
+    | 'listDecisions'
+    | 'setDecisionOptions'
+    | 'selectDecisionOption'
+    | 'addDecisionQuestion'
+    | 'answerDecisionQuestion'
+    | 'signOffDecision'
+    | 'proposeDecisionOptions'
+    | 'listContents'
+    | 'readFile'
+    | 'readFileRange'
+    | 'grepFile'
+    | 'readFileRanges'
+    | 'grepFiles'
+    | 'readPaths'
+    | 'getAllFileStats'
+    | 'writeFile'
+    | 'writeStrictPatch'
+    | 'writeFuzzyPatch'
+    | 'writeExactReplaces'
+    | 'writeStructuredDiffToFile'
+    | 'renamePaths'
+    | 'deletePaths'
+    | 'searchFilesAndRead'
+    | 'searchFiles'
+    | 'searchFilePaths'
+    | 'searchFilesByKeywords'
+    | 'searchFilesByExact'
+    | 'uploadFile'
+    | 'viewImage'
+    | 'viewVideo'
+    | 'getAbsolutePath'
+    | 'gitStatus'
+    | 'listRemotes'
+    | 'gitFetch'
+    | 'gitPull'
+    | 'gitPush'
+    | 'gitStageFiles'
+    | 'gitStageAll'
+    | 'gitUnstageFiles'
+    | 'gitUnstageAll'
+    | 'gitResetFiles'
+    | 'gitResetAll'
+    | 'gitDiscardUnstagedFiles'
+    | 'gitDiscardStagedFiles'
+    | 'gitPushAll'
+    | 'gitCreateBranch'
+    | 'gitCheckoutBranch'
+    | 'gitDeleteBranch'
+    | 'gitDeleteRemoteBranch'
+    | 'gitRenameBranch'
+    | 'setUpstream'
+    | 'gitListBranches'
+    | 'listUnifiedBranches'
+    | 'getCurrentBranch'
+    | 'getFileContent'
+    | 'getTextRecovery'
+    | 'applyTextRecovery'
+    | 'gitCommit'
+    | 'mergeBranch'
+    | 'abortMerge'
+    | 'gitDiff'
+    | 'gitApplyPatch'
+    | 'gitLog'
+    | 'getBranchDiffSummary'
+    | 'resolveChangesToStories'
+    | 'buildBranchReport'
+    | 'buildWorkspaceReport'
+    | 'acceptFiles'
+    | 'rejectFiles'
+    | 'commitSelection'
+    | 'gitCreateMergePlan'
+    | 'gitApplyMerge'
+    | 'buildMergeReport'
+    | 'getLocalStatus'
+    | 'selectCommits'
+    | 'planCherryPick'
+    | 'applyCherryPick'
+    | 'fetchRefs'
+    | 'gitListStashes'
+    | 'gitAddStash'
+    | 'gitRemoveStash'
+    | 'gitApplyStash'
+    | 'listGroupNoteEntries'
+    | 'listGroupNoteSummaries'
+    | 'getGroupNote'
+    | 'addGroupNote'
+    | 'updateGroupNote'
+    | 'removeGroupNote'
+    | 'listGroupStories'
+    | 'getGroupStory'
+    | 'readGroupStoryPresence'
+    | 'createGroupStory'
+    | 'updateGroupStory'
+    | 'deleteGroupStory'
+    | 'ingestProject'
+    | 'ingestAll'
+    | 'startIngestProject'
+    | 'startIngestAll'
+    | 'listDataSources'
+    | 'getDataSource'
+    | 'createDataSource'
+    | 'updateDataSource'
+    | 'deleteDataSource'
+    | 'subscribeDataSource'
+    | 'unsubscribeDataSource'
+    | 'listDataSubscriptions'
+    | 'listProjectDataSources'
+    | 'syncProjectDataSources'
+    | 'refreshDataSource'
+    | 'readSubscribedRecords'
+    | 'listSourceRecords'
+    | 'appendCost'
+    | 'priceSpend'
+    | 'getCost'
+    | 'getCostSince'
+    | 'recomputeDailySummaries'
+    | 'sweepPendingFolds'
+    | 'getDailySummaries'
+    | 'listPrices'
+    | 'upsertPrices'
+    | 'getPrice'
+    | 'calculateCost'
+    | 'refreshPrices'
+    | 'loadPricingConfig'
+    | 'savePricingConfig'
+    | 'mobileTestDoctor'
+    | 'mobileTestListDevices'
+    | 'mobileTestBootDevice'
+    | 'mobileTestBuildApp'
+    | 'mobileTestOpenSession'
+    | 'mobileTestCloseSession'
+    | 'mobileTestListSessions'
+    | 'mobileTestSnapshot'
+    | 'mobileTestTap'
+    | 'mobileTestTapSelector'
+    | 'mobileTestType'
+    | 'mobileTestTypeSecret'
+    | 'mobileTestPressKey'
+    | 'mobileTestSwipe'
+    | 'mobileTestScreenshot'
+    | 'mobileTestReplayCaptureRoute'
+    | 'mobileTestRecordScreen'
+    | 'mobileTestLogcat'
+    | 'mobileTestAdb'
+    | 'mobileTestIdb'
+    | 'listProcessCleanup'
+    | 'registerCleanupItem'
+    | 'setProcessCleanupItem'
+    | 'setProcessCleanupOff'
+    | 'getProjectDir'
+    | 'listProjects'
+    | 'getProject'
+    | 'createProject'
+    | 'updateProject'
+    | 'setProjectActive'
+    | 'updateProjectCodeInfo'
+    | 'deleteProject'
+    | 'getProjectDataPaths'
+    | 'getProjectStoriesRoot'
+    | 'getProjectDataLocation'
+    | 'setProjectDataLocation'
+    | 'guessCodeProjectInfo'
+    | 'listProjectChecks'
+    | 'runProjectCheck'
+    | 'reportProjectCheckNotCaused'
+    | 'reportPreExistingBreak'
+    | 'reportAcceptanceAlreadyMet'
+    | 'reportUiImpact'
+    | 'listProjectNoteEntries'
+    | 'listProjectNoteSummaries'
+    | 'getProjectNote'
+    | 'addProjectNote'
+    | 'updateProjectNote'
+    | 'removeProjectNote'
+    | 'listProjectScripts'
+    | 'runProjectScript'
+    | 'getProjectsGroups'
+    | 'getProjectsGroup'
+    | 'createProjectsGroup'
+    | 'updateProjectsGroup'
+    | 'deleteProjectsGroup'
+    | 'getProjectIdFromIndex'
+    | 'reorderProject'
+    | 'reorderGroup'
+    | 'discoverSuppliers'
+    | 'buildProductCatalog'
+    | 'buildProductCatalogToTarget'
+    | 'findMoreOffers'
+    | 'findMoreReviews'
+    | 'findMoreProducts'
+    | 'enrichProduct'
+    | 'checkProduct'
+    | 'searchProductCandidates'
+    | 'rankProductCandidates'
+    | 'recommendProducts'
+    | 'resolveProductGoal'
+    | 'listProductCategories'
+    | 'putProductCategories'
+    | 'reverifyProductCriterion'
+    | 'discoverProductBrands'
+    | 'listProductBrands'
+    | 'stockFromLibrary'
+    | 'registerProductCriterion'
+    | 'listProductCriteria'
+    | 'removeProductCriterion'
+    | 'clearCatalog'
+    | 'listProductBacklinks'
+    | 'listProductLeads'
+    | 'listMakerRecords'
+    | 'listProductMarketOffers'
+    | 'compareProductPrices'
+    | 'deleteProduct'
+    | 'getProductRecord'
+    | 'createProductRecord'
+    | 'updateProductRecord'
+    | 'addProductLink'
+    | 'removeProductLink'
+    | 'putProductChild'
+    | 'listProductChildren'
+    | 'removeProductChild'
+    | 'searchProductChildren'
+    | 'registerCriterionKnowledge'
+    | 'getCriterionKnowledge'
+    | 'removeCriterionKnowledge'
+    | 'listProductSources'
+    | 'curateProductSource'
+    | 'setProductNote'
+    | 'researchMaterial'
+    | 'seedMaterials'
+    | 'seedBrands'
+    | 'seedSources'
+    | 'listMaterials'
+    | 'getMaterial'
+    | 'setMaterialVerdict'
+    | 'listMaterialProposals'
+    | 'dismissMaterialProposal'
+    | 'listRulingProposals'
+    | 'dismissRulingProposal'
+    | 'getCatalogHealth'
+    | 'getEscalationReport'
+    | 'verifyProductImagery'
+    | 'classifyProductImagery'
+    | 'researchWeb'
+    | 'recordReviewEvidence'
+    | 'listReviewEvidence'
+    | 'getReviewEvidence'
+    | 'readReviewEvidence'
+    | 'deleteReviewEvidence'
+    | 'runSandbox'
+    | 'startSandboxProxy'
+    | 'killSandbox'
+    | 'pauseSandbox'
+    | 'unpauseSandbox'
+    | 'handBackScript'
+    | 'getStoriesOrder'
+    | 'getStoryIdFromIndex'
+    | 'reorderStory'
+    | 'getStory'
+    | 'readStoryPresence'
+    | 'addStory'
+    | 'updateStory'
+    | 'blockStory'
+    | 'getFeature'
+    | 'getFeatureFromIndex'
+    | 'addFeature'
+    | 'updateFeature'
+    | 'reorderFeature'
+    | 'blockFeature'
+    | 'answerFeatureQuestion'
+    | 'completeAssignment'
+    | 'listStoryNotes'
+    | 'listStories'
+    | 'deleteStory'
+    | 'deleteFeature'
+    | 'setFeatureStatus'
+    | 'removeBlocker'
+    | 'addStoryNote'
+    | 'updateStoryNote'
+    | 'removeStoryNote'
+    | 'listTests'
+    | 'runTests'
+    | 'runAllTests'
+    | 'runTestsCoverage'
+    | 'runAllTestsCoverage'
+    | 'getLastTestsRun'
+    | 'getLastTestsCustom'
+    | 'getLastTestsCoverage'
+    | 'uiTestOpenWebSession'
+    | 'uiTestOpenElectronSession'
+    | 'uiTestCloseSession'
+    | 'uiTestListSessions'
+    | 'uiTestNavigate'
+    | 'uiTestSnapshot'
+    | 'uiTestClick'
+    | 'uiTestType'
+    | 'uiTestPressKey'
+    | 'uiTestTypeSecret'
+    | 'uiTestWaitFor'
+    | 'uiTestScreenshot'
+    | 'uiTestServeApp'
+    | 'uiTestStopApp'
+    | 'uiTestListApps'
+    | 'uiTestGetConsole'
+    | 'uiTestGetNetwork'
+    | 'uiTestMeasure'
+    | 'uiTestFillForm'
+    | 'uiTestHover'
+    | 'uiTestSelectOption'
+    | 'uiTestScroll'
+    | 'uiTestEvaluate'
+    | 'uiTestEvaluateMain'
+    | 'webSearch'
+    | 'webReadURLs'
+    | 'webCheckProviderHealth'
+    | 'webReadURLsFull'
+    | 'webReadPages'
+    | 'webReadRevalidationReport'
+    | 'webReadCacheReport'
+    | 'webInteract'
+    | 'listProcesses'
+    | 'getProcess'
+    | 'saveProcess'
+    | 'deleteProcess'
+    | 'validateProcess'
+    | 'getProcessRun'
+    | 'listProcessRuns'
+    | 'getProcessRunStatistics'
+    | 'listProcessRunSummaries'
+    | 'getProcessGroupRun'
+    | 'listProcessGroupRuns'
+    | 'deleteProcessRun'
+    | 'getRunDiagnostics'
+  logs: ToolName
+  stop?:
+    | 'getToolNamesForAgent'
+    | 'callTool'
+    | 'previewTool'
+    | 'spawnAgent'
+    | 'spawnPanel'
+    | 'spawnTriagePanel'
+    | 'spawnApproachPanel'
+    | 'spawnAnswerPanel'
+    | 'sendChatCompletion'
+    | 'sendChatCompletionWithTools'
+    | 'startChatCompletionWithToolsCli'
+    | 'restartChatCompletionWithToolsCli'
+    | 'resumeChatCompletionWithToolsCli'
+    | 'carryOutChatApprovalsCli'
+    | 'retryChatCompletionWithTools'
+    | 'resumeChatCompletionWithTools'
+    | 'startAgentRun'
+    | 'listAgentTypes'
+    | 'getAgentType'
+    | 'saveAgentType'
+    | 'deleteAgentType'
+    | 'validateAgentType'
+    | 'getAgentTypeSlotDefaults'
+    | 'getOwnAgentTypeSlotDefaults'
+    | 'saveAgentTypeSlotDefaults'
+    | 'getAgentTypeLaunchOffer'
+    | 'listGroupAgentTypes'
+    | 'saveGroupAgentType'
+    | 'deleteGroupAgentType'
+    | 'getGroupAgentTypeSlotDefaults'
+    | 'saveGroupAgentTypeSlotDefaults'
+    | 'getHostCapabilities'
+    | 'getVerificationOptions'
+    | 'getChatsDir'
+    | 'listChats'
+    | 'listChatSummaries'
+    | 'getChatSummary'
+    | 'listChatsByType'
+    | 'updateChatMetadata'
+    | 'rateChat'
+    | 'getChat'
+    | 'peekChat'
+    | 'createChat'
+    | 'createTopicChat'
+    | 'saveChat'
+    | 'updateChat'
+    | 'attachChatCliRunner'
+    | 'detachChatCliRunner'
+    | 'addChatMessages'
+    | 'deleteLastChatMessage'
+    | 'clearChat'
+    | 'archiveChat'
+    | 'hideChatFromList'
+    | 'showChatInList'
+    | 'returnChatToList'
+    | 'raiseChatOpenChanges'
+    | 'updateDynamicContext'
+    | 'deleteChat'
+    | 'getChatSettings'
+    | 'resetChatSettings'
+    | 'updateCompletionSettings'
+    | 'getSettingsPrompt'
+    | 'updateSettingsPrompt'
+    | 'resetSettingsPrompt'
+    | 'startCliAgentRun'
+    | 'getCliAgentRun'
+    | 'deleteCliAgentRun'
+    | 'linkReviewRun'
+    | 'replaceReviewTestSeam'
+    | 'appendReviewTestSeam'
+    | 'recycleCliAgentSessions'
+    | 'refreshCliAgentRunIndex'
+    | 'listCliAgentRuns'
+    | 'listCliAgentRunSummaries'
+    | 'listCliAgentRunsPage'
+    | 'listCliAgentRunSummariesPage'
+    | 'getCliAgentRunSubscriptionStatus'
+    | 'listAvailableModels'
+    | 'listAvailableEfforts'
+    | 'listLiveModels'
+    | 'checkCliAuthStatus'
+    | 'startCliReauth'
+    | 'abortCliAgentRun'
+    | 'stageCliAgentRunFiles'
+    | 'listPendingCliAgentActions'
+    | 'listCliAgentRunActions'
+    | 'listDecidedCliAgentActions'
+    | 'markCliAgentActionsCarried'
+    | 'keepCliAgentActionHostFacts'
+    | 'readCliAgentActionHostFacts'
+    | 'carryOutCliAgentApprovals'
+    | 'countPendingCliAgentActionsByChat'
+    | 'requestCliAgentAction'
+    | 'requestPendingCliAgentAction'
+    | 'decideCliAgentAction'
+    | 'listCliAgentActionRules'
+    | 'trustCliSite'
+    | 'removeCliAgentActionRule'
+    | 'cancelCliAgentAction'
+    | 'withdrawCliAgentAction'
+    | 'subscribeCliAgentActions'
+    | 'subscribeBackgroundJobResults'
+    | 'getResidentSessionFreshness'
+    | 'getCliAgentAction'
+    | 'claimCliAgentActionExecution'
+    | 'recordCliAgentActionExecution'
+    | 'releaseCliAgentActionExecution'
+    | 'applyCliAgentArtifact'
+    | 'previewCliAgentArtifact'
+    | 'supersedeEarlierChatChanges'
+    | 'discardCliAgentArtifact'
+    | 'landCliRunOnBranch'
+    | 'landApiAgentRun'
+    | 'prepareIsolatedChatWorkspace'
+    | 'finalizeIsolatedChatTurn'
+    | 'snapshotIsolatedChatWorkspace'
+    | 'readChatOpenChanges'
+    | 'rebuildChatReviewOnCheckout'
+    | 'verifyCliRunReview'
+    | 'setCliRunVerdict'
+    | 'recordCliRunDiffReview'
+    | 'setCliRunFileViewed'
+    | 'rejectCliRunReview'
+    | 'readCliRunApprovalPlan'
+    | 'approveCliRunReview'
+    | 'planCliRunVerification'
+    | 'startCliAuthLogin'
+    | 'getProjectChat'
+    | 'getProjectMetadata'
+    | 'listProjectsMetadata'
+    | 'requestNetworkUnlock'
+    | 'requestInstallPackage'
+    | 'requestExternalFetch'
+    | 'requestWorkspaceLimitRaise'
+    | 'askUser'
+    | 'reportBlocked'
+    | 'scanDependencies'
+    | 'getCode'
+    | 'getCodeIntelCatalogue'
+    | 'astGetOutline'
+    | 'astEditNode'
+    | 'astRenameSymbol'
+    | 'detectCodeProjectEnvironment'
+    | 'compileCheck'
+    | 'sendCompletionWithTools'
+    | 'resumeCompletionTools'
+    | 'sendCompletion'
+    | 'listConnectionItems'
+    | 'getConnectionItem'
+    | 'listConnectionStatuses'
+    | 'commentConnectionItem'
+    | 'transitionConnectionItem'
+    | 'searchJiraIssues'
+    | 'getJiraIssue'
+    | 'getJiraIssueChangelog'
+    | 'listJiraTransitions'
+    | 'listJiraProjects'
+    | 'getJiraCreateFields'
+    | 'getJiraEditFields'
+    | 'searchJiraUsers'
+    | 'listJiraLinkTypes'
+    | 'listJiraBoards'
+    | 'listJiraSprints'
+    | 'listJiraWorklogs'
+    | 'listJiraWatchers'
+    | 'downloadJiraAttachment'
+    | 'createJiraIssue'
+    | 'updateJiraIssue'
+    | 'transitionJiraIssue'
+    | 'assignJiraIssue'
+    | 'addJiraComment'
+    | 'updateJiraComment'
+    | 'deleteJiraComment'
+    | 'linkJiraIssues'
+    | 'deleteJiraIssueLink'
+    | 'deleteJiraIssue'
+    | 'moveJiraIssuesToSprint'
+    | 'moveJiraIssuesToBacklog'
+    | 'addJiraWorklog'
+    | 'updateJiraWorklog'
+    | 'deleteJiraWorklog'
+    | 'addJiraWatcher'
+    | 'removeJiraWatcher'
+    | 'addJiraAttachment'
+    | 'deleteJiraAttachment'
+    | 'listLLMConfigs'
+    | 'getLLMConfig'
+    | 'addLLMConfig'
+    | 'updateLLMConfig'
+    | 'removeLLMConfig'
+    | 'getActiveLLMConfig'
+    | 'setActiveLLMConfig'
+    | 'getRecentLLMConfigs'
+    | 'bumpRecentLLMConfig'
+    | 'listGitCredentials'
+    | 'getGitCredential'
+    | 'addGitCredential'
+    | 'updateGitCredential'
+    | 'removeGitCredential'
+    | 'listProviderConnections'
+    | 'getProviderConnection'
+    | 'addProviderConnection'
+    | 'updateProviderConnection'
+    | 'removeProviderConnection'
+    | 'listCliAuthCaches'
+    | 'getCliAuthCache'
+    | 'addCliAuthCache'
+    | 'updateCliAuthCache'
+    | 'recordCliAuthEvent'
+    | 'listCliAuthEvents'
+    | 'removeCliAuthCache'
+    | 'getActiveCliState'
+    | 'setActiveCli'
+    | 'setCliEnabled'
+    | 'setCliDefaultModel'
+    | 'setCliEffort'
+    | 'setCliModelEffort'
+    | 'getActiveRunnerKind'
+    | 'setActiveRunnerKind'
+    | 'listWebSearchKeys'
+    | 'getWebSearchKey'
+    | 'setWebSearchKey'
+    | 'removeWebSearchKey'
+    | 'getWebSearchApiKeys'
+    | 'planResearch'
+    | 'discoverSources'
+    | 'gather'
+    | 'extract'
+    | 'verifyClaim'
+    | 'createDecision'
+    | 'getDecision'
+    | 'listDecisions'
+    | 'setDecisionOptions'
+    | 'selectDecisionOption'
+    | 'addDecisionQuestion'
+    | 'answerDecisionQuestion'
+    | 'signOffDecision'
+    | 'proposeDecisionOptions'
+    | 'listContents'
+    | 'readFile'
+    | 'readFileRange'
+    | 'grepFile'
+    | 'readFileRanges'
+    | 'grepFiles'
+    | 'readPaths'
+    | 'getAllFileStats'
+    | 'writeFile'
+    | 'writeStrictPatch'
+    | 'writeFuzzyPatch'
+    | 'writeExactReplaces'
+    | 'writeStructuredDiffToFile'
+    | 'renamePaths'
+    | 'deletePaths'
+    | 'searchFilesAndRead'
+    | 'searchFiles'
+    | 'searchFilePaths'
+    | 'searchFilesByKeywords'
+    | 'searchFilesByExact'
+    | 'uploadFile'
+    | 'viewImage'
+    | 'viewVideo'
+    | 'getAbsolutePath'
+    | 'gitStatus'
+    | 'listRemotes'
+    | 'gitFetch'
+    | 'gitPull'
+    | 'gitPush'
+    | 'gitStageFiles'
+    | 'gitStageAll'
+    | 'gitUnstageFiles'
+    | 'gitUnstageAll'
+    | 'gitResetFiles'
+    | 'gitResetAll'
+    | 'gitDiscardUnstagedFiles'
+    | 'gitDiscardStagedFiles'
+    | 'gitPushAll'
+    | 'gitCreateBranch'
+    | 'gitCheckoutBranch'
+    | 'gitDeleteBranch'
+    | 'gitDeleteRemoteBranch'
+    | 'gitRenameBranch'
+    | 'setUpstream'
+    | 'gitListBranches'
+    | 'listUnifiedBranches'
+    | 'getCurrentBranch'
+    | 'getFileContent'
+    | 'getTextRecovery'
+    | 'applyTextRecovery'
+    | 'gitCommit'
+    | 'mergeBranch'
+    | 'abortMerge'
+    | 'gitDiff'
+    | 'gitApplyPatch'
+    | 'gitLog'
+    | 'getBranchDiffSummary'
+    | 'resolveChangesToStories'
+    | 'buildBranchReport'
+    | 'buildWorkspaceReport'
+    | 'acceptFiles'
+    | 'rejectFiles'
+    | 'commitSelection'
+    | 'gitCreateMergePlan'
+    | 'gitApplyMerge'
+    | 'buildMergeReport'
+    | 'getLocalStatus'
+    | 'selectCommits'
+    | 'planCherryPick'
+    | 'applyCherryPick'
+    | 'fetchRefs'
+    | 'gitListStashes'
+    | 'gitAddStash'
+    | 'gitRemoveStash'
+    | 'gitApplyStash'
+    | 'listGroupNoteEntries'
+    | 'listGroupNoteSummaries'
+    | 'getGroupNote'
+    | 'addGroupNote'
+    | 'updateGroupNote'
+    | 'removeGroupNote'
+    | 'listGroupStories'
+    | 'getGroupStory'
+    | 'readGroupStoryPresence'
+    | 'createGroupStory'
+    | 'updateGroupStory'
+    | 'deleteGroupStory'
+    | 'ingestProject'
+    | 'ingestAll'
+    | 'startIngestProject'
+    | 'startIngestAll'
+    | 'listDataSources'
+    | 'getDataSource'
+    | 'createDataSource'
+    | 'updateDataSource'
+    | 'deleteDataSource'
+    | 'subscribeDataSource'
+    | 'unsubscribeDataSource'
+    | 'listDataSubscriptions'
+    | 'listProjectDataSources'
+    | 'syncProjectDataSources'
+    | 'refreshDataSource'
+    | 'readSubscribedRecords'
+    | 'listSourceRecords'
+    | 'appendCost'
+    | 'priceSpend'
+    | 'getCost'
+    | 'getCostSince'
+    | 'recomputeDailySummaries'
+    | 'sweepPendingFolds'
+    | 'getDailySummaries'
+    | 'listPrices'
+    | 'upsertPrices'
+    | 'getPrice'
+    | 'calculateCost'
+    | 'refreshPrices'
+    | 'loadPricingConfig'
+    | 'savePricingConfig'
+    | 'mobileTestDoctor'
+    | 'mobileTestListDevices'
+    | 'mobileTestBootDevice'
+    | 'mobileTestBuildApp'
+    | 'mobileTestOpenSession'
+    | 'mobileTestCloseSession'
+    | 'mobileTestListSessions'
+    | 'mobileTestSnapshot'
+    | 'mobileTestTap'
+    | 'mobileTestTapSelector'
+    | 'mobileTestType'
+    | 'mobileTestTypeSecret'
+    | 'mobileTestPressKey'
+    | 'mobileTestSwipe'
+    | 'mobileTestScreenshot'
+    | 'mobileTestReplayCaptureRoute'
+    | 'mobileTestRecordScreen'
+    | 'mobileTestLogcat'
+    | 'mobileTestAdb'
+    | 'mobileTestIdb'
+    | 'listProcessCleanup'
+    | 'registerCleanupItem'
+    | 'setProcessCleanupItem'
+    | 'setProcessCleanupOff'
+    | 'getProjectDir'
+    | 'listProjects'
+    | 'getProject'
+    | 'createProject'
+    | 'updateProject'
+    | 'setProjectActive'
+    | 'updateProjectCodeInfo'
+    | 'deleteProject'
+    | 'getProjectDataPaths'
+    | 'getProjectStoriesRoot'
+    | 'getProjectDataLocation'
+    | 'setProjectDataLocation'
+    | 'guessCodeProjectInfo'
+    | 'listProjectChecks'
+    | 'runProjectCheck'
+    | 'reportProjectCheckNotCaused'
+    | 'reportPreExistingBreak'
+    | 'reportAcceptanceAlreadyMet'
+    | 'reportUiImpact'
+    | 'listProjectNoteEntries'
+    | 'listProjectNoteSummaries'
+    | 'getProjectNote'
+    | 'addProjectNote'
+    | 'updateProjectNote'
+    | 'removeProjectNote'
+    | 'listProjectScripts'
+    | 'runProjectScript'
+    | 'getProjectsGroups'
+    | 'getProjectsGroup'
+    | 'createProjectsGroup'
+    | 'updateProjectsGroup'
+    | 'deleteProjectsGroup'
+    | 'getProjectIdFromIndex'
+    | 'reorderProject'
+    | 'reorderGroup'
+    | 'discoverSuppliers'
+    | 'buildProductCatalog'
+    | 'buildProductCatalogToTarget'
+    | 'findMoreOffers'
+    | 'findMoreReviews'
+    | 'findMoreProducts'
+    | 'enrichProduct'
+    | 'checkProduct'
+    | 'searchProductCandidates'
+    | 'rankProductCandidates'
+    | 'recommendProducts'
+    | 'resolveProductGoal'
+    | 'listProductCategories'
+    | 'putProductCategories'
+    | 'reverifyProductCriterion'
+    | 'discoverProductBrands'
+    | 'listProductBrands'
+    | 'stockFromLibrary'
+    | 'registerProductCriterion'
+    | 'listProductCriteria'
+    | 'removeProductCriterion'
+    | 'clearCatalog'
+    | 'listProductBacklinks'
+    | 'listProductLeads'
+    | 'listMakerRecords'
+    | 'listProductMarketOffers'
+    | 'compareProductPrices'
+    | 'deleteProduct'
+    | 'getProductRecord'
+    | 'createProductRecord'
+    | 'updateProductRecord'
+    | 'addProductLink'
+    | 'removeProductLink'
+    | 'putProductChild'
+    | 'listProductChildren'
+    | 'removeProductChild'
+    | 'searchProductChildren'
+    | 'registerCriterionKnowledge'
+    | 'getCriterionKnowledge'
+    | 'removeCriterionKnowledge'
+    | 'listProductSources'
+    | 'curateProductSource'
+    | 'setProductNote'
+    | 'researchMaterial'
+    | 'seedMaterials'
+    | 'seedBrands'
+    | 'seedSources'
+    | 'listMaterials'
+    | 'getMaterial'
+    | 'setMaterialVerdict'
+    | 'listMaterialProposals'
+    | 'dismissMaterialProposal'
+    | 'listRulingProposals'
+    | 'dismissRulingProposal'
+    | 'getCatalogHealth'
+    | 'getEscalationReport'
+    | 'verifyProductImagery'
+    | 'classifyProductImagery'
+    | 'researchWeb'
+    | 'recordReviewEvidence'
+    | 'listReviewEvidence'
+    | 'getReviewEvidence'
+    | 'readReviewEvidence'
+    | 'deleteReviewEvidence'
+    | 'runSandbox'
+    | 'startSandboxProxy'
+    | 'killSandbox'
+    | 'pauseSandbox'
+    | 'unpauseSandbox'
+    | 'handBackScript'
+    | 'getStoriesOrder'
+    | 'getStoryIdFromIndex'
+    | 'reorderStory'
+    | 'getStory'
+    | 'readStoryPresence'
+    | 'addStory'
+    | 'updateStory'
+    | 'blockStory'
+    | 'getFeature'
+    | 'getFeatureFromIndex'
+    | 'addFeature'
+    | 'updateFeature'
+    | 'reorderFeature'
+    | 'blockFeature'
+    | 'answerFeatureQuestion'
+    | 'completeAssignment'
+    | 'listStoryNotes'
+    | 'listStories'
+    | 'deleteStory'
+    | 'deleteFeature'
+    | 'setFeatureStatus'
+    | 'removeBlocker'
+    | 'addStoryNote'
+    | 'updateStoryNote'
+    | 'removeStoryNote'
+    | 'listTests'
+    | 'runTests'
+    | 'runAllTests'
+    | 'runTestsCoverage'
+    | 'runAllTestsCoverage'
+    | 'getLastTestsRun'
+    | 'getLastTestsCustom'
+    | 'getLastTestsCoverage'
+    | 'uiTestOpenWebSession'
+    | 'uiTestOpenElectronSession'
+    | 'uiTestCloseSession'
+    | 'uiTestListSessions'
+    | 'uiTestNavigate'
+    | 'uiTestSnapshot'
+    | 'uiTestClick'
+    | 'uiTestType'
+    | 'uiTestPressKey'
+    | 'uiTestTypeSecret'
+    | 'uiTestWaitFor'
+    | 'uiTestScreenshot'
+    | 'uiTestServeApp'
+    | 'uiTestStopApp'
+    | 'uiTestListApps'
+    | 'uiTestGetConsole'
+    | 'uiTestGetNetwork'
+    | 'uiTestMeasure'
+    | 'uiTestFillForm'
+    | 'uiTestHover'
+    | 'uiTestSelectOption'
+    | 'uiTestScroll'
+    | 'uiTestEvaluate'
+    | 'uiTestEvaluateMain'
+    | 'webSearch'
+    | 'webReadURLs'
+    | 'webCheckProviderHealth'
+    | 'webReadURLsFull'
+    | 'webReadPages'
+    | 'webReadRevalidationReport'
+    | 'webReadCacheReport'
+    | 'webInteract'
+    | 'listProcesses'
+    | 'getProcess'
+    | 'saveProcess'
+    | 'deleteProcess'
+    | 'validateProcess'
+    | 'getProcessRun'
+    | 'listProcessRuns'
+    | 'getProcessRunStatistics'
+    | 'listProcessRunSummaries'
+    | 'getProcessGroupRun'
+    | 'listProcessGroupRuns'
+    | 'deleteProcessRun'
+    | 'getRunDiagnostics'
 }
 
 export type ReviewEvidenceQuery = {
@@ -21768,7 +25323,7 @@ export type ReviewEvidenceQuery = {
   storyId?: string
   featureId?: string
   chatContextId?: string
-  kind?: 'screenshot' | 'recording' | 'report' | 'log' | 'file'
+  kind?: 'screenshot' | 'recording' | 'report' | 'log' | 'file' | 'trace'
 }
 
 export type RecordReviewEvidenceInput = {
@@ -21779,7 +25334,7 @@ export type RecordReviewEvidenceInput = {
   chatContextId?: string
   sourcePath?: string
   text?: string
-  kind: 'screenshot' | 'recording' | 'report' | 'log' | 'file'
+  kind: 'screenshot' | 'recording' | 'report' | 'log' | 'file' | 'trace'
   label?: string
   phase?: 'before' | 'after'
   subject?: string
@@ -21798,6 +25353,7 @@ export type RecordReviewEvidenceInput = {
   verdictReason?: string
   verdictCause?: 'defect' | 'proof-impossible'
   verdictScreens?: Array<string>
+  verdictNotShown?: Array<string>
   verdictNewScreens?: Array<string>
   verificationMode?: 'live' | 'dry'
   dryAssumptions?: string
@@ -21862,7 +25418,7 @@ export type ReviewEvidenceLookup =
 
 export type ReviewEvidenceContent = {
   id: string
-  kind?: 'screenshot' | 'recording' | 'report' | 'log' | 'file'
+  kind?: 'screenshot' | 'recording' | 'report' | 'log' | 'file' | 'trace'
   mediaType?: string
   label?: string
   subject?: string
@@ -21987,6 +25543,97 @@ export type SandboxProxySidecarOptions = {
 export type SandboxProxyDenialReport = {
   runId: string
   denials: number
+}
+
+export type SandboxPathRefusal =
+  | 'empty'
+  | 'parent-segment'
+  | 'outside-mounts'
+  | 'symlink-escape'
+  | 'not-found'
+
+export type SandboxPathResolution =
+  | {
+      ok: true
+      containerPath: string
+      hostPath: string
+      mount: SandboxBindMount
+    }
+  | {
+      ok: false
+      path: string
+      refusal: SandboxPathRefusal
+      message: string
+    }
+
+export type SandboxFileSource = {
+  hostPath: string
+  name?: string
+}
+
+export type ChatAttachmentStore = {
+  root: string
+  chatKey: string
+}
+
+export type SandboxFileRefusal = {
+  source: string
+  message: string
+}
+
+export type ChatAttachmentsCopy = {
+  shown: Array<string>
+  refused: Array<SandboxFileRefusal>
+}
+
+export type ChatAttachmentsCopyLimits = {
+  maxFiles?: number
+  maxBytesPerFile?: number
+}
+
+export type ProjectFileSave = {
+  sourceHostPath: string
+  destination: string
+}
+
+export type ProjectFileSaveRefusal =
+  | 'invalid-destination'
+  | 'git-dir'
+  | 'outside-project'
+  | 'exists'
+  | 'source-not-a-file'
+  | 'too-many'
+
+export type ProjectFileSaveOutcome =
+  | {
+      destination: string
+      status: 'saved'
+    }
+  | {
+      destination: string
+      status: 'refused'
+      refusal: ProjectFileSaveRefusal
+      message: string
+    }
+  | {
+      destination: string
+      status: 'failed'
+      message: string
+    }
+
+export type ProjectFilesSaveOptions = {
+  overwrite?: boolean
+  maxFiles?: number
+}
+
+export type ProducedFileStamp = {
+  mtimeMs: number
+  size: number
+}
+
+export type SandboxWorkspaceBinding = {
+  path: string
+  mounts: Array<SandboxBindMount>
 }
 
 export type ScriptAnswerScalar = string | number | boolean | unknown
@@ -22202,7 +25849,7 @@ export type ScriptExit = {
 export type ScriptEvidence = {
   sourcePath?: string
   text?: string
-  kind: 'screenshot' | 'recording' | 'report' | 'log' | 'file'
+  kind: 'screenshot' | 'recording' | 'report' | 'log' | 'file' | 'trace'
   label?: string
   phase?: 'before' | 'after'
   subject?: string
@@ -22221,6 +25868,7 @@ export type ScriptEvidence = {
   verdictReason?: string
   verdictCause?: 'defect' | 'proof-impossible'
   verdictScreens?: Array<string>
+  verdictNotShown?: Array<string>
   verdictNewScreens?: Array<string>
   verificationMode?: 'live' | 'dry'
   dryAssumptions?: string
@@ -23082,7 +26730,7 @@ export type TestConfigDeclaration = {
 
 export type ToolCallSlipKind = 'invalid-args' | 'unknown-tool' | 'failed' | 'corrected'
 
-export type ToolCallRoute = 'mcp' | 'api'
+export type ToolCallRoute = 'mcp' | 'api' | 'host'
 
 export type ToolCallSlipDraft = {
   toolName: string
@@ -23099,12 +26747,18 @@ export type ToolCallSlip = {
   sentFields: Array<string>
   ranFields?: Array<string>
   at: number
-  route: 'mcp' | 'api'
+  route: 'mcp' | 'api' | 'host'
   agent?: string
   model?: string
   projectId?: string
   runId?: string
   chatContextId?: string
+}
+
+export type ToolArgValueWords = {
+  [key: string]: {
+    [key: string]: string
+  }
 }
 
 export type ToolCallSlipInput = {
@@ -23114,6 +26768,11 @@ export type ToolCallSlipInput = {
     [key: string]: unknown
   }
   failure?: string
+  valueWords?: {
+    [key: string]: {
+      [key: string]: string
+    }
+  }
 }
 
 export type ToolCallSlipQuery = {
@@ -23152,576 +26811,20 @@ export type ToolCallSlipStats = {
   tools: Array<ToolCallSlipToolStats>
 }
 
+export type ToolArgRemap = {
+  at: string
+  from: string
+  to: string
+}
+
 export type ToolCallCorrection = {
   changed: boolean
   ran: {
     [key: string]: unknown
   }
   ignored: Array<string>
+  remapped?: Array<ToolArgRemap>
 }
-
-export type ToolName =
-  | 'getToolNamesForAgent'
-  | 'callTool'
-  | 'previewTool'
-  | 'spawnAgent'
-  | 'spawnPanel'
-  | 'spawnTriagePanel'
-  | 'spawnApproachPanel'
-  | 'spawnAnswerPanel'
-  | 'sendChatCompletion'
-  | 'sendChatCompletionWithTools'
-  | 'startChatCompletionWithToolsCli'
-  | 'restartChatCompletionWithToolsCli'
-  | 'resumeChatCompletionWithToolsCli'
-  | 'carryOutChatApprovalsCli'
-  | 'retryChatCompletionWithTools'
-  | 'resumeChatCompletionWithTools'
-  | 'startAgentRun'
-  | 'listAgentTypes'
-  | 'getAgentType'
-  | 'saveAgentType'
-  | 'deleteAgentType'
-  | 'validateAgentType'
-  | 'getAgentTypeSlotDefaults'
-  | 'getOwnAgentTypeSlotDefaults'
-  | 'saveAgentTypeSlotDefaults'
-  | 'getAgentTypeLaunchOffer'
-  | 'listGroupAgentTypes'
-  | 'saveGroupAgentType'
-  | 'deleteGroupAgentType'
-  | 'getGroupAgentTypeSlotDefaults'
-  | 'saveGroupAgentTypeSlotDefaults'
-  | 'getHostCapabilities'
-  | 'getVerificationOptions'
-  | 'getChatsDir'
-  | 'listChats'
-  | 'listChatSummaries'
-  | 'getChatSummary'
-  | 'listChatsByType'
-  | 'updateChatMetadata'
-  | 'rateChat'
-  | 'getChat'
-  | 'peekChat'
-  | 'createChat'
-  | 'createTopicChat'
-  | 'saveChat'
-  | 'updateChat'
-  | 'attachChatCliRunner'
-  | 'detachChatCliRunner'
-  | 'addChatMessages'
-  | 'deleteLastChatMessage'
-  | 'clearChat'
-  | 'archiveChat'
-  | 'hideChatFromList'
-  | 'showChatInList'
-  | 'returnChatToList'
-  | 'raiseChatOpenChanges'
-  | 'updateDynamicContext'
-  | 'deleteChat'
-  | 'getChatSettings'
-  | 'resetChatSettings'
-  | 'updateCompletionSettings'
-  | 'getSettingsPrompt'
-  | 'updateSettingsPrompt'
-  | 'resetSettingsPrompt'
-  | 'startCliAgentRun'
-  | 'getCliAgentRun'
-  | 'deleteCliAgentRun'
-  | 'linkReviewRun'
-  | 'replaceReviewTestSeam'
-  | 'appendReviewTestSeam'
-  | 'recycleCliAgentSessions'
-  | 'refreshCliAgentRunIndex'
-  | 'listCliAgentRuns'
-  | 'listCliAgentRunSummaries'
-  | 'listCliAgentRunsPage'
-  | 'listCliAgentRunSummariesPage'
-  | 'getCliAgentRunSubscriptionStatus'
-  | 'listAvailableModels'
-  | 'listAvailableEfforts'
-  | 'listLiveModels'
-  | 'checkCliAuthStatus'
-  | 'startCliReauth'
-  | 'abortCliAgentRun'
-  | 'stageCliAgentRunFiles'
-  | 'listPendingCliAgentActions'
-  | 'listCliAgentRunActions'
-  | 'listDecidedCliAgentActions'
-  | 'markCliAgentActionsCarried'
-  | 'keepCliAgentActionHostFacts'
-  | 'readCliAgentActionHostFacts'
-  | 'carryOutCliAgentApprovals'
-  | 'countPendingCliAgentActionsByChat'
-  | 'requestCliAgentAction'
-  | 'requestPendingCliAgentAction'
-  | 'decideCliAgentAction'
-  | 'listCliAgentActionRules'
-  | 'trustCliSite'
-  | 'removeCliAgentActionRule'
-  | 'cancelCliAgentAction'
-  | 'withdrawCliAgentAction'
-  | 'subscribeCliAgentActions'
-  | 'subscribeBackgroundJobResults'
-  | 'getResidentSessionFreshness'
-  | 'getCliAgentAction'
-  | 'claimCliAgentActionExecution'
-  | 'recordCliAgentActionExecution'
-  | 'releaseCliAgentActionExecution'
-  | 'applyCliAgentArtifact'
-  | 'previewCliAgentArtifact'
-  | 'supersedeEarlierChatChanges'
-  | 'discardCliAgentArtifact'
-  | 'landCliRunOnBranch'
-  | 'landApiAgentRun'
-  | 'prepareIsolatedChatWorkspace'
-  | 'finalizeIsolatedChatTurn'
-  | 'snapshotIsolatedChatWorkspace'
-  | 'readChatOpenChanges'
-  | 'rebuildChatReviewOnCheckout'
-  | 'verifyCliRunReview'
-  | 'setCliRunVerdict'
-  | 'recordCliRunDiffReview'
-  | 'setCliRunFileViewed'
-  | 'rejectCliRunReview'
-  | 'readCliRunApprovalPlan'
-  | 'approveCliRunReview'
-  | 'planCliRunVerification'
-  | 'startCliAuthLogin'
-  | 'getProjectChat'
-  | 'getProjectMetadata'
-  | 'listProjectsMetadata'
-  | 'requestNetworkUnlock'
-  | 'requestInstallPackage'
-  | 'requestExternalFetch'
-  | 'requestWorkspaceLimitRaise'
-  | 'askUser'
-  | 'reportBlocked'
-  | 'scanDependencies'
-  | 'getCode'
-  | 'getCodeIntelCatalogue'
-  | 'astGetOutline'
-  | 'astEditNode'
-  | 'astRenameSymbol'
-  | 'detectCodeProjectEnvironment'
-  | 'compileCheck'
-  | 'sendCompletionWithTools'
-  | 'resumeCompletionTools'
-  | 'sendCompletion'
-  | 'listConnectionItems'
-  | 'getConnectionItem'
-  | 'listConnectionStatuses'
-  | 'commentConnectionItem'
-  | 'transitionConnectionItem'
-  | 'searchJiraIssues'
-  | 'getJiraIssue'
-  | 'getJiraIssueChangelog'
-  | 'listJiraTransitions'
-  | 'listJiraProjects'
-  | 'getJiraCreateFields'
-  | 'getJiraEditFields'
-  | 'searchJiraUsers'
-  | 'listJiraLinkTypes'
-  | 'listJiraBoards'
-  | 'listJiraSprints'
-  | 'listJiraWorklogs'
-  | 'listJiraWatchers'
-  | 'downloadJiraAttachment'
-  | 'createJiraIssue'
-  | 'updateJiraIssue'
-  | 'transitionJiraIssue'
-  | 'assignJiraIssue'
-  | 'addJiraComment'
-  | 'updateJiraComment'
-  | 'deleteJiraComment'
-  | 'linkJiraIssues'
-  | 'deleteJiraIssueLink'
-  | 'deleteJiraIssue'
-  | 'moveJiraIssuesToSprint'
-  | 'moveJiraIssuesToBacklog'
-  | 'addJiraWorklog'
-  | 'updateJiraWorklog'
-  | 'deleteJiraWorklog'
-  | 'addJiraWatcher'
-  | 'removeJiraWatcher'
-  | 'addJiraAttachment'
-  | 'deleteJiraAttachment'
-  | 'listLLMConfigs'
-  | 'getLLMConfig'
-  | 'addLLMConfig'
-  | 'updateLLMConfig'
-  | 'removeLLMConfig'
-  | 'getActiveLLMConfig'
-  | 'setActiveLLMConfig'
-  | 'getRecentLLMConfigs'
-  | 'bumpRecentLLMConfig'
-  | 'listGitCredentials'
-  | 'getGitCredential'
-  | 'addGitCredential'
-  | 'updateGitCredential'
-  | 'removeGitCredential'
-  | 'listProviderConnections'
-  | 'getProviderConnection'
-  | 'addProviderConnection'
-  | 'updateProviderConnection'
-  | 'removeProviderConnection'
-  | 'listCliAuthCaches'
-  | 'getCliAuthCache'
-  | 'addCliAuthCache'
-  | 'updateCliAuthCache'
-  | 'recordCliAuthEvent'
-  | 'listCliAuthEvents'
-  | 'removeCliAuthCache'
-  | 'getActiveCliState'
-  | 'setActiveCli'
-  | 'setCliEnabled'
-  | 'setCliDefaultModel'
-  | 'setCliEffort'
-  | 'setCliModelEffort'
-  | 'getActiveRunnerKind'
-  | 'setActiveRunnerKind'
-  | 'listWebSearchKeys'
-  | 'getWebSearchKey'
-  | 'setWebSearchKey'
-  | 'removeWebSearchKey'
-  | 'getWebSearchApiKeys'
-  | 'planResearch'
-  | 'discoverSources'
-  | 'gather'
-  | 'extract'
-  | 'verifyClaim'
-  | 'createDecision'
-  | 'getDecision'
-  | 'listDecisions'
-  | 'setDecisionOptions'
-  | 'selectDecisionOption'
-  | 'addDecisionQuestion'
-  | 'answerDecisionQuestion'
-  | 'signOffDecision'
-  | 'proposeDecisionOptions'
-  | 'listContents'
-  | 'readFile'
-  | 'readFileRange'
-  | 'grepFile'
-  | 'readFileRanges'
-  | 'grepFiles'
-  | 'readPaths'
-  | 'getAllFileStats'
-  | 'writeFile'
-  | 'writeStrictPatch'
-  | 'writeFuzzyPatch'
-  | 'writeExactReplaces'
-  | 'writeStructuredDiffToFile'
-  | 'renamePaths'
-  | 'deletePaths'
-  | 'searchFilesAndRead'
-  | 'searchFiles'
-  | 'searchFilePaths'
-  | 'searchFilesByKeywords'
-  | 'searchFilesByExact'
-  | 'uploadFile'
-  | 'viewImage'
-  | 'viewVideo'
-  | 'getAbsolutePath'
-  | 'gitStatus'
-  | 'listRemotes'
-  | 'gitFetch'
-  | 'gitPull'
-  | 'gitPush'
-  | 'gitStageFiles'
-  | 'gitStageAll'
-  | 'gitUnstageFiles'
-  | 'gitUnstageAll'
-  | 'gitResetFiles'
-  | 'gitResetAll'
-  | 'gitDiscardUnstagedFiles'
-  | 'gitDiscardStagedFiles'
-  | 'gitPushAll'
-  | 'gitCreateBranch'
-  | 'gitCheckoutBranch'
-  | 'gitDeleteBranch'
-  | 'gitDeleteRemoteBranch'
-  | 'gitRenameBranch'
-  | 'setUpstream'
-  | 'gitListBranches'
-  | 'listUnifiedBranches'
-  | 'getCurrentBranch'
-  | 'getFileContent'
-  | 'getTextRecovery'
-  | 'applyTextRecovery'
-  | 'gitCommit'
-  | 'mergeBranch'
-  | 'abortMerge'
-  | 'gitDiff'
-  | 'gitApplyPatch'
-  | 'gitLog'
-  | 'getBranchDiffSummary'
-  | 'resolveChangesToStories'
-  | 'buildBranchReport'
-  | 'buildWorkspaceReport'
-  | 'acceptFiles'
-  | 'rejectFiles'
-  | 'commitSelection'
-  | 'gitCreateMergePlan'
-  | 'gitApplyMerge'
-  | 'buildMergeReport'
-  | 'getLocalStatus'
-  | 'selectCommits'
-  | 'planCherryPick'
-  | 'applyCherryPick'
-  | 'fetchRefs'
-  | 'gitListStashes'
-  | 'gitAddStash'
-  | 'gitRemoveStash'
-  | 'gitApplyStash'
-  | 'listGroupNoteEntries'
-  | 'listGroupNoteSummaries'
-  | 'getGroupNote'
-  | 'addGroupNote'
-  | 'updateGroupNote'
-  | 'removeGroupNote'
-  | 'listGroupStories'
-  | 'getGroupStory'
-  | 'readGroupStoryPresence'
-  | 'createGroupStory'
-  | 'updateGroupStory'
-  | 'deleteGroupStory'
-  | 'ingestProject'
-  | 'ingestAll'
-  | 'startIngestProject'
-  | 'startIngestAll'
-  | 'listDataSources'
-  | 'getDataSource'
-  | 'createDataSource'
-  | 'updateDataSource'
-  | 'deleteDataSource'
-  | 'subscribeDataSource'
-  | 'unsubscribeDataSource'
-  | 'listDataSubscriptions'
-  | 'listProjectDataSources'
-  | 'syncProjectDataSources'
-  | 'refreshDataSource'
-  | 'readSubscribedRecords'
-  | 'listSourceRecords'
-  | 'appendCost'
-  | 'priceSpend'
-  | 'getCost'
-  | 'getCostSince'
-  | 'recomputeDailySummaries'
-  | 'sweepPendingFolds'
-  | 'getDailySummaries'
-  | 'listPrices'
-  | 'upsertPrices'
-  | 'getPrice'
-  | 'calculateCost'
-  | 'refreshPrices'
-  | 'loadPricingConfig'
-  | 'savePricingConfig'
-  | 'mobileTestDoctor'
-  | 'mobileTestListDevices'
-  | 'mobileTestBootDevice'
-  | 'mobileTestBuildApp'
-  | 'mobileTestOpenSession'
-  | 'mobileTestCloseSession'
-  | 'mobileTestListSessions'
-  | 'mobileTestSnapshot'
-  | 'mobileTestTap'
-  | 'mobileTestTapSelector'
-  | 'mobileTestType'
-  | 'mobileTestTypeSecret'
-  | 'mobileTestPressKey'
-  | 'mobileTestSwipe'
-  | 'mobileTestScreenshot'
-  | 'mobileTestRecordScreen'
-  | 'mobileTestLogcat'
-  | 'mobileTestAdb'
-  | 'mobileTestIdb'
-  | 'listProcessCleanup'
-  | 'registerCleanupItem'
-  | 'setProcessCleanupItem'
-  | 'setProcessCleanupOff'
-  | 'getProjectDir'
-  | 'listProjects'
-  | 'getProject'
-  | 'createProject'
-  | 'updateProject'
-  | 'setProjectActive'
-  | 'updateProjectCodeInfo'
-  | 'deleteProject'
-  | 'getProjectDataPaths'
-  | 'getProjectStoriesRoot'
-  | 'getProjectDataLocation'
-  | 'setProjectDataLocation'
-  | 'guessCodeProjectInfo'
-  | 'listProjectChecks'
-  | 'runProjectCheck'
-  | 'reportProjectCheckNotCaused'
-  | 'reportAcceptanceAlreadyMet'
-  | 'reportUiImpact'
-  | 'listProjectNoteEntries'
-  | 'listProjectNoteSummaries'
-  | 'getProjectNote'
-  | 'addProjectNote'
-  | 'updateProjectNote'
-  | 'removeProjectNote'
-  | 'listProjectScripts'
-  | 'runProjectScript'
-  | 'getProjectsGroups'
-  | 'getProjectsGroup'
-  | 'createProjectsGroup'
-  | 'updateProjectsGroup'
-  | 'deleteProjectsGroup'
-  | 'getProjectIdFromIndex'
-  | 'reorderProject'
-  | 'reorderGroup'
-  | 'discoverSuppliers'
-  | 'buildProductCatalog'
-  | 'buildProductCatalogToTarget'
-  | 'findMoreOffers'
-  | 'findMoreReviews'
-  | 'findMoreProducts'
-  | 'enrichProduct'
-  | 'checkProduct'
-  | 'searchProductCandidates'
-  | 'rankProductCandidates'
-  | 'recommendProducts'
-  | 'resolveProductGoal'
-  | 'listProductCategories'
-  | 'putProductCategories'
-  | 'reverifyProductCriterion'
-  | 'discoverProductBrands'
-  | 'listProductBrands'
-  | 'stockFromLibrary'
-  | 'registerProductCriterion'
-  | 'listProductCriteria'
-  | 'removeProductCriterion'
-  | 'clearCatalog'
-  | 'listProductBacklinks'
-  | 'listProductLeads'
-  | 'listMakerRecords'
-  | 'listProductMarketOffers'
-  | 'compareProductPrices'
-  | 'deleteProduct'
-  | 'getProductRecord'
-  | 'createProductRecord'
-  | 'updateProductRecord'
-  | 'addProductLink'
-  | 'removeProductLink'
-  | 'putProductChild'
-  | 'listProductChildren'
-  | 'removeProductChild'
-  | 'searchProductChildren'
-  | 'registerCriterionKnowledge'
-  | 'getCriterionKnowledge'
-  | 'removeCriterionKnowledge'
-  | 'listProductSources'
-  | 'curateProductSource'
-  | 'setProductNote'
-  | 'researchMaterial'
-  | 'seedMaterials'
-  | 'seedBrands'
-  | 'seedSources'
-  | 'listMaterials'
-  | 'getMaterial'
-  | 'setMaterialVerdict'
-  | 'listMaterialProposals'
-  | 'dismissMaterialProposal'
-  | 'listRulingProposals'
-  | 'dismissRulingProposal'
-  | 'getCatalogHealth'
-  | 'getEscalationReport'
-  | 'verifyProductImagery'
-  | 'classifyProductImagery'
-  | 'researchWeb'
-  | 'recordReviewEvidence'
-  | 'listReviewEvidence'
-  | 'getReviewEvidence'
-  | 'readReviewEvidence'
-  | 'deleteReviewEvidence'
-  | 'runSandbox'
-  | 'startSandboxProxy'
-  | 'killSandbox'
-  | 'pauseSandbox'
-  | 'unpauseSandbox'
-  | 'handBackScript'
-  | 'getStoriesOrder'
-  | 'getStoryIdFromIndex'
-  | 'reorderStory'
-  | 'getStory'
-  | 'readStoryPresence'
-  | 'addStory'
-  | 'updateStory'
-  | 'blockStory'
-  | 'getFeature'
-  | 'getFeatureFromIndex'
-  | 'addFeature'
-  | 'updateFeature'
-  | 'reorderFeature'
-  | 'blockFeature'
-  | 'answerFeatureQuestion'
-  | 'completeAssignment'
-  | 'listStoryNotes'
-  | 'listStories'
-  | 'deleteStory'
-  | 'deleteFeature'
-  | 'setFeatureStatus'
-  | 'removeBlocker'
-  | 'addStoryNote'
-  | 'updateStoryNote'
-  | 'removeStoryNote'
-  | 'listTests'
-  | 'runTests'
-  | 'runAllTests'
-  | 'runTestsCoverage'
-  | 'runAllTestsCoverage'
-  | 'getLastTestsRun'
-  | 'getLastTestsCustom'
-  | 'getLastTestsCoverage'
-  | 'uiTestOpenWebSession'
-  | 'uiTestOpenElectronSession'
-  | 'uiTestCloseSession'
-  | 'uiTestListSessions'
-  | 'uiTestNavigate'
-  | 'uiTestSnapshot'
-  | 'uiTestClick'
-  | 'uiTestType'
-  | 'uiTestPressKey'
-  | 'uiTestTypeSecret'
-  | 'uiTestWaitFor'
-  | 'uiTestScreenshot'
-  | 'uiTestServeApp'
-  | 'uiTestStopApp'
-  | 'uiTestListApps'
-  | 'uiTestGetConsole'
-  | 'uiTestGetNetwork'
-  | 'uiTestMeasure'
-  | 'uiTestFillForm'
-  | 'uiTestHover'
-  | 'uiTestSelectOption'
-  | 'uiTestScroll'
-  | 'uiTestEvaluate'
-  | 'uiTestEvaluateMain'
-  | 'webSearch'
-  | 'webReadURLs'
-  | 'webCheckProviderHealth'
-  | 'webReadURLsFull'
-  | 'webReadPages'
-  | 'webReadRevalidationReport'
-  | 'webReadCacheReport'
-  | 'webInteract'
-  | 'listProcesses'
-  | 'getProcess'
-  | 'saveProcess'
-  | 'deleteProcess'
-  | 'validateProcess'
-  | 'getProcessRun'
-  | 'listProcessRuns'
-  | 'getProcessRunStatistics'
-  | 'listProcessRunSummaries'
-  | 'getProcessGroupRun'
-  | 'listProcessGroupRuns'
-  | 'deleteProcessRun'
-  | 'getRunDiagnostics'
 
 export type Args = {
   [key: string]: unknown
@@ -23735,6 +26838,14 @@ export type AgentToolSchema = {
   parameters: JsonValue
   returns?: unknown
   source?: string
+}
+
+export type ToolArgCorrected = {
+  args: {
+    [key: string]: unknown
+  }
+  ignored: Array<string>
+  remapped?: Array<ToolArgRemap>
 }
 
 export type CrossProjectDiscoveryToolName = 'listProjects' | 'getProject'
@@ -24953,6 +28064,14 @@ export type CloseRun = {
         at: number
       }
       agentFailed?: true
+      preExistingBreak?: {
+        source: ProcessPreExistingBreakSource
+        checks: Array<string>
+        files: Array<string>
+        baseRef: string
+        baseSha?: string
+        headline: string
+      }
     }
     questionGrantId?: string
     stepInFlight?: boolean
@@ -25054,6 +28173,14 @@ export type FeatureSplitRun = {
         at: number
       }
       agentFailed?: true
+      preExistingBreak?: {
+        source: ProcessPreExistingBreakSource
+        checks: Array<string>
+        files: Array<string>
+        baseRef: string
+        baseSha?: string
+        headline: string
+      }
     }
     questionGrantId?: string
     stepInFlight?: boolean
@@ -25411,6 +28538,22 @@ export type LoopedRun = {
   ledger: Array<ProcessLedgerEntry>
 }
 
+export type ProcessPartialProofOffer = {
+  stepId: string
+  entryId: string
+  shown: Array<string>
+  notShown: Array<string>
+}
+
+export type ProcessPointsToTry = {
+  runId: string
+  featureId?: string
+  stepId: string
+  entryId: string
+  shown: Array<string>
+  points: Array<string>
+}
+
 export type CarryingRun = {
   id: string
   plan: ProcessPlan
@@ -25431,6 +28574,14 @@ export type ProvingRun = {
   input?: {
     [key: string]: unknown
   }
+}
+
+export type ProcessLeftOutTarget = {
+  runId: string
+  stepId: string
+  entryId: string
+  at: number
+  break: ProcessPreExistingBreak
 }
 
 export type ProofChangeRun = {
@@ -25479,6 +28630,14 @@ export type ProofChangeRun = {
         at: number
       }
       agentFailed?: true
+      preExistingBreak?: {
+        source: ProcessPreExistingBreakSource
+        checks: Array<string>
+        files: Array<string>
+        baseRef: string
+        baseSha?: string
+        headline: string
+      }
     }
     questionGrantId?: string
     stepInFlight?: boolean
@@ -25584,6 +28743,14 @@ export type RecheckRun = {
         at: number
       }
       agentFailed?: true
+      preExistingBreak?: {
+        source: ProcessPreExistingBreakSource
+        checks: Array<string>
+        files: Array<string>
+        baseRef: string
+        baseSha?: string
+        headline: string
+      }
     }
     questionGrantId?: string
     stepInFlight?: boolean
@@ -25689,6 +28856,14 @@ export type FollowUpsRun = {
         at: number
       }
       agentFailed?: true
+      preExistingBreak?: {
+        source: ProcessPreExistingBreakSource
+        checks: Array<string>
+        files: Array<string>
+        baseRef: string
+        baseSha?: string
+        headline: string
+      }
     }
     questionGrantId?: string
     stepInFlight?: boolean
@@ -25729,6 +28904,111 @@ export type FollowUpsRun = {
   ledger: Array<ProcessLedgerEntry>
 } & {
   storyId?: string
+}
+
+export type ProcessReviewGap = {
+  stepId: string
+  entryId: string
+  reason?: string
+  proofMissing: boolean
+  captureStepId?: string
+  captureBlocked?: string
+}
+
+export type ReviewGapRun = {
+  park?: {
+    reason: ProcessParkReason
+    stepId?: string
+    loopId?: string
+    message: string
+    parkedAt: number
+    pending?: {
+      cursor: ProcessRunCursor
+      viaLoopId?: string
+      continuesEntryId?: string
+      retryMode?: 'continue' | 'fresh'
+      resumesEntryId?: string
+      rechecksEntryId?: string
+    }
+    ask?: {
+      kind: ProcessWaitingKind
+      agent: string
+      title: string
+      detail: string
+      request?: {
+        actionId: string
+        actionKind: string
+        toolName?: string
+        host?: string
+        packageName?: string
+        ecosystem?: string
+        url?: string
+        args?: {
+          [key: string]: unknown
+        }
+      }
+      items?: Array<ProcessWaitingItem>
+      featureQuestionId?: string
+      runRef?: {
+        runId: string
+        agentRunId?: string
+        chatContextId?: string
+        runner?: 'api' | 'cli'
+      }
+      delegatedTo?: {
+        chatContextId: string
+        topicId: string
+        at: number
+      }
+      agentFailed?: true
+      preExistingBreak?: {
+        source: ProcessPreExistingBreakSource
+        checks: Array<string>
+        files: Array<string>
+        baseRef: string
+        baseSha?: string
+        headline: string
+      }
+    }
+    questionGrantId?: string
+    stepInFlight?: boolean
+    childRunId?: string
+    baseConflict?: {
+      baseRef: string
+      baseSha: string
+      commits: number
+      paths: Array<string>
+      workSha?: string
+      keptOneSide?: Array<ProcessKeptOneSide>
+      lostExports?: Array<CodeIntelExportedSymbol>
+      notRebuilt?: {
+        paths: Array<string>
+        reason: string
+      }
+    }
+    waitingOn?: Array<string>
+    circling?: {
+      summary: string
+      signals: Array<ProcessCirclingSignal>
+      ranOut: boolean
+      turnsUsed?: number
+      maxTurns?: number
+      changed?: boolean
+      repeatedActions?: Array<ProcessCirclingRepeat>
+      flipFlopFiles?: Array<string>
+      sameFailures?: Array<string>
+      streak: number
+      afterRaise?: true
+      afterRetry?: true
+      afterManager?: true
+      tip?: string
+      at: number
+    }
+  }
+  plan: ProcessPlan
+  ledger: Array<ProcessLedgerEntry>
+} & {
+  proofUnavailable?: Array<ProofKindUnavailable>
 }
 
 export type ClosureRun = {
@@ -25880,6 +29160,14 @@ export type SendToDeveloperRun = {
         at: number
       }
       agentFailed?: true
+      preExistingBreak?: {
+        source: ProcessPreExistingBreakSource
+        checks: Array<string>
+        files: Array<string>
+        baseRef: string
+        baseSha?: string
+        headline: string
+      }
     }
     questionGrantId?: string
     stepInFlight?: boolean
@@ -26701,6 +29989,14 @@ export type ProcessRunChatState = {
           at: number
         }
         agentFailed?: true
+        preExistingBreak?: {
+          source: ProcessPreExistingBreakSource
+          checks: Array<string>
+          files: Array<string>
+          baseRef: string
+          baseSha?: string
+          headline: string
+        }
       }
       questionGrantId?: string
       stepInFlight?: boolean
@@ -27581,6 +30877,14 @@ export type ProcessRunSummary = {
         at: number
       }
       agentFailed?: true
+      preExistingBreak?: {
+        source: ProcessPreExistingBreakSource
+        checks: Array<string>
+        files: Array<string>
+        baseRef: string
+        baseSha?: string
+        headline: string
+      }
     }
     questionGrantId?: string
     stepInFlight?: boolean
@@ -27812,6 +31116,7 @@ export type ProcessRunDecision =
         | 'accept-dropped-change'
         | 'accept-with-follow-ups'
         | 'split-follow-up'
+        | 'recapture'
       note?: string
     }
   | {
@@ -27956,6 +31261,7 @@ export type ProcessStepResult = {
       reason: string
       screens: boolean
     }
+    notShown?: Array<string>
   }
   review?: {
     verdict: ReviewEvidenceVerdict
@@ -27966,6 +31272,8 @@ export type ProcessStepResult = {
       reason: string
     }
     followUps?: Array<string>
+    cause?: 'defect' | 'proof-impossible'
+    notShown?: Array<string>
   }
   outsideScope?: Array<string>
   alreadyMet?: {
@@ -27996,6 +31304,14 @@ export type ProcessStepResult = {
   }
   reusedChecksOf?: string
   notCaused?: Array<ProjectCheckNotCausedReport>
+  preExistingBreak?: {
+    source: ProcessPreExistingBreakSource
+    checks: Array<string>
+    files: Array<string>
+    baseRef: string
+    baseSha?: string
+    headline: string
+  }
   baseUpdate?: {
     baseRef: string
     baseSha: string
@@ -28063,6 +31379,14 @@ export type ProcessStepResult = {
       at: number
     }
     agentFailed?: true
+    preExistingBreak?: {
+      source: ProcessPreExistingBreakSource
+      checks: Array<string>
+      files: Array<string>
+      baseRef: string
+      baseSha?: string
+      headline: string
+    }
   }
   agentStop?: 'turn-limit' | 'spend-limit' | 'interrupted' | 'stuck'
   spendStop?: {
@@ -28286,6 +31610,14 @@ export type ProcessStepState = {
         at: number
       }
       agentFailed?: true
+      preExistingBreak?: {
+        source: ProcessPreExistingBreakSource
+        checks: Array<string>
+        files: Array<string>
+        baseRef: string
+        baseSha?: string
+        headline: string
+      }
     }
     questionCapReached?: boolean
     questionCounted?: boolean
@@ -28392,6 +31724,7 @@ export type ProcessStepState = {
         reason: string
         screens: boolean
       }
+      notShown?: Array<string>
     }
     review?: {
       verdict: ReviewEvidenceVerdict
@@ -28402,6 +31735,8 @@ export type ProcessStepState = {
         reason: string
       }
       followUps?: Array<string>
+      cause?: 'defect' | 'proof-impossible'
+      notShown?: Array<string>
     }
     outsideScope?: Array<string>
     alreadyMet?: {
@@ -28440,6 +31775,14 @@ export type ProcessStepState = {
     }
     reusedChecksOf?: string
     notCaused?: Array<ProjectCheckNotCausedReport>
+    preExistingBreak?: {
+      source: ProcessPreExistingBreakSource
+      checks: Array<string>
+      files: Array<string>
+      baseRef: string
+      baseSha?: string
+      headline: string
+    }
     baseUpdate?: {
       baseRef: string
       baseSha: string
@@ -28661,6 +32004,20 @@ export type ProcessParkChoice = {
       unavailable: Array<ProofKindUnavailable>
       keepsScreens?: true
     }
+  }
+  partialProof?: {
+    stepId: string
+    entryId: string
+    shown: Array<string>
+    notShown: Array<string>
+  }
+  preExistingBreak?: {
+    source: ProcessPreExistingBreakSource
+    checks: Array<string>
+    files: Array<string>
+    baseRef: string
+    baseSha?: string
+    headline: string
   }
   noteRequired?: true
 }
@@ -29042,6 +32399,14 @@ export type ParkChoicesRun = {
         at: number
       }
       agentFailed?: true
+      preExistingBreak?: {
+        source: ProcessPreExistingBreakSource
+        checks: Array<string>
+        files: Array<string>
+        baseRef: string
+        baseSha?: string
+        headline: string
+      }
     }
     questionGrantId?: string
     stepInFlight?: boolean
@@ -33687,6 +37052,7 @@ export type ResumeProcessRunData = {
       | 'accept-dropped-change'
       | 'accept-with-follow-ups'
       | 'split-follow-up'
+      | 'recapture'
     /**
      * The app the person decided on — recorded on the decision with `decidedBy: person`. Required: a decision nobody can attribute is refused.
      */
@@ -41789,6 +45155,77 @@ export type UploadAnyChatAttachmentResponses = {
 
 export type UploadAnyChatAttachmentResponse =
   UploadAnyChatAttachmentResponses[keyof UploadAnyChatAttachmentResponses]
+
+export type SaveChatFileToProjectData = {
+  body: {
+    /**
+     * The shown file, project-relative: a path in the project’s chat attachment store.
+     */
+    source: string
+    /**
+     * Where it goes, project-relative.
+     */
+    destination: string
+    /**
+     * Replace a file already there.
+     */
+    overwrite?: boolean
+  }
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/chat-files/save'
+}
+
+export type SaveChatFileToProjectErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    exists: true
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type SaveChatFileToProjectError =
+  SaveChatFileToProjectErrors[keyof SaveChatFileToProjectErrors]
+
+export type SaveChatFileToProjectResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    path: string
+  }
+}
+
+export type SaveChatFileToProjectResponse =
+  SaveChatFileToProjectResponses[keyof SaveChatFileToProjectResponses]
 
 export type GetChatAttachmentDigestData = {
   body?: never

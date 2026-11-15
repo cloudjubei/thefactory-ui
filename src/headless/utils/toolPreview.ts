@@ -240,6 +240,17 @@ function nonEmptyStringArray(v: unknown): string[] | null {
   return out.length > 0 ? out : null
 }
 
+/** Where a `files: [{ from, to }]` batch puts each file (saveFilesToProject). */
+function destinationsFromCopies(v: unknown): string[] | null {
+  if (!Array.isArray(v)) return null
+  const out: string[] = []
+  for (const copy of v) {
+    const to = copy && typeof copy === 'object' ? (copy as { to?: unknown }).to : undefined
+    if (typeof to === 'string' && to.trim()) out.push(to)
+  }
+  return out.length > 0 ? out : null
+}
+
 /** Paths pulled from a `queries: [{ path, … }]` batch (grepFiles, readFileRanges). */
 function pathsFromQueries(v: unknown): string[] | null {
   if (!Array.isArray(v)) return null
@@ -266,7 +277,10 @@ export function toolArgDisplay(toolCall: {
     return { kind: 'command', text: passed ? [command, ...passed].join(' ') : command }
   }
 
-  const paths = nonEmptyStringArray(record.paths) ?? pathsFromQueries(record.queries)
+  const paths =
+    nonEmptyStringArray(record.paths) ??
+    pathsFromQueries(record.queries) ??
+    destinationsFromCopies(record.files)
   if (paths) return { kind: 'paths', paths }
 
   if (PATTERN_FIRST_TOOLS.has((toolCall.name ?? '').toLowerCase())) {

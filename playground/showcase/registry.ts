@@ -32,6 +32,8 @@ import { DESIGN_SCENES } from '../scenes/design'
 import { DOCUMENT_REPORT_SCENES } from '../scenes/documentReport'
 import { DROPPED_CHANGE_SCENES } from '../scenes/droppedChange'
 import { SEND_TO_DEVELOPER_UNCHECKED_SCENES } from '../scenes/sendToDeveloperUnchecked'
+import { READY_ANSWER_SCENES } from '../scenes/readyAnswers'
+import { REVIEW_GAP_SCENES } from '../scenes/reviewGap'
 import { FEATURE_POOL_SCENES } from '../scenes/featurePool'
 import { FEATURE_REQUEST_CARD_SCENES } from '../scenes/featureRequestCard'
 import { FEATURE_REQUEST_WAIT_CYCLE_SCENES } from '../scenes/featureRequestWaitCycle'
@@ -94,6 +96,7 @@ import { USAGE_SCENES } from '../scenes/usage'
 import { VARIANT_RUN_SCENES } from '../scenes/variantRun'
 import { SCRIPT_STEP_SCENES } from '../scenes/scriptStep'
 import { VIDEO_ATTACHMENT_SCENES } from '../scenes/videoAttachments'
+import { SHOWN_FILE_SCENES } from '../scenes/shownFiles'
 import { PROJECT_DEVICE_SETTINGS_SCENES } from '../scenes/projectDeviceSettings'
 import { VIDEO_SETTINGS_SCENES } from '../scenes/videoSettings'
 import { WORK_LAUNCH_SCENES } from '../scenes/workLaunch'
@@ -121,6 +124,7 @@ export const SCENES: readonly Scene[] = [
   ...FILE_TREE_SCENES,
   ...FILE_PREVIEW_SCENES,
   ...VIDEO_ATTACHMENT_SCENES,
+  ...SHOWN_FILE_SCENES,
   ...MODEL_EFFORT_SCENES,
   ...CHAT_TICKET_SCENES,
   ...CONTEXT_FILL_SCENES,
@@ -164,6 +168,8 @@ export const SCENES: readonly Scene[] = [
   ...PARK_CLOSING_SCENES,
   ...DROPPED_CHANGE_SCENES,
   ...SEND_TO_DEVELOPER_UNCHECKED_SCENES,
+  ...READY_ANSWER_SCENES,
+  ...REVIEW_GAP_SCENES,
   ...CIRCLING_SCENES,
   ...SPEND_LIMIT_SCENES,
   ...REGENERATED_MERGE_SCENES,

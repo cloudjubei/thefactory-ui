@@ -410,6 +410,7 @@ function ChatBodyInner({
   const [rootEl, setRootEl] = useState<HTMLDivElement | null>(null)
   const chatWidth = useElementSize(rootEl)?.w
   const reviewLayout = chatReviewLayout(chatWidth)
+  const fileSaving = useMemo(() => (projectId ? { projectId } : undefined), [projectId])
   const reviewProjectId = renderCliRunReview ? projectId : undefined
   const openChanges = useChatOpenChanges(
     reviewProjectId && chatId && !isAgentRunChatKey(chatId)
@@ -529,6 +530,7 @@ function ChatBodyInner({
               previewTool={previewTool}
               getAttachmentPreviewUrl={inputProps?.getAttachmentPreviewUrl}
               videoAttachments={inputProps?.videoAttachments}
+              fileSaving={fileSaving}
               isSending={isSending}
               isDeleting={liveState.isDeleting === true}
               emptyStateContent={emptyStateContent}

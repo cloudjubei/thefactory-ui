@@ -28,6 +28,7 @@ import {
   WAITING_REQUESTS_WORDS,
 } from './processWaitingViewConstants'
 import type { ChatContext } from '../api'
+import { preExistingBreakView } from './processPreExistingBreakView'
 import type {
   ProcessWaitingDelegatedView,
   ProcessWaitingDetail,
@@ -141,6 +142,9 @@ export function processWaitingView(
     choices: processRunParkChoices(run),
     ...(ask.items ? { requests: ask.items.map(processWaitingRequestView) } : {}),
     ...(chatContext ? { delegated: processWaitingDelegatedView(chatContext) } : {}),
+    ...(ask.preExistingBreak
+      ? { preExistingBreak: preExistingBreakView(ask.preExistingBreak) }
+      : {}),
   }
 }
 

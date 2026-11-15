@@ -3470,6 +3470,7 @@ export {
   addAnswerFiles,
   answerTakesFiles,
   choiceTakesNote,
+  parkAnswerOpensNote,
   parkNoteCopy,
   parkNoteCounter,
   parkNoteRequired,
@@ -3524,7 +3525,29 @@ export type {
   ParkNoteCopy,
   RequestProofChoice,
 } from './utils/processParkNoteTypes'
-export { parkOwnAnswerChoice, processParkAnswersView } from './utils/processParkAnswers'
+export {
+  parkAnswerIsMinor,
+  parkOwnAnswerChoice,
+  processParkAnswersView,
+} from './utils/processParkAnswers'
+export { partialProofOfChoices, partialProofView } from './utils/processPartialProofView'
+export { PARTIAL_PROOF_COPY } from './utils/processPartialProofViewConstants'
+export type { PartialProofView, ProofPointList } from './utils/processPartialProofViewTypes'
+export {
+  preExistingBreakBase,
+  preExistingBreakOfChoices,
+  preExistingBreakView,
+} from './utils/processPreExistingBreakView'
+export { PRE_EXISTING_BREAK_COPY } from './utils/processPreExistingBreakViewConstants'
+export type { PreExistingBreakView } from './utils/processPreExistingBreakViewTypes'
+export { signoffCarriedView } from './utils/processSignoffCarriedView'
+export { SIGNOFF_CARRIED_COPY } from './utils/processSignoffCarriedViewConstants'
+export type {
+  SignoffCarriedRun,
+  SignoffCarriedView,
+  SignoffLeftOutRow,
+  SignoffPointsGroup,
+} from './utils/processSignoffCarriedViewTypes'
 export { RUN_DETAILS_COPY } from './utils/runDetailsConstants'
 export {
   PARK_ANSWERS_COPY,
@@ -4770,6 +4793,7 @@ export {
 export {
   PROCESS_TRY_BUILD_COPY,
   PROCESS_TRY_BUILD_LINK_REFRESH_LEAD_MS,
+  PROCESS_TRY_BUILD_NOT_SHOWN_TITLE,
   PROCESS_TRY_BUILD_REFRESH_FLOOR_MS,
 } from './utils/processTryBuildViewConstants'
 export type {

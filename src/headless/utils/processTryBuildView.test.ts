@@ -7,6 +7,7 @@ import {
 import {
   PROCESS_TRY_BUILD_COPY,
   PROCESS_TRY_BUILD_LINK_REFRESH_LEAD_MS,
+  PROCESS_TRY_BUILD_NOT_SHOWN_TITLE,
   PROCESS_TRY_BUILD_REFRESH_FLOOR_MS,
 } from './processTryBuildViewConstants'
 import type { ProcessTryBuildView } from './processTryBuildViewTypes'
@@ -137,6 +138,19 @@ describe('processTryBuildDisplay', () => {
     expect(view.qr).toBeUndefined()
     expect(view.checks).toEqual([{ title: 'Sign-up', steps: [] }])
     expect(view.accountNote).toBe(PROCESS_TRY_BUILD_COPY.accountNote)
+  })
+
+  it('leaves the points not shown before the sign-off to its own "Try these" block', () => {
+    const view = processTryBuildDisplay(
+      ready({
+        steps: [
+          { title: 'Sign-up', steps: ['Tap Sign up'] },
+          { title: PROCESS_TRY_BUILD_NOT_SHOWN_TITLE, steps: ['Push when the room fills'] },
+        ],
+      }),
+      'http://h',
+    )!
+    expect(view.checks.map((c) => c.title)).toEqual(['Sign-up'])
   })
 
   it('reads an offer with no status yet as building, with no detail', () => {

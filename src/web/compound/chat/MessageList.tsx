@@ -36,6 +36,7 @@ import type { ResourceLink } from 'thefactory-tools/types'
 import type { ToolCall, ToolResultType } from './ToolCall'
 import type { ChatMessageLike, PendingToolGrant } from '../../../headless/utils/chatTypes'
 import type { ChatVideoAttachments } from '../../../headless/utils/videoAttachmentTypes'
+import type { ChatFileSaving } from '../../../headless/utils/chatFileSaveTypes'
 import { describeLastMessageDelete } from '../../../headless/utils/chatMessageDelete'
 import { chatShownMessages } from '../../../headless/utils/chatShownMessages'
 import {
@@ -178,6 +179,8 @@ export type MessageListProps = {
    */
   getAttachmentPreviewUrl?: (path: string) => Promise<string | null>
   videoAttachments?: ChatVideoAttachments
+  /** Where the files an agent's reply showed are saved: the chat's project. */
+  fileSaving?: ChatFileSaving
   /** Host-supplied tool-preview fetcher — called for each call waiting on
    * an ask decided on its row, so the user sees the proposed diff/patch inside
    * the hover card before approving. Result is cached internally per
@@ -252,6 +255,7 @@ export default function MessageList({
   previewTool,
   getAttachmentPreviewUrl,
   videoAttachments,
+  fileSaving,
   isSending = false,
   isDeleting = false,
   isBusy,
@@ -820,6 +824,8 @@ export default function MessageList({
                           renderProcessRun={renderProcessRun}
                           renderProcessGroupRun={renderProcessGroupRun}
                           getAttachmentPreviewUrl={getAttachmentPreviewUrl}
+                          videoAttachments={videoAttachments}
+                          fileSaving={fileSaving}
                           toolPreview={
                             step.role === 'tool' && step.toolCall?.toolCallId
                               ? toolPreviewById[String(step.toolCall.toolCallId)]
@@ -883,6 +889,10 @@ export default function MessageList({
                   renderProcessGroupRun={renderProcessGroupRun}
                   coldStart={msg.cliRunId === firstCliRunId}
                   storedReply={msg.content}
+                  {...(msg.files?.length ? { storedFiles: msg.files } : {})}
+                  getAttachmentPreviewUrl={getAttachmentPreviewUrl}
+                  videoAttachments={videoAttachments}
+                  fileSaving={fileSaving}
                   {...(msg.stopNotice ? { stopNotice: msg.stopNotice } : {})}
                   {...(cliBlockedOn && msg.cliRunId === pendingCliRunId
                     ? { blockedOn: cliBlockedOn }
@@ -925,6 +935,7 @@ export default function MessageList({
                   renderProcessGroupRun={renderProcessGroupRun}
                   getAttachmentPreviewUrl={getAttachmentPreviewUrl}
                   videoAttachments={videoAttachments}
+                  fileSaving={fileSaving}
                   toolPreview={
                     msg.role === 'tool' && msg.toolCall?.toolCallId
                       ? toolPreviewById[String(msg.toolCall.toolCallId)]

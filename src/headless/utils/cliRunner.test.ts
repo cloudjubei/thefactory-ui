@@ -16,6 +16,7 @@ import {
   cliRunFailureNotice,
   withCliRunFailure,
   withStoredCliReply,
+  withCliShownFiles,
   withCliStopNotice,
   cliToolNameFromEntry,
   cleanCliToolName,
@@ -2399,6 +2400,39 @@ describe('withCliStopNotice', () => {
   it('leaves the rows as they are when the turn did not stop', () => {
     const rows: ChatMessageLike[] = [{ role: 'assistant', content: 'Done.' }]
     expect(withCliStopNotice(rows, undefined, 'Done.')).toBe(rows)
+  })
+})
+
+describe('withCliShownFiles', () => {
+  const files = ['.factory/attachments/c1/0123456789ab-map.png', 'out/notes.md']
+
+  it('puts the shown files under the turn’s last reply, never on a tool row', () => {
+    const rows: ChatMessageLike[] = [
+      { role: 'assistant', content: 'Drawing.' },
+      { role: 'tool', content: '' },
+      { role: 'assistant', content: 'Here it is.' },
+      { role: 'assistant', content: '', toolCall: { toolCallId: 't1', name: 'showFiles' } },
+    ]
+    const out = withCliShownFiles(rows, files)
+    expect(out[2]).toEqual({ role: 'assistant', content: 'Here it is.', files })
+    expect(out[2]!.files).not.toBe(files)
+    expect(out[0]).toBe(rows[0])
+    expect(out[3]).toBe(rows[3])
+    expect(out).toHaveLength(4)
+  })
+
+  it('adds a reply carrying them when the turn wrote none', () => {
+    const rows: ChatMessageLike[] = [{ role: 'tool', content: '' }]
+    expect(withCliShownFiles(rows, files)).toEqual([
+      { role: 'tool', content: '' },
+      { role: 'assistant', content: '', files },
+    ])
+  })
+
+  it('leaves the rows as they are when the turn showed nothing', () => {
+    const rows: ChatMessageLike[] = [{ role: 'assistant', content: 'Done.' }]
+    expect(withCliShownFiles(rows, undefined)).toBe(rows)
+    expect(withCliShownFiles(rows, [])).toBe(rows)
   })
 })
 

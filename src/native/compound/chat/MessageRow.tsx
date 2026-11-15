@@ -1,15 +1,13 @@
 import type { ReferenceTarget } from 'thefactory-tools/types'
-import { attachmentDisplayName, isVideoPath } from 'thefactory-tools/utils'
 import { memo, useMemo, useState, type ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import RichText from '../files/RichText'
 import Markdown from '../Markdown'
 import type { ResourceLink } from 'thefactory-tools/types'
-import FileDisplay, { type UikitFileMeta } from '../files/FileDisplay'
-import { isImageAttachment } from '../../../headless/utils/chatDrop'
+import type { UikitFileMeta } from '../files/FileDisplay'
+import type { ChatFileSaving } from '../../../headless/utils/chatFileSaveTypes'
 import type { ChatVideoAttachments } from '../../../headless/utils/videoAttachmentTypes'
-import ChatVideoAttachment from './ChatVideoAttachment'
-import SentImageAttachment from './SentImageAttachment'
+import MessageFiles from './MessageFiles'
 import { IconToolbox } from '../../icons'
 import type {
   AlwaysAllowScope,
@@ -240,6 +238,8 @@ export interface MessageRowProps {
   attachmentImages?: NativeAttachmentImages
   /** Where this chat's videos read how they stand. */
   videoAttachments?: ChatVideoAttachments
+  /** Where the files an agent's reply showed are saved: the chat's project. */
+  fileSaving?: ChatFileSaving
   /** Render the workspace-diff panel for a CLI-agent reply (`msg.cliRunId`). */
   renderCliRunArtifact?: (runId: string) => ReactNode
   /**
@@ -343,6 +343,7 @@ function MessageRow({
   onResourceLink,
   attachmentImages,
   videoAttachments,
+  fileSaving,
   renderCliRunArtifact,
   renderProcessRun,
   renderProcessGroupRun,
@@ -524,7 +525,7 @@ function MessageRow({
       : cliLabel(cliTag.cli)
     : rawModelStr && modelDisplayName(rawModelStr)
   const modelDotColor = cliTag ? cliDotColor(cliTag.cli) : theme.accent.primary
-  const files = (msg as { files?: string[] }).files
+  const files = msg.files
 
   return (
     <View
@@ -830,47 +831,15 @@ function MessageRow({
           </View>
         )}
 
-        {isUser && Array.isArray(files) && files.length > 0 && (
-          <View
-            style={{
-              flexDirection: 'row',
-              flexWrap: 'wrap',
-              gap: nativeSpace[2],
-              justifyContent: 'flex-end',
-              marginTop: nativeSpace[2],
-            }}
-          >
-            {files.map((path, i) => {
-              if (attachmentImages && isImageAttachment(path)) {
-                return (
-                  <SentImageAttachment
-                    key={`att-${i}-${path}`}
-                    path={path}
-                    images={attachmentImages}
-                  />
-                )
-              }
-              const name = attachmentDisplayName(path)
-              const file = (
-                <FileDisplay
-                  key={`att-${i}-${path}`}
-                  file={{ name, absolutePath: path, relativePath: path }}
-                  density="compact"
-                />
-              )
-              if (!videoAttachments || !isVideoPath(path)) return file
-              return (
-                <ChatVideoAttachment
-                  key={`att-${i}-${path}`}
-                  path={path}
-                  chat={videoAttachments}
-                  place="sent"
-                  fallback={file}
-                />
-              )
-            })}
-          </View>
-        )}
+        {(isUser || isAssistant) && files?.length ? (
+          <MessageFiles
+            paths={files}
+            align={isUser ? 'end' : 'start'}
+            {...(attachmentImages ? { images: attachmentImages } : {})}
+            {...(videoAttachments ? { videoAttachments } : {})}
+            {...(isAssistant && fileSaving ? { saving: fileSaving } : {})}
+          />
+        ) : null}
 
         {restartBinding ? <RestartTurnButton binding={restartBinding} alignEnd={isUser} /> : null}
       </View>

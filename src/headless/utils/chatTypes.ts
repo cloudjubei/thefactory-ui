@@ -145,6 +145,8 @@ export type ChatMessageLike = {
   model?: string | { model?: string; provider?: string }
   /** CLI-agent replies carry the run id that produced them (the artifact anchor). */
   cliRunId?: string
+  /** Files sent with a message, or an agent's reply showed: project-relative attachment paths. */
+  files?: string[]
   /** On a call that started a subagent: what that subagent said and called, in order. */
   subagentMessages?: ChatMessageLike[]
   /**

@@ -31,6 +31,19 @@ export function choiceTakesNote(choice: ProcessParkAction): boolean {
 }
 
 /**
+ * Whether sending an answer opens the note composer first: a choice that takes
+ * a note, sent without one — unless it is a ready answer, whose brief is
+ * written already, so it goes at once. Pure.
+ */
+export function parkAnswerOpensNote(
+  offer: Pick<ProcessParkChoice, 'choice' | 'partialProof' | 'preExistingBreak'>,
+  note: string | undefined,
+): boolean {
+  if (note || offer.partialProof || offer.preExistingBreak) return false
+  return choiceTakesNote(offer.choice)
+}
+
+/**
  * The composer's words for a park choice that takes a note: sending work to the developer — from a
  * proving step that could not check when the stop's `offer` needs the note, else from the checks —
  * accepting a dropped change, trying again, else a request for changes.

@@ -104,6 +104,7 @@ import {
 import ProjectFlakesList from './ProjectFlakesList'
 import DependencyRef from '../stories/DependencyRef'
 import FeatureReviewSection from './FeatureReviewSection'
+import SignoffCarriedCard from './signoff/SignoffCarriedCard'
 import IntegrationChooser from './IntegrationChooser'
 import ParkAnswers from './ParkAnswers'
 import ParkNoteComposer from './ParkNoteComposer'
@@ -1136,6 +1137,8 @@ function StorySignoffPanel({
       </View>
 
       {screensNote ? <ScreensDecisionNote note={screensNote} /> : null}
+
+      {signoff.carried ? <SignoffCarriedCard view={signoff.carried} /> : null}
 
       {details}
 

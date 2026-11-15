@@ -15,6 +15,7 @@ import type {
 } from './checkMethodTypes'
 import type { CliRunCostSource } from './costDetailsTypes'
 import type { DeveloperChecksNote } from './processChecksViewTypes'
+import type { SignoffCarriedView } from './processSignoffCarriedViewTypes'
 import type { VerifyReviewStatus } from './processView'
 import type { EvidenceTile, ScreenPair } from './reviewEvidenceViewTypes'
 import type { RunModel } from './runModel'
@@ -362,6 +363,8 @@ export type StorySignoff = {
    * it launched, oldest first. Absent when none were recorded.
    */
   accessRecords?: AccessRecord[]
+  /** The points carried past a proving step onto the sign-off, and the targets left out of its proof. */
+  carried?: SignoffCarriedView
 }
 
 /** Where one of the sources a sign-off is computed from stands. */

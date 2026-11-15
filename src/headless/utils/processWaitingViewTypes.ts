@@ -6,6 +6,7 @@ import type {
 import type { ProcessParkChoice } from 'thefactory-tools/types'
 
 import type { ChatContext } from '../api'
+import type { PreExistingBreakView } from './processPreExistingBreakViewTypes'
 
 /** One line of what exactly the agent asked for — "Host", "api.example.com". */
 export interface ProcessWaitingDetail {
@@ -58,4 +59,6 @@ export interface ProcessWaitingView {
   /** Set when the agent left several requests waiting: each decided on its own. */
   requests?: ProcessWaitingRequestView[]
   delegated?: ProcessWaitingDelegatedView
+  /** Set when what stopped the agent is a check target already broken before the change: shown in place of its words. */
+  preExistingBreak?: PreExistingBreakView
 }

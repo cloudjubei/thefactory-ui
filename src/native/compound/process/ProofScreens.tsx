@@ -17,6 +17,7 @@ import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { IconChevronRight, IconDownload } from '../../icons'
 import { Button } from '../../primitives/Button'
 import SegmentedControl from '../../primitives/SegmentedControl'
+import { NotShownList, ShownTitle } from './PartialProofLists'
 
 export type ProofScreensProps = {
   view: VerifyProofView
@@ -364,10 +365,11 @@ export default function ProofScreens({
               flexDirection: 'row',
               flexWrap: 'wrap',
               alignItems: 'center',
-              justifyContent: 'flex-end',
+              justifyContent: pane.partial ? 'space-between' : 'flex-end',
               gap: 8,
             }}
           >
+            {pane.partial ? <ShownTitle view={pane.partial} /> : null}
             {pane.hasBefore ? (
               <SegmentedControl
                 size="sm"
@@ -400,6 +402,8 @@ export default function ProofScreens({
           </View>
         </View>
       ) : null}
+
+      {pane.partial ? <NotShownList view={pane.partial} /> : null}
 
       {pane.notCounted ? (
         <View style={{ gap: 6 }}>

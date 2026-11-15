@@ -2,6 +2,7 @@ import { formatBytes } from './path'
 import {
   PROCESS_TRY_BUILD_COPY,
   PROCESS_TRY_BUILD_LINK_REFRESH_LEAD_MS,
+  PROCESS_TRY_BUILD_NOT_SHOWN_TITLE,
   PROCESS_TRY_BUILD_REFRESH_FLOOR_MS,
 } from './processTryBuildViewConstants'
 import type {
@@ -61,11 +62,13 @@ function downloadOf(
 }
 
 function checkRows(view: ProcessTryBuildView): ProcessTryBuildCheckRow[] {
-  return view.steps.map((check) => ({
-    title: check.title,
-    ...(check.open ? { openLine: PROCESS_TRY_BUILD_COPY.open(check.open) } : {}),
-    steps: check.steps,
-  }))
+  return view.steps
+    .filter((check) => check.title !== PROCESS_TRY_BUILD_NOT_SHOWN_TITLE)
+    .map((check) => ({
+      title: check.title,
+      ...(check.open ? { openLine: PROCESS_TRY_BUILD_COPY.open(check.open) } : {}),
+      steps: check.steps,
+    }))
 }
 
 /**

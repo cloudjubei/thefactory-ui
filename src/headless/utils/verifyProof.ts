@@ -19,6 +19,7 @@ import { processEntryWorkMs, processVerifyReview } from 'thefactory-tools/utils'
 
 import type { ReviewEvidenceRef } from '../api/generated'
 import { processAcceptedByWord } from './processAcceptedUnchecked'
+import { partialProofView } from './processPartialProofView'
 import { PROCESS_ACCEPTED_UNCHECKED_LABEL } from './processAcceptedUncheckedConstants'
 import { formatProcessDuration, verifyReviewStatus, type VerifyReviewStatus } from './processView'
 import {
@@ -600,6 +601,7 @@ export function verifyProofView(
       judged,
     ),
     screens,
+    notShown: [...(proof.notShown ?? [])],
   }
 }
 
@@ -1052,12 +1054,17 @@ export function proofScreensPane(view: VerifyProofView): ProofScreensPane {
     return screen ? [{ ...c, screen }] : []
   })
   const notCounted = view.pairs.length - pairs.length + view.unpaired.length
+  const partial = partialProofView({
+    shown: thumbnails.map((t) => t.subject),
+    notShown: view.notShown,
+  })
   return {
     thumbnails,
     hasBefore: thumbnails.some((t) => t.before !== undefined || t.beforeAbsent !== undefined),
     summary: thumbnails.length === 0 ? view.summary : undefined,
     notCounted: notCountedFold(notCounted, thumbnails.length),
     saveAllLabel: `Save ${plural(thumbnails.length, 'screen', 'screens')}`,
+    ...(partial ? { partial } : {}),
   }
 }
 

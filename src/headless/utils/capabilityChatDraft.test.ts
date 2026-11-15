@@ -187,6 +187,24 @@ describe('capabilityChatDraft', () => {
     expect(draft).not.toContain(CAPABILITY_ASK_IN_RUN)
   })
 
+  it('says an approach no tool in this build produces is not built, by its reason', () => {
+    const draft = capabilityChatDraft(
+      { id: 'screens', label: 'Screens', detail: 'No screens.' },
+      {
+        approaches: [
+          approach('screenshot-diff', 'Before/after screenshots', {
+            status: 'unimplemented',
+            reason: 'No tool captures this platform yet.',
+          }),
+        ],
+        inRun: false,
+      },
+    )
+    expect(draft).toContain(
+      '- Before/after screenshots: not built — No tool captures this platform yet.',
+    )
+  })
+
   it('names a withheld capture beside what the host lacks, and a not-allowed one by its reason', () => {
     const withheld = capabilityChatDraft(
       { id: 'screens', label: 'Screens', detail: 'No screens.' },

@@ -3,7 +3,13 @@ import { chatNotifyLevel } from '../../../headless/utils/chatNotify'
 import {
   accessRecordProjectNames,
   accessRecordSection,
-  choiceTakesNote,
+  parkAnswerOpensNote,
+  partialProofOfChoices,
+  partialProofView,
+  preExistingBreakOfChoices,
+  preExistingBreakView,
+  signoffCarriedView,
+  type SignoffCarriedView,
   processParkCirclingView,
   processParkStuckView,
   processStepCirclingView,
@@ -157,6 +163,7 @@ import DependencyBullet from '../stories/DependencyBullet'
 import RunCarriedOutChanges from './RunCarriedOutChanges'
 import RunPendingChanges from './RunPendingChanges'
 import ProcessTryBuildCard from './signoff/ProcessTryBuildCard'
+import SignoffCarriedCard from './signoff/SignoffCarriedCard'
 import AlreadyMergedOffer from './AlreadyMergedOffer'
 import CloseUnmergedConfirm from './CloseUnmergedConfirm'
 import WorkBranchChangesNote from './WorkBranchChangesNote'
@@ -168,6 +175,8 @@ import FeatureSplitComposer from './FeatureSplitComposer'
 import ProofChangeComposer from './ProofChangeComposer'
 import RetryChoiceOptions from './RetryChoiceOptions'
 import ParkAnswers from './ParkAnswers'
+import PartialProofLists from './PartialProofLists'
+import PreExistingBreakNotice from './PreExistingBreakNotice'
 import RunDetails from './RunDetails'
 import RunManagerBar from './RunManagerBar'
 import RunStepsCard from './RunStepsCard'
@@ -585,9 +594,10 @@ export default function ProcessPipeline({
       {...(className !== undefined ? { className } : {})}
     />
   )
-  const signoffDetails = (className?: string) => (
+  const signoffDetails = (className?: string, carried?: SignoffCarriedView) => (
     <>
       <ProcessTryBuildCard runId={run.id} />
+      {carried ? <SignoffCarriedCard view={carried} /> : null}
       {runDetails(className)}
     </>
   )
@@ -801,7 +811,7 @@ export default function ProcessPipeline({
                   />
                 }
                 steps={stepsCard('')}
-                details={signoffDetails('')}
+                details={signoffDetails('', signoffCarriedView([run]))}
                 onChoose={choose}
                 error={actionError}
                 {...(variantLanes ? { onOpenSteps: () => setVariantView('lanes') } : {})}
@@ -1549,6 +1559,10 @@ export function ParkBlock({
   const proofChange = choices.find((c) => c.choice === 'change-proof')?.proofChange
   const featureSplit = choices.find((c) => c.choice === 'split-follow-up')?.featureSplit
   const circling = processParkStuckView(run) ?? processParkCirclingView(run, root ?? run)
+  const partial = partialProofOfChoices(choices)
+  const partialView = partial ? partialProofView(partial) : undefined
+  const broken = preExistingBreakOfChoices(choices)
+  const brokenView = broken ? preExistingBreakView(broken) : undefined
   const watch = liveCheckWatchView(run, choices)
   const tone = managerLine ? PROCESS_LIVE_TONE : park.reason === 'gate' ? 'review' : 'on_hold'
   const offered = choices
@@ -1567,7 +1581,7 @@ export function ParkBlock({
     if (answer.choice === 'change-proof') return setChangingProof(true)
     if (answer.choice === 'split-follow-up') return setSplitting(true)
     if (answer.choice === 'close-unmerged') return setConfirmingClose(true)
-    if (!note && choiceTakesNote(answer.choice)) {
+    if (parkAnswerOpensNote(answer.offer, note)) {
       return setNoteFor(answer.choice as ProcessResumeChoice)
     }
     if (answer.choice === 'retry' && pick) {
@@ -1600,10 +1614,12 @@ export function ParkBlock({
           }
           style={embedded ? undefined : { color: `var(--status-${tone}-soft-fg)` }}
         >
-          <RichText text={managerLine ?? park.message} />
+          <RichText text={managerLine ?? brokenView?.headline ?? park.message} />
         </div>
       )}
       {circling ? <CirclingNotice view={circling} /> : null}
+      {brokenView ? <PreExistingBreakNotice view={brokenView} heading={false} /> : null}
+      {partialView ? <PartialProofLists view={partialView} /> : null}
       {reflected && park.childRunId ? (
         <button
           type="button"
@@ -1911,7 +1927,7 @@ function WaitingCard({
     }
     if (answer.choice === 'change-proof') return setChangingProof(true)
     if (answer.choice === 'split-follow-up') return setSplitting(true)
-    if (!note && choiceTakesNote(answer.choice)) {
+    if (parkAnswerOpensNote(answer.offer, note)) {
       return setNoteFor(answer.choice as ProcessResumeChoice)
     }
     if (answer.choice === 'retry' && retry) {
@@ -1948,9 +1964,13 @@ function WaitingCard({
       {delegated ? (
         <WaitingDelegated view={delegated} {...(onOpenChat ? { onOpenChat } : {})} />
       ) : null}
-      <blockquote className="m-0 whitespace-pre-wrap rounded-md border-l-2 border-(--border-strong) bg-(--surface-base) px-2.5 py-1.5 text-[12.5px] leading-relaxed text-(--text-primary)">
-        {view.words}
-      </blockquote>
+      {view.preExistingBreak ? (
+        <PreExistingBreakNotice view={view.preExistingBreak} heading={false} />
+      ) : (
+        <blockquote className="m-0 whitespace-pre-wrap rounded-md border-l-2 border-(--border-strong) bg-(--surface-base) px-2.5 py-1.5 text-[12.5px] leading-relaxed text-(--text-primary)">
+          {view.words}
+        </blockquote>
+      )}
       {view.details.length > 0 ? <WaitingDetails details={view.details} /> : null}
       {view.requests ? (
         <ul className="m-0 flex list-none flex-col gap-2 p-0">

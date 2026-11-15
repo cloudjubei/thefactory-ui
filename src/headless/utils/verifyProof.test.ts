@@ -864,6 +864,26 @@ describe('proofScreensPane', () => {
     ).toEqual({ count: 1, label: '1 more capture filed · not part of the proof' })
   })
 
+  it('lists the points the prover could not show beside the thumbnails of what it did, as not proven', () => {
+    const partial = proof({ ...passed, outcome: 'unchecked', notShown: ['Push when full', ' '] })
+    const v = verifyProofView(partial, tiles, { standing: 'unchecked' })
+    expect(v.notShown).toEqual(['Push when full', ' '])
+    expect(proofScreensPane(v).partial).toEqual({
+      shown: { title: 'Shown', items: ['event-home', 'event-guide-webview', 'font-preview'] },
+      notShown: {
+        title: 'Not shown',
+        items: ['Push when full'],
+        caveat: 'Not proven — nothing here counts yet.',
+      },
+    })
+  })
+
+  it('has no not-shown list when the prover named none', () => {
+    const v = verifyProofView(passed, tiles, { standing: 'passed' })
+    expect(v.notShown).toEqual([])
+    expect(proofScreensPane(v).partial).toBeUndefined()
+  })
+
   it('has no fold when everything filed counted', () => {
     const clean = proof({ ...passed, pairs: passed.pairs.filter((p) => p.counted), unpaired: [] })
     const pane = proofScreensPane(verifyProofView(clean, tiles, { standing: 'passed' }))

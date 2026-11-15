@@ -9,6 +9,7 @@ import {
   processWaitingDelegatedView,
   processWaitingView,
 } from './processWaitingView'
+import { preExistingBreakView } from './processPreExistingBreakView'
 import {
   WAITING_DELEGATED_DETAIL,
   WAITING_DELEGATED_HEADING,
@@ -443,5 +444,35 @@ describe('processWaitingDelegatedView', () => {
       chatContext: chat,
       heading: WAITING_DELEGATED_HEADING,
     })
+  })
+})
+
+describe('processWaitingView on a break already at the base', () => {
+  const brk = {
+    source: 'developer' as const,
+    checks: ['Unit tests'],
+    files: ['Tests/RoomTests.swift'],
+    baseRef: 'main',
+    baseSha: '9f3c2a17be04d6',
+    headline: 'Tests/RoomTests.swift:12:5: error',
+  }
+  const blocker: ProcessWaitingAsk = {
+    kind: 'blocker',
+    agent: 'developer',
+    title: 'Already broken before this change: Tests/RoomTests.swift',
+    detail: 'Unit tests already fails the same way on main@9f3c2a1.',
+    preExistingBreak: brk,
+  }
+
+  it('lays the break out for the card, and offers repair, leave out and stop', () => {
+    const view = processWaitingView(parked(blocker))!
+    expect(view.preExistingBreak).toEqual(preExistingBreakView(brk))
+    expect(view.choices.map((c) => c.choice)).toEqual(['more-info', 'resolved', 'abandon'])
+    expect(view.choices[0]?.primary).toBe(true)
+    expect(view.choices.every((c) => c.preExistingBreak === brk)).toBe(true)
+  })
+
+  it('has no break at any other ask', () => {
+    expect(processWaitingView(parked(permission))?.preExistingBreak).toBeUndefined()
   })
 })

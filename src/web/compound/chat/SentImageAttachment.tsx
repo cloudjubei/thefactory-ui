@@ -1,12 +1,18 @@
 import { useEffect, useState } from 'react'
 import { attachmentDisplayName } from 'thefactory-tools/utils'
 import { FullScreenOverlay } from '../../primitives/FullScreenOverlay'
-import FileDisplay from '../files/FileDisplay'
 import ImageViewer from '../files/ImageViewer'
+import type { ChatFileSaving } from '../../../headless/utils/chatFileSaveTypes'
+import AttachmentFileChip from './AttachmentFileChip'
+import ChatFileSaveButton from './ChatFileSaveButton'
 
 export type SentImageAttachmentProps = {
   path: string
   getPreviewUrl: (path: string) => Promise<string | null>
+  /** An image an agent showed: its full-size view offers "Save to project". */
+  saving?: ChatFileSaving
+  /** Starts in its full-size view, as a showcase state shows it. */
+  defaultOpen?: boolean
 }
 
 /**
@@ -14,9 +20,14 @@ export type SentImageAttachmentProps = {
  * zoom and pan — so a screenshot stays readable after it was sent. Falls back
  * to the file chip until the image loads, and when it cannot be read.
  */
-export function SentImageAttachment({ path, getPreviewUrl }: SentImageAttachmentProps) {
+export function SentImageAttachment({
+  path,
+  getPreviewUrl,
+  saving,
+  defaultOpen = false,
+}: SentImageAttachmentProps) {
   const [url, setUrl] = useState<string | null>(null)
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(defaultOpen)
   const name = attachmentDisplayName(path)
 
   useEffect(() => {
@@ -38,7 +49,7 @@ export function SentImageAttachment({ path, getPreviewUrl }: SentImageAttachment
   }, [path, getPreviewUrl])
 
   if (!url) {
-    return <FileDisplay file={{ name, absolutePath: path, relativePath: path }} density="compact" />
+    return <AttachmentFileChip path={path} {...(saving ? { saving } : {})} />
   }
 
   return (
@@ -52,7 +63,14 @@ export function SentImageAttachment({ path, getPreviewUrl }: SentImageAttachment
       >
         <img src={url} alt={name} className="block max-h-40 max-w-60 object-contain" />
       </button>
-      <FullScreenOverlay isOpen={open} onClose={() => setOpen(false)} title={name}>
+      <FullScreenOverlay
+        isOpen={open}
+        onClose={() => setOpen(false)}
+        title={name}
+        {...(saving
+          ? { headerActions: <ChatFileSaveButton source={path} saving={saving} variant="button" /> }
+          : {})}
+      >
         <div className="h-full min-h-0 w-full">
           <ImageViewer src={url} alt={name} />
         </div>

@@ -437,6 +437,19 @@ describe('checkMethodRows', () => {
     expect(r.action).toEqual({ kind: 'request', purpose: 'setup', approachId: undefined })
   })
 
+  it('an approach no tool in this build produces is treated as missing', () => {
+    const r = row(
+      rows({
+        approaches: [
+          approach('screenshot-diff', { status: 'unimplemented', reason: 'No iOS tool.' }),
+        ],
+      }),
+      'screens',
+    )
+    expect(r.state).toBe('unconfigured')
+    expect(r.action).toEqual({ kind: 'request', purpose: 'setup', approachId: undefined })
+  })
+
   it('a report is always at least not-run — an agent can always write one', () => {
     const r = row(rows({}), 'report')
     expect(r.state).toBe('unchecked')

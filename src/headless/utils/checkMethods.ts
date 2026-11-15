@@ -173,7 +173,12 @@ function approachState(
 ): ApproachState {
   if (!id) return 'missing'
   const option = approaches.find((a) => a.spec.id === id)
-  if (!option || option.availability.status === 'not-applicable') return 'missing'
+  if (
+    !option ||
+    option.availability.status === 'not-applicable' ||
+    option.availability.status === 'unimplemented'
+  )
+    return 'missing'
   return option.availability.status === 'available' ? 'available' : 'unavailable'
 }
 

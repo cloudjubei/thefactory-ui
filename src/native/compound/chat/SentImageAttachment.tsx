@@ -5,14 +5,20 @@ import { attachmentDisplayName } from 'thefactory-tools/utils'
 import { nativeRadii } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import FullScreenOverlay from '../../primitives/FullScreenOverlay'
-import FileDisplay from '../files/FileDisplay'
 import ImageViewer from '../files/ImageViewer'
+import type { ChatFileSaving } from '../../../headless/utils/chatFileSaveTypes'
+import AttachmentFileChip from './AttachmentFileChip'
+import ChatFileSaveButton from './ChatFileSaveButton'
 import type { NativeAttachmentImages } from './chatNativeTypes'
 import { SENT_IMAGE_THUMB_HEIGHT, SENT_IMAGE_THUMB_WIDTH } from './sentImageAttachmentConstants'
 
 export type SentImageAttachmentProps = {
   path: string
   images: NativeAttachmentImages
+  /** An image an agent showed: its full-size view offers "Save to project". */
+  saving?: ChatFileSaving
+  /** Starts in its full-size view, as a showcase state shows it. */
+  defaultOpen?: boolean
 }
 
 /**
@@ -20,15 +26,20 @@ export type SentImageAttachmentProps = {
  * pinch to zoom, drag to pan — so a screenshot stays readable after it was
  * sent. Falls back to the file chip when the image cannot be read.
  */
-export default function SentImageAttachment({ path, images }: SentImageAttachmentProps) {
+export default function SentImageAttachment({
+  path,
+  images,
+  saving,
+  defaultOpen = false,
+}: SentImageAttachmentProps) {
   const { theme } = useNativeTheme()
   const [failed, setFailed] = useState(false)
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(defaultOpen)
   const name = attachmentDisplayName(path)
   const source = images.sourceOf(path)
 
   if (!source || failed) {
-    return <FileDisplay file={{ name, absolutePath: path, relativePath: path }} density="compact" />
+    return <AttachmentFileChip path={path} {...(saving ? { saving } : {})} />
   }
 
   return (
@@ -59,6 +70,9 @@ export default function SentImageAttachment({ path, images }: SentImageAttachmen
         isOpen={open}
         onClose={() => setOpen(false)}
         title={name}
+        {...(saving
+          ? { headerActions: <ChatFileSaveButton source={path} saving={saving} variant="button" /> }
+          : {})}
         {...(images.topInset !== undefined ? { topInset: images.topInset } : {})}
         {...(images.bottomInset !== undefined ? { bottomInset: images.bottomInset } : {})}
       >

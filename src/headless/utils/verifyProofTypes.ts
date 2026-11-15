@@ -1,6 +1,7 @@
 import type { ProcessLedgerEntry, ProcessRun, ProcessVerifyReview } from 'thefactory-tools/types'
 
 import type { ReviewEvidenceVerdict, ReviewEvidenceVerdictCause } from '../api/generated'
+import type { PartialProofView } from './processPartialProofViewTypes'
 import type { VerifyReviewStatus } from './processView'
 import type { EvidenceTile, ScreenPair } from './reviewEvidenceViewTypes'
 
@@ -181,6 +182,8 @@ export type VerifyProofView = {
   summary: VerifyProofSummary
   /** Counted pairs, new screens, then the pairs and afters that did not count — the page's order. */
   screens: ScreenPair[]
+  /** The points the prover named as not shown, never counted as proven. */
+  notShown: string[]
 }
 
 /** One verify attempt of a feature: its ledger entry, where it sits among the attempts, and where its reviewer filed. */
@@ -327,4 +330,6 @@ export type ProofScreensPane = {
   summary: VerifyProofSummary | undefined
   notCounted: ProofNotCountedFold | undefined
   saveAllLabel: string
+  /** Set when the prover named points it could not show: the thumbnails are what was shown, the rest is listed as not proven. */
+  partial?: PartialProofView
 }

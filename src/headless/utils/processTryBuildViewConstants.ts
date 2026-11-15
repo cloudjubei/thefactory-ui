@@ -13,6 +13,13 @@ export const PROCESS_TRY_BUILD_COPY = {
   accountNote: 'This build talks to the real services — sign in with your own test account.',
 } as const
 
+/**
+ * The backend's group of points no proving step showed, among the try-build's
+ * steps: the sign-off lists them once, in its own "Try these" block, so the
+ * phone block leaves them out.
+ */
+export const PROCESS_TRY_BUILD_NOT_SHOWN_TITLE = 'Not shown before the sign-off — try these'
+
 /** How long before its links stop working the block reads them again. */
 export const PROCESS_TRY_BUILD_LINK_REFRESH_LEAD_MS = 30_000
 

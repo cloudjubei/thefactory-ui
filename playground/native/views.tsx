@@ -67,8 +67,11 @@ import { GIT_CREDENTIAL_VIEWS } from './gitCredentialViews'
 import { FILE_TREE_VIEWS } from './fileTreeViews'
 import { SCRIPT_STEP_VIEWS } from './scriptStepViews'
 import { SPEND_LIMIT_VIEWS } from './spendLimitViews'
+import { SHOWN_FILE_VIEWS } from './shownFileViews'
 import { PLAN_WINDOW_VIEWS } from './planWindowViews'
 import { SEND_TO_DEVELOPER_VIEWS } from './sendToDeveloperViews'
+import { READY_ANSWER_VIEWS } from './readyAnswerViews'
+import { REVIEW_GAP_VIEWS } from './reviewGapViews'
 import { TICKET_VIEWS } from './ticketViews'
 import { TRY_ON_PHONE_VIEWS } from './tryOnPhoneViews'
 import { VARIANT_VIEWS } from './variantViews'
@@ -599,6 +602,9 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   ...FILE_PREVIEW_VIEWS,
   ...GIT_CREDENTIAL_VIEWS,
   ...FILE_TREE_VIEWS,
+  ...SHOWN_FILE_VIEWS,
   ...TICKET_VIEWS,
   ...SEND_TO_DEVELOPER_VIEWS,
+  ...READY_ANSWER_VIEWS,
+  ...REVIEW_GAP_VIEWS,
 ]

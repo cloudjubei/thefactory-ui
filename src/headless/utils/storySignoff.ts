@@ -119,6 +119,8 @@ import type {
   StoryStepKey,
   StoryStepLine,
 } from './storySignoffTypes'
+import { signoffCarriedView } from './processSignoffCarriedView'
+import type { SignoffCarriedView } from './processSignoffCarriedViewTypes'
 import {
   acceptedVerifyAttempt,
   codeReviewVerdictNote,
@@ -1378,7 +1380,14 @@ export function buildStorySignoff(input: BuildStorySignoffInput): StorySignoff {
     ...outsideScopeOf(
       scope ? processRuns.filter((r) => scope.processRunIds.has(r.id)) : processRuns,
     ),
+    ...carriedOf(scope ? processRuns.filter((r) => scope.processRunIds.has(r.id)) : []),
   }
+}
+
+/** The points carried onto the sign-off and the targets left out of its proof. None when there are neither. */
+function carriedOf(runs: readonly StorySignoffProcessRun[]): { carried?: SignoffCarriedView } {
+  const carried = signoffCarriedView(runs)
+  return carried ? { carried } : {}
 }
 
 /** The access trail of the story run and everything it launched. None when it recorded nothing. */

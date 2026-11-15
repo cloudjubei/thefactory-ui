@@ -1,14 +1,12 @@
 import type { ReferenceTarget } from 'thefactory-tools/types'
-import { attachmentDisplayName, isVideoPath } from 'thefactory-tools/utils'
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import Markdown from '../Markdown'
 import type { ResourceLink } from 'thefactory-tools/types'
 import RichText from '../files/RichText'
-import FileDisplay, { type UikitFileMeta } from '../files/FileDisplay'
-import { isImageAttachment } from '../../../headless/utils/chatDrop'
+import type { UikitFileMeta } from '../files/FileDisplay'
+import type { ChatFileSaving } from '../../../headless/utils/chatFileSaveTypes'
 import type { ChatVideoAttachments } from '../../../headless/utils/videoAttachmentTypes'
-import ChatVideoAttachment from './ChatVideoAttachment'
-import SentImageAttachment from './SentImageAttachment'
+import MessageFiles from './MessageFiles'
 import Tooltip from '../../primitives/Tooltip'
 import { IconRefresh, IconToolbox } from '../../icons'
 import { SubagentSteps, ToolCallCard, type ToolCall, type ToolResultType } from './ToolCall'
@@ -214,6 +212,8 @@ export type MessageRowProps = {
   getAttachmentPreviewUrl?: (path: string) => Promise<string | null>
   /** Where this chat's videos read how they stand. */
   videoAttachments?: ChatVideoAttachments
+  /** Where the files an agent's reply showed are saved: the chat's project. */
+  fileSaving?: ChatFileSaving
 
   // ----- Inline tool-confirmation flow (forwarded to ToolCallCard) -----
   /** Pre-applied preview (if any) for `require_confirmation` write tools. */
@@ -266,6 +266,7 @@ function MessageRow({
   renderProcessGroupRun,
   getAttachmentPreviewUrl,
   videoAttachments,
+  fileSaving,
   toolPreview,
   toolSelectable,
   toolSelected,
@@ -664,46 +665,15 @@ function MessageRow({
             </div>
           ) : null}
 
-          {isUser &&
-          Array.isArray((msg as unknown as { files?: string[] }).files) &&
-          (msg as unknown as { files: string[] }).files.length > 0 ? (
-            <div
-              className={[
-                'mt-1 flex flex-wrap gap-1',
-                isUser ? 'justify-end' : 'justify-start',
-              ].join(' ')}
-            >
-              {(msg as unknown as { files: string[] }).files.map((path, i) => {
-                const key = `${globalIndex}-att-${i}-${path}`
-                if (getAttachmentPreviewUrl && isImageAttachment(path)) {
-                  return (
-                    <SentImageAttachment
-                      key={key}
-                      path={path}
-                      getPreviewUrl={getAttachmentPreviewUrl}
-                    />
-                  )
-                }
-                const name = attachmentDisplayName(path)
-                const file = (
-                  <FileDisplay
-                    key={key}
-                    file={{ name, absolutePath: path, relativePath: path }}
-                    density="compact"
-                  />
-                )
-                if (!videoAttachments || !isVideoPath(path)) return file
-                return (
-                  <ChatVideoAttachment
-                    key={key}
-                    path={path}
-                    chat={videoAttachments}
-                    place="sent"
-                    fallback={file}
-                  />
-                )
-              })}
-            </div>
+          {(isUser || isAssistant) && msg.files?.length ? (
+            <MessageFiles
+              paths={msg.files}
+              align={isUser ? 'end' : 'start'}
+              keyPrefix={String(globalIndex)}
+              {...(getAttachmentPreviewUrl ? { getPreviewUrl: getAttachmentPreviewUrl } : {})}
+              {...(videoAttachments ? { videoAttachments } : {})}
+              {...(isAssistant && fileSaving ? { saving: fileSaving } : {})}
+            />
           ) : null}
 
           {restartBinding ? (
