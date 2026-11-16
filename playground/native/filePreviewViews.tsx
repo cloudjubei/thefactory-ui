@@ -57,7 +57,7 @@ function BrowserHtml({ html }: { html: string }) {
   )
 }
 
-const HOST: DesignHost = {
+export const HOST: DesignHost = {
   renderPdf: (uri) => <BrowserPdf uri={uri} />,
   renderHtml: (html) => <BrowserHtml html={html} />,
 }
@@ -66,7 +66,7 @@ const HOST: DesignHost = {
 const CLIPBOARD: ClipboardHost = { copyText: (text) => navigator.clipboard.writeText(text) }
 
 /** A phone's screen: its own overlay host, so the full-screen sheet covers it and not the board. */
-function Phone({ children }: { children: ReactNode }) {
+export function Phone({ children }: { children: ReactNode }) {
   const { theme } = useNativeTheme()
   return (
     <View

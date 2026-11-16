@@ -46,6 +46,8 @@ export type FilePreviewSheetProps = {
   onRetry?: () => void
   /** Copies the file's text, in place of the app's clipboard; with neither, the text stays selectable. */
   onCopy?: (text: string) => void | Promise<unknown>
+  /** More buttons in the header, before "Open in Files" — as Save to project. */
+  headerActions?: ReactNode
 }
 
 /**
@@ -62,6 +64,7 @@ export default function FilePreviewSheet({
   onOpenInFiles,
   onRetry,
   onCopy,
+  headerActions,
 }: FilePreviewSheetProps) {
   const { theme } = useNativeTheme()
   const host = useDesignHost()
@@ -74,17 +77,22 @@ export default function FilePreviewSheet({
       {...(host.topInset !== undefined ? { topInset: host.topInset } : {})}
       {...(host.bottomInset !== undefined ? { bottomInset: host.bottomInset } : {})}
       headerActions={
-        target && onOpenInFiles ? (
-          <Button
-            size="sm"
-            variant="secondary"
-            onPress={() => {
-              onClose()
-              onOpenInFiles({ kind: 'file', projectId: target.projectId, path: target.path })
-            }}
-          >
-            {REFERENCE_OPEN_LABELS.file}
-          </Button>
+        headerActions || (target && onOpenInFiles) ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}>
+            {headerActions}
+            {target && onOpenInFiles ? (
+              <Button
+                size="sm"
+                variant="secondary"
+                onPress={() => {
+                  onClose()
+                  onOpenInFiles({ kind: 'file', projectId: target.projectId, path: target.path })
+                }}
+              >
+                {REFERENCE_OPEN_LABELS.file}
+              </Button>
+            ) : null}
+          </View>
         ) : undefined
       }
     >
@@ -232,7 +240,7 @@ function ReadyBody({
   return (
     <View style={{ flex: 1, minHeight: 0 }}>
       <FilePaneHeader
-        name={target.path}
+        name={target.name ?? target.path}
         path={target.path}
         size={filePreviewSize(content)}
         info={

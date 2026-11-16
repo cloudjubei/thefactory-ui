@@ -26,6 +26,8 @@ export interface SentVideoAttachmentProps {
   /** Where the video plays from. Left out, the card shows its poster and details only. */
   source?: ChatVideoSource
   onOpenSetup?: () => void
+  /** Buttons always shown in the corner, poster or playing — as Save to project. */
+  actions?: ReactNode
 }
 
 const TILE_WIDTH = 208
@@ -68,7 +70,8 @@ function OverlayButton({
  * A video sent with a message. It stays live: the row follows the digest for as
  * long as the chat is open. It plays in the card through the host's player, and
  * the card grows to the video's own shape and goes back on collapse. A tap shows
- * play and full screen; details stay on the info button.
+ * play and full screen; details stay on the info button. Actions such as Save
+ * to project stay in the corner the whole time.
  */
 export default function SentVideoAttachment({
   name,
@@ -76,6 +79,7 @@ export default function SentVideoAttachment({
   poster,
   source,
   onOpenSetup,
+  actions,
 }: SentVideoAttachmentProps) {
   const { theme, status } = useNativeTheme()
   const { renderInlineVideo } = useMediaHost()
@@ -180,7 +184,7 @@ export default function SentVideoAttachment({
               ) : null}
             </Pressable>
           ) : null}
-          {canPlay && (tapped || isOpen) ? (
+          {(canPlay && (tapped || isOpen)) || actions ? (
             <View
               style={{
                 position: 'absolute',
@@ -190,14 +194,22 @@ export default function SentVideoAttachment({
                 gap: nativeSpace[2],
               }}
             >
-              <OverlayButton label={VIDEO_PLAYBACK_TEXT.fullScreen(name)} onPress={goFullscreen}>
-                <IconMaximize size={16} stroke="#ffffff" />
-              </OverlayButton>
-              {isOpen ? (
-                <OverlayButton label={VIDEO_PLAYBACK_TEXT.collapse(name)} onPress={collapse}>
-                  <IconClose size={16} color="#ffffff" />
-                </OverlayButton>
+              {canPlay && (tapped || isOpen) ? (
+                <>
+                  <OverlayButton
+                    label={VIDEO_PLAYBACK_TEXT.fullScreen(name)}
+                    onPress={goFullscreen}
+                  >
+                    <IconMaximize size={16} stroke="#ffffff" />
+                  </OverlayButton>
+                  {isOpen ? (
+                    <OverlayButton label={VIDEO_PLAYBACK_TEXT.collapse(name)} onPress={collapse}>
+                      <IconClose size={16} color="#ffffff" />
+                    </OverlayButton>
+                  ) : null}
+                </>
               ) : null}
+              {actions}
             </View>
           ) : null}
           {view.length && !isOpen ? (

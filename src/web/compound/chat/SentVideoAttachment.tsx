@@ -23,6 +23,8 @@ export type SentVideoAttachmentProps = {
   onOpenSetup?: () => void
   /** Keeps the controls in view without a hover, for a showcase scene. */
   showControls?: boolean
+  /** Buttons always shown in the corner, poster or playing — as Save to project. */
+  actions?: ReactNode
 }
 
 const hasNoHover = () => window.matchMedia('(hover: none)').matches
@@ -54,6 +56,7 @@ function OverlayButton({
  * long as the chat is open. It plays in the card, which grows to the video's own
  * shape and goes back on collapse. Play and full screen show on hover or keyboard
  * focus, and after a tap where there is no hover; details stay on the info button.
+ * Actions such as Save to project stay in the corner the whole time.
  */
 export default function SentVideoAttachment({
   name,
@@ -62,6 +65,7 @@ export default function SentVideoAttachment({
   source,
   onOpenSetup,
   showControls = false,
+  actions,
 }: SentVideoAttachmentProps) {
   const playback = useVideoPlayback(source, view.frame)
   const { state, frame, isOpen, canPlay, play, collapse } = playback
@@ -72,7 +76,7 @@ export default function SentVideoAttachment({
   const problem = state.failure ? VIDEO_PLAYBACK_TEXT.failure[state.failure] : undefined
   const shown = showControls || tapped
   const chrome = shown
-    ? 'opacity-100'
+    ? 'pointer-events-auto opacity-100'
     : 'pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-has-[:focus-visible]:pointer-events-auto group-has-[:focus-visible]:opacity-100'
 
   const pressPoster = () => {
@@ -151,16 +155,21 @@ export default function SentVideoAttachment({
             ) : null}
           </>
         )}
-        {canPlay ? (
-          <span className={`absolute right-1 top-1 flex gap-1 ${chrome}`}>
-            <OverlayButton label={VIDEO_PLAYBACK_TEXT.fullScreen(name)} onClick={goFullscreen}>
-              <IconMaximize className="h-4 w-4 [&_polyline]:stroke-white" />
-            </OverlayButton>
-            {isOpen ? (
-              <OverlayButton label={VIDEO_PLAYBACK_TEXT.collapse(name)} onClick={collapse}>
-                <IconClose className="h-4 w-4" />
-              </OverlayButton>
+        {canPlay || actions ? (
+          <span className="pointer-events-none absolute right-1 top-1 flex gap-1">
+            {canPlay ? (
+              <span className={`flex gap-1 ${chrome}`}>
+                <OverlayButton label={VIDEO_PLAYBACK_TEXT.fullScreen(name)} onClick={goFullscreen}>
+                  <IconMaximize className="h-4 w-4 [&_polyline]:stroke-white" />
+                </OverlayButton>
+                {isOpen ? (
+                  <OverlayButton label={VIDEO_PLAYBACK_TEXT.collapse(name)} onClick={collapse}>
+                    <IconClose className="h-4 w-4" />
+                  </OverlayButton>
+                ) : null}
+              </span>
             ) : null}
+            {actions ? <span className="pointer-events-auto flex gap-1">{actions}</span> : null}
           </span>
         ) : null}
       </div>

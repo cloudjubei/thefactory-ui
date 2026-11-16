@@ -310,6 +310,7 @@ const STARTUP: HealthStartupResponse = {
     projectsTotal: FAKE_PROJECTS.length,
     queued: 0,
     failed: [],
+    refused: [],
   },
   legacyNotes: { state: 'done', stores: [] },
 }

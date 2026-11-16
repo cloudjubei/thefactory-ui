@@ -25,6 +25,8 @@ export type FilePreviewDialogProps = {
   onOpenInFiles?: (link: ResourceLink) => void
   /** Reads the file again after a failure. */
   onRetry?: () => void
+  /** More buttons in the header, before "Open in Files" and Close — as Save to project. */
+  headerActions?: ReactNode
 }
 
 const PANEL_CLASS = 'max-w-[min(72rem,calc(100vw-2rem))]! h-[85vh]'
@@ -40,6 +42,7 @@ export default function FilePreviewDialog({
   onClose,
   onOpenInFiles,
   onRetry,
+  headerActions,
 }: FilePreviewDialogProps) {
   const target = state?.target
   const openInFiles =
@@ -52,6 +55,7 @@ export default function FilePreviewDialog({
   const caption = target ? filePreviewCaption(target) : undefined
   const trailing = (
     <>
+      {headerActions}
       {openInFiles ? (
         <Button size="sm" variant="secondary" onClick={openInFiles}>
           {REFERENCE_OPEN_LABELS.file}
@@ -75,7 +79,7 @@ export default function FilePreviewDialog({
     >
       {state && state.status !== 'ready' ? (
         <FilePaneHeader
-          name={state.target.path}
+          name={state.target.name ?? state.target.path}
           path={state.target.path}
           trailing={trailing}
           {...(caption ? { caption } : {})}
@@ -145,7 +149,7 @@ function ReadyPane({
       <FilePane
         key={target.path}
         filePath={target.path}
-        fileName={target.path}
+        fileName={target.name ?? target.path}
         headerTrailing={trailing}
         {...(caption ? { headerCaption: caption } : {})}
         fileSize={size}

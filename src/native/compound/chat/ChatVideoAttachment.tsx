@@ -18,6 +18,8 @@ export interface ChatVideoAttachmentProps {
   onRemove?: () => void
   /** Shown instead when the chat holds no such video, as for a project file sent by name. */
   fallback: ReactNode
+  /** Buttons always shown in the poster's corner, as Save to project — `sent` only. */
+  actions?: ReactNode
 }
 
 /** A chat's video bound to its path: its chip follows the digest wherever it is shown. */
@@ -27,6 +29,7 @@ export default function ChatVideoAttachment({
   place,
   onRemove,
   fallback,
+  actions,
 }: ChatVideoAttachmentProps) {
   const { digest, missing } = useVideoDigest(chat, path)
   const view = useMemo(() => videoAttachmentView(digest), [digest])
@@ -37,7 +40,14 @@ export default function ChatVideoAttachment({
   const setup = chat.onOpenSetup ? { onOpenSetup: chat.onOpenSetup } : {}
   if (place === 'sent') {
     return (
-      <SentVideoAttachment name={name} view={view} poster={poster} source={source} {...setup} />
+      <SentVideoAttachment
+        name={name}
+        view={view}
+        poster={poster}
+        source={source}
+        {...setup}
+        {...(actions ? { actions } : {})}
+      />
     )
   }
   return (

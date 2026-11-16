@@ -23,7 +23,9 @@ export interface MessageFilesProps {
 
 /**
  * The files on a message, under it: images as thumbnails, videos as posters,
- * the rest as chips. Native mirror of web's `MessageFiles`.
+ * the rest as chips that open the document preview. Files an agent showed
+ * carry Save to project on the thumbnail or poster, or inside the chip.
+ * Native mirror of web's `MessageFiles`.
  */
 export default function MessageFiles({
   paths,
@@ -33,6 +35,7 @@ export default function MessageFiles({
   saving,
 }: MessageFilesProps) {
   const save = saving ? { saving } : {}
+  const read = images ? { images } : {}
   return (
     <View
       style={{
@@ -48,27 +51,19 @@ export default function MessageFiles({
         if (images && isImageAttachment(path)) {
           return <SentImageAttachment key={key} path={path} images={images} {...save} />
         }
-        if (!videoAttachments || !isVideoPath(path)) {
-          return <AttachmentFileChip key={key} path={path} {...save} />
-        }
-        const video = (
+        const chip = <AttachmentFileChip key={key} path={path} {...save} {...read} />
+        if (!videoAttachments || !isVideoPath(path)) return chip
+        return (
           <ChatVideoAttachment
             key={key}
             path={path}
             chat={videoAttachments}
             place="sent"
-            fallback={<AttachmentFileChip path={path} />}
+            fallback={chip}
+            {...(saving
+              ? { actions: <ChatFileSaveButton source={path} saving={saving} variant="overlay" /> }
+              : {})}
           />
-        )
-        if (!saving) return video
-        return (
-          <View
-            key={key}
-            style={{ flexDirection: 'row', alignItems: 'flex-end', gap: nativeSpace[2] }}
-          >
-            {video}
-            <ChatFileSaveButton source={path} saving={saving} variant="icon" />
-          </View>
         )
       })}
     </View>

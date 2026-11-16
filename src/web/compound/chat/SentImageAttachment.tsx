@@ -9,7 +9,7 @@ import ChatFileSaveButton from './ChatFileSaveButton'
 export type SentImageAttachmentProps = {
   path: string
   getPreviewUrl: (path: string) => Promise<string | null>
-  /** An image an agent showed: its full-size view offers "Save to project". */
+  /** An image an agent showed: Save to project sits on its thumbnail and in its full-size view. */
   saving?: ChatFileSaving
   /** Starts in its full-size view, as a showcase state shows it. */
   defaultOpen?: boolean
@@ -18,7 +18,8 @@ export type SentImageAttachmentProps = {
 /**
  * An image sent with a message, shown as a thumbnail that opens full size —
  * zoom and pan — so a screenshot stays readable after it was sent. Its name
- * sits under it, cut short to the thumbnail's width, whole on hover. Falls back
+ * sits under it, cut short to the thumbnail's width, whole on hover. An image an
+ * agent showed carries Save to project in the thumbnail's corner. Falls back
  * to the file chip until the image loads, and when it cannot be read.
  */
 export function SentImageAttachment({
@@ -55,18 +56,29 @@ export function SentImageAttachment({
 
   return (
     <>
-      <button
-        type="button"
-        className="group flex w-min min-w-24 max-w-60 flex-col overflow-hidden rounded-md border border-(--border-subtle) bg-(--surface-overlay) hover:border-(--border-strong) focus-visible:outline-2 focus-visible:outline-(--accent-primary)"
-        onClick={() => setOpen(true)}
-        title={name}
-        aria-label={`Open ${name}`}
-      >
-        <img src={url} alt={name} className="block max-h-40 max-w-60 self-center object-contain" />
-        <span className="w-0 min-w-full truncate border-t border-(--border-subtle) px-2 py-1 text-left text-[11px] font-medium leading-[15px] text-(--text-primary)">
-          {name}
-        </span>
-      </button>
+      <span className="relative inline-flex self-start">
+        <button
+          type="button"
+          className="group flex w-min min-w-24 max-w-60 flex-col overflow-hidden rounded-md border border-(--border-subtle) bg-(--surface-overlay) hover:border-(--border-strong) focus-visible:outline-2 focus-visible:outline-(--accent-primary)"
+          onClick={() => setOpen(true)}
+          title={name}
+          aria-label={`Open ${name}`}
+        >
+          <img
+            src={url}
+            alt={name}
+            className="block max-h-40 max-w-60 self-center object-contain"
+          />
+          <span className="w-0 min-w-full truncate border-t border-(--border-subtle) px-2 py-1 text-left text-[11px] font-medium leading-[15px] text-(--text-primary)">
+            {name}
+          </span>
+        </button>
+        {saving ? (
+          <span className="absolute right-1 top-1 flex">
+            <ChatFileSaveButton source={path} saving={saving} variant="overlay" />
+          </span>
+        ) : null}
+      </span>
       <FullScreenOverlay
         isOpen={open}
         onClose={() => setOpen(false)}

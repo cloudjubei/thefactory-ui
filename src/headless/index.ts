@@ -1734,7 +1734,7 @@ export {
 } from 'thefactory-tools/utils'
 
 // Raw project-file bytes endpoint (image / PDF / binary viewers)
-export { rawFileUrl } from './utils/rawFileUrl'
+export { chatAttachmentRawUrl, chatFileRawUrl, rawFileUrl } from './utils/rawFileUrl'
 export { persistAppDataCapabilities } from './utils/dataCapabilities'
 export {
   appDeepLinkFromParams,

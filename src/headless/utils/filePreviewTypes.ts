@@ -6,6 +6,8 @@ export type FilePreviewTarget = {
   path: string
   /** Its project's name, where that is not the one on screen — the preview's caption names it. */
   projectName?: string
+  /** What the preview's header calls the file; its path by default. */
+  name?: string
 }
 
 /** What a paned file shows: its source, its source beside what it renders to, or what it renders to. */

@@ -18,7 +18,11 @@ export type MessageFilesProps = {
   saving?: ChatFileSaving
 }
 
-/** The files on a message, under it: images as thumbnails, videos as posters, the rest as chips. */
+/**
+ * The files on a message, under it: images as thumbnails, videos as posters,
+ * the rest as chips that open the document preview. Files an agent showed
+ * carry Save to project on the thumbnail or poster, or inside the chip.
+ */
 export default function MessageFiles({
   paths,
   align,
@@ -28,6 +32,7 @@ export default function MessageFiles({
   saving,
 }: MessageFilesProps) {
   const save = saving ? { saving } : {}
+  const read = getPreviewUrl ? { getPreviewUrl } : {}
   return (
     <div
       className={[
@@ -42,24 +47,19 @@ export default function MessageFiles({
             <SentImageAttachment key={key} path={path} getPreviewUrl={getPreviewUrl} {...save} />
           )
         }
-        if (!videoAttachments || !isVideoPath(path)) {
-          return <AttachmentFileChip key={key} path={path} {...save} />
-        }
-        const video = (
+        const chip = <AttachmentFileChip key={key} path={path} {...save} {...read} />
+        if (!videoAttachments || !isVideoPath(path)) return chip
+        return (
           <ChatVideoAttachment
             key={key}
             path={path}
             chat={videoAttachments}
             place="sent"
-            fallback={<AttachmentFileChip path={path} />}
+            fallback={chip}
+            {...(saving
+              ? { actions: <ChatFileSaveButton source={path} saving={saving} variant="overlay" /> }
+              : {})}
           />
-        )
-        if (!saving) return video
-        return (
-          <span key={key} className="inline-flex items-end gap-1">
-            {video}
-            <ChatFileSaveButton source={path} saving={saving} variant="icon" />
-          </span>
         )
       })}
     </div>

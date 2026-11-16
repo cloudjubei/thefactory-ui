@@ -15,7 +15,7 @@ import { SENT_IMAGE_THUMB_HEIGHT, SENT_IMAGE_THUMB_WIDTH } from './sentImageAtta
 export type SentImageAttachmentProps = {
   path: string
   images: NativeAttachmentImages
-  /** An image an agent showed: its full-size view offers "Save to project". */
+  /** An image an agent showed: Save to project sits on its thumbnail and in its full-size view. */
   saving?: ChatFileSaving
   /** Starts in its full-size view, as a showcase state shows it. */
   defaultOpen?: boolean
@@ -26,7 +26,8 @@ export type SentImageAttachmentProps = {
 /**
  * An image sent with a message, shown as a thumbnail that opens full size —
  * pinch to zoom, drag to pan — so a screenshot stays readable after it was
- * sent. Its name sits under it on one line; a long press shows it whole. Falls
+ * sent. Its name sits under it on one line; a long press shows it whole. An
+ * image an agent showed carries Save to project in the thumbnail's corner. Falls
  * back to the file chip when the image cannot be read.
  */
 export default function SentImageAttachment({
@@ -49,44 +50,51 @@ export default function SentImageAttachment({
 
   return (
     <>
-      <Pressable
-        accessibilityRole="imagebutton"
-        accessibilityLabel={`Open ${name}`}
-        onPress={() => setOpen(true)}
-        onLongPress={() => setWholeName((whole) => !whole)}
-        style={{
-          overflow: 'hidden',
-          borderRadius: nativeRadii[3],
-          borderWidth: 1,
-          borderColor: theme.border.subtle,
-          backgroundColor: theme.surface.muted,
-        }}
-      >
-        <View style={{ width: SENT_IMAGE_THUMB_WIDTH, height: SENT_IMAGE_THUMB_HEIGHT }}>
-          <Image
-            source={source}
-            onError={() => setFailed(true)}
-            resizeMode="contain"
-            accessibilityIgnoresInvertColors
-            style={{ width: '100%', height: '100%' }}
-          />
-        </View>
-        <Text
-          {...(wholeName ? {} : { numberOfLines: 1 })}
+      <View style={{ alignSelf: 'flex-start' }}>
+        <Pressable
+          accessibilityRole="imagebutton"
+          accessibilityLabel={`Open ${name}`}
+          onPress={() => setOpen(true)}
+          onLongPress={() => setWholeName((whole) => !whole)}
           style={{
-            width: SENT_IMAGE_THUMB_WIDTH,
-            paddingHorizontal: nativeSpace[3],
-            paddingVertical: nativeSpace[2],
-            borderTopWidth: 1,
-            borderTopColor: theme.border.subtle,
-            fontSize: 11,
-            fontWeight: '500',
-            color: theme.text.primary,
+            overflow: 'hidden',
+            borderRadius: nativeRadii[3],
+            borderWidth: 1,
+            borderColor: theme.border.subtle,
+            backgroundColor: theme.surface.muted,
           }}
         >
-          {name}
-        </Text>
-      </Pressable>
+          <View style={{ width: SENT_IMAGE_THUMB_WIDTH, height: SENT_IMAGE_THUMB_HEIGHT }}>
+            <Image
+              source={source}
+              onError={() => setFailed(true)}
+              resizeMode="contain"
+              accessibilityIgnoresInvertColors
+              style={{ width: '100%', height: '100%' }}
+            />
+          </View>
+          <Text
+            {...(wholeName ? {} : { numberOfLines: 1 })}
+            style={{
+              width: SENT_IMAGE_THUMB_WIDTH,
+              paddingHorizontal: nativeSpace[3],
+              paddingVertical: nativeSpace[2],
+              borderTopWidth: 1,
+              borderTopColor: theme.border.subtle,
+              fontSize: 11,
+              fontWeight: '500',
+              color: theme.text.primary,
+            }}
+          >
+            {name}
+          </Text>
+        </Pressable>
+        {saving ? (
+          <View style={{ position: 'absolute', right: 4, top: 4 }}>
+            <ChatFileSaveButton source={path} saving={saving} variant="overlay" />
+          </View>
+        ) : null}
+      </View>
       <FullScreenOverlay
         isOpen={open}
         onClose={() => setOpen(false)}

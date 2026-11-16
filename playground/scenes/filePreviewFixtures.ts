@@ -133,9 +133,9 @@ const DIAGRAM_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height=
 </svg>
 `
 
-/** A one-page PDF, its cross-reference table worked out from where each object starts. */
-function onePagePdf(): string {
-  const stream = 'BT /F1 24 Tf 72 720 Td (ZNR-780 pricing engine) Tj ET'
+/** A one-page PDF with one line on it, its cross-reference table worked out from where each object starts. */
+export function onePagePdf(line = 'ZNR-780 pricing engine'): string {
+  const stream = `BT /F1 24 Tf 72 720 Td (${line}) Tj ET`
   const objects = [
     '<< /Type /Catalog /Pages 2 0 R >>',
     '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',

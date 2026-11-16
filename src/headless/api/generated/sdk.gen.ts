@@ -994,6 +994,8 @@ import type {
   RateChatData,
   RateChatErrors,
   RateChatResponses,
+  ReadChatAttachmentData,
+  ReadChatAttachmentErrors,
   ReadFileData,
   ReadFileErrors,
   ReadFilePathsData,
@@ -5369,6 +5371,18 @@ export const getChatAttachmentDigest = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/chat-attachments/digest',
+    ...options,
+  })
+
+/**
+ * The bytes of a file a chat holds — one attached to it or shown in it — from wherever the chat keeps them: its project, its group’s workspace, or the global chat workspace. Only a file right inside the chat’s own attachment directory is served.
+ */
+export const readChatAttachment = <ThrowOnError extends boolean = false>(
+  options: Options<ReadChatAttachmentData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<unknown, ReadChatAttachmentErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/chat-attachments/raw',
     ...options,
   })
 

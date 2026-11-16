@@ -2569,6 +2569,8 @@ export type ToolName =
   | 'mobileTestDoctor'
   | 'mobileTestListDevices'
   | 'mobileTestBootDevice'
+  | 'mobileTestShutdownDevice'
+  | 'mobileTestCreateAvd'
   | 'mobileTestBuildApp'
   | 'mobileTestOpenSession'
   | 'mobileTestCloseSession'
@@ -2576,6 +2578,7 @@ export type ToolName =
   | 'mobileTestSnapshot'
   | 'mobileTestTap'
   | 'mobileTestTapSelector'
+  | 'mobileTestTapPoint'
   | 'mobileTestType'
   | 'mobileTestTypeSecret'
   | 'mobileTestPressKey'
@@ -2795,6 +2798,7 @@ export type VerificationApproachSpec = {
   } & {
     default?: Array<ToolName>
   }
+  producedByStep?: true
 }
 
 export type ApproachAvailability =
@@ -4992,6 +4996,8 @@ export type VerificationStatus = 'passed' | 'failed' | 'error' | 'unchecked'
 
 export type VerificationPolicy = 'require' | 'warn' | 'off'
 
+export type VerificationCheckTier = 'compile' | 'unit' | 'integration' | 'live' | 'e2e'
+
 export type ProjectCheckKind = 'build' | 'lint' | 'typecheck' | 'format' | 'test'
 
 export type VerificationCheck = {
@@ -5000,7 +5006,8 @@ export type VerificationCheck = {
   kind: VerificationCheckKind
   command?: string
   paths?: Array<string>
-  tier?: string
+  configPath?: string
+  tier?: 'compile' | 'unit' | 'integration' | 'live' | 'e2e'
   timeoutMs?: number
   requiredEnv?: Array<string>
   optional?: boolean
@@ -5029,7 +5036,15 @@ export type VerificationFlakyTest = {
   message?: string
 }
 
+export type TestArtifact = {
+  testName: string
+  path: string
+  kind: 'trace' | 'recording'
+  retry?: number
+}
+
 export type VerificationTestSuite = {
+  artifacts?: Array<TestArtifact>
   name: string
   module?: string
   tests: number
@@ -5068,6 +5083,7 @@ export type VerificationTestReportMissing = {
 }
 
 export type VerificationCheckResult = {
+  tier?: 'compile' | 'unit' | 'integration' | 'live' | 'e2e'
   id: string
   label: string
   kind: VerificationCheckKind
@@ -13590,6 +13606,11 @@ export type MobileBounds = {
   height: number
 }
 
+export type MobilePoint = {
+  x: number
+  y: number
+}
+
 export type MobileNode = {
   ref?: string
   type: string
@@ -13607,6 +13628,16 @@ export type MobileNode = {
   focused?: boolean
   password?: boolean
   scrollable?: boolean
+}
+
+export type MobileFoldedBarProbe = {
+  bar: MobileNode
+  points: Array<MobilePoint>
+}
+
+export type MobileRevealedBar = {
+  bar: MobileNode
+  controls: Array<MobileNode>
 }
 
 export type MobileNodeSelector = {
@@ -13687,6 +13718,16 @@ export type BootEmulatorOptions = {
   window?: boolean
   udid?: string
   name?: string
+}
+
+export type CreateMobileAvdOptions = {
+  name: string
+  package: string
+  device?: string
+}
+
+export type CreateMobileAvdDeps = {
+  spawn?: unknown
 }
 
 export type BootEmulatorResult = {
@@ -18230,6 +18271,20 @@ export type SandboxDependencyInstallOutcome =
       aborted?: boolean
     }
 
+export type ProjectCheckHostConsentRequest = {
+  hostReason: string
+  commands: Array<string>
+  checkIds: Array<string>
+}
+
+export type ProjectCheckHostConsentDecision =
+  | {
+      allowed: true
+    }
+  | {
+      allowed: false
+    }
+
 export type ProjectCheckPlacementDecision =
   | {
       runsIn: 'host'
@@ -18274,6 +18329,7 @@ export type ProjectCheckSnapshotCommit = {
 export type ProjectCheckTestReportFormat =
   | 'junit-xml'
   | 'jest-json'
+  | 'playwright-json'
   | 'go-test-json'
   | 'cargo-test-text'
   | 'xcresult'
@@ -18335,6 +18391,24 @@ export type ProjectCheckPreStep = {
 }
 
 export type ProjectCheck = {
+  verification?: {
+    id: string
+    label: string
+    kind: VerificationCheckKind
+    command?: string
+    paths?: Array<string>
+    configPath?: string
+    tier?: 'compile' | 'unit' | 'integration' | 'live' | 'e2e'
+    timeoutMs?: number
+    requiredEnv?: Array<string>
+    optional?: boolean
+    requires?: Array<string>
+    source?: 'declared' | 'derived'
+    derivedFrom?: string
+    category?: 'build' | 'lint' | 'typecheck' | 'format' | 'test'
+  }
+  tier?: 'compile' | 'unit' | 'integration' | 'live' | 'e2e'
+  requiredEnv?: Array<string>
   id: string
   kind: ProjectCheckKind
   label: string
@@ -18519,6 +18593,7 @@ export type ProjectCheckPlacement = {
   kind: ProjectCheckKind
   runsIn: VerificationCheckRanIn
   hostReason?: string
+  commands?: Array<string>
   image?: string
   install?: string
 }
@@ -18548,6 +18623,7 @@ export type ReadProjectChecksOptions = {
 }
 
 export type RunProjectCheckInput = {
+  tier?: 'compile' | 'unit' | 'integration' | 'live' | 'e2e'
   check: ProjectCheckKind
   variant?: string
   tests?: Array<string>
@@ -18563,6 +18639,7 @@ export type LiveProjectCheckEnv = {
 }
 
 export type ProjectCheckRunResult = {
+  tier?: 'compile' | 'unit' | 'integration' | 'live' | 'e2e'
   check: ProjectCheckKind
   status: 'passed' | 'failed' | 'error' | 'skipped' | 'not-detected' | 'refused' | 'running'
   summary: string
@@ -23014,6 +23091,8 @@ export type CaptureToolSet = {
     | 'mobileTestDoctor'
     | 'mobileTestListDevices'
     | 'mobileTestBootDevice'
+    | 'mobileTestShutdownDevice'
+    | 'mobileTestCreateAvd'
     | 'mobileTestBuildApp'
     | 'mobileTestOpenSession'
     | 'mobileTestCloseSession'
@@ -23021,6 +23100,7 @@ export type CaptureToolSet = {
     | 'mobileTestSnapshot'
     | 'mobileTestTap'
     | 'mobileTestTapSelector'
+    | 'mobileTestTapPoint'
     | 'mobileTestType'
     | 'mobileTestTypeSecret'
     | 'mobileTestPressKey'
@@ -23579,6 +23659,8 @@ export type CaptureToolSet = {
     | 'mobileTestDoctor'
     | 'mobileTestListDevices'
     | 'mobileTestBootDevice'
+    | 'mobileTestShutdownDevice'
+    | 'mobileTestCreateAvd'
     | 'mobileTestBuildApp'
     | 'mobileTestOpenSession'
     | 'mobileTestCloseSession'
@@ -23586,6 +23668,7 @@ export type CaptureToolSet = {
     | 'mobileTestSnapshot'
     | 'mobileTestTap'
     | 'mobileTestTapSelector'
+    | 'mobileTestTapPoint'
     | 'mobileTestType'
     | 'mobileTestTypeSecret'
     | 'mobileTestPressKey'
@@ -24151,6 +24234,8 @@ export type CaptureToolSet = {
     | 'mobileTestDoctor'
     | 'mobileTestListDevices'
     | 'mobileTestBootDevice'
+    | 'mobileTestShutdownDevice'
+    | 'mobileTestCreateAvd'
     | 'mobileTestBuildApp'
     | 'mobileTestOpenSession'
     | 'mobileTestCloseSession'
@@ -24158,6 +24243,7 @@ export type CaptureToolSet = {
     | 'mobileTestSnapshot'
     | 'mobileTestTap'
     | 'mobileTestTapSelector'
+    | 'mobileTestTapPoint'
     | 'mobileTestType'
     | 'mobileTestTypeSecret'
     | 'mobileTestPressKey'
@@ -24716,6 +24802,8 @@ export type CaptureToolSet = {
     | 'mobileTestDoctor'
     | 'mobileTestListDevices'
     | 'mobileTestBootDevice'
+    | 'mobileTestShutdownDevice'
+    | 'mobileTestCreateAvd'
     | 'mobileTestBuildApp'
     | 'mobileTestOpenSession'
     | 'mobileTestCloseSession'
@@ -24723,6 +24811,7 @@ export type CaptureToolSet = {
     | 'mobileTestSnapshot'
     | 'mobileTestTap'
     | 'mobileTestTapSelector'
+    | 'mobileTestTapPoint'
     | 'mobileTestType'
     | 'mobileTestTypeSecret'
     | 'mobileTestPressKey'
@@ -25282,6 +25371,8 @@ export type CaptureToolSet = {
     | 'mobileTestDoctor'
     | 'mobileTestListDevices'
     | 'mobileTestBootDevice'
+    | 'mobileTestShutdownDevice'
+    | 'mobileTestCreateAvd'
     | 'mobileTestBuildApp'
     | 'mobileTestOpenSession'
     | 'mobileTestCloseSession'
@@ -25289,6 +25380,7 @@ export type CaptureToolSet = {
     | 'mobileTestSnapshot'
     | 'mobileTestTap'
     | 'mobileTestTapSelector'
+    | 'mobileTestTapPoint'
     | 'mobileTestType'
     | 'mobileTestTypeSecret'
     | 'mobileTestPressKey'
@@ -26734,6 +26826,7 @@ export type TestStats = {
 }
 
 export type TestResult = {
+  artifacts?: Array<TestArtifact>
   filePath: string
   status: TestStatus
   summary: TestStats
@@ -33519,6 +33612,7 @@ export type HealthResponses = {
         }
         queued: number
         failed: Array<string>
+        refused: Array<string>
       }
       legacyNotes: {
         state: 'not-started' | 'running' | 'done'
@@ -33560,6 +33654,7 @@ export type HealthStartupResponses = {
       }
       queued: number
       failed: Array<string>
+      refused: Array<string>
     }
     legacyNotes: {
       state: 'not-started' | 'running' | 'done'
@@ -45550,6 +45645,43 @@ export type GetChatAttachmentDigestResponses = {
 
 export type GetChatAttachmentDigestResponse =
   GetChatAttachmentDigestResponses[keyof GetChatAttachmentDigestResponses]
+
+export type ReadChatAttachmentData = {
+  body?: never
+  path?: never
+  query: {
+    /**
+     * The file’s path, as its upload or showFiles gave it.
+     */
+    path: string
+    /**
+     * The chat’s context, as JSON.
+     */
+    context: string
+  }
+  url: '/api/v1/chat-attachments/raw'
+}
+
+export type ReadChatAttachmentErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ReadChatAttachmentError = ReadChatAttachmentErrors[keyof ReadChatAttachmentErrors]
 
 export type CreateChatMediaUrlData = {
   body: {

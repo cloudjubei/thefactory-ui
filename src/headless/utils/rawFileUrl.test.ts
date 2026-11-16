@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { rawFileUrl } from './rawFileUrl'
+import { chatAttachmentRawUrl, chatFileRawUrl, rawFileUrl } from './rawFileUrl'
 
 describe('rawFileUrl', () => {
   it('builds the raw-bytes endpoint', () => {
@@ -15,5 +15,36 @@ describe('rawFileUrl', () => {
   it('encodes project id and path', () => {
     expect(rawFileUrl('http://x', 'p/1', 'a b.png')).toContain('projects/p%2F1/files/raw')
     expect(rawFileUrl('http://x', 'p1', 'a b.png')).toContain('path=a%20b.png')
+  })
+})
+
+describe('chatAttachmentRawUrl', () => {
+  it('builds the chat-file endpoint with the chat context as JSON', () => {
+    const context = { type: 'GROUP_TOPIC', groupId: 'g1', topicId: 't1' } as const
+    const url = new URL(
+      chatAttachmentRawUrl('https://api.example.com/', context, '.factory/a b.png'),
+    )
+    expect(`${url.origin}${url.pathname}`).toBe(
+      'https://api.example.com/api/v1/chat-attachments/raw',
+    )
+    expect(url.searchParams.get('path')).toBe('.factory/a b.png')
+    expect(JSON.parse(url.searchParams.get('context') ?? '')).toEqual(context)
+  })
+})
+
+describe('chatFileRawUrl', () => {
+  const path = '.factory/attachments/abc/1-board.png'
+  it('reads a project chat’s file through its project, where files are attached by name too', () => {
+    expect(
+      chatFileRawUrl('http://x', { type: 'STORY', projectId: 'p1', storyId: 's1' }, path),
+    ).toBe(rawFileUrl('http://x', 'p1', path))
+  })
+  it.each([
+    ['a group chat', { type: 'GROUP_TOPIC', groupId: 'g1', topicId: 't1' }],
+    ['the general chat', { type: 'GENERAL', timestamp: '1' }],
+  ] as const)('reads %s’s file from where the chat keeps it', (_, context) => {
+    expect(chatFileRawUrl('http://x', context, path)).toBe(
+      chatAttachmentRawUrl('http://x', context, path),
+    )
   })
 })

@@ -28,12 +28,15 @@ export function useFilePreview(
   const projectId = target?.projectId
   const path = target?.path
   const projectName = target?.projectName
+  const name = target?.name
   useEffect(() => {
     loader.open(
-      projectId && path ? { projectId, path, ...(projectName ? { projectName } : {}) } : null,
+      projectId && path
+        ? { projectId, path, ...(projectName ? { projectName } : {}), ...(name ? { name } : {}) }
+        : null,
     )
     return () => loader.open(null)
-  }, [loader, projectId, path, projectName])
+  }, [loader, projectId, path, projectName, name])
   const actions = useMemo(
     () => ({
       reload: () => loader.reload(),
