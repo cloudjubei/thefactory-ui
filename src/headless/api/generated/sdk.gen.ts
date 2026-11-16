@@ -527,6 +527,9 @@ import type {
   GetProcessGroupSignOffErrors,
   GetProcessGroupSignOffResponses,
   GetProcessResponses,
+  GetProcessRunChangesData,
+  GetProcessRunChangesErrors,
+  GetProcessRunChangesResponses,
   GetProcessRunCleanupData,
   GetProcessRunCleanupErrors,
   GetProcessRunCleanupResponses,
@@ -2742,6 +2745,20 @@ export const getProcessRunIntegrationOptions = <ThrowOnError extends boolean = f
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/process-runs/{runId}/integration-options',
+    ...options,
+  })
+
+export const getProcessRunChanges = <ThrowOnError extends boolean = false>(
+  options: Options<GetProcessRunChangesData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetProcessRunChangesResponses,
+    GetProcessRunChangesErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/changes',
     ...options,
   })
 

@@ -75,6 +75,7 @@ import type {
   SignoffVerdictInput,
   SignoffVerdictKey,
 } from './checkMethodTypes'
+import { processChangesChipLabel } from './processRunChanges'
 import { codeReviewVerdict, isCodeReview, reportAuthor } from './reviewEvidenceView'
 import { NOT_VERIFIED_DETAIL } from './runReviewConstants'
 import { checkTestCounts, finishedTestFileCount } from './testCounts'
@@ -719,7 +720,7 @@ export function reviewTabs(input: ReviewTabsInput): ReviewTab[] {
     build: undefined,
     report: undefined,
     'code-review': undefined,
-    changes: input.changedFiles,
+    changes: input.changedFiles ?? input.changes?.files,
   }
   const present: Record<ReviewTabId, boolean> = {
     screens: input.screens > 0,
@@ -729,7 +730,7 @@ export function reviewTabs(input: ReviewTabsInput): ReviewTab[] {
     build: input.buildChecks > 0,
     report: input.reports > 0,
     'code-review': (input.codeReviews ?? 0) > 0,
-    changes: input.changedFiles !== undefined,
+    changes: input.changedFiles !== undefined || input.changes !== undefined,
   }
   return reviewTabOrder(input.lead)
     .filter((id) => present[id])
@@ -738,6 +739,11 @@ export function reviewTabs(input: ReviewTabsInput): ReviewTab[] {
       label: REVIEW_TAB_LABELS[id],
       count: counts[id],
       ...(id === 'loom' && input.loom ? { chip: loomTabChip(input.loom.left) } : {}),
+      ...(id === 'changes' && input.changes
+        ? {
+            chip: { label: processChangesChipLabel(input.changes.files), state: 'passed' as const },
+          }
+        : {}),
     }))
 }
 

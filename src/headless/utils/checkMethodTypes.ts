@@ -213,6 +213,11 @@ export type ReviewTabsInput = {
   buildChecks: number
   /** `undefined` while the diff is unknown; 0 is a real answer. */
   changedFiles: number | undefined
+  /**
+   * A sign-off's own changes: their tab is there while they are read, its chip
+   * naming the files once `files` is known.
+   */
+  changes?: { files: number | undefined }
   /** How many code reviews are shown — gates the Code review tab. */
   codeReviews?: number
   /** The tab that leads the rest when it is there — the story's final report. */

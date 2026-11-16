@@ -1,8 +1,14 @@
-import type { AccessRecord, ReportProofStatus, ReportSections } from 'thefactory-tools/types'
+import type {
+  AccessRecord,
+  ProcessRunChanges,
+  ReportProofStatus,
+  ReportSections,
+} from 'thefactory-tools/types'
 
 import type { AccessRecordRowView } from './accessRecordViewTypes'
 import type { AcceptanceJudgement } from './acceptanceJudgementTypes'
 import type { CheckMethodRow, CheckMethodState, ReviewTabId } from './checkMethodTypes'
+import type { ProcessChangesBody } from './processRunChangesTypes'
 import type { VerifyReviewStatus } from './processView'
 import type { TestCounts } from './testCounts'
 import type { CodeReviewTone } from './signoffCodeReviewTypes'
@@ -53,6 +59,8 @@ export type SignoffReportView = {
   howProven: ReportSectionView<ReportProofRow[]> | undefined
   decisions: ReportSectionView<string[]> | undefined
   needsYou: ReportSectionView<string[]> | undefined
+  /** What the run's work changes, file by file. Absent until they are read. */
+  changes?: ReportSectionView<ProcessChangesBody>
   /** Cross-project access and automatic actions recorded on the run. Absent when none were. */
   access: ReportSectionView<AccessRecordRowView[]> | undefined
   /** The report as written, when it could not be read as sections — shown as markdown. */
@@ -85,6 +93,8 @@ export type SignoffReportInput = {
   accessRecords?: readonly AccessRecord[]
   /** Project id to title, so a record names the project it reached. */
   projectNames?: Readonly<Record<string, string>>
+  /** The run's changes, once read — "What changed" is left out until then. */
+  changes?: ProcessRunChanges
 }
 
 /** What a step's preview says of the report: four small tiles. */

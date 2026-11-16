@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 import {
+  PROCESS_CHANGES_TEXT,
   PROCESS_INTEGRATION_CANCEL,
   PROCESS_INTEGRATION_CHECK_MERGE,
   PROCESS_INTEGRATION_CHOOSER_HEAD,
@@ -36,6 +37,8 @@ export type IntegrationChooserProps = {
   initialMode?: ProcessIntegrationMode
   /** The question heading the choices. */
   head?: string
+  /** What the work changes, said under the question, and how to see them. */
+  changes?: { summary: string; onOpen: () => void }
   /** The button that sends the decision. */
   submitLabel?: string
   busy?: boolean
@@ -59,6 +62,7 @@ export default function IntegrationChooser({
   head = PROCESS_INTEGRATION_CHOOSER_HEAD,
   submitLabel = PROCESS_INTEGRATION_FORM_LABELS.land,
   busy = false,
+  changes,
   onChoose,
   onCancel,
 }: IntegrationChooserProps) {
@@ -72,6 +76,19 @@ export default function IntegrationChooser({
     return (
       <div role="group" aria-label={head} className="flex w-full flex-col gap-2">
         <span className="text-[12.5px] font-semibold text-(--text-primary)">{head}</span>
+        {changes ? (
+          <span className="flex flex-wrap items-baseline gap-1.5 text-[12px] text-(--text-secondary)">
+            <span className="tabular-nums">{changes.summary}</span>
+            <span aria-hidden>·</span>
+            <button
+              type="button"
+              onClick={changes.onOpen}
+              className="font-medium text-(--accent-primary) underline-offset-2 hover:underline"
+            >
+              {PROCESS_CHANGES_TEXT.open}
+            </button>
+          </span>
+        ) : null}
         <div className="flex flex-col gap-1.5">
           {choices.map((choice) => (
             <button

@@ -4,6 +4,10 @@ import { useNavigate } from 'react-router-dom'
 import {
   accessRecordProjectNames,
   acceptanceCriteriaLines,
+  gitDiffChangeFile,
+  PROCESS_CHANGES_TEXT,
+  processChangesSummary,
+  useProcessRunChanges,
   aggregateTestCounts,
   capabilitySetupHandler,
   capabilitySetupOffered,
@@ -90,6 +94,7 @@ import CheckChip from '../chips/CheckChip'
 import SignoffCarriedCard from './signoff/SignoffCarriedCard'
 import SetUpWithAgentButton from '../chips/SetUpWithAgentButton'
 import {
+  ChangesTab,
   ChecksTab,
   ComparisonOverlay,
   DurCostChips,
@@ -327,6 +332,8 @@ function StorySignoffPanel({
   const { options: landingOptions } = useProcessIntegrationOptions(
     workBranch && !workBranch.shadow ? storyRunId : undefined,
   )
+  const runChanges = useProcessRunChanges(workBranch ? storyRunId : undefined)
+  const evidenceRef = useRef<HTMLElement>(null)
   const acceptReport = workBranch
     ? processNothingToMergeSignOff(workBranch, landingOptions?.nothingToMerge, integrationModes)
     : undefined
@@ -584,6 +591,7 @@ function StorySignoffPanel({
     testChecks: ranReviewChecks(testChecks).length,
     buildChecks: ranReviewChecks(buildChecks).length,
     changedFiles: undefined,
+    ...(workBranch ? { changes: { files: runChanges.changes?.diff.files.length } } : {}),
     codeReviews: overall ? overallSection.codeReviews.length : 0,
     ...(overallSection.leadTab ? { lead: overallSection.leadTab } : {}),
     ...(loom.view ? { loom: { total: loom.view.rows.length, left: loom.view.left } } : {}),
@@ -664,7 +672,12 @@ function StorySignoffPanel({
     ...(signoff.accessRecords ? { accessRecords: signoff.accessRecords } : {}),
     projectNames: accessRecordProjectNames(projects),
     tabs: tabs.map((t) => t.id),
+    ...(runChanges.changes ? { changes: runChanges.changes } : {}),
   })
+  const showChanges = () => {
+    openTab('changes')
+    evidenceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   const decide = (
     choice: ProcessResumeChoice,
@@ -714,6 +727,7 @@ function StorySignoffPanel({
   const evidenceCard =
     chips.length > 0 || extraChips.length > 0 ? (
       <section
+        ref={evidenceRef}
         aria-label={SIGNOFF_SECTION_TITLES.evidence}
         className="overflow-hidden rounded-xl border border-(--border-subtle) bg-(--surface-raised)"
       >
@@ -793,6 +807,32 @@ function StorySignoffPanel({
           ) : current?.target.tab === 'walkthrough' ? (
             <div className="pt-3">
               <WalkthroughTab projectId={projectId} recordings={proofRecordings} />
+            </div>
+          ) : current?.target.tab === 'changes' ? (
+            <div className="flex flex-col gap-2 pt-3">
+              {runChanges.changes?.seamsIncluded ? (
+                <span className="text-[12px] text-(--text-secondary)">
+                  {PROCESS_CHANGES_TEXT.seamsIncluded}
+                </span>
+              ) : null}
+              <ChangesTab
+                projectId={projectId}
+                review={undefined}
+                {...(runChanges.changes
+                  ? {
+                      span: {
+                        ...(runChanges.changes.landed ? {} : { branch: workBranch?.name }),
+                        baseSha: runChanges.changes.from,
+                        headSha: runChanges.changes.to,
+                      },
+                    }
+                  : {})}
+                files={runChanges.changes?.diff.files.map(gitDiffChangeFile) ?? []}
+                loading={runChanges.loading && !runChanges.changes}
+                error={runChanges.error}
+                onRetry={runChanges.error ? () => void runChanges.reload() : undefined}
+                onOpenGit={undefined}
+              />
             </div>
           ) : current?.target.tab === 'loom' && loom.view ? (
             <LoomWalkthroughPanel
@@ -894,6 +934,14 @@ function StorySignoffPanel({
               runId={storyRunId}
               workBranch={workBranch}
               {...(integrationModes ? { modes: integrationModes } : {})}
+              {...(runChanges.changes
+                ? {
+                    changes: {
+                      summary: processChangesSummary(runChanges.changes),
+                      onOpen: showChanges,
+                    },
+                  }
+                : {})}
               busy={busy}
               onChoose={(decision) => decide('approve', undefined, decision)}
               onCancel={() => setStep('idle')}

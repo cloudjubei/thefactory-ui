@@ -3610,6 +3610,23 @@ export {
   useProcessIntegrationOptions,
   type UseProcessIntegrationOptions,
 } from './hooks/useProcessIntegrationOptions'
+export { useProcessRunChanges, type UseProcessRunChanges } from './hooks/useProcessRunChanges'
+export {
+  gitDiffChangeFile,
+  processChangesChipLabel,
+  processChangesSection,
+  processChangesSummary,
+} from './utils/processRunChanges'
+export {
+  PROCESS_CHANGES_FILES,
+  PROCESS_CHANGES_TEXT,
+  PROCESS_CHANGES_UNREADABLE,
+} from './utils/processRunChangesConstants'
+export type {
+  GitChangeFile,
+  ProcessChangeRow,
+  ProcessChangesBody,
+} from './utils/processRunChangesTypes'
 export {
   baseBranchChoice,
   baseBranchChoiceView,

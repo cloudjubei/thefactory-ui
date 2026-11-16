@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 import type { CliRunReview } from '../../../../headless/api'
-import { formatTime, type BranchCommit } from '../../../../headless'
+import { formatTime, type BranchCommit, type GitChangeFile } from '../../../../headless'
 import type { ViewedFilesProgress } from '../../../../headless/utils/runReviewTypes'
 import { Button } from '../../../primitives/Button'
 import { IconChevron, IconExternalLink } from '../../../icons'
@@ -11,17 +11,11 @@ import GitFileStatusIcon from '../../git/common/GitFileStatusIcon'
 import { PathDisplay } from '../../PathDisplay'
 import { CommitChip, RefChip } from '../../chips'
 
-/** One changed file, whichever path (review branch or captured artifact) it came from. */
-export type ChangeFile = {
-  path: string
-  /** `A` / `M` / `D`, as the git views expect. */
-  status: 'A' | 'M' | 'D'
-  patch?: string
-  /** Why there is no patch to show, when there is none. */
-  note?: string
-  /** A warning to surface beside the path (a conflict, an unsafe path). */
-  warning?: string
-}
+/** One changed file, whichever path (review branch, process run or captured artifact) it came from. */
+export type ChangeFile = GitChangeFile
+
+/** The two commits a change is read between, and the branch it is on when it still has one. */
+export type ChangesSpan = { branch?: string; baseSha: string; headSha?: string }
 
 export type ChangesTabProps = {
   /** The project the branch belongs to — where its commits open. */
@@ -29,6 +23,8 @@ export type ChangesTabProps = {
   /** The branch's own commits, newest first; empty when they are unknown. */
   commits?: readonly BranchCommit[]
   review: CliRunReview | undefined
+  /** The header's commits when there is no review to read them from — a process run's. */
+  span?: ChangesSpan
   files: readonly ChangeFile[]
   loading: boolean
   error: string | undefined
@@ -126,11 +122,21 @@ export default function ChangesTab({
   onOpenGit,
   commits = [],
   viewed,
+  span,
 }: ChangesTabProps) {
   const [commitsOpen, setCommitsOpen] = useState(false)
+  const header: ChangesSpan | undefined = review
+    ? review.shadow
+      ? undefined
+      : {
+          branch: review.branch,
+          baseSha: review.baseSha,
+          ...(review.headSha ? { headSha: review.headSha } : {}),
+        }
+    : span
   return (
     <div className="flex flex-col gap-2">
-      {review && !review.shadow ? (
+      {header ? (
         <div className="flex flex-wrap items-center gap-2 text-xs">
           {commits.length > 0 ? (
             <>
@@ -145,13 +151,13 @@ export default function ChangesTab({
               <span className="text-(--text-muted)">on</span>
             </>
           ) : null}
-          <RefChip kind="branch" value={review.branch} />
+          {header.branch ? <RefChip kind="branch" value={header.branch} /> : null}
           <span className="text-(--text-muted)">from</span>
-          <CommitChip projectId={projectId} sha={review.baseSha} />
-          {review.headSha ? (
+          <CommitChip projectId={projectId} sha={header.baseSha} />
+          {header.headSha ? (
             <>
               <span className="text-(--text-muted)">to</span>
-              <CommitChip projectId={projectId} sha={review.headSha} />
+              <CommitChip projectId={projectId} sha={header.headSha} />
             </>
           ) : null}
           <span className="flex-1" />

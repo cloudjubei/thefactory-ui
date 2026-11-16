@@ -147,6 +147,18 @@ describe('signoffEvidenceChips', () => {
     ])
   })
 
+  it('opens the code review from its chip even when the run’s changes have a tab of their own', () => {
+    const chips = signoffEvidenceChips(
+      [row({ id: 'diff', label: 'Code review', action: { kind: 'open-proof', tab: 'changes' } })],
+      [tab('code-review'), tab('changes')],
+      order,
+    )
+    expect(chips.map((c) => [c.key, c.target])).toEqual([
+      ['diff', { kind: 'tab', tab: 'code-review' }],
+      ['tab-changes', { kind: 'tab', tab: 'changes' }],
+    ])
+  })
+
   it('explains a missing method in its own words', () => {
     const [chip] = signoffEvidenceChips(
       [row({ id: 'uitests', label: 'UI tests', state: 'unconfigured', detail: 'No UI tests.' })],

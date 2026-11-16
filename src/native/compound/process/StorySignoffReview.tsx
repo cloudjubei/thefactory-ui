@@ -5,6 +5,10 @@ import type { ProcessRunFeatureSplit } from 'thefactory-tools/types'
 import {
   accessRecordProjectNames,
   acceptanceCriteriaLines,
+  gitDiffChangeFile,
+  PROCESS_CHANGES_TEXT,
+  processChangesSummary,
+  useProcessRunChanges,
   aggregateTestCounts,
   capabilitySetupHandler,
   capabilitySetupOffered,
@@ -92,6 +96,7 @@ import type { ChatAttachmentFile, ProjectChecksListing } from '../../../headless
 import CheckChip from '../chips/CheckChip'
 import SetUpWithAgentButton from '../chips/SetUpWithAgentButton'
 import {
+  ChangesTab,
   ChecksTab,
   ComparisonOverlay,
   DurCostChips,
@@ -348,6 +353,7 @@ function StorySignoffPanel({
   const { options: landingOptions } = useProcessIntegrationOptions(
     workBranch && !workBranch.shadow ? storyRunId : undefined,
   )
+  const runChanges = useProcessRunChanges(workBranch ? storyRunId : undefined)
   const acceptReport = workBranch
     ? processNothingToMergeSignOff(workBranch, landingOptions?.nothingToMerge, integrationModes)
     : undefined
@@ -606,6 +612,7 @@ function StorySignoffPanel({
     testChecks: ranReviewChecks(testChecks).length,
     buildChecks: ranReviewChecks(buildChecks).length,
     changedFiles: undefined,
+    ...(workBranch ? { changes: { files: runChanges.changes?.diff.files.length } } : {}),
     codeReviews: overall ? overallSection.codeReviews.length : 0,
     ...(overallSection.leadTab ? { lead: overallSection.leadTab } : {}),
     ...(loom.view ? { loom: { total: loom.view.rows.length, left: loom.view.left } } : {}),
@@ -686,6 +693,7 @@ function StorySignoffPanel({
     ...(signoff.accessRecords ? { accessRecords: signoff.accessRecords } : {}),
     projectNames: accessRecordProjectNames(projects),
     tabs: tabs.map((t) => t.id),
+    ...(runChanges.changes ? { changes: runChanges.changes } : {}),
   })
 
   const decide = (
@@ -823,6 +831,32 @@ function StorySignoffPanel({
           />
         ) : current?.target.tab === 'walkthrough' ? (
           <WalkthroughTab projectId={projectId} recordings={proofRecordings} {...save} />
+        ) : current?.target.tab === 'changes' ? (
+          <View style={{ gap: 8 }}>
+            {runChanges.changes?.seamsIncluded ? (
+              <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+                {PROCESS_CHANGES_TEXT.seamsIncluded}
+              </Text>
+            ) : null}
+            <ChangesTab
+              projectId={projectId}
+              review={undefined}
+              {...(runChanges.changes
+                ? {
+                    span: {
+                      ...(runChanges.changes.landed ? {} : { branch: workBranch?.name }),
+                      baseSha: runChanges.changes.from,
+                      headSha: runChanges.changes.to,
+                    },
+                  }
+                : {})}
+              files={runChanges.changes?.diff.files.map(gitDiffChangeFile) ?? []}
+              loading={runChanges.loading && !runChanges.changes}
+              error={runChanges.error}
+              onRetry={runChanges.error ? () => void runChanges.reload() : undefined}
+              onOpenGit={undefined}
+            />
+          </View>
         ) : current?.target.tab === 'loom' && loom.view ? (
           <LoomWalkthroughPanel
             view={loom.view}
@@ -936,6 +970,14 @@ function StorySignoffPanel({
             runId={storyRunId}
             workBranch={workBranch}
             {...(integrationModes ? { modes: integrationModes } : {})}
+            {...(runChanges.changes
+              ? {
+                  changes: {
+                    summary: processChangesSummary(runChanges.changes),
+                    onOpen: () => openTab('changes'),
+                  },
+                }
+              : {})}
             busy={busy}
             onChoose={(decision) => decide('approve', undefined, decision)}
             onCancel={() => setStep('idle')}

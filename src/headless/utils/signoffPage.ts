@@ -90,10 +90,10 @@ function missingTarget(row: CheckMethodRow): SignoffEvidenceTarget {
 
 function targetOf(row: CheckMethodRow, tabs: ReadonlySet<ReviewTabId>): SignoffEvidenceTarget {
   if (isAbsentCheck(row)) return missingTarget(row)
+  if (row.id === 'diff' && tabs.has('code-review')) return { kind: 'tab', tab: 'code-review' }
   if (row.action.kind === 'open-proof' && tabs.has(row.action.tab)) {
     return { kind: 'tab', tab: row.action.tab }
   }
-  if (row.id === 'diff' && tabs.has('code-review')) return { kind: 'tab', tab: 'code-review' }
   return missingTarget(row)
 }
 

@@ -33,3 +33,6 @@ export const REVIEW_EVIDENCE_LINGER_MS = 30_000
 
 /** Runs whose integration options are kept across views. */
 export const INTEGRATION_OPTIONS_CACHE_CAPACITY = 8
+
+/** How many runs' changes are kept: the sign-offs open now and the few before them. */
+export const PROCESS_RUN_CHANGES_CACHE_CAPACITY = 8

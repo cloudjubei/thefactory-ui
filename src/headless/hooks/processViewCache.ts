@@ -8,6 +8,7 @@
 import type {
   ProcessIntegrationOptions,
   ProcessRun,
+  ProcessRunChanges,
   ProcessRunSummary,
 } from 'thefactory-tools/types'
 
@@ -17,6 +18,7 @@ import {
   ALL_PROJECTS_PROCESS_RUN_LIST_KEY,
   INTEGRATION_OPTIONS_CACHE_CAPACITY,
   PROCESS_RUN_CACHE_CAPACITY,
+  PROCESS_RUN_CHANGES_CACHE_CAPACITY,
   PROCESS_RUN_LIST_CACHE_CAPACITY,
   PROJECT_CHECKS_CACHE_CAPACITY,
   REVIEW_EVIDENCE_CACHE_CAPACITY,
@@ -52,6 +54,11 @@ export const integrationOptionsCache = new BoundedCache<ProcessIntegrationOption
   INTEGRATION_OPTIONS_CACHE_CAPACITY,
 )
 
+/** What a run's work changes, by run id — its sign-off's Changes, merge line and report. */
+export const processRunChangesCache = new BoundedCache<ProcessRunChanges>(
+  PROCESS_RUN_CHANGES_CACHE_CAPACITY,
+)
+
 /** The list key of a scope: one project's runs, or every project's. */
 export function processRunListKey(projectId: string | undefined): string {
   return projectId ?? ALL_PROJECTS_PROCESS_RUN_LIST_KEY
@@ -83,4 +90,5 @@ export function clearProcessViewCaches(): void {
   reviewEvidenceCache.clear()
   projectChecksCache.clear()
   integrationOptionsCache.clear()
+  processRunChangesCache.clear()
 }

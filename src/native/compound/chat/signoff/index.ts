@@ -1,4 +1,9 @@
-export { default as ChangesTab, type ChangeFile, type ChangesTabProps } from './ChangesTab'
+export {
+  default as ChangesTab,
+  type ChangeFile,
+  type ChangesSpan,
+  type ChangesTabProps,
+} from './ChangesTab'
 export { default as CheckChipRow, type CheckChipRowProps } from './CheckChipRow'
 export { default as ChecksTab, type ChecksTabProps } from './ChecksTab'
 export { default as ComparisonOverlay, type ComparisonOverlayProps } from './ComparisonOverlay'

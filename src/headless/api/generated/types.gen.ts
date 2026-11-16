@@ -237,6 +237,16 @@ export type ActionChangeEvent =
       action: PendingAction
     }
 
+export type FinishedToolCall = {
+  toolName: string
+  args: {
+    [key: string]: unknown
+  }
+  ok: boolean
+  at: number
+  actionId?: string
+}
+
 export type ActivityStopRequest = {
   activityId: string
   reason?: string
@@ -2263,6 +2273,7 @@ export type ToolName =
   | 'getSettingsPrompt'
   | 'updateSettingsPrompt'
   | 'resetSettingsPrompt'
+  | 'hydrate'
   | 'startCliAgentRun'
   | 'getCliAgentRun'
   | 'deleteCliAgentRun'
@@ -4266,6 +4277,11 @@ export type ProjectCheckEnvSetting = {
   secrets?: Array<ProjectCheckEnvSecretRef>
 }
 
+export type ProjectTemplateProvenance = {
+  templateId: string
+  commit: string
+}
+
 export type ProjectRegistryMetadata = {
   githubCredentialsId?: string
   ticketConnection?: TicketConnectionBinding | 'none'
@@ -4301,6 +4317,10 @@ export type ProjectRegistryMetadata = {
     entry: string
     parts: Array<UiStackPart>
     start?: UiStackStartCommand | UiStackStartRequest
+  }
+  templateProvenance?: {
+    templateId: string
+    commit: string
   }
   [key: string]: unknown
 }
@@ -4352,6 +4372,10 @@ export type ProjectRegistryEntry = {
       entry: string
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
+    }
+    templateProvenance?: {
+      templateId: string
+      commit: string
     }
     [key: string]: unknown
   }
@@ -5188,6 +5212,12 @@ export type CodexTokenCountEvents = {
   }>
 }
 
+export type ClaudeRateLimitEvents = {
+  events: Array<{
+    [key: string]: unknown
+  }>
+}
+
 export type CliSandboxBoundaryToolName =
   | 'requestNetworkUnlock'
   | 'requestInstallPackage'
@@ -5464,10 +5494,19 @@ export type ModelInfo = {
   source?: 'live' | 'static'
 }
 
+export type CliAgentPlanWindow = {
+  usedPercent?: number
+  windowMinutes?: number
+  resetsAt: number
+  status?: string
+}
+
 export type CliAgentSubscriptionStatus = {
   plan?: string
   tokensRemainingPerWindow?: number
   windowResetAt?: number
+  windows?: Array<CliAgentPlanWindow>
+  windowsNotReported?: true
   [key: string]: unknown
 }
 
@@ -5707,6 +5746,13 @@ export type CliRun = {
     plan?: string
     tokensRemainingPerWindow?: number
     windowResetAt?: number
+    windows?: Array<{
+      usedPercent?: number
+      windowMinutes?: number
+      resetsAt: number
+      status?: string
+    }>
+    windowsNotReported?: true
     [key: string]: unknown
   }
   retryAttempts?: number
@@ -5991,6 +6037,13 @@ export type CliRunSummary = {
     plan?: string
     tokensRemainingPerWindow?: number
     windowResetAt?: number
+    windows?: Array<{
+      usedPercent?: number
+      windowMinutes?: number
+      resetsAt: number
+      status?: string
+    }>
+    windowsNotReported?: true
     [key: string]: unknown
   }
   retryAttempts?: number
@@ -6341,6 +6394,13 @@ export type ClaudeCodeInitMetadata = {
   apiKeySource?: string
 }
 
+export type ClaudeCodeRateLimitEvent = {
+  status: string
+  rateLimitType?: string
+  resetsAt?: number
+  utilization?: number
+}
+
 export type CursorInitMetadata = {
   sessionId?: string
   model?: string
@@ -6363,6 +6423,22 @@ export type CodexTokenCount = {
     cacheCreation1hTokens?: number
     outputTokensNotReported?: true
     incompleteReasons?: Array<UsageCompletenessReason>
+  }
+}
+
+export type CodexRateLimits = {
+  planType?: string
+  primary?: {
+    usedPercent?: number
+    windowMinutes?: number
+    resetsAt: number
+    status?: string
+  }
+  secondary?: {
+    usedPercent?: number
+    windowMinutes?: number
+    resetsAt: number
+    status?: string
   }
 }
 
@@ -6684,6 +6760,13 @@ export type CliRunApproveResult = {
       plan?: string
       tokensRemainingPerWindow?: number
       windowResetAt?: number
+      windows?: Array<{
+        usedPercent?: number
+        windowMinutes?: number
+        resetsAt: number
+        status?: string
+      }>
+      windowsNotReported?: true
       [key: string]: unknown
     }
     retryAttempts?: number
@@ -6903,6 +6986,19 @@ export type ResidentTurnSpend = {
     observed: true
     trigger?: string
   }
+  subscription?: {
+    plan?: string
+    tokensRemainingPerWindow?: number
+    windowResetAt?: number
+    windows?: Array<{
+      usedPercent?: number
+      windowMinutes?: number
+      resetsAt: number
+      status?: string
+    }>
+    windowsNotReported?: true
+    [key: string]: unknown
+  }
 }
 
 export type ResidentTurnResult = {
@@ -6917,6 +7013,19 @@ export type ResidentTurnResult = {
     compactBoundary?: {
       observed: true
       trigger?: string
+    }
+    subscription?: {
+      plan?: string
+      tokensRemainingPerWindow?: number
+      windowResetAt?: number
+      windows?: Array<{
+        usedPercent?: number
+        windowMinutes?: number
+        resetsAt: number
+        status?: string
+      }>
+      windowsNotReported?: true
+      [key: string]: unknown
     }
   }
 }
@@ -13398,6 +13507,48 @@ export type ProjectFilesRegeneration =
       reason: string
     }
 
+export type MobilePlatform = 'android' | 'ios'
+
+export type MobileStartedDevice = {
+  platform: MobilePlatform
+  deviceId: string
+  avd?: string
+  name?: string
+}
+
+export type DeviceRef = {
+  platform: MobilePlatform
+  deviceId: string
+}
+
+export type MobileDeviceLeaseKind = 'run-step' | 'check' | 'capture' | 'live-check' | 'agent'
+
+export type MobileDeviceLeaseClaim = {
+  kind: MobileDeviceLeaseKind
+  id: string
+  owner?: string
+}
+
+export type MobileDeviceBootRecord = {
+  device: MobileStartedDevice
+  bootedAt: number
+  bootId?: string
+}
+
+export type MobileDeviceLeaseRun = {
+  id: string
+  status: string
+  cursor?: {
+    stepId: string
+    iteration: number
+  }
+}
+
+export type MobileDeviceLeaseRunChange = {
+  release: boolean
+  stepKey?: string
+}
+
 export type MobileLiveSessionInput = {
   deviceId: string
   avd?: string
@@ -13407,8 +13558,6 @@ export type MobileLiveSessionInput = {
   }
   captureDeviceIds: Array<string>
 }
-
-export type MobilePlatform = 'android' | 'ios'
 
 export type MobileSecretTypingSession = {
   platform: MobilePlatform
@@ -13546,13 +13695,6 @@ export type BootEmulatorResult = {
   avd?: string
   name?: string
   started: boolean
-}
-
-export type MobileStartedDevice = {
-  platform: MobilePlatform
-  deviceId: string
-  avd?: string
-  name?: string
 }
 
 export type MobileDeviceStopStatus = 'stopped' | 'not-running' | 'refused'
@@ -14950,6 +15092,7 @@ export type ProcessRunIntegration = {
     }
   }
   sha?: string
+  onto?: string
   landedBy?: {
     commit: string
     subject?: string
@@ -15199,6 +15342,7 @@ export type ProcessRunReopening = {
       }
     }
     sha?: string
+    onto?: string
     landedBy?: {
       commit: string
       subject?: string
@@ -15320,6 +15464,7 @@ export type ProcessPlanAmendment = {
         }
       }
       sha?: string
+      onto?: string
       landedBy?: {
         commit: string
         subject?: string
@@ -16425,6 +16570,7 @@ export type ProcessLedgerEntry = {
     toSha: string
     keptRef: string
   }
+  unchangedAt?: string
   reusedChecksOf?: string
   notCaused?: Array<ProjectCheckNotCausedReport>
   preExistingBreak?: {
@@ -16512,6 +16658,7 @@ export type ProcessLedgerEntry = {
     flipFlopFiles?: Array<string>
     tip?: string
   }
+  workBranchStartTip?: string
   circling?: {
     summary: string
     signals: Array<ProcessCirclingSignal>
@@ -16806,6 +16953,7 @@ export type ProcessRun = {
       }
     }
     sha?: string
+    onto?: string
     landedBy?: {
       commit: string
       subject?: string
@@ -17651,6 +17799,10 @@ export type ProjectSpecCreateInput = {
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
     }
+    templateProvenance?: {
+      templateId: string
+      commit: string
+    }
     [key: string]: unknown
   }
   active?: boolean
@@ -17744,6 +17896,10 @@ export type ProjectSpecEditInput = {
       entry: string
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
+    }
+    templateProvenance?: {
+      templateId: string
+      commit: string
     }
     [key: string]: unknown
   }
@@ -17906,6 +18062,11 @@ export type ProjectAppSettingsLayers = {
     | unknown
 }
 
+export type BuildFailureOutput = {
+  stdout: string
+  stderr: string
+}
+
 export type OutOfTreeDependency = {
   label: string
   path: string
@@ -17955,6 +18116,11 @@ export type ProjectCheckBaselineCacheEntry = {
 export type ProjectCheckBaselineStamp = {
   ranAt: number
   reused: boolean
+}
+
+export type ProjectCheckFreshDue = {
+  tests: Array<string>
+  files: Array<string>
 }
 
 export type ProjectCheckFreshRounds = {
@@ -22552,6 +22718,7 @@ export type CaptureToolSet = {
     | 'getSettingsPrompt'
     | 'updateSettingsPrompt'
     | 'resetSettingsPrompt'
+    | 'hydrate'
     | 'startCliAgentRun'
     | 'getCliAgentRun'
     | 'deleteCliAgentRun'
@@ -23116,6 +23283,7 @@ export type CaptureToolSet = {
     | 'getSettingsPrompt'
     | 'updateSettingsPrompt'
     | 'resetSettingsPrompt'
+    | 'hydrate'
     | 'startCliAgentRun'
     | 'getCliAgentRun'
     | 'deleteCliAgentRun'
@@ -23687,6 +23855,7 @@ export type CaptureToolSet = {
     | 'getSettingsPrompt'
     | 'updateSettingsPrompt'
     | 'resetSettingsPrompt'
+    | 'hydrate'
     | 'startCliAgentRun'
     | 'getCliAgentRun'
     | 'deleteCliAgentRun'
@@ -24251,6 +24420,7 @@ export type CaptureToolSet = {
     | 'getSettingsPrompt'
     | 'updateSettingsPrompt'
     | 'resetSettingsPrompt'
+    | 'hydrate'
     | 'startCliAgentRun'
     | 'getCliAgentRun'
     | 'deleteCliAgentRun'
@@ -24816,6 +24986,7 @@ export type CaptureToolSet = {
     | 'getSettingsPrompt'
     | 'updateSettingsPrompt'
     | 'resetSettingsPrompt'
+    | 'hydrate'
     | 'startCliAgentRun'
     | 'getCliAgentRun'
     | 'deleteCliAgentRun'
@@ -29062,6 +29233,7 @@ export type ClosureRun = {
       }
     }
     sha?: string
+    onto?: string
     landedBy?: {
       commit: string
       subject?: string
@@ -29808,6 +29980,7 @@ export type ProcessRunChatState = {
         }
       }
       sha?: string
+      onto?: string
       landedBy?: {
         commit: string
         subject?: string
@@ -30530,6 +30703,7 @@ export type ProcessWorkBranchLandingCheck =
 export type ProcessIntegrationOutcome = {
   status: 'integrated' | 'already-landed' | 'failed'
   sha?: string
+  onto?: string
   landedBy?: {
     commit: string
     subject?: string
@@ -30577,6 +30751,28 @@ export type ProcessIntegrationOutcome = {
   }
   regenerated?: Array<string>
   broughtInRunIds?: Array<string>
+}
+
+export type ProcessChangesRange = {
+  from: string
+  to: string
+  landed: boolean
+  seamsIncluded?: true
+}
+
+export type ProcessRunChanges = {
+  from: string
+  to: string
+  landed: boolean
+  seamsIncluded?: true
+  diff: {
+    baseRef: string
+    headRef: string
+    files: Array<GitFileChange>
+    insertions: number
+    deletions: number
+    patch?: string
+  }
 }
 
 export type ProcessWorkBranchReplay = {
@@ -30698,6 +30894,7 @@ export type ProcessRunSummary = {
       }
     }
     sha?: string
+    onto?: string
     landedBy?: {
       commit: string
       subject?: string
@@ -31130,6 +31327,7 @@ export type ProcessNoProgress = {
   stepId: string
   entryId: string
   message: string
+  unchangedAt?: string
 }
 
 export type ProcessFanOutHeld = {
@@ -31411,6 +31609,7 @@ export type ProcessStepResult = {
     flipFlopFiles?: Array<string>
     tip?: string
   }
+  workBranchStartTip?: string
   agentNotStarted?: string
   unmetRequest?: string
   cleanup?: {
@@ -31773,6 +31972,7 @@ export type ProcessStepState = {
       toSha: string
       keptRef: string
     }
+    unchangedAt?: string
     reusedChecksOf?: string
     notCaused?: Array<ProjectCheckNotCausedReport>
     preExistingBreak?: {
@@ -31860,6 +32060,7 @@ export type ProcessStepState = {
       flipFlopFiles?: Array<string>
       tip?: string
     }
+    workBranchStartTip?: string
     circling?: {
       summary: string
       signals: Array<ProcessCirclingSignal>
@@ -37641,6 +37842,46 @@ export type GetProcessRunIntegrationOptionsResponses = {
 
 export type GetProcessRunIntegrationOptionsResponse =
   GetProcessRunIntegrationOptionsResponses[keyof GetProcessRunIntegrationOptionsResponses]
+
+export type GetProcessRunChangesData = {
+  body?: never
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}/changes'
+}
+
+export type GetProcessRunChangesErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetProcessRunChangesError = GetProcessRunChangesErrors[keyof GetProcessRunChangesErrors]
+
+export type GetProcessRunChangesResponses = {
+  /**
+   * Default Response
+   */
+  200: ProcessRunChanges
+}
+
+export type GetProcessRunChangesResponse =
+  GetProcessRunChangesResponses[keyof GetProcessRunChangesResponses]
 
 export type ResolveProcessRunIntegrationConflictData = {
   body?: never

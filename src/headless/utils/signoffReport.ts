@@ -33,6 +33,7 @@ import type {
 } from './signoffReportTypes'
 import type { ReviewTabId } from './checkMethodTypes'
 import { accessRecordSection } from './accessRecordView'
+import { processChangesSection } from './processRunChanges'
 import { clipLine, plainMarkdownLine } from './textLine'
 import { signoffCostView, signoffTimeView } from './signoffWork'
 
@@ -404,6 +405,7 @@ export function reportBodyView(
 export function signoffReportView(input: SignoffReportInput): SignoffReportView {
   return {
     tiles: reportTiles(input),
+    ...(input.changes ? { changes: processChangesSection(input.changes) } : {}),
     ...reportBodyView(input.report, input.tabs, input.proof, {
       ...(input.accessRecords ? { records: input.accessRecords } : {}),
       ...(input.projectNames ? { projectNames: input.projectNames } : {}),

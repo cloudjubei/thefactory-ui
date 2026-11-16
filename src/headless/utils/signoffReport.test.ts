@@ -350,6 +350,27 @@ describe('signoffReportView', () => {
     expect(view.markdown).toBe('## Verdict\nDone.')
   })
 
+  it('says what changed, file by file, when the run’s changes are read — and nothing until then', () => {
+    expect(signoffReportView(input()).changes).toBeUndefined()
+    const changes = {
+      from: 'a'.repeat(40),
+      to: 'b'.repeat(40),
+      landed: false,
+      diff: {
+        baseRef: 'a'.repeat(40),
+        headRef: 'b'.repeat(40),
+        files: [{ path: 'package.json', status: 'M' as const, additions: 1, deletions: 0 }],
+        insertions: 1,
+        deletions: 0,
+      },
+    }
+    expect(signoffReportView(input({ changes })).changes).toMatchObject({
+      title: 'What changed',
+      summary: '1 file · +1 −0',
+      body: { rows: [{ path: 'package.json', stat: '+1 −0' }] },
+    })
+  })
+
   it('links each proof line to the tab that holds its proof, when that tab exists', () => {
     const rows = signoffReportView(input({ tabs: ['tests', 'code-review'] })).howProven!.body
     expect(rows.map((r) => [r.mark, r.tab, r.tabLabel])).toEqual([

@@ -1,4 +1,4 @@
-import { GIT_DIFF_SUPPRESSED_MESSAGE } from '../../../headless/utils/gitDiffConstants'
+import { gitDiffChangeFile } from '../../../headless/utils/processRunChanges'
 import RichText from '../files/RichText'
 import ReferenceTextarea from '../files/ReferenceTextarea'
 import { useCanonicalizeReferences } from '../../../headless/contexts/ReferenceRenderingContext'
@@ -7,7 +7,7 @@ import { viewedFilesProgress } from '../../../headless/utils/runReview'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 
-import type { FilesEmittedFilePreview, GitDiffSummary } from '../../../headless/api'
+import type { FilesEmittedFilePreview } from '../../../headless/api'
 import { answerFeatureQuestion } from '../../../headless/api'
 import {
   aggregateTestCounts,
@@ -136,25 +136,6 @@ export type CliRunArtifactPanelProps = {
 
 const TEST_METHODS: readonly CheckMethodId[] = ['tests']
 const BUILD_METHODS: readonly CheckMethodId[] = ['types', 'lint', 'format', 'build', 'uitests']
-
-function toChangeFile(file: GitDiffSummary['files'][number]): ChangeFile {
-  // Git already speaks in letters; renames, copies and the rest read as modified.
-  const status: ChangeFile['status'] = file.status === 'A' ? 'A' : file.status === 'D' ? 'D' : 'M'
-  return {
-    path: file.path,
-    status,
-    ...(file.patch ? { patch: file.patch } : {}),
-    ...(file.patch
-      ? {}
-      : {
-          note: file.patchSuppressed
-            ? GIT_DIFF_SUPPRESSED_MESSAGE
-            : file.binary
-              ? 'Binary file.'
-              : 'No textual diff.',
-        }),
-  }
-}
 
 function previewToChangeFile(file: FilesEmittedFilePreview, applied: boolean): ChangeFile {
   const status: ChangeFile['status'] =
@@ -488,7 +469,7 @@ export default function CliRunArtifactPanel({
   const discarded = discardedEditPaths(artifact)
   const changeFiles: ChangeFile[] = withDiscardWarnings(
     review
-      ? (reviewDiff?.files ?? []).map(toChangeFile)
+      ? (reviewDiff?.files ?? []).map(gitDiffChangeFile)
       : (preview?.files ?? []).map((f) => previewToChangeFile(f, isApplied)),
     discarded,
   )

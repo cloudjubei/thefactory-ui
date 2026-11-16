@@ -3,7 +3,9 @@ import { Pressable, Text, View } from 'react-native'
 import type { ReviewTabId, SignoffReportView } from '../../../../headless'
 import { useNativeTheme } from '../../../hooks/useNativeTheme'
 import { AccessRecordList } from '../AccessRecordList'
+import GitFileStatusIcon from '../../git/GitFileStatusIcon'
 import Markdown from '../../Markdown'
+import { PathDisplay } from '../../PathDisplay'
 import NeedsYouSection from './NeedsYouSection'
 import Pill from './Pill'
 import ReportTiles from './ReportTiles'
@@ -17,8 +19,8 @@ export type SignoffReportPanelProps = {
 }
 
 /**
- * Native peer of web's `SignoffReportPanel`: four tiles over Outcome, How it
- * was proven (each line linked to the tab with its proof), Decisions made,
+ * Native peer of web's `SignoffReportPanel`: four tiles over Outcome, What
+ * changed (each file opens the Changes tab), How it was proven (each line linked to the tab with its proof), Decisions made,
  * Needs you, and the access trail — or the markdown, when the report cannot
  * be read as sections.
  */
@@ -57,6 +59,42 @@ export default function SignoffReportPanel({
             text={view.outcome.body.detail ?? view.outcome.body.headline}
             textStyle={body}
           />
+        </SignoffSection>
+      ) : null}
+
+      {view.changes ? (
+        <SignoffSection
+          title={view.changes.title}
+          summary={view.changes.summary}
+          defaultOpen={view.changes.open}
+        >
+          <View style={{ gap: 6 }}>
+            {view.changes.body.note ? (
+              <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+                {view.changes.body.note}
+              </Text>
+            ) : null}
+            {view.changes.body.rows.map((row) => (
+              <Pressable
+                key={row.key}
+                accessibilityRole="button"
+                accessibilityLabel={`${row.path} ${row.stat}`}
+                disabled={!onOpenTab}
+                onPress={() => onOpenTab?.('changes')}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 2 }}
+              >
+                <GitFileStatusIcon status={row.status} />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <PathDisplay path={row.path} />
+                </View>
+                <Text
+                  style={{ fontSize: 12, color: theme.text.muted, fontVariant: ['tabular-nums'] }}
+                >
+                  {row.stat}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
         </SignoffSection>
       ) : null}
 

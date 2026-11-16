@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
 import {
+  PROCESS_CHANGES_TEXT,
   PROCESS_INTEGRATION_CANCEL,
   PROCESS_INTEGRATION_CHECK_MERGE,
   PROCESS_INTEGRATION_CHOOSER_HEAD,
@@ -46,6 +47,8 @@ export type IntegrationChooserProps = {
   initialMode?: ProcessIntegrationMode
   /** The question heading the choices. */
   head?: string
+  /** What the work changes, said under the question, and how to see them. */
+  changes?: { summary: string; onOpen: () => void }
   /** The button that sends the decision. */
   submitLabel?: string
   busy?: boolean
@@ -67,6 +70,7 @@ export default function IntegrationChooser({
   head = PROCESS_INTEGRATION_CHOOSER_HEAD,
   submitLabel = PROCESS_INTEGRATION_FORM_LABELS.land,
   busy = false,
+  changes,
   onChoose,
   onCancel,
 }: IntegrationChooserProps) {
@@ -81,6 +85,21 @@ export default function IntegrationChooser({
     return (
       <View accessibilityLabel={head} style={{ width: '100%', gap: nativeSpace[2] }}>
         <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text.primary }}>{head}</Text>
+        {changes ? (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', gap: 6 }}>
+            <Text
+              style={{ fontSize: 12, color: theme.text.secondary, fontVariant: ['tabular-nums'] }}
+            >
+              {changes.summary}
+            </Text>
+            <Text style={{ fontSize: 12, color: theme.text.secondary }}>·</Text>
+            <Pressable accessibilityRole="button" onPress={changes.onOpen}>
+              <Text style={{ fontSize: 12, fontWeight: '500', color: theme.accent.primary }}>
+                {PROCESS_CHANGES_TEXT.open}
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
         <View style={{ gap: 6 }}>
           {choices.map((choice) => (
             <Pressable

@@ -1,5 +1,7 @@
 import type { ReviewTabId, SignoffReportView } from '../../../../headless'
+import GitFileStatusIcon from '../../git/common/GitFileStatusIcon'
 import Markdown from '../../Markdown'
+import { PathDisplay } from '../../PathDisplay'
 import { AccessRecordList } from '../AccessRecordList'
 import NeedsYouSection from './NeedsYouSection'
 import ReportTiles from './ReportTiles'
@@ -15,7 +17,8 @@ export type SignoffReportPanelProps = {
 }
 
 /**
- * The final report as an overview: four tiles, then Outcome, How it was proven
+ * The final report as an overview: four tiles, then Outcome, What changed (each
+ * file opens the Changes tab), How it was proven
  * (each line links to the tab with its proof), Decisions made, Needs you, and
  * the access trail when the run recorded one.
  * A report that could not be read as sections shows as its markdown.
@@ -33,6 +36,40 @@ export default function SignoffReportPanel({
         <SignoffSection title={view.outcome.title} summary={view.outcome.summary} defaultOpen>
           <div className="max-w-[78ch] text-[13px] text-(--text-secondary)">
             <Markdown text={view.outcome.body.detail ?? view.outcome.body.headline} />
+          </div>
+        </SignoffSection>
+      ) : null}
+
+      {view.changes ? (
+        <SignoffSection
+          title={view.changes.title}
+          summary={view.changes.summary}
+          defaultOpen={view.changes.open}
+        >
+          <div className="flex flex-col gap-1.5">
+            {view.changes.body.note ? (
+              <span className="text-[12px] text-(--text-secondary)">{view.changes.body.note}</span>
+            ) : null}
+            <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
+              {view.changes.body.rows.map((row) => (
+                <li key={row.key}>
+                  <button
+                    type="button"
+                    disabled={!onOpenTab}
+                    onClick={() => onOpenTab?.('changes')}
+                    className="flex w-full min-w-0 items-center gap-2 rounded px-1 py-0.5 text-left text-[13px] text-(--text-secondary) enabled:hover:bg-(--surface-overlay)"
+                  >
+                    <GitFileStatusIcon status={row.status} />
+                    <span className="min-w-0 flex-1">
+                      <PathDisplay path={row.path} />
+                    </span>
+                    <span className="shrink-0 text-[12px] tabular-nums text-(--text-muted)">
+                      {row.stat}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
           </div>
         </SignoffSection>
       ) : null}

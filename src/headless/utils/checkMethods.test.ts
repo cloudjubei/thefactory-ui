@@ -1098,6 +1098,20 @@ describe('reviewTabs', () => {
     changedFiles: undefined,
   }
 
+  it('offers a sign-off’s Changes while its diff is read, its chip naming the files once known', () => {
+    const reading = reviewTabs({ ...base, changes: { files: undefined } })
+    expect(reading).toEqual([
+      {
+        id: 'changes',
+        label: 'Changes',
+        count: undefined,
+        chip: { label: 'Changes', state: 'passed' },
+      },
+    ])
+    const read = reviewTabs({ ...base, changes: { files: 0 } })
+    expect(read[0]).toMatchObject({ count: 0, chip: { label: 'Changes · none' } })
+  })
+
   it('offers NO tabs when nothing ran and nothing was filed', () => {
     // The chip row already carries "this project has no tests/build" and the
     // way to ask for it — a bare Tests/Build tab would only duplicate that.
