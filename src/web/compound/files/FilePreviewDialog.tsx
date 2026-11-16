@@ -1,15 +1,9 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type { ResourceLink } from 'thefactory-tools/types'
-import {
-  FILE_PREVIEW_COPY,
-  FILE_PREVIEW_DEFAULT_LAYOUT,
-  FILE_PREVIEW_DEFAULT_MODE,
-} from '../../../headless/utils/filePreviewConstants'
+import { FILE_PREVIEW_COPY } from '../../../headless/utils/filePreviewConstants'
 import { filePreviewCaption, filePreviewSize } from '../../../headless/utils/filePreview'
 import type {
   FilePreviewContent,
-  FilePreviewLayout,
-  FilePreviewMode,
   FilePreviewState,
   FilePreviewTarget,
 } from '../../../headless/utils/filePreviewTypes'
@@ -27,42 +21,25 @@ export type FilePreviewDialogProps = {
   /** The file as it stands; `null` keeps the dialog closed. */
   state: FilePreviewState | null
   onClose: () => void
-  /** Read only, or the whole Files pane — Save, Rename, Delete. Defaults to read only. */
-  mode?: FilePreviewMode
-  /** A large centred popup, or a drawer on the right. */
-  layout?: FilePreviewLayout
   /** Leaves the popup for the file in the Files screen; without it, no such button. */
   onOpenInFiles?: (link: ResourceLink) => void
   /** Reads the file again after a failure. */
   onRetry?: () => void
-  /** The edit mode's calls, on the file's own project. Throw to show an error. */
-  onWrite?: (content: string) => Promise<void>
-  onRename?: (to: string) => Promise<void>
-  onDelete?: () => Promise<void>
 }
 
-const PANEL_CLASS: Record<FilePreviewLayout, string> = {
-  modal: 'max-w-[min(72rem,calc(100vw-2rem))]! h-[85vh]',
-  drawer: 'max-w-[min(48rem,100vw)]!',
-}
+const PANEL_CLASS = 'max-w-[min(72rem,calc(100vw-2rem))]! h-[85vh]'
 
 /**
  * A file in a popup, with the Files pane's tools across its top: the file a
- * chip points at, read from its own project. Read only by default — copy,
- * the source / preview / split switch, its info — or, in edit mode, the
- * whole pane: Save, Rename, Delete. Opens as a large centred popup or a
- * drawer on the right; "Open in Files" leaves it for the Files screen.
+ * chip points at, read from its own project. Read only — copy, the source /
+ * preview / split switch, its info; editing stays in the Files screen. Opens
+ * as a large centred popup; "Open in Files" leaves it for the Files screen.
  */
 export default function FilePreviewDialog({
   state,
   onClose,
-  mode = FILE_PREVIEW_DEFAULT_MODE,
-  layout = FILE_PREVIEW_DEFAULT_LAYOUT,
   onOpenInFiles,
   onRetry,
-  onWrite,
-  onRename,
-  onDelete,
 }: FilePreviewDialogProps) {
   const target = state?.target
   const openInFiles =
@@ -92,8 +69,7 @@ export default function FilePreviewDialog({
       isOpen={state !== null}
       onClose={onClose}
       size="xl"
-      placement={layout === 'drawer' ? 'right' : 'center'}
-      panelClassName={PANEL_CLASS[layout]}
+      panelClassName={PANEL_CLASS}
       contentClassName="p-0! flex flex-col overflow-hidden!"
       hideHeader
     >
@@ -109,12 +85,8 @@ export default function FilePreviewDialog({
         <ReadyPane
           target={state.target}
           content={state}
-          editing={mode === 'edit'}
           trailing={trailing}
           {...(caption ? { caption } : {})}
-          {...(onWrite ? { onWrite } : {})}
-          {...(onRename ? { onRename } : {})}
-          {...(onDelete ? { onDelete } : {})}
         />
       ) : state?.status === 'error' ? (
         <div className="flex flex-1 flex-col items-start gap-3 p-4">
@@ -147,21 +119,13 @@ export default function FilePreviewDialog({
 function ReadyPane({
   target,
   content,
-  editing,
   caption,
   trailing,
-  onWrite,
-  onRename,
-  onDelete,
 }: {
   target: FilePreviewTarget
   content: FilePreviewContent
-  editing: boolean
   caption?: string
   trailing: ReactNode
-  onWrite?: (content: string) => Promise<void>
-  onRename?: (to: string) => Promise<void>
-  onDelete?: () => Promise<void>
 }) {
   const { bytes, mediaType, info } = content
   const [binaryUrl, setBinaryUrl] = useState<string | null>(null)
@@ -175,37 +139,19 @@ function ReadyPane({
     return () => URL.revokeObjectURL(url)
   }, [bytes, mediaType])
   const getBinaryUrl = useCallback(async () => binaryUrl ?? '', [binaryUrl])
-  const write = useCallback(
-    async (_path: string, text: string) => {
-      await onWrite?.(text)
-    },
-    [onWrite],
-  )
-  const rename = useCallback(
-    async (_from: string, to: string) => {
-      await onRename?.(to)
-    },
-    [onRename],
-  )
-  const remove = useCallback(async () => {
-    await onDelete?.()
-  }, [onDelete])
   const size = filePreviewSize(content)
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <FilePane
-        key={`${target.path}:${editing ? 'edit' : 'view'}`}
+        key={target.path}
         filePath={target.path}
         fileName={target.path}
         headerTrailing={trailing}
         {...(caption ? { headerCaption: caption } : {})}
         fileSize={size}
         content={content.text}
-        initialPaneView={editing ? 'both' : 'preview'}
+        initialPaneView="preview"
         {...(binaryUrl ? { getBinaryUrl } : {})}
-        {...(editing && onWrite ? { onWrite: write } : {})}
-        {...(editing && onRename ? { onRename: rename } : {})}
-        {...(editing && onDelete ? { onDelete: remove } : {})}
         fileInfo={{
           path: target.path,
           ...(info?.absolutePath ? { absolutePath: info.absolutePath } : {}),

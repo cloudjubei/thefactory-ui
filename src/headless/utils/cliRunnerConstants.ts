@@ -41,3 +41,6 @@ export const RUN_STOPPED_REASON = 'Its run stopped before it finished.'
 
 /** The chip a tool row shows once its call was stopped before it finished. */
 export const TOOL_STOPPED_LABEL = 'Stopped'
+
+/** What a row says of a call whose ask closed itself: what it acted on was already settled elsewhere. */
+export const TOOL_ALREADY_HANDLED_LABEL = 'Already handled'

@@ -10,6 +10,10 @@ const STORE = '.factory/attachments/c-7f3e2a/'
 export const SHOWN_MAP = `${STORE}4b1c9e0d2a7f-battle-map.png`
 export const SHOWN_TOKENS = `${STORE}9a8b7c6d5e4f-token-sheet.png`
 export const SHOWN_NOTES = `${STORE}0f1e2d3c4b5a-placement-notes.md`
+export const SHOWN_V1 = `${STORE}686f88790714-castle-gate-v1.jpg`
+export const SHOWN_V2 = `${STORE}1508aa3203f2-castle-gate-v2.jpg`
+export const SHOWN_V3 = `${STORE}3ee395c4906d-castle-gate-v3-night-lighting-with-torches.jpg`
+export const SENT_SKETCH = `${STORE}a1b2c3d4e5f6-my-rough-sketch.png`
 
 const art = (fill: string, accent: string) =>
   `data:image/svg+xml;utf8,${encodeURIComponent(
@@ -19,6 +23,10 @@ const art = (fill: string, accent: string) =>
 const PREVIEWS: Record<string, string> = {
   [SHOWN_MAP]: art('#1e3a5f', '#3d7a4a'),
   [SHOWN_TOKENS]: art('#3b2f4a', '#a0522d'),
+  [SHOWN_V1]: art('#5a4632', '#8c7a5b'),
+  [SHOWN_V2]: art('#2f4a3b', '#6b8f5e'),
+  [SHOWN_V3]: art('#141c2e', '#c2702d'),
+  [SENT_SKETCH]: art('#e8e2d4', '#9a9486'),
 }
 
 export const SHOWN_PREVIEW_URI = (path: string): string | undefined => PREVIEWS[path]
@@ -40,6 +48,21 @@ export const SHOWN_REPLY: ChatMessageLike = {
   content:
     'Here is the battle map with the deployment zones marked, the token sheet, and my placement notes.',
   files: [SHOWN_MAP, SHOWN_TOKENS, SHOWN_NOTES],
+}
+
+export const SENT_SKETCH_BY_PERSON: ChatMessageLike = {
+  id: 'sent-sketch',
+  role: 'user',
+  content: 'Paint the castle gate from my sketch, a few takes.',
+  files: [SENT_SKETCH],
+}
+
+export const SHOWN_TAKES_REPLY: ChatMessageLike = {
+  id: 'shown-takes',
+  role: 'assistant',
+  content:
+    'Three takes on the gate: V1 keeps your framing, V2 pulls back to show the wall, V3 is the same view at night.',
+  files: [SHOWN_V1, SHOWN_V2, SHOWN_V3],
 }
 
 export const SENT_BY_PERSON: ChatMessageLike = {

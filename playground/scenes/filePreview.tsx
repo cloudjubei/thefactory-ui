@@ -1,16 +1,8 @@
 import { useEffect, useState } from 'react'
 import {
-  FILE_PREVIEW_DEFAULT_LAYOUT,
-  FILE_PREVIEW_DEFAULT_MODE,
   FILE_PREVIEW_LABEL,
-  FILE_PREVIEW_LAYOUT_LABELS,
-  FILE_PREVIEW_LAYOUTS,
-  FILE_PREVIEW_MODE_LABELS,
-  FILE_PREVIEW_MODES,
   FilesProvider,
   referencePreview,
-  type FilePreviewLayout,
-  type FilePreviewMode,
   type FilePreviewTarget,
 } from 'thefactory-ui/headless'
 import type { ReferenceDescription } from 'thefactory-tools/types'
@@ -21,7 +13,6 @@ import {
   ProjectFileChip,
   ReferenceChip,
   ReferencePreviewCard,
-  SegmentedControl,
 } from 'thefactory-ui/web'
 import { IconFile } from 'thefactory-ui/web/icons'
 import type { Scene, SceneState } from '../showcase/types'
@@ -30,10 +21,10 @@ import {
   FILE_PREVIEW_FILE_LABELS,
   FILE_PREVIEW_FILES,
   FILE_PREVIEW_ROUTES,
+  FILE_PREVIEW_STATES,
   OWN_FILE,
   PROPOSAL_CHIP,
   PROPOSAL_TEXT,
-  useFakeEdits,
   type FilePreviewFile,
 } from './filePreviewFixtures'
 import { OnFixtures } from './onFixtures'
@@ -99,66 +90,27 @@ function OwnFileChipInMessage() {
   )
 }
 
-/**
- * The popup over the page with the choices still open switched on the board itself: read only
- * or the whole Files pane, a centred popup or a right drawer. Drawn once mounted — it portals.
- */
-function PreviewBoard({
-  file,
-  mode: initialMode = FILE_PREVIEW_DEFAULT_MODE,
-  layout: initialLayout = FILE_PREVIEW_DEFAULT_LAYOUT,
-}: {
-  file: FilePreviewFile
-  mode?: FilePreviewMode
-  layout?: FilePreviewLayout
-}) {
-  const [mode, setMode] = useState(initialMode)
-  const [layout, setLayout] = useState(initialLayout)
+/** The centred popup over the page, with Preview to open it again once closed. Drawn once mounted — it portals. */
+function PreviewBoard({ file }: { file: FilePreviewFile }) {
   const [open, setOpen] = useState(true)
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
-  const edits = useFakeEdits(file)
   return (
     <OnFixtures routes={FILE_PREVIEW_ROUTES}>
       <FilesProvider>
-        <div className="fixed left-1/2 top-3 z-[1100] flex -translate-x-1/2 flex-wrap items-center gap-3 rounded-lg border border-(--border-subtle) bg-(--surface-raised) px-3 py-2 shadow-lg">
-          <SegmentedControl
-            size="sm"
-            ariaLabel="Preview mode"
-            value={mode}
-            onChange={(next) => setMode(next as FilePreviewMode)}
-            options={FILE_PREVIEW_MODES.map((value) => ({
-              value,
-              label: FILE_PREVIEW_MODE_LABELS[value],
-            }))}
-          />
-          <SegmentedControl
-            size="sm"
-            ariaLabel="Popup layout"
-            value={layout}
-            onChange={(next) => setLayout(next as FilePreviewLayout)}
-            options={FILE_PREVIEW_LAYOUTS.map((value) => ({
-              value,
-              label: FILE_PREVIEW_LAYOUT_LABELS[value],
-            }))}
-          />
-          {open ? null : (
+        {open ? null : (
+          <div className="fixed left-1/2 top-3 z-[1100] -translate-x-1/2">
             <Button size="sm" variant="primary" onClick={() => setOpen(true)}>
               {FILE_PREVIEW_LABEL}
             </Button>
-          )}
-        </div>
+          </div>
+        )}
         {mounted ? (
           <FilePreviewDialog
-            state={open ? edits.state : null}
+            state={open ? FILE_PREVIEW_STATES[file] : null}
             onClose={() => setOpen(false)}
-            mode={mode}
-            layout={layout}
             onOpenInFiles={() => setOpen(false)}
             onRetry={noop}
-            onWrite={edits.onWrite}
-            onRename={edits.onRename}
-            onDelete={edits.onDelete}
           />
         ) : null}
       </FilesProvider>
@@ -230,7 +182,7 @@ export const FILE_PREVIEW_SCENES: Scene[] = [
     component: 'FilePreviewDialog',
     group: 'Chat',
     description:
-      'A file in a popup with the Files pane’s tools across its top. Two calls are still open and switch on the board: read only or the whole Files pane (Save, Rename, Delete), and a centred popup or a right drawer.',
+      'A file in a popup with the Files pane’s reading tools across its top: read only, editing stays in the Files screen through Open in Files. It opens as a large centred popup.',
     states: previewStates,
     controls: [
       {
@@ -240,36 +192,7 @@ export const FILE_PREVIEW_SCENES: Scene[] = [
         options: FILE_PREVIEW_FILES.map((id) => ({ id, label: FILE_PREVIEW_FILE_LABELS[id] })),
         default: 'markdown',
       },
-      {
-        id: 'mode',
-        label: 'Mode',
-        kind: 'choice',
-        options: FILE_PREVIEW_MODES.map((id) => ({ id, label: FILE_PREVIEW_MODE_LABELS[id] })),
-        default: FILE_PREVIEW_DEFAULT_MODE,
-      },
-      {
-        id: 'layout',
-        label: 'Layout',
-        kind: 'choice',
-        options: FILE_PREVIEW_LAYOUTS.map((id) => ({ id, label: FILE_PREVIEW_LAYOUT_LABELS[id] })),
-        default: FILE_PREVIEW_DEFAULT_LAYOUT,
-      },
     ],
-    presets: [
-      { id: 'view-modal', name: 'View only, centred', values: { mode: 'view', layout: 'modal' } },
-      {
-        id: 'edit-modal',
-        name: 'Full Files pane, centred',
-        values: { mode: 'edit', layout: 'modal' },
-      },
-      { id: 'view-drawer', name: 'View only, drawer', values: { mode: 'view', layout: 'drawer' } },
-    ],
-    play: (values) => (
-      <PreviewBoard
-        file={(values.file ?? 'markdown') as FilePreviewFile}
-        mode={(values.mode ?? FILE_PREVIEW_DEFAULT_MODE) as FilePreviewMode}
-        layout={(values.layout ?? FILE_PREVIEW_DEFAULT_LAYOUT) as FilePreviewLayout}
-      />
-    ),
+    play: (values) => <PreviewBoard file={(values.file ?? 'markdown') as FilePreviewFile} />,
   },
 ]

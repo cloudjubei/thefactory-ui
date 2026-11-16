@@ -1,4 +1,5 @@
 import { View } from 'react-native'
+import type { ChatMessageLike } from '../../src/headless/utils/chatTypes'
 import type { NativeAttachmentImages } from '../../src/native/compound/chat/chatNativeTypes'
 import ChatFileSaveDialog from '../../src/native/compound/chat/ChatFileSaveDialog'
 import MessageRow from '../../src/native/compound/chat/MessageRow'
@@ -6,10 +7,13 @@ import SentImageAttachment from '../../src/native/compound/chat/SentImageAttachm
 import {
   SAVE_DIALOG_STATES,
   SENT_BY_PERSON,
+  SENT_SKETCH_BY_PERSON,
   SHOWN_MAP,
   SHOWN_PREVIEW_URI,
   SHOWN_REPLY,
   SHOWN_SAVING,
+  SHOWN_TAKES_REPLY,
+  SHOWN_V3,
 } from '../scenes/shownFilesFixtures'
 import type { NativeView } from './views'
 
@@ -22,8 +26,7 @@ const IMAGES: NativeAttachmentImages = {
   },
 }
 
-function Reply() {
-  const messages = [SENT_BY_PERSON, SHOWN_REPLY]
+function Reply({ messages }: { messages: ChatMessageLike[] }) {
   return (
     <View style={{ padding: 16, gap: 24, width: 390, maxWidth: '100%' }}>
       {messages.map((msg, i) => (
@@ -45,7 +48,7 @@ function Reply() {
 }
 
 /**
- * Files an agent showed, on mobile: `?view=chat-shown-files&state=reply|viewer|dialog|dialog-exists|dialog-refused`.
+ * Files an agent showed, on mobile: `?view=chat-shown-files&state=reply|names|name-whole|viewer|dialog|dialog-exists|dialog-refused`.
  */
 export const SHOWN_FILE_VIEWS: readonly NativeView[] = [
   {
@@ -53,6 +56,14 @@ export const SHOWN_FILE_VIEWS: readonly NativeView[] = [
     title: 'Files an agent showed',
     render: (address) => {
       const state = address.get('state')
+      if (state === 'names') return <Reply messages={[SENT_SKETCH_BY_PERSON, SHOWN_TAKES_REPLY]} />
+      if (state === 'name-whole') {
+        return (
+          <View style={{ padding: 16 }}>
+            <SentImageAttachment path={SHOWN_V3} images={IMAGES} defaultWholeName />
+          </View>
+        )
+      }
       if (state === 'viewer') {
         return (
           <SentImageAttachment path={SHOWN_MAP} images={IMAGES} saving={SHOWN_SAVING} defaultOpen />
@@ -77,7 +88,7 @@ export const SHOWN_FILE_VIEWS: readonly NativeView[] = [
           />
         )
       }
-      return <Reply />
+      return <Reply messages={[SENT_BY_PERSON, SHOWN_REPLY]} />
     },
   },
 ]

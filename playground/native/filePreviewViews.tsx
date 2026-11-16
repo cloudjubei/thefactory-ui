@@ -1,13 +1,9 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { Text, View } from 'react-native'
 import {
-  FILE_PREVIEW_DEFAULT_MODE,
   FILE_PREVIEW_LABEL,
-  FILE_PREVIEW_MODE_LABELS,
-  FILE_PREVIEW_MODES,
   FilesProvider,
   referencePreview,
-  type FilePreviewMode,
   type FilePreviewTarget,
 } from 'thefactory-ui/headless'
 import { ClipboardHostProvider } from '../../src/native/compound/ClipboardHostContext'
@@ -21,14 +17,13 @@ import ReferencePreviewSheet from '../../src/native/compound/chips/ReferencePrev
 import { IconFile } from '../../src/native/icons'
 import { Button } from '../../src/native/primitives/Button'
 import { OverlayProvider } from '../../src/native/primitives/Overlay'
-import SegmentedControl from '../../src/native/primitives/SegmentedControl'
 import { useNativeTheme } from '../../src/native/hooks/useNativeTheme'
 import {
   FILE_PREVIEW_FILES,
   FILE_PREVIEW_ROUTES,
+  FILE_PREVIEW_STATES,
   OWN_FILE,
   PROPOSAL_CHIP,
-  useFakeEdits,
   type FilePreviewFile,
 } from '../scenes/filePreviewFixtures'
 import { OnFixtures } from '../scenes/onFixtures'
@@ -107,29 +102,11 @@ function OnPhoneFixtures({ children }: { children: ReactNode }) {
   )
 }
 
-/** The full-screen preview on a phone, read only or the whole Files pane switched on the board. */
-function PreviewOnPhone({
-  file,
-  mode: initialMode,
-}: {
-  file: FilePreviewFile
-  mode: FilePreviewMode
-}) {
-  const [mode, setMode] = useState(initialMode)
+/** The full-screen preview on a phone, read only. */
+function PreviewOnPhone({ file }: { file: FilePreviewFile }) {
   const [open, setOpen] = useState(true)
-  const edits = useFakeEdits(file)
   return (
     <OnPhoneFixtures>
-      <SegmentedControl
-        size="sm"
-        ariaLabel="Preview mode"
-        value={mode}
-        onChange={(next) => setMode(next as FilePreviewMode)}
-        options={FILE_PREVIEW_MODES.map((value) => ({
-          value,
-          label: FILE_PREVIEW_MODE_LABELS[value],
-        }))}
-      />
       <Phone>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <Button variant="primary" onPress={() => setOpen(true)}>
@@ -137,14 +114,10 @@ function PreviewOnPhone({
           </Button>
         </View>
         <FilePreviewSheet
-          state={open ? edits.state : null}
+          state={open ? FILE_PREVIEW_STATES[file] : null}
           onClose={() => setOpen(false)}
-          mode={mode}
           onOpenInFiles={() => setOpen(false)}
           onRetry={noop}
-          onWrite={edits.onWrite}
-          onRename={edits.onRename}
-          onDelete={edits.onDelete}
         />
       </Phone>
     </OnPhoneFixtures>
@@ -215,15 +188,12 @@ const fileOf = (address: URLSearchParams): FilePreviewFile => {
   return FILE_PREVIEW_FILES.find((f) => f === file) ?? 'markdown'
 }
 
-const modeOf = (address: URLSearchParams): FilePreviewMode =>
-  address.get('mode') === 'edit' ? 'edit' : FILE_PREVIEW_DEFAULT_MODE
-
 export const FILE_PREVIEW_VIEWS: readonly NativeView[] = [
   {
     id: 'file-preview',
     title:
-      'File preview, with Copy (?file=markdown|html|text|image|pdf|unknown|loading|error|gone&mode=view|edit)',
-    render: (address) => <PreviewOnPhone file={fileOf(address)} mode={modeOf(address)} />,
+      'File preview, with Copy (?file=markdown|html|text|image|pdf|unknown|loading|error|gone)',
+    render: (address) => <PreviewOnPhone file={fileOf(address)} />,
   },
   {
     id: 'file-reference-sheet',

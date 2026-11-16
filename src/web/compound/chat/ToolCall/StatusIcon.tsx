@@ -11,7 +11,10 @@ import {
   BACKGROUND_TOOL_LABEL,
   BACKGROUND_TOOL_RESULT_TYPE,
 } from '../../../../headless/utils/backgroundJobsConstants'
-import { TOOL_STOPPED_LABEL } from '../../../../headless/utils/cliRunnerConstants'
+import {
+  TOOL_ALREADY_HANDLED_LABEL,
+  TOOL_STOPPED_LABEL,
+} from '../../../../headless/utils/cliRunnerConstants'
 import type { ToolResultType } from './types'
 
 /**
@@ -35,6 +38,7 @@ export function StatusChip({
   timeLabel,
   awaitingDecision = false,
   slowLabel,
+  alreadyHandled = false,
 }: {
   resultType?: ToolResultType
   timeLabel?: string
@@ -42,8 +46,17 @@ export function StatusChip({
   awaitingDecision?: boolean
   /** A running call that has run a while: where it waits, and for how long. */
   slowLabel?: string
+  /** Its ask closed itself: what it acted on was already settled elsewhere. */
+  alreadyHandled?: boolean
 }) {
   const chip = DURATION_CHIP_CLASS
+  if (alreadyHandled) {
+    return (
+      <span className="inline-flex items-center text-[11px] font-medium text-(--text-secondary) bg-neutral-500/15 rounded-full px-2 py-0.5 shrink-0">
+        {TOOL_ALREADY_HANDLED_LABEL}
+      </span>
+    )
+  }
   if (awaitingDecision && (resultType === 'running' || resultType === 'pending')) {
     return (
       <span className="inline-flex items-center text-[11px] font-medium text-teal-700 dark:text-teal-300 bg-teal-500/15 rounded-full px-2 py-0.5 shrink-0">
@@ -79,12 +92,16 @@ export function StatusChip({
 export default function StatusIcon({
   resultType,
   fellShort = false,
+  alreadyHandled = false,
 }: {
   resultType?: ToolResultType
   /** It ran, but did not do what it was asked: warn instead of ticking. */
   fellShort?: boolean
+  /** Its ask closed itself as already handled: a muted tick, nothing to decide. */
+  alreadyHandled?: boolean
 }) {
   const cls = 'w-4 h-4'
+  if (alreadyHandled) return <IconCheckmarkCircle className={`${cls} text-neutral-500`} />
   if (fellShort) return <IconWarningTriangle className={`${cls} text-amber-500`} />
   switch (resultType) {
     case 'errored':

@@ -211,7 +211,8 @@ function ToolCallCardInner({
 
   const hasPopup = resultType !== 'aborted'
   const isRequireConfirm = resultType === 'require_confirmation'
-  const reason = toolRowReason(resultType, result)
+  const alreadyHandled = toolCall.alreadyHandled
+  const reason = alreadyHandled ?? toolRowReason(resultType, result)
   const ticketMove = isTicketStatusMoveTool(toolCall.name)
   const ticketStory = isTicketStoryProposalTool(toolCall.name)
   const detail =
@@ -242,7 +243,11 @@ function ToolCallCardInner({
           narrow row the input drops to a line of its own, readable in full width. */}
       <div className="@container">
         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2">
-          <StatusIcon resultType={resultType} fellShort={toolRowFellShort(resultType, milestone)} />
+          <StatusIcon
+            resultType={resultType}
+            fellShort={toolRowFellShort(resultType, milestone)}
+            alreadyHandled={alreadyHandled !== undefined}
+          />
           <span className="min-w-0 truncate font-semibold">{toolCall.name}</span>
           <ToolOriginBadge origin={toolCall.origin} />
           {askView ? (
@@ -270,6 +275,7 @@ function ToolCallCardInner({
             resultType={resultType}
             timeLabel={timeLabel}
             awaitingDecision={toolCall.awaitingDecision === true}
+            alreadyHandled={alreadyHandled !== undefined}
             slowLabel={
               resultType === 'running'
                 ? slowToolLabel({

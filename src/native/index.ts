@@ -752,11 +752,6 @@ export {
   default as MergeChecksResult,
   type MergeChecksResultProps,
 } from './compound/git/MergeChecksResult'
-export {
-  default as GitCredentialErrorModal,
-  type GitCredentialErrorModalProps,
-  type GitCredentialErrorOp,
-} from './compound/git/GitCredentialErrorModal'
 export { default as GitErrorAlert, type GitErrorAlertProps } from './compound/git/GitErrorAlert'
 export {
   default as DiffOptionsToolbar,

@@ -8,12 +8,6 @@ export type FilePreviewTarget = {
   projectName?: string
 }
 
-/** What the preview lets a person do: read the file, or work on it as the Files pane does. */
-export type FilePreviewMode = 'view' | 'edit'
-
-/** Where the preview opens on a wide screen: a large centred popup, or a drawer on the right. */
-export type FilePreviewLayout = 'modal' | 'drawer'
-
 /** What a paned file shows: its source, its source beside what it renders to, or what it renders to. */
 export type FilePreviewPane = 'edit' | 'both' | 'preview'
 
@@ -52,12 +46,9 @@ export type FilePreviewState =
 /** One line of a file's info: what it says, and its value. */
 export type FilePreviewInfoRow = { label: string; value: string }
 
-/** The calls a preview reads and changes a file with, each on the file's own project. */
+/** The calls a preview reads a file with, each on the file's own project. */
 export type FilePreviewCalls = {
   readText: (projectId: string, path: string) => Promise<string>
   readBytes: (projectId: string, path: string) => Promise<ArrayBuffer>
   readInfo: (projectId: string, path: string) => Promise<FilePreviewInfo | undefined>
-  write: (projectId: string, path: string, content: string) => Promise<void>
-  rename: (projectId: string, from: string, to: string) => Promise<void>
-  remove: (projectId: string, path: string) => Promise<void>
 }

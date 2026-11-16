@@ -75,6 +75,7 @@ import { REVIEW_GAP_VIEWS } from './reviewGapViews'
 import { TICKET_VIEWS } from './ticketViews'
 import { TRY_ON_PHONE_VIEWS } from './tryOnPhoneViews'
 import { VARIANT_VIEWS } from './variantViews'
+import { ALREADY_HANDLED_VIEWS } from './alreadyHandledViews'
 
 const noop = () => {}
 const AT = Date.parse(FAKE_GROUP_STATUS_AT)
@@ -607,4 +608,5 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   ...SEND_TO_DEVELOPER_VIEWS,
   ...READY_ANSWER_VIEWS,
   ...REVIEW_GAP_VIEWS,
+  ...ALREADY_HANDLED_VIEWS,
 ]

@@ -11,15 +11,11 @@ export type FilePreviewHandle = {
   /** The file as it stands; `null` with nothing to preview. */
   state: FilePreviewState | null
   reload: () => void
-  write: (content: string) => Promise<void>
-  rename: (to: string) => Promise<void>
-  remove: () => Promise<void>
 }
 
 /**
  * One file, read for its preview from the project it is in — not the one on
- * screen, and never through the Files screen's selection — with the calls
- * that save, rename and delete it there.
+ * screen, and never through the Files screen's selection.
  */
 export function useFilePreview(
   target: FilePreviewTarget | null,
@@ -41,9 +37,6 @@ export function useFilePreview(
   const actions = useMemo(
     () => ({
       reload: () => loader.reload(),
-      write: (content: string) => loader.write(content),
-      rename: (to: string) => loader.rename(to),
-      remove: () => loader.remove(),
     }),
     [loader],
   )

@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { Image, Pressable, View } from 'react-native'
+import { Image, Pressable, Text, View } from 'react-native'
 import { attachmentDisplayName } from 'thefactory-tools/utils'
 
-import { nativeRadii } from '../../../tokens/native'
+import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import FullScreenOverlay from '../../primitives/FullScreenOverlay'
 import ImageViewer from '../files/ImageViewer'
@@ -19,22 +19,27 @@ export type SentImageAttachmentProps = {
   saving?: ChatFileSaving
   /** Starts in its full-size view, as a showcase state shows it. */
   defaultOpen?: boolean
+  /** Starts with its whole name shown, as after a long press, as a showcase state shows it. */
+  defaultWholeName?: boolean
 }
 
 /**
  * An image sent with a message, shown as a thumbnail that opens full size —
  * pinch to zoom, drag to pan — so a screenshot stays readable after it was
- * sent. Falls back to the file chip when the image cannot be read.
+ * sent. Its name sits under it on one line; a long press shows it whole. Falls
+ * back to the file chip when the image cannot be read.
  */
 export default function SentImageAttachment({
   path,
   images,
   saving,
   defaultOpen = false,
+  defaultWholeName = false,
 }: SentImageAttachmentProps) {
   const { theme } = useNativeTheme()
   const [failed, setFailed] = useState(false)
   const [open, setOpen] = useState(defaultOpen)
+  const [wholeName, setWholeName] = useState(defaultWholeName)
   const name = attachmentDisplayName(path)
   const source = images.sourceOf(path)
 
@@ -48,6 +53,7 @@ export default function SentImageAttachment({
         accessibilityRole="imagebutton"
         accessibilityLabel={`Open ${name}`}
         onPress={() => setOpen(true)}
+        onLongPress={() => setWholeName((whole) => !whole)}
         style={{
           overflow: 'hidden',
           borderRadius: nativeRadii[3],
@@ -65,6 +71,21 @@ export default function SentImageAttachment({
             style={{ width: '100%', height: '100%' }}
           />
         </View>
+        <Text
+          {...(wholeName ? {} : { numberOfLines: 1 })}
+          style={{
+            width: SENT_IMAGE_THUMB_WIDTH,
+            paddingHorizontal: nativeSpace[3],
+            paddingVertical: nativeSpace[2],
+            borderTopWidth: 1,
+            borderTopColor: theme.border.subtle,
+            fontSize: 11,
+            fontWeight: '500',
+            color: theme.text.primary,
+          }}
+        >
+          {name}
+        </Text>
       </Pressable>
       <FullScreenOverlay
         isOpen={open}

@@ -31,7 +31,6 @@ import {
   gitStashApply,
   gitStashDrop,
   gitUnstage,
-  isGitCredentialError,
   unwrapGitEnvelope,
 } from '../api'
 import type {
@@ -221,28 +220,11 @@ export type GitContextValue = {
   refresh: () => Promise<void>
 
   /**
-   * Set by every remote git op (push / pull / fetch / commit-with-push)
-   * when it fails with a `GIT_CREDENTIAL_ERROR` — drives the global
-   * "git credentials don't have access" modal mounted in `App.tsx`.
-   * Null while clean. `clearCredentialError()` dismisses the modal.
-   */
-  credentialError: GitCredentialError | null
-  clearCredentialError: () => void
-  /**
    * Opens the host's git credentials settings for the active project — what
    * every "Update credentials" button calls. Undefined when the host gave no
    * `onOpenCredentialSettings` or no project is active.
    */
   openCredentialSettings?: () => void
-}
-
-export type GitCredentialError = {
-  /** Which op surfaced the error — used in the modal copy. */
-  op: 'push' | 'pull' | 'fetch' | 'commit'
-  /** Raw underlying message (git stderr or SDK error string). */
-  message: string
-  /** Optional repo URL we tried to authenticate against. */
-  repoUrl?: string
 }
 
 const GitContext = createContext<GitContextValue | null>(null)
@@ -309,7 +291,7 @@ export interface GitProviderProps {
 
 export function GitProvider({ children, storage, onOpenCredentialSettings }: GitProviderProps) {
   const { ws } = useApi()
-  const { projectId, project } = useActiveProject()
+  const { projectId } = useActiveProject()
 
   const [status, setStatus] = useState<GitStatus | null>(null)
   const [branches, setBranches] = useState<GitUnifiedBranch[]>(EMPTY_BRANCHES)
@@ -350,19 +332,10 @@ export function GitProvider({ children, storage, onOpenCredentialSettings }: Git
   const [mergePreferences, setMergePreferencesState] = useState<MergePreferences>(() =>
     readMergePrefs(storage, projectId),
   )
-  const [credentialError, setCredentialError] = useState<GitCredentialError | null>(null)
-  const clearCredentialError = useCallback(() => setCredentialError(null), [])
   const openCredentialSettings = useMemo(
     () => credentialSettingsOpener(onOpenCredentialSettings, projectId),
     [onOpenCredentialSettings, projectId],
   )
-  // Auto-clear the credential error when the active project changes — a new
-  // project might have working credentials, and a stale modal would just be
-  // noise. Push/pull/fetch will re-trigger if the new project fails too.
-  useEffect(() => {
-    setCredentialError(null)
-  }, [projectId])
-
   // Resync mergePrefs whenever the project changes.
   useEffect(() => {
     setMergePreferencesState(readMergePrefs(storage, projectId))
@@ -689,25 +662,14 @@ export function GitProvider({ children, storage, onOpenCredentialSettings }: Git
   const pushRequest = useCallback(
     async (input: PushInput = {}) => {
       const id = requireProject()
-      try {
-        const { data } = await gitPush({
-          path: { projectId: id },
-          body: input,
-          throwOnError: true,
-        })
-        return data
-      } catch (err) {
-        if (isGitCredentialError(err)) {
-          setCredentialError({
-            op: 'push',
-            message: err instanceof Error ? err.message : String(err),
-            repoUrl: project?.repo_url ?? undefined,
-          })
-        }
-        throw err
-      }
+      const { data } = await gitPush({
+        path: { projectId: id },
+        body: input,
+        throwOnError: true,
+      })
+      return data
     },
-    [requireProject, project?.repo_url],
+    [requireProject],
   )
 
   const push = useCallback(
@@ -738,51 +700,29 @@ export function GitProvider({ children, storage, onOpenCredentialSettings }: Git
   const pull = useCallback(
     async (input: PullInput = {}) => {
       const id = requireProject()
-      try {
-        const { data } = await gitPull({
-          path: { projectId: id },
-          body: input,
-          throwOnError: true,
-        })
-        await refresh()
-        return data
-      } catch (err) {
-        if (isGitCredentialError(err)) {
-          setCredentialError({
-            op: 'pull',
-            message: err instanceof Error ? err.message : String(err),
-            repoUrl: project?.repo_url ?? undefined,
-          })
-        }
-        throw err
-      }
+      const { data } = await gitPull({
+        path: { projectId: id },
+        body: input,
+        throwOnError: true,
+      })
+      await refresh()
+      return data
     },
-    [requireProject, refresh, project?.repo_url],
+    [requireProject, refresh],
   )
 
   const fetchOp = useCallback(
     async (input: FetchInput = {}) => {
       const id = requireProject()
-      try {
-        const { data } = await gitFetch({
-          path: { projectId: id },
-          body: input,
-          throwOnError: true,
-        })
-        await refresh()
-        return data
-      } catch (err) {
-        if (isGitCredentialError(err)) {
-          setCredentialError({
-            op: 'fetch',
-            message: err instanceof Error ? err.message : String(err),
-            repoUrl: project?.repo_url ?? undefined,
-          })
-        }
-        throw err
-      }
+      const { data } = await gitFetch({
+        path: { projectId: id },
+        body: input,
+        throwOnError: true,
+      })
+      await refresh()
+      return data
     },
-    [requireProject, refresh, project?.repo_url],
+    [requireProject, refresh],
   )
 
   const getFileContent = useCallback(
@@ -1094,8 +1034,6 @@ export function GitProvider({ children, storage, onOpenCredentialSettings }: Git
       mergeBranch,
       abortMerge,
       refresh,
-      credentialError,
-      clearCredentialError,
       ...(openCredentialSettings ? { openCredentialSettings } : {}),
     }),
     [
@@ -1145,8 +1083,6 @@ export function GitProvider({ children, storage, onOpenCredentialSettings }: Git
       mergeBranch,
       abortMerge,
       refresh,
-      credentialError,
-      clearCredentialError,
       openCredentialSettings,
     ],
   )

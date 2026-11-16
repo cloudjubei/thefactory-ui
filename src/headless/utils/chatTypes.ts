@@ -71,6 +71,12 @@ export type ToolCallLike = {
   awaitingDecision?: boolean
   /** Who settled the call's ask — "Approved by you", "Approved by rule: …" — so every approval on screen can be traced to its decider. */
   decisionNote?: string
+  /**
+   * Why the call's ask closed itself — what it acted on was already settled
+   * elsewhere. The row reads "Already handled" with this reason, and offers no
+   * decision.
+   */
+  alreadyHandled?: string
   /** The files a git change's card listed when it was approved — what a commit's receipt lists. */
   changeFiles?: GitChangeFileView[]
   /** The run whose turn made the call — what a commit's receipt reads the turn's proof from. */

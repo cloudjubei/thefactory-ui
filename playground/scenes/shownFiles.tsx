@@ -10,10 +10,12 @@ import type { Scene } from '../showcase/types'
 import {
   SAVE_DIALOG_STATES,
   SENT_BY_PERSON,
+  SENT_SKETCH_BY_PERSON,
   SHOWN_MAP,
   SHOWN_NOTES,
   SHOWN_REPLY,
   SHOWN_SAVING,
+  SHOWN_TAKES_REPLY,
   shownPreviewUrl,
 } from './shownFilesFixtures'
 
@@ -88,7 +90,7 @@ export const SHOWN_FILE_SCENES: Scene[] = [
     component: 'MessageRow (MessageFiles, ChatFileSaveButton, ChatFileSaveDialog)',
     group: 'Chat',
     description:
-      'Files an agent shows sit under its reply, drawn exactly as a person’s attachments are — images as thumbnails that open full size, other files as chips — but left-aligned with the reply. Each one offers Save to project: an icon beside a chip, a button in the full-size view. Save reads as saved at once; a failure takes that back and reopens the dialog with the reason.',
+      'Files an agent shows sit under its reply, drawn exactly as a person’s attachments are — images as thumbnails that open full size, other files as chips — but left-aligned with the reply. Every thumbnail carries the file’s name under it, the store’s random prefix taken off and cut short to the thumbnail’s width (whole on hover on web, on a long press on mobile), so a reply that speaks of V1 and V3 can be matched to its pictures. Each one offers Save to project: an icon beside a chip, a button in the full-size view. Save reads as saved at once; a failure takes that back and reopens the dialog with the reason.',
     states: [
       {
         id: 'reply',
@@ -96,6 +98,15 @@ export const SHOWN_FILE_SCENES: Scene[] = [
         description:
           'Two images and a notes file under the reply. Every file has Save to project; pressing it opens the dialog.',
         render: () => <Rows messages={[SENT_BY_PERSON, SHOWN_REPLY]} saving={SHOWN_SAVING} />,
+      },
+      {
+        id: 'names',
+        title: 'Names under images',
+        description:
+          'The reply speaks of V1, V2 and V3; the name under each thumbnail says which is which. The person’s own sketch carries its name too. A name longer than the thumbnail is cut short — hover shows it whole.',
+        render: () => (
+          <Rows messages={[SENT_SKETCH_BY_PERSON, SHOWN_TAKES_REPLY]} saving={SHOWN_SAVING} />
+        ),
       },
       {
         id: 'saved',

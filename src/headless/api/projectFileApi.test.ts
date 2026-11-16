@@ -3,9 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const sdk = vi.hoisted(() => ({
   readFile: vi.fn(),
   readFileRaw: vi.fn(),
-  writeFile: vi.fn(),
-  renameFiles: vi.fn(),
-  deleteFiles: vi.fn(),
 }))
 const files = vi.hoisted(() => ({ loadProjectFiles: vi.fn() }))
 
@@ -14,12 +11,9 @@ vi.mock('../contexts/FilesContext', () => files)
 
 import {
   PROJECT_FILE_CALLS,
-  deleteProjectFile,
   readProjectFileBytes,
   readProjectFileInfo,
   readProjectFileText,
-  renameProjectFile,
-  writeProjectFile,
 } from './projectFileApi'
 
 const BYTES = new Uint8Array([137, 80, 78, 71]).buffer
@@ -27,9 +21,6 @@ const BYTES = new Uint8Array([137, 80, 78, 71]).buffer
 beforeEach(() => {
   sdk.readFile.mockReset().mockResolvedValue({ data: { content: '# Proposal' } })
   sdk.readFileRaw.mockReset().mockResolvedValue({ data: BYTES })
-  sdk.writeFile.mockReset().mockResolvedValue({ data: { diff: '' } })
-  sdk.renameFiles.mockReset().mockResolvedValue({ data: undefined })
-  sdk.deleteFiles.mockReset().mockResolvedValue({ data: undefined })
   files.loadProjectFiles.mockReset().mockResolvedValue([
     {
       relativePath: 'docs/a.md',
@@ -86,38 +77,12 @@ describe('reading a file of any project', () => {
     sdk.readFile.mockRejectedValue(new Error('404'))
     await expect(readProjectFileText('p', 'gone.md')).rejects.toThrow('404')
   })
-})
-
-describe('changing a file of any project', () => {
-  it('writes, renames and deletes it in the project the link names', async () => {
-    await writeProjectFile('compass-be', 'docs/a.md', 'new text')
-    expect(sdk.writeFile).toHaveBeenCalledWith({
-      path: { projectId: 'compass-be' },
-      body: { path: 'docs/a.md', content: 'new text' },
-      throwOnError: true,
-    })
-    await renameProjectFile('compass-be', 'docs/a.md', 'docs/b.md')
-    expect(sdk.renameFiles).toHaveBeenCalledWith({
-      path: { projectId: 'compass-be' },
-      body: { moves: [{ src: 'docs/a.md', dst: 'docs/b.md' }] },
-      throwOnError: true,
-    })
-    await deleteProjectFile('compass-be', 'docs/b.md')
-    expect(sdk.deleteFiles).toHaveBeenCalledWith({
-      path: { projectId: 'compass-be' },
-      body: { paths: ['docs/b.md'] },
-      throwOnError: true,
-    })
-  })
 
   it('hands a preview every call', () => {
     expect(PROJECT_FILE_CALLS).toEqual({
       readText: readProjectFileText,
       readBytes: readProjectFileBytes,
       readInfo: readProjectFileInfo,
-      write: writeProjectFile,
-      rename: renameProjectFile,
-      remove: deleteProjectFile,
     })
   })
 })

@@ -3495,6 +3495,40 @@
           "react/CSSProperties"
         ]
       },
+      "ALREADY_HANDLED_CALL": {
+        "path": "playground/scenes/alreadyHandledFixtures.ts",
+        "description": "The run chat's ask to decide a \"Needs you\" item, closed once the person decided it.",
+        "dependencies": [
+          "thefactory-ui/headless/ToolCallLike",
+          "thefactory-ui/headless"
+        ]
+      },
+      "ALREADY_HANDLED_REASON": {
+        "path": "playground/scenes/alreadyHandledFixtures.ts",
+        "description": "Why the 12 Nov ask closed itself: the person decided the item on the run's page first.",
+        "dependencies": [
+          "thefactory-ui/headless/ToolCallLike",
+          "thefactory-ui/headless"
+        ]
+      },
+      "ALREADY_HANDLED_RESULT": {
+        "path": "playground/scenes/alreadyHandledFixtures.ts",
+        "description": "What the host wrote on its row: the call did not run, and why.",
+        "dependencies": [
+          "thefactory-ui/headless/ToolCallLike",
+          "thefactory-ui/headless"
+        ]
+      },
+      "ALREADY_HANDLED_VIEWS": {
+        "path": "playground/native/alreadyHandledViews.tsx",
+        "description": "A tool row whose ask closed itself as already handled — `?state=same-call|beside-live`.",
+        "dependencies": [
+          "NativeView",
+          "react/ReactNode",
+          "react-native/ScrollView",
+          "react-native/View"
+        ]
+      },
       "ALREADY_ON_BASE_LINE": {
         "path": "src/headless/utils/runReviewConstants.ts",
         "description": "The one line a change its base already holds shows: \"Already on dev as 0956f8c — nothing left to review\".",
@@ -5798,6 +5832,24 @@
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
           "Chat"
+        ]
+      },
+      "AttachmentFileChip": {
+        "path": "src/web/compound/chat/AttachmentFileChip.tsx",
+        "description": "A file on a message, as its chip — with a way to save it when an agent showed it.",
+        "dependencies": [
+          "AttachmentFileChipProps",
+          "thefactory-tools/utils/attachmentDisplayName",
+          "thefactory-tools/utils"
+        ]
+      },
+      "AttachmentFileChipProps": {
+        "path": "src/native/compound/chat/AttachmentFileChip.tsx",
+        "dependencies": [
+          "ChatFileSaving",
+          "react-native/View",
+          "thefactory-tools/utils/attachmentDisplayName",
+          "thefactory-tools/utils"
         ]
       },
       "attachmentUploadError": {
@@ -8609,7 +8661,9 @@
       },
       "CaptureToolSet": {
         "path": "src/headless/api/generated/types.gen.ts",
-        "dependencies": []
+        "dependencies": [
+          "ToolName"
+        ]
       },
       "CardRowFrame": {
         "path": "src/web/compound/chat/MessageRowControls.tsx",
@@ -9160,6 +9214,14 @@
       },
       "CHAT_DROP_TEXT": {
         "path": "src/headless/utils/chatDropConstants.ts",
+        "dependencies": []
+      },
+      "CHAT_FILE_SAVE_COPY": {
+        "path": "src/headless/utils/chatFileSaveConstants.ts",
+        "dependencies": []
+      },
+      "CHAT_FILE_SAVE_ROUTE": {
+        "path": "src/headless/utils/chatFileSaveConstants.ts",
         "dependencies": []
       },
       "CHAT_HEADER_ARCHIVED_PILL": {
@@ -9724,7 +9786,22 @@
           "Blob"
         ]
       },
+      "ChatAttachmentsCopy": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "SandboxFileRefusal",
+          "Array"
+        ]
+      },
+      "ChatAttachmentsCopyLimits": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
       "ChatAttachmentsOwner": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "ChatAttachmentStore": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": []
       },
@@ -10861,6 +10938,113 @@
           "LlmProvider",
           "UsageCompletenessReason",
           "ModelSpend"
+        ]
+      },
+      "ChatFileSaveButton": {
+        "path": "src/web/compound/chat/ChatFileSaveButton.tsx",
+        "description": "\"Save to project\" for a file an agent showed. Reads as saved the moment Save",
+        "dependencies": [
+          "MouseEvent",
+          "ChatFileSaveButtonProps",
+          "react/useState",
+          "react/type MouseEvent"
+        ]
+      },
+      "ChatFileSaveButtonProps": {
+        "path": "src/native/compound/chat/ChatFileSaveButton.tsx",
+        "dependencies": [
+          "ChatFileSaving",
+          "react/useState",
+          "react-native/Pressable"
+        ]
+      },
+      "ChatFileSaveCall": {
+        "path": "src/headless/utils/chatFileSaveTypes.ts",
+        "dependencies": [
+          "ChatFileSaveOutcome",
+          "Promise",
+          "ChatFileSaveRequest"
+        ]
+      },
+      "ChatFileSaveDialog": {
+        "path": "src/web/compound/chat/ChatFileSaveDialog.tsx",
+        "description": "Where to save a file an agent showed: one path, its name at the project's",
+        "dependencies": [
+          "FormEvent",
+          "ChatFileSaveDialogProps",
+          "react/useEffect",
+          "react/useState",
+          "react/type FormEvent"
+        ]
+      },
+      "ChatFileSaveDialogProps": {
+        "path": "src/native/compound/chat/ChatFileSaveDialog.tsx",
+        "dependencies": [
+          "ChatFileSaveState",
+          "react/useEffect",
+          "react/useState",
+          "react-native/View"
+        ]
+      },
+      "chatFileSaveIsRepeat": {
+        "path": "src/headless/utils/chatFileSave.ts",
+        "description": "A second press asks for what is already under way or done: the same place,",
+        "dependencies": [
+          "ChatFileSaveState",
+          "thefactory-tools/utils/attachmentDisplayName",
+          "thefactory-tools/utils"
+        ]
+      },
+      "chatFileSaveKey": {
+        "path": "src/headless/utils/chatFileSave.ts",
+        "description": "One shown file of one project. Pure.",
+        "dependencies": [
+          "thefactory-tools/utils/attachmentDisplayName",
+          "thefactory-tools/utils"
+        ]
+      },
+      "ChatFileSaveOutcome": {
+        "path": "src/headless/utils/chatFileSaveTypes.ts",
+        "dependencies": []
+      },
+      "ChatFileSaveRequest": {
+        "path": "src/headless/utils/chatFileSaveTypes.ts",
+        "description": "`POST /projects/:projectId/chat-files/save`: copy a file shown in a chat into the project.",
+        "dependencies": []
+      },
+      "chatFileSaveShownAsSaved": {
+        "path": "src/headless/utils/chatFileSave.ts",
+        "description": "The file reads as saved: done, or under way and taken as done. Pure.",
+        "dependencies": [
+          "ChatFileSaveState",
+          "thefactory-tools/utils/attachmentDisplayName",
+          "thefactory-tools/utils"
+        ]
+      },
+      "ChatFileSaveState": {
+        "path": "src/headless/utils/chatFileSaveTypes.ts",
+        "description": "How saving one shown file stands. `saving` reads as saved on screen at once;",
+        "dependencies": []
+      },
+      "chatFileSaveStore": {
+        "path": "src/headless/hooks/chatFileSaveStore.ts",
+        "dependencies": []
+      },
+      "ChatFileSaveStore": {
+        "path": "src/headless/hooks/chatFileSaveStore.ts",
+        "description": "How each shown file's save stands, shared by every place the file shows — its",
+        "dependencies": [
+          "ChatFileSaveState",
+          "ChatFileSaveOutcome",
+          "Promise",
+          "ChatFileSaveCall"
+        ]
+      },
+      "ChatFileSaving": {
+        "path": "src/headless/utils/chatFileSaveTypes.ts",
+        "description": "Where a chat's shown files are saved to: its project, bound by the chat body.",
+        "dependencies": [
+          "ChatFileSaveCall"
         ]
       },
       "ChatHeader": {
@@ -15180,6 +15364,10 @@
           "Array"
         ]
       },
+      "CliRunAssistantMessage": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
       "CliRunBlockedOn": {
         "path": "src/headless/utils/cliRunActivityTypes.ts",
         "description": "One thing a run is parked on — a gated tool awaiting approval, or an",
@@ -15335,6 +15523,9 @@
           "CliRunBlockedOn",
           "thefactory-tools/types/ResourceLink",
           "ChatStopNotice",
+          "ChatFileSaving",
+          "ChatVideoAttachments",
+          "NativeAttachmentImages",
           "ChatMessageLike",
           "ReactNode",
           "thefactory-tools/types/ReferenceTarget",
@@ -15382,9 +15573,9 @@
       "CliRunResult": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
+          "Array",
           "StuckSignalKind",
           "CliLedgerEvent",
-          "Array",
           "ModelSpend",
           "UsageCompletenessReason",
           "CliRunFailureKind",
@@ -15824,6 +16015,7 @@
           "ProcessCirclingSignal",
           "CodeIntelExportedSymbol",
           "ProcessKeptOneSide",
+          "ProcessPreExistingBreakSource",
           "ProcessWaitingItem",
           "ProcessWaitingKind",
           "ProcessRunCursor",
@@ -21878,6 +22070,14 @@
           "PathSerializer"
         ]
       },
+      "defaultSaveDestination": {
+        "path": "src/headless/utils/chatFileSave.ts",
+        "description": "Where a shown file is saved by default: its own name, at the project's root. Pure.",
+        "dependencies": [
+          "thefactory-tools/utils/attachmentDisplayName",
+          "thefactory-tools/utils"
+        ]
+      },
       "DegradationEvent": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": []
@@ -23190,6 +23390,17 @@
         "description": "Where a resolved story or feature lives, when that is not the project in view.",
         "dependencies": []
       },
+      "DependencyItem": {
+        "path": "src/headless/hooks/useDependencySelector.ts",
+        "dependencies": [
+          "FeatureLike",
+          "ReadonlyArray",
+          "StoryLike",
+          "react/useCallback",
+          "react/useMemo",
+          "react/useState"
+        ]
+      },
       "DependencyLinkRepoint": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
@@ -23243,6 +23454,16 @@
           "react-native/ScrollView",
           "react-native/Text",
           "react-native/View"
+        ]
+      },
+      "DependencySelectorOptions": {
+        "path": "src/headless/hooks/useDependencySelector.ts",
+        "dependencies": [
+          "StoryLike",
+          "ReadonlyArray",
+          "react/useCallback",
+          "react/useMemo",
+          "react/useState"
         ]
       },
       "DependencySelectorProps": {
@@ -28214,6 +28435,12 @@
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": []
       },
+      "FakeDataSources": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Array"
+        ]
+      },
       "fakeGitBundle": {
         "path": "src/fakeBackend/fixtures/git.ts",
         "description": "A project's git as one read of the bundle: the log only when a screen asks for it.",
@@ -29026,6 +29253,15 @@
           "FeatureKind",
           "thefactory-tools/types/Feature",
           "thefactory-tools/types"
+        ]
+      },
+      "FeatureLike": {
+        "path": "src/headless/hooks/useDependencySelector.ts",
+        "description": "Headless state machine for the \"pick blockers\" picker used by both",
+        "dependencies": [
+          "react/useCallback",
+          "react/useMemo",
+          "react/useState"
         ]
       },
       "FeatureListSorting": {
@@ -30277,6 +30513,7 @@
           "ProcessCirclingSignal",
           "CodeIntelExportedSymbol",
           "ProcessKeptOneSide",
+          "ProcessPreExistingBreakSource",
           "ProcessWaitingItem",
           "ProcessWaitingKind",
           "ProcessRunCursor",
@@ -31958,6 +32195,7 @@
           "ProcessCirclingSignal",
           "CodeIntelExportedSymbol",
           "ProcessKeptOneSide",
+          "ProcessPreExistingBreakSource",
           "ProcessWaitingItem",
           "ProcessWaitingKind",
           "ProcessRunCursor",
@@ -36323,7 +36561,6 @@
       "GitContextValue": {
         "path": "src/headless/contexts/GitContext.tsx",
         "dependencies": [
-          "GitCredentialError",
           "Promise",
           "GitMergeBranchResult",
           "GitMergeBranchInput",
@@ -36385,41 +36622,6 @@
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
           "Array"
-        ]
-      },
-      "GitCredentialError": {
-        "path": "src/headless/contexts/GitContext.tsx",
-        "dependencies": [
-          "react/createContext",
-          "react/useCallback",
-          "react/useContext",
-          "react/useEffect",
-          "react/useMemo",
-          "react/useRef",
-          "react/useState",
-          "react/ReactNode"
-        ]
-      },
-      "GitCredentialErrorModal": {
-        "path": "src/web/compound/git/GitCredentialErrorModal.tsx",
-        "description": "App-wide modal shown when a git op fails because the configured git",
-        "dependencies": [
-          "GitCredentialErrorModalProps"
-        ]
-      },
-      "GitCredentialErrorModalProps": {
-        "path": "src/native/compound/git/GitCredentialErrorModal.tsx",
-        "dependencies": [
-          "GitCredentialErrorOp",
-          "react-native/Text",
-          "react-native/View"
-        ]
-      },
-      "GitCredentialErrorOp": {
-        "path": "src/native/compound/git/GitCredentialErrorModal.tsx",
-        "dependencies": [
-          "react-native/Text",
-          "react-native/View"
         ]
       },
       "GitCredentialsContextValue": {
@@ -37501,7 +37703,6 @@
           "GitSelection",
           "MergePreferences",
           "Partial",
-          "GitCredentialError",
           "LocalDiff",
           "GitBundle",
           "Error",
@@ -43717,7 +43918,7 @@
       },
       "isGitCredentialError": {
         "path": "src/headless/api/helpers.ts",
-        "description": "True when an SDK error (or any value) looks like a GitHub-credentials",
+        "description": "True when an SDK error (or any value) looks like a git-credentials",
         "dependencies": [
           "thefactory-tools/constants/GIT_HOOK_REJECTED_ERROR_CODE",
           "thefactory-tools/constants"
@@ -49035,6 +49236,14 @@
           "Array"
         ]
       },
+      "LIVE_ASK_CALL": {
+        "path": "playground/scenes/alreadyHandledFixtures.ts",
+        "description": "A live ask beside them: the only row with a toggle, the only one Resume counts.",
+        "dependencies": [
+          "thefactory-ui/headless/ToolCallLike",
+          "thefactory-ui/headless"
+        ]
+      },
       "LIVE_CHECK_CHOICE_LINES": {
         "path": "src/headless/utils/liveCheckLaunchConstants.ts",
         "description": "What each choice does, in one short line.",
@@ -51669,23 +51878,6 @@
         "path": "src/headless/utils/mcpServersConstants.ts",
         "dependencies": []
       },
-      "MCP_SERVER_CARD_SCENES": {
-        "path": "playground/scenes/mcpServerCard.tsx",
-        "dependencies": [
-          "Scene",
-          "react/useState",
-          "thefactory-ui/headless/CliConfigsProvider",
-          "thefactory-ui/headless/MCP_SERVER_AUTH_HINTS",
-          "thefactory-ui/headless/MCP_SERVER_AUTH_LABELS",
-          "thefactory-ui/headless/MCP_SERVER_AUTH_ORDER",
-          "thefactory-ui/headless",
-          "thefactory-ui/web/Button",
-          "thefactory-ui/web/Field",
-          "thefactory-ui/web/Input",
-          "thefactory-ui/web/SegmentedControl",
-          "thefactory-ui/web"
-        ]
-      },
       "MCP_SERVER_CHANGE_ON_GROUP": {
         "path": "src/headless/utils/mcpServersConstants.ts",
         "dependencies": []
@@ -52855,6 +53047,26 @@
         "description": "Everything the control is derived from. Pure input — no React, no I/O.",
         "dependencies": []
       },
+      "MessageFiles": {
+        "path": "src/web/compound/chat/MessageFiles.tsx",
+        "description": "The files on a message, under it: images as thumbnails, videos as posters, the rest as chips.",
+        "dependencies": [
+          "MessageFilesProps",
+          "thefactory-tools/utils/isVideoPath",
+          "thefactory-tools/utils"
+        ]
+      },
+      "MessageFilesProps": {
+        "path": "src/native/compound/chat/MessageFiles.tsx",
+        "dependencies": [
+          "ChatFileSaving",
+          "ChatVideoAttachments",
+          "NativeAttachmentImages",
+          "react-native/View",
+          "thefactory-tools/utils/isVideoPath",
+          "thefactory-tools/utils"
+        ]
+      },
       "MessageList": {
         "path": "src/web/compound/chat/MessageList.tsx",
         "dependencies": [
@@ -52889,6 +53101,7 @@
           "ReactNode",
           "ChatMessageLike",
           "thefactory-tools/types/ReferenceTarget",
+          "ChatFileSaving",
           "ChatVideoAttachments",
           "NativeAttachmentImages",
           "thefactory-tools/types/ResourceLink",
@@ -52954,6 +53167,7 @@
         "dependencies": [
           "ChatMessageLike",
           "ReactNode",
+          "ChatFileSaving",
           "ChatVideoAttachments",
           "NativeAttachmentImages",
           "thefactory-tools/types/ResourceLink",
@@ -52966,9 +53180,6 @@
           "GrantCovers",
           "NativeToolCallRenderArgs",
           "thefactory-tools/types",
-          "thefactory-tools/utils/attachmentDisplayName",
-          "thefactory-tools/utils/isVideoPath",
-          "thefactory-tools/utils",
           "react/memo",
           "react/useMemo",
           "react/useState",
@@ -53126,7 +53337,9 @@
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
           "ReviewEvidenceOverlayFile",
-          "Array"
+          "Array",
+          "MobileFakeDataIos",
+          "MobileFakeDataAndroid"
         ]
       },
       "MobileBuildSweepOptions": {
@@ -53140,6 +53353,39 @@
       "MobileBuiltFakeBackend": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": []
+      },
+      "MobileBuiltFakeData": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "MobileFakeDataIos",
+          "MobileFakeDataAndroid"
+        ]
+      },
+      "MobileCaptureRoute": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "MobileCaptureRouteStep",
+          "Array"
+        ]
+      },
+      "MobileCaptureRouteResult": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "MobileCaptureRouteShot",
+          "Array"
+        ]
+      },
+      "MobileCaptureRouteShot": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "MobileScreenshotResult"
+        ]
+      },
+      "MobileCaptureRouteStep": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "MobileNodeSelector"
+        ]
       },
       "MobileCheckout": {
         "path": "src/headless/api/generated/types.gen.ts",
@@ -53157,7 +53403,9 @@
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
           "ReviewEvidenceOverlayFile",
-          "Array"
+          "Array",
+          "MobileFakeDataIos",
+          "MobileFakeDataAndroid"
         ]
       },
       "MobileDeviceStop": {
@@ -53191,7 +53439,7 @@
       "MobileFakeData": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
-          "MobileFakeDataAndroid"
+          "Array"
         ]
       },
       "MobileFakeDataAndroid": {
@@ -53202,6 +53450,12 @@
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
           "MobileFakeData"
+        ]
+      },
+      "MobileFakeDataIos": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Array"
         ]
       },
       "MobileFakeDataOverlay": {
@@ -54318,6 +54572,21 @@
         "description": "What a \"Needs you\" item's chip and its preview card say.",
         "dependencies": []
       },
+      "NEEDS_YOU_REFERENCE_SCENES": {
+        "path": "playground/scenes/needsYouReferences.tsx",
+        "dependencies": [
+          "Scene",
+          "react/ReactNode",
+          "thefactory-tools/types/ProcessNeedsYouItem",
+          "thefactory-tools/types/ReferenceDescription",
+          "thefactory-tools/types",
+          "thefactory-tools/utils/processNeedsYouItemId",
+          "thefactory-tools/utils",
+          "thefactory-ui/headless/needsYouReferenceView",
+          "thefactory-ui/headless/type NeedsYouItemLink",
+          "thefactory-ui/headless"
+        ]
+      },
       "NEEDS_YOU_TITLE_MAX_CHARS": {
         "path": "src/headless/utils/runNeedsYouViewConstants.ts",
         "description": "The longest leading phrase read as an item's title.",
@@ -54728,6 +54997,14 @@
         "path": "src/headless/utils/testsFormat.ts",
         "description": "Strips a leading `./` and prefers `src/...` when present.",
         "dependencies": []
+      },
+      "normalizeSaveDestination": {
+        "path": "src/headless/utils/chatFileSave.ts",
+        "description": "A destination as typed, made project-relative: trimmed, no leading `./` or `/`. Pure.",
+        "dependencies": [
+          "thefactory-tools/utils/attachmentDisplayName",
+          "thefactory-tools/utils"
+        ]
       },
       "NOT_A_TICKET_MESSAGE": {
         "path": "playground/scenes/ticketLinkFixtures.ts",
@@ -56727,6 +57004,7 @@
           "ProcessCirclingSignal",
           "CodeIntelExportedSymbol",
           "ProcessKeptOneSide",
+          "ProcessPreExistingBreakSource",
           "ProcessWaitingItem",
           "ProcessWaitingKind",
           "ProcessRunCursor",
@@ -63353,6 +63631,7 @@
           "ModelSpend",
           "CodeIntelExportedSymbol",
           "ProcessKeptOneSide",
+          "ProcessPreExistingBreakSource",
           "ProjectCheckNotCausedReport",
           "ProcessWorkBranchRewoundCommit",
           "VerificationCheckResult",
@@ -63371,6 +63650,12 @@
           "ProcessResumeChoice",
           "ProcessWaitingItem",
           "ProcessWaitingKind"
+        ]
+      },
+      "ProcessLeftOutTarget": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "ProcessPreExistingBreak"
         ]
       },
       "processLibraryGroup": {
@@ -63508,6 +63793,7 @@
           "ProcessCirclingSignal",
           "CodeIntelExportedSymbol",
           "ProcessKeptOneSide",
+          "ProcessPreExistingBreakSource",
           "ProcessWaitingItem",
           "ProcessWaitingKind",
           "ProcessRunCursor",
@@ -64187,6 +64473,7 @@
           "ProcessCirclingSignal",
           "CodeIntelExportedSymbol",
           "ProcessKeptOneSide",
+          "ProcessPreExistingBreakSource",
           "ProcessWaitingItem",
           "ProcessWaitingKind",
           "ProcessRunCursor",
@@ -64215,8 +64502,9 @@
       "ProcessParkChoice": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
-          "ProofKindUnavailable",
           "Array",
+          "ProcessPreExistingBreakSource",
+          "ProofKindUnavailable",
           "ProofKindStanding",
           "ProofKind",
           "ProcessTurnLimit",
@@ -64286,6 +64574,12 @@
           "thefactory-tools/types",
           "thefactory-tools/utils/stuckAnswerOf",
           "thefactory-tools/utils"
+        ]
+      },
+      "ProcessPartialProofOffer": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Array"
         ]
       },
       "ProcessPendingEntry": {
@@ -64399,8 +64693,26 @@
           "ProcessVariantSubject",
           "ProcessSubject",
           "Array",
-          "LiveCheckMode"
+          "LiveCheckMode",
+          "MobileCaptureRouteStep"
         ]
+      },
+      "ProcessPointsToTry": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Array"
+        ]
+      },
+      "ProcessPreExistingBreak": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Array",
+          "ProcessPreExistingBreakSource"
+        ]
+      },
+      "ProcessPreExistingBreakSource": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
       },
       "ProcessProofCannotProduce": {
         "path": "src/headless/api/generated/types.gen.ts",
@@ -64724,6 +65036,10 @@
           "thefactory-tools/types"
         ]
       },
+      "ProcessReviewGap": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
       "ProcessReviewVerdict": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
@@ -64764,6 +65080,7 @@
           "ProcessCirclingSignal",
           "CodeIntelExportedSymbol",
           "ProcessKeptOneSide",
+          "ProcessPreExistingBreakSource",
           "ProcessWaitingItem",
           "ProcessWaitingKind",
           "ProcessRunCursor",
@@ -65103,6 +65420,7 @@
           "ProcessCirclingSignal",
           "CodeIntelExportedSymbol",
           "ProcessKeptOneSide",
+          "ProcessPreExistingBreakSource",
           "ProcessWaitingItem",
           "ProcessWaitingKind",
           "ProcessRunCursor",
@@ -65963,6 +66281,7 @@
           "ProcessCirclingSignal",
           "CodeIntelExportedSymbol",
           "ProcessKeptOneSide",
+          "ProcessPreExistingBreakSource",
           "ProcessWaitingItem",
           "ProcessWaitingKind",
           "ProcessRunCursor",
@@ -66476,6 +66795,7 @@
         "dependencies": [
           "Array",
           "LiveCheckMode",
+          "MobileCaptureRouteStep",
           "ProcessStepKind"
         ]
       },
@@ -66715,6 +67035,7 @@
           "ProcessCleanupOutcome",
           "ProcessCirclingRepeat",
           "StuckSignalKind",
+          "ProcessPreExistingBreakSource",
           "ProcessWaitingItem",
           "ProcessWaitingKind",
           "ProcessToolTime",
@@ -66775,6 +67096,7 @@
           "ModelSpend",
           "CodeIntelExportedSymbol",
           "ProcessKeptOneSide",
+          "ProcessPreExistingBreakSource",
           "ProjectCheckNotCausedReport",
           "ProcessWorkBranchRewoundCommit",
           "VerificationCheckResult",
@@ -67493,8 +67815,9 @@
       "ProcessWaitingAsk": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
-          "ProcessWaitingItem",
           "Array",
+          "ProcessPreExistingBreakSource",
+          "ProcessWaitingItem",
           "ProcessWaitingKind"
         ]
       },
@@ -67777,6 +68100,10 @@
         "dependencies": []
       },
       "ProcessWriteScope": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "ProducedFileStamp": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": []
       },
@@ -68575,6 +68902,13 @@
           "SandboxImageToolchain"
         ]
       },
+      "ProjectCheckPreExistingReport": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Array",
+          "ProjectCheckKind"
+        ]
+      },
       "ProjectCheckPreStep": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
@@ -69118,11 +69452,29 @@
         "description": "A suggestion from {@link rankProjectMentionMatches} split into its project and path.",
         "dependencies": []
       },
+      "ProjectFileSave": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "ProjectFileSaveOutcome": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "ProjectFileSaveRefusal"
+        ]
+      },
+      "ProjectFileSaveRefusal": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
       "ProjectFilesRegeneration": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
           "Array"
         ]
+      },
+      "ProjectFilesSaveOptions": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
       },
       "projectFlakeFixFiled": {
         "path": "src/headless/utils/projectFlakesConstants.ts",
@@ -70693,6 +71045,7 @@
           "ProcessCirclingSignal",
           "CodeIntelExportedSymbol",
           "ProcessKeptOneSide",
+          "ProcessPreExistingBreakSource",
           "ProcessWaitingItem",
           "ProcessWaitingKind",
           "ProcessRunCursor",
@@ -73298,6 +73651,7 @@
           "ProcessCirclingSignal",
           "CodeIntelExportedSymbol",
           "ProcessKeptOneSide",
+          "ProcessPreExistingBreakSource",
           "ProcessWaitingItem",
           "ProcessWaitingKind",
           "ProcessRunCursor",
@@ -74222,6 +74576,20 @@
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
           "DiscoveredSource"
+        ]
+      },
+      "REMOTE_GIT_OP_LABELS": {
+        "path": "src/headless/utils/gitOpErrorConstants.ts",
+        "description": "The Git screens' ops that reach the remote, by the label each runs under.",
+        "dependencies": [
+          "ReadonlySet"
+        ]
+      },
+      "remoteGitOpError": {
+        "path": "src/headless/utils/gitOpError.ts",
+        "description": "A failed Git-screen op as the screen holds it. Only an op that reaches the",
+        "dependencies": [
+          "GitOpError"
         ]
       },
       "REMOVE_PROCESS_GROUP_RUN_TOOL_NAME": {
@@ -76974,8 +77342,8 @@
       "ReviewEvidenceBuild": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
-          "ReviewEvidenceOverlayFile",
-          "Array"
+          "Array",
+          "ReviewEvidenceOverlayFile"
         ]
       },
       "ReviewEvidenceBuildHint": {
@@ -77157,6 +77525,24 @@
           "Partial",
           "thefactory-tools/types/ProcessLedgerEntry",
           "thefactory-tools/types"
+        ]
+      },
+      "ReviewGapRun": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "ProofKindUnavailable",
+          "Array",
+          "ProcessLedgerEntry",
+          "ProcessPlan",
+          "ProcessCirclingRepeat",
+          "ProcessCirclingSignal",
+          "CodeIntelExportedSymbol",
+          "ProcessKeptOneSide",
+          "ProcessPreExistingBreakSource",
+          "ProcessWaitingItem",
+          "ProcessWaitingKind",
+          "ProcessRunCursor",
+          "ProcessParkReason"
         ]
       },
       "ReviewInProgressInput": {
@@ -79710,6 +80096,14 @@
         "path": "src/web/compound/SafeText.tsx",
         "dependencies": []
       },
+      "SAME_CALL_RAN_CALL": {
+        "path": "playground/scenes/alreadyHandledFixtures.ts",
+        "description": "A call ran again later in the chat, so its earlier ask closed itself.",
+        "dependencies": [
+          "thefactory-ui/headless/ToolCallLike",
+          "thefactory-ui/headless"
+        ]
+      },
       "SandboxBindMount": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": []
@@ -79754,6 +80148,14 @@
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": []
       },
+      "SandboxFileRefusal": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "SandboxFileSource": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
       "SandboxImageInspection": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": []
@@ -79765,6 +80167,17 @@
       "SandboxNetworkPolicy": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": []
+      },
+      "SandboxPathRefusal": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "SandboxPathResolution": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "SandboxPathRefusal",
+          "SandboxBindMount"
+        ]
       },
       "SandboxPolicy": {
         "path": "src/headless/api/generated/types.gen.ts",
@@ -79793,6 +80206,13 @@
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": []
       },
+      "SandboxWorkspaceBinding": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "SandboxBindMount",
+          "Array"
+        ]
+      },
       "sanitizeRepoName": {
         "path": "src/headless/hooks/useProjectGithubRepo.ts",
         "description": "Coerce an arbitrary string into a valid GitHub repository name: lowercase,",
@@ -79801,6 +80221,13 @@
           "react/useEffect",
           "react/useRef",
           "react/useState"
+        ]
+      },
+      "SAVE_DIALOG_STATES": {
+        "path": "playground/scenes/shownFilesFixtures.ts",
+        "dependencies": [
+          "ChatFileSaveState",
+          "Record"
         ]
       },
       "saveAgentTypeFor": {
@@ -79829,6 +80256,41 @@
           "react/useState",
           "thefactory-tools/types"
         ]
+      },
+      "saveChatFileToProject": {
+        "path": "src/headless/api/chatFileSaveApi.ts",
+        "description": "Copy a file shown in one of the project’s chats — a path in its chat attachment store — into the project’s folder. Nothing is committed. A file already at the destination is kept (409, `exists`) unless `overwrite`.",
+        "dependencies": [
+          "ThrowOnError",
+          "SaveChatFileToProjectErrors",
+          "SaveChatFileToProjectResponses",
+          "SaveChatFileToProjectData",
+          "Options"
+        ]
+      },
+      "SaveChatFileToProjectData": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "SaveChatFileToProjectError": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "SaveChatFileToProjectErrors"
+        ]
+      },
+      "SaveChatFileToProjectErrors": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "SaveChatFileToProjectResponse": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "SaveChatFileToProjectResponses"
+        ]
+      },
+      "SaveChatFileToProjectResponses": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
       },
       "SAVED_RULES_EMPTY": {
         "path": "src/headless/utils/actionRulesConstants.ts",
@@ -82122,6 +82584,7 @@
           "ProcessCirclingSignal",
           "CodeIntelExportedSymbol",
           "ProcessKeptOneSide",
+          "ProcessPreExistingBreakSource",
           "ProcessWaitingItem",
           "ProcessWaitingKind",
           "ProcessRunCursor",
@@ -82135,6 +82598,12 @@
           "SendCompletionWithToolsData"
         ]
       },
+      "SENT_BY_PERSON": {
+        "path": "playground/scenes/shownFilesFixtures.ts",
+        "dependencies": [
+          "ChatMessageLike"
+        ]
+      },
       "SENT_IMAGE_THUMB_HEIGHT": {
         "path": "src/native/compound/chat/sentImageAttachmentConstants.ts",
         "description": "The height of a sent image's thumbnail under its message.",
@@ -82144,6 +82613,16 @@
         "path": "src/native/compound/chat/sentImageAttachmentConstants.ts",
         "description": "The widest a sent image's thumbnail is drawn under its message.",
         "dependencies": []
+      },
+      "SENT_SKETCH": {
+        "path": "playground/scenes/shownFilesFixtures.ts",
+        "dependencies": []
+      },
+      "SENT_SKETCH_BY_PERSON": {
+        "path": "playground/scenes/shownFilesFixtures.ts",
+        "dependencies": [
+          "ChatMessageLike"
+        ]
       },
       "sentenceCase": {
         "path": "src/headless/utils/costDetails.ts",
@@ -82171,10 +82650,12 @@
       "SentImageAttachmentProps": {
         "path": "src/native/compound/chat/SentImageAttachment.tsx",
         "dependencies": [
+          "ChatFileSaving",
           "NativeAttachmentImages",
           "react/useState",
           "react-native/Image",
           "react-native/Pressable",
+          "react-native/Text",
           "react-native/View",
           "thefactory-tools/utils/attachmentDisplayName",
           "thefactory-tools/utils"
@@ -83690,6 +84171,71 @@
           "Chat"
         ]
       },
+      "SHOWN_FILE_SCENES": {
+        "path": "playground/scenes/shownFiles.tsx",
+        "dependencies": [
+          "Scene",
+          "react/useState",
+          "thefactory-ui/web/MessageRow",
+          "thefactory-ui/web/type ChatMessageLike",
+          "thefactory-ui/web"
+        ]
+      },
+      "SHOWN_FILE_VIEWS": {
+        "path": "playground/native/shownFileViews.tsx",
+        "description": "Files an agent showed, on mobile: `?view=chat-shown-files&state=reply|names|name-whole|viewer|dialog|dialog-exists|dialog-refused`.",
+        "dependencies": [
+          "NativeView",
+          "react-native/View"
+        ]
+      },
+      "SHOWN_MAP": {
+        "path": "playground/scenes/shownFilesFixtures.ts",
+        "dependencies": []
+      },
+      "SHOWN_NOTES": {
+        "path": "playground/scenes/shownFilesFixtures.ts",
+        "dependencies": []
+      },
+      "SHOWN_PREVIEW_URI": {
+        "path": "playground/scenes/shownFilesFixtures.ts",
+        "dependencies": []
+      },
+      "SHOWN_REPLY": {
+        "path": "playground/scenes/shownFilesFixtures.ts",
+        "dependencies": [
+          "ChatMessageLike"
+        ]
+      },
+      "SHOWN_SAVING": {
+        "path": "playground/scenes/shownFilesFixtures.ts",
+        "description": "A project whose saves go through: each file reads as saved once Save is pressed.",
+        "dependencies": [
+          "ChatFileSaving"
+        ]
+      },
+      "SHOWN_TAKES_REPLY": {
+        "path": "playground/scenes/shownFilesFixtures.ts",
+        "dependencies": [
+          "ChatMessageLike"
+        ]
+      },
+      "SHOWN_TOKENS": {
+        "path": "playground/scenes/shownFilesFixtures.ts",
+        "dependencies": []
+      },
+      "SHOWN_V1": {
+        "path": "playground/scenes/shownFilesFixtures.ts",
+        "dependencies": []
+      },
+      "SHOWN_V2": {
+        "path": "playground/scenes/shownFilesFixtures.ts",
+        "dependencies": []
+      },
+      "SHOWN_V3": {
+        "path": "playground/scenes/shownFilesFixtures.ts",
+        "dependencies": []
+      },
       "shownContextCutoff": {
         "path": "src/headless/utils/chatContextFill.ts",
         "description": "The cutoff line to draw beside a boundary: one at or above it marks nothing that is sent. Pure.",
@@ -83699,6 +84245,12 @@
           "thefactory-tools/types",
           "thefactory-tools/utils/messagesFromContextBoundary",
           "thefactory-tools/utils"
+        ]
+      },
+      "shownPreviewUrl": {
+        "path": "playground/scenes/shownFilesFixtures.ts",
+        "dependencies": [
+          "Promise"
         ]
       },
       "shownQuestionId": {
@@ -88702,6 +89254,16 @@
           "Record"
         ]
       },
+      "StoryLike": {
+        "path": "src/headless/hooks/useDependencySelector.ts",
+        "dependencies": [
+          "FeatureLike",
+          "ReadonlyArray",
+          "react/useCallback",
+          "react/useMemo",
+          "react/useState"
+        ]
+      },
       "StoryListSorting": {
         "path": "src/headless/utils/storiesOptions.ts",
         "dependencies": []
@@ -92532,6 +93094,11 @@
           "ReviewTone"
         ]
       },
+      "TOOL_ALREADY_HANDLED_LABEL": {
+        "path": "src/headless/utils/cliRunnerConstants.ts",
+        "description": "What a row says of a call whose ask closed itself: what it acted on was already settled elsewhere.",
+        "dependencies": []
+      },
       "TOOL_ASK_COPY": {
         "path": "src/headless/utils/toolAskCardConstants.ts",
         "dependencies": []
@@ -92657,6 +93224,13 @@
         "description": "A call waiting on an approval whose preview has not been asked for yet.",
         "dependencies": []
       },
+      "ToolArgCorrected": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "ToolArgRemap",
+          "Array"
+        ]
+      },
       "toolArgDisplay": {
         "path": "src/headless/utils/toolPreview.ts",
         "dependencies": [
@@ -92693,6 +93267,10 @@
           "react-native/View"
         ]
       },
+      "ToolArgRemap": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
       "ToolArgsForm": {
         "path": "src/native/compound/tools/ToolArgsForm.tsx",
         "description": "Native peer of the typed argument editor inside web's `ToolPanel`. Renders",
@@ -92710,6 +93288,10 @@
           "react-native/Text",
           "react-native/View"
         ]
+      },
+      "ToolArgValueWords": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": []
       },
       "ToolAskApprovalPanel": {
         "path": "src/web/compound/chat/ToolAskApprovalPanel.tsx",
@@ -92963,6 +93545,7 @@
       "ToolCallCorrection": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
+          "ToolArgRemap",
           "Array"
         ]
       },
@@ -96667,6 +97250,24 @@
           "react-dom/createPortal"
         ]
       },
+      "useChatFileSave": {
+        "path": "src/headless/hooks/useChatFileSave.ts",
+        "description": "Saving one shown file into the chat's project: shown as saved at once, taken back on failure.",
+        "dependencies": [
+          "UseChatFileSave",
+          "ChatFileSaving",
+          "react/useCallback",
+          "react/useSyncExternalStore"
+        ]
+      },
+      "UseChatFileSave": {
+        "path": "src/headless/hooks/useChatFileSave.ts",
+        "dependencies": [
+          "ChatFileSaveState",
+          "react/useCallback",
+          "react/useSyncExternalStore"
+        ]
+      },
       "useChatHeaderView": {
         "path": "src/headless/hooks/useChatHeaderView.ts",
         "description": "A chat's header, read live: the run a run chat belongs to, the story or",
@@ -97193,6 +97794,30 @@
           "ReadonlySet",
           "react/useEffect",
           "react/useRef",
+          "react/useState"
+        ]
+      },
+      "useDependencySelector": {
+        "path": "src/headless/hooks/useDependencySelector.ts",
+        "dependencies": [
+          "NonNullable",
+          "DependencyItem",
+          "Set",
+          "UseDependencySelector",
+          "DependencySelectorOptions",
+          "react/useCallback",
+          "react/useMemo",
+          "react/useState"
+        ]
+      },
+      "UseDependencySelector": {
+        "path": "src/headless/hooks/useDependencySelector.ts",
+        "dependencies": [
+          "DependencyItem",
+          "ReadonlyArray",
+          "ReadonlySet",
+          "react/useCallback",
+          "react/useMemo",
           "react/useState"
         ]
       },
@@ -100804,6 +101429,7 @@
       "VerificationApproachSpec": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": [
+          "ToolName",
           "Array",
           "ProjectPlatform",
           "CapabilityId",
@@ -102795,6 +103421,18 @@
           "thefactory-tools/utils"
         ]
       },
+      "withCliShownFiles": {
+        "path": "src/headless/utils/cliRunner.ts",
+        "description": "A CLI turn's rows with the files its agent showed, as the chat stored them on",
+        "dependencies": [
+          "ChatMessageLike",
+          "M",
+          "thefactory-tools/utils/isAlreadyExecuted",
+          "thefactory-tools/utils/stableStringify",
+          "thefactory-tools/utils/withoutNudgedReanswer",
+          "thefactory-tools/utils"
+        ]
+      },
       "withCliStopNotice": {
         "path": "src/headless/utils/cliRunner.ts",
         "description": "A CLI turn's rows with the stop the chat stored for it on its last reply —",
@@ -103739,6 +104377,14 @@
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": []
       },
+      "XcresultTestSummary": {
+        "path": "src/headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "VerificationTestSuite",
+          "Array",
+          "VerificationTestCount"
+        ]
+      },
       "ZERO_BADGE_COUNTS": {
         "path": "src/headless/hooks/useBadgeCountsCore.ts",
         "dependencies": [
@@ -103868,6 +104514,40 @@
           "thefactory-ui/web/AgentTypeSettingsPanel",
           "thefactory-ui/web/AgentTypeSlotChooser",
           "thefactory-ui/web"
+        ]
+      },
+      "ALREADY_HANDLED_CALL": {
+        "path": "scenes/alreadyHandledFixtures.ts",
+        "description": "The run chat's ask to decide a \"Needs you\" item, closed once the person decided it.",
+        "dependencies": [
+          "thefactory-ui/headless/ToolCallLike",
+          "thefactory-ui/headless"
+        ]
+      },
+      "ALREADY_HANDLED_REASON": {
+        "path": "scenes/alreadyHandledFixtures.ts",
+        "description": "Why the 12 Nov ask closed itself: the person decided the item on the run's page first.",
+        "dependencies": [
+          "thefactory-ui/headless/ToolCallLike",
+          "thefactory-ui/headless"
+        ]
+      },
+      "ALREADY_HANDLED_RESULT": {
+        "path": "scenes/alreadyHandledFixtures.ts",
+        "description": "What the host wrote on its row: the call did not run, and why.",
+        "dependencies": [
+          "thefactory-ui/headless/ToolCallLike",
+          "thefactory-ui/headless"
+        ]
+      },
+      "ALREADY_HANDLED_VIEWS": {
+        "path": "native/alreadyHandledViews.tsx",
+        "description": "A tool row whose ask closed itself as already handled — `?state=same-call|beside-live`.",
+        "dependencies": [
+          "NativeView",
+          "react/ReactNode",
+          "react-native/ScrollView",
+          "react-native/View"
         ]
       },
       "ANSWER_FILES_SCENES": {
@@ -104454,8 +105134,6 @@
       "CONFIG_TEXT": {
         "path": "scenes/filePreviewFixtures.ts",
         "dependencies": [
-          "react/useEffect",
-          "react/useState",
           "thefactory-ui/headless/FilePreviewState",
           "thefactory-ui/headless/FilePreviewTarget",
           "thefactory-ui/headless",
@@ -104592,8 +105270,6 @@
       "DIAGRAM_BYTES": {
         "path": "scenes/filePreviewFixtures.ts",
         "dependencies": [
-          "react/useEffect",
-          "react/useState",
           "thefactory-ui/headless/FilePreviewState",
           "thefactory-ui/headless/FilePreviewTarget",
           "thefactory-ui/headless",
@@ -104629,8 +105305,6 @@
         "description": "A folder chip: it opens in Files, and offers no preview.",
         "dependencies": [
           "thefactory-tools/types/ReferenceDescription",
-          "react/useEffect",
-          "react/useState",
           "thefactory-ui/headless/FilePreviewState",
           "thefactory-ui/headless/FilePreviewTarget",
           "thefactory-ui/headless",
@@ -104881,6 +105555,30 @@
           "thefactory-ui/headless"
         ]
       },
+      "fakeTicketLinks": {
+        "path": "scenes/ticketLinkFixtures.ts",
+        "description": "A chat's ticket links over the made-up site, answering every preview one way.",
+        "dependencies": [
+          "TicketLinksValue",
+          "FakeTicketRead",
+          "thefactory-ui/headless/TicketPreviewStore",
+          "thefactory-ui/headless/ticketSiteOf",
+          "thefactory-ui/headless/type TicketLinksValue",
+          "thefactory-ui/headless/type TicketPreview",
+          "thefactory-ui/headless"
+        ]
+      },
+      "FakeTicketRead": {
+        "path": "scenes/ticketLinkFixtures.ts",
+        "description": "How the made-up Jira answers a preview: with the ticket, with a failure, or never.",
+        "dependencies": [
+          "thefactory-ui/headless/TicketPreviewStore",
+          "thefactory-ui/headless/ticketSiteOf",
+          "thefactory-ui/headless/type TicketLinksValue",
+          "thefactory-ui/headless/type TicketPreview",
+          "thefactory-ui/headless"
+        ]
+      },
       "FEATURE_POOL_SCENES": {
         "path": "scenes/featurePool.tsx",
         "dependencies": [
@@ -104938,8 +105636,6 @@
         "dependencies": [
           "FilePreviewFile",
           "Record",
-          "react/useEffect",
-          "react/useState",
           "thefactory-ui/headless/FilePreviewState",
           "thefactory-ui/headless/FilePreviewTarget",
           "thefactory-ui/headless",
@@ -104951,8 +105647,6 @@
         "path": "scenes/filePreviewFixtures.ts",
         "description": "Every state the file preview shows, by the id its scene and native view use.",
         "dependencies": [
-          "react/useEffect",
-          "react/useState",
           "thefactory-ui/headless/FilePreviewState",
           "thefactory-ui/headless/FilePreviewTarget",
           "thefactory-ui/headless",
@@ -104966,8 +105660,6 @@
         "dependencies": [
           "PROPOSAL_TEXT",
           "PROPOSAL_PATH",
-          "react/useEffect",
-          "react/useState",
           "thefactory-ui/headless/FilePreviewState",
           "thefactory-ui/headless/FilePreviewTarget",
           "thefactory-ui/headless",
@@ -104979,22 +105671,17 @@
         "path": "scenes/filePreview.tsx",
         "dependencies": [
           "FilePreviewLayout",
-          "FilePreviewMode",
           "FilePreviewFile",
           "Scene",
           "react/useEffect",
           "react/useState",
           "thefactory-ui/headless/FILE_PREVIEW_DEFAULT_LAYOUT",
-          "thefactory-ui/headless/FILE_PREVIEW_DEFAULT_MODE",
           "thefactory-ui/headless/FILE_PREVIEW_LABEL",
           "thefactory-ui/headless/FILE_PREVIEW_LAYOUT_LABELS",
           "thefactory-ui/headless/FILE_PREVIEW_LAYOUTS",
-          "thefactory-ui/headless/FILE_PREVIEW_MODE_LABELS",
-          "thefactory-ui/headless/FILE_PREVIEW_MODES",
           "thefactory-ui/headless/FilesProvider",
           "thefactory-ui/headless/referencePreview",
           "thefactory-ui/headless/type FilePreviewLayout",
-          "thefactory-ui/headless/type FilePreviewMode",
           "thefactory-ui/headless/type FilePreviewTarget",
           "thefactory-ui/headless",
           "thefactory-tools/types/ReferenceDescription",
@@ -105018,8 +105705,6 @@
           "thefactory-ui/headless/FilePreviewState",
           "FilePreviewFile",
           "Record",
-          "react/useEffect",
-          "react/useState",
           "thefactory-ui/headless/FilePreviewTarget",
           "thefactory-ui/headless",
           "thefactory-tools/types/ReferenceDescription",
@@ -105035,13 +105720,9 @@
           "react/type ReactNode",
           "react-native/Text",
           "react-native/View",
-          "thefactory-ui/headless/FILE_PREVIEW_DEFAULT_MODE",
           "thefactory-ui/headless/FILE_PREVIEW_LABEL",
-          "thefactory-ui/headless/FILE_PREVIEW_MODE_LABELS",
-          "thefactory-ui/headless/FILE_PREVIEW_MODES",
           "thefactory-ui/headless/FilesProvider",
           "thefactory-ui/headless/referencePreview",
-          "thefactory-ui/headless/type FilePreviewMode",
           "thefactory-ui/headless/type FilePreviewTarget",
           "thefactory-ui/headless"
         ]
@@ -105087,8 +105768,6 @@
       "FilePreviewFile": {
         "path": "scenes/filePreviewFixtures.ts",
         "dependencies": [
-          "react/useEffect",
-          "react/useState",
           "thefactory-ui/headless/FilePreviewState",
           "thefactory-ui/headless/FilePreviewTarget",
           "thefactory-ui/headless",
@@ -105431,6 +106110,14 @@
           "thefactory-ui/headless/GroupTicket",
           "thefactory-ui/headless/GroupTicketSection",
           "thefactory-ui/headless/GroupTicketsState",
+          "thefactory-ui/headless"
+        ]
+      },
+      "LIVE_ASK_CALL": {
+        "path": "scenes/alreadyHandledFixtures.ts",
+        "description": "A live ask beside them: the only row with a toggle, the only one Resume counts.",
+        "dependencies": [
+          "thefactory-ui/headless/ToolCallLike",
           "thefactory-ui/headless"
         ]
       },
@@ -105789,6 +106476,59 @@
           "thefactory-ui/headless"
         ]
       },
+      "MOVE_ARGS": {
+        "path": "scenes/ticketLinkFixtures.ts",
+        "dependencies": [
+          "thefactory-ui/headless/TicketPreviewStore",
+          "thefactory-ui/headless/ticketSiteOf",
+          "thefactory-ui/headless/type TicketLinksValue",
+          "thefactory-ui/headless/type TicketPreview",
+          "thefactory-ui/headless"
+        ]
+      },
+      "MOVE_COMMENT": {
+        "path": "scenes/ticketLinkFixtures.ts",
+        "dependencies": [
+          "thefactory-ui/headless/TicketPreviewStore",
+          "thefactory-ui/headless/ticketSiteOf",
+          "thefactory-ui/headless/type TicketLinksValue",
+          "thefactory-ui/headless/type TicketPreview",
+          "thefactory-ui/headless"
+        ]
+      },
+      "MOVE_LONG_RESULT": {
+        "path": "scenes/ticketLinkFixtures.ts",
+        "dependencies": [
+          "TICKET_LONG_TITLE",
+          "thefactory-ui/headless/TicketPreviewStore",
+          "thefactory-ui/headless/ticketSiteOf",
+          "thefactory-ui/headless/type TicketLinksValue",
+          "thefactory-ui/headless/type TicketPreview",
+          "thefactory-ui/headless"
+        ]
+      },
+      "MOVE_REFUSAL": {
+        "path": "scenes/ticketLinkFixtures.ts",
+        "dependencies": [
+          "thefactory-ui/headless/TicketPreviewStore",
+          "thefactory-ui/headless/ticketSiteOf",
+          "thefactory-ui/headless/type TicketLinksValue",
+          "thefactory-ui/headless/type TicketPreview",
+          "thefactory-ui/headless"
+        ]
+      },
+      "MOVE_RESULT": {
+        "path": "scenes/ticketLinkFixtures.ts",
+        "description": "What `transitionJiraIssue` answers for a finished move.",
+        "dependencies": [
+          "TICKET_IN_PROGRESS",
+          "thefactory-ui/headless/TicketPreviewStore",
+          "thefactory-ui/headless/ticketSiteOf",
+          "thefactory-ui/headless/type TicketLinksValue",
+          "thefactory-ui/headless/type TicketPreview",
+          "thefactory-ui/headless"
+        ]
+      },
       "NATIVE_VIEWS": {
         "path": "native/views.tsx",
         "dependencies": [
@@ -105876,6 +106616,16 @@
           "thefactory-ui/headless/GroupTicketList",
           "thefactory-ui/headless/GroupTicketSection",
           "thefactory-ui/headless/GroupTicketsState",
+          "thefactory-ui/headless"
+        ]
+      },
+      "NOT_A_TICKET_MESSAGE": {
+        "path": "scenes/ticketLinkFixtures.ts",
+        "dependencies": [
+          "thefactory-ui/headless/TicketPreviewStore",
+          "thefactory-ui/headless/ticketSiteOf",
+          "thefactory-ui/headless/type TicketLinksValue",
+          "thefactory-ui/headless/type TicketPreview",
           "thefactory-ui/headless"
         ]
       },
@@ -105992,8 +106742,6 @@
           "PROJECT",
           "PROPOSAL_PATH",
           "MODIFIED",
-          "react/useEffect",
-          "react/useState",
           "thefactory-ui/headless/FilePreviewState",
           "thefactory-ui/headless/FilePreviewTarget",
           "thefactory-ui/headless",
@@ -106078,8 +106826,6 @@
       "PDF_BYTES": {
         "path": "scenes/filePreviewFixtures.ts",
         "dependencies": [
-          "react/useEffect",
-          "react/useState",
           "thefactory-ui/headless/FilePreviewState",
           "thefactory-ui/headless/FilePreviewTarget",
           "thefactory-ui/headless",
@@ -106261,8 +107007,6 @@
       "PRICING_PAGE_PATH": {
         "path": "scenes/filePreviewFixtures.ts",
         "dependencies": [
-          "react/useEffect",
-          "react/useState",
           "thefactory-ui/headless/FilePreviewState",
           "thefactory-ui/headless/FilePreviewTarget",
           "thefactory-ui/headless",
@@ -106273,8 +107017,6 @@
       "PRICING_PAGE_TEXT": {
         "path": "scenes/filePreviewFixtures.ts",
         "dependencies": [
-          "react/useEffect",
-          "react/useState",
           "thefactory-ui/headless/FilePreviewState",
           "thefactory-ui/headless/FilePreviewTarget",
           "thefactory-ui/headless",
@@ -106502,8 +107244,6 @@
         "description": "The file chip a group chat shows for a proposal in another project.",
         "dependencies": [
           "thefactory-tools/types/ReferenceDescription",
-          "react/useEffect",
-          "react/useState",
           "thefactory-ui/headless/FilePreviewState",
           "thefactory-ui/headless/FilePreviewTarget",
           "thefactory-ui/headless",
@@ -106513,8 +107253,6 @@
       "PROPOSAL_PATH": {
         "path": "scenes/filePreviewFixtures.ts",
         "dependencies": [
-          "react/useEffect",
-          "react/useState",
           "thefactory-ui/headless/FilePreviewState",
           "thefactory-ui/headless/FilePreviewTarget",
           "thefactory-ui/headless",
@@ -106525,8 +107263,6 @@
       "PROPOSAL_TEXT": {
         "path": "scenes/filePreviewFixtures.ts",
         "dependencies": [
-          "react/useEffect",
-          "react/useState",
           "thefactory-ui/headless/FilePreviewState",
           "thefactory-ui/headless/FilePreviewTarget",
           "thefactory-ui/headless",
@@ -106818,6 +107554,14 @@
           "react-native/View"
         ]
       },
+      "SAME_CALL_RAN_CALL": {
+        "path": "scenes/alreadyHandledFixtures.ts",
+        "description": "A call ran again later in the chat, so its earlier ask closed itself.",
+        "dependencies": [
+          "thefactory-ui/headless/ToolCallLike",
+          "thefactory-ui/headless"
+        ]
+      },
       "SAVE_DIALOG_STATES": {
         "path": "scenes/shownFilesFixtures.ts",
         "dependencies": [
@@ -107071,6 +107815,16 @@
           "ChatMessageLike"
         ]
       },
+      "SENT_SKETCH": {
+        "path": "scenes/shownFilesFixtures.ts",
+        "dependencies": []
+      },
+      "SENT_SKETCH_BY_PERSON": {
+        "path": "scenes/shownFilesFixtures.ts",
+        "dependencies": [
+          "ChatMessageLike"
+        ]
+      },
       "Showcase": {
         "path": "showcase/Showcase.tsx",
         "description": "The page a playground URL asks for: the index, a scene's every state, or one state alone.",
@@ -107091,7 +107845,7 @@
       },
       "SHOWN_FILE_VIEWS": {
         "path": "native/shownFileViews.tsx",
-        "description": "Files an agent showed, on mobile: `?view=chat-shown-files&state=reply|viewer|dialog|dialog-exists|dialog-refused`.",
+        "description": "Files an agent showed, on mobile: `?view=chat-shown-files&state=reply|names|name-whole|viewer|dialog|dialog-exists|dialog-refused`.",
         "dependencies": [
           "NativeView",
           "react-native/View"
@@ -107122,7 +107876,25 @@
           "ChatFileSaving"
         ]
       },
+      "SHOWN_TAKES_REPLY": {
+        "path": "scenes/shownFilesFixtures.ts",
+        "dependencies": [
+          "ChatMessageLike"
+        ]
+      },
       "SHOWN_TOKENS": {
+        "path": "scenes/shownFilesFixtures.ts",
+        "dependencies": []
+      },
+      "SHOWN_V1": {
+        "path": "scenes/shownFilesFixtures.ts",
+        "dependencies": []
+      },
+      "SHOWN_V2": {
+        "path": "scenes/shownFilesFixtures.ts",
+        "dependencies": []
+      },
+      "SHOWN_V3": {
         "path": "scenes/shownFilesFixtures.ts",
         "dependencies": []
       },
@@ -107286,6 +108058,58 @@
           "thefactory-ui/web/icons"
         ]
       },
+      "STORY_PROPOSAL_ARGS": {
+        "path": "scenes/ticketLinkFixtures.ts",
+        "description": "What an agent passes `proposeTicketGroupStory`. The project ids read as names: no project list is loaded.",
+        "dependencies": [
+          "thefactory-ui/headless/TicketPreviewStore",
+          "thefactory-ui/headless/ticketSiteOf",
+          "thefactory-ui/headless/type TicketLinksValue",
+          "thefactory-ui/headless/type TicketPreview",
+          "thefactory-ui/headless"
+        ]
+      },
+      "STORY_PROPOSAL_CREATED": {
+        "path": "scenes/ticketLinkFixtures.ts",
+        "dependencies": [
+          "STORY_PROPOSAL_ARGS",
+          "thefactory-ui/headless/TicketPreviewStore",
+          "thefactory-ui/headless/ticketSiteOf",
+          "thefactory-ui/headless/type TicketLinksValue",
+          "thefactory-ui/headless/type TicketPreview",
+          "thefactory-ui/headless"
+        ]
+      },
+      "STORY_PROPOSAL_LONG_ARGS": {
+        "path": "scenes/ticketLinkFixtures.ts",
+        "dependencies": [
+          "thefactory-ui/headless/TicketPreviewStore",
+          "thefactory-ui/headless/ticketSiteOf",
+          "thefactory-ui/headless/type TicketLinksValue",
+          "thefactory-ui/headless/type TicketPreview",
+          "thefactory-ui/headless"
+        ]
+      },
+      "STORY_PROPOSAL_MANY_ARGS": {
+        "path": "scenes/ticketLinkFixtures.ts",
+        "dependencies": [
+          "thefactory-ui/headless/TicketPreviewStore",
+          "thefactory-ui/headless/ticketSiteOf",
+          "thefactory-ui/headless/type TicketLinksValue",
+          "thefactory-ui/headless/type TicketPreview",
+          "thefactory-ui/headless"
+        ]
+      },
+      "STORY_PROPOSAL_REFUSAL": {
+        "path": "scenes/ticketLinkFixtures.ts",
+        "dependencies": [
+          "thefactory-ui/headless/TicketPreviewStore",
+          "thefactory-ui/headless/ticketSiteOf",
+          "thefactory-ui/headless/type TicketLinksValue",
+          "thefactory-ui/headless/type TicketPreview",
+          "thefactory-ui/headless"
+        ]
+      },
       "STORY_WORK_SCENES": {
         "path": "scenes/storyWork.tsx",
         "dependencies": [
@@ -107384,6 +108208,28 @@
           "thefactory-ui/headless"
         ]
       },
+      "TICKET_DONE": {
+        "path": "scenes/ticketLinkFixtures.ts",
+        "dependencies": [
+          "TicketPreview",
+          "thefactory-ui/headless/TicketPreviewStore",
+          "thefactory-ui/headless/ticketSiteOf",
+          "thefactory-ui/headless/type TicketLinksValue",
+          "thefactory-ui/headless/type TicketPreview",
+          "thefactory-ui/headless"
+        ]
+      },
+      "TICKET_IN_PROGRESS": {
+        "path": "scenes/ticketLinkFixtures.ts",
+        "dependencies": [
+          "TicketPreview",
+          "thefactory-ui/headless/TicketPreviewStore",
+          "thefactory-ui/headless/ticketSiteOf",
+          "thefactory-ui/headless/type TicketLinksValue",
+          "thefactory-ui/headless/type TicketPreview",
+          "thefactory-ui/headless"
+        ]
+      },
       "TICKET_LINK_CHIP_SCENES": {
         "path": "scenes/ticketLinkChip.tsx",
         "dependencies": [
@@ -107407,6 +108253,28 @@
           "thefactory-ui/web/TicketLinkChip",
           "thefactory-ui/web/TicketPreviewPanel",
           "thefactory-ui/web"
+        ]
+      },
+      "TICKET_LONG_TITLE": {
+        "path": "scenes/ticketLinkFixtures.ts",
+        "dependencies": [
+          "TicketPreview",
+          "thefactory-ui/headless/TicketPreviewStore",
+          "thefactory-ui/headless/ticketSiteOf",
+          "thefactory-ui/headless/type TicketLinksValue",
+          "thefactory-ui/headless/type TicketPreview",
+          "thefactory-ui/headless"
+        ]
+      },
+      "TICKET_MESSAGE": {
+        "path": "scenes/ticketLinkFixtures.ts",
+        "description": "A message with a written ticket link, a bare one, and links that are no ticket.",
+        "dependencies": [
+          "thefactory-ui/headless/TicketPreviewStore",
+          "thefactory-ui/headless/ticketSiteOf",
+          "thefactory-ui/headless/type TicketLinksValue",
+          "thefactory-ui/headless/type TicketPreview",
+          "thefactory-ui/headless"
         ]
       },
       "TICKET_NEW_ITEMS_SCENES": {
@@ -107499,6 +108367,37 @@
           "thefactory-ui/web"
         ]
       },
+      "TICKET_SITE_URL": {
+        "path": "scenes/ticketLinkFixtures.ts",
+        "description": "A made-up Jira site and tickets. Nothing here is read from a backend or from Jira.",
+        "dependencies": [
+          "thefactory-ui/headless/TicketPreviewStore",
+          "thefactory-ui/headless/ticketSiteOf",
+          "thefactory-ui/headless/type TicketLinksValue",
+          "thefactory-ui/headless/type TicketPreview",
+          "thefactory-ui/headless"
+        ]
+      },
+      "TICKET_STATUS_MOVE_SCENES": {
+        "path": "scenes/ticketStatusMove.tsx",
+        "dependencies": [
+          "Scene",
+          "react/useMemo",
+          "react/useState",
+          "react/type ReactNode",
+          "thefactory-ui/headless/TICKET_STATUS_MOVE_LAYOUT_LABELS",
+          "thefactory-ui/headless/TICKET_STATUS_MOVE_LAYOUTS",
+          "thefactory-ui/headless/TicketLinksProvider",
+          "thefactory-ui/headless/ticketStatusMoveView",
+          "thefactory-ui/headless/type PendingToolGrant",
+          "thefactory-ui/headless/type TicketStatusMoveLayout",
+          "thefactory-ui/headless",
+          "thefactory-ui/web/SegmentedControl",
+          "thefactory-ui/web/TicketStatusMoveCard",
+          "thefactory-ui/web/ToolCallCard",
+          "thefactory-ui/web"
+        ]
+      },
       "TICKET_STORY_PROPOSAL_SCENES": {
         "path": "scenes/ticketStoryProposal.tsx",
         "dependencies": [
@@ -107519,6 +108418,17 @@
           "thefactory-ui/web/TicketStoryProposalCard",
           "thefactory-ui/web/ToolCallCard",
           "thefactory-ui/web"
+        ]
+      },
+      "TICKET_TO_DO": {
+        "path": "scenes/ticketLinkFixtures.ts",
+        "dependencies": [
+          "TicketPreview",
+          "thefactory-ui/headless/TicketPreviewStore",
+          "thefactory-ui/headless/ticketSiteOf",
+          "thefactory-ui/headless/type TicketLinksValue",
+          "thefactory-ui/headless/type TicketPreview",
+          "thefactory-ui/headless"
         ]
       },
       "TICKET_TRANSITION_SCENES": {
@@ -107566,6 +108476,16 @@
           "thefactory-ui/headless/GroupTicket",
           "thefactory-ui/headless/GroupTicketList",
           "thefactory-ui/headless/GroupTicketSection",
+          "thefactory-ui/headless"
+        ]
+      },
+      "ticketUrl": {
+        "path": "scenes/ticketLinkFixtures.ts",
+        "dependencies": [
+          "thefactory-ui/headless/TicketPreviewStore",
+          "thefactory-ui/headless/ticketSiteOf",
+          "thefactory-ui/headless/type TicketLinksValue",
+          "thefactory-ui/headless/type TicketPreview",
           "thefactory-ui/headless"
         ]
       },
@@ -107679,20 +108599,6 @@
         "path": "native/stubs/nativewind.ts",
         "description": "The theme the page's address asks for: `?theme=dark`, else light.",
         "dependencies": []
-      },
-      "useFakeEdits": {
-        "path": "scenes/filePreviewFixtures.ts",
-        "description": "A file's state with the edits a person makes kept on the page: nothing is sent.",
-        "dependencies": [
-          "thefactory-ui/headless/FilePreviewState",
-          "FilePreviewFile",
-          "react/useEffect",
-          "react/useState",
-          "thefactory-ui/headless/FilePreviewTarget",
-          "thefactory-ui/headless",
-          "thefactory-tools/types/ReferenceDescription",
-          "thefactory-tools/types"
-        ]
       },
       "useSharedValue": {
         "path": "native/stubs/reanimated.tsx",
@@ -129360,7 +130266,9 @@
       },
       "CaptureToolSet": {
         "path": "headless/api/generated/types.gen.ts",
-        "dependencies": []
+        "dependencies": [
+          "ToolName"
+        ]
       },
       "CardRowFrame": {
         "path": "web/compound/chat/MessageRowControls.tsx",
@@ -130189,7 +131097,22 @@
           "Blob"
         ]
       },
+      "ChatAttachmentsCopy": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "SandboxFileRefusal",
+          "Array"
+        ]
+      },
+      "ChatAttachmentsCopyLimits": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
       "ChatAttachmentsOwner": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "ChatAttachmentStore": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": []
       },
@@ -130540,6 +131463,14 @@
           "ChatContextCheckpointReason"
         ]
       },
+      "ChatChipCliInput": {
+        "path": "headless/utils/modelChipTypes.ts",
+        "description": "What a chat's model chip reads to show its CLI side: the chat's binding, the clients' CLI settings, and a run's own picks.",
+        "dependencies": [
+          "Record",
+          "Readonly"
+        ]
+      },
       "ChatChipCliOverrides": {
         "path": "headless/hooks/useChatChipCli.ts",
         "description": "A chat chip's run picks, when it chooses for a run about to start rather than for the chat.",
@@ -130559,6 +131490,11 @@
           "ChatChipCliSelection",
           "ChatChipCliInput"
         ]
+      },
+      "ChatChipCliSelection": {
+        "path": "headless/utils/modelChipTypes.ts",
+        "description": "The CLI side a chat's model chip shows.",
+        "dependencies": []
       },
       "ChatChipCliWiring": {
         "path": "headless/hooks/useChatChipCli.ts",
@@ -133968,6 +134904,14 @@
           "TestResultsSource"
         ]
       },
+      "CheckTestResults": {
+        "path": "headless/utils/testResultsTypes.ts",
+        "description": "A check's test run, as the Tests display reads it.",
+        "dependencies": [
+          "UnfinishedTestsView",
+          "TestsResultLike"
+        ]
+      },
       "checkTone": {
         "path": "headless/utils/runReview.ts",
         "dependencies": [
@@ -135616,6 +136560,10 @@
           "Array"
         ]
       },
+      "CliRunAssistantMessage": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
       "CliRunBlockedOn": {
         "path": "headless/utils/cliRunActivityTypes.ts",
         "description": "One thing a run is parked on — a gated tool awaiting approval, or an",
@@ -135821,9 +136769,9 @@
       "CliRunResult": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
+          "Array",
           "StuckSignalKind",
           "CliLedgerEvent",
-          "Array",
           "ModelSpend",
           "UsageCompletenessReason",
           "CliRunFailureKind",
@@ -136263,6 +137211,7 @@
           "ProcessCirclingSignal",
           "CodeIntelExportedSymbol",
           "ProcessKeptOneSide",
+          "ProcessPreExistingBreakSource",
           "ProcessWaitingItem",
           "ProcessWaitingKind",
           "ProcessRunCursor",
@@ -143213,12 +144162,6 @@
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": []
       },
-      "deleteProjectFile": {
-        "path": "headless/api/projectFileApi.ts",
-        "dependencies": [
-          "Promise"
-        ]
-      },
       "deleteProjectNote": {
         "path": "headless/api/generated/sdk.gen.ts",
         "dependencies": [
@@ -148214,6 +149157,12 @@
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": []
       },
+      "FakeDataSources": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Array"
+        ]
+      },
       "fakeGitBundle": {
         "path": "fakeBackend/fixtures/git.ts",
         "description": "A project's git as one read of the bundle: the log only when a screen asks for it.",
@@ -150210,6 +151159,7 @@
           "ProcessCirclingSignal",
           "CodeIntelExportedSymbol",
           "ProcessKeptOneSide",
+          "ProcessPreExistingBreakSource",
           "ProcessWaitingItem",
           "ProcessWaitingKind",
           "ProcessRunCursor",
@@ -150458,13 +151408,6 @@
           "FilePreviewLayout"
         ]
       },
-      "FILE_PREVIEW_DEFAULT_MODE": {
-        "path": "headless/utils/filePreviewConstants.ts",
-        "description": "What the preview lets a person do until the product call is made: read only.",
-        "dependencies": [
-          "FilePreviewMode"
-        ]
-      },
       "FILE_PREVIEW_FALLBACK_MEDIA_TYPE": {
         "path": "headless/utils/filePreviewConstants.ts",
         "description": "What bytes of no known kind are.",
@@ -150501,21 +151444,6 @@
         "dependencies": [
           "Record",
           "Readonly"
-        ]
-      },
-      "FILE_PREVIEW_MODE_LABELS": {
-        "path": "headless/utils/filePreviewConstants.ts",
-        "description": "What each way of working is called, on the switch that compares them.",
-        "dependencies": [
-          "FilePreviewMode",
-          "Record"
-        ]
-      },
-      "FILE_PREVIEW_MODES": {
-        "path": "headless/utils/filePreviewConstants.ts",
-        "description": "The ways the preview can let a person work, in the order the switch offers them.",
-        "dependencies": [
-          "FilePreviewMode"
         ]
       },
       "FILE_PREVIEW_PANE_LABELS": {
@@ -150792,10 +151720,10 @@
       },
       "FilePreviewCalls": {
         "path": "headless/utils/filePreviewTypes.ts",
-        "description": "The calls a preview reads and changes a file with, each on the file's own project.",
+        "description": "The calls a preview reads a file with, each on the file's own project.",
         "dependencies": [
-          "Promise",
           "FilePreviewInfo",
+          "Promise",
           "ArrayBuffer"
         ]
       },
@@ -150844,7 +151772,6 @@
         "dependencies": [
           "thefactory-tools/types/ResourceLink",
           "FilePreviewLayout",
-          "FilePreviewMode",
           "FilePreviewTarget",
           "thefactory-tools/types"
         ]
@@ -150852,10 +151779,8 @@
       "FilePreviewDialogProps": {
         "path": "web/compound/files/FilePreviewDialog.tsx",
         "dependencies": [
-          "Promise",
           "thefactory-tools/types/ResourceLink",
           "FilePreviewLayout",
-          "FilePreviewMode",
           "FilePreviewState",
           "react/useCallback",
           "react/useEffect",
@@ -150877,7 +151802,6 @@
       "FilePreviewHandle": {
         "path": "headless/hooks/useFilePreview.ts",
         "dependencies": [
-          "Promise",
           "FilePreviewState",
           "react/useEffect",
           "react/useMemo",
@@ -150950,11 +151874,6 @@
           "thefactory-tools/types"
         ]
       },
-      "FilePreviewMode": {
-        "path": "headless/utils/filePreviewTypes.ts",
-        "description": "What the preview lets a person do: read the file, or work on it as the Files pane does.",
-        "dependencies": []
-      },
       "filePreviewName": {
         "path": "headless/utils/filePreview.ts",
         "description": "A file's name: the last segment of its path. Pure.",
@@ -150983,10 +151902,7 @@
         "description": "Native peer of web's `FilePreviewDialog`: a file in a full-screen sheet with",
         "dependencies": [
           "FilePreviewSheetProps",
-          "react/useCallback",
-          "react/useEffect",
           "react/useMemo",
-          "react/useRef",
           "react/useState",
           "react/type ReactNode",
           "react-native/ScrollView",
@@ -151010,7 +151926,6 @@
         "dependencies": [
           "Promise",
           "thefactory-tools/types/ResourceLink",
-          "FilePreviewMode",
           "FilePreviewTarget",
           "thefactory-tools/types"
         ]
@@ -151020,12 +151935,8 @@
         "dependencies": [
           "Promise",
           "thefactory-tools/types/ResourceLink",
-          "FilePreviewMode",
           "FilePreviewState",
-          "react/useCallback",
-          "react/useEffect",
           "react/useMemo",
-          "react/useRef",
           "react/useState",
           "react/type ReactNode",
           "react-native/ScrollView",
@@ -151679,6 +152590,13 @@
           "thefactory-tools/types"
         ]
       },
+      "foldedRowWindowStart": {
+        "path": "headless/utils/toolStepGroups.ts",
+        "description": "Where a list showing its last `rows` drawn rows starts. Folded steps count",
+        "dependencies": [
+          "ReadonlySet"
+        ]
+      },
       "FollowUpsRun": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
@@ -151689,6 +152607,7 @@
           "ProcessCirclingSignal",
           "CodeIntelExportedSymbol",
           "ProcessKeptOneSide",
+          "ProcessPreExistingBreakSource",
           "ProcessWaitingItem",
           "ProcessWaitingKind",
           "ProcessRunCursor",
@@ -155989,7 +156908,6 @@
       "GitContextValue": {
         "path": "headless/contexts/GitContext.tsx",
         "dependencies": [
-          "GitCredentialError",
           "Promise",
           "GitMergeBranchResult",
           "GitMergeBranchInput",
@@ -156051,41 +156969,6 @@
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
           "Array"
-        ]
-      },
-      "GitCredentialError": {
-        "path": "headless/contexts/GitContext.tsx",
-        "dependencies": [
-          "react/createContext",
-          "react/useCallback",
-          "react/useContext",
-          "react/useEffect",
-          "react/useMemo",
-          "react/useRef",
-          "react/useState",
-          "react/ReactNode"
-        ]
-      },
-      "GitCredentialErrorModal": {
-        "path": "web/compound/git/GitCredentialErrorModal.tsx",
-        "description": "App-wide modal shown when a git op fails because the configured git",
-        "dependencies": [
-          "GitCredentialErrorModalProps"
-        ]
-      },
-      "GitCredentialErrorModalProps": {
-        "path": "native/compound/git/GitCredentialErrorModal.tsx",
-        "dependencies": [
-          "GitCredentialErrorOp",
-          "react-native/Text",
-          "react-native/View"
-        ]
-      },
-      "GitCredentialErrorOp": {
-        "path": "native/compound/git/GitCredentialErrorModal.tsx",
-        "dependencies": [
-          "react-native/Text",
-          "react-native/View"
         ]
       },
       "GitCredentialsContextValue": {
@@ -157167,7 +158050,6 @@
           "GitSelection",
           "MergePreferences",
           "Partial",
-          "GitCredentialError",
           "LocalDiff",
           "GitBundle",
           "Error",
@@ -161720,6 +162602,10 @@
         "path": "web/icons/IconWorkspace.tsx",
         "dependencies": []
       },
+      "IconWrench": {
+        "path": "web/icons/IconWrench.tsx",
+        "dependencies": []
+      },
       "IconXCircle": {
         "path": "web/icons/IconXCircle.tsx",
         "dependencies": []
@@ -163188,6 +164074,13 @@
         "path": "headless/utils/toolPreview.ts",
         "dependencies": []
       },
+      "isFoldableToolStep": {
+        "path": "headless/utils/toolStepGroups.ts",
+        "description": "A tool-call row the chat may fold. Milestones, asks and run cards stay on",
+        "dependencies": [
+          "ChatMessageLike"
+        ]
+      },
       "isFolderMention": {
         "path": "headless/utils/mention.ts",
         "description": "An `@` suggestion that names a folder rather than a file — in this project or another.",
@@ -163220,7 +164113,7 @@
       },
       "isGitCredentialError": {
         "path": "headless/api/helpers.ts",
-        "description": "True when an SDK error (or any value) looks like a GitHub-credentials",
+        "description": "True when an SDK error (or any value) looks like a git-credentials",
         "dependencies": [
           "thefactory-tools/constants/GIT_HOOK_REJECTED_ERROR_CODE",
           "thefactory-tools/constants"
@@ -164381,10 +165274,9 @@
         "dependencies": []
       },
       "JsonValue": {
-        "path": "headless/api/generated/types.gen.ts",
-        "dependencies": [
-          "Array"
-        ]
+        "path": "headless/api/generated/core/queryKeySerializer.gen.ts",
+        "description": "JSON-friendly union that mirrors what Pinia Colada can hash.",
+        "dependencies": []
       },
       "JsonView": {
         "path": "web/compound/JsonView.tsx",
@@ -165784,6 +166676,18 @@
           "thefactory-tools/types/LaunchSetupSuggestion",
           "thefactory-tools/types/ProcessProposal",
           "thefactory-tools/types/ProofKind",
+          "thefactory-tools/types",
+          "thefactory-tools/utils/projectWorkLaunchMode",
+          "thefactory-tools/utils"
+        ]
+      },
+      "LaunchSuggestionState": {
+        "path": "headless/hooks/useWorkLaunch.ts",
+        "dependencies": [
+          "thefactory-tools/types/LaunchSetupSuggestion",
+          "react/useCallback",
+          "react/useState",
+          "thefactory-tools/types/WorkLaunchMode",
           "thefactory-tools/types",
           "thefactory-tools/utils/projectWorkLaunchMode",
           "thefactory-tools/utils"
@@ -172212,7 +173116,9 @@
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
           "ReviewEvidenceOverlayFile",
-          "Array"
+          "Array",
+          "MobileFakeDataIos",
+          "MobileFakeDataAndroid"
         ]
       },
       "MobileBuildSweepOptions": {
@@ -172226,6 +173132,39 @@
       "MobileBuiltFakeBackend": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": []
+      },
+      "MobileBuiltFakeData": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "MobileFakeDataIos",
+          "MobileFakeDataAndroid"
+        ]
+      },
+      "MobileCaptureRoute": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "MobileCaptureRouteStep",
+          "Array"
+        ]
+      },
+      "MobileCaptureRouteResult": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "MobileCaptureRouteShot",
+          "Array"
+        ]
+      },
+      "MobileCaptureRouteShot": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "MobileScreenshotResult"
+        ]
+      },
+      "MobileCaptureRouteStep": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "MobileNodeSelector"
+        ]
       },
       "MobileCheckout": {
         "path": "headless/api/generated/types.gen.ts",
@@ -172243,7 +173182,9 @@
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
           "ReviewEvidenceOverlayFile",
-          "Array"
+          "Array",
+          "MobileFakeDataIos",
+          "MobileFakeDataAndroid"
         ]
       },
       "MobileDeviceStop": {
@@ -172277,7 +173218,7 @@
       "MobileFakeData": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
-          "MobileFakeDataAndroid"
+          "Array"
         ]
       },
       "MobileFakeDataAndroid": {
@@ -172288,6 +173229,12 @@
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
           "MobileFakeData"
+        ]
+      },
+      "MobileFakeDataIos": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Array"
         ]
       },
       "MobileFakeDataOverlay": {
@@ -172597,6 +173544,11 @@
           "react-native/View"
         ]
       },
+      "ModelChipConfigLike": {
+        "path": "headless/utils/modelChipTypes.ts",
+        "description": "An LLM config as a model chip reads it.",
+        "dependencies": []
+      },
       "ModelChipConnected": {
         "path": "web/compound/ModelChipConnected.tsx",
         "description": "Connected `ModelChip` for browser clients: wires the LLM-config selection",
@@ -172628,6 +173580,18 @@
           "ModelChipLabelInput"
         ]
       },
+      "ModelChipLabel": {
+        "path": "headless/utils/modelChipTypes.ts",
+        "description": "A model chip's two lines and the whole of what it shows, for its tooltip and accessible label.",
+        "dependencies": []
+      },
+      "ModelChipLabelInput": {
+        "path": "headless/utils/modelChipTypes.ts",
+        "description": "What a model chip is showing for.",
+        "dependencies": [
+          "ModelChipConfigLike"
+        ]
+      },
       "ModelChipMode": {
         "path": "native/compound/ModelChip.tsx",
         "dependencies": [
@@ -172637,6 +173601,11 @@
           "react-native/Text",
           "react-native/View"
         ]
+      },
+      "ModelChipOff": {
+        "path": "headless/utils/modelChipTypes.ts",
+        "description": "A chip that can be switched off — a model for a job that may run on none: whether it is, and how to.",
+        "dependencies": []
       },
       "ModelChipProps": {
         "path": "native/compound/ModelChip.tsx",
@@ -173145,14 +174114,15 @@
         ]
       },
       "NavIndicatorProps": {
-        "path": "web/compound/shell/NavIndicator.tsx",
+        "path": "native/compound/shell/NavIndicator.tsx",
         "dependencies": [
           "InkBadgeLook",
           "BadgeColor",
           "BadgeColorCategory",
           "Record",
           "Readonly",
-          "NavRowIndicator"
+          "NavRowIndicator",
+          "react-native/View"
         ]
       },
       "NavProjectLike": {
@@ -175513,6 +176483,7 @@
           "ProcessCirclingSignal",
           "CodeIntelExportedSymbol",
           "ProcessKeptOneSide",
+          "ProcessPreExistingBreakSource",
           "ProcessWaitingItem",
           "ProcessWaitingKind",
           "ProcessRunCursor",
@@ -175995,6 +176966,13 @@
           "Pick",
           "thefactory-tools/types/ProcessParkChoice",
           "thefactory-tools/types"
+        ]
+      },
+      "PartialProofView": {
+        "path": "headless/utils/processPartialProofViewTypes.ts",
+        "description": "What a proving step showed and what it could not, as its stop and its row",
+        "dependencies": [
+          "ProofPointList"
         ]
       },
       "partitionGrants": {
@@ -181714,6 +182692,7 @@
           "ModelSpend",
           "CodeIntelExportedSymbol",
           "ProcessKeptOneSide",
+          "ProcessPreExistingBreakSource",
           "ProjectCheckNotCausedReport",
           "ProcessWorkBranchRewoundCommit",
           "VerificationCheckResult",
@@ -181732,6 +182711,12 @@
           "ProcessResumeChoice",
           "ProcessWaitingItem",
           "ProcessWaitingKind"
+        ]
+      },
+      "ProcessLeftOutTarget": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "ProcessPreExistingBreak"
         ]
       },
       "processLibraryGroup": {
@@ -181869,6 +182854,7 @@
           "ProcessCirclingSignal",
           "CodeIntelExportedSymbol",
           "ProcessKeptOneSide",
+          "ProcessPreExistingBreakSource",
           "ProcessWaitingItem",
           "ProcessWaitingKind",
           "ProcessRunCursor",
@@ -182548,6 +183534,7 @@
           "ProcessCirclingSignal",
           "CodeIntelExportedSymbol",
           "ProcessKeptOneSide",
+          "ProcessPreExistingBreakSource",
           "ProcessWaitingItem",
           "ProcessWaitingKind",
           "ProcessRunCursor",
@@ -182576,8 +183563,9 @@
       "ProcessParkChoice": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
-          "ProofKindUnavailable",
           "Array",
+          "ProcessPreExistingBreakSource",
+          "ProofKindUnavailable",
           "ProofKindStanding",
           "ProofKind",
           "ProcessTurnLimit",
@@ -182647,6 +183635,12 @@
           "thefactory-tools/types",
           "thefactory-tools/utils/stuckAnswerOf",
           "thefactory-tools/utils"
+        ]
+      },
+      "ProcessPartialProofOffer": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Array"
         ]
       },
       "ProcessPendingEntry": {
@@ -182760,8 +183754,26 @@
           "ProcessVariantSubject",
           "ProcessSubject",
           "Array",
-          "LiveCheckMode"
+          "LiveCheckMode",
+          "MobileCaptureRouteStep"
         ]
+      },
+      "ProcessPointsToTry": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Array"
+        ]
+      },
+      "ProcessPreExistingBreak": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Array",
+          "ProcessPreExistingBreakSource"
+        ]
+      },
+      "ProcessPreExistingBreakSource": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
       },
       "ProcessProofCannotProduce": {
         "path": "headless/api/generated/types.gen.ts",
@@ -183085,6 +184097,10 @@
           "thefactory-tools/types"
         ]
       },
+      "ProcessReviewGap": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
       "ProcessReviewVerdict": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
@@ -183125,6 +184141,7 @@
           "ProcessCirclingSignal",
           "CodeIntelExportedSymbol",
           "ProcessKeptOneSide",
+          "ProcessPreExistingBreakSource",
           "ProcessWaitingItem",
           "ProcessWaitingKind",
           "ProcessRunCursor",
@@ -183464,6 +184481,7 @@
           "ProcessCirclingSignal",
           "CodeIntelExportedSymbol",
           "ProcessKeptOneSide",
+          "ProcessPreExistingBreakSource",
           "ProcessWaitingItem",
           "ProcessWaitingKind",
           "ProcessRunCursor",
@@ -184324,6 +185342,7 @@
           "ProcessCirclingSignal",
           "CodeIntelExportedSymbol",
           "ProcessKeptOneSide",
+          "ProcessPreExistingBreakSource",
           "ProcessWaitingItem",
           "ProcessWaitingKind",
           "ProcessRunCursor",
@@ -184837,6 +185856,7 @@
         "dependencies": [
           "Array",
           "LiveCheckMode",
+          "MobileCaptureRouteStep",
           "ProcessStepKind"
         ]
       },
@@ -185076,6 +186096,7 @@
           "ProcessCleanupOutcome",
           "ProcessCirclingRepeat",
           "StuckSignalKind",
+          "ProcessPreExistingBreakSource",
           "ProcessWaitingItem",
           "ProcessWaitingKind",
           "ProcessToolTime",
@@ -185136,6 +186157,7 @@
           "ModelSpend",
           "CodeIntelExportedSymbol",
           "ProcessKeptOneSide",
+          "ProcessPreExistingBreakSource",
           "ProjectCheckNotCausedReport",
           "ProcessWorkBranchRewoundCommit",
           "VerificationCheckResult",
@@ -185854,8 +186876,9 @@
       "ProcessWaitingAsk": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
-          "ProcessWaitingItem",
           "Array",
+          "ProcessPreExistingBreakSource",
+          "ProcessWaitingItem",
           "ProcessWaitingKind"
         ]
       },
@@ -186138,6 +187161,10 @@
         "dependencies": []
       },
       "ProcessWriteScope": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "ProducedFileStamp": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": []
       },
@@ -186424,7 +187451,7 @@
       },
       "PROJECT_FILE_CALLS": {
         "path": "headless/api/projectFileApi.ts",
-        "description": "The calls a file preview reads and changes a file of any project with.",
+        "description": "The calls a file preview reads a file of any project with.",
         "dependencies": [
           "FilePreviewCalls"
         ]
@@ -186891,6 +187918,13 @@
           "Array",
           "SandboxDependencyManager",
           "SandboxImageToolchain"
+        ]
+      },
+      "ProjectCheckPreExistingReport": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "Array",
+          "ProjectCheckKind"
         ]
       },
       "ProjectCheckPreStep": {
@@ -187436,11 +188470,29 @@
         "description": "A suggestion from {@link rankProjectMentionMatches} split into its project and path.",
         "dependencies": []
       },
+      "ProjectFileSave": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "ProjectFileSaveOutcome": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "ProjectFileSaveRefusal"
+        ]
+      },
+      "ProjectFileSaveRefusal": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
       "ProjectFilesRegeneration": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
           "Array"
         ]
+      },
+      "ProjectFilesSaveOptions": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
       },
       "projectFlakeFixFiled": {
         "path": "headless/utils/projectFlakesConstants.ts",
@@ -188989,6 +190041,7 @@
           "ProcessCirclingSignal",
           "CodeIntelExportedSymbol",
           "ProcessKeptOneSide",
+          "ProcessPreExistingBreakSource",
           "ProcessWaitingItem",
           "ProcessWaitingKind",
           "ProcessRunCursor",
@@ -189406,6 +190459,11 @@
       },
       "ProofPlanVerdict": {
         "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "ProofPointList": {
+        "path": "headless/utils/processPartialProofViewTypes.ts",
+        "description": "A titled list of points a proof showed, or could not show.",
         "dependencies": []
       },
       "ProofScreens": {
@@ -190439,6 +191497,11 @@
         "description": "A QR code as one SVG path of its dark modules, one unit per module.",
         "dependencies": []
       },
+      "queryKeyJsonReplacer": {
+        "path": "headless/api/generated/core/queryKeySerializer.gen.ts",
+        "description": "Replacer that converts non-JSON values (bigint, Date, etc.) to safe substitutes.",
+        "dependencies": []
+      },
       "queryProjectData": {
         "path": "headless/api/projectData.ts",
         "dependencies": [
@@ -191467,6 +192530,7 @@
           "ProcessCirclingSignal",
           "CodeIntelExportedSymbol",
           "ProcessKeptOneSide",
+          "ProcessPreExistingBreakSource",
           "ProcessWaitingItem",
           "ProcessWaitingKind",
           "ProcessRunCursor",
@@ -192360,6 +193424,20 @@
           "DiscoveredSource"
         ]
       },
+      "REMOTE_GIT_OP_LABELS": {
+        "path": "headless/utils/gitOpErrorConstants.ts",
+        "description": "The Git screens' ops that reach the remote, by the label each runs under.",
+        "dependencies": [
+          "ReadonlySet"
+        ]
+      },
+      "remoteGitOpError": {
+        "path": "headless/utils/gitOpError.ts",
+        "description": "A failed Git-screen op as the screen holds it. Only an op that reaches the",
+        "dependencies": [
+          "GitOpError"
+        ]
+      },
       "REMOVE_PROCESS_GROUP_RUN_TOOL_NAME": {
         "path": "headless/utils/runProposalViewConstants.ts",
         "description": "Delete an ended group run and everything its legs own.",
@@ -192714,12 +193792,6 @@
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
           "Array"
-        ]
-      },
-      "renameProjectFile": {
-        "path": "headless/api/projectFileApi.ts",
-        "dependencies": [
-          "Promise"
         ]
       },
       "renameSymbol": {
@@ -195045,8 +196117,8 @@
       "ReviewEvidenceBuild": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
-          "ReviewEvidenceOverlayFile",
-          "Array"
+          "Array",
+          "ReviewEvidenceOverlayFile"
         ]
       },
       "ReviewEvidenceBuildHint": {
@@ -195219,6 +196291,24 @@
       "ReviewEvidenceVerificationMode": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": []
+      },
+      "ReviewGapRun": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "ProofKindUnavailable",
+          "Array",
+          "ProcessLedgerEntry",
+          "ProcessPlan",
+          "ProcessCirclingRepeat",
+          "ProcessCirclingSignal",
+          "CodeIntelExportedSymbol",
+          "ProcessKeptOneSide",
+          "ProcessPreExistingBreakSource",
+          "ProcessWaitingItem",
+          "ProcessWaitingKind",
+          "ProcessRunCursor",
+          "ProcessParkReason"
+        ]
       },
       "ReviewInProgressInput": {
         "path": "headless/utils/reviewProgress.ts",
@@ -197719,6 +198809,14 @@
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": []
       },
+      "SandboxFileRefusal": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "SandboxFileSource": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
       "SandboxImageInspection": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": []
@@ -197730,6 +198828,17 @@
       "SandboxNetworkPolicy": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": []
+      },
+      "SandboxPathRefusal": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "SandboxPathResolution": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "SandboxPathRefusal",
+          "SandboxBindMount"
+        ]
       },
       "SandboxPolicy": {
         "path": "headless/api/generated/types.gen.ts",
@@ -197757,6 +198866,13 @@
       "SandboxProxyTarget": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": []
+      },
+      "SandboxWorkspaceBinding": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "SandboxBindMount",
+          "Array"
+        ]
       },
       "sanitizeRepoName": {
         "path": "headless/hooks/useProjectGithubRepo.ts",
@@ -197797,11 +198913,38 @@
       },
       "saveChatFileToProject": {
         "path": "headless/api/chatFileSaveApi.ts",
+        "description": "Copy a file shown in one of the project’s chats — a path in its chat attachment store — into the project’s folder. Nothing is committed. A file already at the destination is kept (409, `exists`) unless `overwrite`.",
         "dependencies": [
-          "ChatFileSaveOutcome",
-          "Promise",
-          "ChatFileSaveRequest"
+          "ThrowOnError",
+          "SaveChatFileToProjectErrors",
+          "SaveChatFileToProjectResponses",
+          "SaveChatFileToProjectData",
+          "Options"
         ]
+      },
+      "SaveChatFileToProjectData": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "SaveChatFileToProjectError": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "SaveChatFileToProjectErrors"
+        ]
+      },
+      "SaveChatFileToProjectErrors": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "SaveChatFileToProjectResponse": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "SaveChatFileToProjectResponses"
+        ]
+      },
+      "SaveChatFileToProjectResponses": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
       },
       "SAVED_RULES_EMPTY": {
         "path": "headless/utils/actionRulesConstants.ts",
@@ -199855,6 +200998,7 @@
           "ProcessCirclingSignal",
           "CodeIntelExportedSymbol",
           "ProcessKeptOneSide",
+          "ProcessPreExistingBreakSource",
           "ProcessWaitingItem",
           "ProcessWaitingKind",
           "ProcessRunCursor",
@@ -199909,6 +201053,7 @@
           "react/useState",
           "react-native/Image",
           "react-native/Pressable",
+          "react-native/Text",
           "react-native/View",
           "thefactory-tools/utils/attachmentDisplayName",
           "thefactory-tools/utils"
@@ -200005,6 +201150,13 @@
         "path": "headless/api/generated/core/pathSerializer.gen.ts",
         "dependencies": [
           "SerializePrimitiveParam"
+        ]
+      },
+      "serializeQueryKeyValue": {
+        "path": "headless/api/generated/core/queryKeySerializer.gen.ts",
+        "description": "Normalizes any accepted value into a JSON-friendly shape for query keys.",
+        "dependencies": [
+          "JsonValue"
         ]
       },
       "SerializerOptions": {
@@ -204514,6 +205666,21 @@
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": []
       },
+      "startStoryWorkRequest": {
+        "path": "headless/hooks/useWorkLaunch.ts",
+        "dependencies": [
+          "StoryWorkStarted",
+          "Promise",
+          "WorkLaunchChoice",
+          "react/useCallback",
+          "react/useState",
+          "thefactory-tools/types/LaunchSetupSuggestion",
+          "thefactory-tools/types/WorkLaunchMode",
+          "thefactory-tools/types",
+          "thefactory-tools/utils/projectWorkLaunchMode",
+          "thefactory-tools/utils"
+        ]
+      },
       "StartStoryWorkResponse": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
@@ -206630,6 +207797,19 @@
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": []
       },
+      "StoryWorkStarted": {
+        "path": "headless/hooks/useWorkLaunch.ts",
+        "description": "Where a story's work went once started from its page.",
+        "dependencies": [
+          "react/useCallback",
+          "react/useState",
+          "thefactory-tools/types/LaunchSetupSuggestion",
+          "thefactory-tools/types/WorkLaunchMode",
+          "thefactory-tools/types",
+          "thefactory-tools/utils/projectWorkLaunchMode",
+          "thefactory-tools/utils"
+        ]
+      },
       "StreamEvent": {
         "path": "headless/api/generated/core/serverSentEvents.gen.ts",
         "dependencies": [
@@ -206639,6 +207819,13 @@
       "StreamingStdio": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": []
+      },
+      "stringifyToJsonValue": {
+        "path": "headless/api/generated/core/queryKeySerializer.gen.ts",
+        "description": "Safely stringifies a value and parses it back into a JsonValue.",
+        "dependencies": [
+          "JsonValue"
+        ]
       },
       "StructuredDiff": {
         "path": "headless/api/generated/types.gen.ts",
@@ -207624,6 +208811,10 @@
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": []
       },
+      "TestFailureLike": {
+        "path": "headless/utils/testResultsTypes.ts",
+        "dependencies": []
+      },
       "TestFrameworkName": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
@@ -207720,6 +208911,10 @@
           "McpServerOwner"
         ]
       },
+      "TestNameLike": {
+        "path": "headless/utils/testResultsTypes.ts",
+        "dependencies": []
+      },
       "testProjectMcpServer": {
         "path": "headless/api/generated/sdk.gen.ts",
         "description": "Ask the server for its tools now. Takes up to 5s when it is down.",
@@ -207770,6 +208965,15 @@
           "TestFailure",
           "TestStats",
           "TestStatus"
+        ]
+      },
+      "TestResultLike": {
+        "path": "headless/utils/testResultsTypes.ts",
+        "dependencies": [
+          "TestNameLike",
+          "TestFailureLike",
+          "TestSummaryLike",
+          "TestStatusLike"
         ]
       },
       "TestResultsList": {
@@ -207944,6 +209148,14 @@
           "TestStatus"
         ]
       },
+      "TestsResultLike": {
+        "path": "headless/utils/testResultsTypes.ts",
+        "dependencies": [
+          "TestResultLike",
+          "TestSummaryLike",
+          "TestStatusLike"
+        ]
+      },
       "TestsRunKind": {
         "path": "headless/contexts/TestsContext.tsx",
         "dependencies": [
@@ -207978,6 +209190,15 @@
       },
       "TestStatus": {
         "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "TestStatusLike": {
+        "path": "headless/utils/testResultsTypes.ts",
+        "description": "The shapes the Tests display (`TestsAggregateBar`, `TestResultsList`, web and",
+        "dependencies": []
+      },
+      "TestSummaryLike": {
+        "path": "headless/utils/testResultsTypes.ts",
         "dependencies": []
       },
       "testTotalsHeadline": {
@@ -209607,6 +210828,11 @@
           "ReviewTone"
         ]
       },
+      "TOOL_ALREADY_HANDLED_LABEL": {
+        "path": "headless/utils/cliRunnerConstants.ts",
+        "description": "What a row says of a call whose ask closed itself: what it acted on was already settled elsewhere.",
+        "dependencies": []
+      },
       "TOOL_ASK_COPY": {
         "path": "headless/utils/toolAskCardConstants.ts",
         "dependencies": []
@@ -209732,6 +210958,13 @@
         "description": "A call waiting on an approval whose preview has not been asked for yet.",
         "dependencies": []
       },
+      "ToolArgCorrected": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "ToolArgRemap",
+          "Array"
+        ]
+      },
       "toolArgDisplay": {
         "path": "headless/utils/toolPreview.ts",
         "dependencies": [
@@ -209768,6 +211001,10 @@
           "react-native/View"
         ]
       },
+      "ToolArgRemap": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
       "ToolArgsForm": {
         "path": "native/compound/tools/ToolArgsForm.tsx",
         "description": "Native peer of the typed argument editor inside web's `ToolPanel`. Renders",
@@ -209785,6 +211022,10 @@
           "react-native/Text",
           "react-native/View"
         ]
+      },
+      "ToolArgValueWords": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
       },
       "ToolAskApprovalPanel": {
         "path": "web/compound/chat/ToolAskApprovalPanel.tsx",
@@ -210038,6 +211279,7 @@
       "ToolCallCorrection": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
+          "ToolArgRemap",
           "Array"
         ]
       },
@@ -210445,10 +211687,25 @@
           "react/useState"
         ]
       },
+      "toolStepFoldKey": {
+        "path": "headless/utils/toolStepGroups.ts",
+        "description": "What keeps a fold's open state to its own chat. The list stays mounted when",
+        "dependencies": []
+      },
       "ToolStepGroup": {
         "path": "headless/utils/toolStepGroupsTypes.ts",
         "description": "One run of consecutive tool-call rows drawn as a single line until opened.",
         "dependencies": []
+      },
+      "toolStepLayout": {
+        "path": "headless/utils/toolStepGroups.ts",
+        "description": "Consecutive tool-call rows drawn as one \"N steps\" line at the first of",
+        "dependencies": [
+          "ToolStepGroup",
+          "ToolStepLayout",
+          "ReadonlySet",
+          "ChatMessageLike"
+        ]
       },
       "ToolStepLayout": {
         "path": "headless/utils/toolStepGroupsTypes.ts",
@@ -210457,6 +211714,13 @@
           "ReadonlySet",
           "ToolStepGroup",
           "ReadonlyMap"
+        ]
+      },
+      "toolStepRowEnd": {
+        "path": "headless/utils/toolStepGroups.ts",
+        "description": "Where the row drawn at `index` ends (exclusive): after the last step folded",
+        "dependencies": [
+          "ToolStepLayout"
         ]
       },
       "ToolStepsFold": {
@@ -210477,6 +211741,13 @@
           "react-native/Pressable",
           "react-native/Text",
           "react-native/View"
+        ]
+      },
+      "toolStepStartOf": {
+        "path": "headless/utils/toolStepGroups.ts",
+        "description": "Where a message is drawn: the first row of the fold it sits in, else",
+        "dependencies": [
+          "ToolStepLayout"
         ]
       },
       "Tooltip": {
@@ -211383,11 +212654,23 @@
         "description": "Between the names of the files that finished, in a run that left others unfinished.",
         "dependencies": []
       },
+      "UnfinishedTestFileView": {
+        "path": "headless/utils/testResultsTypes.ts",
+        "description": "A test file the run could not finish, as the Tests display lists it.",
+        "dependencies": []
+      },
       "UnfinishedTests": {
         "path": "web/compound/chat/signoff/UnfinishedTests.tsx",
         "description": "The files a test run could not finish — each with why and the last it",
         "dependencies": [
           "UnfinishedTestsView"
+        ]
+      },
+      "UnfinishedTestsView": {
+        "path": "headless/utils/testResultsTypes.ts",
+        "description": "The files a test run could not finish, and the files that did, as one passed row.",
+        "dependencies": [
+          "UnfinishedTestFileView"
         ]
       },
       "UnifiedDiff": {
@@ -214999,6 +216282,21 @@
           "react/useState"
         ]
       },
+      "useLaunchSuggestion": {
+        "path": "headless/hooks/useWorkLaunch.ts",
+        "description": "The launch card's \"Suggest setup\": one short, read-only turn over the story, its",
+        "dependencies": [
+          "thefactory-tools/types/LaunchSetupSuggestion",
+          "LaunchSuggestionState",
+          "LaunchSuggestionInput",
+          "react/useCallback",
+          "react/useState",
+          "thefactory-tools/types/WorkLaunchMode",
+          "thefactory-tools/types",
+          "thefactory-tools/utils/projectWorkLaunchMode",
+          "thefactory-tools/utils"
+        ]
+      },
       "useLeaveBlocker": {
         "path": "headless/contexts/LeaveGuardContext.tsx",
         "description": "Blocks leaving with `message` while it is non-null.",
@@ -216393,6 +217691,20 @@
           "react/ReactNode"
         ]
       },
+      "useProjectWorkLaunch": {
+        "path": "headless/hooks/useWorkLaunch.ts",
+        "description": "How a project starts work: the way it last went there, and the agent the person's chats run on.",
+        "dependencies": [
+          "Record",
+          "thefactory-tools/types/WorkLaunchMode",
+          "react/useCallback",
+          "react/useState",
+          "thefactory-tools/types/LaunchSetupSuggestion",
+          "thefactory-tools/types",
+          "thefactory-tools/utils/projectWorkLaunchMode",
+          "thefactory-tools/utils"
+        ]
+      },
       "useProviderConnections": {
         "path": "headless/contexts/ProviderConnectionsContext.tsx",
         "dependencies": [
@@ -217403,6 +218715,32 @@
           "thefactory-tools/utils"
         ]
       },
+      "useVideoPlayback": {
+        "path": "headless/hooks/useVideoPlayback.ts",
+        "description": "A video's card, from the poster through playing and back.",
+        "dependencies": [
+          "VideoFrame",
+          "VideoFailure",
+          "UseVideoPlayback",
+          "ChatVideoSource",
+          "react/useCallback",
+          "react/useEffect",
+          "react/useReducer",
+          "react/useRef"
+        ]
+      },
+      "UseVideoPlayback": {
+        "path": "headless/hooks/useVideoPlayback.ts",
+        "dependencies": [
+          "VideoFailure",
+          "VideoFrame",
+          "VideoPlaybackState",
+          "react/useCallback",
+          "react/useEffect",
+          "react/useReducer",
+          "react/useRef"
+        ]
+      },
       "useVideoSetup": {
         "path": "headless/hooks/useVideoSetup.ts",
         "description": "What a video needs on the machine that runs Overseer, and doing what is",
@@ -217643,6 +218981,7 @@
       "VerificationApproachSpec": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": [
+          "ToolName",
           "Array",
           "ProjectPlatform",
           "CapabilityId",
@@ -220256,12 +221595,6 @@
           "Promise"
         ]
       },
-      "writeProjectFile": {
-        "path": "headless/api/projectFileApi.ts",
-        "dependencies": [
-          "Promise"
-        ]
-      },
       "writeProjectOverviewModelSetting": {
         "path": "headless/hooks/useProjectOverviewModelSetting.ts",
         "dependencies": [
@@ -220356,6 +221689,14 @@
       "XcodeSchemeInfo": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": []
+      },
+      "XcresultTestSummary": {
+        "path": "headless/api/generated/types.gen.ts",
+        "dependencies": [
+          "VerificationTestSuite",
+          "Array",
+          "VerificationTestCount"
+        ]
       },
       "ZERO_BADGE_COUNTS": {
         "path": "headless/hooks/useBadgeCountsCore.ts",
@@ -221041,6 +222382,11 @@
         "dependencies": [
           "PendingActionStatus"
         ]
+      },
+      "actionFinishedToolCalls": {
+        "path": "dist/actionBroker/askMootUtils.js",
+        "description": "The approved calls carried out with a record of how they went, each timed from its ask. Pure.",
+        "dependencies": []
       },
       "ActionPayload": {
         "path": "dist/actionBroker/actionBrokerTypes.d.ts",
@@ -221811,6 +223157,7 @@
           "Record",
           "Promise",
           "Readonly",
+          "SandboxBindMount",
           "AbortSignal",
           "AgentToolSchema"
         ]
@@ -223386,6 +224733,11 @@
         "description": "What a call reads as once the user wrote past its ask without deciding it: the ask was declined as theirs.",
         "dependencies": []
       },
+      "ASK_SAME_CALL_RAN_LATER": {
+        "path": "dist/actionBroker/actionBrokerConstants.js",
+        "description": "Why an ask is already handled when the same call, with the same arguments, ran later in its chat.",
+        "dependencies": []
+      },
       "ASK_STILL_WAITING_RESULT": {
         "path": "dist/agentRunner/agentRunnerConstants.js",
         "description": "What a call still waiting on its ask reads as once the user's next message has followed it.",
@@ -223399,6 +224751,19 @@
       "ASK_USER_TOOL_NAME": {
         "path": "dist/cliAgentRunner/cliAgentRunnerConstants.js",
         "description": "Name of the gated tool a chat agent asks the person a question with. A host",
+        "dependencies": []
+      },
+      "AskMootCheck": {
+        "path": "dist/actionBroker/actionBrokerTypes.d.ts",
+        "description": "Whether a pending ask is moot: what it acts on was already settled elsewhere,",
+        "dependencies": [
+          "Promise",
+          "PendingAction"
+        ]
+      },
+      "AskMootChecks": {
+        "path": "dist/actionBroker/AskMootChecks.js",
+        "description": "The checks that tell whether a pending ask is moot — what it acts on is",
         "dependencies": []
       },
       "AskUserAnswerKind": {
@@ -225881,6 +227246,11 @@
         "description": "Distinct extensions of `paths`, sorted — the vocabulary an \"nothing applied\"",
         "dependencies": []
       },
+      "changedProducedFiles": {
+        "path": "dist/sandboxFiles/sandboxFilesUtils.js",
+        "description": "The files new or changed between two snapshots of a CLI's produced-files",
+        "dependencies": []
+      },
       "changedRatio": {
         "path": "dist/imageDiff/imageDiffUtils.js",
         "description": "How much of the compared area changed, as a share of it. `0` for an empty",
@@ -226178,6 +227548,18 @@
         "description": "The path of a kept chat attachment below the attachment store, or `undefined`",
         "dependencies": []
       },
+      "ChatAttachmentsCopy": {
+        "path": "dist/sandboxFiles/sandboxFilesTypes.d.ts",
+        "description": "What copying files into a chat's attachment store did.",
+        "dependencies": [
+          "SandboxFileRefusal"
+        ]
+      },
+      "ChatAttachmentsCopyLimits": {
+        "path": "dist/sandboxFiles/sandboxFilesTypes.d.ts",
+        "description": "Caps on one copy into a chat's attachment store.",
+        "dependencies": []
+      },
       "chatAttachmentsDirFor": {
         "path": "dist/references/chatAttachmentsHelpers.js",
         "description": "The project-relative directory a chat's attachments are kept in.",
@@ -226190,6 +227572,11 @@
       "ChatAttachmentsOwner": {
         "path": "dist/references/referencesTypes.d.ts",
         "description": "The owner file of a chat's attachment directory: which chat it belongs to.",
+        "dependencies": []
+      },
+      "ChatAttachmentStore": {
+        "path": "dist/sandboxFiles/sandboxFilesTypes.d.ts",
+        "description": "Where a chat's attachments are kept: the store's root and the chat's key in it.",
         "dependencies": []
       },
       "ChatAttachmentTooLargeError": {
@@ -226517,6 +227904,11 @@
       "chatEndsTurnOnToolErrors": {
         "path": "dist/workflow/processRunChatUtils.js",
         "description": "Whether a chat's turn ends at a tool call that failed: only in a person's",
+        "dependencies": []
+      },
+      "chatFinishedToolCalls": {
+        "path": "dist/actionBroker/askMootUtils.js",
+        "description": "The calls a chat's stored tool rows record as succeeded, each timed from its start. Pure.",
         "dependencies": []
       },
       "ChatMemorySurface": {
@@ -227289,6 +228681,11 @@
         "description": "Metadata the runner extracts from Claude Code's `system`/`init` stream-json",
         "dependencies": []
       },
+      "ClaudeCodeRateLimitEvent": {
+        "path": "dist/cliAgentRunner/cliAgentRunnerTypes.d.ts",
+        "description": "What a Claude Code `rate_limit_event` line carries. Utilization is a 0–1",
+        "dependencies": []
+      },
       "ClaudeCodeRunAuth": {
         "path": "dist/cliAgentRunner/cliAgentRunnerTypes.d.ts",
         "description": "The run a Claude Code subscription credential is being refreshed for — see `refreshClaudeCodeAuthForRun`.",
@@ -227833,6 +229230,11 @@
         "path": "dist/cliProbe/cliProbeConstants.js",
         "dependencies": []
       },
+      "CLI_PRODUCED_FILES_DIRS": {
+        "path": "dist/cliAgentRunner/cliAgentRunnerConstants.js",
+        "description": "Dirs under each CLI's home (its {@link CLI_AUTH_CACHE_CONTAINER_PATH} mount)",
+        "dependencies": []
+      },
       "CLI_RUN_CONFIG_DIR_PREFIX": {
         "path": "dist/cliAgentRunner/cliAgentRunnerConstants.js",
         "description": "Name prefix of the owned temp directory, in the OS temp directory, holding the empty writable",
@@ -228152,6 +229554,11 @@
         "description": "Filter shape accepted by `listPendingCliAgentActions`.",
         "dependencies": []
       },
+      "CliAgentPlanWindow": {
+        "path": "dist/cliAgentRunner/cliAgentRunnerTypes.d.ts",
+        "description": "One plan-usage window the runner recorded from a CLI during the run.",
+        "dependencies": []
+      },
       "CliAgentProjectMcpTools": {
         "path": "dist/cliAgentRunner/cliAgentRunnerTypes.d.ts",
         "description": "MCP tools exposed inside the sandbox so the agent can look up project",
@@ -228331,8 +229738,10 @@
       },
       "CliAgentSubscriptionStatus": {
         "path": "dist/cliAgentRunner/cliAgentRunnerTypes.d.ts",
-        "description": "Optional caller-supplied subscription metadata for the run. Stored verbatim",
-        "dependencies": []
+        "description": "Subscription metadata on a run: a caller-supplied snapshot at start, and/or",
+        "dependencies": [
+          "CliAgentPlanWindow"
+        ]
       },
       "cliAttemptLedgerEvents": {
         "path": "dist/cliAgentRunner/instrumentation/cliAgentInstrumentationUtils.js",
@@ -228944,6 +230353,11 @@
         "description": "An artifact without its file contents: its identity, whether it was applied, replaced, discarded or held apart, and the files it touches.",
         "dependencies": []
       },
+      "CliRunAssistantMessage": {
+        "path": "dist/cliAgentRunner/cliAgentRunnerTypes.d.ts",
+        "description": "One message a CLI run's agent wrote, as the reply text is assembled from its transcript.",
+        "dependencies": []
+      },
       "cliRunBuiltInMcpToolNames": {
         "path": "dist/cliAgentRunner/cliAgentRunnerUtils.js",
         "description": "Every built-in tool a CLI run registers on its MCP server, by family, for a",
@@ -229502,6 +230916,13 @@
         "description": "Outcome of comparing an observed CLI version against the configured",
         "dependencies": []
       },
+      "cliWorkspaceBinding": {
+        "path": "dist/cliAgentRunner/workspace/cliAgentWorkspaceUtils.js",
+        "description": "A CLI run's workspace copy as its host tools are told it: the copy, and the",
+        "dependencies": [
+          "CLI_AUTH_CACHE_CONTAINER_PATH"
+        ]
+      },
       "CLONE_DEFAULT_TIMEOUT_MS": {
         "path": "dist/git/gitConstants.js",
         "description": "Default ceiling for a `git clone`. Generous because it covers a cold clone of",
@@ -229780,6 +231201,8 @@
       "CodeIntelInternalState": {
         "path": "dist/codeIntel/codeIntelTypes.d.ts",
         "dependencies": [
+          "CodeIntelPackageRescan",
+          "Map",
           "Set",
           "Promise",
           "ReturnType",
@@ -229937,6 +231360,15 @@
         "path": "dist/codeIntel/environment/codeIntelEnvironmentTypes.d.ts",
         "dependencies": [
           "Record"
+        ]
+      },
+      "CodeIntelPackageRescan": {
+        "path": "dist/codeIntel/codeIntelTypes.d.ts",
+        "description": "A package's watcher rescan in flight: `again` when a change arrived after it started reading.",
+        "dependencies": [
+          "Promise",
+          "web-tree-sitter/Node",
+          "web-tree-sitter/Tree"
         ]
       },
       "CodeIntelPartialCatalogueForPackage": {
@@ -230125,6 +231557,13 @@
         "path": "dist/cliAgentRunner/cliAgentRunnerTypes.d.ts",
         "description": "A single MCP tool call a Codex run dispatched, extracted from its transcript.",
         "dependencies": []
+      },
+      "CodexRateLimits": {
+        "path": "dist/cliAgentRunner/cliAgentRunnerTypes.d.ts",
+        "description": "Plan windows on a codex `token_count` event's `rate_limits` block — primary",
+        "dependencies": [
+          "CliAgentPlanWindow"
+        ]
       },
       "CodexResidentProtocol": {
         "path": "dist/cliAgentRunner/resident/protocols/CodexResidentProtocol.js",
@@ -231773,6 +233212,22 @@
         "path": "dist/file/fileHelpers.js",
         "dependencies": [
           "node:crypto/createHash",
+          "node:fs/promises"
+        ]
+      },
+      "copyFilesToChatAttachments": {
+        "path": "dist/sandboxFiles/sandboxFilesHelpers.js",
+        "dependencies": [
+          "node:crypto/createHash",
+          "node:fs/constants",
+          "node:fs/createReadStream",
+          "node:fs/promises/copyFile",
+          "node:fs/promises/lstat",
+          "node:fs/promises/mkdir",
+          "node:fs/promises/readdir",
+          "node:fs/promises/realpath",
+          "node:fs/promises/rm",
+          "node:fs/promises/stat",
           "node:fs/promises"
         ]
       },
@@ -236210,11 +237665,6 @@
         "description": "Drop an IMPLAUSIBLE outlier PRICE (a mis-parse — a per-day/subscription price, a rating, a shipping fee)",
         "dependencies": []
       },
-      "droppedCutEnd": {
-        "path": "dist/completion/completionHistorySteps.js",
-        "description": "Where tool results cut up to `cutEnd` are dropped outright instead of left",
-        "dependencies": []
-      },
       "durableProse": {
         "path": "dist/recommend/recommendUtils.js",
         "description": "A record's durable prose. One on sale loses its prices ({@link stripPriceMentions}); one not for sale has none to",
@@ -237064,6 +238514,11 @@
         "description": "Per-model spend off Claude Code's `result` line (`modelUsage`, keyed by",
         "dependencies": []
       },
+      "extractClaudeCodeRateLimitEvent": {
+        "path": "dist/cliAgentRunner/providers/claudeCode/claudeCodeUtils.js",
+        "description": "Parse a Claude Code `rate_limit_event` stream-json line into its status /",
+        "dependencies": []
+      },
       "extractClaudeCodeUsage": {
         "path": "dist/cliAgentRunner/providers/claudeCode/claudeCodeUtils.js",
         "description": "Pull the `usage` block out of a Claude Code stream-json payload. Recognises",
@@ -237097,6 +238552,11 @@
       "extractCodexMcpToolCalls": {
         "path": "dist/cliAgentRunner/providers/codex/codexUtils.js",
         "description": "Extract the MCP tool calls a Codex run dispatched from its transcript. Walks",
+        "dependencies": []
+      },
+      "extractCodexRateLimits": {
+        "path": "dist/cliAgentRunner/providers/codex/codexUtils.js",
+        "description": "Plan windows on a codex `token_count` event's `rate_limits` block. Codex",
         "dependencies": []
       },
       "extractCodexTokenCount": {
@@ -237263,6 +238723,7 @@
         "dependencies": [
           "Record",
           "Readonly",
+          "SandboxBindMount",
           "ExtraMcpToolHandler",
           "AgentToolSchema"
         ]
@@ -238223,6 +239684,22 @@
           "FileUpdate"
         ]
       },
+      "fileContentHash": {
+        "path": "dist/sandboxFiles/sandboxFilesHelpers.js",
+        "dependencies": [
+          "node:crypto/createHash",
+          "node:fs/constants",
+          "node:fs/createReadStream",
+          "node:fs/promises/copyFile",
+          "node:fs/promises/lstat",
+          "node:fs/promises/mkdir",
+          "node:fs/promises/readdir",
+          "node:fs/promises/realpath",
+          "node:fs/promises/rm",
+          "node:fs/promises/stat",
+          "node:fs/promises"
+        ]
+      },
       "FileDataStorage": {
         "path": "dist/storage/FileDataStorage.js",
         "description": "File-backed {@link DataStorage}: the no-DB floor. Each record is one JSON",
@@ -238832,6 +240309,13 @@
           "CompletionResponseTurns",
           "ChatCompletionWithToolsArgs",
           "Pick"
+        ]
+      },
+      "FinishedToolCall": {
+        "path": "dist/actionBroker/actionBrokerTypes.d.ts",
+        "description": "One call a chat saw finish: the tool, the arguments it ran with, whether it",
+        "dependencies": [
+          "Record"
         ]
       },
       "firstLedgerUsageDay": {
@@ -241661,9 +243145,19 @@
         "description": "Tool-result body left after the history ceiling prunes an oversized result.",
         "dependencies": []
       },
+      "HISTORY_REQUEST_MAX_WINDOW_SHARE": {
+        "path": "dist/completion/completionConstants.js",
+        "description": "The most of a model's context window a whole request may plan to fill:",
+        "dependencies": []
+      },
       "HISTORY_STEP_MAX_SHARE": {
         "path": "dist/completion/completionConstants.js",
         "description": "The most a step of history holds, as a share of the budget it is cut to",
+        "dependencies": []
+      },
+      "HISTORY_STEP_MIN_SHARE": {
+        "path": "dist/completion/completionConstants.js",
+        "description": "The least a step of history holds, as a share of the budget it is cut to",
         "dependencies": []
       },
       "HISTORY_STEP_MIN_TURNS": {
@@ -241671,14 +243165,9 @@
         "description": "The least turns a step of history holds, unless they pass",
         "dependencies": []
       },
-      "HISTORY_STUB_STEPS": {
-        "path": "dist/completion/completionConstants.js",
-        "description": "The newest cut steps whose tool results stay as stubs; results in older",
-        "dependencies": []
-      },
-      "HISTORY_TRIM_LOW_WATERMARK": {
-        "path": "dist/completion/completionConstants.js",
-        "description": "The share of its budget a history is cut down to when it has to be cut: a",
+      "historyBudgetChars": {
+        "path": "dist/completion/completionHistoryCeiling.js",
+        "description": "Character budget for the history beside `reservedChars` of system prompt and",
         "dependencies": []
       },
       "historyCeilingChars": {
@@ -241700,6 +243189,11 @@
       "HistoryPoint": {
         "path": "dist/liveData/liveDataTypes.d.ts",
         "description": "A point in a live item's inline time series.",
+        "dependencies": []
+      },
+      "historyRequestChars": {
+        "path": "dist/completion/completionHistoryCeiling.js",
+        "description": "Character budget for a whole seed: the history's budget and the",
         "dependencies": []
       },
       "HistorySettings": {
@@ -244127,6 +245621,11 @@
           "node:fs/promises"
         ]
       },
+      "isShownImagePath": {
+        "path": "dist/sandboxFiles/sandboxFilesUtils.js",
+        "description": "Whether a file is an image a CLI produced that is shown under its reply. Pure.",
+        "dependencies": []
+      },
       "isSimctlAlreadyBooted": {
         "path": "dist/mobileTest/mobileTestUtils.js",
         "description": "Whether `simctl boot` failed only because the simulator is already booted.",
@@ -244892,7 +246391,7 @@
       },
       "judgeFreshTestComparison": {
         "path": "dist/projectChecks/projectCheckBaselineUtils.js",
-        "description": "A test run whose failures read as new against the base, judged again by its",
+        "description": "A test run whose failures read as new, or partly as failing at the base,",
         "dependencies": [
           "PROJECT_CHECK_FRESH_FLAKY_REASON"
         ]
@@ -247125,6 +248624,11 @@
       "mapQueryArgsToDataQuery": {
         "path": "dist/project/projectData/projectDataUtils.js",
         "description": "Map the LLM-facing `queryProjectData` args onto a scoped {@link DataQuery} (filter→where, sort→orderBy).",
+        "dependencies": []
+      },
+      "mapSandboxPath": {
+        "path": "dist/sandboxFiles/sandboxFilesUtils.js",
+        "description": "Map a path an agent named inside its sandbox onto the host, through the",
         "dependencies": []
       },
       "markApprovedAsksPending": {
@@ -255998,6 +257502,16 @@
         "path": "dist/workflow/workflowConstants.js",
         "dependencies": []
       },
+      "PROCESS_MIRRORED_PARK_MESSAGE": {
+        "path": "dist/workflow/workflowConstants.js",
+        "description": "What a parent says while a nested run it started is stopped: the nested",
+        "dependencies": []
+      },
+      "PROCESS_MIRRORED_PARK_UNNAMED_STEP": {
+        "path": "dist/workflow/workflowConstants.js",
+        "description": "The nested step a mirrored stop names when the plan no longer has it.",
+        "dependencies": []
+      },
       "PROCESS_MISSING_CONTEXT_HINT": {
         "path": "dist/workflow/workflowConstants.js",
         "description": "What that ask tells the person to do, and what answering it does.",
@@ -257759,6 +259273,7 @@
           "PROCESS_STEP_WAITS_FOR_SEND_BACK",
           "PROCESS_CONTINUED_SUMMARY",
           "PROCESS_CLEANUP_WAITS_FOR_MERGE",
+          "PROCESS_MIRRORED_PARK_MESSAGE",
           "node:crypto/randomUUID"
         ]
       },
@@ -261950,6 +263465,19 @@
         "description": "The scope a project screen writes or removes a definition in: the project's",
         "dependencies": []
       },
+      "ProducedFilesSnapshot": {
+        "path": "dist/sandboxFiles/sandboxFilesTypes.d.ts",
+        "description": "The files in a CLI's produced-files dirs at a moment, by host path.",
+        "dependencies": [
+          "ProducedFileStamp",
+          "ReadonlyMap"
+        ]
+      },
+      "ProducedFileStamp": {
+        "path": "dist/sandboxFiles/sandboxFilesTypes.d.ts",
+        "description": "A file's identity at a moment, to tell a new or changed file from one already there.",
+        "dependencies": []
+      },
       "producibleProofKinds": {
         "path": "dist/proofPlan/proofPlanUtils.js",
         "description": "The kinds among `kinds` this run can produce: every one `unavailable` names",
@@ -262728,6 +264256,11 @@
         "description": "Why failing tests that did not fail again every time they ran fresh beside the base are not the change's.",
         "dependencies": []
       },
+      "PROJECT_CHECK_FRESH_FLAKY_REST_REASON": {
+        "path": "dist/projectChecks/projectCheckEnvironmentConstants.js",
+        "description": "Why a test run partly failing at the base is the environment's: the rest proved flaky run fresh.",
+        "dependencies": []
+      },
       "PROJECT_CHECK_FULL_RUN_KINDS": {
         "path": "dist/projectChecks/projectCheckQueueConstants.js",
         "description": "The kinds that run the whole project — its build, its type check, its unit suite — at most one at a time per project.",
@@ -263202,6 +264735,11 @@
         "description": "A test filter an agent may pass: names, paths, globs and `::` node ids, never",
         "dependencies": []
       },
+      "PROJECT_CHECK_TEST_IDENTITY_SEPARATOR": {
+        "path": "dist/projectChecks/projectChecksConstants.js",
+        "description": "What stands between a test's file and its name in its identity, `file › test`.",
+        "dependencies": []
+      },
       "PROJECT_CHECK_TEST_PLACEHOLDER": {
         "path": "dist/projectChecks/projectChecksConstants.js",
         "dependencies": []
@@ -263433,6 +264971,21 @@
           "CREATE_PROJECT_RECORD_TOOL",
           "START_PROJECT_ACTIVITY_TOOL"
         ]
+      },
+      "PROJECT_FILE_SAVE_REFUSED": {
+        "path": "dist/sandboxFiles/sandboxFilesConstants.js",
+        "description": "What a caller is told for each file not saved into a project.",
+        "dependencies": []
+      },
+      "PROJECT_FILES_SAVE_MAX_COUNT": {
+        "path": "dist/sandboxFiles/sandboxFilesConstants.js",
+        "description": "The most files one call saves into a project.",
+        "dependencies": []
+      },
+      "PROJECT_GIT_DIR_NAME": {
+        "path": "dist/sandboxFiles/sandboxFilesConstants.js",
+        "description": "The directory name a project's repository lives in, refused as a save destination.",
+        "dependencies": []
       },
       "PROJECT_GUIDELINE_KEYS": {
         "path": "dist/project/projectConstants.js",
@@ -264020,9 +265573,24 @@
         "description": "The flaky tests a checks run found, as a line: each by name, the runs it",
         "dependencies": []
       },
+      "projectCheckFreshComparisonDue": {
+        "path": "dist/projectChecks/projectCheckBaselineUtils.js",
+        "description": "What a failed blocking test run's fresh comparison beside the base runs:",
+        "dependencies": []
+      },
+      "ProjectCheckFreshDue": {
+        "path": "dist/projectChecks/projectCheckEnvironmentTypes.d.ts",
+        "description": "What a fresh comparison beside the base runs: the failing tests left to judge, as `file › test`, and their files.",
+        "dependencies": []
+      },
       "ProjectCheckFreshRounds": {
         "path": "dist/projectChecks/projectCheckEnvironmentTypes.d.ts",
         "description": "Each fresh run's failing tests, as `file › test`, at the head and at the base, round by round.",
+        "dependencies": []
+      },
+      "projectCheckFreshRoundsSettled": {
+        "path": "dist/projectChecks/projectCheckBaselineUtils.js",
+        "description": "Whether fresh rounds have settled `tests`: each failed at the base in some",
         "dependencies": []
       },
       "ProjectCheckHidden": {
@@ -264801,12 +266369,41 @@
         "description": "Whether the project declares fake data its app's real screens are proved",
         "dependencies": []
       },
+      "projectDestinationPath": {
+        "path": "dist/sandboxFiles/sandboxFilesUtils.js",
+        "description": "A project-relative destination a file may be saved at, normalised to `/`",
+        "dependencies": [
+          "PROJECT_FILE_SAVE_REFUSED"
+        ]
+      },
+      "ProjectFileSave": {
+        "path": "dist/sandboxFiles/sandboxFilesTypes.d.ts",
+        "description": "One host file to save into a project, at a project-relative destination.",
+        "dependencies": []
+      },
+      "ProjectFileSaveOutcome": {
+        "path": "dist/sandboxFiles/sandboxFilesTypes.d.ts",
+        "description": "What saving one file into a project did.",
+        "dependencies": [
+          "ProjectFileSaveRefusal"
+        ]
+      },
+      "ProjectFileSaveRefusal": {
+        "path": "dist/sandboxFiles/sandboxFilesTypes.d.ts",
+        "description": "Why a file was not saved into a project.",
+        "dependencies": []
+      },
       "ProjectFilesRegeneration": {
         "path": "dist/mergeRegenerate/mergeRegenerateTypes.d.ts",
         "description": "The project's build run to regenerate files: the ones of them it rewrote,",
         "dependencies": [
           "VerificationCheckRanIn"
         ]
+      },
+      "ProjectFilesSaveOptions": {
+        "path": "dist/sandboxFiles/sandboxFilesTypes.d.ts",
+        "description": "Options for saving files into a project.",
+        "dependencies": []
       },
       "projectFilesToStage": {
         "path": "dist/cliAgentRunner/workspace/cliWorkspaceStagingUtils.js",
@@ -265032,6 +266629,7 @@
         "path": "dist/project/projectTypes.d.ts",
         "description": "Per-project settings the clients keep alongside the project spec.",
         "dependencies": [
+          "ProjectTemplateProvenance",
           "UiStackSetting",
           "ProjectCheckEnvSetting",
           "CapabilitySettings",
@@ -265042,6 +266640,11 @@
           "McpServerConnection",
           "ProjectTicketConnectionSetting"
         ]
+      },
+      "projectRelativeRefusal": {
+        "path": "dist/sandboxFiles/sandboxFilesUtils.js",
+        "description": "Why a path relative to a project's real root — as `path.relative` gives it",
+        "dependencies": []
       },
       "PROJECTS_DIR_NAME": {
         "path": "dist/file/fileConstants.js",
@@ -265297,6 +266900,11 @@
       "projectStoriesSrcPrefix": {
         "path": "dist/searchHits/searchHitsUtils.js",
         "description": "The folder of a project's story files as a document `src`: relative to wherever the project",
+        "dependencies": []
+      },
+      "ProjectTemplateProvenance": {
+        "path": "dist/project/projectTypes.d.ts",
+        "description": "Which catalog template a project was forked from, and at which commit.",
         "dependencies": []
       },
       "ProjectTestAccount": {
@@ -269096,6 +270704,22 @@
           "GIT_IDENTITY_REQUIRED_REASON"
         ]
       },
+      "repeatedAttachments": {
+        "path": "dist/sandboxFiles/sandboxFilesHelpers.js",
+        "dependencies": [
+          "node:crypto/createHash",
+          "node:fs/constants",
+          "node:fs/createReadStream",
+          "node:fs/promises/copyFile",
+          "node:fs/promises/lstat",
+          "node:fs/promises/mkdir",
+          "node:fs/promises/readdir",
+          "node:fs/promises/realpath",
+          "node:fs/promises/rm",
+          "node:fs/promises/stat",
+          "node:fs/promises"
+        ]
+      },
       "repeatedToolFailure": {
         "path": "dist/completion/completionUtils.js",
         "description": "The call an agent keeps making although it keeps failing: the first tool",
@@ -269614,6 +271238,7 @@
           "Date",
           "CLI_AGENT_GATED_APPROVAL_HOLD_MS",
           "CLI_AUTH_CACHE_CONTAINER_PATH",
+          "CLI_PRODUCED_FILES_DIRS",
           "RESIDENT_CONFIG_DIR_PREFIX",
           "node:crypto/randomUUID",
           "node:fs/promises/readdir",
@@ -269774,6 +271399,7 @@
         "path": "dist/cliAgentRunner/resident/residentCliSessionTypes.d.ts",
         "description": "What one resident turn spent, as the CLI reported it — what the manager",
         "dependencies": [
+          "CliAgentSubscriptionStatus",
           "CliModelTokens",
           "@modelcontextprotocol/sdk/shared/transport.js/Transport",
           "@modelcontextprotocol/sdk/shared/transport.js"
@@ -272108,6 +273734,16 @@
           "Math"
         ]
       },
+      "SameCallRanLaterCheck": {
+        "path": "dist/actionBroker/SameCallRanLaterCheck.js",
+        "description": "The moot check every tool-call ask shares, whatever its kind: the same tool,",
+        "dependencies": []
+      },
+      "sameCallRanLaterReason": {
+        "path": "dist/actionBroker/askMootUtils.js",
+        "description": "Why an ask is already handled because its chat ran the very call it asks for",
+        "dependencies": []
+      },
       "sameMcpServerUrl": {
         "path": "dist/mcpClient/mcpClientUtils.js",
         "description": "Whether two URLs are the one server: a stored token is only ever sent to the URL it was issued for. Pure.",
@@ -272161,6 +273797,11 @@
       "SANDBOX_OWNER_LABEL": {
         "path": "dist/sandbox/sandboxConstants.js",
         "description": "Docker label key naming the host process (its pid) that created a sandbox container or volume. The orphan reapers",
+        "dependencies": []
+      },
+      "SANDBOX_PATH_REFUSED": {
+        "path": "dist/sandboxFiles/sandboxFilesConstants.js",
+        "description": "What an agent is told for each path refused.",
         "dependencies": []
       },
       "SANDBOX_REAL_GIT_PATH": {
@@ -272350,6 +273991,16 @@
           "node:net/Socket"
         ]
       },
+      "SandboxFileRefusal": {
+        "path": "dist/sandboxFiles/sandboxFilesTypes.d.ts",
+        "description": "A file that was not copied, and why.",
+        "dependencies": []
+      },
+      "SandboxFileSource": {
+        "path": "dist/sandboxFiles/sandboxFilesTypes.d.ts",
+        "description": "A host file to copy out of a sandbox, with the name it is kept under (its own by default).",
+        "dependencies": []
+      },
       "sandboxGitGuardMounts": {
         "path": "dist/cliAgentRunner/workspace/cliWorkspaceGitGuardUtils.js",
         "description": "The mounts that make a chat's workspace repository read-only to its agent:",
@@ -272454,6 +274105,27 @@
         "path": "dist/cliAgentRunner/workspace/cliWorkspaceStagingUtils.js",
         "description": "Where a workspace-relative path is, inside the run's container.",
         "dependencies": []
+      },
+      "SandboxPathRefusal": {
+        "path": "dist/sandboxFiles/sandboxFilesTypes.d.ts",
+        "description": "Why a path an agent named cannot be read from the host.",
+        "dependencies": []
+      },
+      "SandboxPathResolution": {
+        "path": "dist/sandboxFiles/sandboxFilesTypes.d.ts",
+        "description": "A sandbox path mapped onto the host, or why it cannot be.",
+        "dependencies": [
+          "SandboxPathRefusal",
+          "SandboxBindMount"
+        ]
+      },
+      "SandboxPathResolver": {
+        "path": "dist/sandboxFiles/SandboxPathResolver.js",
+        "description": "Reads the paths an agent names inside its sandbox as host files, through the",
+        "dependencies": [
+          "node:fs/promises/realpath",
+          "node:fs/promises"
+        ]
       },
       "SandboxPolicy": {
         "path": "dist/sandbox/sandboxTypes.d.ts",
@@ -272592,6 +274264,13 @@
           "node:net/Socket"
         ]
       },
+      "SandboxWorkspaceBinding": {
+        "path": "dist/sandboxFiles/sandboxFilesTypes.d.ts",
+        "description": "A run's workspace copy as host tools are told it: its host path, and every",
+        "dependencies": [
+          "SandboxBindMount"
+        ]
+      },
       "sanitiseForDockerName": {
         "path": "dist/sandbox/sandboxUtils.js",
         "description": "Replace every character Docker rejects in container/volume/network names",
@@ -272687,6 +274366,22 @@
           "node:fs/promises",
           "node:path/dirname",
           "node:path/join"
+        ]
+      },
+      "saveFilesToProject": {
+        "path": "dist/sandboxFiles/sandboxFilesHelpers.js",
+        "dependencies": [
+          "node:crypto/createHash",
+          "node:fs/constants",
+          "node:fs/createReadStream",
+          "node:fs/promises/copyFile",
+          "node:fs/promises/lstat",
+          "node:fs/promises/mkdir",
+          "node:fs/promises/readdir",
+          "node:fs/promises/realpath",
+          "node:fs/promises/rm",
+          "node:fs/promises/stat",
+          "node:fs/promises"
         ]
       },
       "saveGroupAgentTypeDefinition": {
@@ -274805,6 +276500,47 @@
         "description": "Should a build run another adaptive top-up to reach its recall-consistency floor? True while a `minProducts`",
         "dependencies": []
       },
+      "SHOWN_FILE_HASH_ALGORITHM": {
+        "path": "dist/sandboxFiles/sandboxFilesConstants.js",
+        "description": "How a shown file's content is told from another's, so one content is shown once per reply.",
+        "dependencies": []
+      },
+      "SHOWN_FILE_MAX_BYTES": {
+        "path": "dist/sandboxFiles/sandboxFilesConstants.js",
+        "description": "The largest file shown under a reply.",
+        "dependencies": []
+      },
+      "SHOWN_FILE_REFUSED": {
+        "path": "dist/sandboxFiles/sandboxFilesConstants.js",
+        "description": "What an agent is told for each file not shown under its reply.",
+        "dependencies": []
+      },
+      "SHOWN_FILES_MAX_COUNT": {
+        "path": "dist/sandboxFiles/sandboxFilesConstants.js",
+        "description": "The most files one call shows under a reply.",
+        "dependencies": []
+      },
+      "SHOWN_IMAGE_EXTENSIONS": {
+        "path": "dist/sandboxFiles/sandboxFilesConstants.js",
+        "description": "Extensions of the images a CLI's own tools produce that are shown under its reply.",
+        "dependencies": []
+      },
+      "showProducedImages": {
+        "path": "dist/sandboxFiles/sandboxFilesHelpers.js",
+        "dependencies": [
+          "node:crypto/createHash",
+          "node:fs/constants",
+          "node:fs/createReadStream",
+          "node:fs/promises/copyFile",
+          "node:fs/promises/lstat",
+          "node:fs/promises/mkdir",
+          "node:fs/promises/readdir",
+          "node:fs/promises/realpath",
+          "node:fs/promises/rm",
+          "node:fs/promises/stat",
+          "node:fs/promises"
+        ]
+      },
       "SIDECAR_BRIDGE_DIR": {
         "path": "dist/sandbox/mcp/sandboxMcpBridgeConstants.js",
         "description": "Directory inside the sidecar container where the same Docker volume is mounted.",
@@ -275125,6 +276861,22 @@
         "path": "dist/cliAgentRunner/isolation/isolatedChatTurnHelpers.js",
         "description": "What an isolated chat copy holds now — handed to a later",
         "dependencies": []
+      },
+      "snapshotProducedFiles": {
+        "path": "dist/sandboxFiles/sandboxFilesHelpers.js",
+        "dependencies": [
+          "node:crypto/createHash",
+          "node:fs/constants",
+          "node:fs/createReadStream",
+          "node:fs/promises/copyFile",
+          "node:fs/promises/lstat",
+          "node:fs/promises/mkdir",
+          "node:fs/promises/readdir",
+          "node:fs/promises/realpath",
+          "node:fs/promises/rm",
+          "node:fs/promises/stat",
+          "node:fs/promises"
+        ]
       },
       "snapshotWorkspaceForCapture": {
         "path": "dist/cliAgentRunner/workspace/cliAgentWorkspaceHelpers.js",
@@ -276759,6 +278511,16 @@
         "dependencies": [
           "DataRecord"
         ]
+      },
+      "subscriptionFromClaudeCodeRateLimitEvent": {
+        "path": "dist/cliAgentRunner/providers/claudeCode/claudeCodeUtils.js",
+        "description": "{@link CliAgentSubscriptionStatus} from a Claude rate-limit event. Needs",
+        "dependencies": []
+      },
+      "subscriptionFromCodexRateLimits": {
+        "path": "dist/cliAgentRunner/providers/codex/codexUtils.js",
+        "description": "{@link CliAgentSubscriptionStatus} from a codex rate-limits snapshot — plan",
+        "dependencies": []
       },
       "substituteCommandTemplate": {
         "path": "dist/computeRunner/computeRunnerUtils.js",
@@ -281211,6 +282973,11 @@
         "path": "dist/project/projectTypeValidations.js",
         "dependencies": []
       },
+      "validateProjectTemplateProvenance": {
+        "path": "dist/project/projectTypeValidations.js",
+        "description": "Whether `value` is a project's template provenance: absent is valid (not",
+        "dependencies": []
+      },
       "validateProjectTicketConnectionSetting": {
         "path": "dist/connectors/items/connectorTypeValidations.js",
         "dependencies": []
@@ -281464,7 +283231,7 @@
       },
       "VerificationSiblingNotReplaced": {
         "path": "dist/checkRunner/checkRunnerTypes.d.ts",
-        "description": "An out-of-tree dependency with uncommitted changes no copy of its commit could be made of, and why.",
+        "description": "An out-of-tree dependency no copy of its commit could be made of, and why.",
         "dependencies": []
       },
       "VerificationStatus": {
@@ -283034,7 +284801,7 @@
       },
       "withKnownFlakeFailures": {
         "path": "dist/projectChecks/projectCheckFlakeUtils.js",
-        "description": "Each failed blocking test run whose every failure is a known flake — in the",
+        "description": "Each failed blocking test run with the failures that are known flakes — in",
         "dependencies": [
           "PROJECT_CHECK_KNOWN_FLAKE_REASON"
         ]
@@ -283109,6 +284876,22 @@
         "path": "dist/cliAgentRunner/cliAgentRunnerUtils.js",
         "description": "A transcript without the reply an agent wrote AGAIN because its CLI nudged it.",
         "dependencies": []
+      },
+      "withoutRepeatedAttachments": {
+        "path": "dist/sandboxFiles/sandboxFilesHelpers.js",
+        "dependencies": [
+          "node:crypto/createHash",
+          "node:fs/constants",
+          "node:fs/createReadStream",
+          "node:fs/promises/copyFile",
+          "node:fs/promises/lstat",
+          "node:fs/promises/mkdir",
+          "node:fs/promises/readdir",
+          "node:fs/promises/realpath",
+          "node:fs/promises/rm",
+          "node:fs/promises/stat",
+          "node:fs/promises"
+        ]
       },
       "withoutRunLock": {
         "path": "dist/storage/CliRunIndex.d.ts",
@@ -283221,7 +285004,7 @@
       },
       "withProjectCheckTipsNotMade": {
         "path": "dist/projectChecks/projectCheckSiblingUtils.js",
-        "description": "Checks with each dependency that ran against its uncommitted changes because",
+        "description": "Checks with each dependency that ran against its working tree because no",
         "dependencies": []
       },
       "withProjectReviewStep": {
@@ -283650,6 +285433,13 @@
         "path": "dist/cliAgentRunner/cliAgentRunnerTypes.d.ts",
         "description": "What a `workspace-limit-raise` the usage monitor asks for carries: the usage it saw against the cap, the",
         "dependencies": []
+      },
+      "workspaceSandboxMounts": {
+        "path": "dist/sandboxFiles/sandboxFilesUtils.js",
+        "description": "The mount table of a run that shares only its workspace copy — an API chat's",
+        "dependencies": [
+          "CLI_SANDBOX_WORKSPACE_PATH"
+        ]
       },
       "WorkspaceSnapshot": {
         "path": "dist/cliAgentRunner/cliAgentRunnerTypes.d.ts",

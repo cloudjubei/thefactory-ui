@@ -31,9 +31,6 @@ function calls(over: Partial<FilePreviewCalls> = {}): FilePreviewCalls {
     readText: vi.fn(async () => '# Proposal'),
     readBytes: vi.fn(async () => BYTES),
     readInfo: vi.fn(async () => INFO),
-    write: vi.fn(async () => {}),
-    rename: vi.fn(async () => {}),
-    remove: vi.fn(async () => {}),
     ...over,
   }
 }
@@ -167,85 +164,5 @@ describe('FilePreviewLoader', () => {
     expect(loader.state).toEqual({ status: 'loading', target: MD })
     await flush()
     expect(loader.state).toMatchObject({ status: 'ready', text: '# Back' })
-  })
-
-  it('saves to the file’s own project and shows what was saved', async () => {
-    const fetches = calls()
-    const { loader } = loaderWith(fetches)
-    loader.open(MD)
-    await flush()
-    await loader.write('# Edited')
-    expect(fetches.write).toHaveBeenCalledWith('compass-be', 'docs/ZNR-780_PROPOSAL.md', '# Edited')
-    expect(loader.state).toMatchObject({ status: 'ready', text: '# Edited', info: INFO })
-  })
-
-  it('lets a refused save throw, the file shown as it was', async () => {
-    const { loader } = loaderWith(
-      calls({ write: vi.fn(async () => Promise.reject(new Error('read-only'))) }),
-    )
-    loader.open(MD)
-    await flush()
-    await expect(loader.write('# Edited')).rejects.toThrow('read-only')
-    expect(loader.state).toMatchObject({ status: 'ready', text: '# Proposal' })
-  })
-
-  it('renames the file in its project and shows it at its new path, read by its new kind', async () => {
-    const fetches = calls({ readText: vi.fn(async () => 'plain') })
-    const { loader } = loaderWith(fetches)
-    loader.open(MD)
-    await flush()
-    await loader.rename('docs/proposal.txt')
-    expect(fetches.rename).toHaveBeenCalledWith(
-      'compass-be',
-      'docs/ZNR-780_PROPOSAL.md',
-      'docs/proposal.txt',
-    )
-    await flush()
-    expect(loader.state).toMatchObject({
-      status: 'ready',
-      target: { ...MD, path: 'docs/proposal.txt' },
-      kind: 'text',
-    })
-  })
-
-  it('deletes the file in its project and shows it gone', async () => {
-    const fetches = calls()
-    const { loader } = loaderWith(fetches)
-    loader.open(MD)
-    await flush()
-    await loader.remove()
-    expect(fetches.remove).toHaveBeenCalledWith('compass-be', 'docs/ZNR-780_PROPOSAL.md')
-    expect(loader.state).toEqual({ status: 'gone', target: MD })
-  })
-
-  it('changes nothing while no file is shown', async () => {
-    const fetches = calls()
-    const { loader, seen } = loaderWith(fetches)
-    await loader.write('x')
-    await loader.rename('y')
-    await loader.remove()
-    expect(fetches.write).not.toHaveBeenCalled()
-    expect(fetches.rename).not.toHaveBeenCalled()
-    expect(fetches.remove).not.toHaveBeenCalled()
-    loader.open(MD)
-    loader.open(MD)
-    await flush()
-    await loader.remove()
-    await loader.write('x')
-    expect(fetches.write).not.toHaveBeenCalled()
-    expect(seen.at(-1)).toEqual({ status: 'gone', target: MD })
-  })
-
-  it('keeps a save that ends after another file opened off the new file', async () => {
-    const save = deferred<void>()
-    const { loader } = loaderWith(calls({ write: vi.fn(() => save.promise) }))
-    loader.open(MD)
-    await flush()
-    const saving = loader.write('# Edited')
-    loader.open(PNG)
-    save.resolve()
-    await saving
-    await flush()
-    expect(loader.state).toMatchObject({ status: 'ready', target: PNG })
   })
 })

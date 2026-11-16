@@ -195,7 +195,8 @@ function ToolCallCardInner({
 
   const status = statusVisual(resultType)
   const isRequireConfirm = resultType === 'require_confirmation'
-  const reason = toolRowReason(resultType, result)
+  const alreadyHandled = toolCall.alreadyHandled
+  const reason = alreadyHandled ?? toolRowReason(resultType, result)
   const ticketMove = isTicketStatusMoveTool(toolCall.name)
   const ticketStory = isTicketStoryProposalTool(toolCall.name)
   const detail =
@@ -264,7 +265,9 @@ function ToolCallCardInner({
           paddingBottom: PAD,
         }}
       >
-        {status ? (
+        {alreadyHandled !== undefined ? (
+          <StatusIcon kind="success" color={nativePalette.gray[500]} />
+        ) : status ? (
           toolRowFellShort(resultType, milestone) ? (
             <StatusIcon kind="fell_short" color={nativePalette.gold[600]} />
           ) : (
@@ -283,6 +286,7 @@ function ToolCallCardInner({
           resultType={resultType}
           timeLabel={timeLabel}
           awaitingDecision={toolCall.awaitingDecision === true}
+          alreadyHandled={alreadyHandled !== undefined}
           slowLabel={
             resultType === 'running'
               ? slowToolLabel({

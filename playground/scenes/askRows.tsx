@@ -20,6 +20,12 @@ import ApprovalPanel from '../../src/web/compound/chat/ApprovalPanel'
 import CredentialCaptureCard from '../../src/web/compound/chat/CredentialCaptureCard'
 import type { CredentialCapture } from '../../src/headless/utils/credentialCaptureTypes'
 import type { Scene } from '../showcase/types'
+import {
+  ALREADY_HANDLED_CALL,
+  ALREADY_HANDLED_RESULT,
+  LIVE_ASK_CALL,
+  SAME_CALL_RAN_CALL,
+} from './alreadyHandledFixtures'
 
 const noop = () => {}
 const never = () => new Promise<void>(noop)
@@ -283,6 +289,27 @@ const LAUNCH_WITH_FILES: PendingToolGrant = {
   detail: { tool: 'startFeatureWork', args: LAUNCH_WITH_FILES_ARGS },
 }
 
+/** The rows of asks that closed themselves: a muted tick, "Already handled" and why — nothing to decide. */
+const ALREADY_HANDLED: ToolCallCardProps = {
+  toolCall: ALREADY_HANDLED_CALL,
+  resultType: 'not_allowed',
+  result: ALREADY_HANDLED_RESULT,
+}
+
+const SAME_CALL_RAN: ToolCallCardProps = {
+  toolCall: SAME_CALL_RAN_CALL,
+  resultType: 'not_allowed',
+  result: { outcome: 'expired', reason: SAME_CALL_RAN_CALL.alreadyHandled },
+}
+
+const LIVE_BESIDE_HANDLED: ToolCallCardProps = {
+  toolCall: LIVE_ASK_CALL,
+  resultType: 'require_confirmation',
+  selectable: true,
+  selected: false,
+  onToggleSelect: noop,
+}
+
 /** Sized like the dock it replaces the composer in. */
 export function Dock({ children }: { children: ReactNode }) {
   return (
@@ -371,6 +398,25 @@ export const ASK_ROW_SCENES: Scene[] = [
         id: 'design-delete-open',
         title: 'Delete a design screen — opened',
         render: () => <Rows rows={[row(DELETE_SCREEN, true)]} />,
+      },
+      {
+        id: 'already-handled',
+        title: 'Already handled',
+        description:
+          'An ask whose target was settled elsewhere closes itself — never on time, never because a new message came. Its row reads “Already handled” with the reason, and offers no toggle.',
+        render: () => <Rows rows={[ALREADY_HANDLED]} />,
+      },
+      {
+        id: 'already-handled-same-call',
+        title: 'Already handled — the same call ran later',
+        render: () => <Rows rows={[SAME_CALL_RAN]} />,
+      },
+      {
+        id: 'already-handled-beside-live',
+        title: 'Already handled beside a live ask',
+        description:
+          'Only the live ask keeps its toggle; the turn’s Resume counts it alone (Resume 0/1).',
+        render: () => <Rows rows={[ALREADY_HANDLED, LIVE_BESIDE_HANDLED]} />,
       },
       {
         id: 'several',

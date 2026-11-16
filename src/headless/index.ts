@@ -1777,8 +1777,6 @@ export type {
   FilePreviewContent,
   FilePreviewInfo,
   FilePreviewInfoRow,
-  FilePreviewLayout,
-  FilePreviewMode,
   FilePreviewPane,
   FilePreviewSource,
   FilePreviewState,
@@ -1786,25 +1784,16 @@ export type {
 } from './utils/filePreviewTypes'
 export {
   FILE_PREVIEW_COPY,
-  FILE_PREVIEW_DEFAULT_LAYOUT,
-  FILE_PREVIEW_DEFAULT_MODE,
   FILE_PREVIEW_INFO_LABELS,
   FILE_PREVIEW_LABEL,
-  FILE_PREVIEW_LAYOUT_LABELS,
-  FILE_PREVIEW_LAYOUTS,
-  FILE_PREVIEW_MODE_LABELS,
-  FILE_PREVIEW_MODES,
   FILE_PREVIEW_PANE_LABELS,
   FILE_PREVIEW_PANES,
 } from './utils/filePreviewConstants'
 export {
   PROJECT_FILE_CALLS,
-  deleteProjectFile,
   readProjectFileBytes,
   readProjectFileInfo,
   readProjectFileText,
-  renameProjectFile,
-  writeProjectFile,
 } from './api/projectFileApi'
 export { FilePreviewLoader } from './hooks/filePreviewLoader'
 export { useFilePreview, type FilePreviewHandle } from './hooks/useFilePreview'
@@ -2642,7 +2631,8 @@ export {
   GIT_CREDENTIAL_FIX_TEXT,
   GIT_CREDENTIAL_HOST_UNKNOWN,
 } from './utils/gitCredentialConstants'
-export { credentialSettingsOpener, gitOpError } from './utils/gitOpError'
+export { credentialSettingsOpener, gitOpError, remoteGitOpError } from './utils/gitOpError'
+export { REMOTE_GIT_OP_LABELS } from './utils/gitOpErrorConstants'
 export type { GitOpError } from './utils/gitOpErrorTypes'
 export {
   AGENT_RUNNER_EVENT,
@@ -4588,7 +4578,6 @@ export {
   useGitWithLog,
   type GitCommitAndPushOptions,
   type GitContextValue,
-  type GitCredentialError,
   type GitProviderProps,
   type GitSelection,
   type LocalDiff,

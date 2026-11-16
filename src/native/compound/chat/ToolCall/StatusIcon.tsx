@@ -9,7 +9,10 @@ import {
 } from '../../../icons'
 import { TOOL_AWAITING_DECISION_LABEL } from '../../../../headless/utils/gitSetupApprovalConstants'
 import type { ToolResultTypeLike } from '../../../../headless/utils/chatTypes'
-import { TOOL_STOPPED_LABEL } from '../../../../headless/utils/cliRunnerConstants'
+import {
+  TOOL_ALREADY_HANDLED_LABEL,
+  TOOL_STOPPED_LABEL,
+} from '../../../../headless/utils/cliRunnerConstants'
 import {
   BACKGROUND_TOOL_LABEL,
   BACKGROUND_TOOL_RESULT_TYPE,
@@ -28,6 +31,7 @@ export function StatusChip({
   timeLabel,
   awaitingDecision = false,
   slowLabel,
+  alreadyHandled = false,
 }: {
   resultType?: ToolResultTypeLike
   timeLabel?: string
@@ -35,7 +39,25 @@ export function StatusChip({
   awaitingDecision?: boolean
   /** A running call that has run a while: where it waits, and for how long. */
   slowLabel?: string
+  /** Its ask closed itself: what it acted on was already settled elsewhere. */
+  alreadyHandled?: boolean
 }) {
+  if (alreadyHandled) {
+    return (
+      <View
+        style={{
+          backgroundColor: 'rgba(115,115,115,0.15)',
+          borderRadius: nativeRadii.round,
+          paddingHorizontal: 8,
+          paddingVertical: 2,
+        }}
+      >
+        <Text style={{ fontSize: 10, fontWeight: '600', color: nativePalette.gray[600] }}>
+          {TOOL_ALREADY_HANDLED_LABEL}
+        </Text>
+      </View>
+    )
+  }
   if (awaitingDecision && (resultType === 'running' || resultType === 'pending')) {
     return (
       <View

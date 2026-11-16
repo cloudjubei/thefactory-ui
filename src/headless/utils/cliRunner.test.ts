@@ -1395,7 +1395,7 @@ describe('normalizeCliTranscript', () => {
     expect(row.toolCall?.decisionNote).toBe(DECLINED_BY_MOVING_ON_NOTE)
   })
 
-  it('shows an ask withdrawn as settled elsewhere as not run, saying why on the row', () => {
+  it('shows an ask withdrawn as settled elsewhere as already handled, saying why once on the row', () => {
     const why = 'Settled elsewhere: “Try again” was chosen on the run’s page.'
     const [row] = cliTranscriptToMessages(askedThen('answerRunPark', 'a1'), {
       decidedAsks: [
@@ -1409,7 +1409,23 @@ describe('normalizeCliTranscript', () => {
     })
     expect(row.toolResult?.type).toBe('not_allowed')
     expect(row.toolResult?.result).toMatchObject({ outcome: 'expired', reason: why })
-    expect(row.toolCall?.decisionNote).toBe(why)
+    expect(row.toolCall?.alreadyHandled).toBe(why)
+    expect(row.toolCall?.decisionNote).toBeUndefined()
+    expect(row.toolCall?.approvalId).toBeUndefined()
+  })
+
+  it('never reads a cancelled ask with no reason as already handled', () => {
+    const [row] = cliTranscriptToMessages(askedThen('addStory', 'a1'), {
+      decidedAsks: [decided({ status: 'expired', decisionReason: 'cancelled' })],
+    })
+    expect(row.toolCall?.alreadyHandled).toBeUndefined()
+  })
+
+  it('never reads a declined ask as already handled, whatever it carries', () => {
+    const [row] = cliTranscriptToMessages(askedThen('addStory', 'a1'), {
+      decidedAsks: [decided({ status: 'denied', decidedBy: 'person', withdrawnReason: 'x' })],
+    })
+    expect(row.toolCall?.alreadyHandled).toBeUndefined()
   })
 
   it('says only that a cancelled ask’s run was stopped when the host gave no reason', () => {
@@ -2759,7 +2775,7 @@ describe('storedChatAskRows — an API chat’s rows show its asks as a CLI turn
     expect(m!.toolResult?.result).toMatchObject({ reason: ASK_DECLINED_REASON })
   })
 
-  it('shows an ask withdrawn as settled elsewhere as not run, and why', () => {
+  it('shows an ask withdrawn as settled elsewhere as already handled, and why', () => {
     const why = 'Settled elsewhere: the story was already deleted.'
     const [m] = storedChatAskRows(
       [row('a1')],
@@ -2768,7 +2784,21 @@ describe('storedChatAskRows — an API chat’s rows show its asks as a CLI turn
     )
     expect(m!.toolResult?.type).toBe('not_allowed')
     expect(m!.toolResult?.result).toMatchObject({ reason: why })
-    expect(m!.toolCall?.decisionNote).toBe(why)
+    expect(m!.toolCall?.alreadyHandled).toBe(why)
+    expect(m!.toolCall?.decisionNote).toBeUndefined()
+  })
+
+  it('shows an already handled ask the host settled the row of with the row’s own result', () => {
+    const why = 'Settled elsewhere: you decided the “Needs you” item yourself.'
+    const settled = row('a1', 'not_allowed')
+    const [m] = storedChatAskRows(
+      [{ ...settled, toolResult: { ...settled.toolResult, result: 'Already handled before…' } }],
+      [],
+      [decided('a1', { status: 'expired', decisionReason: 'cancelled', withdrawnReason: why })],
+    )
+    expect(m!.toolResult?.result).toBe('Already handled before…')
+    expect(m!.toolCall?.alreadyHandled).toBe(why)
+    expect(m!.toolCall?.approvalId).toBeUndefined()
   })
 
   it('keeps a settled row’s own outcome, naming the rule that approved it', () => {

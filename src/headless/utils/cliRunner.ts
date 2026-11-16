@@ -1071,9 +1071,12 @@ export function cliTranscriptToMessages(
  */
 function settledAskFacts(
   ask: CliDecidedAsk,
-): Pick<ToolCallLike, 'changeFiles' | 'runId' | 'executionResult'> {
+): Pick<ToolCallLike, 'changeFiles' | 'runId' | 'executionResult' | 'alreadyHandled'> {
   return {
     runId: ask.runId,
+    ...(ask.status === 'expired' && ask.withdrawnReason !== undefined
+      ? { alreadyHandled: ask.withdrawnReason }
+      : {}),
     ...(ask.changeFiles ? { changeFiles: ask.changeFiles } : {}),
     ...(ask.execution ? { executionResult: ask.execution.result } : {}),
   }
@@ -1589,12 +1592,12 @@ function ranNothing(step: CliToolStep): boolean {
 }
 
 /**
- * Who settled an ask, in the words its row shows — or, for one the host withdrew
- * because what it acted on was settled elsewhere, why; nothing for an ask
- * recorded before decisions were attributed.
+ * Who settled an ask, in the words its row shows; nothing for one that closed
+ * itself as already handled (its row says why — see `settledAskFacts`), or for
+ * an ask recorded before decisions were attributed.
  */
 function askDecisionNote(ask: CliDecidedAsk): string | undefined {
-  if (ask.status === 'expired') return ask.withdrawnReason
+  if (ask.status === 'expired') return undefined
   if (ask.decidedVia === 'grant' && ask.rule !== undefined) return DECIDED_BY_RULE_NOTE(ask.rule)
   if (ask.decidedBy !== 'person') return undefined
   if (ask.status === 'denied') {

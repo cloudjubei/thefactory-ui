@@ -1,6 +1,5 @@
 import { View } from 'react-native'
 import { GIT_COMMIT_PUSH_TEXT } from 'thefactory-ui/headless'
-import GitCredentialErrorModal from '../../src/native/compound/git/GitCredentialErrorModal'
 import GitErrorAlert from '../../src/native/compound/git/GitErrorAlert'
 import type { NativeView } from './views'
 
@@ -12,12 +11,10 @@ const REFUSED =
 const REJECTED =
   'git push origin dev failed: ! [rejected] dev -> dev (fetch first) — the remote has work you do not have locally.'
 
-const REPO = 'https://Perpetuating@dev.azure.com/perpetuating/covision/_git/covision-android'
-
 /**
  * A push that failed after a commit, on a phone: refused for its credentials
  * (`?state=credentials`, with "Update credentials") or rejected for any other
- * reason (`?state=rejected`, no button). `git-credentials-popup` is the app-wide popup.
+ * reason (`?state=rejected`, no button).
  */
 export const GIT_CREDENTIAL_VIEWS: NativeView[] = [
   {
@@ -34,19 +31,5 @@ export const GIT_CREDENTIAL_VIEWS: NativeView[] = [
         </View>
       )
     },
-  },
-  {
-    id: 'git-credentials-popup',
-    title: 'Git credentials needed',
-    render: () => (
-      <GitCredentialErrorModal
-        isOpen
-        onClose={noop}
-        onOpenSettings={noop}
-        op="push"
-        message={REFUSED}
-        repoUrl={REPO}
-      />
-    ),
   },
 ]

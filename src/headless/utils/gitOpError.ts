@@ -1,4 +1,5 @@
 import { isGitCredentialError } from '../api/helpers'
+import { REMOTE_GIT_OP_LABELS } from './gitOpErrorConstants'
 import type { GitOpError } from './gitOpErrorTypes'
 
 /**
@@ -8,6 +9,16 @@ import type { GitOpError } from './gitOpErrorTypes'
  */
 export function gitOpError(err: unknown, message: string): GitOpError {
   return { message, credential: isGitCredentialError(err) }
+}
+
+/**
+ * A failed Git-screen op as the screen holds it. Only an op that reaches the
+ * remote can be fixed with new credentials, so a local op never offers them,
+ * whatever its error says.
+ */
+export function remoteGitOpError(label: string, err: unknown, message: string): GitOpError {
+  const error = gitOpError(err, message)
+  return REMOTE_GIT_OP_LABELS.has(label) ? error : { ...error, credential: false }
 }
 
 /**

@@ -17,7 +17,8 @@ export type SentImageAttachmentProps = {
 
 /**
  * An image sent with a message, shown as a thumbnail that opens full size —
- * zoom and pan — so a screenshot stays readable after it was sent. Falls back
+ * zoom and pan — so a screenshot stays readable after it was sent. Its name
+ * sits under it, cut short to the thumbnail's width, whole on hover. Falls back
  * to the file chip until the image loads, and when it cannot be read.
  */
 export function SentImageAttachment({
@@ -56,12 +57,15 @@ export function SentImageAttachment({
     <>
       <button
         type="button"
-        className="group block overflow-hidden rounded-md border border-(--border-subtle) bg-(--surface-overlay) hover:border-(--border-strong) focus-visible:outline-2 focus-visible:outline-(--accent-primary)"
+        className="group flex w-min min-w-24 max-w-60 flex-col overflow-hidden rounded-md border border-(--border-subtle) bg-(--surface-overlay) hover:border-(--border-strong) focus-visible:outline-2 focus-visible:outline-(--accent-primary)"
         onClick={() => setOpen(true)}
         title={name}
         aria-label={`Open ${name}`}
       >
-        <img src={url} alt={name} className="block max-h-40 max-w-60 object-contain" />
+        <img src={url} alt={name} className="block max-h-40 max-w-60 self-center object-contain" />
+        <span className="w-0 min-w-full truncate border-t border-(--border-subtle) px-2 py-1 text-left text-[11px] font-medium leading-[15px] text-(--text-primary)">
+          {name}
+        </span>
       </button>
       <FullScreenOverlay
         isOpen={open}

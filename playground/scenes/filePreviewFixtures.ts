@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import type { FilePreviewState, FilePreviewTarget } from 'thefactory-ui/headless'
 import type { ReferenceDescription } from 'thefactory-tools/types'
 
@@ -251,15 +250,3 @@ export const FILE_PREVIEW_ROUTES = {
     },
   ],
 } as const
-
-/** A file's state with the edits a person makes kept on the page: nothing is sent. */
-export function useFakeEdits(file: FilePreviewFile) {
-  const [state, setState] = useState<FilePreviewState>(FILE_PREVIEW_STATES[file])
-  useEffect(() => setState(FILE_PREVIEW_STATES[file]), [file])
-  return {
-    state,
-    onWrite: async (text: string) => setState((s) => (s.status === 'ready' ? { ...s, text } : s)),
-    onRename: async (to: string) => setState((s) => ({ ...s, target: { ...s.target, path: to } })),
-    onDelete: async () => setState((s) => ({ status: 'gone', target: s.target })),
-  }
-}

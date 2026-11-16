@@ -114,16 +114,14 @@ export function gitHookRejection(err: unknown): string | undefined {
 }
 
 /**
- * True when an SDK error (or any value) looks like a GitHub-credentials
- * failure — bad token, missing scopes, no repo access, deleted repo, …
- * Used by every client's `GitContext` to surface a single "credentials
- * don't have access" modal instead of bubbling raw 500 strings into the
- * Git pane.
+ * True when an SDK error (or any value) looks like a git-credentials
+ * failure on any git host — bad token, missing scopes, no repo access,
+ * deleted repo, … — which offers "Update credentials" beside the error.
  *
  * Prefers the backend's explicit `code: 'GIT_CREDENTIAL_ERROR'` (set by
  * `routes/git.ts` for push/pull/fetch), then falls back to a heuristic
- * against `message` so legacy code paths (clone, initialize-repo, anything
- * that still throws a raw 500) still light the modal.
+ * against `message` so code paths that still throw a raw 500 (clone,
+ * initialize-repo) are caught too.
  */
 export function isGitCredentialError(err: unknown): boolean {
   const se = extractServerError(err, '')

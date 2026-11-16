@@ -1,14 +1,8 @@
 import type { FilePaneKind } from './filePaneKind'
-import type { FilePreviewLayout, FilePreviewMode, FilePreviewPane } from './filePreviewTypes'
+import type { FilePreviewPane } from './filePreviewTypes'
 
 /** The button beside "Open in Files" that opens a file in a popup. */
 export const FILE_PREVIEW_LABEL = 'Preview'
-
-/** What the preview lets a person do until the product call is made: read only. */
-export const FILE_PREVIEW_DEFAULT_MODE: FilePreviewMode = 'view'
-
-/** Where the preview opens on a wide screen until the product call is made. */
-export const FILE_PREVIEW_DEFAULT_LAYOUT: FilePreviewLayout = 'modal'
 
 /** The words the preview shows around the file itself. */
 export const FILE_PREVIEW_COPY = {
@@ -22,17 +16,6 @@ export const FILE_PREVIEW_COPY = {
   info: 'File info',
   noViewer: 'No preview for this file type.',
   copy: 'Copy file contents',
-  save: 'Save',
-  noChanges: 'No unsaved changes',
-  rename: 'Rename file',
-  renameTitle: 'Rename file',
-  renamePlaceholder: 'new/path/to/file.ext',
-  renameConfirm: 'Rename',
-  cancel: 'Cancel',
-  delete: 'Delete file',
-  deleteTitle: 'Delete file',
-  deleteConfirm: 'Delete',
-  deleteBody: 'This permanently removes the file. This cannot be undone.',
   paneSwitch: 'Pane visibility',
   editView: 'Edit view',
   previewView: 'Preview view',
@@ -85,22 +68,4 @@ export const FILE_PREVIEW_PANE_LABELS: Record<FilePreviewPane, string> = {
 export const FILE_PREVIEW_PANES: Partial<Record<FilePaneKind, readonly FilePreviewPane[]>> = {
   markdown: ['edit', 'both', 'preview'],
   html: ['edit', 'preview'],
-}
-
-/** The ways the preview can let a person work, in the order the switch offers them. */
-export const FILE_PREVIEW_MODES: readonly FilePreviewMode[] = ['view', 'edit']
-
-/** What each way of working is called, on the switch that compares them. */
-export const FILE_PREVIEW_MODE_LABELS: Record<FilePreviewMode, string> = {
-  view: 'View only',
-  edit: 'Full Files pane',
-}
-
-/** Where the preview can open on a wide screen, in the order the switch offers them. */
-export const FILE_PREVIEW_LAYOUTS: readonly FilePreviewLayout[] = ['modal', 'drawer']
-
-/** What each place is called, on the switch that compares them. */
-export const FILE_PREVIEW_LAYOUT_LABELS: Record<FilePreviewLayout, string> = {
-  modal: 'Centered popup',
-  drawer: 'Right drawer',
 }
