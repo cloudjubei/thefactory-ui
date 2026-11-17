@@ -51,6 +51,11 @@ export interface UseSpeechToText {
   isSupported: boolean
   start(opts?: { locale?: string }): Promise<void>
   stop(): Promise<void>
+  /**
+   * Clears the transcripts and any error. While the engine is capturing it keeps
+   * capturing — a host consumes each final this way and dictation carries on —
+   * so only `stop()` ends a capture.
+   */
   reset(): void
 }
 
@@ -168,7 +173,7 @@ export function useSpeechToText(): UseSpeechToText {
   }, [])
 
   const reset = useCallback((): void => {
-    setStatus(supported ? 'idle' : 'unsupported')
+    if (!stopFnRef.current) setStatus(supported ? 'idle' : 'unsupported')
     setPartialTranscript('')
     setFinalTranscript('')
     setError(undefined)

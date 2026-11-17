@@ -207,7 +207,10 @@ export default function ChatInput({
   // buffer immediately so the user sees their words land in real time.
   const lastAppendedFinalRef = useRef<string>('')
   useEffect(() => {
-    if (!speech.finalTranscript) return
+    if (!speech.finalTranscript) {
+      lastAppendedFinalRef.current = ''
+      return
+    }
     if (speech.finalTranscript === lastAppendedFinalRef.current) return
     lastAppendedFinalRef.current = speech.finalTranscript
     appendDictation(speech.finalTranscript)

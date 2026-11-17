@@ -197,6 +197,27 @@ describe('useSpeechToText', () => {
     expect(stub.stop).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps listening through a reset that consumes a final, then stops and starts again', async () => {
+    const stub = stubEngine()
+    const { result } = renderHook(useSpeechToText, { wrapper: stub.wrapper })
+    await act(() => result.current.start())
+    act(() => stub.callbacks().onFinal('first utterance'))
+    act(() => result.current.reset())
+    expect(result.current.status).toBe('listening')
+    expect(result.current.finalTranscript).toBe('')
+    expect(stub.stop).not.toHaveBeenCalled()
+    act(() => stub.callbacks().onPartial('second'))
+    expect(result.current.partialTranscript).toBe('second')
+    act(() => stub.callbacks().onFinal('second utterance'))
+    expect(result.current.finalTranscript).toBe('second utterance')
+    await act(() => result.current.stop())
+    expect(stub.stop).toHaveBeenCalledTimes(1)
+    expect(result.current.status).toBe('idle')
+    await act(() => result.current.start())
+    expect(stub.start).toHaveBeenCalledTimes(2)
+    expect(result.current.status).toBe('listening')
+  })
+
   it('resets transcripts and errors to a supported idle state', async () => {
     const stub = stubEngine()
     const { result } = renderHook(useSpeechToText, { wrapper: stub.wrapper })
