@@ -9,6 +9,9 @@ export const PROCESS_CLEANUP_KIND_LABELS: Record<ProcessCleanupItemKind, string>
   'browser-window': 'Browser window',
 }
 
+/** What a cleanup list calls a context doc the run found only in the checkout. */
+export const PROCESS_CLEANUP_CONTEXT_DOC_LABEL = 'Context doc'
+
 export const PROCESS_CLEANUP_BY_LABELS = {
   agent: 'Registered by an agent',
   host: 'Found by the run',

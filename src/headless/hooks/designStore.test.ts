@@ -18,6 +18,8 @@ vi.mock('../api/generated', () => ({
   acceptDesignProposal: vi.fn(),
   keepDesignProposalAsAlternative: vi.fn(),
   sendBackDesignProposal: vi.fn(),
+  rejectDesignProposal: vi.fn(),
+  reopenDesignProposal: vi.fn(),
   renameDesignProposal: vi.fn(),
   deleteDesignProposal: vi.fn(),
   restoreDesignVersions: vi.fn(),
@@ -58,7 +60,9 @@ import {
   previewDesignTidyPlan,
   proposeDesign,
   proposeDesignDraft,
+  rejectDesignProposal,
   renameDesignProposal,
+  reopenDesignProposal,
   restoreDesignVersions,
   sendBackDesignProposal,
   updateDesignApp,
@@ -320,6 +324,25 @@ describe('designActionsFor', () => {
         },
       ],
       [
+        rejectDesignProposal,
+        () => actions.rejectProposal('pr1', 'Superseded'),
+        {
+          path: { projectId: 'p1', proposalId: 'pr1' },
+          body: { note: 'Superseded' },
+          throwOnError: true,
+        },
+      ],
+      [
+        rejectDesignProposal,
+        () => actions.rejectProposal('pr1'),
+        { path: { projectId: 'p1', proposalId: 'pr1' }, body: {}, throwOnError: true },
+      ],
+      [
+        reopenDesignProposal,
+        () => actions.reopenProposal('pr1'),
+        { path: { projectId: 'p1', proposalId: 'pr1' }, throwOnError: true },
+      ],
+      [
         renameDesignProposal,
         () => actions.renameProposal('pr1', 'New'),
         {
@@ -379,6 +402,91 @@ describe('designActionsFor', () => {
       expect(getProjectDesign).toHaveBeenCalledTimes(1)
     }
     expect(changed).toHaveBeenCalledTimes(cases.length)
+  })
+
+  describe('rejecting and reopening at once', () => {
+    const withOpen = (status = 'open', note?: string) => ({
+      ...index('Android'),
+      proposals: [
+        {
+          id: 'pr1',
+          appId: 'a1',
+          title: 'Save in the chip',
+          status,
+          ...(note ? { note } : {}),
+          origin: { by: 'agent' },
+          entries: [],
+          pieces: [],
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+    })
+    const shown = () => designStateOf(designSnapshot(), 'p1').index.proposals[0]!
+    const deferred = () => {
+      let resolve!: (v: unknown) => void
+      let reject!: (e: unknown) => void
+      const promise = new Promise((res, rej) => {
+        resolve = res
+        reject = rej
+      })
+      return { promise, resolve, reject }
+    }
+
+    it('shows a proposal rejected with its reason before the server answers', async () => {
+      asMock(getProjectDesign).mockResolvedValue({ data: withOpen() })
+      await refreshDesign('p1')
+      const answer = deferred()
+      asMock(rejectDesignProposal).mockReturnValue(answer.promise)
+      asMock(getProjectDesign).mockResolvedValue({ data: withOpen('rejected', 'Superseded') })
+      const changed = vi.fn()
+      const done = designActionsFor('p1', changed).rejectProposal('pr1', ' Superseded ')
+      expect(shown()).toMatchObject({ status: 'rejected', note: 'Superseded' })
+      answer.resolve({ data: { proposal: { id: 'pr1' }, delivery: { delivered: false } } })
+      expect(await done).toEqual({ proposal: { id: 'pr1' }, delivery: { delivered: false } })
+      expect(changed).toHaveBeenCalledTimes(1)
+    })
+
+    it('puts the proposal back as it was when the server refuses, then reads the design again', async () => {
+      asMock(getProjectDesign).mockResolvedValue({ data: withOpen() })
+      await refreshDesign('p1')
+      asMock(getProjectDesign).mockClear()
+      asMock(getProjectDesign).mockReturnValue(new Promise(() => {}))
+      asMock(rejectDesignProposal).mockRejectedValue(new Error('accepted already'))
+      const changed = vi.fn()
+      await expect(designActionsFor('p1', changed).rejectProposal('pr1')).rejects.toThrow(
+        'accepted already',
+      )
+      expect(shown()).toMatchObject({ status: 'open' })
+      expect(getProjectDesign).toHaveBeenCalledTimes(1)
+      expect(changed).not.toHaveBeenCalled()
+    })
+
+    it('shows a rejected proposal open again at once, its reason gone, and back on a refusal', async () => {
+      asMock(getProjectDesign).mockResolvedValue({ data: withOpen('rejected', 'Old') })
+      await refreshDesign('p1')
+      const answer = deferred()
+      asMock(reopenDesignProposal).mockReturnValue(answer.promise)
+      asMock(getProjectDesign).mockReturnValue(new Promise(() => {}))
+      const done = designActionsFor('p1', vi.fn()).reopenProposal('pr1')
+      expect(shown().status).toBe('open')
+      expect(shown().note).toBeUndefined()
+      answer.reject(new Error('gone'))
+      await expect(done).rejects.toThrow('gone')
+      expect(shown()).toMatchObject({ status: 'rejected', note: 'Old' })
+    })
+
+    it('still asks the server when the change cannot be shown ahead, e.g. a proposal it does not hold', async () => {
+      asMock(getProjectDesign).mockResolvedValue({ data: withOpen('accepted') })
+      await refreshDesign('p1')
+      asMock(rejectDesignProposal).mockRejectedValue(new Error('accepted already'))
+      asMock(reopenDesignProposal).mockResolvedValue({ data: { id: 'x' } })
+      const actions = designActionsFor('p1', vi.fn())
+      await expect(actions.rejectProposal('pr1')).rejects.toThrow('accepted already')
+      expect(shown().status).toBe('accepted')
+      expect(await actions.reopenProposal('nope')).toEqual({ id: 'x' })
+      expect(shown().status).toBe('accepted')
+    })
   })
 
   it('previews a tidy-up plan without reloading anything', async () => {

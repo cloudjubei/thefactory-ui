@@ -85,6 +85,8 @@ export function useDesign(projectId: string | undefined): UseDesign {
             keepProposal: IDLE,
             chooseProposal: IDLE,
             sendBackProposal: IDLE,
+            rejectProposal: IDLE,
+            reopenProposal: IDLE,
             renameProposal: IDLE,
             deleteProposal: IDLE,
             restoreVersions: IDLE,

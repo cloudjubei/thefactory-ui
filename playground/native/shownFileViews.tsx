@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { View } from 'react-native'
 import { ApiProvider, AuthProvider } from 'thefactory-ui/headless'
+import { ChatFileChipLookContext } from '../../src/headless/contexts/ChatFileChipLookContext'
+import { CHAT_FILE_CHIP_LOOK } from '../../src/headless/utils/chatFileChipConstants'
+import type { ChatFileChipLook } from '../../src/headless/utils/chatFileChipTypes'
 import type { ChatMessageLike } from '../../src/headless/utils/chatTypes'
 import type { NativeAttachmentImages } from '../../src/native/compound/chat/chatNativeTypes'
 import ChatFilePreviewSheet from '../../src/native/compound/chat/ChatFilePreviewSheet'
@@ -15,7 +18,7 @@ import {
   SENT_SKETCH_BY_PERSON,
   SHOWN_CLIP_CHAT,
   SHOWN_CLIP_REPLY,
-  SHOWN_DOCS_REPLY,
+  SHOWN_CHIPS_REPLY,
   SHOWN_MAP,
   SHOWN_MIXED_REPLY,
   SHOWN_NOTES,
@@ -40,25 +43,35 @@ const IMAGES: NativeAttachmentImages = {
   },
 }
 
-function Reply({ messages, video = false }: { messages: ChatMessageLike[]; video?: boolean }) {
+function Reply({
+  messages,
+  video = false,
+  look = CHAT_FILE_CHIP_LOOK,
+}: {
+  messages: ChatMessageLike[]
+  video?: boolean
+  look?: ChatFileChipLook
+}) {
   const rows = (
-    <View style={{ padding: 16, gap: 24, width: 390, maxWidth: '100%' }}>
-      {messages.map((msg, i) => (
-        <MessageRow
-          key={msg.id}
-          msg={msg}
-          globalIndex={i}
-          totalMessages={messages.length}
-          isThinking={false}
-          isLast={i === messages.length - 1}
-          prevUserMessagesLen={1}
-          enhancedTotalLength={messages.length}
-          attachmentImages={IMAGES}
-          fileSaving={SHOWN_SAVING}
-          {...(video ? { videoAttachments: SHOWN_CLIP_CHAT } : {})}
-        />
-      ))}
-    </View>
+    <ChatFileChipLookContext.Provider value={look}>
+      <View style={{ padding: 16, gap: 24, width: 390, maxWidth: '100%' }}>
+        {messages.map((msg, i) => (
+          <MessageRow
+            key={msg.id}
+            msg={msg}
+            globalIndex={i}
+            totalMessages={messages.length}
+            isThinking={false}
+            isLast={i === messages.length - 1}
+            prevUserMessagesLen={1}
+            enhancedTotalLength={messages.length}
+            attachmentImages={IMAGES}
+            fileSaving={SHOWN_SAVING}
+            {...(video ? { videoAttachments: SHOWN_CLIP_CHAT } : {})}
+          />
+        ))}
+      </View>
+    </ChatFileChipLookContext.Provider>
   )
   if (!video) return <DesignHostProvider value={HOST}>{rows}</DesignHostProvider>
   return (
@@ -89,6 +102,12 @@ function Preview({ path, shown }: { path: string; shown: boolean }) {
   )
 }
 
+const CHIP_LOOKS: Record<string, ChatFileChipLook> = {
+  'chip-a': 'pill',
+  'chip-b': 'labelled',
+  'chip-c': 'tile',
+}
+
 const PREVIEWS: Record<string, { path: string; shown: boolean }> = {
   'preview-pdf': { path: SHOWN_RULES, shown: true },
   'preview-csv': { path: SHOWN_ROSTER, shown: true },
@@ -97,7 +116,7 @@ const PREVIEWS: Record<string, { path: string; shown: boolean }> = {
 }
 
 /**
- * Files an agent showed, on mobile: `?view=chat-shown-files&state=reply|names|name-whole|other-files|save-on-image|save-on-video|save-in-chip|preview-pdf|preview-csv|preview-markdown|preview-own|viewer|dialog|dialog-exists|dialog-refused`.
+ * Files an agent showed, on mobile: `?view=chat-shown-files&state=reply|names|name-whole|other-files|save-on-image|save-on-video|chip-a|chip-b|chip-c|preview-pdf|preview-csv|preview-markdown|preview-own|viewer|dialog|dialog-exists|dialog-refused`.
  */
 export const SHOWN_FILE_VIEWS: readonly NativeView[] = [
   {
@@ -117,7 +136,8 @@ export const SHOWN_FILE_VIEWS: readonly NativeView[] = [
         )
       }
       if (state === 'save-on-video') return <Reply messages={[SHOWN_CLIP_REPLY]} video />
-      if (state === 'save-in-chip') return <Reply messages={[SHOWN_DOCS_REPLY]} />
+      const look = state ? CHIP_LOOKS[state] : undefined
+      if (look) return <Reply messages={[SENT_BY_PERSON, SHOWN_CHIPS_REPLY]} look={look} />
       const preview = state ? PREVIEWS[state] : undefined
       if (preview) return <Preview path={preview.path} shown={preview.shown} />
       if (state === 'name-whole') {

@@ -17,6 +17,7 @@ import {
   designReferencePreview,
   designSelection,
   designTidyMoveView,
+  designWithProposal,
   storageUsageBreakdown,
   storageUsageSummary,
   storageWarningNotification,
@@ -249,6 +250,95 @@ describe('proposals', () => {
     }
     expect(designFirstProposal(decided, 'a1')?.id).toBe('faction')
     expect(designFirstProposal(design(), 'nope')).toBeUndefined()
+  })
+
+  it('puts rejected proposals, answers included, in a folded Rejected group last, leaving the other answers', () => {
+    const base = design()
+    const rejected = {
+      ...base,
+      proposals: base.proposals.map((p) =>
+        p.id === 'faction' || p.id === 'grid'
+          ? { ...p, status: 'rejected' as const, decidedAt: 9 }
+          : p,
+      ),
+    }
+    const groups = designProposalGroups(rejected, 'a1')
+    expect(
+      groups.map((g) => [g.key, g.title, g.items.map((i) => i.proposal.id), !!g.folded]),
+    ).toEqual([
+      ['q:How should it look?', 'Answers to “How should it look?”', ['compact'], false],
+      ['decided', 'Decided', ['old'], false],
+      ['rejected', 'Rejected', ['faction', 'grid'], true],
+    ])
+    const allRejected = {
+      ...base,
+      proposals: base.proposals
+        .filter((p) => p.appId === 'a1')
+        .map((p) => ({ ...p, status: 'rejected' as const })),
+    }
+    expect(designProposalGroups(allRejected, 'a1').map((g) => g.key)).toEqual(['rejected'])
+  })
+
+  it('shows a rejected proposal first only when it is asked for or nothing else is left', () => {
+    const base = design()
+    const onlyRejectedOpen = {
+      ...base,
+      proposals: base.proposals.map((p) =>
+        p.appId !== 'a1'
+          ? p
+          : p.id === 'faction'
+            ? { ...p, status: 'rejected' as const, createdAt: 99 }
+            : { ...p, status: 'accepted' as const },
+      ),
+    }
+    expect(designFirstProposal(onlyRejectedOpen, 'a1')?.id).not.toBe('faction')
+    expect(designFirstProposal(onlyRejectedOpen, 'a1', 'faction')?.id).toBe('faction')
+    const everyRejected = {
+      ...base,
+      proposals: base.proposals.map((p) => ({ ...p, status: 'rejected' as const })),
+    }
+    expect(designFirstProposal(everyRejected, 'a1')?.status).toBe('rejected')
+  })
+
+  it('leaves a rejected answer out of its question’s cases', () => {
+    const base = design()
+    const three = {
+      ...base,
+      proposals: [
+        ...base.proposals,
+        proposal({
+          id: 'wide',
+          question: 'How should it look?',
+          status: 'rejected',
+          entries: [entry('w1', { screenId: 's1' }, 'Visual', 'w')],
+        }),
+      ],
+    }
+    expect(
+      designCaseMatrix(three, 'a1', 'How should it look?')!.rows.map((r) => r.proposal.id),
+    ).toEqual(['compact', 'grid'])
+    const one = {
+      ...three,
+      proposals: three.proposals.map((p) =>
+        p.id === 'grid' ? { ...p, status: 'rejected' as const } : p,
+      ),
+    }
+    expect(designCaseMatrix(one, 'a1', 'How should it look?')).toBeUndefined()
+  })
+
+  it('puts one proposal back into an index as it was, the rest as they are now', () => {
+    const base = design()
+    const changed = {
+      ...base,
+      proposals: base.proposals.map((p) => ({ ...p, title: `${p.title}!` })),
+    }
+    const original = base.proposals.find((p) => p.id === 'grid')!
+    const out = designWithProposal(changed, original)
+    expect(out.proposals.find((p) => p.id === 'grid')).toBe(original)
+    expect(out.proposals.filter((p) => p.id !== 'grid').every((p) => p.title.endsWith('!'))).toBe(
+      true,
+    )
+    expect(designWithProposal(changed, proposal({ id: 'gone' }))).toEqual(changed)
   })
 
   it('lays the answers to a question out as cases: a row per choice, a column per variant', () => {

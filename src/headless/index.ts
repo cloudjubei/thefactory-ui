@@ -2793,6 +2793,89 @@ export type {
   SignOffTemplateChoice,
 } from './utils/signOffOutputSettingsTypes'
 
+export { useDeliverySettings, type UseDeliverySettings } from './hooks/useDeliverySettings'
+export { saveGroupDelivery } from './api/deliverySettingsApi'
+export {
+  deliveryBranchPreview,
+  deliveryDraftOf,
+  deliveryDraftProblems,
+  deliverySettingsOfDraft,
+  deliverySettingsView,
+  readDeliverySettings,
+  sameDeliverySettings,
+  withDeliverySettings,
+} from './utils/deliverySettings'
+export {
+  DELIVERY_EMPTY_DRAFT,
+  DELIVERY_MERGE_METHOD_LABELS,
+  DELIVERY_PREVIEW_SAMPLE,
+  DELIVERY_SETTINGS_COPY,
+} from './utils/deliverySettingsConstants'
+export type {
+  DeliveryBranchPreview,
+  DeliveryChoiceOption,
+  DeliveryDraftProblems,
+  DeliveryFormDraft,
+  DeliveryMainGroup,
+  DeliveryMergeChoice,
+  DeliveryOwner,
+  DeliveryPrFirstChoice,
+  DeliverySettingsInput,
+  DeliverySettingsView,
+} from './utils/deliverySettingsTypes'
+export { useProcessDelivery, type UseProcessDelivery } from './hooks/useProcessDelivery'
+export { ProcessDeliveryStore } from './hooks/processDeliveryStore'
+export {
+  publishProcessGroup,
+  readProcessDelivery,
+  saveProcessPublishEdits,
+} from './api/processDeliveryApi'
+export {
+  isGroupPublishPark,
+  isProcessPublishGate,
+  mergeProcessPublishEdits,
+  processDeliveryPath,
+  processDeliveryRepoOf,
+  processGroupReadsDelivery,
+  processMergeActive,
+  processMergeRows,
+  processPublicationView,
+  processPublishBody,
+  processPublishEdits,
+  processPublishEditsChanged,
+  processPublishView,
+} from './utils/processDelivery'
+export {
+  PROCESS_DELIVERY_LEG_STATUSES,
+  PROCESS_DELIVERY_POLL_MS,
+  PROCESS_MERGE_ACTIVE_PHASES,
+  PROCESS_MERGE_CHECKS_LINK,
+  PROCESS_MERGE_FAILED_CHECKS,
+  PROCESS_MERGE_HEADING,
+  PROCESS_MERGE_OPEN_LABELS,
+  PROCESS_MERGE_PHASE_VIEW,
+  PROCESS_PUBLICATION_BADGES,
+  PROCESS_PUBLICATION_LINK,
+  PROCESS_PUBLISH_COPY,
+} from './utils/processDeliveryConstants'
+export type {
+  ProcessDeliveryData,
+  ProcessDeliveryLink,
+  ProcessDeliveryRepo,
+  ProcessDeliveryState,
+  ProcessDeliveryTarget,
+  ProcessGroupPublishBody,
+  ProcessMergePhase,
+  ProcessMergeProgress,
+  ProcessMergeRow,
+  ProcessPublicationView,
+  ProcessPublishBody,
+  ProcessPublishEdit,
+  ProcessPublishRepoBody,
+  ProcessPublishRow,
+  ProcessPublishView,
+} from './utils/processDeliveryTypes'
+
 // Project groups (MAIN exclusive + SCOPE overlapping) — sidebar / nav source
 // of truth across clients. Listens to the `projectsGroups:updated` WS topic.
 export {
@@ -4777,12 +4860,14 @@ export type {
 } from './utils/sendChatMessageView'
 export { useProcessCleanup, type UseProcessCleanup } from './hooks/useProcessCleanup'
 export {
+  isProcessCleanupContextDoc,
   processCleanupEditable,
   processCleanupHeadline,
   processCleanupRows,
 } from './utils/processCleanupView'
 export {
   PROCESS_CLEANUP_BY_LABELS,
+  PROCESS_CLEANUP_CONTEXT_DOC_LABEL,
   PROCESS_CLEANUP_COPY,
   PROCESS_CLEANUP_DEVICE_OUTCOME_LABELS,
   PROCESS_CLEANUP_KIND_LABELS,

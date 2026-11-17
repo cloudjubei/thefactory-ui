@@ -62,6 +62,7 @@ import {
 } from '../scenes/proofChangeFixtures'
 import { FAKE_DATA_VIEWS } from './fakeDataViews'
 import { LIVE_CHECK_VIEWS } from './liveCheckViews'
+import { PR_FIRST_DELIVERY_VIEWS } from './prFirstDeliveryViews'
 import { FILE_PREVIEW_VIEWS } from './filePreviewViews'
 import { GIT_CREDENTIAL_VIEWS } from './gitCredentialViews'
 import { FILE_TREE_VIEWS } from './fileTreeViews'
@@ -600,6 +601,7 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   ...PLAN_WINDOW_VIEWS,
   ...FAKE_DATA_VIEWS,
   ...LIVE_CHECK_VIEWS,
+  ...PR_FIRST_DELIVERY_VIEWS,
   ...FILE_PREVIEW_VIEWS,
   ...GIT_CREDENTIAL_VIEWS,
   ...FILE_TREE_VIEWS,

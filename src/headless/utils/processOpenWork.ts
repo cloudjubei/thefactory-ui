@@ -30,6 +30,7 @@ const HEADLINE: Record<ProcessOpenWorkState, (title: string) => string> = {
   running: (title) => `“${title}” is still running on this story.`,
   parked: (title) => `“${title}” is still open on this story, waiting on a decision.`,
   'awaiting-sign-off': (title) => `“${title}” is waiting for your sign-off on this story.`,
+  'in-review': (title) => `“${title}” is in review on this story: its pull request is open.`,
   unmerged: (title) => `“${title}” finished, but its work is not merged.`,
 }
 
@@ -43,6 +44,7 @@ const WARNINGS: Record<ProcessOpenWorkState, string[]> = {
   running: [OPEN_WORK_WARNING_PARALLEL],
   parked: [OPEN_WORK_WARNING_PARALLEL],
   'awaiting-sign-off': [OPEN_WORK_WARNING_UNREVIEWED, OPEN_WORK_WARNING_PARALLEL],
+  'in-review': [OPEN_WORK_WARNING_UNREVIEWED, OPEN_WORK_WARNING_PARALLEL],
   unmerged: [OPEN_WORK_WARNING_UNREVIEWED],
 }
 
@@ -53,6 +55,8 @@ const EXTEND_DETAIL: Record<ProcessOpenWorkState, string> = {
     'The new work joins that run and everything is signed off together: the new features run after its own once you answer what it is waiting on, then the whole story is walked through, reviewed and reported once.',
   'awaiting-sign-off':
     'The new work joins that run and everything is signed off together: its waiting sign-off is closed without a decision, the new features run, and the whole story is walked through, reviewed and reported again before one sign-off.',
+  'in-review':
+    'The new work joins that run and everything is signed off together: the new features run, the whole story is published again to the same pull request, and it comes back for one sign-off.',
   unmerged:
     'The new work joins that run and everything is signed off together: the run is reopened, its earlier approval is set aside (it stays in the run’s history), the new features run, and the whole story comes back for one new sign-off.',
 }

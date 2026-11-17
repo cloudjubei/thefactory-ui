@@ -202,6 +202,10 @@ import StepSidePanel, { type StepPanelTarget } from './pipeline/StepSidePanel'
 import NeedsYouLinkParam from './signoff/NeedsYouLinkParam'
 import LiveCheckWatchHeader from './LiveCheckWatchHeader'
 import { type ProcessRunBranch } from '../../../headless'
+import { isProcessPublishGate, processPublicationView } from '../../../headless'
+import RunMergeProgress from './RunMergeProgress'
+import PublicationChip from './PublicationChip'
+import RunPublishCard from './RunPublishCard'
 import type { ChatContext } from '../../../headless/api'
 import { getChatContextKey } from 'thefactory-tools/utils'
 
@@ -693,6 +697,7 @@ export default function ProcessPipeline({
                 onChoose={(choice, note, integration, requestedProof, retry, files) =>
                   void stopActions.resume(choice, note, integration, requestedProof, retry, files)
                 }
+                onAnswer={(choice) => stopActions.resume(choice)}
                 onChangeProof={(draft) => void stopActions.changeProof(draft)}
                 onSplitFollowUp={(draft) => void stopActions.splitFollowUp(draft)}
                 onAnswerRequest={(actionId, choice) =>
@@ -722,6 +727,7 @@ export default function ProcessPipeline({
             />
           ) : null}
 
+          {signoff ? null : <RunMergeProgress run={run} onResolve={resolveIntegrationConflict} />}
           {signoff ? null : (
             <IntegrationResult
               run={run}
@@ -802,13 +808,16 @@ export default function ProcessPipeline({
                 {...(integrationModes ? { integrationModes } : {})}
                 {...(run.proofUnavailable ? { proofUnavailable: run.proofUnavailable } : {})}
                 integration={
-                  <IntegrationResult
-                    run={run}
-                    embedded
-                    {...(integrationModes ? { modes: integrationModes } : {})}
-                    onRetry={retryIntegration}
-                    onResolve={resolveIntegrationConflict}
-                  />
+                  <>
+                    <SignoffPublication run={run} />
+                    <IntegrationResult
+                      run={run}
+                      embedded
+                      {...(integrationModes ? { modes: integrationModes } : {})}
+                      onRetry={retryIntegration}
+                      onResolve={resolveIntegrationConflict}
+                    />
+                  </>
                 }
                 steps={stepsCard('')}
                 details={signoffDetails('', signoffCarriedView([run]))}
@@ -831,13 +840,16 @@ export default function ProcessPipeline({
                   {...(stopManager ? { manager: stopManager } : {})}
                   {...(canChat ? { onAskManager: () => void openRunChat() } : {})}
                   integration={
-                    <IntegrationResult
-                      run={run}
-                      embedded
-                      {...(integrationModes ? { modes: integrationModes } : {})}
-                      onRetry={retryIntegration}
-                      onResolve={resolveIntegrationConflict}
-                    />
+                    <>
+                      <SignoffPublication run={run} />
+                      <IntegrationResult
+                        run={run}
+                        embedded
+                        {...(integrationModes ? { modes: integrationModes } : {})}
+                        onRetry={retryIntegration}
+                        onResolve={resolveIntegrationConflict}
+                      />
+                    </>
                   }
                   steps={stepsCard('')}
                   details={signoffDetails('')}
@@ -1065,6 +1077,7 @@ export function RunHead({
   const badge = processRunBadge(run, now, stopHolder)
   const spend = processRunSpend(run)
   const workMs = processRunWorkMs(run, now)
+  const publication = processPublicationView(run.publication)
   const modelView = model?.view ?? processRunModelChipView(run)
   const steps = useMemo(() => processRunStripEntries(run, stopHolder), [run, stopHolder])
   const stoppable = run.status === 'running' || run.status === 'pending' || run.status === 'parked'
@@ -1144,6 +1157,7 @@ export function RunHead({
         meta={
           <>
             {run.storyId ? <DependencyBullet dependency={run.storyId} interactive /> : null}
+            {publication ? <PublicationChip view={publication} /> : null}
             {where ? <span className="min-w-0 truncate">{where}</span> : null}
             {workMs !== undefined ? (
               <DurationChip
@@ -1462,6 +1476,7 @@ export function ParkBlock({
   onOpenChat,
   onOpenTranscript,
   onDrill,
+  onAnswer,
 }: {
   run: ProcessRun
   /** The manager's card when it handed this stop over: its word on it and the answers it prepared. */
@@ -1496,6 +1511,8 @@ export function ParkBlock({
   /** Open the agent run that is waiting, to read its transcript. */
   onOpenTranscript?: (ref: ProcessNodeRunRef) => void
   onDrill: (childRunId: string) => void
+  /** Answer the stop with one choice, resolving `false` when refused — the publish card's Publish and Stop. */
+  onAnswer?: (choice: ProcessResumeChoice) => Promise<boolean>
 }) {
   const [noteFor, setNoteFor] = useState<ProcessResumeChoice | undefined>()
   const [changingProof, setChangingProof] = useState(false)
@@ -1523,6 +1540,16 @@ export function ParkBlock({
       }}
     />
   ) : null
+  if (onAnswer && !managerLine && isProcessPublishGate(run)) {
+    return (
+      <RunPublishCard
+        runId={run.id}
+        parkedAt={park.parkedAt}
+        embedded={embedded}
+        onAnswer={onAnswer}
+      />
+    )
+  }
   const waiting = processWaitingView(run)
   if (waiting) {
     return (
@@ -2040,6 +2067,17 @@ function WaitingCard({
             : {})}
         />
       )}
+    </div>
+  )
+}
+
+/** A sign-off's published work, above how it is merged: In review and its pull request. */
+function SignoffPublication({ run }: { run: ProcessRun }) {
+  const view = processPublicationView(run.publication)
+  if (!view) return null
+  return (
+    <div className="flex min-w-0 flex-wrap items-center gap-2 rounded-lg border border-(--border-subtle) bg-(--surface-raised) px-3 py-2">
+      <PublicationChip view={view} withBranch />
     </div>
   )
 }

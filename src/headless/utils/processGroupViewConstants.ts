@@ -14,6 +14,7 @@ export const PROCESS_GROUP_LEG_STATUS_VIEW: Record<
   'needs-you': { label: PROCESS_RUN_WORDS.needsYou, tone: 'on_hold' },
   waiting: { label: 'Waiting on other work', tone: 'queued' },
   'manager-on-it': { label: PROCESS_RUN_WORDS.managerOnIt, tone: 'running' },
+  'at-publish': { label: 'Ready to publish', tone: 'review' },
   'at-sign-off': { label: PROCESS_RUN_WORDS.signOff, tone: 'review' },
   integrating: { label: PROCESS_RUN_WORDS.merging, tone: 'working' },
   integrated: { label: 'Merged', tone: 'done' },

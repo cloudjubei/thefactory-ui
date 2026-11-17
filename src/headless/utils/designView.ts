@@ -141,15 +141,18 @@ function listItem(index: DesignIndex, proposal: DesignProposal): DesignProposalL
 /**
  * An app's proposals as the list groups them: those waiting for a decision,
  * then the answers to each question (alternatives together, whatever was
- * decided), then the rest that are decided — each newest first. Pure.
+ * decided), then the rest that are decided, then the rejected — folded, answers
+ * to a question too — each newest first. Pure.
  */
 export function designProposalGroups(index: DesignIndex, appId: string): DesignProposalGroup[] {
   const proposals = index.proposals
     .filter((p) => p.appId === appId)
     .sort((a, b) => b.createdAt - a.createdAt)
-  const waiting = proposals.filter((p) => !p.question && p.status === 'open')
-  const decided = proposals.filter((p) => !p.question && p.status !== 'open')
-  const questions = [...new Set(proposals.flatMap((p) => (p.question ? [p.question] : [])))]
+  const rejected = proposals.filter((p) => p.status === 'rejected')
+  const kept = proposals.filter((p) => p.status !== 'rejected')
+  const waiting = kept.filter((p) => !p.question && p.status === 'open')
+  const decided = kept.filter((p) => !p.question && p.status !== 'open')
+  const questions = [...new Set(kept.flatMap((p) => (p.question ? [p.question] : [])))]
   return [
     ...(waiting.length
       ? [
@@ -164,7 +167,7 @@ export function designProposalGroups(index: DesignIndex, appId: string): DesignP
       key: `q:${question}`,
       title: DESIGN_TEXT.answersTo(question),
       question,
-      items: proposals.filter((p) => p.question === question).map((p) => listItem(index, p)),
+      items: kept.filter((p) => p.question === question).map((p) => listItem(index, p)),
     })),
     ...(decided.length
       ? [
@@ -175,10 +178,32 @@ export function designProposalGroups(index: DesignIndex, appId: string): DesignP
           },
         ]
       : []),
+    ...(rejected.length
+      ? [
+          {
+            key: 'rejected',
+            title: DESIGN_TEXT.rejectedGroup,
+            folded: true,
+            items: rejected.map((p) => listItem(index, p)),
+          },
+        ]
+      : []),
   ]
 }
 
-/** The proposal to show first: the one asked for, else the newest open one, else the newest. Pure. */
+/** The index with one proposal as given, e.g. as it was before a change shown ahead was refused. Pure. */
+export function designWithProposal(index: DesignIndex, proposal: DesignProposal): DesignIndex {
+  if (!index.proposals.some((p) => p.id === proposal.id)) return index
+  return {
+    ...index,
+    proposals: index.proposals.map((p) => (p.id === proposal.id ? proposal : p)),
+  }
+}
+
+/**
+ * The proposal to show first: the one asked for, else the newest open one,
+ * else the newest not rejected, else the newest. Pure.
+ */
 export function designFirstProposal(
   index: DesignIndex,
   appId: string,
@@ -187,7 +212,12 @@ export function designFirstProposal(
   const own = index.proposals
     .filter((p) => p.appId === appId)
     .sort((a, b) => b.createdAt - a.createdAt)
-  return own.find((p) => p.id === proposalId) ?? own.find((p) => p.status === 'open') ?? own[0]
+  return (
+    own.find((p) => p.id === proposalId) ??
+    own.find((p) => p.status === 'open') ??
+    own.find((p) => p.status !== 'rejected') ??
+    own[0]
+  )
 }
 
 /**
@@ -200,7 +230,7 @@ export function designCaseMatrix(
   question: string,
 ): DesignCaseMatrix | undefined {
   const proposals = index.proposals
-    .filter((p) => p.appId === appId && p.question === question)
+    .filter((p) => p.appId === appId && p.question === question && p.status !== 'rejected')
     .sort((a, b) => a.createdAt - b.createdAt)
   if (proposals.length < 2) return undefined
   const variants: string[] = []

@@ -207,6 +207,10 @@ import { IconChevronLeft, IconChevronRight, IconDotsVertical, IconGroup } from '
 import { getChatContextKey } from 'thefactory-tools/utils'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import WaitingDelegated from './WaitingDelegated'
+import { isProcessPublishGate, processPublicationView } from '../../../headless'
+import PublicationChip from './PublicationChip'
+import RunMergeProgress from './RunMergeProgress'
+import RunPublishCard from './RunPublishCard'
 
 export type ProcessPipelineProps = {
   /** The top-level run. Drilling into a nested node stays inside this component. */
@@ -746,6 +750,7 @@ export default function ProcessPipeline({
                 onChoose={(choice, note, integration, requestedProof, retry, files) =>
                   void stopActions.resume(choice, note, integration, requestedProof, retry, files)
                 }
+                onAnswer={(choice) => stopActions.resume(choice)}
                 onChangeProof={(draft) => void stopActions.changeProof(draft)}
                 onSplitFollowUp={(draft) => void stopActions.splitFollowUp(draft)}
                 onAnswerRequest={(actionId, choice) =>
@@ -780,6 +785,7 @@ export default function ProcessPipeline({
             />
           ) : null}
         </View>
+        {signoff ? null : <RunMergeProgress run={run} onResolve={resolveIntegrationConflict} />}
         {signoff ? null : (
           <IntegrationResult
             run={run}
@@ -856,13 +862,16 @@ export default function ProcessPipeline({
               {...(integrationModes ? { integrationModes } : {})}
               {...(run.proofUnavailable ? { proofUnavailable: run.proofUnavailable } : {})}
               integration={
-                <IntegrationResult
-                  run={run}
-                  embedded
-                  {...(integrationModes ? { modes: integrationModes } : {})}
-                  onRetry={retryIntegration}
-                  onResolve={resolveIntegrationConflict}
-                />
+                <>
+                  <SignoffPublication run={run} />
+                  <IntegrationResult
+                    run={run}
+                    embedded
+                    {...(integrationModes ? { modes: integrationModes } : {})}
+                    onRetry={retryIntegration}
+                    onResolve={resolveIntegrationConflict}
+                  />
+                </>
               }
               steps={stepsCard(flush)}
               details={signoffDetails(flush, signoffCarriedView([run]))}
@@ -887,13 +896,16 @@ export default function ProcessPipeline({
                 {...(stopManager ? { manager: stopManager } : {})}
                 {...(canChat ? { onAskManager: () => void openRunChat() } : {})}
                 integration={
-                  <IntegrationResult
-                    run={run}
-                    embedded
-                    {...(integrationModes ? { modes: integrationModes } : {})}
-                    onRetry={retryIntegration}
-                    onResolve={resolveIntegrationConflict}
-                  />
+                  <>
+                    <SignoffPublication run={run} />
+                    <IntegrationResult
+                      run={run}
+                      embedded
+                      {...(integrationModes ? { modes: integrationModes } : {})}
+                      onRetry={retryIntegration}
+                      onResolve={resolveIntegrationConflict}
+                    />
+                  </>
                 }
                 steps={stepsCard(flush)}
                 details={signoffDetails(flush)}
@@ -1159,6 +1171,7 @@ function RunHead({
   const badge = processRunBadge(run, now, stopHolder)
   const spend = processRunSpend(run)
   const workMs = processRunWorkMs(run, now)
+  const publication = processPublicationView(run.publication)
   const modelView = model?.view ?? processRunModelChipView(run)
   const steps = useMemo(() => processRunStripEntries(run, stopHolder), [run, stopHolder])
   const stoppable = run.status === 'running' || run.status === 'pending' || run.status === 'parked'
@@ -1240,6 +1253,7 @@ function RunHead({
             {run.storyId ? (
               <DependencyRef dependency={run.storyId} projectId={run.projectId} interactive />
             ) : null}
+            {publication ? <PublicationChip view={publication} /> : null}
             {where ? (
               <Text
                 numberOfLines={1}
@@ -1651,6 +1665,7 @@ function ParkBlock({
   onOpenChat,
   onOpenTranscript,
   onDrill,
+  onAnswer,
 }: {
   run: ProcessRun
   /** The manager's card when it handed this stop over: its word on it and the answers it prepared. */
@@ -1685,6 +1700,8 @@ function ParkBlock({
   /** Open the agent run that is waiting, to read its transcript. */
   onOpenTranscript?: (ref: ProcessNodeRunRef) => void
   onDrill: (childRunId: string) => void
+  /** Answer the stop with one choice, resolving `false` when refused — the publish card's Publish and Stop. */
+  onAnswer?: (choice: ProcessResumeChoice) => Promise<boolean>
 }) {
   const { theme, status } = useNativeTheme()
   const [noteFor, setNoteFor] = useState<ProcessResumeChoice | undefined>()
@@ -1713,6 +1730,16 @@ function ParkBlock({
       }}
     />
   ) : null
+  if (onAnswer && !managerLine && isProcessPublishGate(run)) {
+    return (
+      <RunPublishCard
+        runId={run.id}
+        parkedAt={park.parkedAt}
+        embedded={embedded}
+        onAnswer={onAnswer}
+      />
+    )
+  }
   const waiting = processWaitingView(run)
   if (waiting) {
     return (
@@ -2266,6 +2293,27 @@ function RunEndingAction({
         {copy.label}
       </Button>
       <Text style={{ fontSize: 10, color: theme.text.secondary }}>{copy.detail}</Text>
+    </View>
+  )
+}
+
+/** A sign-off's published work, above how it is merged: In review and its pull request. */
+function SignoffPublication({ run }: { run: ProcessRun }) {
+  const { theme } = useNativeTheme()
+  const view = processPublicationView(run.publication)
+  if (!view) return null
+  return (
+    <View
+      style={{
+        paddingHorizontal: nativeSpace[3],
+        paddingVertical: nativeSpace[2],
+        borderRadius: nativeRadii[3],
+        borderWidth: 1,
+        borderColor: theme.border.subtle,
+        backgroundColor: theme.surface.raised,
+      }}
+    >
+      <PublicationChip view={view} withBranch />
     </View>
   )
 }

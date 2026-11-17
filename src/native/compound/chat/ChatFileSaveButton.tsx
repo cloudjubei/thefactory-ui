@@ -15,11 +15,8 @@ export interface ChatFileSaveButtonProps {
   /** The shown file, project-relative. */
   source: string
   saving: ChatFileSaving
-  /**
-   * `overlay` on an image or a video's poster, in its corner; `chip` inside a
-   * file's chip; `button` in a full-size view's or a preview's header.
-   */
-  variant: 'overlay' | 'chip' | 'button'
+  /** `overlay` on an image or a video's poster, in its corner; `button` in a full-size view's or a preview's header. */
+  variant: 'overlay' | 'button'
 }
 
 const SAVE_OVERLAY_BG = 'rgba(11,15,20,0.72)'
@@ -91,29 +88,19 @@ export default function ChatFileSaveButton({ source, saving, variant }: ChatFile
         accessibilityLabel={a11y}
         onPress={() => setOpen(true)}
         hitSlop={8}
-        style={
-          variant === 'overlay'
-            ? {
-                width: 32,
-                height: 32,
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: nativeRadii[3],
-                backgroundColor: SAVE_OVERLAY_BG,
-              }
-            : {
-                width: 20,
-                height: 20,
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: nativeRadii.round,
-              }
-        }
+        style={{
+          width: 32,
+          height: 32,
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderRadius: nativeRadii[3],
+          backgroundColor: SAVE_OVERLAY_BG,
+        }}
       >
         {saved ? (
-          <IconCheck size={variant === 'overlay' ? 16 : 14} color={iconColor} />
+          <IconCheck size={16} color={iconColor} />
         ) : (
-          <IconSave size={variant === 'overlay' ? 16 : 14} color={iconColor} />
+          <IconSave size={16} color={iconColor} />
         )}
       </Pressable>
       {dialog}

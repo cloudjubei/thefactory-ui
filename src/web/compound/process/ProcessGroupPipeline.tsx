@@ -3,8 +3,13 @@ import { useCallback, useState } from 'react'
 import {
   costChipLabel,
   formatProcessDuration,
+  isGroupPublishPark,
   isGroupSignOffPark,
   isProcessGroupOnBranch,
+  processDeliveryRepoOf,
+  processGroupReadsDelivery,
+  processMergeRows,
+  processPublicationView,
   processGroupBadge,
   processGroupLegRows,
   processGroupProgress,
@@ -18,6 +23,8 @@ import {
   useProcessGroupRebuildPlans,
   useProcessGroupRun,
   useProcessGroupRunChat,
+  useProcessDelivery,
+  type ProcessDeliveryRepo,
   type ProcessGroupLeg,
   type ProcessGroupLegRow,
   type ProcessRunBranch,
@@ -30,7 +37,10 @@ import { Modal } from '../../primitives/Modal'
 import CostChip from '../chips/CostChip'
 import DurationChip from '../chips/DurationChip'
 import ProcessGroupLegLandingDialog from './ProcessGroupLegLandingDialog'
+import GroupPublishCard from './GroupPublishCard'
+import { MergeProgressRowView } from './MergeProgressList'
 import ProcessGroupParkReview from './ProcessGroupParkReview'
+import PublicationChip from './PublicationChip'
 import ProcessGroupRunChatButton from './ProcessGroupRunChatButton'
 import GroupSignOffSection from './signoff/GroupSignOffSection'
 
@@ -79,6 +89,10 @@ export default function ProcessGroupPipeline({
   const resumePlans = useProcessGroupRebuildPlans(
     processGroupResumeRebuildLegIds(group),
     planRebuild,
+  )
+  const delivery = useProcessDelivery(
+    group && processGroupReadsDelivery(group) ? { kind: 'group', groupRunId } : undefined,
+    group?.updatedAt,
   )
   const ticking = group?.totals?.ticking === true
   const now = useDurationTimer(ticking)
@@ -204,7 +218,15 @@ export default function ProcessGroupPipeline({
         <div className="mx-3 mt-3 text-[11.5px] text-(--text-secondary)">{resumeView.reason}</div>
       ) : null}
 
-      {group.park && !isGroupSignOffPark(group.park) ? (
+      {group.park && isGroupPublishPark(group) ? (
+        <div className="mx-3 mt-3">
+          <GroupPublishCard
+            groupRunId={group.id}
+            parkedAt={group.park.parkedAt}
+            onStop={() => void resume({ choice: 'abandon' })}
+          />
+        </div>
+      ) : group.park && !isGroupSignOffPark(group.park) ? (
         <div className="mx-3 mt-3">
           <ProcessGroupParkReview key={group.park.parkedAt} group={group} onResume={resume} />
         </div>
@@ -227,6 +249,10 @@ export default function ProcessGroupPipeline({
                 <LegCard
                   key={row.leg.id}
                   row={row}
+                  delivery={processDeliveryRepoOf(delivery.data, {
+                    legId: row.leg.id,
+                    projectId: row.leg.projectId,
+                  })}
                   now={now}
                   onOpen={onOpenLegRun}
                   onMarkLanded={setLandingLeg}
@@ -362,11 +388,14 @@ export default function ProcessGroupPipeline({
 
 function LegCard({
   row,
+  delivery,
   now,
   onOpen,
   onMarkLanded,
 }: {
   row: ProcessGroupLegRow
+  /** Its published work and its merge, once the group's delivery is read. */
+  delivery: ProcessDeliveryRepo | undefined
   now: number
   onOpen: (runId: string, projectId: string) => void
   onMarkLanded: (leg: ProcessGroupLeg) => void
@@ -374,6 +403,9 @@ function LegCard({
   const { leg, totals } = row
   const workMs = processGroupWorkMs(totals, now)
   const spend = costChipLabel(totals)
+  const publication = processPublicationView(delivery?.publication)
+  const [merge] = processMergeRows(delivery ? { repos: [delivery] } : undefined)
+  const openLabel = merge?.openLabel ?? row.openLabel
   return (
     <div
       className="flex flex-col gap-1.5 rounded-lg border p-2.5"
@@ -388,6 +420,8 @@ function LegCard({
         </span>
       </div>
       <div className="truncate text-[11.5px] text-(--text-secondary)">{leg.title}</div>
+      {publication && !merge ? <PublicationChip view={publication} /> : null}
+      {merge ? <MergeProgressRowView row={merge} /> : null}
       {row.waitsFor ? <div className="text-[11px] text-(--text-muted)">{row.waitsFor}</div> : null}
       {row.landed ? <div className="text-[11px] text-(--text-muted)">{row.landed}</div> : null}
       {row.follows ? <div className="text-[11px] text-(--text-muted)">{row.follows}</div> : null}
@@ -418,7 +452,7 @@ function LegCard({
             }
             onClick={() => onOpen(leg.runId!, leg.projectId)}
           >
-            {row.openLabel} ›
+            {openLabel} ›
           </button>
         ) : null}
         {row.canMarkLanded ? (

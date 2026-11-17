@@ -15,6 +15,7 @@ import type {
   GetDesignPlaygroundResponse,
   GetProjectStorageUsageResponse,
   GetStorageUsageResponse,
+  RejectDesignProposalResponse,
   SendBackDesignProposalResponse,
 } from '../api'
 
@@ -113,6 +114,10 @@ export type DesignActions = {
   chooseProposal: (proposalId: string) => Promise<DesignProposal>
   /** Send a proposal back with a note; says where the note went. */
   sendBackProposal: (proposalId: string, note: string) => Promise<SendBackDesignProposalResponse>
+  /** Reject a proposal, with an optional reason: shown at once, put back on a refusal; says who was told. */
+  rejectProposal: (proposalId: string, note?: string) => Promise<RejectDesignProposalResponse>
+  /** Bring a rejected proposal back to be decided: shown at once, put back on a refusal. */
+  reopenProposal: (proposalId: string) => Promise<DesignProposal>
   renameProposal: (proposalId: string, title: string) => Promise<DesignProposal>
   deleteProposal: (proposalId: string) => Promise<void>
   /** Bring earlier versions back as a new proposal. */

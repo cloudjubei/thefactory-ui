@@ -265,26 +265,7 @@ export default function FileDisplay({
       anchorStyle={{ display: 'contents' }}
     >
       {isCompact ? (
-        <span
-          className={[
-            'badge badge--soft badge--ok',
-            interactive
-              ? 'cursor-pointer hover:bg-(--surface-hover) focus-visible:outline-2 focus-visible:outline-(--accent-primary)'
-              : '',
-            className,
-          ]
-            .filter(Boolean)
-            .join(' ')}
-          role={interactive ? 'button' : undefined}
-          tabIndex={interactive ? 0 : undefined}
-          aria-label={interactive ? aria : undefined}
-          onKeyDown={handleKeyDown}
-          onClick={clickHandler}
-          style={trailing ? { paddingRight: 3, gap: 4 } : undefined}
-        >
-          {file.name}
-          {trailing}
-        </span>
+        <span className="badge badge--soft badge--ok">{file.name}</span>
       ) : (
         <div
           className={cls}

@@ -1,10 +1,16 @@
 // Pure view logic for a process run's cleanup list: its rows, its headline,
 // and whether the person can still change it. No React, no I/O.
 
-import type { ProcessCleanupList, ProcessCleanupOutcome } from 'thefactory-tools/types'
+import type {
+  ProcessCleanupList,
+  ProcessCleanupListItem,
+  ProcessCleanupOutcome,
+} from 'thefactory-tools/types'
+import { PROCESS_CLEANUP_HOST_REASONS } from 'thefactory-tools/constants'
 import { processCleanupSummary } from 'thefactory-tools/utils'
 import {
   PROCESS_CLEANUP_BY_LABELS,
+  PROCESS_CLEANUP_CONTEXT_DOC_LABEL,
   PROCESS_CLEANUP_COPY,
   PROCESS_CLEANUP_DEVICE_OUTCOME_LABELS,
   PROCESS_CLEANUP_KIND_LABELS,
@@ -28,6 +34,17 @@ function outcomeOf(outcome: ProcessCleanupOutcome): NonNullable<ProcessCleanupRo
   }
 }
 
+/** Whether an item is a context doc the host found only in the checkout: kept unless ticked. */
+export function isProcessCleanupContextDoc(
+  item: Pick<ProcessCleanupListItem, 'kind' | 'registeredBy' | 'reason'>,
+): boolean {
+  return (
+    item.kind === 'path' &&
+    item.registeredBy === 'host' &&
+    item.reason === PROCESS_CLEANUP_HOST_REASONS.contextDoc
+  )
+}
+
 /**
  * The list's rows: each item with what it is, who registered it and whether it
  * goes — and, once the step ran, what it did, including items it removed that
@@ -40,7 +57,9 @@ export function processCleanupRows(list: ProcessCleanupList): ProcessCleanupRow[
     return {
       id: item.id,
       label: item.label,
-      kindLabel: PROCESS_CLEANUP_KIND_LABELS[item.kind],
+      kindLabel: isProcessCleanupContextDoc(item)
+        ? PROCESS_CLEANUP_CONTEXT_DOC_LABEL
+        : PROCESS_CLEANUP_KIND_LABELS[item.kind],
       reason: item.reason,
       byLabel: PROCESS_CLEANUP_BY_LABELS[item.registeredBy],
       selected: item.selected,

@@ -4,7 +4,13 @@ import { ApiProvider, AuthProvider, type ChatVideoAttachments } from 'thefactory
 import { MessageRow, type ChatMessageLike } from 'thefactory-ui/web'
 // Not on the package's public surface: the message draws these itself. The showcase reaches into
 // the source to draw each state, as the playground renders from source.
+import { ChatFileChipLookContext } from '../../src/headless/contexts/ChatFileChipLookContext'
 import { chatFileSaveStore } from '../../src/headless/hooks/chatFileSaveStore'
+import {
+  CHAT_FILE_CHIP_LOOK,
+  CHAT_FILE_CHIP_LOOKS,
+} from '../../src/headless/utils/chatFileChipConstants'
+import type { ChatFileChipLook } from '../../src/headless/utils/chatFileChipTypes'
 import type { ChatFileSaving } from '../../src/headless/utils/chatFileSaveTypes'
 import ChatFilePreviewDialog from '../../src/web/compound/chat/ChatFilePreviewDialog'
 import ChatFileSaveDialog from '../../src/web/compound/chat/ChatFileSaveDialog'
@@ -17,7 +23,7 @@ import {
   SENT_SKETCH_BY_PERSON,
   SHOWN_CLIP_CHAT,
   SHOWN_CLIP_REPLY,
-  SHOWN_DOCS_REPLY,
+  SHOWN_CHIPS_REPLY,
   SHOWN_MAP,
   SHOWN_MIXED_REPLY,
   SHOWN_NOTES,
@@ -42,29 +48,33 @@ function Rows({
   messages,
   saving,
   videoAttachments,
+  look = CHAT_FILE_CHIP_LOOK,
 }: {
   messages: ChatMessageLike[]
   saving: ChatFileSaving
   videoAttachments?: ChatVideoAttachments
+  look?: ChatFileChipLook
 }) {
   return (
-    <div className="flex max-w-3xl flex-col gap-3">
-      {messages.map((msg, i) => (
-        <MessageRow
-          key={msg.id}
-          msg={msg}
-          globalIndex={i}
-          totalMessages={messages.length}
-          isThinking={false}
-          isLast={i === messages.length - 1}
-          prevUserMessagesLen={1}
-          enhancedTotalLength={messages.length}
-          getAttachmentPreviewUrl={shownPreviewUrl}
-          fileSaving={saving}
-          {...(videoAttachments ? { videoAttachments } : {})}
-        />
-      ))}
-    </div>
+    <ChatFileChipLookContext.Provider value={look}>
+      <div className="flex max-w-3xl flex-col gap-3">
+        {messages.map((msg, i) => (
+          <MessageRow
+            key={msg.id}
+            msg={msg}
+            globalIndex={i}
+            totalMessages={messages.length}
+            isThinking={false}
+            isLast={i === messages.length - 1}
+            prevUserMessagesLen={1}
+            enhancedTotalLength={messages.length}
+            getAttachmentPreviewUrl={shownPreviewUrl}
+            fileSaving={saving}
+            {...(videoAttachments ? { videoAttachments } : {})}
+          />
+        ))}
+      </div>
+    </ChatFileChipLookContext.Provider>
   )
 }
 
@@ -122,6 +132,35 @@ function Dialog({ kind }: { kind: keyof typeof SAVE_DIALOG_STATES }) {
   )
 }
 
+const CHIP_STATES: readonly {
+  id: string
+  look: ChatFileChipLook
+  title: string
+  description: string
+}[] = [
+  {
+    id: 'chip-a',
+    look: 'pill',
+    title: 'File chip A: pill',
+    description:
+      'A one-line pill: the file type’s icon and the name. The smallest of the three, so several sit on one line under a reply. A name too long for the pill is cut short; hover shows it whole. Clicking opens the document preview.',
+  },
+  {
+    id: 'chip-b',
+    look: 'labelled',
+    title: 'File chip B: pill with type',
+    description:
+      'A slightly taller pill: the type’s icon, the name without its extension, and the type in words after a thin rule (PDF, CSV, Markdown) — the type stays in view when the name is cut short. Clicking opens the document preview.',
+  },
+  {
+    id: 'chip-c',
+    look: 'tile',
+    title: 'File chip C: tile',
+    description:
+      'A small card, as mail apps show an attachment: a larger type icon in its own square, the name above the type in words. Every tile is one width, so a row of them lines up. Clicking opens the document preview.',
+  },
+]
+
 const DIALOG_CHOICES = [
   { id: 'closed', label: 'Closed' },
   { id: 'new', label: 'Save' },
@@ -137,13 +176,13 @@ export const SHOWN_FILE_SCENES: Scene[] = [
       'MessageRow (MessageFiles, AttachmentFileChip, ChatFileSaveButton, ChatFileSaveDialog, ChatFilePreviewDialog)',
     group: 'Chat',
     description:
-      'Files an agent shows sit under its reply, drawn exactly as a person’s attachments are — images as thumbnails that open full size, other files as chips — but left-aligned with the reply. Every thumbnail carries the file’s name under it, the store’s random prefix taken off and cut short to the thumbnail’s width (whole on hover on web, on a long press on mobile), so a reply that speaks of V1 and V3 can be matched to its pictures. Save to project is part of every preview of a shown file: in the corner of an image or a video’s poster, inside a document’s chip, and as a button in the full-size view and the document preview. A document chip — the agent’s or the person’s — opens the document preview, read from the chat’s own files; only a file an agent showed has Save. Save reads as saved at once; a failure takes that back and reopens the dialog with the reason.',
+      'Files an agent shows sit under its reply, drawn exactly as a person’s attachments are — images as thumbnails that open full size, other files as chips — but left-aligned with the reply. Every thumbnail carries the file’s name under it, the store’s random prefix taken off and cut short to the thumbnail’s width (whole on hover on web, on a long press on mobile), so a reply that speaks of V1 and V3 can be matched to its pictures. Save to project is part of every preview of a shown file: in the corner of an image or a video’s poster, and as a button in the full-size view and the document preview. A document chip — the agent’s or the person’s — shows the file type’s icon and its name, and opens the document preview, read from the chat’s own files; only a file an agent showed has Save there. The chip’s look is still being chosen: the Chip control switches between pill (A), pill with type (B) and tile (C). Save reads as saved at once; a failure takes that back and reopens the dialog with the reason.',
     states: [
       {
         id: 'reply',
         title: 'Reply with shown files',
         description:
-          'Two images and a notes file under the reply. Every file has Save to project — in the corner of each image, inside the notes chip; pressing it opens the dialog.',
+          'Two images and a notes file under the reply. Each image has Save to project in its corner; the notes chip opens the document preview, with Save in its header.',
         render: () => <Rows messages={[SENT_BY_PERSON, SHOWN_REPLY]} saving={SHOWN_SAVING} />,
       },
       {
@@ -159,7 +198,7 @@ export const SHOWN_FILE_SCENES: Scene[] = [
         id: 'other-files',
         title: 'Video and other files',
         description:
-          'Any file can be shown, not only images: a video plays from its poster as a person’s video does, and a PDF or spreadsheet is a chip that opens the document preview. Save to project sits in the poster’s corner and inside each chip. The person’s own PDF opens the preview too, without Save.',
+          'Any file can be shown, not only images: a video plays from its poster as a person’s video does, and a PDF or spreadsheet is a chip that opens the document preview. Save to project sits in the poster’s corner and in the preview’s header. The person’s own PDF opens the preview too, without Save.',
         render: () => <VideoReply messages={[SENT_BY_PERSON, SHOWN_MIXED_REPLY]} />,
       },
       {
@@ -182,13 +221,14 @@ export const SHOWN_FILE_SCENES: Scene[] = [
           'Save to project in the poster’s top corner, always in view. Full screen joins it there on hover; while the video plays in the card, Save stays beside full screen and collapse. The browser’s own full-screen player has no room for it.',
         render: () => <VideoReply messages={[SHOWN_CLIP_REPLY]} />,
       },
-      {
-        id: 'save-in-chip',
-        title: 'Save in the chip',
-        description:
-          'A PDF, a spreadsheet and a markdown file: Save to project sits inside each chip, at its end. Pressing Save opens the save dialog; pressing the rest of the chip opens the document preview.',
-        render: () => <Rows messages={[SHOWN_DOCS_REPLY]} saving={SHOWN_SAVING} />,
-      },
+      ...CHIP_STATES.map(({ id, look, title, description }) => ({
+        id,
+        title,
+        description,
+        render: () => (
+          <Rows messages={[SENT_BY_PERSON, SHOWN_CHIPS_REPLY]} saving={SHOWN_SAVING} look={look} />
+        ),
+      })),
       {
         id: 'preview-pdf',
         title: 'Document preview: PDF',
@@ -225,7 +265,7 @@ export const SHOWN_FILE_SCENES: Scene[] = [
         id: 'saved',
         title: 'Saved',
         description:
-          'The map and the notes are saved: their buttons turn to a check, and the tooltip says where each went. The token sheet still offers Save.',
+          'The map is saved: its button turns to a check, and the tooltip says where it went. The token sheet still offers Save; the notes, saved too, show the check in their preview.',
         render: () => <SavedReply />,
       },
       {
@@ -274,12 +314,33 @@ export const SHOWN_FILE_SCENES: Scene[] = [
         options: DIALOG_CHOICES.map(({ id, label }) => ({ id, label })),
         default: 'closed',
       },
+      {
+        id: 'chip',
+        label: 'Chip',
+        kind: 'choice',
+        options: CHAT_FILE_CHIP_LOOKS.map(({ id, label }) => ({ id, label })),
+        default: CHAT_FILE_CHIP_LOOK,
+      },
     ],
-    presets: DIALOG_CHOICES.map(({ id, label }) => ({ id, name: label, values: { dialog: id } })),
+    presets: [
+      ...DIALOG_CHOICES.map(({ id, label }) => ({ id, name: label, values: { dialog: id } })),
+      ...CHAT_FILE_CHIP_LOOKS.map(({ id, label }) => ({
+        id: `chip-${id}`,
+        name: `Chip ${label}`,
+        values: { dialog: 'closed', chip: id },
+      })),
+    ],
     play: (values) => {
       const kind = values.dialog
       if (kind === 'new' || kind === 'exists' || kind === 'refused') return <Dialog kind={kind} />
-      return <Rows messages={[SENT_BY_PERSON, SHOWN_REPLY]} saving={SHOWN_SAVING} />
+      const look = CHAT_FILE_CHIP_LOOKS.find(({ id }) => id === values.chip)?.id
+      return (
+        <Rows
+          messages={[SENT_BY_PERSON, SHOWN_REPLY, SHOWN_CHIPS_REPLY]}
+          saving={SHOWN_SAVING}
+          {...(look ? { look } : {})}
+        />
+      )
     },
   },
 ]

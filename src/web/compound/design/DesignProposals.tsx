@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { designCompareRows } from 'thefactory-tools/utils'
 import {
   DESIGN_COMPARE_MARK_LABELS,
@@ -43,11 +43,19 @@ export type DesignProposalsProps = {
   onKeep: (proposalId: string) => Promise<unknown>
   onChoose: (proposalId: string) => Promise<unknown>
   onSendBack: (proposalId: string, note: string) => Promise<unknown>
+  /** Shown rejected at once; a refusal puts it back. */
+  onReject: (proposalId: string, note?: string) => Promise<unknown>
+  /** Shown open again at once; a refusal puts it back. */
+  onReopen: (proposalId: string) => Promise<unknown>
   onFile: (proposalId: string, entryId: string, target: DesignEntryTarget) => Promise<unknown>
   /** How the open proposal is shown first: compared with what is current, or clicked through. */
   initialView?: 'compare' | 'flow'
   /** A shared piece highlighted from the start. */
   initialPiece?: string
+  /** The note box open from the start under the decision: a send-back's or a rejection's. */
+  initialForm?: 'send-back' | 'reject'
+  /** The folded groups (the rejected) open from the start. */
+  initialUnfolded?: boolean
 }
 
 const NEW = '__new__'
@@ -527,6 +535,80 @@ function Cases({
   )
 }
 
+type DecideForm = 'send-back' | 'reject'
+
+/** A note box under the decision buttons: what should change for a send-back, why for a rejection. */
+function NoteForm({
+  proposalId,
+  kind,
+  required,
+  busy,
+  onSubmit,
+}: {
+  proposalId: string
+  kind: DecideForm
+  required: boolean
+  busy: boolean
+  onSubmit: (note: string) => void
+}) {
+  const [note, setNote] = useState('')
+  const id = `${kind}-${proposalId}`
+  const ready = !required || note.trim() !== ''
+  return (
+    <form
+      className="flex flex-col gap-1.5"
+      onSubmit={(e) => {
+        e.preventDefault()
+        if (ready) onSubmit(note.trim())
+      }}
+    >
+      <label className="text-[12px] font-medium text-(--text-secondary)" htmlFor={id}>
+        {kind === 'reject' ? DESIGN_TEXT.rejectLabel : DESIGN_TEXT.sendBackLabel}
+      </label>
+      <Textarea id={id} rows={3} value={note} onChange={(e) => setNote(e.target.value)} />
+      <Button
+        type="submit"
+        size="sm"
+        variant="secondary"
+        disabled={!ready}
+        loading={busy}
+        className="self-start"
+      >
+        {kind === 'reject' ? DESIGN_TEXT.rejectSubmit : DESIGN_TEXT.sendBackSubmit}
+      </Button>
+    </form>
+  )
+}
+
+/** A decided proposal's outcome in its status hue, with the note it was decided with. */
+function Outcome({
+  tone,
+  text,
+  note,
+  children,
+}: {
+  tone: 'done' | 'on_hold' | 'blocked'
+  text: string
+  note?: string
+  children?: ReactNode
+}) {
+  return (
+    <div
+      className="flex flex-col gap-2 rounded-md border px-3 py-2 text-[13px]"
+      style={{
+        background: `var(--status-${tone}-soft-bg)`,
+        borderColor: `var(--status-${tone}-soft-border)`,
+      }}
+    >
+      <p>
+        {text}
+        {note ? <span className="mt-1 block text-(--text-secondary)">“{note}”</span> : null}
+      </p>
+      {children}
+    </div>
+  )
+}
+
 /** The decision a person makes on an open proposal, or what was decided. */
 function Decide({
   proposal,
@@ -537,8 +619,7 @@ function Decide({
   props: DesignProposalsProps
   unfiled: number
 }) {
-  const [noting, setNoting] = useState(false)
-  const [note, setNote] = useState('')
+  const [form, setForm] = useState<DecideForm | undefined>(props.initialForm)
   const [busy, setBusy] = useState<string | undefined>(undefined)
   const act = async (key: string, call: () => Promise<unknown>) => {
     setBusy(key)
@@ -548,47 +629,46 @@ function Decide({
       setBusy(undefined)
     }
   }
+  const toggle = (next: DecideForm) => setForm((f) => (f === next ? undefined : next))
+  const accept = (
+    <Button
+      variant="primary"
+      disabled={unfiled > 0}
+      title={unfiled > 0 ? DESIGN_TEXT.notFiled : undefined}
+      loading={busy === 'accept'}
+      onClick={() => void act('accept', () => props.onAccept(proposal.id))}
+    >
+      {DESIGN_TEXT.acceptAll}
+    </Button>
+  )
   if (proposal.status === 'accepted') {
-    return (
-      <p
-        className="rounded-md border px-3 py-2 text-[13px]"
-        style={{
-          background: 'var(--status-done-soft-bg)',
-          borderColor: 'var(--status-done-soft-border)',
-        }}
-      >
-        {DESIGN_TEXT.accepted}
-      </p>
-    )
+    return <Outcome tone="done" text={DESIGN_TEXT.accepted} />
   }
   if (proposal.status === 'sent-back') {
+    return <Outcome tone="on_hold" text={DESIGN_TEXT.sentBack} note={proposal.note} />
+  }
+  if (proposal.status === 'rejected') {
     return (
-      <p
-        className="rounded-md border px-3 py-2 text-[13px]"
-        style={{
-          background: 'var(--status-on_hold-soft-bg)',
-          borderColor: 'var(--status-on_hold-soft-border)',
-        }}
-      >
-        {DESIGN_TEXT.sentBack}
-        {proposal.note ? (
-          <span className="mt-1 block text-(--text-secondary)">“{proposal.note}”</span>
-        ) : null}
-      </p>
+      <Outcome tone="blocked" text={DESIGN_TEXT.rejected} note={proposal.note}>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setForm(undefined)
+              void props.onReopen(proposal.id)
+            }}
+          >
+            {DESIGN_TEXT.reopen}
+          </Button>
+          {accept}
+        </div>
+      </Outcome>
     )
   }
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap gap-2">
-        <Button
-          variant="primary"
-          disabled={unfiled > 0}
-          title={unfiled > 0 ? DESIGN_TEXT.notFiled : undefined}
-          loading={busy === 'accept'}
-          onClick={() => void act('accept', () => props.onAccept(proposal.id))}
-        >
-          {DESIGN_TEXT.acceptAll}
-        </Button>
+        {accept}
         {proposal.status === 'open' ? (
           <Button
             variant="secondary"
@@ -598,42 +678,42 @@ function Decide({
             {DESIGN_TEXT.keepAlternative}
           </Button>
         ) : null}
-        <Button variant="secondary" onClick={() => setNoting((n) => !n)} aria-expanded={noting}>
+        <Button
+          variant="secondary"
+          onClick={() => toggle('send-back')}
+          aria-expanded={form === 'send-back'}
+        >
           {DESIGN_TEXT.sendBack}
         </Button>
-      </div>
-      {noting ? (
-        <form
-          className="flex flex-col gap-1.5"
-          onSubmit={(e) => {
-            e.preventDefault()
-            if (!note.trim()) return
-            void act('send', () => props.onSendBack(proposal.id, note.trim()))
-          }}
+        <Button
+          variant="secondary"
+          onClick={() => toggle('reject')}
+          aria-expanded={form === 'reject'}
         >
-          <label
-            className="text-[12px] font-medium text-(--text-secondary)"
-            htmlFor={`note-${proposal.id}`}
-          >
-            {DESIGN_TEXT.sendBackLabel}
-          </label>
-          <Textarea
-            id={`note-${proposal.id}`}
-            rows={3}
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-          />
-          <Button
-            type="submit"
-            size="sm"
-            variant="secondary"
-            disabled={!note.trim()}
-            loading={busy === 'send'}
-            className="self-start"
-          >
-            {DESIGN_TEXT.sendBackSubmit}
-          </Button>
-        </form>
+          {DESIGN_TEXT.reject}
+        </Button>
+      </div>
+      {form === 'send-back' ? (
+        <NoteForm
+          key="send-back"
+          proposalId={proposal.id}
+          kind="send-back"
+          required
+          busy={busy === 'send'}
+          onSubmit={(note) => void act('send', () => props.onSendBack(proposal.id, note))}
+        />
+      ) : form === 'reject' ? (
+        <NoteForm
+          key="reject"
+          proposalId={proposal.id}
+          kind="reject"
+          required={false}
+          busy={false}
+          onSubmit={(note) => {
+            setForm(undefined)
+            void props.onReject(proposal.id, note || undefined)
+          }}
+        />
       ) : null}
     </div>
   )
@@ -644,12 +724,16 @@ function Decide({
  * drafts, run captures, earlier versions brought back — grouped as waiting,
  * answers to one question, or decided. The one open is compared with what is
  * current screen by screen, or followed through its links; it is accepted,
- * kept as an alternative, or sent back with a note.
+ * kept as an alternative, sent back with a note, or rejected — the rejected
+ * folded at the end of the list, to be reopened or still accepted.
  */
 export default function DesignProposals(props: DesignProposalsProps) {
   const { index, appId, proposal } = props
   const [view, setView] = useState<'compare' | 'flow'>(props.initialView ?? 'compare')
   const [piece, setPiece] = useState<string | undefined>(props.initialPiece)
+  const [unfolded, setUnfolded] = useState<ReadonlySet<string>>(
+    () => new Set(props.initialUnfolded ? ['rejected'] : []),
+  )
   const groups = useMemo(() => designProposalGroups(index, appId), [index, appId])
   const rows = useMemo(
     () => (proposal ? designCompareRows(index, proposal) : []),
@@ -671,38 +755,63 @@ export default function DesignProposals(props: DesignProposalsProps) {
         aria-label={DESIGN_TEXT.propose}
         className="flex w-full shrink-0 flex-col gap-2 @4xl:w-72"
       >
-        {groups.map((g) => (
-          <section key={g.key} className="flex flex-col gap-1.5">
-            <h4 className="pt-1 text-[11px] font-semibold tracking-wide text-(--text-muted) uppercase">
-              {g.title}
-            </h4>
-            {g.items.map(({ proposal: p, summary }) => (
-              <button
-                key={p.id}
-                type="button"
-                aria-current={p.id === proposal?.id ? 'true' : undefined}
-                onClick={() => props.onSelect(p.id)}
-                className={[
-                  'flex flex-col gap-1 rounded-lg border px-3 py-2 text-left',
-                  p.id === proposal?.id
-                    ? 'border-(--accent-primary) bg-(--surface-hover)'
-                    : 'border-(--border-subtle) hover:border-(--border-default)',
-                ].join(' ')}
-              >
-                <span className="flex items-start justify-between gap-2">
-                  <span className="text-[13px] font-semibold text-(--text-primary)">{p.title}</span>
-                  <DesignPill tone={PROPOSAL_TONES[p.status]}>
-                    {DESIGN_PROPOSAL_STATUS_LABELS[p.status]}
-                  </DesignPill>
-                </span>
-                <span className="text-[12px] text-(--text-secondary)">
-                  {designOriginText(p.origin)} · {formatDateShort(new Date(p.createdAt))}
-                </span>
-                <span className="text-[12px] text-(--text-primary)">{summary}</span>
-              </button>
-            ))}
-          </section>
-        ))}
+        {groups.map((g) => {
+          const open =
+            !g.folded || unfolded.has(g.key) || g.items.some((i) => i.proposal.id === proposal?.id)
+          return (
+            <section key={g.key} className="flex flex-col gap-1.5">
+              {g.folded ? (
+                <button
+                  type="button"
+                  aria-expanded={open}
+                  onClick={() =>
+                    setUnfolded((was) => {
+                      const next = new Set(was)
+                      if (open) next.delete(g.key)
+                      else next.add(g.key)
+                      return next
+                    })
+                  }
+                  className="flex items-center gap-1.5 pt-1 text-left text-[11px] font-semibold tracking-wide text-(--text-muted) uppercase hover:text-(--text-secondary)"
+                >
+                  <span aria-hidden="true">{open ? '▾' : '▸'}</span>
+                  {g.title} · {g.items.length}
+                </button>
+              ) : (
+                <h4 className="pt-1 text-[11px] font-semibold tracking-wide text-(--text-muted) uppercase">
+                  {g.title}
+                </h4>
+              )}
+              {(open ? g.items : []).map(({ proposal: p, summary }) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  aria-current={p.id === proposal?.id ? 'true' : undefined}
+                  onClick={() => props.onSelect(p.id)}
+                  className={[
+                    'flex flex-col gap-1 rounded-lg border px-3 py-2 text-left',
+                    p.id === proposal?.id
+                      ? 'border-(--accent-primary) bg-(--surface-hover)'
+                      : 'border-(--border-subtle) hover:border-(--border-default)',
+                  ].join(' ')}
+                >
+                  <span className="flex items-start justify-between gap-2">
+                    <span className="text-[13px] font-semibold text-(--text-primary)">
+                      {p.title}
+                    </span>
+                    <DesignPill tone={PROPOSAL_TONES[p.status]}>
+                      {DESIGN_PROPOSAL_STATUS_LABELS[p.status]}
+                    </DesignPill>
+                  </span>
+                  <span className="text-[12px] text-(--text-secondary)">
+                    {designOriginText(p.origin)} · {formatDateShort(new Date(p.createdAt))}
+                  </span>
+                  <span className="text-[12px] text-(--text-primary)">{summary}</span>
+                </button>
+              ))}
+            </section>
+          )
+        })}
       </nav>
 
       {proposal ? (

@@ -5,7 +5,11 @@
  * the same copy. Read through {@link useDesign}; kept current by `design:updated`.
  */
 
-import { emptyDesignIndex } from 'thefactory-tools/utils'
+import {
+  emptyDesignIndex,
+  rejectDesignProposalIn,
+  reopenDesignProposalIn,
+} from 'thefactory-tools/utils'
 import {
   acceptDesignProposal,
   applyDesignTidyPlan,
@@ -31,7 +35,9 @@ import {
   previewDesignTidyPlan,
   proposeDesign,
   proposeDesignDraft,
+  rejectDesignProposal,
   renameDesignProposal,
+  reopenDesignProposal,
   restoreDesignVersions,
   sendBackDesignProposal,
   updateDesignApp,
@@ -39,6 +45,7 @@ import {
   updateDesignState,
 } from '../api/generated'
 import type { DesignIndex } from '../api'
+import { designWithProposal } from '../utils/designView'
 import { computeRefreshDelayMs } from '../utils/viewTokenSchedule'
 import type {
   DesignActions,
@@ -225,6 +232,31 @@ export function designActionsFor(projectId: string, onChanged: () => void): Desi
     await call
     await after(undefined, usage)
   }
+  const ahead = async <T>(
+    proposalId: string,
+    change: (index: DesignIndex) => DesignIndex,
+    call: () => Promise<T>,
+  ): Promise<T> => {
+    const held = designStateOf(byProject, projectId).index
+    const before = held.proposals.find((p) => p.id === proposalId)
+    let shown = true
+    try {
+      patch(projectId, { index: change(held) })
+    } catch {
+      shown = false
+    }
+    try {
+      return await after(await call())
+    } catch (err) {
+      if (shown && before) {
+        patch(projectId, {
+          index: designWithProposal(designStateOf(byProject, projectId).index, before),
+        })
+      }
+      void refreshDesign(projectId)
+      throw err
+    }
+  }
   return {
     createApp: async (name, kind) =>
       after((await createDesignApp({ path, body: { name, kind }, throwOnError: true })).data),
@@ -304,6 +336,27 @@ export function designActionsFor(projectId: string, onChanged: () => void): Desi
             throwOnError: true,
           })
         ).data,
+      ),
+    rejectProposal: (proposalId, note) =>
+      ahead(
+        proposalId,
+        (index) =>
+          rejectDesignProposalIn(index as never, proposalId, note, Date.now()) as DesignIndex,
+        async () =>
+          (
+            await rejectDesignProposal({
+              path: { ...path, proposalId },
+              body: note?.trim() ? { note: note.trim() } : {},
+              throwOnError: true,
+            })
+          ).data,
+      ),
+    reopenProposal: (proposalId) =>
+      ahead(
+        proposalId,
+        (index) => reopenDesignProposalIn(index as never, proposalId, Date.now()) as DesignIndex,
+        async () =>
+          (await reopenDesignProposal({ path: { ...path, proposalId }, throwOnError: true })).data,
       ),
     renameProposal: async (proposalId, title) =>
       after(

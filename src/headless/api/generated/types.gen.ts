@@ -1011,6 +1011,30 @@ export type AgentTaskResult = {
   costUSD: number
 }
 
+export type StageCheckoutContextFilesInput = {
+  workspace: string
+  projectDir: string
+  files: Array<string>
+  evidenceHome?: string
+}
+
+export type StageCheckoutContextFilesResult =
+  | {
+      ok: true
+      absentFromBranch: Array<string>
+      copied: Array<string>
+    }
+  | {
+      ok: false
+      error: string
+    }
+
+export type RunFeatureContextScope = {
+  agentType: string
+  featureId?: string
+  featureIds?: Array<string>
+}
+
 export type OrdinaryLayoutDocsConfig = {
   primary?: string
   fallbacks?: Array<string>
@@ -1290,6 +1314,11 @@ export type ProcessManagerBriefCard = {
 
 export type ProcessRetryMode = 'continue' | 'fresh'
 
+export type ProcessTurnLimit = {
+  limitTurns: boolean
+  maxTurns: number
+}
+
 export type ProcessManagerMove =
   | {
       kind: 'read'
@@ -1299,8 +1328,10 @@ export type ProcessManagerMove =
       choice: string
       note?: string
       retryMode?: 'continue' | 'fresh'
-      attemptTurns?: number
-      runTurns?: number
+      turnLimit?: {
+        limitTurns: boolean
+        maxTurns: number
+      }
     }
   | {
       kind: 'stage-rerun'
@@ -2580,6 +2611,7 @@ export type ToolName =
   | 'mobileTestTapSelector'
   | 'mobileTestTapPoint'
   | 'mobileTestType'
+  | 'mobileTestPaste'
   | 'mobileTestTypeSecret'
   | 'mobileTestPressKey'
   | 'mobileTestSwipe'
@@ -3987,6 +4019,15 @@ export type UiStackSetting = {
   start?: UiStackStartCommand | UiStackStartRequest
 }
 
+export type DeliveryMergeMethod = 'squash' | 'merge' | 'rebase'
+
+export type DeliverySettings = {
+  branchTemplate?: string
+  baseBranch?: string
+  prFirst?: boolean
+  mergeMethod?: 'squash' | 'merge' | 'rebase'
+}
+
 export type ProjectsGroup = {
   id: string
   title: string
@@ -4010,6 +4051,12 @@ export type ProjectsGroup = {
     entry: string
     parts: Array<UiStackPart>
     start?: UiStackStartCommand | UiStackStartRequest
+  }
+  delivery?: {
+    branchTemplate?: string
+    baseBranch?: string
+    prFirst?: boolean
+    mergeMethod?: 'squash' | 'merge' | 'rebase'
   }
   createdAt: string
   updatedAt: string
@@ -4291,6 +4338,12 @@ export type ProjectRegistryMetadata = {
   ticketConnection?: TicketConnectionBinding | 'none'
   mcpServers?: Array<McpServerConnection>
   signOffOutputs?: Array<SignOffOutputDefinition>
+  delivery?: {
+    branchTemplate?: string
+    baseBranch?: string
+    prFirst?: boolean
+    mergeMethod?: 'squash' | 'merge' | 'rebase'
+  }
   hasApp?: boolean
   appDir?: string
   isUiApp?: boolean
@@ -4346,6 +4399,12 @@ export type ProjectRegistryEntry = {
     ticketConnection?: TicketConnectionBinding | 'none'
     mcpServers?: Array<McpServerConnection>
     signOffOutputs?: Array<SignOffOutputDefinition>
+    delivery?: {
+      branchTemplate?: string
+      baseBranch?: string
+      prFirst?: boolean
+      mergeMethod?: 'squash' | 'merge' | 'rebase'
+    }
     hasApp?: boolean
     appDir?: string
     isUiApp?: boolean
@@ -4544,6 +4603,12 @@ export type ChatContextArguments = {
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
     }
+    delivery?: {
+      branchTemplate?: string
+      baseBranch?: string
+      prFirst?: boolean
+      mergeMethod?: 'squash' | 'merge' | 'rebase'
+    }
     createdAt: string
     updatedAt: string
   }
@@ -4657,6 +4722,12 @@ export type ChatContextArgumentsGroup = {
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
     }
+    delivery?: {
+      branchTemplate?: string
+      baseBranch?: string
+      prFirst?: boolean
+      mergeMethod?: 'squash' | 'merge' | 'rebase'
+    }
     createdAt: string
     updatedAt: string
   }
@@ -4689,6 +4760,12 @@ export type ChatContextArgumentsGroupTopic = {
       entry: string
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
+    }
+    delivery?: {
+      branchTemplate?: string
+      baseBranch?: string
+      prFirst?: boolean
+      mergeMethod?: 'squash' | 'merge' | 'rebase'
     }
     createdAt: string
     updatedAt: string
@@ -9407,6 +9484,19 @@ export type CorroboratedItem = {
   sources: Array<string>
 }
 
+export type ResolvedDeliverySettings = {
+  branchTemplate: string
+  baseBranch?: string
+  prFirst: boolean
+  mergeMethod?: 'squash' | 'merge' | 'rebase'
+}
+
+export type ProcessPublishBranchNameInput = {
+  ticket?: string
+  short?: string
+  runId: string
+}
+
 export type Raw = {
   [key: string]: unknown
 }
@@ -9539,7 +9629,7 @@ export type DesignProposalEntry = {
   restoredFrom?: string
 }
 
-export type DesignProposalStatus = 'open' | 'accepted' | 'alternative' | 'sent-back'
+export type DesignProposalStatus = 'open' | 'accepted' | 'alternative' | 'sent-back' | 'rejected'
 
 export type DesignProposal = {
   id: string
@@ -11488,6 +11578,9 @@ export type GitPushRefWithCredentialOptions = {
   token: string
   source: string
   branch: string
+  forceWithLease?: {
+    expect?: string
+  }
   timeoutMs?: number
 }
 
@@ -14245,6 +14338,23 @@ export type MobileRecordingPace = {
   pollMs: number
 }
 
+export type MobilePasteOptions = {
+  ref?: string
+  selector?: {
+    id?: string
+    label?: string
+    type?: string
+    within?: string
+    nth?: number
+  }
+}
+
+export type MobilePasteMenuPace = {
+  timeoutMs: number
+  pollMs: number
+  focusSettleMs: number
+}
+
 export type MobileDeviceInstall = {
   build?: {
     platform: 'android' | 'ios'
@@ -15184,6 +15294,28 @@ export type ProcessRunIntegration = {
   at: number
 }
 
+export type ProcessRunPullRequest = {
+  url: string
+  number: number
+  provider: string
+}
+
+export type ProcessRunPublicationStatus = 'open' | 'merged' | 'closed'
+
+export type ProcessRunPublication = {
+  remoteBranch: string
+  localBranch: string
+  sha: string
+  onto: string
+  pullRequest?: {
+    url: string
+    number: number
+    provider: string
+  }
+  status: ProcessRunPublicationStatus
+  at: number
+}
+
 export type ProcessRunAlreadyMet = {
   baseRef: string
   sha: string
@@ -15204,7 +15336,7 @@ export type ProcessStepKind =
   | 'cleanup'
   | 'script'
 
-export type ProcessGateKind = 'design' | 'live-check'
+export type ProcessGateKind = 'design' | 'live-check' | 'publish'
 
 export type ProcessInputExpansion = {
   input: string
@@ -15239,7 +15371,7 @@ export type ProcessStep = {
   enabled?: boolean
   agentType?: string
   slot?: 'implementer' | 'verifier'
-  gateKind?: 'design' | 'live-check'
+  gateKind?: 'design' | 'live-check' | 'publish'
   liveCheck?: {
     mode: LiveCheckMode
     beforeAndAfter?: boolean
@@ -15253,6 +15385,7 @@ export type ProcessStep = {
   onlyWhenSentBack?: boolean
   produces?: Array<string>
   mayChangeNothing?: boolean
+  cleanupPathsOnly?: boolean
   serveVariant?: boolean
   runsWhen?: {
     input: string
@@ -15299,7 +15432,7 @@ export type ProcessPlanStep = {
   enabled?: boolean
   agentType?: string
   slot?: 'implementer' | 'verifier'
-  gateKind?: 'design' | 'live-check'
+  gateKind?: 'design' | 'live-check' | 'publish'
   liveCheck?: {
     mode: LiveCheckMode
     beforeAndAfter?: boolean
@@ -15313,6 +15446,7 @@ export type ProcessPlanStep = {
   onlyWhenSentBack?: boolean
   produces?: Array<string>
   mayChangeNothing?: boolean
+  cleanupPathsOnly?: boolean
   serveVariant?: boolean
   runsWhen?: {
     input: string
@@ -15822,11 +15956,6 @@ export type ProcessWaitingAsk = {
   }
 }
 
-export type ProcessTurnLimit = {
-  limitTurns: boolean
-  maxTurns: number
-}
-
 export type ProcessProofPlanChange = {
   featureId?: string
   stepId?: string
@@ -16103,10 +16232,6 @@ export type ProcessResumeOptions = {
   }
   retryMode?: 'continue' | 'fresh'
   turnLimit?: {
-    limitTurns: boolean
-    maxTurns: number
-  }
-  attemptTurnLimit?: {
     limitTurns: boolean
     maxTurns: number
   }
@@ -16721,6 +16846,7 @@ export type ProcessLedgerEntry = {
   featureDone?: true
   retryMode?: 'continue' | 'fresh'
   resumes?: string
+  scriptCheckpoint?: unknown
   retries?: Array<ProcessStepRetry>
   backoffMs?: number
   backoffSince?: number
@@ -17042,6 +17168,19 @@ export type ProcessRun = {
     }
     regenerated?: Array<string>
     broughtInRunIds?: Array<string>
+    at: number
+  }
+  publication?: {
+    remoteBranch: string
+    localBranch: string
+    sha: string
+    onto: string
+    pullRequest?: {
+      url: string
+      number: number
+      provider: string
+    }
+    status: ProcessRunPublicationStatus
     at: number
   }
   alreadyMet?: {
@@ -17809,6 +17948,12 @@ export type ProjectSpecCreateInput = {
     ticketConnection?: TicketConnectionBinding | 'none'
     mcpServers?: Array<McpServerConnection>
     signOffOutputs?: Array<SignOffOutputDefinition>
+    delivery?: {
+      branchTemplate?: string
+      baseBranch?: string
+      prFirst?: boolean
+      mergeMethod?: 'squash' | 'merge' | 'rebase'
+    }
     hasApp?: boolean
     appDir?: string
     isUiApp?: boolean
@@ -17907,6 +18052,12 @@ export type ProjectSpecEditInput = {
     ticketConnection?: TicketConnectionBinding | 'none'
     mcpServers?: Array<McpServerConnection>
     signOffOutputs?: Array<SignOffOutputDefinition>
+    delivery?: {
+      branchTemplate?: string
+      baseBranch?: string
+      prFirst?: boolean
+      mergeMethod?: 'squash' | 'merge' | 'rebase'
+    }
     hasApp?: boolean
     appDir?: string
     isUiApp?: boolean
@@ -19041,6 +19192,7 @@ export type ProjectsGroupEditInput = {
   signOffOutputs?: Array<SignOffOutputDefinition>
   capabilities?: CapabilitySettings | unknown
   serveStack?: UiStackSetting | unknown
+  delivery?: DeliverySettings | unknown
 }
 
 export type ProjectsGroupUpdateType = 'change'
@@ -23102,6 +23254,7 @@ export type CaptureToolSet = {
     | 'mobileTestTapSelector'
     | 'mobileTestTapPoint'
     | 'mobileTestType'
+    | 'mobileTestPaste'
     | 'mobileTestTypeSecret'
     | 'mobileTestPressKey'
     | 'mobileTestSwipe'
@@ -23670,6 +23823,7 @@ export type CaptureToolSet = {
     | 'mobileTestTapSelector'
     | 'mobileTestTapPoint'
     | 'mobileTestType'
+    | 'mobileTestPaste'
     | 'mobileTestTypeSecret'
     | 'mobileTestPressKey'
     | 'mobileTestSwipe'
@@ -24245,6 +24399,7 @@ export type CaptureToolSet = {
     | 'mobileTestTapSelector'
     | 'mobileTestTapPoint'
     | 'mobileTestType'
+    | 'mobileTestPaste'
     | 'mobileTestTypeSecret'
     | 'mobileTestPressKey'
     | 'mobileTestSwipe'
@@ -24813,6 +24968,7 @@ export type CaptureToolSet = {
     | 'mobileTestTapSelector'
     | 'mobileTestTapPoint'
     | 'mobileTestType'
+    | 'mobileTestPaste'
     | 'mobileTestTypeSecret'
     | 'mobileTestPressKey'
     | 'mobileTestSwipe'
@@ -25382,6 +25538,7 @@ export type CaptureToolSet = {
     | 'mobileTestTapSelector'
     | 'mobileTestTapPoint'
     | 'mobileTestType'
+    | 'mobileTestPaste'
     | 'mobileTestTypeSecret'
     | 'mobileTestPressKey'
     | 'mobileTestSwipe'
@@ -25972,6 +26129,25 @@ export type ScriptTakeOverResult = {
   note: string
   turns?: number
   costUsd?: number
+}
+
+export type ScriptCheckpoint = unknown
+
+export type ScriptCheckpointResult = {
+  saved: true
+}
+
+export type ProcessScriptResumeEvidence = {
+  id: string
+  kind: string
+  label?: string
+  mediaType?: string
+  bytes?: number
+}
+
+export type ProcessScriptResume = {
+  checkpoint: unknown
+  evidence: Array<ProcessScriptResumeEvidence>
 }
 
 export type ScriptHostScope = {
@@ -28502,6 +28678,7 @@ export type ProcessGroupLegStatus =
   | 'needs-you'
   | 'waiting'
   | 'manager-on-it'
+  | 'at-publish'
   | 'at-sign-off'
   | 'integrating'
   | 'integrated'
@@ -28690,6 +28867,7 @@ export type ProcessGroupParkReason =
   | 'leg-failed'
   | 'leg-start-failed'
   | 'integration-failed'
+  | 'publish'
   | 'sign-off'
   | 'sign-off-failed'
 
@@ -29670,6 +29848,7 @@ export type ProcessLaunchContext = {
   features?: Array<ProcessSubject>
   featureProcessId?: string
   inputs?: Array<ProcessInput>
+  prFirst?: boolean
 }
 
 export type ProcessRunStatistics = {
@@ -29731,7 +29910,12 @@ export type ExtendProcessRunOptions = {
   }
 }
 
-export type ProcessOpenWorkState = 'running' | 'parked' | 'awaiting-sign-off' | 'unmerged'
+export type ProcessOpenWorkState =
+  | 'running'
+  | 'parked'
+  | 'awaiting-sign-off'
+  | 'in-review'
+  | 'unmerged'
 
 export type ProcessOpenWorkChoice = 'extend' | 'new-on-branch' | 'fresh'
 
@@ -29763,14 +29947,14 @@ export type ProcessFeatureDelivery = {
 export type ProcessOpenWorkDecision = {
   openWork: ProcessOpenWorkChoice
   runId: string
-  state?: 'running' | 'parked' | 'awaiting-sign-off' | 'unmerged'
+  state?: 'running' | 'parked' | 'awaiting-sign-off' | 'in-review' | 'unmerged'
 }
 
 export type ProcessLaunchDecision = {
   openWork?: {
     openWork: ProcessOpenWorkChoice
     runId: string
-    state?: 'running' | 'parked' | 'awaiting-sign-off' | 'unmerged'
+    state?: 'running' | 'parked' | 'awaiting-sign-off' | 'in-review' | 'unmerged'
   }
   featureProcessId?: string
   featureIds?: Array<string>
@@ -30121,6 +30305,19 @@ export type ProcessRunChatState = {
       }
       regenerated?: Array<string>
       broughtInRunIds?: Array<string>
+      at: number
+    }
+    publication?: {
+      remoteBranch: string
+      localBranch: string
+      sha: string
+      onto: string
+      pullRequest?: {
+        url: string
+        number: number
+        provider: string
+      }
+      status: ProcessRunPublicationStatus
       at: number
     }
     alreadyMet?: {
@@ -30922,6 +31119,16 @@ export type PushProcessWorkBranchInput = {
   }
 }
 
+export type ProcessWorkBranchPublished = {
+  sha: string
+  onto: string
+  localBranch: string
+  remoteBranch: string
+  commits: Array<GitReplayedCommit>
+  regenerated?: Array<string>
+  unchanged?: true
+}
+
 export type ProcessRunSummary = {
   id: string
   projectId: string
@@ -31035,6 +31242,19 @@ export type ProcessRunSummary = {
     }
     regenerated?: Array<string>
     broughtInRunIds?: Array<string>
+    at: number
+  }
+  publication?: {
+    remoteBranch: string
+    localBranch: string
+    sha: string
+    onto: string
+    pullRequest?: {
+      url: string
+      number: number
+      provider: string
+    }
+    status: ProcessRunPublicationStatus
     at: number
   }
   alreadyMet?: {
@@ -31756,6 +31976,7 @@ export type StartProcessRunInput = {
     features?: Array<ProcessSubject>
     featureProcessId?: string
     inputs?: Array<ProcessInput>
+    prFirst?: boolean
   }
   input?: {
     [key: string]: unknown
@@ -31837,6 +32058,7 @@ export type FreezePlanOptions = {
     features?: Array<ProcessSubject>
     featureProcessId?: string
     inputs?: Array<ProcessInput>
+    prFirst?: boolean
   }
   input?: {
     [key: string]: unknown
@@ -32175,6 +32397,7 @@ export type ProcessStepState = {
     featureDone?: true
     retryMode?: 'continue' | 'fresh'
     resumes?: string
+    scriptCheckpoint?: unknown
     retries?: Array<ProcessStepRetry>
     backoffMs?: number
     backoffSince?: number
@@ -34428,6 +34651,12 @@ export type ListProjectsGroupsResponses = {
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
     }
+    delivery?: {
+      branchTemplate?: string
+      baseBranch?: string
+      prFirst?: boolean
+      mergeMethod?: 'squash' | 'merge' | 'rebase'
+    }
     createdAt: string
     updatedAt: string
   }>
@@ -34482,6 +34711,12 @@ export type CreateProjectsGroupResponses = {
       entry: string
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
+    }
+    delivery?: {
+      branchTemplate?: string
+      baseBranch?: string
+      prFirst?: boolean
+      mergeMethod?: 'squash' | 'merge' | 'rebase'
     }
     createdAt: string
     updatedAt: string
@@ -34773,6 +35008,12 @@ export type DeleteProjectsGroupResponses = {
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
     }
+    delivery?: {
+      branchTemplate?: string
+      baseBranch?: string
+      prFirst?: boolean
+      mergeMethod?: 'squash' | 'merge' | 'rebase'
+    }
     createdAt: string
     updatedAt: string
   }>
@@ -34829,6 +35070,12 @@ export type GetProjectsGroupResponses = {
       entry: string
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
+    }
+    delivery?: {
+      branchTemplate?: string
+      baseBranch?: string
+      prFirst?: boolean
+      mergeMethod?: 'squash' | 'merge' | 'rebase'
     }
     createdAt: string
     updatedAt: string
@@ -34894,6 +35141,12 @@ export type UpdateProjectsGroupResponses = {
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
     }
+    delivery?: {
+      branchTemplate?: string
+      baseBranch?: string
+      prFirst?: boolean
+      mergeMethod?: 'squash' | 'merge' | 'rebase'
+    }
     createdAt: string
     updatedAt: string
   }
@@ -34952,6 +35205,12 @@ export type ReorderProjectInGroupResponses = {
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
     }
+    delivery?: {
+      branchTemplate?: string
+      baseBranch?: string
+      prFirst?: boolean
+      mergeMethod?: 'squash' | 'merge' | 'rebase'
+    }
     createdAt: string
     updatedAt: string
   }
@@ -35007,6 +35266,12 @@ export type ReorderProjectsGroupsResponses = {
       entry: string
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
+    }
+    delivery?: {
+      branchTemplate?: string
+      baseBranch?: string
+      prFirst?: boolean
+      mergeMethod?: 'squash' | 'merge' | 'rebase'
     }
     createdAt: string
     updatedAt: string
@@ -37395,10 +37660,6 @@ export type ResumeProcessRunData = {
      */
     files?: Array<string>
     /**
-     * With retry: turns only the retried attempt gets, 1–500 — the run’s own limit stays. Not with `turnLimit`.
-     */
-    attemptTurns?: number
-    /**
      * With retry, in dollars: the most the retried attempt alone may spend — the run’s own step limit stays — or, at a stop on the run’s whole spend limit, the run’s new limit, above what it has spent.
      */
     attemptSpendUsd?: number
@@ -37455,6 +37716,230 @@ export type ResumeProcessRunResponses = {
 }
 
 export type ResumeProcessRunResponse = ResumeProcessRunResponses[keyof ResumeProcessRunResponses]
+
+export type GetProcessRunDeliveryData = {
+  body?: never
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}/delivery'
+}
+
+export type GetProcessRunDeliveryErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetProcessRunDeliveryError =
+  GetProcessRunDeliveryErrors[keyof GetProcessRunDeliveryErrors]
+
+export type GetProcessRunDeliveryResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    repos: Array<{
+      runId: string
+      projectId: string
+      legId?: string
+      /**
+       * The project’s name.
+       */
+      name: string
+      /**
+       * The ticket key its branch is named from.
+       */
+      ticket?: string
+      branchTemplate: string
+      /**
+       * The 2–4 word short name filled into `{short}`.
+       */
+      short: string
+      prTitle: string
+      baseBranch: string
+      /**
+       * The account it is pushed and opened as.
+       */
+      account?: string
+      /**
+       * Whether its work holds real changes for a pull request.
+       */
+      changed: boolean
+      /**
+       * The branch it is (or would be) pushed under.
+       */
+      branch?: string
+      /**
+       * Why it cannot be published as it stands.
+       */
+      error?: string
+      publication?: {
+        remoteBranch: string
+        localBranch: string
+        sha: string
+        onto: string
+        pullRequest?: {
+          url: string
+          number: number
+          provider: string
+        }
+        status: ProcessRunPublicationStatus
+        at: number
+      }
+      merge?: {
+        phase:
+          | 'bringing-in-base'
+          | 'waiting-for-checks'
+          | 'merging'
+          | 'merged'
+          | 'already-merged'
+          | 'conflict'
+          | 'checks-failed'
+          | 'failed'
+        method?: string
+        checksUrl?: string
+        failedChecks?: Array<{
+          name: string
+          url?: string
+        }>
+        error?: string
+        at: number
+      }
+    }>
+  }
+}
+
+export type GetProcessRunDeliveryResponse =
+  GetProcessRunDeliveryResponses[keyof GetProcessRunDeliveryResponses]
+
+export type UpdateProcessRunDeliveryData = {
+  body: {
+    repos: Array<{
+      projectId: string
+      /**
+       * The branch’s short name, filled into `{short}` of the branch template. Only until the work is first published.
+       */
+      short?: string
+      /**
+       * The pull request’s title.
+       */
+      prTitle?: string
+    }>
+  }
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}/delivery'
+}
+
+export type UpdateProcessRunDeliveryErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type UpdateProcessRunDeliveryError =
+  UpdateProcessRunDeliveryErrors[keyof UpdateProcessRunDeliveryErrors]
+
+export type UpdateProcessRunDeliveryResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    repos: Array<{
+      runId: string
+      projectId: string
+      legId?: string
+      /**
+       * The project’s name.
+       */
+      name: string
+      /**
+       * The ticket key its branch is named from.
+       */
+      ticket?: string
+      branchTemplate: string
+      /**
+       * The 2–4 word short name filled into `{short}`.
+       */
+      short: string
+      prTitle: string
+      baseBranch: string
+      /**
+       * The account it is pushed and opened as.
+       */
+      account?: string
+      /**
+       * Whether its work holds real changes for a pull request.
+       */
+      changed: boolean
+      /**
+       * The branch it is (or would be) pushed under.
+       */
+      branch?: string
+      /**
+       * Why it cannot be published as it stands.
+       */
+      error?: string
+      publication?: {
+        remoteBranch: string
+        localBranch: string
+        sha: string
+        onto: string
+        pullRequest?: {
+          url: string
+          number: number
+          provider: string
+        }
+        status: ProcessRunPublicationStatus
+        at: number
+      }
+      merge?: {
+        phase:
+          | 'bringing-in-base'
+          | 'waiting-for-checks'
+          | 'merging'
+          | 'merged'
+          | 'already-merged'
+          | 'conflict'
+          | 'checks-failed'
+          | 'failed'
+        method?: string
+        checksUrl?: string
+        failedChecks?: Array<{
+          name: string
+          url?: string
+        }>
+        error?: string
+        at: number
+      }
+    }>
+  }
+}
+
+export type UpdateProcessRunDeliveryResponse =
+  UpdateProcessRunDeliveryResponses[keyof UpdateProcessRunDeliveryResponses]
 
 export type AnswerProcessRunWaitingRequestData = {
   body: {
@@ -39575,6 +40060,356 @@ export type SignOffProcessGroupRunResponses = {
 export type SignOffProcessGroupRunResponse =
   SignOffProcessGroupRunResponses[keyof SignOffProcessGroupRunResponses]
 
+export type GetProcessGroupRunDeliveryData = {
+  body?: never
+  path: {
+    groupRunId: string
+  }
+  query?: never
+  url: '/api/v1/process-group-runs/{groupRunId}/delivery'
+}
+
+export type GetProcessGroupRunDeliveryErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetProcessGroupRunDeliveryError =
+  GetProcessGroupRunDeliveryErrors[keyof GetProcessGroupRunDeliveryErrors]
+
+export type GetProcessGroupRunDeliveryResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    repos: Array<{
+      runId: string
+      projectId: string
+      legId?: string
+      /**
+       * The project’s name.
+       */
+      name: string
+      /**
+       * The ticket key its branch is named from.
+       */
+      ticket?: string
+      branchTemplate: string
+      /**
+       * The 2–4 word short name filled into `{short}`.
+       */
+      short: string
+      prTitle: string
+      baseBranch: string
+      /**
+       * The account it is pushed and opened as.
+       */
+      account?: string
+      /**
+       * Whether its work holds real changes for a pull request.
+       */
+      changed: boolean
+      /**
+       * The branch it is (or would be) pushed under.
+       */
+      branch?: string
+      /**
+       * Why it cannot be published as it stands.
+       */
+      error?: string
+      publication?: {
+        remoteBranch: string
+        localBranch: string
+        sha: string
+        onto: string
+        pullRequest?: {
+          url: string
+          number: number
+          provider: string
+        }
+        status: ProcessRunPublicationStatus
+        at: number
+      }
+      merge?: {
+        phase:
+          | 'bringing-in-base'
+          | 'waiting-for-checks'
+          | 'merging'
+          | 'merged'
+          | 'already-merged'
+          | 'conflict'
+          | 'checks-failed'
+          | 'failed'
+        method?: string
+        checksUrl?: string
+        failedChecks?: Array<{
+          name: string
+          url?: string
+        }>
+        error?: string
+        at: number
+      }
+    }>
+  }
+}
+
+export type GetProcessGroupRunDeliveryResponse =
+  GetProcessGroupRunDeliveryResponses[keyof GetProcessGroupRunDeliveryResponses]
+
+export type UpdateProcessGroupRunDeliveryData = {
+  body: {
+    repos: Array<{
+      projectId: string
+      /**
+       * The branch’s short name, filled into `{short}` of the branch template. Only until the work is first published.
+       */
+      short?: string
+      /**
+       * The pull request’s title.
+       */
+      prTitle?: string
+    }>
+  }
+  path: {
+    groupRunId: string
+  }
+  query?: never
+  url: '/api/v1/process-group-runs/{groupRunId}/delivery'
+}
+
+export type UpdateProcessGroupRunDeliveryErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type UpdateProcessGroupRunDeliveryError =
+  UpdateProcessGroupRunDeliveryErrors[keyof UpdateProcessGroupRunDeliveryErrors]
+
+export type UpdateProcessGroupRunDeliveryResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    repos: Array<{
+      runId: string
+      projectId: string
+      legId?: string
+      /**
+       * The project’s name.
+       */
+      name: string
+      /**
+       * The ticket key its branch is named from.
+       */
+      ticket?: string
+      branchTemplate: string
+      /**
+       * The 2–4 word short name filled into `{short}`.
+       */
+      short: string
+      prTitle: string
+      baseBranch: string
+      /**
+       * The account it is pushed and opened as.
+       */
+      account?: string
+      /**
+       * Whether its work holds real changes for a pull request.
+       */
+      changed: boolean
+      /**
+       * The branch it is (or would be) pushed under.
+       */
+      branch?: string
+      /**
+       * Why it cannot be published as it stands.
+       */
+      error?: string
+      publication?: {
+        remoteBranch: string
+        localBranch: string
+        sha: string
+        onto: string
+        pullRequest?: {
+          url: string
+          number: number
+          provider: string
+        }
+        status: ProcessRunPublicationStatus
+        at: number
+      }
+      merge?: {
+        phase:
+          | 'bringing-in-base'
+          | 'waiting-for-checks'
+          | 'merging'
+          | 'merged'
+          | 'already-merged'
+          | 'conflict'
+          | 'checks-failed'
+          | 'failed'
+        method?: string
+        checksUrl?: string
+        failedChecks?: Array<{
+          name: string
+          url?: string
+        }>
+        error?: string
+        at: number
+      }
+    }>
+  }
+}
+
+export type UpdateProcessGroupRunDeliveryResponse =
+  UpdateProcessGroupRunDeliveryResponses[keyof UpdateProcessGroupRunDeliveryResponses]
+
+export type PublishProcessGroupRunData = {
+  body: {
+    repos?: Array<{
+      projectId: string
+      /**
+       * The branch’s short name, filled into `{short}` of the branch template. Only until the work is first published.
+       */
+      short?: string
+      /**
+       * The pull request’s title.
+       */
+      prTitle?: string
+    }>
+    /**
+     * The app the person decided on, recorded on each leg’s decision.
+     */
+    decidedVia: 'web' | 'desktop' | 'mobile'
+  }
+  path: {
+    groupRunId: string
+  }
+  query?: never
+  url: '/api/v1/process-group-runs/{groupRunId}/publish'
+}
+
+export type PublishProcessGroupRunErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type PublishProcessGroupRunError =
+  PublishProcessGroupRunErrors[keyof PublishProcessGroupRunErrors]
+
+export type PublishProcessGroupRunResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    repos: Array<{
+      runId: string
+      projectId: string
+      legId?: string
+      /**
+       * The project’s name.
+       */
+      name: string
+      /**
+       * The ticket key its branch is named from.
+       */
+      ticket?: string
+      branchTemplate: string
+      /**
+       * The 2–4 word short name filled into `{short}`.
+       */
+      short: string
+      prTitle: string
+      baseBranch: string
+      /**
+       * The account it is pushed and opened as.
+       */
+      account?: string
+      /**
+       * Whether its work holds real changes for a pull request.
+       */
+      changed: boolean
+      /**
+       * The branch it is (or would be) pushed under.
+       */
+      branch?: string
+      /**
+       * Why it cannot be published as it stands.
+       */
+      error?: string
+      publication?: {
+        remoteBranch: string
+        localBranch: string
+        sha: string
+        onto: string
+        pullRequest?: {
+          url: string
+          number: number
+          provider: string
+        }
+        status: ProcessRunPublicationStatus
+        at: number
+      }
+      merge?: {
+        phase:
+          | 'bringing-in-base'
+          | 'waiting-for-checks'
+          | 'merging'
+          | 'merged'
+          | 'already-merged'
+          | 'conflict'
+          | 'checks-failed'
+          | 'failed'
+        method?: string
+        checksUrl?: string
+        failedChecks?: Array<{
+          name: string
+          url?: string
+        }>
+        error?: string
+        at: number
+      }
+    }>
+  }
+}
+
+export type PublishProcessGroupRunResponse =
+  PublishProcessGroupRunResponses[keyof PublishProcessGroupRunResponses]
+
 export type RetryProcessGroupPullRequestsData = {
   body?: never
   path: {
@@ -40393,6 +41228,52 @@ export type TakeOverScriptHostResponses = {
 
 export type TakeOverScriptHostResponse =
   TakeOverScriptHostResponses[keyof TakeOverScriptHostResponses]
+
+export type CheckpointScriptHostData = {
+  body: ScriptCheckpoint
+  path?: never
+  query?: never
+  url: '/api/v1/script-steps/checkpoint'
+}
+
+export type CheckpointScriptHostErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  502: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type CheckpointScriptHostError = CheckpointScriptHostErrors[keyof CheckpointScriptHostErrors]
+
+export type CheckpointScriptHostResponses = {
+  /**
+   * Default Response
+   */
+  200: ScriptCheckpointResult
+}
+
+export type CheckpointScriptHostResponse =
+  CheckpointScriptHostResponses[keyof CheckpointScriptHostResponses]
 
 export type ListReviewEvidenceData = {
   body?: never
@@ -41744,6 +42625,117 @@ export type SendBackDesignProposalResponses = {
 
 export type SendBackDesignProposalResponse =
   SendBackDesignProposalResponses[keyof SendBackDesignProposalResponses]
+
+export type RejectDesignProposalData = {
+  body: {
+    /**
+     * Why it is rejected; told to its author.
+     */
+    note?: string
+  }
+  path: {
+    projectId: string
+    proposalId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/design/proposals/{proposalId}/reject'
+}
+
+export type RejectDesignProposalErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type RejectDesignProposalError = RejectDesignProposalErrors[keyof RejectDesignProposalErrors]
+
+export type RejectDesignProposalResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    proposal: DesignProposal
+    delivery: {
+      delivered: boolean
+      held?: boolean
+      chatId?: string
+      note?: string
+    }
+  }
+}
+
+export type RejectDesignProposalResponse =
+  RejectDesignProposalResponses[keyof RejectDesignProposalResponses]
+
+export type ReopenDesignProposalData = {
+  body?: never
+  path: {
+    projectId: string
+    proposalId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/design/proposals/{proposalId}/reopen'
+}
+
+export type ReopenDesignProposalErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ReopenDesignProposalError = ReopenDesignProposalErrors[keyof ReopenDesignProposalErrors]
+
+export type ReopenDesignProposalResponses = {
+  /**
+   * Default Response
+   */
+  200: DesignProposal
+}
+
+export type ReopenDesignProposalResponse =
+  ReopenDesignProposalResponses[keyof ReopenDesignProposalResponses]
 
 export type RestoreDesignVersionsData = {
   body: {

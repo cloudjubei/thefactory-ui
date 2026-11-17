@@ -182,6 +182,8 @@ export default function DesignPage({
                   onKeep={(id) => run(() => actions.keepProposal(id))}
                   onChoose={(id) => run(() => actions.chooseProposal(id))}
                   onSendBack={(id, note) => run(() => actions.sendBackProposal(id, note))}
+                  onReject={(id, note) => run(() => actions.rejectProposal(id, note))}
+                  onReopen={(id) => run(() => actions.reopenProposal(id))}
                   onFile={(id, entryId, target) =>
                     run(() => actions.fileEntry(id, entryId, target))
                   }

@@ -4,8 +4,13 @@ import { Pressable, ScrollView, Switch, Text, View } from 'react-native'
 import {
   costChipLabel,
   formatProcessDuration,
+  isGroupPublishPark,
   isGroupSignOffPark,
   isProcessGroupOnBranch,
+  processDeliveryRepoOf,
+  processGroupReadsDelivery,
+  processMergeRows,
+  processPublicationView,
   processGroupBadge,
   processGroupLegRows,
   processGroupProgress,
@@ -19,6 +24,8 @@ import {
   useProcessGroupRebuildPlans,
   useProcessGroupRun,
   useProcessGroupRunChat,
+  useProcessDelivery,
+  type ProcessDeliveryRepo,
   type ProcessGroupLeg,
   type ProcessGroupLegRow,
   type ProcessRunBranch,
@@ -35,7 +42,10 @@ import { Modal } from '../../primitives/Modal'
 import CostChip from '../chips/CostChip'
 import DurationChip from '../chips/DurationChip'
 import ProcessGroupLegLandingDialog from './ProcessGroupLegLandingDialog'
+import GroupPublishCard from './GroupPublishCard'
+import { MergeProgressRowView } from './MergeProgressList'
 import ProcessGroupParkReview from './ProcessGroupParkReview'
+import PublicationChip from './PublicationChip'
 import ProcessGroupRunChatButton from './ProcessGroupRunChatButton'
 import GroupSignOffSection from './signoff/GroupSignOffSection'
 
@@ -96,6 +106,10 @@ export default function ProcessGroupPipeline({
   const resumePlans = useProcessGroupRebuildPlans(
     processGroupResumeRebuildLegIds(group),
     planRebuild,
+  )
+  const delivery = useProcessDelivery(
+    group && processGroupReadsDelivery(group) ? { kind: 'group', groupRunId } : undefined,
+    group?.updatedAt,
   )
   const ticking = group?.totals?.ticking === true
   const now = useDurationTimer(ticking)
@@ -252,7 +266,15 @@ export default function ProcessGroupPipeline({
         </Text>
       ) : null}
 
-      {group.park && !isGroupSignOffPark(group.park) ? (
+      {group.park && isGroupPublishPark(group) ? (
+        <View style={{ marginHorizontal: nativeSpace[3], marginTop: nativeSpace[3] }}>
+          <GroupPublishCard
+            groupRunId={group.id}
+            parkedAt={group.park.parkedAt}
+            onStop={() => void resume({ choice: 'abandon' })}
+          />
+        </View>
+      ) : group.park && !isGroupSignOffPark(group.park) ? (
         <View style={{ marginHorizontal: nativeSpace[3], marginTop: nativeSpace[3] }}>
           <ProcessGroupParkReview key={group.park.parkedAt} group={group} onResume={resume} />
         </View>
@@ -295,6 +317,10 @@ export default function ProcessGroupPipeline({
               <LegCard
                 key={row.leg.id}
                 row={row}
+                delivery={processDeliveryRepoOf(delivery.data, {
+                  legId: row.leg.id,
+                  projectId: row.leg.projectId,
+                })}
                 now={now}
                 onOpen={onOpenLegRun}
                 onMarkLanded={setLandingLeg}
@@ -436,11 +462,14 @@ export default function ProcessGroupPipeline({
 
 function LegCard({
   row,
+  delivery,
   now,
   onOpen,
   onMarkLanded,
 }: {
   row: ProcessGroupLegRow
+  /** Its published work and its merge, once the group's delivery is read. */
+  delivery: ProcessDeliveryRepo | undefined
   now: number
   onOpen: (runId: string, projectId: string) => void
   onMarkLanded: (leg: ProcessGroupLeg) => void
@@ -449,6 +478,9 @@ function LegCard({
   const { leg, totals } = row
   const workMs = processGroupWorkMs(totals, now)
   const spend = costChipLabel(totals)
+  const publication = processPublicationView(delivery?.publication)
+  const [merge] = processMergeRows(delivery ? { repos: [delivery] } : undefined)
+  const openLabel = merge?.openLabel ?? row.openLabel
   return (
     <View
       style={{
@@ -472,6 +504,8 @@ function LegCard({
       <Text numberOfLines={1} style={{ fontSize: 11.5, color: theme.text.secondary }}>
         {leg.title}
       </Text>
+      {publication && !merge ? <PublicationChip view={publication} /> : null}
+      {merge ? <MergeProgressRowView row={merge} /> : null}
       {row.waitsFor ? (
         <Text style={{ fontSize: 11, color: theme.text.muted }}>{row.waitsFor}</Text>
       ) : null}
@@ -514,7 +548,7 @@ function LegCard({
                 color: row.readyForSignOff ? status.review.softFg : theme.text.primary,
               }}
             >
-              {`${row.openLabel} ›`}
+              {`${openLabel} ›`}
             </Text>
           </Pressable>
         ) : null}

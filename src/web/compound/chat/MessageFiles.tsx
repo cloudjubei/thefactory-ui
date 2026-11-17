@@ -21,7 +21,7 @@ export type MessageFilesProps = {
 /**
  * The files on a message, under it: images as thumbnails, videos as posters,
  * the rest as chips that open the document preview. Files an agent showed
- * carry Save to project on the thumbnail or poster, or inside the chip.
+ * carry Save to project on the thumbnail or poster, and in the preview.
  */
 export default function MessageFiles({
   paths,

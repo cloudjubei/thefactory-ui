@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import type { ProcessCleanupList, ProcessCleanupListItem } from 'thefactory-tools/types'
+import { PROCESS_CLEANUP_HOST_REASONS } from 'thefactory-tools/constants'
 import {
+  isProcessCleanupContextDoc,
   processCleanupEditable,
   processCleanupHeadline,
   processCleanupRows,
 } from './processCleanupView'
 import {
   PROCESS_CLEANUP_BY_LABELS,
+  PROCESS_CLEANUP_CONTEXT_DOC_LABEL,
   PROCESS_CLEANUP_COPY,
   PROCESS_CLEANUP_DEVICE_OUTCOME_LABELS,
   PROCESS_CLEANUP_KIND_LABELS,
@@ -216,5 +219,41 @@ describe('processCleanupEditable', () => {
 
   it('freezes it when there is no step to carry it out', () => {
     expect(processCleanupEditable(list({ hasStep: false }))).toBe(false)
+  })
+})
+
+describe('a context doc on the list', () => {
+  const doc = item('docs/plan.md', {
+    reason: PROCESS_CLEANUP_HOST_REASONS.contextDoc,
+    defaultSelected: false,
+    selected: false,
+  })
+
+  it('is one the run found, untracked, by its reason', () => {
+    expect(isProcessCleanupContextDoc(doc)).toBe(true)
+    expect(isProcessCleanupContextDoc({ ...doc, registeredBy: 'agent' })).toBe(false)
+    expect(isProcessCleanupContextDoc({ ...doc, kind: 'project-note' })).toBe(false)
+    expect(isProcessCleanupContextDoc({ ...doc, reason: 'r' })).toBe(false)
+  })
+
+  it('is named a context doc, with its reason, unticked as the run listed it', () => {
+    const [row] = processCleanupRows(list({ items: [doc, item('capture.png')] }))
+    expect(row).toEqual({
+      id: 'docs/plan.md',
+      label: 'docs/plan.md',
+      kindLabel: PROCESS_CLEANUP_CONTEXT_DOC_LABEL,
+      reason: PROCESS_CLEANUP_HOST_REASONS.contextDoc,
+      byLabel: PROCESS_CLEANUP_BY_LABELS.host,
+      selected: false,
+    })
+    expect(processCleanupHeadline(list({ items: [doc, item('capture.png')] }))).toBe(
+      PROCESS_CLEANUP_COPY.willRemove(1, 2),
+    )
+  })
+
+  it('keeps any other file a file', () => {
+    expect(processCleanupRows(list({ items: [item('capture.png')] }))[0]!.kindLabel).toBe(
+      PROCESS_CLEANUP_KIND_LABELS.path,
+    )
   })
 })

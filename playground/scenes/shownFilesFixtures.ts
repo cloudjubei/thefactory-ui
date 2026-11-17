@@ -25,6 +25,8 @@ export const SHOWN_CLIP = `${STORE}7c6b5a4f3e2d-turn-two-replay.webm`
 export const SHOWN_RULES = `${STORE}2e3f4a5b6c7d-deployment-rules.pdf`
 export const SHOWN_ROSTER = `${STORE}5d4c3b2a1f0e-army-roster.csv`
 export const SENT_SCENARIO = `${STORE}8e9f0a1b2c3d-scenario-3.pdf`
+export const SHOWN_CAMPAIGN = `${STORE}6a7b8c9d0e1f-northern-campaign-deployment-plan-revised-after-playtest.pdf`
+export const SHOWN_SEED = `${STORE}3c2b1a0f9e8d-map-seed.dat`
 
 const art = (fill: string, accent: string) =>
   `data:image/svg+xml;base64,${btoa(
@@ -78,6 +80,8 @@ const PREVIEWS: Record<string, string> = {
   [SHOWN_ROSTER]: text('text/csv', ROSTER_TEXT),
   [SHOWN_RULES]: pdf('Deployment rules - turn order and zones'),
   [SENT_SCENARIO]: pdf('Scenario 3 - hold the bridge'),
+  [SHOWN_CAMPAIGN]: pdf('Northern campaign - deployment plan'),
+  [SHOWN_SEED]: text('application/octet-stream', 'seed=4815162342\nsize=48x32\n'),
   [SHOWN_MAP]: art('#1e3a5f', '#3d7a4a'),
   [SHOWN_TOKENS]: art('#3b2f4a', '#a0522d'),
   [SHOWN_V1]: art('#5a4632', '#8c7a5b'),
@@ -143,11 +147,12 @@ export const SHOWN_CLIP_REPLY: ChatMessageLike = {
   files: [SHOWN_CLIP],
 }
 
-export const SHOWN_DOCS_REPLY: ChatMessageLike = {
-  id: 'shown-docs',
+export const SHOWN_CHIPS_REPLY: ChatMessageLike = {
+  id: 'shown-chips',
   role: 'assistant',
-  content: 'The deployment rules I followed, the roster as a spreadsheet, and my placement notes.',
-  files: [SHOWN_RULES, SHOWN_ROSTER, SHOWN_NOTES],
+  content:
+    'The deployment rules I followed, the roster, my placement notes, the full campaign plan and the map seed.',
+  files: [SHOWN_RULES, SHOWN_ROSTER, SHOWN_NOTES, SHOWN_CAMPAIGN, SHOWN_SEED],
 }
 
 export const SENT_BY_PERSON: ChatMessageLike = {

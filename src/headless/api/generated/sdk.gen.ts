@@ -100,6 +100,9 @@ import type {
   CheckCliAuthStatusResponses,
   CheckCliImageUpdatesData,
   CheckCliImageUpdatesResponses,
+  CheckpointScriptHostData,
+  CheckpointScriptHostErrors,
+  CheckpointScriptHostResponses,
   CheckProcessGroupLegLandingData,
   CheckProcessGroupLegLandingErrors,
   CheckProcessGroupLegLandingResponses,
@@ -521,6 +524,9 @@ import type {
   GetProcessGroupOutputErrors,
   GetProcessGroupOutputResponses,
   GetProcessGroupRunData,
+  GetProcessGroupRunDeliveryData,
+  GetProcessGroupRunDeliveryErrors,
+  GetProcessGroupRunDeliveryResponses,
   GetProcessGroupRunErrors,
   GetProcessGroupRunResponses,
   GetProcessGroupSignOffData,
@@ -537,6 +543,9 @@ import type {
   GetProcessRunClosureErrors,
   GetProcessRunClosureResponses,
   GetProcessRunData,
+  GetProcessRunDeliveryData,
+  GetProcessRunDeliveryErrors,
+  GetProcessRunDeliveryResponses,
   GetProcessRunErrors,
   GetProcessRunEvidenceData,
   GetProcessRunEvidenceErrors,
@@ -979,6 +988,9 @@ import type {
   ProposeDesignResponses,
   ProxyProjectViewImageData,
   ProxyProjectViewImageResponses,
+  PublishProcessGroupRunData,
+  PublishProcessGroupRunErrors,
+  PublishProcessGroupRunResponses,
   PushOverseerData,
   PushOverseerErrors,
   PushOverseerResponses,
@@ -1036,6 +1048,9 @@ import type {
   RejectCliRunReviewData,
   RejectCliRunReviewErrors,
   RejectCliRunReviewResponses,
+  RejectDesignProposalData,
+  RejectDesignProposalErrors,
+  RejectDesignProposalResponses,
   RejectFeatureRequestData,
   RejectFeatureRequestErrors,
   RejectFeatureRequestResponses,
@@ -1067,6 +1082,9 @@ import type {
   RenameSymbolData,
   RenameSymbolErrors,
   RenameSymbolResponses,
+  ReopenDesignProposalData,
+  ReopenDesignProposalErrors,
+  ReopenDesignProposalResponses,
   ReopenProcessGroupRunData,
   ReopenProcessGroupRunErrors,
   ReopenProcessGroupRunResponses,
@@ -1408,6 +1426,12 @@ import type {
   UpdateProcessGroupOutputData,
   UpdateProcessGroupOutputErrors,
   UpdateProcessGroupOutputResponses,
+  UpdateProcessGroupRunDeliveryData,
+  UpdateProcessGroupRunDeliveryErrors,
+  UpdateProcessGroupRunDeliveryResponses,
+  UpdateProcessRunDeliveryData,
+  UpdateProcessRunDeliveryErrors,
+  UpdateProcessRunDeliveryResponses,
   UpdateProjectCodeInfoData,
   UpdateProjectCodeInfoErrors,
   UpdateProjectCodeInfoResponses,
@@ -2590,6 +2614,38 @@ export const resumeProcessRun = <ThrowOnError extends boolean = false>(
     },
   })
 
+export const getProcessRunDelivery = <ThrowOnError extends boolean = false>(
+  options: Options<GetProcessRunDeliveryData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetProcessRunDeliveryResponses,
+    GetProcessRunDeliveryErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/delivery',
+    ...options,
+  })
+
+export const updateProcessRunDelivery = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateProcessRunDeliveryData, ThrowOnError>,
+) =>
+  (options.client ?? client).put<
+    UpdateProcessRunDeliveryResponses,
+    UpdateProcessRunDeliveryErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/delivery',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
 export const answerProcessRunWaitingRequest = <ThrowOnError extends boolean = false>(
   options: Options<AnswerProcessRunWaitingRequestData, ThrowOnError>,
 ) =>
@@ -3186,6 +3242,56 @@ export const signOffProcessGroupRun = <ThrowOnError extends boolean = false>(
     },
   })
 
+export const getProcessGroupRunDelivery = <ThrowOnError extends boolean = false>(
+  options: Options<GetProcessGroupRunDeliveryData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetProcessGroupRunDeliveryResponses,
+    GetProcessGroupRunDeliveryErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-group-runs/{groupRunId}/delivery',
+    ...options,
+  })
+
+export const updateProcessGroupRunDelivery = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateProcessGroupRunDeliveryData, ThrowOnError>,
+) =>
+  (options.client ?? client).put<
+    UpdateProcessGroupRunDeliveryResponses,
+    UpdateProcessGroupRunDeliveryErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-group-runs/{groupRunId}/delivery',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const publishProcessGroupRun = <ThrowOnError extends boolean = false>(
+  options: Options<PublishProcessGroupRunData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    PublishProcessGroupRunResponses,
+    PublishProcessGroupRunErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-group-runs/{groupRunId}/publish',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
 export const retryProcessGroupPullRequests = <ThrowOnError extends boolean = false>(
   options: Options<RetryProcessGroupPullRequestsData, ThrowOnError>,
 ) =>
@@ -3434,6 +3540,27 @@ export const takeOverScriptHost = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/script-steps/take-over',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * A running script step’s script keeps a checkpoint of its own state — any JSON it defines, up to the size the host keeps — on its step attempt, in place of the one it saved before. When the attempt is carried on after a restart, the script is handed the last one back; the host never reads it. Refused (400) when it is not JSON or too large. Takes the step attempt’s script token, never the Overseer bearer.
+ */
+export const checkpointScriptHost = <ThrowOnError extends boolean = false>(
+  options: Options<CheckpointScriptHostData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CheckpointScriptHostResponses,
+    CheckpointScriptHostErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/script-steps/checkpoint',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -3884,6 +4011,44 @@ export const sendBackDesignProposal = <ThrowOnError extends boolean = false>(
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  })
+
+/**
+ * Reject a proposal, with an optional reason: it leaves the open proposals and stays on file, and can be reopened or still accepted. Its author is told as for a send-back — a run waiting at its design approval tells its designer, an agent’s chat is told why; either way the agent asks the person what they want instead before designing again.
+ */
+export const rejectDesignProposal = <ThrowOnError extends boolean = false>(
+  options: Options<RejectDesignProposalData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    RejectDesignProposalResponses,
+    RejectDesignProposalErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/design/proposals/{proposalId}/reject',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Bring a rejected proposal back to be decided.
+ */
+export const reopenDesignProposal = <ThrowOnError extends boolean = false>(
+  options: Options<ReopenDesignProposalData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    ReopenDesignProposalResponses,
+    ReopenDesignProposalErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/design/proposals/{proposalId}/reopen',
+    ...options,
   })
 
 /**

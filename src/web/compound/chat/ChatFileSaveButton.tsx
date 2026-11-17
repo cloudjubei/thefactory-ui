@@ -12,11 +12,8 @@ export type ChatFileSaveButtonProps = {
   /** The shown file, project-relative. */
   source: string
   saving: ChatFileSaving
-  /**
-   * `overlay` on an image or a video's poster, in its corner; `chip` inside a
-   * file's chip; `button` in a full-size view's or a preview's header.
-   */
-  variant: 'overlay' | 'chip' | 'button'
+  /** `overlay` on an image or a video's poster, in its corner; `button` in a full-size view's or a preview's header. */
+  variant: 'overlay' | 'button'
 }
 
 /**
@@ -67,16 +64,6 @@ export default function ChatFileSaveButton({ source, saving, variant }: ChatFile
     )
   }
 
-  const look =
-    variant === 'overlay'
-      ? [
-          'h-7 w-7 rounded-md bg-black/60 hover:bg-black/80 focus-visible:outline-2 focus-visible:outline-white',
-          saved ? 'text-(--accent-primary)' : 'text-white',
-        ]
-      : [
-          'h-[18px] w-[18px] rounded-full hover:bg-(--surface-hover) focus-visible:outline-2 focus-visible:outline-(--accent-primary)',
-          saved ? 'text-(--accent-primary)' : 'text-current',
-        ]
   return (
     <>
       <Tooltip content={tip}>
@@ -85,8 +72,8 @@ export default function ChatFileSaveButton({ source, saving, variant }: ChatFile
           onClick={onOpen}
           aria-label={tip}
           className={[
-            'inline-flex shrink-0 cursor-pointer items-center justify-center',
-            ...look,
+            'inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md bg-black/60 hover:bg-black/80 focus-visible:outline-2 focus-visible:outline-white',
+            saved ? 'text-(--accent-primary)' : 'text-white',
           ].join(' ')}
         >
           {saved ? <IconCheck className="w-3.5 h-3.5" /> : <IconSave className="w-3.5 h-3.5" />}

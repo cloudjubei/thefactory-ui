@@ -81,41 +81,24 @@ export default function FileDisplay({
   }
 
   if (density === 'compact') {
-    const pill: ViewStyle = {
-      alignSelf: 'flex-start',
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: nativeSpace[2],
-      paddingLeft: nativeSpace[5],
-      paddingRight: trailing ? 2 : nativeSpace[5],
-      paddingVertical: 2,
-      borderRadius: nativeRadii.round,
-      backgroundColor: theme.surface.muted,
-      borderWidth: 1,
-      borderColor: theme.border.subtle,
-    }
-    const content = (
-      <>
-        <Text style={{ fontSize: 12, color: theme.text.secondary }}>{file.name}</Text>
-        {trailing}
-      </>
-    )
-    if (interactive) {
-      return (
-        <Pressable
-          className={className}
-          accessibilityRole="button"
-          accessibilityLabel={aria}
-          onPress={handlePress}
-          style={({ pressed }) => [pill, { opacity: pressed ? 0.7 : 1 }, style]}
-        >
-          {content}
-        </Pressable>
-      )
-    }
     return (
-      <View className={className} accessibilityLabel={aria} style={[pill, style]}>
-        {content}
+      <View
+        className={className}
+        accessibilityLabel={aria}
+        style={[
+          {
+            alignSelf: 'flex-start',
+            paddingHorizontal: nativeSpace[5],
+            paddingVertical: 2,
+            borderRadius: nativeRadii.round,
+            backgroundColor: theme.surface.muted,
+            borderWidth: 1,
+            borderColor: theme.border.subtle,
+          },
+          style,
+        ]}
+      >
+        <Text style={{ fontSize: 12, color: theme.text.secondary }}>{file.name}</Text>
       </View>
     )
   }

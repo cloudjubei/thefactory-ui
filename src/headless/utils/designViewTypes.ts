@@ -59,11 +59,13 @@ export type DesignProposalListItem = {
   summary: string
 }
 
-/** A group of the proposal list: waiting ones, the answers to one question, or those decided. */
+/** A group of the proposal list: waiting ones, the answers to one question, those decided, or the rejected. */
 export type DesignProposalGroup = {
   key: string
   title: string
   question?: string
+  /** Shown folded until opened — the rejected. */
+  folded?: boolean
   items: DesignProposalListItem[]
 }
 

@@ -73,6 +73,13 @@ describe('processOpenWorkView — where the open work stands', () => {
     expect(view.warnings).toEqual([OPEN_WORK_WARNING_UNREVIEWED, OPEN_WORK_WARNING_PARALLEL])
   })
 
+  it('says a run in review has its pull request open, and warns both ways', () => {
+    const view = processOpenWorkView(openWork({ state: 'in-review' }))
+    expect(view.headline).toBe('“Fonts” is in review on this story: its pull request is open.')
+    expect(view.warnings).toEqual([OPEN_WORK_WARNING_UNREVIEWED, OPEN_WORK_WARNING_PARALLEL])
+    expect(view.options[0]!.detail).toContain('same pull request')
+  })
+
   it('warns of nothing in parallel when only adding to the live run is offered', () => {
     const view = processOpenWorkView(
       openWork({

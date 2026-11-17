@@ -36,6 +36,7 @@ export const DESIGN_PROPOSAL_STATUS_LABELS: Record<DesignProposalStatus, string>
   accepted: 'Accepted',
   alternative: 'Alternative',
   'sent-back': 'Sent back',
+  rejected: 'Rejected',
 }
 
 /** How an image of a proposal differs from what is current. */
@@ -87,6 +88,12 @@ export const DESIGN_TEXT = {
   sendBackSubmit: 'Send back to the agent',
   sendBackLabel: 'What should change',
   sentBack: 'Sent back with your note. Its next try arrives here as a new proposal.',
+  reject: 'Reject',
+  rejectLabel: 'Reason (optional)',
+  rejectSubmit: 'Reject',
+  rejected: 'Rejected. It stays here — reopen it, or still accept it.',
+  rejectedGroup: 'Rejected',
+  reopen: 'Reopen',
   accepted: 'Accepted — it is the current design now, and what it replaced is in History.',
   alternativeNote: (question: string) =>
     `An alternative answer to “${question}”. Accepting it replaces the look chosen before; that look moves to History.`,

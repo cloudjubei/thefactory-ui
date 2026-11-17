@@ -5,8 +5,8 @@ import type {
   DesignProposalStatus,
 } from '../../../headless/api'
 
-/** The Overseer's status hues: done green, sign-off gold, running sky, needs-you purple, neutral. */
-export type DesignTone = 'done' | 'review' | 'running' | 'on_hold' | 'empty'
+/** The Overseer's status hues: done green, sign-off gold, running sky, needs-you purple, turned-down red, neutral. */
+export type DesignTone = 'done' | 'review' | 'running' | 'on_hold' | 'blocked' | 'empty'
 
 export const CELL_TONES: Record<DesignCellStatus, DesignTone> = {
   approved: 'done',
@@ -20,6 +20,7 @@ export const PROPOSAL_TONES: Record<DesignProposalStatus, DesignTone> = {
   accepted: 'done',
   alternative: 'empty',
   'sent-back': 'on_hold',
+  rejected: 'blocked',
 }
 
 export const MARK_TONES: Record<DesignCompareMark, DesignTone> = {

@@ -267,6 +267,17 @@ function iconForExt(ext: string | null, size: number): ReactNode {
     case 'webp':
     case 'ico':
       return <IconFileImage size={size} />
+    case 'csv':
+    case 'tsv':
+      return (
+        <IconFileBadge
+          size={size}
+          badgeText="CSV"
+          fill="#ecfdf5"
+          stroke="#a7e9c2"
+          textColor="#0f8a4c"
+        />
+      )
     case 'pdf':
       return (
         <IconFileBadge

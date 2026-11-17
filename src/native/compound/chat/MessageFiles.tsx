@@ -24,7 +24,7 @@ export interface MessageFilesProps {
 /**
  * The files on a message, under it: images as thumbnails, videos as posters,
  * the rest as chips that open the document preview. Files an agent showed
- * carry Save to project on the thumbnail or poster, or inside the chip.
+ * carry Save to project on the thumbnail or poster, and in the preview.
  * Native mirror of web's `MessageFiles`.
  */
 export default function MessageFiles({

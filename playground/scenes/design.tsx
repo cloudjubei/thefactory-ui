@@ -549,7 +549,12 @@ function playground(over: Partial<DesignPlaygroundProps> = {}) {
 function proposals(
   index: DesignIndex,
   proposalId: string,
-  over: { initialView?: 'compare' | 'flow'; initialPiece?: string } = {},
+  over: {
+    initialView?: 'compare' | 'flow'
+    initialPiece?: string
+    initialForm?: 'send-back' | 'reject'
+    initialUnfolded?: boolean
+  } = {},
 ) {
   return (
     <DesignProposals
@@ -564,6 +569,8 @@ function proposals(
       onKeep={done}
       onChoose={done}
       onSendBack={done}
+      onReject={done}
+      onReopen={done}
       onFile={done}
       {...over}
     />
@@ -588,6 +595,27 @@ const LOOSE: DesignProposal = {
   pieces: [],
   ...at(9),
 }
+
+/** A design with an open proposal and two rejected ones — one with its reason, one without. */
+const REJECTED_SAMPLE = () =>
+  sample({
+    proposals: [
+      FACTION,
+      {
+        ...LOOSE,
+        status: 'rejected',
+        note: 'Superseded — the roster screen was redrawn since.',
+        decidedAt: T0 + DAY,
+      },
+      {
+        ...FACTION,
+        id: 'faction-first',
+        title: 'Faction cards, first try',
+        status: 'rejected',
+        ...at(3),
+      },
+    ],
+  })
 
 function askCard(tool: string, args: Record<string, unknown>) {
   const view = toolAskCardView({ label: tool, toolName: tool, args })
@@ -707,6 +735,49 @@ export const DESIGN_SCENES: Scene[] = [
               ],
             }),
             'loose',
+          ),
+      },
+      {
+        id: 'reject-reason',
+        title: 'Rejecting, with a reason if you like',
+        description:
+          'Reject sits next to Accept and Send back. Its reason is optional; the proposal moves to Rejected at once, and back if the server refuses.',
+        render: () =>
+          proposals(sample({ proposals: [LOOSE, FACTION] }), 'faction', {
+            initialForm: 'reject',
+          }),
+      },
+      {
+        id: 'rejected-folded',
+        title: 'Rejected ones folded at the end of the list',
+        description:
+          'They leave the open list; the Rejected group shows how many and opens on a click.',
+        render: () => proposals(REJECTED_SAMPLE(), 'faction'),
+      },
+      {
+        id: 'rejected-open',
+        title: 'The Rejected group open',
+        render: () => proposals(REJECTED_SAMPLE(), 'faction', { initialUnfolded: true }),
+      },
+      {
+        id: 'rejected',
+        title: 'A rejected proposal, to reopen or still accept',
+        description:
+          'Its reason quoted; Reopen brings it back to be decided, and it can still be accepted.',
+        render: () => proposals(REJECTED_SAMPLE(), 'loose'),
+      },
+      {
+        id: 'rejected-answer',
+        title: 'One answer to a question rejected, the others as they were',
+        render: () =>
+          proposals(
+            sample({
+              proposals: DIRECTIONS().map((p, i) =>
+                i === 1 ? { ...p, status: 'rejected' as const, note: 'Too busy for a phone.' } : p,
+              ),
+            }),
+            'dir-console',
+            { initialUnfolded: true },
           ),
       },
       {
