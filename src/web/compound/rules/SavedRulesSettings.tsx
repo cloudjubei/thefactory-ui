@@ -20,6 +20,7 @@ import { Button } from '../../primitives/Button'
 import { Input } from '../../primitives/Input'
 import { NativeSelect } from '../../primitives/NativeSelect'
 import ActionRuleRow from './ActionRuleRow'
+import ChatMessagingSetting from '../settings/ChatMessagingSetting'
 
 export type SavedRulesSettingsProps = {
   /** Open a chat from its rules' heading. Without it the heading is plain text. */
@@ -84,6 +85,8 @@ export default function SavedRulesSettings({ onOpenChat }: SavedRulesSettingsPro
           settings; a rule for everywhere applies to every chat that uses its sign-in.
         </p>
       </div>
+
+      <ChatMessagingSetting />
 
       <form onSubmit={(e) => void submitSite(e)} className="space-y-1">
         <label htmlFor="trust-site" className="text-sm font-medium">

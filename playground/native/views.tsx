@@ -85,6 +85,7 @@ import { TICKET_VIEWS } from './ticketViews'
 import { TRY_ON_PHONE_VIEWS } from './tryOnPhoneViews'
 import { VARIANT_VIEWS } from './variantViews'
 import { ALREADY_HANDLED_VIEWS } from './alreadyHandledViews'
+import { CHAT_MESSAGING_VIEWS } from './chatMessagingViews'
 
 const noop = () => {}
 const AT = Date.parse(FAKE_GROUP_STATUS_AT)
@@ -627,4 +628,5 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   ...SLACK_REVIEW_VIEWS,
   ...REVIEW_GAP_VIEWS,
   ...ALREADY_HANDLED_VIEWS,
+  ...CHAT_MESSAGING_VIEWS,
 ]

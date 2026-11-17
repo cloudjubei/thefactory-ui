@@ -88,6 +88,17 @@ describe('configureBackendClient', () => {
     expect(api.onUnauthorized).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps git re-authorization separate from an invalid app bearer and still rejects', async () => {
+    const api = configure([
+      { status: 401, data: { reason: 're-authorize', credentialId: 'git-1' } },
+    ])
+    eject = api.eject
+
+    await expect(get()).rejects.toMatchObject({ response: { status: 401 } })
+    expect(api.onUnauthorized).not.toHaveBeenCalled()
+    expect(api.onAuthorized).not.toHaveBeenCalled()
+  })
+
   it('reports a successful response as authorized and sends the bearer', async () => {
     const api = configure([{ status: 200 }])
     eject = api.eject

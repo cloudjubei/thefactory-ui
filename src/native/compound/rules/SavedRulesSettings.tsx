@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from '../../primitives/Select'
 import ActionRuleRow from './ActionRuleRow'
+import ChatMessagingSetting from '../settings/ChatMessagingSetting'
 
 export type SavedRulesSettingsProps = {
   /** Open a chat from its rules' heading. Without it the heading is plain text. */
@@ -93,6 +94,8 @@ export default function SavedRulesSettings({ onOpenChat }: SavedRulesSettingsPro
         Tool calls you chose to always allow. A rule for one chat also shows in that chat’s
         settings; a rule for everywhere applies to every chat that uses its sign-in.
       </Text>
+
+      <ChatMessagingSetting />
 
       <View style={{ gap: nativeSpace[1] }}>
         <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text.primary }}>

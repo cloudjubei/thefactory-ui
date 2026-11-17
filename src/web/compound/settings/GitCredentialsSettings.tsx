@@ -13,6 +13,7 @@ import GitCredentialsForm, { type GitCredentialsFormHostCapabilities } from './G
 
 type ModalRoute =
   | { kind: 'create' }
+  | { kind: 'reauthorize'; credentials: GetGitCredentialResponse }
   | { kind: 'edit'; credentials: GetGitCredentialResponse }
   | { kind: 'delete'; credentials: GetGitCredentialResponse }
 
@@ -40,9 +41,11 @@ export default function GitCredentialsSettings({
     isLoaded,
     loadError,
     credentials,
+    reauthorizeCredentialIds,
     createCredentials,
     updateCredentials,
     deleteCredentials,
+    refresh,
   } = useGitCredentials()
   const [modal, setModal] = useState<ModalRoute | null>(null)
 
@@ -76,6 +79,21 @@ export default function GitCredentialsSettings({
                 </div>
                 <div className="text-sm text-(--text-secondary) truncate">{c.username}</div>
                 <div className="text-sm text-(--text-secondary) truncate">{c.email}</div>
+                {reauthorizeCredentialIds.includes(c.id) && (
+                  <div className="mt-2" role="alert">
+                    <p className="text-sm text-(--text-secondary)">
+                      GitHub authorization expired and could not be refreshed. Sign in again to
+                      resume git operations.
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => setModal({ kind: 'reauthorize', credentials: c })}
+                    >
+                      Re-authorize
+                    </Button>
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <Button
@@ -109,6 +127,26 @@ export default function GitCredentialsSettings({
           <GitCredentialsForm
             mode={{ kind: 'create', onSubmit: createCredentials }}
             onCancel={() => setModal(null)}
+            hostCapabilities={hostCapabilities}
+            openExternalUrl={openExternalUrl}
+          />
+        </Modal>
+      )}
+      {modal?.kind === 'reauthorize' && (
+        <Modal
+          isOpen
+          onClose={() => setModal(null)}
+          title={`Re-authorize: ${modal.credentials.name}`}
+        >
+          <p className="text-sm text-(--text-secondary) mb-4">
+            Sign in with GitHub to create replacement credentials, then select them in projects
+            using “{modal.credentials.name}”. The existing credentials stay unchanged until you
+            replace their token or delete them.
+          </p>
+          <GitCredentialsForm
+            mode={{ kind: 'create', onSubmit: createCredentials }}
+            onCancel={() => setModal(null)}
+            onOauthSuccess={() => void refresh()}
             hostCapabilities={hostCapabilities}
             openExternalUrl={openExternalUrl}
           />

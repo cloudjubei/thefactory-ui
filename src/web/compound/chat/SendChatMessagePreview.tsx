@@ -9,6 +9,7 @@ import {
 import { TOOL_ASK_COPY } from '../../../headless/utils/toolAskCardConstants'
 import { IconChevron } from '../../icons'
 import Markdown from '../Markdown'
+import ChatMessagingSetting from '../settings/ChatMessagingSetting'
 import { renderProjectIcon } from '../projectIcons'
 
 export type SendChatMessagePreviewProps = {
@@ -151,6 +152,8 @@ export default function SendChatMessagePreview({
           {source ? TOOL_ASK_COPY.sentBy(source) : TOOL_ASK_COPY.sentByUnknown}
         </span>
       </div>
+
+      {view.outcome.status === 'awaiting' ? <ChatMessagingSetting /> : null}
 
       {/* Accent bubble with onAccent markdown so fenced code and links stay readable. */}
       <div className="flex flex-col items-end gap-1">

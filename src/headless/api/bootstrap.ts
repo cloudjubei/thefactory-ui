@@ -13,6 +13,11 @@ import type { AxiosError, InternalAxiosRequestConfig } from 'axios'
 import { client } from './generated/client.gen'
 import type { ConfigureBackendClientOptions } from './ApiContext'
 import { readBackendStarting } from './backendStartup'
+import {
+  clearGitReauthorization,
+  isGitReauthorizationResponse,
+  recordGitReauthorization,
+} from './gitCredentialReauthorization'
 
 let activeRequestInterceptorId: number | null = null
 let activeResponseInterceptorId: number | null = null
@@ -29,6 +34,7 @@ export function configureBackendClient({
   })
 
   ejectActiveInterceptors()
+  clearGitReauthorization()
 
   activeRequestInterceptorId = client.instance.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
@@ -49,7 +55,8 @@ export function configureBackendClient({
       return response
     },
     (error: AxiosError) => {
-      if (error.response?.status === 401) onUnauthorized()
+      if (isGitReauthorizationResponse(error)) recordGitReauthorization(error)
+      else if (error.response?.status === 401) onUnauthorized()
       const starting = readBackendStarting(error)
       if (starting) onStarting(starting)
       return Promise.reject(error)

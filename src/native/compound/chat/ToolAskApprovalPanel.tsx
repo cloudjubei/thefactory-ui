@@ -30,6 +30,7 @@ import type { ResourceLink } from 'thefactory-tools/types'
 import DesignAskBox from '../design/DesignAskBox'
 import EvaluationLaunchAskBody from './EvaluationLaunchAskBody'
 import MessageAskBody from './MessageAskBody'
+import ChatMessagingSetting from '../settings/ChatMessagingSetting'
 import { TicketStatusMoveConnected } from './TicketStatusMoveCard'
 import { TicketStoryProposalConnected } from './TicketStoryProposalCard'
 import WorkLaunchChooser from '../WorkLaunchChooser'
@@ -329,14 +330,17 @@ export default function ToolAskApprovalPanel({
             </Text>
           </Boxed>
         ) : body.kind === 'message' ? (
-          <MessageAskBody
-            body={body}
-            {...(chatTitle ? { sourceChatTitle: chatTitle } : {})}
-            awaitReply={awaitReply}
-            onAwaitReply={setAwaitReply}
-            busy={busy}
-            {...(onResourceLink ? { onResourceLink } : {})}
-          />
+          <View style={{ gap: 12 }}>
+            <MessageAskBody
+              body={body}
+              {...(chatTitle ? { sourceChatTitle: chatTitle } : {})}
+              awaitReply={awaitReply}
+              onAwaitReply={setAwaitReply}
+              busy={busy}
+              {...(onResourceLink ? { onResourceLink } : {})}
+            />
+            <ChatMessagingSetting disabled={busy} />
+          </View>
         ) : body.kind === 'write' ? (
           <NewFilePreview body={body} />
         ) : body.kind === 'delete-story' ? (

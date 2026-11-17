@@ -12,11 +12,16 @@ import {
 import { useApi } from '../api'
 import { useAuth } from '../api/AuthContext'
 import { GIT_CREDENTIALS_EVENT } from '../utils/gitCredentialConstants'
+import {
+  clearGitReauthorization,
+  useGitReauthorizationIds,
+} from '../api/gitCredentialReauthorization'
 
 export type GitCredentialsContextValue = {
   isLoaded: boolean
   loadError: Error | null
   credentials: GetGitCredentialResponse[]
+  reauthorizeCredentialIds: readonly string[]
   createCredentials: (input: GitCredentialCreateInput) => Promise<GetGitCredentialResponse>
   updateCredentials: (
     id: string,
@@ -31,6 +36,9 @@ const GitCredentialsContext = createContext<GitCredentialsContextValue | null>(n
 export function GitCredentialsProvider({ children }: { children: ReactNode }) {
   const { token } = useAuth()
   const { ws } = useApi()
+  const reauthorizeCredentialIds = useGitReauthorizationIds()
+
+  useEffect(() => () => clearGitReauthorization(), [token])
   const [credentials, setCredentials] = useState<GetGitCredentialResponse[]>([])
   const [isLoaded, setIsLoaded] = useState(false)
   const [loadError, setLoadError] = useState<Error | null>(null)
@@ -73,6 +81,7 @@ export function GitCredentialsProvider({ children }: { children: ReactNode }) {
         body: patch,
         throwOnError: true,
       })
+      if (patch.token) clearGitReauthorization(id)
       await refresh()
       return data
     },
@@ -82,6 +91,7 @@ export function GitCredentialsProvider({ children }: { children: ReactNode }) {
   const deleteCredentials = useCallback(
     async (id: string) => {
       await deleteGitCredential({ path: { id }, throwOnError: true })
+      clearGitReauthorization(id)
       await refresh()
     },
     [refresh],
@@ -92,6 +102,7 @@ export function GitCredentialsProvider({ children }: { children: ReactNode }) {
       isLoaded,
       loadError,
       credentials,
+      reauthorizeCredentialIds,
       createCredentials,
       updateCredentials,
       deleteCredentials,
@@ -101,6 +112,7 @@ export function GitCredentialsProvider({ children }: { children: ReactNode }) {
       isLoaded,
       loadError,
       credentials,
+      reauthorizeCredentialIds,
       createCredentials,
       updateCredentials,
       deleteCredentials,

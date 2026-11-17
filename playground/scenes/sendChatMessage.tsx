@@ -5,6 +5,9 @@ import { sendChatMessageView } from 'thefactory-ui/headless'
 // Not on the package's public surface — same approach as playground/scenes/chat.tsx.
 import ApprovalPanel, { type ApprovalPanelProps } from '../../src/web/compound/chat/ApprovalPanel'
 import type { Scene } from '../showcase/types'
+import ChatMessagingSetting from '../../src/web/compound/settings/ChatMessagingSetting'
+import { OnFixtures } from './onFixtures'
+import { chatMessagingRoutes } from './chatMessagingFixtures'
 
 /**
  * Every state of the sendChatMessage approval card — dock (shared tool-ask
@@ -115,10 +118,47 @@ export const SEND_CHAT_MESSAGE_SCENES: Scene[] = [
       'Agent-to-agent message approval on the shared tool-ask card: route, markdown body, await-reply, sender label, outcome link.',
     states: [
       {
+        id: 'messaging-setting-off',
+        title: 'Messaging setting — off',
+        render: () => (
+          <OnFixtures routes={chatMessagingRoutes()}>
+            <Frame>
+              <ChatMessagingSetting />
+            </Frame>
+          </OnFixtures>
+        ),
+      },
+      {
+        id: 'messaging-setting-on',
+        title: 'Messaging setting — on',
+        render: () => (
+          <OnFixtures routes={chatMessagingRoutes(true)}>
+            <Frame>
+              <ChatMessagingSetting />
+            </Frame>
+          </OnFixtures>
+        ),
+      },
+      {
+        id: 'messaging-setting-save-fails',
+        title: 'Messaging setting — failed save on toggle',
+        render: () => (
+          <OnFixtures routes={chatMessagingRoutes(false, true)}>
+            <Frame>
+              <ChatMessagingSetting />
+            </Frame>
+          </OnFixtures>
+        ),
+      },
+      {
         id: 'dock-awaiting',
         title: 'Dock approval panel (awaiting)',
         description: 'Shared tool-ask card: await-reply switch, scopes, long message folded.',
-        render: () => <DockPanel />,
+        render: () => (
+          <OnFixtures routes={chatMessagingRoutes()}>
+            <DockPanel />
+          </OnFixtures>
+        ),
       },
       {
         id: 'long-message-unfolded',

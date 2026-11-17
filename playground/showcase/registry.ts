@@ -43,6 +43,7 @@ import { FILE_TREE_SCENES } from '../scenes/fileTree'
 import { GIT_GRAPH_UNCOMMITTED_SCENES } from '../scenes/gitGraphUncommitted'
 import { GIT_PUSH_AFTER_SCENES } from '../scenes/gitPushAfter'
 import { GIT_STASH_SCENES } from '../scenes/gitStash'
+import { GIT_REAUTHORIZATION_SCENES } from '../scenes/gitReauthorization'
 import { GROUP_HOME_SCENES } from '../scenes/groupHome'
 import { GROUP_SIGN_OFF_SCENES } from '../scenes/groupSignOff'
 import { GROUP_STORY_SCENES } from '../scenes/groupStories'
@@ -229,6 +230,7 @@ export const SCENES: readonly Scene[] = [
   ...DOCUMENT_REPORT_SCENES,
   ...GIT_GRAPH_UNCOMMITTED_SCENES,
   ...GIT_STASH_SCENES,
+  ...GIT_REAUTHORIZATION_SCENES,
   ...COMMIT_CHECKS_SCENES,
   ...GIT_PUSH_AFTER_SCENES,
   ...USAGE_SCENES,

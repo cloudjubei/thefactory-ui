@@ -9,6 +9,11 @@ describe('gitOpError', () => {
     expect(gitOpError(err, 'push rejected')).toEqual({ message: 'push rejected', credential: true })
   })
 
+  it('offers credential settings for a structured OAuth re-authorization refusal', () => {
+    const err = { response: { status: 401, data: { reason: 're-authorize', credentialId: 'g1' } } }
+    expect(gitOpError(err, 'Sign in again').credential).toBe(true)
+  })
+
   it('marks a git stderr that could not read a password, thrown as an Error', () => {
     const err = new Error(
       "git push origin dev failed: fatal: could not read Password for 'https://Perpetuating@dev.azure.com': terminal prompts disabled",

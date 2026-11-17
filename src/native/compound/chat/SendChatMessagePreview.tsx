@@ -11,6 +11,7 @@ import { TOOL_ASK_COPY } from '../../../headless/utils/toolAskCardConstants'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import Markdown from '../Markdown'
+import ChatMessagingSetting from '../settings/ChatMessagingSetting'
 import { renderProjectIcon } from '../projectIcons'
 
 export type SendChatMessagePreviewProps = {
@@ -130,6 +131,8 @@ export default function SendChatMessagePreview({
           {source ? TOOL_ASK_COPY.sentBy(source) : TOOL_ASK_COPY.sentByUnknown}
         </Text>
       </View>
+
+      {view.outcome.status === 'awaiting' ? <ChatMessagingSetting /> : null}
 
       <View style={{ alignItems: 'flex-end', gap: 4 }}>
         <View

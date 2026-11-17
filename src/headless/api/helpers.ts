@@ -3,6 +3,7 @@
 // helpers every consumer of `thefactory-backend` shares.
 
 import type { CoverageResult, TestsResult } from './generated'
+import { isGitReauthorizationResponse } from './gitCredentialReauthorization'
 import type { GrepHit, GrepResult, LastCoverageRaw, LastTestsRunRaw } from './sdkTypes'
 import { GIT_HOOK_REJECTED_ERROR_CODE } from 'thefactory-tools/constants'
 import { GIT_REF_UNAVAILABLE_CODE } from '../utils/commitDetailsConstants'
@@ -124,6 +125,7 @@ export function gitHookRejection(err: unknown): string | undefined {
  * initialize-repo) are caught too.
  */
 export function isGitCredentialError(err: unknown): boolean {
+  if (isGitReauthorizationResponse(err)) return true
   const se = extractServerError(err, '')
   if (se.code === 'GIT_CREDENTIAL_ERROR') return true
   const m = se.message.toLowerCase()

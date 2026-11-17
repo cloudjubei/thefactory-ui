@@ -195,6 +195,7 @@ export {
   writeProjectOverviewModelSetting,
   type ProjectOverviewModelSettingState,
 } from './hooks/useProjectOverviewModelSetting'
+export { useChatMessagingSetting } from './hooks/useChatMessagingSetting'
 export { useProjectOverviewModelChip } from './hooks/useProjectOverviewModelChip'
 export {
   projectOverviewApiChoice,

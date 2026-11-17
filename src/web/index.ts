@@ -446,6 +446,7 @@ export {
   default as SavedRulesSettings,
   type SavedRulesSettingsProps,
 } from './compound/rules/SavedRulesSettings'
+export { default as ChatMessagingSetting } from './compound/settings/ChatMessagingSetting'
 export {
   default as ChatRulesPanel,
   type ChatRulesPanelProps,
