@@ -241,7 +241,7 @@ describe('fakeBackendRoutes', () => {
   it('offers no provider sign-in, as the fake can finish none', () => {
     expect(get('/api/v1/provider-connections/oauth/setup')).toEqual({
       status: 200,
-      body: { github: false, jira: false },
+      body: { github: false, jira: false, slack: false },
     })
   })
 

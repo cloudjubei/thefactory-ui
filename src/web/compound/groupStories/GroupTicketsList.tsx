@@ -3,6 +3,8 @@ import { useState, type KeyboardEvent, type ReactNode } from 'react'
 import {
   GROUP_TICKETS_DEFAULT_LAYOUT,
   GROUP_TICKETS_TEXT,
+  REVIEW_OFFER_DEFAULT_LAYOUT,
+  REVIEW_OFFER_TEXT,
   REVIEW_START_TEXT,
   type GroupTicketListName,
   type GroupTicketRow,
@@ -10,8 +12,10 @@ import {
   type GroupTicketsLayout,
   type GroupTicketsShown,
   type GroupTicketsView,
+  type ReviewOfferLayout,
+  type ReviewOfferRowView,
 } from '../../../headless'
-import { IconSearch } from '../../icons'
+import { IconChat, IconClose, IconExternalLink, IconSearch } from '../../icons'
 import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
 import { Input } from '../../primitives/Input'
@@ -29,6 +33,10 @@ type TicketActions = {
   onOpenStory: (groupStoryId: string) => void
   /** Open the paste box on a ticket, to review a colleague's update. Without it, Review is not offered. */
   onReview?: (ticketKey: string) => void
+  /** Dismiss the update from Slack waiting on a ticket. Without it, Dismiss is not offered. */
+  onDismissOffer?: (ticketKey: string) => void
+  /** How a waiting update from Slack shows on its row. */
+  offerLayout?: ReviewOfferLayout
 }
 
 export type GroupTicketsListProps = TicketActions & {
@@ -120,6 +128,7 @@ export default function GroupTicketsList({
       </div>
       {view.readError ? <ReadFailed error={view.readError} onRetry={onRetry} /> : null}
       {view.startError ? <Alert variant="error">{view.startError}</Alert> : null}
+      {view.offerError ? <Alert variant="error">{view.offerError}</Alert> : null}
       {view.search ? (
         <TicketSection
           {...list}
@@ -261,16 +270,25 @@ function rowPress(row: GroupTicketRow, starting: boolean, onDiscuss: (ticketKey:
   }
 }
 
+function reviewLabel(row: GroupTicketRow, offerOnButton: boolean): string {
+  if (row.reviewing !== undefined) return row.reviewing
+  if (row.offer && offerOnButton) return REVIEW_OFFER_TEXT.review
+  return row.reviewOpen ? REVIEW_START_TEXT.nextRound : REVIEW_START_TEXT.review
+}
+
 function RowButtons({
   row,
   starting,
   onDiscuss,
   onPlan,
   onReview,
-}: Pick<TicketActions, 'onDiscuss' | 'onPlan' | 'onReview'> & {
+  onDismissOffer,
+  offerLayout = REVIEW_OFFER_DEFAULT_LAYOUT,
+}: Pick<TicketActions, 'onDiscuss' | 'onPlan' | 'onReview' | 'onDismissOffer' | 'offerLayout'> & {
   row: GroupTicketRow
   starting: boolean
 }) {
+  const offer = onReview && row.reviewing === undefined ? row.offer : undefined
   return (
     <span className="ml-auto flex shrink-0 items-center gap-1.5">
       <Button
@@ -288,13 +306,15 @@ function RowButtons({
       {onReview ? (
         <Button
           size="sm"
-          variant="secondary"
+          variant={offer && offerLayout === 'button' ? 'primary' : 'secondary'}
           disabled={row.reviewing !== undefined}
           aria-busy={row.reviewing !== undefined || undefined}
           title={
-            row.reviewOpen
-              ? REVIEW_START_TEXT.nextRoundOf(row.key)
-              : REVIEW_START_TEXT.reviewTicket(row.key)
+            offer
+              ? `${offer.label} · ${offer.when}`
+              : row.reviewOpen
+                ? REVIEW_START_TEXT.nextRoundOf(row.key)
+                : REVIEW_START_TEXT.reviewTicket(row.key)
           }
           onClick={(e) => {
             e.stopPropagation()
@@ -302,9 +322,14 @@ function RowButtons({
           }}
         >
           {row.reviewing !== undefined ? <Spinner size={12} /> : null}
-          {row.reviewing ??
-            (row.reviewOpen ? REVIEW_START_TEXT.nextRound : REVIEW_START_TEXT.review)}
+          {offer && offerLayout === 'button' ? (
+            <span aria-hidden className="size-1.5 rounded-full bg-current" />
+          ) : null}
+          {reviewLabel(row, offerLayout === 'button')}
         </Button>
+      ) : null}
+      {offer && offerLayout === 'button' && onDismissOffer ? (
+        <DismissOffer row={row} onDismissOffer={onDismissOffer} />
       ) : null}
       {row.canTake ? (
         <Button
@@ -324,13 +349,111 @@ function RowButtons({
   )
 }
 
+function DismissOffer({
+  row,
+  onDismissOffer,
+  className = '',
+}: {
+  row: GroupTicketRow
+  onDismissOffer: (ticketKey: string) => void
+  className?: string
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={REVIEW_OFFER_TEXT.dismissHint(row.key)}
+      title={REVIEW_OFFER_TEXT.dismissHint(row.key)}
+      onClick={(e) => {
+        e.stopPropagation()
+        onDismissOffer(row.key)
+      }}
+      className={`inline-flex shrink-0 items-center justify-center rounded text-(--text-muted) hover:text-(--text-primary) focus:outline-none focus-visible:ring-2 ${className}`}
+    >
+      <IconClose className="size-3.5" />
+    </button>
+  )
+}
+
+function OfferLink({ offer }: { offer: ReviewOfferRowView }) {
+  return offer.permalink ? (
+    <a
+      href={offer.permalink}
+      target="_blank"
+      rel="noreferrer noopener"
+      onClick={(e) => e.stopPropagation()}
+      className="inline-flex shrink-0 items-center gap-1 text-(--accent-primary) hover:underline"
+    >
+      {REVIEW_OFFER_TEXT.open}
+      <IconExternalLink className="size-3" />
+    </a>
+  ) : null
+}
+
+/** A waiting update as a chip among the row's own: who sent it and when, dismissed from its ×. */
+function OfferChip({
+  row,
+  offer,
+  onDismissOffer,
+}: {
+  row: GroupTicketRow
+  offer: ReviewOfferRowView
+  onDismissOffer?: ((ticketKey: string) => void) | undefined
+}) {
+  return (
+    <span
+      title={offer.when}
+      className="inline-flex max-w-[260px] min-w-0 items-center gap-1 rounded-full border border-(--accent-primary)/40 bg-(--accent-primary)/10 px-2 py-px text-[11.5px] text-(--text-primary)"
+    >
+      <IconChat className="size-3 shrink-0 text-(--accent-primary)" />
+      <span className="min-w-0 truncate">{offer.label}</span>
+      {onDismissOffer ? <DismissOffer row={row} onDismissOffer={onDismissOffer} /> : null}
+    </span>
+  )
+}
+
+/** A waiting update as a line under its row: who sent it, when, its Slack message, and Dismiss. */
+function OfferStrip({
+  row,
+  offer,
+  onDismissOffer,
+}: {
+  row: GroupTicketRow
+  offer: ReviewOfferRowView
+  onDismissOffer?: ((ticketKey: string) => void) | undefined
+}) {
+  return (
+    <div className="flex min-w-0 basis-full flex-wrap items-center gap-x-2 gap-y-1 rounded-md bg-(--accent-primary)/8 px-2 py-1 text-[12px]">
+      <IconChat className="size-3.5 shrink-0 text-(--accent-primary)" />
+      <span className="min-w-0 font-medium text-(--text-primary)">{offer.label}</span>
+      <span className="shrink-0 text-(--text-muted)">{offer.when}</span>
+      <OfferLink offer={offer} />
+      {onDismissOffer ? (
+        <button
+          type="button"
+          className="ml-auto shrink-0 text-(--text-secondary) hover:text-(--text-primary) hover:underline"
+          title={REVIEW_OFFER_TEXT.dismissHint(row.key)}
+          onClick={(e) => {
+            e.stopPropagation()
+            onDismissOffer(row.key)
+          }}
+        >
+          {REVIEW_OFFER_TEXT.dismiss}
+        </button>
+      ) : null}
+    </div>
+  )
+}
+
 function NextTicket({
   row,
   starting,
   onDiscuss,
   onPlan,
   onReview,
+  onDismissOffer,
+  offerLayout = REVIEW_OFFER_DEFAULT_LAYOUT,
 }: Omit<TicketActions, 'onOpenStory'> & { row: GroupTicketRow; starting: boolean }) {
+  const offer = onReview ? row.offer : undefined
   return (
     <div
       {...rowPress(row, starting, onDiscuss)}
@@ -345,6 +468,9 @@ function NextTicket({
           {row.priority ? <span className="chip">{row.priority}</span> : null}
           {row.chatOpen ? <span className="chip">{GROUP_TICKETS_TEXT.chatOpen}</span> : null}
           {row.reviewOpen ? <span className="chip">{REVIEW_START_TEXT.reviewOpen}</span> : null}
+          {offer && offerLayout === 'chip' ? (
+            <OfferChip row={row} offer={offer} onDismissOffer={onDismissOffer} />
+          ) : null}
         </div>
         <span className="text-[13.5px] font-medium text-(--text-primary)">{row.summary}</span>
         <span className="text-[11.5px] text-(--text-muted)">{GROUP_TICKETS_TEXT.explain}</span>
@@ -354,8 +480,13 @@ function NextTicket({
         starting={starting}
         onDiscuss={onDiscuss}
         onPlan={onPlan}
+        offerLayout={offerLayout}
         {...(onReview ? { onReview } : {})}
+        {...(onDismissOffer ? { onDismissOffer } : {})}
       />
+      {offer && offerLayout === 'strip' ? (
+        <OfferStrip row={row} offer={offer} onDismissOffer={onDismissOffer} />
+      ) : null}
     </div>
   )
 }
@@ -368,8 +499,11 @@ function TicketRow({
   onPlan,
   onOpenStory,
   onReview,
+  onDismissOffer,
+  offerLayout = REVIEW_OFFER_DEFAULT_LAYOUT,
 }: TicketActions & { row: GroupTicketRow; starting: boolean; divided: boolean }) {
   const { work } = row
+  const offer = onReview ? row.offer : undefined
   return (
     <li className={divided ? 'border-t border-(--border-subtle)' : undefined}>
       <div
@@ -391,7 +525,10 @@ function TicketRow({
           ) : null}
           {row.chatOpen ? <span className="chip">{GROUP_TICKETS_TEXT.chatOpen}</span> : null}
           {row.reviewOpen ? <span className="chip">{REVIEW_START_TEXT.reviewOpen}</span> : null}
-          {!work && !row.chatOpen && !row.reviewOpen ? (
+          {offer && offerLayout === 'chip' ? (
+            <OfferChip row={row} offer={offer} onDismissOffer={onDismissOffer} />
+          ) : null}
+          {!work && !row.chatOpen && !row.reviewOpen && !(offer && offerLayout === 'chip') ? (
             <span className="shrink-0 text-[11.5px] text-(--text-muted)">
               {GROUP_TICKETS_TEXT.noWork}
             </span>
@@ -401,9 +538,14 @@ function TicketRow({
             starting={starting}
             onDiscuss={onDiscuss}
             onPlan={onPlan}
+            offerLayout={offerLayout}
             {...(onReview ? { onReview } : {})}
+            {...(onDismissOffer ? { onDismissOffer } : {})}
           />
         </span>
+        {offer && offerLayout === 'strip' ? (
+          <OfferStrip row={row} offer={offer} onDismissOffer={onDismissOffer} />
+        ) : null}
       </div>
     </li>
   )

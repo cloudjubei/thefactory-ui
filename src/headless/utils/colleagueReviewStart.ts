@@ -9,7 +9,17 @@ import {
   COLLEAGUE_REVIEW_TOPIC_PREFIX,
   REVIEW_START_TEXT,
 } from './colleagueReviewStartConstants'
-import type { ReviewDraft, ReviewDraftFile, ReviewStartPhase } from './colleagueReviewStartTypes'
+import { slackMessageLink } from './colleagueReviewSource'
+import { REVIEW_OFFER_TEXT } from './colleagueReviewSourceConstants'
+import type { ReviewOffer, TicketReviewOffer } from './colleagueReviewSourceTypes'
+import type {
+  ColleagueReviewStartBody,
+  ReviewBoxOffer,
+  ReviewDraft,
+  ReviewDraftFile,
+  ReviewPasteBox,
+  ReviewStartPhase,
+} from './colleagueReviewStartTypes'
 
 /** A ticket's review chat, which its files are uploaded to before the chat exists. Pure. */
 export function reviewChatContext(groupId: string, ticketKey: string): ChatContext {
@@ -38,6 +48,10 @@ export function reviewStartLabel(phase: ReviewStartPhase): string {
 /** Why a draft cannot start a round yet, or `undefined` when it can. Pure. */
 export function reviewDraftProblem(draft: ReviewDraft): string | undefined {
   if (draft.text.trim() === '') return REVIEW_START_TEXT.empty
+  return draftLimitProblem(draft)
+}
+
+function draftLimitProblem(draft: ReviewDraft): string | undefined {
   if (draft.text.length > COLLEAGUE_REVIEW_TEXT_MAX_CHARS)
     return REVIEW_START_TEXT.tooLong(COLLEAGUE_REVIEW_TEXT_MAX_CHARS)
   if (draft.files.length > COLLEAGUE_REVIEW_FILES_MAX)
@@ -65,4 +79,67 @@ export function withReviewFiles(
     if (!next.some((f) => sameFile(f.file, file))) next.push({ file })
   }
   return next
+}
+
+function boxOffer(onTicket: TicketReviewOffer, offer: ReviewOffer | undefined): ReviewBoxOffer {
+  const permalink = slackMessageLink(onTicket.permalink)
+  return {
+    id: onTicket.id,
+    author: onTicket.author,
+    postedAt: onTicket.postedAt,
+    ...(permalink ? { permalink } : {}),
+    files: offer ? offer.attachments.map((a) => a.name) : [],
+    ...(offer ? { text: offer.text } : {}),
+  }
+}
+
+/** The paste box opened on a ticket's waiting update: filled from it once it is read. Pure. */
+export function reviewBoxOf(
+  ticketKey: string,
+  nextRound: boolean,
+  onTicket: TicketReviewOffer,
+  offer: ReviewOffer | undefined,
+): ReviewPasteBox {
+  return {
+    ticketKey,
+    nextRound,
+    draft: { text: offer?.text ?? '', files: [] },
+    offer: boxOffer(onTicket, offer),
+  }
+}
+
+/** A box waiting on its update, filled now it is read; what the person typed meanwhile stays. Pure. */
+export function reviewBoxWithOffer(box: ReviewPasteBox, offer: ReviewOffer): ReviewPasteBox {
+  if (box.offer?.id !== offer.id) return box
+  return {
+    ...box,
+    draft: box.draft.text === '' ? { ...box.draft, text: offer.text } : box.draft,
+    offer: { ...box.offer, files: offer.attachments.map((a) => a.name), text: offer.text },
+  }
+}
+
+/**
+ * Why the box cannot start its round yet, or `undefined` when it can. An
+ * update from Slack may start with no words when it came with none. Pure.
+ */
+export function reviewBoxProblem(box: ReviewPasteBox): string | undefined {
+  const { offer, draft } = box
+  if (!offer) return reviewDraftProblem(draft)
+  if (offer.text === undefined) return REVIEW_OFFER_TEXT.reading
+  const wordless = offer.text.trim() === '' && draft.text.trim() === ''
+  return wordless ? draftLimitProblem(draft) : reviewDraftProblem(draft)
+}
+
+/** What starting the box's round sends: an update by its id, its text only once the person changed it. Pure. */
+export function reviewStartBody(
+  box: ReviewPasteBox,
+  attachments: readonly string[],
+): ColleagueReviewStartBody {
+  const { offer, draft } = box
+  const edited = !offer || (draft.text !== offer.text && draft.text.trim() !== '')
+  return {
+    ...(offer ? { offerId: offer.id } : {}),
+    ...(edited ? { text: draft.text } : {}),
+    ...(attachments.length > 0 ? { attachments: [...attachments] } : {}),
+  }
 }

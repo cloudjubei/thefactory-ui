@@ -34,6 +34,7 @@ export function GroupTicketsScreen({
     refresh,
     reviewBox,
     openReview,
+    dismissOffer,
     closeReview,
     editReview,
     startReview,
@@ -53,6 +54,7 @@ export function GroupTicketsScreen({
           onDiscuss={(key) => open(discuss(key))}
           onPlan={(key) => open(plan(key))}
           onReview={openReview}
+          onDismissOffer={dismissOffer}
           onOpenStory={onOpenStory}
           onOpenSettings={onOpenSettings}
           onRetry={() => void refresh()}

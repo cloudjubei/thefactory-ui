@@ -14,6 +14,13 @@ const reviewApi = vi.hoisted(() => ({ startColleagueReview: vi.fn() }))
 
 vi.mock('../api/colleagueReviewApi', () => reviewApi)
 
+const sourceApi = vi.hoisted(() => ({
+  listWaitingReviewOffers: vi.fn(),
+  dismissReviewOffer: vi.fn(),
+}))
+
+vi.mock('../api/colleagueReviewSourceApi', () => sourceApi)
+
 import { GroupTicketsStore } from './groupTicketsStore'
 
 const ticket = (key: string, over: Partial<GroupTicket> = {}): GroupTicket => ({
@@ -28,6 +35,7 @@ const ticket = (key: string, over: Partial<GroupTicket> = {}): GroupTicket => ({
 
 const list = (over: Partial<GroupTicketList> = {}): GroupTicketList => ({
   connected: true,
+  reviewOfferCount: 0,
   tickets: [ticket('A-1')],
   nextTicketKey: 'A-1',
   ...over,
@@ -71,6 +79,8 @@ beforeEach(() => {
   api.startGroupTicketDiscussion.mockReset()
   api.startGroupTicketPlan.mockReset()
   reviewApi.startColleagueReview.mockReset()
+  sourceApi.listWaitingReviewOffers.mockReset()
+  sourceApi.dismissReviewOffer.mockReset()
 })
 
 describe('GroupTicketsStore', () => {
@@ -710,6 +720,157 @@ describe('GroupTicketsStore', () => {
       const before = store.getState().mine
       store.markReviewOpen('Z-9')
       expect(store.getState().mine).toBe(before)
+    })
+  })
+
+  describe('updates from Slack', () => {
+    const OFFER = {
+      id: 'o1',
+      kind: 'first-round' as const,
+      author: 'Ana',
+      postedAt: '2026-11-17T11:00:00.000Z',
+      permalink: 'https://acme.slack.com/archives/C1/p1763380000123456',
+    }
+    const WHOLE = {
+      ...OFFER,
+      groupId: 'osc',
+      ticketKey: 'A-1',
+      provider: 'slack',
+      messageTs: '1',
+      text: 'A-1 done',
+      attachments: [{ fileId: 'F1', name: 'after.png' }],
+      state: 'new',
+      createdAt: '2026-11-17T11:00:01.000Z',
+    }
+    const offered = () =>
+      list({ tickets: [ticket('A-1', { reviewOffer: OFFER }), ticket('A-2')], reviewOfferCount: 2 })
+    const offerOf = (store: GroupTicketsStore, name: 'mine' | 'search' = 'mine') =>
+      store.getState()[name].list?.tickets.find((t) => t.key === 'A-1')?.reviewOffer
+    const count = (store: GroupTicketsStore) => store.getState().mine.list?.reviewOfferCount
+
+    const offeredStore = async () => {
+      answers({ mine: offered(), search: offered() })
+      sourceApi.listWaitingReviewOffers.mockResolvedValue([WHOLE])
+      const store = new GroupTicketsStore('osc')
+      await store.refresh()
+      await store.search('a')
+      return store
+    }
+
+    it('reads the waiting updates whole once a list says some wait', async () => {
+      const store = await offeredStore()
+      await vi.waitFor(() => expect(store.getState().offers).toEqual({ o1: WHOLE }))
+      expect(sourceApi.listWaitingReviewOffers).toHaveBeenCalledWith('osc')
+    })
+
+    it('reads no updates while none wait', async () => {
+      answers({ mine: list() })
+      const store = new GroupTicketsStore('osc')
+      await store.refresh()
+      expect(sourceApi.listWaitingReviewOffers).not.toHaveBeenCalled()
+    })
+
+    it('reads the updates once however often it is asked meanwhile, and keeps them when a read fails', async () => {
+      const reading = deferred<unknown>()
+      sourceApi.listWaitingReviewOffers.mockReturnValueOnce(reading.promise)
+      const store = new GroupTicketsStore('osc')
+      const first = store.loadOffers()
+      const second = store.loadOffers()
+      reading.resolve([WHOLE])
+      await Promise.all([first, second])
+      expect(sourceApi.listWaitingReviewOffers).toHaveBeenCalledTimes(1)
+      sourceApi.listWaitingReviewOffers.mockRejectedValueOnce(new Error('down'))
+      await store.loadOffers()
+      expect(store.getState().offers).toEqual({ o1: WHOLE })
+    })
+
+    it('dismisses an update at once in every list, once however often it is pressed', async () => {
+      const store = await offeredStore()
+      const dismissing = deferred<unknown>()
+      sourceApi.dismissReviewOffer.mockReturnValue(dismissing.promise)
+      const going = store.dismissOffer('A-1')
+      expect(offerOf(store)).toBeUndefined()
+      expect(offerOf(store, 'search')).toBeUndefined()
+      expect(count(store)).toBe(1)
+      expect(await store.dismissOffer('A-1')).toBe(false)
+      dismissing.resolve(WHOLE)
+      expect(await going).toBe(true)
+      expect(sourceApi.dismissReviewOffer).toHaveBeenCalledTimes(1)
+      expect(sourceApi.dismissReviewOffer).toHaveBeenCalledWith('osc', 'o1')
+      expect(count(store)).toBe(1)
+    })
+
+    it('brings a dismissed update back with why when the dismiss fails', async () => {
+      const store = await offeredStore()
+      sourceApi.dismissReviewOffer.mockRejectedValueOnce(refusal(409, 'It was started already.'))
+      expect(await store.dismissOffer('A-1')).toBe(false)
+      expect(offerOf(store)).toEqual(OFFER)
+      expect(offerOf(store, 'search')).toEqual(OFFER)
+      expect(count(store)).toBe(2)
+      expect(store.getState().offerError).toBe('It was started already.')
+      sourceApi.dismissReviewOffer.mockRejectedValueOnce({})
+      await store.dismissOffer('A-1')
+      expect(store.getState().offerError).toBe('The update was not dismissed.')
+      sourceApi.dismissReviewOffer.mockResolvedValueOnce(WHOLE)
+      await store.dismissOffer('A-1')
+      expect(store.getState().offerError).toBeNull()
+    })
+
+    it('does nothing for a ticket with no update', async () => {
+      const store = await offeredStore()
+      await store.dismissOffer('A-2')
+      await store.dismissOffer('Z-9')
+      expect(sourceApi.dismissReviewOffer).not.toHaveBeenCalled()
+    })
+
+    it('keeps a settled update away from a read begun before the backend had it', async () => {
+      const store = await offeredStore()
+      const reading = deferred<GroupTicketList>()
+      api.readGroupTickets.mockReturnValueOnce(reading.promise)
+      const staleRead = store.refreshMine()
+      sourceApi.dismissReviewOffer.mockResolvedValueOnce(WHOLE)
+      await store.dismissOffer('A-1')
+      reading.resolve(offered())
+      await staleRead
+      expect(offerOf(store)).toBeUndefined()
+      expect(count(store)).toBe(1)
+      answers({ mine: list({ tickets: [ticket('A-1')], reviewOfferCount: 1 }) })
+      await store.refreshMine()
+      expect(count(store)).toBe(1)
+    })
+
+    it('starts a round from an update by its id, taking the update off at once', async () => {
+      const store = await offeredStore()
+      const opening = deferred<unknown>()
+      reviewApi.startColleagueReview.mockReturnValue(opening.promise)
+      const box = { id: 'o1', author: 'Ana', postedAt: OFFER.postedAt, files: [], text: 'A-1 done' }
+      const going = store.review('A-1', { text: 'A-1 done', files: [] }, vi.fn(), box)
+      expect(offerOf(store)).toBeUndefined()
+      expect(count(store)).toBe(1)
+      opening.resolve({ round: 1 })
+      await going
+      expect(reviewApi.startColleagueReview).toHaveBeenCalledWith('osc', 'A-1', { offerId: 'o1' })
+    })
+
+    it('sends the person’s edit of the update, and brings the update back when the round fails', async () => {
+      const store = await offeredStore()
+      reviewApi.startColleagueReview.mockRejectedValueOnce(
+        refusal(502, 'after.png could not be fetched.'),
+      )
+      const box = { id: 'o1', author: 'Ana', postedAt: OFFER.postedAt, files: [], text: 'A-1 done' }
+      const outcome = await store.review(
+        'A-1',
+        { text: 'A-1 done, and more', files: [] },
+        vi.fn(),
+        box,
+      )
+      expect(reviewApi.startColleagueReview).toHaveBeenCalledWith('osc', 'A-1', {
+        offerId: 'o1',
+        text: 'A-1 done, and more',
+      })
+      expect(outcome).toMatchObject({ ok: false, error: 'after.png could not be fetched.' })
+      expect(offerOf(store)).toEqual(OFFER)
+      expect(count(store)).toBe(2)
     })
   })
 })

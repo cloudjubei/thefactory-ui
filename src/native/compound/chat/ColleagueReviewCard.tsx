@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { Pressable, ScrollView, Text, View } from 'react-native'
+import { Linking, Pressable, ScrollView, Text, View } from 'react-native'
 import { useTicketLinks } from '../../../headless/contexts/TicketLinksContext'
 import { useColleagueReviewCall } from '../../../headless/hooks/useColleagueReviewCall'
 import {
@@ -14,11 +14,13 @@ import type {
   ReviewRoundView,
   ReviewWaitingOnView,
 } from '../../../headless/utils/colleagueReviewCardTypes'
+import { REVIEW_POST_TEXT } from '../../../headless/utils/colleagueReviewSourceConstants'
 import { ticketChipView } from '../../../headless/utils/groupTickets'
 import { ticketLinkOf } from '../../../headless/utils/ticketLinks'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
-import { IconChevron } from '../../icons'
+import { IconChevron, IconExternalLink } from '../../icons'
+import BottomSheet from '../../primitives/BottomSheet'
 import { Button } from '../../primitives/Button'
 import { Input } from '../../primitives/Input'
 import SegmentedControl from '../../primitives/SegmentedControl'
@@ -35,6 +37,10 @@ export type ColleagueReviewCardProps = {
   layout?: ColleagueReviewCardLayout
   onDrop?: (findingId: string, note?: string) => void
   onGiven?: (waitingOnId: string, note?: string) => void
+  /** Post a round's reply in the group's Slack thread; `again` posts it a second time. Without it, Post in thread is not offered. */
+  onPost?: (round: number, again: boolean) => void
+  /** Start with Post in thread's confirm open — for a fixed showcase state. */
+  postConfirm?: boolean
   /** Start with this finding opened — for a fixed showcase state. */
   openFinding?: string
   /** Start with this note open — for a fixed showcase state. */
@@ -43,7 +49,7 @@ export type ColleagueReviewCardProps = {
   expanded?: boolean
 }
 
-type Actions = Pick<ColleagueReviewCardProps, 'onDrop' | 'onGiven'> & {
+type Actions = Pick<ColleagueReviewCardProps, 'onDrop' | 'onGiven' | 'onPost' | 'postConfirm'> & {
   note: NoteOpen | undefined
   setNote: (note: NoteOpen | undefined) => void
   openFinding: string | undefined
@@ -72,13 +78,16 @@ function Label({ children }: { children: ReactNode }) {
  * Native peer of [web's `ColleagueReviewCard`](../../../web/compound/chat/ColleagueReviewCard.tsx):
  * a ticket's colleague review on its review chat's tool rows, read live — the
  * round with its verdict, what became of each finding, what the work waits on,
- * the reply to copy, and the person's own Drop and Given on the latest round.
+ * the reply to copy or post in the group's Slack thread after a confirm that
+ * shows it, and the person's own Drop and Given on the latest round.
  */
 export default function ColleagueReviewCard({
   view,
   layout = COLLEAGUE_REVIEW_CARD_DEFAULT_LAYOUT,
   onDrop,
   onGiven,
+  onPost,
+  postConfirm,
   openFinding,
   noteOpen,
   expanded = false,
@@ -105,7 +114,7 @@ export default function ColleagueReviewCard({
       </View>
     )
   }
-  const actions: Actions = { onDrop, onGiven, note, setNote, openFinding }
+  const actions: Actions = { onDrop, onGiven, onPost, postConfirm, note, setNote, openFinding }
   return (
     <View style={{ gap: 12 }}>
       {layout === 'rounds' ? (
@@ -220,7 +229,7 @@ function RoundBody({ round, actions }: { round: ReviewRoundView; actions: Action
           </Listed>
         </View>
       ) : null}
-      {round.reply ? <Reply reply={round.reply} /> : null}
+      {round.reply ? <Reply round={round} reply={round.reply} actions={actions} /> : null}
     </View>
   )
 }
@@ -456,17 +465,58 @@ function NoteConfirm({
   )
 }
 
-function Reply({ reply }: { reply: string }) {
+function Reply({
+  round,
+  reply,
+  actions,
+}: {
+  round: ReviewRoundView
+  reply: string
+  actions: Actions
+}) {
   const { theme } = useNativeTheme()
   const { copyText } = useClipboardHost()
   const [copied, setCopied] = useState(false)
+  const [confirming, setConfirming] = useState(Boolean(actions.postConfirm))
+  const { post } = round
+  const onPost = post?.canPost ? actions.onPost : undefined
+  const posted = post?.posted
+  const again = posted !== undefined
   return (
     <View style={{ gap: 4 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
         <Label>{TEXT.reply}</Label>
-        <Text numberOfLines={1} style={{ flex: 1, fontSize: 11, color: theme.text.muted }}>
-          {TEXT.replyHint}
-        </Text>
+        {posted ? (
+          <Pressable
+            accessibilityRole="link"
+            onPress={() => void Linking.openURL(posted.permalink)}
+            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+          >
+            <Text numberOfLines={1} style={{ fontSize: 12, color: theme.accent.primary }}>
+              {REVIEW_POST_TEXT.posted}
+            </Text>
+            <IconExternalLink size={12} color={theme.accent.primary} />
+          </Pressable>
+        ) : (
+          <Text numberOfLines={1} style={{ flex: 1, fontSize: 11, color: theme.text.muted }}>
+            {onPost ? REVIEW_POST_TEXT.hintPost : TEXT.replyHint}
+          </Text>
+        )}
+        {onPost ? (
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={post?.posting}
+            loading={post?.posting}
+            onPress={() => setConfirming(true)}
+          >
+            {post?.posting
+              ? REVIEW_POST_TEXT.posting
+              : again
+                ? REVIEW_POST_TEXT.postAgain
+                : REVIEW_POST_TEXT.post}
+          </Button>
+        ) : null}
         {copyText ? (
           <Button
             size="sm"
@@ -494,6 +544,46 @@ function Reply({ reply }: { reply: string }) {
           {reply}
         </Text>
       </ScrollView>
+      {onPost ? (
+        <BottomSheet
+          isOpen={confirming}
+          onClose={() => setConfirming(false)}
+          title={again ? REVIEW_POST_TEXT.confirmAgainTitle : REVIEW_POST_TEXT.confirmTitle}
+        >
+          <View style={{ gap: nativeSpace[3] }}>
+            <Text style={{ fontSize: 13, color: theme.text.secondary }}>
+              {again ? REVIEW_POST_TEXT.confirmAgainBody : REVIEW_POST_TEXT.confirmBody}
+            </Text>
+            <View
+              style={{
+                borderWidth: 1,
+                borderColor: theme.border.subtle,
+                borderRadius: nativeRadii[2],
+                backgroundColor: theme.surface.raised,
+                padding: nativeSpace[2],
+              }}
+            >
+              <Text selectable style={{ fontSize: 13, color: theme.text.primary }}>
+                {reply}
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
+              <Button variant="secondary" onPress={() => setConfirming(false)}>
+                {REVIEW_POST_TEXT.cancel}
+              </Button>
+              <Button
+                variant="primary"
+                onPress={() => {
+                  setConfirming(false)
+                  onPost(round.n, again)
+                }}
+              >
+                {again ? REVIEW_POST_TEXT.confirmAgain : REVIEW_POST_TEXT.confirm}
+              </Button>
+            </View>
+          </View>
+        </BottomSheet>
+      ) : null}
     </View>
   )
 }
@@ -528,6 +618,7 @@ function Disclosure({
 
 const READ_ONLY = (actions: Actions): Actions => ({
   ...actions,
+  onPost: undefined,
   onDrop: undefined,
   onGiven: undefined,
 })
@@ -635,7 +726,7 @@ function Summary({
       <Header view={view} round={round} />
       <Text style={{ fontSize: 13, color: theme.text.primary }}>{round.summary}</Text>
       <Notes view={view} />
-      {round.reply ? <Reply reply={round.reply} /> : null}
+      {round.reply ? <Reply round={round} reply={round.reply} actions={actions} /> : null}
       {hasMore ? (
         <Disclosure
           open={open}
@@ -670,7 +761,7 @@ export function ColleagueReviewConnected({
   resultType,
   layout,
 }: ColleagueReviewConnectedProps) {
-  const { view, dropFinding, markGiven } = useColleagueReviewCall({
+  const { view, dropFinding, markGiven, postReply } = useColleagueReviewCall({
     tool,
     args,
     result,
@@ -682,6 +773,7 @@ export function ColleagueReviewConnected({
       layout={layout ?? (tool === 'read' ? 'summary' : COLLEAGUE_REVIEW_CARD_DEFAULT_LAYOUT)}
       onDrop={dropFinding}
       onGiven={markGiven}
+      onPost={postReply}
     />
   )
 }

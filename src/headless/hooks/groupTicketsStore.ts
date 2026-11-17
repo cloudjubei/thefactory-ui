@@ -1,13 +1,17 @@
 import { startColleagueReview } from '../api/colleagueReviewApi'
+import { dismissReviewOffer, listWaitingReviewOffers } from '../api/colleagueReviewSourceApi'
 import { extractErrorMessage } from '../api/errorMessage'
 import {
   readGroupTickets,
   startGroupTicketDiscussion,
   startGroupTicketPlan,
 } from '../api/groupTicketsApi'
-import { reviewChatContext } from '../utils/colleagueReviewStart'
+import { reviewChatContext, reviewStartBody } from '../utils/colleagueReviewStart'
+import { REVIEW_OFFER_TEXT } from '../utils/colleagueReviewSourceConstants'
+import type { TicketReviewOffer } from '../utils/colleagueReviewSourceTypes'
 import { REVIEW_START_TEXT } from '../utils/colleagueReviewStartConstants'
 import type {
+  ReviewBoxOffer,
   ReviewDraft,
   ReviewDraftFile,
   ReviewFileUpload,
@@ -35,6 +39,8 @@ const EMPTY: GroupTicketsState = {
   starting: undefined,
   startError: null,
   reviewing: {},
+  offers: {},
+  offerError: null,
 }
 
 const READ_FAILED: Record<GroupTicketListName, string> = {
@@ -83,6 +89,27 @@ function withTicketPatch<S extends GroupTicketSection>(
   return { ...section, list: { ...list, tickets } }
 }
 
+/** A list without the updates the person settled, its count less them. */
+function withoutOffers(list: GroupTicketList, ids: ReadonlySet<string>): GroupTicketList {
+  if (ids.size === 0) return list
+  const held = list.tickets.filter((t) => t.reviewOffer && ids.has(t.reviewOffer.id))
+  if (held.length === 0 && list.reviewOfferCount === 0) return list
+  const tickets = list.tickets.map((t) => {
+    if (!t.reviewOffer || !ids.has(t.reviewOffer.id)) return t
+    const { reviewOffer: _settled, ...rest } = t
+    return rest
+  })
+  return { ...list, tickets, reviewOfferCount: Math.max(0, list.reviewOfferCount - ids.size) }
+}
+
+/** A list with a ticket's update back on it, counted again. */
+function withOffer(list: GroupTicketList, key: string, offer: TicketReviewOffer): GroupTicketList {
+  const tickets = list.tickets.map((t) =>
+    t.key === key && !t.reviewOffer ? { ...t, reviewOffer: offer } : t,
+  )
+  return { ...list, tickets, reviewOfferCount: list.reviewOfferCount + 1 }
+}
+
 function without<V>(record: Readonly<Record<string, V>>, key: string): Record<string, V> {
   const { [key]: _gone, ...rest } = record
   return rest
@@ -99,6 +126,11 @@ export class GroupTicketsStore {
   private readonly _listeners = new Set<() => void>()
   private readonly _groupId: string
   private _typing: ReturnType<typeof setTimeout> | undefined
+  /** Every read so far: an update settled after a read began is still in what it answers. */
+  private _readCount = 0
+  /** The updates the person dismissed or started from, and the read count once the backend had it. */
+  private readonly _settled = new Map<string, { after?: number }>()
+  private _offersRead: Promise<void> | undefined
 
   constructor(groupId: string) {
     this._groupId = groupId
@@ -128,11 +160,22 @@ export class GroupTicketsStore {
     }
   }
 
+  /** What a read begun at `begun` answers, less the updates the backend may not have settled by then. */
+  private _fresh(list: GroupTicketList, begun: number): GroupTicketList {
+    const settled = new Set(
+      [...this._settled].flatMap(([id, { after }]) =>
+        after === undefined || begun <= after ? [id] : [],
+      ),
+    )
+    return withoutOffers(list, settled)
+  }
+
   /** Read a list's first page again. A read a newer one overtook is dropped, a page being read too. */
   private async _read(name: GroupTicketListName): Promise<void> {
     const read = ++this._reads[name]
+    const begun = ++this._readCount
     try {
-      const list = await readGroupTickets(this._groupId, this._query(name))
+      const list = this._fresh(await readGroupTickets(this._groupId, this._query(name)), begun)
       if (read === this._reads[name])
         this._patch(name, { list, readError: null, loadingMore: false })
     } catch (err) {
@@ -146,20 +189,92 @@ export class GroupTicketsStore {
 
   refreshMine = (): Promise<void> => this._read('mine')
 
-  /** Read every list on screen again. */
+  /** Read every list on screen again, and the waiting updates whole once a list says some wait. */
   refresh = async (): Promise<void> => {
     const names: GroupTicketListName[] = ['mine', 'sprint']
     if (this._state.search.query) names.push('search')
     await Promise.all(names.map((name) => this._read(name)))
+    const { mine, sprint } = this._state
+    if ((mine.list ?? sprint.list)?.reviewOfferCount) void this.loadOffers()
+  }
+
+  /** Read the waiting updates whole, once however often it is asked meanwhile; a failed read keeps what was read. */
+  loadOffers = (): Promise<void> => {
+    this._offersRead ??= listWaitingReviewOffers(this._groupId)
+      .then((offers) => this._set({ offers: Object.fromEntries(offers.map((o) => [o.id, o])) }))
+      .catch(() => undefined)
+      .finally(() => {
+        this._offersRead = undefined
+      })
+    return this._offersRead
+  }
+
+  /** The update waiting on a ticket, in whichever list holds it. */
+  private _offerOn(key: string): TicketReviewOffer | undefined {
+    const { mine, sprint, search } = this._state
+    return [mine, sprint, search]
+      .flatMap((section) => section.list?.tickets ?? [])
+      .find((t) => t.key === key && t.reviewOffer)?.reviewOffer
+  }
+
+  private _eachList(
+    change: (list: GroupTicketList) => GroupTicketList,
+  ): Partial<GroupTicketsState> {
+    const { mine, sprint, search } = this._state
+    const changed = <S extends GroupTicketSection>(section: S): S =>
+      section.list ? { ...section, list: change(section.list) } : section
+    return { mine: changed(mine), sprint: changed(sprint), search: changed(search) }
+  }
+
+  /** Take an update off its ticket at once, as the person settled it. */
+  private _settle(offerId: string): void {
+    this._settled.set(offerId, {})
+    this._set(this._eachList((list) => withoutOffers(list, new Set([offerId]))))
+  }
+
+  private _settledBy(offerId: string): void {
+    this._settled.set(offerId, { after: this._readCount })
+  }
+
+  /** Put an update the backend did not settle back on its ticket. */
+  private _unsettle(key: string, offer: TicketReviewOffer, patch: Partial<GroupTicketsState> = {}) {
+    this._settled.delete(offer.id)
+    this._set({ ...this._eachList((list) => withOffer(list, key, offer)), ...patch })
+  }
+
+  /**
+   * Dismiss the update waiting on a ticket: gone at once from every list, once
+   * however often it is pressed, and back with why when the backend refuses.
+   * Answers whether this press dismissed it.
+   */
+  dismissOffer = async (ticketKey: string): Promise<boolean> => {
+    const offer = this._offerOn(ticketKey)
+    if (!offer || this._settled.has(offer.id)) return false
+    this._settle(offer.id)
+    this._set({ offerError: null })
+    try {
+      await dismissReviewOffer(this._groupId, offer.id)
+      this._settledBy(offer.id)
+      return true
+    } catch (err) {
+      this._unsettle(ticketKey, offer, {
+        offerError: extractErrorMessage(err, REVIEW_OFFER_TEXT.dismissFailed),
+      })
+      return false
+    }
   }
 
   loadMore = async (name: GroupTicketListName): Promise<void> => {
     const { list, loadingMore } = this._state[name]
     if (!list?.nextPageToken || loadingMore) return
     const read = ++this._reads[name]
+    const begun = ++this._readCount
     this._patch(name, { loadingMore: true })
     try {
-      const page = await readGroupTickets(this._groupId, this._query(name, list.nextPageToken))
+      const page = this._fresh(
+        await readGroupTickets(this._groupId, this._query(name, list.nextPageToken)),
+        begun,
+      )
       if (read === this._reads[name]) {
         this._patch(name, { list: withPage(list, page), readError: null, loadingMore: false })
       }
@@ -240,13 +355,19 @@ export class GroupTicketsStore {
    * one by one, then the round starts. Each ticket's round starts on its own,
    * beside any chat opening; a ticket already starting one answers `undefined`.
    * A failure hands the draft back, every file that went up keeping its path.
+   * Started from an update from Slack, the update leaves its ticket at once,
+   * and comes back when the round does not start.
    */
   review = async (
     ticketKey: string,
     draft: ReviewDraft,
     upload: ReviewFileUpload,
+    offer?: ReviewBoxOffer,
   ): Promise<ReviewStartOutcome | undefined> => {
     if (this._state.reviewing[ticketKey]) return undefined
+    const shown = this._offerOn(ticketKey)
+    const onTicket = offer && shown?.id === offer.id ? shown : undefined
+    if (onTicket) this._settle(onTicket.id)
     const context = reviewChatContext(this._groupId, ticketKey)
     const files: ReviewDraftFile[] = [...draft.files]
     const total = files.length
@@ -257,6 +378,7 @@ export class GroupTicketsStore {
     })
     const fail = (error: string): ReviewStartOutcome => {
       this._reviewPhase(ticketKey, undefined)
+      if (onTicket) this._unsettle(ticketKey, onTicket)
       return { ok: false, error, draft: { ...draft, files } }
     }
     this._reviewPhase(ticketKey, total > 0 ? uploading() : { step: 'starting' })
@@ -272,10 +394,15 @@ export class GroupTicketsStore {
     this._reviewPhase(ticketKey, { step: 'starting' })
     const attachments = files.flatMap((f) => (f.path ? [f.path] : []))
     try {
-      const started = await startColleagueReview(this._groupId, ticketKey, {
-        text: draft.text,
-        ...(attachments.length > 0 ? { attachments } : {}),
-      })
+      const started = await startColleagueReview(
+        this._groupId,
+        ticketKey,
+        reviewStartBody(
+          { ticketKey, nextRound: false, draft, ...(offer ? { offer } : {}) },
+          attachments,
+        ),
+      )
+      if (onTicket) this._settledBy(onTicket.id)
       this._reviewPhase(ticketKey, undefined)
       this.markReviewOpen(ticketKey)
       return { ok: true, started }

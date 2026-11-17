@@ -88,7 +88,13 @@ export const FOUND: GroupTicket[] = [
 export const listOf = (
   tickets: GroupTicket[],
   over: Partial<GroupTicketList> = {},
-): GroupTicketList => ({ connected: true, access: 'read-write', tickets, ...over })
+): GroupTicketList => ({
+  connected: true,
+  access: 'read-write',
+  tickets,
+  reviewOfferCount: 0,
+  ...over,
+})
 
 export const read = (list: GroupTicketList): GroupTicketSection => ({
   list,
@@ -106,6 +112,8 @@ export const ticketsState = (over: Partial<GroupTicketsState> = {}): GroupTicket
   starting: undefined,
   startError: null,
   reviewing: {},
+  offers: {},
+  offerError: null,
   ...over,
 })
 

@@ -1,4 +1,9 @@
 import type { ChatContext, ExternalRef } from '../api'
+import type {
+  ReviewOffer,
+  ReviewOfferRowView,
+  TicketReviewOffer,
+} from './colleagueReviewSourceTypes'
 import type { ReviewStartPhase } from './colleagueReviewStartTypes'
 import type { TicketStatusTone } from './ticketCardTypes'
 
@@ -20,6 +25,8 @@ export interface GroupTicket {
   chatOpen: boolean
   /** Its review chat is already open. */
   reviewOpen: boolean
+  /** The latest update the group's watched Slack thread brought for it, waiting for the person. */
+  reviewOffer?: TicketReviewOffer
 }
 
 /** The person's in the open sprint, everyone else's there, or a search. */
@@ -39,6 +46,8 @@ export interface GroupTicketList {
   connected: boolean
   access?: 'read' | 'read-write'
   tickets: GroupTicket[]
+  /** How many updates the watched Slack thread brought wait for the person, across the group. */
+  reviewOfferCount: number
   /** The top ticket that can be taken: only on the person's list. */
   nextTicketKey?: string
   /** Pass back for the next page; absent on the last. */
@@ -93,6 +102,10 @@ export interface GroupTicketsState {
   startError: string | null
   /** The tickets whose review round is starting, each on its own. */
   reviewing: Readonly<Record<string, ReviewStartPhase>>
+  /** The waiting updates read whole, by id: what the paste box fills from. */
+  offers: Readonly<Record<string, ReviewOffer>>
+  /** Why the person's last dismiss did not go through. */
+  offerError: string | null
 }
 
 /** How a ticket's chip is drawn: its key and status in one chip, or the status as a pill beside it. */
@@ -126,6 +139,8 @@ export interface GroupTicketRow {
   reviewOpen: boolean
   /** What its Review button says while a round starts. */
   reviewing?: string
+  /** An update from Slack waits on it: Review starts from it. */
+  offer?: ReviewOfferRowView
   /** Take ticket is offered; a ticket without it is only discussed. */
   canTake: boolean
   /** What is opening its chat right now. */
@@ -165,6 +180,10 @@ export type GroupTicketsView =
       startError?: string
       /** A chat is opening: nothing else can open one. */
       starting: boolean
+      /** How many updates from Slack wait for the person, across the group. */
+      offerCount: number
+      /** Why the person's last dismiss did not go through. */
+      offerError?: string
     }
 
 /** How the Tickets tab lays out the person's tickets and the rest of the sprint. */

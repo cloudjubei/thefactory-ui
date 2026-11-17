@@ -635,6 +635,19 @@ describe('groupTabIndicator', () => {
     })
   })
 
+  it('Tickets counts the updates from the group’s Slack thread waiting for the person', () => {
+    expect(groupTabIndicator('tickets', NO_CHATS, [], 0, 3)).toEqual({
+      kind: 'ink',
+      badge: { parts: [{ channel: 'cross-project', count: 3 }], rollup: false },
+      title: '3 new updates',
+    })
+    expect(groupTabIndicator('tickets', NO_CHATS, [], 0, 1)).toMatchObject({
+      title: '1 new update',
+    })
+    expect(groupTabIndicator('tickets', NO_CHATS, [], 0, 0)).toEqual({ kind: 'none' })
+    expect(groupTabIndicator('home', NO_CHATS, [], 0, 3)).toEqual({ kind: 'none' })
+  })
+
   it('Processes counts the group runs waiting at their sign-off', () => {
     expect(groupTabIndicator('processes', NO_CHATS, [], 2)).toEqual({
       kind: 'ink',

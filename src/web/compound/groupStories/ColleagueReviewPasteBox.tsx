@@ -1,12 +1,18 @@
 import { useRef } from 'react'
 import type { ChatAttachmentFile } from '../../../headless/api/chatAttachmentUploadTypes'
-import { reviewDraftProblem, withReviewFiles } from '../../../headless/utils/colleagueReviewStart'
+import { reviewBoxOfferLine } from '../../../headless/utils/colleagueReviewSource'
+import { REVIEW_OFFER_TEXT } from '../../../headless/utils/colleagueReviewSourceConstants'
+import { reviewBoxProblem, withReviewFiles } from '../../../headless/utils/colleagueReviewStart'
 import {
   COLLEAGUE_REVIEW_FILES_MAX,
   REVIEW_START_TEXT as TEXT,
 } from '../../../headless/utils/colleagueReviewStartConstants'
-import type { ReviewDraft, ReviewPasteBox } from '../../../headless/utils/colleagueReviewStartTypes'
-import { IconAttach, IconClose } from '../../icons'
+import type {
+  ReviewBoxOffer,
+  ReviewDraft,
+  ReviewPasteBox,
+} from '../../../headless/utils/colleagueReviewStartTypes'
+import { IconAttach, IconChat, IconClose, IconExternalLink } from '../../icons'
 import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
@@ -16,24 +22,73 @@ export type ColleagueReviewPasteFormProps = {
   box: ReviewPasteBox
   onChange: (draft: ReviewDraft) => void
   onStart: () => void
+  /** When the update from Slack was posted is told against this — for a fixed showcase state. */
+  now?: number
 }
 
 const asFiles = (files: FileList | File[] | null | undefined): ChatAttachmentFile[] =>
   Array.from(files ?? []).map((blob) => ({ name: blob.name, size: blob.size, blob }))
 
+/** Who sent the update from Slack and when, its message a press away. */
+function FromSlack({ offer, now }: { offer: ReviewBoxOffer; now: number }) {
+  return (
+    <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-md bg-(--accent-primary)/8 px-2.5 py-1.5 text-[12px]">
+      <span className="flex min-w-0 flex-1 items-center gap-2">
+        <IconChat className="size-3.5 shrink-0 text-(--accent-primary)" />
+        <span className="min-w-0 text-(--text-primary)">{reviewBoxOfferLine(offer, now)}</span>
+      </span>
+      {offer.permalink ? (
+        <a
+          href={offer.permalink}
+          target="_blank"
+          rel="noreferrer noopener"
+          className="ml-auto inline-flex shrink-0 items-center gap-1 text-(--accent-primary) hover:underline"
+        >
+          {REVIEW_OFFER_TEXT.open}
+          <IconExternalLink className="size-3" />
+        </a>
+      ) : null}
+    </div>
+  )
+}
+
+/** The files the update came with in Slack: the backend fetches them itself. */
+function SlackFiles({ files }: { files: readonly string[] }) {
+  if (files.length === 0) return null
+  return (
+    <div className="flex min-w-0 flex-col gap-1">
+      <span className="text-[11.5px] text-(--text-muted)">{REVIEW_OFFER_TEXT.slackFiles}</span>
+      <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0">
+        {files.map((name, at) => (
+          <li
+            key={`${name}-${at}`}
+            title={name}
+            className="flex items-center gap-1 rounded-md border border-dashed border-(--border-default) px-2 py-0.5 text-[11.5px] text-(--text-secondary)"
+          >
+            <span className="max-w-[200px] truncate">{name}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 /**
  * What the paste box holds: the colleague's update as they wrote it, and the
- * files that came with it — attached, pasted or dropped in. Start is held
- * until there is something to review.
+ * files that came with it — attached, pasted or dropped in. Opened on an
+ * update from Slack, it starts filled with it, editable, its own files listed
+ * as coming from Slack. Start is held until there is something to review.
  */
 export function ColleagueReviewPasteForm({
   box,
   onChange,
   onStart,
+  now = Date.now(),
 }: ColleagueReviewPasteFormProps) {
   const inputRef = useRef<HTMLInputElement>(null)
-  const { draft } = box
-  const problem = reviewDraftProblem(draft)
+  const { draft, offer } = box
+  const reading = offer !== undefined && offer.text === undefined
+  const problem = reviewBoxProblem(box)
   const add = (files: ChatAttachmentFile[]) => {
     if (files.length > 0) onChange({ ...draft, files: withReviewFiles(draft.files, files) })
   }
@@ -50,13 +105,15 @@ export function ColleagueReviewPasteForm({
         add(asFiles(e.dataTransfer.files))
       }}
     >
+      {offer ? <FromSlack offer={offer} now={now} /> : null}
       <label className="flex min-w-0 flex-col gap-1">
         <span className="text-[12px] font-medium text-(--text-primary)">{TEXT.update}</span>
         <Textarea
           rows={10}
           autoFocus
+          disabled={reading}
           value={draft.text}
-          placeholder={TEXT.placeholder}
+          placeholder={reading ? REVIEW_OFFER_TEXT.reading : TEXT.placeholder}
           onChange={(e) => onChange({ ...draft, text: e.target.value })}
           onPaste={(e) => {
             const pasted = asFiles(e.clipboardData.files)
@@ -67,6 +124,7 @@ export function ColleagueReviewPasteForm({
           className="min-h-[160px] resize-y text-[13px]"
         />
       </label>
+      {offer ? <SlackFiles files={offer.files} /> : null}
       <div className="flex min-w-0 flex-col gap-1.5">
         {draft.files.length > 0 ? (
           <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0">
@@ -118,7 +176,7 @@ export function ColleagueReviewPasteForm({
         </div>
       </div>
       {box.error ? <Alert variant="error">{box.error}</Alert> : null}
-      {problem && draft.text.trim() !== '' ? (
+      {problem && !reading && draft.text.trim() !== '' ? (
         <span className="text-[11.5px] text-(--status-stuck-soft-fg)">{problem}</span>
       ) : null}
       <div className="flex justify-end">
@@ -136,11 +194,10 @@ export type ColleagueReviewPasteBoxProps = ColleagueReviewPasteFormProps & {
 
 /** The paste box over the Tickets tab: a colleague's update, to start a review round with. */
 export default function ColleagueReviewPasteBox({
-  box,
-  onChange,
-  onStart,
   onClose,
+  ...form
 }: ColleagueReviewPasteBoxProps) {
+  const { box } = form
   return (
     <Modal
       isOpen
@@ -148,7 +205,7 @@ export default function ColleagueReviewPasteBox({
       size="lg"
       title={box.nextRound ? TEXT.nextTitle(box.ticketKey) : TEXT.title(box.ticketKey)}
     >
-      <ColleagueReviewPasteForm box={box} onChange={onChange} onStart={onStart} />
+      <ColleagueReviewPasteForm {...form} />
     </Modal>
   )
 }

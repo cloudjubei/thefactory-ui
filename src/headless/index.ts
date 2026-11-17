@@ -3884,9 +3884,13 @@ export type {
   ReviewWaitingOnView,
 } from './utils/colleagueReviewCardTypes'
 export {
+  reviewBoxOf,
+  reviewBoxProblem,
+  reviewBoxWithOffer,
   reviewChatContext,
   reviewDraftProblem,
   reviewOfChat,
+  reviewStartBody,
   reviewStartLabel,
   withReviewFiles,
 } from './utils/colleagueReviewStart'
@@ -3900,6 +3904,7 @@ export {
 export type {
   ColleagueReviewStartBody,
   ColleagueReviewStarted,
+  ReviewBoxOffer,
   ReviewDraft,
   ReviewDraftFile,
   ReviewFileUpload,
@@ -3907,6 +3912,72 @@ export type {
   ReviewStartOutcome,
   ReviewStartPhase,
 } from './utils/colleagueReviewStartTypes'
+export {
+  clearColleagueReviewThread,
+  dismissReviewOffer,
+  listWaitingReviewOffers,
+  postColleagueReviewReply,
+  readColleagueReviewSource,
+  watchColleagueReviewThread,
+} from './api/colleagueReviewSourceApi'
+export { ColleagueReviewSourceStore } from './hooks/colleagueReviewSourceStore'
+export {
+  colleagueReviewSourceStoreFor,
+  useColleagueReviewSource,
+  useReviewOfferCount,
+  type UseColleagueReviewSource,
+} from './hooks/useColleagueReviewSource'
+export { useGroupSlackSettings, type UseGroupSlackSettings } from './hooks/useGroupSlackSettings'
+export {
+  reviewBoxOfferLine,
+  reviewOfferRowView,
+  reviewSourceShown,
+  reviewThreadView,
+  reviewThreadWorks,
+  slackClientIdProblem,
+  slackConnectionView,
+  slackMessageLink,
+  slackOAuthRedirectUrl,
+  slackReviewSettingsView,
+  slackThreadLinkProblem,
+  waitingReviewOffers,
+} from './utils/colleagueReviewSource'
+export {
+  DEFAULT_BACKEND_ORIGIN,
+  REVIEW_OFFER_DEFAULT_LAYOUT,
+  REVIEW_OFFER_LAYOUT_LABELS,
+  REVIEW_OFFER_LAYOUTS,
+  REVIEW_OFFER_TEXT,
+  REVIEW_OFFERS_CHANNEL,
+  REVIEW_POST_TEXT,
+  SLACK_CONNECTION_NAME,
+  SLACK_OAUTH_CALLBACK_PATH,
+  SLACK_PROVIDER,
+  SLACK_SETTINGS_DEFAULT_LAYOUT,
+  SLACK_SETTINGS_LAYOUT_LABELS,
+  SLACK_SETTINGS_LAYOUTS,
+  SLACK_SETTINGS_TEXT,
+} from './utils/colleagueReviewSourceConstants'
+export type {
+  ReviewOffer,
+  ReviewOfferLayout,
+  ReviewOfferRowView,
+  ReviewReplyPostView,
+  ReviewSourceConnection,
+  ReviewSourcePending,
+  ReviewSourcePoll,
+  ReviewSourceSnapshot,
+  ReviewSourceStatus,
+  ReviewThreadView,
+  ReviewThreadWatch,
+  SlackConnectionEntry,
+  SlackConnectionView,
+  SlackReviewSettingsInput,
+  SlackReviewSettingsState,
+  SlackReviewSettingsView,
+  SlackSettingsLayout,
+  TicketReviewOffer,
+} from './utils/colleagueReviewSourceTypes'
 export { useGroupSignOff, type UseGroupSignOff } from './hooks/useGroupSignOff'
 export { evidenceDataUri } from './hooks/evidenceImageLoader'
 export {

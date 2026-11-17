@@ -36,6 +36,8 @@ import type {
   ReviewRoundView,
   ReviewWaitingOnView,
 } from './colleagueReviewCardTypes'
+import { slackMessageLink } from './colleagueReviewSource'
+import type { ReviewReplyPostView } from './colleagueReviewSourceTypes'
 import { reviewOfChat } from './colleagueReviewStart'
 
 type Rec = Record<string, unknown>
@@ -49,7 +51,7 @@ const text = (v: unknown): string | undefined =>
 const whole = (v: unknown): number | undefined =>
   typeof v === 'number' && Number.isInteger(v) && v > 0 ? v : undefined
 
-const NO_PENDING: ReviewPendingActions = { drops: new Set(), givens: new Set() }
+const NO_PENDING: ReviewPendingActions = { drops: new Set(), givens: new Set(), posts: new Set() }
 
 const OPEN: readonly ReviewFindingState[] = ['open', 'still-open']
 
@@ -187,11 +189,33 @@ function roundSummary(
   return parts.length > 0 ? parts.join(' · ') : t.nothingFound
 }
 
-/** One round as a card shows it, with what the person may still do on the latest. Pure. */
+function replyPostView(
+  round: ColleagueReview['rounds'][number] | undefined,
+  thread: boolean,
+  posting: boolean,
+): ReviewReplyPostView | undefined {
+  if (!round?.recordedAt || !round.reply) return undefined
+  const permalink = slackMessageLink(round.postedReply?.permalink)
+  if (!thread && !permalink) return undefined
+  return {
+    canPost: thread,
+    posting,
+    ...(permalink && round.postedReply
+      ? { posted: { permalink, postedAt: round.postedReply.postedAt } }
+      : {}),
+  }
+}
+
+/**
+ * One round as a card shows it, with what the person may still do on the
+ * latest. Its reply may be posted in the thread while the group watches a
+ * working one (`thread`); one posted already says where. Pure.
+ */
 export function reviewRoundView(
   review: ColleagueReview,
   n: number,
   pending: ReviewPendingActions = NO_PENDING,
+  thread = false,
 ): ReviewRoundView {
   const latest = latestReviewRound(review)
   const round = review.rounds.find((r) => r.n === n)
@@ -233,6 +257,7 @@ export function reviewRoundView(
     .filter((w, at) => listed.findIndex((o) => o.id === w.id) === at)
     .map((w) => waitingOnView(w, n, latest, pending))
   const verdict = recorded ? round?.verdict : undefined
+  const post = replyPostView(round, thread, pending.posts.has(n))
   return {
     n,
     title: COLLEAGUE_REVIEW_CARD_TEXT.round(n, latest),
@@ -251,6 +276,7 @@ export function reviewRoundView(
     groups,
     waitingOn,
     ...(recorded && round?.reply ? { reply: round.reply } : {}),
+    ...(post ? { post } : {}),
     files: round?.submission.attachments.length ?? 0,
   }
 }
@@ -277,7 +303,8 @@ export function colleagueReviewCardView(
   }
   const n = Math.min(Math.max(input.round ?? latest, 1), latest)
   const pending = input.pending ?? NO_PENDING
-  const rounds = review.rounds.map((r) => reviewRoundView(review, r.n, pending))
+  const thread = input.thread ?? false
+  const rounds = review.rounds.map((r) => reviewRoundView(review, r.n, pending, thread))
   const round = rounds.find((r) => r.n === n) ?? rounds[rounds.length - 1]!
   return {
     kind: 'review',

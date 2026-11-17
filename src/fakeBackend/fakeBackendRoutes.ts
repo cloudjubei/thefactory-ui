@@ -375,7 +375,7 @@ const READS: readonly FakeRoute[] = [
   },
   read<ReadProviderOAuthSetupData, ReadProviderOAuthSetupResponse>(
     '/api/v1/provider-connections/oauth/setup',
-    () => ({ github: false, jira: false }),
+    () => ({ github: false, jira: false, slack: false }),
   ),
   read<GetOverseerData, GetOverseerResponse>('/api/v1/overseer', () => FAKE_OVERSEER),
   read<ListOverseerAuthProvidersData, ListOverseerAuthProvidersResponse>(

@@ -3,9 +3,14 @@ import type { ChatContext } from '../api'
 import type { ChatAttachmentFile } from '../api/chatAttachmentUploadTypes'
 import type { TicketPlanBody } from './groupTicketTypes'
 
-/** What starting a round sends: the pasted update and its files' paths in the review's chat. */
+/**
+ * What starting a round sends: the pasted update and its files' paths in the
+ * review's chat, or an update the watched Slack thread brought, by its id, with
+ * the person's edit of its text.
+ */
 export interface ColleagueReviewStartBody extends TicketPlanBody {
-  text: string
+  text?: string
+  offerId?: string
   attachments?: string[]
 }
 
@@ -44,12 +49,27 @@ export type ReviewStartOutcome =
   | { ok: true; started: ColleagueReviewStarted }
   | { ok: false; error: string; draft: ReviewDraft }
 
+/** An update the watched Slack thread brought, as the paste box starts from it. */
+export interface ReviewBoxOffer {
+  id: string
+  author: string
+  postedAt: string
+  /** Only an https link. */
+  permalink?: string
+  /** The names of the files it came with: the backend fetches them from Slack itself. */
+  files: string[]
+  /** Its text as Slack had it; absent while it is read. */
+  text?: string
+}
+
 /** The paste box, open on one ticket. */
 export interface ReviewPasteBox {
   ticketKey: string
   /** The ticket has a review: this starts its next round. */
   nextRound: boolean
   draft: ReviewDraft
+  /** The Slack update it starts from, when it does. */
+  offer?: ReviewBoxOffer
   /** Why the last start did not go through. */
   error?: string
 }

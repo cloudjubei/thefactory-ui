@@ -1,4 +1,5 @@
 import type { ExternalRef } from '../api'
+import { reviewOfferRowView } from './colleagueReviewSource'
 import { reviewStartLabel } from './colleagueReviewStart'
 import {
   CHAT_TICKET_METADATA_KEY,
@@ -113,6 +114,7 @@ function ticketRow(
   ticket: GroupTicket,
   starting: GroupTicketsState['starting'],
   reviewing: GroupTicketsState['reviewing'],
+  now: number,
 ): GroupTicketRow {
   const { key, summary, priority, status, statusCategory, url, groupStory, canTake, chatOpen } =
     ticket
@@ -126,6 +128,7 @@ function ticketRow(
     chatOpen,
     reviewOpen: ticket.reviewOpen,
     ...(review ? { reviewing: reviewStartLabel(review) } : {}),
+    ...(ticket.reviewOffer ? { offer: reviewOfferRowView(ticket.reviewOffer, now) } : {}),
     canTake,
     ...(starting?.key === key ? { starting: starting.action } : {}),
     hint: chatOpen ? GROUP_TICKETS_TEXT.openChat(key) : GROUP_TICKETS_TEXT.discussTicket(key),
@@ -161,9 +164,10 @@ function sectionView(
 /**
  * What the Tickets tab shows. A search stands in for the lists while it is on. The
  * next ticket is only ever one that can be taken, whatever Jira's list says of it.
+ * `now` says how long ago each waiting update came.
  */
-export function groupTicketsView(state: GroupTicketsState): GroupTicketsView {
-  const { mine, sprint, search, starting, startError, reviewing } = state
+export function groupTicketsView(state: GroupTicketsState, now = Date.now()): GroupTicketsView {
+  const { mine, sprint, search, starting, startError, reviewing, offerError } = state
   if (mine.list?.connected === false || sprint.list?.connected === false) {
     return { kind: 'no-jira' }
   }
@@ -171,7 +175,7 @@ export function groupTicketsView(state: GroupTicketsState): GroupTicketsView {
   if (!answered) return { kind: 'loading' }
 
   const rowsOf = (section: GroupTicketSection) =>
-    (section.list?.tickets ?? []).map((t) => ticketRow(t, starting, reviewing))
+    (section.list?.tickets ?? []).map((t) => ticketRow(t, starting, reviewing, now))
   const mineRows = rowsOf(mine)
   const next = mineRows.find((r) => r.key === mine.list?.nextTicketKey && r.canTake)
   const sameFailure = mine.readError && mine.readError === sprint.readError
@@ -196,6 +200,8 @@ export function groupTicketsView(state: GroupTicketsState): GroupTicketsView {
     ...(sameFailure ? { readError: mine.readError! } : {}),
     ...(startError ? { startError } : {}),
     starting: starting !== undefined,
+    offerCount: (mine.list ?? sprint.list ?? search.list)?.reviewOfferCount ?? 0,
+    ...(offerError ? { offerError } : {}),
   }
 }
 

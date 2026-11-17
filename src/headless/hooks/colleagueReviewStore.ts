@@ -5,9 +5,11 @@ import {
   markColleagueReviewWaitingGiven,
   readColleagueReview,
 } from '../api/colleagueReviewApi'
+import { postColleagueReviewReply } from '../api/colleagueReviewSourceApi'
 import { extractErrorMessage } from '../api/errorMessage'
 import type { WsClient } from '../api/WsClient'
 import { COLLEAGUE_REVIEW_CARD_TEXT } from '../utils/colleagueReviewCardConstants'
+import { REVIEW_POST_TEXT } from '../utils/colleagueReviewSourceConstants'
 import type { ReviewPendingActions } from '../utils/colleagueReviewCardTypes'
 import { COLLEAGUE_REVIEWS_EVENT } from '../utils/colleagueReviewStartConstants'
 import { LiveResourceStore } from '../utils/liveResourceStore'
@@ -16,7 +18,9 @@ import type { LiveResourceSnapshot } from '../utils/liveResourceStoreTypes'
 /** How long a review stays live after its last card scrolls away. */
 const REVIEW_LINGER_MS = 30_000
 
-type PendingAction = { kind: 'drop' | 'given'; id: string; note?: string }
+type PendingAction =
+  | { kind: 'drop' | 'given'; id: string; note?: string }
+  | { kind: 'post'; round: number; again: boolean }
 
 /** A review as its cards draw it: the person's own changes on their way already in it. */
 export type ColleagueReviewSnapshot = {
@@ -58,12 +62,38 @@ function applyPending(
   if (!review || pending.length === 0) return review
   const now = review.updatedAt
   return pending.reduce((current, action) => {
+    if (action.kind === 'post') return current
     const changed =
       action.kind === 'drop'
         ? dropReviewFinding(current, action.id, action.note, now)
         : markReviewWaitingGiven(current, action.id, action.note, now)
     return changed.ok ? changed.review : current
   }, review)
+}
+
+const FAILED: Record<PendingAction['kind'], string> = {
+  drop: COLLEAGUE_REVIEW_CARD_TEXT.dropFailed,
+  given: COLLEAGUE_REVIEW_CARD_TEXT.givenFailed,
+  post: REVIEW_POST_TEXT.failed,
+}
+
+/** The same change pressed again: a drop or given of one item, or a post of one round. */
+function sameAction(a: PendingAction, b: PendingAction): boolean {
+  if (a.kind === 'post' || b.kind === 'post') {
+    return a.kind === 'post' && b.kind === 'post' && a.round === b.round
+  }
+  return a.kind === b.kind && a.id === b.id
+}
+
+function send(groupId: string, ticketKey: string, action: PendingAction): Promise<ColleagueReview> {
+  switch (action.kind) {
+    case 'drop':
+      return dropColleagueReviewFinding(groupId, ticketKey, action.id, action.note)
+    case 'given':
+      return markColleagueReviewWaitingGiven(groupId, ticketKey, action.id, action.note)
+    case 'post':
+      return postColleagueReviewReply(groupId, ticketKey, action.round, action.again)
+  }
 }
 
 /**
@@ -129,8 +159,9 @@ export class ColleagueReviewStore {
       settled: live.settled,
       readError: live.error,
       pending: {
-        drops: new Set(overlay.pending.filter((a) => a.kind === 'drop').map((a) => a.id)),
-        givens: new Set(overlay.pending.filter((a) => a.kind === 'given').map((a) => a.id)),
+        drops: new Set(overlay.pending.flatMap((a) => (a.kind === 'drop' ? [a.id] : []))),
+        givens: new Set(overlay.pending.flatMap((a) => (a.kind === 'given' ? [a.id] : []))),
+        posts: new Set(overlay.pending.flatMap((a) => (a.kind === 'post' ? [a.round] : []))),
       },
       actionError: overlay.actionError,
     }
@@ -148,6 +179,14 @@ export class ColleagueReviewStore {
   markGiven = (key: string, waitingOnId: string, note?: string): Promise<void> =>
     this._act(key, { kind: 'given', id: waitingOnId, ...(note ? { note } : {}) })
 
+  /**
+   * Post a round's reply in the group's watched thread as the person. Shown
+   * posting at once; pressing it again while it goes changes nothing. `again`
+   * posts a reply that was posted already.
+   */
+  postReply = (key: string, round: number, again: boolean): Promise<void> =>
+    this._act(key, { kind: 'post', round, again })
+
   private _setOverlay(key: string, overlay: Overlay): void {
     if (
       overlay.pending.length === 0 &&
@@ -163,7 +202,7 @@ export class ColleagueReviewStore {
 
   private async _act(key: string, action: PendingAction): Promise<void> {
     const overlay = this._overlays.get(key) ?? NO_OVERLAY
-    if (overlay.pending.some((a) => a.kind === action.kind && a.id === action.id)) return
+    if (overlay.pending.some((a) => sameAction(a, action))) return
     const { actionError: _cleared, ...kept } = overlay
     this._setOverlay(key, {
       ...kept,
@@ -181,17 +220,9 @@ export class ColleagueReviewStore {
       })
     }
     try {
-      const confirmed =
-        action.kind === 'drop'
-          ? await dropColleagueReviewFinding(groupId, ticketKey, action.id, action.note)
-          : await markColleagueReviewWaitingGiven(groupId, ticketKey, action.id, action.note)
-      settle({ confirmed })
+      settle({ confirmed: await send(groupId, ticketKey, action) })
     } catch (err) {
-      const fallback =
-        action.kind === 'drop'
-          ? COLLEAGUE_REVIEW_CARD_TEXT.dropFailed
-          : COLLEAGUE_REVIEW_CARD_TEXT.givenFailed
-      settle({ actionError: extractErrorMessage(err, fallback) })
+      settle({ actionError: extractErrorMessage(err, FAILED[action.kind]) })
     }
   }
 }

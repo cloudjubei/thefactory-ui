@@ -1,9 +1,10 @@
 import { useState, type ReactNode } from 'react'
-import { Pressable, Text, View } from 'react-native'
+import { Linking, Pressable, Text, View } from 'react-native'
 
 import {
   GROUP_TICKETS_DEFAULT_LAYOUT,
   GROUP_TICKETS_TEXT,
+  REVIEW_OFFER_TEXT,
   REVIEW_START_TEXT,
   type GroupTicketListName,
   type GroupTicketRow,
@@ -11,9 +12,11 @@ import {
   type GroupTicketsLayout,
   type GroupTicketsShown,
   type GroupTicketsView,
+  type ReviewOfferRowView,
 } from '../../../headless'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
+import { IconChat, IconExternalLink } from '../../icons'
 import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
 import { Input } from '../../primitives/Input'
@@ -28,6 +31,8 @@ type TicketActions = {
   onOpenStory: (groupStoryId: string) => void
   /** Open the paste box on a ticket; without it, Review is not offered. */
   onReview?: (ticketKey: string) => void
+  /** Dismiss the update from Slack waiting on a ticket; without it, Dismiss is not offered. */
+  onDismissOffer?: (ticketKey: string) => void
 }
 
 export type GroupTicketsListProps = TicketActions & {
@@ -115,6 +120,7 @@ export default function GroupTicketsList({
       />
       {view.readError ? <ReadFailed error={view.readError} onRetry={onRetry} /> : null}
       {view.startError ? <Alert variant="error">{view.startError}</Alert> : null}
+      {view.offerError ? <Alert variant="error">{view.offerError}</Alert> : null}
       {view.search ? (
         <TicketSection
           {...list}
@@ -324,14 +330,76 @@ function RowButtons({
   )
 }
 
+/** A waiting update from Slack as a line under its row: who sent it, when, its message, and Dismiss. */
+function OfferStrip({
+  row,
+  offer,
+  onDismissOffer,
+}: {
+  row: GroupTicketRow
+  offer: ReviewOfferRowView
+  onDismissOffer?: ((ticketKey: string) => void) | undefined
+}) {
+  const { theme } = useNativeTheme()
+  const { permalink } = offer
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: 6,
+        borderRadius: nativeRadii[2],
+        backgroundColor: theme.accent.softBg,
+        paddingHorizontal: nativeSpace[2],
+        paddingVertical: 4,
+      }}
+    >
+      <IconChat size={14} color={theme.accent.primary} />
+      <Text style={{ fontSize: 12, fontWeight: '500', color: theme.text.primary }}>
+        {offer.label}
+      </Text>
+      <Text style={{ fontSize: 12, color: theme.text.muted }}>{offer.when}</Text>
+      {permalink ? (
+        <Pressable
+          accessibilityRole="link"
+          hitSlop={6}
+          onPress={() => void Linking.openURL(permalink)}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}
+        >
+          <Text style={{ fontSize: 12, color: theme.accent.primary }}>
+            {REVIEW_OFFER_TEXT.open}
+          </Text>
+          <IconExternalLink size={11} color={theme.accent.primary} />
+        </Pressable>
+      ) : null}
+      {onDismissOffer ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={REVIEW_OFFER_TEXT.dismissHint(row.key)}
+          hitSlop={8}
+          onPress={() => onDismissOffer(row.key)}
+          style={{ marginLeft: 'auto' }}
+        >
+          <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+            {REVIEW_OFFER_TEXT.dismiss}
+          </Text>
+        </Pressable>
+      ) : null}
+    </View>
+  )
+}
+
 function NextTicket({
   row,
   starting,
   onDiscuss,
   onPlan,
   onReview,
+  onDismissOffer,
 }: Omit<TicketActions, 'onOpenStory'> & { row: GroupTicketRow; starting: boolean }) {
   const { theme } = useNativeTheme()
+  const offer = onReview && row.reviewing === undefined ? row.offer : undefined
   return (
     <Pressable
       accessibilityRole="button"
@@ -380,6 +448,7 @@ function NextTicket({
         onPlan={onPlan}
         {...(onReview ? { onReview } : {})}
       />
+      {offer ? <OfferStrip row={row} offer={offer} onDismissOffer={onDismissOffer} /> : null}
     </Pressable>
   )
 }
@@ -392,9 +461,11 @@ function TicketRow({
   onPlan,
   onOpenStory,
   onReview,
+  onDismissOffer,
 }: TicketActions & { row: GroupTicketRow; starting: boolean; divided: boolean }) {
   const { theme } = useNativeTheme()
   const { work } = row
+  const offer = onReview && row.reviewing === undefined ? row.offer : undefined
   return (
     <Pressable
       accessibilityRole="button"
@@ -452,6 +523,7 @@ function TicketRow({
           {...(onReview ? { onReview } : {})}
         />
       </View>
+      {offer ? <OfferStrip row={row} offer={offer} onDismissOffer={onDismissOffer} /> : null}
     </Pressable>
   )
 }

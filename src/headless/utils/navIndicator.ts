@@ -1,5 +1,6 @@
 import type { BadgeCounts } from '../hooks/useBadgeCountsCore'
 import { formatBadgeCount } from './badgeAggregation'
+import { REVIEW_OFFER_TEXT, REVIEW_OFFERS_CHANNEL } from './colleagueReviewSourceConstants'
 import { signInExpiredTitle } from './signInExpiry'
 import type { BadgeState } from './badgeAggregationTypes'
 import { inkBadgeParts } from './inkBadge'
@@ -197,14 +198,24 @@ export function shellTabIndicator(
  * A per-group tab row. Chat counts the GROUP's own chats, so reading the group
  * chat clears it; `expiredSignIns` names the expired sign-ins those chats use.
  * Processes counts the group runs waiting at their one sign-off (`signOffs`).
+ * Tickets counts the updates its watched Slack thread brought that wait for the
+ * person (`reviewOffers`).
  */
 export function groupTabIndicator(
   tab: GroupTabKey,
   groupChats: BadgeState['chat_messages'],
   expiredSignIns: readonly string[] = [],
   signOffs = 0,
+  reviewOffers = 0,
 ): NavRowIndicator {
   if (tab === 'chat') return chatTabIndicator(groupChats, expiredSignIns)
+  if (tab === 'tickets' && reviewOffers > 0) {
+    return {
+      kind: 'ink',
+      badge: { parts: [{ channel: REVIEW_OFFERS_CHANNEL, count: reviewOffers }], rollup: false },
+      title: REVIEW_OFFER_TEXT.badge(reviewOffers),
+    }
+  }
   if (tab === 'processes') {
     return navRowIndicator({ parts: [{ channel: 'processes', count: signOffs }], rollup: false })
   }

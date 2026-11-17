@@ -952,6 +952,13 @@ export {
   default as UsageSettingsView,
   type UsageSettingsViewProps,
 } from './compound/settings/UsageSettingsView'
+export {
+  default as GroupSlackSettings,
+  SlackReviewSettingsPanel,
+  type GroupSlackSettingsProps,
+  type SlackReviewSettingsActions,
+  type SlackReviewSettingsPanelProps,
+} from './compound/settings/GroupSlackSettings'
 export { default as GroupNotesSettings } from './compound/settings/GroupNotesSettings'
 export type { GroupNotesSettingsProps } from './compound/settings/GroupNotesSettings'
 export { default as NotesSettings } from './compound/settings/NotesSettings'

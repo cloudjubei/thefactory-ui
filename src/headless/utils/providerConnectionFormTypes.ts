@@ -51,8 +51,16 @@ export type ProviderConnectionSpec = {
   oauth?: { action: string; cloudId: boolean }
 }
 
-/** What starting a sign-in sends. `connectionId` renews that connection in place. */
-export type ProviderOAuthStartBody = { name: string; cloudId?: string; connectionId?: string }
+/**
+ * What starting a sign-in sends. `connectionId` renews that connection in place;
+ * `clientId` is the person's own Slack app's.
+ */
+export type ProviderOAuthStartBody = {
+  name: string
+  cloudId?: string
+  connectionId?: string
+  clientId?: string
+}
 
 /** A sign-in the backend opened: the page for the browser, and what its end is told under. */
 export type ProviderOAuthStarted = { page: string; signInId: string }

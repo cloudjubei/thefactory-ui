@@ -27,7 +27,7 @@ const IDLE: ColleagueReviewSnapshot = {
   review: undefined,
   settled: false,
   readError: null,
-  pending: { drops: new Set(), givens: new Set() },
+  pending: { drops: new Set(), givens: new Set(), posts: new Set() },
   actionError: undefined,
 }
 
@@ -45,6 +45,8 @@ export type UseColleagueReview = {
   dropFinding: (findingId: string, note?: string) => void
   /** Mark a waited-on item given, shown at once; rolled back with why when it fails. */
   markGiven: (waitingOnId: string, note?: string) => void
+  /** Post a round's reply in the watched thread, shown posting at once; `again` posts it a second time. */
+  postReply: (round: number, again: boolean) => void
   refresh: () => Promise<void>
 }
 
@@ -87,6 +89,12 @@ export function useColleagueReview(
     },
     [store, key],
   )
+  const postReply = useCallback(
+    (round: number, again: boolean) => {
+      if (key) void store.postReply(key, round, again)
+    },
+    [store, key],
+  )
   const refresh = useCallback(() => (key ? store.refresh(key) : Promise.resolve()), [store, key])
 
   return useMemo(
@@ -100,8 +108,9 @@ export function useColleagueReview(
       actionError: snapshot.actionError,
       dropFinding,
       markGiven,
+      postReply,
       refresh,
     }),
-    [snapshot, dropFinding, markGiven, refresh],
+    [snapshot, dropFinding, markGiven, postReply, refresh],
   )
 }

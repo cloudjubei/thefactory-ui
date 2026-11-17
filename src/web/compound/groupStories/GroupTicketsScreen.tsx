@@ -12,7 +12,7 @@ export type GroupTicketsScreenProps = {
   onOpenSettings: () => void
 }
 
-/** A group's Tickets tab: its Jira tickets, to discuss, take or review. */
+/** A group's Tickets tab: its Jira tickets, to discuss, take or review — from an update its Slack thread brought too. */
 export function GroupTicketsScreen({
   groupId,
   onOpenStory,
@@ -29,6 +29,7 @@ export function GroupTicketsScreen({
     refresh,
     reviewBox,
     openReview,
+    dismissOffer,
     closeReview,
     editReview,
     startReview,
@@ -47,6 +48,7 @@ export function GroupTicketsScreen({
         onDiscuss={(key) => open(discuss(key))}
         onPlan={(key) => open(plan(key))}
         onReview={openReview}
+        onDismissOffer={dismissOffer}
         onOpenStory={onOpenStory}
         onOpenSettings={onOpenSettings}
         onRetry={() => void refresh()}

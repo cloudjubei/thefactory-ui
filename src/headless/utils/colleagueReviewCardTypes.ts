@@ -5,6 +5,7 @@ import type {
   ReviewVerdict,
   ReviewWaitingOnState,
 } from 'thefactory-tools/types'
+import type { ReviewReplyPostView } from './colleagueReviewSourceTypes'
 import type { ProcessStatusTone } from './processView'
 
 /** How the review card lays out a round: one stack, a tab per round, or a line that opens. */
@@ -83,6 +84,8 @@ export interface ReviewRoundView {
   waitingOn: ReviewWaitingOnView[]
   /** The drafted reply, for the person to post. */
   reply?: string
+  /** Post in thread, or where the reply was posted; absent when neither is to be shown. */
+  post?: ReviewReplyPostView
   /** How many files came with the update. */
   files: number
 }
@@ -111,6 +114,8 @@ export type ColleagueReviewCardView =
 export interface ReviewPendingActions {
   drops: ReadonlySet<string>
   givens: ReadonlySet<string>
+  /** The rounds whose reply is being posted in the thread. */
+  posts: ReadonlySet<number>
 }
 
 /** What a review tool row's card is built from. */
@@ -126,4 +131,6 @@ export interface ColleagueReviewCardInput {
   refusal?: string[]
   pending?: ReviewPendingActions
   actionError?: string
+  /** The group watches a Slack thread it can post to. */
+  thread?: boolean
 }

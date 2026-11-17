@@ -276,6 +276,7 @@ describe('reviewRoundView', () => {
     const round = reviewRoundView(ROUND_TWO, 2, {
       drops: new Set(['F2']),
       givens: new Set(['W1']),
+      posts: new Set(),
     })
     const all = round.groups.flatMap((g) => g.findings)
     expect(all.find((f) => f.id === 'F2')?.saving).toBe(true)
@@ -353,5 +354,68 @@ describe('colleagueReviewCardView', () => {
       kind: 'none',
       line: 'This chat is not a ticket’s review.',
     })
+  })
+})
+
+describe('posting a round’s reply in the thread', () => {
+  const NO_PENDING = {
+    drops: new Set<string>(),
+    givens: new Set<string>(),
+    posts: new Set<number>(),
+  }
+  const POSTED_LINK = 'https://acme.slack.com/archives/C1/p1763380000999999'
+  const posted = (link = POSTED_LINK): ColleagueReview => ({
+    ...ROUND_TWO,
+    rounds: ROUND_TWO.rounds.map((r) =>
+      r.n === 2
+        ? { ...r, postedReply: { permalink: link, ts: '1', postedAt: '2026-11-12T12:00:00.000Z' } }
+        : r,
+    ),
+  })
+
+  it('is offered on a recorded reply while the group watches a working thread', () => {
+    expect(reviewRoundView(ROUND_TWO, 2, NO_PENDING, true).post).toEqual({
+      canPost: true,
+      posting: false,
+    })
+    expect(reviewRoundView(ROUND_TWO, 1, NO_PENDING, true).post).toEqual({
+      canPost: true,
+      posting: false,
+    })
+  })
+
+  it('is not offered without a working thread, nor on a round with no reply yet', () => {
+    expect(reviewRoundView(ROUND_TWO, 2, NO_PENDING, false)).not.toHaveProperty('post')
+    expect(reviewRoundView(ROUND_TWO, 2)).not.toHaveProperty('post')
+    expect(reviewRoundView(ROUND_TWO_STARTED, 2, NO_PENDING, true)).not.toHaveProperty('post')
+  })
+
+  it('shows where it was posted, offering it again only with a working thread', () => {
+    expect(reviewRoundView(posted(), 2, NO_PENDING, true).post).toEqual({
+      canPost: true,
+      posting: false,
+      posted: { permalink: POSTED_LINK, postedAt: '2026-11-12T12:00:00.000Z' },
+    })
+    expect(reviewRoundView(posted(), 2, NO_PENDING, false).post).toEqual({
+      canPost: false,
+      posting: false,
+      posted: { permalink: POSTED_LINK, postedAt: '2026-11-12T12:00:00.000Z' },
+    })
+    expect(reviewRoundView(posted('javascript:x'), 2, NO_PENDING, false)).not.toHaveProperty('post')
+  })
+
+  it('marks a post on its way', () => {
+    expect(
+      reviewRoundView(ROUND_TWO, 2, { ...NO_PENDING, posts: new Set([2]) }, true).post?.posting,
+    ).toBe(true)
+  })
+
+  it('is drawn on the card from whether the group watches a working thread', () => {
+    const view = review(
+      colleagueReviewCardView({ tool: 'record', review: ROUND_TWO, thread: true }),
+    )
+    expect(view.round.post?.canPost).toBe(true)
+    const without = review(colleagueReviewCardView({ tool: 'record', review: ROUND_TWO }))
+    expect(without.round).not.toHaveProperty('post')
   })
 })

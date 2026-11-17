@@ -38,6 +38,8 @@ const state = (over: Partial<GroupTicketsState> = {}): GroupTicketsState => ({
   starting: undefined,
   startError: null,
   reviewing: {},
+  offers: {},
+  offerError: null,
   ...over,
 })
 
@@ -127,7 +129,7 @@ describe('the sprint’s statuses', () => {
 
 const read = (tickets: GroupTicket[], over: Partial<GroupTicketList> = {}): GroupTicketSection => ({
   ...NOT_READ,
-  list: { connected: true, tickets, ...over },
+  list: { connected: true, reviewOfferCount: 0, tickets, ...over },
 })
 
 const shown = (s: GroupTicketsState) => {
@@ -149,8 +151,14 @@ describe('the Tickets tab', () => {
   })
 
   it.each([
-    ['mine', { mine: { ...NOT_READ, list: { connected: false, tickets: [] } } }],
-    ['sprint', { sprint: { ...NOT_READ, list: { connected: false, tickets: [] } } }],
+    [
+      'mine',
+      { mine: { ...NOT_READ, list: { connected: false, reviewOfferCount: 0, tickets: [] } } },
+    ],
+    [
+      'sprint',
+      { sprint: { ...NOT_READ, list: { connected: false, reviewOfferCount: 0, tickets: [] } } },
+    ],
   ])('says a group has no Jira from the %s list alone', (_name, over) => {
     expect(groupTicketsView(state(over)).kind).toBe('no-jira')
   })
@@ -362,7 +370,11 @@ describe('a search', () => {
   it('lists what it found, Done ones included, with no next ticket among them', () => {
     const { search, next } = shown(
       searching({
-        list: { connected: true, tickets: [ticket('ZNR-780', { status: 'Done' })] },
+        list: {
+          connected: true,
+          reviewOfferCount: 0,
+          tickets: [ticket('ZNR-780', { status: 'Done' })],
+        },
       }),
     )
     expect(search?.rows.map((r) => r.chip.label)).toEqual(['ZNR-780 · Done'])
@@ -371,7 +383,9 @@ describe('a search', () => {
   })
 
   it('says so when nothing matches, in the person’s own words', () => {
-    const { search } = shown(searching({ list: { connected: true, tickets: [] } }))
+    const { search } = shown(
+      searching({ list: { connected: true, reviewOfferCount: 0, tickets: [] } }),
+    )
     expect(search?.emptyLine).toBe('No ticket matches “znr-780”.')
   })
 
@@ -383,7 +397,14 @@ describe('a search', () => {
 
   it('can read more of a long answer', () => {
     const { search } = shown(
-      searching({ list: { connected: true, tickets: [ticket('A-1')], nextPageToken: 'p2' } }),
+      searching({
+        list: {
+          connected: true,
+          reviewOfferCount: 0,
+          tickets: [ticket('A-1')],
+          nextPageToken: 'p2',
+        },
+      }),
     )
     expect(search?.canLoadMore).toBe(true)
   })
@@ -559,5 +580,46 @@ describe('ticketChipView — the status lozenge', () => {
     ['no status to colour', { key: 'ENG-1', statusCategory: 'done' }],
   ])('keeps the chip as it was with %s', (_name, ticket) => {
     expect(ticketChipView(ticket)).not.toHaveProperty('statusTone')
+  })
+})
+
+describe('updates from Slack on the Tickets tab', () => {
+  const NOW = Date.parse('2026-11-17T12:00:00.000Z')
+  const offer = {
+    id: 'o1',
+    kind: 'first-round' as const,
+    author: 'Ana',
+    postedAt: '2026-11-17T11:00:00.000Z',
+    permalink: 'https://acme.slack.com/archives/C1/p1763380000123456',
+  }
+
+  it('marks the row an update waits on, and counts them across the group', () => {
+    const view = groupTicketsView(
+      state({
+        mine: read([ticket('A-1', { reviewOffer: offer }), ticket('A-2')], { reviewOfferCount: 3 }),
+        sprint: read([], { reviewOfferCount: 3 }),
+      }),
+      NOW,
+    )
+    if (view.kind !== 'tickets') throw new Error(view.kind)
+    expect(view.offerCount).toBe(3)
+    const [a1, a2] = view.mine.rows
+    expect(a1?.offer).toEqual({
+      id: 'o1',
+      kind: 'first-round',
+      author: 'Ana',
+      label: 'Update from Ana',
+      when: '1 hour ago',
+      permalink: offer.permalink,
+    })
+    expect(a2?.offer).toBeUndefined()
+  })
+
+  it('counts none until a list is read, and says why a dismiss failed', () => {
+    const view = shown(
+      state({ sprint: { ...NOT_READ, readError: 'No board' }, offerError: 'Gone already.' }),
+    )
+    expect(view.offerCount).toBe(0)
+    expect(view.offerError).toBe('Gone already.')
   })
 })

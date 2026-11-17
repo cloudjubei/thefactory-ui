@@ -304,8 +304,8 @@ export const GROUP_TICKETS_SCENES: Scene[] = [
         render: () =>
           tab({
             state: {
-              mine: read({ connected: false, tickets: [] }),
-              sprint: read({ connected: false, tickets: [] }),
+              mine: read({ connected: false, tickets: [], reviewOfferCount: 0 }),
+              sprint: read({ connected: false, tickets: [], reviewOfferCount: 0 }),
             },
           }),
       },

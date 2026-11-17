@@ -115,6 +115,9 @@ import type {
   ClearChatData,
   ClearChatErrors,
   ClearChatResponses,
+  ClearColleagueReviewSourceData,
+  ClearColleagueReviewSourceErrors,
+  ClearColleagueReviewSourceResponses,
   CloneOverseerData,
   CloneOverseerErrors,
   CloneOverseerResponses,
@@ -337,6 +340,9 @@ import type {
   DiscussGroupTicketData,
   DiscussGroupTicketErrors,
   DiscussGroupTicketResponses,
+  DismissColleagueReviewOfferData,
+  DismissColleagueReviewOfferErrors,
+  DismissColleagueReviewOfferResponses,
   DismissDesignTidyPlanData,
   DismissDesignTidyPlanErrors,
   DismissDesignTidyPlanResponses,
@@ -429,6 +435,9 @@ import type {
   GetColleagueReviewData,
   GetColleagueReviewErrors,
   GetColleagueReviewResponses,
+  GetColleagueReviewSourceData,
+  GetColleagueReviewSourceErrors,
+  GetColleagueReviewSourceResponses,
   GetCostsByChatData,
   GetCostsByChatErrors,
   GetCostsByChatResponses,
@@ -751,6 +760,9 @@ import type {
   ListCliCapabilityScorecardsResponses,
   ListCliImageVersionsData,
   ListCliImageVersionsResponses,
+  ListColleagueReviewOffersData,
+  ListColleagueReviewOffersErrors,
+  ListColleagueReviewOffersResponses,
   ListColleagueReviewsData,
   ListColleagueReviewsErrors,
   ListColleagueReviewsResponses,
@@ -971,6 +983,9 @@ import type {
   PollRunnerJobData,
   PollRunnerJobErrors,
   PollRunnerJobResponses,
+  PostColleagueReviewReplyData,
+  PostColleagueReviewReplyErrors,
+  PostColleagueReviewReplyResponses,
   PostRunnerJobEventsData,
   PostRunnerJobEventsErrors,
   PostRunnerJobEventsResponses,
@@ -1279,6 +1294,9 @@ import type {
   SetCliRunFileViewedData,
   SetCliRunFileViewedErrors,
   SetCliRunFileViewedResponses,
+  SetColleagueReviewSourceData,
+  SetColleagueReviewSourceErrors,
+  SetColleagueReviewSourceResponses,
   SetGroupMcpServerTokenData,
   SetGroupMcpServerTokenErrors,
   SetGroupMcpServerTokenResponses,
@@ -4453,7 +4471,7 @@ export const revealGitCredentialToken = <ThrowOnError extends boolean = false>(
   })
 
 /**
- * Whether each provider can be signed in with: its client id, secret and redirect URL are all there. Says no more than that.
+ * Whether each provider can be signed in with: its client id, secret and redirect URL are all there (Slack: the redirect URL alone). Says no more than that.
  */
 export const readProviderOAuthSetup = <ThrowOnError extends boolean = false>(
   options?: Options<ReadProviderOAuthSetupData, ThrowOnError>,
@@ -4470,7 +4488,7 @@ export const readProviderOAuthSetup = <ThrowOnError extends boolean = false>(
   })
 
 /**
- * Open the `authorizationUrl` in a browser. The sign-in ends in the browser: `providerConnections:signIn` says how, and `GET /provider-connections/oauth/sign-ins/:signInId` answers a client that missed it.
+ * Open the `authorizationUrl` in a browser. The sign-in ends in the browser: `providerConnections:signIn` says how, and `GET /provider-connections/oauth/sign-ins/:signInId` answers a client that missed it. `github`, `jira` and `slack`; Slack takes the person’s own app’s `clientId` and signs in with PKCE, no secret.
  */
 export const startProviderOAuth = <ThrowOnError extends boolean = false>(
   options: Options<StartProviderOAuthData, ThrowOnError>,
@@ -8410,7 +8428,7 @@ export const getColleagueReview = <ThrowOnError extends boolean = false>(
   })
 
 /**
- * Review a colleague’s update on the ticket: the pasted text and its files start the next round of the ticket’s review, in its review chat (opened on the first round), whose agent reads the ticket whole and the pull requests, checks every claim and requirement, records the round and drafts the reply. Nothing is posted.
+ * Review a colleague’s update on the ticket: the pasted text and its files, or an update the group’s watched Slack thread offered (`offerId`), start the next round of the ticket’s review, in its review chat (opened on the first round), whose agent reads the ticket whole and the pull requests, checks every claim and requirement, records the round and drafts the reply. Nothing is posted.
  */
 export const startColleagueReview = <ThrowOnError extends boolean = false>(
   options: Options<StartColleagueReviewData, ThrowOnError>,
@@ -8445,6 +8463,27 @@ export const listColleagueReviews = <ThrowOnError extends boolean = false>(
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/groups/{groupId}/reviews',
     ...options,
+  })
+
+/**
+ * Post the round’s recorded reply, exactly as recorded, as the person in the group’s watched Slack thread, and record where on the round. The person pressing the card’s confirm is the approval. 409 when the round has no reply, when it was posted already (send `again: true` to post it once more), or when the group watches no Slack thread its connection can post in; 502 when Slack refuses.
+ */
+export const postColleagueReviewReply = <ThrowOnError extends boolean = false>(
+  options: Options<PostColleagueReviewReplyData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    PostColleagueReviewReplyResponses,
+    PostColleagueReviewReplyErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/tickets/{ticketKey}/review/rounds/{round}/post',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
   })
 
 /**
@@ -8487,6 +8526,95 @@ export const markColleagueReviewWaitingGiven = <ThrowOnError extends boolean = f
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  })
+
+/**
+ * Stop watching the group’s thread. The offers it brought stay.
+ */
+export const clearColleagueReviewSource = <ThrowOnError extends boolean = false>(
+  options: Options<ClearColleagueReviewSourceData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<
+    ClearColleagueReviewSourceResponses,
+    ClearColleagueReviewSourceErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/review-source',
+    ...options,
+  })
+
+/**
+ * The Slack thread the group watches for colleagues’ updates: the thread, how its connection stands, whether a reply naming a ticket can become an offer, its latest read and how many offers are in each state.
+ */
+export const getColleagueReviewSource = <ThrowOnError extends boolean = false>(
+  options: Options<GetColleagueReviewSourceData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetColleagueReviewSourceResponses,
+    GetColleagueReviewSourceErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/review-source',
+    ...options,
+  })
+
+/**
+ * Watch a Slack thread for the group’s updates, through one of the person’s Slack connections. The thread is read once first to prove the connection sees it; a new thread is read from now on unless `offerExistingReplies`. Replaces any thread watched before. 400 for a connection that is not Slack’s or a link that is not a Slack message’s, 409 when the connection must sign in again, 502 when Slack cannot read the thread.
+ */
+export const setColleagueReviewSource = <ThrowOnError extends boolean = false>(
+  options: Options<SetColleagueReviewSourceData, ThrowOnError>,
+) =>
+  (options.client ?? client).put<
+    SetColleagueReviewSourceResponses,
+    SetColleagueReviewSourceErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/review-source',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * The updates the watched thread brought for the group’s tickets, newest message first: each waits (`new`) until the person starts a round with it or dismisses it.
+ */
+export const listColleagueReviewOffers = <ThrowOnError extends boolean = false>(
+  options: Options<ListColleagueReviewOffersData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ListColleagueReviewOffersResponses,
+    ListColleagueReviewOffersErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/review-offers',
+    ...options,
+  })
+
+/**
+ * The person dismisses an offer: it no longer waits. One already started is refused (409).
+ */
+export const dismissColleagueReviewOffer = <ThrowOnError extends boolean = false>(
+  options: Options<DismissColleagueReviewOfferData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    DismissColleagueReviewOfferResponses,
+    DismissColleagueReviewOfferErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/review-offers/{offerId}/dismiss',
+    ...options,
   })
 
 /**

@@ -934,6 +934,13 @@ export {
   type ProjectKnowledgeViewConnectedProps,
 } from './compound/knowledge/ProjectKnowledgeViewConnected'
 export {
+  default as GroupSlackSettings,
+  SlackReviewSettingsPanel,
+  type GroupSlackSettingsProps,
+  type SlackReviewSettingsActions,
+  type SlackReviewSettingsPanelProps,
+} from './compound/settings/GroupSlackSettings'
+export {
   default as GroupNotesSettings,
   type GroupNotesSettingsProps,
 } from './compound/settings/GroupNotesSettings'

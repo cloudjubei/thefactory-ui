@@ -2432,6 +2432,9 @@ export type ToolName =
   | 'removeJiraWatcher'
   | 'addJiraAttachment'
   | 'deleteJiraAttachment'
+  | 'readSlackThreadMessages'
+  | 'readSlackMessageFile'
+  | 'postSlackThreadReply'
   | 'listLLMConfigs'
   | 'getLLMConfig'
   | 'addLLMConfig'
@@ -6776,6 +6779,11 @@ export type CliAgentRunFilter = {
 
 export type CliRunApproveAction = 'leave-branch' | 'create-pr' | 'merge'
 
+export type CliRunCheckoutMove = {
+  from: string
+  to: string
+}
+
 export type CliRunApproveOutcome = {
   allowed: boolean
   needsPush: boolean
@@ -7729,6 +7737,12 @@ export type ReviewRequirement = {
 
 export type ReviewVerdict = 'approve' | 'approve-with-notes' | 'changes-requested'
 
+export type ReviewPostedReply = {
+  permalink: string
+  ts: string
+  postedAt: string
+}
+
 export type ReviewRound = {
   n: number
   startedAt: string
@@ -7739,6 +7753,11 @@ export type ReviewRound = {
   verdict?: 'approve' | 'approve-with-notes' | 'changes-requested'
   reply?: string
   recordedAt?: string
+  postedReply?: {
+    permalink: string
+    ts: string
+    postedAt: string
+  }
 }
 
 export type ReviewFindingKind = 'change' | 'request' | 'small' | 'question'
@@ -7856,6 +7875,14 @@ export type MarkColleagueReviewWaitingGivenInput = {
   note?: string
 }
 
+export type MarkColleagueReviewReplyPostedInput = {
+  groupId: string
+  ticketKey: string
+  round: number
+  permalink: string
+  ts: string
+}
+
 export type ListColleagueReviewsInput = {
   groupId: string
 }
@@ -7928,6 +7955,8 @@ export type ColleagueReviewBriefToolNames = {
   data?: Array<string>
   attachments?: Array<string>
   video?: string
+  thread?: Array<string>
+  postReply?: string
 }
 
 export type ColleagueReviewBriefInput = {
@@ -7945,6 +7974,179 @@ export type ParseReviewSubmissionOptions = {
   attachments?: Array<string>
   now: string
 }
+
+export type ColleagueReviewSourceProvider = 'slack'
+
+export type ColleagueReviewSource = {
+  provider: ColleagueReviewSourceProvider
+  connectionId: string
+  permalink: string
+  channel: string
+  threadTs: string
+  cursor?: string
+  setAt: string
+}
+
+export type ColleagueReviewOfferAttachment = {
+  fileId: string
+  name: string
+  mimetype?: string
+  size?: number
+}
+
+export type ColleagueReviewOfferKind = 'first-round' | 'next-round'
+
+export type ColleagueReviewOfferState = 'new' | 'started' | 'dismissed'
+
+export type ColleagueReviewOffer = {
+  id: string
+  groupId: string
+  ticketKey: string
+  provider: ColleagueReviewSourceProvider
+  messageTs: string
+  permalink: string
+  author: string
+  postedAt: string
+  text: string
+  attachments: Array<ColleagueReviewOfferAttachment>
+  kind: ColleagueReviewOfferKind
+  state: ColleagueReviewOfferState
+  startedRound?: number
+  createdAt: string
+  settledAt?: string
+  supersededMessageTs?: Array<string>
+}
+
+export type ColleagueReviewSourceState = {
+  groupId: string
+  source?: {
+    provider: ColleagueReviewSourceProvider
+    connectionId: string
+    permalink: string
+    channel: string
+    threadTs: string
+    cursor?: string
+    setAt: string
+  }
+  offers: Array<ColleagueReviewOffer>
+  updatedAt: string
+}
+
+export type SetColleagueReviewSourceInput = {
+  groupId: string
+  connectionId: string
+  permalink: string
+  offerExistingReplies?: boolean
+}
+
+export type ColleagueReviewGroupInput = {
+  groupId: string
+}
+
+export type SlackFile = {
+  id: string
+  name: string
+  mimetype?: string
+  size?: number
+  urlPrivate?: string
+}
+
+export type SlackMessage = {
+  ts: string
+  threadTs?: string
+  userId?: string
+  userName?: string
+  text: string
+  permalink: string
+  files: Array<SlackFile>
+  editedTs?: string
+}
+
+export type SlackNames = {
+  [key: string]: string
+}
+
+export type RecordColleagueReviewOffersInput = {
+  groupId: string
+  channel: string
+  threadTs: string
+  messages: Array<SlackMessage>
+  cursor?: string
+  projectKeys: Array<string>
+  ignoreAuthorIds?: Array<string>
+  names?: {
+    [key: string]: string
+  }
+}
+
+export type ListColleagueReviewOffersInput = {
+  groupId: string
+  state?: 'new' | 'started' | 'dismissed'
+}
+
+export type ColleagueReviewOfferKey = {
+  groupId: string
+  offerId: string
+}
+
+export type MarkColleagueReviewOfferStartedInput = {
+  groupId: string
+  offerId: string
+  round: number
+}
+
+export type ColleagueReviewSourceRead = {
+  ok: true
+  source?: {
+    provider: ColleagueReviewSourceProvider
+    connectionId: string
+    permalink: string
+    channel: string
+    threadTs: string
+    cursor?: string
+    setAt: string
+  }
+}
+
+export type ColleagueReviewOffersRecorded = {
+  ok: true
+  offers: Array<ColleagueReviewOffer>
+  source: ColleagueReviewSource
+}
+
+export type ColleagueReviewOfferChanged = {
+  ok: true
+  offer: ColleagueReviewOffer
+}
+
+export type ColleagueReviewSourceResult = ColleagueReviewSourceRead | ColleagueReviewRefusal
+
+export type ColleagueReviewOffersResult = ColleagueReviewOffersRecorded | ColleagueReviewRefusal
+
+export type ColleagueReviewOfferResult = ColleagueReviewOfferChanged | ColleagueReviewRefusal
+
+export type ColleagueReviewSourceUpdate =
+  | {
+      ok: true
+      state: ColleagueReviewSourceState
+    }
+  | ColleagueReviewRefusal
+
+export type ColleagueReviewOffersUpdate =
+  | {
+      ok: true
+      state: ColleagueReviewSourceState
+      offers: Array<ColleagueReviewOffer>
+    }
+  | ColleagueReviewRefusal
+
+export type ColleagueReviewOfferUpdate =
+  | {
+      ok: true
+      state: ColleagueReviewSourceState
+      offer: ColleagueReviewOffer
+    }
+  | ColleagueReviewRefusal
 
 export type ColleagueReviewUpdate =
   | {
@@ -9010,6 +9212,11 @@ export type ProviderOAuthTokens = {
   scopes?: Array<string>
 }
 
+export type PkcePair = {
+  codeVerifier: string
+  codeChallenge: string
+}
+
 export type TicketWriteOutcome = 'sent' | 'already-sent' | 'ambiguous' | 'not-attempted'
 
 export type ConnectorWriteAttempt = {
@@ -9283,6 +9490,166 @@ export type JsonObject = {
   [key: string]: unknown
 }
 
+export type MethodParams = {
+  [key: string]: string | number | boolean | unknown
+}
+
+export type SlackPermalinkRef = {
+  workspaceUrl: string
+  channel: string
+  ts: string
+  threadTs?: string
+}
+
+export type SlackThreadRef = {
+  workspaceUrl: string
+  channel: string
+  threadTs: string
+}
+
+export type SlackWatchedThread = {
+  connectionId: string
+  channel: string
+  threadTs: string
+  permalink: string
+  cursor?: string
+}
+
+export type SlackThreadRepliesUpdate = {
+  replies: Array<SlackMessage>
+  cursor?: string
+}
+
+export type NewSlackThreadRepliesOptions = {
+  includeParent?: boolean
+}
+
+export type SlackReviewSubmissionInput = {
+  text: string
+  attachments: Array<string>
+}
+
+export type SlackAuthorizeUrlInput = {
+  clientId: string
+  redirectUri: string
+  state: string
+  codeChallenge: string
+  userScopes?: Array<string>
+}
+
+export type SlackOAuthCodeExchangeInput = {
+  clientId: string
+  code: string
+  redirectUri: string
+  codeVerifier: string
+}
+
+export type SlackConnectionConfig = {
+  clientId: string
+  teamId: string
+  teamName?: string
+  userId: string
+}
+
+export type ProviderConnectionCreateInput = {
+  name: string
+  provider: string
+  username?: string
+  token: string
+  tokenSource?: 'api-key' | 'oauth'
+  refreshToken?: string
+  clientSecret?: string
+  pendingSignIn?: {
+    state: string
+    codeVerifier: string
+    redirectUri: string
+  }
+  expiresAt?: string
+  scopes?: Array<string>
+  baseUrl?: string
+  config?: {
+    [key: string]: string
+  }
+}
+
+export type SlackOAuthConnectionFields = {
+  token: string
+  scopes: Array<string>
+} & {
+  refreshToken?: string
+  expiresAt?: string
+} & {
+  provider: 'slack'
+  tokenSource: 'oauth'
+  config: SlackConnectionConfig & {
+    [key: string]: string
+  }
+}
+
+export type SlackOAuthRefreshOutcome =
+  | {
+      status: 'refreshed'
+      tokens: ProviderOAuthTokens
+    }
+  | {
+      status: 'sign-in-again'
+      error: string
+      message: string
+    }
+
+export type SlackRepliesQuery = {
+  oldest?: string
+  cursor?: string
+  limit?: number
+}
+
+export type SlackRepliesPage = {
+  messages: Array<SlackMessage>
+  nextCursor?: string
+}
+
+export type SlackConversation = {
+  id: string
+  name?: string
+  isPrivate?: boolean
+  isArchived?: boolean
+}
+
+export type SlackDownloadedFile = {
+  bytes: unknown
+  contentType?: string
+}
+
+export type SlackPostedMessage = {
+  channel: string
+  ts: string
+  permalink: string
+}
+
+export type SlackThreadMessage = {
+  ts: string
+  threadTs?: string
+  userId?: string
+  userName?: string
+  text: string
+  permalink: string
+  files: Array<SlackFile>
+  editedTs?: string
+  readableText: string
+}
+
+export type SlackThreadRead = {
+  permalink: string
+  messages: Array<SlackThreadMessage>
+  latestTs?: string
+}
+
+export type SlackFileDownloadResult = {
+  path: string
+  size: number
+  contentType?: string
+}
+
 export type IdentifiedEntity = {
   id: string
   createdAt: string
@@ -9352,27 +9719,6 @@ export type GitCredentialCreateInput = {
   refreshToken?: string
   expiresAt?: string
   scopes?: Array<string>
-}
-
-export type ProviderConnectionCreateInput = {
-  name: string
-  provider: string
-  username?: string
-  token: string
-  tokenSource?: 'api-key' | 'oauth'
-  refreshToken?: string
-  clientSecret?: string
-  pendingSignIn?: {
-    state: string
-    codeVerifier: string
-    redirectUri: string
-  }
-  expiresAt?: string
-  scopes?: Array<string>
-  baseUrl?: string
-  config?: {
-    [key: string]: string
-  }
 }
 
 export type CliAuthCacheEntry = {
@@ -23622,6 +23968,9 @@ export type CaptureToolSet = {
     | 'removeJiraWatcher'
     | 'addJiraAttachment'
     | 'deleteJiraAttachment'
+    | 'readSlackThreadMessages'
+    | 'readSlackMessageFile'
+    | 'postSlackThreadReply'
     | 'listLLMConfigs'
     | 'getLLMConfig'
     | 'addLLMConfig'
@@ -24193,6 +24542,9 @@ export type CaptureToolSet = {
     | 'removeJiraWatcher'
     | 'addJiraAttachment'
     | 'deleteJiraAttachment'
+    | 'readSlackThreadMessages'
+    | 'readSlackMessageFile'
+    | 'postSlackThreadReply'
     | 'listLLMConfigs'
     | 'getLLMConfig'
     | 'addLLMConfig'
@@ -24771,6 +25123,9 @@ export type CaptureToolSet = {
     | 'removeJiraWatcher'
     | 'addJiraAttachment'
     | 'deleteJiraAttachment'
+    | 'readSlackThreadMessages'
+    | 'readSlackMessageFile'
+    | 'postSlackThreadReply'
     | 'listLLMConfigs'
     | 'getLLMConfig'
     | 'addLLMConfig'
@@ -25342,6 +25697,9 @@ export type CaptureToolSet = {
     | 'removeJiraWatcher'
     | 'addJiraAttachment'
     | 'deleteJiraAttachment'
+    | 'readSlackThreadMessages'
+    | 'readSlackMessageFile'
+    | 'postSlackThreadReply'
     | 'listLLMConfigs'
     | 'getLLMConfig'
     | 'addLLMConfig'
@@ -25914,6 +26272,9 @@ export type CaptureToolSet = {
     | 'removeJiraWatcher'
     | 'addJiraAttachment'
     | 'deleteJiraAttachment'
+    | 'readSlackThreadMessages'
+    | 'readSlackMessageFile'
+    | 'postSlackThreadReply'
     | 'listLLMConfigs'
     | 'getLLMConfig'
     | 'addLLMConfig'
@@ -34651,6 +35012,8 @@ export type CreateProjectErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -34700,6 +35063,8 @@ export type GetProjectErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -34749,6 +35114,8 @@ export type UpdateProjectErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -34757,6 +35124,8 @@ export type UpdateProjectErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -34790,6 +35159,8 @@ export type ListProjectChecksErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -34798,6 +35169,8 @@ export type ListProjectChecksErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -34831,6 +35204,8 @@ export type CreateProjectFromTemplateErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -34839,6 +35214,8 @@ export type CreateProjectFromTemplateErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -34847,6 +35224,8 @@ export type CreateProjectFromTemplateErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -34855,6 +35234,8 @@ export type CreateProjectFromTemplateErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -34890,6 +35271,8 @@ export type SetProjectActiveErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -34921,6 +35304,8 @@ export type UpdateProjectCodeInfoErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -34929,6 +35314,8 @@ export type UpdateProjectCodeInfoErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -34964,6 +35351,8 @@ export type SetProjectDataLocationErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -35004,6 +35393,8 @@ export type InitializeRepoErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -35012,6 +35403,8 @@ export type InitializeRepoErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -35043,6 +35436,8 @@ export type CheckProjectGithubNameErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -35051,6 +35446,8 @@ export type CheckProjectGithubNameErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -35145,6 +35542,8 @@ export type CreateProjectGithubRepoErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -35153,6 +35552,8 @@ export type CreateProjectGithubRepoErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -35161,6 +35562,8 @@ export type CreateProjectGithubRepoErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -35169,6 +35572,8 @@ export type CreateProjectGithubRepoErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -35177,6 +35582,8 @@ export type CreateProjectGithubRepoErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -35258,6 +35665,8 @@ export type CreateProjectsGroupErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -35323,6 +35732,8 @@ export type GetProjectsGroupStatusErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -35458,6 +35869,8 @@ export type GetProjectsGroupConstellationErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -35621,6 +36034,8 @@ export type GetProjectsGroupErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -35685,6 +36100,8 @@ export type UpdateProjectsGroupErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -35693,6 +36110,8 @@ export type UpdateProjectsGroupErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -35758,6 +36177,8 @@ export type ReorderProjectInGroupErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -35822,6 +36243,8 @@ export type ReorderProjectsGroupsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -35888,6 +36311,8 @@ export type ListGroupMcpServersErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -35936,6 +36361,8 @@ export type AddGroupMcpServerErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -35944,6 +36371,8 @@ export type AddGroupMcpServerErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -35987,6 +36416,8 @@ export type ListGroupMcpServerStatusErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -36039,6 +36470,8 @@ export type RemoveGroupMcpServerErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -36080,6 +36513,8 @@ export type EditGroupMcpServerErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -36088,6 +36523,8 @@ export type EditGroupMcpServerErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -36135,6 +36572,8 @@ export type SetGroupMcpServerTokenErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -36143,6 +36582,8 @@ export type SetGroupMcpServerTokenErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -36194,6 +36635,8 @@ export type StartGroupMcpServerSignInErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -36202,6 +36645,8 @@ export type StartGroupMcpServerSignInErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -36210,6 +36655,8 @@ export type StartGroupMcpServerSignInErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -36249,6 +36696,8 @@ export type TestGroupMcpServerErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -36289,6 +36738,8 @@ export type ListProjectMcpServersErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -36338,6 +36789,8 @@ export type AddProjectMcpServerErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -36346,6 +36799,8 @@ export type AddProjectMcpServerErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -36390,6 +36845,8 @@ export type ListProjectMcpServerStatusErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -36442,6 +36899,8 @@ export type RemoveProjectMcpServerErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -36484,6 +36943,8 @@ export type EditProjectMcpServerErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -36492,6 +36953,8 @@ export type EditProjectMcpServerErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -36539,6 +37002,8 @@ export type SetProjectMcpServerTokenErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -36547,6 +37012,8 @@ export type SetProjectMcpServerTokenErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -36598,6 +37065,8 @@ export type StartProjectMcpServerSignInErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -36606,6 +37075,8 @@ export type StartProjectMcpServerSignInErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -36614,6 +37085,8 @@ export type StartProjectMcpServerSignInErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -36653,6 +37126,8 @@ export type TestProjectMcpServerErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -36770,6 +37245,8 @@ export type CreateStoryErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -36778,6 +37255,8 @@ export type CreateStoryErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -36847,6 +37326,8 @@ export type GetStoryErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -36879,6 +37360,8 @@ export type UpdateStoryErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -36887,6 +37370,8 @@ export type UpdateStoryErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -36937,6 +37422,8 @@ export type CreateFeatureErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -36945,6 +37432,8 @@ export type CreateFeatureErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -36978,6 +37467,8 @@ export type DeleteFeatureErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -36986,6 +37477,8 @@ export type DeleteFeatureErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -37019,6 +37512,8 @@ export type UpdateFeatureErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -37027,6 +37522,8 @@ export type UpdateFeatureErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -37035,6 +37532,8 @@ export type UpdateFeatureErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -37071,6 +37570,8 @@ export type AnswerFeatureQuestionErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -37079,6 +37580,8 @@ export type AnswerFeatureQuestionErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -37113,6 +37616,8 @@ export type ReorderFeaturesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -37147,6 +37652,8 @@ export type ListStoryNotesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -37183,6 +37690,8 @@ export type AddStoryNoteErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -37191,6 +37700,8 @@ export type AddStoryNoteErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -37224,6 +37735,8 @@ export type RemoveStoryNoteErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -37257,6 +37770,8 @@ export type UpdateStoryNoteErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -37265,6 +37780,8 @@ export type UpdateStoryNoteErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -37368,6 +37885,8 @@ export type PreviewProcessErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -37376,6 +37895,8 @@ export type PreviewProcessErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -37384,6 +37905,8 @@ export type PreviewProcessErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -37506,6 +38029,8 @@ export type DeleteProcessErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -37542,6 +38067,8 @@ export type GetProcessErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -37582,6 +38109,8 @@ export type SaveProcessErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -37745,6 +38274,8 @@ export type StartProcessRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -37753,6 +38284,8 @@ export type StartProcessRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -37797,6 +38330,8 @@ export type PreviewProcessRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -37805,6 +38340,8 @@ export type PreviewProcessRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -37964,6 +38501,8 @@ export type DeleteProcessRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -37972,6 +38511,8 @@ export type DeleteProcessRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -38008,6 +38549,8 @@ export type GetProcessRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -38039,6 +38582,8 @@ export type GetProcessRunEvidenceErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -38107,6 +38652,8 @@ export type GetProcessRunTicketPostErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -38167,6 +38714,8 @@ export type GetRunDiagnosticsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -38285,6 +38834,8 @@ export type ResumeProcessRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -38293,6 +38844,8 @@ export type ResumeProcessRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -38324,6 +38877,8 @@ export type GetProcessRunDeliveryErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -38438,6 +38993,8 @@ export type UpdateProcessRunDeliveryErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -38446,6 +39003,8 @@ export type UpdateProcessRunDeliveryErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -38555,6 +39114,8 @@ export type AnswerProcessRunWaitingRequestErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -38563,6 +39124,8 @@ export type AnswerProcessRunWaitingRequestErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -38603,6 +39166,8 @@ export type DelegateProcessRunAskErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -38611,6 +39176,8 @@ export type DelegateProcessRunAskErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -38654,6 +39221,8 @@ export type OpenProcessRunChatErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -38662,6 +39231,8 @@ export type OpenProcessRunChatErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -38700,6 +39271,8 @@ export type AskAgentAboutProcessRunParkErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -38708,6 +39281,8 @@ export type AskAgentAboutProcessRunParkErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -38751,6 +39326,8 @@ export type ListProcessRunNeedsYouItemsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -38799,6 +39376,8 @@ export type ResolveProcessRunNeedsYouItemErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -38807,6 +39386,8 @@ export type ResolveProcessRunNeedsYouItemErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -38849,6 +39430,8 @@ export type StartProcessRunChangesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -38857,6 +39440,8 @@ export type StartProcessRunChangesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -38891,6 +39476,8 @@ export type WithdrawProcessRunChangeErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -38899,6 +39486,8 @@ export type WithdrawProcessRunChangeErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -38948,6 +39537,8 @@ export type RetryProcessRunIntegrationErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -38956,6 +39547,8 @@ export type RetryProcessRunIntegrationErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -38989,6 +39582,8 @@ export type GetProcessRunIntegrationOptionsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -38997,6 +39592,8 @@ export type GetProcessRunIntegrationOptionsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -39030,6 +39627,8 @@ export type GetProcessRunChangesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -39038,6 +39637,8 @@ export type GetProcessRunChangesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -39070,6 +39671,8 @@ export type ResolveProcessRunIntegrationConflictErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -39078,6 +39681,8 @@ export type ResolveProcessRunIntegrationConflictErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -39111,6 +39716,8 @@ export type SendProcessRunBackForChangesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -39119,6 +39726,8 @@ export type SendProcessRunBackForChangesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -39152,6 +39761,8 @@ export type ReviveProcessRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -39160,6 +39771,8 @@ export type ReviveProcessRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -39168,6 +39781,8 @@ export type ReviveProcessRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -39201,6 +39816,8 @@ export type SetProcessRunManagerErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -39235,6 +39852,8 @@ export type SetProcessRunTurnLimitErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -39243,6 +39862,8 @@ export type SetProcessRunTurnLimitErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -39301,6 +39922,8 @@ export type SetProcessRunModelErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -39309,6 +39932,8 @@ export type SetProcessRunModelErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -39341,6 +39966,8 @@ export type GetProcessRunClosureErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -39387,6 +40014,8 @@ export type CloseProcessRunFeaturesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -39395,6 +40024,8 @@ export type CloseProcessRunFeaturesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -39428,6 +40059,8 @@ export type GetProcessRunLandingCheckErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -39487,6 +40120,8 @@ export type SettleProcessRunAlreadyLandedErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -39495,6 +40130,8 @@ export type SettleProcessRunAlreadyLandedErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -39528,6 +40165,8 @@ export type CancelProcessRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -39581,6 +40220,8 @@ export type ListProjectAgentTypesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -39589,6 +40230,8 @@ export type ListProjectAgentTypesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -39629,6 +40272,8 @@ export type DeleteProjectAgentTypeErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -39637,6 +40282,8 @@ export type DeleteProjectAgentTypeErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -39645,6 +40292,8 @@ export type DeleteProjectAgentTypeErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -39689,6 +40338,8 @@ export type SaveProjectAgentTypeErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -39697,6 +40348,8 @@ export type SaveProjectAgentTypeErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -39705,6 +40358,8 @@ export type SaveProjectAgentTypeErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -39737,6 +40392,8 @@ export type SaveProjectAgentTypeSlotsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -39745,6 +40402,8 @@ export type SaveProjectAgentTypeSlotsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -39753,6 +40412,8 @@ export type SaveProjectAgentTypeSlotsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -39786,6 +40447,8 @@ export type ListGroupAgentTypesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -39794,6 +40457,8 @@ export type ListGroupAgentTypesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -39830,6 +40495,8 @@ export type DeleteGroupAgentTypeErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -39838,6 +40505,8 @@ export type DeleteGroupAgentTypeErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -39846,6 +40515,8 @@ export type DeleteGroupAgentTypeErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -39889,6 +40560,8 @@ export type SaveGroupAgentTypeErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -39897,6 +40570,8 @@ export type SaveGroupAgentTypeErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -39905,6 +40580,8 @@ export type SaveGroupAgentTypeErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -39937,6 +40614,8 @@ export type SaveGroupAgentTypeSlotsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -39945,6 +40624,8 @@ export type SaveGroupAgentTypeSlotsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -39953,6 +40634,8 @@ export type SaveGroupAgentTypeSlotsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -40011,6 +40694,8 @@ export type DeleteProcessGroupRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -40019,6 +40704,8 @@ export type DeleteProcessGroupRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -40057,6 +40744,8 @@ export type GetProcessGroupRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -40089,6 +40778,8 @@ export type OpenProcessGroupRunChatErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -40097,6 +40788,8 @@ export type OpenProcessGroupRunChatErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -40105,6 +40798,8 @@ export type OpenProcessGroupRunChatErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -40264,6 +40959,8 @@ export type ResumeProcessGroupRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -40272,6 +40969,8 @@ export type ResumeProcessGroupRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -40305,6 +41004,8 @@ export type GetProcessGroupSignOffErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -40313,6 +41014,8 @@ export type GetProcessGroupSignOffErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -40493,6 +41196,8 @@ export type SignOffProcessGroupRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -40501,6 +41206,8 @@ export type SignOffProcessGroupRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -40669,6 +41376,8 @@ export type GetProcessGroupRunDeliveryErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -40783,6 +41492,8 @@ export type UpdateProcessGroupRunDeliveryErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -40791,6 +41502,8 @@ export type UpdateProcessGroupRunDeliveryErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -40909,6 +41622,8 @@ export type PublishProcessGroupRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -40917,6 +41632,8 @@ export type PublishProcessGroupRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -41019,6 +41736,8 @@ export type RetryProcessGroupPullRequestsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -41027,6 +41746,8 @@ export type RetryProcessGroupPullRequestsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -41196,6 +41917,8 @@ export type GetProcessGroupOutputErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -41204,6 +41927,8 @@ export type GetProcessGroupOutputErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -41249,6 +41974,8 @@ export type UpdateProcessGroupOutputErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -41257,6 +41984,8 @@ export type UpdateProcessGroupOutputErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -41306,6 +42035,8 @@ export type CheckProcessGroupLegLandingErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -41314,6 +42045,8 @@ export type CheckProcessGroupLegLandingErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -41348,6 +42081,8 @@ export type PlanProcessGroupLegRebuildErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -41388,6 +42123,8 @@ export type MarkProcessGroupLegLandedErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -41396,6 +42133,8 @@ export type MarkProcessGroupLegLandedErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -41429,6 +42168,8 @@ export type ReopenProcessGroupRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -41437,6 +42178,8 @@ export type ReopenProcessGroupRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -41470,6 +42213,8 @@ export type CancelProcessGroupRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -41503,6 +42248,8 @@ export type ListProcessGroupRunBranchesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -41539,6 +42286,8 @@ export type GetProcessRunCleanupErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -41574,6 +42323,8 @@ export type SetProcessRunCleanupItemErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -41582,6 +42333,8 @@ export type SetProcessRunCleanupItemErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -41617,6 +42370,8 @@ export type SetProcessRunCleanupOffErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -41625,6 +42380,8 @@ export type SetProcessRunCleanupOffErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -41658,6 +42415,8 @@ export type GetProcessRunTryBuildErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -41745,6 +42504,8 @@ export type AskScriptHostErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -41753,6 +42514,8 @@ export type AskScriptHostErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -41761,6 +42524,8 @@ export type AskScriptHostErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -41790,6 +42555,8 @@ export type TakeOverScriptHostErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -41798,6 +42565,8 @@ export type TakeOverScriptHostErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -41806,6 +42575,8 @@ export type TakeOverScriptHostErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -41836,6 +42607,8 @@ export type CheckpointScriptHostErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -41844,6 +42617,8 @@ export type CheckpointScriptHostErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -41852,6 +42627,8 @@ export type CheckpointScriptHostErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -41889,6 +42666,8 @@ export type ListReviewEvidenceErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -41926,6 +42705,8 @@ export type ListReviewEvidenceTextsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -42009,6 +42790,8 @@ export type ListRunWalkthroughItemsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -42052,6 +42835,8 @@ export type AttachRunWalkthroughLinkErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -42060,6 +42845,8 @@ export type AttachRunWalkthroughLinkErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -42099,6 +42886,8 @@ export type AttachRunWalkthroughFileErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -42107,6 +42896,8 @@ export type AttachRunWalkthroughFileErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -42115,6 +42906,8 @@ export type AttachRunWalkthroughFileErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -42148,6 +42941,8 @@ export type GetProjectDesignErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -42156,6 +42951,8 @@ export type GetProjectDesignErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -42164,6 +42961,8 @@ export type GetProjectDesignErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -42198,6 +42997,8 @@ export type CreateDesignAppErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -42206,6 +43007,8 @@ export type CreateDesignAppErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -42214,6 +43017,8 @@ export type CreateDesignAppErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -42246,6 +43051,8 @@ export type DeleteDesignAppErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -42254,6 +43061,8 @@ export type DeleteDesignAppErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -42262,6 +43071,8 @@ export type DeleteDesignAppErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -42297,6 +43108,8 @@ export type UpdateDesignAppErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -42305,6 +43118,8 @@ export type UpdateDesignAppErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -42313,6 +43128,8 @@ export type UpdateDesignAppErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -42351,6 +43168,8 @@ export type CreateDesignScreenErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -42359,6 +43178,8 @@ export type CreateDesignScreenErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -42367,6 +43188,8 @@ export type CreateDesignScreenErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -42400,6 +43223,8 @@ export type DeleteDesignScreenErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -42408,6 +43233,8 @@ export type DeleteDesignScreenErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -42416,6 +43243,8 @@ export type DeleteDesignScreenErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -42465,6 +43294,8 @@ export type UpdateDesignScreenErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -42473,6 +43304,8 @@ export type UpdateDesignScreenErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -42481,6 +43314,8 @@ export type UpdateDesignScreenErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -42518,6 +43353,8 @@ export type CreateDesignStateErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -42526,6 +43363,8 @@ export type CreateDesignStateErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -42534,6 +43373,8 @@ export type CreateDesignStateErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -42566,6 +43407,8 @@ export type DeleteDesignStateErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -42574,6 +43417,8 @@ export type DeleteDesignStateErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -42582,6 +43427,8 @@ export type DeleteDesignStateErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -42624,6 +43471,8 @@ export type UpdateDesignStateErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -42632,6 +43481,8 @@ export type UpdateDesignStateErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -42640,6 +43491,8 @@ export type UpdateDesignStateErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -42724,6 +43577,8 @@ export type ProposeDesignErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -42732,6 +43587,8 @@ export type ProposeDesignErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -42740,6 +43597,8 @@ export type ProposeDesignErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -42748,6 +43607,8 @@ export type ProposeDesignErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -42810,6 +43671,8 @@ export type ProposeDesignDraftErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -42818,6 +43681,8 @@ export type ProposeDesignDraftErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -42826,6 +43691,8 @@ export type ProposeDesignDraftErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -42834,6 +43701,8 @@ export type ProposeDesignDraftErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -42867,6 +43736,8 @@ export type DeleteDesignProposalErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -42875,6 +43746,8 @@ export type DeleteDesignProposalErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -42883,6 +43756,8 @@ export type DeleteDesignProposalErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -42918,6 +43793,8 @@ export type RenameDesignProposalErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -42926,6 +43803,8 @@ export type RenameDesignProposalErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -42934,6 +43813,8 @@ export type RenameDesignProposalErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -42970,6 +43851,8 @@ export type FileDesignProposalEntryErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -42978,6 +43861,8 @@ export type FileDesignProposalEntryErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -42986,6 +43871,8 @@ export type FileDesignProposalEntryErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -43025,6 +43912,8 @@ export type AcceptDesignProposalErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -43033,6 +43922,8 @@ export type AcceptDesignProposalErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -43041,6 +43932,8 @@ export type AcceptDesignProposalErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -43077,6 +43970,8 @@ export type KeepDesignProposalAsAlternativeErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -43085,6 +43980,8 @@ export type KeepDesignProposalAsAlternativeErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -43093,6 +43990,8 @@ export type KeepDesignProposalAsAlternativeErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -43127,6 +44026,8 @@ export type ChooseDesignProposalErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -43135,6 +44036,8 @@ export type ChooseDesignProposalErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -43143,6 +44046,8 @@ export type ChooseDesignProposalErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -43178,6 +44083,8 @@ export type SendBackDesignProposalErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -43186,6 +44093,8 @@ export type SendBackDesignProposalErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -43194,6 +44103,8 @@ export type SendBackDesignProposalErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -43241,6 +44152,8 @@ export type RejectDesignProposalErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -43249,6 +44162,8 @@ export type RejectDesignProposalErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -43257,6 +44172,8 @@ export type RejectDesignProposalErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -43298,6 +44215,8 @@ export type ReopenDesignProposalErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -43306,6 +44225,8 @@ export type ReopenDesignProposalErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -43314,6 +44235,8 @@ export type ReopenDesignProposalErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -43348,6 +44271,8 @@ export type RestoreDesignVersionsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -43356,6 +44281,8 @@ export type RestoreDesignVersionsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -43364,6 +44291,8 @@ export type RestoreDesignVersionsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -43401,6 +44330,8 @@ export type DecideDesignTidyMoveErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -43409,6 +44340,8 @@ export type DecideDesignTidyMoveErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -43417,6 +44350,8 @@ export type DecideDesignTidyMoveErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -43450,6 +44385,8 @@ export type PreviewDesignTidyPlanErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -43458,6 +44395,8 @@ export type PreviewDesignTidyPlanErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -43466,6 +44405,8 @@ export type PreviewDesignTidyPlanErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -43500,6 +44441,8 @@ export type ApplyDesignTidyPlanErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -43508,6 +44451,8 @@ export type ApplyDesignTidyPlanErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -43516,6 +44461,8 @@ export type ApplyDesignTidyPlanErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -43549,6 +44496,8 @@ export type DismissDesignTidyPlanErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -43557,6 +44506,8 @@ export type DismissDesignTidyPlanErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -43565,6 +44516,8 @@ export type DismissDesignTidyPlanErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -43643,6 +44596,8 @@ export type GetProjectStorageUsageErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -43834,6 +44789,8 @@ export type CaptureDesignPlaygroundErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -43842,6 +44799,8 @@ export type CaptureDesignPlaygroundErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -43850,6 +44809,8 @@ export type CaptureDesignPlaygroundErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -43899,6 +44860,8 @@ export type ListLlmConfigsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -43928,6 +44891,8 @@ export type CreateLlmConfigErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -43936,6 +44901,8 @@ export type CreateLlmConfigErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -43967,6 +44934,8 @@ export type DeleteLlmConfigErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -43975,6 +44944,8 @@ export type DeleteLlmConfigErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -44006,6 +44977,8 @@ export type GetLlmConfigErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -44014,6 +44987,8 @@ export type GetLlmConfigErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -44045,6 +45020,8 @@ export type UpdateLlmConfigErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -44053,6 +45030,8 @@ export type UpdateLlmConfigErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -44061,6 +45040,8 @@ export type UpdateLlmConfigErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -44092,6 +45073,8 @@ export type RevealLlmConfigKeyErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -44100,6 +45083,8 @@ export type RevealLlmConfigKeyErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -44137,6 +45122,8 @@ export type ListLlmModelsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -44145,6 +45132,8 @@ export type ListLlmModelsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -44174,6 +45163,8 @@ export type ListGitCredentialsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -44204,6 +45195,8 @@ export type CreateGitCredentialErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -44236,6 +45229,8 @@ export type DeleteGitCredentialErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -44244,6 +45239,8 @@ export type DeleteGitCredentialErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -44276,6 +45273,8 @@ export type GetGitCredentialErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -44284,6 +45283,8 @@ export type GetGitCredentialErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -44315,6 +45316,8 @@ export type UpdateGitCredentialErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -44323,6 +45326,8 @@ export type UpdateGitCredentialErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -44355,6 +45360,8 @@ export type RevealGitCredentialTokenErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -44363,6 +45370,8 @@ export type RevealGitCredentialTokenErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -44396,6 +45405,8 @@ export type ReadProviderOAuthSetupErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -44409,6 +45420,10 @@ export type ReadProviderOAuthSetupResponses = {
   200: {
     github: boolean
     jira: boolean
+    /**
+     * Needs only the redirect URL: each person signs in on their own Slack app, with its client id.
+     */
+    slack: boolean
   }
 }
 
@@ -44423,6 +45438,10 @@ export type StartProviderOAuthData = {
      * Renew this signed-in connection in place, instead of adding one.
      */
     connectionId?: string
+    /**
+     * Slack: the client id of the person’s own Slack app (Basic Information → App Credentials). A reconnect uses the connection’s own when none is given. No secret is ever asked for.
+     */
+    clientId?: string
   }
   path: {
     provider: string
@@ -44439,6 +45458,8 @@ export type StartProviderOAuthErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -44447,6 +45468,8 @@ export type StartProviderOAuthErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -44495,6 +45518,8 @@ export type FinishProviderOAuthErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -44527,6 +45552,8 @@ export type WithdrawProviderSignInErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -44560,6 +45587,8 @@ export type ReadProviderSignInErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -44568,6 +45597,8 @@ export type ReadProviderSignInErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -44602,6 +45633,8 @@ export type ListProviderConnectionsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -44633,6 +45666,8 @@ export type CreateProviderConnectionErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -44641,6 +45676,8 @@ export type CreateProviderConnectionErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -44674,6 +45711,8 @@ export type DeleteProviderConnectionErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -44682,6 +45721,8 @@ export type DeleteProviderConnectionErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -44715,6 +45756,8 @@ export type GetProviderConnectionErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -44723,6 +45766,8 @@ export type GetProviderConnectionErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -44775,6 +45820,8 @@ export type UpdateProviderConnectionErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -44783,6 +45830,8 @@ export type UpdateProviderConnectionErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -44791,6 +45840,8 @@ export type UpdateProviderConnectionErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -44827,6 +45878,8 @@ export type FindJiraCloudIdErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -44835,6 +45888,8 @@ export type FindJiraCloudIdErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -44843,6 +45898,8 @@ export type FindJiraCloudIdErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -44874,6 +45931,8 @@ export type ListCliAuthCachesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -44903,6 +45962,8 @@ export type CreateCliAuthCacheErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -44935,6 +45996,8 @@ export type DeleteCliAuthCacheErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -44943,6 +46006,8 @@ export type DeleteCliAuthCacheErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -44975,6 +46040,8 @@ export type GetCliAuthCacheErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -44983,6 +46050,8 @@ export type GetCliAuthCacheErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -45027,6 +46096,8 @@ export type UpdateCliAuthCacheErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -45035,6 +46106,8 @@ export type UpdateCliAuthCacheErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -45065,6 +46138,8 @@ export type GetActiveCliStateErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -45097,6 +46172,8 @@ export type SetActiveCliErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -45129,6 +46206,8 @@ export type SetCliEnabledErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -45161,6 +46240,8 @@ export type SetCliDefaultModelErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -45194,6 +46275,8 @@ export type SetCliEffortErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -45202,6 +46285,8 @@ export type SetCliEffortErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -45235,6 +46320,8 @@ export type SetCliModelEffortErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -45243,6 +46330,8 @@ export type SetCliModelEffortErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -45272,6 +46361,8 @@ export type GetActiveRunnerKindErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -45307,6 +46398,8 @@ export type SetActiveRunnerKindErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -45339,6 +46432,8 @@ export type SetAgentRunLlmConfigErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -45347,6 +46442,8 @@ export type SetAgentRunLlmConfigErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -45379,6 +46476,8 @@ export type StartGitCredentialGithubRedirectErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -45417,6 +46516,8 @@ export type CompleteGitCredentialGithubRedirectErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -45425,6 +46526,8 @@ export type CompleteGitCredentialGithubRedirectErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -45433,6 +46536,8 @@ export type CompleteGitCredentialGithubRedirectErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -45466,6 +46571,8 @@ export type StartGitCredentialGithubDeviceErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -45474,6 +46581,8 @@ export type StartGitCredentialGithubDeviceErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -45515,6 +46624,8 @@ export type PollGitCredentialGithubDeviceErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -45523,6 +46634,8 @@ export type PollGitCredentialGithubDeviceErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -45531,6 +46644,8 @@ export type PollGitCredentialGithubDeviceErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -45577,6 +46692,8 @@ export type ListActionRulesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -45619,6 +46736,8 @@ export type TrustSiteErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -45627,6 +46746,8 @@ export type TrustSiteErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -45667,6 +46788,8 @@ export type RemoveActionRuleErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -45675,6 +46798,8 @@ export type RemoveActionRuleErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -45683,6 +46808,8 @@ export type RemoveActionRuleErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -45717,6 +46844,8 @@ export type ListCredentialCapturesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -45789,6 +46918,8 @@ export type OpenCredentialCaptureErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -45850,6 +46981,8 @@ export type GetCredentialCaptureErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -45858,6 +46991,8 @@ export type GetCredentialCaptureErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -45965,6 +47100,8 @@ export type SubmitCredentialCaptureErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -45973,6 +47110,8 @@ export type SubmitCredentialCaptureErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -45981,6 +47120,8 @@ export type SubmitCredentialCaptureErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -45989,6 +47130,8 @@ export type SubmitCredentialCaptureErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -46050,6 +47193,8 @@ export type CancelCredentialCaptureErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -46058,6 +47203,8 @@ export type CancelCredentialCaptureErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -46066,6 +47213,8 @@ export type CancelCredentialCaptureErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -46131,6 +47280,8 @@ export type PasteTicketErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -46139,6 +47290,8 @@ export type PasteTicketErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -46147,6 +47300,8 @@ export type PasteTicketErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -46155,6 +47310,8 @@ export type PasteTicketErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -46163,6 +47320,8 @@ export type PasteTicketErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -46194,6 +47353,8 @@ export type ListConnectionAssignedItemsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -46202,6 +47363,8 @@ export type ListConnectionAssignedItemsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -46237,6 +47400,8 @@ export type ListConnectionStatusesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -46245,6 +47410,8 @@ export type ListConnectionStatusesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -46329,6 +47496,8 @@ export type MarkConnectionItemsSeenErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -46337,6 +47506,8 @@ export type MarkConnectionItemsSeenErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -46345,6 +47516,8 @@ export type MarkConnectionItemsSeenErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -46353,6 +47526,8 @@ export type MarkConnectionItemsSeenErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -46407,6 +47582,8 @@ export type ImportConnectionItemErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -46415,6 +47592,8 @@ export type ImportConnectionItemErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -46423,6 +47602,8 @@ export type ImportConnectionItemErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -46431,6 +47612,8 @@ export type ImportConnectionItemErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -46471,6 +47654,8 @@ export type RelinkStoryExternalRefErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -46479,6 +47664,8 @@ export type RelinkStoryExternalRefErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -46510,6 +47697,8 @@ export type DeleteChatErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -46560,6 +47749,8 @@ export type UpdateChatErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -46568,6 +47759,8 @@ export type UpdateChatErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -46597,6 +47790,8 @@ export type CreateChatErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -46698,6 +47893,8 @@ export type GetChatSummaryErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -46781,6 +47978,8 @@ export type GetChatErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -46810,6 +48009,8 @@ export type GetChatSessionFreshnessErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -46841,6 +48042,8 @@ export type GetChatContextReadoutErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -46872,6 +48075,8 @@ export type CompactChatNowErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -46880,6 +48085,8 @@ export type CompactChatNowErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -46888,6 +48095,8 @@ export type CompactChatNowErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -46980,6 +48189,8 @@ export type AttachChatCliRunnerErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -47010,6 +48221,8 @@ export type DetachChatCliRunnerErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -47040,6 +48253,8 @@ export type AddChatMessagesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -47069,6 +48284,8 @@ export type DeleteLastChatMessageErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -47100,6 +48317,8 @@ export type ConsolidateChatErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -47132,6 +48351,8 @@ export type ClearChatErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -47161,6 +48382,8 @@ export type ArchiveChatErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -47190,6 +48413,8 @@ export type HideChatFromListErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -47219,6 +48444,8 @@ export type ShowChatInListErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -47251,6 +48478,8 @@ export type SetChatNotifyLevelErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -47281,6 +48510,8 @@ export type RateChatErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -47310,6 +48541,8 @@ export type UpdateChatDynamicContextErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -47370,6 +48603,8 @@ export type UploadChatAttachmentErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -47378,6 +48613,8 @@ export type UploadChatAttachmentErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -47386,6 +48623,8 @@ export type UploadChatAttachmentErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -47427,6 +48666,8 @@ export type UploadAnyChatAttachmentErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -47435,6 +48676,8 @@ export type UploadAnyChatAttachmentErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -47443,6 +48686,8 @@ export type UploadAnyChatAttachmentErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -47491,6 +48736,8 @@ export type SaveChatFileToProjectErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -47499,6 +48746,8 @@ export type SaveChatFileToProjectErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -47514,6 +48763,8 @@ export type SaveChatFileToProjectErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -47556,6 +48807,8 @@ export type GetChatAttachmentDigestErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -47564,6 +48817,8 @@ export type GetChatAttachmentDigestErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -47639,6 +48894,8 @@ export type ReadChatAttachmentErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -47647,6 +48904,8 @@ export type ReadChatAttachmentErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -47677,6 +48936,8 @@ export type CreateChatMediaUrlErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -47685,6 +48946,8 @@ export type CreateChatMediaUrlErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -47749,6 +49012,8 @@ export type GetChatMediaErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -47757,6 +49022,8 @@ export type GetChatMediaErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -47781,6 +49048,8 @@ export type ListFilesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -47830,6 +49099,8 @@ export type GetAllFileStatsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -47864,6 +49135,8 @@ export type ReadFileErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -47900,6 +49173,8 @@ export type ReadFilePathsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -47936,6 +49211,8 @@ export type ReadFileRangeErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -47974,6 +49251,8 @@ export type WriteFileErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -48010,6 +49289,8 @@ export type SearchFilesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -48045,6 +49326,8 @@ export type SearchFilePathsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -48078,6 +49361,8 @@ export type GrepFilesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -48111,6 +49396,8 @@ export type DeleteFilesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -48144,6 +49431,8 @@ export type RenameFilesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -48179,6 +49468,8 @@ export type UploadFileErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -48187,6 +49478,8 @@ export type UploadFileErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -48224,6 +49517,8 @@ export type WriteFilePatchErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -48260,6 +49555,8 @@ export type WriteFileExactReplacesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -48293,6 +49590,8 @@ export type GrantProjectAppViewTokenErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -48364,10 +49663,22 @@ export type GetGitStatusErrors = {
   /**
    * Default Response
    */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -48376,6 +49687,8 @@ export type GetGitStatusErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -48417,10 +49730,22 @@ export type DeleteGitBranchErrors = {
   /**
    * Default Response
    */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -48429,6 +49754,8 @@ export type DeleteGitBranchErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -48460,10 +49787,22 @@ export type ListGitBranchesErrors = {
   /**
    * Default Response
    */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -48472,6 +49811,8 @@ export type ListGitBranchesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -48504,10 +49845,22 @@ export type CreateGitBranchErrors = {
   /**
    * Default Response
    */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -48516,6 +49869,8 @@ export type CreateGitBranchErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -48549,10 +49904,22 @@ export type GitCheckoutErrors = {
   /**
    * Default Response
    */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -48561,6 +49928,8 @@ export type GitCheckoutErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -48598,10 +49967,22 @@ export type GetGitLogErrors = {
   /**
    * Default Response
    */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -48610,6 +49991,8 @@ export type GetGitLogErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -48647,6 +50030,18 @@ export type GitCommitErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -48655,6 +50050,8 @@ export type GitCommitErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -48663,6 +50060,8 @@ export type GitCommitErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -48671,6 +50070,8 @@ export type GitCommitErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -48708,10 +50109,22 @@ export type GitMergeBranchErrors = {
   /**
    * Default Response
    */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -48720,6 +50133,8 @@ export type GitMergeBranchErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -48761,10 +50176,22 @@ export type GitAbortMergeErrors = {
   /**
    * Default Response
    */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -48773,6 +50200,8 @@ export type GitAbortMergeErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -48781,6 +50210,8 @@ export type GitAbortMergeErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -48815,10 +50246,22 @@ export type GitPushErrors = {
   /**
    * Default Response
    */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -48827,6 +50270,8 @@ export type GitPushErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -48863,10 +50308,22 @@ export type GitApplyPatchErrors = {
   /**
    * Default Response
    */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -48875,6 +50332,8 @@ export type GitApplyPatchErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -48909,10 +50368,22 @@ export type GetGitFileContentErrors = {
   /**
    * Default Response
    */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -48921,6 +50392,8 @@ export type GetGitFileContentErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -48953,10 +50426,22 @@ export type GetGitTextRecoveryErrors = {
   /**
    * Default Response
    */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -48965,6 +50450,8 @@ export type GetGitTextRecoveryErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -49013,10 +50500,22 @@ export type GitApplyTextRecoveryErrors = {
   /**
    * Default Response
    */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -49025,6 +50524,8 @@ export type GitApplyTextRecoveryErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -49057,10 +50558,22 @@ export type GitResetAllErrors = {
   /**
    * Default Response
    */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -49069,6 +50582,8 @@ export type GitResetAllErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -49104,10 +50619,22 @@ export type GetGitBranchDiffSummaryErrors = {
   /**
    * Default Response
    */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -49116,6 +50643,8 @@ export type GetGitBranchDiffSummaryErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -49147,10 +50676,22 @@ export type GitFetchErrors = {
   /**
    * Default Response
    */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -49159,6 +50700,8 @@ export type GitFetchErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -49193,10 +50736,22 @@ export type GitPullErrors = {
   /**
    * Default Response
    */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -49205,6 +50760,8 @@ export type GitPullErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -49238,10 +50795,22 @@ export type GitStageErrors = {
   /**
    * Default Response
    */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -49250,6 +50819,8 @@ export type GitStageErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -49283,10 +50854,22 @@ export type GitUnstageErrors = {
   /**
    * Default Response
    */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -49295,6 +50878,8 @@ export type GitUnstageErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -49328,10 +50913,22 @@ export type GitResetErrors = {
   /**
    * Default Response
    */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -49340,6 +50937,8 @@ export type GitResetErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -49373,10 +50972,22 @@ export type GitDiscardUnstagedErrors = {
   /**
    * Default Response
    */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -49385,6 +50996,8 @@ export type GitDiscardUnstagedErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -49419,10 +51032,22 @@ export type GitDiscardStagedErrors = {
   /**
    * Default Response
    */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -49431,6 +51056,8 @@ export type GitDiscardStagedErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -49462,10 +51089,22 @@ export type GetGitDiffErrors = {
   /**
    * Default Response
    */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -49474,6 +51113,8 @@ export type GetGitDiffErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -49517,10 +51158,22 @@ export type GetGitLocalDiffErrors = {
   /**
    * Default Response
    */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -49529,6 +51182,8 @@ export type GetGitLocalDiffErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -49572,10 +51227,22 @@ export type ListGitStashesErrors = {
   /**
    * Default Response
    */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -49584,6 +51251,8 @@ export type ListGitStashesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -49615,10 +51284,22 @@ export type GitStashErrors = {
   /**
    * Default Response
    */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -49627,6 +51308,8 @@ export type GitStashErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -49662,10 +51345,22 @@ export type GitStashApplyErrors = {
   /**
    * Default Response
    */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -49674,6 +51369,8 @@ export type GitStashApplyErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -49708,10 +51405,22 @@ export type GitStashDropErrors = {
   /**
    * Default Response
    */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -49720,6 +51429,8 @@ export type GitStashDropErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -49751,10 +51462,22 @@ export type GitMergePlanErrors = {
   /**
    * Default Response
    */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -49763,6 +51486,8 @@ export type GitMergePlanErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -49790,10 +51515,22 @@ export type GitMergeReportErrors = {
   /**
    * Default Response
    */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -49802,6 +51539,8 @@ export type GitMergeReportErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -49829,10 +51568,22 @@ export type GitMergeApplyErrors = {
   /**
    * Default Response
    */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -49841,6 +51592,8 @@ export type GitMergeApplyErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -49868,10 +51621,22 @@ export type ListUnifiedGitBranchesErrors = {
   /**
    * Default Response
    */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -49880,6 +51645,8 @@ export type ListUnifiedGitBranchesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -49917,10 +51684,22 @@ export type GetGitBundleErrors = {
   /**
    * Default Response
    */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -49929,6 +51708,8 @@ export type GetGitBundleErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -49980,6 +51761,8 @@ export type ListTestsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -49988,6 +51771,8 @@ export type ListTestsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -50019,6 +51804,8 @@ export type ListTestConfigCandidatesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -50027,6 +51814,8 @@ export type ListTestConfigCandidatesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -50079,6 +51868,8 @@ export type RunTestsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -50087,6 +51878,8 @@ export type RunTestsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -50118,6 +51911,8 @@ export type RunAllTestsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -50126,6 +51921,8 @@ export type RunAllTestsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -50159,6 +51956,8 @@ export type RunCoverageErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -50167,6 +51966,8 @@ export type RunCoverageErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -50198,6 +51999,8 @@ export type RunAllCoverageErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -50206,6 +52009,8 @@ export type RunAllCoverageErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -50245,6 +52050,8 @@ export type StartTestsRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -50253,6 +52060,8 @@ export type StartTestsRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -50286,6 +52095,8 @@ export type StartTestsRunAllErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -50294,6 +52105,8 @@ export type StartTestsRunAllErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -50329,6 +52142,8 @@ export type StartCoverageRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -50337,6 +52152,8 @@ export type StartCoverageRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -50370,6 +52187,8 @@ export type StartCoverageAllRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -50378,6 +52197,8 @@ export type StartCoverageAllRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -50412,6 +52233,8 @@ export type AbortTestsRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -50445,6 +52268,8 @@ export type GetLastTestsRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -50453,6 +52278,8 @@ export type GetLastTestsRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -50484,6 +52311,8 @@ export type GetLastTestsCustomRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -50492,6 +52321,8 @@ export type GetLastTestsCustomRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -50525,6 +52356,8 @@ export type GetLastCoverageErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -50533,6 +52366,8 @@ export type GetLastCoverageErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -50564,6 +52399,8 @@ export type ScanCodeIntelErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -50572,6 +52409,8 @@ export type ScanCodeIntelErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -50605,6 +52444,8 @@ export type GetCodeIntelCatalogueErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -50613,6 +52454,8 @@ export type GetCodeIntelCatalogueErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -50651,6 +52494,8 @@ export type GetCodeIntelInfoErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -50659,6 +52504,8 @@ export type GetCodeIntelInfoErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -50692,6 +52539,8 @@ export type GetCodeIntelOutlineErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -50700,6 +52549,8 @@ export type GetCodeIntelOutlineErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -50736,6 +52587,8 @@ export type EditCodeErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -50744,6 +52597,8 @@ export type EditCodeErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -50779,6 +52634,8 @@ export type RenameSymbolErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -50787,6 +52644,8 @@ export type RenameSymbolErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -50820,6 +52679,8 @@ export type DetectEnvironmentErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -50828,6 +52689,8 @@ export type DetectEnvironmentErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -50903,6 +52766,8 @@ export type SendCompletionWithToolsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -50911,6 +52776,8 @@ export type SendCompletionWithToolsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -50919,6 +52786,8 @@ export type SendCompletionWithToolsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -51246,6 +53115,8 @@ export type SendChatCompletionWithToolsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -51254,6 +53125,8 @@ export type SendChatCompletionWithToolsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -51631,6 +53504,8 @@ export type SendChatWithCliErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -51639,6 +53514,8 @@ export type SendChatWithCliErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -51698,6 +53575,8 @@ export type RestartChatWithCliErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -51706,6 +53585,8 @@ export type RestartChatWithCliErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -51714,6 +53595,8 @@ export type RestartChatWithCliErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -51749,6 +53632,8 @@ export type ResumeCompletionErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -51757,6 +53642,8 @@ export type ResumeCompletionErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -51765,6 +53652,8 @@ export type ResumeCompletionErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -51962,6 +53851,8 @@ export type AbortChatCompletionErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -51994,6 +53885,8 @@ export type GetPricingErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -52026,6 +53919,8 @@ export type RefreshPricingErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -52057,6 +53952,8 @@ export type GetCostsByChatErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -52065,6 +53962,8 @@ export type GetCostsByChatErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -52100,6 +53999,8 @@ export type ListToolCallSlipsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -52135,6 +54036,8 @@ export type GetToolCallSlipStatsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -52174,6 +54077,8 @@ export type GetDailyUsageErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -52182,6 +54087,8 @@ export type GetDailyUsageErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -52224,6 +54131,8 @@ export type RecomputeDailyUsageErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -52232,6 +54141,8 @@ export type RecomputeDailyUsageErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -52360,6 +54271,8 @@ export type OpenVideoSetupChatErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -52399,6 +54312,8 @@ export type GetProjectDeviceAutomationErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -52407,6 +54322,8 @@ export type GetProjectDeviceAutomationErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -52444,6 +54361,8 @@ export type SetProjectDeviceAutomationErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -52452,6 +54371,8 @@ export type SetProjectDeviceAutomationErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -52485,6 +54406,8 @@ export type ListTemplatesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -52519,6 +54442,8 @@ export type DeleteEntitiesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -52527,6 +54452,8 @@ export type DeleteEntitiesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -52560,6 +54487,8 @@ export type ListEntitiesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -52601,6 +54530,8 @@ export type CreateEntityErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -52632,6 +54563,8 @@ export type DeleteEntityErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -52640,6 +54573,8 @@ export type DeleteEntityErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -52671,6 +54606,8 @@ export type GetEntityErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -52679,6 +54616,8 @@ export type GetEntityErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -52721,6 +54660,8 @@ export type UpdateEntityErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -52729,6 +54670,8 @@ export type UpdateEntityErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -52758,6 +54701,8 @@ export type SearchEntitiesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -52797,6 +54742,8 @@ export type DeleteDocumentsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -52830,6 +54777,8 @@ export type ListDocumentsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -52859,6 +54808,8 @@ export type CreateDocumentErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -52890,6 +54841,8 @@ export type DeleteDocumentErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -52898,6 +54851,8 @@ export type DeleteDocumentErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -52929,6 +54884,8 @@ export type GetDocumentErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -52937,6 +54894,8 @@ export type GetDocumentErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -52968,6 +54927,8 @@ export type UpdateDocumentErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -52976,6 +54937,8 @@ export type UpdateDocumentErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -53005,6 +54968,8 @@ export type SearchDocumentsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -53034,6 +54999,8 @@ export type MatchDocumentsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -53068,6 +55035,8 @@ export type DeleteProjectDataErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -53076,6 +55045,8 @@ export type DeleteProjectDataErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -53128,6 +55099,8 @@ export type ListProjectDataErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -53136,6 +55109,8 @@ export type ListProjectDataErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -53178,6 +55153,8 @@ export type PutProjectDataErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -53186,6 +55163,8 @@ export type PutProjectDataErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -53224,6 +55203,8 @@ export type CountProjectDataErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -53232,6 +55213,8 @@ export type CountProjectDataErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -53265,6 +55248,8 @@ export type GetUserSettingErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -53306,6 +55291,8 @@ export type PutUserSettingErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -53341,6 +55328,8 @@ export type ListWebSearchKeysErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -53373,6 +55362,8 @@ export type UpdateWebSearchKeysErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -53405,6 +55396,8 @@ export type RevealWebSearchKeyErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -53413,6 +55406,8 @@ export type RevealWebSearchKeyErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -53447,6 +55442,8 @@ export type DeleteWebSearchKeyErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -53477,6 +55474,8 @@ export type ListToolsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -53530,6 +55529,8 @@ export type ListChatToolCatalogErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -53574,6 +55575,8 @@ export type ExecuteToolErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -53582,6 +55585,8 @@ export type ExecuteToolErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -53590,6 +55595,8 @@ export type ExecuteToolErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -53624,6 +55631,8 @@ export type PreviewToolErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -53632,6 +55641,8 @@ export type PreviewToolErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -53640,6 +55651,8 @@ export type PreviewToolErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -53680,6 +55693,8 @@ export type AbortCompletionErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -53745,6 +55760,8 @@ export type CreateFeatureRequestErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -53777,6 +55794,8 @@ export type GetFeatureRequestErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -53813,6 +55832,8 @@ export type AcceptFeatureRequestErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -53821,6 +55842,8 @@ export type AcceptFeatureRequestErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -53829,6 +55852,8 @@ export type AcceptFeatureRequestErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -53837,6 +55862,8 @@ export type AcceptFeatureRequestErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -53874,6 +55901,8 @@ export type StartFeatureRequestWorkErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -53882,6 +55911,8 @@ export type StartFeatureRequestWorkErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -53890,6 +55921,8 @@ export type StartFeatureRequestWorkErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -53898,6 +55931,8 @@ export type StartFeatureRequestWorkErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -53933,6 +55968,8 @@ export type RejectFeatureRequestErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -53941,6 +55978,8 @@ export type RejectFeatureRequestErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -53979,6 +56018,8 @@ export type MarkFeatureRequestDeliveredErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -53987,6 +56028,8 @@ export type MarkFeatureRequestDeliveredErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -53995,6 +56038,8 @@ export type MarkFeatureRequestDeliveredErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -54038,6 +56083,8 @@ export type HandOverFeatureRequestErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -54046,6 +56093,8 @@ export type HandOverFeatureRequestErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -54054,6 +56103,8 @@ export type HandOverFeatureRequestErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -54092,6 +56143,8 @@ export type StartFeatureRequestAgainErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -54100,6 +56153,8 @@ export type StartFeatureRequestAgainErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -54108,6 +56163,8 @@ export type StartFeatureRequestAgainErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -54116,6 +56173,8 @@ export type StartFeatureRequestAgainErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -54159,6 +56218,8 @@ export type StartStoryWorkErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -54167,6 +56228,8 @@ export type StartStoryWorkErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -54175,6 +56238,8 @@ export type StartStoryWorkErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -54183,6 +56248,8 @@ export type StartStoryWorkErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -54257,6 +56324,8 @@ export type SuggestLaunchSetupErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -54265,6 +56334,8 @@ export type SuggestLaunchSetupErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -54273,6 +56344,8 @@ export type SuggestLaunchSetupErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -54313,6 +56386,8 @@ export type AbortCliAgentRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -54357,6 +56432,8 @@ export type ListCliAgentRunsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * The run index is not ready; retry after the indicated delay.
@@ -54365,6 +56442,8 @@ export type ListCliAgentRunsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -54407,6 +56486,8 @@ export type ListCliAgentRunSummariesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * The run index is not ready; retry after the indicated delay.
@@ -54415,6 +56496,8 @@ export type ListCliAgentRunSummariesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -54521,6 +56604,8 @@ export type DecideCliAgentActionErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -54529,6 +56614,8 @@ export type DecideCliAgentActionErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -54537,6 +56624,8 @@ export type DecideCliAgentActionErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -54571,6 +56660,8 @@ export type CancelCliAgentActionErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -54579,6 +56670,8 @@ export type CancelCliAgentActionErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -54615,6 +56708,8 @@ export type ListCliAgentModelsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -54698,6 +56793,8 @@ export type RunCliCapabilityCheckErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -54881,6 +56978,8 @@ export type StartCliImageUpdateErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -54889,6 +56988,8 @@ export type StartCliImageUpdateErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -54897,6 +56998,8 @@ export type StartCliImageUpdateErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -54932,6 +57035,8 @@ export type LiveCliAgentProbeErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -54974,6 +57079,8 @@ export type LiveCliAgentModelsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -55035,6 +57142,8 @@ export type GetCliAgentRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -55066,6 +57175,8 @@ export type GetCliAgentRunSubscriptionStatusErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -55102,6 +57213,8 @@ export type ApplyCliAgentArtifactErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -55110,6 +57223,8 @@ export type ApplyCliAgentArtifactErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -55118,6 +57233,8 @@ export type ApplyCliAgentArtifactErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -55126,6 +57243,8 @@ export type ApplyCliAgentArtifactErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -55134,6 +57253,8 @@ export type ApplyCliAgentArtifactErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -55170,6 +57291,8 @@ export type DiscardCliAgentArtifactErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -55178,6 +57301,8 @@ export type DiscardCliAgentArtifactErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -55186,6 +57311,8 @@ export type DiscardCliAgentArtifactErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -55194,6 +57321,8 @@ export type DiscardCliAgentArtifactErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -55230,6 +57359,8 @@ export type PreviewCliAgentArtifactErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -55238,6 +57369,8 @@ export type PreviewCliAgentArtifactErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -55246,6 +57379,8 @@ export type PreviewCliAgentArtifactErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -55282,6 +57417,8 @@ export type VerifyCliRunReviewErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -55290,6 +57427,8 @@ export type VerifyCliRunReviewErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -55298,6 +57437,8 @@ export type VerifyCliRunReviewErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -55333,6 +57474,8 @@ export type SetCliRunFileViewedErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -55341,6 +57484,8 @@ export type SetCliRunFileViewedErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -55349,6 +57494,8 @@ export type SetCliRunFileViewedErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -55393,6 +57540,8 @@ export type GetCliRunVerificationPlanErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -55401,6 +57550,8 @@ export type GetCliRunVerificationPlanErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -55444,6 +57595,8 @@ export type RejectCliRunReviewErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -55452,6 +57605,8 @@ export type RejectCliRunReviewErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -55460,6 +57615,8 @@ export type RejectCliRunReviewErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -55494,6 +57651,8 @@ export type PreviewCliRunReviewToBaseErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -55502,6 +57661,8 @@ export type PreviewCliRunReviewToBaseErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -55510,6 +57671,8 @@ export type PreviewCliRunReviewToBaseErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -55546,6 +57709,8 @@ export type ResolveCliRunReviewToBaseErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -55554,6 +57719,8 @@ export type ResolveCliRunReviewToBaseErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -55562,6 +57729,8 @@ export type ResolveCliRunReviewToBaseErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -55598,6 +57767,8 @@ export type MergeCliRunReviewErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -55606,6 +57777,8 @@ export type MergeCliRunReviewErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -55614,6 +57787,8 @@ export type MergeCliRunReviewErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -55649,6 +57824,8 @@ export type ApproveCliRunReviewErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -55657,6 +57834,8 @@ export type ApproveCliRunReviewErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -55665,6 +57844,8 @@ export type ApproveCliRunReviewErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -55701,6 +57882,8 @@ export type RequestCliRunReviewErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -55709,6 +57892,8 @@ export type RequestCliRunReviewErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -55717,6 +57902,8 @@ export type RequestCliRunReviewErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -55757,6 +57944,8 @@ export type StartCliAuthLoginErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -55765,6 +57954,8 @@ export type StartCliAuthLoginErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -55798,6 +57989,8 @@ export type CancelCliAuthLoginErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -55834,6 +58027,8 @@ export type SubmitCliAuthLoginInputErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -55870,6 +58065,8 @@ export type GetChatOpenChangesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -55878,6 +58075,8 @@ export type GetChatOpenChangesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -55886,6 +58085,8 @@ export type GetChatOpenChangesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -55922,6 +58123,8 @@ export type DiscardChatOpenChangesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -55930,6 +58133,8 @@ export type DiscardChatOpenChangesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -55938,6 +58143,8 @@ export type DiscardChatOpenChangesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -55972,6 +58179,8 @@ export type RebuildChatOpenChangesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -55980,6 +58189,8 @@ export type RebuildChatOpenChangesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -55988,6 +58199,8 @@ export type RebuildChatOpenChangesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -56021,6 +58234,8 @@ export type ListProjectNotesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -56059,6 +58274,8 @@ export type CreateProjectNoteErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -56067,6 +58284,8 @@ export type CreateProjectNoteErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -56099,6 +58318,8 @@ export type DeleteProjectNoteErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -56107,6 +58328,8 @@ export type DeleteProjectNoteErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -56146,6 +58369,8 @@ export type UpdateProjectNoteErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -56154,6 +58379,8 @@ export type UpdateProjectNoteErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -56186,6 +58413,8 @@ export type RevealProjectNoteErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -56194,6 +58423,8 @@ export type RevealProjectNoteErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -56227,6 +58458,8 @@ export type ListGroupNotesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -56235,6 +58468,8 @@ export type ListGroupNotesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -56275,6 +58510,8 @@ export type CreateGroupNoteErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -56283,6 +58520,8 @@ export type CreateGroupNoteErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -56291,6 +58530,8 @@ export type CreateGroupNoteErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -56323,6 +58564,8 @@ export type DeleteGroupNoteErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -56331,6 +58574,8 @@ export type DeleteGroupNoteErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -56372,6 +58617,8 @@ export type UpdateGroupNoteErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -56380,6 +58627,8 @@ export type UpdateGroupNoteErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -56412,6 +58661,8 @@ export type RevealGroupNoteErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -56420,6 +58671,8 @@ export type RevealGroupNoteErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -56453,6 +58706,8 @@ export type ListGroupStoriesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -56461,6 +58716,8 @@ export type ListGroupStoriesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -56564,6 +58821,8 @@ export type CreateGroupStoryErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -56572,6 +58831,8 @@ export type CreateGroupStoryErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -56580,6 +58841,8 @@ export type CreateGroupStoryErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -56588,6 +58851,8 @@ export type CreateGroupStoryErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -56662,6 +58927,8 @@ export type DeleteGroupStoryErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -56670,6 +58937,8 @@ export type DeleteGroupStoryErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -56704,6 +58973,8 @@ export type GetGroupStoryErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -56712,6 +58983,8 @@ export type GetGroupStoryErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -56816,6 +59089,8 @@ export type UpdateGroupStoryErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -56824,6 +59099,8 @@ export type UpdateGroupStoryErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -56832,6 +59109,8 @@ export type UpdateGroupStoryErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -56840,6 +59119,8 @@ export type UpdateGroupStoryErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -56918,6 +59199,8 @@ export type PreviewGroupStoryRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -56926,6 +59209,8 @@ export type PreviewGroupStoryRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -56934,6 +59219,8 @@ export type PreviewGroupStoryRunErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -57117,6 +59404,8 @@ export type RunGroupStoryErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -57125,6 +59414,8 @@ export type RunGroupStoryErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -57133,6 +59424,8 @@ export type RunGroupStoryErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -57177,6 +59470,8 @@ export type ListStoryGroupStoriesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -57216,6 +59511,8 @@ export type ListProjectGroupStoriesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -57270,6 +59567,8 @@ export type ListGroupTicketsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -57278,6 +59577,8 @@ export type ListGroupTicketsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -57324,7 +59625,21 @@ export type ListGroupTicketsResponses = {
        * Its review chat is already open.
        */
       reviewOpen: boolean
+      /**
+       * The latest update the watched thread brought for it, waiting for the person.
+       */
+      reviewOffer?: {
+        id: string
+        kind: ColleagueReviewOfferKind
+        author: string
+        postedAt: string
+        permalink: string
+      }
     }>
+    /**
+     * How many updates the group’s watched thread brought wait for the person, across all its tickets.
+     */
+    reviewOfferCount: number
     /**
      * The top ticket with no group story yet.
      */
@@ -57359,6 +59674,8 @@ export type PlanGroupTicketErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -57367,6 +59684,8 @@ export type PlanGroupTicketErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -57375,6 +59694,8 @@ export type PlanGroupTicketErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -57413,6 +59734,16 @@ export type PlanGroupTicketResponses = {
        * Its review chat is already open.
        */
       reviewOpen: boolean
+      /**
+       * The latest update the watched thread brought for it, waiting for the person.
+       */
+      reviewOffer?: {
+        id: string
+        kind: ColleagueReviewOfferKind
+        author: string
+        postedAt: string
+        permalink: string
+      }
     }
     /**
      * The ticket’s planning chat.
@@ -57456,6 +59787,8 @@ export type DiscussGroupTicketErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -57464,6 +59797,8 @@ export type DiscussGroupTicketErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -57472,6 +59807,8 @@ export type DiscussGroupTicketErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -57510,6 +59847,16 @@ export type DiscussGroupTicketResponses = {
        * Its review chat is already open.
        */
       reviewOpen: boolean
+      /**
+       * The latest update the watched thread brought for it, waiting for the person.
+       */
+      reviewOffer?: {
+        id: string
+        kind: ColleagueReviewOfferKind
+        author: string
+        postedAt: string
+        permalink: string
+      }
     }
     /**
      * The ticket’s planning chat.
@@ -57548,6 +59895,8 @@ export type GetColleagueReviewErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -57566,9 +59915,13 @@ export type GetColleagueReviewResponse =
 export type StartColleagueReviewData = {
   body: {
     /**
-     * The colleague’s update as pasted: what they did, their pull requests, recordings and links. It is the review’s data, never the chat’s message.
+     * The colleague’s update as pasted: what they did, their pull requests, recordings and links. It is the review’s data, never the chat’s message. With `offerId`, the person’s edit of the offer’s text, which wins over it. One of `text` and `offerId` is required.
      */
-    text: string
+    text?: string
+    /**
+     * Start the round from an update the group’s watched Slack thread offered (`GET /groups/:groupId/review-offers`): its text unless `text` is given, its files fetched into the review chat, and its Slack link kept on the round’s text (`Posted in Slack: <link>`, among the round’s links). 404 for an offer the group does not have, 409 for another ticket’s or one already started.
+     */
+    offerId?: string
     /**
      * Files that came with the update, each the `path` that uploading it to the ticket’s review chat answered (`POST /chat-attachments` with the review chat’s context).
      */
@@ -57595,6 +59948,8 @@ export type StartColleagueReviewErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -57603,6 +59958,8 @@ export type StartColleagueReviewErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -57611,6 +59968,8 @@ export type StartColleagueReviewErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -57619,6 +59978,8 @@ export type StartColleagueReviewErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -57670,6 +60031,8 @@ export type ListColleagueReviewsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -57689,6 +60052,71 @@ export type ListColleagueReviewsResponses = {
 
 export type ListColleagueReviewsResponse =
   ListColleagueReviewsResponses[keyof ListColleagueReviewsResponses]
+
+export type PostColleagueReviewReplyData = {
+  body: {
+    /**
+     * Post a reply that was already posted once more, on purpose.
+     */
+    again?: boolean
+  }
+  path: {
+    groupId: string
+    ticketKey: string
+    /**
+     * The round whose reply is posted.
+     */
+    round: number
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/tickets/{ticketKey}/review/rounds/{round}/post'
+}
+
+export type PostColleagueReviewReplyErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  502: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type PostColleagueReviewReplyError =
+  PostColleagueReviewReplyErrors[keyof PostColleagueReviewReplyErrors]
+
+export type PostColleagueReviewReplyResponses = {
+  /**
+   * Default Response
+   */
+  200: ColleagueReview
+}
+
+export type PostColleagueReviewReplyResponse =
+  PostColleagueReviewReplyResponses[keyof PostColleagueReviewReplyResponses]
 
 export type DropColleagueReviewFindingData = {
   body: {
@@ -57714,6 +60142,8 @@ export type DropColleagueReviewFindingErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -57722,6 +60152,8 @@ export type DropColleagueReviewFindingErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -57762,6 +60194,8 @@ export type MarkColleagueReviewWaitingGivenErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -57770,6 +60204,8 @@ export type MarkColleagueReviewWaitingGivenErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -57785,6 +60221,428 @@ export type MarkColleagueReviewWaitingGivenResponses = {
 
 export type MarkColleagueReviewWaitingGivenResponse =
   MarkColleagueReviewWaitingGivenResponses[keyof MarkColleagueReviewWaitingGivenResponses]
+
+export type ClearColleagueReviewSourceData = {
+  body?: never
+  path: {
+    groupId: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/review-source'
+}
+
+export type ClearColleagueReviewSourceErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type ClearColleagueReviewSourceError =
+  ClearColleagueReviewSourceErrors[keyof ClearColleagueReviewSourceErrors]
+
+export type ClearColleagueReviewSourceResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    source?: {
+      provider: ColleagueReviewSourceProvider
+      connectionId: string
+      permalink: string
+      channel: string
+      threadTs: string
+      cursor?: string
+      setAt: string
+    }
+    /**
+     * The connection the thread is read through; absent when nothing is watched.
+     */
+    connection?: {
+      id: string
+      /**
+       * `sign-in-again`: Slack refused the connection, or its token ran out with nothing to refresh it; reconnect it.
+       */
+      status: 'connected' | 'sign-in-again' | 'missing'
+      name?: string
+      /**
+       * The Slack workspace.
+       */
+      teamName?: string
+    }
+    /**
+     * Whether a reply naming a ticket becomes an offer: only when the group’s ticket binding names its ticket projects.
+     */
+    offering: 'ready' | 'no-ticket-binding'
+    /**
+     * The latest read of the thread since the server started.
+     */
+    lastPoll?: {
+      at: string
+      /**
+       * `read`: replies read, offers made. `not-offering`: the group’s ticket binding names no ticket projects, so nothing was read. `not-recorded`: the thread changed while it was read.
+       */
+      outcome:
+        | 'read'
+        | 'failed'
+        | 'sign-in-again'
+        | 'connection-missing'
+        | 'not-offering'
+        | 'not-recorded'
+      /**
+       * The replies the read brought.
+       */
+      replies?: number
+      /**
+       * The offers it made.
+       */
+      offers?: number
+      /**
+       * What went wrong: Slack’s method and code, or the host’s words.
+       */
+      error?: string
+    }
+    offers: {
+      new: number
+      started: number
+      dismissed: number
+    }
+  }
+}
+
+export type ClearColleagueReviewSourceResponse =
+  ClearColleagueReviewSourceResponses[keyof ClearColleagueReviewSourceResponses]
+
+export type GetColleagueReviewSourceData = {
+  body?: never
+  path: {
+    groupId: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/review-source'
+}
+
+export type GetColleagueReviewSourceErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type GetColleagueReviewSourceError =
+  GetColleagueReviewSourceErrors[keyof GetColleagueReviewSourceErrors]
+
+export type GetColleagueReviewSourceResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    source?: {
+      provider: ColleagueReviewSourceProvider
+      connectionId: string
+      permalink: string
+      channel: string
+      threadTs: string
+      cursor?: string
+      setAt: string
+    }
+    /**
+     * The connection the thread is read through; absent when nothing is watched.
+     */
+    connection?: {
+      id: string
+      /**
+       * `sign-in-again`: Slack refused the connection, or its token ran out with nothing to refresh it; reconnect it.
+       */
+      status: 'connected' | 'sign-in-again' | 'missing'
+      name?: string
+      /**
+       * The Slack workspace.
+       */
+      teamName?: string
+    }
+    /**
+     * Whether a reply naming a ticket becomes an offer: only when the group’s ticket binding names its ticket projects.
+     */
+    offering: 'ready' | 'no-ticket-binding'
+    /**
+     * The latest read of the thread since the server started.
+     */
+    lastPoll?: {
+      at: string
+      /**
+       * `read`: replies read, offers made. `not-offering`: the group’s ticket binding names no ticket projects, so nothing was read. `not-recorded`: the thread changed while it was read.
+       */
+      outcome:
+        | 'read'
+        | 'failed'
+        | 'sign-in-again'
+        | 'connection-missing'
+        | 'not-offering'
+        | 'not-recorded'
+      /**
+       * The replies the read brought.
+       */
+      replies?: number
+      /**
+       * The offers it made.
+       */
+      offers?: number
+      /**
+       * What went wrong: Slack’s method and code, or the host’s words.
+       */
+      error?: string
+    }
+    offers: {
+      new: number
+      started: number
+      dismissed: number
+    }
+  }
+}
+
+export type GetColleagueReviewSourceResponse =
+  GetColleagueReviewSourceResponses[keyof GetColleagueReviewSourceResponses]
+
+export type SetColleagueReviewSourceData = {
+  body: {
+    /**
+     * The Slack provider connection the thread is read through, as its person.
+     */
+    connectionId: string
+    /**
+     * The link of the thread’s first message, or of a reply in it.
+     */
+    permalink: string
+    /**
+     * Offer the replies already in the thread too; by default a new thread is read from the moment it is set.
+     */
+    offerExistingReplies?: boolean
+  }
+  path: {
+    groupId: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/review-source'
+}
+
+export type SetColleagueReviewSourceErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  502: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type SetColleagueReviewSourceError =
+  SetColleagueReviewSourceErrors[keyof SetColleagueReviewSourceErrors]
+
+export type SetColleagueReviewSourceResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    source?: {
+      provider: ColleagueReviewSourceProvider
+      connectionId: string
+      permalink: string
+      channel: string
+      threadTs: string
+      cursor?: string
+      setAt: string
+    }
+    /**
+     * The connection the thread is read through; absent when nothing is watched.
+     */
+    connection?: {
+      id: string
+      /**
+       * `sign-in-again`: Slack refused the connection, or its token ran out with nothing to refresh it; reconnect it.
+       */
+      status: 'connected' | 'sign-in-again' | 'missing'
+      name?: string
+      /**
+       * The Slack workspace.
+       */
+      teamName?: string
+    }
+    /**
+     * Whether a reply naming a ticket becomes an offer: only when the group’s ticket binding names its ticket projects.
+     */
+    offering: 'ready' | 'no-ticket-binding'
+    /**
+     * The latest read of the thread since the server started.
+     */
+    lastPoll?: {
+      at: string
+      /**
+       * `read`: replies read, offers made. `not-offering`: the group’s ticket binding names no ticket projects, so nothing was read. `not-recorded`: the thread changed while it was read.
+       */
+      outcome:
+        | 'read'
+        | 'failed'
+        | 'sign-in-again'
+        | 'connection-missing'
+        | 'not-offering'
+        | 'not-recorded'
+      /**
+       * The replies the read brought.
+       */
+      replies?: number
+      /**
+       * The offers it made.
+       */
+      offers?: number
+      /**
+       * What went wrong: Slack’s method and code, or the host’s words.
+       */
+      error?: string
+    }
+    offers: {
+      new: number
+      started: number
+      dismissed: number
+    }
+  }
+}
+
+export type SetColleagueReviewSourceResponse =
+  SetColleagueReviewSourceResponses[keyof SetColleagueReviewSourceResponses]
+
+export type ListColleagueReviewOffersData = {
+  body?: never
+  path: {
+    groupId: string
+  }
+  query?: {
+    state?: 'new' | 'started' | 'dismissed'
+  }
+  url: '/api/v1/groups/{groupId}/review-offers'
+}
+
+export type ListColleagueReviewOffersErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type ListColleagueReviewOffersError =
+  ListColleagueReviewOffersErrors[keyof ListColleagueReviewOffersErrors]
+
+export type ListColleagueReviewOffersResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    /**
+     * Newest message first.
+     */
+    offers: Array<ColleagueReviewOffer>
+  }
+}
+
+export type ListColleagueReviewOffersResponse =
+  ListColleagueReviewOffersResponses[keyof ListColleagueReviewOffersResponses]
+
+export type DismissColleagueReviewOfferData = {
+  body?: never
+  path: {
+    groupId: string
+    offerId: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/review-offers/{offerId}/dismiss'
+}
+
+export type DismissColleagueReviewOfferErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type DismissColleagueReviewOfferError =
+  DismissColleagueReviewOfferErrors[keyof DismissColleagueReviewOfferErrors]
+
+export type DismissColleagueReviewOfferResponses = {
+  /**
+   * Default Response
+   */
+  200: ColleagueReviewOffer
+}
+
+export type DismissColleagueReviewOfferResponse =
+  DismissColleagueReviewOfferResponses[keyof DismissColleagueReviewOfferResponses]
 
 export type ReadGroupTicketPreviewData = {
   body?: never
@@ -57804,6 +60662,8 @@ export type ReadGroupTicketPreviewErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -57812,6 +60672,8 @@ export type ReadGroupTicketPreviewErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -57820,6 +60682,8 @@ export type ReadGroupTicketPreviewErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -57828,6 +60692,8 @@ export type ReadGroupTicketPreviewErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -57877,6 +60743,8 @@ export type ReadProjectTicketPreviewErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -57885,6 +60753,8 @@ export type ReadProjectTicketPreviewErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -57893,6 +60763,8 @@ export type ReadProjectTicketPreviewErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -57901,6 +60773,8 @@ export type ReadProjectTicketPreviewErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -57947,6 +60821,8 @@ export type IngestAllErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -57980,6 +60856,8 @@ export type IngestProjectErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -57988,6 +60866,8 @@ export type IngestProjectErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -58021,6 +60901,8 @@ export type AbortIngestionErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -58052,6 +60934,8 @@ export type ListDatabasesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -58088,6 +60972,8 @@ export type AddDatabaseErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -58096,6 +60982,8 @@ export type AddDatabaseErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -58104,6 +60992,8 @@ export type AddDatabaseErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -58135,6 +61025,8 @@ export type RevealDatabaseCredentialsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -58143,6 +61035,8 @@ export type RevealDatabaseCredentialsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -58179,6 +61073,8 @@ export type ActivateDatabaseErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -58187,6 +61083,8 @@ export type ActivateDatabaseErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -58223,6 +61121,8 @@ export type DeleteDatabaseErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -58231,6 +61131,8 @@ export type DeleteDatabaseErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -58239,6 +61141,8 @@ export type DeleteDatabaseErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -58247,6 +61151,8 @@ export type DeleteDatabaseErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -58276,6 +61182,8 @@ export type ListDataSourcesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -58305,6 +61213,8 @@ export type CreateDataSourceErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -58313,6 +61223,8 @@ export type CreateDataSourceErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -58346,6 +61258,8 @@ export type DeleteDataSourceErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -58354,6 +61268,8 @@ export type DeleteDataSourceErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -58362,6 +61278,8 @@ export type DeleteDataSourceErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -58393,6 +61311,8 @@ export type GetDataSourceErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -58401,6 +61321,8 @@ export type GetDataSourceErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -58432,6 +61354,8 @@ export type UpdateDataSourceErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -58440,6 +61364,8 @@ export type UpdateDataSourceErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -58448,6 +61374,8 @@ export type UpdateDataSourceErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -58479,6 +61407,8 @@ export type RefreshDataSourceErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -58487,6 +61417,8 @@ export type RefreshDataSourceErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -58518,6 +61450,8 @@ export type ListSourceRecordsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -58526,6 +61460,8 @@ export type ListSourceRecordsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -58557,6 +61493,8 @@ export type ListProjectDataSourcesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -58565,6 +61503,8 @@ export type ListProjectDataSourcesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -58598,6 +61538,8 @@ export type ListProjectDataSubscriptionsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -58606,6 +61548,8 @@ export type ListProjectDataSubscriptionsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -58640,6 +61584,8 @@ export type UnsubscribeProjectDataSourceErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -58648,6 +61594,8 @@ export type UnsubscribeProjectDataSourceErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -58682,6 +61630,8 @@ export type SubscribeProjectDataSourceErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -58690,6 +61640,8 @@ export type SubscribeProjectDataSourceErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -58725,6 +61677,8 @@ export type ReadProjectLiveDataErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -58733,6 +61687,8 @@ export type ReadProjectLiveDataErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -58766,6 +61722,8 @@ export type WebSearchErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -58774,6 +61732,8 @@ export type WebSearchErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -58833,6 +61793,8 @@ export type PairRunnerErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -58915,6 +61877,8 @@ export type PollRunnerJobErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -58971,6 +61935,8 @@ export type PostRunnerJobEventsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -59012,6 +61978,8 @@ export type PostRunnerJobResultErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -59077,6 +62045,8 @@ export type RunActivityErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -59085,6 +62055,8 @@ export type RunActivityErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -59093,6 +62065,8 @@ export type RunActivityErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -59146,6 +62120,8 @@ export type ListActivitiesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -59224,6 +62200,8 @@ export type GetActivityErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -59300,6 +62278,8 @@ export type AbortActivityErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -59348,6 +62328,8 @@ export type StopActivityErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -59408,6 +62390,8 @@ export type ResumeActivityErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -59416,6 +62400,8 @@ export type ResumeActivityErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -59469,6 +62455,8 @@ export type GetKnowledgeEvaluationSettingsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -59556,6 +62544,8 @@ export type PutKnowledgeEvaluationDefaultsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -59564,6 +62554,8 @@ export type PutKnowledgeEvaluationDefaultsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -59572,6 +62564,8 @@ export type PutKnowledgeEvaluationDefaultsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -59580,6 +62574,8 @@ export type PutKnowledgeEvaluationDefaultsErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -59649,6 +62645,8 @@ export type GetProjectKnowledgeOverviewErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -59657,6 +62655,8 @@ export type GetProjectKnowledgeOverviewErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -59967,6 +62967,18 @@ export type PushOverseerErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -59975,6 +62987,8 @@ export type PushOverseerErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -59999,6 +63013,16 @@ export type CloneOverseerData = {
 }
 
 export type CloneOverseerErrors = {
+  /**
+   * Default Response
+   */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
   /**
    * Default Response
    */
@@ -60048,6 +63072,8 @@ export type GetOverseerGithubAuthUrlErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -60079,6 +63105,8 @@ export type CompleteOverseerGithubAuthErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -60087,6 +63115,8 @@ export type CompleteOverseerGithubAuthErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -60095,6 +63125,8 @@ export type CompleteOverseerGithubAuthErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -60126,6 +63158,8 @@ export type StartOverseerGithubDeviceFlowErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -60134,6 +63168,8 @@ export type StartOverseerGithubDeviceFlowErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -60174,6 +63210,8 @@ export type PollOverseerGithubDeviceFlowErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -60182,6 +63220,8 @@ export type PollOverseerGithubDeviceFlowErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -60190,6 +63230,8 @@ export type PollOverseerGithubDeviceFlowErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -60198,6 +63240,8 @@ export type PollOverseerGithubDeviceFlowErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -60206,6 +63250,8 @@ export type PollOverseerGithubDeviceFlowErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -60247,6 +63293,8 @@ export type CreateOverseerGithubRepoErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -60255,6 +63303,8 @@ export type CreateOverseerGithubRepoErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
   /**
    * Default Response
@@ -60263,6 +63313,8 @@ export type CreateOverseerGithubRepoErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -60294,6 +63346,8 @@ export type GetOverseerGitStatusErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -60335,6 +63389,8 @@ export type GetOverseerGitBranchesErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -60374,6 +63430,8 @@ export type GetOverseerGitLogErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -60405,6 +63463,8 @@ export type GetOverseerGitDiffErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 
@@ -60455,6 +63515,8 @@ export type GetOverseerGitDiffSummaryErrors = {
     error: string
     code?: string
     requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
   }
 }
 

@@ -16,6 +16,10 @@ const api = vi.hoisted(() => ({
 
 vi.mock('../api/colleagueReviewApi', () => api)
 
+const sourceApi = vi.hoisted(() => ({ postColleagueReviewReply: vi.fn() }))
+
+vi.mock('../api/colleagueReviewSourceApi', () => sourceApi)
+
 import { ColleagueReviewStore, colleagueReviewKey } from './colleagueReviewStore'
 
 const KEY = colleagueReviewKey('osc', 'ZNR-809')
@@ -97,6 +101,7 @@ beforeEach(() => {
   api.readColleagueReview.mockReset()
   api.dropColleagueReviewFinding.mockReset()
   api.markColleagueReviewWaitingGiven.mockReset()
+  sourceApi.postColleagueReviewReply.mockReset()
 })
 
 describe('ColleagueReviewStore', () => {
@@ -221,5 +226,66 @@ describe('ColleagueReviewStore', () => {
     store.retain(KEY)
     await vi.waitFor(() => expect(store.snapshot(KEY).readError?.message).toBe('Down'))
     expect(store.snapshot(KEY).review).toBeUndefined()
+  })
+
+  describe('posting a reply in the thread', () => {
+    const POSTED: ColleagueReview = {
+      ...REVIEW,
+      updatedAt: '2026-11-10T12:00:00.000Z',
+      rounds: REVIEW.rounds.map((r) => ({
+        ...r,
+        postedReply: {
+          permalink: 'https://acme.slack.com/archives/C1/p1763380000999999',
+          ts: '1763380000.999999',
+          postedAt: '2026-11-10T12:00:00.000Z',
+        },
+      })),
+    }
+
+    it('shows the round posting at once, posts once however often it is pressed, then shows where', async () => {
+      api.readColleagueReview.mockResolvedValue(REVIEW)
+      const store = new ColleagueReviewStore(fakeWs())
+      store.retain(KEY)
+      await vi.waitFor(() => expect(store.snapshot(KEY).review).toBe(REVIEW))
+      const posting = deferred<ColleagueReview>()
+      sourceApi.postColleagueReviewReply.mockReturnValue(posting.promise)
+      const going = store.postReply(KEY, 1, false)
+      expect(store.snapshot(KEY).pending.posts.has(1)).toBe(true)
+      void store.postReply(KEY, 1, true)
+      expect(sourceApi.postColleagueReviewReply).toHaveBeenCalledTimes(1)
+      expect(sourceApi.postColleagueReviewReply).toHaveBeenCalledWith('osc', 'ZNR-809', 1, false)
+      posting.resolve(POSTED)
+      await going
+      expect(store.snapshot(KEY).pending.posts.size).toBe(0)
+      expect(store.snapshot(KEY).review).toBe(POSTED)
+    })
+
+    it('posts again only when asked to', async () => {
+      api.readColleagueReview.mockResolvedValue(POSTED)
+      sourceApi.postColleagueReviewReply.mockResolvedValue(POSTED)
+      const store = new ColleagueReviewStore(fakeWs())
+      await store.postReply(KEY, 1, true)
+      expect(sourceApi.postColleagueReviewReply).toHaveBeenCalledWith('osc', 'ZNR-809', 1, true)
+    })
+
+    it('says why it was not posted, in the backend’s words or its own', async () => {
+      api.readColleagueReview.mockResolvedValue(REVIEW)
+      const store = new ColleagueReviewStore(fakeWs())
+      store.retain(KEY)
+      await vi.waitFor(() => expect(store.snapshot(KEY).review).toBe(REVIEW))
+      sourceApi.postColleagueReviewReply.mockRejectedValueOnce({
+        isAxiosError: true,
+        response: { status: 502, data: { error: 'Slack refused the reply: channel_not_found.' } },
+      })
+      await store.postReply(KEY, 1, false)
+      expect(store.snapshot(KEY)).toMatchObject({
+        review: REVIEW,
+        actionError: 'Slack refused the reply: channel_not_found.',
+      })
+      expect(store.snapshot(KEY).pending.posts.size).toBe(0)
+      sourceApi.postColleagueReviewReply.mockRejectedValueOnce({})
+      await store.postReply(KEY, 1, false)
+      expect(store.snapshot(KEY).actionError).toBe('The reply was not posted.')
+    })
   })
 })

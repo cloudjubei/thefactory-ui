@@ -251,7 +251,7 @@ export const COLLEAGUE_REVIEW_SCENES: Scene[] = [
         description: 'Shown dropped at once, faded until the backend answers.',
         render: () =>
           card({
-            pending: { drops: new Set(['F2']), givens: new Set() },
+            pending: { drops: new Set(['F2']), givens: new Set(), posts: new Set() },
             review: {
               ...ROUND_TWO,
               findings: ROUND_TWO.findings.map((f) =>
