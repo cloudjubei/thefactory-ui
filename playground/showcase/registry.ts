@@ -92,6 +92,7 @@ import { SUPERSEDED_FILINGS_SCENES } from '../scenes/supersededFilings'
 import { SPEND_LIMIT_SCENES } from '../scenes/spendLimit'
 import { STORY_WORK_SCENES } from '../scenes/storyWork'
 import { GROUP_TICKETS_SCENES } from '../scenes/groupTickets'
+import { COLLEAGUE_REVIEW_SCENES } from '../scenes/colleagueReview'
 import { TICKET_SCENES } from '../scenes/ticketFlow'
 import { TICKET_NEW_ITEMS_SCENES } from '../scenes/ticketNewItems'
 import { UI_IMPACT_SCENES } from '../scenes/uiImpact'
@@ -214,6 +215,7 @@ export const SCENES: readonly Scene[] = [
   ...PROJECT_EDITOR_LIMIT_SCENES,
   ...GROUP_STORY_SCENES,
   ...GROUP_TICKETS_SCENES,
+  ...COLLEAGUE_REVIEW_SCENES,
   ...TICKET_SCENES,
   ...TICKET_NEW_ITEMS_SCENES,
   ...GROUP_SIGN_OFF_SCENES,

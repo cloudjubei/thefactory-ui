@@ -4,6 +4,7 @@ import { Pressable, Text, View } from 'react-native'
 import {
   GROUP_TICKETS_DEFAULT_LAYOUT,
   GROUP_TICKETS_TEXT,
+  REVIEW_START_TEXT,
   type GroupTicketListName,
   type GroupTicketRow,
   type GroupTicketSectionView,
@@ -17,6 +18,7 @@ import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
 import { Input } from '../../primitives/Input'
 import SegmentedControl from '../../primitives/SegmentedControl'
+import Spinner from '../../primitives/Spinner'
 import TicketChip from '../chips/TicketChip'
 import { GroupStoryChip, GroupStoryStoryChip } from './GroupStoryBits'
 
@@ -24,6 +26,8 @@ type TicketActions = {
   onDiscuss: (ticketKey: string) => void
   onPlan: (ticketKey: string) => void
   onOpenStory: (groupStoryId: string) => void
+  /** Open the paste box on a ticket; without it, Review is not offered. */
+  onReview?: (ticketKey: string) => void
 }
 
 export type GroupTicketsListProps = TicketActions & {
@@ -265,7 +269,8 @@ function RowButtons({
   starting,
   onDiscuss,
   onPlan,
-}: Pick<TicketActions, 'onDiscuss' | 'onPlan'> & {
+  onReview,
+}: Pick<TicketActions, 'onDiscuss' | 'onPlan' | 'onReview'> & {
   row: GroupTicketRow
   starting: boolean
 }) {
@@ -287,6 +292,23 @@ function RowButtons({
       >
         {row.starting === 'discuss' ? GROUP_TICKETS_TEXT.opening : GROUP_TICKETS_TEXT.discuss}
       </Button>
+      {onReview ? (
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={row.reviewing !== undefined}
+          accessibilityLabel={
+            row.reviewOpen
+              ? REVIEW_START_TEXT.nextRoundOf(row.key)
+              : REVIEW_START_TEXT.reviewTicket(row.key)
+          }
+          onPress={() => onReview(row.key)}
+        >
+          {row.reviewing !== undefined ? <Spinner size={12} /> : null}
+          {row.reviewing ??
+            (row.reviewOpen ? REVIEW_START_TEXT.nextRound : REVIEW_START_TEXT.review)}
+        </Button>
+      ) : null}
       {row.canTake ? (
         <Button
           size="sm"
@@ -307,6 +329,7 @@ function NextTicket({
   starting,
   onDiscuss,
   onPlan,
+  onReview,
 }: Omit<TicketActions, 'onOpenStory'> & { row: GroupTicketRow; starting: boolean }) {
   const { theme } = useNativeTheme()
   return (
@@ -344,12 +367,19 @@ function NextTicket({
         <TicketChip view={row.chip} />
         {row.priority ? <GroupStoryChip label={row.priority} /> : null}
         {row.chatOpen ? <GroupStoryChip label={GROUP_TICKETS_TEXT.chatOpen} /> : null}
+        {row.reviewOpen ? <GroupStoryChip label={REVIEW_START_TEXT.reviewOpen} /> : null}
       </View>
       <Text style={{ fontSize: 14, fontWeight: '500', color: theme.text.primary }}>
         {row.summary}
       </Text>
       <Text style={{ fontSize: 12, color: theme.text.muted }}>{GROUP_TICKETS_TEXT.explain}</Text>
-      <RowButtons row={row} starting={starting} onDiscuss={onDiscuss} onPlan={onPlan} />
+      <RowButtons
+        row={row}
+        starting={starting}
+        onDiscuss={onDiscuss}
+        onPlan={onPlan}
+        {...(onReview ? { onReview } : {})}
+      />
     </Pressable>
   )
 }
@@ -361,6 +391,7 @@ function TicketRow({
   onDiscuss,
   onPlan,
   onOpenStory,
+  onReview,
 }: TicketActions & { row: GroupTicketRow; starting: boolean; divided: boolean }) {
   const { theme } = useNativeTheme()
   const { work } = row
@@ -409,10 +440,17 @@ function TicketRow({
           <GroupStoryStoryChip title={work.title} onOpen={() => onOpenStory(work.id)} />
         ) : null}
         {row.chatOpen ? <GroupStoryChip label={GROUP_TICKETS_TEXT.chatOpen} /> : null}
-        {!work && !row.chatOpen ? (
+        {row.reviewOpen ? <GroupStoryChip label={REVIEW_START_TEXT.reviewOpen} /> : null}
+        {!work && !row.chatOpen && !row.reviewOpen ? (
           <Text style={{ fontSize: 12, color: theme.text.muted }}>{GROUP_TICKETS_TEXT.noWork}</Text>
         ) : null}
-        <RowButtons row={row} starting={starting} onDiscuss={onDiscuss} onPlan={onPlan} />
+        <RowButtons
+          row={row}
+          starting={starting}
+          onDiscuss={onDiscuss}
+          onPlan={onPlan}
+          {...(onReview ? { onReview } : {})}
+        />
       </View>
     </Pressable>
   )

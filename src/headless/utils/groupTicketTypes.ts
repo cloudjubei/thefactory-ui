@@ -1,4 +1,5 @@
 import type { ChatContext, ExternalRef } from '../api'
+import type { ReviewStartPhase } from './colleagueReviewStartTypes'
 import type { TicketStatusTone } from './ticketCardTypes'
 
 /** A ticket of a group's Jira. Its text comes from Jira: it is shown as plain text. */
@@ -17,6 +18,8 @@ export interface GroupTicket {
   canTake: boolean
   /** Its chat is already open. */
   chatOpen: boolean
+  /** Its review chat is already open. */
+  reviewOpen: boolean
 }
 
 /** The person's in the open sprint, everyone else's there, or a search. */
@@ -88,6 +91,8 @@ export interface GroupTicketsState {
   starting: { key: string; action: GroupTicketAction } | undefined
   /** Why the last chat did not open. */
   startError: string | null
+  /** The tickets whose review round is starting, each on its own. */
+  reviewing: Readonly<Record<string, ReviewStartPhase>>
 }
 
 /** How a ticket's chip is drawn: its key and status in one chip, or the status as a pill beside it. */
@@ -117,6 +122,10 @@ export interface GroupTicketRow {
   work?: { id: string; title: string }
   /** Its chat is already open. */
   chatOpen: boolean
+  /** It has a review: Review starts its next round. */
+  reviewOpen: boolean
+  /** What its Review button says while a round starts. */
+  reviewing?: string
   /** Take ticket is offered; a ticket without it is only discussed. */
   canTake: boolean
   /** What is opening its chat right now. */

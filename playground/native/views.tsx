@@ -78,6 +78,7 @@ import { SHOWN_FILE_VIEWS } from './shownFileViews'
 import { PLAN_WINDOW_VIEWS } from './planWindowViews'
 import { SEND_TO_DEVELOPER_VIEWS } from './sendToDeveloperViews'
 import { READY_ANSWER_VIEWS } from './readyAnswerViews'
+import { COLLEAGUE_REVIEW_VIEWS } from './colleagueReviewViews'
 import { REVIEW_GAP_VIEWS } from './reviewGapViews'
 import { TICKET_VIEWS } from './ticketViews'
 import { TRY_ON_PHONE_VIEWS } from './tryOnPhoneViews'
@@ -621,6 +622,7 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   ...TICKET_VIEWS,
   ...SEND_TO_DEVELOPER_VIEWS,
   ...READY_ANSWER_VIEWS,
+  ...COLLEAGUE_REVIEW_VIEWS,
   ...REVIEW_GAP_VIEWS,
   ...ALREADY_HANDLED_VIEWS,
 ]

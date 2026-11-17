@@ -2061,6 +2061,7 @@ export type AgentTypeDefinition = {
   briefMode?: 'append' | 'replace'
   proves?: boolean
   tools?: Array<string>
+  restrictNoteReads?: boolean
   contextDocs?: Array<string>
   version: number
   updatedAt: number
@@ -2075,6 +2076,7 @@ export type AgentTypeInput = {
   briefMode?: 'append' | 'replace'
   proves?: boolean
   tools?: Array<string>
+  restrictNoteReads?: boolean
   contextDocs?: Array<string>
 } & {
   version?: number
@@ -2084,6 +2086,7 @@ export type AgentTypeInput = {
 export type AgentTypeScope = 'builtin' | 'seeded' | 'group' | 'project'
 
 export type ResolvedAgentType = {
+  version?: number
   id: string
   label: string
   description?: string
@@ -2093,6 +2096,7 @@ export type ResolvedAgentType = {
   briefMode?: 'append' | 'replace'
   proves?: false
   tools?: Array<string>
+  restrictNoteReads?: boolean
   contextDocs: Array<string>
 }
 
@@ -2384,6 +2388,8 @@ export type ToolName =
   | 'astEditNode'
   | 'astRenameSymbol'
   | 'detectCodeProjectEnvironment'
+  | 'readColleagueReview'
+  | 'recordColleagueReviewRound'
   | 'compileCheck'
   | 'sendCompletionWithTools'
   | 'resumeCompletionTools'
@@ -4017,6 +4023,7 @@ export type UiStackSetting = {
   entry: string
   parts: Array<UiStackPart>
   start?: UiStackStartCommand | UiStackStartRequest
+  buildTimeoutMs?: number
 }
 
 export type DeliveryMergeMethod = 'squash' | 'merge' | 'rebase'
@@ -4026,6 +4033,13 @@ export type DeliverySettings = {
   baseBranch?: string
   prFirst?: boolean
   mergeMethod?: 'squash' | 'merge' | 'rebase'
+}
+
+export type ProjectStartCheckSetting = {
+  command?: string
+  readyPattern?: string
+  timeoutSec?: number
+  envFile?: string
 }
 
 export type ProjectsGroup = {
@@ -4051,12 +4065,20 @@ export type ProjectsGroup = {
     entry: string
     parts: Array<UiStackPart>
     start?: UiStackStartCommand | UiStackStartRequest
+    buildTimeoutMs?: number
   }
   delivery?: {
     branchTemplate?: string
     baseBranch?: string
     prFirst?: boolean
     mergeMethod?: 'squash' | 'merge' | 'rebase'
+  }
+  checkAllowedHosts?: Array<string>
+  startCheck?: {
+    command?: string
+    readyPattern?: string
+    timeoutSec?: number
+    envFile?: string
   }
   createdAt: string
   updatedAt: string
@@ -4370,10 +4392,18 @@ export type ProjectRegistryMetadata = {
     }
     secrets?: Array<ProjectCheckEnvSecretRef>
   }
+  checkAllowedHosts?: Array<string>
+  startCheck?: {
+    command?: string
+    readyPattern?: string
+    timeoutSec?: number
+    envFile?: string
+  }
   serveStack?: {
     entry: string
     parts: Array<UiStackPart>
     start?: UiStackStartCommand | UiStackStartRequest
+    buildTimeoutMs?: number
   }
   templateProvenance?: {
     templateId: string
@@ -4431,10 +4461,18 @@ export type ProjectRegistryEntry = {
       }
       secrets?: Array<ProjectCheckEnvSecretRef>
     }
+    checkAllowedHosts?: Array<string>
+    startCheck?: {
+      command?: string
+      readyPattern?: string
+      timeoutSec?: number
+      envFile?: string
+    }
     serveStack?: {
       entry: string
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
+      buildTimeoutMs?: number
     }
     templateProvenance?: {
       templateId: string
@@ -4602,12 +4640,20 @@ export type ChatContextArguments = {
       entry: string
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
+      buildTimeoutMs?: number
     }
     delivery?: {
       branchTemplate?: string
       baseBranch?: string
       prFirst?: boolean
       mergeMethod?: 'squash' | 'merge' | 'rebase'
+    }
+    checkAllowedHosts?: Array<string>
+    startCheck?: {
+      command?: string
+      readyPattern?: string
+      timeoutSec?: number
+      envFile?: string
     }
     createdAt: string
     updatedAt: string
@@ -4721,12 +4767,20 @@ export type ChatContextArgumentsGroup = {
       entry: string
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
+      buildTimeoutMs?: number
     }
     delivery?: {
       branchTemplate?: string
       baseBranch?: string
       prFirst?: boolean
       mergeMethod?: 'squash' | 'merge' | 'rebase'
+    }
+    checkAllowedHosts?: Array<string>
+    startCheck?: {
+      command?: string
+      readyPattern?: string
+      timeoutSec?: number
+      envFile?: string
     }
     createdAt: string
     updatedAt: string
@@ -4760,12 +4814,20 @@ export type ChatContextArgumentsGroupTopic = {
       entry: string
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
+      buildTimeoutMs?: number
     }
     delivery?: {
       branchTemplate?: string
       baseBranch?: string
       prFirst?: boolean
       mergeMethod?: 'squash' | 'merge' | 'rebase'
+    }
+    checkAllowedHosts?: Array<string>
+    startCheck?: {
+      command?: string
+      readyPattern?: string
+      timeoutSec?: number
+      envFile?: string
     }
     createdAt: string
     updatedAt: string
@@ -5075,7 +5137,7 @@ export type VerificationPolicy = 'require' | 'warn' | 'off'
 
 export type VerificationCheckTier = 'compile' | 'unit' | 'integration' | 'live' | 'e2e'
 
-export type ProjectCheckKind = 'build' | 'lint' | 'typecheck' | 'format' | 'test'
+export type ProjectCheckKind = 'build' | 'start' | 'lint' | 'typecheck' | 'format' | 'test'
 
 export type VerificationCheck = {
   id: string
@@ -5091,7 +5153,7 @@ export type VerificationCheck = {
   requires?: Array<string>
   source?: 'declared' | 'derived'
   derivedFrom?: string
-  category?: 'build' | 'lint' | 'typecheck' | 'format' | 'test'
+  category?: 'build' | 'start' | 'lint' | 'typecheck' | 'format' | 'test'
 }
 
 export type VerificationTestCount = {
@@ -5183,7 +5245,7 @@ export type VerificationCheckResult = {
   modules?: Array<string>
   coverageNote?: string
   optional?: boolean
-  category?: 'build' | 'lint' | 'typecheck' | 'format' | 'test'
+  category?: 'build' | 'start' | 'lint' | 'typecheck' | 'format' | 'test'
   ranIn?: 'sandbox' | 'host'
   hostReason?: string
   environmentReason?: string
@@ -7606,6 +7668,293 @@ export type CodeIntelPackageJson = {
 }
 
 export type PackLanguages = 'javascript' | 'typescript' | 'tsx'
+
+export type ReviewTicketRef = {
+  key: string
+  url?: string
+}
+
+export type ReviewPullRequestHost = 'github' | 'azure-devops' | 'other'
+
+export type ReviewPullRequestRef = {
+  url: string
+  host: ReviewPullRequestHost
+  owner?: string
+  repo?: string
+  number?: number
+}
+
+export type ReviewRecordingHost = 'loom' | 'fathom' | 'other'
+
+export type ReviewRecordingRef = {
+  url: string
+  host: ReviewRecordingHost
+  from?: string
+  to?: string
+}
+
+export type ReviewSubmission = {
+  text: string
+  pastedAt: string
+  tickets: Array<ReviewTicketRef>
+  pullRequests: Array<ReviewPullRequestRef>
+  recordings: Array<ReviewRecordingRef>
+  links: Array<string>
+  attachments: Array<string>
+  settings: Array<string>
+}
+
+export type ReviewedHead = {
+  pullRequestUrl: string
+  sha: string
+}
+
+export type ReviewClaimStatus = 'verified' | 'contradicted' | 'partly' | 'unverifiable'
+
+export type ReviewClaim = {
+  text: string
+  source: string
+  status: ReviewClaimStatus
+  evidence: Array<string>
+}
+
+export type ReviewRequirementStatus = 'met' | 'not met' | 'partly' | 'unverifiable'
+
+export type ReviewRequirement = {
+  text: string
+  source: string
+  status: ReviewRequirementStatus
+  evidence: Array<string>
+}
+
+export type ReviewVerdict = 'approve' | 'approve-with-notes' | 'changes-requested'
+
+export type ReviewRound = {
+  n: number
+  startedAt: string
+  submission: ReviewSubmission
+  reviewedHeads: Array<ReviewedHead>
+  claims: Array<ReviewClaim>
+  requirements: Array<ReviewRequirement>
+  verdict?: 'approve' | 'approve-with-notes' | 'changes-requested'
+  reply?: string
+  recordedAt?: string
+}
+
+export type ReviewFindingKind = 'change' | 'request' | 'small' | 'question'
+
+export type ReviewFindingState = 'open' | 'fixed' | 'still-open' | 'no-longer-applies' | 'dropped'
+
+export type ReviewFindingRoundState = {
+  round: number
+  state: ReviewFindingState
+  evidence?: Array<string>
+  note?: string
+}
+
+export type ReviewFinding = {
+  id: string
+  title: string
+  detail: string
+  kind: ReviewFindingKind
+  raisedInRound: number
+  states: Array<ReviewFindingRoundState>
+}
+
+export type ReviewWaitingOnState = 'outstanding' | 'given'
+
+export type ReviewWaitingOn = {
+  id: string
+  who: string
+  what: string
+  state: ReviewWaitingOnState
+  raisedInRound: number
+  givenInRound?: number
+  givenBy?: 'person' | 'agent'
+  evidence?: Array<string>
+  note?: string
+}
+
+export type ColleagueReview = {
+  id: string
+  groupId: string
+  ticketKey: string
+  ticketUrl?: string
+  createdAt: string
+  updatedAt: string
+  rounds: Array<ReviewRound>
+  findings: Array<ReviewFinding>
+  waitingOn: Array<ReviewWaitingOn>
+}
+
+export type ColleagueReviewKey = {
+  groupId: string
+  ticketKey: string
+}
+
+export type ReviewFindingAnswerState = 'open' | 'fixed' | 'still-open' | 'no-longer-applies'
+
+export type ReviewFindingAnswer = {
+  id?: string
+  state?: 'open' | 'fixed' | 'still-open' | 'no-longer-applies'
+  evidence?: Array<string>
+  note?: string
+  kind?: 'change' | 'request' | 'small' | 'question'
+  title?: string
+  detail?: string
+}
+
+export type ReviewWaitingOnAnswer = {
+  id?: string
+  state?: 'outstanding' | 'given'
+  evidence?: Array<string>
+  note?: string
+  who?: string
+  what?: string
+}
+
+export type ColleagueReviewRoundRecord = {
+  groupId: string
+  ticketKey: string
+  round: number
+  reviewedHeads: Array<ReviewedHead>
+  claims: Array<ReviewClaim>
+  requirements: Array<ReviewRequirement>
+  findings: Array<ReviewFindingAnswer>
+  waitingOn: Array<ReviewWaitingOnAnswer>
+  verdict: 'approve' | 'approve-with-notes' | 'changes-requested'
+  reply: string
+}
+
+export type StartColleagueReviewRoundInput = {
+  groupId: string
+  ticketKey: string
+  ticketUrl?: string
+  submission: {
+    text: string
+    pastedAt: string
+    tickets: Array<ReviewTicketRef>
+    pullRequests: Array<ReviewPullRequestRef>
+    recordings: Array<ReviewRecordingRef>
+    links: Array<string>
+    attachments: Array<string>
+    settings: Array<string>
+  }
+}
+
+export type DropColleagueReviewFindingInput = {
+  groupId: string
+  ticketKey: string
+  findingId: string
+  note?: string
+}
+
+export type MarkColleagueReviewWaitingGivenInput = {
+  groupId: string
+  ticketKey: string
+  waitingOnId: string
+  note?: string
+}
+
+export type ListColleagueReviewsInput = {
+  groupId: string
+}
+
+export type ReviewRoundChanges = {
+  fixed: Array<ReviewFinding>
+  stillOpen: Array<ReviewFinding>
+  raised: Array<ReviewFinding>
+  noLongerApplies: Array<ReviewFinding>
+  dropped: Array<ReviewFinding>
+  waitingOnGiven: Array<ReviewWaitingOn>
+  waitingOnOutstanding: Array<ReviewWaitingOn>
+}
+
+export type ColleagueReviewRead = {
+  ok: true
+  review: ColleagueReview
+  round: number
+  mustAnswer: Array<ReviewFinding>
+  outstandingWaitingOn: Array<ReviewWaitingOn>
+}
+
+export type ColleagueReviewRefusal = {
+  ok: false
+  errors: Array<string>
+}
+
+export type ColleagueReviewChanged = {
+  ok: true
+  review: ColleagueReview
+}
+
+export type ColleagueReviewRoundRecorded = {
+  ok: true
+  review: {
+    id: string
+    groupId: string
+    ticketKey: string
+    ticketUrl?: string
+    createdAt: string
+    updatedAt: string
+    rounds: Array<ReviewRound>
+    findings: Array<ReviewFinding>
+    waitingOn: Array<ReviewWaitingOn>
+  }
+  changes: {
+    fixed: Array<ReviewFinding>
+    stillOpen: Array<ReviewFinding>
+    raised: Array<ReviewFinding>
+    noLongerApplies: Array<ReviewFinding>
+    dropped: Array<ReviewFinding>
+    waitingOnGiven: Array<ReviewWaitingOn>
+    waitingOnOutstanding: Array<ReviewWaitingOn>
+  }
+}
+
+export type ColleagueReviewReadResult = ColleagueReviewRead | ColleagueReviewRefusal
+
+export type ColleagueReviewChangeResult = ColleagueReviewChanged | ColleagueReviewRefusal
+
+export type ColleagueReviewRecordResult = ColleagueReviewRoundRecorded | ColleagueReviewRefusal
+
+export type ColleagueReviewBriefToolNames = {
+  readReview?: string
+  recordRound?: string
+  ticket?: Array<string>
+  pullRequests?: Array<string>
+  code?: Array<string>
+  checks?: Array<string>
+  data?: Array<string>
+  attachments?: Array<string>
+  video?: string
+}
+
+export type ColleagueReviewBriefInput = {
+  ticket: {
+    key: string
+    url?: string
+    text?: string
+  }
+  review: ColleagueReview
+  tools: ColleagueReviewBriefToolNames
+  replyTemplate?: string
+}
+
+export type ParseReviewSubmissionOptions = {
+  attachments?: Array<string>
+  now: string
+}
+
+export type ColleagueReviewUpdate =
+  | {
+      ok: true
+      review: ColleagueReview
+    }
+  | {
+      ok: false
+      errors: Array<string>
+    }
 
 export type CompileSeverity = 'error' | 'warning'
 
@@ -10920,6 +11269,7 @@ export type FileUpdate = {
   type: FileUpdateType
   absolutePath: string
   relativePath: string
+  operationId?: string
 }
 
 export type FileMeta = {
@@ -11111,6 +11461,60 @@ export type MemberFileEditPreview = {
     diff: string
   }>
 }
+
+export type FileWriteDeclaration =
+  | {
+      kind: 'written'
+      path: string
+      sha256: string
+    }
+  | {
+      kind: 'deleted'
+      path: string
+    }
+  | {
+      kind: 'renamed'
+      fromPath: string
+      path: string
+      sha256: string
+    }
+
+export type DeclaredFileVersion =
+  | {
+      kind: 'file'
+      sha256: string
+    }
+  | {
+      kind: 'absent'
+    }
+
+export type ObservedFileVersion =
+  | DeclaredFileVersion
+  | {
+      kind: 'other'
+    }
+
+export type DeclaredPathPhase = 'pending' | 'claimed' | 'spent'
+
+export type DeclaredPathState = {
+  version: DeclaredFileVersion
+  phase: DeclaredPathPhase
+}
+
+export type FileWriteDeclareRefusal = 'invalidOperationId' | 'invalidPath' | 'tooManyPaths'
+
+export type FileWriteDeclareResult =
+  | {
+      status: 'declared'
+      operationId: string
+      pathCount: number
+      expiresAt: number
+    }
+  | {
+      status: 'refused'
+      operationId: string
+      reason: FileWriteDeclareRefusal
+    }
 
 export type SweptDirectoryLifetime = 'watch' | 'settling'
 
@@ -14124,6 +14528,7 @@ export type MobileSessionResult = {
   fakeBackend?: string
   fakeData?: string
   live?: true
+  detail?: string
 }
 
 export type MobileSessionInfo = {
@@ -14348,6 +14753,50 @@ export type MobilePasteOptions = {
     nth?: number
   }
 }
+
+export type MobileTypeOptions = {
+  hardwareKeys?: boolean
+}
+
+export type ReviewEvidenceScreen = {
+  ids: Array<string>
+  texts: Array<string>
+  activity?: string
+  playgroundScene?: string
+}
+
+export type MobileTappedField =
+  | {
+      kind: 'element'
+      target: MobileRefTarget
+      screen?: {
+        ids: Array<string>
+        texts: Array<string>
+        activity?: string
+        playgroundScene?: string
+      }
+    }
+  | {
+      kind: 'point'
+      x: number
+      y: number
+    }
+
+export type IosOnScreenKeyboardPlan = {
+  inDeviceArgs: Array<string>
+  hostPrefSetArgs: Array<string>
+  hostPrefAddArgs: Array<Array<string>>
+}
+
+export type MobileKeyboardSetup =
+  | {
+      shown: true
+      hostPrefProblem?: string
+    }
+  | {
+      shown: false
+      problem: string
+    }
 
 export type MobilePasteMenuPace = {
   timeoutMs: number
@@ -15370,6 +15819,7 @@ export type ProcessStep = {
   description?: string
   enabled?: boolean
   agentType?: string
+  restrictNoteReads?: boolean
   slot?: 'implementer' | 'verifier'
   gateKind?: 'design' | 'live-check' | 'publish'
   liveCheck?: {
@@ -15431,6 +15881,7 @@ export type ProcessPlanStep = {
   description?: string
   enabled?: boolean
   agentType?: string
+  restrictNoteReads?: boolean
   slot?: 'implementer' | 'verifier'
   gateKind?: 'design' | 'live-check' | 'publish'
   liveCheck?: {
@@ -15462,6 +15913,23 @@ export type ProcessPlanStep = {
   }
   documents?: Array<string>
   documentSection?: Array<string>
+  sourceStepId?: string
+  boundProcessId?: string
+  processBoundAtLaunch?: boolean
+  agentDefinition?: {
+    version?: number
+    id: string
+    label: string
+    description?: string
+    scope: AgentTypeScope
+    baseRole: AgentRunType
+    brief?: string
+    briefMode?: 'append' | 'replace'
+    proves?: false
+    tools?: Array<string>
+    restrictNoteReads?: boolean
+    contextDocs: Array<string>
+  }
   subject?: ProcessSubject | ProcessVariantSubject
   fanOut?: string
   agentRole?:
@@ -15956,6 +16424,13 @@ export type ProcessWaitingAsk = {
   }
 }
 
+export type ProcessAttemptDefinitions = {
+  processId: string
+  processVersion: number
+  processScope: ProcessScope
+  step: ProcessPlanStep
+}
+
 export type ProcessProofPlanChange = {
   featureId?: string
   stepId?: string
@@ -15994,6 +16469,13 @@ export type ProcessHostDecision = {
 export type ProcessDecidedVia = ProcessPersonDecisionVia | 'tool' | 'manager'
 
 export type ProcessEntryOverride = {
+  definitionChoice?: 'frozen' | 'current'
+  definitions?: {
+    processId: string
+    processVersion: number
+    processScope: ProcessScope
+    step: ProcessPlanStep
+  }
   choice: ProcessResumeChoice
   at: number
   note?: string
@@ -16181,6 +16663,7 @@ export type ProcessFeatureSplitRequest = {
 }
 
 export type ProcessResumeOptions = {
+  definitionChoice?: 'frozen' | 'current'
   requestedProof?: Array<ProofKind>
   needsYouResolution?: {
     itemId: string
@@ -16528,6 +17011,13 @@ export type ProcessQueueWait = {
 }
 
 export type ProcessLedgerEntry = {
+  definitions?: {
+    processId: string
+    processVersion: number
+    processScope: ProcessScope
+    step: ProcessPlanStep
+  }
+  definitionChoice?: 'frozen' | 'current'
   id: string
   stepId: string
   iteration: number
@@ -16588,6 +17078,13 @@ export type ProcessLedgerEntry = {
   continues?: string
   rechecks?: string
   override?: {
+    definitionChoice?: 'frozen' | 'current'
+    definitions?: {
+      processId: string
+      processVersion: number
+      processScope: ProcessScope
+      step: ProcessPlanStep
+    }
     choice: ProcessResumeChoice
     at: number
     note?: string
@@ -17980,10 +18477,18 @@ export type ProjectSpecCreateInput = {
       }
       secrets?: Array<ProjectCheckEnvSecretRef>
     }
+    checkAllowedHosts?: Array<string>
+    startCheck?: {
+      command?: string
+      readyPattern?: string
+      timeoutSec?: number
+      envFile?: string
+    }
     serveStack?: {
       entry: string
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
+      buildTimeoutMs?: number
     }
     templateProvenance?: {
       templateId: string
@@ -18084,10 +18589,18 @@ export type ProjectSpecEditInput = {
       }
       secrets?: Array<ProjectCheckEnvSecretRef>
     }
+    checkAllowedHosts?: Array<string>
+    startCheck?: {
+      command?: string
+      readyPattern?: string
+      timeoutSec?: number
+      envFile?: string
+    }
     serveStack?: {
       entry: string
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
+      buildTimeoutMs?: number
     }
     templateProvenance?: {
       templateId: string
@@ -18556,7 +19069,7 @@ export type ProjectCheck = {
     requires?: Array<string>
     source?: 'declared' | 'derived'
     derivedFrom?: string
-    category?: 'build' | 'lint' | 'typecheck' | 'format' | 'test'
+    category?: 'build' | 'start' | 'lint' | 'typecheck' | 'format' | 'test'
   }
   tier?: 'compile' | 'unit' | 'integration' | 'live' | 'e2e'
   requiredEnv?: Array<string>
@@ -18588,6 +19101,7 @@ export type ProjectCheck = {
   coverageNote?: string
   namedTestFallbacks?: Array<ProjectCheckNamedTestFallback>
   preSteps?: Array<ProjectCheckPreStep>
+  envFile?: string
 }
 
 export type AndroidBuildVariant = {
@@ -18829,6 +19343,36 @@ export type ProjectCheckAlreadyMetReport = {
   checks: Array<ProjectCheckKind>
   evidence: string
   reportedAt: number
+}
+
+export type NestStartSpec = {
+  exportName: string
+  candidates: Array<string>
+  timeoutMs: number
+}
+
+export type ProjectStartLaunchSpec = {
+  command: string
+  readyPattern?: string
+  timeoutMs: number
+}
+
+export type NestStartTarget =
+  | {
+      spec: {
+        exportName: string
+        candidates: Array<string>
+      }
+      source: string
+    }
+  | {
+      note: string
+    }
+
+export type NestStartReadPlan = {
+  tsconfig: string
+  tsconfigFallback: string
+  entry: string
 }
 
 export type ProjectCommandParamType = 'string' | 'number' | 'boolean'
@@ -19180,7 +19724,9 @@ export type ProjectsGroupCreateInput = {
     entry: string
     parts: Array<UiStackPart>
     start?: UiStackStartCommand | UiStackStartRequest
+    buildTimeoutMs?: number
   }
+  checkAllowedHosts?: Array<string>
 }
 
 export type ProjectsGroupEditInput = {
@@ -19193,6 +19739,7 @@ export type ProjectsGroupEditInput = {
   capabilities?: CapabilitySettings | unknown
   serveStack?: UiStackSetting | unknown
   delivery?: DeliverySettings | unknown
+  checkAllowedHosts?: unknown | Array<string>
 }
 
 export type ProjectsGroupUpdateType = 'change'
@@ -22458,13 +23005,6 @@ export type ReviewEvidenceBuild = {
   fakeData?: string
 }
 
-export type ReviewEvidenceScreen = {
-  ids: Array<string>
-  texts: Array<string>
-  activity?: string
-  playgroundScene?: string
-}
-
 export type ReviewEvidenceCaptureDescription = {
   capturedOn?: string
   chromeTopPx?: number
@@ -22509,6 +23049,12 @@ export type ReviewEvidenceScope = {
   storyId?: string
   featureId?: string
   chatContextId?: string
+}
+
+export type ReviewEvidenceSupersession = {
+  processRunId: string
+  entryId: string
+  stepId: string
 }
 
 export type ReviewEvidenceKind = 'screenshot' | 'recording' | 'report' | 'log' | 'file' | 'trace'
@@ -22628,6 +23174,11 @@ export type ReviewEvidenceRef = {
   storyId?: string
   featureId?: string
   chatContextId?: string
+  supersededBy?: {
+    processRunId: string
+    entryId: string
+    stepId: string
+  }
   id: string
   kind: 'screenshot' | 'recording' | 'report' | 'log' | 'file' | 'trace'
   path: string
@@ -23027,6 +23578,8 @@ export type CaptureToolSet = {
     | 'astEditNode'
     | 'astRenameSymbol'
     | 'detectCodeProjectEnvironment'
+    | 'readColleagueReview'
+    | 'recordColleagueReviewRound'
     | 'compileCheck'
     | 'sendCompletionWithTools'
     | 'resumeCompletionTools'
@@ -23596,6 +24149,8 @@ export type CaptureToolSet = {
     | 'astEditNode'
     | 'astRenameSymbol'
     | 'detectCodeProjectEnvironment'
+    | 'readColleagueReview'
+    | 'recordColleagueReviewRound'
     | 'compileCheck'
     | 'sendCompletionWithTools'
     | 'resumeCompletionTools'
@@ -24172,6 +24727,8 @@ export type CaptureToolSet = {
     | 'astEditNode'
     | 'astRenameSymbol'
     | 'detectCodeProjectEnvironment'
+    | 'readColleagueReview'
+    | 'recordColleagueReviewRound'
     | 'compileCheck'
     | 'sendCompletionWithTools'
     | 'resumeCompletionTools'
@@ -24741,6 +25298,8 @@ export type CaptureToolSet = {
     | 'astEditNode'
     | 'astRenameSymbol'
     | 'detectCodeProjectEnvironment'
+    | 'readColleagueReview'
+    | 'recordColleagueReviewRound'
     | 'compileCheck'
     | 'sendCompletionWithTools'
     | 'resumeCompletionTools'
@@ -25311,6 +25870,8 @@ export type CaptureToolSet = {
     | 'astEditNode'
     | 'astRenameSymbol'
     | 'detectCodeProjectEnvironment'
+    | 'readColleagueReview'
+    | 'recordColleagueReviewRound'
     | 'compileCheck'
     | 'sendCompletionWithTools'
     | 'resumeCompletionTools'
@@ -25837,6 +26398,11 @@ export type ReviewEvidenceLookup =
     }
 
 export type ReviewEvidenceContent = {
+  supersededBy?: {
+    processRunId: string
+    entryId: string
+    stepId: string
+  }
   id: string
   kind?: 'screenshot' | 'recording' | 'report' | 'log' | 'file' | 'trace'
   mediaType?: string
@@ -27644,21 +28210,6 @@ export type UiFakeBackendPlan = {
   appEnv: {
     [key: string]: string
   }
-}
-
-export type UiHostBoundOptions = {
-  cleanup?: {
-    tree: string
-    repo: string
-    keep?: {
-      from: string
-      to: string
-      after: number
-    }
-  }
-  signal?: unknown
-  logDir?: string
-  secrets?: Array<string>
 }
 
 export type UiRawScreen = {
@@ -30010,6 +30561,16 @@ export type ProcessCirclingActivity = {
   writes?: Array<ProcessCirclingFileWrite>
 }
 
+export type ProcessRetryDefinitionOffer = {
+  frozen: ProcessAttemptDefinitions
+  current?: {
+    processId: string
+    processVersion: number
+    processScope: ProcessScope
+    step: ProcessPlanStep
+  }
+}
+
 export type ProcessRetryOffer = {
   canContinue: boolean
   defaultMode: ProcessRetryMode
@@ -31738,6 +32299,7 @@ export type ProcessWaitingAnswer = {
 
 export type ProcessStepResult = {
   outcome: ProcessStepOutcome
+  requiredOutputFiled?: boolean
   summary?: string
   runRef?: {
     runId: string
@@ -32079,6 +32641,13 @@ export type ProcessStepState = {
   outcome?: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
   attempts: number
   latest?: {
+    definitions?: {
+      processId: string
+      processVersion: number
+      processScope: ProcessScope
+      step: ProcessPlanStep
+    }
+    definitionChoice?: 'frozen' | 'current'
     id: string
     stepId: string
     iteration: number
@@ -32139,6 +32708,13 @@ export type ProcessStepState = {
     continues?: string
     rechecks?: string
     override?: {
+      definitionChoice?: 'frozen' | 'current'
+      definitions?: {
+        processId: string
+        processVersion: number
+        processScope: ProcessScope
+        step: ProcessPlanStep
+      }
       choice: ProcessResumeChoice
       at: number
       note?: string
@@ -34055,7 +34631,7 @@ export type CreateProjectData = {
       docs?: Array<string>
       reviewAgentType?: string
     }
-    mainGroupId?: string | unknown
+    mainGroupId?: unknown | string
     scopeGroupIds?: Array<string>
     overrides?: {
       title?: string
@@ -34149,7 +34725,7 @@ export type UpdateProjectData = {
     metadata?: {
       [key: string]: JsonValue
     }
-    mainGroupId?: string | unknown
+    mainGroupId?: unknown | string
     scopeGroupIds?: Array<string>
     overrides?: {
       title?: string
@@ -34548,7 +35124,7 @@ export type CreateProjectGithubRepoData = {
             docs?: Array<string>
             reviewAgentType?: string
           }
-          mainGroupId?: string | unknown
+          mainGroupId?: unknown | string
           scopeGroupIds?: Array<string>
           overrides?: {
             title?: string
@@ -34650,6 +35226,7 @@ export type ListProjectsGroupsResponses = {
       entry: string
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
+      buildTimeoutMs?: number
     }
     delivery?: {
       branchTemplate?: string
@@ -34657,6 +35234,7 @@ export type ListProjectsGroupsResponses = {
       prFirst?: boolean
       mergeMethod?: 'squash' | 'merge' | 'rebase'
     }
+    checkAllowedHosts?: Array<string>
     createdAt: string
     updatedAt: string
   }>
@@ -34711,6 +35289,7 @@ export type CreateProjectsGroupResponses = {
       entry: string
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
+      buildTimeoutMs?: number
     }
     delivery?: {
       branchTemplate?: string
@@ -34718,6 +35297,7 @@ export type CreateProjectsGroupResponses = {
       prFirst?: boolean
       mergeMethod?: 'squash' | 'merge' | 'rebase'
     }
+    checkAllowedHosts?: Array<string>
     createdAt: string
     updatedAt: string
   }
@@ -35007,6 +35587,7 @@ export type DeleteProjectsGroupResponses = {
       entry: string
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
+      buildTimeoutMs?: number
     }
     delivery?: {
       branchTemplate?: string
@@ -35014,6 +35595,7 @@ export type DeleteProjectsGroupResponses = {
       prFirst?: boolean
       mergeMethod?: 'squash' | 'merge' | 'rebase'
     }
+    checkAllowedHosts?: Array<string>
     createdAt: string
     updatedAt: string
   }>
@@ -35070,6 +35652,7 @@ export type GetProjectsGroupResponses = {
       entry: string
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
+      buildTimeoutMs?: number
     }
     delivery?: {
       branchTemplate?: string
@@ -35077,6 +35660,7 @@ export type GetProjectsGroupResponses = {
       prFirst?: boolean
       mergeMethod?: 'squash' | 'merge' | 'rebase'
     }
+    checkAllowedHosts?: Array<string>
     createdAt: string
     updatedAt: string
   }
@@ -35140,6 +35724,7 @@ export type UpdateProjectsGroupResponses = {
       entry: string
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
+      buildTimeoutMs?: number
     }
     delivery?: {
       branchTemplate?: string
@@ -35147,6 +35732,7 @@ export type UpdateProjectsGroupResponses = {
       prFirst?: boolean
       mergeMethod?: 'squash' | 'merge' | 'rebase'
     }
+    checkAllowedHosts?: Array<string>
     createdAt: string
     updatedAt: string
   }
@@ -35204,6 +35790,7 @@ export type ReorderProjectInGroupResponses = {
       entry: string
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
+      buildTimeoutMs?: number
     }
     delivery?: {
       branchTemplate?: string
@@ -35211,6 +35798,7 @@ export type ReorderProjectInGroupResponses = {
       prFirst?: boolean
       mergeMethod?: 'squash' | 'merge' | 'rebase'
     }
+    checkAllowedHosts?: Array<string>
     createdAt: string
     updatedAt: string
   }
@@ -35266,6 +35854,7 @@ export type ReorderProjectsGroupsResponses = {
       entry: string
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
+      buildTimeoutMs?: number
     }
     delivery?: {
       branchTemplate?: string
@@ -35273,6 +35862,7 @@ export type ReorderProjectsGroupsResponses = {
       prFirst?: boolean
       mergeMethod?: 'squash' | 'merge' | 'rebase'
     }
+    checkAllowedHosts?: Array<string>
     createdAt: string
     updatedAt: string
   }>
@@ -37664,10 +38254,6 @@ export type ResumeProcessRunData = {
      */
     attemptSpendUsd?: number
     /**
-     * With retry: run the current definitions of the step’s agent type and process, when a newer one exists. Left out, the retry runs the versions this run froze.
-     */
-    useCurrentDefinitions?: boolean
-    /**
      * As `answerRunPark` and `decideRunGate` take it: with change-proof, `proofPlan.kinds`; with split-follow-up, what proves the feature from now on, if it changes; with request-changes, `requestedProof`. Not with either of those.
      */
     proofKinds?: Array<ProofKind>
@@ -39084,6 +39670,7 @@ export type SaveProjectAgentTypeData = {
     briefMode?: 'append' | 'replace'
     proves?: boolean
     tools?: Array<string>
+    restrictNoteReads?: boolean
     contextDocs?: Array<string>
   }
   path: {
@@ -39283,6 +39870,7 @@ export type SaveGroupAgentTypeData = {
     briefMode?: 'append' | 'replace'
     proves?: boolean
     tools?: Array<string>
+    restrictNoteReads?: boolean
     contextDocs?: Array<string>
   }
   path: {
@@ -43303,6 +43891,19 @@ export type ListLlmConfigsData = {
   url: '/api/v1/llm-configs'
 }
 
+export type ListLlmConfigsErrors = {
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ListLlmConfigsError = ListLlmConfigsErrors[keyof ListLlmConfigsErrors]
+
 export type ListLlmConfigsResponses = {
   /**
    * Default Response
@@ -43324,6 +43925,14 @@ export type CreateLlmConfigErrors = {
    * Default Response
    */
   400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  503: {
     error: string
     code?: string
     requestId?: string
@@ -43359,6 +43968,14 @@ export type DeleteLlmConfigErrors = {
     code?: string
     requestId?: string
   }
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
 }
 
 export type DeleteLlmConfigError = DeleteLlmConfigErrors[keyof DeleteLlmConfigErrors]
@@ -43386,6 +44003,14 @@ export type GetLlmConfigErrors = {
    * Default Response
    */
   404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  503: {
     error: string
     code?: string
     requestId?: string
@@ -43429,6 +44054,14 @@ export type UpdateLlmConfigErrors = {
     code?: string
     requestId?: string
   }
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
 }
 
 export type UpdateLlmConfigError = UpdateLlmConfigErrors[keyof UpdateLlmConfigErrors]
@@ -43456,6 +44089,14 @@ export type RevealLlmConfigKeyErrors = {
    * Default Response
    */
   404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  503: {
     error: string
     code?: string
     requestId?: string
@@ -43497,6 +44138,14 @@ export type ListLlmModelsErrors = {
     code?: string
     requestId?: string
   }
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
 }
 
 export type ListLlmModelsError = ListLlmModelsErrors[keyof ListLlmModelsErrors]
@@ -43517,6 +44166,19 @@ export type ListGitCredentialsData = {
   url: '/api/v1/git-credentials'
 }
 
+export type ListGitCredentialsErrors = {
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ListGitCredentialsError = ListGitCredentialsErrors[keyof ListGitCredentialsErrors]
+
 export type ListGitCredentialsResponses = {
   /**
    * Default Response
@@ -43533,6 +44195,19 @@ export type CreateGitCredentialData = {
   query?: never
   url: '/api/v1/git-credentials'
 }
+
+export type CreateGitCredentialErrors = {
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type CreateGitCredentialError = CreateGitCredentialErrors[keyof CreateGitCredentialErrors]
 
 export type CreateGitCredentialResponses = {
   /**
@@ -43558,6 +44233,14 @@ export type DeleteGitCredentialErrors = {
    * Default Response
    */
   404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  503: {
     error: string
     code?: string
     requestId?: string
@@ -43594,6 +44277,14 @@ export type GetGitCredentialErrors = {
     code?: string
     requestId?: string
   }
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
 }
 
 export type GetGitCredentialError = GetGitCredentialErrors[keyof GetGitCredentialErrors]
@@ -43621,6 +44312,14 @@ export type UpdateGitCredentialErrors = {
    * Default Response
    */
   404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  503: {
     error: string
     code?: string
     requestId?: string
@@ -43657,6 +44356,14 @@ export type RevealGitCredentialTokenErrors = {
     code?: string
     requestId?: string
   }
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
 }
 
 export type RevealGitCredentialTokenError =
@@ -43680,6 +44387,20 @@ export type ReadProviderOAuthSetupData = {
   query?: never
   url: '/api/v1/provider-connections/oauth/setup'
 }
+
+export type ReadProviderOAuthSetupErrors = {
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ReadProviderOAuthSetupError =
+  ReadProviderOAuthSetupErrors[keyof ReadProviderOAuthSetupErrors]
 
 export type ReadProviderOAuthSetupResponses = {
   /**
@@ -43715,6 +44436,14 @@ export type StartProviderOAuthErrors = {
    * Default Response
    */
   400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  503: {
     error: string
     code?: string
     requestId?: string
@@ -43759,6 +44488,14 @@ export type FinishProviderOAuthErrors = {
    * Default Response
    */
   400: string
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
 }
 
 export type FinishProviderOAuthError = FinishProviderOAuthErrors[keyof FinishProviderOAuthErrors]
@@ -43781,6 +44518,20 @@ export type WithdrawProviderSignInData = {
   query?: never
   url: '/api/v1/provider-connections/oauth/sign-ins/{signInId}'
 }
+
+export type WithdrawProviderSignInErrors = {
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type WithdrawProviderSignInError =
+  WithdrawProviderSignInErrors[keyof WithdrawProviderSignInErrors]
 
 export type WithdrawProviderSignInResponses = {
   /**
@@ -43810,6 +44561,14 @@ export type ReadProviderSignInErrors = {
     code?: string
     requestId?: string
   }
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
 }
 
 export type ReadProviderSignInError = ReadProviderSignInErrors[keyof ReadProviderSignInErrors]
@@ -43835,6 +44594,20 @@ export type ListProviderConnectionsData = {
   url: '/api/v1/provider-connections'
 }
 
+export type ListProviderConnectionsErrors = {
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ListProviderConnectionsError =
+  ListProviderConnectionsErrors[keyof ListProviderConnectionsErrors]
+
 export type ListProviderConnectionsResponses = {
   /**
    * Default Response
@@ -43857,6 +44630,14 @@ export type CreateProviderConnectionErrors = {
    * Default Response
    */
   400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  503: {
     error: string
     code?: string
     requestId?: string
@@ -43894,6 +44675,14 @@ export type DeleteProviderConnectionErrors = {
     code?: string
     requestId?: string
   }
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
 }
 
 export type DeleteProviderConnectionError =
@@ -43923,6 +44712,14 @@ export type GetProviderConnectionErrors = {
    * Default Response
    */
   404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  503: {
     error: string
     code?: string
     requestId?: string
@@ -43987,6 +44784,14 @@ export type UpdateProviderConnectionErrors = {
     code?: string
     requestId?: string
   }
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
 }
 
 export type UpdateProviderConnectionError =
@@ -44031,6 +44836,14 @@ export type FindJiraCloudIdErrors = {
     code?: string
     requestId?: string
   }
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
 }
 
 export type FindJiraCloudIdError = FindJiraCloudIdErrors[keyof FindJiraCloudIdErrors]
@@ -44053,6 +44866,19 @@ export type ListCliAuthCachesData = {
   url: '/api/v1/cli-auth-caches'
 }
 
+export type ListCliAuthCachesErrors = {
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ListCliAuthCachesError = ListCliAuthCachesErrors[keyof ListCliAuthCachesErrors]
+
 export type ListCliAuthCachesResponses = {
   /**
    * Default Response
@@ -44068,6 +44894,19 @@ export type CreateCliAuthCacheData = {
   query?: never
   url: '/api/v1/cli-auth-caches'
 }
+
+export type CreateCliAuthCacheErrors = {
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type CreateCliAuthCacheError = CreateCliAuthCacheErrors[keyof CreateCliAuthCacheErrors]
 
 export type CreateCliAuthCacheResponses = {
   /**
@@ -44093,6 +44932,14 @@ export type DeleteCliAuthCacheErrors = {
    * Default Response
    */
   404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  503: {
     error: string
     code?: string
     requestId?: string
@@ -44125,6 +44972,14 @@ export type GetCliAuthCacheErrors = {
    * Default Response
    */
   404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  503: {
     error: string
     code?: string
     requestId?: string
@@ -44173,6 +45028,14 @@ export type UpdateCliAuthCacheErrors = {
     code?: string
     requestId?: string
   }
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
 }
 
 export type UpdateCliAuthCacheError = UpdateCliAuthCacheErrors[keyof UpdateCliAuthCacheErrors]
@@ -44194,6 +45057,19 @@ export type GetActiveCliStateData = {
   url: '/api/v1/cli-configs/active'
 }
 
+export type GetActiveCliStateErrors = {
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetActiveCliStateError = GetActiveCliStateErrors[keyof GetActiveCliStateErrors]
+
 export type GetActiveCliStateResponses = {
   /**
    * Default Response
@@ -44212,6 +45088,19 @@ export type SetActiveCliData = {
   query?: never
   url: '/api/v1/cli-configs/active'
 }
+
+export type SetActiveCliErrors = {
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type SetActiveCliError = SetActiveCliErrors[keyof SetActiveCliErrors]
 
 export type SetActiveCliResponses = {
   /**
@@ -44232,6 +45121,19 @@ export type SetCliEnabledData = {
   url: '/api/v1/cli-configs/enabled'
 }
 
+export type SetCliEnabledErrors = {
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type SetCliEnabledError = SetCliEnabledErrors[keyof SetCliEnabledErrors]
+
 export type SetCliEnabledResponses = {
   /**
    * Default Response
@@ -44250,6 +45152,19 @@ export type SetCliDefaultModelData = {
   query?: never
   url: '/api/v1/cli-configs/default-model'
 }
+
+export type SetCliDefaultModelErrors = {
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type SetCliDefaultModelError = SetCliDefaultModelErrors[keyof SetCliDefaultModelErrors]
 
 export type SetCliDefaultModelResponses = {
   /**
@@ -44276,6 +45191,14 @@ export type SetCliEffortErrors = {
    * Default Response
    */
   400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  503: {
     error: string
     code?: string
     requestId?: string
@@ -44313,6 +45236,14 @@ export type SetCliModelEffortErrors = {
     code?: string
     requestId?: string
   }
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
 }
 
 export type SetCliModelEffortError = SetCliModelEffortErrors[keyof SetCliModelEffortErrors]
@@ -44332,6 +45263,19 @@ export type GetActiveRunnerKindData = {
   query?: never
   url: '/api/v1/agent-runner/active'
 }
+
+export type GetActiveRunnerKindErrors = {
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetActiveRunnerKindError = GetActiveRunnerKindErrors[keyof GetActiveRunnerKindErrors]
 
 export type GetActiveRunnerKindResponses = {
   /**
@@ -44354,6 +45298,19 @@ export type SetActiveRunnerKindData = {
   query?: never
   url: '/api/v1/agent-runner/active'
 }
+
+export type SetActiveRunnerKindErrors = {
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type SetActiveRunnerKindError = SetActiveRunnerKindErrors[keyof SetActiveRunnerKindErrors]
 
 export type SetActiveRunnerKindResponses = {
   /**
@@ -44379,6 +45336,14 @@ export type SetAgentRunLlmConfigErrors = {
    * Default Response
    */
   404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  503: {
     error: string
     code?: string
     requestId?: string
@@ -44555,6 +45520,14 @@ export type PollGitCredentialGithubDeviceErrors = {
    * Default Response
    */
   502: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  503: {
     error: string
     code?: string
     requestId?: string
@@ -56347,6 +57320,10 @@ export type ListGroupTicketsResponses = {
        * Its chat is already open.
        */
       chatOpen: boolean
+      /**
+       * Its review chat is already open.
+       */
+      reviewOpen: boolean
     }>
     /**
      * The top ticket with no group story yet.
@@ -56432,6 +57409,10 @@ export type PlanGroupTicketResponses = {
        * Its chat is already open.
        */
       chatOpen: boolean
+      /**
+       * Its review chat is already open.
+       */
+      reviewOpen: boolean
     }
     /**
      * The ticket’s planning chat.
@@ -56525,6 +57506,10 @@ export type DiscussGroupTicketResponses = {
        * Its chat is already open.
        */
       chatOpen: boolean
+      /**
+       * Its review chat is already open.
+       */
+      reviewOpen: boolean
     }
     /**
      * The ticket’s planning chat.
@@ -56544,6 +57529,262 @@ export type DiscussGroupTicketResponses = {
 
 export type DiscussGroupTicketResponse =
   DiscussGroupTicketResponses[keyof DiscussGroupTicketResponses]
+
+export type GetColleagueReviewData = {
+  body?: never
+  path: {
+    groupId: string
+    ticketKey: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/tickets/{ticketKey}/review'
+}
+
+export type GetColleagueReviewErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetColleagueReviewError = GetColleagueReviewErrors[keyof GetColleagueReviewErrors]
+
+export type GetColleagueReviewResponses = {
+  /**
+   * Default Response
+   */
+  200: ColleagueReview
+}
+
+export type GetColleagueReviewResponse =
+  GetColleagueReviewResponses[keyof GetColleagueReviewResponses]
+
+export type StartColleagueReviewData = {
+  body: {
+    /**
+     * The colleague’s update as pasted: what they did, their pull requests, recordings and links. It is the review’s data, never the chat’s message.
+     */
+    text: string
+    /**
+     * Files that came with the update, each the `path` that uploading it to the ticket’s review chat answered (`POST /chat-attachments` with the review chat’s context).
+     */
+    attachments?: Array<string>
+    runner?: 'api' | 'cli'
+    cliTool?: string
+    cliModel?: string
+    cliCredentialId?: string
+    effort?: string
+  }
+  path: {
+    groupId: string
+    ticketKey: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/tickets/{ticketKey}/review'
+}
+
+export type StartColleagueReviewErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  502: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type StartColleagueReviewError = StartColleagueReviewErrors[keyof StartColleagueReviewErrors]
+
+export type StartColleagueReviewResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    context: ChatContext
+    /**
+     * The ticket’s review chat.
+     */
+    chatContextId: string
+    /**
+     * The round just started.
+     */
+    round: number
+    /**
+     * The review chat was there already: this round carries on in it.
+     */
+    alreadyOpen: boolean
+    /**
+     * Whether its agent is now working.
+     */
+    turnStarted: boolean
+    review: ColleagueReview
+  }
+}
+
+export type StartColleagueReviewResponse =
+  StartColleagueReviewResponses[keyof StartColleagueReviewResponses]
+
+export type ListColleagueReviewsData = {
+  body?: never
+  path: {
+    groupId: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/reviews'
+}
+
+export type ListColleagueReviewsErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ListColleagueReviewsError = ListColleagueReviewsErrors[keyof ListColleagueReviewsErrors]
+
+export type ListColleagueReviewsResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    /**
+     * Most recently changed first.
+     */
+    reviews: Array<ColleagueReview>
+  }
+}
+
+export type ListColleagueReviewsResponse =
+  ListColleagueReviewsResponses[keyof ListColleagueReviewsResponses]
+
+export type DropColleagueReviewFindingData = {
+  body: {
+    /**
+     * Why, in the person’s words.
+     */
+    note?: string
+  }
+  path: {
+    groupId: string
+    ticketKey: string
+    findingId: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/tickets/{ticketKey}/review/findings/{findingId}/drop'
+}
+
+export type DropColleagueReviewFindingErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type DropColleagueReviewFindingError =
+  DropColleagueReviewFindingErrors[keyof DropColleagueReviewFindingErrors]
+
+export type DropColleagueReviewFindingResponses = {
+  /**
+   * Default Response
+   */
+  200: ColleagueReview
+}
+
+export type DropColleagueReviewFindingResponse =
+  DropColleagueReviewFindingResponses[keyof DropColleagueReviewFindingResponses]
+
+export type MarkColleagueReviewWaitingGivenData = {
+  body: {
+    /**
+     * Why, in the person’s words.
+     */
+    note?: string
+  }
+  path: {
+    groupId: string
+    ticketKey: string
+    waitingOnId: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/tickets/{ticketKey}/review/waiting-on/{waitingOnId}/given'
+}
+
+export type MarkColleagueReviewWaitingGivenErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type MarkColleagueReviewWaitingGivenError =
+  MarkColleagueReviewWaitingGivenErrors[keyof MarkColleagueReviewWaitingGivenErrors]
+
+export type MarkColleagueReviewWaitingGivenResponses = {
+  /**
+   * Default Response
+   */
+  200: ColleagueReview
+}
+
+export type MarkColleagueReviewWaitingGivenResponse =
+  MarkColleagueReviewWaitingGivenResponses[keyof MarkColleagueReviewWaitingGivenResponses]
 
 export type ReadGroupTicketPreviewData = {
   body?: never

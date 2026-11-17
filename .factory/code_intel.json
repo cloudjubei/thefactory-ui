@@ -6839,18 +6839,6 @@
           "thefactory-tools/utils"
         ]
       },
-      "blankProjectForm": {
-        "path": "src/web/compound/projects/ProjectEditorForm.tsx",
-        "dependencies": [
-          "ProjectFormState",
-          "react/useMemo",
-          "react/useRef",
-          "react/useState",
-          "react/FormEvent",
-          "thefactory-tools/types/ProjectCheckEnvSetting",
-          "thefactory-tools/types"
-        ]
-      },
       "blockedOnFromGrants": {
         "path": "src/headless/utils/cliRunActivity.ts",
         "description": "Project the unified grant feed onto the shape the activity line consumes.",
@@ -7175,6 +7163,42 @@
       "BufferEncoding": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": []
+      },
+      "BUILD_LIMIT_AFTER_SAVE_SCENES": {
+        "path": "playground/scenes/buildLimitAfterSave.tsx",
+        "dependencies": [
+          "Scene",
+          "thefactory-ui/headless/serveBuildLimitField",
+          "thefactory-ui/headless",
+          "thefactory-ui/web/ProjectServeSettingsPanel",
+          "thefactory-ui/web"
+        ]
+      },
+      "BUILD_LIMIT_AFTER_SAVE_STATES": {
+        "path": "playground/scenes/buildLimitAfterSaveFixtures.ts",
+        "dependencies": [
+          "BUILD_LIMIT_STORED_MS",
+          "thefactory-ui/headless/SERVE_BUILD_LIMIT_MINUTE_MS",
+          "thefactory-ui/headless"
+        ]
+      },
+      "BUILD_LIMIT_AFTER_SAVE_VIEWS": {
+        "path": "playground/native/buildLimitAfterSaveViews.tsx",
+        "description": "The build limit after Save, on a phone. `?state=typed-after-save` is stored",
+        "dependencies": [
+          "NativeView",
+          "react-native/View",
+          "thefactory-ui/headless/serveBuildLimitField",
+          "thefactory-ui/headless"
+        ]
+      },
+      "BUILD_LIMIT_STORED_MS": {
+        "path": "playground/scenes/buildLimitAfterSaveFixtures.ts",
+        "description": "What the build-limit field shows once Save has returned and the list may",
+        "dependencies": [
+          "thefactory-ui/headless/SERVE_BUILD_LIMIT_MINUTE_MS",
+          "thefactory-ui/headless"
+        ]
       },
       "BuildAgentRunContextFilesResult": {
         "path": "src/headless/api/generated/types.gen.ts",
@@ -32474,6 +32498,18 @@
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": []
       },
+      "filingSupersededBy": {
+        "path": "src/headless/utils/supersededFilings.ts",
+        "description": "The attempt that replaced this filing, when a fresh retry marked it",
+        "dependencies": [
+          "FilingSupersededBy"
+        ]
+      },
+      "FilingSupersededBy": {
+        "path": "src/headless/utils/supersededFilingsTypes.ts",
+        "description": "Set on a filing a fresh retry replaced. thefactory-tools writes this when",
+        "dependencies": []
+      },
       "filledCaptureFields": {
         "path": "src/headless/utils/credentialCaptures.ts",
         "description": "The fields a form opens with something in: a card explains what is wrong with",
@@ -45615,6 +45651,11 @@
           "thefactory-tools/types"
         ]
       },
+      "isSupersededFiling": {
+        "path": "src/headless/utils/supersededFilings.ts",
+        "description": "Whether a filing was replaced by a later try.",
+        "dependencies": []
+      },
       "isTaskAdapter": {
         "path": "src/headless/utils/liveDataForm.ts",
         "dependencies": [
@@ -58663,6 +58704,13 @@
           "ProofPointList"
         ]
       },
+      "partitionFilings": {
+        "path": "src/headless/utils/supersededFilings.ts",
+        "description": "Current filings, in the order they were given, then the ones a later try",
+        "dependencies": [
+          "T"
+        ]
+      },
       "partitionGrants": {
         "path": "src/headless/utils/agentQuestions.ts",
         "description": "Split the unified grant feed into the questions (rendered inline as question",
@@ -61509,6 +61557,21 @@
           "thefactory-tools/types/ProcessRunPublicationStatus",
           "thefactory-tools/types"
         ]
+      },
+      "PROCESS_RETRY_DEFINITIONS_CURRENT": {
+        "path": "src/headless/utils/processRetryDefinitionsConstants.ts",
+        "description": "The current definitions, when they are newer.",
+        "dependencies": []
+      },
+      "PROCESS_RETRY_DEFINITIONS_FROZEN": {
+        "path": "src/headless/utils/processRetryDefinitionsConstants.ts",
+        "description": "The versions frozen with this run.",
+        "dependencies": []
+      },
+      "PROCESS_RETRY_DEFINITIONS_HEADING": {
+        "path": "src/headless/utils/processRetryDefinitionsConstants.ts",
+        "description": "The heading over which definitions a retry runs.",
+        "dependencies": []
       },
       "PROCESS_RETRY_MODE_HEADING": {
         "path": "src/headless/utils/processTurnLimitViewConstants.ts",
@@ -66583,7 +66646,7 @@
       },
       "processRetryChoiceOf": {
         "path": "src/headless/utils/processTurnLimitView.ts",
-        "description": "The retry choice of a park, when trying again lets the person pick how the step's agent starts, its turns or its spend.",
+        "description": "The retry choice of a park, when trying again lets the person pick how the step's agent starts, its turns, its spend, or which definitions it runs.",
         "dependencies": [
           "thefactory-tools/types/ProcessParkChoice",
           "thefactory-tools/constants/PROCESS_TURN_LIMIT_LABEL",
@@ -66602,6 +66665,67 @@
           "thefactory-tools/types"
         ]
       },
+      "ProcessRetryDefinitionChoice": {
+        "path": "src/headless/utils/processRetryDefinitionsTypes.ts",
+        "description": "Which of the two a person picked. Absent, or `frozen`: the versions this run started with.",
+        "dependencies": []
+      },
+      "processRetryDefinitionChoiceStart": {
+        "path": "src/headless/utils/processRetryDefinitions.ts",
+        "description": "What a retry starts from for its definitions: this run's, when a newer one is offered. Pure.",
+        "dependencies": [
+          "ProcessRetryDefinitionChoice",
+          "thefactory-tools/types/ProcessParkChoice",
+          "Pick",
+          "thefactory-tools/types"
+        ]
+      },
+      "ProcessRetryDefinitionRef": {
+        "path": "src/headless/utils/processRetryDefinitionsTypes.ts",
+        "description": "One version a retry can run: the step's agent type, or the process that",
+        "dependencies": []
+      },
+      "processRetryDefinitionsOf": {
+        "path": "src/headless/utils/processRetryDefinitions.ts",
+        "description": "The versions on a retry choice, when they name something the card can show. Pure.",
+        "dependencies": [
+          "ProcessRetryDefinitionsOffer",
+          "thefactory-tools/types/ProcessParkChoice",
+          "Pick",
+          "thefactory-tools/types"
+        ]
+      },
+      "ProcessRetryDefinitionsOffer": {
+        "path": "src/headless/utils/processRetryDefinitionsTypes.ts",
+        "description": "The versions a retry of a stopped step will run, and the current ones when",
+        "dependencies": [
+          "ProcessRetryDefinitionRef"
+        ]
+      },
+      "processRetryDefinitionsOffered": {
+        "path": "src/headless/utils/processRetryDefinitions.ts",
+        "description": "Whether the card offers the current definitions as well as this run's. Pure.",
+        "dependencies": [
+          "ProcessRetryDefinitionsOffer",
+          "thefactory-tools/types/ProcessParkChoice",
+          "thefactory-tools/types"
+        ]
+      },
+      "processRetryDefinitionsView": {
+        "path": "src/headless/utils/processRetryDefinitions.ts",
+        "description": "The version block of a retry card. One line when the retry runs this run's",
+        "dependencies": [
+          "ProcessRetryDefinitionsView",
+          "ProcessRetryDefinitionsOffer",
+          "thefactory-tools/types/ProcessParkChoice",
+          "thefactory-tools/types"
+        ]
+      },
+      "ProcessRetryDefinitionsView": {
+        "path": "src/headless/utils/processRetryDefinitionsTypes.ts",
+        "description": "The version block as the retry card draws it.",
+        "dependencies": []
+      },
       "ProcessRetryMode": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": []
@@ -66616,6 +66740,7 @@
         "path": "src/headless/utils/processTurnLimitViewTypes.ts",
         "description": "How a retried step starts and the turn limit it runs on, as the person picked them at a park.",
         "dependencies": [
+          "ProcessRetryDefinitionChoice",
           "thefactory-tools/types/ProcessTurnLimit",
           "thefactory-tools/types"
         ]
@@ -66741,6 +66866,16 @@
           "thefactory-tools/utils/processTurnLimitProblem",
           "thefactory-tools/utils",
           "thefactory-tools/types/ProcessManagerMoreTries",
+          "thefactory-tools/types/ProcessParkChoice",
+          "thefactory-tools/types"
+        ]
+      },
+      "processRetryUseCurrentDefinitions": {
+        "path": "src/headless/utils/processRetryDefinitions.ts",
+        "description": "The resume field for the definitions a person picked. Current asks the run",
+        "dependencies": [
+          "ProcessRetryPick",
+          "Pick",
           "thefactory-tools/types/ProcessParkChoice",
           "thefactory-tools/types"
         ]
@@ -70293,6 +70428,26 @@
         "description": "The words the Search tab shows, the same on every client.",
         "dependencies": []
       },
+      "PROJECT_SERVE_SETTINGS_SCENES": {
+        "path": "playground/scenes/projectServeSettings.tsx",
+        "dependencies": [
+          "Scene",
+          "thefactory-ui/headless/serveBuildLimitField",
+          "thefactory-ui/headless",
+          "thefactory-ui/web/ProjectServeSettingsPanel",
+          "thefactory-ui/web"
+        ]
+      },
+      "PROJECT_SERVE_SETTINGS_VIEWS": {
+        "path": "playground/native/projectServeSettingsViews.tsx",
+        "description": "A project's serve settings on a phone. `?state=default` is an empty build",
+        "dependencies": [
+          "NativeView",
+          "react-native/View",
+          "thefactory-ui/headless/serveBuildLimitField",
+          "thefactory-ui/headless"
+        ]
+      },
       "ProjectActivitiesState": {
         "path": "src/headless/hooks/useProjectActivities.ts",
         "dependencies": [
@@ -71090,13 +71245,15 @@
         ]
       },
       "ProjectDefaultCapsField": {
-        "path": "src/web/compound/projects/ProjectDefaultCapsField.tsx",
-        "description": "The limits a project's launches start from: spend, time and attempts.",
+        "path": "src/native/compound/projects/ProjectDefaultCapsField.tsx",
+        "description": "Native peer of the web `ProjectDefaultCapsField`.",
         "dependencies": [
           "LaunchCapsTyped",
           "ProjectDefaultCapsFieldProps",
           "react/useEffect",
-          "react/useState"
+          "react/useState",
+          "react-native/Text",
+          "react-native/View"
         ]
       },
       "ProjectDefaultCapsFieldProps": {
@@ -71137,37 +71294,6 @@
         "dependencies": [
           "react-native/Text",
           "react-native/View"
-        ]
-      },
-      "ProjectEditorForm": {
-        "path": "src/web/compound/projects/ProjectEditorForm.tsx",
-        "dependencies": [
-          "ProjectFormState",
-          "CodeInfoValue",
-          "Partial",
-          "ProcessManagerAutonomy",
-          "HTMLInputElement",
-          "react/FormEvent",
-          "HTMLDivElement",
-          "ProjectEditorFormProps",
-          "react/useMemo",
-          "react/useRef",
-          "react/useState",
-          "thefactory-tools/types/ProjectCheckEnvSetting",
-          "thefactory-tools/types"
-        ]
-      },
-      "ProjectEditorFormProps": {
-        "path": "src/web/compound/projects/ProjectEditorForm.tsx",
-        "dependencies": [
-          "UseProjectGithubRepoResult",
-          "react/FormEvent",
-          "ProjectFormState",
-          "react/useMemo",
-          "react/useRef",
-          "react/useState",
-          "thefactory-tools/types/ProjectCheckEnvSetting",
-          "thefactory-tools/types"
         ]
       },
       "ProjectEvaluationDefaultsField": {
@@ -71296,20 +71422,6 @@
           "ProjectCheckKnownFlake",
           "react-native/Text",
           "react-native/View"
-        ]
-      },
-      "ProjectFormState": {
-        "path": "src/web/compound/projects/ProjectEditorForm.tsx",
-        "dependencies": [
-          "ProjectCodeInfo",
-          "thefactory-tools/types/ProjectCheckEnvSetting",
-          "ProcessManagerAutonomy",
-          "TicketConnectionBinding",
-          "react/useMemo",
-          "react/useRef",
-          "react/useState",
-          "react/FormEvent",
-          "thefactory-tools/types"
         ]
       },
       "ProjectGithubRepoField": {
@@ -72065,6 +72177,35 @@
           "thefactory-tools/types"
         ]
       },
+      "ProjectServeSettings": {
+        "path": "src/web/compound/projects/ProjectServeSettings.tsx",
+        "description": "A project's serve settings: the build limit, shown and saved on the project.",
+        "dependencies": [
+          "ProjectServeSettingsProps"
+        ]
+      },
+      "ProjectServeSettingsPanel": {
+        "path": "src/web/compound/projects/ProjectServeSettings.tsx",
+        "description": "The build limit as it stands. An empty field uses the default.",
+        "dependencies": [
+          "ProjectServeSettingsPanelProps"
+        ]
+      },
+      "ProjectServeSettingsPanelProps": {
+        "path": "src/native/compound/projects/ProjectServeSettings.tsx",
+        "dependencies": [
+          "ServeBuildLimitField",
+          "react-native/Text",
+          "react-native/View"
+        ]
+      },
+      "ProjectServeSettingsProps": {
+        "path": "src/native/compound/projects/ProjectServeSettings.tsx",
+        "dependencies": [
+          "react-native/Text",
+          "react-native/View"
+        ]
+      },
       "ProjectSettings": {
         "path": "src/headless/types/settings.ts",
         "dependencies": [
@@ -72349,20 +72490,6 @@
           "HTMLDivElement",
           "HoverInfo",
           "react-router-dom/useNavigate"
-        ]
-      },
-      "projectToFormState": {
-        "path": "src/web/compound/projects/ProjectEditorForm.tsx",
-        "dependencies": [
-          "ProjectFormState",
-          "Record",
-          "GetProjectResponse",
-          "react/useMemo",
-          "react/useRef",
-          "react/useState",
-          "react/FormEvent",
-          "thefactory-tools/types/ProjectCheckEnvSetting",
-          "thefactory-tools/types"
         ]
       },
       "ProjectUpdate": {
@@ -75518,6 +75645,13 @@
         "dependencies": [
           "RunWalkthroughItem",
           "Promise"
+        ]
+      },
+      "readServeBuildTimeoutMs": {
+        "path": "src/headless/utils/serveBuildLimit.ts",
+        "description": "The build limit stored on a project, in milliseconds.",
+        "dependencies": [
+          "Record"
         ]
       },
       "readSignOffAttachment": {
@@ -78776,6 +78910,44 @@
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": []
       },
+      "RETRY_DEFINITIONS_NEWER": {
+        "path": "playground/scenes/retryDefinitionsFixtures.ts",
+        "dependencies": [
+          "thefactory-ui/headless/ProcessRetryDefinitionsOffer",
+          "thefactory-ui/headless"
+        ]
+      },
+      "RETRY_DEFINITIONS_SAME": {
+        "path": "playground/scenes/retryDefinitionsFixtures.ts",
+        "description": "What each settled screen shows.",
+        "dependencies": [
+          "thefactory-ui/headless/ProcessRetryDefinitionsOffer",
+          "thefactory-ui/headless"
+        ]
+      },
+      "RETRY_DEFINITIONS_SCENES": {
+        "path": "playground/scenes/retryDefinitions.tsx",
+        "dependencies": [
+          "Scene",
+          "react/ReactNode",
+          "thefactory-ui/headless/type ProcessRetryDefinitionChoice",
+          "thefactory-ui/headless/type ProcessRetryDefinitionsOffer",
+          "thefactory-ui/headless/type ProcessRetryPick",
+          "thefactory-ui/headless"
+        ]
+      },
+      "RETRY_DEFINITIONS_VIEWS": {
+        "path": "playground/native/retryDefinitionsViews.tsx",
+        "description": "The retry choice on a stopped step, on a phone. `?state=this-run` names",
+        "dependencies": [
+          "thefactory-ui/headless/ProcessRetryPick",
+          "NativeView",
+          "react-native/Text",
+          "react-native/View",
+          "thefactory-ui/headless/ProcessRetryDefinitionChoice",
+          "thefactory-ui/headless"
+        ]
+      },
       "RETRY_NOTE_COPY": {
         "path": "src/headless/utils/processParkNoteConstants.ts",
         "description": "The composer's words when a person tries a step again with a note of their own.",
@@ -78793,7 +78965,7 @@
       },
       "RetryChoiceOptions": {
         "path": "src/web/compound/process/RetryChoiceOptions.tsx",
-        "description": "What trying a step again lets the person pick beside the button: whether its",
+        "description": "What trying a step again lets the person pick beside the button: which",
         "dependencies": [
           "ProcessRetryMode",
           "RetryChoiceOptionsProps"
@@ -78806,6 +78978,7 @@
           "ProcessRetrySpendView",
           "ProcessTurnLimitView",
           "ProcessRetryOffer",
+          "ProcessRetryDefinitionsOffer",
           "react-native/Text",
           "react-native/View"
         ]
@@ -82137,11 +82310,15 @@
         ]
       },
       "RunTicketPostNote": {
-        "path": "src/web/compound/process/signoff/TicketPostNote.tsx",
+        "path": "src/native/compound/process/signoff/TicketPostNote.tsx",
         "description": "The note for one run's sign-off, read while its decision is open.",
         "dependencies": [
           "TicketPostNote",
-          "react/useState"
+          "react-native/Text",
+          "react/useState",
+          "react-native/Pressable",
+          "react-native/ScrollView",
+          "react-native/View"
         ]
       },
       "runTrainerTool": {
@@ -85003,6 +85180,73 @@
           "Array"
         ]
       },
+      "SERVE_BUILD_LIMIT_COPY": {
+        "path": "src/headless/utils/serveBuildLimitConstants.ts",
+        "dependencies": [
+          "thefactory-tools/constants/UI_SERVE_BUILD_TIMEOUT_MS",
+          "thefactory-tools/constants"
+        ]
+      },
+      "SERVE_BUILD_LIMIT_DEFAULT_MS": {
+        "path": "src/headless/utils/serveBuildLimitConstants.ts",
+        "description": "How long a serve may spend building when the project sets no limit.",
+        "dependencies": [
+          "thefactory-tools/constants/UI_SERVE_BUILD_TIMEOUT_MS",
+          "thefactory-tools/constants"
+        ]
+      },
+      "SERVE_BUILD_LIMIT_METADATA_KEY": {
+        "path": "src/headless/utils/serveBuildLimitConstants.ts",
+        "description": "Project metadata key a serve reads for this project's build limit, in milliseconds.",
+        "dependencies": [
+          "thefactory-tools/constants/UI_SERVE_BUILD_TIMEOUT_MS",
+          "thefactory-tools/constants"
+        ]
+      },
+      "SERVE_BUILD_LIMIT_MINUTE_MS": {
+        "path": "src/headless/utils/serveBuildLimitConstants.ts",
+        "description": "One minute, in milliseconds. The field is edited in minutes and stored in milliseconds.",
+        "dependencies": [
+          "thefactory-tools/constants/UI_SERVE_BUILD_TIMEOUT_MS",
+          "thefactory-tools/constants"
+        ]
+      },
+      "SERVE_BUILD_LIMIT_SCENE_STATES": {
+        "path": "playground/scenes/projectServeSettingsFixtures.ts",
+        "dependencies": [
+          "ServeBuildLimitSceneState",
+          "Record",
+          "thefactory-ui/headless/SERVE_BUILD_LIMIT_COPY",
+          "thefactory-ui/headless/SERVE_BUILD_LIMIT_MINUTE_MS",
+          "thefactory-ui/headless"
+        ]
+      },
+      "serveBuildLimitField": {
+        "path": "src/headless/utils/serveBuildLimit.ts",
+        "description": "The field for a stored limit and what the person has typed.",
+        "dependencies": [
+          "ServeBuildLimitField"
+        ]
+      },
+      "ServeBuildLimitField": {
+        "path": "src/headless/utils/serveBuildLimit.ts",
+        "description": "The build limit as the serve settings field shows it.",
+        "dependencies": []
+      },
+      "serveBuildLimitMinutesText": {
+        "path": "src/headless/utils/serveBuildLimit.ts",
+        "description": "The minutes a stored millisecond limit shows, without trailing zeros.",
+        "dependencies": []
+      },
+      "ServeBuildLimitSceneState": {
+        "path": "playground/scenes/projectServeSettingsFixtures.ts",
+        "description": "What each serve-settings screen shows once it has settled. Nothing here moves on a timer.",
+        "dependencies": [
+          "thefactory-ui/headless/SERVE_BUILD_LIMIT_COPY",
+          "thefactory-ui/headless/SERVE_BUILD_LIMIT_MINUTE_MS",
+          "thefactory-ui/headless"
+        ]
+      },
       "serveDesignPlayground": {
         "path": "src/headless/api/generated/sdk.gen.ts",
         "description": "Serve the playground as the checkout holds it now — built again when the checkout changed, what was served before shown meanwhile. Answers within a moment: `building` until it is ready.",
@@ -86843,6 +87087,22 @@
           "thefactory-tools/types"
         ]
       },
+      "SIGNOFF_CHIP_SCENES": {
+        "path": "playground/scenes/signoffChips.tsx",
+        "dependencies": [
+          "Scene",
+          "react/ReactNode"
+        ]
+      },
+      "SIGNOFF_CHIP_VIEWS": {
+        "path": "playground/native/signoffChipsViews.tsx",
+        "description": "Sign-off chips on a phone. `?state=replaced-only` is one screenshot, one",
+        "dependencies": [
+          "NativeView",
+          "react-native/Text",
+          "react-native/View"
+        ]
+      },
       "SIGNOFF_COST_BILLED_SUFFIX": {
         "path": "src/headless/utils/signoffWorkConstants.ts",
         "dependencies": [
@@ -87156,6 +87416,21 @@
           "SignoffPointsGroup",
           "thefactory-tools/types/ProcessRun",
           "thefactory-tools/types"
+        ]
+      },
+      "signoffChipRows": {
+        "path": "playground/scenes/signoffChipsFixtures.ts",
+        "description": "Sign-off chips for a feature whose first try was replaced.",
+        "dependencies": [
+          "BuildStorySignoffInput",
+          "StorySignoffProcessRun",
+          "Evidence",
+          "CheckMethodRow",
+          "thefactory-ui/headless/buildStorySignoff",
+          "thefactory-ui/headless/type BuildStorySignoffInput",
+          "thefactory-ui/headless/type CheckMethodRow",
+          "thefactory-ui/headless/type StorySignoffProcessRun",
+          "thefactory-ui/headless"
         ]
       },
       "SignoffCostRow": {
@@ -92503,6 +92778,78 @@
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": []
       },
+      "SUPERSEDED_FILINGS_CURRENT": {
+        "path": "playground/scenes/supersededFilingsFixtures.ts",
+        "dependencies": [
+          "thefactory-ui/headless/EvidenceTile",
+          "thefactory-tools/constants/FEATURE_REPORT_APPROACH",
+          "thefactory-tools/constants",
+          "thefactory-ui/headless"
+        ]
+      },
+      "SUPERSEDED_FILINGS_LABEL": {
+        "path": "src/headless/utils/supersededFilingsConstants.ts",
+        "description": "The label on a filing a later try replaced, and on the block that holds them.",
+        "dependencies": []
+      },
+      "SUPERSEDED_FILINGS_NOTE": {
+        "path": "src/headless/utils/supersededFilingsConstants.ts",
+        "description": "Why the collapsed block is there, once it is opened.",
+        "dependencies": []
+      },
+      "SUPERSEDED_FILINGS_REPLACED": {
+        "path": "playground/scenes/supersededFilingsFixtures.ts",
+        "dependencies": [
+          "thefactory-ui/headless/EvidenceTile",
+          "thefactory-tools/constants/FEATURE_REPORT_APPROACH",
+          "thefactory-tools/constants",
+          "thefactory-ui/headless"
+        ]
+      },
+      "SUPERSEDED_FILINGS_SCENES": {
+        "path": "playground/scenes/supersededFilings.tsx",
+        "dependencies": [
+          "Scene"
+        ]
+      },
+      "SUPERSEDED_FILINGS_VIEWS": {
+        "path": "playground/native/supersededFilingsViews.tsx",
+        "description": "A run's evidence on a phone. `?view=superseded-filings&state=collapsed` shows",
+        "dependencies": [
+          "NativeView",
+          "react-native/Text",
+          "react-native/View"
+        ]
+      },
+      "SupersededFilings": {
+        "path": "src/web/compound/process/SupersededFilings.tsx",
+        "description": "Filings a later try replaced. Closed, they are one labelled row under the",
+        "dependencies": [
+          "SupersededFilingsProps"
+        ]
+      },
+      "supersededFilingsHeading": {
+        "path": "src/headless/utils/supersededFilings.ts",
+        "description": "The collapsed row: the label, then what it holds.",
+        "dependencies": [
+          "SUPERSEDED_FILINGS_LABEL"
+        ]
+      },
+      "SupersededFilingsProps": {
+        "path": "src/native/compound/process/SupersededFilings.tsx",
+        "dependencies": [
+          "EvidenceTile",
+          "react/useState",
+          "react-native/Pressable",
+          "react-native/Text",
+          "react-native/View"
+        ]
+      },
+      "supersededFilingsSummary": {
+        "path": "src/headless/utils/supersededFilings.ts",
+        "description": "\"1 report · 1 screenshot\" — what the collapsed row says is inside, in list order.",
+        "dependencies": []
+      },
       "SupportDocType": {
         "path": "src/headless/api/generated/types.gen.ts",
         "dependencies": []
@@ -94473,11 +94820,15 @@
         "dependencies": []
       },
       "TicketPostNote": {
-        "path": "src/web/compound/process/signoff/TicketPostNote.tsx",
-        "description": "What approving a sign-off would post to its tickets, in a line, with the",
+        "path": "src/native/compound/process/signoff/TicketPostNote.tsx",
+        "description": "Native peer of web's `TicketPostNote`, in the layout that ships: the line, and",
         "dependencies": [
           "TicketPostNoteProps",
-          "react/useState"
+          "react/useState",
+          "react-native/Pressable",
+          "react-native/ScrollView",
+          "react-native/Text",
+          "react-native/View"
         ]
       },
       "TicketPostNoteProps": {
@@ -99268,39 +99619,6 @@
           "thefactory-tools/constants"
         ]
       },
-      "useAppWorkStart": {
-        "path": "src/headless/hooks/useAppWorkStart.ts",
-        "description": "An embedded app's `work.start`: the person confirms (and may edit) the work over the App view",
-        "dependencies": [
-          "StartWorkState",
-          "AppWorkStartDraft",
-          "BridgeRequest",
-          "StartWorkOutcome",
-          "UseAppWorkStart",
-          "Record",
-          "react/useCallback",
-          "react/useEffect",
-          "react/useMemo",
-          "react/useState",
-          "react/useSyncExternalStore"
-        ]
-      },
-      "UseAppWorkStart": {
-        "path": "src/headless/hooks/useAppWorkStart.ts",
-        "dependencies": [
-          "StartWorkState",
-          "AppWorkStartDraft",
-          "AppWorkStartReply",
-          "Promise",
-          "BridgeRequest",
-          "AppWorkStartAsk",
-          "react/useCallback",
-          "react/useEffect",
-          "react/useMemo",
-          "react/useState",
-          "react/useSyncExternalStore"
-        ]
-      },
       "useAssistantConversations": {
         "path": "src/headless/hooks/useAssistantConversations.ts",
         "description": "The Assistant's conversations, kept live: each one's news, asks and replying",
@@ -100393,6 +100711,14 @@
           "react/useState",
           "react/DragEvent",
           "react/MouseEvent"
+        ]
+      },
+      "useDurationTimer": {
+        "path": "src/headless/hooks/useDurationTimer.ts",
+        "description": "Returns a re-rendering \"now\" timestamp that ticks every `intervalMs` while",
+        "dependencies": [
+          "react/useEffect",
+          "react/useState"
         ]
       },
       "useEffectiveReferenceRenderer": {
@@ -102457,6 +102783,24 @@
           "react/useCallback",
           "react/useEffect",
           "react/useMemo",
+          "react/useState"
+        ]
+      },
+      "useProjectServeSettings": {
+        "path": "src/headless/hooks/useProjectServeSettings.ts",
+        "description": "A project's serve build limit: what the field shows, and a save onto its metadata.",
+        "dependencies": [
+          "Record",
+          "UseProjectServeSettings",
+          "react/useEffect",
+          "react/useState"
+        ]
+      },
+      "UseProjectServeSettings": {
+        "path": "src/headless/hooks/useProjectServeSettings.ts",
+        "dependencies": [
+          "ServeBuildLimitField",
+          "react/useEffect",
           "react/useState"
         ]
       },
@@ -105520,6 +105864,84 @@
         "description": "What a card of several requests says in place of the agent's words.",
         "dependencies": []
       },
+      "WAITING_RETRY_NOTE_SCENES": {
+        "path": "playground/scenes/waitingRetryNote.tsx",
+        "dependencies": [
+          "Scene",
+          "react/ReactNode",
+          "react-router-dom/MemoryRouter",
+          "thefactory-ui/headless/ApiProvider",
+          "thefactory-ui/headless/AppSettingsProvider",
+          "thefactory-ui/headless/AuthProvider",
+          "thefactory-ui/headless/FilesProvider",
+          "thefactory-ui/headless/ProjectsProvider",
+          "thefactory-ui/headless/type SyncKVStorage",
+          "thefactory-ui/headless"
+        ]
+      },
+      "WAITING_RETRY_NOTE_VIEWS": {
+        "path": "playground/native/waitingRetryNoteViews.tsx",
+        "description": "The waiting card on a phone. `?state=current` has Current selected.",
+        "dependencies": [
+          "NativeView",
+          "react-native/View",
+          "thefactory-ui/headless/ApiProvider",
+          "thefactory-ui/headless/AppSettingsProvider",
+          "thefactory-ui/headless/AuthProvider",
+          "thefactory-ui/headless/FilesProvider",
+          "thefactory-ui/headless/ProjectsProvider",
+          "thefactory-ui/headless/type SyncKVStorage",
+          "thefactory-ui/headless"
+        ]
+      },
+      "WAITING_RETRY_PICK": {
+        "path": "playground/scenes/waitingRetryNoteFixtures.ts",
+        "description": "Current, the same pick as `/?scene=retry-definitions&state=current`.",
+        "dependencies": [
+          "thefactory-ui/headless/ProcessRetryPick",
+          "thefactory-ui/headless/ProcessWaitingView",
+          "thefactory-ui/headless"
+        ]
+      },
+      "WAITING_RETRY_VIEW": {
+        "path": "playground/scenes/waitingRetryNoteFixtures.ts",
+        "description": "A reviewer stopped, with Try again as the answer an own note goes with.",
+        "dependencies": [
+          "thefactory-ui/headless/ProcessWaitingView",
+          "thefactory-ui/headless/ProcessRetryPick",
+          "thefactory-ui/headless"
+        ]
+      },
+      "WaitingCard": {
+        "path": "src/web/compound/process/ProcessPipeline.tsx",
+        "description": "An agent waiting on the person: what it needs, in its own words, exactly what",
+        "dependencies": [
+          "ProcessResumeChoice",
+          "ParkAnswerView",
+          "ProcessNodeRunRef",
+          "ChatContext",
+          "Promise",
+          "ProcessWaitingItemChoice",
+          "FeatureSplitDraft",
+          "ProofChangeDraft",
+          "ProcessRetryPick",
+          "ProofKind",
+          "ProcessIntegrationDecision",
+          "ProcessRetryDefinitionsOffer",
+          "ProcessRetryOffer",
+          "AnswerFilesSource",
+          "ProcessManagerEscalationView",
+          "ProcessWaitingView",
+          "react/Fragment",
+          "react/useCallback",
+          "react/useEffect",
+          "react/useMemo",
+          "react/useState",
+          "react/type ReactNode",
+          "thefactory-tools/utils/getChatContextKey",
+          "thefactory-tools/utils"
+        ]
+      },
       "WaitingDelegated": {
         "path": "src/web/compound/process/WaitingDelegated.tsx",
         "dependencies": [
@@ -106228,6 +106650,13 @@
         "dependencies": [
           "react-native/Text",
           "react-native/View"
+        ]
+      },
+      "withServeBuildTimeout": {
+        "path": "src/headless/utils/serveBuildLimit.ts",
+        "description": "Metadata after saving the field's text. A blank field drops the key so the default applies.",
+        "dependencies": [
+          "Record"
         ]
       },
       "withSignOffOutputs": {
@@ -107158,6 +107587,42 @@
           "thefactory-ui/headless",
           "thefactory-tools/constants/CHAT_OPEN_CHANGES_NEEDS_YOU_AFTER_MS",
           "thefactory-tools/constants"
+        ]
+      },
+      "BUILD_LIMIT_AFTER_SAVE_SCENES": {
+        "path": "scenes/buildLimitAfterSave.tsx",
+        "dependencies": [
+          "Scene",
+          "thefactory-ui/headless/serveBuildLimitField",
+          "thefactory-ui/headless",
+          "thefactory-ui/web/ProjectServeSettingsPanel",
+          "thefactory-ui/web"
+        ]
+      },
+      "BUILD_LIMIT_AFTER_SAVE_STATES": {
+        "path": "scenes/buildLimitAfterSaveFixtures.ts",
+        "dependencies": [
+          "BUILD_LIMIT_STORED_MS",
+          "thefactory-ui/headless/SERVE_BUILD_LIMIT_MINUTE_MS",
+          "thefactory-ui/headless"
+        ]
+      },
+      "BUILD_LIMIT_AFTER_SAVE_VIEWS": {
+        "path": "native/buildLimitAfterSaveViews.tsx",
+        "description": "The build limit after Save, on a phone. `?state=typed-after-save` is stored",
+        "dependencies": [
+          "NativeView",
+          "react-native/View",
+          "thefactory-ui/headless/serveBuildLimitField",
+          "thefactory-ui/headless"
+        ]
+      },
+      "BUILD_LIMIT_STORED_MS": {
+        "path": "scenes/buildLimitAfterSaveFixtures.ts",
+        "description": "What the build-limit field shows once Save has returned and the list may",
+        "dependencies": [
+          "thefactory-ui/headless/SERVE_BUILD_LIMIT_MINUTE_MS",
+          "thefactory-ui/headless"
         ]
       },
       "CAPABILITY_SETTINGS_SCENES": {
@@ -110081,6 +110546,26 @@
           "thefactory-ui/web"
         ]
       },
+      "PROJECT_SERVE_SETTINGS_SCENES": {
+        "path": "scenes/projectServeSettings.tsx",
+        "dependencies": [
+          "Scene",
+          "thefactory-ui/headless/serveBuildLimitField",
+          "thefactory-ui/headless",
+          "thefactory-ui/web/ProjectServeSettingsPanel",
+          "thefactory-ui/web"
+        ]
+      },
+      "PROJECT_SERVE_SETTINGS_VIEWS": {
+        "path": "native/projectServeSettingsViews.tsx",
+        "description": "A project's serve settings on a phone. `?state=default` is an empty build",
+        "dependencies": [
+          "NativeView",
+          "react-native/View",
+          "thefactory-ui/headless/serveBuildLimitField",
+          "thefactory-ui/headless"
+        ]
+      },
       "PROOF_CHANGE_SCENES": {
         "path": "scenes/proofChange.tsx",
         "dependencies": [
@@ -110384,6 +110869,44 @@
       "remapProps": {
         "path": "native/stubs/nativewind.ts",
         "dependencies": []
+      },
+      "RETRY_DEFINITIONS_NEWER": {
+        "path": "scenes/retryDefinitionsFixtures.ts",
+        "dependencies": [
+          "thefactory-ui/headless/ProcessRetryDefinitionsOffer",
+          "thefactory-ui/headless"
+        ]
+      },
+      "RETRY_DEFINITIONS_SAME": {
+        "path": "scenes/retryDefinitionsFixtures.ts",
+        "description": "What each settled screen shows.",
+        "dependencies": [
+          "thefactory-ui/headless/ProcessRetryDefinitionsOffer",
+          "thefactory-ui/headless"
+        ]
+      },
+      "RETRY_DEFINITIONS_SCENES": {
+        "path": "scenes/retryDefinitions.tsx",
+        "dependencies": [
+          "Scene",
+          "react/ReactNode",
+          "thefactory-ui/headless/type ProcessRetryDefinitionChoice",
+          "thefactory-ui/headless/type ProcessRetryDefinitionsOffer",
+          "thefactory-ui/headless/type ProcessRetryPick",
+          "thefactory-ui/headless"
+        ]
+      },
+      "RETRY_DEFINITIONS_VIEWS": {
+        "path": "native/retryDefinitionsViews.tsx",
+        "description": "The retry choice on a stopped step, on a phone. `?state=this-run` names",
+        "dependencies": [
+          "thefactory-ui/headless/ProcessRetryPick",
+          "NativeView",
+          "react-native/Text",
+          "react-native/View",
+          "thefactory-ui/headless/ProcessRetryDefinitionChoice",
+          "thefactory-ui/headless"
+        ]
       },
       "REVIEW_GAP_BLOCKED_RUN": {
         "path": "scenes/reviewGapFixtures.ts",
@@ -110831,6 +111354,25 @@
           "ChatMessageLike"
         ]
       },
+      "SERVE_BUILD_LIMIT_SCENE_STATES": {
+        "path": "scenes/projectServeSettingsFixtures.ts",
+        "dependencies": [
+          "ServeBuildLimitSceneState",
+          "Record",
+          "thefactory-ui/headless/SERVE_BUILD_LIMIT_COPY",
+          "thefactory-ui/headless/SERVE_BUILD_LIMIT_MINUTE_MS",
+          "thefactory-ui/headless"
+        ]
+      },
+      "ServeBuildLimitSceneState": {
+        "path": "scenes/projectServeSettingsFixtures.ts",
+        "description": "What each serve-settings screen shows once it has settled. Nothing here moves on a timer.",
+        "dependencies": [
+          "thefactory-ui/headless/SERVE_BUILD_LIMIT_COPY",
+          "thefactory-ui/headless/SERVE_BUILD_LIMIT_MINUTE_MS",
+          "thefactory-ui/headless"
+        ]
+      },
       "Showcase": {
         "path": "showcase/Showcase.tsx",
         "description": "The page a playground URL asks for: the index, a scene's every state, or one state alone.",
@@ -110991,6 +111533,37 @@
           "thefactory-ui/web/SegmentedControl",
           "thefactory-ui/web/SignOffOutputSettingsPanel",
           "thefactory-ui/web"
+        ]
+      },
+      "SIGNOFF_CHIP_SCENES": {
+        "path": "scenes/signoffChips.tsx",
+        "dependencies": [
+          "Scene",
+          "react/ReactNode"
+        ]
+      },
+      "SIGNOFF_CHIP_VIEWS": {
+        "path": "native/signoffChipsViews.tsx",
+        "description": "Sign-off chips on a phone. `?state=replaced-only` is one screenshot, one",
+        "dependencies": [
+          "NativeView",
+          "react-native/Text",
+          "react-native/View"
+        ]
+      },
+      "signoffChipRows": {
+        "path": "scenes/signoffChipsFixtures.ts",
+        "description": "Sign-off chips for a feature whose first try was replaced.",
+        "dependencies": [
+          "BuildStorySignoffInput",
+          "StorySignoffProcessRun",
+          "Evidence",
+          "CheckMethodRow",
+          "thefactory-ui/headless/buildStorySignoff",
+          "thefactory-ui/headless/type BuildStorySignoffInput",
+          "thefactory-ui/headless/type CheckMethodRow",
+          "thefactory-ui/headless/type StorySignoffProcessRun",
+          "thefactory-ui/headless"
         ]
       },
       "SPEND_LIMIT_SCENES": {
@@ -111242,6 +111815,39 @@
           "thefactory-ui/headless/type PendingQuestionGrant",
           "thefactory-ui/headless/type SyncKVStorage",
           "thefactory-ui/headless"
+        ]
+      },
+      "SUPERSEDED_FILINGS_CURRENT": {
+        "path": "scenes/supersededFilingsFixtures.ts",
+        "dependencies": [
+          "thefactory-ui/headless/EvidenceTile",
+          "thefactory-tools/constants/FEATURE_REPORT_APPROACH",
+          "thefactory-tools/constants",
+          "thefactory-ui/headless"
+        ]
+      },
+      "SUPERSEDED_FILINGS_REPLACED": {
+        "path": "scenes/supersededFilingsFixtures.ts",
+        "dependencies": [
+          "thefactory-ui/headless/EvidenceTile",
+          "thefactory-tools/constants/FEATURE_REPORT_APPROACH",
+          "thefactory-tools/constants",
+          "thefactory-ui/headless"
+        ]
+      },
+      "SUPERSEDED_FILINGS_SCENES": {
+        "path": "scenes/supersededFilings.tsx",
+        "dependencies": [
+          "Scene"
+        ]
+      },
+      "SUPERSEDED_FILINGS_VIEWS": {
+        "path": "native/supersededFilingsViews.tsx",
+        "description": "A run's evidence on a phone. `?view=superseded-filings&state=collapsed` shows",
+        "dependencies": [
+          "NativeView",
+          "react-native/Text",
+          "react-native/View"
         ]
       },
       "Swipeable": {
@@ -111874,6 +112480,54 @@
           "thefactory-tools/types/ProcessProofChangeOffer",
           "thefactory-tools/types",
           "thefactory-ui/headless/ProofChangeKeptLook",
+          "thefactory-ui/headless"
+        ]
+      },
+      "WAITING_RETRY_NOTE_SCENES": {
+        "path": "scenes/waitingRetryNote.tsx",
+        "dependencies": [
+          "Scene",
+          "react/ReactNode",
+          "react-router-dom/MemoryRouter",
+          "thefactory-ui/headless/ApiProvider",
+          "thefactory-ui/headless/AppSettingsProvider",
+          "thefactory-ui/headless/AuthProvider",
+          "thefactory-ui/headless/FilesProvider",
+          "thefactory-ui/headless/ProjectsProvider",
+          "thefactory-ui/headless/type SyncKVStorage",
+          "thefactory-ui/headless"
+        ]
+      },
+      "WAITING_RETRY_NOTE_VIEWS": {
+        "path": "native/waitingRetryNoteViews.tsx",
+        "description": "The waiting card on a phone. `?state=current` has Current selected.",
+        "dependencies": [
+          "NativeView",
+          "react-native/View",
+          "thefactory-ui/headless/ApiProvider",
+          "thefactory-ui/headless/AppSettingsProvider",
+          "thefactory-ui/headless/AuthProvider",
+          "thefactory-ui/headless/FilesProvider",
+          "thefactory-ui/headless/ProjectsProvider",
+          "thefactory-ui/headless/type SyncKVStorage",
+          "thefactory-ui/headless"
+        ]
+      },
+      "WAITING_RETRY_PICK": {
+        "path": "scenes/waitingRetryNoteFixtures.ts",
+        "description": "Current, the same pick as `/?scene=retry-definitions&state=current`.",
+        "dependencies": [
+          "thefactory-ui/headless/ProcessRetryPick",
+          "thefactory-ui/headless/ProcessWaitingView",
+          "thefactory-ui/headless"
+        ]
+      },
+      "WAITING_RETRY_VIEW": {
+        "path": "scenes/waitingRetryNoteFixtures.ts",
+        "description": "A reviewer stopped, with Try again as the answer an own note goes with.",
+        "dependencies": [
+          "thefactory-ui/headless/ProcessWaitingView",
+          "thefactory-ui/headless/ProcessRetryPick",
           "thefactory-ui/headless"
         ]
       },
@@ -131716,6 +132370,18 @@
           "react-native/ViewStyle"
         ]
       },
+      "BranchCommit": {
+        "path": "headless/utils/branchCommits.ts",
+        "description": "The fields a commit row needs; matches `GitLogCommit`.",
+        "dependencies": []
+      },
+      "branchCommitsRefs": {
+        "path": "headless/utils/branchCommits.ts",
+        "description": "Where a review's commits are read from, best first. An open review reads its",
+        "dependencies": [
+          "BranchCommitsReview"
+        ]
+      },
       "BranchCommitsReview": {
         "path": "headless/utils/branchCommitsTypes.ts",
         "description": "The parts of a review that say where its commits can be read from.",
@@ -142155,6 +142821,13 @@
         "description": "The one line a successful commit leaves in the chat, and what it opens to.",
         "dependencies": [
           "CommitReceiptFile"
+        ]
+      },
+      "commitsSinceBase": {
+        "path": "headless/utils/branchCommits.ts",
+        "description": "The commits this branch added — everything newer than the base.",
+        "dependencies": [
+          "BranchCommit"
         ]
       },
       "CommitsToBringIn": {
@@ -155788,6 +156461,18 @@
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": []
       },
+      "filingSupersededBy": {
+        "path": "headless/utils/supersededFilings.ts",
+        "description": "The attempt that replaced this filing, when a fresh retry marked it",
+        "dependencies": [
+          "FilingSupersededBy"
+        ]
+      },
+      "FilingSupersededBy": {
+        "path": "headless/utils/supersededFilingsTypes.ts",
+        "description": "Set on a filing a fresh retry replaced. thefactory-tools writes this when",
+        "dependencies": []
+      },
       "filledCaptureFields": {
         "path": "headless/utils/credentialCaptures.ts",
         "description": "The fields a form opens with something in: a card explains what is wrong with",
@@ -168669,6 +169354,11 @@
           "thefactory-tools/types"
         ]
       },
+      "isSupersededFiling": {
+        "path": "headless/utils/supersededFilings.ts",
+        "description": "Whether a filing was replaced by a later try.",
+        "dependencies": []
+      },
       "isTaskAdapter": {
         "path": "headless/utils/liveDataForm.ts",
         "dependencies": [
@@ -173583,12 +174273,10 @@
         ]
       },
       "LiveDataTaskSourceFieldsProps": {
-        "path": "native/compound/LiveDataTaskSourceFields.tsx",
+        "path": "web/compound/LiveDataTaskSourceFields.tsx",
         "dependencies": [
           "K",
-          "LiveDataSourceForm",
-          "react-native/Text",
-          "react-native/View"
+          "LiveDataSourceForm"
         ]
       },
       "LiveDataUpdatedEvent": {
@@ -177421,13 +178109,9 @@
         ]
       },
       "ModelChipConfig": {
-        "path": "native/compound/ModelChip.tsx",
+        "path": "web/compound/ModelChip.tsx",
         "dependencies": [
-          "react/useEffect",
-          "react/useState",
-          "react-native/Pressable",
-          "react-native/Text",
-          "react-native/View"
+          "react-dom/createPortal"
         ]
       },
       "ModelChipConfigLike": {
@@ -177479,13 +178163,9 @@
         ]
       },
       "ModelChipMode": {
-        "path": "native/compound/ModelChip.tsx",
+        "path": "web/compound/ModelChip.tsx",
         "dependencies": [
-          "react/useEffect",
-          "react/useState",
-          "react-native/Pressable",
-          "react-native/Text",
-          "react-native/View"
+          "react-dom/createPortal"
         ]
       },
       "ModelChipOff": {
@@ -177494,22 +178174,18 @@
         "dependencies": []
       },
       "ModelChipProps": {
-        "path": "native/compound/ModelChip.tsx",
+        "path": "web/compound/ModelChip.tsx",
         "dependencies": [
           "ModelChipOff",
           "ModelEffortSwitch",
           "CliAuthWarning",
           "ActivityCliModel",
           "ModelInfo",
-          "ModelPriceRecord",
+          "UsageModalModelPrice",
           "Promise",
           "ModelChipConfig",
           "ModelChipMode",
-          "react/useEffect",
-          "react/useState",
-          "react-native/Pressable",
-          "react-native/Text",
-          "react-native/View"
+          "react-dom/createPortal"
         ]
       },
       "modelChipProviderLabel": {
@@ -177599,17 +178275,6 @@
       "ModelPrice": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": []
-      },
-      "ModelPriceRecord": {
-        "path": "native/compound/ModelChip.tsx",
-        "description": "Minimal price record shape — the rates the chip reads of headless `UsageModalModelPrice`.",
-        "dependencies": [
-          "react/useEffect",
-          "react/useState",
-          "react-native/Pressable",
-          "react-native/Text",
-          "react-native/View"
-        ]
       },
       "ModelQuickSelectOption": {
         "path": "native/compound/agents/AgentModelQuickSelect.tsx",
@@ -180861,6 +181526,13 @@
           "ProofPointList"
         ]
       },
+      "partitionFilings": {
+        "path": "headless/utils/supersededFilings.ts",
+        "description": "Current filings, in the order they were given, then the ones a later try",
+        "dependencies": [
+          "T"
+        ]
+      },
       "partitionGrants": {
         "path": "headless/utils/agentQuestions.ts",
         "description": "Split the unified grant feed into the questions (rendered inline as question",
@@ -183337,6 +184009,21 @@
           "thefactory-tools/types/ProcessRunPublicationStatus",
           "thefactory-tools/types"
         ]
+      },
+      "PROCESS_RETRY_DEFINITIONS_CURRENT": {
+        "path": "headless/utils/processRetryDefinitionsConstants.ts",
+        "description": "The current definitions, when they are newer.",
+        "dependencies": []
+      },
+      "PROCESS_RETRY_DEFINITIONS_FROZEN": {
+        "path": "headless/utils/processRetryDefinitionsConstants.ts",
+        "description": "The versions frozen with this run.",
+        "dependencies": []
+      },
+      "PROCESS_RETRY_DEFINITIONS_HEADING": {
+        "path": "headless/utils/processRetryDefinitionsConstants.ts",
+        "description": "The heading over which definitions a retry runs.",
+        "dependencies": []
       },
       "PROCESS_RETRY_MODE_HEADING": {
         "path": "headless/utils/processTurnLimitViewConstants.ts",
@@ -188377,7 +189064,7 @@
       },
       "processRetryChoiceOf": {
         "path": "headless/utils/processTurnLimitView.ts",
-        "description": "The retry choice of a park, when trying again lets the person pick how the step's agent starts, its turns or its spend.",
+        "description": "The retry choice of a park, when trying again lets the person pick how the step's agent starts, its turns, its spend, or which definitions it runs.",
         "dependencies": [
           "thefactory-tools/types/ProcessParkChoice",
           "thefactory-tools/constants/PROCESS_TURN_LIMIT_LABEL",
@@ -188396,6 +189083,67 @@
           "thefactory-tools/types"
         ]
       },
+      "ProcessRetryDefinitionChoice": {
+        "path": "headless/utils/processRetryDefinitionsTypes.ts",
+        "description": "Which of the two a person picked. Absent, or `frozen`: the versions this run started with.",
+        "dependencies": []
+      },
+      "processRetryDefinitionChoiceStart": {
+        "path": "headless/utils/processRetryDefinitions.ts",
+        "description": "What a retry starts from for its definitions: this run's, when a newer one is offered. Pure.",
+        "dependencies": [
+          "ProcessRetryDefinitionChoice",
+          "thefactory-tools/types/ProcessParkChoice",
+          "Pick",
+          "thefactory-tools/types"
+        ]
+      },
+      "ProcessRetryDefinitionRef": {
+        "path": "headless/utils/processRetryDefinitionsTypes.ts",
+        "description": "One version a retry can run: the step's agent type, or the process that",
+        "dependencies": []
+      },
+      "processRetryDefinitionsOf": {
+        "path": "headless/utils/processRetryDefinitions.ts",
+        "description": "The versions on a retry choice, when they name something the card can show. Pure.",
+        "dependencies": [
+          "ProcessRetryDefinitionsOffer",
+          "thefactory-tools/types/ProcessParkChoice",
+          "Pick",
+          "thefactory-tools/types"
+        ]
+      },
+      "ProcessRetryDefinitionsOffer": {
+        "path": "headless/utils/processRetryDefinitionsTypes.ts",
+        "description": "The versions a retry of a stopped step will run, and the current ones when",
+        "dependencies": [
+          "ProcessRetryDefinitionRef"
+        ]
+      },
+      "processRetryDefinitionsOffered": {
+        "path": "headless/utils/processRetryDefinitions.ts",
+        "description": "Whether the card offers the current definitions as well as this run's. Pure.",
+        "dependencies": [
+          "ProcessRetryDefinitionsOffer",
+          "thefactory-tools/types/ProcessParkChoice",
+          "thefactory-tools/types"
+        ]
+      },
+      "processRetryDefinitionsView": {
+        "path": "headless/utils/processRetryDefinitions.ts",
+        "description": "The version block of a retry card. One line when the retry runs this run's",
+        "dependencies": [
+          "ProcessRetryDefinitionsView",
+          "ProcessRetryDefinitionsOffer",
+          "thefactory-tools/types/ProcessParkChoice",
+          "thefactory-tools/types"
+        ]
+      },
+      "ProcessRetryDefinitionsView": {
+        "path": "headless/utils/processRetryDefinitionsTypes.ts",
+        "description": "The version block as the retry card draws it.",
+        "dependencies": []
+      },
       "ProcessRetryMode": {
         "path": "headless/api/generated/types.gen.ts",
         "dependencies": []
@@ -188410,6 +189158,7 @@
         "path": "headless/utils/processTurnLimitViewTypes.ts",
         "description": "How a retried step starts and the turn limit it runs on, as the person picked them at a park.",
         "dependencies": [
+          "ProcessRetryDefinitionChoice",
           "thefactory-tools/types/ProcessTurnLimit",
           "thefactory-tools/types"
         ]
@@ -188535,6 +189284,16 @@
           "thefactory-tools/utils/processTurnLimitProblem",
           "thefactory-tools/utils",
           "thefactory-tools/types/ProcessManagerMoreTries",
+          "thefactory-tools/types/ProcessParkChoice",
+          "thefactory-tools/types"
+        ]
+      },
+      "processRetryUseCurrentDefinitions": {
+        "path": "headless/utils/processRetryDefinitions.ts",
+        "description": "The resume field for the definitions a person picked. Current asks the run",
+        "dependencies": [
+          "ProcessRetryPick",
+          "Pick",
           "thefactory-tools/types/ProcessParkChoice",
           "thefactory-tools/types"
         ]
@@ -193816,6 +194575,35 @@
           "thefactory-tools/types"
         ]
       },
+      "ProjectServeSettings": {
+        "path": "web/compound/projects/ProjectServeSettings.tsx",
+        "description": "A project's serve settings: the build limit, shown and saved on the project.",
+        "dependencies": [
+          "ProjectServeSettingsProps"
+        ]
+      },
+      "ProjectServeSettingsPanel": {
+        "path": "web/compound/projects/ProjectServeSettings.tsx",
+        "description": "The build limit as it stands. An empty field uses the default.",
+        "dependencies": [
+          "ProjectServeSettingsPanelProps"
+        ]
+      },
+      "ProjectServeSettingsPanelProps": {
+        "path": "native/compound/projects/ProjectServeSettings.tsx",
+        "dependencies": [
+          "ServeBuildLimitField",
+          "react-native/Text",
+          "react-native/View"
+        ]
+      },
+      "ProjectServeSettingsProps": {
+        "path": "native/compound/projects/ProjectServeSettings.tsx",
+        "dependencies": [
+          "react-native/Text",
+          "react-native/View"
+        ]
+      },
       "ProjectSettings": {
         "path": "headless/types/settings.ts",
         "dependencies": [
@@ -197048,6 +197836,13 @@
           "Promise"
         ]
       },
+      "readServeBuildTimeoutMs": {
+        "path": "headless/utils/serveBuildLimit.ts",
+        "description": "The build limit stored on a project, in milliseconds.",
+        "dependencies": [
+          "Record"
+        ]
+      },
       "readSignOffAttachment": {
         "path": "headless/api/groupSignOffApi.ts",
         "dependencies": [
@@ -200240,7 +201035,7 @@
       },
       "RetryChoiceOptions": {
         "path": "web/compound/process/RetryChoiceOptions.tsx",
-        "description": "What trying a step again lets the person pick beside the button: whether its",
+        "description": "What trying a step again lets the person pick beside the button: which",
         "dependencies": [
           "ProcessRetryMode",
           "RetryChoiceOptionsProps"
@@ -200253,6 +201048,7 @@
           "ProcessRetrySpendView",
           "ProcessTurnLimitView",
           "ProcessRetryOffer",
+          "ProcessRetryDefinitionsOffer",
           "react-native/Text",
           "react-native/View"
         ]
@@ -206003,6 +206799,54 @@
         "dependencies": [
           "Array"
         ]
+      },
+      "SERVE_BUILD_LIMIT_COPY": {
+        "path": "headless/utils/serveBuildLimitConstants.ts",
+        "dependencies": [
+          "thefactory-tools/constants/UI_SERVE_BUILD_TIMEOUT_MS",
+          "thefactory-tools/constants"
+        ]
+      },
+      "SERVE_BUILD_LIMIT_DEFAULT_MS": {
+        "path": "headless/utils/serveBuildLimitConstants.ts",
+        "description": "How long a serve may spend building when the project sets no limit.",
+        "dependencies": [
+          "thefactory-tools/constants/UI_SERVE_BUILD_TIMEOUT_MS",
+          "thefactory-tools/constants"
+        ]
+      },
+      "SERVE_BUILD_LIMIT_METADATA_KEY": {
+        "path": "headless/utils/serveBuildLimitConstants.ts",
+        "description": "Project metadata key a serve reads for this project's build limit, in milliseconds.",
+        "dependencies": [
+          "thefactory-tools/constants/UI_SERVE_BUILD_TIMEOUT_MS",
+          "thefactory-tools/constants"
+        ]
+      },
+      "SERVE_BUILD_LIMIT_MINUTE_MS": {
+        "path": "headless/utils/serveBuildLimitConstants.ts",
+        "description": "One minute, in milliseconds. The field is edited in minutes and stored in milliseconds.",
+        "dependencies": [
+          "thefactory-tools/constants/UI_SERVE_BUILD_TIMEOUT_MS",
+          "thefactory-tools/constants"
+        ]
+      },
+      "serveBuildLimitField": {
+        "path": "headless/utils/serveBuildLimit.ts",
+        "description": "The field for a stored limit and what the person has typed.",
+        "dependencies": [
+          "ServeBuildLimitField"
+        ]
+      },
+      "ServeBuildLimitField": {
+        "path": "headless/utils/serveBuildLimit.ts",
+        "description": "The build limit as the serve settings field shows it.",
+        "dependencies": []
+      },
+      "serveBuildLimitMinutesText": {
+        "path": "headless/utils/serveBuildLimit.ts",
+        "description": "The minutes a stored millisecond limit shows, without trailing zeros.",
+        "dependencies": []
       },
       "serveDesignPlayground": {
         "path": "headless/api/generated/sdk.gen.ts",
@@ -213089,6 +213933,45 @@
       },
       "SummarizeOptions": {
         "path": "headless/api/generated/types.gen.ts",
+        "dependencies": []
+      },
+      "SUPERSEDED_FILINGS_LABEL": {
+        "path": "headless/utils/supersededFilingsConstants.ts",
+        "description": "The label on a filing a later try replaced, and on the block that holds them.",
+        "dependencies": []
+      },
+      "SUPERSEDED_FILINGS_NOTE": {
+        "path": "headless/utils/supersededFilingsConstants.ts",
+        "description": "Why the collapsed block is there, once it is opened.",
+        "dependencies": []
+      },
+      "SupersededFilings": {
+        "path": "web/compound/process/SupersededFilings.tsx",
+        "description": "Filings a later try replaced. Closed, they are one labelled row under the",
+        "dependencies": [
+          "SupersededFilingsProps"
+        ]
+      },
+      "supersededFilingsHeading": {
+        "path": "headless/utils/supersededFilings.ts",
+        "description": "The collapsed row: the label, then what it holds.",
+        "dependencies": [
+          "SUPERSEDED_FILINGS_LABEL"
+        ]
+      },
+      "SupersededFilingsProps": {
+        "path": "native/compound/process/SupersededFilings.tsx",
+        "dependencies": [
+          "EvidenceTile",
+          "react/useState",
+          "react-native/Pressable",
+          "react-native/Text",
+          "react-native/View"
+        ]
+      },
+      "supersededFilingsSummary": {
+        "path": "headless/utils/supersededFilings.ts",
+        "description": "\"1 report · 1 screenshot\" — what the collapsed row says is inside, in list order.",
         "dependencies": []
       },
       "SupportDocType": {
@@ -222632,6 +223515,24 @@
           "react/useState"
         ]
       },
+      "useProjectServeSettings": {
+        "path": "headless/hooks/useProjectServeSettings.ts",
+        "description": "A project's serve build limit: what the field shows, and a save onto its metadata.",
+        "dependencies": [
+          "Record",
+          "UseProjectServeSettings",
+          "react/useEffect",
+          "react/useState"
+        ]
+      },
+      "UseProjectServeSettings": {
+        "path": "headless/hooks/useProjectServeSettings.ts",
+        "dependencies": [
+          "ServeBuildLimitField",
+          "react/useEffect",
+          "react/useState"
+        ]
+      },
       "useProjectSettings": {
         "path": "headless/hooks/useProjectSettings.ts",
         "description": "Per-project UI preferences keyed by `projectId`. Cross-platform — the",
@@ -225483,6 +226384,36 @@
         "description": "What a card of several requests says in place of the agent's words.",
         "dependencies": []
       },
+      "WaitingCard": {
+        "path": "web/compound/process/ProcessPipeline.tsx",
+        "description": "An agent waiting on the person: what it needs, in its own words, exactly what",
+        "dependencies": [
+          "ProcessResumeChoice",
+          "ParkAnswerView",
+          "ProcessNodeRunRef",
+          "ChatContext",
+          "Promise",
+          "ProcessWaitingItemChoice",
+          "FeatureSplitDraft",
+          "ProofChangeDraft",
+          "ProcessRetryPick",
+          "ProofKind",
+          "ProcessIntegrationDecision",
+          "ProcessRetryDefinitionsOffer",
+          "ProcessRetryOffer",
+          "AnswerFilesSource",
+          "ProcessManagerEscalationView",
+          "ProcessWaitingView",
+          "react/Fragment",
+          "react/useCallback",
+          "react/useEffect",
+          "react/useMemo",
+          "react/useState",
+          "react/type ReactNode",
+          "thefactory-tools/utils/getChatContextKey",
+          "thefactory-tools/utils"
+        ]
+      },
       "WaitingDelegated": {
         "path": "web/compound/process/WaitingDelegated.tsx",
         "dependencies": [
@@ -226170,6 +227101,13 @@
           "thefactory-tools/utils/resolveSignOffOutputs",
           "thefactory-tools/utils/signOffOutputKey",
           "thefactory-tools/utils"
+        ]
+      },
+      "withServeBuildTimeout": {
+        "path": "headless/utils/serveBuildLimit.ts",
+        "description": "Metadata after saving the field's text. A blank field drops the key so the default applies.",
+        "dependencies": [
+          "Record"
         ]
       },
       "withSignOffOutputs": {
@@ -234728,7 +235666,7 @@
           "RunVerification",
           "ProjectCheckSandboxRunner",
           "AbortSignal",
-          "ProcessEnv",
+          "LiveProjectCheckEnv",
           "ChatOpenChangesRebuild",
           "ChatOpenChanges",
           "WorkspaceSnapshot",
@@ -239805,7 +240743,8 @@
         "description": "Assemble what `nextCursor` reads from a run plus the outcome just observed.",
         "dependencies": [
           "Math",
-          "node:crypto/randomUUID"
+          "node:crypto/randomUUID",
+          "node:util/isDeepStrictEqual"
         ]
       },
       "CustomProviderEndpointKind": {
@@ -242477,6 +243416,13 @@
         "description": "The overlap of two images, which is the only region a pixel comparison can",
         "dependencies": []
       },
+      "DirectoryClone": {
+        "path": "dist/uiTest/uiTestServeHelpers.d.ts",
+        "description": "Copies one directory onto another. Tests pass a clone that drops files.",
+        "dependencies": [
+          "Promise"
+        ]
+      },
       "DirectoryListener": {
         "path": "dist/file/watcher/WatchBeforeScanFsHandler.d.ts",
         "dependencies": [
@@ -242868,7 +243814,8 @@
         "path": "dist/workflow/ProcessDriver.js",
         "description": "The caps as they stand: what the user set at launch, plus anything they",
         "dependencies": [
-          "node:crypto/randomUUID"
+          "node:crypto/randomUUID",
+          "node:util/isDeepStrictEqual"
         ]
       },
       "effectiveUiImpact": {
@@ -250913,7 +251860,8 @@
       "isTerminal": {
         "path": "dist/workflow/ProcessDriver.js",
         "dependencies": [
-          "node:crypto/randomUUID"
+          "node:crypto/randomUUID",
+          "node:util/isDeepStrictEqual"
         ]
       },
       "isTerminalActivityStatus": {
@@ -251946,7 +252894,8 @@
         "path": "dist/workflow/ProcessDriver.js",
         "description": "The outcome of the step the cursor names, read back off the ledger.",
         "dependencies": [
-          "node:crypto/randomUUID"
+          "node:crypto/randomUUID",
+          "node:util/isDeepStrictEqual"
         ]
       },
       "lastScriptCheckpoint": {
@@ -259070,6 +260019,11 @@
         "description": "Each of a project's (or a group's) notes by the handle a person types for it, `&qa-login`.",
         "dependencies": []
       },
+      "noteReadRefusal": {
+        "path": "dist/agentRunner/agentRunnerNoteReadUtils.js",
+        "description": "A tool-level refusal for project and group notes outside this launch's allowlist.",
+        "dependencies": []
+      },
       "notesAreStale": {
         "path": "dist/chats/chatContextNotes.js",
         "description": "Notes are stale when they were never written, or last written before this turn started.",
@@ -264412,6 +265366,14 @@
           "PROCESS_CIRCLING_SUMMARY"
         ]
       },
+      "ProcessAttemptDefinitions": {
+        "path": "dist/workflow/workflowTypes.d.ts",
+        "description": "The exact definitions selected for one attempt; independent of the rest of the frozen plan.",
+        "dependencies": [
+          "ProcessPlanStep",
+          "ProcessPlan"
+        ]
+      },
       "processAttemptEvidenceRunIds": {
         "path": "dist/workflow/processEvidenceUtils.js",
         "description": "The agent runs an attempt's evidence is filed under: the run the ledger names",
@@ -265035,7 +265997,8 @@
           "PROCESS_CONTINUED_SUMMARY",
           "PROCESS_CLEANUP_WAITS_FOR_MERGE",
           "PROCESS_MIRRORED_PARK_MESSAGE",
-          "node:crypto/randomUUID"
+          "node:crypto/randomUUID",
+          "node:util/isDeepStrictEqual"
         ]
       },
       "ProcessDriverDeps": {
@@ -265057,6 +266020,7 @@
           "ProcessBaseMoved",
           "AgentTypeSlotMap",
           "ResolvedAgentType",
+          "Partial",
           "Pick",
           "ProcessWaitingAnswer",
           "ProcessIntegrationOutcome",
@@ -265066,7 +266030,6 @@
           "ProcessStepExecutor",
           "ProcessStepKind",
           "Record",
-          "Partial",
           "ProcessScope",
           "ProcessDefinition",
           "ProcessRunStorage",
@@ -265155,7 +266118,8 @@
           "ProofKind",
           "ProcessIntegrationLanding",
           "ProcessIntegrationMode",
-          "ProcessResumeChoice"
+          "ProcessResumeChoice",
+          "ProcessAttemptDefinitions"
         ]
       },
       "processEntryQueuedMs": {
@@ -265195,6 +266159,11 @@
       "processEntryWorkMs": {
         "path": "dist/workflow/workflowUtils.js",
         "description": "How long one attempt worked: its span, less any time the host slept through",
+        "dependencies": []
+      },
+      "processEvidenceWithSupersession": {
+        "path": "dist/workflow/processEvidenceUtils.js",
+        "description": "Current filings first, with filings of chains replaced by a fresh retry marked",
         "dependencies": []
       },
       "processExtensionAnchor": {
@@ -266322,7 +267291,8 @@
           "ProcessEntryOverride",
           "ProcessWaitingAsk",
           "ProcessNodeRunRef",
-          "ProcessStepOutcome"
+          "ProcessStepOutcome",
+          "ProcessAttemptDefinitions"
         ]
       },
       "ProcessLeftOutTarget": {
@@ -267274,6 +268244,7 @@
           "AgentRunType",
           "ProcessVariantSubject",
           "ProcessSubject",
+          "ResolvedAgentType",
           "ProcessStep"
         ]
       },
@@ -267606,6 +268577,13 @@
         "path": "dist/workflow/processRetryModeUtils.js",
         "description": "What a carried-on agent is told first, with what the person asked of it. Pure.",
         "dependencies": []
+      },
+      "ProcessRetryDefinitionOffer": {
+        "path": "dist/workflow/workflowTypes.d.ts",
+        "description": "Definitions a retry can use. Missing agent versions on old runs are unknown, never inferred.",
+        "dependencies": [
+          "ProcessAttemptDefinitions"
+        ]
       },
       "processRetryDelayMs": {
         "path": "dist/workflow/processRetryUtils.js",
@@ -268674,6 +269652,11 @@
       "processStepProduced": {
         "path": "dist/workflow/processProducesUtils.js",
         "description": "Whether a step's changed files include one its `produces` patterns name. Pure.",
+        "dependencies": []
+      },
+      "processStepReadableNoteIds": {
+        "path": "dist/agentRunner/agentRunnerNoteReadUtils.js",
+        "description": "Notes this step may read, or undefined for unchanged, unrestricted reads.",
         "dependencies": []
       },
       "ProcessStepRerun": {
@@ -270181,6 +271164,11 @@
       "PROJECT_CHECK_LIVE_SECRET_MASK": {
         "path": "dist/projectChecks/projectCheckLiveConstants.js",
         "description": "What a released secret reads as wherever a live check's output printed it.",
+        "dependencies": []
+      },
+      "PROJECT_CHECK_LIVE_SECRET_MIN_LENGTH": {
+        "path": "dist/projectChecks/projectCheckLiveConstants.js",
+        "description": "The shortest released secret that is masked; a shorter one would blank ordinary output wherever its characters occur.",
         "dependencies": []
       },
       "PROJECT_CHECK_MAX_DETAIL_CHARS": {
@@ -278782,7 +279770,8 @@
           "ReviewEvidenceTextSearch",
           "ReviewEvidenceTextRange",
           "ReviewEvidenceTextCut",
-          "ReviewEvidenceKind"
+          "ReviewEvidenceKind",
+          "ReviewEvidenceSupersession"
         ]
       },
       "ReviewEvidenceDesignAttribution": {
@@ -278867,6 +279856,7 @@
           "ReviewEvidenceDesignAttribution",
           "ReviewEvidenceObservedBefore",
           "ReviewEvidenceKind",
+          "ReviewEvidenceSupersession",
           "ReviewEvidenceScope"
         ]
       },
@@ -278899,6 +279889,11 @@
         "dependencies": [
           "ReviewEvidenceLeftBehind"
         ]
+      },
+      "ReviewEvidenceSupersession": {
+        "path": "dist/reviewEvidence/reviewEvidenceTypes.d.ts",
+        "description": "The fresh attempt that replaced an earlier attempt's filings.",
+        "dependencies": []
       },
       "ReviewEvidenceTextCut": {
         "path": "dist/reviewEvidence/reviewEvidenceTypes.d.ts",
@@ -282938,7 +283933,7 @@
       },
       "sortEvidenceNewestFirst": {
         "path": "dist/reviewEvidence/reviewEvidenceUtils.js",
-        "description": "Newest first, ties broken on id so repeated listings agree.",
+        "description": "Current filings first, then superseded; newest first within each set, ties broken on id.",
         "dependencies": []
       },
       "SOURCE_QUALITY_SCORE": {
@@ -286849,14 +287844,34 @@
         "description": "Files beside the app's package.json that git does not keep but a build needs: `.env`, `.env.local`, …",
         "dependencies": []
       },
+      "UI_SERVE_EXTREME_LOAD_LIMIT": {
+        "path": "dist/uiTest/uiTestConstants.js",
+        "description": "Load average at which a serve or build failure names the machine. Below one CPU, one CPU.",
+        "dependencies": []
+      },
+      "UI_SERVE_EXTREME_LOAD_PER_CPU": {
+        "path": "dist/uiTest/uiTestConstants.js",
+        "description": "A 1-minute load average at or above this many times the CPU count is the",
+        "dependencies": []
+      },
       "UI_SERVE_HOST": {
         "path": "dist/uiTest/uiTestConstants.js",
         "description": "Host a served app binds to — loopback only; nothing off this machine can reach it.",
         "dependencies": []
       },
+      "UI_SERVE_INCOMPLETE_NODE_MODULES": {
+        "path": "dist/uiTest/uiTestConstants.js",
+        "description": "Why a serve stops before the build: the cloned node_modules still lacks",
+        "dependencies": []
+      },
       "UI_SERVE_LAUNCHER_GRACE_MS": {
         "path": "dist/uiTest/uiTestConstants.js",
         "description": "How long a step's launcher lets what it started exit on a forwarded signal",
+        "dependencies": []
+      },
+      "UI_SERVE_MACHINE_OVERLOADED": {
+        "path": "dist/uiTest/uiTestConstants.js",
+        "description": "Added to a serve or build failure when the 1-minute load average is at or",
         "dependencies": []
       },
       "UI_SERVE_MAX_APPS": {
@@ -290915,6 +291930,11 @@
         "description": "The messages with each one named in `keys` ({@link needsYouMessageKey})",
         "dependencies": []
       },
+      "withNoteReadLimit": {
+        "path": "dist/agentRunner/agentRunnerNoteReadUtils.js",
+        "description": "Bind the same host-owned policy on both transports, preserving any existing refusal gate.",
+        "dependencies": []
+      },
       "withOneToolApprovalSetting": {
         "path": "dist/chats/chatsUtils.js",
         "description": "Settings stored when an API chat chose per tool which calls ran unasked",
@@ -290939,7 +291959,7 @@
       },
       "withoutLiveCheckSecrets": {
         "path": "dist/projectChecks/projectCheckLiveUtils.js",
-        "description": "A live check's result with every released secret masked wherever its output",
+        "description": "A value with every released secret masked wherever it holds one, at any",
         "dependencies": []
       },
       "withoutLiveRunFeature": {

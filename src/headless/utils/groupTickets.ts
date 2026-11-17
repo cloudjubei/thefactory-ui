@@ -1,4 +1,5 @@
 import type { ExternalRef } from '../api'
+import { reviewStartLabel } from './colleagueReviewStart'
 import {
   CHAT_TICKET_METADATA_KEY,
   GROUP_TICKETS_TEXT,
@@ -108,9 +109,14 @@ export function groupStoryTicketChip(
   })
 }
 
-function ticketRow(ticket: GroupTicket, starting: GroupTicketsState['starting']): GroupTicketRow {
+function ticketRow(
+  ticket: GroupTicket,
+  starting: GroupTicketsState['starting'],
+  reviewing: GroupTicketsState['reviewing'],
+): GroupTicketRow {
   const { key, summary, priority, status, statusCategory, url, groupStory, canTake, chatOpen } =
     ticket
+  const review = reviewing[key]
   return {
     key,
     summary,
@@ -118,6 +124,8 @@ function ticketRow(ticket: GroupTicket, starting: GroupTicketsState['starting'])
     chip: ticketChipView({ key, status, statusCategory, title: summary, url }),
     ...(groupStory ? { work: groupStory } : {}),
     chatOpen,
+    reviewOpen: ticket.reviewOpen,
+    ...(review ? { reviewing: reviewStartLabel(review) } : {}),
     canTake,
     ...(starting?.key === key ? { starting: starting.action } : {}),
     hint: chatOpen ? GROUP_TICKETS_TEXT.openChat(key) : GROUP_TICKETS_TEXT.discussTicket(key),
@@ -155,7 +163,7 @@ function sectionView(
  * next ticket is only ever one that can be taken, whatever Jira's list says of it.
  */
 export function groupTicketsView(state: GroupTicketsState): GroupTicketsView {
-  const { mine, sprint, search, starting, startError } = state
+  const { mine, sprint, search, starting, startError, reviewing } = state
   if (mine.list?.connected === false || sprint.list?.connected === false) {
     return { kind: 'no-jira' }
   }
@@ -163,7 +171,7 @@ export function groupTicketsView(state: GroupTicketsState): GroupTicketsView {
   if (!answered) return { kind: 'loading' }
 
   const rowsOf = (section: GroupTicketSection) =>
-    (section.list?.tickets ?? []).map((t) => ticketRow(t, starting))
+    (section.list?.tickets ?? []).map((t) => ticketRow(t, starting, reviewing))
   const mineRows = rowsOf(mine)
   const next = mineRows.find((r) => r.key === mine.list?.nextTicketKey && r.canTake)
   const sameFailure = mine.readError && mine.readError === sprint.readError

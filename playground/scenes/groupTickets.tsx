@@ -17,6 +17,7 @@ import {
   NEXT,
   NOT_READ,
   OTHERS,
+  OTHERS_REVIEWED,
   read,
   STARTED,
   ticketsState,
@@ -30,9 +31,11 @@ type Options = {
   state?: Partial<GroupTicketsState>
   layout?: GroupTicketsLayout
   shownFirst?: GroupTicketsShown
+  /** Offer Review on every row. */
+  review?: boolean
 }
 
-function Tab({ state, layout, shownFirst }: Options) {
+function Tab({ state, layout, shownFirst, review }: Options) {
   return (
     <GroupTicketsList
       view={groupTicketsView(ticketsState(state))}
@@ -44,6 +47,7 @@ function Tab({ state, layout, shownFirst }: Options) {
       onOpenSettings={noop}
       onRetry={noop}
       onLoadMore={noop}
+      {...(review ? { onReview: noop } : {})}
       {...(layout ? { layout } : {})}
       {...(shownFirst ? { shownFirst } : {})}
     />
@@ -171,6 +175,48 @@ export const GROUP_TICKETS_SCENES: Scene[] = [
         render: () =>
           tab({
             state: { startError: 'OSC-418 is In Progress, so it can be discussed but not taken.' },
+          }),
+      },
+      {
+        id: 'review',
+        title: 'Review on every row',
+        description:
+          'Review, beside Discuss, opens the paste box for a colleague’s update on that ticket.',
+        render: () => tab({ review: true }),
+      },
+      {
+        id: 'review-open',
+        title: 'A ticket with a review',
+        description: 'Review open, like Chat open, and its Review reads Next round.',
+        render: () => tab({ review: true, state: { sprint: read(listOf(OTHERS_REVIEWED)) } }),
+      },
+      {
+        id: 'review-starting',
+        title: 'Review rounds starting',
+        description:
+          'At once after Start: one ticket’s files going up, another’s round starting. Each on its own, beside a chat opening, and pressing again does nothing.',
+        render: () =>
+          tab({
+            review: true,
+            state: {
+              sprint: read(listOf(OTHERS_REVIEWED)),
+              reviewing: {
+                'OSC-402': { step: 'uploading', done: 2, total: 6 },
+                'OSC-415': { step: 'starting' },
+              },
+            },
+          }),
+      },
+      {
+        id: 'review-phone',
+        title: 'Review, on a phone',
+        render: () =>
+          phone({
+            review: true,
+            state: {
+              sprint: read(listOf(OTHERS_REVIEWED)),
+              reviewing: { 'OSC-415': { step: 'uploading', done: 1, total: 3 } },
+            },
           }),
       },
       {

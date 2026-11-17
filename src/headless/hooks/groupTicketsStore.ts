@@ -1,9 +1,19 @@
+import { startColleagueReview } from '../api/colleagueReviewApi'
 import { extractErrorMessage } from '../api/errorMessage'
 import {
   readGroupTickets,
   startGroupTicketDiscussion,
   startGroupTicketPlan,
 } from '../api/groupTicketsApi'
+import { reviewChatContext } from '../utils/colleagueReviewStart'
+import { REVIEW_START_TEXT } from '../utils/colleagueReviewStartConstants'
+import type {
+  ReviewDraft,
+  ReviewDraftFile,
+  ReviewFileUpload,
+  ReviewStartOutcome,
+  ReviewStartPhase,
+} from '../utils/colleagueReviewStartTypes'
 import { GROUP_TICKETS_SEARCH_WAIT_MS, GROUP_TICKETS_TEXT } from '../utils/groupTicketConstants'
 import type {
   GroupTicket,
@@ -24,6 +34,7 @@ const EMPTY: GroupTicketsState = {
   search: { ...NOT_READ, query: '' },
   starting: undefined,
   startError: null,
+  reviewing: {},
 }
 
 const READ_FAILED: Record<GroupTicketListName, string> = {
@@ -58,10 +69,23 @@ function withPage(list: GroupTicketList, page: GroupTicketList): GroupTicketList
 }
 
 function withTicket<S extends GroupTicketSection>(section: S, ticket: GroupTicket): S {
+  return withTicketPatch(section, ticket.key, () => ticket)
+}
+
+function withTicketPatch<S extends GroupTicketSection>(
+  section: S,
+  key: string,
+  patch: (ticket: GroupTicket) => GroupTicket,
+): S {
   const { list } = section
-  if (!list?.tickets.some((t) => t.key === ticket.key)) return section
-  const tickets = list.tickets.map((t) => (t.key === ticket.key ? ticket : t))
+  if (!list?.tickets.some((t) => t.key === key)) return section
+  const tickets = list.tickets.map((t) => (t.key === key ? patch(t) : t))
   return { ...section, list: { ...list, tickets } }
+}
+
+function without<V>(record: Readonly<Record<string, V>>, key: string): Record<string, V> {
+  const { [key]: _gone, ...rest } = record
+  return rest
 }
 
 /**
@@ -192,6 +216,71 @@ export class GroupTicketsStore {
       })
       await this.refresh()
       return undefined
+    }
+  }
+
+  private _reviewPhase(key: string, phase: ReviewStartPhase | undefined): void {
+    const { reviewing } = this._state
+    this._set({ reviewing: phase ? { ...reviewing, [key]: phase } : without(reviewing, key) })
+  }
+
+  /** Mark a ticket as having a review, in every list that holds it. */
+  markReviewOpen = (ticketKey: string): void => {
+    const open = (t: GroupTicket) => (t.reviewOpen ? t : { ...t, reviewOpen: true })
+    const { mine, sprint, search } = this._state
+    this._set({
+      mine: withTicketPatch(mine, ticketKey, open),
+      sprint: withTicketPatch(sprint, ticketKey, open),
+      search: withTicketPatch(search, ticketKey, open),
+    })
+  }
+
+  /**
+   * Start a ticket's next review round: its files go up to the review's chat
+   * one by one, then the round starts. Each ticket's round starts on its own,
+   * beside any chat opening; a ticket already starting one answers `undefined`.
+   * A failure hands the draft back, every file that went up keeping its path.
+   */
+  review = async (
+    ticketKey: string,
+    draft: ReviewDraft,
+    upload: ReviewFileUpload,
+  ): Promise<ReviewStartOutcome | undefined> => {
+    if (this._state.reviewing[ticketKey]) return undefined
+    const context = reviewChatContext(this._groupId, ticketKey)
+    const files: ReviewDraftFile[] = [...draft.files]
+    const total = files.length
+    const uploading = (): ReviewStartPhase => ({
+      step: 'uploading',
+      done: files.filter((f) => f.path).length,
+      total,
+    })
+    const fail = (error: string): ReviewStartOutcome => {
+      this._reviewPhase(ticketKey, undefined)
+      return { ok: false, error, draft: { ...draft, files } }
+    }
+    this._reviewPhase(ticketKey, total > 0 ? uploading() : { step: 'starting' })
+    for (const [at, entry] of files.entries()) {
+      if (entry.path) continue
+      try {
+        files[at] = { ...entry, path: await upload(context, entry.file) }
+      } catch (err) {
+        return fail(extractErrorMessage(err, REVIEW_START_TEXT.uploadFailed(entry.file.name)))
+      }
+      this._reviewPhase(ticketKey, uploading())
+    }
+    this._reviewPhase(ticketKey, { step: 'starting' })
+    const attachments = files.flatMap((f) => (f.path ? [f.path] : []))
+    try {
+      const started = await startColleagueReview(this._groupId, ticketKey, {
+        text: draft.text,
+        ...(attachments.length > 0 ? { attachments } : {}),
+      })
+      this._reviewPhase(ticketKey, undefined)
+      this.markReviewOpen(ticketKey)
+      return { ok: true, started }
+    } catch (err) {
+      return fail(extractErrorMessage(err, REVIEW_START_TEXT.failed))
     }
   }
 

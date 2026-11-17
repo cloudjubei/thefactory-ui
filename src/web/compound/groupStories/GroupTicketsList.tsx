@@ -3,6 +3,7 @@ import { useState, type KeyboardEvent, type ReactNode } from 'react'
 import {
   GROUP_TICKETS_DEFAULT_LAYOUT,
   GROUP_TICKETS_TEXT,
+  REVIEW_START_TEXT,
   type GroupTicketListName,
   type GroupTicketRow,
   type GroupTicketSectionView,
@@ -15,6 +16,7 @@ import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
 import { Input } from '../../primitives/Input'
 import SegmentedControl from '../../primitives/SegmentedControl'
+import Spinner from '../../primitives/Spinner'
 import TicketChip from '../chips/TicketChip'
 import { GroupStoryStoryChip } from './GroupStoryBits'
 
@@ -25,6 +27,8 @@ type TicketActions = {
   onPlan: (ticketKey: string) => void
   /** Open the group story working a ticket. */
   onOpenStory: (groupStoryId: string) => void
+  /** Open the paste box on a ticket, to review a colleague's update. Without it, Review is not offered. */
+  onReview?: (ticketKey: string) => void
 }
 
 export type GroupTicketsListProps = TicketActions & {
@@ -262,7 +266,8 @@ function RowButtons({
   starting,
   onDiscuss,
   onPlan,
-}: Pick<TicketActions, 'onDiscuss' | 'onPlan'> & {
+  onReview,
+}: Pick<TicketActions, 'onDiscuss' | 'onPlan' | 'onReview'> & {
   row: GroupTicketRow
   starting: boolean
 }) {
@@ -280,6 +285,27 @@ function RowButtons({
       >
         {row.starting === 'discuss' ? GROUP_TICKETS_TEXT.opening : GROUP_TICKETS_TEXT.discuss}
       </Button>
+      {onReview ? (
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={row.reviewing !== undefined}
+          aria-busy={row.reviewing !== undefined || undefined}
+          title={
+            row.reviewOpen
+              ? REVIEW_START_TEXT.nextRoundOf(row.key)
+              : REVIEW_START_TEXT.reviewTicket(row.key)
+          }
+          onClick={(e) => {
+            e.stopPropagation()
+            onReview(row.key)
+          }}
+        >
+          {row.reviewing !== undefined ? <Spinner size={12} /> : null}
+          {row.reviewing ??
+            (row.reviewOpen ? REVIEW_START_TEXT.nextRound : REVIEW_START_TEXT.review)}
+        </Button>
+      ) : null}
       {row.canTake ? (
         <Button
           size="sm"
@@ -303,6 +329,7 @@ function NextTicket({
   starting,
   onDiscuss,
   onPlan,
+  onReview,
 }: Omit<TicketActions, 'onOpenStory'> & { row: GroupTicketRow; starting: boolean }) {
   return (
     <div
@@ -317,11 +344,18 @@ function NextTicket({
           <TicketChip view={row.chip} />
           {row.priority ? <span className="chip">{row.priority}</span> : null}
           {row.chatOpen ? <span className="chip">{GROUP_TICKETS_TEXT.chatOpen}</span> : null}
+          {row.reviewOpen ? <span className="chip">{REVIEW_START_TEXT.reviewOpen}</span> : null}
         </div>
         <span className="text-[13.5px] font-medium text-(--text-primary)">{row.summary}</span>
         <span className="text-[11.5px] text-(--text-muted)">{GROUP_TICKETS_TEXT.explain}</span>
       </div>
-      <RowButtons row={row} starting={starting} onDiscuss={onDiscuss} onPlan={onPlan} />
+      <RowButtons
+        row={row}
+        starting={starting}
+        onDiscuss={onDiscuss}
+        onPlan={onPlan}
+        {...(onReview ? { onReview } : {})}
+      />
     </div>
   )
 }
@@ -333,6 +367,7 @@ function TicketRow({
   onDiscuss,
   onPlan,
   onOpenStory,
+  onReview,
 }: TicketActions & { row: GroupTicketRow; starting: boolean; divided: boolean }) {
   const { work } = row
   return (
@@ -355,12 +390,19 @@ function TicketRow({
             </span>
           ) : null}
           {row.chatOpen ? <span className="chip">{GROUP_TICKETS_TEXT.chatOpen}</span> : null}
-          {!work && !row.chatOpen ? (
+          {row.reviewOpen ? <span className="chip">{REVIEW_START_TEXT.reviewOpen}</span> : null}
+          {!work && !row.chatOpen && !row.reviewOpen ? (
             <span className="shrink-0 text-[11.5px] text-(--text-muted)">
               {GROUP_TICKETS_TEXT.noWork}
             </span>
           ) : null}
-          <RowButtons row={row} starting={starting} onDiscuss={onDiscuss} onPlan={onPlan} />
+          <RowButtons
+            row={row}
+            starting={starting}
+            onDiscuss={onDiscuss}
+            onPlan={onPlan}
+            {...(onReview ? { onReview } : {})}
+          />
         </span>
       </div>
     </li>

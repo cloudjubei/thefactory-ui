@@ -147,6 +147,7 @@ import type {
   CreateChatMediaUrlResponses,
   CreateChatResponses,
   CreateCliAuthCacheData,
+  CreateCliAuthCacheErrors,
   CreateCliAuthCacheResponses,
   CreateDataSourceData,
   CreateDataSourceErrors,
@@ -176,6 +177,7 @@ import type {
   CreateGitBranchErrors,
   CreateGitBranchResponses,
   CreateGitCredentialData,
+  CreateGitCredentialErrors,
   CreateGitCredentialResponses,
   CreateGroupNoteData,
   CreateGroupNoteErrors,
@@ -340,6 +342,9 @@ import type {
   DismissDesignTidyPlanResponses,
   DownloadVideoSetupModelsData,
   DownloadVideoSetupModelsResponses,
+  DropColleagueReviewFindingData,
+  DropColleagueReviewFindingErrors,
+  DropColleagueReviewFindingResponses,
   EditCodeData,
   EditCodeErrors,
   EditCodeResponses,
@@ -365,8 +370,10 @@ import type {
   FinishProviderOAuthErrors,
   FinishProviderOAuthResponses,
   GetActiveCliStateData,
+  GetActiveCliStateErrors,
   GetActiveCliStateResponses,
   GetActiveRunnerKindData,
+  GetActiveRunnerKindErrors,
   GetActiveRunnerKindResponses,
   GetActivityData,
   GetActivityErrors,
@@ -419,6 +426,9 @@ import type {
   GetCodeIntelOutlineData,
   GetCodeIntelOutlineErrors,
   GetCodeIntelOutlineResponses,
+  GetColleagueReviewData,
+  GetColleagueReviewErrors,
+  GetColleagueReviewResponses,
   GetCostsByChatData,
   GetCostsByChatErrors,
   GetCostsByChatResponses,
@@ -735,11 +745,15 @@ import type {
   ListCliAgentRunSummariesErrors,
   ListCliAgentRunSummariesResponses,
   ListCliAuthCachesData,
+  ListCliAuthCachesErrors,
   ListCliAuthCachesResponses,
   ListCliCapabilityScorecardsData,
   ListCliCapabilityScorecardsResponses,
   ListCliImageVersionsData,
   ListCliImageVersionsResponses,
+  ListColleagueReviewsData,
+  ListColleagueReviewsErrors,
+  ListColleagueReviewsResponses,
   ListConnectionAssignedItemsData,
   ListConnectionAssignedItemsErrors,
   ListConnectionAssignedItemsResponses,
@@ -774,6 +788,7 @@ import type {
   ListGitBranchesErrors,
   ListGitBranchesResponses,
   ListGitCredentialsData,
+  ListGitCredentialsErrors,
   ListGitCredentialsResponses,
   ListGitStashesData,
   ListGitStashesErrors,
@@ -797,6 +812,7 @@ import type {
   ListGroupTicketsErrors,
   ListGroupTicketsResponses,
   ListLlmConfigsData,
+  ListLlmConfigsErrors,
   ListLlmConfigsResponses,
   ListLlmModelsData,
   ListLlmModelsErrors,
@@ -851,6 +867,7 @@ import type {
   ListProjectsGroupsResponses,
   ListProjectsResponses,
   ListProviderConnectionsData,
+  ListProviderConnectionsErrors,
   ListProviderConnectionsResponses,
   ListReviewEvidenceData,
   ListReviewEvidenceErrors,
@@ -901,6 +918,9 @@ import type {
   LiveCliAgentProbeData,
   LiveCliAgentProbeErrors,
   LiveCliAgentProbeResponses,
+  MarkColleagueReviewWaitingGivenData,
+  MarkColleagueReviewWaitingGivenErrors,
+  MarkColleagueReviewWaitingGivenResponses,
   MarkConnectionItemsSeenData,
   MarkConnectionItemsSeenErrors,
   MarkConnectionItemsSeenResponses,
@@ -1029,6 +1049,7 @@ import type {
   ReadProjectTicketPreviewErrors,
   ReadProjectTicketPreviewResponses,
   ReadProviderOAuthSetupData,
+  ReadProviderOAuthSetupErrors,
   ReadProviderOAuthSetupResponses,
   ReadProviderSignInData,
   ReadProviderSignInErrors,
@@ -1232,8 +1253,10 @@ import type {
   ServeDesignPlaygroundData,
   ServeDesignPlaygroundResponses,
   SetActiveCliData,
+  SetActiveCliErrors,
   SetActiveCliResponses,
   SetActiveRunnerKindData,
+  SetActiveRunnerKindErrors,
   SetActiveRunnerKindResponses,
   SetAgentRunLlmConfigData,
   SetAgentRunLlmConfigErrors,
@@ -1242,11 +1265,13 @@ import type {
   SetChatNotifyLevelErrors,
   SetChatNotifyLevelResponses,
   SetCliDefaultModelData,
+  SetCliDefaultModelErrors,
   SetCliDefaultModelResponses,
   SetCliEffortData,
   SetCliEffortErrors,
   SetCliEffortResponses,
   SetCliEnabledData,
+  SetCliEnabledErrors,
   SetCliEnabledResponses,
   SetCliModelEffortData,
   SetCliModelEffortErrors,
@@ -1301,6 +1326,9 @@ import type {
   StartCliImageUpdateData,
   StartCliImageUpdateErrors,
   StartCliImageUpdateResponses,
+  StartColleagueReviewData,
+  StartColleagueReviewErrors,
+  StartColleagueReviewResponses,
   StartCoverageAllRunData,
   StartCoverageAllRunErrors,
   StartCoverageAllRunResponses,
@@ -1481,6 +1509,7 @@ import type {
   WithdrawProcessRunChangeErrors,
   WithdrawProcessRunChangeResponses,
   WithdrawProviderSignInData,
+  WithdrawProviderSignInErrors,
   WithdrawProviderSignInResponses,
   WriteFileData,
   WriteFileErrors,
@@ -4254,7 +4283,7 @@ export const viewDesignPlayground = <ThrowOnError extends boolean = false>(
 export const listLlmConfigs = <ThrowOnError extends boolean = false>(
   options?: Options<ListLlmConfigsData, ThrowOnError>,
 ) =>
-  (options?.client ?? client).get<ListLlmConfigsResponses, unknown, ThrowOnError>({
+  (options?.client ?? client).get<ListLlmConfigsResponses, ListLlmConfigsErrors, ThrowOnError>({
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/llm-configs',
@@ -4339,7 +4368,11 @@ export const listLlmModels = <ThrowOnError extends boolean = false>(
 export const listGitCredentials = <ThrowOnError extends boolean = false>(
   options?: Options<ListGitCredentialsData, ThrowOnError>,
 ) =>
-  (options?.client ?? client).get<ListGitCredentialsResponses, unknown, ThrowOnError>({
+  (options?.client ?? client).get<
+    ListGitCredentialsResponses,
+    ListGitCredentialsErrors,
+    ThrowOnError
+  >({
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/git-credentials',
@@ -4349,7 +4382,11 @@ export const listGitCredentials = <ThrowOnError extends boolean = false>(
 export const createGitCredential = <ThrowOnError extends boolean = false>(
   options: Options<CreateGitCredentialData, ThrowOnError>,
 ) =>
-  (options.client ?? client).post<CreateGitCredentialResponses, unknown, ThrowOnError>({
+  (options.client ?? client).post<
+    CreateGitCredentialResponses,
+    CreateGitCredentialErrors,
+    ThrowOnError
+  >({
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/git-credentials',
@@ -4421,7 +4458,11 @@ export const revealGitCredentialToken = <ThrowOnError extends boolean = false>(
 export const readProviderOAuthSetup = <ThrowOnError extends boolean = false>(
   options?: Options<ReadProviderOAuthSetupData, ThrowOnError>,
 ) =>
-  (options?.client ?? client).get<ReadProviderOAuthSetupResponses, unknown, ThrowOnError>({
+  (options?.client ?? client).get<
+    ReadProviderOAuthSetupResponses,
+    ReadProviderOAuthSetupErrors,
+    ThrowOnError
+  >({
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/provider-connections/oauth/setup',
@@ -4472,7 +4513,11 @@ export const finishProviderOAuth = <ThrowOnError extends boolean = false>(
 export const withdrawProviderSignIn = <ThrowOnError extends boolean = false>(
   options: Options<WithdrawProviderSignInData, ThrowOnError>,
 ) =>
-  (options.client ?? client).delete<WithdrawProviderSignInResponses, unknown, ThrowOnError>({
+  (options.client ?? client).delete<
+    WithdrawProviderSignInResponses,
+    WithdrawProviderSignInErrors,
+    ThrowOnError
+  >({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/provider-connections/oauth/sign-ins/{signInId}',
     ...options,
@@ -4498,7 +4543,11 @@ export const readProviderSignIn = <ThrowOnError extends boolean = false>(
 export const listProviderConnections = <ThrowOnError extends boolean = false>(
   options?: Options<ListProviderConnectionsData, ThrowOnError>,
 ) =>
-  (options?.client ?? client).get<ListProviderConnectionsResponses, unknown, ThrowOnError>({
+  (options?.client ?? client).get<
+    ListProviderConnectionsResponses,
+    ListProviderConnectionsErrors,
+    ThrowOnError
+  >({
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/provider-connections',
@@ -4581,7 +4630,11 @@ export const findJiraCloudId = <ThrowOnError extends boolean = false>(
 export const listCliAuthCaches = <ThrowOnError extends boolean = false>(
   options?: Options<ListCliAuthCachesData, ThrowOnError>,
 ) =>
-  (options?.client ?? client).get<ListCliAuthCachesResponses, unknown, ThrowOnError>({
+  (options?.client ?? client).get<
+    ListCliAuthCachesResponses,
+    ListCliAuthCachesErrors,
+    ThrowOnError
+  >({
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/cli-auth-caches',
@@ -4591,7 +4644,11 @@ export const listCliAuthCaches = <ThrowOnError extends boolean = false>(
 export const createCliAuthCache = <ThrowOnError extends boolean = false>(
   options: Options<CreateCliAuthCacheData, ThrowOnError>,
 ) =>
-  (options.client ?? client).post<CreateCliAuthCacheResponses, unknown, ThrowOnError>({
+  (options.client ?? client).post<
+    CreateCliAuthCacheResponses,
+    CreateCliAuthCacheErrors,
+    ThrowOnError
+  >({
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/cli-auth-caches',
@@ -4646,7 +4703,11 @@ export const updateCliAuthCache = <ThrowOnError extends boolean = false>(
 export const getActiveCliState = <ThrowOnError extends boolean = false>(
   options?: Options<GetActiveCliStateData, ThrowOnError>,
 ) =>
-  (options?.client ?? client).get<GetActiveCliStateResponses, unknown, ThrowOnError>({
+  (options?.client ?? client).get<
+    GetActiveCliStateResponses,
+    GetActiveCliStateErrors,
+    ThrowOnError
+  >({
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/cli-configs/active',
@@ -4656,7 +4717,7 @@ export const getActiveCliState = <ThrowOnError extends boolean = false>(
 export const setActiveCli = <ThrowOnError extends boolean = false>(
   options: Options<SetActiveCliData, ThrowOnError>,
 ) =>
-  (options.client ?? client).post<SetActiveCliResponses, unknown, ThrowOnError>({
+  (options.client ?? client).post<SetActiveCliResponses, SetActiveCliErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/cli-configs/active',
     ...options,
@@ -4669,7 +4730,7 @@ export const setActiveCli = <ThrowOnError extends boolean = false>(
 export const setCliEnabled = <ThrowOnError extends boolean = false>(
   options: Options<SetCliEnabledData, ThrowOnError>,
 ) =>
-  (options.client ?? client).post<SetCliEnabledResponses, unknown, ThrowOnError>({
+  (options.client ?? client).post<SetCliEnabledResponses, SetCliEnabledErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/cli-configs/enabled',
     ...options,
@@ -4682,7 +4743,11 @@ export const setCliEnabled = <ThrowOnError extends boolean = false>(
 export const setCliDefaultModel = <ThrowOnError extends boolean = false>(
   options: Options<SetCliDefaultModelData, ThrowOnError>,
 ) =>
-  (options.client ?? client).post<SetCliDefaultModelResponses, unknown, ThrowOnError>({
+  (options.client ?? client).post<
+    SetCliDefaultModelResponses,
+    SetCliDefaultModelErrors,
+    ThrowOnError
+  >({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/cli-configs/default-model',
     ...options,
@@ -4725,7 +4790,11 @@ export const setCliModelEffort = <ThrowOnError extends boolean = false>(
 export const getActiveRunnerKind = <ThrowOnError extends boolean = false>(
   options?: Options<GetActiveRunnerKindData, ThrowOnError>,
 ) =>
-  (options?.client ?? client).get<GetActiveRunnerKindResponses, unknown, ThrowOnError>({
+  (options?.client ?? client).get<
+    GetActiveRunnerKindResponses,
+    GetActiveRunnerKindErrors,
+    ThrowOnError
+  >({
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/agent-runner/active',
@@ -4735,7 +4804,11 @@ export const getActiveRunnerKind = <ThrowOnError extends boolean = false>(
 export const setActiveRunnerKind = <ThrowOnError extends boolean = false>(
   options: Options<SetActiveRunnerKindData, ThrowOnError>,
 ) =>
-  (options.client ?? client).post<SetActiveRunnerKindResponses, unknown, ThrowOnError>({
+  (options.client ?? client).post<
+    SetActiveRunnerKindResponses,
+    SetActiveRunnerKindErrors,
+    ThrowOnError
+  >({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/agent-runner/active',
     ...options,
@@ -8312,6 +8385,103 @@ export const discussGroupTicket = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/groups/{groupId}/tickets/{ticketKey}/discuss',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * The ticket’s review: every round with the update pasted and what checking it found, the findings with where each stood round by round, and what is waited on.
+ */
+export const getColleagueReview = <ThrowOnError extends boolean = false>(
+  options: Options<GetColleagueReviewData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetColleagueReviewResponses,
+    GetColleagueReviewErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/tickets/{ticketKey}/review',
+    ...options,
+  })
+
+/**
+ * Review a colleague’s update on the ticket: the pasted text and its files start the next round of the ticket’s review, in its review chat (opened on the first round), whose agent reads the ticket whole and the pull requests, checks every claim and requirement, records the round and drafts the reply. Nothing is posted.
+ */
+export const startColleagueReview = <ThrowOnError extends boolean = false>(
+  options: Options<StartColleagueReviewData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    StartColleagueReviewResponses,
+    StartColleagueReviewErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/tickets/{ticketKey}/review',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * The group’s colleague reviews, most recently changed first.
+ */
+export const listColleagueReviews = <ThrowOnError extends boolean = false>(
+  options: Options<ListColleagueReviewsData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ListColleagueReviewsResponses,
+    ListColleagueReviewsErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/reviews',
+    ...options,
+  })
+
+/**
+ * The person drops a finding: no later round has to answer it. Only the person can.
+ */
+export const dropColleagueReviewFinding = <ThrowOnError extends boolean = false>(
+  options: Options<DropColleagueReviewFindingData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    DropColleagueReviewFindingResponses,
+    DropColleagueReviewFindingErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/tickets/{ticketKey}/review/findings/{findingId}/drop',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * The person marks a decision or approval the work waited on as given.
+ */
+export const markColleagueReviewWaitingGiven = <ThrowOnError extends boolean = false>(
+  options: Options<MarkColleagueReviewWaitingGivenData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    MarkColleagueReviewWaitingGivenResponses,
+    MarkColleagueReviewWaitingGivenErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/tickets/{ticketKey}/review/waiting-on/{waitingOnId}/given',
     ...options,
     headers: {
       'Content-Type': 'application/json',

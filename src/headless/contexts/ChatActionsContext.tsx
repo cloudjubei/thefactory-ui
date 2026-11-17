@@ -13,6 +13,8 @@ export type ChatActions = {
   projectId?: string
   /** The chat's group, for a chat over a group's projects. */
   groupId?: string
+  /** The chat's own context id — what a card reads the chat's ticket or topic from. */
+  chatContextId?: string
   /** The chat's display name — the sender a card for a message to another chat names. */
   chatTitle?: string
   /** Route an in-app `overseer://…` link on a card. */

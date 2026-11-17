@@ -57,6 +57,7 @@ const ticket = (key: string, summary: string, over: Partial<GroupTicket> = {}): 
   issueType: 'Task',
   canTake: false,
   chatOpen: false,
+  reviewOpen: false,
   ...over,
 })
 

@@ -1,9 +1,18 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useApi } from '../api/ApiContext'
 import { useAuth } from '../api/AuthContext'
+import { reviewDraftProblem } from '../utils/colleagueReviewStart'
+import { COLLEAGUE_REVIEWS_EVENT } from '../utils/colleagueReviewStartConstants'
+import type {
+  ColleagueReviewStarted,
+  ReviewDraft,
+  ReviewFileUpload,
+  ReviewPasteBox,
+} from '../utils/colleagueReviewStartTypes'
 import { groupTicketStatuses, groupTicketsView } from '../utils/groupTickets'
 import type {
   GroupTicketListName,
+  GroupTicketsState,
   GroupTicketsView,
   TicketPlanStarted,
 } from '../utils/groupTicketTypes'
@@ -23,6 +32,19 @@ export type UseGroupTickets = {
   plan: (ticketKey: string) => Promise<TicketPlanStarted | undefined>
   loadMore: (name: GroupTicketListName) => Promise<void>
   refresh: () => Promise<void>
+  /** The paste box, while it is open on a ticket. */
+  reviewBox: ReviewPasteBox | undefined
+  /** Open the paste box on a ticket, with what was left in it last time. */
+  openReview: (ticketKey: string) => void
+  /** Close the paste box; what it holds stays for the next time it opens on that ticket. */
+  closeReview: () => void
+  editReview: (draft: ReviewDraft) => void
+  /**
+   * Start the open box's round: the box closes at once while the row shows the
+   * round starting, and opens again with the draft and why when it fails.
+   * Answers the round's chat once it has started.
+   */
+  startReview: () => Promise<ColleagueReviewStarted | undefined>
 }
 
 /**
@@ -48,9 +70,14 @@ function useLiveTicketsStore(
     const offUpdate = ws.on(GROUP_STORIES_EVENT, (data: unknown) => {
       if ((data as { groupId?: string })?.groupId === groupId) void read(store)
     })
+    const offReview = ws.on(COLLEAGUE_REVIEWS_EVENT, (data: unknown) => {
+      const update = data as { groupId?: string; ticketKey?: string } | undefined
+      if (update?.groupId === groupId && update.ticketKey) store.markReviewOpen(update.ticketKey)
+    })
     const offReconnect = ws.onReconnect(() => void read(store))
     return () => {
       offUpdate()
+      offReview()
       offReconnect()
     }
   }, [ws, token, groupId, store, read])
@@ -71,6 +98,8 @@ export function useGroupTickets(groupId: string): UseGroupTickets {
     return store.stopTyping
   }, [query, store])
 
+  const review = useReviewPasteBox(store, state)
+
   return useMemo(
     () => ({
       view: groupTicketsView(state),
@@ -80,8 +109,69 @@ export function useGroupTickets(groupId: string): UseGroupTickets {
       plan: store.plan,
       loadMore: store.loadMore,
       refresh: store.refresh,
+      ...review,
     }),
-    [state, store, query],
+    [state, store, query, review],
+  )
+}
+
+const EMPTY_DRAFT: ReviewDraft = { text: '', files: [] }
+
+function isReviewOpen(state: GroupTicketsState, ticketKey: string): boolean {
+  return [state.mine, state.sprint, state.search].some((section) =>
+    section.list?.tickets.some((t) => t.key === ticketKey && t.reviewOpen),
+  )
+}
+
+/** The paste box over a store: one box at a time, each ticket's draft kept while it is closed. */
+function useReviewPasteBox(store: GroupTicketsStore, state: GroupTicketsState) {
+  const { uploadChatFile } = useApi()
+  const [box, setBox] = useState<ReviewPasteBox | undefined>()
+  const kept = useRef(new Map<string, ReviewPasteBox>())
+  const stateRef = useRef(state)
+  stateRef.current = state
+  const boxRef = useRef(box)
+  boxRef.current = box
+
+  const upload = useCallback<ReviewFileUpload>(
+    (context, file) => uploadChatFile(context, file),
+    [uploadChatFile],
+  )
+
+  const openReview = useCallback((ticketKey: string) => {
+    if (stateRef.current.reviewing[ticketKey]) return
+    const nextRound = isReviewOpen(stateRef.current, ticketKey)
+    const held = kept.current.get(ticketKey)
+    setBox({ ...(held ?? { ticketKey, draft: EMPTY_DRAFT }), nextRound })
+  }, [])
+
+  const closeReview = useCallback(() => {
+    const open = boxRef.current
+    if (open) kept.current.set(open.ticketKey, open)
+    setBox(undefined)
+  }, [])
+
+  const editReview = useCallback((draft: ReviewDraft) => {
+    setBox((open) => (open ? { ...open, draft } : open))
+  }, [])
+
+  const startReview = useCallback(async () => {
+    const open = boxRef.current
+    if (!open || reviewDraftProblem(open.draft)) return undefined
+    kept.current.delete(open.ticketKey)
+    setBox(undefined)
+    const outcome = await store.review(open.ticketKey, open.draft, upload)
+    if (!outcome) return undefined
+    if (outcome.ok) return outcome.started
+    const failed: ReviewPasteBox = { ...open, draft: outcome.draft, error: outcome.error }
+    if (boxRef.current) kept.current.set(open.ticketKey, failed)
+    else setBox(failed)
+    return undefined
+  }, [store, upload])
+
+  return useMemo(
+    () => ({ reviewBox: box, openReview, closeReview, editReview, startReview }),
+    [box, openReview, closeReview, editReview, startReview],
   )
 }
 

@@ -32,6 +32,8 @@ import { isTicketStatusMoveTool } from '../../../../headless/utils/ticketStatusM
 import { TicketStatusMoveConnected } from '../TicketStatusMoveCard'
 import { isTicketStoryProposalTool } from '../../../../headless/utils/ticketStoryProposal'
 import { TicketStoryProposalConnected } from '../TicketStoryProposalCard'
+import { colleagueReviewToolOf } from '../../../../headless/utils/colleagueReviewCard'
+import { ColleagueReviewConnected } from '../ColleagueReviewCard'
 import StoredSecretCard from '../StoredSecretCard'
 import {
   isShowStoredSecretTool,
@@ -199,6 +201,8 @@ function ToolCallCardInner({
   const reason = alreadyHandled ?? toolRowReason(resultType, result)
   const ticketMove = isTicketStatusMoveTool(toolCall.name)
   const ticketStory = isTicketStoryProposalTool(toolCall.name)
+  const reviewTool = colleagueReviewToolOf(toolCall.name)
+  const ownCard = ticketMove || ticketStory || reviewTool !== undefined
   const detail =
     resultType === 'errored'
       ? { code: jsonString(result), language: 'text' as const, label: 'View error' }
@@ -374,7 +378,7 @@ function ToolCallCardInner({
         >
           {askView.headline}
         </Text>
-      ) : argDisplay && !ticketMove && !ticketStory ? (
+      ) : argDisplay && !ownCard ? (
         <View
           style={{
             flexDirection: 'row',
@@ -387,7 +391,7 @@ function ToolCallCardInner({
         </View>
       ) : null}
 
-      {reason && !ticketMove && !ticketStory ? (
+      {reason && !ownCard ? (
         <Text
           numberOfLines={3}
           style={{
@@ -461,6 +465,26 @@ function ToolCallCardInner({
           }}
         >
           <TicketStoryProposalConnected
+            args={toolCall.arguments}
+            result={result}
+            {...(resultType !== undefined ? { resultType } : {})}
+          />
+        </View>
+      ) : null}
+
+      {reviewTool && !(askView && cardOpen) ? (
+        <View
+          style={{
+            paddingHorizontal: PAD,
+            paddingTop: PAD,
+            paddingBottom: PAD,
+            borderTopWidth: 1,
+            borderTopColor: theme.border.subtle,
+            backgroundColor: theme.surface.base,
+          }}
+        >
+          <ColleagueReviewConnected
+            tool={reviewTool}
             args={toolCall.arguments}
             result={result}
             {...(resultType !== undefined ? { resultType } : {})}

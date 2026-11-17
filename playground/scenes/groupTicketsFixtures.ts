@@ -20,6 +20,7 @@ export const ticket = (
   issueType: 'Task',
   canTake: true,
   chatOpen: false,
+  reviewOpen: false,
   ...over,
 })
 
@@ -104,5 +105,11 @@ export const ticketsState = (over: Partial<GroupTicketsState> = {}): GroupTicket
   search: { ...NOT_READ, query: '' },
   starting: undefined,
   startError: null,
+  reviewing: {},
   ...over,
 })
+
+/** The rest of the sprint once a colleague's ticket in review has a review of its own. */
+export const OTHERS_REVIEWED: GroupTicket[] = OTHERS.map((t) =>
+  t.key === 'OSC-402' ? { ...t, reviewOpen: true } : t,
+)

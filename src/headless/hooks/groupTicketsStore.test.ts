@@ -10,6 +10,10 @@ const api = vi.hoisted(() => ({
 
 vi.mock('../api/groupTicketsApi', () => api)
 
+const reviewApi = vi.hoisted(() => ({ startColleagueReview: vi.fn() }))
+
+vi.mock('../api/colleagueReviewApi', () => reviewApi)
+
 import { GroupTicketsStore } from './groupTicketsStore'
 
 const ticket = (key: string, over: Partial<GroupTicket> = {}): GroupTicket => ({
@@ -18,6 +22,7 @@ const ticket = (key: string, over: Partial<GroupTicket> = {}): GroupTicket => ({
   url: `https://j.example/${key}`,
   canTake: true,
   chatOpen: false,
+  reviewOpen: false,
   ...over,
 })
 
@@ -65,6 +70,7 @@ beforeEach(() => {
   api.readGroupTickets.mockReset()
   api.startGroupTicketDiscussion.mockReset()
   api.startGroupTicketPlan.mockReset()
+  reviewApi.startColleagueReview.mockReset()
 })
 
 describe('GroupTicketsStore', () => {
@@ -550,5 +556,160 @@ describe('GroupTicketsStore', () => {
     expect(store.getState().startError).toBe('The plan did not start.')
     await store.discuss('A-1')
     expect(store.getState().startError).toBe('The chat did not open.')
+  })
+
+  describe('review', () => {
+    const file = (name: string) => ({ name, size: 3, uri: `file:///${name}` })
+    const REVIEW_CHAT = { type: 'GROUP_TOPIC', groupId: 'osc', topicId: 'review-A-1' }
+    const roundStarted = { context: REVIEW_CHAT, chatContextId: 'c', round: 1 } as never
+
+    it('uploads each file to the review chat, then starts the round with their paths', async () => {
+      answers({ mine: list() })
+      const store = new GroupTicketsStore('osc')
+      await store.refresh()
+      const upload = vi.fn(async (_c: unknown, f: { name: string }) => `up/${f.name}`)
+      reviewApi.startColleagueReview.mockResolvedValue(roundStarted)
+      const outcome = await store.review(
+        'A-1',
+        { text: 'Done', files: [{ file: file('a.png') }, { file: file('b.md') }] },
+        upload,
+      )
+      expect(outcome).toEqual({ ok: true, started: roundStarted })
+      expect(upload.mock.calls.map((c) => c[0])).toEqual([REVIEW_CHAT, REVIEW_CHAT])
+      expect(reviewApi.startColleagueReview).toHaveBeenCalledWith('osc', 'A-1', {
+        text: 'Done',
+        attachments: ['up/a.png', 'up/b.md'],
+      })
+      expect(store.getState().reviewing).toEqual({})
+      expect(store.getState().mine.list?.tickets[0]?.reviewOpen).toBe(true)
+    })
+
+    it('sends no attachments when there are no files', async () => {
+      reviewApi.startColleagueReview.mockResolvedValue(roundStarted)
+      const store = new GroupTicketsStore('osc')
+      await store.review('A-1', { text: 'Done', files: [] }, vi.fn())
+      expect(reviewApi.startColleagueReview).toHaveBeenCalledWith('osc', 'A-1', { text: 'Done' })
+    })
+
+    it('shows the files going up, then the round starting, on that ticket alone', async () => {
+      const second = deferred<string>()
+      const opening = deferred<unknown>()
+      const upload = vi.fn().mockResolvedValueOnce('up/a.png').mockReturnValueOnce(second.promise)
+      reviewApi.startColleagueReview.mockReturnValue(opening.promise)
+      const store = new GroupTicketsStore('osc')
+      const going = store.review(
+        'A-1',
+        { text: 'Done', files: [{ file: file('a.png') }, { file: file('b.md') }] },
+        upload,
+      )
+      await vi.waitFor(() =>
+        expect(store.getState().reviewing).toEqual({
+          'A-1': { step: 'uploading', done: 1, total: 2 },
+        }),
+      )
+      second.resolve('up/b.md')
+      await vi.waitFor(() =>
+        expect(store.getState().reviewing).toEqual({ 'A-1': { step: 'starting' } }),
+      )
+      expect(store.getState().starting).toBeUndefined()
+      opening.resolve(roundStarted)
+      await going
+      expect(store.getState().reviewing).toEqual({})
+    })
+
+    it('starts one round at a time per ticket, beside any other ticket’s', async () => {
+      const opening = deferred<unknown>()
+      reviewApi.startColleagueReview.mockReturnValue(opening.promise)
+      const store = new GroupTicketsStore('osc')
+      const first = store.review('A-1', { text: 'Done', files: [] }, vi.fn())
+      expect(await store.review('A-1', { text: 'Again', files: [] }, vi.fn())).toBeUndefined()
+      const other = store.review('A-2', { text: 'Other', files: [] }, vi.fn())
+      expect(Object.keys(store.getState().reviewing)).toEqual(['A-1', 'A-2'])
+      opening.resolve(roundStarted)
+      await Promise.all([first, other])
+      expect(reviewApi.startColleagueReview).toHaveBeenCalledTimes(2)
+    })
+
+    it('hands the draft back with why, keeping the paths of files that went up', async () => {
+      const upload = vi
+        .fn()
+        .mockResolvedValueOnce('up/a.png')
+        .mockRejectedValueOnce(new Error('The connection dropped.'))
+      const store = new GroupTicketsStore('osc')
+      const outcome = await store.review(
+        'A-1',
+        { text: 'Done', files: [{ file: file('a.png') }, { file: file('b.md') }] },
+        upload,
+      )
+      expect(outcome).toEqual({
+        ok: false,
+        error: 'The connection dropped.',
+        draft: {
+          text: 'Done',
+          files: [{ file: file('a.png'), path: 'up/a.png' }, { file: file('b.md') }],
+        },
+      })
+      expect(reviewApi.startColleagueReview).not.toHaveBeenCalled()
+      expect(store.getState().reviewing).toEqual({})
+    })
+
+    it('uploads only what has not gone up yet when tried again', async () => {
+      reviewApi.startColleagueReview.mockResolvedValue(roundStarted)
+      const upload = vi.fn(async () => 'up/b.md')
+      const store = new GroupTicketsStore('osc')
+      await store.review(
+        'A-1',
+        {
+          text: 'Done',
+          files: [{ file: file('a.png'), path: 'up/a.png' }, { file: file('b.md') }],
+        },
+        upload,
+      )
+      expect(upload).toHaveBeenCalledTimes(1)
+      expect(reviewApi.startColleagueReview).toHaveBeenCalledWith('osc', 'A-1', {
+        text: 'Done',
+        attachments: ['up/a.png', 'up/b.md'],
+      })
+    })
+
+    it('says why the backend refused the round, and leaves the ticket as it was', async () => {
+      answers({ mine: list() })
+      const store = new GroupTicketsStore('osc')
+      await store.refresh()
+      reviewApi.startColleagueReview.mockRejectedValueOnce(refusal(409, 'The group has no Jira.'))
+      const outcome = await store.review('A-1', { text: 'Done', files: [] }, vi.fn())
+      expect(outcome).toMatchObject({ ok: false, error: 'The group has no Jira.' })
+      expect(store.getState().mine.list?.tickets[0]?.reviewOpen).toBe(false)
+      reviewApi.startColleagueReview.mockRejectedValueOnce({})
+      expect(await store.review('A-1', { text: 'Done', files: [] }, vi.fn())).toMatchObject({
+        error: 'The review did not start.',
+      })
+    })
+
+    it('names the file that did not upload when the failure says nothing', async () => {
+      const store = new GroupTicketsStore('osc')
+      const outcome = await store.review(
+        'A-1',
+        { text: 'Done', files: [{ file: file('clip.mp4') }] },
+        vi.fn().mockRejectedValue({}),
+      )
+      expect(outcome).toMatchObject({ ok: false, error: 'clip.mp4 did not upload.' })
+    })
+
+    it('marks a ticket as reviewed in every list, once', async () => {
+      answers({ mine: list(), search: list() })
+      const store = new GroupTicketsStore('osc')
+      await store.refresh()
+      await store.search('a')
+      store.markReviewOpen('A-1')
+      const marked = store.getState()
+      expect(marked.mine.list?.tickets[0]?.reviewOpen).toBe(true)
+      expect(marked.search.list?.tickets[0]?.reviewOpen).toBe(true)
+      store.markReviewOpen('A-1')
+      expect(store.getState().mine.list?.tickets[0]).toBe(marked.mine.list?.tickets[0])
+      const before = store.getState().mine
+      store.markReviewOpen('Z-9')
+      expect(store.getState().mine).toBe(before)
+    })
   })
 })

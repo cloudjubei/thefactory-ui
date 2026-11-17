@@ -34,6 +34,8 @@ import { isTicketStatusMoveTool } from '../../../../headless/utils/ticketStatusM
 import { TicketStatusMoveConnected } from '../TicketStatusMoveCard'
 import { isTicketStoryProposalTool } from '../../../../headless/utils/ticketStoryProposal'
 import { TicketStoryProposalConnected } from '../TicketStoryProposalCard'
+import { colleagueReviewToolOf } from '../../../../headless/utils/colleagueReviewCard'
+import { ColleagueReviewConnected } from '../ColleagueReviewCard'
 import StoredSecretCard from '../StoredSecretCard'
 import {
   isShowStoredSecretTool,
@@ -215,6 +217,8 @@ function ToolCallCardInner({
   const reason = alreadyHandled ?? toolRowReason(resultType, result)
   const ticketMove = isTicketStatusMoveTool(toolCall.name)
   const ticketStory = isTicketStoryProposalTool(toolCall.name)
+  const reviewTool = colleagueReviewToolOf(toolCall.name)
+  const ownCard = ticketMove || ticketStory || reviewTool !== undefined
   const detail =
     resultType === 'errored'
       ? { code: jsonString(result), language: 'text' as const, label: 'View error' }
@@ -260,7 +264,7 @@ function ToolCallCardInner({
               </span>
               <span className="hidden flex-1 @max-md:block" aria-hidden />
             </>
-          ) : argDisplay && !ticketMove && !ticketStory ? (
+          ) : argDisplay && !ownCard ? (
             <>
               <ToolArgInline
                 display={argDisplay}
@@ -348,7 +352,7 @@ function ToolCallCardInner({
         </div>
       </div>
 
-      {reason && !ticketMove && !ticketStory ? (
+      {reason && !ownCard ? (
         <div className="-mt-1 px-3 pb-2">
           <p
             className={`line-clamp-3 text-xs leading-snug break-words ${resultType === 'errored' ? 'text-(--status-stuck-soft-fg)' : 'text-(--text-secondary)'}`}
@@ -407,6 +411,23 @@ function ToolCallCardInner({
           onClick={(e) => e.stopPropagation()}
         >
           <TicketStoryProposalConnected
+            args={toolCall.arguments}
+            result={result}
+            {...(resultType !== undefined ? { resultType } : {})}
+          />
+        </div>
+      ) : null}
+
+      {/* A ticket's colleague review reads on its review tools' rows, live: the
+          round the call was about, what became of each finding, the reply to
+          copy, and the person's own Drop and Given. */}
+      {reviewTool && !(askView && cardOpen) ? (
+        <div
+          className="border-t border-(--border-subtle) bg-(--surface-base) px-3 py-2.5"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <ColleagueReviewConnected
+            tool={reviewTool}
             args={toolCall.arguments}
             result={result}
             {...(resultType !== undefined ? { resultType } : {})}

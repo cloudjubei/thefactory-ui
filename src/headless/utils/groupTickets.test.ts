@@ -25,6 +25,7 @@ const ticket = (key: string, over: Partial<GroupTicket> = {}): GroupTicket => ({
   url: `https://acme.atlassian.net/browse/${key}`,
   canTake: false,
   chatOpen: false,
+  reviewOpen: false,
   ...over,
 })
 
@@ -36,6 +37,7 @@ const state = (over: Partial<GroupTicketsState> = {}): GroupTicketsState => ({
   search: { ...NOT_READ, query: '' },
   starting: undefined,
   startError: null,
+  reviewing: {},
   ...over,
 })
 
@@ -305,6 +307,21 @@ describe('a ticket’s row', () => {
     expect(opening.others.rows[0]?.starting).toBe('discuss')
     expect(opening.others.rows[1]).not.toHaveProperty('starting')
     expect(row({}, { key: 'A-1', action: 'plan' }).starting).toBe('plan')
+  })
+
+  it('says it has a review, and what its round is doing while it starts, on its own ticket', () => {
+    expect(row({ reviewOpen: true }).reviewOpen).toBe(true)
+    expect(row({})).toMatchObject({ reviewOpen: false })
+    expect(row({})).not.toHaveProperty('reviewing')
+    const view = shown(
+      state({
+        sprint: read([ticket('A-1'), ticket('A-2')]),
+        reviewing: { 'A-1': { step: 'uploading', done: 1, total: 5 } },
+      }),
+    )
+    expect(view.others.rows[0]?.reviewing).toBe('Files 1/5…')
+    expect(view.others.rows[1]).not.toHaveProperty('reviewing')
+    expect(view.starting).toBe(false)
   })
 
   it('marks the next ticket as it starts too', () => {
