@@ -87,6 +87,8 @@ import { RUN_TIME_DETAILS_SCENES } from '../scenes/runTimeDetails'
 import { SEND_CHAT_MESSAGE_SCENES } from '../scenes/sendChatMessage'
 import { STORY_CHANGE_ERROR_SCENES } from '../scenes/storyChangeErrors'
 import { STUCK_SCENES } from '../scenes/stuck'
+import { RETRY_DEFINITIONS_SCENES } from '../scenes/retryDefinitions'
+import { SUPERSEDED_FILINGS_SCENES } from '../scenes/supersededFilings'
 import { SPEND_LIMIT_SCENES } from '../scenes/spendLimit'
 import { STORY_WORK_SCENES } from '../scenes/storyWork'
 import { GROUP_TICKETS_SCENES } from '../scenes/groupTickets'
@@ -99,6 +101,10 @@ import { SCRIPT_STEP_SCENES } from '../scenes/scriptStep'
 import { VIDEO_ATTACHMENT_SCENES } from '../scenes/videoAttachments'
 import { SHOWN_FILE_SCENES } from '../scenes/shownFiles'
 import { PROJECT_DEVICE_SETTINGS_SCENES } from '../scenes/projectDeviceSettings'
+import { PROJECT_SERVE_SETTINGS_SCENES } from '../scenes/projectServeSettings'
+import { BUILD_LIMIT_AFTER_SAVE_SCENES } from '../scenes/buildLimitAfterSave'
+import { SIGNOFF_CHIP_SCENES } from '../scenes/signoffChips'
+import { WAITING_RETRY_NOTE_SCENES } from '../scenes/waitingRetryNote'
 import { VIDEO_SETTINGS_SCENES } from '../scenes/videoSettings'
 import { WORK_LAUNCH_SCENES } from '../scenes/workLaunch'
 import { WORKFLOW_GUARD_SCENES } from '../scenes/workflowGuards'
@@ -164,6 +170,8 @@ export const SCENES: readonly Scene[] = [
   ...ANSWER_FILES_SCENES,
   ...VIDEO_SETTINGS_SCENES,
   ...PROJECT_DEVICE_SETTINGS_SCENES,
+  ...PROJECT_SERVE_SETTINGS_SCENES,
+  ...BUILD_LIMIT_AFTER_SAVE_SCENES,
   ...CROSS_PROJECT_RESUME_SCENES,
   ...UI_IMPACT_SCENES,
   ...PARK_CLOSING_SCENES,
@@ -173,6 +181,10 @@ export const SCENES: readonly Scene[] = [
   ...REVIEW_GAP_SCENES,
   ...CIRCLING_SCENES,
   ...SPEND_LIMIT_SCENES,
+  ...RETRY_DEFINITIONS_SCENES,
+  ...WAITING_RETRY_NOTE_SCENES,
+  ...SUPERSEDED_FILINGS_SCENES,
+  ...SIGNOFF_CHIP_SCENES,
   ...REGENERATED_MERGE_SCENES,
   ...RUN_ACCESS_SCENES,
   ...TRY_ON_PHONE_SCENES,

@@ -62,6 +62,7 @@ import {
   reportAuthor,
   screenPairs,
 } from './reviewEvidenceView'
+import { isSupersededFiling, partitionFilings } from './supersededFilings'
 import { REVIEWER_VERDICT_LABEL, STEP_REPORT_AUTHORS } from './reviewEvidenceViewConstants'
 import type { EvidenceTile } from './reviewEvidenceViewTypes'
 import { runReviewFacts } from './runReview'
@@ -484,6 +485,11 @@ type SectionChecks = Pick<SectionSignoff, 'verification' | 'developerChecks'> & 
   now: number | undefined
 }
 
+/** Filings that still count for a chip. Ones a fresh retry replaced stay in the Superseded row. */
+function currentEvidence(evidence: readonly ReviewEvidenceRef[]): ReviewEvidenceRef[] {
+  return evidence.filter((ref) => !isSupersededFiling(ref))
+}
+
 /** What a feature's or a fix pass's section shows, from its chosen run, its filings and its own run's ledger. */
 function sectionSignoffFor(
   run: StorySignoffRun | undefined,
@@ -500,7 +506,7 @@ function sectionSignoffFor(
     // it does not need the per-run verification PLAN that tells "not run" from
     // "not set up" — the chips still colour by state from the record + evidence.
     approaches: [],
-    evidence,
+    evidence: currentEvidence(evidence),
     ...(run?.verdict?.by ? { verdictBy: run.verdict.by } : {}),
     ...(run?.diffReview ? { diffReview: run.diffReview } : {}),
     ...(projectChecks ? { projectChecks } : {}),
@@ -907,7 +913,7 @@ function buildOverall(
   const allRows = checkMethodRows({
     verification,
     approaches: [],
-    evidence: storyEvidence,
+    evidence: currentEvidence(storyEvidence),
     ...(diffReview ? { diffReview } : {}),
     ...(projectChecks ? { projectChecks } : {}),
     ...(now !== undefined ? { now } : {}),
@@ -1413,18 +1419,22 @@ function isDeveloperReport(t: EvidenceTile): boolean {
 }
 
 function signoffSection(sectionId: string, tiles: readonly EvidenceTile[]): SignoffSection {
+  const { current, superseded } = partitionFilings(tiles)
   const isStory = sectionId === ''
-  const reports = tiles.filter((t) => t.ref.kind === 'report')
+  const reports = current.filter((t) => t.ref.kind === 'report')
   const stepReport = newestOnly(
     reports.filter((t) =>
       SECTION_STEP_REPORTS[isStory ? 'story' : 'feature'].includes(reportAuthor(t.ref)),
     ),
   )
-  const reviews = tiles.filter((t) => isCodeReview(t.ref))
+  const reviews = current.filter((t) => isCodeReview(t.ref))
   const reading = codeReviewVerdict(reviews.map((t) => t.ref))
   return {
-    pairs: screenPairs(groupEvidence(tiles)).map((p) => ({ ...p, key: `${sectionId}::${p.key}` })),
-    recordings: tiles.filter((t) => t.ref.kind === 'recording'),
+    pairs: screenPairs(groupEvidence(current)).map((p) => ({
+      ...p,
+      key: `${sectionId}::${p.key}`,
+    })),
+    recordings: current.filter((t) => t.ref.kind === 'recording'),
     reports: [
       ...stepReport,
       ...latestReport(reports),
@@ -1434,6 +1444,7 @@ function signoffSection(sectionId: string, tiles: readonly EvidenceTile[]): Sign
     notes:
       !isStory && reading.state === 'concluded' ? [codeReviewVerdictNote(reading.verdict)] : [],
     leadTab: isStory && stepReport.length > 0 ? 'report' : undefined,
+    superseded,
   }
 }
 
@@ -1490,6 +1501,7 @@ export function signoffSectionProps(
       recordings: section.recordings,
       reports: section.reports,
       notes: reviewNotes,
+      superseded: section.superseded,
       ...tabs,
     }
   }
@@ -1502,6 +1514,7 @@ export function signoffSectionProps(
       ...section.reports.filter(isDeveloperReport),
     ],
     notes: [...verified.notes, ...reviewNotes],
+    superseded: section.superseded,
     ...tabs,
   }
 }

@@ -601,6 +601,116 @@ describe('buildStorySignoff', () => {
   })
 })
 
+describe('buildStorySignoff — chips ignore a filing a fresh retry replaced', () => {
+  const replaced = {
+    supersededBy: { attemptId: 'attempt-2' },
+  } as Partial<ReviewEvidenceRef>
+
+  const featureSignoff = (evidence: ReviewEvidenceRef[]) =>
+    buildStorySignoff({
+      features: [{ id: 'f1', title: 'One' }],
+      processRuns: [proc('pr1', 'f1')],
+      cliRuns: [run({ id: 'ra', processRunId: 'pr1' })],
+      evidence,
+    })
+
+  const chip = (signoff: ReturnType<typeof featureSignoff>, id: string) =>
+    signoff.features[0]?.rows.find((row) => row.id === id)
+
+  const shot = (id: string, over: Partial<ReviewEvidenceRef> = {}) =>
+    ev({
+      id,
+      runId: 'ra',
+      featureId: 'f1',
+      kind: 'screenshot',
+      mediaType: 'image/png',
+      ...over,
+    })
+  const recording = (id: string, over: Partial<ReviewEvidenceRef> = {}) =>
+    ev({
+      id,
+      runId: 'ra',
+      featureId: 'f1',
+      kind: 'recording',
+      mediaType: 'video/mp4',
+      ...over,
+    })
+  const report = (id: string, over: Partial<ReviewEvidenceRef> = {}) =>
+    ev({ id, runId: 'ra', featureId: 'f1', kind: 'report', ...over })
+
+  it('does not pass Screens, Walkthrough or Report on a replaced filing alone', () => {
+    const signoff = featureSignoff([
+      shot('old-shot', replaced),
+      recording('old-rec', replaced),
+      report('old-report', replaced),
+    ])
+    expect(chip(signoff, 'screens')?.state).not.toBe('passed')
+    expect(chip(signoff, 'walkthrough')?.state).not.toBe('passed')
+    expect(chip(signoff, 'report')?.state).not.toBe('passed')
+  })
+
+  it('counts a current filing and leaves the replaced one out of the chip', () => {
+    const signoff = featureSignoff([
+      shot('old-shot', replaced),
+      shot('shot'),
+      recording('old-rec', replaced),
+      recording('rec'),
+      report('old-report', replaced),
+      report('report'),
+    ])
+    expect(chip(signoff, 'screens')).toMatchObject({
+      state: 'passed',
+      detail: '1 screenshot captured',
+    })
+    expect(chip(signoff, 'walkthrough')).toMatchObject({
+      state: 'passed',
+      detail: '1 recording captured',
+    })
+    expect(chip(signoff, 'report')).toMatchObject({
+      state: 'passed',
+      detail: 'A report was written',
+    })
+  })
+
+  const wide = (evidence: ReviewEvidenceRef[]) =>
+    buildStorySignoff({
+      features: [{ id: 'f1', title: 'One' }],
+      processRuns: [],
+      cliRuns: [run({ id: 'ra', createdAt: 1 })],
+      evidence,
+    })
+
+  it('counts only a current story-wide recording toward the Walkthrough chip', () => {
+    const signoff = wide([
+      ev({
+        id: 'old',
+        runId: 'ra',
+        kind: 'recording',
+        mediaType: 'video/mp4',
+        ...replaced,
+      }),
+      ev({ id: 'now', runId: 'ra', kind: 'recording', mediaType: 'video/mp4' }),
+    ])
+    expect(signoff.overall?.rows.find((row) => row.id === 'walkthrough')).toMatchObject({
+      state: 'passed',
+      detail: '1 recording captured',
+    })
+  })
+
+  it('does not pass the story-wide Walkthrough chip when every recording was replaced', () => {
+    const signoff = wide([
+      ev({
+        id: 'old',
+        runId: 'ra',
+        kind: 'recording',
+        mediaType: 'video/mp4',
+        ...replaced,
+      }),
+    ])
+    expect(signoff.overall?.rows.find((row) => row.id === 'walkthrough')?.state).not.toBe('passed')
+  })
+})
+
 // --- agents, the Overall section, and the digest line ---
 
 /** A process run that carries a plan (roles) AND ledger (run↔step) attribution. */
@@ -3542,6 +3652,62 @@ describe('signoffSections', () => {
       ])
     })
 
+    it('shows a fresh retry’s current filings and keeps the replaced ones apart', () => {
+      const shot = tileOf({
+        id: 'shot',
+        featureId: 'f1',
+        runId: 'dev',
+        kind: 'screenshot',
+        subject: 'settings',
+        phase: 'after',
+        createdAt: T + 1,
+        supersededBy: { attemptId: 'attempt-2' },
+      } as Partial<ReviewEvidenceRef>)
+      const replaced = featureReport({
+        id: 'old',
+        createdAt: T + 8,
+        supersededBy: { attemptId: 'attempt-2' },
+      } as Partial<ReviewEvidenceRef>)
+      const kept = featureReport({ id: 'now', createdAt: T })
+      const section = signoffSections(story, [shot, replaced, kept]).get('f1')
+      expect(ids(section?.reports ?? [])).toEqual(['now'])
+      expect(section?.pairs ?? []).toEqual([])
+      expect(ids(section?.superseded ?? [])).toEqual(['old', 'shot'])
+    })
+
+    it('does not let a replaced code review speak over the current one', () => {
+      const section = signoffSections(story, [
+        review({
+          id: 'current',
+          featureId: 'f1',
+          runId: 'dev',
+          createdAt: T,
+          verdict: 'approved',
+        }),
+        review({
+          id: 'replaced',
+          featureId: 'f1',
+          runId: 'dev',
+          createdAt: T + 9,
+          verdict: 'changes-requested',
+          verdictReason: 'The first try.',
+          supersededBy: { attemptId: 'attempt-2' },
+        } as Partial<ReviewEvidenceRef>),
+      ]).get('f1')
+      expect(ids(section?.codeReviews ?? [])).toEqual(['current'])
+      expect(section?.notes.map((note) => note.label)).toEqual(['Code review · Approved'])
+      expect(ids(section?.superseded ?? [])).toEqual(['replaced'])
+    })
+
+    it('leaves a carry-on retry’s earlier report current, not superseded', () => {
+      const section = signoffSections(story, [
+        verifierReport({ id: 'earlier', featureId: 'f1', createdAt: T }),
+        verifierReport({ id: 'later', featureId: 'f1', createdAt: T + 1 }),
+      ]).get('f1')
+      expect(ids(section?.reports ?? [])).toEqual(['later'])
+      expect(section?.superseded).toEqual([])
+    })
+
     it('has no Code review tab or note without a code review of its own', () => {
       const sections = signoffSections(story, [verifierReport({ featureId: 'f1' }), review()])
       expect(sections.get('f1')?.codeReviews).toEqual([])
@@ -3580,6 +3746,7 @@ describe('signoffSections', () => {
         reports: section.reports,
         codeReviews: section.codeReviews,
         notes: [],
+        superseded: [],
       })
     })
 

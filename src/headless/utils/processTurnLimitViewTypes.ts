@@ -1,5 +1,7 @@
 import type { ProcessTurnLimit } from 'thefactory-tools/types'
 
+import type { ProcessRetryDefinitionChoice } from './processRetryDefinitionsTypes'
+
 /** A turn-limit switch and slider as a surface renders them, with what the limit means there. */
 export interface ProcessTurnLimitView {
   limited: boolean
@@ -19,4 +21,9 @@ export interface ProcessRetryPick {
   spendText?: string
   /** At a spend-limit stop: the amount the raise comes to, once it can be used. */
   spendUsd?: number
+  /**
+   * Which definitions the retry runs, when a newer one is offered.
+   * Absent, or `frozen`: the versions this run started with.
+   */
+  definitions?: ProcessRetryDefinitionChoice
 }

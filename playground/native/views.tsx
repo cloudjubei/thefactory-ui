@@ -67,6 +67,12 @@ import { FILE_PREVIEW_VIEWS } from './filePreviewViews'
 import { GIT_CREDENTIAL_VIEWS } from './gitCredentialViews'
 import { FILE_TREE_VIEWS } from './fileTreeViews'
 import { SCRIPT_STEP_VIEWS } from './scriptStepViews'
+import { PROJECT_SERVE_SETTINGS_VIEWS } from './projectServeSettingsViews'
+import { BUILD_LIMIT_AFTER_SAVE_VIEWS } from './buildLimitAfterSaveViews'
+import { RETRY_DEFINITIONS_VIEWS } from './retryDefinitionsViews'
+import { SIGNOFF_CHIP_VIEWS } from './signoffChipsViews'
+import { WAITING_RETRY_NOTE_VIEWS } from './waitingRetryNoteViews'
+import { SUPERSEDED_FILINGS_VIEWS } from './supersededFilingsViews'
 import { SPEND_LIMIT_VIEWS } from './spendLimitViews'
 import { SHOWN_FILE_VIEWS } from './shownFileViews'
 import { PLAN_WINDOW_VIEWS } from './planWindowViews'
@@ -598,6 +604,12 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   ...TRY_ON_PHONE_VIEWS,
   ...SCRIPT_STEP_VIEWS,
   ...SPEND_LIMIT_VIEWS,
+  ...PROJECT_SERVE_SETTINGS_VIEWS,
+  ...BUILD_LIMIT_AFTER_SAVE_VIEWS,
+  ...RETRY_DEFINITIONS_VIEWS,
+  ...WAITING_RETRY_NOTE_VIEWS,
+  ...SIGNOFF_CHIP_VIEWS,
+  ...SUPERSEDED_FILINGS_VIEWS,
   ...PLAN_WINDOW_VIEWS,
   ...FAKE_DATA_VIEWS,
   ...LIVE_CHECK_VIEWS,

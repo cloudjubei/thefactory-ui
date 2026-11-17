@@ -578,6 +578,17 @@ describe('stepFilingOf', () => {
   it('finds nothing without an attempt', () => {
     expect(stepFilingOf(tiles, undefined, ['code-review'])).toBeUndefined()
   })
+
+  it('leaves a filing a later try replaced, and takes the current one', () => {
+    const replaced = tile(CODE_REVIEW_APPROACH, 1900)
+    ;(replaced.ref as { supersededBy?: { attemptId: string } }).supersededBy = {
+      attemptId: 'attempt-2',
+    }
+    expect(
+      stepFilingOf([replaced, tile(CODE_REVIEW_APPROACH, 1500)], entry(), ['code-review'])?.ref
+        .createdAt,
+    ).toBe(1500)
+  })
 })
 
 describe('stepFilingsOf', () => {

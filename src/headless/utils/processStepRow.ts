@@ -32,6 +32,7 @@ import type {
   ProcessStepRowView,
 } from './processStepRowTypes'
 import { reportAuthor } from './reviewEvidenceView'
+import { isSupersededFiling } from './supersededFilings'
 import type { EvidenceTile, ReportAuthor } from './reviewEvidenceViewTypes'
 import { clipLine } from './textLine'
 import { verifyAttemptStanding } from './verifyProof'
@@ -215,6 +216,9 @@ export function stepFilingOf(
   authors: readonly ReportAuthor[],
 ): EvidenceTile | undefined {
   return stepFilingsOf(tiles, entry).find(
-    (t) => t.ref.kind === 'report' && authors.includes(reportAuthor(t.ref)),
+    (t) =>
+      t.ref.kind === 'report' &&
+      authors.includes(reportAuthor(t.ref)) &&
+      !isSupersededFiling(t.ref),
   )
 }

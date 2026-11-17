@@ -77,6 +77,18 @@ describe('processRetryChoiceOf', () => {
       undefined,
     )
   })
+
+  it('finds the retry that names the versions it will run', () => {
+    const named = {
+      choice: 'retry' as const,
+      label: 'Try again',
+      detail: 'd',
+      definitions: {
+        frozen: [{ kind: 'agent-type' as const, id: 'reviewer', name: 'Reviewer', version: 4 }],
+      },
+    }
+    expect(processRetryChoiceOf([named])).toBe(named)
+  })
 })
 
 describe('processRetryPickStart', () => {
@@ -109,6 +121,33 @@ describe('processRetryPickStart', () => {
 
   it('picks nothing a retry does not offer', () => {
     expect(processRetryPickStart({ choice: 'retry', label: 'Try again', detail: 'd' })).toEqual({})
+  })
+
+  it('starts on this run’s versions when a newer one is offered', () => {
+    expect(
+      processRetryPickStart({
+        choice: 'retry',
+        label: 'Try again',
+        detail: 'd',
+        definitions: {
+          frozen: [{ kind: 'agent-type', id: 'reviewer', name: 'Reviewer', version: 4 }],
+          current: [{ kind: 'agent-type', id: 'reviewer', name: 'Reviewer', version: 7 }],
+        },
+      }).definitions,
+    ).toBe('frozen')
+  })
+
+  it('leaves the definitions unpicked when nothing newer is offered', () => {
+    expect(
+      processRetryPickStart({
+        choice: 'retry',
+        label: 'Try again',
+        detail: 'd',
+        definitions: {
+          frozen: [{ kind: 'agent-type', id: 'reviewer', name: 'Reviewer', version: 4 }],
+        },
+      }),
+    ).toEqual({})
   })
 })
 

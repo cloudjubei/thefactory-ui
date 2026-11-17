@@ -159,4 +159,5 @@ export const EMPTY_SIGNOFF_SECTION: SignoffSection = {
   codeReviews: [],
   notes: [],
   leadTab: undefined,
+  superseded: [],
 }

@@ -45,6 +45,7 @@ import { NotShownList } from './PartialProofLists'
 import ProofBanner from './ProofBanner'
 import ProofPlanMarks from './ProofPlanMarks'
 import ProofScreens from './ProofScreens'
+import SupersededFilings from './SupersededFilings'
 
 /** The right-of-header line: a verify verdict ("Verify passed") toned by state. */
 export type ReviewStatusLine = { tone: 'done' | 'review' | 'stuck'; label: string }
@@ -69,6 +70,8 @@ export type FeatureReviewSectionProps = {
   reports: readonly EvidenceTile[]
   /** The code review's finding — its own tab, never the Report tab. */
   codeReviews?: readonly EvidenceTile[]
+  /** Filings a later try replaced. Shown after the current ones, collapsed and labelled. */
+  superseded?: readonly EvidenceTile[]
   /** The tab the section opens on when it is there — the story's final report. */
   leadTab?: ReviewTabId
   onOpenPair: (key: string) => void
@@ -212,6 +215,7 @@ export default function FeatureReviewSection({
   uncountedRecordings = [],
   reports,
   codeReviews = [],
+  superseded = [],
   leadTab,
   onOpenPair,
   onRequestImage,
@@ -515,7 +519,7 @@ export default function FeatureReviewSection({
             <ReportTab reports={codeReviews} onSaveFile={onSaveFile} />
           ) : null}
         </View>
-      ) : (
+      ) : superseded.length > 0 ? null : (
         <Text style={{ fontSize: 11, color: theme.text.secondary }}>
           {emptyLabel ??
             (kind === 'overall'
@@ -523,6 +527,7 @@ export default function FeatureReviewSection({
               : 'No screens, walkthroughs or reports were filed for this feature.')}
         </Text>
       )}
+      <SupersededFilings filings={superseded} />
     </View>
   )
 

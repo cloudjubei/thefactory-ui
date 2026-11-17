@@ -32,6 +32,7 @@ import type { ChatContext } from '../api'
 import { processRunChatContext } from 'thefactory-tools/utils'
 import { loadProjectFilePaths } from '../contexts/FilesContext'
 import { cachedProcessRun, processRunCache } from './processViewCache'
+import { processRetryUseCurrentDefinitions } from '../utils/processRetryDefinitions'
 import type { ProcessRetryPick } from '../utils/processTurnLimitViewTypes'
 import type { ProofChangeDraft } from '../utils/processProofChangeViewTypes'
 import { featureSplitResumeFields } from '../utils/processFeatureSplitView'
@@ -301,6 +302,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
             ...(retry?.retryMode ? { retryMode: retry.retryMode } : {}),
             ...(retry?.turnLimit ? { turnLimit: retry.turnLimit } : {}),
             ...(retry?.spendUsd !== undefined ? { attemptSpendUsd: retry.spendUsd } : {}),
+            ...(processRetryUseCurrentDefinitions(retry) ? { useCurrentDefinitions: true } : {}),
             ...(files && files.length > 0 ? { files: [...files] } : {}),
           },
           throwOnError: true,

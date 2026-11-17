@@ -821,6 +821,12 @@ export {
   type ProjectDeviceSettingsProps,
 } from './compound/projects/ProjectDeviceSettings'
 export {
+  default as ProjectServeSettings,
+  ProjectServeSettingsPanel,
+  type ProjectServeSettingsPanelProps,
+  type ProjectServeSettingsProps,
+} from './compound/projects/ProjectServeSettings'
+export {
   default as GroupTicketSettings,
   type GroupTicketSettingsProps,
 } from './compound/projects/GroupTicketSettings'

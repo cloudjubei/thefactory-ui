@@ -109,6 +109,7 @@ import {
 import ProjectFlakesList from './ProjectFlakesList'
 import DependencyRef from '../stories/DependencyRef'
 import FeatureReviewSection from './FeatureReviewSection'
+import SupersededFilings from './SupersededFilings'
 import SignoffCarriedCard from './signoff/SignoffCarriedCard'
 import IntegrationChooser from './IntegrationChooser'
 import ParkAnswers from './ParkAnswers'
@@ -758,7 +759,7 @@ function StorySignoffPanel({
   const openStory = () => rendering?.onOpen?.({ kind: 'story', projectId, storyId })
 
   const evidenceCard =
-    chips.length > 0 || extraChips.length > 0 ? (
+    chips.length > 0 || extraChips.length > 0 || overallSection.superseded.length > 0 ? (
       <View accessibilityLabel={SIGNOFF_SECTION_TITLES.evidence} style={card}>
         <View
           accessibilityRole="tablist"
@@ -864,6 +865,9 @@ function StorySignoffPanel({
             attachFile={loom.attachFile}
             {...(pickLoomVideo ? { pickVideo: pickLoomVideo } : {})}
           />
+        ) : null}
+        {overallSection.superseded.length > 0 ? (
+          <SupersededFilings filings={overallSection.superseded} />
         ) : null}
       </View>
     ) : null

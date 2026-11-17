@@ -18,6 +18,8 @@ import {
   earnedApproveActions,
   formatChangeRequestMessage,
   groupEvidence,
+  isSupersededFiling,
+  partitionFilings,
   handoffRequest,
   incompleteStoryReason,
   alreadyOnBaseView,
@@ -73,6 +75,7 @@ import { ReviewOnBaseOffer } from './ReviewOnBaseOffer'
 import { RunChangesHead } from './RunChangesHead'
 import { RunLandNotice } from './RunLandNotice'
 import { RunVerdictLine } from './RunVerdictLine'
+import SupersededFilings from '../process/SupersededFilings'
 import {
   ChangesTab,
   CheckChipRow,
@@ -328,12 +331,20 @@ export default function CliRunArtifactPanel({
   const storyIncomplete = census ? incompleteStoryReason(census) : undefined
   const openQuestions = storyId ? openFeatureQuestions(getStory(storyId)?.features ?? []) : []
 
+  const { current: currentFilings, superseded: supersededFilings } = useMemo(
+    () => partitionFilings(evidence.tiles),
+    [evidence.tiles],
+  )
+  const currentRefs = useMemo(
+    () => evidence.refs.filter((ref) => !isSupersededFiling(ref)),
+    [evidence.refs],
+  )
   const methodRows = useMemo(
     () =>
       checkMethodRows({
         verification,
         approaches: verificationApproaches,
-        evidence: evidence.refs,
+        evidence: currentRefs,
         ...(verdict?.by ? { verdictBy: verdict.by } : {}),
         // Whether the change was actually READ, from its OWN record — the
         // `judge` step writes it, and so does opening the Changes tab. It was
@@ -343,7 +354,7 @@ export default function CliRunArtifactPanel({
         ...(diffReview ? { diffReview } : {}),
         ...(projectChecks ? { projectChecks, now: Date.now() } : {}),
       }),
-    [verification, verificationApproaches, evidence.refs, verdict?.by, diffReview, projectChecks],
+    [verification, verificationApproaches, currentRefs, verdict?.by, diffReview, projectChecks],
   )
   const headline = useMemo(
     () =>
@@ -354,10 +365,10 @@ export default function CliRunArtifactPanel({
       }),
     [methodRows, verification, storyIncomplete],
   )
-  const evidenceGroups = useMemo(() => groupEvidence(evidence.tiles), [evidence.tiles])
+  const evidenceGroups = useMemo(() => groupEvidence(currentFilings), [currentFilings])
   const pairs = useMemo(() => screenPairs(evidenceGroups), [evidenceGroups])
-  const recordings = evidence.tiles.filter((t) => t.ref.kind === 'recording')
-  const reports = runReports(evidence.tiles)
+  const recordings = currentFilings.filter((t) => t.ref.kind === 'recording')
+  const reports = runReports(currentFilings)
   const { tests: testChecks, build: buildChecks } = reviewCheckGroups(verification)
   // The Tests badge counts TESTS, not layers.
   const testTotals = aggregateTestCounts(testChecks)
@@ -513,7 +524,7 @@ export default function CliRunArtifactPanel({
     actionMode === 'actions' && !isMerged && !decided ? reviewOnBaseOfferView(onBase) : undefined
   const reasonValid = isReviewReasonValid(reason)
   const capturedLabel = timeLabel(
-    evidence.refs.length > 0 ? Math.min(...evidence.refs.map((r) => r.createdAt)) : undefined,
+    currentRefs.length > 0 ? Math.min(...currentRefs.map((r) => r.createdAt)) : undefined,
   )
   const busyMethod: CheckMethodId | undefined = verifying
     ? (methodRows.find((r) => r.action.kind === 'run' && r.state !== 'passed')?.id ?? 'types')
@@ -914,6 +925,9 @@ export default function CliRunArtifactPanel({
                   />
                 )}
               </div>
+            ) : null}
+            {!isHandoffRun && supersededFilings.length > 0 ? (
+              <SupersededFilings filings={supersededFilings} />
             ) : null}
 
             {discarded.size > 0 ? (

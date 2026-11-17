@@ -415,6 +415,12 @@ export type SignoffSection = {
   notes: VerifyVerdictNote[]
   /** The tab the section opens on — the Report tab, when it holds the story's final report. */
   leadTab: ReviewTabId | undefined
+  /**
+   * Filings a fresh retry replaced. Shown after the current ones, collapsed
+   * and labelled — never as a second current set. A carry-on retry leaves
+   * this empty.
+   */
+  superseded: EvidenceTile[]
 }
 
 /**
@@ -423,7 +429,7 @@ export type SignoffSection = {
  */
 export type SignoffSectionProps = Pick<
   SignoffSection,
-  'pairs' | 'recordings' | 'reports' | 'codeReviews' | 'notes'
+  'pairs' | 'recordings' | 'reports' | 'codeReviews' | 'notes' | 'superseded'
 > &
   Partial<
     Pick<FeatureVerifySectionProps, 'uncountedRecordings' | 'emptyLabel' | 'proof' | 'attemptLabel'>

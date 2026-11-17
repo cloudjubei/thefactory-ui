@@ -17,6 +17,10 @@ import type {
   ProcessTurnLimit,
 } from 'thefactory-tools/types'
 
+import {
+  processRetryDefinitionChoiceStart,
+  processRetryDefinitionsOf,
+} from './processRetryDefinitions'
 import { processRetrySpendStart } from './processRetrySpendView'
 import { PROCESS_TURN_LIMIT_SLIDER_LABEL } from './processTurnLimitViewConstants'
 import type { ProcessRetryPick, ProcessTurnLimitView } from './processTurnLimitViewTypes'
@@ -67,17 +71,21 @@ export function processTurnLimitOfView(
   return { limitTurns: view.limited, maxTurns: view.maxTurns }
 }
 
-/** The retry choice of a park, when trying again lets the person pick how the step's agent starts, its turns or its spend. */
+/** The retry choice of a park, when trying again lets the person pick how the step's agent starts, its turns, its spend, or which definitions it runs. */
 export function processRetryChoiceOf(
   choices: readonly ProcessParkChoice[],
 ): ProcessParkChoice | undefined {
-  return choices.find((c) => c.choice === 'retry' && (c.retry || c.turnLimit || c.spendCap))
+  return choices.find(
+    (c) =>
+      c.choice === 'retry' &&
+      (c.retry || c.turnLimit || c.spendCap || !!processRetryDefinitionsOf(c)),
+  )
 }
 
 /**
  * What a retry starts from before the person changes anything: the step's
- * default and the offered limit — or the limit as it was, when the manager
- * says more tries won't help.
+ * default, the offered limit, and this run's definitions when a newer one is
+ * offered — or the limit as it was, when the manager says more tries won't help.
  */
 export function processRetryPickStart(
   choice: ProcessParkChoice,
@@ -85,8 +93,10 @@ export function processRetryPickStart(
 ): ProcessRetryPick {
   const limit = choice.turnLimit
   const spend = choice.spendCap
+  const definitions = processRetryDefinitionChoiceStart(choice)
   return {
     ...(choice.retry ? { retryMode: choice.retry.defaultMode } : {}),
+    ...(definitions ? { definitions } : {}),
     ...(spend ? { spendText: processRetrySpendStart(spend), spendUsd: spend.suggestedUsd } : {}),
     ...(limit
       ? {

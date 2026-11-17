@@ -106,6 +106,7 @@ import {
 import ProjectFlakesList from './ProjectFlakesList'
 import DependencyBullet from '../stories/DependencyBullet'
 import FeatureReviewSection from './FeatureReviewSection'
+import SupersededFilings from './SupersededFilings'
 import IntegrationChooser from './IntegrationChooser'
 import ParkAnswers from './ParkAnswers'
 import ParkNoteComposer from './ParkNoteComposer'
@@ -725,7 +726,7 @@ function StorySignoffPanel({
   }
 
   const evidenceCard =
-    chips.length > 0 || extraChips.length > 0 ? (
+    chips.length > 0 || extraChips.length > 0 || overallSection.superseded.length > 0 ? (
       <section
         ref={evidenceRef}
         aria-label={SIGNOFF_SECTION_TITLES.evidence}
@@ -840,6 +841,11 @@ function StorySignoffPanel({
               attachLink={loom.attachLink}
               attachFile={loom.attachFile}
             />
+          ) : null}
+          {overallSection.superseded.length > 0 ? (
+            <div className="pt-3">
+              <SupersededFilings filings={overallSection.superseded} />
+            </div>
           ) : null}
         </div>
       </section>

@@ -101,6 +101,8 @@ import {
   type ProofKind,
   type ProcessNodeRunRef,
   type ProcessResumeChoice,
+  processRetryDefinitionsOf,
+  type ProcessRetryDefinitionsOffer,
   type ProcessRetryOffer,
   type ProcessRetryPick,
   type ProcessRun,
@@ -1552,6 +1554,7 @@ export function ParkBlock({
   }
   const waiting = processWaitingView(run)
   if (waiting) {
+    const definitions = retryChoice ? processRetryDefinitionsOf(retryChoice) : undefined
     return (
       <>
         <WaitingCard
@@ -1560,10 +1563,11 @@ export function ParkBlock({
           {...(manager ? { manager } : {})}
           embedded={embedded}
           {...(answerFiles ? { answerFiles } : {})}
-          {...(retryChoice?.retry
+          {...(retryChoice && (retryChoice.retry || definitions)
             ? {
                 retry: {
-                  offer: retryChoice.retry,
+                  ...(retryChoice.retry ? { offer: retryChoice.retry } : {}),
+                  ...(definitions ? { definitions } : {}),
                   pick: retryPick ?? processRetryPickStart(retryChoice),
                   onPick: setRetryPick,
                 },
@@ -1602,6 +1606,7 @@ export function ParkBlock({
   const answers = processParkAnswersView(offered, manager, selected)
   const ownChoice = parkOwnAnswerChoice(offered)
   const noteOffer = offered.find((c) => c.choice === noteFor)
+  const definitions = retryChoice ? processRetryDefinitionsOf(retryChoice) : undefined
   const pick =
     retryPick ?? (retryChoice ? processRetryPickStart(retryChoice, manager?.moreTries) : undefined)
   const send = (answer: ParkAnswerView, note: string | undefined) => {
@@ -1703,6 +1708,7 @@ export function ParkBlock({
                 ? {
                     leadExtra: (
                       <RetryChoiceOptions
+                        {...(definitions ? { definitions } : {})}
                         {...(retryChoice.retry ? { retry: retryChoice.retry } : {})}
                         {...(retryChoice.turnLimit
                           ? {
@@ -1881,7 +1887,7 @@ function WaitingRequestRow({
  * with one line on what it does. Several requests are each decided on their
  * own rows; the card's answers take every one still open.
  */
-function WaitingCard({
+export function WaitingCard({
   view,
   managerLine,
   manager,
@@ -1895,6 +1901,7 @@ function WaitingCard({
   onDelegate,
   onOpenChat,
   onOpenTranscript,
+  noteForStart,
 }: {
   view: ProcessWaitingView
   /** What the agent manager is doing on the ask, while it has it — said in place of the ask's heading. */
@@ -1905,9 +1912,10 @@ function WaitingCard({
   embedded?: boolean
   /** Where files handed over with an answer come from. */
   answerFiles?: AnswerFilesSource
-  /** How "Try again" starts the step's agent, where its agent could not go on. */
+  /** How "Try again" starts, and which definitions it runs, where the stop offers either. */
   retry?: {
-    offer: ProcessRetryOffer
+    offer?: ProcessRetryOffer
+    definitions?: ProcessRetryDefinitionsOffer
     pick: ProcessRetryPick
     onPick: (pick: ProcessRetryPick) => void
   }
@@ -1928,8 +1936,13 @@ function WaitingCard({
   onDelegate: (note?: string) => Promise<boolean>
   onOpenChat?: (context: ChatContext) => void
   onOpenTranscript?: (ref: ProcessNodeRunRef) => void
+  /**
+   * The note starts open on this choice. The card otherwise starts on its
+   * answers; a settled scene uses this so the composer is open on first paint.
+   */
+  noteForStart?: ProcessResumeChoice
 }) {
-  const [noteFor, setNoteFor] = useState<ProcessResumeChoice | undefined>()
+  const [noteFor, setNoteFor] = useState<ProcessResumeChoice | undefined>(noteForStart)
   const [changingProof, setChangingProof] = useState(false)
   const [splitting, setSplitting] = useState(false)
   const [selected, setSelected] = useState<string | undefined>()
@@ -1944,6 +1957,17 @@ function WaitingCard({
   const titleLine = processWaitingTitleLine(view.title, managerLine ?? view.heading)
   const answers = processParkAnswersView(choices, manager, selected)
   const ownChoice = parkOwnAnswerChoice(choices)
+  // The pick a retry note sends. It stays above the composer: that note goes
+  // with the versions that are selected, and the card shows them together.
+  const retryOptions =
+    retry && (retry.definitions || retry.offer) ? (
+      <RetryChoiceOptions
+        {...(retry.offer ? { retry: retry.offer } : {})}
+        {...(retry.definitions ? { definitions: retry.definitions } : {})}
+        pick={retry.pick}
+        onPick={retry.onPick}
+      />
+    ) : null
   const send = (answer: ParkAnswerView, note: string | undefined) => {
     if (answer.choice === 'delegate') {
       setHandingOn(true)
@@ -2023,15 +2047,20 @@ function WaitingCard({
       </div>
       {manager ? <ManagerLine view={manager} /> : null}
       {noteFor ? (
-        <ParkNoteComposer
-          copy={waitingNoteCopy(view.kind)}
-          required={parkNoteRequired(noteFor)}
-          {...(answerFiles && answerTakesFiles(noteFor) ? { answerFiles } : {})}
-          onSend={(note, _proof, files) =>
-            onChoose(noteFor, note, undefined, undefined, undefined, files)
-          }
-          onCancel={() => setNoteFor(undefined)}
-        />
+        <div className="flex flex-col gap-2.5">
+          {noteFor === 'retry' ? retryOptions : null}
+          <ParkNoteComposer
+            copy={waitingNoteCopy(view.kind)}
+            required={parkNoteRequired(noteFor)}
+            {...(answerFiles && answerTakesFiles(noteFor) ? { answerFiles } : {})}
+            onSend={(note, _proof, files) =>
+              noteFor === 'retry' && retry
+                ? onChoose('retry', note, undefined, undefined, retry.pick, files)
+                : onChoose(noteFor, note, undefined, undefined, undefined, files)
+            }
+            onCancel={() => setNoteFor(undefined)}
+          />
+        </div>
       ) : changingProof && proofChange ? (
         <ProofChangeComposer
           offer={proofChange}
@@ -2058,12 +2087,8 @@ function WaitingCard({
           {...(ownChoice
             ? { onOwnAnswer: () => setNoteFor(ownChoice as ProcessResumeChoice) }
             : {})}
-          {...(retry && answers.lead?.choice === 'retry'
-            ? {
-                leadExtra: (
-                  <RetryChoiceOptions retry={retry.offer} pick={retry.pick} onPick={retry.onPick} />
-                ),
-              }
+          {...(retry && answers.lead?.choice === 'retry' && retryOptions
+            ? { leadExtra: retryOptions }
             : {})}
         />
       )}

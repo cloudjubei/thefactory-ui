@@ -37664,6 +37664,10 @@ export type ResumeProcessRunData = {
      */
     attemptSpendUsd?: number
     /**
+     * With retry: run the current definitions of the step’s agent type and process, when a newer one exists. Left out, the retry runs the versions this run froze.
+     */
+    useCurrentDefinitions?: boolean
+    /**
      * As `answerRunPark` and `decideRunGate` take it: with change-proof, `proofPlan.kinds`; with split-follow-up, what proves the feature from now on, if it changes; with request-changes, `requestedProof`. Not with either of those.
      */
     proofKinds?: Array<ProofKind>
