@@ -30,7 +30,7 @@ import {
   CHECK_METHOD_FILL,
   CHECK_METHOD_LABELS,
   CHECK_METHOD_NOUNS,
-  IMPLEMENTED_CHECK_METHOD_ORDER,
+  CHECK_METHOD_ORDER,
   CHECK_METHOD_SETUP_VERBS,
   CHECK_METHOD_TAB,
   CHECK_RAN_IN_SANDBOX_SENTENCE,
@@ -491,9 +491,16 @@ export function checkMethodRows(input: {
   }
   const driven = (evidenceCounts.get('screens') ?? 0) + (evidenceCounts.get('walkthrough') ?? 0)
 
-  const shown = IMPLEMENTED_CHECK_METHOD_ORDER.filter(
-    (id) => !scanned?.hidden.has(id) || byMethod.has(id),
-  )
+  const shown = CHECK_METHOD_ORDER.filter((id) => {
+    // Existing results remain readable even when this build cannot produce
+    // more of them. An absent producer is not a project capability to set up.
+    if (byMethod.has(id) || evidenceCounts.has(id) || (id === 'diff' && input.diffReview))
+      return true
+    const availability = approaches.find(
+      (a) => a.spec.id === CHECK_METHOD_APPROACH[id],
+    )?.availability
+    return availability?.status !== 'unimplemented' && !scanned?.hidden.has(id)
+  })
   return shown.map((id) => {
     const matched = byMethod.get(id) ?? []
     const captured = id === 'device' ? driven : (evidenceCounts.get(id) ?? 0)

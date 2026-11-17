@@ -44,12 +44,11 @@ import {
   CHECK_STATE_LABELS,
   CHECK_STATE_SENTENCES,
   CHECK_UNSERVABLE_LEAD,
-  IMPLEMENTED_CHECK_METHOD_ORDER,
+  CHECK_METHOD_ORDER,
   NOT_RUN_TITLE,
   PROVEN_DETAIL,
   PROVEN_TITLE,
   STORY_UNFINISHED_TITLE,
-  UNIMPLEMENTED_CHECK_METHODS,
   VERDICT_BEARING_METHODS,
   OPTIONAL_CHECK_METHODS,
 } from './checkMethodConstants'
@@ -194,17 +193,23 @@ describe('evidenceMethodFor', () => {
 })
 
 describe('checkMethodRows', () => {
-  it('returns only the IMPLEMENTED methods, in their fixed order', () => {
-    expect(rows({}).map((r) => r.id)).toEqual([...IMPLEMENTED_CHECK_METHOD_ORDER])
+  it('returns the known methods in their fixed order when availability is unknown', () => {
+    expect(rows({}).map((r) => r.id)).toEqual([...CHECK_METHOD_ORDER])
   })
 
-  it('never offers a method nothing can produce', () => {
-    // `walkthrough` names a recorder that does not exist and `diff` an
-    // adversarial reviewer nothing writes. Rendered anyway they read as a
-    // machine that tried and failed, and — being verdict-bearing — they held
-    // every run at "Partly proven" for good.
-    const ids = rows({ approaches: [approach('screen-recording')] }).map((r) => r.id)
-    for (const id of UNIMPLEMENTED_CHECK_METHODS) expect(ids).not.toContain(id)
+  it.each([
+    ['screens', 'screenshot-diff'],
+    ['walkthrough', 'screen-recording'],
+    ['diff', 'adversarial-review'],
+    ['report', 'code-explanation'],
+    ['tests', 'unit-tests'],
+    ['build', 'compile'],
+  ] as const)('never offers %s when its producer is unimplemented', (method, id) => {
+    const list = rows({
+      approaches: [approach(id, { status: 'unimplemented', reason: 'Not built.' })],
+    })
+    expect(list.map((r) => r.id)).not.toContain(method)
+    expect(list.map((r) => r.id)).toContain('lint')
   })
 
   it('drops the Device chip, which only ever opened the Screens tab already', () => {
@@ -437,17 +442,33 @@ describe('checkMethodRows', () => {
     expect(r.action).toEqual({ kind: 'request', purpose: 'setup', approachId: undefined })
   })
 
-  it('an approach no tool in this build produces is treated as missing', () => {
+  it('keeps filed proof readable when its producer is unimplemented on this host', () => {
     const r = row(
       rows({
         approaches: [
           approach('screenshot-diff', { status: 'unimplemented', reason: 'No iOS tool.' }),
         ],
+        evidence: [evidence()],
       }),
       'screens',
     )
-    expect(r.state).toBe('unconfigured')
-    expect(r.action).toEqual({ kind: 'request', purpose: 'setup', approachId: undefined })
+    expect(r.state).toBe('passed')
+    expect(r.action).toEqual({ kind: 'open-proof', tab: 'screens' })
+  })
+
+  it('keeps command results and an older read diff when their producers are unimplemented', () => {
+    const list = checkMethodRows({
+      verification: verification({ checks: [check({ kind: 'tests', status: 'failed' })] }),
+      approaches: [
+        approach('unit-tests', { status: 'unimplemented', reason: 'Not built.' }),
+        approach('adversarial-review', { status: 'unimplemented', reason: 'Not built.' }),
+      ],
+      evidence: [],
+      diffReview: { by: 'user' },
+    })
+    expect(row(list, 'tests').state).toBe('failed')
+    expect(row(list, 'diff').state).toBe('passed')
+    expect(signoffVerdict({ rows: list, verified: true }).key).toBe('failed')
   })
 
   it('a report is always at least not-run — an agent can always write one', () => {
@@ -1039,13 +1060,19 @@ describe('signoffVerdict', () => {
     expect(v.title).toContain('Screens')
   })
 
-  it('a method that cannot be satisfied never carries the verdict', () => {
-    // The live report this closes: every chip green, "Partly proven" above
-    // them, and no explanation the reviewer could act on — held down by two
-    // methods with no implementation behind them.
-    for (const id of UNIMPLEMENTED_CHECK_METHODS) {
-      expect(VERDICT_BEARING_METHODS).not.toContain(id)
-    }
+  it('an unimplemented producer offers no setup and cannot demote a proven run', () => {
+    const list = rows({
+      approaches: [
+        approach('adversarial-review', { status: 'unimplemented', reason: 'Not built.' }),
+      ],
+    })
+    expect(list.some((r) => r.id === 'diff')).toBe(false)
+    expect(
+      signoffVerdict({
+        rows: list.map((r) => ({ ...r, state: r.id === 'types' ? 'passed' : 'unconfigured' })),
+        verified: true,
+      }).key,
+    ).toBe('proven')
   })
 
   it('an OPTIONAL method cannot demote either — implemented is not the same as required', () => {
@@ -1063,7 +1090,7 @@ describe('signoffVerdict', () => {
   })
 
   it('a walkthrough that WAS recorded still shows as evidence', () => {
-    expect(IMPLEMENTED_CHECK_METHOD_ORDER).toContain('walkthrough')
+    expect(CHECK_METHOD_ORDER).toContain('walkthrough')
   })
 
   it('a partial verdict always NAMES what held it back', () => {
@@ -1458,8 +1485,9 @@ describe('tabForMethod', () => {
 
 describe('the diff method, now that it has a producer', () => {
   it('is offered to reviewers — its producer landed with the judge step', () => {
-    expect(UNIMPLEMENTED_CHECK_METHODS).not.toContain('diff')
-    expect(IMPLEMENTED_CHECK_METHOD_ORDER).toContain('diff')
+    expect(rows({ approaches: [approach('adversarial-review')] }).map((r) => r.id)).toContain(
+      'diff',
+    )
   })
 
   it('passes when the change was actually read', () => {

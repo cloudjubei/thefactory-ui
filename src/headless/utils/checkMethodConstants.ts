@@ -35,40 +35,6 @@ export const CHECK_METHOD_ORDER: readonly CheckMethodId[] = [
   'diff',
 ]
 
-/**
- * Declared, but nothing in any repo can ever produce one.
- *
- * `walkthrough` LANDED with `mobileTestRecordScreen`. Its `drivenBy` used to
- * list four SCREENSHOT tools, so an agent briefed to record a video had only
- * stills to do it with.
- *
- * `diff` LANDED, and is now the code review: the `judge` step files its finding
- * as a `code-review` report, whose verdict is the chip's state; a run from
- * before that filed none is still satisfied by `CliRun.diffReview`. Note what
- * it is NOT — the run's verdict. `CliRunVerdict.decision` means approved /
- * changes-requested / rejected, a SIGN-OFF that is the user's to give, so the
- * review got a record of its own rather than an agent stamping a decision on
- * their behalf.
- *
- * These are not slow or unavailable, they are ABSENT, and the distinction is the
- * whole point: `unchecked` means "this run did not do it", which a reviewer can
- * act on, while an unimplemented method offers no action at any price. Shown
- * anyway, they read as a machine that tried and failed — a live sign-off
- * displayed `Diff · not computed` for a feature that does not exist.
- *
- * Worse, both were verdict-bearing. Neither can ever pass, so the headline could
- * NEVER reach "proven": the panel showed every chip green and "Partly proven"
- * above them, held down by two checks with no implementation behind them.
- *
- * Remove an entry here the moment its producer lands — that is the whole switch.
- */
-export const UNIMPLEMENTED_CHECK_METHODS: readonly CheckMethodId[] = []
-
-/** The methods that can actually be satisfied — the only ones a reviewer ever sees. */
-export const IMPLEMENTED_CHECK_METHOD_ORDER: readonly CheckMethodId[] = CHECK_METHOD_ORDER.filter(
-  (id) => !UNIMPLEMENTED_CHECK_METHODS.includes(id),
-)
-
 export const CHECK_METHOD_LABELS: Record<CheckMethodId, string> = {
   tests: 'Tests',
   uitests: 'UI tests',
@@ -282,18 +248,18 @@ export const CHECK_STATE_LABELS: Record<CheckMethodState, string> = {
 export const OPTIONAL_CHECK_METHODS: readonly CheckMethodId[] = ['walkthrough', 'uitests']
 
 /**
- * Every IMPLEMENTED, REQUIRED method carries the verdict: any FAILURE makes the
+ * Every shown, REQUIRED method carries the verdict: any FAILURE makes the
  * run failed, any method that could have run and did not makes it partly
  * proven. `unconfigured` still never demotes — a project that has no linter is
  * not a worse-proven change.
  *
- * Closed over the implemented set, not the whole vocabulary. A method with no
- * producer cannot be satisfied at any price, so holding it against a run does
- * not describe the run, it describes the product — and it made "proven"
- * unreachable for everyone, forever.
+ * `checkMethodRows` omits methods whose approach is unimplemented unless a
+ * result already exists. Availability comes from the catalogue, not a second
+ * hard-coded list of producers here.
  */
-export const VERDICT_BEARING_METHODS: readonly CheckMethodId[] =
-  IMPLEMENTED_CHECK_METHOD_ORDER.filter((id) => !OPTIONAL_CHECK_METHODS.includes(id))
+export const VERDICT_BEARING_METHODS: readonly CheckMethodId[] = CHECK_METHOD_ORDER.filter(
+  (id) => !OPTIONAL_CHECK_METHODS.includes(id),
+)
 
 /** Past this many absent chips, the row collapses them into one. */
 export const COLLAPSE_ABSENT_PAST = 3
