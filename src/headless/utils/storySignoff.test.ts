@@ -603,7 +603,7 @@ describe('buildStorySignoff', () => {
 
 describe('buildStorySignoff — chips ignore a filing a fresh retry replaced', () => {
   const replaced = {
-    supersededBy: { attemptId: 'attempt-2' },
+    supersededBy: { processRunId: 'run-2', entryId: 'entry-2', stepId: 'checks' },
   } as Partial<ReviewEvidenceRef>
 
   const featureSignoff = (evidence: ReviewEvidenceRef[]) =>
@@ -3661,12 +3661,12 @@ describe('signoffSections', () => {
         subject: 'settings',
         phase: 'after',
         createdAt: T + 1,
-        supersededBy: { attemptId: 'attempt-2' },
+        supersededBy: { processRunId: 'run-2', entryId: 'entry-2', stepId: 'checks' },
       } as Partial<ReviewEvidenceRef>)
       const replaced = featureReport({
         id: 'old',
         createdAt: T + 8,
-        supersededBy: { attemptId: 'attempt-2' },
+        supersededBy: { processRunId: 'run-2', entryId: 'entry-2', stepId: 'checks' },
       } as Partial<ReviewEvidenceRef>)
       const kept = featureReport({ id: 'now', createdAt: T })
       const section = signoffSections(story, [shot, replaced, kept]).get('f1')
@@ -3691,7 +3691,7 @@ describe('signoffSections', () => {
           createdAt: T + 9,
           verdict: 'changes-requested',
           verdictReason: 'The first try.',
-          supersededBy: { attemptId: 'attempt-2' },
+          supersededBy: { processRunId: 'run-2', entryId: 'entry-2', stepId: 'checks' },
         } as Partial<ReviewEvidenceRef>),
       ]).get('f1')
       expect(ids(section?.codeReviews ?? [])).toEqual(['current'])

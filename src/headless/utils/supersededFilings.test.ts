@@ -9,25 +9,40 @@ import {
 } from './supersededFilings'
 import { SUPERSEDED_FILINGS_LABEL } from './supersededFilingsConstants'
 
-const item = (id: string, createdAt: number, kind = 'report', attemptId?: string) => ({
+const item = (id: string, createdAt: number, kind = 'report', replacedBy?: string) => ({
   ref: {
     id,
     kind,
     createdAt,
-    ...(attemptId ? { supersededBy: { attemptId } } : {}),
+    ...(replacedBy
+      ? {
+          supersededBy: {
+            processRunId: replacedBy,
+            entryId: `${replacedBy}-entry`,
+            stepId: 'checks',
+          },
+        }
+      : {}),
   },
 })
 
 describe('filingSupersededBy', () => {
-  it('reads the attempt that replaced the filing', () => {
-    expect(filingSupersededBy({ supersededBy: { attemptId: ' attempt-2 ' } })).toEqual({
-      attemptId: 'attempt-2',
-    })
+  it('reads the attempt that replaced the filing, as tools marks it', () => {
+    expect(
+      filingSupersededBy({
+        supersededBy: { processRunId: ' run-2 ', entryId: ' entry-2 ', stepId: ' checks ' },
+      }),
+    ).toEqual({ processRunId: 'run-2', entryId: 'entry-2', stepId: 'checks' })
   })
 
   it('treats a missing or blank mark as current', () => {
     expect(filingSupersededBy({})).toBeUndefined()
-    expect(filingSupersededBy({ supersededBy: { attemptId: '  ' } })).toBeUndefined()
+    expect(
+      filingSupersededBy({
+        supersededBy: { processRunId: 'run-2', entryId: '  ', stepId: 'checks' },
+      }),
+    ).toBeUndefined()
+    expect(filingSupersededBy({ supersededBy: { attemptId: 'attempt-2' } })).toBeUndefined()
     expect(filingSupersededBy({ supersededBy: 'attempt-2' })).toBeUndefined()
     expect(isSupersededFiling({})).toBe(false)
   })

@@ -12,7 +12,7 @@ import type { ReviewEvidenceRef } from '../../src/headless/api/generated'
  *   filing is labelled Superseded: "Feature report, first try" with its text,
  *   then "Settings, after — first try".
  */
-const ATTEMPT = 'attempt-2'
+const REPLACED_BY = { processRunId: 'run-2', entryId: 'entry-2', stepId: 'checks' }
 
 function filing(
   id: string,
@@ -33,7 +33,7 @@ function filing(
     mediaType: kind === 'report' ? 'text/markdown' : 'image/png',
     bytes: text?.length ?? 12,
     createdAt,
-    ...(superseded ? { supersededBy: { attemptId: ATTEMPT } } : {}),
+    ...(superseded ? { supersededBy: REPLACED_BY } : {}),
   } as ReviewEvidenceRef
   return { ref, caption: label, ...(text ? { text } : {}) }
 }

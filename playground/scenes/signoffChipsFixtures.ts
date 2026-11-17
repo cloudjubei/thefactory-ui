@@ -7,7 +7,9 @@ import {
 
 type Evidence = BuildStorySignoffInput['evidence'][number]
 
-const REPLACED = { supersededBy: { attemptId: 'attempt-2' } } as Partial<Evidence>
+const REPLACED = {
+  supersededBy: { processRunId: 'run-2', entryId: 'entry-2', stepId: 'checks' },
+} as Partial<Evidence>
 
 const CHIP_IDS = ['screens', 'walkthrough', 'report'] as const
 
@@ -15,7 +17,7 @@ const CHIP_IDS = ['screens', 'walkthrough', 'report'] as const
  * Sign-off chips for a feature whose first try was replaced.
  *
  * `replaced-only` — one screenshot, one recording and one report, each
- * `supersededBy.attemptId` "attempt-2". Screens, Walkthrough and Report are not passed.
+ * `supersededBy` naming run-2's checks entry. Screens, Walkthrough and Report are not passed.
  *
  * `one-current` — those, plus one current of each. The chip lines read
  * "1 screenshot captured", "1 recording captured" and "A report was written".

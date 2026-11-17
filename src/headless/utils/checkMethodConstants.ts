@@ -211,6 +211,7 @@ export const CHECK_STATE_SENTENCES: Record<Exclude<CheckMethodState, 'unconfigur
 /** The method chip each kind of detected project check fills. */
 export const PROJECT_CHECK_METHOD: Record<ProjectCheckKind, CheckMethodId> = {
   build: 'build',
+  start: 'build',
   lint: 'lint',
   typecheck: 'types',
   format: 'format',

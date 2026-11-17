@@ -581,8 +581,12 @@ describe('stepFilingOf', () => {
 
   it('leaves a filing a later try replaced, and takes the current one', () => {
     const replaced = tile(CODE_REVIEW_APPROACH, 1900)
-    ;(replaced.ref as { supersededBy?: { attemptId: string } }).supersededBy = {
-      attemptId: 'attempt-2',
+    ;(
+      replaced.ref as { supersededBy?: { processRunId: string; entryId: string; stepId: string } }
+    ).supersededBy = {
+      processRunId: 'run-2',
+      entryId: 'entry-2',
+      stepId: 'checks',
     }
     expect(
       stepFilingOf([replaced, tile(CODE_REVIEW_APPROACH, 1500)], entry(), ['code-review'])?.ref

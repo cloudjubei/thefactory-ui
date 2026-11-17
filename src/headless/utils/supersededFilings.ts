@@ -12,17 +12,24 @@ const KIND_WORDS: Record<string, readonly [string, string]> = {
 
 /**
  * The attempt that replaced this filing, when a fresh retry marked it
- * superseded. Anything else — no mark, a blank id — is current. A carry-on
+ * superseded. Anything else — no mark, a blank field — is current. A carry-on
  * retry never sets the mark, so its filings stay current.
  */
 export function filingSupersededBy(ref: object): FilingSupersededBy | undefined {
   if (!('supersededBy' in ref)) return undefined
   const mark = (ref as { supersededBy?: unknown }).supersededBy
   if (!mark || typeof mark !== 'object') return undefined
-  const attemptId = (mark as { attemptId?: unknown }).attemptId
-  if (typeof attemptId !== 'string') return undefined
-  const id = attemptId.trim()
-  return id ? { attemptId: id } : undefined
+  const fields = mark as Record<keyof FilingSupersededBy, unknown>
+  const processRunId = trimmedText(fields.processRunId)
+  const entryId = trimmedText(fields.entryId)
+  const stepId = trimmedText(fields.stepId)
+  return processRunId && entryId && stepId ? { processRunId, entryId, stepId } : undefined
+}
+
+function trimmedText(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  return trimmed || undefined
 }
 
 /** Whether a filing was replaced by a later try. */
