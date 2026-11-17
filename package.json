@@ -183,6 +183,37 @@
     "*": "prettier --write --ignore-unknown"
   },
   "factory": {
+    "verification": {
+      "policy": "require",
+      "checks": [
+        {
+          "id": "build",
+          "label": "Build",
+          "kind": "command",
+          "command": "npm run build",
+          "tier": "compile"
+        },
+        {
+          "id": "typecheck",
+          "label": "Type check",
+          "kind": "command",
+          "command": "npm run typecheck"
+        },
+        {
+          "id": "unit",
+          "label": "Unit tests",
+          "kind": "command",
+          "command": "npm run test",
+          "tier": "unit"
+        },
+        {
+          "id": "format",
+          "label": "Formatting",
+          "kind": "command",
+          "command": "npm run format:check"
+        }
+      ]
+    },
     "webApp": {
       "build": "playground:build",
       "serve": "playground:serve",
