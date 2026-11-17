@@ -13,12 +13,29 @@ export default defineConfig({
     ],
   },
   test: {
-    environment: 'node',
-    include: [
-      'src/**/*.test.ts',
-      'src/**/*.test.tsx',
-      'playground/**/*.test.ts',
-      'playground/**/*.test.tsx',
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'node',
+          environment: 'node',
+          include: [
+            'src/**/*.test.ts',
+            'src/**/*.test.tsx',
+            'playground/**/*.test.ts',
+            'playground/**/*.test.tsx',
+          ],
+          exclude: ['src/**/*.dom.test.ts', 'src/**/*.dom.test.tsx'],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'jsdom',
+          environment: 'jsdom',
+          include: ['src/**/*.dom.test.ts', 'src/**/*.dom.test.tsx'],
+        },
+      },
     ],
   },
 })
