@@ -90,7 +90,7 @@ function OwnFileChipInMessage() {
   )
 }
 
-/** The centred popup over the page, with Preview to open it again once closed. Drawn once mounted — it portals. */
+/** The centred popup over the page, with Preview to open it again once closed. Drawn once mounted — it portals — over an empty page until then. */
 function PreviewBoard({ file }: { file: FilePreviewFile }) {
   const [open, setOpen] = useState(true)
   const [mounted, setMounted] = useState(false)
@@ -112,7 +112,9 @@ function PreviewBoard({ file }: { file: FilePreviewFile }) {
             onOpenInFiles={() => setOpen(false)}
             onRetry={noop}
           />
-        ) : null}
+        ) : (
+          <div aria-hidden className="min-h-screen" />
+        )}
       </FilesProvider>
     </OnFixtures>
   )
