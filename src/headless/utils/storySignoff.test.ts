@@ -4058,6 +4058,22 @@ describe('buildStorySignoff — the story’s fix passes', () => {
     ])
   })
 
+  it('says a fix pass the final report sent back was sent back by it', () => {
+    const ledger: Entry[] = [
+      entry('e-f1', 'features:f1', 0, { childRunId: 'f1-run' }),
+      entry('e-cr1', 'code-review', 8, {
+        runRef: { runId: 'cr-1' },
+        review: { verdict: 'approved' },
+      }),
+      entry('e-rep', 'report', 9, { runRef: { runId: 'rep' }, outcome: 'failed' }),
+      entry('e-fix1', 'fix', 10, { childRunId: 'fix-1', viaLoopId: 'report-fix' }),
+    ]
+    const s = signoffOf({ ledger, fixes: [fixRun(1, 11)] })
+    expect(s.fixes.map((f) => [f.title, f.sentBy])).toEqual([
+      ['Sent back by the final report', 'report'],
+    ])
+  })
+
   it('never lets what a fix pass filed count for the story-wide checks', () => {
     const evidence = [
       ev({

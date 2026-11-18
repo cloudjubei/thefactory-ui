@@ -50,6 +50,16 @@ export interface GroupSignOffRepo {
   pullRequest: GroupSignOffPullRequest
   /** What approving would post to this repo's story's tickets. */
   ticketPost?: TicketPost
+  /** What its run still leaves for the person. */
+  leftForYou: GroupSignOffLeftForYou
+}
+
+/** What a repo's run still leaves for the person at the sign-off. */
+export interface GroupSignOffLeftForYou {
+  /** Its final report's "Needs you" items nobody has settled. */
+  needsYou: number
+  /** Its story's code-review follow-ups still pending. */
+  followUps: number
 }
 
 export interface GroupSignOffAttachment {
@@ -79,6 +89,8 @@ export interface GroupSignOffData {
   goingLive: ProcessGroupGoingLive
   walkthrough: LoomWalkthroughItem[]
   attachments: GroupSignOffAttachment[]
+  /** What every repo still leaves for the person, added up; clean only when none leaves anything. */
+  leftForYou: GroupSignOffLeftForYou & { clean: boolean }
 }
 
 /** The one decision, as a person takes it. */
@@ -207,6 +219,8 @@ export interface GroupSignOffScreen {
   loomLeft: number
   /** The outputs with an edit not saved: a decision waits for them. */
   unsaved: string[]
+  /** What the repos still leave for the person, in a line: nothing only when every repo is clean. */
+  leftForYou: { clean: boolean; line: string }
 }
 
 /** A stretch of an output's text. An unfilled placeholder stands out. */

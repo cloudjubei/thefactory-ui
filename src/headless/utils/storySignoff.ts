@@ -259,9 +259,11 @@ function fixPassesOf(
     const request: Pick<FixPass, 'sentBy' | 'note'> =
       kind === 'judge' && before?.outcome === 'failed'
         ? { sentBy: 'code-review', note: undefined }
-        : kind === 'gate' && before?.override?.choice === 'request-changes'
-          ? { sentBy: 'sign-off', note: before.override.note?.trim() || undefined }
-          : { sentBy: undefined, note: undefined }
+        : kind === 'report' && before?.outcome === 'failed'
+          ? { sentBy: 'report', note: undefined }
+          : kind === 'gate' && before?.override?.choice === 'request-changes'
+            ? { sentBy: 'sign-off', note: before.override.note?.trim() || undefined }
+            : { sentBy: undefined, note: undefined }
     passes.push({ run, pass: passes.length + 1, stepName: step.name, ...request })
   })
   return passes

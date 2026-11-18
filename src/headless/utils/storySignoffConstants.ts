@@ -83,6 +83,7 @@ export const FIX_SECTION_PREFIX = 'fix:'
 /** A fix pass's section title: what sent the work back to it. */
 export const FIX_SENT_BY_TITLE: Record<FixSentBy, string> = {
   'code-review': 'Sent back by the code review',
+  report: 'Sent back by the final report',
   'sign-off': 'Requested by you at sign-off',
 }
 

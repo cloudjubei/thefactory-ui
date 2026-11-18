@@ -245,6 +245,11 @@ function Decision({
         <span className="text-[13px] font-medium text-(--text-primary)">{screen.plan}</span>
       ) : null}
       {screen.goingLive ? <GoingLive words={screen.goingLive} /> : null}
+      {screen.leftForYou.clean ? (
+        <span className="text-[12.5px] text-(--text-secondary)">{screen.leftForYou.line}</span>
+      ) : (
+        <Alert variant="info">{screen.leftForYou.line}</Alert>
+      )}
       {screen.loomLeft > 0 ? (
         <span className="text-[12.5px] text-(--text-secondary)">
           {GROUP_SIGN_OFF_TEXT.loomLeft(screen.loomLeft)}

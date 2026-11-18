@@ -256,6 +256,11 @@ function Decision({
         </Text>
       ) : null}
       {screen.goingLive ? <GoingLive words={screen.goingLive} /> : null}
+      {screen.leftForYou.clean ? (
+        <Text style={{ fontSize: 13, color: theme.text.secondary }}>{screen.leftForYou.line}</Text>
+      ) : (
+        <Alert variant="info">{screen.leftForYou.line}</Alert>
+      )}
       {screen.loomLeft > 0 ? (
         <Text style={{ fontSize: 13, color: theme.text.secondary }}>
           {GROUP_SIGN_OFF_TEXT.loomLeft(screen.loomLeft)}
