@@ -1,9 +1,9 @@
 // File-extension → renderer-kind classifier. Pure TS, used by web's
-// `FilePane` to pick between markdown / html / image / pdf / text / binary
+// `FilePane` to pick between markdown / html / image / pdf / video / text / binary
 // viewers, and by `thefactory-overseer-mobile`'s `FilesContext` to decide
 // whether a file's text content needs to be fetched at all.
 
-export type FilePaneKind = 'markdown' | 'html' | 'text' | 'image' | 'pdf' | 'binary'
+export type FilePaneKind = 'markdown' | 'html' | 'text' | 'image' | 'pdf' | 'video' | 'binary'
 
 const MARKDOWN_EXTS = new Set(['md', 'mdx', 'markdown'])
 const HTML_EXTS = new Set(['html', 'htm'])
@@ -20,6 +20,7 @@ const IMAGE_EXTS = new Set([
   'tiff',
 ])
 const PDF_EXTS = new Set(['pdf'])
+const VIDEO_EXTS = new Set(['mp4', 'webm', 'mov'])
 const TEXT_EXTS = new Set([
   'txt',
   'log',
@@ -123,6 +124,7 @@ export function classifyFileByExtension(path: string | null | undefined): FilePa
   if (HTML_EXTS.has(ext)) return 'html'
   if (IMAGE_EXTS.has(ext)) return 'image'
   if (PDF_EXTS.has(ext)) return 'pdf'
+  if (VIDEO_EXTS.has(ext)) return 'video'
   if (TEXT_EXTS.has(ext)) return 'text'
   // Genuinely extensionless basenames (LICENSE, Makefile, Dockerfile,
   // CHANGELOG) are almost always plain text in the wild — default them to

@@ -22,6 +22,9 @@ export const REVIEWER_PROOF_IMPOSSIBLE_LABEL = 'Could not be proven here'
 /** What a tile in the Screens strip is, under its title. */
 export const SCREEN_PAIR_META: Record<ScreenPairClass, string> = {
   pair: 'before / after',
+  changed: 'changed',
+  unchanged: 'unchanged',
+  unavailable: 'comparison unavailable',
   new: 'only on the branch',
   removed: 'only on the base',
   single: 'single capture',
@@ -33,6 +36,9 @@ export const SCREEN_PAIR_CAPTURING_META = 'capturing…'
 /** What a pair IS, said under the comparison when the gate left no note on it. */
 export const SCREEN_PAIR_FACT: Record<ScreenPairClass, string> = {
   pair: 'Captured on both the base and the branch.',
+  changed: 'The pixel comparison found a change between the base and the branch.',
+  unchanged: 'The base and branch captures are pixel-identical.',
+  unavailable: 'The pixel comparison is unavailable for this pair.',
   new: 'This screen exists only on the branch.',
   removed: 'This screen exists only on the base.',
   single: 'A single capture — there is nothing to compare it with.',

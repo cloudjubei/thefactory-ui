@@ -45,6 +45,7 @@ import { FAKE_GROUP_ID, MEMBERS } from '../../src/fakeBackend/fixtures/projects'
 import { FAKE_GROUP_STATUS_AT } from '../../src/fakeBackend/fixtures/projectsGroups'
 import {
   RECORDING_ROUTES,
+  TRACE_TILE,
   VIDEO_COUNTED,
   VIDEO_NEW_SCREEN,
   VIDEO_NOT_COUNTED,
@@ -358,6 +359,40 @@ const PLAYER = {
   ),
 }
 
+/** Explicit save exercise: the first byte request fails; retry reads the bundled recording. */
+function RecordingSaveRetry() {
+  const [receipt, setReceipt] = useState('No bytes handed to the fixture host yet.')
+  const [routes] = useState(() => {
+    let attempts = 0
+    const content = '/api/v1/projects/{projectId}/review-evidence/{evidenceId}/content'
+    return {
+      ...RECORDING_ROUTES,
+      [content]: (...args: Parameters<NonNullable<(typeof RECORDING_ROUTES)[string]>>) => {
+        if (++attempts === 1) throw new Error('Synthetic first-save byte fetch failure')
+        return RECORDING_ROUTES[content]!(...args)
+      },
+    }
+  })
+  return (
+    <OnFixtures routes={routes}>
+      <MediaHostProvider value={PLAYER}>
+        <View style={{ padding: 16, width: 390, maxWidth: '100%', gap: 8 }}>
+          <Text>Save retry exercise: first fetch fails; second loads bundled bytes.</Text>
+          <WalkthroughTab
+            projectId={VIDEO_PROJECT}
+            recordings={[]}
+            videoPairs={videoPairViews([VIDEO_NEW_SCREEN])}
+            onSaveFile={({ name }) =>
+              setReceipt(`Fixture host received ${name}; no disk save performed.`)
+            }
+          />
+          <Text>{receipt}</Text>
+        </View>
+      </MediaHostProvider>
+    </OnFixtures>
+  )
+}
+
 /** The proof's recording pairs by `?state=`: counted, not-counted or new-screen. */
 const VIDEO_PAIR_STATES = {
   counted: [VIDEO_COUNTED],
@@ -376,7 +411,7 @@ function VideoPairs({ state }: { state: string | null }) {
           <View style={{ padding: 16, width: 390, maxWidth: '100%' }}>
             <WalkthroughTab
               projectId={VIDEO_PROJECT}
-              recordings={[]}
+              recordings={[TRACE_TILE]}
               videoPairs={videoPairViews(pairs)}
             />
           </View>
@@ -596,7 +631,12 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   {
     id: 'before-after-video',
     title: 'Before/after video',
-    render: (address) => <VideoPairs state={address.get('state')} />,
+    render: (address) =>
+      address.get('state') === 'save-retry' ? (
+        <RecordingSaveRetry />
+      ) : (
+        <VideoPairs state={address.get('state')} />
+      ),
   },
   {
     id: 'request-video',

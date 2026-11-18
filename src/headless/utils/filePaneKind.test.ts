@@ -19,6 +19,10 @@ describe('classifyFileByExtension', () => {
     expect(classifyFileByExtension('spec.pdf')).toBe('pdf')
   })
 
+  it.each(['mp4', 'webm', 'mov', 'MP4', 'WEBM', 'MOV'])('classifies .%s as video', (ext) => {
+    expect(classifyFileByExtension(`recordings/v1.2/walkthrough.${ext}`)).toBe('video')
+  })
+
   it('classifies known text extensions', () => {
     expect(classifyFileByExtension('src/foo.ts')).toBe('text')
     expect(classifyFileByExtension('config.yaml')).toBe('text')

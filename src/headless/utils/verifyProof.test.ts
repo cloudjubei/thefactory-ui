@@ -1317,6 +1317,19 @@ describe('verifyAttemptEvidence', () => {
     tile({ id: 'rec-proof', kind: 'recording', mediaType: 'video/mp4', createdAt: 170 }),
   ]
 
+  it('keeps trace downloads reachable without counting them as recording proof', () => {
+    const trace = tile({ id: 'trace', kind: 'trace', mediaType: 'application/zip', createdAt: 165 })
+    const ev = verifyAttemptEvidence(
+      {
+        entry: verify('v2', 'passed', 100, { proof: proof({ recordingIds: ['rec-proof'] }) }),
+        review,
+      },
+      [...tiles, trace],
+    )
+    expect(ev.recordings.map((t) => t.ref.id)).toEqual(['rec-proof'])
+    expect(ev.uncountedRecordings.map((t) => t.ref.id)).toContain('trace')
+  })
+
   it('shows the gate’s proof, and only this attempt’s own report and verdict', () => {
     const ev = verifyAttemptEvidence(
       {
@@ -1400,6 +1413,31 @@ describe('verifyAttemptEvidence', () => {
     expect(loading.proof?.pairs[0].beforeAbsent).toBe(CAPTURE_LOADING)
     const loaded = verifyAttemptEvidence({ entry: entryWithProof, review }, tiles)
     expect(loaded.proof?.pairs[0].beforeAbsent).toBe(CAPTURE_MISSING)
+  })
+
+  it('validates the base when grouping an older attempt without a gate proof', () => {
+    const filed = (['before', 'after'] as const).map((phase) =>
+      tile({
+        id: phase,
+        phase,
+        subject: 'Settings',
+        runId: 'reviewed',
+        createdAt: 150,
+        build: {
+          platform: 'web',
+          variant: 'desktop',
+          sha: phase === 'before' ? 'wrong' : 'head',
+          dirty: false,
+        },
+      }),
+    )
+    const result = verifyAttemptEvidence(
+      { entry: verify('v1', 'failed', 100), review, baseSha: 'base' },
+      filed,
+    )
+    expect(result.proof).toBeUndefined()
+    expect(result.pairs).toHaveLength(2)
+    expect(result.pairs.every((p) => p.class === 'single' && p.note?.includes('wrong'))).toBe(true)
   })
 
   it('falls back to the attempt’s own filings when the entry predates the proof record', () => {

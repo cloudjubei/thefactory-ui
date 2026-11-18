@@ -1,7 +1,7 @@
-import { useRef, type ReactNode } from 'react'
+import { useLayoutEffect, useRef, type ReactNode } from 'react'
 
 import {
-  useReviewEvidenceImage,
+  useReviewEvidenceMediaUrl,
   VIDEO_PAIRS_COPY,
   type EvidenceTile,
   type ProofVideoPairView,
@@ -9,6 +9,7 @@ import {
 import { Button } from '../../../primitives/Button'
 import { IconDownload, IconMaximize } from '../../../icons'
 import { downloadDataUri } from './download'
+import TraceDownload from './TraceDownload'
 
 export type WalkthroughTabProps = {
   projectId: string
@@ -31,8 +32,25 @@ function Recording({
   label?: string
   footer?: ReactNode
 }) {
-  const { dataUri, loading } = useReviewEvidenceImage(projectId, tile.ref.id, tile.ref.mediaType)
+  const { url, loading } = useReviewEvidenceMediaUrl(projectId, tile.ref.id)
   const videoRef = useRef<HTMLVideoElement | null>(null)
+  const positionRef = useRef(0)
+  const playingRef = useRef(false)
+  const restoringRef = useRef(false)
+
+  // Assign src only after fencing transport events. A declarative src update can
+  // queue pause/timeupdate at zero before metadata arrives for the new grant.
+  useLayoutEffect(() => {
+    const video = videoRef.current
+    if (!video || !url) return
+    restoringRef.current = true
+    video.src = url
+  }, [url])
+
+  const finishRestore = (video: HTMLVideoElement) => {
+    restoringRef.current = false
+    if (playingRef.current) void video.play().catch(() => {})
+  }
   const stem = tile.caption.replace(/[^a-z0-9-]+/gi, '-').toLowerCase() || 'walkthrough'
   const ext = tile.ref.mediaType.split('/')[1] ?? 'mp4'
 
@@ -48,7 +66,7 @@ function Recording({
           size="icon"
           aria-label="Fullscreen"
           title="Fullscreen"
-          disabled={!dataUri}
+          disabled={!url}
           onClick={() => void videoRef.current?.requestFullscreen?.()}
         >
           <IconMaximize className="w-4 h-4" />
@@ -58,18 +76,40 @@ function Recording({
           size="icon"
           aria-label="Save the recording"
           title="Save the recording"
-          disabled={!dataUri}
-          onClick={() => dataUri && downloadDataUri(dataUri, `${stem}.${ext}`)}
+          disabled={!url}
+          onClick={() => url && downloadDataUri(`${url}&download=true`, `${stem}.${ext}`)}
         >
           <IconDownload className="w-4 h-4" />
         </Button>
       </div>
-      {dataUri ? (
+      {url ? (
         // The browser's own transport: play, time, scrubber, and the settings
         // gear that hides everything else — the standard every player follows.
         <video
           ref={videoRef}
-          src={dataUri}
+          preload="metadata"
+          onTimeUpdate={(event) => {
+            if (!restoringRef.current) positionRef.current = event.currentTarget.currentTime
+          }}
+          onPlay={() => {
+            if (!restoringRef.current) playingRef.current = true
+          }}
+          onPause={() => {
+            if (!restoringRef.current) playingRef.current = false
+          }}
+          onLoadedMetadata={(event) => {
+            const video = event.currentTarget
+            if (!restoringRef.current) return
+            if (video.currentTime !== positionRef.current) {
+              video.currentTime = positionRef.current
+              // Keep ignoring reload events until the restoring seek completes.
+            } else {
+              finishRestore(video)
+            }
+          }}
+          onSeeked={(event) => {
+            if (restoringRef.current) finishRestore(event.currentTarget)
+          }}
           controls
           playsInline
           className="max-h-[420px] w-full rounded-md border border-(--border-default) bg-black"
@@ -175,14 +215,18 @@ export default function WalkthroughTab({
           ))}
         </div>
       ) : null}
-      {recordings.map((tile) => (
-        <Recording
-          key={tile.ref.id}
-          projectId={projectId}
-          tile={tile}
-          {...(renderFooter ? { footer: renderFooter(tile) } : {})}
-        />
-      ))}
+      {recordings.map((tile) =>
+        tile.ref.kind === 'trace' ? (
+          <TraceDownload key={tile.ref.id} projectId={projectId} tile={tile} />
+        ) : (
+          <Recording
+            key={tile.ref.id}
+            projectId={projectId}
+            tile={tile}
+            {...(renderFooter ? { footer: renderFooter(tile) } : {})}
+          />
+        ),
+      )}
     </div>
   )
 }

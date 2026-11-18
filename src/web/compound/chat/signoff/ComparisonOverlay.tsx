@@ -139,11 +139,8 @@ function Frame({
 }
 
 /**
- * The before/after comparison, edge to edge. Two modes for stills — Mirror
- * (both frames, left is always base) and Slide (one frame, a divider reveals
- * the branch) — under ONE shared zoom, so the pair can only ever be compared
- * at the same scale. Diff needs a pixel comparison the backend does not file
- * yet, so it is not offered rather than offered and empty.
+ * The before/after comparison, edge to edge: Mirror, Slide and Diff share
+ * one zoom so the captures are always compared at the same scale.
  */
 export default function ComparisonOverlay({
   pairs,

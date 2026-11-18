@@ -8,6 +8,7 @@ import { RequestProofSwitches } from '../../src/web/compound/process/ParkNoteCom
 import type { Scene } from '../showcase/types'
 import {
   RECORDING_ROUTES,
+  TRACE_TILE,
   VIDEO_COUNTED,
   VIDEO_NEW_SCREEN,
   VIDEO_NOT_COUNTED,
@@ -16,6 +17,7 @@ import {
   videoPairViews,
 } from './beforeAfterVideoFixtures'
 import { OnFixtures } from './onFixtures'
+import MediaRenewal from './mediaRenewal'
 
 const noop = () => {}
 
@@ -28,7 +30,7 @@ function Walkthrough({ videoPairs }: { videoPairs: ProcessProofVideoPair[] }) {
     <OnFixtures routes={RECORDING_ROUTES}>
       <WalkthroughTab
         projectId={VIDEO_PROJECT}
-        recordings={[]}
+        recordings={[TRACE_TILE]}
         videoPairs={videoPairViews(videoPairs)}
       />
     </OnFixtures>
@@ -49,6 +51,13 @@ export const BEFORE_AFTER_VIDEO_SCENES: Scene[] = [
         title: 'A counted pair',
         description: 'Before and After of one path, side by side: “Shows the change”.',
         render: () => frame(<Walkthrough videoPairs={[VIDEO_COUNTED]} />),
+      },
+      {
+        id: 'renewal',
+        title: 'Signed URL renewal — playing and paused',
+        description:
+          'Interactive exercise: Start, choose playing/paused at a nonzero playhead, then observe the next grant. Bundled assets only.',
+        render: () => <MediaRenewal />,
       },
       {
         id: 'not-counted',

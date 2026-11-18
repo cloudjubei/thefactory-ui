@@ -42,6 +42,10 @@ export type EvidenceGroup = {
   /** What the comparison is OF, or the item's id when it stands alone. */
   key: string
   title: string
+  /** Why a proposed pair is shown as singles. */
+  note?: string
+  /** An older head build in the same platform/variant and subject. */
+  earlier?: boolean
   before?: EvidenceTile
   after?: EvidenceTile
   /** Items that are not part of a before/after pair. */
@@ -56,16 +60,15 @@ export type EvidenceViewerImage = {
   dataUri: string
 }
 
-/**
- * What a screen pair IS, before any pixel comparison has run.
- *
- * `pair` is a before and an after whose difference is not yet computed — the
- * honest name for it until the backend files a diff. `new` and `removed` are
- * one-sided by construction. `single` is an unphased screenshot that belongs
- * to no comparison. There is deliberately no `changed`/`unchanged` here: that
- * is a claim about pixels, and nothing in this model has looked at any.
- */
-export type ScreenPairClass = 'pair' | 'new' | 'removed' | 'single'
+/** Filed pixel results classify two-sided pairs; `pair` has no result yet. */
+export type ScreenPairClass =
+  | 'pair'
+  | 'changed'
+  | 'unchanged'
+  | 'unavailable'
+  | 'new'
+  | 'removed'
+  | 'single'
 
 /** One tile in the Screens strip: a comparison, or a lone capture. */
 export type ScreenPair = {
@@ -74,6 +77,8 @@ export type ScreenPair = {
   index: number
   title: string
   class: ScreenPairClass
+  /** An older build attempt, folded away from current proof. */
+  earlier?: boolean
   before?: EvidenceTile
   after?: EvidenceTile
   /** What the verify gate made of this pair, said in place of the class's generic line. */

@@ -48,14 +48,12 @@ function Frame({ src }: { src: string | undefined }) {
 }
 
 /**
- * Every captured screen, in walkthrough order, as a snapping strip — so a
- * reviewer can walk them one by one with a thumb. Each tile is a stacked card:
- * the base peeks out behind the branch. There is no changed/unchanged split
- * here yet, because nothing has compared pixels; the tile number is the
- * walkthrough position and never renumbers.
+ * Every captured screen, changed pairs first, as a snapping strip.
+ * Each tile is a stacked card: the base peeks out behind the branch.
+ * The tile number keeps its walkthrough position even when reordered.
  */
 export default function ScreensTab({
-  pairs,
+  pairs: allPairs,
   onOpen,
   capturedLabel,
   onSaveAll,
@@ -64,6 +62,9 @@ export default function ScreensTab({
   capturing = false,
 }: ScreensTabProps) {
   const { theme, status } = useNativeTheme()
+  const [showEarlier, setShowEarlier] = useState(false)
+  const earlier = allPairs.filter((p) => p.earlier)
+  const pairs = allPairs.filter((p) => !p.earlier)
   // Decode exactly the tiles this strip shows; `onRequestImage` is idempotent.
   useEffect(() => {
     for (const pair of pairs) {
@@ -84,9 +85,7 @@ export default function ScreensTab({
           {` ${pairs.length === 1 ? 'screen' : 'screens'} ${capturing ? 'so far' : 'captured'}`}
         </Text>
         <View style={{ flex: 1 }} />
-        {/* Mode control first, download LAST — see the web peer. The
-            "Diff · not computed" label is gone: it announced the absence of a
-            feature rather than the outcome of one. */}
+        {/* Mode control first, download last — see the web peer. */}
         {hasBefore ? (
           <SegmentedControl
             size="sm"
@@ -127,7 +126,7 @@ export default function ScreensTab({
         {pairs.map((pair) => {
           const front =
             mode === 'before' ? (pair.before ?? pair.after) : (pair.after ?? pair.before)
-          const hasBack = pair.class === 'pair' && mode === 'after'
+          const hasBack = !!pair.before && !!pair.after && mode === 'after'
           return (
             <View key={pair.key} style={{ width: TILE_WIDTH, gap: 4 }}>
               <Pressable
@@ -230,6 +229,29 @@ export default function ScreensTab({
         })}
       </ScrollView>
 
+      {earlier.length > 0 ? (
+        <View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ expanded: showEarlier }}
+            onPress={() => setShowEarlier(!showEarlier)}
+          >
+            <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+              {`Earlier attempts · ${earlier.length} screens`}
+            </Text>
+          </Pressable>
+          {showEarlier ? (
+            <ScreensTab
+              pairs={earlier.map((p) => ({ ...p, earlier: false }))}
+              onOpen={onOpen}
+              onRequestImage={onRequestImage}
+              capturedLabel={undefined}
+              onSavePair={onSavePair}
+              capturing={capturing}
+            />
+          ) : null}
+        </View>
+      ) : null}
       {capturedLabel ? (
         <View style={{ borderTopWidth: 1, borderTopColor: theme.border.subtle, paddingTop: 6 }}>
           <Text

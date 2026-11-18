@@ -194,10 +194,12 @@ export type VerifyAttempt = {
   total: number
   /** Where its reviewer filed — undefined when no reviewed run precedes it. */
   review: ProcessVerifyReview | undefined
+  /** The process work branch's base, used for older entries with no gate proof. */
+  baseSha?: string
 }
 
 /** The process-run fields a verify selection reads. */
-export type VerifyAttemptRun = Pick<ProcessRun, 'featureId' | 'ledger' | 'plan'>
+export type VerifyAttemptRun = Pick<ProcessRun, 'featureId' | 'ledger' | 'plan' | 'workBranch'>
 
 /** The reviewer's own conclusion among an attempt's filings. */
 export type VerifyReviewerVerdict = {

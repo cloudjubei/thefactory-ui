@@ -3536,6 +3536,32 @@ describe('signoffSections', () => {
   const T = 1_000
   const tileOf = (over: Partial<ReviewEvidenceRef>) => toEvidenceTile(ev(over))
   const story = { evidenceRunIds: undefined, fixes: [] }
+
+  it('checks grouped screens against the reviewed run’s base before displaying a pair', () => {
+    const captures = (['before', 'after'] as const).map((phase) =>
+      tileOf({
+        id: phase,
+        runId: 'dev',
+        featureId: 'f1',
+        kind: 'screenshot',
+        mediaType: 'image/png',
+        subject: 'Settings',
+        phase,
+        build: {
+          platform: 'web',
+          variant: 'desktop',
+          sha: phase === 'before' ? 'wrong' : 'head',
+          dirty: false,
+        },
+      }),
+    )
+    const section = signoffSections(
+      { ...story, evidenceBaseShas: new Map([['dev', 'base']]) },
+      captures,
+    ).get('f1')!
+    expect(section.pairs).toHaveLength(2)
+    expect(section.pairs.every((p) => p.class === 'single' && p.note?.includes('wrong'))).toBe(true)
+  })
   const verifierReport = (over: Partial<ReviewEvidenceRef> = {}) =>
     tileOf({ id: 'ver', runId: 'dev', kind: 'report', createdAt: T, ...over })
   const final = (over: Partial<ReviewEvidenceRef> = {}) =>

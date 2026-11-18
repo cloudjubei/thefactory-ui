@@ -48,6 +48,7 @@ export type StorySignoffRun = Pick<
   | 'verification'
   | 'verdict'
   | 'diffReview'
+  | 'review'
   | 'durationMs'
   | 'cli'
   | 'modelId'
@@ -71,7 +72,13 @@ export type StorySignoffProcessRun = Pick<
   Partial<
     Pick<
       ProcessRun,
-      'parentRunId' | 'parentStepId' | 'totals' | 'input' | 'status' | 'accessRecords'
+      | 'parentRunId'
+      | 'parentStepId'
+      | 'totals'
+      | 'input'
+      | 'status'
+      | 'accessRecords'
+      | 'workBranch'
     >
   >
 
@@ -350,6 +357,8 @@ export type StorySignoff = {
    * everything filed for it shows.
    */
   evidenceRunIds: ReadonlySet<string> | undefined
+  /** The base of each reviewed run, never inferred from a capture. */
+  evidenceBaseShas?: ReadonlyMap<string, string>
   /**
    * The time and spend behind those runs, step by step and role by role — what
    * the report's Time and Cost tiles break down. Undefined when no process run

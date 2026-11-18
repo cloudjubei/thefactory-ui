@@ -1383,6 +1383,14 @@ export function buildStorySignoff(input: BuildStorySignoffInput): StorySignoff {
       ? measuredFacts(pipeline.story)
       : runReviewFacts(sumFacts([...chosenRuns, ...storyRuns])),
     evidenceRunIds,
+    evidenceBaseShas: new Map(
+      cliRuns.flatMap((r) => {
+        const owner = r.processRunId ?? owners.get(r.id)
+        const baseSha =
+          r.review?.baseSha ?? processRuns.find((p) => p.id === owner)?.workBranch?.baseSha
+        return baseSha ? [[r.id, baseSha] as const] : []
+      }),
+    ),
     work: signoffWorkOf(scope),
     ...recordedAccess(processRuns, scope?.storyRun?.id),
     ...outsideScopeOf(
@@ -1420,7 +1428,11 @@ function isDeveloperReport(t: EvidenceTile): boolean {
   return reportAuthor(t.ref) === 'developer-checks'
 }
 
-function signoffSection(sectionId: string, tiles: readonly EvidenceTile[]): SignoffSection {
+function signoffSection(
+  sectionId: string,
+  tiles: readonly EvidenceTile[],
+  baseShaByRun?: ReadonlyMap<string, string>,
+): SignoffSection {
   const { current, superseded } = partitionFilings(tiles)
   const isStory = sectionId === ''
   const reports = current.filter((t) => t.ref.kind === 'report')
@@ -1432,11 +1444,11 @@ function signoffSection(sectionId: string, tiles: readonly EvidenceTile[]): Sign
   const reviews = current.filter((t) => isCodeReview(t.ref))
   const reading = codeReviewVerdict(reviews.map((t) => t.ref))
   return {
-    pairs: screenPairs(groupEvidence(current)).map((p) => ({
+    pairs: screenPairs(groupEvidence(current, { baseShaByRun })).map((p) => ({
       ...p,
       key: `${sectionId}::${p.key}`,
     })),
-    recordings: current.filter((t) => t.ref.kind === 'recording'),
+    recordings: current.filter((t) => t.ref.kind === 'recording' || t.ref.kind === 'trace'),
     reports: [
       ...stepReport,
       ...latestReport(reports),
@@ -1459,7 +1471,7 @@ function signoffSection(sectionId: string, tiles: readonly EvidenceTile[]): Sign
  * are namespaced by section, so they stay unique across the one overlay.
  */
 export function signoffSections(
-  signoff: Pick<StorySignoff, 'evidenceRunIds' | 'fixes'>,
+  signoff: Pick<StorySignoff, 'evidenceRunIds' | 'fixes' | 'evidenceBaseShas'>,
   tiles: readonly EvidenceTile[],
 ): Map<string, SignoffSection> {
   const fixOf = new Map<string, string>()
@@ -1472,7 +1484,8 @@ export function signoffSections(
     else bySection.set(id, [t])
   }
   const sections = new Map<string, SignoffSection>()
-  for (const [id, list] of bySection) sections.set(id, signoffSection(id, list))
+  for (const [id, list] of bySection)
+    sections.set(id, signoffSection(id, list, signoff.evidenceBaseShas))
   return sections
 }
 

@@ -365,9 +365,14 @@ export default function CliRunArtifactPanel({
       }),
     [methodRows, verification, storyIncomplete],
   )
-  const evidenceGroups = useMemo(() => groupEvidence(currentFilings), [currentFilings])
+  const evidenceGroups = useMemo(
+    () => groupEvidence(currentFilings, { baseSha: review?.baseSha }),
+    [currentFilings, review?.baseSha],
+  )
   const pairs = useMemo(() => screenPairs(evidenceGroups), [evidenceGroups])
-  const recordings = currentFilings.filter((t) => t.ref.kind === 'recording')
+  const recordings = currentFilings.filter(
+    (t) => t.ref.kind === 'recording' || t.ref.kind === 'trace',
+  )
   const reports = runReports(currentFilings)
   const { tests: testChecks, build: buildChecks } = reviewCheckGroups(verification)
   // The Tests badge counts TESTS, not layers.

@@ -22,6 +22,7 @@ import type {
   ReportAuthor,
   ReviewerVerdictReading,
   ScreenPair,
+  ScreenPairClass,
 } from './reviewEvidenceViewTypes'
 
 /** Whether this item is something a reviewer can actually LOOK at inline. */
@@ -58,11 +59,15 @@ export function toEvidenceTile(ref: ReviewEvidenceRef): EvidenceTile {
  * Group evidence into before/after comparisons.
  *
  * A pair shown side by side is the whole point of a screenshot diff — two
- * unrelated images in a list do not answer "what changed", which is the question
- * the reviewer actually has. Items with a shared `subject` and opposite `phase`
- * pair up; everything else stands alone rather than being forced into a pair.
+ * unrelated images in a list do not answer "what changed". Build buckets are
+ * platform + variant + subject + sha. A before from the run's base may join a
+ * head bucket in the same lane; a failed check leaves both captures as singles.
+ * Legacy filings with no build metadata retain their historical grouping.
  */
-export function groupEvidence(tiles: readonly EvidenceTile[]): EvidenceGroup[] {
+export function groupEvidence(
+  tiles: readonly EvidenceTile[],
+  opts: { baseSha?: string; baseShaByRun?: ReadonlyMap<string, string> } = {},
+): EvidenceGroup[] {
   const groups = new Map<string, EvidenceGroup>()
   const ungrouped: EvidenceTile[] = []
 
@@ -72,8 +77,18 @@ export function groupEvidence(tiles: readonly EvidenceTile[]): EvidenceGroup[] {
       ungrouped.push(tile)
       continue
     }
-    const existing = groups.get(subject) ?? {
-      key: subject,
+    const build = tile.ref.build
+    const key = build
+      ? JSON.stringify([
+          build.platform ?? '',
+          build.variant ?? '',
+          subject,
+          build.sha,
+          tile.ref.kind,
+        ])
+      : subject
+    const existing = groups.get(key) ?? {
+      key,
       title: subject,
       singles: [],
     }
@@ -82,10 +97,117 @@ export function groupEvidence(tiles: readonly EvidenceTile[]): EvidenceGroup[] {
     if (phase === 'before' && !existing.before) existing.before = tile
     else if (phase === 'after' && !existing.after) existing.after = tile
     else existing.singles.push(tile)
-    groups.set(subject, existing)
+    groups.set(key, existing)
   }
 
-  const paired = [...groups.values()]
+  // A before is built from the base, not the after's commit. Join across those
+  // two build buckets only within one platform/variant and subject, and only
+  // when the run's base record agrees. Never guess between head builds.
+  const all = [...groups.values()]
+  const lane = (t: EvidenceTile): string =>
+    JSON.stringify([
+      t.ref.build?.platform ?? '',
+      t.ref.build?.variant ?? '',
+      t.ref.subject,
+      t.ref.kind,
+    ])
+  const consumed = new Set<string>()
+  const unmatchedBeforeNotes = new Map<string, string>()
+  for (const group of all) {
+    const after = group.after
+    if (!after) continue
+    const baseSha = opts.baseShaByRun?.get(after.ref.runId) ?? opts.baseSha
+    const candidates = tiles.filter((t) => t.ref.phase === 'before' && lane(t) === lane(after))
+    if (
+      (!group.before || (after.ref.build && after.ref.comparison?.beforeId)) &&
+      candidates.length > 0
+    ) {
+      const named = after.ref.comparison?.beforeId
+      const before = named
+        ? candidates.find((t) => t.ref.id === named)
+        : ([...candidates]
+            .filter((t) => !baseSha || t.ref.build?.sha === baseSha)
+            .sort((a, b) => b.ref.createdAt - a.ref.createdAt)[0] ??
+          [...candidates].sort((a, b) => b.ref.createdAt - a.ref.createdAt)[0])
+      if (group.before && group.before.ref.id !== before?.ref.id) {
+        group.singles.push(group.before)
+        delete group.before
+      }
+      if (before) {
+        group.before = before
+        consumed.add(before.ref.id)
+      }
+    }
+    if (!group.before) {
+      const named = after.ref.comparison?.beforeId
+      const other = tiles.find(
+        (t) =>
+          t.ref.phase === 'before' &&
+          t.ref.subject === after.ref.subject &&
+          (!named || t.ref.id === named),
+      )
+      if (other || named) {
+        const reason = other
+          ? 'Cannot compare: the captures have different platforms or variants.'
+          : 'Cannot compare: the named before capture is missing.'
+        group.note = reason
+        if (other) unmatchedBeforeNotes.set(other.ref.id, reason)
+      }
+      continue
+    }
+    const before = group.before
+    const reason = baseSha
+      ? !before.ref.build
+        ? 'Cannot compare: the before has no build record.'
+        : before.ref.build.dirty
+          ? 'Cannot compare: the before build has uncommitted changes.'
+          : before.ref.build.sha !== baseSha
+            ? `Cannot compare: the before was built from ${before.ref.build.sha}, not the run’s base ${baseSha}.`
+            : !after.ref.build
+              ? 'Cannot compare: the after has no build record.'
+              : undefined
+      : before.ref.build || after.ref.build
+        ? 'Cannot compare: the run’s base commit is unknown.'
+        : undefined
+    if (reason) {
+      group.note = reason
+      group.singles.unshift(before, after)
+      delete group.before
+      delete group.after
+    }
+  }
+  // Resolve opposite-side notes only after every lane has paired: an unmatched
+  // capture must not taint a before already used by another platform's valid pair.
+  for (const group of all) {
+    if (group.before && !group.after && !consumed.has(group.before.ref.id)) {
+      const note = unmatchedBeforeNotes.get(group.before.ref.id)
+      if (note) group.note = note
+    }
+  }
+  const paired = all
+    .map((group): EvidenceGroup => {
+      if (group.before && !group.after && consumed.has(group.before.ref.id)) {
+        const { before: _before, ...rest } = group
+        return rest
+      }
+      return group
+    })
+    .filter((group) => group.before || group.after || group.singles.length > 0)
+  // A later head build is the current attempt in its lane. Keep the previous
+  // builds reachable, but do not present their screenshots as current proof.
+  const newest = new Map<string, EvidenceGroup>()
+  for (const group of paired) {
+    const after = group.after ?? group.singles.find((t) => t.ref.phase === 'after')
+    if (!after?.ref.build) continue
+    const id = lane(after)
+    const prior = newest.get(id)
+    const priorAfter = prior?.after ?? prior?.singles.find((t) => t.ref.phase === 'after')
+    if (!priorAfter || after.ref.createdAt > priorAfter.ref.createdAt) newest.set(id, group)
+  }
+  for (const group of paired) {
+    const after = group.after ?? group.singles.find((t) => t.ref.phase === 'after')
+    if (after?.ref.build && newest.get(lane(after)) !== group) group.earlier = true
+  }
   return ungrouped.length > 0
     ? [...paired, { key: '__loose__', title: 'Other evidence', singles: ungrouped }]
     : paired
@@ -129,8 +251,20 @@ function earliestCreatedAt(group: EvidenceGroup): number {
   return times.length > 0 ? Math.min(...times) : Number.MAX_SAFE_INTEGER
 }
 
+function pairedScreenClass(before: EvidenceTile, after: EvidenceTile): ScreenPairClass {
+  const comparison = after.ref.comparison
+  if (!comparison) return 'pair'
+  if (
+    comparison.unavailable !== undefined ||
+    (comparison.beforeId !== undefined && comparison.beforeId !== before.ref.id)
+  ) {
+    return 'unavailable'
+  }
+  return comparison.identical ? 'unchanged' : 'changed'
+}
+
 /**
- * The Screens strip, in walkthrough order.
+ * The Screens strip, changed pairs first, then the rest in walkthrough order.
  *
  * Only images take part: a written report is not a screen. Paired groups become
  * one tile; each unpaired image becomes its own. Order is by first capture time,
@@ -147,19 +281,29 @@ export function screenPairs(groups: readonly EvidenceGroup[]): ScreenPair[] {
       raw.push({
         key: group.key,
         title: group.title,
-        class: before && after ? 'pair' : after ? 'new' : 'removed',
+        class: group.note
+          ? 'single'
+          : before && after
+            ? pairedScreenClass(before, after)
+            : after
+              ? 'new'
+              : 'removed',
         ...(before ? { before } : {}),
         ...(after ? { after } : {}),
+        ...(group.note ? { note: group.note } : {}),
+        ...(group.earlier ? { earlier: true } : {}),
       })
       timed.push(earliestCreatedAt({ ...group, singles: [] }))
     }
     for (const single of group.singles) {
       if (!isViewableImage(single.ref)) continue
       raw.push({
-        key: single.ref.id,
+        key: single.ref.build ? `${group.key}::${single.ref.id}` : single.ref.id,
         title: single.caption,
         class: 'single',
         after: single,
+        ...(group.note ? { note: group.note } : {}),
+        ...(group.earlier ? { earlier: true } : {}),
       })
       timed.push(single.ref.createdAt)
     }
@@ -168,6 +312,7 @@ export function screenPairs(groups: readonly EvidenceGroup[]): ScreenPair[] {
     .map((pair, i) => ({ pair, at: timed[i] }))
     .sort((a, b) => a.at - b.at)
     .map(({ pair }, i) => ({ index: i + 1, ...pair }))
+    .sort((a, b) => Number(b.class === 'changed') - Number(a.class === 'changed'))
 }
 
 /**
@@ -176,10 +321,10 @@ export function screenPairs(groups: readonly EvidenceGroup[]): ScreenPair[] {
  * not landed yet.
  */
 export function screenPairMeta(
-  pair: Pick<ScreenPair, 'class'>,
+  pair: Pick<ScreenPair, 'class' | 'note'>,
   opts: { capturing: boolean },
 ): string {
-  return opts.capturing ? SCREEN_PAIR_CAPTURING_META : SCREEN_PAIR_META[pair.class]
+  return opts.capturing ? SCREEN_PAIR_CAPTURING_META : (pair.note ?? SCREEN_PAIR_META[pair.class])
 }
 
 /** What the comparison overlay says under an open pair: the gate's note, else what the pair is. */

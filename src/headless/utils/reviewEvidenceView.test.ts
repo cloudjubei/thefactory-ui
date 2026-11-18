@@ -131,6 +131,166 @@ describe('groupEvidence', () => {
   })
 })
 
+describe('build-aware evidence grouping', () => {
+  const capture = (
+    id: string,
+    phase: 'before' | 'after',
+    sha: string,
+    platform: 'web' | 'android' = 'web',
+    variant = 'desktop',
+    createdAt = 1,
+    extra: Partial<ReviewEvidenceRef> = {},
+  ) =>
+    toEvidenceTile(
+      ref({
+        id,
+        phase,
+        subject: 'Settings',
+        createdAt,
+        build: { sha, platform, variant, dirty: false },
+        ...extra,
+      }),
+    )
+
+  it('joins the base to each head bucket without mixing platforms or variants', () => {
+    const groups = groupEvidence(
+      [
+        capture('wb', 'before', 'base'),
+        capture('wa', 'after', 'head'),
+        capture('ab', 'before', 'base', 'android', 'debug'),
+        capture('aa', 'after', 'head', 'android', 'debug'),
+        capture('nb', 'before', 'base', 'web', 'narrow'),
+        capture('na', 'after', 'head', 'web', 'narrow'),
+      ],
+      { baseSha: 'base' },
+    )
+    expect(groups.map((g) => [g.before?.ref.id, g.after?.ref.id])).toEqual([
+      ['wb', 'wa'],
+      ['ab', 'aa'],
+      ['nb', 'na'],
+    ])
+    expect(new Set(groups.map((g) => g.key)).size).toBe(3)
+  })
+
+  it('keeps head commits separate and folds only the older build in the same lane', () => {
+    const tiles = [
+      capture('base', 'before', 'base'),
+      capture('old', 'after', 'head-1', 'web', 'desktop', 2),
+      capture('new', 'after', 'head-2', 'web', 'desktop', 3),
+    ]
+    for (const input of [tiles, [...tiles].reverse()]) {
+      const groups = groupEvidence(input, { baseSha: 'base' })
+      expect(groups).toHaveLength(2)
+      expect(groups.find((g) => g.after?.ref.id === 'old')?.earlier).toBe(true)
+      expect(groups.find((g) => g.after?.ref.id === 'new')?.earlier).toBeUndefined()
+      expect(groups.every((g) => g.before?.ref.id === 'base')).toBe(true)
+      expect(screenPairs(groups).filter((p) => p.earlier)).toHaveLength(1)
+    }
+  })
+
+  it('shows a wrong-base pair as two singles with the actual and expected sha', () => {
+    const groups = groupEvidence([capture('b', 'before', 'wrong'), capture('a', 'after', 'head')], {
+      baseSha: 'base',
+    })
+    const pairs = screenPairs(groups)
+    expect(pairs).toHaveLength(2)
+    expect(pairs.every((p) => p.class === 'single' && !p.before)).toBe(true)
+    expect(pairs.every((p) => p.note?.includes('wrong') && p.note.includes('base'))).toBe(true)
+    expect(screenPairMeta(pairs[0], { capturing: false })).toBe(pairs[0].note)
+  })
+
+  it('uses each reviewed run’s own base', () => {
+    const groups = groupEvidence(
+      [
+        capture('b', 'before', 'base'),
+        capture('a', 'after', 'head', 'web', 'desktop', 2, { runId: 'other' }),
+      ],
+      { baseShaByRun: new Map([['other', 'different-base']]) },
+    )
+    expect(screenPairs(groups).every((p) => p.class === 'single')).toBe(true)
+  })
+
+  it('does not silently replace an explicitly compared before with a valid one', () => {
+    const groups = groupEvidence(
+      [
+        capture('wrong', 'before', 'wrong'),
+        capture('valid', 'before', 'base'),
+        capture('a', 'after', 'head', 'web', 'desktop', 2, {
+          comparison: {
+            beforeId: 'wrong',
+            changedPixels: 10,
+            totalPixels: 100,
+            identical: false,
+            resized: false,
+          },
+        }),
+      ],
+      { baseSha: 'base' },
+    )
+    expect(groups.some((g) => g.before && g.after)).toBe(false)
+    expect(screenPairs(groups).find((p) => p.after?.ref.id === 'a')?.note).toContain('wrong')
+  })
+
+  it('does not pair across platforms, and explains both singles', () => {
+    const pairs = screenPairs(
+      groupEvidence([capture('b', 'before', 'base'), capture('a', 'after', 'head', 'android')], {
+        baseSha: 'base',
+      }),
+    )
+    expect(pairs).toHaveLength(2)
+    expect(pairs.every((p) => p.class === 'single' && p.note?.includes('platforms'))).toBe(true)
+  })
+
+  it.each([false, true])(
+    'keeps a valid web pair when Android has no before (explicit target: %s)',
+    (explicit) => {
+      const comparison = {
+        beforeId: 'wb',
+        changedPixels: 10,
+        totalPixels: 100,
+        identical: false,
+        resized: false,
+      }
+      const webBefore = capture('wb', 'before', 'base')
+      const webAfter = capture('wa', 'after', 'head', 'web', 'desktop', 2, { comparison })
+      const androidAfter = capture('aa', 'after', 'head', 'android', 'debug', 3, {
+        ...(explicit ? { comparison } : {}),
+      })
+      for (const input of [
+        [webBefore, webAfter, androidAfter],
+        [webAfter, webBefore, androidAfter],
+        [webAfter, androidAfter, webBefore],
+        [webBefore, androidAfter, webAfter],
+        [androidAfter, webBefore, webAfter],
+        [androidAfter, webAfter, webBefore],
+      ]) {
+        const groups = groupEvidence(input, { baseSha: 'base' })
+        const web = groups.find((g) => g.after?.ref.id === 'wa')!
+        expect(web.before?.ref.id).toBe('wb')
+        expect(web.note).toBeUndefined()
+        const pairs = screenPairs(groups)
+        expect(pairs).toHaveLength(2)
+        expect(pairs.find((p) => p.after?.ref.id === 'wa')?.class).toBe('changed')
+        const android = pairs.find((p) => p.after?.ref.id === 'aa')!
+        expect(android.before).toBeUndefined()
+        expect(android.class).toBe('single')
+        expect(android.note).toContain('platforms or variants')
+      }
+    },
+  )
+
+  it('refuses dirty before builds and build-backed captures without a known base', () => {
+    const before = capture('b', 'before', 'base', 'web', 'desktop', 1, {
+      build: { sha: 'base', platform: 'web', variant: 'desktop', dirty: true },
+    })
+    const after = capture('a', 'after', 'head')
+    expect(screenPairs(groupEvidence([before, after], { baseSha: 'base' }))[0].note).toContain(
+      'uncommitted',
+    )
+    expect(screenPairs(groupEvidence([before, after]))[0].note).toContain('unknown')
+  })
+})
+
 describe('summarizeEvidence', () => {
   it('counts by kind', () => {
     expect(summarizeEvidence([ref(), ref({ kind: 'screenshot' }), ref({ kind: 'report' })])).toBe(
@@ -196,6 +356,88 @@ describe('screenPairs', () => {
     expect(pairs[0].before?.ref.id).toBe('a')
     expect(pairs[0].after?.ref.id).toBe('b')
     expect(pairs[0].title).toBe('login')
+  })
+
+  it.each([
+    { identical: false, expected: 'changed' },
+    { identical: true, expected: 'unchanged' },
+    { identical: false, unavailable: 'Cannot decode image', expected: 'unavailable' },
+    { identical: true, unavailable: 'Cannot decode image', expected: 'unavailable' },
+  ])('classifies a filed comparison as $expected', ({ identical, unavailable, expected }) => {
+    const [pair] = screenPairs(
+      tiles(
+        ref({ id: 'before', subject: 'login', phase: 'before' }),
+        ref({
+          id: 'after',
+          subject: 'login',
+          phase: 'after',
+          comparison: {
+            identical,
+            changedPixels: identical ? 0 : 1,
+            totalPixels: 100,
+            resized: false,
+            beforeId: 'before',
+            ...(unavailable ? { unavailable } : {}),
+          },
+        }),
+      ),
+    )
+    expect(pair.class).toBe(expected)
+    expect(screenPairMeta(pair, { capturing: false })).toBe(SCREEN_PAIR_META[pair.class])
+    expect(screenPairMeta(pair, { capturing: true })).toBe(SCREEN_PAIR_CAPTURING_META)
+    expect(comparisonPairFacts(pair)).toEqual([SCREEN_PAIR_FACT[pair.class]])
+  })
+
+  it('does not apply a comparison measured against a different before', () => {
+    const [pair] = screenPairs(
+      tiles(
+        ref({ id: 'before', subject: 'login', phase: 'before' }),
+        ref({
+          id: 'after',
+          subject: 'login',
+          phase: 'after',
+          comparison: {
+            identical: true,
+            changedPixels: 0,
+            totalPixels: 100,
+            resized: false,
+            beforeId: 'other',
+          },
+        }),
+      ),
+    )
+    expect(pair.class).toBe('unavailable')
+  })
+
+  it('puts changed pairs first without renumbering or disturbing walkthrough order within classes', () => {
+    const refs = ['same', 'changed-one', 'unknown', 'changed-two'].flatMap((subject, i) => [
+      ref({ id: `${subject}-before`, subject, phase: 'before', createdAt: i * 2 }),
+      ref({
+        id: `${subject}-after`,
+        subject,
+        phase: 'after',
+        createdAt: i * 2 + 1,
+        ...(subject === 'unknown'
+          ? {}
+          : {
+              comparison: {
+                identical: subject === 'same',
+                changedPixels: subject === 'same' ? 0 : 1,
+                totalPixels: 100,
+                resized: false,
+              },
+            }),
+      }),
+    ])
+    const groups = tiles(...refs)
+    const pairs = screenPairs(groups)
+    expect(pairs.map((p) => [p.index, p.key, p.class])).toEqual([
+      [2, 'changed-one', 'changed'],
+      [4, 'changed-two', 'changed'],
+      [1, 'same', 'unchanged'],
+      [3, 'unknown', 'pair'],
+    ])
+    expect(groups.map((g) => g.key)).toEqual(['same', 'changed-one', 'unknown', 'changed-two'])
   })
 
   it('an after with no before is new; a before with no after is removed', () => {

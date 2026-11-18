@@ -15,6 +15,7 @@ import { IconCopy, IconDelete, IconEdit, IconSave } from '../../icons'
 import { default as FilePaneHeader } from './FilePaneHeader'
 import { default as ImageViewer } from './ImageViewer'
 import { default as PdfViewer } from './PdfViewer'
+import VideoViewer from './VideoViewer'
 import { default as MarkdownEditor, MARKDOWN_PANE_OPTIONS } from '../MarkdownEditor'
 import type { MarkdownEditorPaneView } from '../MarkdownEditor'
 import { default as HtmlEditor } from './HtmlEditor'
@@ -43,9 +44,10 @@ export type FilePaneProps = {
   /** Deletes the current file. Throws to surface an error. Without it, no Delete. */
   onDelete?: (path: string) => Promise<void>
   /**
-   * Returns a URL the `<img>` / `<object>` can load. Typically a blob URL the
-   * caller created via `fetch` (web) or `data:` URL (desktop, via IPC).
-   * Called only when the current file's kind is `image` or `pdf`.
+   * Returns a URL the image, PDF or video viewer can load. For video, return
+   * the signed media URL directly so the browser can stream byte ranges;
+   * images and PDFs may also use blob or data URLs.
+   * Called only when the current file's kind is `image`, `pdf` or `video`.
    */
   getBinaryUrl?: (path: string) => Promise<string>
   /**
@@ -158,7 +160,7 @@ export function FilePane({
 
   useEffect(() => {
     if (!filePath || !getBinaryUrl) return
-    if (kind !== 'image' && kind !== 'pdf') {
+    if (kind !== 'image' && kind !== 'pdf' && kind !== 'video') {
       setBlobUrl(null)
       setBlobError(null)
       return
@@ -370,6 +372,20 @@ export function FilePane({
             <PdfViewer src={blobUrl} title={resolvedName} />
           ) : (
             <div className="p-4 text-sm opacity-60">Loading PDF…</div>
+          )}
+        </div>
+      ) : kind === 'video' ? (
+        <div className="flex-1 min-h-0">
+          {blobError ? (
+            <div className="p-4">
+              <Alert>{blobError}</Alert>
+            </div>
+          ) : blobUrl ? (
+            <VideoViewer key={filePath} src={blobUrl} title={resolvedName} />
+          ) : (
+            <div className="p-4 text-sm opacity-60">
+              {getBinaryUrl ? 'Loading video…' : 'Video preview is unavailable.'}
+            </div>
           )}
         </div>
       ) : kind === 'text' ? (

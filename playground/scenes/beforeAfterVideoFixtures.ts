@@ -9,6 +9,20 @@ import type { FixtureRoutes } from './onFixtures'
 
 export const VIDEO_PROJECT = 'overseer-web'
 const RUN = 'c5d1cd30'
+
+export const TRACE_TILE: EvidenceTile = {
+  ref: {
+    id: 'trace-download',
+    runId: RUN,
+    projectId: VIDEO_PROJECT,
+    kind: 'trace',
+    path: 'synthetic-navigation.zip',
+    mediaType: 'application/zip',
+    bytes: 1660,
+    createdAt: 0,
+  },
+  caption: 'Navigation — Playwright trace',
+}
 const SUBJECT = 'Chats list — back to where it was scrolled'
 const NEW_SUBJECT = 'Chat search — results as you type'
 const BEFORE_VIDEO = new URL('./assets/proof-video-before.webm', import.meta.url).href
@@ -24,6 +38,13 @@ const RECORDING_FILES: Record<string, string> = {
 }
 
 export const RECORDING_ROUTES: FixtureRoutes = {
+  'POST /api/v1/projects/{projectId}/review-evidence/{evidenceId}/media-url': ({ evidenceId }) => ({
+    url:
+      evidenceId === 'trace-download'
+        ? new URL('./assets/proof-trace.zip?no-inline', import.meta.url).href
+        : (RECORDING_FILES[evidenceId ?? ''] ?? AFTER_VIDEO),
+    expiresAt: '2999-01-01T00:00:00.000Z',
+  }),
   '/api/v1/projects/{projectId}/review-evidence/{evidenceId}/content': async ({ evidenceId }) => {
     const file = RECORDING_FILES[evidenceId ?? '']
     if (!file) throw new Error(`No recording ${evidenceId}`)

@@ -623,6 +623,7 @@ export function verifyAttempts(run: VerifyAttemptRun): VerifyAttempt[] {
     attempt: i + 1,
     total: entries.length,
     review: processVerifyReview(run, entry),
+    baseSha: run.workBranch?.baseSha,
   }))
 }
 
@@ -663,13 +664,13 @@ function filedBy(
  * The report and verdict are always the attempt's own.
  */
 export function verifyAttemptEvidence(
-  attempt: Pick<VerifyAttempt, 'entry' | 'review'>,
+  attempt: Pick<VerifyAttempt, 'entry' | 'review' | 'baseSha'>,
   tiles: readonly EvidenceTile[],
   opts: { keyPrefix?: string; evidence?: EvidenceLoadState } = {},
 ): VerifyAttemptEvidence {
   const { keyPrefix = '', evidence = 'loaded' } = opts
   const filed = filedBy(attempt, tiles)
-  const filedRecordings = filed.filter((t) => t.ref.kind === 'recording')
+  const filedRecordings = filed.filter((t) => t.ref.kind === 'recording' || t.ref.kind === 'trace')
   const reports = filed.filter((t) => t.ref.kind === 'report' && isVerifierFiling(t.ref))
   const reading = reviewerVerdict(filed.map((t) => t.ref))
   const verdict = reading.state === 'concluded' ? reading.verdict : undefined
@@ -677,7 +678,10 @@ export function verifyAttemptEvidence(
   if (!entryProof) {
     return {
       proof: undefined,
-      pairs: screenPairs(groupEvidence(filed)).map((p) => ({ ...p, key: `${keyPrefix}${p.key}` })),
+      pairs: screenPairs(groupEvidence(filed, { baseSha: attempt.baseSha })).map((p) => ({
+        ...p,
+        key: `${keyPrefix}${p.key}`,
+      })),
       recordings: filedRecordings,
       uncountedRecordings: [],
       reports,

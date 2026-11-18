@@ -1,4 +1,5 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { getCliAgentRun } from '../api/generated'
 import type { ProcessLedgerEntry, ProcessVerifyReview } from 'thefactory-tools/types'
 
 import {
@@ -39,6 +40,21 @@ export function useVerifyAttemptEvidence(
   review: ProcessVerifyReview,
 ): UseVerifyAttemptEvidence {
   const run = useReviewEvidence(projectId, { runId: review.reviewedRunId })
+  const [base, setBase] = useState<{ runId: string; sha: string }>()
+  useEffect(() => {
+    if (entry.proof) return
+    let active = true
+    void getCliAgentRun({ path: { runId: review.reviewedRunId } })
+      .then(({ data }) => {
+        if (active && data?.review?.baseSha)
+          setBase({ runId: review.reviewedRunId, sha: data.review.baseSha })
+      })
+      .catch(() => undefined)
+    return () => {
+      active = false
+    }
+  }, [entry.proof, review.reviewedRunId])
+  const baseSha = base?.runId === review.reviewedRunId ? base.sha : undefined
   const storyId = useMemo(() => run.refs.find((r) => r.storyId)?.storyId, [run.refs])
   const earlier = review.earlierRunIds
   const carriesOn = (earlier?.length ?? 0) > 0
@@ -67,8 +83,8 @@ export function useVerifyAttemptEvidence(
   const error = run.error ?? story.error
   const state = evidenceLoadState({ loaded: run.loaded && story.loaded, error })
   const evidence = useMemo(
-    () => verifyAttemptEvidence({ entry, review }, tiles, { evidence: state }),
-    [entry, review, tiles, state],
+    () => verifyAttemptEvidence({ entry, review, baseSha }, tiles, { evidence: state }),
+    [entry, review, baseSha, tiles, state],
   )
 
   return {

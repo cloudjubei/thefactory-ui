@@ -1,10 +1,11 @@
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Text, View } from 'react-native'
 
 import {
   fileNameSlug,
   formatBytes,
   useReviewEvidenceImage,
+  useReviewEvidenceMediaUrl,
   VIDEO_PAIRS_COPY,
   type EvidenceTile,
   type ProofVideoPairView,
@@ -15,6 +16,7 @@ import { IconDownload } from '../../../icons'
 import { Button } from '../../../primitives/Button'
 import { useMediaHost } from './MediaHostContext'
 import type { SaveFileHandler } from './signoffTypes'
+import TraceDownload from './TraceDownload'
 
 export type WalkthroughTabProps = {
   projectId: string
@@ -75,13 +77,32 @@ function Recording({
 }) {
   const { theme } = useNativeTheme()
   const { renderVideo } = useMediaHost()
-  const { dataUri, loading } = useReviewEvidenceImage(
-    renderVideo || onSaveFile ? projectId : undefined,
+  const { url, loading } = useReviewEvidenceMediaUrl(
+    renderVideo ? projectId : undefined,
+    tile.ref.id,
+  )
+  // Legacy hosts save bytes; fetch them only after an explicit save, never for playback.
+  const [saving, setSaving] = useState(false)
+  const [saveFailed, setSaveFailed] = useState(false)
+  const { dataUri, error: saveError } = useReviewEvidenceImage(
+    saving ? projectId : undefined,
     tile.ref.id,
     tile.ref.mediaType,
   )
-  const size = formatBytes(tile.ref.bytes)
+  useEffect(() => {
+    if (saving && saveError) {
+      setSaving(false)
+      setSaveFailed(true)
+    }
+  }, [saving, saveError])
   const ext = tile.ref.mediaType.split('/')[1] ?? 'mp4'
+  useEffect(() => {
+    if (dataUri && saving && onSaveFile) {
+      setSaving(false)
+      void onSaveFile({ name: `${fileNameSlug(tile.caption, 'walkthrough')}.${ext}`, dataUri })
+    }
+  }, [dataUri, saving, onSaveFile, tile.caption, ext])
+  const size = formatBytes(tile.ref.bytes)
 
   return (
     <View
@@ -113,20 +134,17 @@ function Recording({
             variant="secondary"
             size="icon"
             accessibilityLabel="Save the recording"
-            disabled={!dataUri}
-            onPress={() =>
-              dataUri &&
-              void onSaveFile({
-                name: `${fileNameSlug(tile.caption, 'walkthrough')}.${ext}`,
-                dataUri,
-              })
-            }
+            disabled={saving}
+            onPress={() => {
+              setSaveFailed(false)
+              setSaving(true)
+            }}
           >
             <IconDownload size={16} color={theme.text.primary} />
           </Button>
         ) : null}
       </View>
-      {renderVideo && dataUri ? (
+      {renderVideo && url ? (
         <View
           style={{
             height: STAGE_HEIGHT * 2,
@@ -137,7 +155,7 @@ function Recording({
             backgroundColor: '#000000',
           }}
         >
-          {renderVideo(dataUri)}
+          {renderVideo(url)}
         </View>
       ) : renderVideo ? (
         <Stage>
@@ -156,6 +174,11 @@ function Recording({
           </StageNote>
         </Stage>
       )}
+      {saveFailed ? (
+        <Text accessibilityRole="alert" style={{ fontSize: 12, color: theme.text.secondary }}>
+          The recording could not be saved. Try again.
+        </Text>
+      ) : null}
       {footer}
     </View>
   )
@@ -320,15 +343,19 @@ export default function WalkthroughTab({
           ))}
         </View>
       ) : null}
-      {recordings.map((tile) => (
-        <Recording
-          key={tile.ref.id}
-          projectId={projectId}
-          tile={tile}
-          {...(onSaveFile ? { onSaveFile } : {})}
-          {...(renderFooter ? { footer: renderFooter(tile) } : {})}
-        />
-      ))}
+      {recordings.map((tile) =>
+        tile.ref.kind === 'trace' ? (
+          <TraceDownload key={tile.ref.id} projectId={projectId} tile={tile} />
+        ) : (
+          <Recording
+            key={tile.ref.id}
+            projectId={projectId}
+            tile={tile}
+            {...(onSaveFile ? { onSaveFile } : {})}
+            {...(renderFooter ? { footer: renderFooter(tile) } : {})}
+          />
+        ),
+      )}
     </View>
   )
 }

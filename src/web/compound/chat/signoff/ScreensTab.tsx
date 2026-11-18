@@ -47,14 +47,12 @@ function Frame({ src, alt }: { src: string | undefined; alt: string }) {
 }
 
 /**
- * Every captured screen, in walkthrough order, as a scroll-snapped strip — so
- * a reviewer can walk them one by one on a phone as easily as on a desktop.
- * Each tile is a stacked card: the base peeks out behind the branch. There is
- * no changed/unchanged split here yet, because nothing has compared pixels;
- * the tile number is the walkthrough position and never renumbers.
+ * Every captured screen, changed pairs first, as a scroll-snapped strip.
+ * Each tile is a stacked card: the base peeks out behind the branch.
+ * The tile number keeps its walkthrough position even when reordered.
  */
 export default function ScreensTab({
-  pairs,
+  pairs: allPairs,
   onOpen,
   capturedLabel,
   onSaveAll,
@@ -62,6 +60,9 @@ export default function ScreensTab({
   onRequestImage,
   capturing = false,
 }: ScreensTabProps) {
+  const [showEarlier, setShowEarlier] = useState(false)
+  const earlier = allPairs.filter((p) => p.earlier)
+  const pairs = allPairs.filter((p) => !p.earlier)
   // Decode exactly the tiles this strip shows. `onRequestImage` is idempotent,
   // so firing it on every pairs change (a load re-derives the pairs) is cheap.
   useEffect(() => {
@@ -105,11 +106,7 @@ export default function ScreensTab({
           </span>
         ) : null}
         <span className="flex-1" />
-        {/* Mode control first, download LAST — it is the row's trailing action,
-            not something wedged between the label and the control it acts on.
-            The "Diff · not computed" label that used to sit here is gone: no
-            pixel comparison exists to compute, so it announced the absence of a
-            feature rather than the outcome of one. */}
+        {/* Mode control first, download last — the row's trailing action. */}
         {hasBefore ? (
           <SegmentedControl
             size="sm"
@@ -156,7 +153,7 @@ export default function ScreensTab({
           {pairs.map((pair) => {
             const front =
               mode === 'before' ? (pair.before ?? pair.after) : (pair.after ?? pair.before)
-            const hasBack = pair.class === 'pair' && mode === 'after'
+            const hasBack = !!pair.before && !!pair.after && mode === 'after'
             return (
               <div
                 key={pair.key}
@@ -234,6 +231,28 @@ export default function ScreensTab({
         ) : null}
       </div>
 
+      {earlier.length > 0 ? (
+        <div>
+          <button
+            type="button"
+            aria-expanded={showEarlier}
+            onClick={() => setShowEarlier(!showEarlier)}
+            className="text-[12px] text-(--text-secondary)"
+          >
+            Earlier attempts · {earlier.length} screens
+          </button>
+          {showEarlier ? (
+            <ScreensTab
+              pairs={earlier.map((p) => ({ ...p, earlier: false }))}
+              onOpen={onOpen}
+              onRequestImage={onRequestImage}
+              capturedLabel={undefined}
+              onSavePair={onSavePair}
+              capturing={capturing}
+            />
+          ) : null}
+        </div>
+      ) : null}
       {capturedLabel ? (
         <div className="border-t border-(--border-subtle) pt-1.5 text-[11px] text-(--text-muted)">
           captured {capturedLabel}

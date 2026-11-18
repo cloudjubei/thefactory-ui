@@ -1245,6 +1245,8 @@ export {
 export { useEvidenceDiff } from './hooks/useEvidenceDiff'
 export type { UseEvidenceDiff } from './hooks/useEvidenceDiff'
 export { useReviewEvidenceImage } from './hooks/useReviewEvidenceImage'
+export { useReviewEvidenceMediaUrl } from './hooks/useReviewEvidenceMediaUrl'
+export type { UseReviewEvidenceMediaUrl } from './hooks/useReviewEvidenceMediaUrl'
 export {
   useToolApprovalPreviews,
   type ToolApprovalPreviewFetcher,

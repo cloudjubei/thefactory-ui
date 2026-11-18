@@ -40,11 +40,11 @@ export type InlineVideo = {
 
 /**
  * What the app hosting the review surfaces supplies for media this package
- * cannot play itself: a video player, handed the recording as a `data:` URI,
+ * cannot play itself: a video player, handed the recording as a signed URL,
  * and one for a chat's video, by URL. Left out, a recording is named and sized
  * instead of played, and a chat's video stays a poster with its details.
  */
 export type MediaHost = {
-  renderVideo?: (dataUri: string) => ReactNode
+  renderVideo?: (uri: string) => ReactNode
   renderInlineVideo?: (video: InlineVideo) => ReactNode
 }

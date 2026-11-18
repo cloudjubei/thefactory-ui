@@ -6,6 +6,7 @@ import { getReviewEvidenceContent } from '../api'
 export type UseReviewEvidenceImage = {
   dataUri: string | undefined
   loading: boolean
+  error: string | undefined
 }
 
 function toDataUri(data: unknown, mediaType: string): string | undefined {
@@ -32,11 +33,14 @@ export function useReviewEvidenceImage(
 ): UseReviewEvidenceImage {
   const [dataUri, setDataUri] = useState<string | undefined>(undefined)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | undefined>(undefined)
   const epochRef = useRef(0)
 
   useEffect(() => {
     const epoch = ++epochRef.current
     setDataUri(undefined)
+    setError(undefined)
+    setLoading(false)
     if (!projectId || !evidenceId) return
     setLoading(true)
     void (async () => {
@@ -47,14 +51,16 @@ export function useReviewEvidenceImage(
           throwOnError: true,
         } as never)
         if (epoch !== epochRef.current) return
-        setDataUri(toDataUri((res as { data?: unknown }).data, mediaType))
+        const uri = toDataUri((res as { data?: unknown }).data, mediaType)
+        if (!uri) throw new Error('Unreadable evidence content')
+        setDataUri(uri)
       } catch {
-        // An unreadable image must not break the tool row it sits in.
+        if (epoch === epochRef.current) setError('Evidence content could not be loaded.')
       } finally {
         if (epoch === epochRef.current) setLoading(false)
       }
     })()
   }, [projectId, evidenceId, mediaType])
 
-  return { dataUri, loading }
+  return { dataUri, loading, error }
 }
