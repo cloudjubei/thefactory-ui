@@ -373,7 +373,7 @@ function OfferStrip({
           <IconExternalLink size={11} color={theme.accent.primary} />
         </Pressable>
       ) : null}
-      {onDismissOffer ? (
+      {onDismissOffer && !offer.dismissed ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={REVIEW_OFFER_TEXT.dismissHint(row.key)}

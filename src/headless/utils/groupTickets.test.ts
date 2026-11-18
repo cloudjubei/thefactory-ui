@@ -591,6 +591,8 @@ describe('updates from Slack on the Tickets tab', () => {
     author: 'Ana',
     postedAt: '2026-11-17T11:00:00.000Z',
     permalink: 'https://acme.slack.com/archives/C1/p1763380000123456',
+    state: 'new' as const,
+    files: 0,
   }
 
   it('marks the row an update waits on, and counts them across the group', () => {
@@ -611,6 +613,7 @@ describe('updates from Slack on the Tickets tab', () => {
       label: 'Update from Ana',
       when: '1 hour ago',
       permalink: offer.permalink,
+      dismissed: false,
     })
     expect(a2?.offer).toBeUndefined()
   })

@@ -104,6 +104,8 @@ const ON_TICKET: TicketReviewOffer = {
   author: 'Ana',
   postedAt: '2026-11-17T10:00:00.000Z',
   permalink: PERMALINK,
+  state: 'new',
+  files: 0,
 }
 
 const OFFER: ReviewOffer = {

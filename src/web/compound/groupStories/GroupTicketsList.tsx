@@ -328,7 +328,7 @@ function RowButtons({
           {reviewLabel(row, offerLayout === 'button')}
         </Button>
       ) : null}
-      {offer && offerLayout === 'button' && onDismissOffer ? (
+      {offer && offerLayout === 'button' && onDismissOffer && !offer.dismissed ? (
         <DismissOffer row={row} onDismissOffer={onDismissOffer} />
       ) : null}
       {row.canTake ? (
@@ -406,7 +406,9 @@ function OfferChip({
     >
       <IconChat className="size-3 shrink-0 text-(--accent-primary)" />
       <span className="min-w-0 truncate">{offer.label}</span>
-      {onDismissOffer ? <DismissOffer row={row} onDismissOffer={onDismissOffer} /> : null}
+      {onDismissOffer && !offer.dismissed ? (
+        <DismissOffer row={row} onDismissOffer={onDismissOffer} />
+      ) : null}
     </span>
   )
 }
@@ -427,7 +429,7 @@ function OfferStrip({
       <span className="min-w-0 font-medium text-(--text-primary)">{offer.label}</span>
       <span className="shrink-0 text-(--text-muted)">{offer.when}</span>
       <OfferLink offer={offer} />
-      {onDismissOffer ? (
+      {onDismissOffer && !offer.dismissed ? (
         <button
           type="button"
           className="ml-auto shrink-0 text-(--text-secondary) hover:text-(--text-primary) hover:underline"

@@ -40,13 +40,17 @@ export interface ReviewSettingsView {
 /** An update the watched thread brought for one ticket. */
 export type ReviewOffer = ColleagueReviewOffer
 
-/** A ticket's waiting update, as the Tickets tab's list carries it. */
+/** A ticket's latest update, waiting or dismissed, as the Tickets tab's list carries it. */
 export interface TicketReviewOffer {
   id: string
   kind: ColleagueReviewOfferKind
   author: string
   postedAt: string
   permalink: string
+  /** `new` while it waits; `dismissed` once put aside, still reviewable. */
+  state: 'new' | 'dismissed'
+  /** How many files came with it. */
+  files: number
 }
 
 /** What watching a thread sends. */
@@ -151,6 +155,8 @@ export interface ReviewOfferRowView {
   when: string
   /** Only an https link; absent, nothing opens. */
   permalink?: string
+  /** Put aside by the person: still reviewable, no longer waiting, not dismissed again. */
+  dismissed: boolean
 }
 
 /** How the Tickets tab shows a ticket's waiting update. */

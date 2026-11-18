@@ -150,6 +150,8 @@ export const OFFER_FROM_ANA: TicketReviewOffer = {
   author: 'Ana Ruiz',
   postedAt: '2026-11-17T10:05:00.000Z',
   permalink: 'https://acme.slack.com/archives/C07REVIEWS/p1763373900000100',
+  state: 'new',
+  files: 3,
 }
 
 export const OFFER_FROM_PRIYA: TicketReviewOffer = {
@@ -158,6 +160,14 @@ export const OFFER_FROM_PRIYA: TicketReviewOffer = {
   author: 'Priya Shah',
   postedAt: '2026-11-17T11:40:00.000Z',
   permalink: 'https://acme.slack.com/archives/C07REVIEWS/p1763379600000200',
+  state: 'new',
+  files: 0,
+}
+
+export const OFFER_DISMISSED: TicketReviewOffer = {
+  ...OFFER_FROM_ANA,
+  id: 'offer-ana-dismissed',
+  state: 'dismissed',
 }
 
 export const PRIYA_UPDATE = `OSC-402 round 2: fixed the week number for weeks that start on a Sunday, and the email now says “week 47” the way the app does.

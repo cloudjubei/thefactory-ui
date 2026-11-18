@@ -116,6 +116,8 @@ export const REVIEW_OFFER_TEXT = {
   nextUpdate: (author: string) => `New update from ${author}`,
   open: 'Open in Slack',
   dismiss: 'Dismiss',
+  dismissedTag: 'dismissed',
+  files: (n: number) => `${n} ${n === 1 ? 'file' : 'files'}`,
   dismissHint: (key: string) => `Dismiss the update on ${key}`,
   dismissFailed: 'The update was not dismissed.',
   review: 'Review update',

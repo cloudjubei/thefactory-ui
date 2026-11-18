@@ -740,6 +740,8 @@ describe('GroupTicketsStore', () => {
       author: 'Ana',
       postedAt: '2026-11-17T11:00:00.000Z',
       permalink: 'https://acme.slack.com/archives/C1/p1763380000123456',
+      state: 'new' as const,
+      files: 0,
     }
     const WHOLE = {
       ...OFFER,

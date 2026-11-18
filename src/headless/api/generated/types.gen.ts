@@ -13108,6 +13108,14 @@ export type CloneRepositoryResult = {
   message?: string
 }
 
+export type GitNumstatEntry = {
+  path: string
+  oldPath?: string
+  additions: number
+  deletions: number
+  binary: boolean
+}
+
 export type GitPathChangeStatus = 'added' | 'modified' | 'deleted'
 
 export type GitPathChange = {
@@ -14710,14 +14718,6 @@ export type MobileDeviceLeaseRunChange = {
   stepKey?: string
 }
 
-export type MobileRecordingActionContext = {
-  startMs: number
-  endedMs: number
-  appId?: string
-  secret: boolean
-  secrets: Array<string>
-}
-
 export type MobileLiveSessionInput = {
   deviceId: string
   avd?: string
@@ -15429,6 +15429,14 @@ export type MobileRecordedInput = {
   sentMs: number
   doneMs: number
   ok: boolean
+}
+
+export type MobileRecordingActionContext = {
+  startMs: number
+  endedMs: number
+  appId?: string
+  secret: boolean
+  secrets: Array<string>
 }
 
 export type MobileRecordingPace = {
@@ -30543,6 +30551,40 @@ export type VideoModelDownloadProgress = {
 }
 
 export type VideoInstallableTool = 'ffmpeg' | 'whisper'
+
+export type VideoProbeStream = {
+  codec_type?: string
+  codec_name?: string
+  width?: number
+  height?: number
+  duration?: string
+  disposition?: {
+    attached_pic?: number
+  }
+  side_data_list?: Array<{
+    rotation?: number
+  }>
+  tags?: {
+    rotate?: string
+  }
+}
+
+export type VideoHeardWord = {
+  startSec: number
+  endSec: number
+  text: string
+}
+
+export type VideoMomentCandidates = {
+  picked: Array<VideoMomentCandidate>
+  changes?: {
+    moments: Array<VideoMomentCandidate>
+    steady: Array<{
+      fromSec: number
+      toSec: number
+    }>
+  }
+}
 
 export type DocumentLink = {
   url: string
@@ -61885,7 +61927,7 @@ export type ListGroupTicketsResponses = {
        */
       reviewOpen: boolean
       /**
-       * The latest update the watched thread brought for it, waiting for the person.
+       * The latest update the watched thread or channel brought for it that no review started from, waiting or dismissed.
        */
       reviewOffer?: {
         id: string
@@ -61893,6 +61935,14 @@ export type ListGroupTicketsResponses = {
         author: string
         postedAt: string
         permalink: string
+        /**
+         * `new` while it waits for the person; `dismissed` once put aside — it can still be reviewed.
+         */
+        state: 'new' | 'dismissed'
+        /**
+         * How many files came with it.
+         */
+        files: number
       }
     }>
     /**
@@ -61994,7 +62044,7 @@ export type PlanGroupTicketResponses = {
        */
       reviewOpen: boolean
       /**
-       * The latest update the watched thread brought for it, waiting for the person.
+       * The latest update the watched thread or channel brought for it that no review started from, waiting or dismissed.
        */
       reviewOffer?: {
         id: string
@@ -62002,6 +62052,14 @@ export type PlanGroupTicketResponses = {
         author: string
         postedAt: string
         permalink: string
+        /**
+         * `new` while it waits for the person; `dismissed` once put aside — it can still be reviewed.
+         */
+        state: 'new' | 'dismissed'
+        /**
+         * How many files came with it.
+         */
+        files: number
       }
     }
     /**
@@ -62107,7 +62165,7 @@ export type DiscussGroupTicketResponses = {
        */
       reviewOpen: boolean
       /**
-       * The latest update the watched thread brought for it, waiting for the person.
+       * The latest update the watched thread or channel brought for it that no review started from, waiting or dismissed.
        */
       reviewOffer?: {
         id: string
@@ -62115,6 +62173,14 @@ export type DiscussGroupTicketResponses = {
         author: string
         postedAt: string
         permalink: string
+        /**
+         * `new` while it waits for the person; `dismissed` once put aside — it can still be reviewed.
+         */
+        state: 'new' | 'dismissed'
+        /**
+         * How many files came with it.
+         */
+        files: number
       }
     }
     /**

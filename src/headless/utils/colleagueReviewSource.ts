@@ -303,19 +303,27 @@ export function slackReviewSettingsView(input: SlackReviewSettingsInput): SlackR
   }
 }
 
-/** A ticket's waiting update as its row shows it. Pure. */
+/** A ticket's latest update as its row shows it: who, how many files, whether it was put aside, and when. Pure. */
 export function reviewOfferRowView(offer: TicketReviewOffer, now: number): ReviewOfferRowView {
   const permalink = slackMessageLink(offer.permalink)
+  const dismissed = offer.state === 'dismissed'
+  const who =
+    offer.kind === 'next-round'
+      ? REVIEW_OFFER_TEXT.nextUpdate(offer.author)
+      : REVIEW_OFFER_TEXT.update(offer.author)
+  const label = [
+    who,
+    ...(offer.files > 0 ? [REVIEW_OFFER_TEXT.files(offer.files)] : []),
+    ...(dismissed ? [REVIEW_OFFER_TEXT.dismissedTag] : []),
+  ].join(' · ')
   return {
     id: offer.id,
     kind: offer.kind,
     author: offer.author,
-    label:
-      offer.kind === 'next-round'
-        ? REVIEW_OFFER_TEXT.nextUpdate(offer.author)
-        : REVIEW_OFFER_TEXT.update(offer.author),
+    label,
     when: timeAgo(now, Date.parse(offer.postedAt)),
     ...(permalink ? { permalink } : {}),
+    dismissed,
   }
 }
 

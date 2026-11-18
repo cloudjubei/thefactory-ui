@@ -600,6 +600,8 @@ describe('reviewOfferRowView', () => {
           author: 'Ana',
           postedAt: '2026-11-17T10:00:00.000Z',
           permalink: THREAD,
+          state: 'new',
+          files: 3,
         },
         NOW,
       ),
@@ -607,10 +609,28 @@ describe('reviewOfferRowView', () => {
       id: 'o1',
       kind: 'first-round',
       author: 'Ana',
-      label: 'Update from Ana',
+      label: 'Update from Ana · 3 files',
       when: '2 hours ago',
       permalink: THREAD,
+      dismissed: false,
     })
+  })
+
+  it('still shows an update that was put aside, saying so, with one file', () => {
+    expect(
+      reviewOfferRowView(
+        {
+          id: 'o3',
+          kind: 'first-round',
+          author: 'Ana',
+          postedAt: '2026-11-17T10:00:00.000Z',
+          permalink: THREAD,
+          state: 'dismissed',
+          files: 1,
+        },
+        NOW,
+      ),
+    ).toMatchObject({ label: 'Update from Ana · 1 file · dismissed', dismissed: true })
   })
 
   it('says a next round’s update is new, and drops a link that is not https', () => {
@@ -622,6 +642,8 @@ describe('reviewOfferRowView', () => {
           author: 'Ben',
           postedAt: '2026-11-17T11:59:30.000Z',
           permalink: 'file:///etc/passwd',
+          state: 'new',
+          files: 0,
         },
         NOW,
       ),
@@ -631,6 +653,7 @@ describe('reviewOfferRowView', () => {
       author: 'Ben',
       label: 'New update from Ben',
       when: 'just now',
+      dismissed: false,
     })
   })
 })
