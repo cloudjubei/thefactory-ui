@@ -1,10 +1,16 @@
 import type { ColleagueReview } from 'thefactory-tools/types'
 import {
   reviewBoxOf,
+  reviewCardMerge,
+  reviewDecisionPullRequests,
   slackReviewSettingsView,
   type GroupTicket,
   type GroupTicketsState,
+  type ProcessParkChoice,
   type ProviderOAuthState,
+  type ReviewCardMerge,
+  type ReviewMergeJob,
+  type ReviewMergeSnapshot,
   type ReviewOffer,
   type ReviewPasteBox,
   type ReviewSourceSnapshot,
@@ -256,3 +262,141 @@ export const ROUND_TWO_POSTED_EDITED: ColleagueReview = {
       : r,
   ),
 }
+
+/** Every review setting set, and rounds starting as a run. */
+export const SOURCE_RUNS_BY_DEFAULT: ReviewSourceStatus = {
+  ...SOURCE_SETTINGS_SET,
+  settings: { ...SOURCE_SETTINGS_SET.settings, defaultMode: 'process' },
+}
+
+/** Round 2 with its update naming a web and a backend pull request. */
+export const ROUND_TWO_WITH_PRS: ColleagueReview = {
+  ...ROUND_TWO,
+  rounds: ROUND_TWO.rounds.map((r) =>
+    r.n === 2
+      ? {
+          ...r,
+          submission: {
+            ...r.submission,
+            pullRequests: [
+              {
+                url: 'https://github.com/acme/coach-web/pull/112',
+                host: 'github',
+                owner: 'acme',
+                repo: 'coach-web',
+                number: 112,
+              },
+              {
+                url: 'https://github.com/acme/coach-be/pull/390',
+                host: 'github',
+                owner: 'acme',
+                repo: 'coach-be',
+                number: 390,
+              },
+            ],
+          },
+        }
+      : r,
+  ),
+}
+
+/** Round 2's pull requests as Approve & merge lists them: the backend's first. */
+export const ROUND_TWO_PRS = reviewDecisionPullRequests(ROUND_TWO_WITH_PRS)
+
+const mergeJob = (over: Partial<ReviewMergeJob>): ReviewMergeJob => ({
+  jobId: 'merge-1',
+  groupId: 'osc',
+  ticketKey: ROUND_TWO.ticketKey,
+  round: 2,
+  state: 'running',
+  startedAt: '2026-11-17T12:00:00.000Z',
+  pullRequests: ROUND_TWO_PRS.map((pr) => ({ url: pr.url, state: 'queued' as const })),
+  ...over,
+})
+
+const urls = ROUND_TWO_PRS.map((pr) => pr.url)
+
+export const MERGE_RUNNING = mergeJob({
+  pullRequests: urls.map((url, at) =>
+    at === 0
+      ? { url, state: 'merged' as const }
+      : {
+          url,
+          state: 'waiting-for-checks' as const,
+          detail: 'Waiting on build, lint (2 of 5 done).',
+        },
+  ),
+})
+
+export const MERGE_MERGED = mergeJob({
+  state: 'merged',
+  finishedAt: '2026-11-17T12:09:00.000Z',
+  pullRequests: urls.map((url) => ({ url, state: 'merged' as const })),
+  summary: 'Both pull requests merged.',
+  slack: {
+    posted: true,
+    permalink: 'https://acme.slack.com/archives/C07REVIEWS/p1763381400000400',
+  },
+})
+
+export const MERGE_FAILED = mergeJob({
+  state: 'failed',
+  finishedAt: '2026-11-17T12:06:00.000Z',
+  pullRequests: urls.map((url, at) =>
+    at === 0
+      ? { url, state: 'failed' as const, detail: 'Required check “e2e” failed.' }
+      : { url, state: 'skipped' as const },
+  ),
+  summary: 'Stopped at the first pull request: its checks failed. Nothing else was merged.',
+  slack: { posted: false, detail: 'Nothing posted: not every pull request merged.' },
+})
+
+const NO_MERGE: ReviewMergeSnapshot = {
+  job: null,
+  readError: undefined,
+  starting: undefined,
+  refusal: undefined,
+  actionError: undefined,
+}
+
+/** Approve & merge on round 2 as the card gets it, from a fixed merge. */
+export function roundTwoMerge(over: Partial<ReviewMergeSnapshot> = {}): ReviewCardMerge {
+  return reviewCardMerge(ROUND_TWO_WITH_PRS, 2, { ...NO_MERGE, ...over })!
+}
+
+/** What a colleague review run's approval offers, as the backend raises it. */
+export const REVIEW_RUN_CHOICES: ProcessParkChoice[] = [
+  {
+    choice: 'approve',
+    label: 'Send the reply',
+    detail: 'Post the reply, as you edited it, where the colleague’s update came from.',
+    primary: true,
+    action: {
+      id: 'send-reply',
+      label: 'Send the reply',
+      detail: 'Post the reply, as you edited it, where the colleague’s update came from.',
+      primary: true,
+      editsText: true,
+    },
+  },
+  {
+    choice: 'approve',
+    label: 'Approve & merge',
+    detail: 'Approve the colleague’s pull requests and merge them.',
+    action: {
+      id: 'approve-and-merge',
+      label: 'Approve & merge',
+      detail: 'Approve the colleague’s pull requests and merge them.',
+    },
+  },
+  {
+    choice: 'request-changes',
+    label: 'Send it back',
+    detail: 'Review the round again with your note.',
+    noteRequired: true,
+  },
+  { choice: 'abandon', label: 'Stop', detail: 'End the run: nothing is posted or merged.' },
+]
+
+/** Round 2's drafted reply. */
+export const ROUND_TWO_REPLY = ROUND_TWO.rounds.find((r) => r.n === 2)?.reply ?? ''

@@ -1,11 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useApi } from '../api/ApiContext'
 import { useAuth } from '../api/AuthContext'
-import { reviewBoxOf, reviewBoxProblem, reviewBoxWithOffer } from '../utils/colleagueReviewStart'
+import {
+  reviewBoxOf,
+  reviewBoxProblem,
+  reviewBoxWithOffer,
+  reviewStartMode,
+} from '../utils/colleagueReviewStart'
 import { REVIEW_OFFER_TEXT } from '../utils/colleagueReviewSourceConstants'
 import type { TicketReviewOffer } from '../utils/colleagueReviewSourceTypes'
 import { COLLEAGUE_REVIEWS_EVENT } from '../utils/colleagueReviewStartConstants'
 import type {
+  ColleagueReviewMode,
   ColleagueReviewStarted,
   ReviewDraft,
   ReviewFileUpload,
@@ -19,7 +25,7 @@ import type {
   TicketPlanStarted,
 } from '../utils/groupTicketTypes'
 import { GroupTicketsStore } from './groupTicketsStore'
-import { colleagueReviewSourceStoreFor } from './useColleagueReviewSource'
+import { colleagueReviewSourceStoreFor, useColleagueReviewSource } from './useColleagueReviewSource'
 
 const GROUP_STORIES_EVENT = 'groupStories:updated'
 
@@ -47,10 +53,15 @@ export type UseGroupTickets = {
   /** Close the paste box; what it holds stays for the next time it opens on that ticket. */
   closeReview: () => void
   editReview: (draft: ReviewDraft) => void
+  /** How the open box's round is reviewed: the person's pick, else the group's default. */
+  reviewMode: ColleagueReviewMode
+  /** Pick how the open box's round is reviewed. */
+  setReviewMode: (mode: ColleagueReviewMode) => void
   /**
    * Start the open box's round: the box closes at once while the row shows the
    * round starting, and opens again with the draft and why when it fails.
-   * Answers the round's chat once it has started.
+   * Answers the round once it has started: its chat, and its run when it is
+   * reviewed as one.
    */
   startReview: () => Promise<ColleagueReviewStarted | undefined>
 }
@@ -148,6 +159,7 @@ function offerOn(state: GroupTicketsState, ticketKey: string): TicketReviewOffer
 function useReviewPasteBox(groupId: string, store: GroupTicketsStore, state: GroupTicketsState) {
   const { uploadChatFile, ws } = useApi()
   const source = colleagueReviewSourceStoreFor(ws)
+  const groupDefault = useColleagueReviewSource(groupId).source.status?.settings.defaultMode
   const [box, setBox] = useState<ReviewPasteBox | undefined>()
   const kept = useRef(new Map<string, ReviewPasteBox>())
   const stateRef = useRef(state)
@@ -210,12 +222,23 @@ function useReviewPasteBox(groupId: string, store: GroupTicketsStore, state: Gro
     setBox((open) => (open ? { ...open, draft } : open))
   }, [])
 
+  const setReviewMode = useCallback((mode: ColleagueReviewMode) => {
+    setBox((open) => (open ? { ...open, mode } : open))
+  }, [])
+  const reviewMode = reviewStartMode(box?.mode, groupDefault)
+
   const startReview = useCallback(async () => {
     const open = boxRef.current
     if (!open || reviewBoxProblem(open)) return undefined
     kept.current.delete(open.ticketKey)
     setBox(undefined)
-    const going = store.review(open.ticketKey, open.draft, upload, open.offer)
+    const going = store.review(
+      open.ticketKey,
+      open.draft,
+      upload,
+      open.offer,
+      reviewStartMode(open.mode, groupDefault),
+    )
     if (open.offer) {
       void source.settleOffer(
         groupId,
@@ -230,11 +253,29 @@ function useReviewPasteBox(groupId: string, store: GroupTicketsStore, state: Gro
     if (boxRef.current) kept.current.set(open.ticketKey, failed)
     else setBox(failed)
     return undefined
-  }, [groupId, source, store, upload])
+  }, [groupId, groupDefault, source, store, upload])
 
   return useMemo(
-    () => ({ reviewBox: box, openReview, dismissOffer, closeReview, editReview, startReview }),
-    [box, openReview, dismissOffer, closeReview, editReview, startReview],
+    () => ({
+      reviewBox: box,
+      openReview,
+      dismissOffer,
+      closeReview,
+      editReview,
+      reviewMode,
+      setReviewMode,
+      startReview,
+    }),
+    [
+      box,
+      openReview,
+      dismissOffer,
+      closeReview,
+      editReview,
+      reviewMode,
+      setReviewMode,
+      startReview,
+    ],
   )
 }
 

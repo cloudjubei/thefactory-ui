@@ -8567,7 +8567,7 @@ export const getColleagueReview = <ThrowOnError extends boolean = false>(
   })
 
 /**
- * Review a colleague’s update on the ticket: the pasted text and its files, or an update the group’s watched Slack thread offered (`offerId`), start the next round of the ticket’s review, in its review chat (opened on the first round), whose agent reads the ticket whole and the pull requests, checks every claim and requirement, records the round and drafts the reply. Nothing is posted.
+ * Review a colleague’s update on the ticket: the pasted text and its files, or an update the group’s watched Slack thread offered (`offerId`), start the next round of the ticket’s review, in its review chat (opened on the first round), whose agent reads the ticket whole and the pull requests, checks every claim and requirement, records the round and drafts the reply. Nothing is posted. With `mode: process` (or the group’s default) the round is reviewed in a colleague review run instead (`runId`): its review step is a turn of the same chat, and the person chooses at its approval what is done. 409 while a run still holds the review chat.
  */
 export const startColleagueReview = <ThrowOnError extends boolean = false>(
   options: Options<StartColleagueReviewData, ThrowOnError>,

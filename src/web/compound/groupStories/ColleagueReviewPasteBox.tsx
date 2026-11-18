@@ -5,9 +5,11 @@ import { REVIEW_OFFER_TEXT } from '../../../headless/utils/colleagueReviewSource
 import { reviewBoxProblem, withReviewFiles } from '../../../headless/utils/colleagueReviewStart'
 import {
   COLLEAGUE_REVIEW_FILES_MAX,
+  COLLEAGUE_REVIEW_MODES,
   REVIEW_START_TEXT as TEXT,
 } from '../../../headless/utils/colleagueReviewStartConstants'
 import type {
+  ColleagueReviewMode,
   ReviewBoxOffer,
   ReviewDraft,
   ReviewPasteBox,
@@ -16,14 +18,29 @@ import { IconAttach, IconChat, IconClose, IconExternalLink } from '../../icons'
 import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
+import SegmentedControl from '../../primitives/SegmentedControl'
 import { Textarea } from '../../primitives/Textarea'
 
 export type ColleagueReviewPasteFormProps = {
   box: ReviewPasteBox
   onChange: (draft: ReviewDraft) => void
   onStart: () => void
+  /** How the round is reviewed: the person's pick, else the group's default. */
+  mode?: ColleagueReviewMode
+  /** Pick how the round is reviewed; without it the choice is not offered. */
+  onModeChange?: (mode: ColleagueReviewMode) => void
   /** When the update from Slack was posted is told against this — for a fixed showcase state. */
   now?: number
+}
+
+const MODE_LABELS: Record<ColleagueReviewMode, string> = {
+  inline: TEXT.modeInline,
+  process: TEXT.modeProcess,
+}
+
+const MODE_HINTS: Record<ColleagueReviewMode, string> = {
+  inline: TEXT.modeInlineHint,
+  process: TEXT.modeProcessHint,
 }
 
 const asFiles = (files: FileList | File[] | null | undefined): ChatAttachmentFile[] =>
@@ -77,12 +94,15 @@ function SlackFiles({ files }: { files: readonly string[] }) {
  * What the paste box holds: the colleague's update as they wrote it, and the
  * files that came with it — attached, pasted or dropped in. Opened on an
  * update from Slack, it starts filled with it, editable, its own files listed
- * as coming from Slack. Start is held until there is something to review.
+ * as coming from Slack. The person picks whether it is reviewed in the chat
+ * or as a run. Start is held until there is something to review.
  */
 export function ColleagueReviewPasteForm({
   box,
   onChange,
   onStart,
+  mode = 'inline',
+  onModeChange,
   now = Date.now(),
 }: ColleagueReviewPasteFormProps) {
   const inputRef = useRef<HTMLInputElement>(null)
@@ -178,6 +198,24 @@ export function ColleagueReviewPasteForm({
       {box.error ? <Alert variant="error">{box.error}</Alert> : null}
       {problem && !reading && draft.text.trim() !== '' ? (
         <span className="text-[11.5px] text-(--status-stuck-soft-fg)">{problem}</span>
+      ) : null}
+      {onModeChange ? (
+        <div className="flex min-w-0 flex-col gap-1">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <span className="text-[12px] font-medium text-(--text-primary)">{TEXT.mode}</span>
+            <SegmentedControl
+              size="sm"
+              ariaLabel={TEXT.mode}
+              value={mode}
+              onChange={(next) => onModeChange(next as ColleagueReviewMode)}
+              options={COLLEAGUE_REVIEW_MODES.map((value) => ({
+                value,
+                label: MODE_LABELS[value],
+              }))}
+            />
+          </div>
+          <span className="text-[11.5px] text-(--text-muted)">{MODE_HINTS[mode]}</span>
+        </div>
       ) : null}
       <div className="flex justify-end">
         <Button variant="primary" disabled={problem !== undefined} onClick={onStart}>

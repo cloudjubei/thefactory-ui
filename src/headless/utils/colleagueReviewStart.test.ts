@@ -7,7 +7,9 @@ import {
   reviewDraftProblem,
   reviewOfChat,
   reviewStartBody,
+  reviewStartedDestination,
   reviewStartLabel,
+  reviewStartMode,
   withReviewFiles,
 } from './colleagueReviewStart'
 import { COLLEAGUE_REVIEW_FILES_MAX } from './colleagueReviewStartConstants'
@@ -241,5 +243,39 @@ describe('reviewStartBody', () => {
     expect(
       reviewStartBody({ ...filled, draft: { text: 'Edited', files: [] } }, ['up/b.md']),
     ).toEqual({ offerId: 'offer-1', text: 'Edited', attachments: ['up/b.md'] })
+  })
+
+  it('says how the round is reviewed when told', () => {
+    expect(reviewStartBody(filled, [], 'process')).toEqual({ offerId: 'offer-1', mode: 'process' })
+    expect(reviewStartBody(filled, [], 'inline')).toEqual({ offerId: 'offer-1', mode: 'inline' })
+  })
+})
+
+describe('reviewStartMode', () => {
+  it('is the person’s pick, else the group’s default, else in chat', () => {
+    expect(reviewStartMode('inline', 'process')).toBe('inline')
+    expect(reviewStartMode(undefined, 'process')).toBe('process')
+    expect(reviewStartMode(undefined, 'inline')).toBe('inline')
+    expect(reviewStartMode(undefined, undefined)).toBe('inline')
+  })
+})
+
+describe('reviewStartedDestination', () => {
+  const context = { type: 'GROUP_TOPIC' as const, groupId: 'osc', topicId: 'review-OSC-1' }
+
+  it('is the run a round started as a run is reviewed in', () => {
+    expect(reviewStartedDestination({ context, mode: 'process', runId: 'run-1' })).toEqual({
+      kind: 'run',
+      runId: 'run-1',
+    })
+  })
+
+  it('is the review chat otherwise, or when the run is not named', () => {
+    expect(reviewStartedDestination({ context, mode: 'inline' })).toEqual({ kind: 'chat', context })
+    expect(reviewStartedDestination({ context, mode: 'process' })).toEqual({
+      kind: 'chat',
+      context,
+    })
+    expect(reviewStartedDestination({ context })).toEqual({ kind: 'chat', context })
   })
 })

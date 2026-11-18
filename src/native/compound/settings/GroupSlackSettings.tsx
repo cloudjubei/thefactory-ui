@@ -1,10 +1,13 @@
 import { useState, type ReactNode } from 'react'
 import { Linking, Pressable, Text, View } from 'react-native'
 import {
+  COLLEAGUE_REVIEW_MODES,
+  REVIEW_START_TEXT,
   SLACK_SETTINGS_TEXT as TEXT,
   slackClientIdProblem,
   slackWatchLinkProblem,
   useGroupSlackSettings,
+  type ColleagueReviewMode,
   type ReviewSettingsView,
   type SlackReviewSettingsState,
 } from '../../../headless'
@@ -15,6 +18,7 @@ import { Button } from '../../primitives/Button'
 import Field from '../../primitives/Field'
 import { Input } from '../../primitives/Input'
 import { ConfirmDialog } from '../../primitives/Modal'
+import SegmentedControl from '../../primitives/SegmentedControl'
 import { Switch } from '../../primitives/Switch'
 import ToneBadge from '../chips/ToneBadge'
 import { useClipboardHost } from '../ClipboardHostContext'
@@ -31,6 +35,8 @@ export type SlackReviewSettingsActions = {
   onSkipStatuses: (text: string) => void
   onStartReaction: (text: string) => void
   onRunChecksUnasked: (on: boolean) => void
+  /** How rounds start unless the person picks otherwise. */
+  onDefaultMode: (mode: ColleagueReviewMode) => void
 }
 
 export type SlackReviewSettingsPanelProps = SlackReviewSettingsActions & {
@@ -413,6 +419,28 @@ function SettingsPart({
   const { theme } = useNativeTheme()
   return (
     <View style={{ gap: nativeSpace[3] }}>
+      <View style={{ gap: 4 }}>
+        <Text style={{ fontSize: 14, fontWeight: '500', color: theme.text.primary }}>
+          {TEXT.startReviews}
+        </Text>
+        <SegmentedControl
+          size="sm"
+          ariaLabel={TEXT.startReviews}
+          style={{ alignSelf: 'flex-start' }}
+          value={settings.defaultMode}
+          onChange={(next) => actions.onDefaultMode(next as ColleagueReviewMode)}
+          options={COLLEAGUE_REVIEW_MODES.map((value) => ({
+            value,
+            label:
+              value === 'process' ? REVIEW_START_TEXT.modeProcess : REVIEW_START_TEXT.modeInline,
+          }))}
+        />
+        <Text style={{ fontSize: 12, color: theme.text.muted }}>
+          {settings.defaultMode === 'process'
+            ? REVIEW_START_TEXT.modeProcessHint
+            : REVIEW_START_TEXT.modeInlineHint}
+        </Text>
+      </View>
       <SavedField
         label={TEXT.skipStatuses}
         hint={TEXT.skipStatusesHint}
@@ -519,6 +547,7 @@ export default function GroupSlackSettings({ groupId }: GroupSlackSettingsProps)
       onSkipStatuses={slack.setSkipStatuses}
       onStartReaction={slack.setStartReaction}
       onRunChecksUnasked={slack.setRunChecksUnasked}
+      onDefaultMode={slack.setDefaultMode}
     />
   )
 }

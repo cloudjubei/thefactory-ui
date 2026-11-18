@@ -1,4 +1,4 @@
-import { useGroupTickets } from '../../../headless'
+import { reviewStartedDestination, useGroupTickets } from '../../../headless'
 import type { ChatContext } from '../../../headless/api'
 import ColleagueReviewPasteBox from './ColleagueReviewPasteBox'
 import GroupTicketsList from './GroupTicketsList'
@@ -10,6 +10,8 @@ export type GroupTicketsScreenProps = {
   onOpenChat: (context: ChatContext) => void
   /** Open Settings → Group, for a group with no Jira. */
   onOpenSettings: () => void
+  /** Open the run a round started as a run is reviewed in; without it the review chat opens. */
+  onOpenRun?: (runId: string) => void
 }
 
 /** A group's Tickets tab: its Jira tickets, to discuss, take or review — from an update its Slack thread brought too. */
@@ -18,6 +20,7 @@ export function GroupTicketsScreen({
   onOpenStory,
   onOpenChat,
   onOpenSettings,
+  onOpenRun,
 }: GroupTicketsScreenProps) {
   const {
     view,
@@ -32,6 +35,8 @@ export function GroupTicketsScreen({
     dismissOffer,
     closeReview,
     editReview,
+    reviewMode,
+    setReviewMode,
     startReview,
   } = useGroupTickets(groupId)
   const open = (going: Promise<{ context: ChatContext } | undefined>) => {
@@ -58,7 +63,16 @@ export function GroupTicketsScreen({
         <ColleagueReviewPasteBox
           box={reviewBox}
           onChange={editReview}
-          onStart={() => open(startReview())}
+          mode={reviewMode}
+          onModeChange={setReviewMode}
+          onStart={() =>
+            void startReview().then((started) => {
+              if (!started) return
+              const to = reviewStartedDestination(started)
+              if (to.kind === 'run' && onOpenRun) onOpenRun(to.runId)
+              else onOpenChat(started.context)
+            })
+          }
           onClose={closeReview}
         />
       ) : null}

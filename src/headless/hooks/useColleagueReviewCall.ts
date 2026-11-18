@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useChatActions } from '../contexts/ChatActionsContext'
 import {
   colleagueReviewCallKey,
@@ -10,8 +10,11 @@ import type {
   ColleagueReviewCardView,
   ColleagueReviewTool,
 } from '../utils/colleagueReviewCardTypes'
+import { reviewCardMerge, reviewMergeStartBody } from '../utils/colleagueReviewMerge'
+import type { ReviewCardMerge } from '../utils/colleagueReviewMergeTypes'
 import { reviewThreadWorks } from '../utils/colleagueReviewSource'
 import { useColleagueReview } from './useColleagueReview'
+import { useColleagueReviewMerge } from './useColleagueReviewMerge'
 import { useColleagueReviewSource } from './useColleagueReviewSource'
 
 export type UseColleagueReviewCall = {
@@ -20,13 +23,18 @@ export type UseColleagueReviewCall = {
   markGiven: (waitingOnId: string, note?: string) => void
   /** Post a round's reply in the group's watched thread; `again` posts it a second time, `text` is the person's edit of it. */
   postReply: (round: number, again: boolean, text?: string) => void
+  /** Approve & merge on the row's round, while it is the latest and recorded. */
+  merge: ReviewCardMerge | undefined
+  /** Approve the round's pull requests and merge them, with the Slack line typed; `override` merges a round that asked for changes. */
+  approveAndMerge: (slackText: string, override: boolean) => void
 }
 
 /**
  * A review tool row's card: the review the call was about, live, at the round
  * it was about. The review is found from the call's answer, its arguments, or
  * the review chat the row is in. Post in thread is offered while the group
- * watches a working Slack thread.
+ * watches a working Slack thread; Approve & merge on the latest recorded
+ * round, followed live.
  */
 export function useColleagueReviewCall(call: {
   tool: ColleagueReviewTool
@@ -61,10 +69,27 @@ export function useColleagueReviewCall(call: {
       thread,
     })
   }, [tool, args, result, resultType, ticketKey, known, live, thread])
+  const shownRound = view.kind === 'review' ? view.round.n : undefined
+  const { merge: mergeSnapshot, start } = useColleagueReviewMerge(key?.groupId, key?.ticketKey)
+  const merge = useMemo(
+    () =>
+      shownRound !== undefined && known
+        ? reviewCardMerge(live.review, shownRound, mergeSnapshot)
+        : undefined,
+    [shownRound, known, live.review, mergeSnapshot],
+  )
+  const approveAndMerge = useCallback(
+    (slackText: string, override: boolean) => {
+      if (shownRound !== undefined) start(reviewMergeStartBody(shownRound, slackText, override))
+    },
+    [shownRound, start],
+  )
   return {
     view,
     dropFinding: live.dropFinding,
     markGiven: live.markGiven,
     postReply: live.postReply,
+    merge,
+    approveAndMerge,
   }
 }

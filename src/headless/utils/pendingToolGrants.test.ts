@@ -1193,6 +1193,21 @@ describe('which asks are decided on their row', () => {
     expect(isActionDecidedOnRow(MCP_TOOL_CALL_ACTION_KIND, tool)).toBe(false)
   })
 
+  it('keeps a review chat’s decision card, the person’s answer, off the row', () => {
+    expect(
+      isActionDecidedOnRow(
+        'colleague-review:askColleagueReviewDecision',
+        'askColleagueReviewDecision',
+      ),
+    ).toBe(false)
+    expect(
+      isActionDecidedOnRow(
+        'colleague-review:askColleagueReviewDecision',
+        'mcp__overseer__askColleagueReviewDecision',
+      ),
+    ).toBe(false)
+  })
+
   it('decides an ask nobody named on its row, whatever its kind', () => {
     expect(isActionDecidedOnRow('brand-new-family:doSomething', 'doSomething')).toBe(true)
     expect(isActionDecidedOnRow(MCP_TOOL_CALL_ACTION_KIND, 'brandNewTool')).toBe(true)

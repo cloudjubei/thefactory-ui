@@ -5,6 +5,7 @@ import type {
   RedactedProviderConnectionEntry,
   SetColleagueReviewSourceSettingsData,
 } from '../api/generated'
+import type { ColleagueReviewMode } from './colleagueReviewStartTypes'
 import type { ProcessStatusTone } from './processView'
 import type { ProviderOAuthState } from './providerConnectionFormTypes'
 
@@ -30,6 +31,8 @@ export interface ReviewSettingsView {
   /** The emoji name added to an update's Slack message once a review starts; empty adds none. */
   startReaction: string
   runChecksUnasked: boolean
+  /** How a round starts unless the person picks otherwise: in the review chat, or as a run. */
+  defaultMode: ColleagueReviewMode
   /** Why the reaction could not be added on the latest read, in a line. */
   reactionError?: string
 }

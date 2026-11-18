@@ -116,7 +116,8 @@ export function reviewSettingsChangeNeeded(
       !sameNames(held.skipTicketStatuses, change.skipTicketStatuses)) ||
     (change.startReaction !== undefined && change.startReaction !== (held.startReaction ?? '')) ||
     (change.runChecksUnasked !== undefined &&
-      change.runChecksUnasked !== (held.runChecksUnasked ?? false))
+      change.runChecksUnasked !== (held.runChecksUnasked ?? false)) ||
+    (change.defaultMode !== undefined && change.defaultMode !== (held.defaultMode ?? 'inline'))
   )
 }
 
@@ -131,6 +132,7 @@ export function reviewSettingsView(
     skipStatuses: ticketStatusesText(settings.skipTicketStatuses),
     startReaction: settings.startReaction ?? '',
     runChecksUnasked: settings.runChecksUnasked ?? false,
+    defaultMode: settings.defaultMode ?? 'inline',
     ...(reactionError ? { reactionError: TEXT.reactionError(reactionError) } : {}),
   }
 }

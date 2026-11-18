@@ -8,6 +8,7 @@ import {
 } from '../utils/colleagueReviewSource'
 import { SLACK_CONNECTION_NAME, SLACK_PROVIDER } from '../utils/colleagueReviewSourceConstants'
 import type { SlackReviewSettingsState } from '../utils/colleagueReviewSourceTypes'
+import type { ColleagueReviewMode } from '../utils/colleagueReviewStartTypes'
 import { providerOAuthReconnectBody } from '../utils/providerConnectionForm'
 import { useColleagueReviewSource } from './useColleagueReviewSource'
 import { useProviderOAuthFlow } from './useProviderOAuthFlow'
@@ -30,6 +31,8 @@ export type UseGroupSlackSettings = SlackReviewSettingsState & {
   setStartReaction: (text: string) => void
   /** Review chats run pull request checks without asking each time. */
   setRunChecksUnasked: (on: boolean) => void
+  /** How rounds start unless the person picks otherwise: in the review chat, or as a run. */
+  setDefaultMode: (mode: ColleagueReviewMode) => void
 }
 
 /**
@@ -95,6 +98,10 @@ export function useGroupSlackSettings(groupId: string): UseGroupSlackSettings {
     (on: boolean) => setSettings({ runChecksUnasked: on }),
     [setSettings],
   )
+  const setDefaultMode = useCallback(
+    (mode: ColleagueReviewMode) => setSettings({ defaultMode: mode }),
+    [setSettings],
+  )
 
   return {
     view,
@@ -109,5 +116,6 @@ export function useGroupSlackSettings(groupId: string): UseGroupSlackSettings {
     setSkipStatuses,
     setStartReaction,
     setRunChecksUnasked,
+    setDefaultMode,
   }
 }

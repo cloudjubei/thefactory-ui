@@ -3,6 +3,9 @@ import type { ChatContext } from '../api'
 import type { ChatAttachmentFile } from '../api/chatAttachmentUploadTypes'
 import type { TicketPlanBody } from './groupTicketTypes'
 
+/** How a round is reviewed: in the ticket's review chat, or as a run whose approval the person decides at. */
+export type ColleagueReviewMode = 'inline' | 'process'
+
 /**
  * What starting a round sends: the pasted update and its files' paths in the
  * review's chat, or an update the watched Slack thread brought, by its id, with
@@ -12,6 +15,8 @@ export interface ColleagueReviewStartBody extends TicketPlanBody {
   text?: string
   offerId?: string
   attachments?: string[]
+  /** How the round is reviewed; the group's default when left out. */
+  mode?: ColleagueReviewMode
 }
 
 /** A round started, in the ticket's review chat. */
@@ -25,7 +30,16 @@ export interface ColleagueReviewStarted {
   /** Whether its agent is now working. */
   turnStarted: boolean
   review: ColleagueReview
+  /** How the round is reviewed. */
+  mode?: ColleagueReviewMode
+  /** With `mode: 'process'`: the run the round is reviewed in. */
+  runId?: string
 }
+
+/** Where a started round opens: its review chat, or the run it is reviewed in. */
+export type ReviewStartedDestination =
+  | { kind: 'chat'; context: ChatContext }
+  | { kind: 'run'; runId: string }
 
 /** A file the person attached to an update; `path` once it is uploaded, so a retry sends it once. */
 export interface ReviewDraftFile {
@@ -72,6 +86,8 @@ export interface ReviewPasteBox {
   offer?: ReviewBoxOffer
   /** Why the last start did not go through. */
   error?: string
+  /** How the person picked to review it; the group's default until they pick. */
+  mode?: ColleagueReviewMode
 }
 
 /** Sends one file into the review's chat; resolves to its path there. */

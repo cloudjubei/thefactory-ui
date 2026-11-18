@@ -1,5 +1,6 @@
 import { BLOCKER_ACTION_KIND, QUESTION_ACTION_KIND } from './agentQuestionConstants'
 import { REMEDY_ACTION_KIND } from './agentRemedyConstants'
+import { ASK_COLLEAGUE_REVIEW_DECISION_TOOL_NAME } from './colleagueReviewDecisionConstants'
 import { START_GROUP_WORK_TOOL_NAME } from './processGroupLaunchConstants'
 import { ACCEPT_REQUEST_TOOL } from './toolAskCardConstants'
 
@@ -29,7 +30,8 @@ export const COMPOSER_LAUNCH_TOOL_NAMES: readonly string[] = [
  * The tools whose ask is the person's answer — a question, a blocker, a
  * credential or sign-in form — which take the composer's place through the
  * questions pager. The forms raise no approval; they are named so that one
- * ever gated still keeps its form rather than a row's toggle.
+ * ever gated still keeps its form rather than a row's toggle. A review chat's
+ * decision card is gated: approving it is the person's choice, with their edits.
  */
 export const USER_INPUT_TOOL_NAMES: readonly string[] = [
   'askUser',
@@ -41,6 +43,7 @@ export const USER_INPUT_TOOL_NAMES: readonly string[] = [
   'requestLlmApiKey',
   'requestWebSearchKey',
   'requestMcpServer',
+  ASK_COLLEAGUE_REVIEW_DECISION_TOOL_NAME,
 ]
 
 /** The action kinds answered rather than approved: a question, a blocker, a remedy. */

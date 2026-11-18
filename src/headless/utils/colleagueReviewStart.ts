@@ -13,11 +13,14 @@ import { slackMessageLink } from './colleagueReviewSource'
 import { REVIEW_OFFER_TEXT } from './colleagueReviewSourceConstants'
 import type { ReviewOffer, TicketReviewOffer } from './colleagueReviewSourceTypes'
 import type {
+  ColleagueReviewMode,
   ColleagueReviewStartBody,
+  ColleagueReviewStarted,
   ReviewBoxOffer,
   ReviewDraft,
   ReviewDraftFile,
   ReviewPasteBox,
+  ReviewStartedDestination,
   ReviewStartPhase,
 } from './colleagueReviewStartTypes'
 
@@ -134,6 +137,7 @@ export function reviewBoxProblem(box: ReviewPasteBox): string | undefined {
 export function reviewStartBody(
   box: ReviewPasteBox,
   attachments: readonly string[],
+  mode?: ColleagueReviewMode,
 ): ColleagueReviewStartBody {
   const { offer, draft } = box
   const edited = !offer || (draft.text !== offer.text && draft.text.trim() !== '')
@@ -141,5 +145,23 @@ export function reviewStartBody(
     ...(offer ? { offerId: offer.id } : {}),
     ...(edited ? { text: draft.text } : {}),
     ...(attachments.length > 0 ? { attachments: [...attachments] } : {}),
+    ...(mode ? { mode } : {}),
   }
+}
+
+/** How a round is reviewed: the person's pick, else the group's default, else in the chat. Pure. */
+export function reviewStartMode(
+  picked: ColleagueReviewMode | undefined,
+  groupDefault: ColleagueReviewMode | undefined,
+): ColleagueReviewMode {
+  return picked ?? groupDefault ?? 'inline'
+}
+
+/** Where a started round opens: the run it is reviewed in, else its review chat. Pure. */
+export function reviewStartedDestination(
+  started: Pick<ColleagueReviewStarted, 'context' | 'mode' | 'runId'>,
+): ReviewStartedDestination {
+  return started.mode === 'process' && started.runId
+    ? { kind: 'run', runId: started.runId }
+    : { kind: 'chat', context: started.context }
 }

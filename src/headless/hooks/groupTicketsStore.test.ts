@@ -601,6 +601,16 @@ describe('GroupTicketsStore', () => {
       expect(reviewApi.startColleagueReview).toHaveBeenCalledWith('osc', 'A-1', { text: 'Done' })
     })
 
+    it('says how the round is reviewed when the person picked it', async () => {
+      reviewApi.startColleagueReview.mockResolvedValue(roundStarted)
+      const store = new GroupTicketsStore('osc')
+      await store.review('A-1', { text: 'Done', files: [] }, vi.fn(), undefined, 'process')
+      expect(reviewApi.startColleagueReview).toHaveBeenCalledWith('osc', 'A-1', {
+        text: 'Done',
+        mode: 'process',
+      })
+    })
+
     it('shows the files going up, then the round starting, on that ticket alone', async () => {
       const second = deferred<string>()
       const opening = deferred<unknown>()

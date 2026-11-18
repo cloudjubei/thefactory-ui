@@ -14,10 +14,16 @@ import {
   groupTabIndicator,
   groupTicketsView,
   inkBadgeLook,
+  inlineReviewDecisionActions,
   parseTicketStatuses,
+  reviewDecisionVerdict,
+  runReviewDecisionActions,
   startReactionName,
   ticketStatusesText,
   type ChatActions,
+  type ColleagueReviewMode,
+  type ReviewCardMerge,
+  type ReviewDecisionAction,
   type GroupTicketsState,
   type NavRowIndicator,
   type ReviewOfferLayout,
@@ -28,6 +34,7 @@ import {
 } from 'thefactory-ui/headless'
 import {
   ColleagueReviewCard,
+  ColleagueReviewDecisionCard,
   ColleagueReviewPasteForm,
   GroupTicketsList,
   NavIndicator,
@@ -41,9 +48,18 @@ import {
   BOX_OFFER_EDITED,
   BOX_READING_OFFER,
   offeredTickets,
+  MERGE_FAILED,
+  MERGE_MERGED,
+  MERGE_RUNNING,
+  REVIEW_RUN_CHOICES,
   ROUND_TWO_POSTED,
   ROUND_TWO_POSTED_EDITED,
+  ROUND_TWO_PRS,
+  ROUND_TWO_REPLY,
+  ROUND_TWO_WITH_PRS,
+  roundTwoMerge,
   SLACK_NOW,
+  SOURCE_RUNS_BY_DEFAULT,
   SOURCE_NO_BINDING,
   SOURCE_NONE,
   SOURCE_REACTION_FAILED,
@@ -117,6 +133,7 @@ function Settings({
         setShown(withSettings(shown, { startReaction: startReactionName(text) }))
       }
       onRunChecksUnasked={(on) => setShown(withSettings(shown, { runChecksUnasked: on }))}
+      onDefaultMode={(mode) => setShown(withSettings(shown, { defaultMode: mode }))}
     />,
   )
 }
@@ -278,8 +295,17 @@ const offerLayoutStates: SceneState[] = REVIEW_OFFER_LAYOUTS.flatMap((layout) =>
 ])
 
 /** A paste box's body framed as the modal draws it. */
-function Box({ box, width = 'page' }: { box: ReviewPasteBox; width?: Width }) {
+function Box({
+  box,
+  width = 'page',
+  mode: startMode = 'inline',
+}: {
+  box: ReviewPasteBox
+  width?: Width
+  mode?: ColleagueReviewMode
+}) {
   const [shown, setShown] = useState(box)
+  const [mode, setMode] = useState<ColleagueReviewMode>(startMode)
   return (
     <div className={`${width === 'phone' ? 'w-[390px]' : 'w-[32rem]'} max-w-full p-4`}>
       <div className="flex flex-col gap-3 rounded-lg border border-(--border-subtle) bg-(--surface-raised) p-4">
@@ -292,6 +318,8 @@ function Box({ box, width = 'page' }: { box: ReviewPasteBox; width?: Width }) {
           box={shown}
           now={SLACK_NOW}
           onChange={(draft) => setShown({ ...shown, draft })}
+          mode={mode}
+          onModeChange={setMode}
           onStart={noop}
         />
       </div>
@@ -314,6 +342,8 @@ type CardOptions = {
   postConfirm?: boolean
   width?: Width
   actionError?: string
+  merge?: ReviewCardMerge
+  mergeConfirm?: boolean
 }
 
 function Card({
@@ -323,6 +353,8 @@ function Card({
   postConfirm = false,
   width = 'page',
   actionError,
+  merge,
+  mergeConfirm = false,
 }: CardOptions) {
   const view = colleagueReviewCardView({
     tool: 'record',
@@ -346,6 +378,8 @@ function Card({
               onGiven={noop}
               onPost={noop}
               {...(postConfirm ? { postConfirm } : {})}
+              {...(merge ? { merge, onApproveAndMerge: noop } : {})}
+              {...(mergeConfirm ? { mergeConfirm } : {})}
             />
           </div>
         </div>
@@ -355,6 +389,60 @@ function Card({
 }
 
 const card = (options: CardOptions = {}) => <Card {...options} />
+
+const mergeCard = (merge: ReviewCardMerge, options: CardOptions = {}) =>
+  card({ review: ROUND_TWO_WITH_PRS, merge, ...options })
+
+type DecisionOptions = {
+  run?: boolean
+  width?: Width
+  loading?: boolean
+  choosing?: string
+  error?: string
+  typedReply?: string
+  noting?: boolean
+  confirming?: 'stop' | 'merge'
+}
+
+const RUN_ACTIONS: ReviewDecisionAction[] = runReviewDecisionActions(REVIEW_RUN_CHOICES)
+
+/** The decision card in the composer's place, or inside a run's "Needs you" frame. */
+function Decision({ run = false, width = 'page', loading = false, ...rest }: DecisionOptions) {
+  const verdict = loading ? undefined : reviewDecisionVerdict(ROUND_TWO_WITH_PRS)
+  const body = (
+    <ColleagueReviewDecisionCard
+      ticketKey={REVIEW_TICKET}
+      {...(verdict ? { verdict } : {})}
+      loading={loading}
+      draft={ROUND_TWO_REPLY}
+      actions={run ? RUN_ACTIONS : inlineReviewDecisionActions()}
+      prs={ROUND_TWO_PRS}
+      onChoose={noop}
+      {...(run ? { embedded: true } : { onLater: noop })}
+      {...(rest.choosing ? { choosing: rest.choosing } : {})}
+      {...(rest.error ? { error: rest.error } : {})}
+      {...(rest.typedReply ? { typedReply: rest.typedReply } : {})}
+      {...(rest.noting ? { noting: rest.noting } : {})}
+      {...(rest.confirming ? { confirming: rest.confirming } : {})}
+    />
+  )
+  return (
+    <div className={`${width === 'phone' ? 'w-[390px]' : 'w-[720px]'} max-w-full p-4`}>
+      {run ? (
+        <div className="flex flex-col gap-2 rounded-lg border border-(--border-subtle) bg-(--surface-raised) p-3">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-(--text-muted)">
+            Needs you · Your approval
+          </span>
+          {body}
+        </div>
+      ) : (
+        <div className="rounded-lg border border-(--border-subtle) bg-(--surface-base)">{body}</div>
+      )}
+    </div>
+  )
+}
+
+const decision = (options: DecisionOptions = {}) => <Decision {...options} />
 
 export const SLACK_REVIEW_SCENES: Scene[] = [
   {
@@ -510,6 +598,13 @@ export const SLACK_REVIEW_SCENES: Scene[] = [
         render: () => settings({ state: slackSettings({ status: SOURCE_SETTINGS_SET }) }),
       },
       {
+        id: 'settings-as-run',
+        title: 'Reviews start as a run',
+        description:
+          'Start reviews set to As a run: the paste box opens on As a run, still switchable per round.',
+        render: () => settings({ state: slackSettings({ status: SOURCE_RUNS_BY_DEFAULT }) }),
+      },
+      {
         id: 'settings-reaction-failed',
         title: 'A reaction Slack would not add',
         description:
@@ -644,6 +739,20 @@ export const SLACK_REVIEW_SCENES: Scene[] = [
         ),
       },
       {
+        id: 'mode-inline',
+        title: 'Reviewed in chat',
+        description:
+          'The default unless the group starts reviews as a run: the round runs in the ticket’s review chat and ends on the decision card.',
+        render: () => <Box box={BOX_FROM_OFFER} mode="inline" />,
+      },
+      {
+        id: 'mode-process',
+        title: 'Reviewed as a run',
+        description:
+          'Preselected when the group starts reviews as a run. Start opens the run; its approval is where the person decides.',
+        render: () => <Box box={BOX_FROM_OFFER} mode="process" />,
+      },
+      {
         id: 'phone',
         title: 'On a phone',
         render: () => <Box box={BOX_FROM_OFFER} width="phone" />,
@@ -716,6 +825,152 @@ export const SLACK_REVIEW_SCENES: Scene[] = [
         id: 'phone',
         title: 'On a phone',
         render: () => card({ review: ROUND_TWO_POSTED, width: 'phone' }),
+      },
+    ],
+  },
+  {
+    id: 'review-decision',
+    title: 'Review decision card',
+    component: 'ColleagueReviewDecisionCard · ColleagueReviewDecisionPanel · RunReviewDecisionCard',
+    group: 'Chat',
+    description:
+      'The end of a review round, the same card in two places: in the review chat, in the composer’s place, when the agent asks with its draft; and at a review run’s approval. The round’s verdict, the reply in a box to edit, and the choice: Send in Slack, Approve & merge (asks first, listing the pull requests), Keep reviewing (asks for a note), Stop (asks first). The choice shows at once; a refusal hands the card back with why.',
+    states: [
+      {
+        id: 'inline',
+        title: 'In the review chat',
+        render: () => decision(),
+      },
+      {
+        id: 'inline-edited',
+        title: 'The reply edited',
+        description: 'Send carries the edit; left as drafted, the draft goes.',
+        render: () =>
+          decision({ typedReply: 'Thanks Priya, all good now. Merging once the checks pass.' }),
+      },
+      {
+        id: 'inline-empty',
+        title: 'The reply emptied',
+        description: 'Send in Slack is held until there is a reply.',
+        render: () => decision({ typedReply: ' ' }),
+      },
+      {
+        id: 'keep-reviewing',
+        title: 'Keep reviewing',
+        description: 'A note is required: what the agent looks at next.',
+        render: () => decision({ noting: true }),
+      },
+      {
+        id: 'merge-confirm',
+        title: 'Approve & merge asks first',
+        overlay: true,
+        render: () => decision({ confirming: 'merge' }),
+      },
+      {
+        id: 'stop-confirm',
+        title: 'Stop asks first',
+        overlay: true,
+        render: () => decision({ confirming: 'stop' }),
+      },
+      {
+        id: 'sending',
+        title: 'Sending',
+        description: 'At once after Send in Slack; the rest is held.',
+        render: () => decision({ choosing: 'send-reply' }),
+      },
+      {
+        id: 'refused',
+        title: 'A choice that did not go through',
+        render: () => decision({ error: 'That ask was already answered on another device.' }),
+      },
+      {
+        id: 'loading',
+        title: 'While the round is read',
+        render: () => decision({ loading: true }),
+      },
+      {
+        id: 'run',
+        title: 'At a review run’s approval',
+        description:
+          'The run’s gate actions as the card’s choices, in its words; only a person answers.',
+        render: () => decision({ run: true }),
+      },
+      {
+        id: 'run-keep-reviewing',
+        title: 'Sending a run’s round back',
+        render: () => decision({ run: true, noting: true }),
+      },
+      {
+        id: 'phone',
+        title: 'On a phone',
+        render: () => decision({ width: 'phone' }),
+      },
+    ],
+  },
+  {
+    id: 'review-merge',
+    title: 'Approve & merge',
+    component: 'ColleagueReviewCard (merge, onApproveAndMerge)',
+    group: 'Chat',
+    description:
+      'On the review card’s latest recorded round: Approve & merge asks first, listing the round’s pull requests in the order they merge (the backend’s first) and the Slack line posted once they all merged — empty means the group’s merged message. Then each pull request’s progress, live, and what came of it. A round that asked for changes is held with the backend’s words and Merge anyway.',
+    states: [
+      {
+        id: 'offered',
+        title: 'Offered on the latest round',
+        render: () => mergeCard(roundTwoMerge()),
+      },
+      {
+        id: 'confirm',
+        title: 'The confirm',
+        overlay: true,
+        render: () => mergeCard(roundTwoMerge(), { mergeConfirm: true }),
+      },
+      {
+        id: 'starting',
+        title: 'Starting',
+        description: 'At once after the confirm: the pull requests wait their turn.',
+        render: () => mergeCard(roundTwoMerge({ starting: { round: 2 } })),
+      },
+      {
+        id: 'running',
+        title: 'Merging',
+        description: 'The backend’s merged; the next waits for its checks.',
+        render: () => mergeCard(roundTwoMerge({ job: MERGE_RUNNING })),
+      },
+      {
+        id: 'merged',
+        title: 'Merged',
+        description: 'With the Slack message it posted.',
+        render: () => mergeCard(roundTwoMerge({ job: MERGE_MERGED })),
+      },
+      {
+        id: 'failed',
+        title: 'Stopped',
+        description: 'Where it stopped and why; nothing after it was merged.',
+        render: () => mergeCard(roundTwoMerge({ job: MERGE_FAILED })),
+      },
+      {
+        id: 'held',
+        title: 'The round asked for changes',
+        description: 'The backend’s words, and Merge anyway.',
+        render: () =>
+          mergeCard(
+            roundTwoMerge({
+              refusal: 'Round 2 asked for changes. Merge anyway to approve and merge it.',
+            }),
+          ),
+      },
+      {
+        id: 'not-started',
+        title: 'A merge that did not start',
+        render: () =>
+          mergeCard(roundTwoMerge({ actionError: 'GitHub is not connected for acme.' })),
+      },
+      {
+        id: 'phone',
+        title: 'Merging, on a phone',
+        render: () => mergeCard(roundTwoMerge({ job: MERGE_RUNNING }), { width: 'phone' }),
       },
     ],
   },

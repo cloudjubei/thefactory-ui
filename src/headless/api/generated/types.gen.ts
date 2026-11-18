@@ -4082,6 +4082,7 @@ export type DeliverySettings = {
   baseBranch?: string
   prFirst?: boolean
   mergeMethod?: 'squash' | 'merge' | 'rebase'
+  prTitleTemplate?: string
 }
 
 export type ProjectStartCheckSetting = {
@@ -4121,6 +4122,7 @@ export type ProjectsGroup = {
     baseBranch?: string
     prFirst?: boolean
     mergeMethod?: 'squash' | 'merge' | 'rebase'
+    prTitleTemplate?: string
   }
   checkAllowedHosts?: Array<string>
   startCheck?: {
@@ -4434,6 +4436,7 @@ export type ProjectRegistryMetadata = {
     baseBranch?: string
     prFirst?: boolean
     mergeMethod?: 'squash' | 'merge' | 'rebase'
+    prTitleTemplate?: string
   }
   hasApp?: boolean
   appDir?: string
@@ -4504,6 +4507,7 @@ export type ProjectRegistryEntry = {
       baseBranch?: string
       prFirst?: boolean
       mergeMethod?: 'squash' | 'merge' | 'rebase'
+      prTitleTemplate?: string
     }
     hasApp?: boolean
     appDir?: string
@@ -4718,6 +4722,7 @@ export type ChatContextArguments = {
       baseBranch?: string
       prFirst?: boolean
       mergeMethod?: 'squash' | 'merge' | 'rebase'
+      prTitleTemplate?: string
     }
     checkAllowedHosts?: Array<string>
     startCheck?: {
@@ -4845,6 +4850,7 @@ export type ChatContextArgumentsGroup = {
       baseBranch?: string
       prFirst?: boolean
       mergeMethod?: 'squash' | 'merge' | 'rebase'
+      prTitleTemplate?: string
     }
     checkAllowedHosts?: Array<string>
     startCheck?: {
@@ -4892,6 +4898,7 @@ export type ChatContextArgumentsGroupTopic = {
       baseBranch?: string
       prFirst?: boolean
       mergeMethod?: 'squash' | 'merge' | 'rebase'
+      prTitleTemplate?: string
     }
     checkAllowedHosts?: Array<string>
     startCheck?: {
@@ -8116,6 +8123,7 @@ export type ColleagueReviewBriefToolNames = {
   video?: string
   thread?: Array<string>
   postReply?: string
+  decisionCard?: string
   askPerson?: string
 }
 
@@ -10408,6 +10416,12 @@ export type ResolvedDeliverySettings = {
   baseBranch?: string
   prFirst: boolean
   mergeMethod?: 'squash' | 'merge' | 'rebase'
+  prTitleTemplate?: string
+}
+
+export type ProcessPublishTitleTicket = {
+  key: string
+  title?: string
 }
 
 export type ProcessPublishBranchNameInput = {
@@ -16367,6 +16381,8 @@ export type ProcessIntegrationLandedBy = {
         chatContextId: string
       }
   byRunId?: string
+  pullRequestUrl?: string
+  named?: true
 }
 
 export type ProcessBaseMoved = {
@@ -16440,6 +16456,8 @@ export type ProcessRunIntegration = {
           chatContextId: string
         }
     byRunId?: string
+    pullRequestUrl?: string
+    named?: true
   }
   pullRequestUrl?: string
   compareUrl?: string
@@ -16749,6 +16767,8 @@ export type ProcessRunReopening = {
             chatContextId: string
           }
       byRunId?: string
+      pullRequestUrl?: string
+      named?: true
     }
     pullRequestUrl?: string
     compareUrl?: string
@@ -16871,6 +16891,8 @@ export type ProcessPlanAmendment = {
               chatContextId: string
             }
         byRunId?: string
+        pullRequestUrl?: string
+        named?: true
       }
       pullRequestUrl?: string
       compareUrl?: string
@@ -18420,6 +18442,8 @@ export type ProcessRun = {
             chatContextId: string
           }
       byRunId?: string
+      pullRequestUrl?: string
+      named?: true
     }
     pullRequestUrl?: string
     compareUrl?: string
@@ -19245,6 +19269,7 @@ export type ProjectSpecCreateInput = {
       baseBranch?: string
       prFirst?: boolean
       mergeMethod?: 'squash' | 'merge' | 'rebase'
+      prTitleTemplate?: string
     }
     hasApp?: boolean
     appDir?: string
@@ -19358,6 +19383,7 @@ export type ProjectSpecEditInput = {
       baseBranch?: string
       prFirst?: boolean
       mergeMethod?: 'squash' | 'merge' | 'rebase'
+      prTitleTemplate?: string
     }
     hasApp?: boolean
     appDir?: string
@@ -28122,6 +28148,7 @@ export type SignOffOutputView = {
   label: string
   perRepo: boolean
   sections: Array<SignOffOutputSection>
+  missingPullRequests?: Array<string>
 }
 
 export type SignOffOutputValues = {
@@ -30887,6 +30914,183 @@ export type ProcessRunRequestEvidence = {
   rejection?: string
 }
 
+export type NamedLandingRun = {
+  status: ProcessRunStatus
+  plan: ProcessPlan
+  ledger: Array<ProcessLedgerEntry>
+  workBranch?: {
+    name: string
+    baseSha: string
+    baseRef: string
+    stackedOn?: {
+      runId: string
+      branch: string
+    }
+    shadow?: boolean
+  }
+  parentRunId?: string
+  integration?: {
+    mode: ProcessIntegrationMode
+    status: 'integrating' | 'integrated' | 'already-landed' | 'failed'
+    landing?: {
+      identity?: {
+        name: string
+        email: string
+        credentialId: string
+      }
+      message?: string
+      checkMerge?: boolean
+      credentialId?: string
+      pullRequest?: {
+        title: string
+        body: string
+      }
+    }
+    sha?: string
+    onto?: string
+    landedBy?: {
+      commit: string
+      subject?: string
+      settledBy?:
+        | {
+            decidedBy: 'person'
+            decidedVia: ProcessPersonDecisionVia
+          }
+        | {
+            decidedBy: 'agent'
+            decidedVia: 'tool'
+            toolName: string
+            chatContextId: string
+          }
+        | {
+            decidedBy: 'manager'
+            decidedVia: 'manager'
+            toolName: string
+            chatContextId: string
+          }
+      byRunId?: string
+      pullRequestUrl?: string
+      named?: true
+    }
+    pullRequestUrl?: string
+    compareUrl?: string
+    branch?: string
+    error?: string
+    conflict?: {
+      baseRef: string
+      baseSha: string
+      commits: number
+      paths: Array<string>
+      workSha?: string
+      keptOneSide?: Array<ProcessKeptOneSide>
+      lostExports?: Array<CodeIntelExportedSymbol>
+      notRebuilt?: {
+        paths: Array<string>
+        reason: string
+      }
+    }
+    checks?: {
+      status: MergeChecksStatus
+      summary: string
+      sha?: string
+      checks: Array<VerificationCheckResult>
+    }
+    regenerated?: Array<string>
+    broughtInRunIds?: Array<string>
+    at: number
+  }
+  park?: {
+    reason: ProcessParkReason
+    stepId?: string
+    loopId?: string
+    message: string
+    parkedAt: number
+    pending?: {
+      cursor: ProcessRunCursor
+      viaLoopId?: string
+      continuesEntryId?: string
+      retryMode?: 'continue' | 'fresh'
+      resumesEntryId?: string
+      rechecksEntryId?: string
+    }
+    ask?: {
+      kind: ProcessWaitingKind
+      agent: string
+      title: string
+      detail: string
+      request?: {
+        actionId: string
+        actionKind: string
+        toolName?: string
+        host?: string
+        packageName?: string
+        ecosystem?: string
+        url?: string
+        args?: {
+          [key: string]: unknown
+        }
+      }
+      items?: Array<ProcessWaitingItem>
+      featureQuestionId?: string
+      runRef?: {
+        runId: string
+        agentRunId?: string
+        chatContextId?: string
+        runner?: 'api' | 'cli'
+      }
+      delegatedTo?: {
+        chatContextId: string
+        topicId: string
+        at: number
+      }
+      agentFailed?: true
+      preExistingBreak?: {
+        source: ProcessPreExistingBreakSource
+        checks: Array<string>
+        files: Array<string>
+        baseRef: string
+        baseSha?: string
+        headline: string
+      }
+    }
+    questionGrantId?: string
+    stepInFlight?: boolean
+    childRunId?: string
+    baseConflict?: {
+      baseRef: string
+      baseSha: string
+      commits: number
+      paths: Array<string>
+      workSha?: string
+      keptOneSide?: Array<ProcessKeptOneSide>
+      lostExports?: Array<CodeIntelExportedSymbol>
+      notRebuilt?: {
+        paths: Array<string>
+        reason: string
+      }
+    }
+    waitingOn?: Array<string>
+    circling?: {
+      summary: string
+      signals: Array<ProcessCirclingSignal>
+      ranOut: boolean
+      turnsUsed?: number
+      maxTurns?: number
+      changed?: boolean
+      repeatedActions?: Array<ProcessCirclingRepeat>
+      flipFlopFiles?: Array<string>
+      sameFailures?: Array<string>
+      streak: number
+      afterRaise?: true
+      afterRetry?: true
+      afterManager?: true
+      tip?: string
+      at: number
+    }
+  }
+  groupRunId?: string
+}
+
 export type ChecksOutcome = {
   outcome?: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
   checks?: Array<VerificationCheckResult>
@@ -31984,6 +32188,8 @@ export type ClosureRun = {
             chatContextId: string
           }
       byRunId?: string
+      pullRequestUrl?: string
+      named?: true
     }
     pullRequestUrl?: string
     compareUrl?: string
@@ -32763,6 +32969,8 @@ export type ProcessRunChatState = {
               chatContextId: string
             }
         byRunId?: string
+        pullRequestUrl?: string
+        named?: true
       }
       pullRequestUrl?: string
       compareUrl?: string
@@ -33179,6 +33387,8 @@ export type ProcessRunChatState = {
           chatContextId: string
         }
     byRunId?: string
+    pullRequestUrl?: string
+    named?: true
   }
   workspaceBranch?: {
     name: string
@@ -33400,6 +33610,8 @@ export type ProcessIntegrationOptions = {
           chatContextId: string
         }
     byRunId?: string
+    pullRequestUrl?: string
+    named?: true
   }
   nothingToMerge?: true
 }
@@ -33472,6 +33684,20 @@ export type ProcessWorkBranchLandingCheck =
   | {
       kind: 'unreadable'
       reason: string
+      branchGone?: true
+    }
+
+export type ProcessWorkHeldCheck =
+  | {
+      kind: 'held'
+    }
+  | {
+      kind: 'not-held'
+      paths: Array<string>
+    }
+  | {
+      kind: 'unreadable'
+      reason: string
     }
 
 export type ProcessIntegrationOutcome = {
@@ -33499,6 +33725,8 @@ export type ProcessIntegrationOutcome = {
           chatContextId: string
         }
     byRunId?: string
+    pullRequestUrl?: string
+    named?: true
   }
   pullRequestUrl?: string
   compareUrl?: string
@@ -33705,6 +33933,8 @@ export type ProcessRunSummary = {
             chatContextId: string
           }
       byRunId?: string
+      pullRequestUrl?: string
+      named?: true
     }
     pullRequestUrl?: string
     compareUrl?: string
@@ -37248,6 +37478,7 @@ export type ListProjectsGroupsResponses = {
       baseBranch?: string
       prFirst?: boolean
       mergeMethod?: 'squash' | 'merge' | 'rebase'
+      prTitleTemplate?: string
     }
     checkAllowedHosts?: Array<string>
     createdAt: string
@@ -37313,6 +37544,7 @@ export type CreateProjectsGroupResponses = {
       baseBranch?: string
       prFirst?: boolean
       mergeMethod?: 'squash' | 'merge' | 'rebase'
+      prTitleTemplate?: string
     }
     checkAllowedHosts?: Array<string>
     createdAt: string
@@ -37615,6 +37847,7 @@ export type DeleteProjectsGroupResponses = {
       baseBranch?: string
       prFirst?: boolean
       mergeMethod?: 'squash' | 'merge' | 'rebase'
+      prTitleTemplate?: string
     }
     checkAllowedHosts?: Array<string>
     createdAt: string
@@ -37682,6 +37915,7 @@ export type GetProjectsGroupResponses = {
       baseBranch?: string
       prFirst?: boolean
       mergeMethod?: 'squash' | 'merge' | 'rebase'
+      prTitleTemplate?: string
     }
     checkAllowedHosts?: Array<string>
     createdAt: string
@@ -37758,6 +37992,7 @@ export type UpdateProjectsGroupResponses = {
       baseBranch?: string
       prFirst?: boolean
       mergeMethod?: 'squash' | 'merge' | 'rebase'
+      prTitleTemplate?: string
     }
     checkAllowedHosts?: Array<string>
     createdAt: string
@@ -37826,6 +38061,7 @@ export type ReorderProjectInGroupResponses = {
       baseBranch?: string
       prFirst?: boolean
       mergeMethod?: 'squash' | 'merge' | 'rebase'
+      prTitleTemplate?: string
     }
     checkAllowedHosts?: Array<string>
     createdAt: string
@@ -37892,6 +38128,7 @@ export type ReorderProjectsGroupsResponses = {
       baseBranch?: string
       prFirst?: boolean
       mergeMethod?: 'squash' | 'merge' | 'rebase'
+      prTitleTemplate?: string
     }
     checkAllowedHosts?: Array<string>
     createdAt: string
@@ -40450,6 +40687,19 @@ export type ResumeProcessRunData = {
      * With split-follow-up: the new follow-up feature’s title.
      */
     followUpTitle?: string
+    /**
+     * With approve at an `actions` gate (`park.choices[].action`): the action the person chose, and its text as they edited it. Required there, refused anywhere else; only a person decides there.
+     */
+    gateAction?: {
+      /**
+       * The action chosen, by its id.
+       */
+      id: string
+      /**
+       * The text the person edited for an action that edits text.
+       */
+      text?: string
+    }
   }
   path: {
     runId: string
@@ -40589,6 +40839,10 @@ export type GetProcessRunDeliveryResponses = {
         error?: string
         at: number
       }
+      /**
+       * What the person should look at before publishing, each in a sentence: nothing stops the publish.
+       */
+      notices?: Array<string>
     }>
   }
 }
@@ -40715,6 +40969,10 @@ export type UpdateProcessRunDeliveryResponses = {
         error?: string
         at: number
       }
+      /**
+       * What the person should look at before publishing, each in a sentence: nothing stops the publish.
+       */
+      notices?: Array<string>
     }>
   }
 }
@@ -41736,6 +41994,14 @@ export type SettleProcessRunAlreadyLandedData = {
      * The app the person decided on — recorded on the decision with `decidedBy: person`. Required: a decision nobody can attribute is refused.
      */
     decidedVia: 'web' | 'desktop' | 'mobile'
+    /**
+     * The merged pull request that brought the work in, when its own merge did not: the run is recorded as merged by it.
+     */
+    pullRequestUrl?: string
+    /**
+     * The commit on the run’s base that brought the work in, when its own merge did not — never with `pullRequestUrl`.
+     */
+    commit?: string
   }
   path: {
     runId: string
@@ -43136,6 +43402,10 @@ export type GetProcessGroupRunDeliveryResponses = {
         error?: string
         at: number
       }
+      /**
+       * What the person should look at before publishing, each in a sentence: nothing stops the publish.
+       */
+      notices?: Array<string>
     }>
   }
 }
@@ -43262,6 +43532,10 @@ export type UpdateProcessGroupRunDeliveryResponses = {
         error?: string
         at: number
       }
+      /**
+       * What the person should look at before publishing, each in a sentence: nothing stops the publish.
+       */
+      notices?: Array<string>
     }>
   }
 }
@@ -43392,6 +43666,10 @@ export type PublishProcessGroupRunResponses = {
         error?: string
         at: number
       }
+      /**
+       * What the person should look at before publishing, each in a sentence: nothing stops the publish.
+       */
+      notices?: Array<string>
     }>
   }
 }
@@ -43722,6 +44000,10 @@ export type CheckProcessGroupLegLandingData = {
      */
     commit?: string
     note?: string
+    /**
+     * The app the person marked it on: recorded on the leg’s run when its run is finished as landed with it.
+     */
+    decidedVia?: 'web' | 'desktop' | 'mobile'
   }
   path: {
     groupRunId: string
@@ -43810,6 +44092,10 @@ export type MarkProcessGroupLegLandedData = {
      */
     commit?: string
     note?: string
+    /**
+     * The app the person marked it on: recorded on the leg’s run when its run is finished as landed with it.
+     */
+    decidedVia?: 'web' | 'desktop' | 'mobile'
   }
   path: {
     groupRunId: string
@@ -61899,6 +62185,10 @@ export type StartColleagueReviewData = {
      * Files that came with the update, each the `path` that uploading it to the ticket’s review chat answered (`POST /chat-attachments` with the review chat’s context).
      */
     attachments?: Array<string>
+    /**
+     * How the round is reviewed: `inline` in the review chat, which ends the round on a decision card for the person; `process` as a run of the colleague review process, whose approval the person decides at, nothing posted or merged before they choose. The group’s default when absent, else inline. Both are refused (409) while a run still holds the review chat.
+     */
+    mode?: 'inline' | 'process'
     runner?: 'api' | 'cli'
     cliTool?: string
     cliModel?: string
@@ -61977,10 +62267,18 @@ export type StartColleagueReviewResponses = {
      */
     alreadyOpen: boolean
     /**
-     * Whether its agent is now working.
+     * Whether its agent is now working; in a run, whether the run started, its review step starting the chat’s turn.
      */
     turnStarted: boolean
     review: ColleagueReview
+    /**
+     * How the round is reviewed: `inline` in the review chat, which ends the round on a decision card for the person; `process` as a run of the colleague review process, whose approval the person decides at, nothing posted or merged before they choose. The group’s default when absent, else inline. Both are refused (409) while a run still holds the review chat.
+     */
+    mode: 'inline' | 'process'
+    /**
+     * With `mode: process`: the run the round is reviewed in.
+     */
+    runId?: string
   }
 }
 
@@ -62528,6 +62826,10 @@ export type ClearColleagueReviewSourceResponses = {
       skipTicketStatuses: Array<string>
       startReaction?: string
       runChecksUnasked?: boolean
+      /**
+       * How the round is reviewed: `inline` in the review chat, which ends the round on a decision card for the person; `process` as a run of the colleague review process, whose approval the person decides at, nothing posted or merged before they choose. The group’s default when absent, else inline. Both are refused (409) while a run still holds the review chat.
+       */
+      defaultMode?: 'inline' | 'process'
     }
   }
 }
@@ -62637,6 +62939,10 @@ export type GetColleagueReviewSourceResponses = {
       skipTicketStatuses: Array<string>
       startReaction?: string
       runChecksUnasked?: boolean
+      /**
+       * How the round is reviewed: `inline` in the review chat, which ends the round on a decision card for the person; `process` as a run of the colleague review process, whose approval the person decides at, nothing posted or merged before they choose. The group’s default when absent, else inline. Both are refused (409) while a run still holds the review chat.
+       */
+      defaultMode?: 'inline' | 'process'
     }
   }
 }
@@ -62789,6 +63095,10 @@ export type SetColleagueReviewSourceResponses = {
       skipTicketStatuses: Array<string>
       startReaction?: string
       runChecksUnasked?: boolean
+      /**
+       * How the round is reviewed: `inline` in the review chat, which ends the round on a decision card for the person; `process` as a run of the colleague review process, whose approval the person decides at, nothing posted or merged before they choose. The group’s default when absent, else inline. Both are refused (409) while a run still holds the review chat.
+       */
+      defaultMode?: 'inline' | 'process'
     }
   }
 }
@@ -62810,6 +63120,10 @@ export type SetColleagueReviewSourceSettingsData = {
      * Review chats run the colleague’s pull request checks (`runPullRequestCheck`) without asking each time.
      */
     runChecksUnasked?: boolean
+    /**
+     * How the round is reviewed: `inline` in the review chat, which ends the round on a decision card for the person; `process` as a run of the colleague review process, whose approval the person decides at, nothing posted or merged before they choose. The group’s default when absent, else inline. Both are refused (409) while a run still holds the review chat.
+     */
+    defaultMode?: 'inline' | 'process'
   }
   path: {
     groupId: string
@@ -62921,6 +63235,10 @@ export type SetColleagueReviewSourceSettingsResponses = {
       skipTicketStatuses: Array<string>
       startReaction?: string
       runChecksUnasked?: boolean
+      /**
+       * How the round is reviewed: `inline` in the review chat, which ends the round on a decision card for the person; `process` as a run of the colleague review process, whose approval the person decides at, nothing posted or merged before they choose. The group’s default when absent, else inline. Both are refused (409) while a run still holds the review chat.
+       */
+      defaultMode?: 'inline' | 'process'
     }
   }
 }

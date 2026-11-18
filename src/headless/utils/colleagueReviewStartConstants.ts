@@ -1,3 +1,4 @@
+import type { ColleagueReviewMode } from './colleagueReviewStartTypes'
 /** A ticket's review chat is the group topic `review-<KEY>`, apart from its own `ticket-<KEY>` chat. */
 export const COLLEAGUE_REVIEW_TOPIC_PREFIX = 'review-'
 
@@ -32,4 +33,12 @@ export const REVIEW_START_TEXT = {
   remove: (name: string) => `Remove ${name}`,
   reviewTicket: (key: string) => `Review ${key}`,
   nextRoundOf: (key: string) => `Start the next round of ${key}`,
+  mode: 'Review it',
+  modeInline: 'In chat',
+  modeProcess: 'As a run',
+  modeInlineHint: 'In the ticket’s review chat; you decide on a card at the end.',
+  modeProcessHint: 'As a run; you decide at its approval. Nothing is posted or merged before.',
 } as const
+
+/** The ways a round may be reviewed, in the order the choice offers them. */
+export const COLLEAGUE_REVIEW_MODES: readonly ColleagueReviewMode[] = ['inline', 'process']

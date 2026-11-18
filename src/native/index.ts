@@ -280,6 +280,14 @@ export {
   type ColleagueReviewConnectedProps,
 } from './compound/chat/ColleagueReviewCard'
 export {
+  default as ColleagueReviewDecisionCard,
+  ColleagueReviewDecisionPanel,
+  RunReviewDecisionCard,
+  type ColleagueReviewDecisionCardProps,
+  type ColleagueReviewDecisionPanelProps,
+  type RunReviewDecisionCardProps,
+} from './compound/chat/ColleagueReviewDecisionCard'
+export {
   GroupTicketsScreen,
   type GroupTicketsScreenProps,
 } from './compound/groupStories/GroupTicketsScreen'

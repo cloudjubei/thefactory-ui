@@ -4,14 +4,20 @@ import type { ColleagueReview } from 'thefactory-tools/types'
 import {
   colleagueReviewCardView,
   groupTicketsView,
+  inlineReviewDecisionActions,
   parseTicketStatuses,
+  reviewDecisionVerdict,
+  runReviewDecisionActions,
   startReactionName,
   ticketStatusesText,
+  type ColleagueReviewMode,
+  type ReviewCardMerge,
   type ReviewPasteBox,
   type ReviewSettingsView,
   type SlackReviewSettingsState,
 } from 'thefactory-ui/headless'
 import ColleagueReviewCard from '../../src/native/compound/chat/ColleagueReviewCard'
+import ColleagueReviewDecisionCard from '../../src/native/compound/chat/ColleagueReviewDecisionCard'
 import { ColleagueReviewPasteForm } from '../../src/native/compound/groupStories/ColleagueReviewPasteBox'
 import GroupTicketsList from '../../src/native/compound/groupStories/GroupTicketsList'
 import { SlackReviewSettingsPanel } from '../../src/native/compound/settings/GroupSlackSettings'
@@ -21,9 +27,18 @@ import {
   BOX_FROM_OFFER,
   BOX_READING_OFFER,
   offeredTickets,
+  MERGE_FAILED,
+  MERGE_MERGED,
+  MERGE_RUNNING,
+  REVIEW_RUN_CHOICES,
   ROUND_TWO_POSTED,
   ROUND_TWO_POSTED_EDITED,
+  ROUND_TWO_PRS,
+  ROUND_TWO_REPLY,
+  ROUND_TWO_WITH_PRS,
+  roundTwoMerge,
   SLACK_NOW,
+  SOURCE_RUNS_BY_DEFAULT,
   SOURCE_NO_BINDING,
   SOURCE_NONE,
   SOURCE_REACTION_FAILED,
@@ -67,6 +82,7 @@ const SETTINGS: Record<string, SlackReviewSettingsState> = {
   'thread-read-failed': slackSettings({ status: SOURCE_READ_FAILED }),
   'sign-in-again': slackSettings({ status: SOURCE_SIGN_IN_AGAIN }),
   'settings-set': slackSettings({ status: SOURCE_SETTINGS_SET }),
+  'settings-as-run': slackSettings({ status: SOURCE_RUNS_BY_DEFAULT }),
   'settings-reaction-failed': slackSettings({ status: SOURCE_REACTION_FAILED }),
   'settings-refused': slackSettings({
     status: SOURCE_SETTINGS_SET,
@@ -109,6 +125,7 @@ function Settings({ address }: { address: URLSearchParams }) {
           setState(withSettings(state, { startReaction: startReactionName(text) }))
         }
         onRunChecksUnasked={(on) => setState(withSettings(state, { runChecksUnasked: on }))}
+        onDefaultMode={(mode) => setState(withSettings(state, { defaultMode: mode }))}
       />
     </Phone>
   )
@@ -142,12 +159,17 @@ const BOXES: Record<string, ReviewPasteBox> = {
 
 function Paste({ address }: { address: URLSearchParams }) {
   const [box, setBox] = useState(BOXES[address.get('state') ?? 'filled'] ?? BOX_FROM_OFFER)
+  const [mode, setMode] = useState<ColleagueReviewMode>(
+    address.get('state') === 'mode-process' ? 'process' : 'inline',
+  )
   return (
     <Phone>
       <ColleagueReviewPasteForm
         box={box}
         now={SLACK_NOW}
         onChange={(draft) => setBox({ ...box, draft })}
+        mode={mode}
+        onModeChange={setMode}
         onStart={noop}
       />
     </Phone>
@@ -184,6 +206,89 @@ function Post({ address }: { address: URLSearchParams }) {
   )
 }
 
+const DECISIONS: Record<
+  string,
+  {
+    run?: boolean
+    typedReply?: string
+    noting?: boolean
+    confirming?: 'stop' | 'merge'
+    choosing?: string
+    error?: string
+  }
+> = {
+  inline: {},
+  'inline-edited': { typedReply: 'Thanks Priya, all good now. Merging once the checks pass.' },
+  'keep-reviewing': { noting: true },
+  'merge-confirm': { confirming: 'merge' },
+  'stop-confirm': { confirming: 'stop' },
+  sending: { choosing: 'send-reply' },
+  refused: { error: 'That ask was already answered on another device.' },
+  run: { run: true },
+}
+
+function Decision({ address }: { address: URLSearchParams }) {
+  const shown = DECISIONS[address.get('state') ?? 'inline'] ?? {}
+  const verdict = reviewDecisionVerdict(ROUND_TWO_WITH_PRS)
+  return (
+    <Phone>
+      <ColleagueReviewDecisionCard
+        ticketKey={REVIEW_TICKET}
+        {...(verdict ? { verdict } : {})}
+        draft={ROUND_TWO_REPLY}
+        actions={
+          shown.run ? runReviewDecisionActions(REVIEW_RUN_CHOICES) : inlineReviewDecisionActions()
+        }
+        prs={ROUND_TWO_PRS}
+        onChoose={noop}
+        {...(shown.run ? { embedded: true } : { onLater: noop })}
+        {...(shown.typedReply ? { typedReply: shown.typedReply } : {})}
+        {...(shown.noting ? { noting: true } : {})}
+        {...(shown.confirming ? { confirming: shown.confirming } : {})}
+        {...(shown.choosing ? { choosing: shown.choosing } : {})}
+        {...(shown.error ? { error: shown.error } : {})}
+      />
+    </Phone>
+  )
+}
+
+const MERGES: Record<string, { merge: ReviewCardMerge; confirm?: boolean }> = {
+  offered: { merge: roundTwoMerge() },
+  confirm: { merge: roundTwoMerge(), confirm: true },
+  starting: { merge: roundTwoMerge({ starting: { round: 2 } }) },
+  running: { merge: roundTwoMerge({ job: MERGE_RUNNING }) },
+  merged: { merge: roundTwoMerge({ job: MERGE_MERGED }) },
+  failed: { merge: roundTwoMerge({ job: MERGE_FAILED }) },
+  held: {
+    merge: roundTwoMerge({
+      refusal: 'Round 2 asked for changes. Merge anyway to approve and merge it.',
+    }),
+  },
+}
+
+function Merge({ address }: { address: URLSearchParams }) {
+  const shown = MERGES[address.get('state') ?? 'offered'] ?? { merge: roundTwoMerge() }
+  const view = colleagueReviewCardView({
+    tool: 'record',
+    ticketKey: REVIEW_TICKET,
+    review: ROUND_TWO_WITH_PRS,
+    thread: true,
+  })
+  return (
+    <Phone>
+      <ColleagueReviewCard
+        view={view}
+        onDrop={noop}
+        onGiven={noop}
+        onPost={noop}
+        merge={shown.merge}
+        onApproveAndMerge={noop}
+        {...(shown.confirm ? { mergeConfirm: true } : {})}
+      />
+    </Phone>
+  )
+}
+
 /** The Slack part of the colleague review on mobile, at `?view=<id>&state=…`, as the web scenes. */
 export const SLACK_REVIEW_VIEWS: readonly NativeView[] = [
   {
@@ -198,4 +303,10 @@ export const SLACK_REVIEW_VIEWS: readonly NativeView[] = [
     render: (a) => <Paste address={a} />,
   },
   { id: 'slack-review-post', title: 'Post in thread', render: (a) => <Post address={a} /> },
+  {
+    id: 'review-decision',
+    title: 'Review decision card',
+    render: (a) => <Decision address={a} />,
+  },
+  { id: 'review-merge', title: 'Approve & merge', render: (a) => <Merge address={a} /> },
 ]

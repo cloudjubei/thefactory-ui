@@ -3899,19 +3899,24 @@ export {
   reviewDraftProblem,
   reviewOfChat,
   reviewStartBody,
+  reviewStartedDestination,
   reviewStartLabel,
+  reviewStartMode,
   withReviewFiles,
 } from './utils/colleagueReviewStart'
 export {
   COLLEAGUE_REVIEW_FILES_MAX,
+  COLLEAGUE_REVIEW_MODES,
   COLLEAGUE_REVIEW_TEXT_MAX_CHARS,
   COLLEAGUE_REVIEW_TOPIC_PREFIX,
   COLLEAGUE_REVIEWS_EVENT,
   REVIEW_START_TEXT,
 } from './utils/colleagueReviewStartConstants'
 export type {
+  ColleagueReviewMode,
   ColleagueReviewStartBody,
   ColleagueReviewStarted,
+  ReviewStartedDestination,
   ReviewBoxOffer,
   ReviewDraft,
   ReviewDraftFile,
@@ -3930,6 +3935,65 @@ export {
   watchColleagueReviewThread,
 } from './api/colleagueReviewSourceApi'
 export { ColleagueReviewSourceStore } from './hooks/colleagueReviewSourceStore'
+export { readColleagueReviewMerge, startColleagueReviewMerge } from './api/colleagueReviewMergeApi'
+export { ColleagueReviewMergeStore } from './hooks/colleagueReviewMergeStore'
+export {
+  colleagueReviewMergeStoreFor,
+  useColleagueReviewMerge,
+  type UseColleagueReviewMerge,
+} from './hooks/useColleagueReviewMerge'
+export {
+  reviewCardMerge,
+  reviewMergePullRequests,
+  reviewMergeStartBody,
+  reviewMergeView,
+} from './utils/colleagueReviewMerge'
+export {
+  REVIEW_MERGE_PR_VIEW,
+  REVIEW_MERGE_STATE_VIEW,
+  REVIEW_MERGE_TEXT,
+} from './utils/colleagueReviewMergeConstants'
+export type {
+  ReviewCardMerge,
+  ReviewMergeJob,
+  ReviewMergePullRequest,
+  ReviewMergePullRequestState,
+  ReviewMergeRowView,
+  ReviewMergeSnapshot,
+  ReviewMergeStart,
+  ReviewMergeView,
+  ReviewMergeViewInput,
+} from './utils/colleagueReviewMergeTypes'
+export {
+  colleagueReviewDecisionDraft,
+  inlineReviewDecisionActions,
+  isColleagueReviewDecisionGrant,
+  isProcessActionsGate,
+  reviewDecisionDecidedLine,
+  reviewDecisionMetadata,
+  reviewDecisionPullRequests,
+  reviewDecisionProblem,
+  reviewDecisionVerdict,
+  reviewGateAnswer,
+  reviewGateResumeBody,
+  runReviewDecisionActions,
+} from './utils/colleagueReviewDecision'
+export {
+  ASK_COLLEAGUE_REVIEW_DECISION_TOOL_NAME,
+  INLINE_REVIEW_DECISION_ACTIONS,
+  REVIEW_DECISION_APPROVE_AND_MERGE,
+  REVIEW_DECISION_KEEP_REVIEWING,
+  REVIEW_DECISION_LABELS,
+  REVIEW_DECISION_SEND_REPLY,
+  REVIEW_DECISION_STOP,
+  REVIEW_DECISION_TEXT,
+} from './utils/colleagueReviewDecisionConstants'
+export type {
+  ReviewDecisionAction,
+  ReviewDecisionArgs,
+  ReviewDecisionVerdict,
+  ReviewGateAnswer,
+} from './utils/colleagueReviewDecisionTypes'
 export {
   colleagueReviewSourceStoreFor,
   useColleagueReviewSource,

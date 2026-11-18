@@ -259,8 +259,14 @@ describe('reviewSettingsShown', () => {
         { skipTicketStatuses: ['Done', 'QA'] },
         { runChecksUnasked: true },
         { skipTicketStatuses: [] },
+        { defaultMode: 'process' },
       ]),
-    ).toEqual({ skipTicketStatuses: [], startReaction: 'eyes', runChecksUnasked: true })
+    ).toEqual({
+      skipTicketStatuses: [],
+      startReaction: 'eyes',
+      runChecksUnasked: true,
+      defaultMode: 'process',
+    })
   })
 
   it('drops a reaction cleared with an empty name', () => {
@@ -284,6 +290,13 @@ describe('reviewSettingsChangeNeeded', () => {
     expect(reviewSettingsChangeNeeded(settings, { skipTicketStatuses: ['Done', 'QA'] })).toBe(false)
     expect(reviewSettingsChangeNeeded(settings, { startReaction: 'eyes' })).toBe(false)
     expect(reviewSettingsChangeNeeded(settings, { runChecksUnasked: false })).toBe(false)
+    expect(reviewSettingsChangeNeeded(settings, { defaultMode: 'inline' })).toBe(false)
+    expect(
+      reviewSettingsChangeNeeded(
+        { ...settings, defaultMode: 'process' },
+        { defaultMode: 'process' },
+      ),
+    ).toBe(false)
     expect(reviewSettingsChangeNeeded(settings, {})).toBe(false)
     expect(reviewSettingsChangeNeeded(undefined, { skipTicketStatuses: [] })).toBe(false)
     expect(reviewSettingsChangeNeeded(undefined, { startReaction: '' })).toBe(false)
@@ -294,6 +307,7 @@ describe('reviewSettingsChangeNeeded', () => {
     expect(reviewSettingsChangeNeeded(settings, { skipTicketStatuses: ['Done'] })).toBe(true)
     expect(reviewSettingsChangeNeeded(settings, { startReaction: '' })).toBe(true)
     expect(reviewSettingsChangeNeeded(settings, { runChecksUnasked: true })).toBe(true)
+    expect(reviewSettingsChangeNeeded(settings, { defaultMode: 'process' })).toBe(true)
     expect(
       reviewSettingsChangeNeeded(settings, { startReaction: 'eyes', runChecksUnasked: true }),
     ).toBe(true)
@@ -310,13 +324,23 @@ describe('reviewSettingsView', () => {
       skipStatuses: 'Done',
       startReaction: 'eyes',
       runChecksUnasked: false,
+      defaultMode: 'inline',
     })
     expect(
       reviewSettingsView({
         ...NONE,
-        settings: { skipTicketStatuses: ['Done', 'Won’t do'], runChecksUnasked: true },
+        settings: {
+          skipTicketStatuses: ['Done', 'Won’t do'],
+          runChecksUnasked: true,
+          defaultMode: 'process',
+        },
       }),
-    ).toEqual({ skipStatuses: 'Done, Won’t do', startReaction: '', runChecksUnasked: true })
+    ).toEqual({
+      skipStatuses: 'Done, Won’t do',
+      startReaction: '',
+      runChecksUnasked: true,
+      defaultMode: 'process',
+    })
   })
 
   it('says why the reaction could not be added, on the last read', () => {
@@ -518,7 +542,12 @@ describe('slackReviewSettingsView', () => {
       redirectUrl: 'http://localhost:7001/api/v1/provider-connections/oauth/callback',
       thread: { kind: 'none' },
       canWatch: true,
-      settings: { skipStatuses: '', startReaction: '', runChecksUnasked: false },
+      settings: {
+        skipStatuses: '',
+        startReaction: '',
+        runChecksUnasked: false,
+        defaultMode: 'inline',
+      },
       loading: false,
     })
     expect(

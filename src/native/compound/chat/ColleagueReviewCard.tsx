@@ -16,11 +16,14 @@ import type {
   ReviewWaitingOnView,
 } from '../../../headless/utils/colleagueReviewCardTypes'
 import { REVIEW_POST_TEXT } from '../../../headless/utils/colleagueReviewSourceConstants'
+import { REVIEW_MERGE_TEXT } from '../../../headless/utils/colleagueReviewMergeConstants'
+import type { ReviewCardMerge } from '../../../headless/utils/colleagueReviewMergeTypes'
 import { ticketChipView } from '../../../headless/utils/groupTickets'
 import { ticketLinkOf } from '../../../headless/utils/ticketLinks'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { IconChevron, IconExternalLink } from '../../icons'
+import Alert from '../../primitives/Alert'
 import BottomSheet from '../../primitives/BottomSheet'
 import { Button } from '../../primitives/Button'
 import { Input } from '../../primitives/Input'
@@ -43,6 +46,12 @@ export type ColleagueReviewCardProps = {
   onPost?: (round: number, again: boolean, text?: string) => void
   /** Start with Post in thread's confirm open — for a fixed showcase state. */
   postConfirm?: boolean
+  /** Approve & merge on the latest round, and how it goes; without it, not offered. */
+  merge?: ReviewCardMerge
+  /** Approve the round's pull requests and merge them; `override` merges one that asked for changes. */
+  onApproveAndMerge?: (slackText: string, override: boolean) => void
+  /** Start with Approve & merge's confirm open — for a fixed showcase state. */
+  mergeConfirm?: boolean
   /** Start with this finding opened — for a fixed showcase state. */
   openFinding?: string
   /** Start with this note open — for a fixed showcase state. */
@@ -90,6 +99,9 @@ export default function ColleagueReviewCard({
   onGiven,
   onPost,
   postConfirm,
+  merge,
+  onApproveAndMerge,
+  mergeConfirm = false,
   openFinding,
   noteOpen,
   expanded = false,
@@ -131,6 +143,179 @@ export default function ColleagueReviewCard({
           <Earlier view={view} expanded={expanded} actions={actions} />
         </>
       )}
+      {merge ? (
+        <MergeSection
+          merge={merge}
+          {...(onApproveAndMerge ? { onStart: onApproveAndMerge } : {})}
+          confirmOpen={mergeConfirm}
+        />
+      ) : null}
+    </View>
+  )
+}
+
+/**
+ * Native peer of web's merge section: Approve & merge on the latest round,
+ * its confirm listing the pull requests in the order they merge and the Slack
+ * line, then each one's progress, live; a round that asked for changes is
+ * held with the backend's words and "Merge anyway".
+ */
+function MergeSection({
+  merge,
+  onStart,
+  confirmOpen,
+}: {
+  merge: ReviewCardMerge
+  onStart?: (slackText: string, override: boolean) => void
+  confirmOpen: boolean
+}) {
+  const { theme, status } = useNativeTheme()
+  const [confirming, setConfirming] = useState(confirmOpen)
+  const [slackText, setSlackText] = useState('')
+  const { view } = merge
+  const canStart =
+    onStart !== undefined && merge.prs.length > 0 && !merge.starting && !view?.running
+  const muted = { fontSize: 12, color: theme.text.secondary }
+  const slack = view?.slack
+  const slackLink = slack?.permalink
+  return (
+    <View
+      style={{
+        gap: 6,
+        borderTopWidth: 1,
+        borderTopColor: theme.border.subtle,
+        paddingTop: nativeSpace[2],
+      }}
+    >
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+        <Label>{REVIEW_MERGE_TEXT.heading}</Label>
+        {view ? <ToneBadge tone={view.tone} label={view.label} /> : null}
+        {onStart && merge.prs.length > 0 ? (
+          <Button
+            size="sm"
+            variant="secondary"
+            style={{ marginLeft: 'auto' }}
+            disabled={!canStart}
+            onPress={() => setConfirming(true)}
+          >
+            {REVIEW_MERGE_TEXT.button}
+          </Button>
+        ) : null}
+      </View>
+      {merge.refusal && onStart ? (
+        <View
+          style={{
+            gap: 6,
+            borderWidth: 1,
+            borderColor: status.working.softBorder,
+            backgroundColor: status.working.softBg,
+            borderRadius: nativeRadii[2],
+            padding: nativeSpace[2],
+          }}
+        >
+          <Text style={{ fontSize: 13, color: theme.text.primary }}>{merge.refusal}</Text>
+          <Button
+            size="sm"
+            variant="secondary"
+            style={{ alignSelf: 'flex-start' }}
+            onPress={() => onStart(slackText, true)}
+          >
+            {REVIEW_MERGE_TEXT.mergeAnyway}
+          </Button>
+        </View>
+      ) : null}
+      {merge.actionError ? <Alert>{merge.actionError}</Alert> : null}
+      {view
+        ? view.rows.map((row) => (
+            <View key={row.url} style={{ gap: 2 }}>
+              <View
+                style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}
+              >
+                <Pressable
+                  accessibilityRole="link"
+                  onPress={() => void Linking.openURL(row.url)}
+                  style={{ flexShrink: 1 }}
+                >
+                  <Text numberOfLines={1} style={{ fontSize: 13, color: theme.accent.primary }}>
+                    {row.name}
+                  </Text>
+                </Pressable>
+                <ToneBadge tone={row.tone} label={row.label} />
+              </View>
+              {row.detail ? (
+                <Text style={{ fontSize: 12, color: theme.text.muted }}>{row.detail}</Text>
+              ) : null}
+            </View>
+          ))
+        : null}
+      {view?.summary ? <Text style={muted}>{view.summary}</Text> : null}
+      {view?.error ? (
+        <Text style={{ fontSize: 12, color: status.stuck.softFg }}>{view.error}</Text>
+      ) : null}
+      {slack ? (
+        slackLink ? (
+          <Pressable
+            accessibilityRole="link"
+            onPress={() => void Linking.openURL(slackLink)}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' }}
+          >
+            <Text style={{ fontSize: 12, color: theme.accent.primary }}>{slack.line}</Text>
+            <IconExternalLink size={12} color={theme.accent.primary} />
+          </Pressable>
+        ) : (
+          <Text style={muted}>{slack.line}</Text>
+        )
+      ) : null}
+      {onStart ? (
+        <BottomSheet
+          isOpen={confirming}
+          onClose={() => setConfirming(false)}
+          title={REVIEW_MERGE_TEXT.confirmTitle}
+        >
+          <View style={{ gap: nativeSpace[3] }}>
+            <View style={{ gap: 4 }}>
+              <Text style={{ fontSize: 13, color: theme.text.secondary }}>
+                {REVIEW_MERGE_TEXT.confirmBody}
+              </Text>
+              {merge.prs.map((pr, at) => (
+                <Text key={pr.url} style={{ fontSize: 13, color: theme.text.primary }}>
+                  {`${at + 1}. ${pr.name}`}
+                </Text>
+              ))}
+            </View>
+            <View style={{ gap: 4 }}>
+              <Text style={{ fontSize: 14, fontWeight: '500', color: theme.text.primary }}>
+                {REVIEW_MERGE_TEXT.slackLine}
+              </Text>
+              <Textarea
+                value={slackText}
+                placeholder={REVIEW_MERGE_TEXT.slackPlaceholder}
+                onChangeText={setSlackText}
+                accessibilityLabel={REVIEW_MERGE_TEXT.slackLine}
+                rows={2}
+                style={{ fontSize: 13 }}
+              />
+              <Text style={{ fontSize: 12, color: theme.text.muted }}>
+                {REVIEW_MERGE_TEXT.slackHint}
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
+              <Button variant="secondary" onPress={() => setConfirming(false)}>
+                {REVIEW_MERGE_TEXT.cancel}
+              </Button>
+              <Button
+                variant="primary"
+                onPress={() => {
+                  setConfirming(false)
+                  onStart(slackText, false)
+                }}
+              >
+                {REVIEW_MERGE_TEXT.confirm}
+              </Button>
+            </View>
+          </View>
+        </BottomSheet>
+      ) : null}
     </View>
   )
 }
@@ -764,12 +949,13 @@ export function ColleagueReviewConnected({
   resultType,
   layout,
 }: ColleagueReviewConnectedProps) {
-  const { view, dropFinding, markGiven, postReply } = useColleagueReviewCall({
-    tool,
-    args,
-    result,
-    resultType,
-  })
+  const { view, dropFinding, markGiven, postReply, merge, approveAndMerge } =
+    useColleagueReviewCall({
+      tool,
+      args,
+      result,
+      resultType,
+    })
   return (
     <ColleagueReviewCard
       view={view}
@@ -777,6 +963,8 @@ export function ColleagueReviewConnected({
       onDrop={dropFinding}
       onGiven={markGiven}
       onPost={postReply}
+      {...(merge ? { merge } : {})}
+      onApproveAndMerge={approveAndMerge}
     />
   )
 }

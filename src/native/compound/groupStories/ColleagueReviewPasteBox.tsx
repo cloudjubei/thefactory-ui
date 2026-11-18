@@ -5,9 +5,11 @@ import { REVIEW_OFFER_TEXT } from '../../../headless/utils/colleagueReviewSource
 import { reviewBoxProblem, withReviewFiles } from '../../../headless/utils/colleagueReviewStart'
 import {
   COLLEAGUE_REVIEW_FILES_MAX,
+  COLLEAGUE_REVIEW_MODES,
   REVIEW_START_TEXT as TEXT,
 } from '../../../headless/utils/colleagueReviewStartConstants'
 import type {
+  ColleagueReviewMode,
   ReviewBoxOffer,
   ReviewDraft,
   ReviewPasteBox,
@@ -18,16 +20,31 @@ import { IconAttach, IconChat, IconClose, IconExternalLink } from '../../icons'
 import Alert from '../../primitives/Alert'
 import BottomSheet from '../../primitives/BottomSheet'
 import { Button } from '../../primitives/Button'
+import SegmentedControl from '../../primitives/SegmentedControl'
 import { Textarea } from '../../primitives/Textarea'
 
 export type ColleagueReviewPasteFormProps = {
   box: ReviewPasteBox
   onChange: (draft: ReviewDraft) => void
   onStart: () => void
+  /** How the round is reviewed: the person's pick, else the group's default. */
+  mode?: ColleagueReviewMode
+  /** Pick how the round is reviewed; without it the choice is not offered. */
+  onModeChange?: (mode: ColleagueReviewMode) => void
   /** The app's file picker; without it only the text goes. */
   pickFiles?: () => Promise<ChatAttachmentFile[]>
   /** When the update from Slack was posted is told against this — for a fixed showcase state. */
   now?: number
+}
+
+const MODE_LABELS: Record<ColleagueReviewMode, string> = {
+  inline: TEXT.modeInline,
+  process: TEXT.modeProcess,
+}
+
+const MODE_HINTS: Record<ColleagueReviewMode, string> = {
+  inline: TEXT.modeInlineHint,
+  process: TEXT.modeProcessHint,
 }
 
 /** Who sent the update from Slack and when, its message a press away. */
@@ -104,13 +121,16 @@ function SlackFiles({ files }: { files: readonly string[] }) {
  * Native peer of web's `ColleagueReviewPasteForm`: the colleague's update as
  * they wrote it, and the files that came with it, picked through the app's
  * own picker. Opened on an update from Slack, it starts filled with it,
- * editable, its own files listed as coming from Slack. Start is held until
- * there is something to review.
+ * editable, its own files listed as coming from Slack. The person picks
+ * whether it is reviewed in the chat or as a run. Start is held until there
+ * is something to review.
  */
 export function ColleagueReviewPasteForm({
   box,
   onChange,
   onStart,
+  mode = 'inline',
+  onModeChange,
   pickFiles,
   now = Date.now(),
 }: ColleagueReviewPasteFormProps) {
@@ -194,6 +214,26 @@ export function ColleagueReviewPasteForm({
       {box.error ? <Alert variant="error">{box.error}</Alert> : null}
       {problem && !reading && draft.text.trim() !== '' ? (
         <Text style={{ fontSize: 12, color: status.stuck.softFg }}>{problem}</Text>
+      ) : null}
+      {onModeChange ? (
+        <View style={{ gap: 4 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+            <Text style={{ fontSize: 12, fontWeight: '500', color: theme.text.primary }}>
+              {TEXT.mode}
+            </Text>
+            <SegmentedControl
+              size="sm"
+              ariaLabel={TEXT.mode}
+              value={mode}
+              onChange={(next) => onModeChange(next as ColleagueReviewMode)}
+              options={COLLEAGUE_REVIEW_MODES.map((value) => ({
+                value,
+                label: MODE_LABELS[value],
+              }))}
+            />
+          </View>
+          <Text style={{ fontSize: 12, color: theme.text.muted }}>{MODE_HINTS[mode]}</Text>
+        </View>
       ) : null}
       <Button variant="primary" disabled={problem !== undefined} onPress={onStart}>
         {box.nextRound ? TEXT.startNext : TEXT.start}

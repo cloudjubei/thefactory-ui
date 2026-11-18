@@ -101,6 +101,8 @@ import ProjectNoteChip from '../chips/ProjectNoteChip'
 import GitSetupApprovalPanel from './GitSetupApprovalPanel'
 import GroupWorkLaunchPanel from './GroupWorkLaunchPanel'
 import ProcessRunLaunchPanel from './ProcessRunLaunchPanel'
+import { ColleagueReviewDecisionPanel } from './ColleagueReviewDecisionCard'
+import { isColleagueReviewDecisionGrant } from '../../../headless/utils/colleagueReviewDecision'
 import ActivityStopApprovalPanel from './ActivityStopApprovalPanel'
 import GitChangeApprovalPanel from './GitChangeApprovalPanel'
 import RunProposalApprovalPanel from './RunProposalApprovalPanel'
@@ -176,6 +178,15 @@ const TIP = 'max-w-[300px] text-xs text-(--text-primary)'
  * needed. The only disable is the local one while THIS decision is in flight.
  */
 export default function ApprovalPanel(props: ApprovalPanelProps) {
+  if (isColleagueReviewDecisionGrant(props.grant)) {
+    return (
+      <ColleagueReviewDecisionPanel
+        grant={props.grant}
+        onDecideLater={props.onDecideLater}
+        {...(props.onDecided ? { onDecided: props.onDecided } : {})}
+      />
+    )
+  }
   // Putting a project on GitHub names an account, a repository and a
   // visibility the user must see and may change — it has its own card.
   if (isStartProcessRunGrant(props.grant)) {

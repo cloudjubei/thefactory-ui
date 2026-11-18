@@ -39,6 +39,8 @@ import { featureSplitResumeFields } from '../utils/processFeatureSplitView'
 import type { FeatureSplitDraft } from '../utils/processFeatureSplitViewTypes'
 import type { LaunchAgentPick } from '../utils/launchAgentPickTypes'
 import { runModelChangeBody } from '../utils/runModelChange'
+import { reviewGateResumeBody } from '../utils/colleagueReviewDecision'
+import type { ReviewGateAnswer } from '../utils/colleagueReviewDecisionTypes'
 
 /** A review branch a run tree owns — shown in the delete confirm's list. */
 export type ProcessRunBranch = { projectId: string; branch: string }
@@ -78,6 +80,12 @@ export type UseProcessRun = {
     retry?: ProcessRetryPick,
     files?: readonly string[],
   ) => Promise<boolean>
+  /**
+   * Answer the run's actions gate — only a person decides there: the action
+   * chosen with its edited text, sending it back with a note, or stopping.
+   * Resolves `false` when refused, the server's reason in `actionError`.
+   */
+  answerGate: (answer: ReviewGateAnswer) => Promise<boolean>
   /**
    * Upload a file to hand the run's waiting agent with an answer — kept with the
    * run's chat attachments — resolving the project path the answer names it by.
@@ -305,6 +313,26 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
             ...(processRetryUseCurrentDefinitions(retry) ? { useCurrentDefinitions: true } : {}),
             ...(files && files.length > 0 ? { files: [...files] } : {}),
           },
+          throwOnError: true,
+        })
+        setRun(data as ProcessRun)
+        return true
+      } catch (err) {
+        setActionError(extractErrorMessage(err, 'The run could not be answered.'))
+        return false
+      }
+    },
+    [runId, client, setRun],
+  )
+
+  const answerGate = useCallback(
+    async (answer: ReviewGateAnswer) => {
+      if (!runId) return false
+      setActionError(null)
+      try {
+        const { data } = await resumeProcessRun({
+          path: { runId },
+          body: { ...reviewGateResumeBody(answer), decidedVia: client },
           throwOnError: true,
         })
         setRun(data as ProcessRun)
@@ -651,6 +679,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       run,
       refresh,
       resume,
+      answerGate,
       uploadAnswerFile,
       loadAnswerProjectFiles,
       changeProof,
@@ -679,6 +708,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       run,
       refresh,
       resume,
+      answerGate,
       uploadAnswerFile,
       loadAnswerProjectFiles,
       changeProof,

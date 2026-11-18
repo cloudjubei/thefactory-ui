@@ -1,10 +1,13 @@
 import { useState, type ReactNode } from 'react'
 import {
+  COLLEAGUE_REVIEW_MODES,
+  REVIEW_START_TEXT,
   SLACK_SETTINGS_DEFAULT_LAYOUT,
   SLACK_SETTINGS_TEXT as TEXT,
   slackClientIdProblem,
   slackWatchLinkProblem,
   useGroupSlackSettings,
+  type ColleagueReviewMode,
   type ReviewSettingsView,
   type SlackReviewSettingsState,
   type SlackSettingsLayout,
@@ -14,6 +17,7 @@ import { Button } from '../../primitives/Button'
 import Field from '../../primitives/Field'
 import { Input } from '../../primitives/Input'
 import { ConfirmDialog } from '../../primitives/Modal'
+import SegmentedControl from '../../primitives/SegmentedControl'
 import { Switch } from '../../primitives/Switch'
 import ToneBadge from '../chips/ToneBadge'
 import { CopyButton } from '../CopyButton'
@@ -35,6 +39,8 @@ export type SlackReviewSettingsActions = {
   /** The emoji added once a review starts; empty adds none. */
   onStartReaction: (text: string) => void
   onRunChecksUnasked: (on: boolean) => void
+  /** How rounds start unless the person picks otherwise. */
+  onDefaultMode: (mode: ColleagueReviewMode) => void
 }
 
 export type SlackReviewSettingsPanelProps = SlackReviewSettingsActions & {
@@ -439,6 +445,26 @@ function SettingsPart({
 }) {
   return (
     <div className="flex min-w-0 flex-col gap-3">
+      <div className="flex min-w-0 flex-col gap-1">
+        <span className="text-sm font-medium">{TEXT.startReviews}</span>
+        <SegmentedControl
+          size="sm"
+          className="self-start"
+          ariaLabel={TEXT.startReviews}
+          value={settings.defaultMode}
+          onChange={(next) => actions.onDefaultMode(next as ColleagueReviewMode)}
+          options={COLLEAGUE_REVIEW_MODES.map((value) => ({
+            value,
+            label:
+              value === 'process' ? REVIEW_START_TEXT.modeProcess : REVIEW_START_TEXT.modeInline,
+          }))}
+        />
+        <span className="text-xs opacity-60">
+          {settings.defaultMode === 'process'
+            ? REVIEW_START_TEXT.modeProcessHint
+            : REVIEW_START_TEXT.modeInlineHint}
+        </span>
+      </div>
       <SavedField
         label={TEXT.skipStatuses}
         hint={TEXT.skipStatusesHint}
@@ -546,6 +572,7 @@ export default function GroupSlackSettings({ groupId, layout }: GroupSlackSettin
       onSkipStatuses={slack.setSkipStatuses}
       onStartReaction={slack.setStartReaction}
       onRunChecksUnasked={slack.setRunChecksUnasked}
+      onDefaultMode={slack.setDefaultMode}
     />
   )
 }

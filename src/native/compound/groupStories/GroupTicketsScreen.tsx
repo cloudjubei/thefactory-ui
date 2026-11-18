@@ -1,6 +1,6 @@
 import { ScrollView } from 'react-native'
 
-import { useGroupTickets } from '../../../headless'
+import { reviewStartedDestination, useGroupTickets } from '../../../headless'
 import type { ChatContext } from '../../../headless/api'
 import type { ChatAttachmentFile } from '../../../headless/api/chatAttachmentUploadTypes'
 import ColleagueReviewPasteBox from './ColleagueReviewPasteBox'
@@ -12,6 +12,8 @@ export type GroupTicketsScreenProps = {
   /** Open a ticket's chat once it has started — its review chat too. */
   onOpenChat: (context: ChatContext) => void
   onOpenSettings: () => void
+  /** Open the run a round started as a run is reviewed in; without it the review chat opens. */
+  onOpenRun?: (runId: string) => void
   /** The app's file picker, for a review's screenshots and files; without it only the text goes. */
   pickFiles?: () => Promise<ChatAttachmentFile[]>
 }
@@ -22,6 +24,7 @@ export function GroupTicketsScreen({
   onOpenStory,
   onOpenChat,
   onOpenSettings,
+  onOpenRun,
   pickFiles,
 }: GroupTicketsScreenProps) {
   const {
@@ -37,6 +40,8 @@ export function GroupTicketsScreen({
     dismissOffer,
     closeReview,
     editReview,
+    reviewMode,
+    setReviewMode,
     startReview,
   } = useGroupTickets(groupId)
   const open = (going: Promise<{ context: ChatContext } | undefined>) => {
@@ -65,7 +70,16 @@ export function GroupTicketsScreen({
         <ColleagueReviewPasteBox
           box={reviewBox}
           onChange={editReview}
-          onStart={() => open(startReview())}
+          mode={reviewMode}
+          onModeChange={setReviewMode}
+          onStart={() =>
+            void startReview().then((started) => {
+              if (!started) return
+              const to = reviewStartedDestination(started)
+              if (to.kind === 'run' && onOpenRun) onOpenRun(to.runId)
+              else onOpenChat(started.context)
+            })
+          }
           onClose={closeReview}
           {...(pickFiles ? { pickFiles } : {})}
         />

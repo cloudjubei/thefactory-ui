@@ -210,6 +210,9 @@ import { getChatContextKey } from 'thefactory-tools/utils'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import WaitingDelegated from './WaitingDelegated'
 import { isProcessPublishGate, processPublicationView } from '../../../headless'
+import { isProcessActionsGate } from '../../../headless/utils/colleagueReviewDecision'
+import type { ReviewGateAnswer } from '../../../headless/utils/colleagueReviewDecisionTypes'
+import { RunReviewDecisionCard } from '../chat/ColleagueReviewDecisionCard'
 import PublicationChip from './PublicationChip'
 import RunMergeProgress from './RunMergeProgress'
 import RunPublishCard from './RunPublishCard'
@@ -753,6 +756,7 @@ export default function ProcessPipeline({
                   void stopActions.resume(choice, note, integration, requestedProof, retry, files)
                 }
                 onAnswer={(choice) => stopActions.resume(choice)}
+                onAnswerGate={stopActions.answerGate}
                 onChangeProof={(draft) => void stopActions.changeProof(draft)}
                 onSplitFollowUp={(draft) => void stopActions.splitFollowUp(draft)}
                 onAnswerRequest={(actionId, choice) =>
@@ -1668,6 +1672,7 @@ function ParkBlock({
   onOpenTranscript,
   onDrill,
   onAnswer,
+  onAnswerGate,
 }: {
   run: ProcessRun
   /** The manager's card when it handed this stop over: its word on it and the answers it prepared. */
@@ -1704,6 +1709,8 @@ function ParkBlock({
   onDrill: (childRunId: string) => void
   /** Answer the stop with one choice, resolving `false` when refused — the publish card's Publish and Stop. */
   onAnswer?: (choice: ProcessResumeChoice) => Promise<boolean>
+  /** Answer a colleague review run's actions gate from its decision card; only a person decides there. */
+  onAnswerGate?: (answer: ReviewGateAnswer) => Promise<boolean>
 }) {
   const { theme, status } = useNativeTheme()
   const [noteFor, setNoteFor] = useState<ProcessResumeChoice | undefined>()
@@ -1741,6 +1748,9 @@ function ParkBlock({
         onAnswer={onAnswer}
       />
     )
+  }
+  if (onAnswerGate && !managerLine && run.ticketReview && isProcessActionsGate(run)) {
+    return <RunReviewDecisionCard run={run} embedded={embedded} onAnswer={onAnswerGate} />
   }
   const waiting = processWaitingView(run)
   if (waiting) {

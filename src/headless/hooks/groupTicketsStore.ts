@@ -11,6 +11,7 @@ import { REVIEW_OFFER_TEXT } from '../utils/colleagueReviewSourceConstants'
 import type { TicketReviewOffer } from '../utils/colleagueReviewSourceTypes'
 import { REVIEW_START_TEXT } from '../utils/colleagueReviewStartConstants'
 import type {
+  ColleagueReviewMode,
   ReviewBoxOffer,
   ReviewDraft,
   ReviewDraftFile,
@@ -356,13 +357,15 @@ export class GroupTicketsStore {
    * beside any chat opening; a ticket already starting one answers `undefined`.
    * A failure hands the draft back, every file that went up keeping its path.
    * Started from an update from Slack, the update leaves its ticket at once,
-   * and comes back when the round does not start.
+   * and comes back when the round does not start. `mode` says how the round
+   * is reviewed; the group's default when left out.
    */
   review = async (
     ticketKey: string,
     draft: ReviewDraft,
     upload: ReviewFileUpload,
     offer?: ReviewBoxOffer,
+    mode?: ColleagueReviewMode,
   ): Promise<ReviewStartOutcome | undefined> => {
     if (this._state.reviewing[ticketKey]) return undefined
     const shown = this._offerOn(ticketKey)
@@ -400,6 +403,7 @@ export class GroupTicketsStore {
         reviewStartBody(
           { ticketKey, nextRound: false, draft, ...(offer ? { offer } : {}) },
           attachments,
+          mode,
         ),
       )
       if (onTicket) this._settledBy(onTicket.id)

@@ -97,6 +97,7 @@ export const SLACK_SETTINGS_TEXT = {
   watchFailed: 'That link is not watched.',
   clearFailed: 'It is still watched.',
   settingsStep: 'Review settings',
+  startReviews: 'Start reviews',
   skipStatuses: 'Skip tickets in these statuses',
   skipStatusesHint: 'Status names, comma-separated.',
   skipStatusesPlaceholder: 'Done, Won’t do',
