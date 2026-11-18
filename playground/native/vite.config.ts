@@ -7,6 +7,7 @@ const here = fileURLToPath(new URL('.', import.meta.url))
 const stub = (name: string) => `${here}stubs/${name}`
 const src = (path: string) => fileURLToPath(new URL(`../../src/${path}`, import.meta.url))
 const reactNativeWeb = createRequire(import.meta.url).resolve('react-native-web')
+const port = Number(process.env.PORT) || 5175
 
 /**
  * The native components in a browser, on react-native-web: `npm run playground:native:dev`. What
@@ -31,6 +32,6 @@ export default defineConfig({
     ],
   },
   server: { port: 5175 },
-  preview: { port: 5175, strictPort: true },
+  preview: { port, strictPort: true },
   build: { outDir: 'dist', emptyOutDir: true, chunkSizeWarningLimit: 20_000 },
 })
