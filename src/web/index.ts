@@ -1154,7 +1154,11 @@ export { default as ReferenceRenderingProvider } from './compound/ReferenceRende
 // App-view surface (iframe) + template picker for the from-template
 // wizard. Headless data + scheduling live in `useProjectAppView` and
 // `TemplatesContext` respectively.
-export { default as ProjectAppView, type ProjectAppViewProps } from './compound/ProjectAppView'
+export {
+  default as ProjectAppView,
+  type ProjectAppViewProps,
+  type ProjectAppViewHandle,
+} from './compound/ProjectAppView'
 export {
   default as AppWorkStartDialog,
   type AppWorkStartDialogProps,

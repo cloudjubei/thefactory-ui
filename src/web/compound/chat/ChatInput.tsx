@@ -38,11 +38,14 @@ import ChatVideoAttachment from './ChatVideoAttachment'
 import { useChatDropTarget } from './ChatDropController'
 import VideoAttachmentCard from './VideoAttachmentCard'
 
+import AppSelectionChips from './AppSelectionChips'
+import type { AppSelection, AppSelectionComposerProps } from '../../../headless/utils/appSelections'
+
 type SendReason = 'user' | 'suggested_action'
 
 export type ChatInputAttachment = string
 
-export type ChatInputProps = {
+export type ChatInputProps = AppSelectionComposerProps & {
   value: string
   attachments?: ChatInputAttachment[]
   onChange: (val: string) => void
@@ -56,7 +59,7 @@ export type ChatInputProps = {
   onSend: (
     message: string,
     attachments: ChatInputAttachment[],
-    meta?: { reason?: SendReason },
+    meta?: { reason?: SendReason; appSelections?: AppSelection[] },
   ) => void | Promise<void>
   onAbort?: () => void
   isThinking?: boolean
@@ -120,6 +123,9 @@ const MAX_INPUT_HEIGHT_PX = 250
 
 export default function ChatInput({
   value,
+  appSelections = [],
+  onChangeAppSelections,
+  onShowApp,
   attachments,
   onChange,
   onChangeAttachments,
@@ -156,6 +162,10 @@ export default function ChatInput({
   const holdingForUpload = isChatUploading(uploads)
 
   const [flashBlocked, setFlashBlocked] = useState(false)
+  const [submittingSelection, setSubmittingSelection] = useState(false)
+  const selectionSendingRef = useRef(false)
+  const draftRef = useRef({ value: safeValue, attachments: safeAttachments, appSelections })
+  draftRef.current = { value: safeValue, attachments: safeAttachments, appSelections }
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const chatInputRef = useRef<HTMLDivElement>(null)
@@ -407,18 +417,52 @@ export default function ChatInput({
   const clearInput = () => {
     onChange('')
     onChangeAttachments?.([])
+    onChangeAppSelections?.([])
     onSelectionChange?.({ selectionStart: 0, selectionEnd: 0 })
   }
 
-  const handleSend = () => {
-    if (isThinking && !queueWhileThinking) {
+  const handleSend = async () => {
+    if (isThinking && (!queueWhileThinking || appSelections.length > 0)) {
       triggerBlockedFlash()
       return
     }
     if (holdingForUpload) return
-    if (!safeValue.trim() && safeAttachments.length === 0) return
-    void onSend(safeValue, safeAttachments, { reason: 'user' })
-    if (clearOnSend) clearInput()
+    if (
+      !isConfigured ||
+      (!safeValue.trim() && safeAttachments.length === 0 && appSelections.length === 0)
+    )
+      return
+    if (selectionSendingRef.current) return
+    if (appSelections.length) {
+      selectionSendingRef.current = true
+      setSubmittingSelection(true)
+      try {
+        await onSend(safeValue, safeAttachments, { reason: 'user', appSelections })
+        if (clearOnSend) {
+          // Picks stay editable during the send. Only consume the unchanged submitted objects.
+          const current = draftRef.current
+          onChangeAppSelections?.(
+            current.appSelections.filter((pick) => !appSelections.includes(pick)),
+          )
+          if (current.value === safeValue) {
+            onChange('')
+            onSelectionChange?.({ selectionStart: 0, selectionEnd: 0 })
+          }
+          onChangeAttachments?.(
+            current.attachments.filter((path) => !safeAttachments.includes(path)),
+          )
+        }
+      } catch {
+        // Keep selections and comments available for retry; the host reports the send error.
+        return
+      } finally {
+        selectionSendingRef.current = false
+        setSubmittingSelection(false)
+      }
+    } else {
+      void onSend(safeValue, safeAttachments, { reason: 'user' })
+      if (clearOnSend) clearInput()
+    }
     requestAnimationFrame(() => {
       textareaRef.current?.focus()
       requestAutosize()
@@ -427,7 +471,10 @@ export default function ChatInput({
 
   const handleSuggested = (action: string) => {
     if (isThinking || !isConfigured) return
-    void onSend(action, [], { reason: 'suggested_action' })
+    void onSend(action, [], {
+      reason: 'suggested_action',
+      ...(appSelections.length ? { appSelections } : {}),
+    })
     if (clearOnSuggestedAction) clearInput()
     requestAnimationFrame(() => {
       textareaRef.current?.focus()
@@ -517,7 +564,11 @@ export default function ChatInput({
   )
 
   const canSend =
-    (safeValue.trim().length > 0 || safeAttachments.length > 0) && isConfigured && !holdingForUpload
+    (safeValue.trim().length > 0 || safeAttachments.length > 0 || appSelections.length > 0) &&
+    isConfigured &&
+    !holdingForUpload &&
+    !submittingSelection &&
+    !(isThinking && appSelections.length > 0)
   const failedUploads = uploads.filter((upload) => upload.status === 'failed')
   const runningUploads = uploads.filter((upload) => upload.status === 'uploading')
 
@@ -565,7 +616,11 @@ export default function ChatInput({
   )
 
   const showSuggestedActions =
-    !isThinking && isConfigured && Array.isArray(suggestedActions) && suggestedActions.length > 0
+    !isThinking &&
+    isConfigured &&
+    appSelections.length === 0 &&
+    Array.isArray(suggestedActions) &&
+    suggestedActions.length > 0
 
   return (
     <div
@@ -596,6 +651,13 @@ export default function ChatInput({
         </div>
       ) : null}
 
+      {onShowApp || appSelections.length ? (
+        <AppSelectionChips
+          appSelections={appSelections}
+          onChangeAppSelections={onChangeAppSelections}
+          onShowApp={onShowApp}
+        />
+      ) : null}
       <form onSubmit={handleFormSubmit} className="p-2">
         <div className="flex gap-2">
           <div

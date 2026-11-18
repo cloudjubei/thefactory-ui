@@ -85,6 +85,7 @@ import { REVIEW_GAP_VIEWS } from './reviewGapViews'
 import { TICKET_VIEWS } from './ticketViews'
 import { TRY_ON_PHONE_VIEWS } from './tryOnPhoneViews'
 import { VARIANT_VIEWS } from './variantViews'
+import { APP_SELECTION_VIEWS } from './appSelectionsViews'
 import { ALREADY_HANDLED_VIEWS } from './alreadyHandledViews'
 import { CHAT_MESSAGING_VIEWS } from './chatMessagingViews'
 
@@ -668,5 +669,6 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   ...SLACK_REVIEW_VIEWS,
   ...REVIEW_GAP_VIEWS,
   ...ALREADY_HANDLED_VIEWS,
+  ...APP_SELECTION_VIEWS,
   ...CHAT_MESSAGING_VIEWS,
 ]

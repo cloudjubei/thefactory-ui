@@ -1,4 +1,14 @@
-import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react'
+import {
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  type CSSProperties,
+  type ReactNode,
+  type Ref,
+} from 'react'
+import { AppCaptureRequests, type ProjectAppViewHandle } from '../../headless/utils/appCapture'
+import { useLiveAppCapture } from '../../headless/hooks/useLiveAppCapture'
+export type { ProjectAppViewHandle } from '../../headless/utils/appCapture'
 import {
   bridgeMessageName,
   buildBridgeResponse,
@@ -6,6 +16,8 @@ import {
   parseBridgeMessage,
   type BridgeRequest,
 } from '../../headless/utils/appBridge'
+import { useAppElementPicker } from '../../headless/hooks/useAppElementPicker'
+import type { AppElementPick } from '../../headless/utils/appSelections'
 import { NAV_CHANGED_MESSAGE } from '../../headless/utils/appBridgeConstants'
 import type { AppPushChannel } from '../../headless/utils/appPushChannel'
 import {
@@ -16,6 +28,13 @@ import {
 } from '../../headless/utils/appDeepLink'
 
 export type ProjectAppViewProps = {
+  ref?: Ref<ProjectAppViewHandle>
+  /** Controlled by the launching chat. Picks are structured context, never rendered HTML. */
+  pickMode?: boolean
+  onElementPick?: (pick: AppElementPick) => void
+  onExitPickMode?: () => void
+  /** Enable WS live capture for this mounted project's App. */
+  projectId?: string
   /** Absolute URL to the project's App view (with the signed `viewToken`). `undefined` while loading. */
   url: string | undefined
   /** Bump to force a remount of the underlying iframe — typically the `key` returned by `useProjectAppView`. */
@@ -57,6 +76,11 @@ export type ProjectAppViewProps = {
 
 /** Web peer for the App-view surface: the project's files in a sandboxed iframe + the App↔Overseer bridge. */
 export default function ProjectAppView({
+  ref,
+  pickMode = false,
+  onElementPick,
+  onExitPickMode,
+  projectId,
   url,
   remountKey = 0,
   fallback,
@@ -76,6 +100,27 @@ export default function ProjectAppView({
   navChangedRef.current = onNavChanged
 
   const expectedOrigin = url ? safeOrigin(url) : null
+  const picker = useAppElementPicker({
+    active: !!url && pickMode,
+    mountKey: `${url}:${remountKey}`,
+    onPick: onElementPick,
+    send: (message) => {
+      if (expectedOrigin) iframeRef.current?.contentWindow?.postMessage(message, expectedOrigin)
+    },
+  })
+  const pickerRef = useRef(picker)
+  pickerRef.current = picker
+  const captureRef = useRef<AppCaptureRequests | null>(null)
+  if (!captureRef.current)
+    captureRef.current = new AppCaptureRequests((request) => {
+      const frame = iframeRef.current
+      const origin = frame?.src ? safeOrigin(frame.src) : null
+      if (!frame?.contentWindow || !origin) throw new Error('No App view is mounted.')
+      frame.contentWindow.postMessage(request, origin)
+    })
+  useImperativeHandle(ref, () => captureRef.current!, [])
+  useLiveAppCapture(url ? projectId : undefined, captureRef)
+  useEffect(() => () => captureRef.current?.cancel(), [url, remountKey])
 
   // Host→app deep-link PUSH: when the route's deep-link changes while the iframe stays mounted, notify the
   // running app via `nav.open`. A (re)mount resets the baseline and does NOT push (the app pulls nav.current
@@ -108,8 +153,10 @@ export default function ProjectAppView({
       const iframe = iframeRef.current
       if (!iframe || event.source !== iframe.contentWindow) return
       if (event.origin !== expectedOrigin) return
+      if (captureRef.current?.receive(event.data)) return
       const req = parseBridgeMessage(event.data)
       if (!req) return
+      if (pickerRef.current.receive(req.type, req.payload)) return
       const onNav = navChangedRef.current
       if (onNav && bridgeMessageName(req.type) === NAV_CHANGED_MESSAGE) {
         const reported = parseAppDeepLink(req.payload)
@@ -166,11 +213,28 @@ export default function ProjectAppView({
         ref={iframeRef}
         key={remountKey}
         src={url}
+        onLoad={() => {
+          captureRef.current?.cancel()
+          picker.sync()
+        }}
         sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads"
         style={{ border: 0, width: '100%', height: '100%' }}
         title={title}
       />
       {overlay}
+      {pickMode ? (
+        <div
+          className="absolute left-3 top-2 z-20 flex max-w-[90%] items-center gap-3 rounded-md border border-(--accent-primary) bg-(--surface-raised) p-2 text-sm text-(--text-primary)"
+          role="status"
+        >
+          <span>Pick elements to comment in your chat</span>
+          {onExitPickMode ? (
+            <button type="button" onClick={onExitPickMode} className="text-(--accent-primary)">
+              Done picking
+            </button>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   )
 }

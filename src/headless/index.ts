@@ -2937,6 +2937,10 @@ export {
 // (no context) because the surface is per-project; bundling it into
 // `ProjectsContext` would couple the catalog to a per-project transport.
 export { useProjectAppView, type UseProjectAppView } from './hooks/useProjectAppView'
+export { useLiveAppCapture } from './hooks/useLiveAppCapture'
+export type { ProjectAppViewHandle } from './utils/appCapture'
+export { useAppSelections, parseAppElementPick } from './utils/appSelections'
+export type { AppSelection, AppElementPick, AppSelectionComposerProps } from './utils/appSelections'
 export { useProjectData, type UseProjectData } from './hooks/useProjectData'
 
 // Per-project encrypted store of standing context (logins, API keys,

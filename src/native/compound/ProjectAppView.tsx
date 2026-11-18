@@ -1,4 +1,7 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useImperativeHandle, useRef, type ReactNode, type Ref } from 'react'
+import { AppCaptureRequests, type ProjectAppViewHandle } from '../../headless/utils/appCapture'
+import { useLiveAppCapture } from '../../headless/hooks/useLiveAppCapture'
+export type { ProjectAppViewHandle } from '../../headless/utils/appCapture'
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
 import { WebView, type WebViewMessageEvent } from 'react-native-webview'
 import {
@@ -8,6 +11,10 @@ import {
   parseBridgeMessage,
   type BridgeRequest,
 } from '../../headless/utils/appBridge'
+import { useAppElementPicker } from '../../headless/hooks/useAppElementPicker'
+import type { AppElementPick } from '../../headless/utils/appSelections'
+import { Text, Pressable } from 'react-native'
+import { useNativeTheme } from '../hooks/useNativeTheme'
 import { NAV_CHANGED_MESSAGE } from '../../headless/utils/appBridgeConstants'
 import type { AppPushChannel } from '../../headless/utils/appPushChannel'
 import {
@@ -18,6 +25,13 @@ import {
 } from '../../headless/utils/appDeepLink'
 
 export type ProjectAppViewProps = {
+  ref?: Ref<ProjectAppViewHandle>
+  /** Controlled by the launching chat. Picks are structured context, never rendered HTML. */
+  pickMode?: boolean
+  onElementPick?: (pick: AppElementPick) => void
+  onExitPickMode?: () => void
+  /** Enable WS live capture for this mounted project's App. */
+  projectId?: string
   /** Absolute URL to the project's App view (with the signed `viewToken`). `undefined` while loading. */
   url: string | undefined
   /** Bump to force a remount of the underlying WebView — typically the `key` returned by `useProjectAppView`. */
@@ -58,6 +72,11 @@ export type ProjectAppViewProps = {
 // `thefactory-ui/native/ProjectAppView` subpath (not the barrel) because the
 // `react-native-webview` hard import pulls in a native module.
 export default function ProjectAppView({
+  ref,
+  pickMode = false,
+  onElementPick,
+  onExitPickMode,
+  projectId,
   url,
   remountKey = 0,
   fallback,
@@ -69,6 +88,22 @@ export default function ProjectAppView({
   style,
 }: ProjectAppViewProps) {
   const webviewRef = useRef<WebView | null>(null)
+  const { theme } = useNativeTheme()
+  const picker = useAppElementPicker({
+    active: !!url && pickMode,
+    mountKey: `${url}:${remountKey}`,
+    onPick: onElementPick,
+    send: (message) => deliver(webviewRef.current, message),
+  })
+  const captureRef = useRef<AppCaptureRequests | null>(null)
+  if (!captureRef.current)
+    captureRef.current = new AppCaptureRequests((request) => {
+      if (!webviewRef.current) throw new Error('No App view is mounted.')
+      deliver(webviewRef.current, request)
+    })
+  useImperativeHandle(ref, () => captureRef.current!, [])
+  useLiveAppCapture(url ? projectId : undefined, captureRef)
+  useEffect(() => () => captureRef.current?.cancel(), [url, remountKey])
 
   // Host→app deep-link PUSH (mirror of web ProjectAppView) — see shouldPushDeepLink. Emits via the existing
   // `deliver` (injects a MessageEvent), so no new native plumbing.
@@ -93,8 +128,10 @@ export default function ProjectAppView({
   }, [pushes, url])
 
   const handleMessage = async (event: WebViewMessageEvent) => {
+    if (captureRef.current?.receive(event.nativeEvent.data)) return
     const req = parseBridgeMessage(event.nativeEvent.data)
     if (!req) return
+    if (picker.receive(req.type, req.payload)) return
     if (onNavChanged && bridgeMessageName(req.type) === NAV_CHANGED_MESSAGE) {
       const reported = parseAppDeepLink(req.payload)
       if (reported) {
@@ -143,7 +180,9 @@ export default function ProjectAppView({
         source={{ uri: url }}
         originWhitelist={['*']}
         javaScriptEnabled
-        onMessage={onBridgeMessage || onNavChanged ? handleMessage : undefined}
+        onMessage={handleMessage}
+        onLoadStart={() => captureRef.current?.cancel()}
+        onLoadEnd={() => picker.sync()}
         // Match the fixed-page feel of the web/desktop iframe: no rubber-band
         // overscroll, which would otherwise reveal the WebView backing behind the
         // app's own background.
@@ -152,6 +191,31 @@ export default function ProjectAppView({
         style={styles.fill}
       />
       {overlay}
+      {pickMode ? (
+        <View
+          style={{
+            position: 'absolute',
+            left: 8,
+            right: 8,
+            top: 8,
+            padding: 12,
+            gap: 8,
+            borderRadius: 8,
+            backgroundColor: theme.surface.raised,
+            borderWidth: 1,
+            borderColor: theme.accent.primary,
+          }}
+        >
+          <Text accessibilityRole="text" style={{ color: theme.text.primary }}>
+            Pick elements to comment in your chat
+          </Text>
+          {onExitPickMode ? (
+            <Pressable accessibilityRole="button" onPress={onExitPickMode}>
+              <Text style={{ color: theme.accent.primary }}>Done picking</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
     </View>
   )
 }

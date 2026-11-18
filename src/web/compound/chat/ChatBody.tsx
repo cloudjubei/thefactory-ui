@@ -140,7 +140,11 @@ export type ChatBodyProps = {
   renderProcessGroupRun?: (groupRunId: string) => ReactNode
 
   // Send / abort / confirm — wired to the host's ChatsContext.
-  onSend: (content: string, attachments?: string[]) => Promise<void> | void
+  onSend: (
+    content: string,
+    attachments?: string[],
+    meta?: Parameters<ChatInputProps['onSend']>[2],
+  ) => Promise<void> | void
   onAbort?: () => Promise<void> | void
   /**
    * Whether a turn is still running, according to the SERVER. `liveState.isSending`
@@ -657,10 +661,10 @@ function ChatBodyInner({
               <ChatInput
                 value={inputValue}
                 onChange={onInputChange}
-                onSend={(content, attachments) =>
-                  busy && pendingQueue
+                onSend={(content, attachments, meta) =>
+                  busy && pendingQueue && !meta?.appSelections?.length
                     ? pendingQueue.enqueue({ text: content, attachments })
-                    : onSend(content, attachments)
+                    : onSend(content, attachments, meta)
                 }
                 onAbort={
                   onAbort

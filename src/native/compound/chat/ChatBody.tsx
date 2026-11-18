@@ -152,7 +152,11 @@ export interface ChatBodyProps {
    *  a `MessageUsageSheet` with the full breakdown. */
   onShowUsage?: (msg: ChatMessageLike) => void
 
-  onSend: (content: string, attachments?: string[]) => Promise<void> | void
+  onSend: (
+    content: string,
+    attachments?: string[],
+    meta?: Parameters<ChatInputProps['onSend']>[2],
+  ) => Promise<void> | void
   onAbort?: () => Promise<void> | void
   /**
    * Whether a turn is still running, according to the SERVER. `liveState.isSending`
@@ -396,12 +400,12 @@ function ChatBodyInner({
     blockers: composerBlockers,
   })
 
-  const handleSend: ChatInputProps['onSend'] = async (text, attachments) => {
-    if (busy && pendingQueue) {
+  const handleSend: ChatInputProps['onSend'] = async (text, attachments, meta) => {
+    if (busy && pendingQueue && !meta?.appSelections?.length) {
       pendingQueue.enqueue({ text, attachments })
       return
     }
-    await onSend(text, attachments)
+    await onSend(text, attachments, meta)
   }
   const handleAbort = onAbort
     ? () => {

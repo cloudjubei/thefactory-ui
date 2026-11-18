@@ -32,11 +32,14 @@ import type { NativeAttachmentImages } from './chatNativeTypes'
 import { COMPOSER_IMAGE_THUMB_SIZE } from './sentImageAttachmentConstants'
 import VideoAttachmentCard from './VideoAttachmentCard'
 
+import AppSelectionChips from './AppSelectionChips'
+import type { AppSelection, AppSelectionComposerProps } from '../../../headless/utils/appSelections'
+
 type SendReason = 'user' | 'suggested_action'
 
 export type ChatInputAttachment = string
 
-export interface ChatInputProps {
+export interface ChatInputProps extends AppSelectionComposerProps {
   value: string
   attachments?: ChatInputAttachment[]
   onChange: (val: string) => void
@@ -45,7 +48,7 @@ export interface ChatInputProps {
   onSend: (
     message: string,
     attachments: ChatInputAttachment[],
-    meta?: { reason?: SendReason },
+    meta?: { reason?: SendReason; appSelections?: AppSelection[] },
   ) => void | Promise<void>
   onAbort?: () => void
   isThinking?: boolean
@@ -97,6 +100,9 @@ export interface ChatInputProps {
 
 export default function ChatInput({
   value,
+  appSelections = [],
+  onChangeAppSelections,
+  onShowApp,
   attachments = [],
   onChange,
   onChangeAttachments,
@@ -126,6 +132,8 @@ export default function ChatInput({
   const { theme } = useNativeTheme()
   const inputRef = useRef<FileMentionsTextareaHandle>(null)
   const [submitting, setSubmitting] = useState(false)
+  const draftRef = useRef({ value, attachments, appSelections })
+  draftRef.current = { value, attachments, appSelections }
   const uploads = useChatUploads(attachmentUploads)
   const holdingForUpload = isChatUploading(uploads)
 
@@ -195,8 +203,8 @@ export default function ChatInput({
     if (autoFocus) inputRef.current?.focus()
   }, [autoFocus])
 
-  const hasContent = value.trim().length > 0 || attachments.length > 0
-  const thinkingBlocks = isThinking && !queueWhileThinking
+  const hasContent = value.trim().length > 0 || attachments.length > 0 || appSelections.length > 0
+  const thinkingBlocks = isThinking && (!queueWhileThinking || appSelections.length > 0)
   const canSend = useMemo(
     () =>
       hasContent &&
@@ -211,19 +219,28 @@ export default function ChatInput({
   const send = useCallback(
     async (text: string, meta?: { reason?: SendReason }) => {
       if (
-        (!text.trim() && attachments.length === 0) ||
+        (!text.trim() && attachments.length === 0 && appSelections.length === 0) ||
         thinkingBlocks ||
         submitting ||
         !isConfigured ||
+        disconnected ||
         holdingForUpload
       )
         return
       setSubmitting(true)
       try {
-        await onSend(text.trim(), attachments, meta)
+        await onSend(text.trim(), attachments, {
+          ...meta,
+          ...(appSelections.length ? { appSelections } : {}),
+        })
         if (clearOnSend) {
-          onChange('')
-          onChangeAttachments?.([])
+          // Picks stay editable during the send. Only consume the unchanged submitted objects.
+          const current = draftRef.current
+          if (current.value === value) onChange('')
+          onChangeAttachments?.(current.attachments.filter((path) => !attachments.includes(path)))
+          onChangeAppSelections?.(
+            current.appSelections.filter((pick) => !appSelections.includes(pick)),
+          )
         }
       } finally {
         setSubmitting(false)
@@ -231,6 +248,10 @@ export default function ChatInput({
     },
     [
       onSend,
+      value,
+      appSelections,
+      onChangeAppSelections,
+      disconnected,
       attachments,
       onChange,
       onChangeAttachments,
@@ -311,6 +332,13 @@ export default function ChatInput({
           paddingBottom: nativeSpace[5],
         }}
       >
+        {onShowApp || appSelections.length ? (
+          <AppSelectionChips
+            appSelections={appSelections}
+            onChangeAppSelections={onChangeAppSelections}
+            onShowApp={onShowApp}
+          />
+        ) : null}
         {failedUploads.map((upload) => (
           <FailedUpload
             key={upload.id}
@@ -343,36 +371,40 @@ export default function ChatInput({
           </ScrollView>
         )}
 
-        {suggestedActions && suggestedActions.length > 0 && !isThinking && isConfigured && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ gap: nativeSpace[2] }}
-          >
-            {suggestedActions.map((sa, i) => (
-              <Pressable
-                key={`sa-${i}`}
-                accessibilityRole="button"
-                accessibilityLabel={sa}
-                onPress={() => onSuggestion(sa)}
-                disabled={isThinking}
-                style={({ pressed }) => ({
-                  paddingHorizontal: nativeSpace[5],
-                  paddingVertical: nativeSpace[3],
-                  borderRadius: nativeRadii.round,
-                  backgroundColor: pressed ? theme.surface.muted : theme.surface.overlay,
-                  borderWidth: 1,
-                  borderColor: theme.border.subtle,
-                  opacity: isThinking ? 0.6 : 1,
-                })}
-              >
-                <Text numberOfLines={1} style={{ fontSize: 13, color: theme.text.primary }}>
-                  {sa}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        )}
+        {suggestedActions &&
+          suggestedActions.length > 0 &&
+          !isThinking &&
+          isConfigured &&
+          appSelections.length === 0 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: nativeSpace[2] }}
+            >
+              {suggestedActions.map((sa, i) => (
+                <Pressable
+                  key={`sa-${i}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={sa}
+                  onPress={() => onSuggestion(sa)}
+                  disabled={isThinking}
+                  style={({ pressed }) => ({
+                    paddingHorizontal: nativeSpace[5],
+                    paddingVertical: nativeSpace[3],
+                    borderRadius: nativeRadii.round,
+                    backgroundColor: pressed ? theme.surface.muted : theme.surface.overlay,
+                    borderWidth: 1,
+                    borderColor: theme.border.subtle,
+                    opacity: isThinking ? 0.6 : 1,
+                  })}
+                >
+                  <Text numberOfLines={1} style={{ fontSize: 13, color: theme.text.primary }}>
+                    {sa}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
 
         <View
           style={{
