@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react'
 import type { AppDeepLink } from './appDeepLink'
 
-import type { ChatAppSelection as AppSelection } from 'thefactory-tools/types'
+import type { ChatAppSelection as AppSelection } from '../api/generated'
 /** Structured context passed unchanged to the host's chat send API. */
-export type { ChatAppSelection as AppSelection } from 'thefactory-tools/types'
+export type { ChatAppSelection as AppSelection } from '../api/generated'
 
 export type AppElementPick = Pick<AppSelection, 'selector' | 'outerHtml'> & {
   rect?: { x: number; y: number; width: number; height: number }
