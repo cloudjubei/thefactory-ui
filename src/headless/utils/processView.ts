@@ -310,6 +310,7 @@ export const PROCESS_KIND_BLURB: Record<ProcessStepKind, string> = {
     'A script drives the served product, asking a model for an answer only where it needs one. An agent steps in only to get past a snag.',
   cleanup:
     'Any process can end with it: after you approve its sign-off, removes what is on the run’s cleanup list — hand-over notes, captures, temporary files — once the work is merged. No agent.',
+  action: 'The host carries out the action you chose and the step ends with its outcome. No agent.',
 }
 
 /**

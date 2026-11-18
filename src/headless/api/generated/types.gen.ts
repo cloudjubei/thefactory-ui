@@ -2233,6 +2233,8 @@ export type VerificationApproachId =
 
 export type ProjectPlatform = 'android' | 'ios' | 'web' | 'unknown'
 
+export type ProofData = 'fake-data' | 'live'
+
 export type ProjectPlatformInput = {
   language?: string
   framework?: string
@@ -2245,6 +2247,7 @@ export type ProjectPlatformInput = {
   mobileFakeData?: string
   mobileFakeDataIos?: string
   mobileCaptureProblem?: string
+  proofData?: 'fake-data' | 'live'
   changedPaths?: Array<string>
 }
 
@@ -2267,6 +2270,7 @@ export type ProjectAppDeclaration = {
   hasApp?: unknown
   appDir?: unknown
   isUiApp?: unknown
+  processProofData?: unknown
 }
 
 export type ProjectPlatformSource = {
@@ -2278,6 +2282,7 @@ export type ProjectPlatformSource = {
     hasApp?: unknown
     appDir?: unknown
     isUiApp?: unknown
+    processProofData?: unknown
   }
 }
 
@@ -4554,7 +4559,7 @@ export type ProjectSpec = ProjectRegistryEntry & ProjectConfig
 
 export type Status = 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
 
-export type FeatureSetup = 'fake-data'
+export type FeatureSetup = 'fake-data' | 'dev-simulation'
 
 export type FeatureQuestionKind = 'question' | 'blocker'
 
@@ -4601,7 +4606,7 @@ export type Feature = {
   plan?: string
   kind?: 'design' | 'code'
   followUp?: 'code-review'
-  setup?: 'fake-data'
+  setup?: 'fake-data' | 'dev-simulation'
   acceptance?: string
   proofPlan?: {
     kinds: Array<
@@ -4766,7 +4771,7 @@ export type ChatContextArguments = {
     plan?: string
     kind?: 'design' | 'code'
     followUp?: 'code-review'
-    setup?: 'fake-data'
+    setup?: 'fake-data' | 'dev-simulation'
     acceptance?: string
     proofPlan?: {
       kinds: Array<
@@ -4998,7 +5003,7 @@ export type ChatContextArgumentsFeature = {
     plan?: string
     kind?: 'design' | 'code'
     followUp?: 'code-review'
-    setup?: 'fake-data'
+    setup?: 'fake-data' | 'dev-simulation'
     acceptance?: string
     proofPlan?: {
       kinds: Array<
@@ -5114,7 +5119,7 @@ export type ChatContextArgumentsAgentRunFeature = {
     plan?: string
     kind?: 'design' | 'code'
     followUp?: 'code-review'
-    setup?: 'fake-data'
+    setup?: 'fake-data' | 'dev-simulation'
     acceptance?: string
     proofPlan?: {
       kinds: Array<
@@ -7876,6 +7881,12 @@ export type ReviewPostedReply = {
   postedAt: string
 }
 
+export type ReviewMergedMessage = {
+  permalink: string
+  ts: string
+  postedAt: string
+}
+
 export type ReviewRound = {
   n: number
   startedAt: string
@@ -7890,6 +7901,11 @@ export type ReviewRound = {
     permalink: string
     ts: string
     text?: string
+    postedAt: string
+  }
+  mergedMessage?: {
+    permalink: string
+    ts: string
     postedAt: string
   }
 }
@@ -8018,6 +8034,14 @@ export type MarkColleagueReviewReplyPostedInput = {
   text?: string
 }
 
+export type MarkColleagueReviewMergedMessagePostedInput = {
+  groupId: string
+  ticketKey: string
+  round: number
+  permalink: string
+  ts: string
+}
+
 export type ListColleagueReviewsInput = {
   groupId: string
 }
@@ -8092,7 +8116,10 @@ export type ColleagueReviewBriefToolNames = {
   video?: string
   thread?: Array<string>
   postReply?: string
+  askPerson?: string
 }
+
+export type ColleagueReviewDecidedIn = 'chat' | 'run'
 
 export type ColleagueReviewBriefInput = {
   ticket: {
@@ -8103,7 +8130,10 @@ export type ColleagueReviewBriefInput = {
   review: ColleagueReview
   tools: ColleagueReviewBriefToolNames
   replyTemplate?: string
+  decidedIn?: 'chat' | 'run'
 }
+
+export type ColleagueReviewMode = 'inline' | 'process'
 
 export type ParseReviewSubmissionOptions = {
   attachments?: Array<string>
@@ -8176,6 +8206,7 @@ export type ColleagueReviewSourceState = {
   skipTicketStatuses?: Array<string>
   startReaction?: string
   runChecksUnasked?: boolean
+  defaultMode?: 'inline' | 'process'
   updatedAt: string
 }
 
@@ -8183,6 +8214,7 @@ export type ColleagueReviewSourceSettings = {
   skipTicketStatuses: Array<string>
   startReaction?: string
   runChecksUnasked?: boolean
+  defaultMode?: 'inline' | 'process'
 }
 
 export type SetColleagueReviewSettingsInput = {
@@ -8190,6 +8222,7 @@ export type SetColleagueReviewSettingsInput = {
   skipTicketStatuses?: Array<string>
   startReaction?: string
   runChecksUnasked?: boolean
+  defaultMode?: 'inline' | 'process'
 }
 
 export type ColleagueReviewSettingsSet = {
@@ -8283,6 +8316,7 @@ export type ColleagueReviewSourceRead = {
   skipTicketStatuses?: Array<string>
   startReaction?: string
   runChecksUnasked?: boolean
+  defaultMode?: 'inline' | 'process'
 }
 
 export type ColleagueReviewOffersRecorded = {
@@ -13638,6 +13672,7 @@ export type LiveCheckProjectFacts = {
     mobileFakeData?: string
     mobileFakeDataIos?: string
     mobileCaptureProblem?: string
+    proofData?: 'fake-data' | 'live'
     changedPaths?: Array<string>
   }
   accounts: TestAccountsSummary
@@ -16179,6 +16214,12 @@ export type ProcessManagerAnsweredBefore = {
   }>
 }
 
+export type ProcessTicketReviewSubject = {
+  groupId: string
+  ticketKey: string
+  round: number
+}
+
 export type ProcessInputRef = {
   project?: string
   role?: string
@@ -16469,8 +16510,9 @@ export type ProcessStepKind =
   | 'process'
   | 'cleanup'
   | 'script'
+  | 'action'
 
-export type ProcessGateKind = 'design' | 'live-check' | 'publish'
+export type ProcessGateKind = 'design' | 'live-check' | 'publish' | 'actions'
 
 export type ProcessInputExpansion = {
   input: string
@@ -16492,6 +16534,14 @@ export type ProcessScriptStepConfig = {
   memory?: string
 }
 
+export type ProcessGateAction = {
+  id: string
+  label: string
+  detail: string
+  primary?: true
+  editsText?: true
+}
+
 export type ProcessStep = {
   id: string
   name: string
@@ -16506,7 +16556,7 @@ export type ProcessStep = {
   agentType?: string
   restrictNoteReads?: boolean
   slot?: 'implementer' | 'verifier'
-  gateKind?: 'design' | 'live-check' | 'publish'
+  gateKind?: 'design' | 'live-check' | 'publish' | 'actions'
   liveCheck?: {
     mode: LiveCheckMode
     beforeAndAfter?: boolean
@@ -16536,6 +16586,9 @@ export type ProcessStep = {
   }
   documents?: Array<string>
   documentSection?: Array<string>
+  inChat?: true
+  gateActions?: Array<ProcessGateAction>
+  actionOf?: string
 }
 
 export type ProcessSubject = {
@@ -16558,6 +16611,7 @@ export type ProcessPlanStep = {
     | 'process'
     | 'cleanup'
     | 'script'
+    | 'action'
   route?: {
     subject: string
     phase: 'before' | 'after'
@@ -16568,7 +16622,7 @@ export type ProcessPlanStep = {
   agentType?: string
   restrictNoteReads?: boolean
   slot?: 'implementer' | 'verifier'
-  gateKind?: 'design' | 'live-check' | 'publish'
+  gateKind?: 'design' | 'live-check' | 'publish' | 'actions'
   liveCheck?: {
     mode: LiveCheckMode
     beforeAndAfter?: boolean
@@ -16598,6 +16652,9 @@ export type ProcessPlanStep = {
   }
   documents?: Array<string>
   documentSection?: Array<string>
+  inChat?: true
+  gateActions?: Array<ProcessGateAction>
+  actionOf?: string
   sourceStepId?: string
   boundProcessId?: string
   processBoundAtLaunch?: boolean
@@ -17153,6 +17210,11 @@ export type ProcessHostDecision = {
 
 export type ProcessDecidedVia = ProcessPersonDecisionVia | 'tool' | 'manager'
 
+export type ProcessGateActionAnswer = {
+  id: string
+  text?: string
+}
+
 export type ProcessEntryOverride = {
   definitionChoice?: 'frozen' | 'current'
   definitions?: {
@@ -17226,6 +17288,10 @@ export type ProcessEntryOverride = {
   toolName?: string
   chatContextId?: string
   shownEvidenceIds?: Array<string>
+  gateAction?: {
+    id: string
+    text?: string
+  }
 }
 
 export type ProcessPark = {
@@ -17418,6 +17484,10 @@ export type ProcessResumeOptions = {
   }
   saveProofPlan?: boolean
   files?: Array<string>
+  gateAction?: {
+    id: string
+    text?: string
+  }
 }
 
 export type ProcessRunRevival = {
@@ -17493,6 +17563,14 @@ export type ProcessAcceptedUnchecked = {
   at: number
   decidedBy?: 'person' | 'agent' | 'manager'
   note?: string
+}
+
+export type ProcessActionOutcome = {
+  id: string
+  ok: boolean
+  summary: string
+  link?: string
+  at: number
 }
 
 export type ReviewEvidenceObservedBefore = {
@@ -17836,12 +17914,23 @@ export type ProcessLedgerEntry = {
     toolName?: string
     chatContextId?: string
     shownEvidenceIds?: Array<string>
+    gateAction?: {
+      id: string
+      text?: string
+    }
   }
   unmetRequest?: string
   acceptedUnchecked?: Array<ProcessAcceptedUnchecked>
   cleanup?: {
     outcomes: Array<ProcessCleanupOutcome>
     keptIds: Array<string>
+  }
+  action?: {
+    id: string
+    ok: boolean
+    summary: string
+    link?: string
+    at: number
   }
   proof?: {
     baseSha?: string
@@ -18246,6 +18335,11 @@ export type ProcessRun = {
   featureId?: string
   withdrawnFeatureIds?: Array<string>
   chatContextId?: string
+  ticketReview?: {
+    groupId: string
+    ticketKey: string
+    round: number
+  }
   parentRunId?: string
   parentStepId?: string
   groupRunId?: string
@@ -20655,6 +20749,30 @@ export type ProjectsGroupUpdate = {
   groups: ProjectsGroups
 }
 
+export type DevSimulationFeature = {
+  title: string
+  description: string
+} & {
+  acceptance?: string
+  setup?: 'fake-data' | 'dev-simulation'
+  followUp?: 'code-review'
+}
+
+export type DevSimulationState = {
+  feature: string
+  text: string
+}
+
+export type DevSimulationNeedInput = {
+  project:
+    | {
+        proofData?: 'fake-data' | 'live'
+      }
+    | unknown
+  features: Array<DevSimulationFeature>
+  storyHoldsSimulation: boolean
+}
+
 export type UiChangeSignal = 'files' | 'words'
 
 export type FakeDataSetupFeature = {
@@ -20668,7 +20786,7 @@ export type FakeDataSetupFeature = {
   }
   uiSignal?: 'files' | 'words'
   paths?: Array<string>
-  setup?: 'fake-data'
+  setup?: 'fake-data' | 'dev-simulation'
 }
 
 export type UiChangeScope = {
@@ -20699,7 +20817,7 @@ export type FeatureCreateInput = {
   plan?: string
   kind?: 'design' | 'code'
   followUp?: 'code-review'
-  setup?: 'fake-data'
+  setup?: 'fake-data' | 'dev-simulation'
   acceptance?: string
   proofPlan?: {
     kinds: Array<
@@ -24055,12 +24173,28 @@ export type ReportSettledItem = {
   summary: string
 }
 
+export type RecordingScriptStep = {
+  action: string
+  expect: string
+  covers: Array<string>
+  simulation?: string
+}
+
+export type RecordingScript = {
+  open: string
+  steps: Array<RecordingScriptStep>
+}
+
 export type ReportSections = {
   outcome: ReportOutcomeSection
   howProven: Array<ReportProofLine>
   decisions: Array<string>
   needsYou: Array<string>
   settled?: Array<ReportSettledItem>
+  recordingScript?: {
+    open: string
+    steps: Array<RecordingScriptStep>
+  }
 }
 
 export type LoomWalkthroughItemFields = {
@@ -24148,6 +24282,10 @@ export type ReviewEvidenceRef = {
     decisions: Array<string>
     needsYou: Array<string>
     settled?: Array<ReportSettledItem>
+    recordingScript?: {
+      open: string
+      steps: Array<RecordingScriptStep>
+    }
   }
   walkthroughItem?: {
     title: string
@@ -27304,6 +27442,10 @@ export type RecordReviewEvidenceInput = {
     decisions: Array<string>
     needsYou: Array<string>
     settled?: Array<ReportSettledItem>
+    recordingScript?: {
+      open: string
+      steps: Array<RecordingScriptStep>
+    }
   }
   walkthroughItem?: {
     title: string
@@ -27844,6 +27986,10 @@ export type ScriptEvidence = {
     decisions: Array<string>
     needsYou: Array<string>
     settled?: Array<ReportSettledItem>
+    recordingScript?: {
+      open: string
+      steps: Array<RecordingScriptStep>
+    }
   }
   walkthroughItem?: {
     title: string
@@ -27912,6 +28058,39 @@ export type LoomWalkthroughResultInput = {
   url?: string
   sourcePath?: string
   name?: string
+}
+
+export type RecordingScriptPoint = {
+  key: string
+  feature: string
+  acceptance: string
+}
+
+export type ScriptFeature = {
+  title: string
+} & {
+  description?: string
+  acceptance?: string
+  setup?: 'fake-data' | 'dev-simulation'
+  followUp?: 'code-review'
+  status?: 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
+  proofPlan?: {
+    kinds: Array<
+      | 'unit-tests'
+      | 'checks'
+      | 'code-review'
+      | 'ui-before-after'
+      | 'ui-video'
+      | 'live-backend'
+      | 'live-check'
+      | 'manual'
+    >
+    notes?: string
+    liveCheck?: {
+      mode: 'required' | 'ask-me'
+      beforeAndAfter?: boolean
+    }
+  }
 }
 
 export type ResolvedSignOffOutput = {
@@ -28116,7 +28295,7 @@ export type FeatureEditInput = {
   plan?: string
   kind?: 'design' | 'code'
   followUp?: 'code-review'
-  setup?: 'fake-data'
+  setup?: 'fake-data' | 'dev-simulation'
   acceptance?: string
   proofPlan?: {
     kinds: Array<
@@ -32015,6 +32194,7 @@ export type ProcessStepExitKind =
   | 'nested-run'
   | 'cleanup'
   | 'script-exit'
+  | 'action-result'
 
 export type ProcessStepKindMeta = {
   tools:
@@ -32049,6 +32229,7 @@ export type ProcessStepKindMeta = {
     | 'nested-run'
     | 'cleanup'
     | 'script-exit'
+    | 'action-result'
   exitLabel: string
 }
 
@@ -32076,6 +32257,7 @@ export type ProcessStepToolsAndExit = {
     | 'nested-run'
     | 'cleanup'
     | 'script-exit'
+    | 'action-result'
   exitLabel: string
 }
 
@@ -32451,6 +32633,10 @@ export type ProcessRunChatState = {
     decisions: Array<string>
     needsYou: Array<string>
     settled?: Array<ReportSettledItem>
+    recordingScript?: {
+      open: string
+      steps: Array<RecordingScriptStep>
+    }
   }
   codeReview?: {
     verdict: CodeReviewVerdictSection
@@ -32492,6 +32678,11 @@ export type ProcessRunChatState = {
     featureId?: string
     withdrawnFeatureIds?: Array<string>
     chatContextId?: string
+    ticketReview?: {
+      groupId: string
+      ticketKey: string
+      round: number
+    }
     parentRunId?: string
     parentStepId?: string
     groupRunId?: string
@@ -33429,6 +33620,11 @@ export type ProcessRunSummary = {
   featureId?: string
   withdrawnFeatureIds?: Array<string>
   chatContextId?: string
+  ticketReview?: {
+    groupId: string
+    ticketKey: string
+    round: number
+  }
   parentRunId?: string
   parentStepId?: string
   groupRunId?: string
@@ -34031,6 +34227,13 @@ export type ProcessWaitingAnswer = {
 
 export type ProcessStepResult = {
   outcome: ProcessStepOutcome
+  action?: {
+    id: string
+    ok: boolean
+    summary: string
+    link?: string
+    at: number
+  }
   needsYouResolutions?: Array<ProcessNeedsYouResolution>
   requiredOutputFiled?: boolean
   summary?: string
@@ -34268,6 +34471,11 @@ export type StartProcessRunInput = {
     }
   }
   chatContextId?: string
+  ticketReview?: {
+    groupId: string
+    ticketKey: string
+    round: number
+  }
   context?: {
     features?: Array<ProcessSubject>
     featureProcessId?: string
@@ -34509,12 +34717,23 @@ export type ProcessStepState = {
       toolName?: string
       chatContextId?: string
       shownEvidenceIds?: Array<string>
+      gateAction?: {
+        id: string
+        text?: string
+      }
     }
     unmetRequest?: string
     acceptedUnchecked?: Array<ProcessAcceptedUnchecked>
     cleanup?: {
       outcomes: Array<ProcessCleanupOutcome>
       keptIds: Array<string>
+    }
+    action?: {
+      id: string
+      ok: boolean
+      summary: string
+      link?: string
+      at: number
     }
     proof?: {
       baseSha?: string
@@ -34843,6 +35062,13 @@ export type ProcessParkChoice = {
     headline: string
   }
   noteRequired?: true
+  action?: {
+    id: string
+    label: string
+    detail: string
+    primary?: true
+    editsText?: true
+  }
 }
 
 export type ProcessSettledQuestion = {
@@ -39212,10 +39438,28 @@ export type GetProcessCapabilitiesResponses = {
    */
   200: {
     kinds: Array<
-      'agent' | 'check' | 'capture' | 'judge' | 'report' | 'gate' | 'process' | 'cleanup' | 'script'
+      | 'agent'
+      | 'check'
+      | 'capture'
+      | 'judge'
+      | 'report'
+      | 'gate'
+      | 'process'
+      | 'cleanup'
+      | 'script'
+      | 'action'
     >
     implemented: Array<
-      'agent' | 'check' | 'capture' | 'judge' | 'report' | 'gate' | 'process' | 'cleanup' | 'script'
+      | 'agent'
+      | 'check'
+      | 'capture'
+      | 'judge'
+      | 'report'
+      | 'gate'
+      | 'process'
+      | 'cleanup'
+      | 'script'
+      | 'action'
     >
   }
 }
@@ -39316,6 +39560,7 @@ export type PreviewProcessResponses = {
         | 'process'
         | 'cleanup'
         | 'script'
+        | 'action'
       description?: string
       agent: boolean
       agentType?: string
@@ -39753,6 +39998,7 @@ export type PreviewProcessRunResponses = {
           | 'process'
           | 'cleanup'
           | 'script'
+          | 'action'
         description?: string
         agent: boolean
         agentType?: string
@@ -61962,6 +62208,223 @@ export type MarkColleagueReviewWaitingGivenResponses = {
 
 export type MarkColleagueReviewWaitingGivenResponse =
   MarkColleagueReviewWaitingGivenResponses[keyof MarkColleagueReviewWaitingGivenResponses]
+
+export type GetColleagueReviewMergeData = {
+  body?: never
+  path: {
+    groupId: string
+    ticketKey: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/tickets/{ticketKey}/review/approve-and-merge'
+}
+
+export type GetColleagueReviewMergeErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type GetColleagueReviewMergeError =
+  GetColleagueReviewMergeErrors[keyof GetColleagueReviewMergeErrors]
+
+export type GetColleagueReviewMergeResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    jobId: string
+    groupId: string
+    ticketKey: string
+    /**
+     * The round whose pull requests are merged.
+     */
+    round: number
+    state: 'running' | 'merged' | 'failed'
+    startedAt: string
+    finishedAt?: string
+    /**
+     * In the order they are merged: the backend’s first.
+     */
+    pullRequests: Array<{
+      url: string
+      /**
+       * `queued` waits its turn; `skipped` was not merged because one before it failed or the job stopped.
+       */
+      state:
+        | 'queued'
+        | 'waiting-for-checks'
+        | 'marking-viewed'
+        | 'approving'
+        | 'merging'
+        | 'merged'
+        | 'failed'
+        | 'skipped'
+      /**
+       * Why it stands there: the checks waited on, GitHub’s words.
+       */
+      detail?: string
+    }>
+    /**
+     * Once finished: what merged, or where it stopped and why.
+     */
+    summary?: string
+    slack?: {
+      posted: boolean
+      /**
+       * The message: posted now, or by an earlier attempt for the round.
+       */
+      permalink?: string
+      /**
+       * Why it was not posted though it was owed.
+       */
+      error?: string
+      /**
+       * Why nothing was posted when nothing was owed: no merged message, or posted already.
+       */
+      detail?: string
+    }
+    /**
+     * Why it stopped when no one pull request is to blame.
+     */
+    error?: string
+  }
+}
+
+export type GetColleagueReviewMergeResponse =
+  GetColleagueReviewMergeResponses[keyof GetColleagueReviewMergeResponses]
+
+export type ApproveAndMergeColleagueReviewData = {
+  body: {
+    /**
+     * The round whose pull requests are merged; the latest when left out.
+     */
+    round?: number
+    /**
+     * Posted in the update’s Slack thread once every pull request merged, instead of the group’s ‘Review merged message’ note.
+     */
+    slackText?: string
+    /**
+     * Merge even though the round asked for changes.
+     */
+    override?: boolean
+  }
+  path: {
+    groupId: string
+    ticketKey: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/tickets/{ticketKey}/review/approve-and-merge'
+}
+
+export type ApproveAndMergeColleagueReviewErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type ApproveAndMergeColleagueReviewError =
+  ApproveAndMergeColleagueReviewErrors[keyof ApproveAndMergeColleagueReviewErrors]
+
+export type ApproveAndMergeColleagueReviewResponses = {
+  /**
+   * Default Response
+   */
+  202: {
+    jobId: string
+    groupId: string
+    ticketKey: string
+    /**
+     * The round whose pull requests are merged.
+     */
+    round: number
+    state: 'running' | 'merged' | 'failed'
+    startedAt: string
+    finishedAt?: string
+    /**
+     * In the order they are merged: the backend’s first.
+     */
+    pullRequests: Array<{
+      url: string
+      /**
+       * `queued` waits its turn; `skipped` was not merged because one before it failed or the job stopped.
+       */
+      state:
+        | 'queued'
+        | 'waiting-for-checks'
+        | 'marking-viewed'
+        | 'approving'
+        | 'merging'
+        | 'merged'
+        | 'failed'
+        | 'skipped'
+      /**
+       * Why it stands there: the checks waited on, GitHub’s words.
+       */
+      detail?: string
+    }>
+    /**
+     * Once finished: what merged, or where it stopped and why.
+     */
+    summary?: string
+    slack?: {
+      posted: boolean
+      /**
+       * The message: posted now, or by an earlier attempt for the round.
+       */
+      permalink?: string
+      /**
+       * Why it was not posted though it was owed.
+       */
+      error?: string
+      /**
+       * Why nothing was posted when nothing was owed: no merged message, or posted already.
+       */
+      detail?: string
+    }
+    /**
+     * Why it stopped when no one pull request is to blame.
+     */
+    error?: string
+  }
+}
+
+export type ApproveAndMergeColleagueReviewResponse =
+  ApproveAndMergeColleagueReviewResponses[keyof ApproveAndMergeColleagueReviewResponses]
 
 export type ClearColleagueReviewSourceData = {
   body?: never

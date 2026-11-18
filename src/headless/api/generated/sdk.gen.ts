@@ -57,6 +57,9 @@ import type {
   ApplyDesignTidyPlanData,
   ApplyDesignTidyPlanErrors,
   ApplyDesignTidyPlanResponses,
+  ApproveAndMergeColleagueReviewData,
+  ApproveAndMergeColleagueReviewErrors,
+  ApproveAndMergeColleagueReviewResponses,
   ApproveCliRunReviewData,
   ApproveCliRunReviewErrors,
   ApproveCliRunReviewResponses,
@@ -440,6 +443,9 @@ import type {
   GetCodeIntelOutlineResponses,
   GetColleagueReviewData,
   GetColleagueReviewErrors,
+  GetColleagueReviewMergeData,
+  GetColleagueReviewMergeErrors,
+  GetColleagueReviewMergeResponses,
   GetColleagueReviewResponses,
   GetColleagueReviewSourceData,
   GetColleagueReviewSourceErrors,
@@ -8654,6 +8660,44 @@ export const markColleagueReviewWaitingGiven = <ThrowOnError extends boolean = f
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/groups/{groupId}/tickets/{ticketKey}/review/waiting-on/{waitingOnId}/given',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * The ticket’s latest approve-and-merge as it stands: each pull request’s step (`queued`, `waiting-for-checks`, `marking-viewed`, `approving`, `merging`, `merged`, `failed`, `skipped`) and why, the job’s state, and once every pull request merged what became of the Slack message. Every change is announced as `colleagueReviews:updated`. 404 when none ran since the server started.
+ */
+export const getColleagueReviewMerge = <ThrowOnError extends boolean = false>(
+  options: Options<GetColleagueReviewMergeData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetColleagueReviewMergeResponses,
+    GetColleagueReviewMergeErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/tickets/{ticketKey}/review/approve-and-merge',
+    ...options,
+  })
+
+/**
+ * The person approves the review: the round’s pull requests (the latest round’s unless `round`) are approved and merged as the person, in the background, the way the group’s owner does by hand — the backend’s first (a repository ending `-be` or naming `backend`), the rest once it merged: for each, wait for its checks to pass (read every 30 s, failed after 60 min), mark every changed file viewed, approve it (an approval the person gave stands), and merge it the repository’s default way, its branch left. Any failure stops the rest and says why; a pull request merged already counts as merged. Then the group’s ‘Review merged message’ note (or `slackText`) is posted in the update’s Slack thread, once per round. Answers 202 with the job at once — the running one while one runs; read it with the GET. 404 when the review or round is not there; 409 when the round lists no pull requests, or asked for changes (send `override: true` to merge anyway).
+ */
+export const approveAndMergeColleagueReview = <ThrowOnError extends boolean = false>(
+  options: Options<ApproveAndMergeColleagueReviewData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    ApproveAndMergeColleagueReviewResponses,
+    ApproveAndMergeColleagueReviewErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/tickets/{ticketKey}/review/approve-and-merge',
     ...options,
     headers: {
       'Content-Type': 'application/json',
