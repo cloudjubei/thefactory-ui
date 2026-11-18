@@ -10,7 +10,7 @@ import {
   slackMessageLink,
   slackOAuthRedirectUrl,
   slackReviewSettingsView,
-  slackThreadLinkProblem,
+  slackWatchLinkProblem,
   waitingReviewOffers,
 } from './colleagueReviewSource'
 import type {
@@ -97,26 +97,34 @@ describe('slackMessageLink', () => {
   })
 })
 
-describe('slackThreadLinkProblem', () => {
+describe('slackWatchLinkProblem', () => {
   it('takes a Slack message link, a reply’s too', () => {
-    expect(slackThreadLinkProblem(THREAD)).toBeUndefined()
-    expect(slackThreadLinkProblem(`  ${THREAD}?thread_ts=1763380000.123456&cid=C07  `)).toBe(
+    expect(slackWatchLinkProblem(THREAD)).toBeUndefined()
+    expect(slackWatchLinkProblem(`  ${THREAD}?thread_ts=1763380000.123456&cid=C07  `)).toBe(
       undefined,
     )
     expect(
-      slackThreadLinkProblem('https://acme.enterprise.slack.com/archives/C1/p1763380000123456'),
+      slackWatchLinkProblem('https://acme.enterprise.slack.com/archives/C1/p1763380000123456'),
     ).toBeUndefined()
+  })
+
+  it('takes a Slack channel link, to watch the whole channel', () => {
+    expect(slackWatchLinkProblem('https://compass-zenor.slack.com/archives/C0C5MSUNC1L')).toBe(
+      undefined,
+    )
+    expect(slackWatchLinkProblem(' https://acme.slack.com/archives/C07REVIEWS/ ')).toBeUndefined()
   })
 
   it('says why anything else is not one', () => {
     for (const text of [
       '',
-      'https://acme.slack.com/archives/C07REVIEWS',
+      'https://acme.slack.com/archives',
+      'https://acme.slack.com/archives/C1/x17',
       'https://example.com/archives/C1/p1763380000123456',
       'http://acme.slack.com/archives/C1/p1763380000123456',
-      'https://slack.com.evil.io/archives/C1/p1763380000123456',
+      'https://slack.com.evil.io/archives/C1',
     ]) {
-      expect(slackThreadLinkProblem(text)).toBe('That is not a link to a Slack message.')
+      expect(slackWatchLinkProblem(text)).toBe('That is not a link to a Slack channel or message.')
     }
   })
 })
@@ -244,7 +252,7 @@ describe('reviewThreadView', () => {
       saving: false,
       label: 'Ready',
       tone: 'done',
-      lastRead: 'Read 2 minutes ago · 3 replies · 1 new update',
+      lastRead: 'Read 2 minutes ago · 3 messages · 1 new update',
       offers: '2 waiting · 1 started',
     })
   })
@@ -298,7 +306,7 @@ describe('reviewThreadView', () => {
       undefined,
     ])
     expect(lastRead({ at, outcome: 'read', replies: 1 })).toEqual([
-      'Read 1 hour ago · 1 reply',
+      'Read 1 hour ago · 1 message',
       undefined,
     ])
     expect(
@@ -317,7 +325,7 @@ describe('reviewThreadView', () => {
       undefined,
     ])
     expect(lastRead({ at, outcome: 'not-recorded' })).toEqual([
-      'Read 1 hour ago: the thread changed meanwhile, it is read again',
+      'Read 1 hour ago: the link changed meanwhile, it is read again',
       undefined,
     ])
   })
@@ -397,7 +405,7 @@ describe('slackReviewSettingsView', () => {
       oauthSetup: {},
       source: snapshot({
         status: undefined,
-        readError: 'Could not read the watched thread.',
+        readError: 'Could not read what is watched.',
         actionError: 'Slack cannot read that thread.',
       }),
       apiBaseUrl: null,
@@ -405,7 +413,7 @@ describe('slackReviewSettingsView', () => {
     })
     expect(failed).toMatchObject({
       loading: false,
-      readError: 'Could not read the watched thread.',
+      readError: 'Could not read what is watched.',
       actionError: 'Slack cannot read that thread.',
     })
   })

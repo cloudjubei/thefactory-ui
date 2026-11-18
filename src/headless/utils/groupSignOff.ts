@@ -220,6 +220,29 @@ export function groupSignOffScreen(
     attachments: data.attachments.map((a) => attachmentRow(a, state, nameOf)),
     loomLeft: data.walkthrough.filter((item) => !item.result).length,
     unsaved: [...new Set(unsaved)],
+    leftForYou: leftForYouOf(data, nameOf),
+  }
+}
+
+/**
+ * What the repos still leave for the person, in a line: "Nothing is left for
+ * you" only when the group and every repo are clean, else each repo that
+ * leaves something, and what.
+ */
+function leftForYouOf(data: GroupSignOffData, nameOf: NameOf): GroupSignOffScreen['leftForYou'] {
+  const repos = data.repos.flatMap(({ projectId, leftForYou }) => {
+    const parts = [
+      ...(leftForYou.needsYou > 0 ? [GROUP_SIGN_OFF_TEXT.leftNeedsYou(leftForYou.needsYou)] : []),
+      ...(leftForYou.followUps > 0
+        ? [GROUP_SIGN_OFF_TEXT.leftFollowUps(leftForYou.followUps)]
+        : []),
+    ]
+    return parts.length > 0 ? [`${nameOf(projectId)}: ${parts.join(', ')}`] : []
+  })
+  const clean = data.leftForYou.clean && repos.length === 0
+  return {
+    clean,
+    line: clean ? GROUP_SIGN_OFF_TEXT.nothingLeft : GROUP_SIGN_OFF_TEXT.leftLine(repos),
   }
 }
 

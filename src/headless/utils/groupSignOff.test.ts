@@ -13,7 +13,7 @@ import {
   signOffSectionKey,
   settleSignOffDrafts,
 } from './groupSignOff'
-import { SIGN_OFF_OUTPUT_MAX_CHARS } from './groupSignOffConstants'
+import { GROUP_SIGN_OFF_TEXT, SIGN_OFF_OUTPUT_MAX_CHARS } from './groupSignOffConstants'
 import { isHeldForGroupSignOff } from './groupSignOffHold'
 import type {
   GroupSignOffData,
@@ -33,6 +33,7 @@ const repo = (projectId: string, over: Partial<GroupSignOffRepo> = {}): GroupSig
   baseRef: 'main',
   evidence: [],
   pullRequest: { state: 'to-open', title: 'Add it', files: ['a.ts', 'b.ts'], generated: [] },
+  leftForYou: { needsYou: 0, followUps: 0 },
   ...over,
 })
 
@@ -49,6 +50,7 @@ const data = (over: Partial<GroupSignOffData> = {}): GroupSignOffData => ({
   goingLive: { steps: [], words: '' },
   walkthrough: [],
   attachments: [],
+  leftForYou: { needsYou: 0, followUps: 0, clean: true },
   ...over,
 })
 
@@ -186,6 +188,59 @@ describe('groupSignOffScreen', () => {
       prTitle: 'Add it',
       filesLine: '1 file, 2 generated left out',
       badge: { label: 'Gets a pull request', tone: 'review' },
+    })
+  })
+
+  describe('what is left for the person', () => {
+    it('says nothing is left only when every repo is clean', () => {
+      expect(groupSignOffScreen(data(), state(), nameOf).leftForYou).toEqual({
+        clean: true,
+        line: GROUP_SIGN_OFF_TEXT.nothingLeft,
+      })
+    })
+
+    it('names each repo that still leaves something, and what, while one repo is clean', () => {
+      const screen = groupSignOffScreen(
+        data({
+          repos: [
+            repo('be', { leftForYou: { needsYou: 2, followUps: 1 } }),
+            repo('web'),
+            repo('ios', { leftForYou: { needsYou: 0, followUps: 1 } }),
+          ],
+          leftForYou: { needsYou: 2, followUps: 2, clean: false },
+        }),
+        state(),
+        nameOf,
+      )
+      expect(screen.leftForYou).toEqual({
+        clean: false,
+        line: GROUP_SIGN_OFF_TEXT.leftLine([
+          'Backend: 2 Needs-you items, 1 code-review follow-up',
+          'ios: 1 code-review follow-up',
+        ]),
+      })
+    })
+
+    it('never reads as clean while one repo leaves something, whatever the group total says', () => {
+      const screen = groupSignOffScreen(
+        data({ repos: [repo('be', { leftForYou: { needsYou: 1, followUps: 0 } }), repo('web')] }),
+        state(),
+        nameOf,
+      )
+      expect(screen.leftForYou).toEqual({
+        clean: false,
+        line: GROUP_SIGN_OFF_TEXT.leftLine(['Backend: 1 Needs-you item']),
+      })
+    })
+
+    it('never reads as clean while the group says a leg is not, even with no repo to name', () => {
+      const screen = groupSignOffScreen(
+        data({ leftForYou: { needsYou: 1, followUps: 0, clean: false } }),
+        state(),
+        nameOf,
+      )
+      expect(screen.leftForYou.clean).toBe(false)
+      expect(screen.leftForYou.line).not.toBe(GROUP_SIGN_OFF_TEXT.nothingLeft)
     })
   })
 

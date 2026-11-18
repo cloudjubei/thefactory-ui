@@ -149,7 +149,7 @@ describe('ColleagueReviewSourceStore', () => {
     await store.refresh('osc')
     expect(store.snapshot('osc')).toMatchObject({
       status: WATCHING,
-      readError: 'Could not read the watched thread.',
+      readError: 'Could not read what is watched.',
     })
   })
 
@@ -206,7 +206,7 @@ describe('ColleagueReviewSourceStore', () => {
     const again = store.watch('osc', { connectionId: 'slack-1', permalink: THREAD })
     expect(store.snapshot('osc').actionError).toBeUndefined()
     await again
-    expect(store.snapshot('osc').actionError).toBe('The thread is not watched.')
+    expect(store.snapshot('osc').actionError).toBe('That link is not watched.')
   })
 
   it('clears a thread at once, and brings it back when the backend refuses', async () => {
@@ -228,7 +228,7 @@ describe('ColleagueReviewSourceStore', () => {
     await store.clear('osc')
     expect(store.snapshot('osc')).toMatchObject({
       status: WATCHING,
-      actionError: 'The thread is still watched.',
+      actionError: 'It is still watched.',
     })
   })
 

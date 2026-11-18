@@ -3,7 +3,7 @@ import { Linking, Pressable, Text, View } from 'react-native'
 import {
   SLACK_SETTINGS_TEXT as TEXT,
   slackClientIdProblem,
-  slackThreadLinkProblem,
+  slackWatchLinkProblem,
   useGroupSlackSettings,
   type SlackReviewSettingsState,
 } from '../../../headless'
@@ -344,7 +344,7 @@ function ThreadLinkForm({
 }) {
   const [link, setLink] = useState(initial)
   const [existing, setExisting] = useState(false)
-  const problem = slackThreadLinkProblem(link)
+  const problem = slackWatchLinkProblem(link)
   return (
     <View style={{ gap: nativeSpace[2] }}>
       <Field

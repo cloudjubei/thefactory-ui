@@ -2322,6 +2322,7 @@ export type ToolName =
   | 'listCliAgentRunsPage'
   | 'listCliAgentRunSummariesPage'
   | 'getCliAgentRunSubscriptionStatus'
+  | 'listCliAgentSubscriptionWindows'
   | 'listAvailableModels'
   | 'listAvailableEfforts'
   | 'listLiveModels'
@@ -5668,6 +5669,13 @@ export type CliAgentSubscriptionStatus = {
   [key: string]: unknown
 }
 
+export type CliAgentSubscriptionWindowEntry = {
+  cli: CliTool
+  credentialId: string
+  runId: string
+  subscription: CliAgentSubscriptionStatus
+}
+
 export type FilesEmittedFileStatus = 'added' | 'modified' | 'deleted'
 
 export type FilesEmittedFile = {
@@ -7982,7 +7990,7 @@ export type ColleagueReviewSource = {
   connectionId: string
   permalink: string
   channel: string
-  threadTs: string
+  threadTs?: string
   cursor?: string
   setAt: string
 }
@@ -8024,7 +8032,7 @@ export type ColleagueReviewSourceState = {
     connectionId: string
     permalink: string
     channel: string
-    threadTs: string
+    threadTs?: string
     cursor?: string
     setAt: string
   }
@@ -8069,7 +8077,7 @@ export type SlackNames = {
 export type RecordColleagueReviewOffersInput = {
   groupId: string
   channel: string
-  threadTs: string
+  threadTs?: string
   messages: Array<SlackMessage>
   cursor?: string
   projectKeys: Array<string>
@@ -8102,7 +8110,7 @@ export type ColleagueReviewSourceRead = {
     connectionId: string
     permalink: string
     channel: string
-    threadTs: string
+    threadTs?: string
     cursor?: string
     setAt: string
   }
@@ -9506,6 +9514,19 @@ export type SlackThreadRef = {
   channel: string
   threadTs: string
 }
+
+export type SlackChannelRef = {
+  workspaceUrl: string
+  channel: string
+}
+
+export type SlackWatchTarget =
+  | ({
+      kind: 'thread'
+    } & SlackThreadRef)
+  | ({
+      kind: 'channel'
+    } & SlackChannelRef)
 
 export type SlackWatchedThread = {
   connectionId: string
@@ -12015,6 +12036,37 @@ export type GitSupersession =
       reason: string
     }
 
+export type GitCheckoutLayout = {
+  top: string
+  prefix: string
+  gitDir: string
+}
+
+export type GitMergeFileWritesPlan =
+  | {
+      status: 'writes'
+      writes: Array<FileWriteDeclaration>
+    }
+  | {
+      status: 'conflicts'
+      conflicts: Array<GitConflictEntry>
+    }
+  | {
+      status: 'unknown'
+    }
+
+export type GitMergeFileWritesInput = {
+  repoPath: string
+  mergeArgs: Array<string>
+  stashLocal: boolean
+  includeUntracked: boolean
+}
+
+export type GitWorktreeChanges = {
+  changed: Array<string>
+  untracked: Array<string>
+}
+
 export type GitExecResult = {
   code: number
   stdout: string
@@ -12028,18 +12080,20 @@ export type GitOpResult =
       ok: true
       result: GitExecResult
     }
-  | {
-      ok: false
-      error: string
-      result?: {
-        code: number
-        stdout: string
-        stderr: string
-        truncated?: boolean
-        timedOut?: boolean
-      }
-      hookOutput?: string
-    }
+  | GitOpRefusal
+
+export type GitOpRefusal = {
+  ok: false
+  error: string
+  result?: {
+    code: number
+    stdout: string
+    stderr: string
+    truncated?: boolean
+    timedOut?: boolean
+  }
+  hookOutput?: string
+}
 
 export type GitRunOptions = {
   env?: {
@@ -14373,6 +14427,7 @@ export type MobileStartedDevice = {
   deviceId: string
   avd?: string
   name?: string
+  created?: true
 }
 
 export type DeviceRef = {
@@ -14594,6 +14649,18 @@ export type MobileSimulator = {
   state: string
   runtime: string
   deviceTypeIdentifier?: string
+  lastBootedAt?: string
+}
+
+export type MobileStuckSimulatorPlan = {
+  stuck: MobileSimulator
+  name: string
+  createArgs: Array<string>
+}
+
+export type MobileStuckSimulatorReplacement = {
+  stuck: MobileStartedDevice
+  device: MobileStartedDevice
 }
 
 export type BuildAndroidAppOptions = {
@@ -14875,6 +14942,7 @@ export type MobileSessionResult = {
   fakeData?: string
   live?: true
   detail?: string
+  stuckDeviceId?: string
 }
 
 export type MobileSessionInfo = {
@@ -15180,6 +15248,44 @@ export type MobileDeviceInstall = {
   appId?: string
 }
 
+export type MobileSessionLaunchTarget = {
+  platform: MobilePlatform
+  deviceId: string
+  appPath?: string
+  appId?: string
+  activity?: string
+  screen?: {
+    extra: string
+    screen: string
+  }
+  build?: {
+    platform: 'android' | 'ios'
+    root: string
+    sha: string
+    dirty: boolean
+    dirtyPaths?: Array<string>
+    tree?: string
+    module: string
+    flavor?: string
+    buildType: string
+    overlays?: Array<string>
+    fakeBackend?: {
+      serve: string
+      portEnv?: string
+      tokenEnv: string
+      token: string
+      url: string
+      devicePort: number
+    }
+    fakeData?: MobileFakeDataAndroid | MobileFakeDataIos
+    fakeDataOverlayHead?: string
+    overlayFiles?: Array<ReviewEvidenceOverlayFile>
+    appId?: string
+    abi?: string
+    artifactSha256?: string
+  }
+}
+
 export type MobileRawInstallTarget = {
   deviceId?: string
 }
@@ -15266,6 +15372,7 @@ export type ProcessCleanupItem = {
     deviceId: string
     avd?: string
     name?: string
+    created?: true
   }
   browserWindow?: {
     sessionId: string
@@ -15297,6 +15404,7 @@ export type ProcessCleanupListItem = {
     deviceId: string
     avd?: string
     name?: string
+    created?: true
   }
   browserWindow?: {
     sessionId: string
@@ -23858,6 +23966,7 @@ export type CaptureToolSet = {
     | 'listCliAgentRunsPage'
     | 'listCliAgentRunSummariesPage'
     | 'getCliAgentRunSubscriptionStatus'
+    | 'listCliAgentSubscriptionWindows'
     | 'listAvailableModels'
     | 'listAvailableEfforts'
     | 'listLiveModels'
@@ -24432,6 +24541,7 @@ export type CaptureToolSet = {
     | 'listCliAgentRunsPage'
     | 'listCliAgentRunSummariesPage'
     | 'getCliAgentRunSubscriptionStatus'
+    | 'listCliAgentSubscriptionWindows'
     | 'listAvailableModels'
     | 'listAvailableEfforts'
     | 'listLiveModels'
@@ -25013,6 +25123,7 @@ export type CaptureToolSet = {
     | 'listCliAgentRunsPage'
     | 'listCliAgentRunSummariesPage'
     | 'getCliAgentRunSubscriptionStatus'
+    | 'listCliAgentSubscriptionWindows'
     | 'listAvailableModels'
     | 'listAvailableEfforts'
     | 'listLiveModels'
@@ -25587,6 +25698,7 @@ export type CaptureToolSet = {
     | 'listCliAgentRunsPage'
     | 'listCliAgentRunSummariesPage'
     | 'getCliAgentRunSubscriptionStatus'
+    | 'listCliAgentSubscriptionWindows'
     | 'listAvailableModels'
     | 'listAvailableEfforts'
     | 'listLiveModels'
@@ -26162,6 +26274,7 @@ export type CaptureToolSet = {
     | 'listCliAgentRunsPage'
     | 'listCliAgentRunSummariesPage'
     | 'getCliAgentRunSubscriptionStatus'
+    | 'listCliAgentSubscriptionWindows'
     | 'listAvailableModels'
     | 'listAvailableEfforts'
     | 'listLiveModels'
@@ -27392,6 +27505,9 @@ export type CliRunIndexEntry = {
         scope: string
         group: string
       }
+  cli?: 'claude-code' | 'cursor-agent' | 'codex'
+  authCredentialId?: string
+  hasSubscription?: true
   rel: string
   mtimeMs: number
   size: number
@@ -34618,6 +34734,19 @@ export type JsonValue =
       [key: string]: JsonValue
     }
 
+export type LiveAppCaptureRequest = {
+  projectId: string
+  requestId: string
+}
+
+export type RecommendProgressData = {
+  projectId: string
+  activityId: string
+  recordType: string
+  stepKey: string
+  progress: CatalogBuildProgress
+}
+
 export type OverseerState = {
   path: string
   hasRemote: boolean
@@ -38778,6 +38907,10 @@ export type ResumeProcessRunData = {
      */
     requestedProof?: Array<ProofKind>
     retryMode?: 'continue' | 'fresh'
+    /**
+     * With retry: `frozen` runs the definitions this attempt started with (the default); `current` runs today’s step and agent type, and starts fresh. Refused when today’s definitions are not offered, or together with carrying the agent on.
+     */
+    definitionChoice?: 'frozen' | 'current'
     turnLimit?: {
       limitTurns: boolean
       maxTurns: number
@@ -42726,6 +42859,45 @@ export type ListReviewEvidenceTextsResponses = {
 export type ListReviewEvidenceTextsResponse =
   ListReviewEvidenceTextsResponses[keyof ListReviewEvidenceTextsResponses]
 
+export type CreateReviewEvidenceMediaUrlData = {
+  body?: never
+  path: {
+    projectId: string
+    evidenceId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/review-evidence/{evidenceId}/media-url'
+}
+
+export type CreateReviewEvidenceMediaUrlErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type CreateReviewEvidenceMediaUrlError =
+  CreateReviewEvidenceMediaUrlErrors[keyof CreateReviewEvidenceMediaUrlErrors]
+
+export type CreateReviewEvidenceMediaUrlResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    url: string
+    expiresAt: string
+  }
+}
+
+export type CreateReviewEvidenceMediaUrlResponse =
+  CreateReviewEvidenceMediaUrlResponses[keyof CreateReviewEvidenceMediaUrlResponses]
+
 export type GetReviewEvidenceContentData = {
   body?: never
   path: {
@@ -42733,6 +42905,10 @@ export type GetReviewEvidenceContentData = {
     evidenceId: string
   }
   query?: {
+    /**
+     * Short-lived evidence grant.
+     */
+    mediaToken?: string
     /**
      * Hand the file over as a download, under its own name.
      */
@@ -49064,6 +49240,55 @@ export type ListFilesResponses = {
 
 export type ListFilesResponse = ListFilesResponses[keyof ListFilesResponses]
 
+export type CreateFileMediaUrlData = {
+  body: {
+    path: string
+  }
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/files/media-url'
+}
+
+export type CreateFileMediaUrlErrors = {
+  /**
+   * Default Response
+   */
+  403: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type CreateFileMediaUrlError = CreateFileMediaUrlErrors[keyof CreateFileMediaUrlErrors]
+
+export type CreateFileMediaUrlResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    url: string
+    expiresAt: string
+  }
+}
+
+export type CreateFileMediaUrlResponse =
+  CreateFileMediaUrlResponses[keyof CreateFileMediaUrlResponses]
+
 export type ReadFileRawData = {
   body?: never
   path: {
@@ -49071,6 +49296,7 @@ export type ReadFileRawData = {
   }
   query: {
     path: string
+    mediaToken?: string
   }
   url: '/api/v1/projects/{projectId}/files/raw'
 }
@@ -49649,6 +49875,59 @@ export type ViewProjectFileResponses = {
    */
   200: unknown
 }
+
+export type SubmitLiveAppCaptureData = {
+  body:
+    | {
+        html: string
+      }
+    | {
+        error: string
+      }
+  path: {
+    projectId: string
+    requestId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/view/captures/{requestId}'
+}
+
+export type SubmitLiveAppCaptureErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type SubmitLiveAppCaptureError = SubmitLiveAppCaptureErrors[keyof SubmitLiveAppCaptureErrors]
+
+export type SubmitLiveAppCaptureResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    accepted: true
+  }
+}
+
+export type SubmitLiveAppCaptureResponse =
+  SubmitLiveAppCaptureResponses[keyof SubmitLiveAppCaptureResponses]
 
 export type GetGitStatusData = {
   body?: never
@@ -54390,6 +54669,112 @@ export type SetProjectDeviceAutomationResponses = {
 
 export type SetProjectDeviceAutomationResponse =
   SetProjectDeviceAutomationResponses[keyof SetProjectDeviceAutomationResponses]
+
+export type GetProjectServeSettingsData = {
+  body?: never
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/serve-settings'
+}
+
+export type GetProjectServeSettingsErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type GetProjectServeSettingsError =
+  GetProjectServeSettingsErrors[keyof GetProjectServeSettingsErrors]
+
+export type GetProjectServeSettingsResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    buildTimeoutMs: number | unknown
+  }
+}
+
+export type GetProjectServeSettingsResponse =
+  GetProjectServeSettingsResponses[keyof GetProjectServeSettingsResponses]
+
+export type SetProjectServeSettingsData = {
+  body: {
+    buildTimeoutMs: number | unknown
+  }
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/serve-settings'
+}
+
+export type SetProjectServeSettingsErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type SetProjectServeSettingsError =
+  SetProjectServeSettingsErrors[keyof SetProjectServeSettingsErrors]
+
+export type SetProjectServeSettingsResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    buildTimeoutMs: number | unknown
+  }
+}
+
+export type SetProjectServeSettingsResponse =
+  SetProjectServeSettingsResponses[keyof SetProjectServeSettingsResponses]
 
 export type ListTemplatesData = {
   body?: never
@@ -60257,7 +60642,7 @@ export type ClearColleagueReviewSourceResponses = {
       connectionId: string
       permalink: string
       channel: string
-      threadTs: string
+      threadTs?: string
       cursor?: string
       setAt: string
     }
@@ -60354,7 +60739,7 @@ export type GetColleagueReviewSourceResponses = {
       connectionId: string
       permalink: string
       channel: string
-      threadTs: string
+      threadTs?: string
       cursor?: string
       setAt: string
     }
@@ -60494,7 +60879,7 @@ export type SetColleagueReviewSourceResponses = {
       connectionId: string
       permalink: string
       channel: string
-      threadTs: string
+      threadTs?: string
       cursor?: string
       setAt: string
     }
@@ -62844,6 +63229,90 @@ export type GetProjectKnowledgeOverviewResponses = {
 
 export type GetProjectKnowledgeOverviewResponse =
   GetProjectKnowledgeOverviewResponses[keyof GetProjectKnowledgeOverviewResponses]
+
+export type LaunchTrainerSuggestionData = {
+  body: {
+    /**
+     * Training manifest name or recordType.
+     */
+    project?: string
+  }
+  path: {
+    projectId: string
+    suggestionId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/trainer-suggestions/{suggestionId}/launch'
+}
+
+export type LaunchTrainerSuggestionErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type LaunchTrainerSuggestionError =
+  LaunchTrainerSuggestionErrors[keyof LaunchTrainerSuggestionErrors]
+
+export type LaunchTrainerSuggestionResponses = {
+  /**
+   * Default Response
+   */
+  202: {
+    activityId: string
+    queued: boolean
+  }
+}
+
+export type LaunchTrainerSuggestionResponse =
+  LaunchTrainerSuggestionResponses[keyof LaunchTrainerSuggestionResponses]
 
 export type RunTrainerToolData = {
   body: {

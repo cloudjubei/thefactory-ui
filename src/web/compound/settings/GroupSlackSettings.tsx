@@ -3,7 +3,7 @@ import {
   SLACK_SETTINGS_DEFAULT_LAYOUT,
   SLACK_SETTINGS_TEXT as TEXT,
   slackClientIdProblem,
-  slackThreadLinkProblem,
+  slackWatchLinkProblem,
   useGroupSlackSettings,
   type SlackReviewSettingsState,
   type SlackSettingsLayout,
@@ -357,7 +357,7 @@ function ThreadLinkForm({
 }) {
   const [link, setLink] = useState(initial)
   const [existing, setExisting] = useState(false)
-  const problem = slackThreadLinkProblem(link)
+  const problem = slackWatchLinkProblem(link)
   const watch = () => {
     if (!problem) onWatch(link, existing)
   }

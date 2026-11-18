@@ -137,7 +137,7 @@ export type FixPass = {
 }
 
 /** What sends a story's work back to its fix: its code review, or a person at sign-off. */
-export type FixSentBy = 'code-review' | 'sign-off'
+export type FixSentBy = 'code-review' | 'report' | 'sign-off'
 
 /** An agent that ran a section — its role and the model it ran on. */
 export type SignoffAgent = {

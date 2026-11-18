@@ -176,6 +176,9 @@ import type {
   CreateFeatureRequestErrors,
   CreateFeatureRequestResponses,
   CreateFeatureResponses,
+  CreateFileMediaUrlData,
+  CreateFileMediaUrlErrors,
+  CreateFileMediaUrlResponses,
   CreateGitBranchData,
   CreateGitBranchErrors,
   CreateGitBranchResponses,
@@ -212,6 +215,9 @@ import type {
   CreateProviderConnectionData,
   CreateProviderConnectionErrors,
   CreateProviderConnectionResponses,
+  CreateReviewEvidenceMediaUrlData,
+  CreateReviewEvidenceMediaUrlErrors,
+  CreateReviewEvidenceMediaUrlResponses,
   CreateRunnerPairingData,
   CreateRunnerPairingResponses,
   CreateStoryData,
@@ -598,6 +604,9 @@ import type {
   GetProjectKnowledgeOverviewErrors,
   GetProjectKnowledgeOverviewResponses,
   GetProjectResponses,
+  GetProjectServeSettingsData,
+  GetProjectServeSettingsErrors,
+  GetProjectServeSettingsResponses,
   GetProjectsGroupConstellationData,
   GetProjectsGroupConstellationErrors,
   GetProjectsGroupConstellationResponses,
@@ -731,6 +740,9 @@ import type {
   KeepDesignProposalAsAlternativeData,
   KeepDesignProposalAsAlternativeErrors,
   KeepDesignProposalAsAlternativeResponses,
+  LaunchTrainerSuggestionData,
+  LaunchTrainerSuggestionErrors,
+  LaunchTrainerSuggestionResponses,
   ListActionRulesData,
   ListActionRulesErrors,
   ListActionRulesResponses,
@@ -1329,6 +1341,9 @@ import type {
   SetProjectMcpServerTokenData,
   SetProjectMcpServerTokenErrors,
   SetProjectMcpServerTokenResponses,
+  SetProjectServeSettingsData,
+  SetProjectServeSettingsErrors,
+  SetProjectServeSettingsResponses,
   SettleProcessRunAlreadyLandedData,
   SettleProcessRunAlreadyLandedErrors,
   SettleProcessRunAlreadyLandedResponses,
@@ -1406,6 +1421,9 @@ import type {
   SubmitCredentialCaptureData,
   SubmitCredentialCaptureErrors,
   SubmitCredentialCaptureResponses,
+  SubmitLiveAppCaptureData,
+  SubmitLiveAppCaptureErrors,
+  SubmitLiveAppCaptureResponses,
   SubscribeProjectDataSourceData,
   SubscribeProjectDataSourceErrors,
   SubscribeProjectDataSourceResponses,
@@ -2605,7 +2623,7 @@ export const getProcessRun = <ThrowOnError extends boolean = false>(
   })
 
 /**
- * The evidence of a run and all its children, grouped by run. Needs no story. A child a later attempt replaced keeps its group, marked `replaced`.
+ * The evidence of a run and all its children, grouped by run. Needs no story. A child a later attempt replaced keeps its group, marked `replaced`. A filing a fresh retry replaced stays in its group, marked `supersededBy`.
  */
 export const getProcessRunEvidence = <ThrowOnError extends boolean = false>(
   options: Options<GetProcessRunEvidenceData, ThrowOnError>,
@@ -3615,6 +3633,9 @@ export const checkpointScriptHost = <ThrowOnError extends boolean = false>(
     },
   })
 
+/**
+ * What was filed for a project. A filing a fresh retry replaced carries `supersededBy` — the run, attempt and step that replaced it — and stays readable.
+ */
 export const listReviewEvidence = <ThrowOnError extends boolean = false>(
   options: Options<ListReviewEvidenceData, ThrowOnError>,
 ) =>
@@ -3645,6 +3666,23 @@ export const listReviewEvidenceTexts = <ThrowOnError extends boolean = false>(
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  })
+
+/**
+ * A short-lived signed content URL for a player or image that cannot send a bearer. Relative to the server and scoped to this evidence only.
+ */
+export const createReviewEvidenceMediaUrl = <ThrowOnError extends boolean = false>(
+  options: Options<CreateReviewEvidenceMediaUrlData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CreateReviewEvidenceMediaUrlResponses,
+    CreateReviewEvidenceMediaUrlErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/review-evidence/{evidenceId}/media-url',
+    ...options,
   })
 
 export const getReviewEvidenceContent = <ThrowOnError extends boolean = false>(
@@ -5685,6 +5723,27 @@ export const listFiles = <ThrowOnError extends boolean = false>(
     ...options,
   })
 
+/**
+ * Create a short-lived signed streaming URL scoped to this project file.
+ */
+export const createFileMediaUrl = <ThrowOnError extends boolean = false>(
+  options: Options<CreateFileMediaUrlData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CreateFileMediaUrlResponses,
+    CreateFileMediaUrlErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/files/media-url',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
 export const readFileRaw = <ThrowOnError extends boolean = false>(
   options: Options<ReadFileRawData, ThrowOnError>,
 ) =>
@@ -5906,6 +5965,24 @@ export const viewProjectFile = <ThrowOnError extends boolean = false>(
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/projects/{projectId}/view/{*}',
     ...options,
+  })
+
+export const submitLiveAppCapture = <ThrowOnError extends boolean = false>(
+  options: Options<SubmitLiveAppCaptureData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    SubmitLiveAppCaptureResponses,
+    SubmitLiveAppCaptureErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/view/captures/{requestId}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
   })
 
 export const getGitStatus = <ThrowOnError extends boolean = false>(
@@ -6960,6 +7037,44 @@ export const setProjectDeviceAutomation = <ThrowOnError extends boolean = false>
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/projects/{projectId}/device-automation',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * The project’s own serve build limit, in milliseconds. Null when it sets none, so the default applies.
+ */
+export const getProjectServeSettings = <ThrowOnError extends boolean = false>(
+  options: Options<GetProjectServeSettingsData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetProjectServeSettingsResponses,
+    GetProjectServeSettingsErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/serve-settings',
+    ...options,
+  })
+
+/**
+ * Set or clear the project’s serve build limit, in milliseconds. A limit that is not a positive whole number is refused. The rest of the serve setting is left as it is.
+ */
+export const setProjectServeSettings = <ThrowOnError extends boolean = false>(
+  options: Options<SetProjectServeSettingsData, ThrowOnError>,
+) =>
+  (options.client ?? client).put<
+    SetProjectServeSettingsResponses,
+    SetProjectServeSettingsErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/serve-settings',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -9126,6 +9241,24 @@ export const getProjectKnowledgeOverview = <ThrowOnError extends boolean = false
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/projects/{projectId}/knowledge/overview',
     ...options,
+  })
+
+export const launchTrainerSuggestion = <ThrowOnError extends boolean = false>(
+  options: Options<LaunchTrainerSuggestionData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    LaunchTrainerSuggestionResponses,
+    LaunchTrainerSuggestionErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/trainer-suggestions/{suggestionId}/launch',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
   })
 
 export const runTrainerTool = <ThrowOnError extends boolean = false>(

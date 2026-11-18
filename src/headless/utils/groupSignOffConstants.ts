@@ -71,6 +71,13 @@ export const GROUP_SIGN_OFF_TEXT = {
     total === 0
       ? 'No repo needed a pull request.'
       : `${opened} of ${plural(total, 'pull request')} open.`,
+  nothingLeft: 'Nothing is left for you.',
+  leftLine: (repos: readonly string[]) =>
+    repos.length === 0
+      ? 'Something is still left for you on a repo.'
+      : `Still left for you — ${repos.join('; ')}.`,
+  leftNeedsYou: (count: number) => plural(count, 'Needs-you item'),
+  leftFollowUps: (count: number) => plural(count, 'code-review follow-up'),
   goingLive: 'Going live',
   repos: 'Repos',
   evidence: 'Evidence',

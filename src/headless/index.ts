@@ -3940,7 +3940,7 @@ export {
   slackMessageLink,
   slackOAuthRedirectUrl,
   slackReviewSettingsView,
-  slackThreadLinkProblem,
+  slackWatchLinkProblem,
   waitingReviewOffers,
 } from './utils/colleagueReviewSource'
 export {

@@ -129,6 +129,7 @@ const repo = (
     files: ['a.ts', 'b.ts', 'c.ts', 'd.ts'],
     generated: [],
   },
+  leftForYou: { needsYou: 0, followUps: 0 },
   ...over,
 })
 
@@ -246,6 +247,7 @@ const data = (over: Partial<GroupSignOffData> = {}): GroupSignOffData => ({
   },
   walkthrough: [],
   attachments: [],
+  leftForYou: { needsYou: 0, followUps: 0, clean: true },
   ...over,
 })
 
@@ -771,6 +773,21 @@ export const GROUP_SIGN_OFF_SCENES: Scene[] = [
         title: 'A group with no outputs',
         description: 'Report, Tests, Lint and Build alone.',
         render: () => page(signOffBoard({ view: data({ outputs: [] }) })),
+      },
+      {
+        id: 'left-for-you',
+        title: 'A repo still leaves something for you',
+        description:
+          'The decision counts each repo’s open Needs-you items and pending code-review follow-ups. “Nothing is left for you” shows only when every repo is clean; one repo with an open item names it.',
+        render: () =>
+          page(
+            signOffBoard({
+              view: data({
+                repos: [BE, { ...WEB, leftForYou: { needsYou: 1, followUps: 1 } }],
+                leftForYou: { needsYou: 1, followUps: 1, clean: false },
+              }),
+            }),
+          ),
       },
       {
         id: 'nothing-to-open',

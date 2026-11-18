@@ -21,8 +21,8 @@ import type {
 import type { ProcessStatusTone } from './processView'
 import { timeAgo } from './time'
 
-const SLACK_MESSAGE_LINK =
-  /^https:\/\/[a-z0-9-]+(\.[a-z0-9-]+)*\.slack\.com\/archives\/[a-z0-9]+\/p\d{10,}(\?\S*)?$/i
+const SLACK_WATCH_LINK =
+  /^https:\/\/[a-z0-9-]+(\.[a-z0-9-]+)*\.slack\.com\/archives\/[a-z0-9]+(\/p\d{10,}(\?\S*)?|\/?)$/i
 
 const SLACK_CLIENT_ID = /^\d+\.\d+$/
 
@@ -44,9 +44,9 @@ export function slackMessageLink(url: string | undefined): string | undefined {
   return new URL(url).protocol === 'https:' ? url : undefined
 }
 
-/** Why the text is not a Slack message link to watch the thread of, or `undefined` when it is. Pure. */
-export function slackThreadLinkProblem(text: string): string | undefined {
-  return SLACK_MESSAGE_LINK.test(text.trim()) ? undefined : TEXT.notSlackLink
+/** Why the text is neither a Slack channel link (watch the channel) nor a message link (watch its thread), or `undefined`. Pure. */
+export function slackWatchLinkProblem(text: string): string | undefined {
+  return SLACK_WATCH_LINK.test(text.trim()) ? undefined : TEXT.notSlackLink
 }
 
 /** The group watches a thread it can read and post to. Pure. */
