@@ -3865,6 +3865,7 @@ export {
   colleagueReviewCallRound,
   colleagueReviewCardView,
   colleagueReviewToolOf,
+  reviewReplyToPost,
   reviewRoundView,
 } from './utils/colleagueReviewCard'
 export {
@@ -3925,6 +3926,7 @@ export {
   listWaitingReviewOffers,
   postColleagueReviewReply,
   readColleagueReviewSource,
+  setColleagueReviewSettings,
   watchColleagueReviewThread,
 } from './api/colleagueReviewSourceApi'
 export { ColleagueReviewSourceStore } from './hooks/colleagueReviewSourceStore'
@@ -3936,8 +3938,12 @@ export {
 } from './hooks/useColleagueReviewSource'
 export { useGroupSlackSettings, type UseGroupSlackSettings } from './hooks/useGroupSlackSettings'
 export {
+  parseTicketStatuses,
   reviewBoxOfferLine,
   reviewOfferRowView,
+  reviewSettingsChangeNeeded,
+  reviewSettingsShown,
+  reviewSettingsView,
   reviewSourceShown,
   reviewThreadView,
   reviewThreadWorks,
@@ -3947,6 +3953,8 @@ export {
   slackOAuthRedirectUrl,
   slackReviewSettingsView,
   slackWatchLinkProblem,
+  startReactionName,
+  ticketStatusesText,
   waitingReviewOffers,
 } from './utils/colleagueReviewSource'
 export {
@@ -3969,10 +3977,15 @@ export type {
   ReviewOffer,
   ReviewOfferLayout,
   ReviewOfferRowView,
+  ReviewReplyPost,
   ReviewReplyPostView,
+  ReviewReplyToPost,
+  ReviewSettingsChange,
+  ReviewSettingsView,
   ReviewSourceConnection,
   ReviewSourcePending,
   ReviewSourcePoll,
+  ReviewSourceSettings,
   ReviewSourceSnapshot,
   ReviewSourceStatus,
   ReviewThreadView,

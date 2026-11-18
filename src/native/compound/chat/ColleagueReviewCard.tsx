@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { Linking, Pressable, ScrollView, Text, View } from 'react-native'
 import { useTicketLinks } from '../../../headless/contexts/TicketLinksContext'
 import { useColleagueReviewCall } from '../../../headless/hooks/useColleagueReviewCall'
+import { reviewReplyToPost } from '../../../headless/utils/colleagueReviewCard'
 import {
   COLLEAGUE_REVIEW_CARD_DEFAULT_LAYOUT,
   COLLEAGUE_REVIEW_CARD_TEXT as TEXT,
@@ -24,6 +25,7 @@ import BottomSheet from '../../primitives/BottomSheet'
 import { Button } from '../../primitives/Button'
 import { Input } from '../../primitives/Input'
 import SegmentedControl from '../../primitives/SegmentedControl'
+import { Textarea } from '../../primitives/Textarea'
 import { useClipboardHost } from '../ClipboardHostContext'
 import TicketChip from '../chips/TicketChip'
 import TicketLinkChip from '../chips/TicketLinkChip'
@@ -37,8 +39,8 @@ export type ColleagueReviewCardProps = {
   layout?: ColleagueReviewCardLayout
   onDrop?: (findingId: string, note?: string) => void
   onGiven?: (waitingOnId: string, note?: string) => void
-  /** Post a round's reply in the group's Slack thread; `again` posts it a second time. Without it, Post in thread is not offered. */
-  onPost?: (round: number, again: boolean) => void
+  /** Post a round's reply in the group's Slack thread; `again` posts it a second time, `text` is the person's edit. Without it, Post in thread is not offered. */
+  onPost?: (round: number, again: boolean, text?: string) => void
   /** Start with Post in thread's confirm open — for a fixed showcase state. */
   postConfirm?: boolean
   /** Start with this finding opened — for a fixed showcase state. */
@@ -79,7 +81,7 @@ function Label({ children }: { children: ReactNode }) {
  * a ticket's colleague review on its review chat's tool rows, read live — the
  * round with its verdict, what became of each finding, what the work waits on,
  * the reply to copy or post in the group's Slack thread after a confirm that
- * shows it, and the person's own Drop and Given on the latest round.
+ * shows it, editable, and the person's own Drop and Given on the latest round.
  */
 export default function ColleagueReviewCard({
   view,
@@ -477,11 +479,14 @@ function Reply({
   const { theme } = useNativeTheme()
   const { copyText } = useClipboardHost()
   const [copied, setCopied] = useState(false)
-  const [confirming, setConfirming] = useState(Boolean(actions.postConfirm))
   const { post } = round
-  const onPost = post?.canPost ? actions.onPost : undefined
   const posted = post?.posted
+  const shown = posted?.text ?? reply
+  const [confirming, setConfirming] = useState(Boolean(actions.postConfirm))
+  const [typed, setTyped] = useState(shown)
+  const onPost = post?.canPost ? actions.onPost : undefined
   const again = posted !== undefined
+  const toPost = reviewReplyToPost(reply, typed)
   return (
     <View style={{ gap: 4 }}>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
@@ -508,7 +513,10 @@ function Reply({
             variant="secondary"
             disabled={post?.posting}
             loading={post?.posting}
-            onPress={() => setConfirming(true)}
+            onPress={() => {
+              setTyped(shown)
+              setConfirming(true)
+            }}
           >
             {post?.posting
               ? REVIEW_POST_TEXT.posting
@@ -522,7 +530,7 @@ function Reply({
             size="sm"
             variant="secondary"
             onPress={() => {
-              void copyText(reply).then(() => setCopied(true))
+              void copyText(shown).then(() => setCopied(true))
             }}
           >
             {copied ? TEXT.copied : TEXT.copy}
@@ -541,7 +549,7 @@ function Reply({
         contentContainerStyle={{ padding: nativeSpace[2] }}
       >
         <Text selectable style={{ fontSize: 13, color: theme.text.primary }}>
-          {reply}
+          {shown}
         </Text>
       </ScrollView>
       {onPost ? (
@@ -554,28 +562,23 @@ function Reply({
             <Text style={{ fontSize: 13, color: theme.text.secondary }}>
               {again ? REVIEW_POST_TEXT.confirmAgainBody : REVIEW_POST_TEXT.confirmBody}
             </Text>
-            <View
-              style={{
-                borderWidth: 1,
-                borderColor: theme.border.subtle,
-                borderRadius: nativeRadii[2],
-                backgroundColor: theme.surface.raised,
-                padding: nativeSpace[2],
-              }}
-            >
-              <Text selectable style={{ fontSize: 13, color: theme.text.primary }}>
-                {reply}
-              </Text>
-            </View>
+            <Textarea
+              value={typed}
+              onChangeText={setTyped}
+              accessibilityLabel={TEXT.reply}
+              rows={8}
+              style={{ fontSize: 13, maxHeight: 360 }}
+            />
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
               <Button variant="secondary" onPress={() => setConfirming(false)}>
                 {REVIEW_POST_TEXT.cancel}
               </Button>
               <Button
                 variant="primary"
+                disabled={!toPost.canPost}
                 onPress={() => {
                   setConfirming(false)
-                  onPost(round.n, again)
+                  onPost(round.n, again, toPost.text)
                 }}
               >
                 {again ? REVIEW_POST_TEXT.confirmAgain : REVIEW_POST_TEXT.confirm}

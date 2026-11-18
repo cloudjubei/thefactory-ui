@@ -2,7 +2,11 @@ import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react'
 import { useApi } from '../api/ApiContext'
 import { useAuth } from '../api/AuthContext'
 import { waitingReviewOffers } from '../utils/colleagueReviewSource'
-import type { ReviewSourceSnapshot, ReviewThreadWatch } from '../utils/colleagueReviewSourceTypes'
+import type {
+  ReviewSettingsChange,
+  ReviewSourceSnapshot,
+  ReviewThreadWatch,
+} from '../utils/colleagueReviewSourceTypes'
 import { ColleagueReviewSourceStore } from './colleagueReviewSourceStore'
 
 type WsLike = ReturnType<typeof useApi>['ws']
@@ -34,6 +38,8 @@ export type UseColleagueReviewSource = {
   watch: (watch: ReviewThreadWatch) => void
   /** Stop watching the thread: gone at once, back with why. */
   clear: () => void
+  /** Change the group's review settings: shown at once, rolled back with why. */
+  setSettings: (change: ReviewSettingsChange) => void
   refresh: () => Promise<void>
 }
 
@@ -70,12 +76,21 @@ export function useColleagueReviewSource(groupId: string | undefined): UseCollea
   const clear = useCallback(() => {
     if (groupId) void store.clear(groupId)
   }, [store, groupId])
+  const setSettings = useCallback(
+    (change: ReviewSettingsChange) => {
+      if (groupId) void store.setSettings(groupId, change)
+    },
+    [store, groupId],
+  )
   const refresh = useCallback(
     () => (groupId ? store.refresh(groupId) : Promise.resolve()),
     [store, groupId],
   )
 
-  return useMemo(() => ({ source, watch, clear, refresh }), [source, watch, clear, refresh])
+  return useMemo(
+    () => ({ source, watch, clear, setSettings, refresh }),
+    [source, watch, clear, setSettings, refresh],
+  )
 }
 
 /**

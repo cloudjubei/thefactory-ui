@@ -7,8 +7,11 @@ import {
 } from './colleagueReviewSourceConstants'
 import type {
   ReviewOfferRowView,
+  ReviewSettingsChange,
+  ReviewSettingsView,
   ReviewSourcePending,
   ReviewSourcePoll,
+  ReviewSourceSettings,
   ReviewSourceSnapshot,
   ReviewSourceStatus,
   ReviewThreadView,
@@ -59,29 +62,108 @@ export function waitingReviewOffers(status: ReviewSourceStatus | undefined): num
   return status?.offers.new ?? 0
 }
 
+const NO_SETTINGS: ReviewSourceSettings = { skipTicketStatuses: [] }
+
+/** The ticket status names typed comma-separated: trimmed, empty ones left out, the first of any that differ only in case or spaces kept. Pure. */
+export function parseTicketStatuses(text: string): string[] {
+  const seen = new Set<string>()
+  const names: string[] = []
+  for (const part of text.split(',')) {
+    const name = part.trim()
+    const key = name.toLowerCase().replace(/\s+/g, ' ')
+    if (name === '' || seen.has(key)) continue
+    seen.add(key)
+    names.push(name)
+  }
+  return names
+}
+
+/** The ticket status names as the field shows them: "Done, Won’t do". Pure. */
+export function ticketStatusesText(statuses: readonly string[]): string {
+  return statuses.join(', ')
+}
+
+/** The emoji name typed for the start reaction, spaces and colons around it left out: ":eyes:" is "eyes". Pure. */
+export function startReactionName(text: string): string {
+  return text.trim().replace(/^:+|:+$/g, '')
+}
+
+/** The group's review settings with the person's changes on their way laid over them, in order. Pure. */
+export function reviewSettingsShown(
+  settings: ReviewSourceSettings | undefined,
+  changes: readonly ReviewSettingsChange[],
+): ReviewSourceSettings {
+  const base = settings ?? NO_SETTINGS
+  if (changes.length === 0) return base
+  return changes.reduce<ReviewSourceSettings>((shown, change) => {
+    const { startReaction, ...rest } = { ...shown, ...change }
+    return startReaction ? { ...rest, startReaction } : rest
+  }, base)
+}
+
+function sameNames(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((name, at) => name === b[at])
+}
+
+/** The change would alter the group's review settings: anything else need not be sent. Pure. */
+export function reviewSettingsChangeNeeded(
+  settings: ReviewSourceSettings | undefined,
+  change: ReviewSettingsChange,
+): boolean {
+  const held = settings ?? NO_SETTINGS
+  return (
+    (change.skipTicketStatuses !== undefined &&
+      !sameNames(held.skipTicketStatuses, change.skipTicketStatuses)) ||
+    (change.startReaction !== undefined && change.startReaction !== (held.startReaction ?? '')) ||
+    (change.runChecksUnasked !== undefined &&
+      change.runChecksUnasked !== (held.runChecksUnasked ?? false))
+  )
+}
+
+/** The group's review settings as Settings shows them; `undefined` until the first read. Pure. */
+export function reviewSettingsView(
+  status: ReviewSourceStatus | undefined,
+): ReviewSettingsView | undefined {
+  if (!status) return undefined
+  const { settings } = status
+  const reactionError = status.lastPoll?.reactionError
+  return {
+    skipStatuses: ticketStatusesText(settings.skipTicketStatuses),
+    startReaction: settings.startReaction ?? '',
+    runChecksUnasked: settings.runChecksUnasked ?? false,
+    ...(reactionError ? { reactionError: TEXT.reactionError(reactionError) } : {}),
+  }
+}
+
 /**
  * The watched thread as views draw it: a thread being watched shows at once,
- * a cleared one goes at once, and the updates the person settled leave the
- * waiting count. Pure.
+ * a cleared one goes at once, the person's settings changes show at once,
+ * and the updates the person settled leave the waiting count. Pure.
  */
 export function reviewSourceShown(
   status: ReviewSourceStatus | undefined,
   pending: ReviewSourcePending | undefined,
   settledOffers: number,
+  settingChanges: readonly ReviewSettingsChange[] = [],
 ): ReviewSourceStatus | undefined {
   if (!status) return undefined
-  if (!pending && settledOffers === 0) return status
+  if (!pending && settledOffers === 0 && settingChanges.length === 0) return status
   const offers =
     settledOffers > 0
       ? { ...status.offers, new: Math.max(0, status.offers.new - settledOffers) }
       : status.offers
+  const settings =
+    settingChanges.length > 0
+      ? reviewSettingsShown(status.settings, settingChanges)
+      : status.settings
   const { source, connection, lastPoll: _read, ...rest } = status
-  if (pending?.kind === 'clear') return { ...rest, offers }
+  if (pending?.kind === 'clear') return { ...rest, offers, settings }
   if (pending?.kind === 'watch') {
     const { connectionId, permalink } = pending
     return {
       ...rest,
       offers,
+      settings,
       source: {
         provider: SLACK_PROVIDER,
         channel: '',
@@ -94,7 +176,7 @@ export function reviewSourceShown(
         connection?.id === connectionId ? connection : { id: connectionId, status: 'connected' },
     }
   }
-  return { ...status, offers }
+  return { ...status, offers, settings }
 }
 
 function slackConnections(connections: readonly SlackConnectionEntry[]): SlackConnectionEntry[] {
@@ -206,11 +288,13 @@ export function slackReviewSettingsView(input: SlackReviewSettingsInput): SlackR
   const { connections, oauthSetup, source, apiBaseUrl, now } = input
   const status = reviewSourceShown(source.status, source.pending, 0)
   const connection = slackConnectionView(connections, status, oauthSetup)
+  const settings = reviewSettingsView(status)
   return {
     connection,
     redirectUrl: slackOAuthRedirectUrl(apiBaseUrl),
     thread: reviewThreadView(source, now),
     canWatch: connection.kind !== 'not-connected',
+    ...(settings ? { settings } : {}),
     ...(source.readError ? { readError: source.readError } : {}),
     ...(source.actionError ? { actionError: source.actionError } : {}),
     loading: source.status === undefined && source.readError === undefined,

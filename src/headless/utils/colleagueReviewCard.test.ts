@@ -13,6 +13,7 @@ import {
   colleagueReviewCallRound,
   colleagueReviewCardView,
   colleagueReviewToolOf,
+  reviewReplyToPost,
   reviewRoundView,
 } from './colleagueReviewCard'
 import type { ColleagueReviewCardView, ReviewRoundView } from './colleagueReviewCardTypes'
@@ -404,6 +405,30 @@ describe('posting a round’s reply in the thread', () => {
     expect(reviewRoundView(posted('javascript:x'), 2, NO_PENDING, false)).not.toHaveProperty('post')
   })
 
+  it('carries the person’s edit as what was posted, when they changed the draft', () => {
+    const edited: ColleagueReview = {
+      ...ROUND_TWO,
+      rounds: ROUND_TWO.rounds.map((r) =>
+        r.n === 2
+          ? {
+              ...r,
+              postedReply: {
+                permalink: POSTED_LINK,
+                ts: '1',
+                text: 'Thanks, all good now.',
+                postedAt: '2026-11-12T12:00:00.000Z',
+              },
+            }
+          : r,
+      ),
+    }
+    expect(reviewRoundView(edited, 2, NO_PENDING, true).post?.posted).toEqual({
+      permalink: POSTED_LINK,
+      postedAt: '2026-11-12T12:00:00.000Z',
+      text: 'Thanks, all good now.',
+    })
+  })
+
   it('marks a post on its way', () => {
     expect(
       reviewRoundView(ROUND_TWO, 2, { ...NO_PENDING, posts: new Set([2]) }, true).post?.posting,
@@ -417,5 +442,26 @@ describe('posting a round’s reply in the thread', () => {
     expect(view.round.post?.canPost).toBe(true)
     const without = review(colleagueReviewCardView({ tool: 'record', review: ROUND_TWO }))
     expect(without.round).not.toHaveProperty('post')
+  })
+})
+
+describe('reviewReplyToPost', () => {
+  const DRAFT = 'Thanks! Two things left:\n- the Sunday case\n- the email subject'
+
+  it('posts the draft as it is while the person left it unchanged', () => {
+    expect(reviewReplyToPost(DRAFT, DRAFT)).toEqual({ canPost: true })
+    expect(reviewReplyToPost(DRAFT, `  ${DRAFT}\n\n`)).toEqual({ canPost: true })
+  })
+
+  it('posts the person’s edit, trimmed, once it differs', () => {
+    expect(reviewReplyToPost(DRAFT, '  Thanks, all good now.\n')).toEqual({
+      canPost: true,
+      text: 'Thanks, all good now.',
+    })
+  })
+
+  it('holds Post while the box is empty', () => {
+    expect(reviewReplyToPost(DRAFT, '')).toEqual({ canPost: false })
+    expect(reviewReplyToPost(DRAFT, '  \n ')).toEqual({ canPost: false })
   })
 })

@@ -5,6 +5,7 @@ const api = vi.hoisted(() => ({
   readColleagueReviewSource: vi.fn(),
   watchColleagueReviewThread: vi.fn(),
   clearColleagueReviewThread: vi.fn(),
+  setColleagueReviewSettings: vi.fn(),
 }))
 
 vi.mock('../api/colleagueReviewSourceApi', () => api)
@@ -17,6 +18,7 @@ const OTHER = 'https://acme.slack.com/archives/C09/p1763390000000001'
 const NONE: ReviewSourceStatus = {
   offering: 'ready',
   offers: { new: 0, started: 0, dismissed: 0 },
+  settings: { skipTicketStatuses: [] },
 }
 
 const WATCHING: ReviewSourceStatus = {
@@ -32,6 +34,7 @@ const WATCHING: ReviewSourceStatus = {
   offering: 'ready',
   lastPoll: { at: '2026-11-17T11:58:00.000Z', outcome: 'read', replies: 1, offers: 1 },
   offers: { new: 2, started: 0, dismissed: 0 },
+  settings: { skipTicketStatuses: ['Done'], startReaction: 'eyes' },
 }
 
 const deferred = <T>() => {
@@ -83,6 +86,7 @@ beforeEach(() => {
   api.readColleagueReviewSource.mockReset()
   api.watchColleagueReviewThread.mockReset()
   api.clearColleagueReviewThread.mockReset()
+  api.setColleagueReviewSettings.mockReset()
 })
 
 describe('ColleagueReviewSourceStore', () => {
@@ -263,5 +267,102 @@ describe('ColleagueReviewSourceStore', () => {
     await store.settleOffer('osc', 'o1', Promise.resolve(false))
     await store.settleOffer('osc', 'o2', Promise.reject(new Error('down')))
     expect(store.snapshot('osc').status?.offers.new).toBe(2)
+  })
+
+  it('shows a settings change at once, once however often it is pressed, then what the backend says', async () => {
+    api.readColleagueReviewSource.mockResolvedValue(WATCHING)
+    const store = new ColleagueReviewSourceStore(fakeWs())
+    await ready(store)
+    const saving = deferred<ReviewSourceStatus>()
+    api.setColleagueReviewSettings.mockReturnValueOnce(saving.promise)
+    const going = store.setSettings('osc', { skipTicketStatuses: ['Done', 'QA'] })
+    expect(store.snapshot('osc').status?.settings).toEqual({
+      skipTicketStatuses: ['Done', 'QA'],
+      startReaction: 'eyes',
+    })
+    await store.setSettings('osc', { skipTicketStatuses: ['Done', 'QA'] })
+    expect(api.setColleagueReviewSettings).toHaveBeenCalledTimes(1)
+    expect(api.setColleagueReviewSettings).toHaveBeenCalledWith('osc', {
+      skipTicketStatuses: ['Done', 'QA'],
+    })
+    const saved = { ...WATCHING, settings: { skipTicketStatuses: ['Done', 'QA'] } }
+    saving.resolve(saved)
+    await going
+    expect(store.snapshot('osc')).toMatchObject({ status: saved, actionError: undefined })
+  })
+
+  it('sends nothing for a setting that is set already', async () => {
+    api.readColleagueReviewSource.mockResolvedValue(WATCHING)
+    const store = new ColleagueReviewSourceStore(fakeWs())
+    await ready(store)
+    await store.setSettings('osc', { startReaction: 'eyes' })
+    await store.setSettings('osc', { skipTicketStatuses: ['Done'], runChecksUnasked: false })
+    expect(api.setColleagueReviewSettings).not.toHaveBeenCalled()
+  })
+
+  it('keeps a second setting shown while the first one’s answer comes back', async () => {
+    api.readColleagueReviewSource.mockResolvedValue(WATCHING)
+    const store = new ColleagueReviewSourceStore(fakeWs())
+    await ready(store)
+    const first = deferred<ReviewSourceStatus>()
+    const second = deferred<ReviewSourceStatus>()
+    api.setColleagueReviewSettings
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise)
+    const going = store.setSettings('osc', { startReaction: '' })
+    const toggling = store.setSettings('osc', { runChecksUnasked: true })
+    expect(api.setColleagueReviewSettings).toHaveBeenCalledTimes(2)
+    first.resolve({ ...WATCHING, settings: { skipTicketStatuses: ['Done'] } })
+    await going
+    expect(store.snapshot('osc').status?.settings).toEqual({
+      skipTicketStatuses: ['Done'],
+      runChecksUnasked: true,
+    })
+    second.resolve({
+      ...WATCHING,
+      settings: { skipTicketStatuses: ['Done'], runChecksUnasked: true },
+    })
+    await toggling
+    expect(store.snapshot('osc').status?.settings).toEqual({
+      skipTicketStatuses: ['Done'],
+      runChecksUnasked: true,
+    })
+  })
+
+  it('keeps the backend’s settings over a read begun before them', async () => {
+    const reading = deferred<ReviewSourceStatus>()
+    api.readColleagueReviewSource
+      .mockResolvedValueOnce(WATCHING)
+      .mockReturnValueOnce(reading.promise)
+    const store = new ColleagueReviewSourceStore(fakeWs())
+    await ready(store)
+    const stale = store.refresh('osc')
+    const saved = { ...WATCHING, settings: { ...WATCHING.settings, runChecksUnasked: true } }
+    api.setColleagueReviewSettings.mockResolvedValueOnce(saved)
+    await store.setSettings('osc', { runChecksUnasked: true })
+    reading.resolve(WATCHING)
+    await stale
+    expect(store.snapshot('osc').status).toBe(saved)
+  })
+
+  it('rolls a refused setting back with the backend’s reason, and clears it on the next change', async () => {
+    api.readColleagueReviewSource.mockResolvedValue(WATCHING)
+    const store = new ColleagueReviewSourceStore(fakeWs())
+    await ready(store)
+    api.setColleagueReviewSettings.mockRejectedValueOnce(
+      refusal(400, 'The reaction must be an emoji name, like eyes.'),
+    )
+    await store.setSettings('osc', { startReaction: 'not an emoji' })
+    expect(store.snapshot('osc')).toMatchObject({
+      status: WATCHING,
+      actionError: 'The reaction must be an emoji name, like eyes.',
+    })
+    api.setColleagueReviewSettings.mockRejectedValueOnce({})
+    const again = store.setSettings('osc', { runChecksUnasked: true })
+    expect(store.snapshot('osc').actionError).toBeUndefined()
+    expect(store.snapshot('osc').status?.settings.runChecksUnasked).toBe(true)
+    await again
+    expect(store.snapshot('osc').actionError).toBe('The setting was not saved.')
+    expect(store.snapshot('osc').status?.settings.runChecksUnasked).toBeUndefined()
   })
 })

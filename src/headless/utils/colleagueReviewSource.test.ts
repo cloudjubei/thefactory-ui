@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
+  parseTicketStatuses,
   reviewBoxOfferLine,
   reviewOfferRowView,
+  reviewSettingsChangeNeeded,
+  reviewSettingsShown,
+  reviewSettingsView,
   reviewSourceShown,
   reviewThreadView,
   reviewThreadWorks,
@@ -11,6 +15,8 @@ import {
   slackOAuthRedirectUrl,
   slackReviewSettingsView,
   slackWatchLinkProblem,
+  startReactionName,
+  ticketStatusesText,
   waitingReviewOffers,
 } from './colleagueReviewSource'
 import type {
@@ -40,6 +46,7 @@ const jira = slack({ id: 'jira-1', name: 'Jira', provider: 'jira', config: {} })
 const NONE: ReviewSourceStatus = {
   offering: 'ready',
   offers: { new: 0, started: 0, dismissed: 0 },
+  settings: { skipTicketStatuses: [] },
 }
 
 const WATCHING: ReviewSourceStatus = {
@@ -55,6 +62,7 @@ const WATCHING: ReviewSourceStatus = {
   offering: 'ready',
   lastPoll: { at: '2026-11-17T11:58:00.000Z', outcome: 'read', replies: 3, offers: 1 },
   offers: { new: 2, started: 1, dismissed: 0 },
+  settings: { skipTicketStatuses: ['Done'], startReaction: 'eyes' },
 }
 
 const snapshot = (over: Partial<ReviewSourceSnapshot> = {}): ReviewSourceSnapshot => ({
@@ -190,6 +198,138 @@ describe('reviewSourceShown', () => {
   it('takes the updates the person settled out of the waiting count, never below none', () => {
     expect(reviewSourceShown(WATCHING, undefined, 1)?.offers.new).toBe(1)
     expect(reviewSourceShown(WATCHING, undefined, 5)?.offers.new).toBe(0)
+  })
+
+  it('shows the person’s settings changes at once, over a thread change too', () => {
+    expect(reviewSourceShown(WATCHING, undefined, 0, [])).toBe(WATCHING)
+    const shown = reviewSourceShown(WATCHING, undefined, 0, [{ runChecksUnasked: true }])
+    expect(shown?.settings).toEqual({
+      skipTicketStatuses: ['Done'],
+      startReaction: 'eyes',
+      runChecksUnasked: true,
+    })
+    expect(shown?.source).toBe(WATCHING.source)
+    const cleared = reviewSourceShown(WATCHING, { kind: 'clear' }, 0, [{ startReaction: '' }])
+    expect(cleared?.source).toBeUndefined()
+    expect(cleared?.settings).toEqual({ skipTicketStatuses: ['Done'] })
+  })
+})
+
+describe('parseTicketStatuses', () => {
+  it('takes comma-separated names, trimmed, empty ones left out', () => {
+    expect(parseTicketStatuses(' Done ,  Won’t do,,QA ')).toEqual(['Done', 'Won’t do', 'QA'])
+    expect(parseTicketStatuses('   ')).toEqual([])
+    expect(parseTicketStatuses('')).toEqual([])
+  })
+
+  it('keeps the first of names that differ only in case or spaces', () => {
+    expect(parseTicketStatuses('Done, done, In  Review, in review, DONE')).toEqual([
+      'Done',
+      'In  Review',
+    ])
+  })
+})
+
+describe('ticketStatusesText', () => {
+  it('joins the names with a comma and a space', () => {
+    expect(ticketStatusesText(['Done', 'Won’t do'])).toBe('Done, Won’t do')
+    expect(ticketStatusesText([])).toBe('')
+  })
+})
+
+describe('startReactionName', () => {
+  it('is the emoji name, colons and spaces around it left out', () => {
+    expect(startReactionName(' :eyes: ')).toBe('eyes')
+    expect(startReactionName('white_check_mark')).toBe('white_check_mark')
+    expect(startReactionName('::')).toBe('')
+    expect(startReactionName('')).toBe('')
+  })
+})
+
+describe('reviewSettingsShown', () => {
+  const settings = { skipTicketStatuses: ['Done'], startReaction: 'eyes' }
+
+  it('is the backend’s word while nothing is on its way', () => {
+    expect(reviewSettingsShown(settings, [])).toBe(settings)
+  })
+
+  it('lays each change over it in order, what is left out kept', () => {
+    expect(
+      reviewSettingsShown(settings, [
+        { skipTicketStatuses: ['Done', 'QA'] },
+        { runChecksUnasked: true },
+        { skipTicketStatuses: [] },
+      ]),
+    ).toEqual({ skipTicketStatuses: [], startReaction: 'eyes', runChecksUnasked: true })
+  })
+
+  it('drops a reaction cleared with an empty name', () => {
+    expect(reviewSettingsShown(settings, [{ startReaction: '' }])).toEqual({
+      skipTicketStatuses: ['Done'],
+    })
+  })
+
+  it('starts from no settings before the first read', () => {
+    expect(reviewSettingsShown(undefined, [{ startReaction: 'eyes' }])).toEqual({
+      skipTicketStatuses: [],
+      startReaction: 'eyes',
+    })
+  })
+})
+
+describe('reviewSettingsChangeNeeded', () => {
+  const settings = { skipTicketStatuses: ['Done', 'QA'], startReaction: 'eyes' }
+
+  it('is false for a change to what is set already', () => {
+    expect(reviewSettingsChangeNeeded(settings, { skipTicketStatuses: ['Done', 'QA'] })).toBe(false)
+    expect(reviewSettingsChangeNeeded(settings, { startReaction: 'eyes' })).toBe(false)
+    expect(reviewSettingsChangeNeeded(settings, { runChecksUnasked: false })).toBe(false)
+    expect(reviewSettingsChangeNeeded(settings, {})).toBe(false)
+    expect(reviewSettingsChangeNeeded(undefined, { skipTicketStatuses: [] })).toBe(false)
+    expect(reviewSettingsChangeNeeded(undefined, { startReaction: '' })).toBe(false)
+  })
+
+  it('is true when any part differs', () => {
+    expect(reviewSettingsChangeNeeded(settings, { skipTicketStatuses: ['QA', 'Done'] })).toBe(true)
+    expect(reviewSettingsChangeNeeded(settings, { skipTicketStatuses: ['Done'] })).toBe(true)
+    expect(reviewSettingsChangeNeeded(settings, { startReaction: '' })).toBe(true)
+    expect(reviewSettingsChangeNeeded(settings, { runChecksUnasked: true })).toBe(true)
+    expect(
+      reviewSettingsChangeNeeded(settings, { startReaction: 'eyes', runChecksUnasked: true }),
+    ).toBe(true)
+  })
+})
+
+describe('reviewSettingsView', () => {
+  it('is nothing until the first read', () => {
+    expect(reviewSettingsView(undefined)).toBeUndefined()
+  })
+
+  it('shows the statuses joined, the reaction, and whether checks run unasked', () => {
+    expect(reviewSettingsView(WATCHING)).toEqual({
+      skipStatuses: 'Done',
+      startReaction: 'eyes',
+      runChecksUnasked: false,
+    })
+    expect(
+      reviewSettingsView({
+        ...NONE,
+        settings: { skipTicketStatuses: ['Done', 'Won’t do'], runChecksUnasked: true },
+      }),
+    ).toEqual({ skipStatuses: 'Done, Won’t do', startReaction: '', runChecksUnasked: true })
+  })
+
+  it('says why the reaction could not be added, on the last read', () => {
+    expect(
+      reviewSettingsView({
+        ...WATCHING,
+        lastPoll: {
+          at: '2026-11-17T11:58:00.000Z',
+          outcome: 'read',
+          reactionError: 'Slack reactions.add: missing_scope',
+        },
+      })?.reactionError,
+    ).toBe('Could not add the reaction: Slack reactions.add: missing_scope')
   })
 })
 
@@ -378,6 +518,7 @@ describe('slackReviewSettingsView', () => {
       redirectUrl: 'http://localhost:7001/api/v1/provider-connections/oauth/callback',
       thread: { kind: 'none' },
       canWatch: true,
+      settings: { skipStatuses: '', startReaction: '', runChecksUnasked: false },
       loading: false,
     })
     expect(
@@ -400,6 +541,7 @@ describe('slackReviewSettingsView', () => {
       now: NOW,
     })
     expect(loading.loading).toBe(true)
+    expect(loading).not.toHaveProperty('settings')
     const failed = slackReviewSettingsView({
       connections: [slack()],
       oauthSetup: {},

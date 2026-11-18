@@ -253,7 +253,9 @@ describe('ColleagueReviewStore', () => {
       expect(store.snapshot(KEY).pending.posts.has(1)).toBe(true)
       void store.postReply(KEY, 1, true)
       expect(sourceApi.postColleagueReviewReply).toHaveBeenCalledTimes(1)
-      expect(sourceApi.postColleagueReviewReply).toHaveBeenCalledWith('osc', 'ZNR-809', 1, false)
+      expect(sourceApi.postColleagueReviewReply).toHaveBeenCalledWith('osc', 'ZNR-809', 1, {
+        again: false,
+      })
       posting.resolve(POSTED)
       await going
       expect(store.snapshot(KEY).pending.posts.size).toBe(0)
@@ -265,7 +267,20 @@ describe('ColleagueReviewStore', () => {
       sourceApi.postColleagueReviewReply.mockResolvedValue(POSTED)
       const store = new ColleagueReviewStore(fakeWs())
       await store.postReply(KEY, 1, true)
-      expect(sourceApi.postColleagueReviewReply).toHaveBeenCalledWith('osc', 'ZNR-809', 1, true)
+      expect(sourceApi.postColleagueReviewReply).toHaveBeenCalledWith('osc', 'ZNR-809', 1, {
+        again: true,
+      })
+    })
+
+    it('posts the person’s edit in place of the draft when there is one', async () => {
+      api.readColleagueReview.mockResolvedValue(REVIEW)
+      sourceApi.postColleagueReviewReply.mockResolvedValue(POSTED)
+      const store = new ColleagueReviewStore(fakeWs())
+      await store.postReply(KEY, 1, false, 'Thanks, all good now.')
+      expect(sourceApi.postColleagueReviewReply).toHaveBeenCalledWith('osc', 'ZNR-809', 1, {
+        again: false,
+        text: 'Thanks, all good now.',
+      })
     })
 
     it('says why it was not posted, in the backend’s words or its own', async () => {

@@ -1,6 +1,8 @@
 import type { ColleagueReview } from 'thefactory-tools/types'
 import type {
   ReviewOffer,
+  ReviewReplyPost,
+  ReviewSettingsChange,
   ReviewSourceStatus,
   ReviewThreadWatch,
 } from '../utils/colleagueReviewSourceTypes'
@@ -11,6 +13,7 @@ import {
   listColleagueReviewOffers as listOffers,
   postColleagueReviewReply as postReply,
   setColleagueReviewSource as setSource,
+  setColleagueReviewSourceSettings as setSettings,
 } from './generated'
 
 /** The group's watched Slack thread, how it stands, and what it brought. */
@@ -34,6 +37,15 @@ export async function clearColleagueReviewThread(groupId: string): Promise<Revie
   return data
 }
 
+/** Change the group's review settings: what is left out stays, an empty value clears. Answers the whole status. */
+export async function setColleagueReviewSettings(
+  groupId: string,
+  change: ReviewSettingsChange,
+): Promise<ReviewSourceStatus> {
+  const { data } = await setSettings({ path: { groupId }, body: change, throwOnError: true })
+  return data
+}
+
 /** The updates waiting for the person, newest first. */
 export async function listWaitingReviewOffers(groupId: string): Promise<ReviewOffer[]> {
   const { data } = await listOffers({
@@ -50,16 +62,22 @@ export async function dismissReviewOffer(groupId: string, offerId: string): Prom
   return data
 }
 
-/** Post a round's reply in the watched thread as the person; `again` posts one already posted. */
+/**
+ * Post a round's reply in the watched thread as the person: `again` posts one
+ * already posted, `text` the person's edit in place of the drafted reply.
+ */
 export async function postColleagueReviewReply(
   groupId: string,
   ticketKey: string,
   round: number,
-  again: boolean,
+  post: ReviewReplyPost,
 ): Promise<ColleagueReview> {
   const { data } = await postReply({
     path: { groupId, ticketKey, round },
-    body: again ? { again: true } : {},
+    body: {
+      ...(post.again ? { again: true } : {}),
+      ...(post.text !== undefined ? { text: post.text } : {}),
+    },
     throwOnError: true,
   })
   return data as ColleagueReview

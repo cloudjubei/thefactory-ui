@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { useTicketLinks } from '../../../headless/contexts/TicketLinksContext'
 import { useColleagueReviewCall } from '../../../headless/hooks/useColleagueReviewCall'
+import { reviewReplyToPost } from '../../../headless/utils/colleagueReviewCard'
 import {
   COLLEAGUE_REVIEW_CARD_DEFAULT_LAYOUT,
   COLLEAGUE_REVIEW_CARD_TEXT as TEXT,
@@ -22,6 +23,7 @@ import { Input } from '../../primitives/Input'
 import { Modal } from '../../primitives/Modal'
 import Spinner from '../../primitives/Spinner'
 import SegmentedControl from '../../primitives/SegmentedControl'
+import { Textarea } from '../../primitives/Textarea'
 import { CopyButton } from '../CopyButton'
 import TicketChip from '../chips/TicketChip'
 import TicketLinkChip from '../chips/TicketLinkChip'
@@ -43,8 +45,8 @@ export type ColleagueReviewCardProps = {
   onDrop?: (findingId: string, note?: string) => void
   /** Mark a waited-on item given, with the person's note. Without it, Given is not offered. */
   onGiven?: (waitingOnId: string, note?: string) => void
-  /** Post a round's reply in the group's Slack thread; `again` posts it a second time. Without it, Post in thread is not offered. */
-  onPost?: (round: number, again: boolean) => void
+  /** Post a round's reply in the group's Slack thread; `again` posts it a second time, `text` is the person's edit. Without it, Post in thread is not offered. */
+  onPost?: (round: number, again: boolean, text?: string) => void
   /** Start with Post in thread's confirm open — for a fixed showcase state. */
   postConfirm?: boolean
   /** Start with this finding opened — for a fixed showcase state. */
@@ -65,8 +67,8 @@ type Actions = Pick<ColleagueReviewCardProps, 'onDrop' | 'onGiven' | 'onPost' | 
  * A ticket's colleague review on its review chat's tool rows, read live: the
  * round the call was about with its verdict, what became of each finding
  * since the round before, what the work waits on, and the drafted reply to
- * copy — or to post in the group's Slack thread, word for word, after a
- * confirm that shows it. On the latest round the person may drop a finding
+ * copy — or to post in the group's Slack thread after a confirm that shows
+ * it, editable. On the latest round the person may drop a finding
  * or mark a wait given; what they did reads as theirs. Earlier rounds stay
  * folded.
  */
@@ -399,8 +401,10 @@ function Reply({
   reply: string
   actions: Actions
 }) {
-  const [confirming, setConfirming] = useState(Boolean(actions.postConfirm))
   const { post } = round
+  const shown = post?.posted?.text ?? reply
+  const [confirming, setConfirming] = useState(Boolean(actions.postConfirm))
+  const [typed, setTyped] = useState(shown)
   const onPost = post?.canPost ? actions.onPost : undefined
   const again = post?.posted !== undefined
   return (
@@ -432,6 +436,7 @@ function Reply({
             aria-busy={post?.posting || undefined}
             onClick={(e) => {
               e.stopPropagation()
+              setTyped(shown)
               setConfirming(true)
             }}
           >
@@ -443,22 +448,24 @@ function Reply({
                 : REVIEW_POST_TEXT.post}
           </button>
         ) : null}
-        <CopyButton text={reply} label={TEXT.copy} title={TEXT.copy} />
+        <CopyButton text={shown} label={TEXT.copy} title={TEXT.copy} />
       </div>
       {onPost ? (
         <PostConfirm
           open={confirming}
           again={again}
           reply={reply}
+          typed={typed}
+          onType={setTyped}
           onClose={() => setConfirming(false)}
-          onPost={() => {
+          onPost={(text) => {
             setConfirming(false)
-            onPost(round.n, again)
+            onPost(round.n, again, text)
           }}
         />
       ) : null}
       <div className="max-h-[320px] overflow-y-auto rounded-md border border-(--border-subtle) bg-(--surface-raised) px-2.5 py-2 break-words whitespace-pre-wrap text-(--text-primary)">
-        {reply}
+        {shown}
       </div>
     </section>
   )
@@ -468,15 +475,21 @@ function PostConfirm({
   open,
   again,
   reply,
+  typed,
+  onType,
   onClose,
   onPost,
 }: {
   open: boolean
   again: boolean
+  /** The drafted reply: Post sends the person's text only when it differs. */
   reply: string
+  typed: string
+  onType: (text: string) => void
   onClose: () => void
-  onPost: () => void
+  onPost: (text: string | undefined) => void
 }) {
+  const toPost = reviewReplyToPost(reply, typed)
   return (
     <Modal
       isOpen={open}
@@ -488,7 +501,7 @@ function PostConfirm({
           <Button variant="secondary" onClick={onClose}>
             {REVIEW_POST_TEXT.cancel}
           </Button>
-          <Button variant="primary" onClick={onPost}>
+          <Button variant="primary" disabled={!toPost.canPost} onClick={() => onPost(toPost.text)}>
             {again ? REVIEW_POST_TEXT.confirmAgain : REVIEW_POST_TEXT.confirm}
           </Button>
         </div>
@@ -498,9 +511,13 @@ function PostConfirm({
         <p className="m-0 text-sm text-(--text-secondary)">
           {again ? REVIEW_POST_TEXT.confirmAgainBody : REVIEW_POST_TEXT.confirmBody}
         </p>
-        <div className="max-h-[50vh] overflow-y-auto rounded-md border border-(--border-subtle) bg-(--surface-raised) px-3 py-2 text-[13px] break-words whitespace-pre-wrap text-(--text-primary)">
-          {reply}
-        </div>
+        <Textarea
+          aria-label={TEXT.reply}
+          value={typed}
+          onChange={(e) => onType(e.target.value)}
+          rows={10}
+          className="max-h-[50vh] min-h-[160px] resize-y text-[13px]"
+        />
       </div>
     </Modal>
   )

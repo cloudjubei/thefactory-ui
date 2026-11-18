@@ -37,7 +37,13 @@ export const SLACK_CONNECTION: SlackConnectionEntry = {
 
 const NO_OFFERS = { new: 0, started: 0, dismissed: 0 }
 
-export const SOURCE_NONE: ReviewSourceStatus = { offering: 'ready', offers: NO_OFFERS }
+const NO_SETTINGS = { skipTicketStatuses: [] }
+
+export const SOURCE_NONE: ReviewSourceStatus = {
+  offering: 'ready',
+  offers: NO_OFFERS,
+  settings: NO_SETTINGS,
+}
 
 export const SOURCE_READY: ReviewSourceStatus = {
   source: {
@@ -52,6 +58,7 @@ export const SOURCE_READY: ReviewSourceStatus = {
   offering: 'ready',
   lastPoll: { at: '2026-11-17T11:58:00.000Z', outcome: 'read', replies: 3, offers: 2 },
   offers: { new: 2, started: 4, dismissed: 1 },
+  settings: NO_SETTINGS,
 }
 
 export const SOURCE_NO_BINDING: ReviewSourceStatus = {
@@ -74,6 +81,28 @@ export const SOURCE_SIGN_IN_AGAIN: ReviewSourceStatus = {
   ...SOURCE_READY,
   connection: { id: 'slack-1', status: 'sign-in-again', name: 'Slack', teamName: 'Acme' },
   lastPoll: { at: '2026-11-17T11:30:00.000Z', outcome: 'sign-in-again' },
+}
+
+/** A thread with every review setting set: two statuses skipped, a reaction, checks run unasked. */
+export const SOURCE_SETTINGS_SET: ReviewSourceStatus = {
+  ...SOURCE_READY,
+  settings: {
+    skipTicketStatuses: ['Done', 'Won’t do'],
+    startReaction: 'eyes',
+    runChecksUnasked: true,
+  },
+}
+
+/** The same, with Slack refusing the reaction on the last read. */
+export const SOURCE_REACTION_FAILED: ReviewSourceStatus = {
+  ...SOURCE_SETTINGS_SET,
+  lastPoll: {
+    at: '2026-11-17T11:58:00.000Z',
+    outcome: 'read',
+    replies: 3,
+    offers: 2,
+    reactionError: 'Slack reactions.add: missing_scope',
+  },
 }
 
 const READY_SIGN_IN: ProviderOAuthState = { step: 'ready', error: null }
@@ -206,6 +235,22 @@ export const ROUND_TWO_POSTED: ColleagueReview = {
             permalink: POSTED_LINK,
             ts: '1763380900.000300',
             postedAt: '2026-11-17T11:55:00.000Z',
+          },
+        }
+      : r,
+  ),
+}
+
+/** Round 2 posted after the person edited the drafted reply. */
+export const ROUND_TWO_POSTED_EDITED: ColleagueReview = {
+  ...ROUND_TWO_POSTED,
+  rounds: ROUND_TWO_POSTED.rounds.map((r) =>
+    r.n === 2 && r.postedReply
+      ? {
+          ...r,
+          postedReply: {
+            ...r.postedReply,
+            text: 'Thanks Priya, the Sunday case reads right now. One thing left: the email subject still says “Week 46”.',
           },
         }
       : r,

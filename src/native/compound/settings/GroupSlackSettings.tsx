@@ -5,6 +5,7 @@ import {
   slackClientIdProblem,
   slackWatchLinkProblem,
   useGroupSlackSettings,
+  type ReviewSettingsView,
   type SlackReviewSettingsState,
 } from '../../../headless'
 import { nativeFontFamilies, nativeRadii, nativeSpace } from '../../../tokens/native'
@@ -27,6 +28,9 @@ export type SlackReviewSettingsActions = {
   onBackOut: () => void
   onWatch: (permalink: string, offerExistingReplies: boolean) => void
   onClear: () => void
+  onSkipStatuses: (text: string) => void
+  onStartReaction: (text: string) => void
+  onRunChecksUnasked: (on: boolean) => void
 }
 
 export type SlackReviewSettingsPanelProps = SlackReviewSettingsActions & {
@@ -42,7 +46,7 @@ export type SlackReviewSettingsPanelProps = SlackReviewSettingsActions & {
 /**
  * Native peer of [web's `SlackReviewSettingsPanel`](../../../web/compound/settings/GroupSlackSettings.tsx)
  * in the layout that ships, Two steps: connect the person's own Slack app,
- * then watch the group's review thread.
+ * then watch the group's review thread; the group's review settings under them.
  */
 export function SlackReviewSettingsPanel({
   state,
@@ -79,6 +83,11 @@ export function SlackReviewSettingsPanel({
           <Text style={{ fontSize: 13, color: theme.text.secondary }}>{TEXT.connectFirst}</Text>
         )}
       </Step>
+      {view.settings ? (
+        <Step n={3} title={TEXT.settingsStep}>
+          <SettingsPart settings={view.settings} actions={actions} />
+        </Step>
+      ) : null}
     </View>
   )
 }
@@ -139,11 +148,23 @@ function ConnectionPart({ state, actions }: PartProps) {
   }
   if (connection.kind === 'connected') {
     return (
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-        <ToneBadge tone="done" label={TEXT.connected} />
-        <Text style={{ fontSize: 14, fontWeight: '500', color: theme.text.primary }}>
-          {connection.workspace}
-        </Text>
+      <View style={{ gap: nativeSpace[2] }}>
+        {signIn.error ? <Text style={muted}>{signIn.error}</Text> : null}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+          <ToneBadge tone="done" label={TEXT.connected} />
+          <Text style={{ fontSize: 14, fontWeight: '500', color: theme.text.primary }}>
+            {connection.workspace}
+          </Text>
+          <Button
+            size="sm"
+            variant="ghost"
+            accessibilityHint={TEXT.signInAgainHint}
+            loading={signIn.step === 'opening'}
+            onPress={actions.onSignInAgain}
+          >
+            {TEXT.signInAgain}
+          </Button>
+        </View>
       </View>
     )
   }
@@ -382,6 +403,94 @@ function ThreadLinkForm({
   )
 }
 
+function SettingsPart({
+  settings,
+  actions,
+}: {
+  settings: ReviewSettingsView
+  actions: SlackReviewSettingsActions
+}) {
+  const { theme } = useNativeTheme()
+  return (
+    <View style={{ gap: nativeSpace[3] }}>
+      <SavedField
+        label={TEXT.skipStatuses}
+        hint={TEXT.skipStatusesHint}
+        placeholder={TEXT.skipStatusesPlaceholder}
+        saved={settings.skipStatuses}
+        onSave={actions.onSkipStatuses}
+      />
+      <View style={{ gap: 4 }}>
+        <SavedField
+          label={TEXT.startReaction}
+          hint={TEXT.startReactionHint}
+          placeholder={TEXT.startReactionPlaceholder}
+          saved={settings.startReaction}
+          onSave={actions.onStartReaction}
+        />
+        {settings.reactionError ? (
+          <Text selectable style={{ fontSize: 12, color: theme.text.muted }}>
+            {settings.reactionError}
+          </Text>
+        ) : null}
+      </View>
+      <Switch
+        checked={settings.runChecksUnasked}
+        onCheckedChange={actions.onRunChecksUnasked}
+        label={TEXT.runChecksUnasked}
+      />
+    </View>
+  )
+}
+
+/** A text setting saved on leaving the field, Return, or Save; the saved value shows again when it changes underneath. */
+function SavedField({
+  label,
+  hint,
+  placeholder,
+  saved,
+  onSave,
+}: {
+  label: string
+  hint: string
+  placeholder: string
+  saved: string
+  onSave: (text: string) => void
+}) {
+  const [draft, setDraft] = useState<{ from: string; text: string } | undefined>(undefined)
+  const text = draft && draft.from === saved ? draft.text : saved
+  const dirty = text !== saved
+  const save = () => {
+    setDraft(undefined)
+    if (dirty) onSave(text)
+  }
+  return (
+    <Field
+      label={label}
+      hint={hint}
+      labelTrailing={
+        dirty ? (
+          <Button size="sm" variant="secondary" onPress={save}>
+            {TEXT.save}
+          </Button>
+        ) : undefined
+      }
+    >
+      <Input
+        value={text}
+        onChangeText={(next) => setDraft({ from: saved, text: next })}
+        onBlur={save}
+        onSubmitEditing={save}
+        placeholder={placeholder}
+        accessibilityLabel={label}
+        autoCapitalize="none"
+        autoCorrect={false}
+        returnKeyType="done"
+      />
+    </Field>
+  )
+}
+
 export type GroupSlackSettingsProps = {
   groupId: string
 }
@@ -407,6 +516,9 @@ export default function GroupSlackSettings({ groupId }: GroupSlackSettingsProps)
       onBackOut={slack.backOut}
       onWatch={slack.watch}
       onClear={slack.clear}
+      onSkipStatuses={slack.setSkipStatuses}
+      onStartReaction={slack.setStartReaction}
+      onRunChecksUnasked={slack.setRunChecksUnasked}
     />
   )
 }

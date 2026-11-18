@@ -37,7 +37,7 @@ import type {
   ReviewWaitingOnView,
 } from './colleagueReviewCardTypes'
 import { slackMessageLink } from './colleagueReviewSource'
-import type { ReviewReplyPostView } from './colleagueReviewSourceTypes'
+import type { ReviewReplyPostView, ReviewReplyToPost } from './colleagueReviewSourceTypes'
 import { reviewOfChat } from './colleagueReviewStart'
 
 type Rec = Record<string, unknown>
@@ -197,13 +197,31 @@ function replyPostView(
   if (!round?.recordedAt || !round.reply) return undefined
   const permalink = slackMessageLink(round.postedReply?.permalink)
   if (!thread && !permalink) return undefined
+  const text = round.postedReply?.text
   return {
     canPost: thread,
     posting,
     ...(permalink && round.postedReply
-      ? { posted: { permalink, postedAt: round.postedReply.postedAt } }
+      ? {
+          posted: {
+            permalink,
+            postedAt: round.postedReply.postedAt,
+            ...(text ? { text } : {}),
+          },
+        }
       : {}),
   }
+}
+
+/**
+ * What Post sends from the confirm's reply box: nothing while it is empty,
+ * the person's edit, trimmed, once it differs from the drafted reply, and the
+ * draft itself otherwise. Pure.
+ */
+export function reviewReplyToPost(drafted: string, typed: string): ReviewReplyToPost {
+  const text = typed.trim()
+  if (text === '') return { canPost: false }
+  return text === drafted.trim() ? { canPost: true } : { canPost: true, text }
 }
 
 /**

@@ -45,8 +45,8 @@ export type UseColleagueReview = {
   dropFinding: (findingId: string, note?: string) => void
   /** Mark a waited-on item given, shown at once; rolled back with why when it fails. */
   markGiven: (waitingOnId: string, note?: string) => void
-  /** Post a round's reply in the watched thread, shown posting at once; `again` posts it a second time. */
-  postReply: (round: number, again: boolean) => void
+  /** Post a round's reply in the watched thread, shown posting at once; `again` posts it a second time, `text` is the person's edit. */
+  postReply: (round: number, again: boolean, text?: string) => void
   refresh: () => Promise<void>
 }
 
@@ -90,8 +90,8 @@ export function useColleagueReview(
     [store, key],
   )
   const postReply = useCallback(
-    (round: number, again: boolean) => {
-      if (key) void store.postReply(key, round, again)
+    (round: number, again: boolean, text?: string) => {
+      if (key) void store.postReply(key, round, again, text)
     },
     [store, key],
   )

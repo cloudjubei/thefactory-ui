@@ -5,6 +5,7 @@ import {
   slackClientIdProblem,
   slackWatchLinkProblem,
   useGroupSlackSettings,
+  type ReviewSettingsView,
   type SlackReviewSettingsState,
   type SlackSettingsLayout,
 } from '../../../headless'
@@ -29,6 +30,11 @@ export type SlackReviewSettingsActions = {
   onBackOut: () => void
   onWatch: (permalink: string, offerExistingReplies: boolean) => void
   onClear: () => void
+  /** Skip tickets in the statuses typed comma-separated. */
+  onSkipStatuses: (text: string) => void
+  /** The emoji added once a review starts; empty adds none. */
+  onStartReaction: (text: string) => void
+  onRunChecksUnasked: (on: boolean) => void
 }
 
 export type SlackReviewSettingsPanelProps = SlackReviewSettingsActions & {
@@ -48,8 +54,8 @@ const LABEL = 'text-[10px] font-semibold uppercase tracking-wider text-(--text-m
 /**
  * The group's Slack in its Settings: the person's own Slack app signed in
  * through the browser, then the review thread the group watches — its link,
- * whether it brings updates, and its last read. Three layouts to pick from;
- * Two steps ships.
+ * whether it brings updates, and its last read — then the group's review
+ * settings, each saved at once. Three layouts to pick from; Two steps ships.
  */
 export function SlackReviewSettingsPanel({
   state,
@@ -72,6 +78,9 @@ export function SlackReviewSettingsPanel({
   ) : (
     <p className={MUTED}>{TEXT.connectFirst}</p>
   )
+  const settings = view.settings ? (
+    <SettingsPart settings={view.settings} actions={actions} />
+  ) : null
   const notes = (
     <>
       {view.readError ? <Alert>{view.readError}</Alert> : null}
@@ -92,6 +101,14 @@ export function SlackReviewSettingsPanel({
               {thread}
             </div>
           </div>
+          {settings ? (
+            <div className="border-t border-(--border-subtle) px-4 py-3">
+              <div className="flex flex-col gap-2">
+                <span className={LABEL}>{TEXT.settingsStep}</span>
+                {settings}
+              </div>
+            </div>
+          ) : null}
         </div>
       </section>
     )
@@ -105,6 +122,7 @@ export function SlackReviewSettingsPanel({
         <div className="flex flex-col divide-y divide-(--border-subtle) rounded-md border border-(--border-subtle)">
           <Row label={TEXT.heading}>{connection}</Row>
           <Row label={TEXT.threadLink}>{thread}</Row>
+          {settings ? <Row label={TEXT.settingsStep}>{settings}</Row> : null}
         </div>
       </section>
     )
@@ -120,6 +138,11 @@ export function SlackReviewSettingsPanel({
       <Step n={2} title={TEXT.threadStep} muted={!view.canWatch}>
         {thread}
       </Step>
+      {settings ? (
+        <Step n={3} title={TEXT.settingsStep}>
+          {settings}
+        </Step>
+      ) : null}
     </section>
   )
 }
@@ -189,9 +212,22 @@ function ConnectionPart({ state, actions }: PartProps) {
   }
   if (connection.kind === 'connected') {
     return (
-      <div className="flex min-w-0 flex-wrap items-center gap-2">
-        <ToneBadge tone="done">{TEXT.connected}</ToneBadge>
-        <span className="min-w-0 truncate text-sm font-medium">{connection.workspace}</span>
+      <div className="flex min-w-0 flex-col gap-2">
+        {signIn.error ? <Alert>{signIn.error}</Alert> : null}
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <ToneBadge tone="done">{TEXT.connected}</ToneBadge>
+          <span className="min-w-0 truncate text-sm font-medium">{connection.workspace}</span>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="ml-auto"
+            title={TEXT.signInAgainHint}
+            loading={signIn.step === 'opening'}
+            onClick={actions.onSignInAgain}
+          >
+            {TEXT.signInAgain}
+          </Button>
+        </div>
       </div>
     )
   }
@@ -394,6 +430,92 @@ function ThreadLinkForm({
   )
 }
 
+function SettingsPart({
+  settings,
+  actions,
+}: {
+  settings: ReviewSettingsView
+  actions: SlackReviewSettingsActions
+}) {
+  return (
+    <div className="flex min-w-0 flex-col gap-3">
+      <SavedField
+        label={TEXT.skipStatuses}
+        hint={TEXT.skipStatusesHint}
+        placeholder={TEXT.skipStatusesPlaceholder}
+        saved={settings.skipStatuses}
+        onSave={actions.onSkipStatuses}
+      />
+      <div className="flex min-w-0 flex-col gap-1">
+        <SavedField
+          label={TEXT.startReaction}
+          hint={TEXT.startReactionHint}
+          placeholder={TEXT.startReactionPlaceholder}
+          saved={settings.startReaction}
+          onSave={actions.onStartReaction}
+        />
+        {settings.reactionError ? (
+          <p className="m-0 text-[12px] break-words text-(--text-muted)">
+            {settings.reactionError}
+          </p>
+        ) : null}
+      </div>
+      <Switch
+        checked={settings.runChecksUnasked}
+        onCheckedChange={actions.onRunChecksUnasked}
+        label={TEXT.runChecksUnasked}
+      />
+    </div>
+  )
+}
+
+/** A text setting saved on leaving the field, Enter, or Save; the saved value shows again when it changes underneath. */
+function SavedField({
+  label,
+  hint,
+  placeholder,
+  saved,
+  onSave,
+}: {
+  label: string
+  hint: string
+  placeholder: string
+  saved: string
+  onSave: (text: string) => void
+}) {
+  const [draft, setDraft] = useState<{ from: string; text: string } | undefined>(undefined)
+  const text = draft && draft.from === saved ? draft.text : saved
+  const dirty = text !== saved
+  const save = () => {
+    setDraft(undefined)
+    if (dirty) onSave(text)
+  }
+  return (
+    <div className="flex min-w-0 items-start gap-2">
+      <div className="min-w-0 flex-1">
+        <Field label={label} hint={hint}>
+          <Input
+            value={text}
+            onChange={(e) => setDraft({ from: saved, text: e.target.value })}
+            onBlur={save}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') save()
+            }}
+            placeholder={placeholder}
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </Field>
+      </div>
+      {dirty ? (
+        <Button size="sm" variant="secondary" className="mt-6 shrink-0" onClick={save}>
+          {TEXT.save}
+        </Button>
+      ) : null}
+    </div>
+  )
+}
+
 export type GroupSlackSettingsProps = {
   groupId: string
   layout?: SlackSettingsLayout
@@ -421,6 +543,9 @@ export default function GroupSlackSettings({ groupId, layout }: GroupSlackSettin
       onBackOut={slack.backOut}
       onWatch={slack.watch}
       onClear={slack.clear}
+      onSkipStatuses={slack.setSkipStatuses}
+      onStartReaction={slack.setStartReaction}
+      onRunChecksUnasked={slack.setRunChecksUnasked}
     />
   )
 }

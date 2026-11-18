@@ -2150,6 +2150,44 @@ export type ProvingStepShape = {
   }
 }
 
+export type AiAttributionRules = {
+  trailer: unknown
+  creditKey: unknown
+  ownKey: unknown
+  aiName: unknown
+  aiEmail: unknown
+  generatedLine: unknown
+  aiLink: unknown
+  footerMark: string
+}
+
+export type AiAttributionLine = {
+  line: number
+  text: string
+}
+
+export type AiAttributionStripped = {
+  text: string
+  lines: Array<AiAttributionLine>
+}
+
+export type AiAttributionSource = {
+  where: string
+  text: string
+}
+
+export type AiAttributionFinding = {
+  line: number
+  text: string
+  where: string
+}
+
+export type AiAttributionCheck = {
+  status: 'passed' | 'failed'
+  findings: Array<AiAttributionFinding>
+  summary: string
+}
+
 export type CapabilityId =
   | 'java'
   | 'androidSdk'
@@ -2512,6 +2550,7 @@ export type ToolName =
   | 'uploadFile'
   | 'viewImage'
   | 'viewVideo'
+  | 'compareVideos'
   | 'getAbsolutePath'
   | 'gitStatus'
   | 'listRemotes'
@@ -2654,6 +2693,7 @@ export type ToolName =
   | 'reportPreExistingBreak'
   | 'reportAcceptanceAlreadyMet'
   | 'reportUiImpact'
+  | 'regenerateProjectSources'
   | 'listProjectNoteEntries'
   | 'listProjectNoteSummaries'
   | 'getProjectNote'
@@ -4354,6 +4394,26 @@ export type ProjectCheckEnvSetting = {
   secrets?: Array<ProjectCheckEnvSecretRef>
 }
 
+export type ProjectGeneratorInputOrigin = {
+  projectId: string
+  path: string
+}
+
+export type ProjectGeneratorInput = {
+  path: string
+  from?: {
+    projectId: string
+    path: string
+  }
+}
+
+export type ProjectGeneratorSetting = {
+  name: string
+  command: string
+  inputs: Array<ProjectGeneratorInput>
+  outputs: Array<string>
+}
+
 export type ProjectTemplateProvenance = {
   templateId: string
   commit: string
@@ -4403,6 +4463,7 @@ export type ProjectRegistryMetadata = {
     timeoutSec?: number
     envFile?: string
   }
+  generators?: Array<ProjectGeneratorSetting>
   serveStack?: {
     entry: string
     parts: Array<UiStackPart>
@@ -4472,6 +4533,7 @@ export type ProjectRegistryEntry = {
       timeoutSec?: number
       envFile?: string
     }
+    generators?: Array<ProjectGeneratorSetting>
     serveStack?: {
       entry: string
       parts: Array<UiStackPart>
@@ -6529,6 +6591,7 @@ export type PrepareIsolatedChatWorkspaceInput = {
     tipSha: string
   }
   readOnly?: boolean
+  dataHome?: string
 }
 
 export type GitIdentity = {
@@ -6647,6 +6710,7 @@ export type FilesEmittedPreview = {
 
 export type ApplyCliAgentArtifactOptions = {
   targetDir: string
+  dataHome?: string
 }
 
 export type ApplyCliAgentArtifactResult = {
@@ -7457,22 +7521,9 @@ export type AstEditResult = {
   replacementCount?: number
 }
 
-export type CodeIntelCodeMode = 'interface' | 'code'
-
-export type CodeIntelCodeParams = {
-  names: Array<string>
-  packageName?: string
-  mode?: 'interface' | 'code'
-  deep?: boolean
-}
-
-export type CodeIntelUpdate = {
-  updatedPackages: Array<string>
-  at: number
-}
-
 export type CodeIntelToolsOptions = {
   persistCatalogue?: boolean
+  dataHome?: string
   scanOnFirstUse?: boolean
   includeGlobs?: Array<string>
   ignoreGlobs?: Array<string>
@@ -7487,6 +7538,79 @@ export type CodeIntelToolsOptions = {
     parseTimeoutMs?: number
   }
 }
+
+export type CodeIntelEngineSetup = {
+  projectRoot: string
+  opts?: {
+    persistCatalogue?: boolean
+    dataHome?: string
+    scanOnFirstUse?: boolean
+    includeGlobs?: Array<string>
+    ignoreGlobs?: Array<string>
+    autoExternalDependencies?: boolean
+    autoExternalDevDependencies?: boolean
+    localDependenciesFullScan?: boolean
+    externalNodeModules?: {
+      allowlist?: Array<string>
+      includeDtsOnly?: boolean
+    }
+    codeIntel?: {
+      parseTimeoutMs?: number
+    }
+  }
+}
+
+export type CodeIntelCodeMode = 'interface' | 'code'
+
+export type CodeIntelCodeParams = {
+  names: Array<string>
+  packageName?: string
+  mode?: 'interface' | 'code'
+  deep?: boolean
+}
+
+export type CodeIntelEngineCall =
+  | {
+      kind: 'init'
+    }
+  | {
+      kind: 'scan'
+    }
+  | {
+      kind: 'catalogue'
+    }
+  | {
+      kind: 'code'
+      params: CodeIntelCodeParams
+    }
+  | {
+      kind: 'changed'
+      packageName: string
+    }
+  | {
+      kind: 'close'
+    }
+
+export type CodeIntelEngineRequest = CodeIntelEngineCall & {
+  id: number
+}
+
+export type CodeIntelUpdate = {
+  updatedPackages: Array<string>
+  at: number
+}
+
+export type CodeIntelEngineMessage =
+  | {
+      kind: 'reply'
+      id: number
+      result?: unknown
+      error?: string
+    }
+  | {
+      kind: 'update'
+      update: CodeIntelUpdate
+    }
 
 export type CodeIntelMemberKind =
   | 'interface'
@@ -7748,6 +7872,7 @@ export type ReviewVerdict = 'approve' | 'approve-with-notes' | 'changes-requeste
 export type ReviewPostedReply = {
   permalink: string
   ts: string
+  text?: string
   postedAt: string
 }
 
@@ -7764,6 +7889,7 @@ export type ReviewRound = {
   postedReply?: {
     permalink: string
     ts: string
+    text?: string
     postedAt: string
   }
 }
@@ -7889,6 +8015,7 @@ export type MarkColleagueReviewReplyPostedInput = {
   round: number
   permalink: string
   ts: string
+  text?: string
 }
 
 export type ListColleagueReviewsInput = {
@@ -8006,6 +8133,11 @@ export type ColleagueReviewOfferKind = 'first-round' | 'next-round'
 
 export type ColleagueReviewOfferState = 'new' | 'started' | 'dismissed'
 
+export type ColleagueReviewOfferReaction = {
+  name: string
+  at: string
+}
+
 export type ColleagueReviewOffer = {
   id: string
   groupId: string
@@ -8023,6 +8155,10 @@ export type ColleagueReviewOffer = {
   createdAt: string
   settledAt?: string
   supersededMessageTs?: Array<string>
+  reaction?: {
+    name: string
+    at: string
+  }
 }
 
 export type ColleagueReviewSourceState = {
@@ -8037,7 +8173,39 @@ export type ColleagueReviewSourceState = {
     setAt: string
   }
   offers: Array<ColleagueReviewOffer>
+  skipTicketStatuses?: Array<string>
+  startReaction?: string
+  runChecksUnasked?: boolean
   updatedAt: string
+}
+
+export type ColleagueReviewSourceSettings = {
+  skipTicketStatuses: Array<string>
+  startReaction?: string
+  runChecksUnasked?: boolean
+}
+
+export type SetColleagueReviewSettingsInput = {
+  groupId: string
+  skipTicketStatuses?: Array<string>
+  startReaction?: string
+  runChecksUnasked?: boolean
+}
+
+export type ColleagueReviewSettingsSet = {
+  ok: true
+  settings: ColleagueReviewSourceSettings
+}
+
+export type ColleagueReviewOfferKey = {
+  groupId: string
+  offerId: string
+}
+
+export type MarkColleagueReviewOfferReactedInput = {
+  groupId: string
+  offerId: string
+  name: string
 }
 
 export type SetColleagueReviewSourceInput = {
@@ -8081,6 +8249,9 @@ export type RecordColleagueReviewOffersInput = {
   messages: Array<SlackMessage>
   cursor?: string
   projectKeys: Array<string>
+  ticketStatuses?: {
+    [key: string]: string
+  }
   ignoreAuthorIds?: Array<string>
   names?: {
     [key: string]: string
@@ -8090,11 +8261,6 @@ export type RecordColleagueReviewOffersInput = {
 export type ListColleagueReviewOffersInput = {
   groupId: string
   state?: 'new' | 'started' | 'dismissed'
-}
-
-export type ColleagueReviewOfferKey = {
-  groupId: string
-  offerId: string
 }
 
 export type MarkColleagueReviewOfferStartedInput = {
@@ -8114,6 +8280,9 @@ export type ColleagueReviewSourceRead = {
     cursor?: string
     setAt: string
   }
+  skipTicketStatuses?: Array<string>
+  startReaction?: string
+  runChecksUnasked?: boolean
 }
 
 export type ColleagueReviewOffersRecorded = {
@@ -10845,6 +11014,11 @@ export type DesignPlaygroundShot = {
   sha256: string
 }
 
+export type DesignStoreRoots = {
+  home: string
+  checkout?: string
+}
+
 export type RunDiagnosticsPhase =
   | 'process'
   | 'step'
@@ -11811,6 +11985,30 @@ export type DependencyLinkRepoint = {
     target: string
   }>
 }
+
+export type TreeMoveResult = {
+  moved: Array<string>
+  conflicts: Array<string>
+  leftBehind: Array<{
+    path: string
+    reason: string
+  }>
+}
+
+export type TreeEntrySnapshot =
+  | {
+      kind: 'file'
+      bytes: number
+      sha256: string
+      version: string
+    }
+  | {
+      kind: 'link'
+      target: string
+    }
+  | {
+      kind: 'dir'
+    }
 
 export type MemberFileEditToolName =
   | 'writeFile'
@@ -14463,6 +14661,14 @@ export type MobileDeviceLeaseRunChange = {
   stepKey?: string
 }
 
+export type MobileRecordingActionContext = {
+  startMs: number
+  endedMs: number
+  appId?: string
+  secret: boolean
+  secrets: Array<string>
+}
+
 export type MobileLiveSessionInput = {
   deviceId: string
   avd?: string
@@ -15149,6 +15355,31 @@ export type MobileStdoutCapture = {
   exitCode: number | unknown
   stderr: string
   sha256: string
+}
+
+export type MobileRecordingStart = {
+  atMs: number
+  errorMs: number
+  seen: boolean
+}
+
+export type MobileInputPlace = {
+  x?: number
+  y?: number
+  toX?: number
+  toY?: number
+  password?: boolean
+}
+
+export type MobileRecordedInput = {
+  x?: number
+  y?: number
+  toX?: number
+  toY?: number
+  password?: boolean
+  sentMs: number
+  doneMs: number
+  ok: boolean
 }
 
 export type MobileRecordingPace = {
@@ -17372,6 +17603,7 @@ export type ProcessReviewVerdict = {
     reason: string
   }
   followUps?: Array<string>
+  followUpsToFix?: Array<string>
   cause?: 'defect' | 'proof-impossible'
   notShown?: Array<string>
 }
@@ -17649,6 +17881,7 @@ export type ProcessLedgerEntry = {
       reason: string
     }
     followUps?: Array<string>
+    followUpsToFix?: Array<string>
     cause?: 'defect' | 'proof-impossible'
     notShown?: Array<string>
   }
@@ -18863,6 +19096,20 @@ export type ProjectDataDispatchResult =
       matched: false
     }
 
+export type ProjectDataHomeStore = {
+  from: string
+  to?: string
+}
+
+export type ProjectDataHomeMigration = {
+  moved: Array<string>
+  conflicts: Array<string>
+  leftBehind: Array<{
+    path: string
+    reason: string
+  }>
+}
+
 export type PackageJsonDependencies = {
   dependencies?: {
     [key: string]: string
@@ -18938,6 +19185,7 @@ export type ProjectSpecCreateInput = {
       timeoutSec?: number
       envFile?: string
     }
+    generators?: Array<ProjectGeneratorSetting>
     serveStack?: {
       entry: string
       parts: Array<UiStackPart>
@@ -19050,6 +19298,7 @@ export type ProjectSpecEditInput = {
       timeoutSec?: number
       envFile?: string
     }
+    generators?: Array<ProjectGeneratorSetting>
     serveStack?: {
       entry: string
       parts: Array<UiStackPart>
@@ -19587,6 +19836,42 @@ export type ProjectCheckHidden = {
   reason: string
 }
 
+export type ProjectTestRunnerName =
+  | 'vitest'
+  | 'jest'
+  | 'playwright'
+  | 'cypress'
+  | 'mocha'
+  | 'node'
+  | 'other'
+
+export type ProjectTestRunnerTier = 'unit' | 'e2e'
+
+export type ProjectTestFilePattern =
+  | {
+      glob: string
+    }
+  | {
+      regex: string
+      flags?: string
+    }
+
+export type ProjectTestRunner = {
+  runner: ProjectTestRunnerName
+  tier: ProjectTestRunnerTier
+  command: string
+  source: string
+  config?: string
+  dir: string
+  include?: Array<ProjectTestFilePattern>
+  exclude: Array<ProjectTestFilePattern>
+}
+
+export type ProjectGeneratorScript = {
+  script: string
+  command: string
+}
+
 export type ProjectChecksScan = {
   ecosystem: CheckEcosystem
   checks: Array<ProjectCheck>
@@ -19597,6 +19882,8 @@ export type ProjectChecksScan = {
     [key: string]: Array<string>
   }
   notes: Array<string>
+  testRunners?: Array<ProjectTestRunner>
+  generatorScripts?: Array<ProjectGeneratorScript>
   scannedAt: number
 }
 
@@ -19645,6 +19932,8 @@ export type FingerprintedProjectChecksScan = {
     [key: string]: Array<string>
   }
   notes: Array<string>
+  testRunners?: Array<ProjectTestRunner>
+  generatorScripts?: Array<ProjectGeneratorScript>
   scannedAt: number
   head: string
   fingerprint: string
@@ -19699,6 +19988,8 @@ export type ProjectChecksRecord = {
     [key: string]: Array<string>
   }
   notes: Array<string>
+  testRunners?: Array<ProjectTestRunner>
+  generatorScripts?: Array<ProjectGeneratorScript>
   scannedAt: number
   head: string
   fingerprint: string
@@ -19727,6 +20018,8 @@ export type ProjectChecksListing = {
     [key: string]: Array<string>
   }
   notes: Array<string>
+  testRunners?: Array<ProjectTestRunner>
+  generatorScripts?: Array<ProjectGeneratorScript>
   scannedAt: number
   head: string
   fingerprint: string
@@ -19734,6 +20027,7 @@ export type ProjectChecksListing = {
   knownFlakes?: Array<ProjectCheckKnownFlake>
   freshness: 'stored' | 'scanned'
   placements?: Array<ProjectCheckPlacement>
+  generators?: Array<ProjectGeneratorSetting>
 }
 
 export type ReadProjectChecksOptions = {
@@ -19827,6 +20121,36 @@ export type NestStartReadPlan = {
   tsconfig: string
   tsconfigFallback: string
   entry: string
+}
+
+export type WebStartSpec = {
+  bin: string
+  args: Array<string>
+  readyPath: string
+  timeoutMs: number
+}
+
+export type ConfigLiteral =
+  | {
+      kind: 'string'
+      value: string
+    }
+  | {
+      kind: 'regex'
+      source: string
+      flags: string
+    }
+
+export type ConfigValueRead = {
+  literals: Array<ConfigLiteral>
+  exact: boolean
+}
+
+export type ConfigObjectRead = {
+  values: {
+    [key: string]: ConfigValueRead
+  }
+  spreads: boolean
 }
 
 export type ProjectCommandParamType = 'string' | 'number' | 'boolean'
@@ -19931,6 +20255,96 @@ export type ProjectCommandLaunch = {
   }
   timeoutMs?: number
   stopGraceMs: number
+}
+
+export type ProjectGeneratorInputSource = {
+  repoPath: string
+  ref: string
+  baseRef?: string
+  label?: string
+}
+
+export type ProjectGeneratorsRunSetting = {
+  generators: Array<ProjectGeneratorSetting>
+  sources: {
+    [key: string]: ProjectGeneratorInputSource
+  }
+}
+
+export type ProjectGeneratorsBriefInput = {
+  generators?: Array<ProjectGeneratorSetting>
+  scripts?: Array<ProjectGeneratorScript>
+}
+
+export type ProjectGeneratorOutputChangeKind = 'changed' | 'added' | 'removed'
+
+export type ProjectGeneratorOutputChange = {
+  path: string
+  change: ProjectGeneratorOutputChangeKind
+}
+
+export type ProjectGeneratorRun =
+  | {
+      ran: true
+      passed: boolean
+      summary: string
+      changes: Array<ProjectGeneratorOutputChange>
+    }
+  | {
+      ran: false
+      reason: string
+    }
+
+export type ProjectGeneratorRegenerationStatus = 'regenerated' | 'unchanged' | 'failed' | 'not-run'
+
+export type ProjectGeneratorRegeneration = {
+  generator: string
+  status: ProjectGeneratorRegenerationStatus
+  summary: string
+  changes: Array<ProjectGeneratorOutputChange>
+}
+
+export type ProjectGeneratorsRegenerationResult = {
+  results: Array<ProjectGeneratorRegeneration>
+  summary: string
+  running?: true
+}
+
+export type ProjectGeneratorDueFacts = {
+  changedPaths?: Array<string>
+  inputsChanged: {
+    [key: string]: boolean | unknown
+  }
+}
+
+export type ProjectGeneratorPlacedInput = {
+  path: string
+  content: string
+}
+
+export type RunProjectGeneratorInput = {
+  checkoutRoot: string
+  scan: ProjectChecksScan
+  generator: ProjectGeneratorSetting
+  sources: {
+    [key: string]: ProjectGeneratorInputSource
+  }
+  leaveOutIgnored?: boolean
+  writeBackTo?: string
+}
+
+export type CheckProjectGeneratorsInput = {
+  checkoutRoot: string
+  scan: ProjectChecksScan
+  setting: ProjectGeneratorsRunSetting
+  changedPaths?: Array<string>
+}
+
+export type RegenerateProjectGeneratorsInput = {
+  checkoutRoot: string
+  scan: ProjectChecksScan
+  setting: ProjectGeneratorsRunSetting
+  name?: string
 }
 
 export type StoredProjectNoteEntry = {
@@ -20143,6 +20557,44 @@ export type ProjectScriptCarryOutcome = {
   copied: Array<string>
   removed: Array<string>
   failed: Array<ProjectScriptKeptOutFile>
+}
+
+export type ProjectSettingKind = 'env' | 'config'
+
+export type ProjectSettingFileShape = 'env' | 'json' | 'properties' | 'code'
+
+export type ProjectSetting = {
+  name: string
+  kind: ProjectSettingKind
+  files: Array<string>
+}
+
+export type ProjectSettingSource = {
+  path: string
+  text: string
+}
+
+export type ProjectSettingsListing = {
+  settings: Array<ProjectSetting>
+  configRoutes: Array<string>
+}
+
+export type ProjectSettingLikeness = 'same' | 'contains'
+
+export type ProjectSettingMatch = {
+  existing: ProjectSetting
+  likeness: ProjectSettingLikeness
+}
+
+export type ProjectSettingAddition = {
+  setting: ProjectSetting
+  clientSide: boolean
+  matches: Array<ProjectSettingMatch>
+}
+
+export type ProjectSettingsChange = {
+  added: Array<ProjectSettingAddition>
+  configRoutes: Array<string>
 }
 
 export type ProjectGroupMembershipChange = {
@@ -20471,6 +20923,7 @@ export type ProofPlanCapacity = {
   proverStep: boolean
   screensUnavailable?: string
   detectedChecks?: Array<ProjectCheckKind>
+  testRunners?: Array<ProjectTestRunner>
   liveCheckEnv?: boolean
   liveCheckUnavailable?: string
 }
@@ -23594,11 +24047,20 @@ export type ReportProofLine = {
   source: ReportProofSource
 }
 
+export type ReportSettledKind = 'resolved' | 'deferred' | 'fix'
+
+export type ReportSettledItem = {
+  item: string
+  kind: ReportSettledKind
+  summary: string
+}
+
 export type ReportSections = {
   outcome: ReportOutcomeSection
   howProven: Array<ReportProofLine>
   decisions: Array<string>
   needsYou: Array<string>
+  settled?: Array<ReportSettledItem>
 }
 
 export type LoomWalkthroughItemFields = {
@@ -23685,6 +24147,7 @@ export type ReviewEvidenceRef = {
     howProven: Array<ReportProofLine>
     decisions: Array<string>
     needsYou: Array<string>
+    settled?: Array<ReportSettledItem>
   }
   walkthroughItem?: {
     title: string
@@ -23847,6 +24310,8 @@ export type CodeReviewFindingsJudgement = {
   followUps: Array<CodeReviewFinding>
   reversals: Array<CodeReviewFinding>
 }
+
+export type ReportSectionName = 'outcome' | 'howProven' | 'decisions' | 'needsYou'
 
 export type VisualProofAssessment = {
   pairs: number
@@ -24156,6 +24621,7 @@ export type CaptureToolSet = {
     | 'uploadFile'
     | 'viewImage'
     | 'viewVideo'
+    | 'compareVideos'
     | 'getAbsolutePath'
     | 'gitStatus'
     | 'listRemotes'
@@ -24298,6 +24764,7 @@ export type CaptureToolSet = {
     | 'reportPreExistingBreak'
     | 'reportAcceptanceAlreadyMet'
     | 'reportUiImpact'
+    | 'regenerateProjectSources'
     | 'listProjectNoteEntries'
     | 'listProjectNoteSummaries'
     | 'getProjectNote'
@@ -24731,6 +25198,7 @@ export type CaptureToolSet = {
     | 'uploadFile'
     | 'viewImage'
     | 'viewVideo'
+    | 'compareVideos'
     | 'getAbsolutePath'
     | 'gitStatus'
     | 'listRemotes'
@@ -24873,6 +25341,7 @@ export type CaptureToolSet = {
     | 'reportPreExistingBreak'
     | 'reportAcceptanceAlreadyMet'
     | 'reportUiImpact'
+    | 'regenerateProjectSources'
     | 'listProjectNoteEntries'
     | 'listProjectNoteSummaries'
     | 'getProjectNote'
@@ -25313,6 +25782,7 @@ export type CaptureToolSet = {
     | 'uploadFile'
     | 'viewImage'
     | 'viewVideo'
+    | 'compareVideos'
     | 'getAbsolutePath'
     | 'gitStatus'
     | 'listRemotes'
@@ -25455,6 +25925,7 @@ export type CaptureToolSet = {
     | 'reportPreExistingBreak'
     | 'reportAcceptanceAlreadyMet'
     | 'reportUiImpact'
+    | 'regenerateProjectSources'
     | 'listProjectNoteEntries'
     | 'listProjectNoteSummaries'
     | 'getProjectNote'
@@ -25888,6 +26359,7 @@ export type CaptureToolSet = {
     | 'uploadFile'
     | 'viewImage'
     | 'viewVideo'
+    | 'compareVideos'
     | 'getAbsolutePath'
     | 'gitStatus'
     | 'listRemotes'
@@ -26030,6 +26502,7 @@ export type CaptureToolSet = {
     | 'reportPreExistingBreak'
     | 'reportAcceptanceAlreadyMet'
     | 'reportUiImpact'
+    | 'regenerateProjectSources'
     | 'listProjectNoteEntries'
     | 'listProjectNoteSummaries'
     | 'getProjectNote'
@@ -26464,6 +26937,7 @@ export type CaptureToolSet = {
     | 'uploadFile'
     | 'viewImage'
     | 'viewVideo'
+    | 'compareVideos'
     | 'getAbsolutePath'
     | 'gitStatus'
     | 'listRemotes'
@@ -26606,6 +27080,7 @@ export type CaptureToolSet = {
     | 'reportPreExistingBreak'
     | 'reportAcceptanceAlreadyMet'
     | 'reportUiImpact'
+    | 'regenerateProjectSources'
     | 'listProjectNoteEntries'
     | 'listProjectNoteSummaries'
     | 'getProjectNote'
@@ -26828,6 +27303,7 @@ export type RecordReviewEvidenceInput = {
     howProven: Array<ReportProofLine>
     decisions: Array<string>
     needsYou: Array<string>
+    settled?: Array<ReportSettledItem>
   }
   walkthroughItem?: {
     title: string
@@ -27367,6 +27843,7 @@ export type ScriptEvidence = {
     howProven: Array<ReportProofLine>
     decisions: Array<string>
     needsYou: Array<string>
+    settled?: Array<ReportSettledItem>
   }
   walkthroughItem?: {
     title: string
@@ -28929,6 +29406,491 @@ export type UiLaunchContextOptions = {
   timezoneId?: string
 }
 
+export type VideoBenchArmRole = 'baseline' | 'validity' | 'candidate'
+
+export type VideoBenchQuestionType =
+  | 'text-at'
+  | 'when'
+  | 'before-error'
+  | 'small-text'
+  | 'spoken'
+  | 'sound'
+  | 'compare'
+  | 'mixed-language'
+
+export type VideoBenchStoryFeature =
+  | 'screen-text'
+  | 'find'
+  | 'actions'
+  | 'screen-changes'
+  | 'portrait'
+  | 'compare'
+
+export type VideoBenchStripId = VideoBenchStoryFeature | 'transcript'
+
+export type VideoBenchArm = {
+  id: string
+  role: VideoBenchArmRole
+  summary: string
+  tools: Array<string>
+  targets: Array<VideoBenchQuestionType>
+  over?: string
+  keeps: Array<VideoBenchStoryFeature>
+  without: Array<VideoBenchStripId>
+}
+
+export type ArmWiring = {
+  id: string
+  role: VideoBenchArmRole
+  keeps: Array<VideoBenchStoryFeature>
+  without: Array<VideoBenchStripId>
+  over?: string
+}
+
+export type VideoBenchArmBuild = {
+  keeps: Array<VideoBenchStoryFeature>
+  without: Array<VideoBenchStripId>
+}
+
+export type BuildVideoBenchDigestsOptions = {
+  textReaderDir?: string
+  signal?: unknown
+  arms?: Array<VideoBenchArmBuild>
+}
+
+export type VideoBenchAnswerKey =
+  | {
+      kind: 'choice'
+      options: Array<string>
+      correct: number
+    }
+  | {
+      kind: 'value'
+      accepted: Array<string>
+    }
+  | {
+      kind: 'time'
+      atSec: number
+    }
+
+export type VideoBenchEvidence =
+  | {
+      kind: 'shown-at'
+      atSec: number
+      text: string
+      video?: number
+    }
+  | {
+      kind: 'first-shown'
+      text: string
+      video?: number
+    }
+  | {
+      kind: 'first-said'
+      text: string
+    }
+  | {
+      kind: 'action-before-error'
+    }
+  | {
+      kind: 'said-only'
+    }
+  | {
+      kind: 'beep-count'
+    }
+  | {
+      kind: 'beep-at'
+      index: number
+    }
+  | {
+      kind: 'differs'
+    }
+  | {
+      kind: 'nothing-shared'
+    }
+  | {
+      kind: 'spoken-language'
+      text: string
+    }
+
+export type VideoBenchQuestion = {
+  id: string
+  type: VideoBenchQuestionType
+  videos: Array<string>
+  ask: string
+  key: VideoBenchAnswerKey
+  evidence: VideoBenchEvidence
+}
+
+export type VideoBenchAsk = {
+  root: string
+  arm: VideoBenchArm
+  question: VideoBenchQuestion
+  round: number
+}
+
+export type VideoBenchViewport = {
+  width: number
+  height: number
+}
+
+export type VideoBenchLine =
+  | {
+      kind: 'heading'
+      text: string
+    }
+  | {
+      kind: 'text'
+      text: string
+    }
+  | {
+      kind: 'field'
+      label: string
+      value: string
+    }
+  | {
+      kind: 'button'
+      label: string
+    }
+  | {
+      kind: 'item'
+      text: string
+    }
+
+export type VideoBenchScreen = {
+  app: string
+  lines: Array<VideoBenchLine>
+  error?: string
+  toast?: string
+}
+
+export type VideoBenchAction =
+  | {
+      kind: 'tap'
+      target: string
+    }
+  | {
+      kind: 'type'
+      target: string
+      text: string
+    }
+
+export type VideoBenchStep = {
+  atSec: number
+  screen: VideoBenchScreen
+  action?:
+    | {
+        kind: 'tap'
+        target: string
+      }
+    | {
+        kind: 'type'
+        target: string
+        text: string
+      }
+}
+
+export type VideoBenchLanguage = 'en' | 'de'
+
+export type VideoBenchSpeech = {
+  atSec: number
+  text: string
+  voice: string
+  language: VideoBenchLanguage
+}
+
+export type VideoBenchSound = {
+  atSec: number
+  kind: 'beep'
+  hz: number
+  durationSec: number
+}
+
+export type VideoBenchScript = {
+  id: string
+  summary: string
+  viewport: VideoBenchViewport
+  durationSec: number
+  steps: Array<VideoBenchStep>
+  speech: Array<VideoBenchSpeech>
+  sounds: Array<VideoBenchSound>
+}
+
+export type VideoBenchFrame = {
+  fromSec: number
+  toSec: number
+  screen: VideoBenchScreen
+  tapped?: string
+  step: number
+}
+
+export type VideoBenchShownTruth = {
+  fromSec: number
+  toSec: number
+  step: number
+  texts: Array<string>
+  small: Array<string>
+  error?: string
+}
+
+export type VideoBenchActionEvent = {
+  atSec: number
+  kind: 'tap' | 'type'
+  target: string
+  text?: string
+}
+
+export type VideoBenchSpeechTruth = {
+  startSec: number
+  endSec: number
+  text: string
+  language: VideoBenchLanguage
+}
+
+export type VideoBenchSoundTruth = {
+  startSec: number
+  endSec: number
+  kind: 'beep'
+  hz: number
+}
+
+export type VideoBenchTruth = {
+  id: string
+  durationSec: number
+  viewport: VideoBenchViewport
+  shown: Array<VideoBenchShownTruth>
+  actions: Array<VideoBenchActionEvent>
+  speech: Array<VideoBenchSpeechTruth>
+  sounds: Array<VideoBenchSoundTruth>
+}
+
+export type VideoBenchReplyProblem = 'malformed' | 'not-an-option' | 'not-a-time'
+
+export type VideoBenchScore = {
+  correct: boolean
+  given?: string
+  problem?: 'malformed' | 'not-an-option' | 'not-a-time'
+}
+
+export type VideoThumbCompare = {
+  changedPixels: number
+  pixelChange: number
+}
+
+export type VideoThumbSize =
+  | {
+      width: number
+    }
+  | {
+      pixels: number
+    }
+
+export type VideoSettleRule = {
+  holdSec: number
+  restSec: number
+  afterRestSec: number
+  flickerSec: number
+}
+
+export type VideoStillPicking = VideoThumbCompare & {
+  thumbShape: 'frame' | 'landscape'
+  thumbSize: VideoThumbSize
+  settle?: {
+    holdSec: number
+    restSec: number
+    afterRestSec: number
+    flickerSec: number
+  }
+}
+
+export type VideoBenchBuildStrip = {
+  build: {
+    changedPixels?: number
+    pixelChange?: number
+  } & {
+    thumbShape?: 'frame' | 'landscape'
+    thumbSize?:
+      | {
+          width: number
+        }
+      | {
+          pixels: number
+        }
+    settle?: {
+      holdSec: number
+      restSec: number
+      afterRestSec: number
+      flickerSec: number
+    }
+  }
+}
+
+export type VideoBenchBuild = {
+  id: string
+  picking: VideoStillPicking
+  sidecars: boolean
+  strips: Array<VideoBenchStripId>
+}
+
+export type VideoBenchArmDigests = {
+  scriptId: string
+  stillsSec: {
+    [key: string]: Array<number>
+  }
+  markdown: {
+    [key: string]: string
+  }
+}
+
+export type VideoBenchArmPlan = {
+  id: string
+  role: VideoBenchArmRole
+  targets: Array<VideoBenchQuestionType>
+  over?: string
+}
+
+export type VideoBenchPlan = {
+  rounds: number
+  arms: Array<VideoBenchArmPlan>
+  questions: Array<{
+    id: string
+    type: VideoBenchQuestionType
+  }>
+}
+
+export type VideoBenchRecord = {
+  round: number
+  arm: string
+  question: string
+  type: VideoBenchQuestionType
+  reply: string
+  given?: string
+  correct: boolean
+  problem?: 'malformed' | 'not-an-option' | 'not-a-time'
+  error?: string
+  inputTokens: number
+  cachedTokens: number
+  writtenTokens: number
+  outputTokens: number
+  turns: number
+  costUsd: number
+}
+
+export type VideoBenchTally = {
+  answered: number
+  correct: number
+  accuracy: number
+  byType: {
+    'text-at'?: {
+      answered: number
+      correct: number
+      accuracy: number
+    }
+    when?: {
+      answered: number
+      correct: number
+      accuracy: number
+    }
+    'before-error'?: {
+      answered: number
+      correct: number
+      accuracy: number
+    }
+    'small-text'?: {
+      answered: number
+      correct: number
+      accuracy: number
+    }
+    spoken?: {
+      answered: number
+      correct: number
+      accuracy: number
+    }
+    sound?: {
+      answered: number
+      correct: number
+      accuracy: number
+    }
+    compare?: {
+      answered: number
+      correct: number
+      accuracy: number
+    }
+    'mixed-language'?: {
+      answered: number
+      correct: number
+      accuracy: number
+    }
+  }
+  inputTokens: number
+}
+
+export type VideoBenchArmOutcome = 'keep' | 'drop' | 'inconclusive'
+
+export type VideoBenchArmVerdict = {
+  outcome: VideoBenchArmOutcome
+  over: string
+  reason: string
+}
+
+export type VideoBenchVerdict = {
+  outcome: 'valid' | 'invalid'
+  reason: string
+  arms: {
+    [key: string]: VideoBenchArmVerdict
+  }
+}
+
+export type VideoBenchFixture = {
+  script: VideoBenchScript
+  videoPath: string
+  truth: VideoBenchTruth
+  actionsPath: string
+}
+
+export type VideoBenchAskAssumption = {
+  uncachedTokens: number
+  cachedTokens: number
+  outputTokens: number
+}
+
+export type VideoBenchPrices = {
+  input: number
+  cached: number
+  written: number
+  output: number
+}
+
+export type VideoBenchStillsMeasure = {
+  scriptId: string
+  viewport: string
+  stills: number
+  changes: number
+  late: number
+  maxLateSec: number
+  meanLateSec: number
+  textAnswers: {
+    asked: number
+    onStill: number
+    missed: Array<string>
+  }
+  whenLateSec: {
+    [key: string]: number
+  }
+}
+
+export type TokenCounts = {
+  inputTokens: number
+  cachedTokens: number
+  writtenTokens: number
+  outputTokens: number
+}
+
+export type VideoSourceStamp = {
+  sizeBytes: number
+  modifiedMs: number
+}
+
 export type VideoProbe = {
   durationSec: number
   width: number
@@ -28937,14 +29899,10 @@ export type VideoProbe = {
   hasAudio: boolean
 }
 
-export type VideoMomentCandidate = {
-  timeSec: number
-  thumb: unknown
-}
-
 export type VideoStill = {
   timeSec: number
   file: string
+  text?: Array<string>
 }
 
 export type VideoSheet = {
@@ -28952,24 +29910,66 @@ export type VideoSheet = {
   timesSec: Array<number>
 }
 
-export type VideoSourceStamp = {
-  sizeBytes: number
-  modifiedMs: number
+export type VideoTranscriptState = 'done' | 'no-audio' | 'no-speech' | 'not-set-up' | 'failed'
+
+export type VideoTranscriptWord = {
+  startSec: number
+  text: string
 }
 
 export type VideoTranscriptSegment = {
   startSec: number
   endSec: number
   text: string
+  words?: Array<VideoTranscriptWord>
 }
-
-export type VideoTranscriptState = 'done' | 'no-audio' | 'no-speech' | 'not-set-up' | 'failed'
 
 export type VideoTranscript = {
   state: VideoTranscriptState
   segments: Array<VideoTranscriptSegment>
   language?: string
   file?: string
+}
+
+export type VideoScreenTextState = 'done' | 'not-set-up' | 'failed'
+
+export type VideoScreenText = {
+  state: VideoScreenTextState
+  onEveryScreen: Array<string>
+}
+
+export type VideoActionKind =
+  | 'tap'
+  | 'long-press'
+  | 'swipe'
+  | 'scroll'
+  | 'type'
+  | 'key'
+  | 'back'
+  | 'open'
+
+export type VideoAction = {
+  atSec: number
+  fromSec?: number
+  kind: VideoActionKind
+  target?: string
+  x?: number
+  y?: number
+  toX?: number
+  toY?: number
+  text?: string
+  secret?: true
+  ok: boolean
+  error?: string
+}
+
+export type VideoDigestActions = {
+  source: VideoSourceStamp
+  readable: boolean
+  recorder?: string
+  startErrorSec?: number
+  items: Array<VideoAction>
+  outside: number
 }
 
 export type VideoTokenEstimate = {
@@ -28983,8 +29983,120 @@ export type VideoDigestManifest = {
   stills: Array<VideoStill>
   sheets: Array<VideoSheet>
   transcript: VideoTranscript
+  screenText?: {
+    state: VideoScreenTextState
+    onEveryScreen: Array<string>
+  }
+  actions?: {
+    source: VideoSourceStamp
+    readable: boolean
+    recorder?: string
+    startErrorSec?: number
+    items: Array<VideoAction>
+    outside: number
+  }
   tokens: VideoTokenEstimate
   createdAt: string
+}
+
+export type Comparable = {
+  stills: Array<VideoStill>
+  transcript: VideoTranscript
+  screenText?: {
+    state: VideoScreenTextState
+    onEveryScreen: Array<string>
+  }
+  actions?: {
+    source: VideoSourceStamp
+    readable: boolean
+    recorder?: string
+    startErrorSec?: number
+    items: Array<VideoAction>
+    outside: number
+  }
+}
+
+export type Names = {
+  before: string
+  after: string
+}
+
+export type Searchable = {
+  stills: Array<VideoStill>
+  transcript: VideoTranscript
+  screenText?: {
+    state: VideoScreenTextState
+    onEveryScreen: Array<string>
+  }
+}
+
+export type VideoMomentCandidate = {
+  timeSec: number
+  thumb: unknown
+}
+
+export type VideoThumbDims = {
+  width: number
+  height: number
+}
+
+export type VideoScreenChanges = {
+  moments: Array<VideoMomentCandidate>
+  steady: Array<{
+    fromSec: number
+    toSec: number
+  }>
+}
+
+export type VideoTextLine = {
+  text: string
+  confidence: number
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+export type VideoTextPage = {
+  file: string
+  lines?: Array<VideoTextLine>
+  error?: string
+}
+
+export type VideoTextReading =
+  | {
+      state: 'done'
+      pages: Array<Array<VideoTextLine>>
+    }
+  | {
+      state: 'not-set-up' | 'failed'
+    }
+  | {
+      state: 'stopped'
+    }
+
+export type VideoTextReaderResult =
+  | {
+      ok: true
+      path: string
+    }
+  | {
+      ok: false
+      state: 'not-set-up' | 'failed' | 'stopped'
+    }
+
+export type VideoScreenTextSplit = {
+  onEveryScreen: Array<string>
+  stills: Array<Array<string>>
+}
+
+export type VideoActionLog = {
+  version: 1
+  recorder: string
+  startedAt?: string
+  startErrorSec: number
+  startSeen?: boolean
+  actions: Array<VideoAction>
 }
 
 export type VideoDigestStage =
@@ -29032,6 +30144,12 @@ export type VideoLookRequest = {
   to?: string | number
   count?: number
   size?: number
+  find?: string
+}
+
+export type VideoFindStretch = {
+  fromSec: number
+  toSec: number
 }
 
 export type VideoLookPlan =
@@ -29048,15 +30166,148 @@ export type VideoLookPlan =
       timesSec: Array<number>
     }
   | {
+      kind: 'find'
+      phrase: string
+      stretch: VideoFindStretch
+    }
+  | {
       kind: 'refused'
       reason: string
     }
 
+export type VideoFindSource = 'screen' | 'said'
+
+export type VideoFindMatch = 'exact' | 'words' | 'near'
+
+export type VideoFindHit = {
+  source: VideoFindSource
+  match: VideoFindMatch
+  startSec: number
+  endSec: number
+  text: string
+  onEveryScreen?: boolean
+}
+
+export type VideoFindClosest = {
+  source: VideoFindSource
+  timeSec: number
+  text: string
+  onEveryScreen?: boolean
+}
+
+export type VideoFindOutcome = {
+  hits: Array<VideoFindHit>
+  total: number
+  closest?: {
+    source: VideoFindSource
+    timeSec: number
+    text: string
+    onEveryScreen?: boolean
+  }
+  searched: Array<VideoFindSource>
+  unsearched: Array<string>
+}
+
+export type VideoFoundMoment = {
+  source: VideoFindSource
+  match: VideoFindMatch
+  at: string
+  until?: string
+  text: string
+  onEveryScreen?: true
+}
+
 export type ViewedVideo = ViewedImage & {
   times?: Array<string>
+  found?: Array<VideoFoundMoment>
   digest?: string
   sheets?: Array<string>
   note?: string
+}
+
+export type VideoCompareChannel = 'screen' | 'actions' | 'said'
+
+export type VideoCompareMoment = {
+  timeSec: number
+  file: string
+  lines: Array<string>
+  keys: Array<string>
+  words: Array<string>
+  actions: Array<string>
+  said: Array<string>
+  status: Array<string>
+}
+
+export type VideoMomentPair = {
+  before: number
+  after: number
+}
+
+export type VideoMomentDifference =
+  | {
+      kind: 'changed'
+      fromPair: number
+      toPair: number
+      onlyBefore: Array<string>
+      onlyAfter: Array<string>
+      picture?: true
+    }
+  | {
+      kind: 'only-before' | 'only-after'
+      stills: Array<number>
+      afterPair?: number
+      text: Array<string>
+    }
+
+export type VideoComparisonOutcome = 'same' | 'differs' | 'nothing-in-common' | 'nothing-to-compare'
+
+export type VideoComparison = {
+  outcome: VideoComparisonOutcome
+  pairs: Array<VideoMomentPair>
+  same: Array<boolean>
+  differences: Array<VideoMomentDifference>
+  channels: Array<VideoCompareChannel>
+  uncompared: Array<string>
+}
+
+export type VideoAt = {
+  root: string
+  rel: string
+  digestHome?: string
+}
+
+export type VideoCompareRequest = {
+  pair?: unknown
+}
+
+export type VideoCompareRow = {
+  before?: number
+  after?: number
+}
+
+export type VideoComparedPair = {
+  before: string
+  after: string
+  same: boolean
+}
+
+export type VideoComparedDifference = {
+  kind: 'changed' | 'only-before' | 'only-after'
+  before: string
+  beforeUntil?: string
+  after: string
+  afterUntil?: string
+  onlyBefore?: Array<string>
+  onlyAfter?: Array<string>
+  picture?: true
+  pair?: number
+}
+
+export type ComparedVideos = ViewedImage & {
+  outcome: VideoComparisonOutcome
+  pairs: Array<VideoComparedPair>
+  differences: Array<VideoComparedDifference>
+  note: string
 }
 
 export type VideoModelFile = {
@@ -31101,7 +32352,7 @@ export type ProcessFeatureClosureCandidate = {
 export type ProcessWaitingItemChoice = 'allow' | 'allow-site' | 'decline'
 
 export type ProcessChangeRequest = {
-  from: 'sign-off' | 'code-review'
+  from: 'sign-off' | 'code-review' | 'report'
   note?: string
   proofKinds?: Array<ProofKind>
   chosenProofKinds?: Array<ProofKind>
@@ -31199,6 +32450,7 @@ export type ProcessRunChatState = {
     howProven: Array<ReportProofLine>
     decisions: Array<string>
     needsYou: Array<string>
+    settled?: Array<ReportSettledItem>
   }
   codeReview?: {
     verdict: CodeReviewVerdictSection
@@ -31222,6 +32474,8 @@ export type ProcessRunChatState = {
       [key: string]: Array<string>
     }
     notes: Array<string>
+    testRunners?: Array<ProjectTestRunner>
+    generatorScripts?: Array<ProjectGeneratorScript>
     scannedAt: number
     head: string
     fingerprint: string
@@ -31229,6 +32483,7 @@ export type ProcessRunChatState = {
     knownFlakes?: Array<ProjectCheckKnownFlake>
     freshness: 'stored' | 'scanned'
     placements?: Array<ProjectCheckPlacement>
+    generators?: Array<ProjectGeneratorSetting>
   }
   parkHolder?: {
     id: string
@@ -32776,6 +34031,7 @@ export type ProcessWaitingAnswer = {
 
 export type ProcessStepResult = {
   outcome: ProcessStepOutcome
+  needsYouResolutions?: Array<ProcessNeedsYouResolution>
   requiredOutputFiled?: boolean
   summary?: string
   runRef?: {
@@ -32822,6 +34078,7 @@ export type ProcessStepResult = {
       reason: string
     }
     followUps?: Array<string>
+    followUpsToFix?: Array<string>
     cause?: 'defect' | 'proof-impossible'
     notShown?: Array<string>
   }
@@ -33085,11 +34342,6 @@ export type ValidateProcessOptions = {
   agentTypeIds?: Array<string>
 }
 
-export type ProcessDefinitionMigration = {
-  moved: Array<string>
-  conflicts: Array<string>
-}
-
 export type FreezePlanOptions = {
   scope: ProcessScope
   now: number
@@ -33302,6 +34554,7 @@ export type ProcessStepState = {
         reason: string
       }
       followUps?: Array<string>
+      followUpsToFix?: Array<string>
       cause?: 'defect' | 'proof-impossible'
       notShown?: Array<string>
     }
@@ -41275,6 +42528,19 @@ export type GetProcessGroupSignOffResponses = {
          */
         waiting?: string
       }
+      /**
+       * What a leg’s run still leaves for the person at the sign-off.
+       */
+      leftForYou: {
+        /**
+         * Its final report’s "Needs you" items nobody has settled.
+         */
+        needsYou: number
+        /**
+         * Its story’s code-review follow-ups still pending.
+         */
+        followUps: number
+      }
     }>
     outputs: Array<SignOffOutputView>
     goingLive: ProcessGroupGoingLive
@@ -41294,6 +42560,17 @@ export type GetProcessGroupSignOffResponses = {
        */
       url?: string
     }>
+    /**
+     * What every leg still leaves for the person, added up.
+     */
+    leftForYou: {
+      needsYou: number
+      followUps: number
+      /**
+       * Nothing is left on any leg.
+       */
+      clean: boolean
+    }
   }
 }
 
@@ -41467,6 +42744,19 @@ export type SignOffProcessGroupRunResponses = {
          */
         waiting?: string
       }
+      /**
+       * What a leg’s run still leaves for the person at the sign-off.
+       */
+      leftForYou: {
+        /**
+         * Its final report’s "Needs you" items nobody has settled.
+         */
+        needsYou: number
+        /**
+         * Its story’s code-review follow-ups still pending.
+         */
+        followUps: number
+      }
     }>
     outputs: Array<SignOffOutputView>
     goingLive: ProcessGroupGoingLive
@@ -41486,6 +42776,17 @@ export type SignOffProcessGroupRunResponses = {
        */
       url?: string
     }>
+    /**
+     * What every leg still leaves for the person, added up.
+     */
+    leftForYou: {
+      needsYou: number
+      followUps: number
+      /**
+       * Nothing is left on any leg.
+       */
+      clean: boolean
+    }
   }
 }
 
@@ -42007,6 +43308,19 @@ export type RetryProcessGroupPullRequestsResponses = {
          */
         waiting?: string
       }
+      /**
+       * What a leg’s run still leaves for the person at the sign-off.
+       */
+      leftForYou: {
+        /**
+         * Its final report’s "Needs you" items nobody has settled.
+         */
+        needsYou: number
+        /**
+         * Its story’s code-review follow-ups still pending.
+         */
+        followUps: number
+      }
     }>
     outputs: Array<SignOffOutputView>
     goingLive: ProcessGroupGoingLive
@@ -42026,6 +43340,17 @@ export type RetryProcessGroupPullRequestsResponses = {
        */
       url?: string
     }>
+    /**
+     * What every leg still leaves for the person, added up.
+     */
+    leftForYou: {
+      needsYou: number
+      followUps: number
+      /**
+       * Nothing is left on any leg.
+       */
+      clean: boolean
+    }
   }
 }
 
@@ -56919,6 +58244,23 @@ export type ListPendingCliAgentActionsResponses = {
 export type ListPendingCliAgentActionsResponse =
   ListPendingCliAgentActionsResponses[keyof ListPendingCliAgentActionsResponses]
 
+export type ListCliAgentSubscriptionWindowsData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/cli-runs/subscription-windows'
+}
+
+export type ListCliAgentSubscriptionWindowsResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<CliAgentSubscriptionWindowEntry>
+}
+
+export type ListCliAgentSubscriptionWindowsResponse =
+  ListCliAgentSubscriptionWindowsResponses[keyof ListCliAgentSubscriptionWindowsResponses]
+
 export type ListDecidedCliAgentActionsData = {
   body?: never
   path?: never
@@ -60444,6 +61786,10 @@ export type PostColleagueReviewReplyData = {
      * Post a reply that was already posted once more, on purpose.
      */
     again?: boolean
+    /**
+     * The person’s edit of the drafted reply, posted instead of it and recorded beside the post. Empty is refused.
+     */
+    text?: string
   }
   path: {
     groupId: string
@@ -60458,6 +61804,16 @@ export type PostColleagueReviewReplyData = {
 }
 
 export type PostColleagueReviewReplyErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
   /**
    * Default Response
    */
@@ -60692,11 +62048,23 @@ export type ClearColleagueReviewSourceResponses = {
        * What went wrong: Slack’s method and code, or the host’s words.
        */
       error?: string
+      /**
+       * Why the start reaction could not be added to a started update (e.g. `Slack reactions.add: missing_scope`); tried again on the next read.
+       */
+      reactionError?: string
     }
     offers: {
       new: number
       started: number
       dismissed: number
+    }
+    /**
+     * What the group decides about its offers.
+     */
+    settings: {
+      skipTicketStatuses: Array<string>
+      startReaction?: string
+      runChecksUnasked?: boolean
     }
   }
 }
@@ -60789,11 +62157,23 @@ export type GetColleagueReviewSourceResponses = {
        * What went wrong: Slack’s method and code, or the host’s words.
        */
       error?: string
+      /**
+       * Why the start reaction could not be added to a started update (e.g. `Slack reactions.add: missing_scope`); tried again on the next read.
+       */
+      reactionError?: string
     }
     offers: {
       new: number
       started: number
       dismissed: number
+    }
+    /**
+     * What the group decides about its offers.
+     */
+    settings: {
+      skipTicketStatuses: Array<string>
+      startReaction?: string
+      runChecksUnasked?: boolean
     }
   }
 }
@@ -60808,7 +62188,7 @@ export type SetColleagueReviewSourceData = {
      */
     connectionId: string
     /**
-     * The link of the thread’s first message, or of a reply in it.
+     * A channel’s link (watch its top-level messages) or a message’s link (watch its thread).
      */
     permalink: string
     /**
@@ -60929,17 +62309,161 @@ export type SetColleagueReviewSourceResponses = {
        * What went wrong: Slack’s method and code, or the host’s words.
        */
       error?: string
+      /**
+       * Why the start reaction could not be added to a started update (e.g. `Slack reactions.add: missing_scope`); tried again on the next read.
+       */
+      reactionError?: string
     }
     offers: {
       new: number
       started: number
       dismissed: number
     }
+    /**
+     * What the group decides about its offers.
+     */
+    settings: {
+      skipTicketStatuses: Array<string>
+      startReaction?: string
+      runChecksUnasked?: boolean
+    }
   }
 }
 
 export type SetColleagueReviewSourceResponse =
   SetColleagueReviewSourceResponses[keyof SetColleagueReviewSourceResponses]
+
+export type SetColleagueReviewSourceSettingsData = {
+  body: {
+    /**
+     * Ticket status names (any case) whose updates make no offer; a waiting offer whose ticket moves into one is dropped on the next read. Empty skips none.
+     */
+    skipTicketStatuses?: Array<string>
+    /**
+     * The emoji added to an update’s Slack message once a review starts from it, e.g. `eyes`; empty adds none. Needs the `reactions:write` scope.
+     */
+    startReaction?: string
+    /**
+     * Review chats run the colleague’s pull request checks (`runPullRequestCheck`) without asking each time.
+     */
+    runChecksUnasked?: boolean
+  }
+  path: {
+    groupId: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/review-source/settings'
+}
+
+export type SetColleagueReviewSourceSettingsErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type SetColleagueReviewSourceSettingsError =
+  SetColleagueReviewSourceSettingsErrors[keyof SetColleagueReviewSourceSettingsErrors]
+
+export type SetColleagueReviewSourceSettingsResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    source?: {
+      provider: ColleagueReviewSourceProvider
+      connectionId: string
+      permalink: string
+      channel: string
+      threadTs?: string
+      cursor?: string
+      setAt: string
+    }
+    /**
+     * The connection the thread is read through; absent when nothing is watched.
+     */
+    connection?: {
+      id: string
+      /**
+       * `sign-in-again`: Slack refused the connection, or its token ran out with nothing to refresh it; reconnect it.
+       */
+      status: 'connected' | 'sign-in-again' | 'missing'
+      name?: string
+      /**
+       * The Slack workspace.
+       */
+      teamName?: string
+    }
+    /**
+     * Whether a reply naming a ticket becomes an offer: only when the group’s ticket binding names its ticket projects.
+     */
+    offering: 'ready' | 'no-ticket-binding'
+    /**
+     * The latest read of the thread since the server started.
+     */
+    lastPoll?: {
+      at: string
+      /**
+       * `read`: replies read, offers made. `not-offering`: the group’s ticket binding names no ticket projects, so nothing was read. `not-recorded`: the thread changed while it was read.
+       */
+      outcome:
+        | 'read'
+        | 'failed'
+        | 'sign-in-again'
+        | 'connection-missing'
+        | 'not-offering'
+        | 'not-recorded'
+      /**
+       * The replies the read brought.
+       */
+      replies?: number
+      /**
+       * The offers it made.
+       */
+      offers?: number
+      /**
+       * What went wrong: Slack’s method and code, or the host’s words.
+       */
+      error?: string
+      /**
+       * Why the start reaction could not be added to a started update (e.g. `Slack reactions.add: missing_scope`); tried again on the next read.
+       */
+      reactionError?: string
+    }
+    offers: {
+      new: number
+      started: number
+      dismissed: number
+    }
+    /**
+     * What the group decides about its offers.
+     */
+    settings: {
+      skipTicketStatuses: Array<string>
+      startReaction?: string
+      runChecksUnasked?: boolean
+    }
+  }
+}
+
+export type SetColleagueReviewSourceSettingsResponse =
+  SetColleagueReviewSourceSettingsResponses[keyof SetColleagueReviewSourceSettingsResponses]
 
 export type ListColleagueReviewOffersData = {
   body?: never

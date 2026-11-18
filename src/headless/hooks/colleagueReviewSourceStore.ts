@@ -1,13 +1,19 @@
 import {
   clearColleagueReviewThread,
   readColleagueReviewSource,
+  setColleagueReviewSettings,
   watchColleagueReviewThread,
 } from '../api/colleagueReviewSourceApi'
 import { extractErrorMessage } from '../api/errorMessage'
 import type { WsClient } from '../api/WsClient'
-import { reviewSourceShown } from '../utils/colleagueReviewSource'
+import {
+  reviewSettingsChangeNeeded,
+  reviewSettingsShown,
+  reviewSourceShown,
+} from '../utils/colleagueReviewSource'
 import { SLACK_SETTINGS_TEXT } from '../utils/colleagueReviewSourceConstants'
 import type {
+  ReviewSettingsChange,
   ReviewSourcePending,
   ReviewSourceSnapshot,
   ReviewSourceStatus,
@@ -20,6 +26,8 @@ type Entry = {
   status: ReviewSourceStatus | undefined
   readError: string | undefined
   pending: ReviewSourcePending | undefined
+  /** The person's settings changes on their way, in the order made. */
+  settingChanges: readonly ReviewSettingsChange[]
   actionError: string | undefined
   /** Reads begun so far; an answer to an older one than the last change is dropped. */
   reads: number
@@ -44,8 +52,8 @@ const EMPTY: ReviewSourceSnapshot = {
  * Each group's watched Slack thread, shared by every view that shows it — the
  * Settings block, the review card's Post in thread, the Tickets tab's badge.
  * Read once however many hold it, again when the group's thread changes, a
- * connection changes, or the socket comes back. Watching and clearing show at
- * once and roll back with why; updates the person settled leave the waiting
+ * connection changes, or the socket comes back. Watching, clearing and the
+ * review settings show at once and roll back with why; updates the person settled leave the waiting
  * count at once, until a read begun after the backend had them.
  */
 export class ColleagueReviewSourceStore {
@@ -63,6 +71,7 @@ export class ColleagueReviewSourceStore {
       status: undefined,
       readError: undefined,
       pending: undefined,
+      settingChanges: [],
       actionError: undefined,
       reads: 0,
       changedAt: 0,
@@ -128,12 +137,19 @@ export class ColleagueReviewSourceStore {
     const settling = [...entry.settled.values()].filter(
       ({ after }) => after === undefined || entry.changedAt <= after,
     ).length
-    const key = [entry.status, entry.readError, entry.pending, entry.actionError, settling]
+    const key = [
+      entry.status,
+      entry.readError,
+      entry.pending,
+      entry.settingChanges,
+      entry.actionError,
+      settling,
+    ]
     if (entry.shown && entry.shown.key.every((part, at) => part === key[at])) {
       return entry.shown.snapshot
     }
     const snapshot: ReviewSourceSnapshot = {
-      status: reviewSourceShown(entry.status, entry.pending, settling),
+      status: reviewSourceShown(entry.status, entry.pending, settling, entry.settingChanges),
       readError: entry.readError,
       pending: entry.pending,
       actionError: entry.actionError,
@@ -190,6 +206,28 @@ export class ColleagueReviewSourceStore {
       () => clearColleagueReviewThread(groupId),
       SLACK_SETTINGS_TEXT.clearFailed,
     )
+
+  /**
+   * Change the group's review settings: shown at once over whatever is read,
+   * sent only when it changes something — pressing it again sends nothing —
+   * and rolled back with why when the backend refuses.
+   */
+  setSettings = async (groupId: string, change: ReviewSettingsChange): Promise<void> => {
+    const entry = this._entry(groupId)
+    const shown = reviewSettingsShown(entry.status?.settings, entry.settingChanges)
+    if (!reviewSettingsChangeNeeded(shown, change)) return
+    this._tell(entry, { settingChanges: [...entry.settingChanges, change], actionError: undefined })
+    const without = () => entry.settingChanges.filter((held) => held !== change)
+    try {
+      const status = await setColleagueReviewSettings(groupId, change)
+      this._tell(entry, { status, settingChanges: without(), changedAt: entry.reads })
+    } catch (err) {
+      this._tell(entry, {
+        settingChanges: without(),
+        actionError: extractErrorMessage(err, SLACK_SETTINGS_TEXT.settingsFailed),
+      })
+    }
+  }
 
   /**
    * An update the person dismissed or started from leaves the waiting count at

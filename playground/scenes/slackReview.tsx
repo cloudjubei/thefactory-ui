@@ -14,11 +14,15 @@ import {
   groupTabIndicator,
   groupTicketsView,
   inkBadgeLook,
+  parseTicketStatuses,
+  startReactionName,
+  ticketStatusesText,
   type ChatActions,
   type GroupTicketsState,
   type NavRowIndicator,
   type ReviewOfferLayout,
   type ReviewPasteBox,
+  type ReviewSettingsView,
   type SlackReviewSettingsState,
   type SlackSettingsLayout,
 } from 'thefactory-ui/headless'
@@ -38,10 +42,13 @@ import {
   BOX_READING_OFFER,
   offeredTickets,
   ROUND_TWO_POSTED,
+  ROUND_TWO_POSTED_EDITED,
   SLACK_NOW,
   SOURCE_NO_BINDING,
   SOURCE_NONE,
+  SOURCE_REACTION_FAILED,
   SOURCE_READ_FAILED,
+  SOURCE_SETTINGS_SET,
   SOURCE_SIGN_IN_AGAIN,
   slackSettings,
   THREAD_LINK,
@@ -64,6 +71,17 @@ type SettingsOptions = {
   editingThread?: boolean
   typedLink?: string
   confirmingClear?: boolean
+}
+
+/** The settings as the store would show them at once after a change. */
+function withSettings(
+  state: SlackReviewSettingsState,
+  patch: Partial<ReviewSettingsView>,
+): SlackReviewSettingsState {
+  const { settings } = state.view
+  return settings
+    ? { ...state, view: { ...state.view, settings: { ...settings, ...patch } } }
+    : state
 }
 
 function Settings({
@@ -90,6 +108,15 @@ function Settings({
       onBackOut={noop}
       onWatch={noop}
       onClear={noop}
+      onSkipStatuses={(text) =>
+        setShown(
+          withSettings(shown, { skipStatuses: ticketStatusesText(parseTicketStatuses(text)) }),
+        )
+      }
+      onStartReaction={(text) =>
+        setShown(withSettings(shown, { startReaction: startReactionName(text) }))
+      }
+      onRunChecksUnasked={(on) => setShown(withSettings(shown, { runChecksUnasked: on }))}
     />,
   )
 }
@@ -336,7 +363,7 @@ export const SLACK_REVIEW_SCENES: Scene[] = [
     component: 'GroupSlackSettings · SlackReviewSettingsPanel',
     group: 'Settings',
     description:
-      'Settings → Group → Slack: the person connects their own Slack app (its Client ID, the redirect URL to add to it with Copy, Sign in in the browser), then pastes the link of the review thread the group watches. Once set it says whether replies become updates (ready, or why not), when it was last read and how that went, and what it brought; Change and Clear (with a confirm). Three layouts on the board; Two steps ships.',
+      'Settings → Group → Slack: the person connects their own Slack app (its Client ID, the redirect URL to add to it with Copy, Sign in in the browser), then pastes the link of the review thread the group watches. Once set it says whether replies become updates (ready, or why not), when it was last read and how that went, and what it brought; Change and Clear (with a confirm). Under them, Review settings: ticket statuses whose updates are skipped, the emoji added to an update once its review starts, and whether review chats run pull request checks without asking — each saved at once, shown at once, and put back with the reason when refused. Three layouts on the board; Two steps ships.',
     states: [
       {
         id: 'choose-layout',
@@ -476,6 +503,38 @@ export const SLACK_REVIEW_SCENES: Scene[] = [
         render: () => settings({ state: slackSettings({ status: SOURCE_SIGN_IN_AGAIN }) }),
       },
       {
+        id: 'settings-set',
+        title: 'Review settings filled in',
+        description:
+          'Two statuses skipped, the eyes reaction, checks run without asking. A field saves when it is left, on Enter, or with Save, which shows while it is changed.',
+        render: () => settings({ state: slackSettings({ status: SOURCE_SETTINGS_SET }) }),
+      },
+      {
+        id: 'settings-reaction-failed',
+        title: 'A reaction Slack would not add',
+        description:
+          'The last read could not add the reaction: one muted line under the field says why. Usually a missing reactions:write scope.',
+        render: () => settings({ state: slackSettings({ status: SOURCE_REACTION_FAILED }) }),
+      },
+      {
+        id: 'settings-refused',
+        title: 'A setting the backend refused',
+        description: 'Put back at once, with the backend’s reason on top.',
+        render: () =>
+          settings({
+            state: slackSettings({
+              status: SOURCE_SETTINGS_SET,
+              actionError: 'The reaction must be an emoji name, like eyes.',
+            }),
+          }),
+      },
+      {
+        id: 'settings-phone',
+        title: 'Review settings, on a phone',
+        render: () =>
+          settings({ state: slackSettings({ status: SOURCE_REACTION_FAILED }), width: 'phone' }),
+      },
+      {
         id: 'changing',
         title: 'Changing the thread',
         render: () => settings({ editingThread: true }),
@@ -597,7 +656,7 @@ export const SLACK_REVIEW_SCENES: Scene[] = [
     component: 'ColleagueReviewCard (onPost)',
     group: 'Chat',
     description:
-      'Beside Copy on the review card’s reply, while the group watches a working Slack thread: Post in thread asks first, showing the exact text that will be posted as the person. Once posted, the card links to the message; Post again goes through the same confirm. Without a working thread only Copy shows, as before.',
+      'Beside Copy on the review card’s reply, while the group watches a working Slack thread: Post in thread asks first, the reply in a box the person may edit; Post is held while the box is empty, and sends the edit only when it differs from the draft. Once posted, the card links to the message and shows what was posted, the edit when there was one; Post again goes through the same confirm. Without a working thread only Copy shows, as before.',
     states: [
       {
         id: 'can-post',
@@ -606,7 +665,9 @@ export const SLACK_REVIEW_SCENES: Scene[] = [
       },
       {
         id: 'confirm',
-        title: 'The confirm, with the exact text',
+        title: 'The confirm, the reply editable',
+        description:
+          'Prefilled with the drafted reply; edit it before posting, or post it as it is.',
         overlay: true,
         render: () => card({ postConfirm: true }),
       },
@@ -621,6 +682,12 @@ export const SLACK_REVIEW_SCENES: Scene[] = [
         title: 'Posted in thread',
         description: 'A link to the posted message; Post again stays a press away.',
         render: () => card({ review: ROUND_TWO_POSTED }),
+      },
+      {
+        id: 'posted-edited',
+        title: 'Posted after an edit',
+        description: 'The card shows the text that was posted, not the draft; Copy copies it too.',
+        render: () => card({ review: ROUND_TWO_POSTED_EDITED }),
       },
       {
         id: 'confirm-again',

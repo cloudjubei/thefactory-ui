@@ -3,6 +3,7 @@ import type {
   ColleagueReviewOfferKind,
   GetColleagueReviewSourceResponse,
   RedactedProviderConnectionEntry,
+  SetColleagueReviewSourceSettingsData,
 } from '../api/generated'
 import type { ProcessStatusTone } from './processView'
 import type { ProviderOAuthState } from './providerConnectionFormTypes'
@@ -15,6 +16,23 @@ export type ReviewSourceConnection = NonNullable<ReviewSourceStatus['connection'
 
 /** The latest read of the watched thread. */
 export type ReviewSourcePoll = NonNullable<ReviewSourceStatus['lastPoll']>
+
+/** What the group decides about its updates, as the backend tells it. */
+export type ReviewSourceSettings = ReviewSourceStatus['settings']
+
+/** A change to the group's review settings: what is left out stays, an empty value clears. */
+export type ReviewSettingsChange = SetColleagueReviewSourceSettingsData['body']
+
+/** The group's review settings as Settings shows them. */
+export interface ReviewSettingsView {
+  /** The ticket statuses whose updates make no offer, joined: "Done, Won’t do". */
+  skipStatuses: string
+  /** The emoji name added to an update's Slack message once a review starts; empty adds none. */
+  startReaction: string
+  runChecksUnasked: boolean
+  /** Why the reaction could not be added on the latest read, in a line. */
+  reactionError?: string
+}
 
 /** An update the watched thread brought for one ticket. */
 export type ReviewOffer = ColleagueReviewOffer
@@ -93,6 +111,8 @@ export interface SlackReviewSettingsView {
   thread: ReviewThreadView
   /** A thread can be watched: Slack is connected. */
   canWatch: boolean
+  /** The group's review settings; absent until the first read. */
+  settings?: ReviewSettingsView
   readError?: string
   actionError?: string
   /** The first read is still out. */
@@ -136,12 +156,27 @@ export type ReviewOfferLayout = 'chip' | 'strip' | 'button'
 /** How the group's Slack block in Settings is laid out. */
 export type SlackSettingsLayout = 'steps' | 'card' | 'rows'
 
+/** How a round's reply is posted: once more on purpose, and the person's edit in place of the draft. */
+export interface ReviewReplyPost {
+  again: boolean
+  /** The person's edit of the drafted reply; left out, the draft is posted. */
+  text?: string
+}
+
+/** What Post sends from the confirm's reply box. */
+export interface ReviewReplyToPost {
+  /** The box has something to post. */
+  canPost: boolean
+  /** The person's edit, trimmed; left out while the box still holds the draft. */
+  text?: string
+}
+
 /** Where a Post in thread stands for a round. */
 export interface ReviewReplyPostView {
   /** Post in thread is offered: the group watches a working Slack thread. */
   canPost: boolean
   /** The person's post is on its way. */
   posting: boolean
-  /** Where it was posted, once it was. */
-  posted?: { permalink: string; postedAt: string }
+  /** Where it was posted, once it was; `text` when the person changed the draft before posting. */
+  posted?: { permalink: string; postedAt: string; text?: string }
 }

@@ -20,7 +20,7 @@ const REVIEW_LINGER_MS = 30_000
 
 type PendingAction =
   | { kind: 'drop' | 'given'; id: string; note?: string }
-  | { kind: 'post'; round: number; again: boolean }
+  | { kind: 'post'; round: number; again: boolean; text?: string }
 
 /** A review as its cards draw it: the person's own changes on their way already in it. */
 export type ColleagueReviewSnapshot = {
@@ -92,7 +92,10 @@ function send(groupId: string, ticketKey: string, action: PendingAction): Promis
     case 'given':
       return markColleagueReviewWaitingGiven(groupId, ticketKey, action.id, action.note)
     case 'post':
-      return postColleagueReviewReply(groupId, ticketKey, action.round, action.again)
+      return postColleagueReviewReply(groupId, ticketKey, action.round, {
+        again: action.again,
+        ...(action.text !== undefined ? { text: action.text } : {}),
+      })
   }
 }
 
@@ -182,10 +185,11 @@ export class ColleagueReviewStore {
   /**
    * Post a round's reply in the group's watched thread as the person. Shown
    * posting at once; pressing it again while it goes changes nothing. `again`
-   * posts a reply that was posted already.
+   * posts a reply that was posted already; `text` is the person's edit, posted
+   * in place of the drafted reply.
    */
-  postReply = (key: string, round: number, again: boolean): Promise<void> =>
-    this._act(key, { kind: 'post', round, again })
+  postReply = (key: string, round: number, again: boolean, text?: string): Promise<void> =>
+    this._act(key, { kind: 'post', round, again, ...(text !== undefined ? { text } : {}) })
 
   private _setOverlay(key: string, overlay: Overlay): void {
     if (

@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useApi } from '../api/ApiContext'
 import { useProviderConnections } from '../contexts/ProviderConnectionsContext'
-import { slackReviewSettingsView } from '../utils/colleagueReviewSource'
+import {
+  parseTicketStatuses,
+  slackReviewSettingsView,
+  startReactionName,
+} from '../utils/colleagueReviewSource'
 import { SLACK_CONNECTION_NAME, SLACK_PROVIDER } from '../utils/colleagueReviewSourceConstants'
 import type { SlackReviewSettingsState } from '../utils/colleagueReviewSourceTypes'
 import { providerOAuthReconnectBody } from '../utils/providerConnectionForm'
@@ -20,16 +24,23 @@ export type UseGroupSlackSettings = SlackReviewSettingsState & {
   watch: (permalink: string, offerExistingReplies: boolean) => void
   /** Stop watching the thread; the updates it brought stay. */
   clear: () => void
+  /** Skip tickets in the statuses typed comma-separated: shown at once, rolled back with why. */
+  setSkipStatuses: (text: string) => void
+  /** The emoji added once a review starts, colons allowed; empty adds none. */
+  setStartReaction: (text: string) => void
+  /** Review chats run pull request checks without asking each time. */
+  setRunChecksUnasked: (on: boolean) => void
 }
 
 /**
  * The group's Slack block in Settings: the person's own Slack app signed in
- * through the browser, and the review thread the group watches, kept live.
+ * through the browser, the review thread the group watches, kept live, and
+ * the group's review settings.
  */
 export function useGroupSlackSettings(groupId: string): UseGroupSlackSettings {
   const { connections, oauth } = useProviderConnections()
   const { apiBaseUrl } = useApi()
-  const { source, watch: watchThread, clear } = useColleagueReviewSource(groupId)
+  const { source, watch: watchThread, clear, setSettings } = useColleagueReviewSource(groupId)
   const flow = useProviderOAuthFlow(oauth)
   const [clientId, setClientId] = useState('')
 
@@ -72,6 +83,19 @@ export function useGroupSlackSettings(groupId: string): UseGroupSlackSettings {
     [watchThread, connection],
   )
 
+  const setSkipStatuses = useCallback(
+    (text: string) => setSettings({ skipTicketStatuses: parseTicketStatuses(text) }),
+    [setSettings],
+  )
+  const setStartReaction = useCallback(
+    (text: string) => setSettings({ startReaction: startReactionName(text) }),
+    [setSettings],
+  )
+  const setRunChecksUnasked = useCallback(
+    (on: boolean) => setSettings({ runChecksUnasked: on }),
+    [setSettings],
+  )
+
   return {
     view,
     clientId,
@@ -82,5 +106,8 @@ export function useGroupSlackSettings(groupId: string): UseGroupSlackSettings {
     backOut: reset,
     watch,
     clear,
+    setSkipStatuses,
+    setStartReaction,
+    setRunChecksUnasked,
   }
 }

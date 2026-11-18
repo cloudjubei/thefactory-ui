@@ -54,6 +54,7 @@ export const SLACK_SETTINGS_TEXT = {
   signIn: 'Sign in with Slack',
   signInAgain: 'Sign in again',
   signInAgainWhy: 'Slack asked you to sign in again.',
+  signInAgainHint: 'Sign in again, e.g. after adding a permission to your Slack app.',
   cannotSignIn: 'This server cannot sign in to Slack yet.',
   connected: 'Connected',
   needsSignIn: 'Sign in again',
@@ -95,6 +96,18 @@ export const SLACK_SETTINGS_TEXT = {
   readFailed: 'Could not read what is watched.',
   watchFailed: 'That link is not watched.',
   clearFailed: 'It is still watched.',
+  settingsStep: 'Review settings',
+  skipStatuses: 'Skip tickets in these statuses',
+  skipStatusesHint: 'Status names, comma-separated.',
+  skipStatusesPlaceholder: 'Done, Won’t do',
+  startReaction: 'React when a review starts',
+  startReactionHint:
+    'Needs the reactions:write scope on your Slack app; sign in again after adding it.',
+  startReactionPlaceholder: 'eyes',
+  runChecksUnasked: 'Run pull request checks without asking',
+  save: 'Save',
+  reactionError: (why: string) => `Could not add the reaction: ${why}`,
+  settingsFailed: 'The setting was not saved.',
 } as const
 
 export const REVIEW_OFFER_TEXT = {
@@ -119,8 +132,8 @@ export const REVIEW_POST_TEXT = {
   posted: 'Posted in thread',
   confirmTitle: 'Post in thread?',
   confirmAgainTitle: 'Post again?',
-  confirmBody: 'Posted as you in the group’s Slack thread, word for word:',
-  confirmAgainBody: 'It is in the thread already. This posts it a second time, word for word:',
+  confirmBody: 'Posted as you in the group’s Slack thread:',
+  confirmAgainBody: 'It is in the thread already. This posts it a second time:',
   confirm: 'Post',
   confirmAgain: 'Post again',
   cancel: 'Cancel',

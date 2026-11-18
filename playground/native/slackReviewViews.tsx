@@ -4,7 +4,11 @@ import type { ColleagueReview } from 'thefactory-tools/types'
 import {
   colleagueReviewCardView,
   groupTicketsView,
+  parseTicketStatuses,
+  startReactionName,
+  ticketStatusesText,
   type ReviewPasteBox,
+  type ReviewSettingsView,
   type SlackReviewSettingsState,
 } from 'thefactory-ui/headless'
 import ColleagueReviewCard from '../../src/native/compound/chat/ColleagueReviewCard'
@@ -18,10 +22,13 @@ import {
   BOX_READING_OFFER,
   offeredTickets,
   ROUND_TWO_POSTED,
+  ROUND_TWO_POSTED_EDITED,
   SLACK_NOW,
   SOURCE_NO_BINDING,
   SOURCE_NONE,
+  SOURCE_REACTION_FAILED,
   SOURCE_READ_FAILED,
+  SOURCE_SETTINGS_SET,
   SOURCE_SIGN_IN_AGAIN,
   slackSettings,
 } from '../scenes/slackReviewFixtures'
@@ -59,6 +66,23 @@ const SETTINGS: Record<string, SlackReviewSettingsState> = {
   'thread-no-binding': slackSettings({ status: SOURCE_NO_BINDING }),
   'thread-read-failed': slackSettings({ status: SOURCE_READ_FAILED }),
   'sign-in-again': slackSettings({ status: SOURCE_SIGN_IN_AGAIN }),
+  'settings-set': slackSettings({ status: SOURCE_SETTINGS_SET }),
+  'settings-reaction-failed': slackSettings({ status: SOURCE_REACTION_FAILED }),
+  'settings-refused': slackSettings({
+    status: SOURCE_SETTINGS_SET,
+    actionError: 'The reaction must be an emoji name, like eyes.',
+  }),
+}
+
+/** The settings as the store would show them at once after a change. */
+function withSettings(
+  state: SlackReviewSettingsState,
+  patch: Partial<ReviewSettingsView>,
+): SlackReviewSettingsState {
+  const { settings } = state.view
+  return settings
+    ? { ...state, view: { ...state.view, settings: { ...settings, ...patch } } }
+    : state
 }
 
 function Settings({ address }: { address: URLSearchParams }) {
@@ -76,6 +100,15 @@ function Settings({ address }: { address: URLSearchParams }) {
         onBackOut={noop}
         onWatch={noop}
         onClear={noop}
+        onSkipStatuses={(text) =>
+          setState(
+            withSettings(state, { skipStatuses: ticketStatusesText(parseTicketStatuses(text)) }),
+          )
+        }
+        onStartReaction={(text) =>
+          setState(withSettings(state, { startReaction: startReactionName(text) }))
+        }
+        onRunChecksUnasked={(on) => setState(withSettings(state, { runChecksUnasked: on }))}
       />
     </Phone>
   )
@@ -126,6 +159,7 @@ const POSTS: Record<string, { review: ColleagueReview; posting?: boolean; confir
   confirm: { review: ROUND_TWO, confirm: true },
   posting: { review: ROUND_TWO, posting: true },
   posted: { review: ROUND_TWO_POSTED },
+  'posted-edited': { review: ROUND_TWO_POSTED_EDITED },
 }
 
 function Post({ address }: { address: URLSearchParams }) {

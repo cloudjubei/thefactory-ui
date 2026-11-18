@@ -18,8 +18,8 @@ export type UseColleagueReviewCall = {
   view: ColleagueReviewCardView
   dropFinding: (findingId: string, note?: string) => void
   markGiven: (waitingOnId: string, note?: string) => void
-  /** Post a round's reply in the group's watched thread; `again` posts it a second time. */
-  postReply: (round: number, again: boolean) => void
+  /** Post a round's reply in the group's watched thread; `again` posts it a second time, `text` is the person's edit of it. */
+  postReply: (round: number, again: boolean, text?: string) => void
 }
 
 /**

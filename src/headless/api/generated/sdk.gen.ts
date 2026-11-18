@@ -765,6 +765,8 @@ import type {
   ListCliAgentRunSummariesData,
   ListCliAgentRunSummariesErrors,
   ListCliAgentRunSummariesResponses,
+  ListCliAgentSubscriptionWindowsData,
+  ListCliAgentSubscriptionWindowsResponses,
   ListCliAuthCachesData,
   ListCliAuthCachesErrors,
   ListCliAuthCachesResponses,
@@ -1309,6 +1311,9 @@ import type {
   SetColleagueReviewSourceData,
   SetColleagueReviewSourceErrors,
   SetColleagueReviewSourceResponses,
+  SetColleagueReviewSourceSettingsData,
+  SetColleagueReviewSourceSettingsErrors,
+  SetColleagueReviewSourceSettingsResponses,
   SetGroupMcpServerTokenData,
   SetGroupMcpServerTokenErrors,
   SetGroupMcpServerTokenResponses,
@@ -7698,6 +7703,19 @@ export const listPendingCliAgentActions = <ThrowOnError extends boolean = false>
     ...options,
   })
 
+/**
+ * Latest plan-window state per CLI and credential, taken from the newest run that recorded a subscription for that pair. cursor-agent answers with windowsNotReported.
+ */
+export const listCliAgentSubscriptionWindows = <ThrowOnError extends boolean = false>(
+  options?: Options<ListCliAgentSubscriptionWindowsData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<ListCliAgentSubscriptionWindowsResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-runs/subscription-windows',
+    ...options,
+  })
+
 export const listDecidedCliAgentActions = <ThrowOnError extends boolean = false>(
   options: Options<ListDecidedCliAgentActionsData, ThrowOnError>,
 ) =>
@@ -8581,7 +8599,7 @@ export const listColleagueReviews = <ThrowOnError extends boolean = false>(
   })
 
 /**
- * Post the round’s recorded reply, exactly as recorded, as the person in the group’s watched Slack thread, and record where on the round. The person pressing the card’s confirm is the approval. 409 when the round has no reply, when it was posted already (send `again: true` to post it once more), or when the group watches no Slack thread its connection can post in; 502 when Slack refuses.
+ * Post the round’s recorded reply, exactly as recorded or as the person edited it (`text`), as the person in the group’s watched Slack thread, and record where on the round. The person pressing the card’s confirm is the approval. 409 when the round has no reply, when it was posted already (send `again: true` to post it once more), or when the group watches no Slack thread its connection can post in; 502 when Slack refuses.
  */
 export const postColleagueReviewReply = <ThrowOnError extends boolean = false>(
   options: Options<PostColleagueReviewReplyData, ThrowOnError>,
@@ -8691,6 +8709,27 @@ export const setColleagueReviewSource = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/groups/{groupId}/review-source',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Change what the group decides about its offers: the ticket statuses whose updates make no offer (waiting ones of such tickets drop on the next read), and the emoji a started review adds to its update’s Slack message. What is left out stays as it was; an empty value clears it. They outlive the watched thread. 400 for a reaction that is not an emoji name.
+ */
+export const setColleagueReviewSourceSettings = <ThrowOnError extends boolean = false>(
+  options: Options<SetColleagueReviewSourceSettingsData, ThrowOnError>,
+) =>
+  (options.client ?? client).put<
+    SetColleagueReviewSourceSettingsResponses,
+    SetColleagueReviewSourceSettingsErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/review-source/settings',
     ...options,
     headers: {
       'Content-Type': 'application/json',
