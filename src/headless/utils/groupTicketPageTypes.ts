@@ -12,13 +12,13 @@ export interface GroupTicketSprint {
   open: boolean
 }
 
-/** A pull request a ticket's review lists. */
+/** A pull request a ticket's review lists: as it stands on GitHub, or a link row with no title, state or checks. */
 export interface GroupTicketPullRequest {
   url: string
   repo: string
   number: number
-  title: string
-  state: 'open' | 'merged' | 'closed'
+  title?: string
+  state?: 'open' | 'merged' | 'closed'
   checks?: 'passing' | 'failing' | 'pending' | 'none'
 }
 
@@ -143,13 +143,13 @@ export interface GroupTicketRunView {
   status: GroupTicketToneLabel
 }
 
-/** A pull request on the page. */
+/** A pull request on the page; a plain link when it was not read from GitHub. */
 export interface GroupTicketPullRequestView {
   url: string
   /** "coach-be #418". */
   name: string
-  title: string
-  state: GroupTicketToneLabel
+  title?: string
+  state?: GroupTicketToneLabel
   checks?: GroupTicketToneLabel
 }
 

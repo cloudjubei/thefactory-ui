@@ -449,6 +449,23 @@ export const OVERVIEW_PART_FAILED: GroupTicketOverview = {
   problems: ['pullRequests', 'chats'],
 }
 
+/** A colleague's ticket nobody reviews or works on yet: its update shows, its pull requests as plain links, nothing read from GitHub. */
+export const OVERVIEW_LINKS_ONLY: GroupTicketOverview = (() => {
+  const { review: _review, story: _story, ...rest } = OVERVIEW_FULL
+  return {
+    ...rest,
+    ticket: { ...OVERVIEW_FULL.ticket!, assignee: 'Priya Shah', mine: false },
+    actions: ['review', 'discuss'],
+    updates: [{ ...OVERVIEW_FULL.updates[0]!, kind: 'first-round', state: 'new' }],
+    pullRequests: OVERVIEW_FULL.pullRequests.map(({ url, repo, number }) => ({
+      url,
+      repo,
+      number,
+    })),
+    chats: [],
+  }
+})()
+
 /** A ticket Jira could not be read for. */
 export const OVERVIEW_NO_TICKET: GroupTicketOverview = (() => {
   const { ticket: _gone, ...rest } = OVERVIEW_FULL

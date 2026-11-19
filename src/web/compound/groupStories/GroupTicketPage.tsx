@@ -528,8 +528,10 @@ function WorkPart({
               className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px]"
             >
               <ExternalLink href={pr.url}>{pr.name}</ExternalLink>
-              <span className="min-w-0 flex-1 truncate text-(--text-secondary)">{pr.title}</span>
-              <ToneBadge tone={pr.state.tone}>{pr.state.label}</ToneBadge>
+              {pr.title ? (
+                <span className="min-w-0 flex-1 truncate text-(--text-secondary)">{pr.title}</span>
+              ) : null}
+              {pr.state ? <ToneBadge tone={pr.state.tone}>{pr.state.label}</ToneBadge> : null}
               {pr.checks ? <ToneBadge tone={pr.checks.tone}>{pr.checks.label}</ToneBadge> : null}
             </li>
           ))}

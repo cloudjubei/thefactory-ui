@@ -65245,7 +65245,7 @@ export type GetGroupTicketOverviewResponses = {
       }>
     }
     /**
-     * Those its review, updates and ticket link that could be read.
+     * Those its review, updates and ticket link: as they stand on GitHub, those that could be read, while it is reviewed or worked on; else link rows, nothing read.
      */
     pullRequests: Array<{
       url: string
@@ -65254,8 +65254,14 @@ export type GetGroupTicketOverviewResponses = {
        */
       repo: string
       number: number
-      title: string
-      state: 'open' | 'merged' | 'closed'
+      /**
+       * Absent on a link row.
+       */
+      title?: string
+      /**
+       * Absent on a link row.
+       */
+      state?: 'open' | 'merged' | 'closed'
       checks?: 'passing' | 'failing' | 'pending' | 'none'
     }>
     /**

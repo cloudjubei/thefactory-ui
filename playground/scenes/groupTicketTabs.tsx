@@ -49,6 +49,7 @@ import {
   OSC_TABS,
   oscTickets,
   OVERVIEW_FULL,
+  OVERVIEW_LINKS_ONLY,
   OVERVIEW_NO_TICKET,
   OVERVIEW_PART_FAILED,
   OVERVIEW_PUSHED,
@@ -536,7 +537,7 @@ export const GROUP_TICKET_TAB_SCENES: Scene[] = [
     kind: 'screen',
     wide: true,
     description:
-      'What a ticket row opens (web /groups/:groupId/tickets/:key, a pushed screen on mobile): the ticket with its status, priority, assignee, sprint, description and Jira link; its Slack updates (waiting, dismissed, reviewed) with files and links; its review rounds with verdicts, posted replies and review runs; its pull requests with state and checks; its group story and chats; and the tab’s actions, Approve & merge first when it applies. One column ships.',
+      'What a ticket row opens (web /groups/:groupId/tickets/:key, a pushed screen on mobile): the ticket with its status, priority, assignee, sprint, description and Jira link; its Slack updates (waiting, dismissed, reviewed) with files and links; its review rounds with verdicts, posted replies and review runs; its pull requests with state and checks while someone reviews or works on it, else as plain links; its group story and chats; and the tab’s actions, Approve & merge first when it applies. One column ships.',
     states: [
       {
         id: 'choose-layout',
@@ -568,6 +569,13 @@ export const GROUP_TICKET_TAB_SCENES: Scene[] = [
         id: 'page-full-phone',
         title: 'Everything read, on a phone',
         render: () => page({ state: FULL(), merge: MERGEABLE(), width: 'phone' }),
+      },
+      {
+        id: 'page-links-only',
+        title: 'Nobody reviews or works on it yet',
+        description:
+          'A colleague’s ticket with no review, run, chat or story, not assigned to the person: its updates still show, its pull requests are plain links with no state or checks, and nothing is read from GitHub.',
+        render: () => page({ state: pageState(OVERVIEW_LINKS_ONLY) }),
       },
       {
         id: 'page-part-failed',

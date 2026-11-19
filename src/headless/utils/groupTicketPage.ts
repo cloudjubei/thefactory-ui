@@ -123,7 +123,8 @@ function replyParts(
 
 /**
  * A ticket's page: the ticket and its facts, its updates from Slack, its
- * review's rounds newest first with its runs, its pull requests, its story
+ * review's rounds newest first with its runs, its pull requests (plain links
+ * when not read from GitHub), its story
  * and chats newest first, and the tab's actions on it. A part that could not
  * be read is named in `problems`; the rest still shows. On top, the newest
  * reply waiting to start the review's next round, with what was pushed since
@@ -173,8 +174,8 @@ export function groupTicketPageView(
     pullRequests: pullRequests.map((pr) => ({
       url: pr.url,
       name: `${pr.repo} #${pr.number}`,
-      title: pr.title,
-      state: GROUP_TICKET_PR_STATE_VIEW[pr.state],
+      ...(pr.title ? { title: pr.title } : {}),
+      ...(pr.state ? { state: GROUP_TICKET_PR_STATE_VIEW[pr.state] } : {}),
       ...(pr.checks ? { checks: GROUP_TICKET_PR_CHECKS_VIEW[pr.checks] } : {}),
     })),
     ...(story ? { story: { ...story, parts: story.parts.map((part) => ({ ...part })) } } : {}),

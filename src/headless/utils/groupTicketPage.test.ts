@@ -241,6 +241,23 @@ describe('groupTicketPageView', () => {
     ])
   })
 
+  it('shows a pull request not read from GitHub as a plain link, and never says there is none', () => {
+    const page = groupTicketPageView(
+      'ZNR-1',
+      overview({
+        pullRequests: [
+          { url: 'https://github.com/acme/coach-be/pull/418', repo: 'acme/coach-be', number: 418 },
+        ],
+      }),
+      TABS,
+      NOW,
+    )
+    expect(page.pullRequests).toStrictEqual([
+      { url: 'https://github.com/acme/coach-be/pull/418', name: 'acme/coach-be #418' },
+    ])
+    expect(page.emptyLines).not.toHaveProperty('pullRequests')
+  })
+
   it('shows its story and chats, newest chat first', () => {
     const page = groupTicketPageView(
       'ZNR-1',

@@ -512,12 +512,14 @@ function WorkPart({
           <View key={pr.url} style={{ gap: 4 }}>
             <View style={ROW}>
               <ExternalLink href={pr.url}>{pr.name}</ExternalLink>
-              <ToneBadge tone={pr.state.tone} label={pr.state.label} />
+              {pr.state ? <ToneBadge tone={pr.state.tone} label={pr.state.label} /> : null}
               {pr.checks ? <ToneBadge tone={pr.checks.tone} label={pr.checks.label} /> : null}
             </View>
-            <Text numberOfLines={2} style={{ fontSize: 12, color: theme.text.secondary }}>
-              {pr.title}
-            </Text>
+            {pr.title ? (
+              <Text numberOfLines={2} style={{ fontSize: 12, color: theme.text.secondary }}>
+                {pr.title}
+              </Text>
+            ) : null}
           </View>
         ))}
       </Part>

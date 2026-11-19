@@ -43,7 +43,7 @@ export const GROUP_TICKET_UPDATE_STATE_VIEW: Record<
 }
 
 export const GROUP_TICKET_PR_STATE_VIEW: Record<
-  GroupTicketPullRequest['state'],
+  NonNullable<GroupTicketPullRequest['state']>,
   GroupTicketToneLabel
 > = {
   open: { label: 'Open', tone: 'working' },
