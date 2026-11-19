@@ -27,6 +27,13 @@ import { nativeFontFamilies, nativeSpace } from '../../../../tokens/native'
 import { red } from '../../../../tokens/colors'
 import { useNativeTheme } from '../../../hooks/useNativeTheme'
 import Code from '../../Code'
+import TrainerSuggestionLaunch from './TrainerSuggestionLaunch'
+import RecommendProgressPreview from './RecommendProgressPreview'
+import {
+  RECOMMEND_PREVIEW_TOOLS,
+  recommendPreviewHandle,
+} from '../../../../headless/hooks/recommendProgress'
+import { trainerRecommendationLaunchNote } from '../../../../headless/utils/trainerRecommendationLaunch'
 import {
   InlineOldNew,
   MonoText,
@@ -96,6 +103,8 @@ export type RenderToolPreviewArgs = {
   toolCall: ToolCallLike
   result?: unknown
   resultType?: ToolResultTypeLike
+  /** The host chat's project, for previews mounted outside ChatBody. */
+  projectId?: string
   hooks?: ToolPreviewHooks
 }
 
@@ -202,6 +211,7 @@ export const RECOGNIZED_TOOL_PREVIEW_NAMES: ReadonlySet<string> = new Set([
   'rejectProjectFeatureRequest',
   'restartProjectFeatureRequest',
   'recommendTrainingExperiments',
+  ...RECOMMEND_PREVIEW_TOOLS,
   'queryProjectData',
   'updateProjectRecord',
   TICKET_STATUS_MOVE_TOOL,
@@ -252,6 +262,7 @@ export function renderToolPreviewNative({
   toolCall,
   result,
   resultType,
+  projectId,
   hooks,
 }: RenderToolPreviewArgs): ReactNode {
   const { theme } = useNativeTheme()
@@ -278,6 +289,18 @@ export function renderToolPreviewNative({
         {...(resultType !== undefined ? { resultType } : {})}
       />
     )
+  }
+
+  const recommendHandle = recommendPreviewHandle(args, result)
+  if (
+    RECOMMEND_PREVIEW_TOOLS.some((tool) => tool === name) &&
+    recommendHandle &&
+    (name !== 'getActivity' ||
+      ['build-catalog', 'recommend-catalog', 'find-more-products'].includes(
+        String(extract(result, ['activityType'])),
+      ))
+  ) {
+    return <RecommendProgressPreview {...recommendHandle} {...(projectId ? { projectId } : {})} />
   }
 
   if (resultType === 'errored') {
@@ -1736,6 +1759,7 @@ export function renderToolPreviewNative({
     const skipped = (extract(payload, ['skippedExisting']) as number | undefined) ?? 0
     const rejected = (extract(payload, ['rejected']) as unknown[] | undefined) ?? []
     const viewLink = tryString(extract(payload, ['viewLink']))
+    const launchNote = trainerRecommendationLaunchNote(payload, args)
     const onLink = hooks?.onResourceLink
     if (isInFlight && !suggestions.length) {
       return <SecondaryText>Preparing experiments…</SecondaryText>
@@ -1743,18 +1767,32 @@ export function renderToolPreviewNative({
     return (
       <View style={{ gap: nativeSpace[2] }}>
         <Row>
-          <MonoText>{accepted} queued</MonoText>
+          <MonoText>{accepted} accepted</MonoText>
           {skipped ? <MonoText>· {skipped} already known</MonoText> : null}
           {rejected.length ? <MonoText>· {rejected.length} rejected</MonoText> : null}
         </Row>
+        {launchNote ? <SecondaryText>{launchNote}</SecondaryText> : null}
         {suggestions.slice(0, 12).map((s, i) => {
           const title = tryString(extract(s, ['title'])) || `experiment ${i + 1}`
           const rationale = tryString(extract(s, ['rationale'])) || ''
+          const suggestionId = tryString(extract(s, ['id']))
+          const target = viewLink ? parseResourceLink(viewLink) : undefined
           return (
             <View key={i} style={{ gap: 2 }}>
               <Text style={{ fontWeight: '600', color: theme.text.primary }}>{title}</Text>
               {rationale ? <SecondaryText>{rationale}</SecondaryText> : null}
               <MonoText>{summarizeExperimentSpec(extract(s, ['spec']))}</MonoText>
+              {suggestionId && !launchNote ? (
+                <TrainerSuggestionLaunch
+                  suggestionId={suggestionId}
+                  project={
+                    tryString(extract(payload, ['recordType'])) ||
+                    tryString(args.project) ||
+                    undefined
+                  }
+                  projectId={target && 'projectId' in target ? target.projectId : undefined}
+                />
+              ) : null}
             </View>
           )
         })}

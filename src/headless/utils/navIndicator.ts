@@ -54,6 +54,8 @@ function runningPhrase(channel: InkChannel): string {
       return 'the app is working'
     case 'chat':
       return 'an agent is replying'
+    case 'cross-project':
+      return 'a request is under way'
     default:
       return 'something is running'
   }
@@ -115,9 +117,11 @@ export function navRowIndicator(signals: NavRowSignals): NavRowIndicator {
  * changes — moving while a run works (an agent run in its own colour, else the
  * project app's activity in the App tab's colour) or an agent replies; unread news alone —
  * in a chat, in a run's own chat, or new results — is a dot. Failing tests
- * stay on the Tests tab. Pure.
+ * stay on the Tests tab. Pass `useCrossProjectRequests().inFlightFor(projectId)`
+ * as `inFlightRequests` for a project, or sum its members for a group. Requests
+ * keep the row moving even when their chat or run is not currently active. Pure.
  */
-export function scopeRowIndicator(state: BadgeState): NavRowIndicator {
+export function scopeRowIndicator(state: BadgeState, inFlightRequests = 0): NavRowIndicator {
   const running: InkChannel | undefined =
     state.process.running > 0
       ? 'processes'
@@ -125,7 +129,9 @@ export function scopeRowIndicator(state: BadgeState): NavRowIndicator {
         ? 'activity'
         : state.chat_messages.thinking
           ? 'chat'
-          : undefined
+          : inFlightRequests > 0
+            ? 'cross-project'
+            : undefined
   return navRowIndicator({
     parts: [
       { channel: 'failed', count: state.process.failed },

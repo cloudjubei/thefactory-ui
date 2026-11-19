@@ -284,6 +284,28 @@ describe('scopeRowIndicator — a project or group row', () => {
     })
   })
 
+  it('an in-flight receiving request keeps an otherwise idle row moving without adding a count', () => {
+    expect(scopeRowIndicator(state(), 2)).toEqual({
+      kind: 'ink',
+      badge: { parts: [], running: 'cross-project', rollup: true },
+      title: 'a request is under way',
+    })
+    expect(scopeRowIndicator(state(), 0)).toEqual({ kind: 'none' })
+  })
+
+  it('request work preserves waiting counts and existing running-channel precedence', () => {
+    expect(scopeRowIndicator(state({ chat_messages: { waiting: 1 } }), 1)).toMatchObject({
+      badge: { parts: [{ channel: 'chat', count: 1 }], running: 'cross-project' },
+    })
+    for (const [over, running] of [
+      [{ process: { running: 1 } }, 'processes'],
+      [{ activity: { running: 1 } }, 'activity'],
+      [{ chat_messages: { thinking: true } }, 'chat'],
+    ] as const) {
+      expect(scopeRowIndicator(state(over), 1)).toMatchObject({ badge: { running } })
+    }
+  })
+
   it('a working agent run runs in the processes channel', () => {
     expect(scopeRowIndicator(state({ process: { running: 1 } }))).toEqual({
       kind: 'ink',

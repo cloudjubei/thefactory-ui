@@ -1,5 +1,12 @@
 import { type ReactNode } from 'react'
 import Code from '../../Code'
+import TrainerSuggestionLaunch from './TrainerSuggestionLaunch'
+import RecommendProgressPreview from './RecommendProgressPreview'
+import {
+  RECOMMEND_PREVIEW_TOOLS,
+  recommendPreviewHandle,
+} from '../../../../headless/hooks/recommendProgress'
+import { trainerRecommendationLaunchNote } from '../../../../headless/utils/trainerRecommendationLaunch'
 import type { ToolCall, ToolResultType } from './../ToolCall'
 import {
   InlineOldNew,
@@ -242,6 +249,7 @@ export const RECOGNIZED_TOOL_PREVIEW_NAMES: ReadonlySet<string> = new Set([
   'rejectProjectFeatureRequest',
   'restartProjectFeatureRequest',
   'recommendTrainingExperiments',
+  ...RECOMMEND_PREVIEW_TOOLS,
   'queryProjectData',
   'updateProjectRecord',
   'sendChatMessage',
@@ -321,6 +329,18 @@ export function renderToolPreview({
         {...(resultType !== undefined ? { resultType } : {})}
       />
     )
+  }
+
+  const recommendHandle = recommendPreviewHandle(args, result)
+  if (
+    RECOMMEND_PREVIEW_TOOLS.some((tool) => tool === name) &&
+    recommendHandle &&
+    (name !== 'getActivity' ||
+      ['build-catalog', 'recommend-catalog', 'find-more-products'].includes(
+        String(extract(result, ['activityType'])),
+      ))
+  ) {
+    return <RecommendProgressPreview {...recommendHandle} />
   }
 
   if (resultType === 'errored') {
@@ -1761,6 +1781,7 @@ export function renderToolPreview({
     const skipped = (extract(payload, ['skippedExisting']) as number | undefined) ?? 0
     const rejected = (extract(payload, ['rejected']) as unknown[] | undefined) ?? []
     const viewLink = tryString(extract(payload, ['viewLink']))
+    const launchNote = trainerRecommendationLaunchNote(payload, args)
     const onLink = hooks?.onResourceLink
     const openViewLink = () => {
       const parsed = viewLink ? parseResourceLink(viewLink) : undefined
@@ -1772,7 +1793,7 @@ export function renderToolPreview({
     return (
       <div className="text-xs space-y-2">
         <Row>
-          <span className="font-mono text-[11px]">{accepted} queued</span>
+          <span className="font-mono text-[11px]">{accepted} accepted</span>
           {skipped ? (
             <>
               <span className="mx-1">·</span>
@@ -1786,11 +1807,14 @@ export function renderToolPreview({
             </>
           ) : null}
         </Row>
+        {launchNote ? <div role="status">{launchNote}</div> : null}
         {suggestions.length ? (
           <div className="space-y-1.5">
             {suggestions.slice(0, 12).map((s, i) => {
               const title = tryString(extract(s, ['title'])) || `experiment ${i + 1}`
               const rationale = tryString(extract(s, ['rationale'])) || ''
+              const suggestionId = tryString(extract(s, ['id']))
+              const target = viewLink ? parseResourceLink(viewLink) : undefined
               return (
                 <div key={i} className="rounded border border-(--border) px-2 py-1.5">
                   <div className="font-medium">{title}</div>
@@ -1798,6 +1822,17 @@ export function renderToolPreview({
                   <div className="font-mono text-[11px] text-(--text-secondary)">
                     {summarizeExperimentSpec(extract(s, ['spec']))}
                   </div>
+                  {suggestionId && !launchNote ? (
+                    <TrainerSuggestionLaunch
+                      suggestionId={suggestionId}
+                      project={
+                        tryString(extract(payload, ['recordType'])) ||
+                        tryString(args.project) ||
+                        undefined
+                      }
+                      projectId={target && 'projectId' in target ? target.projectId : undefined}
+                    />
+                  ) : null}
                 </div>
               )
             })}

@@ -1,5 +1,6 @@
 import { ACCEPTED_UNCHECKED_SCENES } from '../scenes/acceptedUnchecked'
 import { ACTIVITY_STOP_SCENES } from '../scenes/activityStop'
+import { TRAINER_SUGGESTION_SCENES } from '../scenes/trainerSuggestions'
 import { AGENT_TYPE_SCENES } from '../scenes/agentTypes'
 import { ANSWER_FILES_SCENES } from '../scenes/answerFiles'
 import { ASK_ROW_SCENES } from '../scenes/askRows'
@@ -152,6 +153,7 @@ export const SCENES: readonly Scene[] = [
   ...CHAT_LAST_ROW_SCENES,
   ...CHAT_TOOL_STEP_SCENES,
   ...ACTIVITY_STOP_SCENES,
+  ...TRAINER_SUGGESTION_SCENES,
   ...CHAT_CHANGES_SCENES,
   ...CHAT_CHANGES_DOCK_SCENES,
   ...CHECKS_UNFINISHED_SCENES,

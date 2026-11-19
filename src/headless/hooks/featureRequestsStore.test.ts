@@ -100,6 +100,20 @@ describe('featureRequestsStore', () => {
       expect(inFlightCount(featureRequestsSnapshot())).toBe(3)
     })
 
+    it('counts in-flight requests only for the receiving project and updates as work ends', () => {
+      seed()
+      upsertFeatureRequest(fr({ id: 'other', targetProjectId: 'projC', status: 'accepted' }))
+      expect(inFlightCount(featureRequestsSnapshot(), 'projB')).toBe(3)
+      expect(inFlightCount(featureRequestsSnapshot(), 'projC')).toBe(1)
+      expect(inFlightCount(featureRequestsSnapshot(), 'projA')).toBe(0)
+      expect(inFlightCount(featureRequestsSnapshot(), 'missing')).toBe(0)
+      upsertFeatureRequest(fr({ id: 'acc', status: 'completed' }))
+      upsertFeatureRequest(fr({ id: 'prog', status: 'failed' }))
+      upsertFeatureRequest(fr({ id: 'rev', status: 'handed_over' }))
+      expect(inFlightCount(featureRequestsSnapshot(), 'projB')).toBe(0)
+      expect(inFlightCount(featureRequestsSnapshot())).toBe(1)
+    })
+
     it('badgeCount = pending + in-flight (every non-terminal request)', () => {
       seed()
       expect(badgeCount(featureRequestsSnapshot())).toBe(4)

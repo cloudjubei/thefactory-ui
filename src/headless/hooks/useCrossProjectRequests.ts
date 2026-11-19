@@ -33,6 +33,8 @@ export interface CrossProjectRequestsState {
   pending: number
   /** Requests whose B-side work is under way (accepted / in_progress / in_review). */
   inFlight: number
+  /** In-flight requests targeting this project, for its scope row's running indicator. */
+  inFlightFor: (targetProjectId: string) => number
   /** Inspector badge: pending + in-flight (terminal states drop off). */
   badgeCount: number
   /** Requests a project emitted (its outbox). */
@@ -223,12 +225,14 @@ export function useCrossProjectRequests(): CrossProjectRequestsState {
 
   const outboxForFn = useCallback((id: string) => outboxFor(snapshot, id), [snapshot])
   const inboxForFn = useCallback((id: string) => inboxFor(snapshot, id), [snapshot])
+  const inFlightForFn = useCallback((id: string) => inFlightCount(snapshot, id), [snapshot])
   const requestByIdFn = useCallback((id: string) => requestById(snapshot, id), [snapshot])
 
   return {
     requests: sortedRequests(snapshot),
     pending: pendingCount(snapshot),
     inFlight: inFlightCount(snapshot),
+    inFlightFor: inFlightForFn,
     badgeCount: badgeCount(snapshot),
     outboxFor: outboxForFn,
     inboxFor: inboxForFn,

@@ -10,6 +10,13 @@ import {
   type NavRowIndicator,
 } from 'thefactory-ui/headless'
 import type { Scene } from '../showcase/types'
+import { inFlightCount } from '../../src/headless/hooks/featureRequestsStore'
+import { UI_REQUEST } from '../../src/fakeBackend/fixtures/featureRequests'
+
+// Settled fixture: one accepted request to UI; no chat, process or activity is active.
+const REQUEST_SNAPSHOT = {
+  [UI_REQUEST.id]: { ...UI_REQUEST, status: 'accepted' as const },
+}
 
 const LOOK = inkBadgeLook(DEFAULT_APP_SETTINGS.userPreferences)
 const BADGE_COLORS = DEFAULT_APP_SETTINGS.notifications.badgeColors
@@ -67,6 +74,48 @@ function ProjectTabs({ counts, viewing }: { counts: Partial<BadgeCounts>; viewin
 }
 
 export const APP_UNREAD_SCENES: Scene[] = [
+  {
+    id: 'request-running-row',
+    title: 'Receiving project — request under way',
+    component: 'NavIndicator · scopeRowIndicator',
+    group: 'Project',
+    description:
+      'An accepted request keeps its receiving project moving even without an active chat or process. The sender stays quiet; finished requests no longer move the receiver.',
+    states: [
+      {
+        id: 'in-flight',
+        title: 'Request under way',
+        render: () => (
+          <div className="w-64 rounded-lg border border-(--border-default) py-1">
+            <Row
+              label="Sending project"
+              indicator={scopeRowIndicator(
+                EMPTY_BADGE_STATE,
+                inFlightCount(REQUEST_SNAPSHOT, 'thefactory-tools'),
+              )}
+            />
+            <Row
+              label="Receiving project"
+              indicator={scopeRowIndicator(
+                EMPTY_BADGE_STATE,
+                inFlightCount(REQUEST_SNAPSHOT, 'thefactory-ui'),
+              )}
+            />
+          </div>
+        ),
+      },
+      {
+        id: 'finished',
+        title: 'Request finished',
+        render: () => (
+          <div className="w-64 rounded-lg border border-(--border-default) py-1">
+            <Row label="Sending project" indicator={scopeRowIndicator(EMPTY_BADGE_STATE, 0)} />
+            <Row label="Receiving project" indicator={scopeRowIndicator(EMPTY_BADGE_STATE, 0)} />
+          </div>
+        ),
+      },
+    ],
+  },
   {
     id: 'app-unread',
     title: 'App tab — unread items',

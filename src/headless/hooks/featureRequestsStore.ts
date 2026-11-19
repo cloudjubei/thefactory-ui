@@ -61,9 +61,16 @@ export function pendingCount(snapshot: Record<string, FeatureRequest>): number {
   return Object.values(snapshot).filter((r) => r.status === 'pending').length
 }
 
-/** Requests whose B-side work is under way (accepted / in_progress / in_review). */
-export function inFlightCount(snapshot: Record<string, FeatureRequest>): number {
-  return Object.values(snapshot).filter((r) => IN_FLIGHT_STATUSES.includes(r.status)).length
+/** Requests whose B-side work is under way, optionally only those targeting one project. */
+export function inFlightCount(
+  snapshot: Record<string, FeatureRequest>,
+  targetProjectId?: string,
+): number {
+  return Object.values(snapshot).filter(
+    (r) =>
+      IN_FLIGHT_STATUSES.includes(r.status) &&
+      (targetProjectId === undefined || r.targetProjectId === targetProjectId),
+  ).length
 }
 
 /** Inspector badge: everything still open — pending + in-flight (terminal states drop off). */
