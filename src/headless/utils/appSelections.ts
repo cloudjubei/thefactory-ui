@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react'
 import type { AppDeepLink } from './appDeepLink'
 
-import type { ChatAppSelection as AppSelection } from '../api/generated'
+import type { CompletionUserMessage } from '../api/generated'
+
 /** Structured context passed unchanged to the host's chat send API. */
-export type { ChatAppSelection as AppSelection } from '../api/generated'
+export type AppSelection = NonNullable<CompletionUserMessage['appSelections']>[number]
 
 export type AppElementPick = Pick<AppSelection, 'selector' | 'outerHtml'> & {
   rect?: { x: number; y: number; width: number; height: number }

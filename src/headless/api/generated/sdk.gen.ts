@@ -127,6 +127,9 @@ import type {
   CloseProcessRunFeaturesData,
   CloseProcessRunFeaturesErrors,
   CloseProcessRunFeaturesResponses,
+  CloseRemoteBrowserSessionData,
+  CloseRemoteBrowserSessionErrors,
+  CloseRemoteBrowserSessionResponses,
   CompactChatNowData,
   CompactChatNowErrors,
   CompactChatNowResponses,
@@ -447,6 +450,9 @@ import type {
   GetCodeIntelOutlineData,
   GetCodeIntelOutlineErrors,
   GetCodeIntelOutlineResponses,
+  GetColleagueReviewCommitsData,
+  GetColleagueReviewCommitsErrors,
+  GetColleagueReviewCommitsResponses,
   GetColleagueReviewData,
   GetColleagueReviewErrors,
   GetColleagueReviewMergeData,
@@ -664,6 +670,9 @@ import type {
   GetUserSettingResponses,
   GetVideoSetupData,
   GetVideoSetupResponses,
+  GetVideoUseStatsData,
+  GetVideoUseStatsErrors,
+  GetVideoUseStatsResponses,
   GitAbortMergeData,
   GitAbortMergeErrors,
   GitAbortMergeResponses,
@@ -915,6 +924,9 @@ import type {
   ListProviderConnectionsData,
   ListProviderConnectionsErrors,
   ListProviderConnectionsResponses,
+  ListRemoteBrowserSessionsData,
+  ListRemoteBrowserSessionsErrors,
+  ListRemoteBrowserSessionsResponses,
   ListReviewEvidenceData,
   ListReviewEvidenceErrors,
   ListReviewEvidenceResponses,
@@ -955,6 +967,9 @@ import type {
   ListUnifiedGitBranchesData,
   ListUnifiedGitBranchesErrors,
   ListUnifiedGitBranchesResponses,
+  ListVideoUseData,
+  ListVideoUseErrors,
+  ListVideoUseResponses,
   ListWebSearchKeysData,
   ListWebSearchKeysErrors,
   ListWebSearchKeysResponses,
@@ -976,6 +991,9 @@ import type {
   MarkProcessGroupLegLandedData,
   MarkProcessGroupLegLandedErrors,
   MarkProcessGroupLegLandedResponses,
+  MarkRemoteBrowserAreaData,
+  MarkRemoteBrowserAreaErrors,
+  MarkRemoteBrowserAreaResponses,
   MatchDocumentsData,
   MatchDocumentsErrors,
   MatchDocumentsResponses,
@@ -993,6 +1011,9 @@ import type {
   OpenProcessRunChatData,
   OpenProcessRunChatErrors,
   OpenProcessRunChatResponses,
+  OpenRemoteBrowserSessionData,
+  OpenRemoteBrowserSessionErrors,
+  OpenRemoteBrowserSessionResponses,
   OpenVideoSetupChatData,
   OpenVideoSetupChatErrors,
   OpenVideoSetupChatResponses,
@@ -1002,6 +1023,9 @@ import type {
   PasteTicketData,
   PasteTicketErrors,
   PasteTicketResponses,
+  PickRemoteBrowserElementData,
+  PickRemoteBrowserElementErrors,
+  PickRemoteBrowserElementResponses,
   PlanGroupTicketData,
   PlanGroupTicketErrors,
   PlanGroupTicketResponses,
@@ -1041,6 +1065,7 @@ import type {
   PreviewProcessData,
   PreviewProcessErrors,
   PreviewProcessGroupRunData,
+  PreviewProcessGroupRunErrors,
   PreviewProcessGroupRunResponses,
   PreviewProcessResponses,
   PreviewProcessRunData,
@@ -1174,6 +1199,9 @@ import type {
   RequestCliRunReviewResponses,
   ResetOverseerData,
   ResetOverseerResponses,
+  ResizeRemoteBrowserData,
+  ResizeRemoteBrowserErrors,
+  ResizeRemoteBrowserResponses,
   ResolveCliRunReviewToBaseData,
   ResolveCliRunReviewToBaseErrors,
   ResolveCliRunReviewToBaseResponses,
@@ -1299,6 +1327,9 @@ import type {
   SendProcessRunBackForChangesData,
   SendProcessRunBackForChangesErrors,
   SendProcessRunBackForChangesResponses,
+  SendRemoteBrowserInputData,
+  SendRemoteBrowserInputErrors,
+  SendRemoteBrowserInputResponses,
   ServeDesignPlaygroundData,
   ServeDesignPlaygroundResponses,
   SetActiveCliData,
@@ -3334,7 +3365,11 @@ export const openProcessGroupRunChat = <ThrowOnError extends boolean = false>(
 export const previewProcessGroupRun = <ThrowOnError extends boolean = false>(
   options: Options<PreviewProcessGroupRunData, ThrowOnError>,
 ) =>
-  (options.client ?? client).post<PreviewProcessGroupRunResponses, unknown, ThrowOnError>({
+  (options.client ?? client).post<
+    PreviewProcessGroupRunResponses,
+    PreviewProcessGroupRunErrors,
+    ThrowOnError
+  >({
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/process-group-runs/preview',
@@ -6106,6 +6141,145 @@ export const submitLiveAppCapture = <ThrowOnError extends boolean = false>(
     },
   })
 
+/**
+ * Every browser open beside a chat: the person’s own, and those the chat’s agent opened. Changes come as `remoteBrowser:sessions-changed` on the socket.
+ */
+export const listRemoteBrowserSessions = <ThrowOnError extends boolean = false>(
+  options: Options<ListRemoteBrowserSessionsData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ListRemoteBrowserSessionsResponses,
+    ListRemoteBrowserSessionsErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/remote-browser/sessions',
+    ...options,
+  })
+
+/**
+ * Open the person’s browser beside a chat on any http or https page; their browser already open beside it moves to the page instead. To see it, send `remoteBrowser:watch` on the socket.
+ */
+export const openRemoteBrowserSession = <ThrowOnError extends boolean = false>(
+  options: Options<OpenRemoteBrowserSessionData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    OpenRemoteBrowserSessionResponses,
+    OpenRemoteBrowserSessionErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/remote-browser/sessions',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Close the person’s own browser beside a chat. The agent’s browser is refused (409): stop watching it instead.
+ */
+export const closeRemoteBrowserSession = <ThrowOnError extends boolean = false>(
+  options: Options<CloseRemoteBrowserSessionData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<
+    CloseRemoteBrowserSessionResponses,
+    CloseRemoteBrowserSessionErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/remote-browser/sessions/{sessionId}',
+    ...options,
+  })
+
+/**
+ * Click, move, turn the wheel at a viewport point, press a key, or insert text, in a browser beside the chat.
+ */
+export const sendRemoteBrowserInput = <ThrowOnError extends boolean = false>(
+  options: Options<SendRemoteBrowserInputData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    SendRemoteBrowserInputResponses,
+    SendRemoteBrowserInputErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/remote-browser/sessions/{sessionId}/input',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Resize a browser’s viewport, as the person’s view of it changes size.
+ */
+export const resizeRemoteBrowser = <ThrowOnError extends boolean = false>(
+  options: Options<ResizeRemoteBrowserData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    ResizeRemoteBrowserResponses,
+    ResizeRemoteBrowserErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/remote-browser/sessions/{sessionId}/resize',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * The element at a viewport point, as an app note’s element target, its crop kept among the chat’s attachments. It goes to the agent on the person’s next message, as an App pick does.
+ */
+export const pickRemoteBrowserElement = <ThrowOnError extends boolean = false>(
+  options: Options<PickRemoteBrowserElementData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    PickRemoteBrowserElementResponses,
+    PickRemoteBrowserElementErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/remote-browser/sessions/{sessionId}/pick',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * A marked area of the viewport, as an app note’s area target, its crop kept among the chat’s attachments.
+ */
+export const markRemoteBrowserArea = <ThrowOnError extends boolean = false>(
+  options: Options<MarkRemoteBrowserAreaData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    MarkRemoteBrowserAreaResponses,
+    MarkRemoteBrowserAreaErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/remote-browser/sessions/{sessionId}/mark',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
 export const getGitStatus = <ThrowOnError extends boolean = false>(
   options: Options<GetGitStatusData, ThrowOnError>,
 ) =>
@@ -7019,6 +7193,32 @@ export const getToolCallSlipStats = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/tool-call-slips/stats',
+    ...options,
+  })
+
+/**
+ * Video uses over the last `sinceDays` days (default 30), newest first: digests built or reused, agent reads of a video, digests staged into a CLI agent’s workspace, and the usage of the runs and API turns that carried video. Never the video, its text or its path: a video is told apart by a hash.
+ */
+export const listVideoUse = <ThrowOnError extends boolean = false>(
+  options?: Options<ListVideoUseData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<ListVideoUseResponses, ListVideoUseErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/video-use',
+    ...options,
+  })
+
+/**
+ * The same uses counted and priced: what one agent’s reading of one video cost, spread per video length against the $0.10 target for a video up to 10 minutes (`overThreshold` counts the reads above it), per agent and model, per video, the pictures opened, API turns that carried video, and digest build times. Staged-only CLI reads are estimates: the host never sees a CLI agent read a staged digest.
+ */
+export const getVideoUseStats = <ThrowOnError extends boolean = false>(
+  options?: Options<GetVideoUseStatsData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<GetVideoUseStatsResponses, GetVideoUseStatsErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/video-use/stats',
     ...options,
   })
 
@@ -8750,6 +8950,23 @@ export const startColleagueReview = <ThrowOnError extends boolean = false>(
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  })
+
+/**
+ * The commits pushed to each of the ticket’s pull requests since the heads the latest round of its review that read any read: how many, none, or its history rewritten since. Each pull request is read on its own; one GitHub would not give is `unread`. Kept a minute (half that while one is `unread`), read again at once when a later round read other heads. Never part of the tickets list or the ticket page’s overview: ask for it once those are shown.
+ */
+export const getColleagueReviewCommits = <ThrowOnError extends boolean = false>(
+  options: Options<GetColleagueReviewCommitsData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetColleagueReviewCommitsResponses,
+    GetColleagueReviewCommitsErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/tickets/{ticketKey}/review/commits',
+    ...options,
   })
 
 /**
