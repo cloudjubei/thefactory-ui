@@ -52,6 +52,7 @@ vi.mock('../../../native/compound/chat/ChatChangesMarkerConnected', () => ({
   ChatChangesMarkerConnected: () => null,
 }))
 vi.mock('../../../headless/hooks/useChatOpenChanges', () => ({ useChatOpenChanges: () => ({}) }))
+vi.mock('../../../headless/hooks/useReviewChatSlot', () => ({ useReviewChatSlot: () => ({}) }))
 vi.mock('../../../headless/hooks/useChatDecidedAsks', () => ({ useChatDecidedAsks: () => [] }))
 vi.mock('../../../headless/contexts/TicketLinksContext', () => ({
   ChatTicketLinksProvider: ({ children }: { children: ReactNode }) => children,
