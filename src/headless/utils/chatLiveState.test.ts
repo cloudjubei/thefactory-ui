@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyChatLiveStatePatch, mergeChatLiveState } from './chatLiveState'
+import { applyChatLiveStatePatch, chatStoppableRunId, mergeChatLiveState } from './chatLiveState'
 
 type Live = { isSending: boolean; cliRunId: string | null; cliModel: string | null }
 
@@ -72,5 +72,23 @@ describe('applyChatLiveStatePatch', () => {
     ])
     const next = applyChatLiveStatePatch(states, 'a', EMPTY, { cliRunId: 'run-1' })
     expect(next.get('b')).toBe(other)
+  })
+})
+
+describe('chatStoppableRunId', () => {
+  it('stops the run live state holds while it is still going', () => {
+    expect(chatStoppableRunId(['run-2', undefined], new Set(['run-1']))).toBe('run-2')
+  })
+
+  it('skips a finished run live state keeps for its transcript', () => {
+    expect(chatStoppableRunId(['run-1', undefined], new Set(['run-1']))).toBeUndefined()
+  })
+
+  it('falls back to the run the backend reports when live state holds a finished one', () => {
+    expect(chatStoppableRunId(['run-1', 'run-2'], new Set(['run-1']))).toBe('run-2')
+  })
+
+  it('returns nothing when no candidate is known', () => {
+    expect(chatStoppableRunId([null, undefined], new Set())).toBeUndefined()
   })
 })

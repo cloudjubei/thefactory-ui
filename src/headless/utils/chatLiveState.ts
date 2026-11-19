@@ -36,3 +36,16 @@ export function applyChatLiveStatePatch<T extends object>(
   merged.set(key, next)
   return merged
 }
+
+/**
+ * The run a chat's Stop should kill: the first candidate that has not already
+ * finished. Live state keeps a finished run's id so its transcript stays
+ * mounted, so a Stop on the next turn, before that turn's run id is known, must
+ * not take the finished one for the turn still starting.
+ */
+export function chatStoppableRunId(
+  candidates: readonly (string | null | undefined)[],
+  finishedRunIds: ReadonlySet<string>,
+): string | undefined {
+  return candidates.find((id): id is string => !!id && !finishedRunIds.has(id))
+}

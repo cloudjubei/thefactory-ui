@@ -45,7 +45,7 @@ import {
   interpolateChatSystemPrompt,
   normalizeChatContext,
 } from 'thefactory-tools/utils'
-import { applyChatLiveStatePatch } from '../utils/chatLiveState'
+import { applyChatLiveStatePatch, chatStoppableRunId } from '../utils/chatLiveState'
 import {
   parseCompletionProgressEvent,
   routeCompletionProgress,
@@ -1329,7 +1329,10 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         // state only knows about a send this page made, so after a reload it is
         // empty while the agent is still going — without the fallback the stop
         // would silently degrade to the completion-only abort.
-        const runId = live.cliRunId ?? serverRunId
+        const runId = chatStoppableRunId(
+          [live.cliRunId, serverRunId],
+          finalizedCliRunIdsRef.current,
+        )
         if (runId) {
           // Mark this as a user stop so the terminal event treats the resulting
           // `aborted` status as a clean stop (no error Alert).
