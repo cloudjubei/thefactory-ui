@@ -7,6 +7,7 @@
  * per-project state map, then call `aggregateGroupBadgeState` to roll a
  * group's member projects up into a single badge state.
  */
+import { isOutsideWaitPending } from './processOutsideWait'
 import type { ProcessRun } from 'thefactory-tools/types'
 import { processRunStopHolder } from 'thefactory-tools/utils'
 import type { BadgeState, ProcessTally } from './badgeAggregationTypes'
@@ -27,7 +28,7 @@ export const EMPTY_BADGE_STATE: BadgeState = {
  * Bucket ROOT process runs by project: one working — or bringing its approved
  * work in, or stopped with its agent manager on it (`processRunStopHolder`) —
  * counts as running, one whose merge failed as failed, one waiting on the
- * person — a stop that is theirs, approved work not brought in yet, or an ask
+ * person (never one still waiting on someone outside it) — a stop that is theirs, approved work not brought in yet, or an ask
  * in its own chat (`chatNews`, by run id) — as waiting, and a reply unread in
  * its own chat as news. A child run (a feature step's own pipeline) is reached
  * through its parent, so it never counts on its own; a run that is history
@@ -71,7 +72,9 @@ export function processTallyByProject(
     else if (isWorking(r, now)) {
       tally.running += 1
       if (unread) tally.unread += 1
-    } else if (r.park?.reason !== 'waiting-on-blockers') tally.waiting += 1
+    } else if (r.park?.reason !== 'waiting-on-blockers' && !isOutsideWaitPending(r.park)) {
+      tally.waiting += 1
+    }
     out.set(r.projectId, tally)
   }
   return out

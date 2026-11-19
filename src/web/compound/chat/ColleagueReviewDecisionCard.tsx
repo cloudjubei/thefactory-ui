@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useChatActions } from '../../../headless/contexts/ChatActionsContext'
 import { useColleagueReview } from '../../../headless/hooks/useColleagueReview'
 import {
@@ -12,6 +12,12 @@ import {
   reviewGateAnswer,
   runReviewDecisionActions,
 } from '../../../headless/utils/colleagueReviewDecision'
+import {
+  reviewPushApprovalRows,
+  reviewRunRound,
+} from '../../../headless/utils/colleagueReviewBranchUpdates'
+import { REVIEW_PUSH_COPY } from '../../../headless/utils/colleagueReviewBranchUpdatesConstants'
+import ReviewBranchRows from '../process/ReviewBranchRows'
 import {
   REVIEW_DECISION_APPROVE_AND_MERGE,
   REVIEW_DECISION_STOP,
@@ -39,6 +45,10 @@ type Confirming = 'stop' | 'merge'
 
 export type ColleagueReviewDecisionCardProps = {
   ticketKey?: string
+  /** Said in place of the review's title. */
+  heading?: string
+  /** Shown under the heading, before the choices. */
+  body?: ReactNode
   /** The round decided on; absent while it is read. */
   verdict?: ReviewDecisionVerdict
   /** The review is still being read. */
@@ -75,6 +85,8 @@ export type ColleagueReviewDecisionCardProps = {
  */
 export default function ColleagueReviewDecisionCard({
   ticketKey,
+  heading,
+  body,
   verdict,
   loading = false,
   draft,
@@ -112,9 +124,10 @@ export default function ColleagueReviewDecisionCard({
     .filter((a) => a.editsText)
     .map((a) => reviewDecisionProblem(a, text, note))
     .find(Boolean)
+  const title = heading ?? (ticketKey ? TEXT.title(ticketKey) : TEXT.titleNoTicket)
   return (
     <section
-      aria-label={ticketKey ? TEXT.title(ticketKey) : TEXT.titleNoTicket}
+      aria-label={title}
       className={`flex min-w-0 flex-col gap-3 text-[12.5px] ${
         embedded
           ? ''
@@ -122,9 +135,7 @@ export default function ColleagueReviewDecisionCard({
       }`}
     >
       <div className="flex min-w-0 flex-col gap-1">
-        <h3 className="m-0 text-sm font-semibold text-(--text-primary)">
-          {ticketKey ? TEXT.title(ticketKey) : TEXT.titleNoTicket}
-        </h3>
+        <h3 className="m-0 text-sm font-semibold text-(--text-primary)">{title}</h3>
         {verdict ? (
           <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
             <span className="font-medium text-(--text-primary)">{verdict.title}</span>
@@ -137,6 +148,7 @@ export default function ColleagueReviewDecisionCard({
           <span className="text-(--text-muted)">{TEXT.reading}</span>
         ) : null}
       </div>
+      {body}
       {editsText ? (
         <label className="flex min-w-0 flex-col gap-1">
           <span className="text-[12px] font-medium text-(--text-primary)">{TEXT.reply}</span>
@@ -322,7 +334,8 @@ export type RunReviewDecisionCardProps = {
 export function RunReviewDecisionCard({ run, embedded, onAnswer }: RunReviewDecisionCardProps) {
   const subject = run.ticketReview
   const live = useColleagueReview(subject?.groupId, subject?.ticketKey)
-  const round = live.review?.rounds.find((r) => r.n === subject?.round)
+  const n = reviewRunRound(live.review, subject)
+  const round = live.review?.rounds.find((r) => r.n === n)
   const draft = round?.reply ?? ''
   const [choosing, setChoosing] = useState<string>()
   const parkedAt = run.park?.parkedAt
@@ -348,6 +361,50 @@ export function RunReviewDecisionCard({ run, embedded, onAnswer }: RunReviewDeci
       draft={draft}
       actions={runReviewDecisionActions(run.park ? processRunParkChoices(run) : [])}
       prs={reviewDecisionPullRequests(live.review)}
+      {...(choosing ? { choosing } : {})}
+      {...(embedded !== undefined ? { embedded } : {})}
+      onChoose={choose}
+    />
+  )
+}
+
+/**
+ * The push approval of a colleague review run, when bringing the base in
+ * conflicted: each pull request's resolution — the files, the changes, the
+ * checks and the diff — then Approve push, Send back with a note, or Stop.
+ * Nothing is pushed before the person chooses.
+ */
+export function RunPushApprovalCard({ run, embedded, onAnswer }: RunReviewDecisionCardProps) {
+  const [choosing, setChoosing] = useState<string>()
+  const parkedAt = run.park?.parkedAt
+  const [seenPark, setSeenPark] = useState(parkedAt)
+  if (seenPark !== parkedAt) {
+    setSeenPark(parkedAt)
+    setChoosing(undefined)
+  }
+  const actions = runReviewDecisionActions(run.park ? processRunParkChoices(run) : []).map((a) =>
+    a.noteRequired ? { ...a, label: REVIEW_PUSH_COPY.sendBack } : a,
+  )
+  const choose = (action: ReviewDecisionAction, _text: string, note: string) => {
+    if (choosing) return
+    setChoosing(action.id)
+    void onAnswer(reviewGateAnswer(action, '', '', note)).then((ok) => {
+      if (!ok) setChoosing(undefined)
+    })
+  }
+  return (
+    <ColleagueReviewDecisionCard
+      key={`${run.id}-${parkedAt ?? 0}`}
+      heading={REVIEW_PUSH_COPY.heading}
+      body={
+        <div className="flex min-w-0 flex-col gap-2">
+          <p className="m-0 text-(--text-secondary)">{REVIEW_PUSH_COPY.intro}</p>
+          <ReviewBranchRows rows={reviewPushApprovalRows(run)} />
+        </div>
+      }
+      draft=""
+      actions={actions}
+      prs={[]}
       {...(choosing ? { choosing } : {})}
       {...(embedded !== undefined ? { embedded } : {})}
       onChoose={choose}

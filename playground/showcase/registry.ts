@@ -105,6 +105,7 @@ import { USAGE_SCENES } from '../scenes/usage'
 import { VARIANT_RUN_SCENES } from '../scenes/variantRun'
 import { SCRIPT_STEP_SCENES } from '../scenes/scriptStep'
 import { VIDEO_ATTACHMENT_SCENES } from '../scenes/videoAttachments'
+import { VIDEO_TIMELINE_SCENES } from '../scenes/videoTimeline'
 import { SHOWN_FILE_SCENES } from '../scenes/shownFiles'
 import { PROJECT_DEVICE_SETTINGS_SCENES } from '../scenes/projectDeviceSettings'
 import { PROJECT_SERVE_SETTINGS_SCENES } from '../scenes/projectServeSettings'
@@ -138,6 +139,7 @@ export const SCENES: readonly Scene[] = [
   ...FILE_PREVIEW_SCENES,
   ...FILE_PANE_VIDEO_SCENES,
   ...VIDEO_ATTACHMENT_SCENES,
+  ...VIDEO_TIMELINE_SCENES,
   ...SHOWN_FILE_SCENES,
   ...MODEL_EFFORT_SCENES,
   ...CHAT_TICKET_SCENES,

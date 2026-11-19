@@ -4,7 +4,9 @@ import type {
   VideoTranscriptState,
 } from 'thefactory-tools/types'
 import type { ChatContext } from '../api/generated'
+import type { ChatVideoMarks } from './videoMarksTypes'
 import type { VideoFrame } from './videoPlaybackTypes'
+import type { ChatVideoTimeline } from './videoTimelineTypes'
 
 /** How the digest of a chat's video stands, as `GET /chat-attachments/digest` and `chatAttachments:digest` say. */
 export type ChatVideoDigest = {
@@ -90,4 +92,11 @@ export type ChatVideoAttachments = {
   fixedDigests?: Record<string, ChatVideoDigest>
   /** The fixed URLs per path to go with them. */
   fixedMedia?: Record<string, ChatVideoFixedMedia>
+  /** A fixed timeline per path in place of the backend's, for a showcase scene. */
+  fixedTimelines?: Record<string, ChatVideoTimeline>
+  /**
+   * The composer's marks (`useChatComposer`'s `videoMarks`). Given, a playing video offers the
+   * flag, and the composer lists the marks under their video.
+   */
+  marks?: ChatVideoMarks
 }

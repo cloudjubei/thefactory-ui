@@ -1,4 +1,5 @@
 import type { SyncKVStorage } from '../hooks/useStorageBackedState'
+import type { ChatVideoMarkDraft } from './videoMarksTypes'
 
 /**
  * A message the person sent while the agent was still busy. It waits in the
@@ -9,6 +10,8 @@ export type PendingChatMessage = {
   text: string
   /** Attachment paths, as the composer held them. */
   attachments: string[]
+  /** Moments marked on the chat's videos, as the composer held them. */
+  videoMarks?: ChatVideoMarkDraft[]
 }
 
 /**
@@ -18,6 +21,8 @@ export type PendingChatMessage = {
 export type ChatDraft = {
   text: string
   attachments: string[]
+  /** Moments marked on the chat's videos, to go with the message; left out while there are none. */
+  videoMarks?: ChatVideoMarkDraft[]
   pending: PendingChatMessage[]
   /**
    * The queue waits for the person instead of going out on its own — set when
@@ -36,6 +41,7 @@ export type StoredChatDraft = ChatDraft & {
 export type OutgoingChatMessage = {
   text: string
   attachments: string[]
+  videoMarks?: ChatVideoMarkDraft[]
 }
 
 /**

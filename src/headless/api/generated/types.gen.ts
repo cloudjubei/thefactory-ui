@@ -1220,815 +1220,6 @@ export type ApiChatTurnMark = {
 
 export type CompactChatNowOutcome = 'compacted' | 'nothing-needed' | 'busy' | 'cancelled' | 'failed'
 
-export type CompletionMessageRole = 'system' | 'user' | 'assistant' | 'tool'
-
-export type ProcessManagerTriggerKind = 'triage' | 'permission' | 'diagnose' | 'pre-read'
-
-export type ProcessParkReason =
-  | 'gate'
-  | 'step-failed'
-  | 'step-waiting'
-  | 'budget-spent'
-  | 'time-spent'
-  | 'questions-spent'
-  | 'step-unchecked'
-  | 'step-errored'
-  | 'turn-limit'
-  | 'spend-limit'
-  | 'loop-exhausted'
-  | 'no-steps'
-  | 'unknown-step'
-  | 'waiting-on-blockers'
-
-export type ProcessCirclingSignal = 'no-change' | 'flip-flop' | 'repeated' | 'again'
-
-export type ProcessCirclingRepeat = {
-  action: string
-  count: number
-}
-
-export type ProcessCircling = {
-  summary: string
-  signals: Array<ProcessCirclingSignal>
-  ranOut: boolean
-  turnsUsed?: number
-  maxTurns?: number
-  changed?: boolean
-  repeatedActions?: Array<ProcessCirclingRepeat>
-  flipFlopFiles?: Array<string>
-  sameFailures?: Array<string>
-  streak: number
-  afterRaise?: true
-  afterRetry?: true
-  afterManager?: true
-  tip?: string
-  at: number
-}
-
-export type ProcessManagerBriefAnswer = {
-  choice: string
-  label: string
-  detail: string
-}
-
-export type ProcessManagerBriefCard = {
-  kind: 'brief'
-  mode: 'triage' | 'diagnose' | 'pre-read'
-  runId: string
-  parkedAt: number
-  stepName: string
-  reason: ProcessParkReason
-  message: string
-  circling?: {
-    summary: string
-    signals: Array<ProcessCirclingSignal>
-    ranOut: boolean
-    turnsUsed?: number
-    maxTurns?: number
-    changed?: boolean
-    repeatedActions?: Array<ProcessCirclingRepeat>
-    flipFlopFiles?: Array<string>
-    sameFailures?: Array<string>
-    streak: number
-    afterRaise?: true
-    afterRetry?: true
-    afterManager?: true
-    tip?: string
-    at: number
-  }
-  stuck?: {
-    kind: StuckSignalKind
-    toolName: string
-    count: number
-    action: string
-    error?: string
-    reason: string
-    key: string
-  }
-  failed: Array<string>
-  answers: Array<ProcessManagerBriefAnswer>
-  tried: Array<string>
-  triesUsed: number
-  triesMax: number
-}
-
-export type ProcessRetryMode = 'continue' | 'fresh'
-
-export type ProcessTurnLimit = {
-  limitTurns: boolean
-  maxTurns: number
-}
-
-export type ProcessManagerMove =
-  | {
-      kind: 'read'
-    }
-  | {
-      kind: 'answer-park'
-      choice: string
-      note?: string
-      retryMode?: 'continue' | 'fresh'
-      turnLimit?: {
-        limitTurns: boolean
-        maxTurns: number
-      }
-    }
-  | {
-      kind: 'stage-rerun'
-      stepId: string
-    }
-  | {
-      kind: 'withdraw-change'
-      changeId: string
-    }
-  | {
-      kind: 'resolve-needs-you'
-      resolution: 'resolved' | 'deferred'
-      storyId?: string
-    }
-  | {
-      kind: 'commit'
-      branch?: string
-    }
-  | {
-      kind: 'note'
-      storyId: string
-      featureId?: string
-    }
-  | {
-      kind: 'hold'
-    }
-  | {
-      kind: 'escalate'
-    }
-  | {
-      kind: 'pre-read'
-    }
-  | {
-      kind: 'prepare'
-    }
-  | {
-      kind: 'never'
-    }
-
-export type ProcessManagerInterventionOutcome = 'pending' | 'settled' | 'failed' | 'reversed'
-
-export type ProcessManagerIntervention = {
-  id: string
-  at: number
-  runId: string
-  parkedAt: number
-  signature: string
-  stepId?: string
-  tool: string
-  move:
-    | 'read'
-    | 'answer-park'
-    | 'stage-rerun'
-    | 'withdraw-change'
-    | 'resolve-needs-you'
-    | 'commit'
-    | 'note'
-    | 'hold'
-    | 'escalate'
-    | 'pre-read'
-    | 'prepare'
-    | 'never'
-  what: string
-  why: string
-  result?: string
-  outcome: ProcessManagerInterventionOutcome
-  actionKey: string
-  targetKey: string
-  changeId?: string
-}
-
-export type ProcessManagerInterventionCard = {
-  kind: 'intervention'
-  intervention: ProcessManagerIntervention
-  stepName?: string
-}
-
-export type ProcessManagerParkToken = {
-  runId: string
-  parkedAt: number
-}
-
-export type ProcessManagerNeedsYouFinding = {
-  itemId: string
-  finding: string
-  recommendation: string
-}
-
-export type ProcessManagerPreRead = {
-  runId: string
-  parkedAt: number
-  at: number
-  summary: string
-  items: Array<ProcessManagerNeedsYouFinding>
-}
-
-export type ProcessManagerPreReadCard = {
-  kind: 'pre-read'
-  preRead: ProcessManagerPreRead
-}
-
-export type ProcessManagerEscalationReason =
-  | 'credentials'
-  | 'permission'
-  | 'spend'
-  | 'scope'
-  | 'destructive'
-  | 'repeated-failure'
-  | 'guard-limit'
-  | 'judgement'
-  | 'hold-timeout'
-  | 'no-decision'
-  | 'not-started'
-  | 'circling'
-
-export type ProcessResumeChoice =
-  | 'continue'
-  | 'retry'
-  | 'abandon'
-  | 'approve'
-  | 'request-changes'
-  | 'reject'
-  | 'allow'
-  | 'allow-site'
-  | 'resolved'
-  | 'more-info'
-  | 'update-base'
-  | 'resolve-base-conflict'
-  | 'change-proof'
-  | 'send-to-developer'
-  | 'recheck'
-  | 'close-unmerged'
-  | 'accept-dropped-change'
-  | 'accept-with-follow-ups'
-  | 'split-follow-up'
-  | 'recapture'
-
-export type ProcessParkAction = ProcessResumeChoice | 'delegate'
-
-export type ProcessManagerAnswer = {
-  choice: ProcessParkAction
-  label?: string
-  note?: string
-  why?: string
-}
-
-export type ProcessManagerMoreTries = {
-  verdict: 'helps' | 'pointless'
-  why: string
-}
-
-export type ProcessManagerEscalation = {
-  runId: string
-  parkedAt: number
-  at: number
-  signature: string
-  why:
-    | 'credentials'
-    | 'permission'
-    | 'spend'
-    | 'scope'
-    | 'destructive'
-    | 'repeated-failure'
-    | 'guard-limit'
-    | 'judgement'
-    | 'hold-timeout'
-    | 'no-decision'
-    | 'not-started'
-    | 'circling'
-  what: string
-  found: string
-  tried: Array<string>
-  recommendation: string
-  recommendedChoice?: ProcessResumeChoice | 'delegate'
-  answers?: Array<ProcessManagerAnswer>
-  moreTries?: {
-    verdict: 'helps' | 'pointless'
-    why: string
-  }
-  startError?: string
-}
-
-export type ProcessManagerEscalationCard = {
-  kind: 'escalation'
-  escalation: ProcessManagerEscalation
-}
-
-export type ProcessManagerChatCard =
-  | ProcessManagerBriefCard
-  | ProcessManagerInterventionCard
-  | ProcessManagerPreReadCard
-  | ProcessManagerEscalationCard
-
-export type ChatOpenChangesCard = {
-  kind: 'unfit' | 'waiting'
-  runId: string
-  projectId: string
-  chatContextId: string
-  since: number
-  fileCount: number
-  changedCount?: number
-}
-
-export type ChatOpenQuestionsCard = {
-  projectId: string
-  storyId: string
-  featureIds?: Array<string>
-}
-
-export type CompletionStopCause = 'overseer' | 'provider' | 'agent' | 'turns' | 'limit'
-
-export type CompletionStopNotice = {
-  cause: CompletionStopCause
-  featureTitle?: string
-  reason: string
-  raw?: string
-  turnLimit?: number
-  repeats?: number
-}
-
-export type CompletionMessageBase = {
-  role: CompletionMessageRole
-  id?: string
-  content: string
-  startedAt: string
-  completedAt: string
-  durationMs: number
-  answersHandoffFrom?: string
-  managerCard?:
-    | ProcessManagerBriefCard
-    | ProcessManagerInterventionCard
-    | ProcessManagerPreReadCard
-    | ProcessManagerEscalationCard
-  openChangesCard?: {
-    kind: 'unfit' | 'waiting'
-    runId: string
-    projectId: string
-    chatContextId: string
-    since: number
-    fileCount: number
-    changedCount?: number
-  }
-  openQuestionsCard?: {
-    projectId: string
-    storyId: string
-    featureIds?: Array<string>
-  }
-  needsYouAt?: string
-  needsYouClosedAt?: string
-  stopNotice?: {
-    cause: CompletionStopCause
-    featureTitle?: string
-    reason: string
-    raw?: string
-    turnLimit?: number
-    repeats?: number
-  }
-}
-
-export type CompletionSystemMessage = {
-  role: CompletionMessageRole & 'system'
-  id?: string
-  content: string
-  startedAt: string
-  completedAt: string
-  durationMs: number
-  answersHandoffFrom?: string
-  managerCard?:
-    | ProcessManagerBriefCard
-    | ProcessManagerInterventionCard
-    | ProcessManagerPreReadCard
-    | ProcessManagerEscalationCard
-  openChangesCard?: {
-    kind: 'unfit' | 'waiting'
-    runId: string
-    projectId: string
-    chatContextId: string
-    since: number
-    fileCount: number
-    changedCount?: number
-  }
-  openQuestionsCard?: {
-    projectId: string
-    storyId: string
-    featureIds?: Array<string>
-  }
-  needsYouAt?: string
-  needsYouClosedAt?: string
-  stopNotice?: {
-    cause: CompletionStopCause
-    featureTitle?: string
-    reason: string
-    raw?: string
-    turnLimit?: number
-    repeats?: number
-  }
-  error?: string
-}
-
-export type CompletionImage = {
-  base64?: string
-  mediaType?: string
-  url?: string
-}
-
-export type ChatAppSelectionCoordSpace = 'app-viewport'
-
-export type ChatAppSelectionRect = {
-  x: number
-  y: number
-  width: number
-  height: number
-  space: ChatAppSelectionCoordSpace
-}
-
-export type ChatAppSelection = {
-  id: string
-  projectId: string
-  view?: string
-  params?: {
-    [key: string]: string
-  }
-  comment: string
-  selector: string
-  outerHtml: string
-  rect?: {
-    x: number
-    y: number
-    width: number
-    height: number
-    space: ChatAppSelectionCoordSpace
-  }
-  screenshotFile?: string
-}
-
-export type ChatBackgroundJobResult = {
-  jobId: string
-  toolName: string
-  toolCallId?: string
-  status: 'succeeded' | 'failed'
-  tookMs: number
-}
-
-export type CompletionUserMessage = {
-  role: CompletionMessageRole & 'user'
-  id?: string
-  content: string
-  startedAt: string
-  completedAt: string
-  durationMs: number
-  answersHandoffFrom?: string
-  managerCard?:
-    | ProcessManagerBriefCard
-    | ProcessManagerInterventionCard
-    | ProcessManagerPreReadCard
-    | ProcessManagerEscalationCard
-  openChangesCard?: {
-    kind: 'unfit' | 'waiting'
-    runId: string
-    projectId: string
-    chatContextId: string
-    since: number
-    fileCount: number
-    changedCount?: number
-  }
-  openQuestionsCard?: {
-    projectId: string
-    storyId: string
-    featureIds?: Array<string>
-  }
-  needsYouAt?: string
-  needsYouClosedAt?: string
-  stopNotice?: {
-    cause: CompletionStopCause
-    featureTitle?: string
-    reason: string
-    raw?: string
-    turnLimit?: number
-    repeats?: number
-  }
-  files?: Array<string>
-  images?: Array<CompletionImage>
-  appSelections?: Array<ChatAppSelection>
-  handoffFrom?: string
-  backgroundResults?: Array<ChatBackgroundJobResult>
-  restartedAfter?: {
-    cause: CompletionStopCause
-    featureTitle?: string
-    reason: string
-    raw?: string
-    turnLimit?: number
-    repeats?: number
-  }
-}
-
-export type CompletionRequestShape = {
-  items: number
-  images: number
-  firstChangedItem?: number
-  fixedChanged?: true
-}
-
-export type UsageTokenField = 'input' | 'output' | 'cacheRead' | 'cacheWrite'
-
-export type UsageTokenFieldStatus = 'reported' | 'derived' | 'unavailable'
-
-export type UsageTokenFields = {
-  input: UsageTokenFieldStatus
-  output: UsageTokenFieldStatus
-  cacheRead: UsageTokenFieldStatus
-  cacheWrite: UsageTokenFieldStatus
-}
-
-export type PriceSource = 'provider-reported' | 'price-table' | 'unknown'
-
-export type UsageCompletenessReason =
-  | 'cursor-acp-no-usage'
-  | 'usage-not-reported'
-  | 'interrupted'
-  | 'fallback-model'
-  | 'stream-without-final'
-  | 'estimated-usage'
-  | 'turn-usage-only'
-  | 'counter-decreased'
-  | 'first-request-not-counted'
-  | 'output-not-reported'
-  | 'cache-not-reported'
-
-export type ModelSpend = {
-  provider: string
-  model: string
-  label?: string
-  billing: BillingBasis
-  inputTokens: number
-  outputTokens: number
-  cacheReadTokens: number
-  cacheWriteTokens: number
-  costUsd?: number
-  listCostUsd?: number
-  outputTokensNotReported?: true
-  tokensNotReported?: true
-  tokenFields?: {
-    input?: 'reported' | 'derived' | 'unavailable'
-    output?: 'reported' | 'derived' | 'unavailable'
-    cacheRead?: 'reported' | 'derived' | 'unavailable'
-    cacheWrite?: 'reported' | 'derived' | 'unavailable'
-  }
-  priceSource?: 'provider-reported' | 'price-table' | 'unknown'
-  incompleteReasons?: Array<UsageCompletenessReason>
-}
-
-export type CompletionUsage = {
-  promptTokens: number
-  completionTokens: number
-  inputTokens?: number
-  totalTokens?: number
-  cachedReadInputTokens?: number
-  cacheWriteInputTokens?: number
-  cacheWrite1hInputTokens?: number
-  requestShape?: {
-    items: number
-    images: number
-    firstChangedItem?: number
-    fixedChanged?: true
-  }
-  reasoningTokens?: number
-  cost?: number
-  costInput?: number
-  costOutput?: number
-  billing?: 'subscription' | 'metered' | 'free'
-  listCostUsd?: number
-  byModel?: Array<ModelSpend>
-  tokenFields?: {
-    input?: 'reported' | 'derived' | 'unavailable'
-    output?: 'reported' | 'derived' | 'unavailable'
-    cacheRead?: 'reported' | 'derived' | 'unavailable'
-    cacheWrite?: 'reported' | 'derived' | 'unavailable'
-  }
-  incompleteReasons?: Array<UsageCompletenessReason>
-}
-
-export type CompletionAssistantMessage = {
-  role: CompletionMessageRole & 'assistant'
-  id?: string
-  content: string
-  startedAt: string
-  completedAt: string
-  durationMs: number
-  answersHandoffFrom?: string
-  managerCard?:
-    | ProcessManagerBriefCard
-    | ProcessManagerInterventionCard
-    | ProcessManagerPreReadCard
-    | ProcessManagerEscalationCard
-  openChangesCard?: {
-    kind: 'unfit' | 'waiting'
-    runId: string
-    projectId: string
-    chatContextId: string
-    since: number
-    fileCount: number
-    changedCount?: number
-  }
-  openQuestionsCard?: {
-    projectId: string
-    storyId: string
-    featureIds?: Array<string>
-  }
-  needsYouAt?: string
-  needsYouClosedAt?: string
-  stopNotice?: {
-    cause: CompletionStopCause
-    featureTitle?: string
-    reason: string
-    raw?: string
-    turnLimit?: number
-    repeats?: number
-  }
-  usage: {
-    promptTokens: number
-    completionTokens: number
-    inputTokens?: number
-    totalTokens?: number
-    cachedReadInputTokens?: number
-    cacheWriteInputTokens?: number
-    cacheWrite1hInputTokens?: number
-    requestShape?: {
-      items: number
-      images: number
-      firstChangedItem?: number
-      fixedChanged?: true
-    }
-    reasoningTokens?: number
-    cost?: number
-    costInput?: number
-    costOutput?: number
-    billing?: 'subscription' | 'metered' | 'free'
-    listCostUsd?: number
-    byModel?: Array<ModelSpend>
-    tokenFields?: {
-      input?: 'reported' | 'derived' | 'unavailable'
-      output?: 'reported' | 'derived' | 'unavailable'
-      cacheRead?: 'reported' | 'derived' | 'unavailable'
-      cacheWrite?: 'reported' | 'derived' | 'unavailable'
-    }
-    incompleteReasons?: Array<UsageCompletenessReason>
-  }
-  model: {
-    model: string
-    provider: LlmProvider
-  }
-  suggestedActions?: Array<string>
-  thinking?: string
-  files?: Array<string>
-  toolsAttached?: number
-  turnToolNames?: Array<string>
-  cliRunId?: string
-  featureRequestId?: string
-  processRunId?: string
-  processRunParkedAt?: number
-  processGroupRunId?: string
-}
-
-export type CompletionToolMessage = {
-  role: CompletionMessageRole & 'tool'
-  id?: string
-  content: string
-  startedAt: string
-  completedAt: string
-  durationMs: number
-  answersHandoffFrom?: string
-  managerCard?:
-    | ProcessManagerBriefCard
-    | ProcessManagerInterventionCard
-    | ProcessManagerPreReadCard
-    | ProcessManagerEscalationCard
-  openChangesCard?: {
-    kind: 'unfit' | 'waiting'
-    runId: string
-    projectId: string
-    chatContextId: string
-    since: number
-    fileCount: number
-    changedCount?: number
-  }
-  openQuestionsCard?: {
-    projectId: string
-    storyId: string
-    featureIds?: Array<string>
-  }
-  needsYouAt?: string
-  needsYouClosedAt?: string
-  stopNotice?: {
-    cause: CompletionStopCause
-    featureTitle?: string
-    reason: string
-    raw?: string
-    turnLimit?: number
-    repeats?: number
-  }
-  model: {
-    model: string
-    provider: LlmProvider
-  }
-  toolCall: {
-    toolCallId: string
-    name: string
-    arguments?: unknown
-    providerState?: {
-      gemini?: {
-        thoughtSignature?: string
-      }
-    }
-  }
-  toolResult: {
-    result: unknown
-    type: ToolResultType
-    durationMs: number
-    note?: string
-    actionId?: string
-  }
-  providerState?: {
-    gemini?: {
-      thoughtSignature?: string
-    }
-  }
-}
-
-export type CompletionMessage =
-  | CompletionSystemMessage
-  | CompletionUserMessage
-  | CompletionAssistantMessage
-  | CompletionToolMessage
-
-export type ClaudeCompactBoundary = {
-  observed: true
-  trigger?: string
-  preTokens?: number
-}
-
-export type ContextFillReadout = {
-  tokensUsed: number
-  windowTokens: number
-  fillFraction: number
-  windowSource: 'catalogue' | 'fallback'
-  source: 'recorded-usage' | 'assembled-request' | 'compact-boundary'
-  compactBoundary?: {
-    observed: true
-    trigger?: string
-    preTokens?: number
-  }
-  turnsSinceLastContextUpdate: number
-}
-
-export type CompactNowResult = {
-  mode: 'native' | 'reseed' | 'cancelled' | 'failed' | 'busy'
-  command?: '/compact'
-  nativeSkipped?: 'unsupported' | 'session-gone' | 'failed'
-  messages?: Array<CompletionMessage>
-  dynamicContext?: {
-    task: string
-    plan: string
-    pending: Array<string>
-    done: Array<string>
-    contextFiles: Array<ChatDynamicContextContextFile>
-    constraints: Array<string>
-    assumptions: Array<string>
-    risks: Array<string>
-    openQuestions: Array<string>
-    repoMap: Array<ChatDynamicContextRepoMapEntry>
-    lastUpdated: string
-  }
-  seed?: string
-  checkpointRequested: boolean
-  readout: ContextFillReadout
-}
-
-export type CompactChatNowResult = {
-  outcome: CompactChatNowOutcome
-  method?: 'native' | 'reseed' | 'boundary'
-  nativeSkipped?: 'unsupported' | 'session-gone' | 'failed'
-  checkpointRequested: boolean
-  readout?: {
-    tokensUsed: number
-    windowTokens: number
-    fillFraction: number
-    windowSource: 'catalogue' | 'fallback'
-    source: 'recorded-usage' | 'assembled-request' | 'compact-boundary'
-    compactBoundary?: {
-      observed: true
-      trigger?: string
-      preTokens?: number
-    }
-    turnsSinceLastContextUpdate: number
-  }
-}
-
 export type ProofSeamRoute = 'manifest' | 'tool' | 'none'
 
 export type StoryRunFeatureOutcome = 'completed' | 'blocked' | 'unfinished'
@@ -2445,6 +1636,8 @@ export type ToolName =
   | 'transitionConnectionItem'
   | 'searchJiraIssues'
   | 'getJiraIssue'
+  | 'countJiraIssues'
+  | 'getJiraMyself'
   | 'getJiraIssueChangelog'
   | 'listJiraTransitions'
   | 'listJiraProjects'
@@ -3102,6 +2295,26 @@ export type ChatContextNotesSnapshot = {
   recentEndOfTurnCheckpoint: boolean
 }
 
+export type ClaudeCompactBoundary = {
+  observed: true
+  trigger?: string
+  preTokens?: number
+}
+
+export type ContextFillReadout = {
+  tokensUsed: number
+  windowTokens: number
+  fillFraction: number
+  windowSource: 'catalogue' | 'fallback'
+  source: 'recorded-usage' | 'assembled-request' | 'compact-boundary'
+  compactBoundary?: {
+    observed: true
+    trigger?: string
+    preTokens?: number
+  }
+  turnsSinceLastContextUpdate: number
+}
+
 export type TranscriptFallbackDecision = {
   summarize: boolean
   reason: 'off' | 'session-present' | 'below-threshold' | 'recent-checkpoint' | 'summarize'
@@ -3314,257 +2527,354 @@ export type ChatAboutRun = {
   runId: string
 }
 
-export type Chat = {
-  title?: string
-  dynamicContext?: {
-    task: string
-    plan: string
-    pending: Array<string>
-    done: Array<string>
-    contextFiles: Array<ChatDynamicContextContextFile>
-    constraints: Array<string>
-    assumptions: Array<string>
-    risks: Array<string>
-    openQuestions: Array<string>
-    repoMap: Array<ChatDynamicContextRepoMapEntry>
-    lastUpdated: string
-  }
-  contextBoundary?: {
-    messageId: string
-    at: string
-  }
-  context: ChatContext
-  messages?: Array<{
-    role: 'system' | 'user' | 'assistant' | 'tool'
-    id?: string
-    content: string
-    startedAt?: string
-    completedAt?: string
-    durationMs?: number
-    files?: Array<string>
-    usage?: {
-      promptTokens: number
-      completionTokens: number
-      inputTokens?: number
-      totalTokens?: number
-      cachedReadInputTokens?: number
-      cacheWriteInputTokens?: number
-      cacheWrite1hInputTokens?: number
-      requestShape?: {
-        items: number
-        images: number
-        firstChangedItem?: number
-        fixedChanged?: true
-      }
-      reasoningTokens?: number
-      cost?: number
-      costInput?: number
-      costOutput?: number
-      billing?: 'subscription' | 'metered' | 'free'
-      listCostUsd?: number
-      byModel?: Array<ModelSpend>
-      tokenFields?: {
-        input?: 'reported' | 'derived' | 'unavailable'
-        output?: 'reported' | 'derived' | 'unavailable'
-        cacheRead?: 'reported' | 'derived' | 'unavailable'
-        cacheWrite?: 'reported' | 'derived' | 'unavailable'
-      }
-      incompleteReasons?: Array<UsageCompletenessReason>
-    }
-    model?: {
-      model: string
-      provider: LlmProvider
-    }
-    suggestedActions?: Array<string>
-    thinking?: string
-    toolsAttached?: number
-    turnToolNames?: Array<string>
-    cliRunId?: string
-    featureRequestId?: string
-    processRunId?: string
-    processRunParkedAt?: number
-    processGroupRunId?: string
-    handoffFrom?: string
-    appSelections?: Array<{
-      id: string
-      projectId: string
-      view?: string
-      params?: {
-        [key: string]: string
-      }
-      comment: string
-      selector: string
-      outerHtml: string
-      rect?: {
-        x: number
-        y: number
-        width: number
-        height: number
-        space: 'app-viewport'
-      }
-      screenshotFile?: string
-    }>
-    answersHandoffFrom?: string
-    backgroundResults?: Array<{
-      jobId: string
-      toolName: string
-      toolCallId?: string
-      status: 'succeeded' | 'failed'
-      tookMs: number
-    }>
-    managerCard?:
-      | ProcessManagerBriefCard
-      | ProcessManagerInterventionCard
-      | ProcessManagerPreReadCard
-      | ProcessManagerEscalationCard
-    openChangesCard?: {
-      kind: 'unfit' | 'waiting'
-      runId: string
-      projectId: string
-      chatContextId: string
-      since: number
-      fileCount: number
-      changedCount?: number
-    }
-    openQuestionsCard?: {
-      projectId: string
-      storyId: string
-      featureIds?: Array<string>
-    }
-    needsYouAt?: string
-    needsYouClosedAt?: string
-    stopNotice?: {
-      cause: CompletionStopCause
-      featureTitle?: string
-      reason: string
-      raw?: string
-      turnLimit?: number
-      repeats?: number
-    }
-    toolCall?: {
-      toolCallId: string
-      name: string
-      arguments?: unknown
-      providerState?: unknown
-    }
-    toolResult?: {
-      type: string
-      result?: unknown
-      durationMs?: number
-      actionId?: string
-    }
-    error?: string
-    providerState?: unknown
-  }>
-  settings?: {
-    systemPrompt: string
-    completionSettings: CompletionSettings
-  }
-  state?: 'created' | 'running' | 'completed' | 'cancelled' | 'error'
-  rating?: {
-    score: number
-    comment?: string
-    createdAt: string
-  }
-  metadata?: {
-    [key: string]: JsonValue
-  }
-  cliRunner?: {
-    tool: string
-    credentialId?: string
-    apiKeyCredentialId?: string
-    model?: string
-    effort?: string
-  }
-  effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
-  archivedAt?: string
-  listHiddenAt?: string
-  listShownAt?: string
-  notifyLevel?: 'everything' | 'needs-me' | 'nothing'
-  aboutRun?: {
-    projectId: string
-    runId: string
-  }
-  createdAt?: string
-  updatedAt?: string
+export type ChatOpenChangesCard = {
+  kind: 'unfit' | 'waiting'
+  runId: string
+  projectId: string
+  chatContextId: string
+  since: number
+  fileCount: number
+  changedCount?: number
 }
 
-export type ChatSummary = {
-  title?: string
-  dynamicContext?: {
-    task: string
-    plan: string
-    pending: Array<string>
-    done: Array<string>
-    contextFiles: Array<ChatDynamicContextContextFile>
-    constraints: Array<string>
-    assumptions: Array<string>
-    risks: Array<string>
-    openQuestions: Array<string>
-    repoMap: Array<ChatDynamicContextRepoMapEntry>
-    lastUpdated: string
-  }
-  contextBoundary?: {
-    messageId: string
-    at: string
-  }
-  context: ChatContext
-  messageRevision?: number
-  settings?: {
-    systemPrompt: string
-    completionSettings: CompletionSettings
-  }
-  state?: 'created' | 'running' | 'completed' | 'cancelled' | 'error'
-  rating?: {
-    score: number
-    comment?: string
-    createdAt: string
-  }
-  metadata?: {
-    [key: string]: unknown
-  }
-  cliRunner?: {
-    tool: string
-    credentialId?: string
-    apiKeyCredentialId?: string
-    model?: string
-    effort?: string
-  }
-  effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
-  apiTurn?: {
-    id: string
-    llmConfig: {
-      model: string
-      provider: 'openai' | 'anthropic' | 'gemini' | 'deepseek' | 'xai' | 'qwen' | 'llama' | 'custom'
-      id?: string
-      name?: string
-      apiUrlOverride?: string
-      effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
-      defaultEffort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
-      costInputPerMTokensUSD?: number
-      costOutputPerMTokensUSD?: number
-      costCacheReadInputPerMTokensUSD?: number
-      billing?: 'subscription' | 'metered' | 'free'
-      contextWindowTokens?: number
-    }
-    systemPrompt?: string
-    settings: CompletionSettings
-  }
-  archivedAt?: string
-  listHiddenAt?: string
-  listShownAt?: string
-  notifyLevel?: 'everything' | 'needs-me' | 'nothing'
-  aboutRun?: {
-    projectId: string
-    runId: string
-  }
-  createdAt: string
-  updatedAt: string
-} & {
-  messageCount: number
-  messageTimes: Array<string | unknown>
-  needsYouTimes: Array<string | unknown>
+export type ChatOpenQuestionsCard = {
+  projectId: string
+  storyId: string
+  featureIds?: Array<string>
 }
+
+export type ChatAppSelectionCoordSpace = 'app-viewport'
+
+export type ChatAppSelectionRect = {
+  x: number
+  y: number
+  width: number
+  height: number
+  space: ChatAppSelectionCoordSpace
+}
+
+export type ChatAppSelection = {
+  id: string
+  projectId: string
+  view?: string
+  params?: {
+    [key: string]: string
+  }
+  comment: string
+  selector: string
+  outerHtml: string
+  rect?: {
+    x: number
+    y: number
+    width: number
+    height: number
+    space: ChatAppSelectionCoordSpace
+  }
+  screenshotFile?: string
+}
+
+export type ProcessManagerTriggerKind = 'triage' | 'permission' | 'diagnose' | 'pre-read'
+
+export type ProcessParkReason =
+  | 'gate'
+  | 'step-failed'
+  | 'step-waiting'
+  | 'budget-spent'
+  | 'time-spent'
+  | 'questions-spent'
+  | 'step-unchecked'
+  | 'step-errored'
+  | 'turn-limit'
+  | 'spend-limit'
+  | 'loop-exhausted'
+  | 'no-steps'
+  | 'unknown-step'
+  | 'waiting-on-blockers'
+
+export type ProcessCirclingSignal = 'no-change' | 'flip-flop' | 'repeated' | 'again'
+
+export type ProcessCirclingRepeat = {
+  action: string
+  count: number
+}
+
+export type ProcessCircling = {
+  summary: string
+  signals: Array<ProcessCirclingSignal>
+  ranOut: boolean
+  turnsUsed?: number
+  maxTurns?: number
+  changed?: boolean
+  repeatedActions?: Array<ProcessCirclingRepeat>
+  flipFlopFiles?: Array<string>
+  sameFailures?: Array<string>
+  streak: number
+  afterRaise?: true
+  afterRetry?: true
+  afterManager?: true
+  tip?: string
+  at: number
+}
+
+export type ProcessManagerBriefAnswer = {
+  choice: string
+  label: string
+  detail: string
+}
+
+export type ProcessManagerBriefCard = {
+  kind: 'brief'
+  mode: 'triage' | 'diagnose' | 'pre-read'
+  runId: string
+  parkedAt: number
+  stepName: string
+  reason: ProcessParkReason
+  message: string
+  circling?: {
+    summary: string
+    signals: Array<ProcessCirclingSignal>
+    ranOut: boolean
+    turnsUsed?: number
+    maxTurns?: number
+    changed?: boolean
+    repeatedActions?: Array<ProcessCirclingRepeat>
+    flipFlopFiles?: Array<string>
+    sameFailures?: Array<string>
+    streak: number
+    afterRaise?: true
+    afterRetry?: true
+    afterManager?: true
+    tip?: string
+    at: number
+  }
+  stuck?: {
+    kind: StuckSignalKind
+    toolName: string
+    count: number
+    action: string
+    error?: string
+    reason: string
+    key: string
+  }
+  failed: Array<string>
+  answers: Array<ProcessManagerBriefAnswer>
+  tried: Array<string>
+  triesUsed: number
+  triesMax: number
+}
+
+export type ProcessRetryMode = 'continue' | 'fresh'
+
+export type ProcessTurnLimit = {
+  limitTurns: boolean
+  maxTurns: number
+}
+
+export type ProcessManagerMove =
+  | {
+      kind: 'read'
+    }
+  | {
+      kind: 'answer-park'
+      choice: string
+      note?: string
+      retryMode?: 'continue' | 'fresh'
+      turnLimit?: {
+        limitTurns: boolean
+        maxTurns: number
+      }
+    }
+  | {
+      kind: 'stage-rerun'
+      stepId: string
+    }
+  | {
+      kind: 'withdraw-change'
+      changeId: string
+    }
+  | {
+      kind: 'resolve-needs-you'
+      resolution: 'resolved' | 'deferred'
+      storyId?: string
+    }
+  | {
+      kind: 'commit'
+      branch?: string
+    }
+  | {
+      kind: 'note'
+      storyId: string
+      featureId?: string
+    }
+  | {
+      kind: 'hold'
+    }
+  | {
+      kind: 'escalate'
+    }
+  | {
+      kind: 'pre-read'
+    }
+  | {
+      kind: 'prepare'
+    }
+  | {
+      kind: 'never'
+    }
+
+export type ProcessManagerInterventionOutcome = 'pending' | 'settled' | 'failed' | 'reversed'
+
+export type ProcessManagerIntervention = {
+  id: string
+  at: number
+  runId: string
+  parkedAt: number
+  signature: string
+  stepId?: string
+  tool: string
+  move:
+    | 'read'
+    | 'answer-park'
+    | 'stage-rerun'
+    | 'withdraw-change'
+    | 'resolve-needs-you'
+    | 'commit'
+    | 'note'
+    | 'hold'
+    | 'escalate'
+    | 'pre-read'
+    | 'prepare'
+    | 'never'
+  what: string
+  why: string
+  result?: string
+  outcome: ProcessManagerInterventionOutcome
+  actionKey: string
+  targetKey: string
+  changeId?: string
+}
+
+export type ProcessManagerInterventionCard = {
+  kind: 'intervention'
+  intervention: ProcessManagerIntervention
+  stepName?: string
+}
+
+export type ProcessManagerParkToken = {
+  runId: string
+  parkedAt: number
+}
+
+export type ProcessManagerNeedsYouFinding = {
+  itemId: string
+  finding: string
+  recommendation: string
+}
+
+export type ProcessManagerPreRead = {
+  runId: string
+  parkedAt: number
+  at: number
+  summary: string
+  items: Array<ProcessManagerNeedsYouFinding>
+}
+
+export type ProcessManagerPreReadCard = {
+  kind: 'pre-read'
+  preRead: ProcessManagerPreRead
+}
+
+export type ProcessManagerEscalationReason =
+  | 'credentials'
+  | 'permission'
+  | 'spend'
+  | 'scope'
+  | 'destructive'
+  | 'repeated-failure'
+  | 'guard-limit'
+  | 'judgement'
+  | 'hold-timeout'
+  | 'no-decision'
+  | 'not-started'
+  | 'circling'
+
+export type ProcessResumeChoice =
+  | 'continue'
+  | 'retry'
+  | 'abandon'
+  | 'approve'
+  | 'request-changes'
+  | 'reject'
+  | 'allow'
+  | 'allow-site'
+  | 'resolved'
+  | 'more-info'
+  | 'update-base'
+  | 'resolve-base-conflict'
+  | 'change-proof'
+  | 'send-to-developer'
+  | 'recheck'
+  | 'close-unmerged'
+  | 'accept-dropped-change'
+  | 'accept-with-follow-ups'
+  | 'split-follow-up'
+  | 'recapture'
+
+export type ProcessParkAction = ProcessResumeChoice | 'delegate'
+
+export type ProcessManagerAnswer = {
+  choice: ProcessParkAction
+  label?: string
+  note?: string
+  why?: string
+}
+
+export type ProcessManagerMoreTries = {
+  verdict: 'helps' | 'pointless'
+  why: string
+}
+
+export type ProcessManagerEscalation = {
+  runId: string
+  parkedAt: number
+  at: number
+  signature: string
+  why:
+    | 'credentials'
+    | 'permission'
+    | 'spend'
+    | 'scope'
+    | 'destructive'
+    | 'repeated-failure'
+    | 'guard-limit'
+    | 'judgement'
+    | 'hold-timeout'
+    | 'no-decision'
+    | 'not-started'
+    | 'circling'
+  what: string
+  found: string
+  tried: Array<string>
+  recommendation: string
+  recommendedChoice?: ProcessResumeChoice | 'delegate'
+  answers?: Array<ProcessManagerAnswer>
+  moreTries?: {
+    verdict: 'helps' | 'pointless'
+    why: string
+  }
+  startError?: string
+}
+
+export type ProcessManagerEscalationCard = {
+  kind: 'escalation'
+  escalation: ProcessManagerEscalation
+}
+
+export type ProcessManagerChatCard =
+  | ProcessManagerBriefCard
+  | ProcessManagerInterventionCard
+  | ProcessManagerPreReadCard
+  | ProcessManagerEscalationCard
 
 export type ChatAudienceMessage = {
   role?: string
@@ -3591,289 +2901,6 @@ export type ChatAudienceMessage = {
   completedAt?: string
 }
 
-export type ChatCreateInput = {
-  context: ChatContext
-  title?: string
-  messages?: Array<{
-    role: 'system' | 'user' | 'assistant' | 'tool'
-    id?: string
-    content: string
-    startedAt?: string
-    completedAt?: string
-    durationMs?: number
-    files?: Array<string>
-    usage?: {
-      promptTokens: number
-      completionTokens: number
-      inputTokens?: number
-      totalTokens?: number
-      cachedReadInputTokens?: number
-      cacheWriteInputTokens?: number
-      cacheWrite1hInputTokens?: number
-      requestShape?: {
-        items: number
-        images: number
-        firstChangedItem?: number
-        fixedChanged?: true
-      }
-      reasoningTokens?: number
-      cost?: number
-      costInput?: number
-      costOutput?: number
-      billing?: 'subscription' | 'metered' | 'free'
-      listCostUsd?: number
-      byModel?: Array<ModelSpend>
-      tokenFields?: {
-        input?: 'reported' | 'derived' | 'unavailable'
-        output?: 'reported' | 'derived' | 'unavailable'
-        cacheRead?: 'reported' | 'derived' | 'unavailable'
-        cacheWrite?: 'reported' | 'derived' | 'unavailable'
-      }
-      incompleteReasons?: Array<UsageCompletenessReason>
-    }
-    model?: {
-      model: string
-      provider: LlmProvider
-    }
-    suggestedActions?: Array<string>
-    thinking?: string
-    toolsAttached?: number
-    turnToolNames?: Array<string>
-    cliRunId?: string
-    featureRequestId?: string
-    processRunId?: string
-    processRunParkedAt?: number
-    processGroupRunId?: string
-    handoffFrom?: string
-    appSelections?: Array<{
-      id: string
-      projectId: string
-      view?: string
-      params?: {
-        [key: string]: string
-      }
-      comment: string
-      selector: string
-      outerHtml: string
-      rect?: {
-        x: number
-        y: number
-        width: number
-        height: number
-        space: 'app-viewport'
-      }
-      screenshotFile?: string
-    }>
-    answersHandoffFrom?: string
-    backgroundResults?: Array<{
-      jobId: string
-      toolName: string
-      toolCallId?: string
-      status: 'succeeded' | 'failed'
-      tookMs: number
-    }>
-    managerCard?:
-      | ProcessManagerBriefCard
-      | ProcessManagerInterventionCard
-      | ProcessManagerPreReadCard
-      | ProcessManagerEscalationCard
-    openChangesCard?: {
-      kind: 'unfit' | 'waiting'
-      runId: string
-      projectId: string
-      chatContextId: string
-      since: number
-      fileCount: number
-      changedCount?: number
-    }
-    openQuestionsCard?: {
-      projectId: string
-      storyId: string
-      featureIds?: Array<string>
-    }
-    needsYouAt?: string
-    needsYouClosedAt?: string
-    stopNotice?: {
-      cause: CompletionStopCause
-      featureTitle?: string
-      reason: string
-      raw?: string
-      turnLimit?: number
-      repeats?: number
-    }
-    toolCall?: {
-      toolCallId: string
-      name: string
-      arguments?: unknown
-      providerState?: unknown
-    }
-    toolResult?: {
-      type: string
-      result?: unknown
-      durationMs?: number
-      actionId?: string
-    }
-    error?: string
-    providerState?: unknown
-  }>
-  settings?: {
-    systemPrompt: string
-    completionSettings: CompletionSettings
-  }
-  dynamicContext?: {
-    task?: string
-    plan?: string
-    pending?: Array<string>
-    done?: Array<string>
-    contextFiles?: Array<ChatDynamicContextContextFile>
-    constraints?: Array<string>
-    assumptions?: Array<string>
-    risks?: Array<string>
-    openQuestions?: Array<string>
-    repoMap?: Array<ChatDynamicContextRepoMapEntry>
-    lastUpdated?: string
-  }
-  state?: string
-  metadata?: {
-    [key: string]: JsonValue
-  }
-}
-
-export type ChatEditInput = {
-  title?: string
-  messages?: Array<{
-    role: 'system' | 'user' | 'assistant' | 'tool'
-    id?: string
-    content: string
-    startedAt?: string
-    completedAt?: string
-    durationMs?: number
-    files?: Array<string>
-    usage?: {
-      promptTokens: number
-      completionTokens: number
-      inputTokens?: number
-      totalTokens?: number
-      cachedReadInputTokens?: number
-      cacheWriteInputTokens?: number
-      cacheWrite1hInputTokens?: number
-      requestShape?: {
-        items: number
-        images: number
-        firstChangedItem?: number
-        fixedChanged?: true
-      }
-      reasoningTokens?: number
-      cost?: number
-      costInput?: number
-      costOutput?: number
-      billing?: 'subscription' | 'metered' | 'free'
-      listCostUsd?: number
-      byModel?: Array<ModelSpend>
-      tokenFields?: {
-        input?: 'reported' | 'derived' | 'unavailable'
-        output?: 'reported' | 'derived' | 'unavailable'
-        cacheRead?: 'reported' | 'derived' | 'unavailable'
-        cacheWrite?: 'reported' | 'derived' | 'unavailable'
-      }
-      incompleteReasons?: Array<UsageCompletenessReason>
-    }
-    model?: {
-      model: string
-      provider: LlmProvider
-    }
-    suggestedActions?: Array<string>
-    thinking?: string
-    toolsAttached?: number
-    turnToolNames?: Array<string>
-    cliRunId?: string
-    featureRequestId?: string
-    processRunId?: string
-    processRunParkedAt?: number
-    processGroupRunId?: string
-    handoffFrom?: string
-    appSelections?: Array<{
-      id: string
-      projectId: string
-      view?: string
-      params?: {
-        [key: string]: string
-      }
-      comment: string
-      selector: string
-      outerHtml: string
-      rect?: {
-        x: number
-        y: number
-        width: number
-        height: number
-        space: 'app-viewport'
-      }
-      screenshotFile?: string
-    }>
-    answersHandoffFrom?: string
-    backgroundResults?: Array<{
-      jobId: string
-      toolName: string
-      toolCallId?: string
-      status: 'succeeded' | 'failed'
-      tookMs: number
-    }>
-    managerCard?:
-      | ProcessManagerBriefCard
-      | ProcessManagerInterventionCard
-      | ProcessManagerPreReadCard
-      | ProcessManagerEscalationCard
-    openChangesCard?: {
-      kind: 'unfit' | 'waiting'
-      runId: string
-      projectId: string
-      chatContextId: string
-      since: number
-      fileCount: number
-      changedCount?: number
-    }
-    openQuestionsCard?: {
-      projectId: string
-      storyId: string
-      featureIds?: Array<string>
-    }
-    needsYouAt?: string
-    needsYouClosedAt?: string
-    stopNotice?: {
-      cause: CompletionStopCause
-      featureTitle?: string
-      reason: string
-      raw?: string
-      turnLimit?: number
-      repeats?: number
-    }
-    toolCall?: {
-      toolCallId: string
-      name: string
-      arguments?: unknown
-      providerState?: unknown
-    }
-    toolResult?: {
-      type: string
-      result?: unknown
-      durationMs?: number
-      actionId?: string
-    }
-    error?: string
-    providerState?: unknown
-  }>
-  settings?: {
-    systemPrompt: string
-    completionSettings: CompletionSettings
-  }
-  state?: string
-  metadata?: {
-    [key: string]: JsonValue
-  }
-  effort?: CliReasoningEffort | unknown
-}
-
 export type ChatTopicCreateInput = {
   type: 'group' | 'project'
   entityId: string
@@ -3885,92 +2912,6 @@ export type ChatTopicCreateInput = {
 }
 
 export type ChatUpdateType = 'add' | 'change' | 'delete'
-
-export type ChatUpdate = {
-  type: ChatUpdateType
-  context: ChatContext
-  chat?: {
-    title?: string
-    dynamicContext?: {
-      task: string
-      plan: string
-      pending: Array<string>
-      done: Array<string>
-      contextFiles: Array<ChatDynamicContextContextFile>
-      constraints: Array<string>
-      assumptions: Array<string>
-      risks: Array<string>
-      openQuestions: Array<string>
-      repoMap: Array<ChatDynamicContextRepoMapEntry>
-      lastUpdated: string
-    }
-    contextBoundary?: {
-      messageId: string
-      at: string
-    }
-    context: ChatContext
-    messages: Array<CompletionMessage>
-    messageRevision?: number
-    settings?: {
-      systemPrompt: string
-      completionSettings: CompletionSettings
-    }
-    state?: 'created' | 'running' | 'completed' | 'cancelled' | 'error'
-    rating?: {
-      score: number
-      comment?: string
-      createdAt: string
-    }
-    metadata?: {
-      [key: string]: unknown
-    }
-    cliRunner?: {
-      tool: string
-      credentialId?: string
-      apiKeyCredentialId?: string
-      model?: string
-      effort?: string
-    }
-    effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
-    apiTurn?: {
-      id: string
-      llmConfig: {
-        model: string
-        provider:
-          | 'openai'
-          | 'anthropic'
-          | 'gemini'
-          | 'deepseek'
-          | 'xai'
-          | 'qwen'
-          | 'llama'
-          | 'custom'
-        id?: string
-        name?: string
-        apiUrlOverride?: string
-        effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
-        defaultEffort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
-        costInputPerMTokensUSD?: number
-        costOutputPerMTokensUSD?: number
-        costCacheReadInputPerMTokensUSD?: number
-        billing?: 'subscription' | 'metered' | 'free'
-        contextWindowTokens?: number
-      }
-      systemPrompt?: string
-      settings: CompletionSettings
-    }
-    archivedAt?: string
-    listHiddenAt?: string
-    listShownAt?: string
-    notifyLevel?: 'everything' | 'needs-me' | 'nothing'
-    aboutRun?: {
-      projectId: string
-      runId: string
-    }
-    createdAt: string
-    updatedAt: string
-  }
-}
 
 export type ChatsSettings = {
   GENERAL: ChatSettings
@@ -4092,6 +3033,28 @@ export type ProjectStartCheckSetting = {
   envFile?: string
 }
 
+export type GroupTicketStatusCategory = 'new' | 'indeterminate' | 'done'
+
+export type GroupTicketTabSprint = 'open' | 'not-open' | 'any'
+
+export type GroupTicketAction =
+  | 'take'
+  | 'carry-on'
+  | 'discuss'
+  | 'review'
+  | 'replies'
+  | 'approve-and-merge'
+
+export type GroupTicketTab = {
+  id: string
+  name: string
+  statuses: Array<string>
+  categories?: Array<GroupTicketStatusCategory>
+  sprint: GroupTicketTabSprint
+  yours: Array<GroupTicketAction>
+  others: Array<GroupTicketAction>
+}
+
 export type ProjectsGroup = {
   id: string
   title: string
@@ -4131,6 +3094,7 @@ export type ProjectsGroup = {
     timeoutSec?: number
     envFile?: string
   }
+  ticketTabs?: Array<GroupTicketTab>
   createdAt: string
   updatedAt: string
 }
@@ -4731,6 +3695,7 @@ export type ChatContextArguments = {
       timeoutSec?: number
       envFile?: string
     }
+    ticketTabs?: Array<GroupTicketTab>
     createdAt: string
     updatedAt: string
   }
@@ -4859,6 +3824,7 @@ export type ChatContextArgumentsGroup = {
       timeoutSec?: number
       envFile?: string
     }
+    ticketTabs?: Array<GroupTicketTab>
     createdAt: string
     updatedAt: string
   }
@@ -4907,6 +3873,7 @@ export type ChatContextArgumentsGroupTopic = {
       timeoutSec?: number
       envFile?: string
     }
+    ticketTabs?: Array<GroupTicketTab>
     createdAt: string
     updatedAt: string
   }
@@ -5637,6 +4604,19 @@ export type CliRunAssistantMessage = {
   afterTool: boolean
 }
 
+export type UsageCompletenessReason =
+  | 'cursor-acp-no-usage'
+  | 'usage-not-reported'
+  | 'interrupted'
+  | 'fallback-model'
+  | 'stream-without-final'
+  | 'estimated-usage'
+  | 'turn-usage-only'
+  | 'counter-decreased'
+  | 'first-request-not-counted'
+  | 'output-not-reported'
+  | 'cache-not-reported'
+
 export type CliRunUsage = {
   tokensIn: number
   tokensOut: number
@@ -5644,6 +4624,42 @@ export type CliRunUsage = {
   cacheCreationTokens?: number
   cacheCreation1hTokens?: number
   outputTokensNotReported?: true
+  incompleteReasons?: Array<UsageCompletenessReason>
+}
+
+export type UsageTokenField = 'input' | 'output' | 'cacheRead' | 'cacheWrite'
+
+export type UsageTokenFieldStatus = 'reported' | 'derived' | 'unavailable'
+
+export type UsageTokenFields = {
+  input: UsageTokenFieldStatus
+  output: UsageTokenFieldStatus
+  cacheRead: UsageTokenFieldStatus
+  cacheWrite: UsageTokenFieldStatus
+}
+
+export type PriceSource = 'provider-reported' | 'price-table' | 'unknown'
+
+export type ModelSpend = {
+  provider: string
+  model: string
+  label?: string
+  billing: BillingBasis
+  inputTokens: number
+  outputTokens: number
+  cacheReadTokens: number
+  cacheWriteTokens: number
+  costUsd?: number
+  listCostUsd?: number
+  outputTokensNotReported?: true
+  tokensNotReported?: true
+  tokenFields?: {
+    input?: 'reported' | 'derived' | 'unavailable'
+    output?: 'reported' | 'derived' | 'unavailable'
+    cacheRead?: 'reported' | 'derived' | 'unavailable'
+    cacheWrite?: 'reported' | 'derived' | 'unavailable'
+  }
+  priceSource?: 'provider-reported' | 'price-table' | 'unknown'
   incompleteReasons?: Array<UsageCompletenessReason>
 }
 
@@ -7211,6 +6227,14 @@ export type ResidentSessionFreshness = {
   lastRebuildReason?: 'chat-revision-changed' | 'last-seen-message-gone'
 }
 
+export type ChatBackgroundJobResult = {
+  jobId: string
+  toolName: string
+  toolCallId?: string
+  status: 'succeeded' | 'failed'
+  tookMs: number
+}
+
 export type ResidentBackgroundResults = {
   chatContextId: string | unknown
   projectId: string
@@ -8197,6 +7221,7 @@ export type ColleagueReviewOffer = {
     name: string
     at: string
   }
+  followUpOf?: string
 }
 
 export type ColleagueReviewSourceState = {
@@ -8215,6 +7240,7 @@ export type ColleagueReviewSourceState = {
   startReaction?: string
   runChecksUnasked?: boolean
   defaultMode?: 'inline' | 'process'
+  mergedTicketStatus?: string
   updatedAt: string
 }
 
@@ -8223,6 +7249,7 @@ export type ColleagueReviewSourceSettings = {
   startReaction?: string
   runChecksUnasked?: boolean
   defaultMode?: 'inline' | 'process'
+  mergedTicketStatus?: string
 }
 
 export type SetColleagueReviewSettingsInput = {
@@ -8231,6 +7258,7 @@ export type SetColleagueReviewSettingsInput = {
   startReaction?: string
   runChecksUnasked?: boolean
   defaultMode?: 'inline' | 'process'
+  mergedTicketStatus?: string | unknown
 }
 
 export type ColleagueReviewSettingsSet = {
@@ -8277,6 +7305,7 @@ export type SlackMessage = {
   permalink: string
   files: Array<SlackFile>
   editedTs?: string
+  bot?: true
 }
 
 export type SlackNames = {
@@ -8294,6 +7323,21 @@ export type RecordColleagueReviewOffersInput = {
     [key: string]: string
   }
   ignoreAuthorIds?: Array<string>
+  names?: {
+    [key: string]: string
+  }
+}
+
+export type RecordColleagueReviewFollowUpsInput = {
+  groupId: string
+  channel: string
+  updateTs: string
+  ticketKey: string
+  messages: Array<SlackMessage>
+  personUserIds: Array<string>
+  ticketStatuses?: {
+    [key: string]: string
+  }
   names?: {
     [key: string]: string
   }
@@ -8325,6 +7369,7 @@ export type ColleagueReviewSourceRead = {
   startReaction?: string
   runChecksUnasked?: boolean
   defaultMode?: 'inline' | 'process'
+  mergedTicketStatus?: string
 }
 
 export type ColleagueReviewOffersRecorded = {
@@ -8482,6 +7527,177 @@ export type CompletionRequestFingerprint = {
   items: Array<string>
 }
 
+export type CompletionRequestShape = {
+  items: number
+  images: number
+  firstChangedItem?: number
+  fixedChanged?: true
+}
+
+export type CompletionUsage = {
+  promptTokens: number
+  completionTokens: number
+  inputTokens?: number
+  totalTokens?: number
+  cachedReadInputTokens?: number
+  cacheWriteInputTokens?: number
+  cacheWrite1hInputTokens?: number
+  requestShape?: {
+    items: number
+    images: number
+    firstChangedItem?: number
+    fixedChanged?: true
+  }
+  reasoningTokens?: number
+  cost?: number
+  costInput?: number
+  costOutput?: number
+  billing?: 'subscription' | 'metered' | 'free'
+  listCostUsd?: number
+  byModel?: Array<ModelSpend>
+  tokenFields?: {
+    input?: 'reported' | 'derived' | 'unavailable'
+    output?: 'reported' | 'derived' | 'unavailable'
+    cacheRead?: 'reported' | 'derived' | 'unavailable'
+    cacheWrite?: 'reported' | 'derived' | 'unavailable'
+  }
+  incompleteReasons?: Array<UsageCompletenessReason>
+}
+
+export type CompletionMessageRole = 'system' | 'user' | 'assistant' | 'tool'
+
+export type CompletionStopCause = 'overseer' | 'provider' | 'agent' | 'turns' | 'limit'
+
+export type CompletionStopNotice = {
+  cause: CompletionStopCause
+  featureTitle?: string
+  reason: string
+  raw?: string
+  turnLimit?: number
+  repeats?: number
+}
+
+export type CompletionMessageBase = {
+  role: CompletionMessageRole
+  id?: string
+  content: string
+  startedAt: string
+  completedAt: string
+  durationMs: number
+  answersHandoffFrom?: string
+  managerCard?:
+    | ProcessManagerBriefCard
+    | ProcessManagerInterventionCard
+    | ProcessManagerPreReadCard
+    | ProcessManagerEscalationCard
+  openChangesCard?: {
+    kind: 'unfit' | 'waiting'
+    runId: string
+    projectId: string
+    chatContextId: string
+    since: number
+    fileCount: number
+    changedCount?: number
+  }
+  openQuestionsCard?: {
+    projectId: string
+    storyId: string
+    featureIds?: Array<string>
+  }
+  needsYouAt?: string
+  needsYouClosedAt?: string
+  stopNotice?: {
+    cause: CompletionStopCause
+    featureTitle?: string
+    reason: string
+    raw?: string
+    turnLimit?: number
+    repeats?: number
+  }
+}
+
+export type CompletionAssistantMessage = {
+  role: CompletionMessageRole & 'assistant'
+  id?: string
+  content: string
+  startedAt: string
+  completedAt: string
+  durationMs: number
+  answersHandoffFrom?: string
+  managerCard?:
+    | ProcessManagerBriefCard
+    | ProcessManagerInterventionCard
+    | ProcessManagerPreReadCard
+    | ProcessManagerEscalationCard
+  openChangesCard?: {
+    kind: 'unfit' | 'waiting'
+    runId: string
+    projectId: string
+    chatContextId: string
+    since: number
+    fileCount: number
+    changedCount?: number
+  }
+  openQuestionsCard?: {
+    projectId: string
+    storyId: string
+    featureIds?: Array<string>
+  }
+  needsYouAt?: string
+  needsYouClosedAt?: string
+  stopNotice?: {
+    cause: CompletionStopCause
+    featureTitle?: string
+    reason: string
+    raw?: string
+    turnLimit?: number
+    repeats?: number
+  }
+  usage: {
+    promptTokens: number
+    completionTokens: number
+    inputTokens?: number
+    totalTokens?: number
+    cachedReadInputTokens?: number
+    cacheWriteInputTokens?: number
+    cacheWrite1hInputTokens?: number
+    requestShape?: {
+      items: number
+      images: number
+      firstChangedItem?: number
+      fixedChanged?: true
+    }
+    reasoningTokens?: number
+    cost?: number
+    costInput?: number
+    costOutput?: number
+    billing?: 'subscription' | 'metered' | 'free'
+    listCostUsd?: number
+    byModel?: Array<ModelSpend>
+    tokenFields?: {
+      input?: 'reported' | 'derived' | 'unavailable'
+      output?: 'reported' | 'derived' | 'unavailable'
+      cacheRead?: 'reported' | 'derived' | 'unavailable'
+      cacheWrite?: 'reported' | 'derived' | 'unavailable'
+    }
+    incompleteReasons?: Array<UsageCompletenessReason>
+  }
+  model: {
+    model: string
+    provider: LlmProvider
+  }
+  suggestedActions?: Array<string>
+  thinking?: string
+  files?: Array<string>
+  toolsAttached?: number
+  turnToolNames?: Array<string>
+  cliRunId?: string
+  featureRequestId?: string
+  processRunId?: string
+  processRunParkedAt?: number
+  processGroupRunId?: string
+}
+
 export type CompletionResponse = {
   assistantMessage: CompletionAssistantMessage
   toolCalls: Array<ToolCall>
@@ -8575,18 +7791,123 @@ export type CompletionStopDetail = {
   featureTitle?: string
 }
 
+export type CompletionSystemMessage = {
+  role: CompletionMessageRole & 'system'
+  id?: string
+  content: string
+  startedAt: string
+  completedAt: string
+  durationMs: number
+  answersHandoffFrom?: string
+  managerCard?:
+    | ProcessManagerBriefCard
+    | ProcessManagerInterventionCard
+    | ProcessManagerPreReadCard
+    | ProcessManagerEscalationCard
+  openChangesCard?: {
+    kind: 'unfit' | 'waiting'
+    runId: string
+    projectId: string
+    chatContextId: string
+    since: number
+    fileCount: number
+    changedCount?: number
+  }
+  openQuestionsCard?: {
+    projectId: string
+    storyId: string
+    featureIds?: Array<string>
+  }
+  needsYouAt?: string
+  needsYouClosedAt?: string
+  stopNotice?: {
+    cause: CompletionStopCause
+    featureTitle?: string
+    reason: string
+    raw?: string
+    turnLimit?: number
+    repeats?: number
+  }
+  error?: string
+}
+
+export type CompletionImage = {
+  base64?: string
+  mediaType?: string
+  url?: string
+}
+
+export type CompletionToolMessage = {
+  role: CompletionMessageRole & 'tool'
+  id?: string
+  content: string
+  startedAt: string
+  completedAt: string
+  durationMs: number
+  answersHandoffFrom?: string
+  managerCard?:
+    | ProcessManagerBriefCard
+    | ProcessManagerInterventionCard
+    | ProcessManagerPreReadCard
+    | ProcessManagerEscalationCard
+  openChangesCard?: {
+    kind: 'unfit' | 'waiting'
+    runId: string
+    projectId: string
+    chatContextId: string
+    since: number
+    fileCount: number
+    changedCount?: number
+  }
+  openQuestionsCard?: {
+    projectId: string
+    storyId: string
+    featureIds?: Array<string>
+  }
+  needsYouAt?: string
+  needsYouClosedAt?: string
+  stopNotice?: {
+    cause: CompletionStopCause
+    featureTitle?: string
+    reason: string
+    raw?: string
+    turnLimit?: number
+    repeats?: number
+  }
+  model: {
+    model: string
+    provider: LlmProvider
+  }
+  toolCall: {
+    toolCallId: string
+    name: string
+    arguments?: unknown
+    providerState?: {
+      gemini?: {
+        thoughtSignature?: string
+      }
+    }
+  }
+  toolResult: {
+    result: unknown
+    type: ToolResultType
+    durationMs: number
+    note?: string
+    actionId?: string
+  }
+  providerState?: {
+    gemini?: {
+      thoughtSignature?: string
+    }
+  }
+}
+
 export type ToolCallFailureStep = 'succeeded' | 'failed' | 'neither'
 
 export type HistoryStepBounds = {
   minChars: number
   maxChars: number
   minTurns: number
-}
-
-export type CompletionHistoryForms = {
-  sent: Array<CompletionMessage>
-  whole: Array<CompletionMessage>
-  older: Array<CompletionMessage>
 }
 
 export type RestartableMessage = {
@@ -9453,6 +8774,15 @@ export type JiraUser = {
   active?: boolean
 }
 
+export type JiraSprint = {
+  id: number
+  name: string
+  state: string
+  startDate?: string
+  endDate?: string
+  goal?: string
+}
+
 export type JiraIssueSummary = {
   key: string
   id: string
@@ -9476,6 +8806,14 @@ export type JiraIssueSummary = {
   labels?: Array<string>
   parentKey?: string
   updated?: string
+  sprint?: {
+    id: number
+    name: string
+    state: string
+    startDate?: string
+    endDate?: string
+    goal?: string
+  }
   url: string
 }
 
@@ -9549,6 +8887,14 @@ export type JiraIssueDetail = {
   labels?: Array<string>
   parentKey?: string
   updated?: string
+  sprint?: {
+    id: number
+    name: string
+    state: string
+    startDate?: string
+    endDate?: string
+    goal?: string
+  }
   url: string
   description: string
   created?: string
@@ -9648,15 +8994,6 @@ export type JiraBoard = {
   name: string
   type?: string
   projectKey?: string
-}
-
-export type JiraSprint = {
-  id: number
-  name: string
-  state: string
-  startDate?: string
-  endDate?: string
-  goal?: string
 }
 
 export type JiraWorklog = {
@@ -9867,6 +9204,7 @@ export type SlackThreadMessage = {
   permalink: string
   files: Array<SlackFile>
   editedTs?: string
+  bot?: true
   readableText: string
 }
 
@@ -16568,6 +15906,11 @@ export type ProcessGateAction = {
   editsText?: true
 }
 
+export type ProcessStepAfterAction = {
+  gate: string
+  actions: Array<string>
+}
+
 export type ProcessStep = {
   id: string
   name: string
@@ -16615,6 +15958,11 @@ export type ProcessStep = {
   inChat?: true
   gateActions?: Array<ProcessGateAction>
   actionOf?: string
+  afterAction?: {
+    gate: string
+    actions: Array<string>
+  }
+  onlyWhenAsked?: true
 }
 
 export type ProcessSubject = {
@@ -16681,6 +16029,11 @@ export type ProcessPlanStep = {
   inChat?: true
   gateActions?: Array<ProcessGateAction>
   actionOf?: string
+  afterAction?: {
+    gate: string
+    actions: Array<string>
+  }
+  onlyWhenAsked?: true
   sourceStepId?: string
   boundProcessId?: string
   processBoundAtLaunch?: boolean
@@ -17155,6 +16508,23 @@ export type ProcessPreExistingBreak = {
   headline: string
 }
 
+export type ProcessOutsideArrival = {
+  title: string
+  detail: string
+  carryOnLabel: string
+  at: number
+}
+
+export type ProcessOutsideWait = {
+  awaits: string
+  arrived?: {
+    title: string
+    detail: string
+    carryOnLabel: string
+    at: number
+  }
+}
+
 export type ProcessWaitingAsk = {
   kind: ProcessWaitingKind
   agent: string
@@ -17193,6 +16563,15 @@ export type ProcessWaitingAsk = {
     baseRef: string
     baseSha?: string
     headline: string
+  }
+  outside?: {
+    awaits: string
+    arrived?: {
+      title: string
+      detail: string
+      carryOnLabel: string
+      at: number
+    }
   }
 }
 
@@ -17376,6 +16755,15 @@ export type ProcessPark = {
       baseRef: string
       baseSha?: string
       headline: string
+    }
+    outside?: {
+      awaits: string
+      arrived?: {
+        title: string
+        detail: string
+        carryOnLabel: string
+        at: number
+      }
     }
   }
   questionGrantId?: string
@@ -17865,6 +17253,15 @@ export type ProcessLedgerEntry = {
       baseSha?: string
       headline: string
     }
+    outside?: {
+      awaits: string
+      arrived?: {
+        title: string
+        detail: string
+        carryOnLabel: string
+        at: number
+      }
+    }
   }
   questionCapReached?: boolean
   questionCounted?: boolean
@@ -17962,6 +17359,7 @@ export type ProcessLedgerEntry = {
     link?: string
     at: number
   }
+  asksDecision?: true
   proof?: {
     baseSha?: string
     headSha?: string
@@ -18633,6 +18031,15 @@ export type ProcessRun = {
         baseSha?: string
         headline: string
       }
+      outside?: {
+        awaits: string
+        arrived?: {
+          title: string
+          detail: string
+          carryOnLabel: string
+          at: number
+        }
+      }
     }
     questionGrantId?: string
     stepInFlight?: boolean
@@ -18903,6 +18310,15 @@ export type ProcessManagerCardStandingRun = {
         baseRef: string
         baseSha?: string
         headline: string
+      }
+      outside?: {
+        awaits: string
+        arrived?: {
+          title: string
+          detail: string
+          carryOnLabel: string
+          at: number
+        }
       }
     }
     questionGrantId?: string
@@ -20723,6 +20139,17 @@ export type ProjectSettingAddition = {
 export type ProjectSettingsChange = {
   added: Array<ProjectSettingAddition>
   configRoutes: Array<string>
+}
+
+export type GroupTicketTabTicket = {
+  status?: string
+  statusCategory?: string
+  inOpenSprint: boolean
+}
+
+export type GroupTicketTabsRead = {
+  tabs: Array<GroupTicketTab>
+  custom: boolean
 }
 
 export type ProjectGroupMembershipChange = {
@@ -23880,8 +23307,27 @@ export type FoundReference = ParsedReference & {
   raw: string
 }
 
+export type VideoMark = {
+  timeSec: number
+  note?: string
+}
+
+export type VideoMarkStill = {
+  timeSec: number
+  file: string
+}
+
+export type VideoMarkedMoment = VideoMark & {
+  video: string
+  still?: {
+    timeSec: number
+    file: string
+  }
+}
+
 export type ReferenceOptions = {
   attachments?: Array<string>
+  marks?: Array<VideoMarkedMoment>
 }
 
 export type ChatAttachmentsOwner = {
@@ -24683,6 +24129,8 @@ export type CaptureToolSet = {
     | 'transitionConnectionItem'
     | 'searchJiraIssues'
     | 'getJiraIssue'
+    | 'countJiraIssues'
+    | 'getJiraMyself'
     | 'getJiraIssueChangelog'
     | 'listJiraTransitions'
     | 'listJiraProjects'
@@ -25260,6 +24708,8 @@ export type CaptureToolSet = {
     | 'transitionConnectionItem'
     | 'searchJiraIssues'
     | 'getJiraIssue'
+    | 'countJiraIssues'
+    | 'getJiraMyself'
     | 'getJiraIssueChangelog'
     | 'listJiraTransitions'
     | 'listJiraProjects'
@@ -25844,6 +25294,8 @@ export type CaptureToolSet = {
     | 'transitionConnectionItem'
     | 'searchJiraIssues'
     | 'getJiraIssue'
+    | 'countJiraIssues'
+    | 'getJiraMyself'
     | 'getJiraIssueChangelog'
     | 'listJiraTransitions'
     | 'listJiraProjects'
@@ -26421,6 +25873,8 @@ export type CaptureToolSet = {
     | 'transitionConnectionItem'
     | 'searchJiraIssues'
     | 'getJiraIssue'
+    | 'countJiraIssues'
+    | 'getJiraMyself'
     | 'getJiraIssueChangelog'
     | 'listJiraTransitions'
     | 'listJiraProjects'
@@ -26999,6 +26453,8 @@ export type CaptureToolSet = {
     | 'transitionConnectionItem'
     | 'searchJiraIssues'
     | 'getJiraIssue'
+    | 'countJiraIssues'
+    | 'getJiraMyself'
     | 'getJiraIssueChangelog'
     | 'listJiraTransitions'
     | 'listJiraProjects'
@@ -30100,11 +29556,6 @@ export type TokenCounts = {
   outputTokens: number
 }
 
-export type VideoSourceStamp = {
-  sizeBytes: number
-  modifiedMs: number
-}
-
 export type VideoProbe = {
   durationSec: number
   width: number
@@ -30113,10 +29564,46 @@ export type VideoProbe = {
   hasAudio: boolean
 }
 
+export type FrameSize = {
+  width: number
+  height: number
+}
+
+export type VideoSourceStamp = {
+  sizeBytes: number
+  modifiedMs: number
+}
+
+export type VideoFramePlace =
+  | 'top left'
+  | 'top'
+  | 'top right'
+  | 'left'
+  | 'middle'
+  | 'right'
+  | 'bottom left'
+  | 'bottom'
+  | 'bottom right'
+
+export type VideoFrameBox = {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+export type VideoCloseUp = {
+  file: string
+  place: VideoFramePlace
+  box: VideoFrameBox
+  text?: Array<string>
+}
+
 export type VideoStill = {
   timeSec: number
   file: string
   text?: Array<string>
+  closeUps?: Array<VideoCloseUp>
 }
 
 export type VideoSheet = {
@@ -30136,13 +29623,17 @@ export type VideoTranscriptSegment = {
   endSec: number
   text: string
   words?: Array<VideoTranscriptWord>
+  language?: string
 }
+
+export type VideoLanguagesUntold = 'no-detector'
 
 export type VideoTranscript = {
   state: VideoTranscriptState
   segments: Array<VideoTranscriptSegment>
   language?: string
   file?: string
+  languagesUntold?: 'no-detector'
 }
 
 export type VideoScreenTextState = 'done' | 'not-set-up' | 'failed'
@@ -30150,6 +29641,22 @@ export type VideoScreenTextState = 'done' | 'not-set-up' | 'failed'
 export type VideoScreenText = {
   state: VideoScreenTextState
   onEveryScreen: Array<string>
+}
+
+export type VideoSoundState = 'done' | 'no-audio' | 'failed'
+
+export type VideoSoundCueKind = 'silence' | 'sudden' | 'music'
+
+export type VideoSoundCue = {
+  kind: VideoSoundCueKind
+  startSec: number
+  endSec: number
+}
+
+export type VideoSound = {
+  state: VideoSoundState
+  cues: Array<VideoSoundCue>
+  total: number
 }
 
 export type VideoActionKind =
@@ -30201,6 +29708,11 @@ export type VideoDigestManifest = {
     state: VideoScreenTextState
     onEveryScreen: Array<string>
   }
+  sound?: {
+    state: VideoSoundState
+    cues: Array<VideoSoundCue>
+    total: number
+  }
   actions?: {
     source: VideoSourceStamp
     readable: boolean
@@ -30244,6 +29756,88 @@ export type Searchable = {
   }
 }
 
+export type VideoTimelineStill = {
+  kind: 'still'
+  timeSec: number
+  file: string
+  text: Array<string>
+  closeUps: Array<VideoCloseUp>
+}
+
+export type VideoTimelineSpeech = {
+  kind: 'speech'
+  timeSec: number
+  endSec: number
+  text: string
+  language?: string
+}
+
+export type VideoTimelineAction = {
+  kind: 'action'
+  timeSec: number
+  action: VideoActionKind
+  target?: string
+  ok: boolean
+}
+
+export type VideoTimelineSound = {
+  kind: 'sound'
+  timeSec: number
+  endSec: number
+  sound: VideoSoundCueKind
+}
+
+export type VideoTimelineEntry =
+  | VideoTimelineStill
+  | VideoTimelineSpeech
+  | VideoTimelineAction
+  | VideoTimelineSound
+
+export type VideoTimelineEntryKind = 'still' | 'speech' | 'action' | 'sound'
+
+export type VideoTimelineState = 'not-started' | 'in-progress' | 'failed' | 'done'
+
+export type VideoDigestStage =
+  | 'probing'
+  | 'picking-frames'
+  | 'making-sheets'
+  | 'transcribing'
+  | 'ready'
+  | 'failed'
+
+export type VideoTimeline = {
+  state: VideoTimelineState
+  stage?: 'probing' | 'picking-frames' | 'making-sheets' | 'transcribing' | 'ready' | 'failed'
+  percent?: number
+  reason?: string
+  durationSec?: number
+  width?: number
+  height?: number
+  language?: string
+  onEveryScreen: Array<string>
+  entries: Array<VideoTimelineEntry>
+}
+
+export type VideoMarkCheck =
+  | {
+      ok: true
+      mark: VideoMark
+    }
+  | {
+      ok: false
+      reason: string
+    }
+
+export type VideoMarkedMomentCheck =
+  | {
+      ok: true
+      moment: VideoMarkedMoment
+    }
+  | {
+      ok: false
+      reason: string
+    }
+
 export type VideoMomentCandidate = {
   timeSec: number
   thumb: unknown
@@ -30259,6 +29853,45 @@ export type VideoScreenChanges = {
   steady: Array<{
     fromSec: number
     toSec: number
+  }>
+}
+
+export type VideoCloseUpPlan = {
+  file: string
+  place: VideoFramePlace
+  box: VideoFrameBox
+}
+
+export type VideoCloseUpCut = {
+  path: string
+  box: VideoFrameBox
+}
+
+export type VideoThumbArea = {
+  x0: number
+  y0: number
+  x1: number
+  y1: number
+  pixels: number
+}
+
+export type VideoCloseUpRule = {
+  maxShare: number
+  perStill: number
+  mostAreas: number
+  joinShare: number
+  padShare: number
+  minPixelShare: number
+  revertSec: number
+  sameShare: number
+}
+
+export type VideoCloseUpsKept = {
+  stills: Array<VideoStill>
+  removed: Array<string>
+  moved: Array<{
+    from: string
+    to: string
   }>
 }
 
@@ -30304,6 +29937,8 @@ export type VideoScreenTextSplit = {
   stills: Array<Array<string>>
 }
 
+export type VideoTranscriptLanguages = 'per-file' | 'per-segment'
+
 export type VideoActionLog = {
   version: 1
   recorder: string
@@ -30313,13 +29948,40 @@ export type VideoActionLog = {
   actions: Array<VideoAction>
 }
 
-export type VideoDigestStage =
-  | 'probing'
-  | 'picking-frames'
-  | 'making-sheets'
-  | 'transcribing'
-  | 'ready'
-  | 'failed'
+export type VideoSoundWindow = {
+  timeSec: number
+  levelDb: number
+  flatness: number
+}
+
+export type VideoSoundReading =
+  | {
+      state: 'done'
+      windows: Array<VideoSoundWindow>
+    }
+  | {
+      state: 'no-audio' | 'failed'
+    }
+  | {
+      state: 'stopped'
+    }
+
+export type VideoSoundRule = {
+  silentDb: number
+  silenceMinSec: number
+  riseDb: number
+  suddenMinDb: number
+  beforeSec: number
+  floorDb: number
+  suddenMaxSec: number
+  quietSec: number
+  musicBlockSec: number
+  steadyDb: number
+  tonalFlatness: number
+  musicMinSec: number
+  musicGapSec: number
+  speechPadSec: number
+}
 
 export type VideoDigestStatus = {
   stage: VideoDigestStage
@@ -30573,6 +30235,42 @@ export type VideoHeardWord = {
   startSec: number
   endSec: number
   text: string
+}
+
+export type VideoSpeechChunk = {
+  startSec: number
+  endSec: number
+}
+
+export type VideoWavData = {
+  offset: number
+  bytes: number
+}
+
+export type VideoHeardLanguage = {
+  language: string
+  confidence: number
+}
+
+export type VideoReheardSpeech = {
+  chunk: number
+  language?: string
+  words: Array<VideoHeardWord>
+}
+
+export type VideoSpeechLanguages = {
+  chunks: Array<VideoSpeechChunk>
+  heard: Array<VideoHeardLanguage | unknown>
+  main?: string
+}
+
+export type VideoSpeechTelling = {
+  told?: {
+    chunks: Array<VideoSpeechChunk>
+    heard: Array<VideoHeardLanguage | unknown>
+    main?: string
+  }
+  untold?: 'no-detector'
 }
 
 export type VideoMomentCandidates = {
@@ -31094,6 +30792,15 @@ export type NamedLandingRun = {
         baseSha?: string
         headline: string
       }
+      outside?: {
+        awaits: string
+        arrived?: {
+          title: string
+          detail: string
+          carryOnLabel: string
+          at: number
+        }
+      }
     }
     questionGrantId?: string
     stepInFlight?: boolean
@@ -31216,6 +30923,15 @@ export type CloseRun = {
         baseSha?: string
         headline: string
       }
+      outside?: {
+        awaits: string
+        arrived?: {
+          title: string
+          detail: string
+          carryOnLabel: string
+          at: number
+        }
+      }
     }
     questionGrantId?: string
     stepInFlight?: boolean
@@ -31324,6 +31040,15 @@ export type FeatureSplitRun = {
         baseRef: string
         baseSha?: string
         headline: string
+      }
+      outside?: {
+        awaits: string
+        arrived?: {
+          title: string
+          detail: string
+          carryOnLabel: string
+          at: number
+        }
       }
     }
     questionGrantId?: string
@@ -31784,6 +31509,15 @@ export type ProofChangeRun = {
         baseSha?: string
         headline: string
       }
+      outside?: {
+        awaits: string
+        arrived?: {
+          title: string
+          detail: string
+          carryOnLabel: string
+          at: number
+        }
+      }
     }
     questionGrantId?: string
     stepInFlight?: boolean
@@ -31896,6 +31630,15 @@ export type RecheckRun = {
         baseRef: string
         baseSha?: string
         headline: string
+      }
+      outside?: {
+        awaits: string
+        arrived?: {
+          title: string
+          detail: string
+          carryOnLabel: string
+          at: number
+        }
       }
     }
     questionGrantId?: string
@@ -32010,6 +31753,15 @@ export type FollowUpsRun = {
         baseSha?: string
         headline: string
       }
+      outside?: {
+        awaits: string
+        arrived?: {
+          title: string
+          detail: string
+          carryOnLabel: string
+          at: number
+        }
+      }
     }
     questionGrantId?: string
     stepInFlight?: boolean
@@ -32114,6 +31866,15 @@ export type ReviewGapRun = {
         baseRef: string
         baseSha?: string
         headline: string
+      }
+      outside?: {
+        awaits: string
+        arrived?: {
+          title: string
+          detail: string
+          carryOnLabel: string
+          at: number
+        }
       }
     }
     questionGrantId?: string
@@ -32317,6 +32078,15 @@ export type SendToDeveloperRun = {
         baseSha?: string
         headline: string
       }
+      outside?: {
+        awaits: string
+        arrived?: {
+          title: string
+          detail: string
+          carryOnLabel: string
+          at: number
+        }
+      }
     }
     questionGrantId?: string
     stepInFlight?: boolean
@@ -32361,6 +32131,15 @@ export type SendToDeveloperRun = {
   iterationGrants?: {
     [key: string]: number
   }
+}
+
+export type WhenStep = {
+  id: string
+  afterAction?: {
+    gate: string
+    actions: Array<string>
+  }
+  onlyWhenAsked?: true
 }
 
 export type TicketWriteReason =
@@ -33193,6 +32972,15 @@ export type ProcessRunChatState = {
           baseRef: string
           baseSha?: string
           headline: string
+        }
+        outside?: {
+          awaits: string
+          arrived?: {
+            title: string
+            detail: string
+            carryOnLabel: string
+            at: number
+          }
         }
       }
       questionGrantId?: string
@@ -34156,6 +33944,15 @@ export type ProcessRunSummary = {
         baseSha?: string
         headline: string
       }
+      outside?: {
+        awaits: string
+        arrived?: {
+          title: string
+          detail: string
+          carryOnLabel: string
+          at: number
+        }
+      }
     }
     questionGrantId?: string
     stepInFlight?: boolean
@@ -34506,6 +34303,7 @@ export type ProcessStepResult = {
     link?: string
     at: number
   }
+  asksDecision?: true
   needsYouResolutions?: Array<ProcessNeedsYouResolution>
   requiredOutputFiled?: boolean
   summary?: string
@@ -34668,6 +34466,15 @@ export type ProcessStepResult = {
       baseRef: string
       baseSha?: string
       headline: string
+    }
+    outside?: {
+      awaits: string
+      arrived?: {
+        title: string
+        detail: string
+        carryOnLabel: string
+        at: number
+      }
     }
   }
   agentStop?: 'turn-limit' | 'spend-limit' | 'interrupted' | 'stuck'
@@ -34910,6 +34717,15 @@ export type ProcessStepState = {
         baseSha?: string
         headline: string
       }
+      outside?: {
+        awaits: string
+        arrived?: {
+          title: string
+          detail: string
+          carryOnLabel: string
+          at: number
+        }
+      }
     }
     questionCapReached?: boolean
     questionCounted?: boolean
@@ -35007,6 +34823,7 @@ export type ProcessStepState = {
       link?: string
       at: number
     }
+    asksDecision?: true
     proof?: {
       baseSha?: string
       headSha?: string
@@ -35728,6 +35545,15 @@ export type ParkChoicesRun = {
         baseSha?: string
         headline: string
       }
+      outside?: {
+        awaits: string
+        arrived?: {
+          title: string
+          detail: string
+          carryOnLabel: string
+          at: number
+        }
+      }
     }
     questionGrantId?: string
     stepInFlight?: boolean
@@ -36136,6 +35962,467 @@ export type TokenizerEncodeResult = {
   tokenizedContent: string
 }
 
+export type Chat = {
+  title?: string
+  dynamicContext?: {
+    task: string
+    plan: string
+    pending: Array<string>
+    done: Array<string>
+    contextFiles: Array<ChatDynamicContextContextFile>
+    constraints: Array<string>
+    assumptions: Array<string>
+    risks: Array<string>
+    openQuestions: Array<string>
+    repoMap: Array<ChatDynamicContextRepoMapEntry>
+    lastUpdated: string
+  }
+  contextBoundary?: {
+    messageId: string
+    at: string
+  }
+  context: ChatContext
+  messages?: Array<{
+    role: 'system' | 'user' | 'assistant' | 'tool'
+    id?: string
+    content: string
+    startedAt?: string
+    completedAt?: string
+    durationMs?: number
+    files?: Array<string>
+    usage?: {
+      promptTokens: number
+      completionTokens: number
+      inputTokens?: number
+      totalTokens?: number
+      cachedReadInputTokens?: number
+      cacheWriteInputTokens?: number
+      cacheWrite1hInputTokens?: number
+      requestShape?: {
+        items: number
+        images: number
+        firstChangedItem?: number
+        fixedChanged?: true
+      }
+      reasoningTokens?: number
+      cost?: number
+      costInput?: number
+      costOutput?: number
+      billing?: 'subscription' | 'metered' | 'free'
+      listCostUsd?: number
+      byModel?: Array<ModelSpend>
+      tokenFields?: {
+        input?: 'reported' | 'derived' | 'unavailable'
+        output?: 'reported' | 'derived' | 'unavailable'
+        cacheRead?: 'reported' | 'derived' | 'unavailable'
+        cacheWrite?: 'reported' | 'derived' | 'unavailable'
+      }
+      incompleteReasons?: Array<UsageCompletenessReason>
+    }
+    model?: {
+      model: string
+      provider: LlmProvider
+    }
+    suggestedActions?: Array<string>
+    thinking?: string
+    toolsAttached?: number
+    turnToolNames?: Array<string>
+    cliRunId?: string
+    featureRequestId?: string
+    processRunId?: string
+    processRunParkedAt?: number
+    processGroupRunId?: string
+    handoffFrom?: string
+    appSelections?: Array<{
+      id: string
+      projectId: string
+      view?: string
+      params?: {
+        [key: string]: string
+      }
+      comment: string
+      selector: string
+      outerHtml: string
+      rect?: {
+        x: number
+        y: number
+        width: number
+        height: number
+        space: 'app-viewport'
+      }
+      screenshotFile?: string
+    }>
+    videoMarks?: Array<VideoMarkedMoment>
+    answersHandoffFrom?: string
+    backgroundResults?: Array<{
+      jobId: string
+      toolName: string
+      toolCallId?: string
+      status: 'succeeded' | 'failed'
+      tookMs: number
+    }>
+    managerCard?:
+      | ProcessManagerBriefCard
+      | ProcessManagerInterventionCard
+      | ProcessManagerPreReadCard
+      | ProcessManagerEscalationCard
+    openChangesCard?: {
+      kind: 'unfit' | 'waiting'
+      runId: string
+      projectId: string
+      chatContextId: string
+      since: number
+      fileCount: number
+      changedCount?: number
+    }
+    openQuestionsCard?: {
+      projectId: string
+      storyId: string
+      featureIds?: Array<string>
+    }
+    needsYouAt?: string
+    needsYouClosedAt?: string
+    stopNotice?: {
+      cause: CompletionStopCause
+      featureTitle?: string
+      reason: string
+      raw?: string
+      turnLimit?: number
+      repeats?: number
+    }
+    toolCall?: {
+      toolCallId: string
+      name: string
+      arguments?: unknown
+      providerState?: unknown
+    }
+    toolResult?: {
+      type: string
+      result?: unknown
+      durationMs?: number
+      actionId?: string
+    }
+    error?: string
+    providerState?: unknown
+  }>
+  settings?: {
+    systemPrompt: string
+    completionSettings: CompletionSettings
+  }
+  state?: 'created' | 'running' | 'completed' | 'cancelled' | 'error'
+  rating?: {
+    score: number
+    comment?: string
+    createdAt: string
+  }
+  metadata?: {
+    [key: string]: JsonValue
+  }
+  cliRunner?: {
+    tool: string
+    credentialId?: string
+    apiKeyCredentialId?: string
+    model?: string
+    effort?: string
+  }
+  effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+  archivedAt?: string
+  listHiddenAt?: string
+  listShownAt?: string
+  notifyLevel?: 'everything' | 'needs-me' | 'nothing'
+  aboutRun?: {
+    projectId: string
+    runId: string
+  }
+  createdAt?: string
+  updatedAt?: string
+}
+
+export type ChatCreateInput = {
+  context: ChatContext
+  title?: string
+  messages?: Array<{
+    role: 'system' | 'user' | 'assistant' | 'tool'
+    id?: string
+    content: string
+    startedAt?: string
+    completedAt?: string
+    durationMs?: number
+    files?: Array<string>
+    usage?: {
+      promptTokens: number
+      completionTokens: number
+      inputTokens?: number
+      totalTokens?: number
+      cachedReadInputTokens?: number
+      cacheWriteInputTokens?: number
+      cacheWrite1hInputTokens?: number
+      requestShape?: {
+        items: number
+        images: number
+        firstChangedItem?: number
+        fixedChanged?: true
+      }
+      reasoningTokens?: number
+      cost?: number
+      costInput?: number
+      costOutput?: number
+      billing?: 'subscription' | 'metered' | 'free'
+      listCostUsd?: number
+      byModel?: Array<ModelSpend>
+      tokenFields?: {
+        input?: 'reported' | 'derived' | 'unavailable'
+        output?: 'reported' | 'derived' | 'unavailable'
+        cacheRead?: 'reported' | 'derived' | 'unavailable'
+        cacheWrite?: 'reported' | 'derived' | 'unavailable'
+      }
+      incompleteReasons?: Array<UsageCompletenessReason>
+    }
+    model?: {
+      model: string
+      provider: LlmProvider
+    }
+    suggestedActions?: Array<string>
+    thinking?: string
+    toolsAttached?: number
+    turnToolNames?: Array<string>
+    cliRunId?: string
+    featureRequestId?: string
+    processRunId?: string
+    processRunParkedAt?: number
+    processGroupRunId?: string
+    handoffFrom?: string
+    appSelections?: Array<{
+      id: string
+      projectId: string
+      view?: string
+      params?: {
+        [key: string]: string
+      }
+      comment: string
+      selector: string
+      outerHtml: string
+      rect?: {
+        x: number
+        y: number
+        width: number
+        height: number
+        space: 'app-viewport'
+      }
+      screenshotFile?: string
+    }>
+    videoMarks?: Array<VideoMarkedMoment>
+    answersHandoffFrom?: string
+    backgroundResults?: Array<{
+      jobId: string
+      toolName: string
+      toolCallId?: string
+      status: 'succeeded' | 'failed'
+      tookMs: number
+    }>
+    managerCard?:
+      | ProcessManagerBriefCard
+      | ProcessManagerInterventionCard
+      | ProcessManagerPreReadCard
+      | ProcessManagerEscalationCard
+    openChangesCard?: {
+      kind: 'unfit' | 'waiting'
+      runId: string
+      projectId: string
+      chatContextId: string
+      since: number
+      fileCount: number
+      changedCount?: number
+    }
+    openQuestionsCard?: {
+      projectId: string
+      storyId: string
+      featureIds?: Array<string>
+    }
+    needsYouAt?: string
+    needsYouClosedAt?: string
+    stopNotice?: {
+      cause: CompletionStopCause
+      featureTitle?: string
+      reason: string
+      raw?: string
+      turnLimit?: number
+      repeats?: number
+    }
+    toolCall?: {
+      toolCallId: string
+      name: string
+      arguments?: unknown
+      providerState?: unknown
+    }
+    toolResult?: {
+      type: string
+      result?: unknown
+      durationMs?: number
+      actionId?: string
+    }
+    error?: string
+    providerState?: unknown
+  }>
+  settings?: {
+    systemPrompt: string
+    completionSettings: CompletionSettings
+  }
+  dynamicContext?: {
+    task?: string
+    plan?: string
+    pending?: Array<string>
+    done?: Array<string>
+    contextFiles?: Array<ChatDynamicContextContextFile>
+    constraints?: Array<string>
+    assumptions?: Array<string>
+    risks?: Array<string>
+    openQuestions?: Array<string>
+    repoMap?: Array<ChatDynamicContextRepoMapEntry>
+    lastUpdated?: string
+  }
+  state?: string
+  metadata?: {
+    [key: string]: JsonValue
+  }
+}
+
+export type ChatEditInput = {
+  title?: string
+  messages?: Array<{
+    role: 'system' | 'user' | 'assistant' | 'tool'
+    id?: string
+    content: string
+    startedAt?: string
+    completedAt?: string
+    durationMs?: number
+    files?: Array<string>
+    usage?: {
+      promptTokens: number
+      completionTokens: number
+      inputTokens?: number
+      totalTokens?: number
+      cachedReadInputTokens?: number
+      cacheWriteInputTokens?: number
+      cacheWrite1hInputTokens?: number
+      requestShape?: {
+        items: number
+        images: number
+        firstChangedItem?: number
+        fixedChanged?: true
+      }
+      reasoningTokens?: number
+      cost?: number
+      costInput?: number
+      costOutput?: number
+      billing?: 'subscription' | 'metered' | 'free'
+      listCostUsd?: number
+      byModel?: Array<ModelSpend>
+      tokenFields?: {
+        input?: 'reported' | 'derived' | 'unavailable'
+        output?: 'reported' | 'derived' | 'unavailable'
+        cacheRead?: 'reported' | 'derived' | 'unavailable'
+        cacheWrite?: 'reported' | 'derived' | 'unavailable'
+      }
+      incompleteReasons?: Array<UsageCompletenessReason>
+    }
+    model?: {
+      model: string
+      provider: LlmProvider
+    }
+    suggestedActions?: Array<string>
+    thinking?: string
+    toolsAttached?: number
+    turnToolNames?: Array<string>
+    cliRunId?: string
+    featureRequestId?: string
+    processRunId?: string
+    processRunParkedAt?: number
+    processGroupRunId?: string
+    handoffFrom?: string
+    appSelections?: Array<{
+      id: string
+      projectId: string
+      view?: string
+      params?: {
+        [key: string]: string
+      }
+      comment: string
+      selector: string
+      outerHtml: string
+      rect?: {
+        x: number
+        y: number
+        width: number
+        height: number
+        space: 'app-viewport'
+      }
+      screenshotFile?: string
+    }>
+    videoMarks?: Array<VideoMarkedMoment>
+    answersHandoffFrom?: string
+    backgroundResults?: Array<{
+      jobId: string
+      toolName: string
+      toolCallId?: string
+      status: 'succeeded' | 'failed'
+      tookMs: number
+    }>
+    managerCard?:
+      | ProcessManagerBriefCard
+      | ProcessManagerInterventionCard
+      | ProcessManagerPreReadCard
+      | ProcessManagerEscalationCard
+    openChangesCard?: {
+      kind: 'unfit' | 'waiting'
+      runId: string
+      projectId: string
+      chatContextId: string
+      since: number
+      fileCount: number
+      changedCount?: number
+    }
+    openQuestionsCard?: {
+      projectId: string
+      storyId: string
+      featureIds?: Array<string>
+    }
+    needsYouAt?: string
+    needsYouClosedAt?: string
+    stopNotice?: {
+      cause: CompletionStopCause
+      featureTitle?: string
+      reason: string
+      raw?: string
+      turnLimit?: number
+      repeats?: number
+    }
+    toolCall?: {
+      toolCallId: string
+      name: string
+      arguments?: unknown
+      providerState?: unknown
+    }
+    toolResult?: {
+      type: string
+      result?: unknown
+      durationMs?: number
+      actionId?: string
+    }
+    error?: string
+    providerState?: unknown
+  }>
+  settings?: {
+    systemPrompt: string
+    completionSettings: CompletionSettings
+  }
+  state?: string
+  metadata?: {
+    [key: string]: JsonValue
+  }
+  effort?: CliReasoningEffort | unknown
+}
+
 export type ChatContextBody = {
   context: ChatContext
 }
@@ -36252,6 +36539,7 @@ export type AddMessagesInput = {
       }
       screenshotFile?: string
     }>
+    videoMarks?: Array<VideoMarkedMoment>
     answersHandoffFrom?: string
     backgroundResults?: Array<{
       jobId: string
@@ -36564,6 +36852,172 @@ export type ChatMessageSendApprovalDetail = {
    * How the target is named to a person, e.g. `project thefactory-tools` or `chat "Release prep" in project thefactory-tools`.
    */
   targetLabel: string
+}
+
+export type FiledReviewEvidence = {
+  runId: string
+  projectId: string
+  storyId?: string
+  featureId?: string
+  chatContextId?: string
+  supersededBy?: {
+    processRunId: string
+    entryId: string
+    stepId: string
+  }
+  id: string
+  kind: 'screenshot' | 'recording' | 'report' | 'log' | 'file' | 'trace'
+  path: string
+  label?: string
+  phase?: 'before' | 'after'
+  subject?: string
+  observedBefore?: {
+    reason: string
+  }
+  design?: {
+    app: string
+    screen: string
+    state?: string
+    variant?: string
+  }
+  approach?: string
+  capturedOn?: string
+  comparison?: {
+    changedPixels: number
+    totalPixels: number
+    identical: boolean
+    resized: boolean
+    unavailable?: string
+    beforeId?: string
+  }
+  chromeTopPx?: number
+  matchesBeforeIds?: Array<string>
+  inline?: boolean
+  verdict?: 'approved' | 'changes-requested' | 'rejected'
+  verdictReason?: string
+  verdictCause?: 'defect' | 'proof-impossible'
+  verdictScreens?: Array<string>
+  verdictNotShown?: Array<string>
+  verdictNewScreens?: Array<string>
+  uiImpact?: {
+    visible: boolean
+    reason: string
+  }
+  verificationMode?: 'live' | 'dry'
+  dryAssumptions?: string
+  standInScreen?: string
+  reviewSections?: {
+    verdict: CodeReviewVerdictSection
+    findings: Array<CodeReviewFinding>
+    criteria: Array<CodeReviewCriterion>
+    evidence: CodeReviewEvidenceSection
+  }
+  reportSections?: {
+    outcome: ReportOutcomeSection
+    howProven: Array<ReportProofLine>
+    decisions: Array<string>
+    needsYou: Array<string>
+    settled?: Array<ReportSettledItem>
+    recordingScript?: {
+      open: string
+      steps: Array<RecordingScriptStep>
+    }
+  }
+  walkthroughItem?: {
+    title: string
+    open: string
+    steps: Array<string>
+    mustShow: Array<string>
+  }
+  walkthroughResult?: {
+    itemId: string
+    url?: string
+  }
+  build?: {
+    platform?: 'android' | 'ios' | 'web'
+    sha: string
+    dirty: boolean
+    dirtyPaths?: Array<string>
+    variant?: string
+    overlays?: Array<string>
+    overlayFiles?: Array<ReviewEvidenceOverlayFile>
+    sceneOverlayHead?: string
+    fakeDataOverlayHead?: string
+    fakeDataDirs?: Array<string>
+    tree?: string
+    fakeBackend?: string
+    fakeData?: string
+  }
+  screen?: {
+    ids: Array<string>
+    texts: Array<string>
+    activity?: string
+    playgroundScene?: string
+  }
+  checkRun?: {
+    check: ProjectCheckKind
+    status: 'passed' | 'failed' | 'error' | 'skipped' | 'not-detected' | 'refused' | 'running'
+    summary: string
+    commands: Array<string>
+    variant?: string
+    tests?: Array<string>
+  }
+  unvouchedReason?: string
+  mediaType: string
+  bytes: number
+  sha256?: string
+  createdAt: number
+  videoComparison?: {
+    /**
+     * `comparing` while it is being made: a later read has it.
+     */
+    status: 'comparing' | 'compared' | 'failed'
+    /**
+     * The before recording it is compared with.
+     */
+    beforeId: string
+    comparedAt?: number
+    outcome?: 'same' | 'differs' | 'nothing-in-common' | 'nothing-to-compare'
+    /**
+     * The moments that line up, numbered from 1 in order.
+     */
+    pairs?: Array<VideoComparedPair>
+    differences?: Array<VideoComparedDifference>
+    /**
+     * What the comparison found, and what its picture shows.
+     */
+    note?: string
+    /**
+     * Why it could not be compared, when it failed.
+     */
+    reason?: string
+  }
+}
+
+export type EvidenceVideoComparison = {
+  /**
+   * `comparing` while it is being made: a later read has it.
+   */
+  status: 'comparing' | 'compared' | 'failed'
+  /**
+   * The before recording it is compared with.
+   */
+  beforeId: string
+  comparedAt?: number
+  outcome?: 'same' | 'differs' | 'nothing-in-common' | 'nothing-to-compare'
+  /**
+   * The moments that line up, numbered from 1 in order.
+   */
+  pairs?: Array<VideoComparedPair>
+  differences?: Array<VideoComparedDifference>
+  /**
+   * What the comparison found, and what its picture shows.
+   */
+  note?: string
+  /**
+   * Why it could not be compared, when it failed.
+   */
+  reason?: string
 }
 
 export type HealthData = {
@@ -40534,7 +40988,7 @@ export type GetProcessRunEvidenceResponses = {
        * A later attempt of its step, or of a step above it, took its place.
        */
       replaced?: true
-      evidence: Array<ReviewEvidenceRef>
+      evidence: Array<FiledReviewEvidence>
     }>
   }
 }
@@ -43022,7 +43476,7 @@ export type GetProcessGroupSignOffResponses = {
       /**
        * The proof its sign-off shows: outputs and walkthrough filings left out.
        */
-      evidence: Array<ReviewEvidenceRef>
+      evidence: Array<FiledReviewEvidence>
       pullRequest: {
         /**
          * Where it stands: `to-open` before approving, `opened` or `failed` after.
@@ -43238,7 +43692,7 @@ export type SignOffProcessGroupRunResponses = {
       /**
        * The proof its sign-off shows: outputs and walkthrough filings left out.
        */
-      evidence: Array<ReviewEvidenceRef>
+      evidence: Array<FiledReviewEvidence>
       pullRequest: {
         /**
          * Where it stands: `to-open` before approving, `opened` or `failed` after.
@@ -43814,7 +44268,7 @@ export type RetryProcessGroupPullRequestsResponses = {
       /**
        * The proof its sign-off shows: outputs and walkthrough filings left out.
        */
-      evidence: Array<ReviewEvidenceRef>
+      evidence: Array<FiledReviewEvidence>
       pullRequest: {
         /**
          * Where it stands: `to-open` before approving, `opened` or `failed` after.
@@ -44709,7 +45163,7 @@ export type ListReviewEvidenceResponses = {
   /**
    * Default Response
    */
-  200: Array<ReviewEvidenceRef>
+  200: Array<FiledReviewEvidence>
 }
 
 export type ListReviewEvidenceResponse =
@@ -44817,6 +45271,23 @@ export type GetReviewEvidenceContentData = {
 }
 
 export type GetReviewEvidenceContentResponses = {
+  /**
+   * Default Response
+   */
+  200: unknown
+}
+
+export type GetReviewEvidenceVideoComparisonPictureData = {
+  body?: never
+  path: {
+    projectId: string
+    evidenceId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/review-evidence/{evidenceId}/video-comparison/picture'
+}
+
+export type GetReviewEvidenceVideoComparisonPictureResponses = {
   /**
    * Default Response
    */
@@ -50994,7 +51465,7 @@ export type CreateChatMediaUrlData = {
      */
     path: string
     /**
-     * A still of that video, as its digest named it.
+     * A still or close-up of that video, as its digest named it.
      */
     still?: string
   }
@@ -51064,7 +51535,7 @@ export type GetChatMediaData = {
      */
     path?: string
     /**
-     * A still of that video, served instead.
+     * A still or close-up of that video, served instead.
      */
     still?: string
     /**
@@ -51103,6 +51574,110 @@ export type GetChatMediaErrors = {
 }
 
 export type GetChatMediaError = GetChatMediaErrors[keyof GetChatMediaErrors]
+
+export type GetChatVideoTimelineData = {
+  body?: never
+  path?: never
+  query: {
+    /**
+     * The video’s path, as its upload returned it.
+     */
+    path: string
+    /**
+     * The chat’s context, as JSON.
+     */
+    context: string
+  }
+  url: '/api/v1/chat-attachments/timeline'
+}
+
+export type GetChatVideoTimelineErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type GetChatVideoTimelineError = GetChatVideoTimelineErrors[keyof GetChatVideoTimelineErrors]
+
+export type GetChatVideoTimelineResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    state: 'not-started' | 'in-progress' | 'failed' | 'done'
+    stage?: 'probing' | 'picking-frames' | 'making-sheets' | 'transcribing' | 'ready' | 'failed'
+    percent?: number
+    reason?: string
+    durationSec?: number
+    width?: number
+    height?: number
+    language?: string
+    onEveryScreen: Array<string>
+    entries: Array<
+      | {
+          kind: 'still'
+          timeSec: number
+          file: string
+          text: Array<string>
+          /**
+           * The picture, relative to the server, needing no bearer; runs out at `expiresAt`.
+           */
+          url: string
+          closeUps: Array<{
+            file: string
+            place:
+              | 'top left'
+              | 'top'
+              | 'top right'
+              | 'left'
+              | 'middle'
+              | 'right'
+              | 'bottom left'
+              | 'bottom'
+              | 'bottom right'
+            box: {
+              x: number
+              y: number
+              width: number
+              height: number
+            }
+            text?: Array<string>
+            /**
+             * The picture, relative to the server, needing no bearer; runs out at `expiresAt`.
+             */
+            url: string
+          }>
+        }
+      | VideoTimelineSpeech
+      | VideoTimelineAction
+      | VideoTimelineSound
+    >
+    /**
+     * When the first picture URL stops working; none without any.
+     */
+    expiresAt?: string
+  }
+}
+
+export type GetChatVideoTimelineResponse =
+  GetChatVideoTimelineResponses[keyof GetChatVideoTimelineResponses]
 
 export type ListFilesData = {
   body?: never
@@ -55050,6 +55625,7 @@ export type SendCompletionWithToolsResponses = {
             }
             screenshotFile?: string
           }>
+          videoMarks?: Array<VideoMarkedMoment>
           answersHandoffFrom?: string
           backgroundResults?: Array<{
             jobId: string
@@ -55216,6 +55792,7 @@ export type SendChatCompletionWithToolsData = {
         }
         screenshotFile?: string
       }>
+      videoMarks?: Array<VideoMarkedMoment>
       answersHandoffFrom?: string
       backgroundResults?: Array<{
         jobId: string
@@ -55389,6 +55966,7 @@ export type SendChatCompletionWithToolsResponses = {
             }
             screenshotFile?: string
           }>
+          videoMarks?: Array<VideoMarkedMoment>
           answersHandoffFrom?: string
           backgroundResults?: Array<{
             jobId: string
@@ -55561,6 +56139,7 @@ export type SendChatWithCliData = {
         }
         screenshotFile?: string
       }>
+      videoMarks?: Array<VideoMarkedMoment>
       answersHandoffFrom?: string
       backgroundResults?: Array<{
         jobId: string
@@ -55915,6 +56494,7 @@ export type ResumeCompletionResponses = {
             }
             screenshotFile?: string
           }>
+          videoMarks?: Array<VideoMarkedMoment>
           answersHandoffFrom?: string
           backgroundResults?: Array<{
             jobId: string
@@ -61853,6 +62433,10 @@ export type ListGroupTicketsData = {
      */
     q?: string
     /**
+     * A tab’s id: the tickets in that tab, in board order, instead of a view.
+     */
+    tab?: string
+    /**
      * From the last answer, for the next page.
      */
     nextPageToken?: string
@@ -61944,6 +62528,35 @@ export type ListGroupTicketsResponses = {
          */
         files: number
       }
+      /**
+       * It is assigned to the person.
+       */
+      mine: boolean
+      /**
+       * The first of the group’s tabs it matches; absent for none.
+       */
+      tabId?: string
+      /**
+       * The sprint it is in.
+       */
+      sprint?: {
+        name: string
+        /**
+         * Active or future, not closed.
+         */
+        open: boolean
+      }
+      /**
+       * New replies by others to the person’s own update: in its Slack thread and on its pull requests. Absent until read.
+       */
+      replies?: {
+        slack: number
+        github: number
+        /**
+         * When the newest was written.
+         */
+        latest?: string
+      }
     }>
     /**
      * How many updates the group’s watched thread brought wait for the person, across all its tickets.
@@ -61954,6 +62567,12 @@ export type ListGroupTicketsResponses = {
      */
     nextTicketKey?: string
     nextPageToken?: string
+    /**
+     * How many tickets each tab holds, by tab id; a tab whose count failed is left out.
+     */
+    tabCounts?: {
+      [key: string]: number
+    }
   }
 }
 
@@ -62060,6 +62679,35 @@ export type PlanGroupTicketResponses = {
          * How many files came with it.
          */
         files: number
+      }
+      /**
+       * It is assigned to the person.
+       */
+      mine: boolean
+      /**
+       * The first of the group’s tabs it matches; absent for none.
+       */
+      tabId?: string
+      /**
+       * The sprint it is in.
+       */
+      sprint?: {
+        name: string
+        /**
+         * Active or future, not closed.
+         */
+        open: boolean
+      }
+      /**
+       * New replies by others to the person’s own update: in its Slack thread and on its pull requests. Absent until read.
+       */
+      replies?: {
+        slack: number
+        github: number
+        /**
+         * When the newest was written.
+         */
+        latest?: string
       }
     }
     /**
@@ -62182,6 +62830,35 @@ export type DiscussGroupTicketResponses = {
          */
         files: number
       }
+      /**
+       * It is assigned to the person.
+       */
+      mine: boolean
+      /**
+       * The first of the group’s tabs it matches; absent for none.
+       */
+      tabId?: string
+      /**
+       * The sprint it is in.
+       */
+      sprint?: {
+        name: string
+        /**
+         * Active or future, not closed.
+         */
+        open: boolean
+      }
+      /**
+       * New replies by others to the person’s own update: in its Slack thread and on its pull requests. Absent until read.
+       */
+      replies?: {
+        slack: number
+        github: number
+        /**
+         * When the newest was written.
+         */
+        latest?: string
+      }
     }
     /**
      * The ticket’s planning chat.
@@ -62201,6 +62878,322 @@ export type DiscussGroupTicketResponses = {
 
 export type DiscussGroupTicketResponse =
   DiscussGroupTicketResponses[keyof DiscussGroupTicketResponses]
+
+export type GetGroupTicketTabsData = {
+  body?: never
+  path: {
+    groupId: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/ticket-tabs'
+}
+
+export type GetGroupTicketTabsErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type GetGroupTicketTabsError = GetGroupTicketTabsErrors[keyof GetGroupTicketTabsErrors]
+
+export type GetGroupTicketTabsResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    tabs: Array<{
+      /**
+       * Lowercase letters, digits and dashes; unique in the group.
+       */
+      id: string
+      name: string
+      /**
+       * Status names it shows, any case; with `categories` empty too, any status.
+       */
+      statuses: Array<string>
+      /**
+       * Status categories it shows beside `statuses`: to do, in progress, done.
+       */
+      categories?: Array<'new' | 'indeterminate' | 'done'>
+      /**
+       * In an open sprint, in none, or either.
+       */
+      sprint: 'open' | 'not-open' | 'any'
+      /**
+       * What the person can do with a ticket from the tab.
+       */
+      yours: Array<'take' | 'carry-on' | 'discuss' | 'review' | 'replies' | 'approve-and-merge'>
+      /**
+       * What the person can do with a ticket from the tab.
+       */
+      others: Array<'take' | 'carry-on' | 'discuss' | 'review' | 'replies' | 'approve-and-merge'>
+    }>
+    /**
+     * False when these are the default tabs, by status category.
+     */
+    custom: boolean
+  }
+}
+
+export type GetGroupTicketTabsResponse =
+  GetGroupTicketTabsResponses[keyof GetGroupTicketTabsResponses]
+
+export type SetGroupTicketTabsData = {
+  body: {
+    /**
+     * The tabs, in order; [] goes back to the default ones.
+     */
+    tabs: Array<unknown>
+  }
+  path: {
+    groupId: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/ticket-tabs'
+}
+
+export type SetGroupTicketTabsErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type SetGroupTicketTabsError = SetGroupTicketTabsErrors[keyof SetGroupTicketTabsErrors]
+
+export type SetGroupTicketTabsResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    tabs: Array<{
+      /**
+       * Lowercase letters, digits and dashes; unique in the group.
+       */
+      id: string
+      name: string
+      /**
+       * Status names it shows, any case; with `categories` empty too, any status.
+       */
+      statuses: Array<string>
+      /**
+       * Status categories it shows beside `statuses`: to do, in progress, done.
+       */
+      categories?: Array<'new' | 'indeterminate' | 'done'>
+      /**
+       * In an open sprint, in none, or either.
+       */
+      sprint: 'open' | 'not-open' | 'any'
+      /**
+       * What the person can do with a ticket from the tab.
+       */
+      yours: Array<'take' | 'carry-on' | 'discuss' | 'review' | 'replies' | 'approve-and-merge'>
+      /**
+       * What the person can do with a ticket from the tab.
+       */
+      others: Array<'take' | 'carry-on' | 'discuss' | 'review' | 'replies' | 'approve-and-merge'>
+    }>
+    /**
+     * False when these are the default tabs, by status category.
+     */
+    custom: boolean
+  }
+}
+
+export type SetGroupTicketTabsResponse =
+  SetGroupTicketTabsResponses[keyof SetGroupTicketTabsResponses]
+
+export type GetGroupTicketOverviewData = {
+  body?: never
+  path: {
+    groupId: string
+    ticketKey: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/tickets/{ticketKey}/overview'
+}
+
+export type GetGroupTicketOverviewErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type GetGroupTicketOverviewError =
+  GetGroupTicketOverviewErrors[keyof GetGroupTicketOverviewErrors]
+
+export type GetGroupTicketOverviewResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    /**
+     * Absent when Jira would not give it; `problems` then names it.
+     */
+    ticket?: {
+      key: string
+      url: string
+      summary: string
+      status?: string
+      statusCategory?: string
+      priority?: string
+      /**
+       * Who it is assigned to, by name.
+       */
+      assignee?: string
+      /**
+       * The sprint it is in.
+       */
+      sprint?: {
+        name: string
+        /**
+         * Active or future, not closed.
+         */
+        open: boolean
+      }
+      /**
+       * As markdown.
+       */
+      description: string
+      updatedAt?: string
+      /**
+       * It is assigned to the person.
+       */
+      mine: boolean
+    }
+    /**
+     * The first of the group’s tabs it matches.
+     */
+    tabId?: string
+    /**
+     * What the person can do with a ticket from the tab.
+     */
+    actions: Array<'take' | 'carry-on' | 'discuss' | 'review' | 'replies' | 'approve-and-merge'>
+    /**
+     * The updates colleagues posted for it in the watched thread, newest first.
+     */
+    updates: Array<{
+      id: string
+      kind: 'first-round' | 'next-round'
+      author: string
+      postedAt: string
+      permalink: string
+      state: 'new' | 'started' | 'dismissed'
+      files: number
+      fileNames: Array<string>
+      text: string
+    }>
+    review?: {
+      rounds: Array<{
+        n: number
+        verdict?: 'approve' | 'approve-with-notes' | 'changes-requested'
+        startedAt: string
+        recordedAt?: string
+        postedReply?: {
+          permalink: string
+          postedAt: string
+        }
+        mergedMessage?: {
+          permalink: string
+          postedAt: string
+        }
+      }>
+      /**
+       * Findings still open after the latest round.
+       */
+      openFindings: number
+      runs: Array<{
+        id: string
+        status: string
+        round: number
+        projectId: string
+      }>
+    }
+    /**
+     * Those its review, updates and ticket link that could be read.
+     */
+    pullRequests: Array<{
+      url: string
+      /**
+       * `owner/repo`.
+       */
+      repo: string
+      number: number
+      title: string
+      state: 'open' | 'merged' | 'closed'
+      checks?: 'passing' | 'failing' | 'pending' | 'none'
+    }>
+    /**
+     * The group story working it.
+     */
+    story?: {
+      id: string
+      title: string
+      parts: Array<{
+        projectId: string
+        storyId: string
+        title?: string
+        status?: string
+      }>
+    }
+    /**
+     * Its own chat and its review chat, when open.
+     */
+    chats: Array<{
+      context: ChatContext
+      chatContextId: string
+      title?: string
+      updatedAt: string
+    }>
+    /**
+     * The parts that could not be read; each is left out or empty.
+     */
+    problems?: Array<'ticket' | 'tab' | 'updates' | 'review' | 'pullRequests' | 'story' | 'chats'>
+  }
+}
+
+export type GetGroupTicketOverviewResponse =
+  GetGroupTicketOverviewResponses[keyof GetGroupTicketOverviewResponses]
 
 export type GetColleagueReviewData = {
   body?: never
@@ -62896,6 +63889,7 @@ export type ClearColleagueReviewSourceResponses = {
        * How the round is reviewed: `inline` in the review chat, which ends the round on a decision card for the person; `process` as a run of the colleague review process, whose approval the person decides at, nothing posted or merged before they choose. The group’s default when absent, else inline. Both are refused (409) while a run still holds the review chat.
        */
       defaultMode?: 'inline' | 'process'
+      mergedTicketStatus?: string
     }
   }
 }
@@ -63009,6 +64003,7 @@ export type GetColleagueReviewSourceResponses = {
        * How the round is reviewed: `inline` in the review chat, which ends the round on a decision card for the person; `process` as a run of the colleague review process, whose approval the person decides at, nothing posted or merged before they choose. The group’s default when absent, else inline. Both are refused (409) while a run still holds the review chat.
        */
       defaultMode?: 'inline' | 'process'
+      mergedTicketStatus?: string
     }
   }
 }
@@ -63165,6 +64160,7 @@ export type SetColleagueReviewSourceResponses = {
        * How the round is reviewed: `inline` in the review chat, which ends the round on a decision card for the person; `process` as a run of the colleague review process, whose approval the person decides at, nothing posted or merged before they choose. The group’s default when absent, else inline. Both are refused (409) while a run still holds the review chat.
        */
       defaultMode?: 'inline' | 'process'
+      mergedTicketStatus?: string
     }
   }
 }
@@ -63190,6 +64186,10 @@ export type SetColleagueReviewSourceSettingsData = {
      * How the round is reviewed: `inline` in the review chat, which ends the round on a decision card for the person; `process` as a run of the colleague review process, whose approval the person decides at, nothing posted or merged before they choose. The group’s default when absent, else inline. Both are refused (409) while a run still holds the review chat.
      */
     defaultMode?: 'inline' | 'process'
+    /**
+     * The ticket status to move a ticket to once every pull request of its approved review merged, e.g. `In QA`; null or empty leaves tickets where they are.
+     */
+    mergedTicketStatus?: unknown | string
   }
   path: {
     groupId: string
@@ -63305,6 +64305,7 @@ export type SetColleagueReviewSourceSettingsResponses = {
        * How the round is reviewed: `inline` in the review chat, which ends the round on a decision card for the person; `process` as a run of the colleague review process, whose approval the person decides at, nothing posted or merged before they choose. The group’s default when absent, else inline. Both are refused (409) while a run still holds the review chat.
        */
       defaultMode?: 'inline' | 'process'
+      mergedTicketStatus?: string
     }
   }
 }

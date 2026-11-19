@@ -20,7 +20,8 @@ export type UseVideoPlayback = {
   isOpen: boolean
   /** A press can start it. False once a format is known not to play. */
   canPlay: boolean
-  play: (options?: { fullscreen?: boolean }) => void
+  /** Opens the card and plays, from `atSec` when given. */
+  play: (options?: { fullscreen?: boolean; atSec?: number }) => void
   collapse: () => void
   onMetadata: (frame: VideoFrame) => void
   /**
@@ -42,9 +43,9 @@ export function useVideoPlayback(
   const current = state.source
 
   const play = useCallback(
-    ({ fullscreen = false }: { fullscreen?: boolean } = {}) => {
+    ({ fullscreen = false, atSec }: { fullscreen?: boolean; atSec?: number } = {}) => {
       if (!source) return
-      dispatch({ type: 'open', fullscreen })
+      dispatch({ type: 'open', fullscreen, ...(atSec !== undefined ? { atSec } : {}) })
       void source.video().then((next) => {
         dispatch(next ? { type: 'source', source: next } : { type: 'failed', failure: 'load' })
       })

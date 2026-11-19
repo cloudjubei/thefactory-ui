@@ -162,6 +162,39 @@ describe('processTallyByProject', () => {
     expect(tally.get('p1')).toEqual({ running: 0, waiting: 0, failed: 0, unread: 0 })
   })
 
+  it('counts a run waiting on someone outside only once what it waits for came', () => {
+    const ask = {
+      kind: 'blocker' as const,
+      agent: 'host',
+      title: 'Waiting for a reply in Saif’s thread',
+      detail: 'Waits.',
+      outside: { awaits: 'a reply in Saif’s thread' },
+    }
+    const park = (arrived: boolean): ProcessRun['park'] => ({
+      reason: 'step-waiting',
+      message: 'Waiting',
+      parkedAt: 2,
+      ask: arrived
+        ? {
+            ...ask,
+            outside: {
+              ...ask.outside,
+              arrived: {
+                title: 'A-1: Saif replied',
+                detail: 'Fixed',
+                carryOnLabel: 'Start round 2',
+                at: 3,
+              },
+            },
+          }
+        : ask,
+    })
+    const waiting = processTallyByProject([run('r1', 'p1', 'parked', { park: park(false) })], NOW)
+    expect(waiting.get('p1')).toEqual({ running: 0, waiting: 0, failed: 0, unread: 0 })
+    const came = processTallyByProject([run('r1', 'p1', 'parked', { park: park(true) })], NOW)
+    expect(came.get('p1')).toEqual({ running: 0, waiting: 1, failed: 0, unread: 0 })
+  })
+
   it('counts approved work that was never brought in as waiting on the user', () => {
     const tally = processTallyByProject([run('r1', 'p1', 'succeeded', approvedWork())], NOW)
     expect(tally.get('p1')).toEqual({ running: 0, waiting: 1, failed: 0, unread: 0 })

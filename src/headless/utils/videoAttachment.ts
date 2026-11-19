@@ -27,6 +27,11 @@ function stageLine(stage: VideoPreparingStage, percent: number | undefined): str
   return percent === undefined ? label : `${label} ${Math.round(percent)}%`
 }
 
+/** A digest under way in one line: its stage and percent, the first stage until one is said. */
+export function videoStageLine(stage: VideoDigestStage | undefined, percent?: number): string {
+  return stageLine(stage && isPreparing(stage) ? stage : VIDEO_STAGE_ORDER[0], percent)
+}
+
 function videoCost(tokens: VideoTokenEstimate, rough: boolean): VideoCostView {
   const full = videoTokenNotice(tokens)
   const [read = full, closer = ''] = full.split(VIDEO_NOTICE_SEPARATOR)

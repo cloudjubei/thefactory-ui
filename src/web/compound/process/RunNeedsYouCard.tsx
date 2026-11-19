@@ -15,6 +15,8 @@ export const RUN_NEEDS_YOU_CARD_ID = 'run-needs-you'
 export type RunNeedsYouCardProps = {
   /** The step it stopped at, as chips — a feature's reference, then the step. */
   where: ReactNode
+  /** What the card is headed — "Needs you" unless the run waits on someone else. */
+  label?: string
   /** On hold for a stop, in review for a decision at a gate. */
   tone: 'on_hold' | 'review'
   /** Open the run's chat to ask the manager about it. */
@@ -30,6 +32,7 @@ export type RunNeedsYouCardProps = {
  */
 export default function RunNeedsYouCard({
   where,
+  label = PARK_ANSWERS_COPY.needsYou,
   tone,
   onAskManager,
   children,
@@ -38,7 +41,7 @@ export default function RunNeedsYouCard({
   return (
     <section
       id={RUN_NEEDS_YOU_CARD_ID}
-      aria-label={PARK_ANSWERS_COPY.needsYou}
+      aria-label={label}
       className={`flex scroll-mt-3 flex-col gap-2.5 rounded-xl px-4 py-3.5 sm:px-5 ${className}`}
       style={{
         background: `color-mix(in srgb, var(--status-${tone}-soft-bg) 55%, var(--surface-raised))`,
@@ -47,9 +50,7 @@ export default function RunNeedsYouCard({
     >
       <div className="flex flex-wrap items-center gap-2">
         {where}
-        <span className="text-[12px] font-semibold text-(--text-secondary)">
-          {PARK_ANSWERS_COPY.needsYou}
-        </span>
+        <span className="text-[12px] font-semibold text-(--text-secondary)">{label}</span>
         {onAskManager ? (
           <Button size="sm" variant="ghost" className="ml-auto gap-1.5" onClick={onAskManager}>
             <IconChat className="size-3.5" />

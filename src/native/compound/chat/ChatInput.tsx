@@ -26,6 +26,7 @@ import { Modal } from '../../primitives/Modal'
 import { Button } from '../../primitives/Button'
 import DictationWave from './DictationWave'
 import { isImageAttachment } from '../../../headless/utils/chatDrop'
+import { videoMarkVideos } from '../../../headless/utils/videoMarks'
 import ChatUploadStrip from './ChatUploadStrip'
 import ChatVideoAttachment from './ChatVideoAttachment'
 import type { NativeAttachmentImages } from './chatNativeTypes'
@@ -203,7 +204,13 @@ export default function ChatInput({
     if (autoFocus) inputRef.current?.focus()
   }, [autoFocus])
 
-  const hasContent = value.trim().length > 0 || attachments.length > 0 || appSelections.length > 0
+  const markedVideos = videoAttachments?.marks ? videoMarkVideos(videoAttachments.marks.items) : []
+  const markedElsewhere = markedVideos.filter((path) => !attachments.includes(path))
+  const hasContent =
+    value.trim().length > 0 ||
+    attachments.length > 0 ||
+    appSelections.length > 0 ||
+    markedVideos.length > 0
   const thinkingBlocks = isThinking && (!queueWhileThinking || appSelections.length > 0)
   const canSend = useMemo(
     () =>
@@ -219,7 +226,10 @@ export default function ChatInput({
   const send = useCallback(
     async (text: string, meta?: { reason?: SendReason }) => {
       if (
-        (!text.trim() && attachments.length === 0 && appSelections.length === 0) ||
+        (!text.trim() &&
+          attachments.length === 0 &&
+          appSelections.length === 0 &&
+          markedVideos.length === 0) ||
         thinkingBlocks ||
         submitting ||
         !isConfigured ||
@@ -250,6 +260,7 @@ export default function ChatInput({
       onSend,
       value,
       appSelections,
+      markedVideos.length,
       onChangeAppSelections,
       disconnected,
       attachments,
@@ -357,6 +368,22 @@ export default function ChatInput({
                 place="composer"
                 {...(onChangeAttachments ? { onRemove: () => removePath(path) } : {})}
                 fallback={pill(path, path)}
+              />
+            ))
+          : null}
+
+        {videoAttachments
+          ? markedElsewhere.map((path) => (
+              <ChatVideoAttachment
+                key={path}
+                path={path}
+                chat={videoAttachments}
+                place="composer"
+                fallback={
+                  <Text key={path} style={{ fontSize: 12, color: theme.text.secondary }}>
+                    {attachmentDisplayName(path)}
+                  </Text>
+                }
               />
             ))
           : null}

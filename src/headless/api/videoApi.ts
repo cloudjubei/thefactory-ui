@@ -1,5 +1,6 @@
 import type { VideoInstallableTool } from 'thefactory-tools/types'
 import type { ChatVideoDigest } from '../utils/videoAttachmentTypes'
+import type { ChatVideoTimeline } from '../utils/videoTimelineTypes'
 import type {
   VideoSetupChat,
   VideoSetupState,
@@ -19,6 +20,22 @@ export async function readChatVideoDigest(
     throwOnError: true,
   })
   return data as ChatVideoDigest
+}
+
+/**
+ * A chat video's timeline, its pictures by signed URL. Written by hand until the SDK is generated
+ * from `getChatVideoTimeline`.
+ */
+export async function readChatVideoTimeline(
+  context: ChatContext,
+  path: string,
+): Promise<ChatVideoTimeline> {
+  const { data } = await client.get({
+    url: '/api/v1/chat-attachments/timeline',
+    query: { path, context: JSON.stringify(context) },
+    throwOnError: true,
+  })
+  return data as ChatVideoTimeline
 }
 
 /** Where a player reads a chat's video, and its still, without a bearer: relative to the server. */

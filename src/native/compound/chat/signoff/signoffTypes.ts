@@ -23,6 +23,12 @@ export type SaveFileHandler = (file: SaveFileRequest) => void | Promise<void>
 /** What a chat video's card asks of the player playing it. */
 export type InlineVideoHandle = {
   enterFullscreen: () => void
+  /** Plays on from that moment: the timeline's times and a mark's row. */
+  seek?: (atSec: number) => void
+  /** Stops where it is, for the flag. */
+  pause?: () => void
+  /** Where the playhead is now. */
+  time?: () => number
 }
 
 /** A chat video for the host's player, streamed from a signed URL. */
@@ -36,6 +42,8 @@ export type InlineVideo = {
   /** The player gave up, in the player's words, at that time. */
   onFailed: (message: string, atSec: number) => void
   onPlayingChange: (playing: boolean) => void
+  /** Where the playhead is, as it moves. */
+  onTimeChange?: (atSec: number) => void
 }
 
 /**

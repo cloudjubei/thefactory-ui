@@ -831,13 +831,14 @@ function MessageRow({
           </View>
         )}
 
-        {(isUser || isAssistant) && files?.length ? (
+        {(isUser || isAssistant) && (files?.length || msg.videoMarks?.length) ? (
           <MessageFiles
-            paths={files}
+            paths={files ?? []}
             align={isUser ? 'end' : 'start'}
             {...(attachmentImages ? { images: attachmentImages } : {})}
             {...(videoAttachments ? { videoAttachments } : {})}
             {...(isAssistant && fileSaving ? { saving: fileSaving } : {})}
+            {...(msg.videoMarks?.length ? { videoMarks: msg.videoMarks } : {})}
           />
         ) : null}
 

@@ -665,14 +665,15 @@ function MessageRow({
             </div>
           ) : null}
 
-          {(isUser || isAssistant) && msg.files?.length ? (
+          {(isUser || isAssistant) && (msg.files?.length || msg.videoMarks?.length) ? (
             <MessageFiles
-              paths={msg.files}
+              paths={msg.files ?? []}
               align={isUser ? 'end' : 'start'}
               keyPrefix={String(globalIndex)}
               {...(getAttachmentPreviewUrl ? { getPreviewUrl: getAttachmentPreviewUrl } : {})}
               {...(videoAttachments ? { videoAttachments } : {})}
               {...(isAssistant && fileSaving ? { saving: fileSaving } : {})}
+              {...(msg.videoMarks?.length ? { videoMarks: msg.videoMarks } : {})}
             />
           ) : null}
 

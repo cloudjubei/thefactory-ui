@@ -1,6 +1,6 @@
 import { VIDEO_REASON_NO_FFMPEG, VIDEO_REASON_TIMED_OUT } from 'thefactory-tools/constants'
 import { describe, expect, it } from 'vitest'
-import { videoAttachmentView, videoCostLabel } from './videoAttachment'
+import { videoAttachmentView, videoCostLabel, videoStageLine } from './videoAttachment'
 import type { ChatVideoDigest } from './videoAttachmentTypes'
 
 const TOKENS = { overviewTokens: 6200, closerLookTokens: 1600 }
@@ -132,5 +132,16 @@ describe('videoCostLabel', () => {
 
   it('says when the figure is rough', () => {
     expect(videoCostLabel({ ...cost, rough: true }, true)).toBe('Rough: ≈ 6.2k tokens to read')
+  })
+})
+
+describe('videoStageLine', () => {
+  it('says the stage and its percent', () => {
+    expect(videoStageLine('transcribing', 18.6)).toBe('Transcribing 19%')
+  })
+
+  it('reads as the first stage when none under way is said', () => {
+    expect(videoStageLine(undefined)).toBe('Checking')
+    expect(videoStageLine('ready', 10)).toBe('Checking 10%')
   })
 })

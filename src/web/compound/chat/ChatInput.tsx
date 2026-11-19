@@ -33,6 +33,7 @@ import {
 import DictationWave from './DictationWave'
 import { PENDING_STACK_TEXT } from '../../../headless/utils/chatDraftConstants'
 import { isImageAttachment } from '../../../headless/utils/chatDrop'
+import { videoMarkVideos } from '../../../headless/utils/videoMarks'
 import ChatUploadStrip from './ChatUploadStrip'
 import ChatVideoAttachment from './ChatVideoAttachment'
 import { useChatDropTarget } from './ChatDropController'
@@ -158,6 +159,8 @@ export default function ChatInput({
 }: ChatInputProps) {
   const safeValue = value ?? ''
   const safeAttachments = attachments ?? []
+  const markedVideos = videoAttachments?.marks ? videoMarkVideos(videoAttachments.marks.items) : []
+  const markedElsewhere = markedVideos.filter((path) => !safeAttachments.includes(path))
   const uploads = useChatUploads(attachmentUploads)
   const holdingForUpload = isChatUploading(uploads)
 
@@ -429,7 +432,10 @@ export default function ChatInput({
     if (holdingForUpload) return
     if (
       !isConfigured ||
-      (!safeValue.trim() && safeAttachments.length === 0 && appSelections.length === 0)
+      (!safeValue.trim() &&
+        safeAttachments.length === 0 &&
+        appSelections.length === 0 &&
+        markedVideos.length === 0)
     )
       return
     if (selectionSendingRef.current) return
@@ -564,7 +570,10 @@ export default function ChatInput({
   )
 
   const canSend =
-    (safeValue.trim().length > 0 || safeAttachments.length > 0 || appSelections.length > 0) &&
+    (safeValue.trim().length > 0 ||
+      safeAttachments.length > 0 ||
+      appSelections.length > 0 ||
+      markedVideos.length > 0) &&
     isConfigured &&
     !holdingForUpload &&
     !submittingSelection &&
@@ -711,9 +720,14 @@ export default function ChatInput({
             </div>
 
             {/* Attachments + bottom hints */}
-            {(safeAttachments.length > 0 || failedUploads.length > 0 || showHints) && (
+            {(safeAttachments.length > 0 ||
+              failedUploads.length > 0 ||
+              markedElsewhere.length > 0 ||
+              showHints) && (
               <div className="px-2 py-1.5 border-t border-(--border-subtle)">
-                {safeAttachments.length > 0 || failedUploads.length > 0 ? (
+                {safeAttachments.length > 0 ||
+                failedUploads.length > 0 ||
+                markedElsewhere.length > 0 ? (
                   <div className="flex flex-wrap gap-1 mb-2">
                     {failedUploads.map((upload) => (
                       <FailedUploadChip
@@ -771,6 +785,21 @@ export default function ChatInput({
                         />
                       )
                     })}
+                    {videoAttachments
+                      ? markedElsewhere.map((path) => (
+                          <ChatVideoAttachment
+                            key={path}
+                            path={path}
+                            chat={videoAttachments}
+                            place="composer"
+                            fallback={
+                              <span className="inline-flex items-center rounded-full border border-(--border-subtle) bg-(--surface-overlay) px-2 py-[1px] text-[11px] text-(--text-secondary)">
+                                {attachmentDisplayName(path)}
+                              </span>
+                            }
+                          />
+                        ))
+                      : null}
                   </div>
                 ) : null}
 

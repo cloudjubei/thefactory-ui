@@ -28,12 +28,12 @@ export type VideoPlaybackState = {
   failure?: VideoFailure
   /** Full screen was asked for and the player has yet to take it up. */
   fullscreenPending: boolean
-  /** Where to carry on from, after a URL ran out mid-way. */
+  /** Where to start from: a moment asked for, or where it was when a URL ran out mid-way. */
   startAtSec?: number
 }
 
 export type VideoPlaybackAction =
-  | { type: 'open'; fullscreen: boolean }
+  | { type: 'open'; fullscreen: boolean; atSec?: number }
   | { type: 'source'; source: VideoSource }
   | { type: 'metadata'; frame: VideoFrame }
   | { type: 'failed'; failure: VideoFailure }

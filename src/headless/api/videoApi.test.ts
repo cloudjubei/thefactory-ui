@@ -6,6 +6,7 @@ import {
   installVideoSetupTool,
   openVideoSetupChat,
   readChatVideoDigest,
+  readChatVideoTimeline,
   readVideoSetup,
   stopVideoSetupJob,
 } from './videoApi'
@@ -22,6 +23,19 @@ describe('readChatVideoDigest', () => {
     await expect(readChatVideoDigest(CONTEXT, 'a/b.mp4')).resolves.toEqual({ stage: 'ready' })
     expect(get).toHaveBeenCalledWith({
       url: '/api/v1/chat-attachments/digest',
+      query: { path: 'a/b.mp4', context: JSON.stringify(CONTEXT) },
+      throwOnError: true,
+    })
+  })
+})
+
+describe('readChatVideoTimeline', () => {
+  it('asks by path, with the chat as JSON', async () => {
+    const timeline = { state: 'done', onEveryScreen: [], entries: [] }
+    const get = vi.spyOn(client, 'get').mockResolvedValue({ data: timeline } as never)
+    await expect(readChatVideoTimeline(CONTEXT, 'a/b.mp4')).resolves.toBe(timeline)
+    expect(get).toHaveBeenCalledWith({
+      url: '/api/v1/chat-attachments/timeline',
       query: { path: 'a/b.mp4', context: JSON.stringify(CONTEXT) },
       throwOnError: true,
     })

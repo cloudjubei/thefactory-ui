@@ -7,6 +7,7 @@ import { isGitReauthorizationResponse } from './gitCredentialReauthorization'
 import type { GrepHit, GrepResult, LastCoverageRaw, LastTestsRunRaw } from './sdkTypes'
 import { GIT_HOOK_REJECTED_ERROR_CODE } from 'thefactory-tools/constants'
 import { GIT_REF_UNAVAILABLE_CODE } from '../utils/commitDetailsConstants'
+import { VIDEO_MARK_REFUSED_CODE } from '../utils/videoMarksConstants'
 
 /** True when a `last-*` test endpoint returned a real run (not the empty placeholder). */
 export function isTestRun(value: LastTestsRunRaw): value is TestsResult {
@@ -112,6 +113,12 @@ export function isGitRefUnavailableResponse(err: unknown): boolean {
 export function gitHookRejection(err: unknown): string | undefined {
   const se = extractServerError(err, '')
   return se.code === GIT_HOOK_REJECTED_ERROR_CODE ? se.message : undefined
+}
+
+/** Why a send was refused over one of the moments it marks, when that is what stopped it. */
+export function videoMarkRefusal(err: unknown): string | undefined {
+  const se = extractServerError(err, '')
+  return se.code === VIDEO_MARK_REFUSED_CODE ? se.message : undefined
 }
 
 /**

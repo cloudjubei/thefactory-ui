@@ -1,4 +1,6 @@
+import type { VideoMarkedMoment } from 'thefactory-tools/types'
 import { isVideoPath } from 'thefactory-tools/utils'
+import { withMarkedVideos } from '../../../headless/utils/videoMarks'
 import { isImageAttachment } from '../../../headless/utils/chatDrop'
 import type { ChatFileSaving } from '../../../headless/utils/chatFileSaveTypes'
 import type { ChatVideoAttachments } from '../../../headless/utils/videoAttachmentTypes'
@@ -16,12 +18,15 @@ export type MessageFilesProps = {
   videoAttachments?: ChatVideoAttachments
   /** Files an agent showed: each offers "Save to project". */
   saving?: ChatFileSaving
+  /** The moments the message marked: each marked video shows, with its marks under it. */
+  videoMarks?: VideoMarkedMoment[]
 }
 
 /**
  * The files on a message, under it: images as thumbnails, videos as posters,
  * the rest as chips that open the document preview. Files an agent showed
- * carry Save to project on the thumbnail or poster, and in the preview.
+ * carry Save to project on the thumbnail or poster, and in the preview. A video
+ * the message marked shows too, sent with it or before, its marks under it.
  */
 export default function MessageFiles({
   paths,
@@ -30,6 +35,7 @@ export default function MessageFiles({
   getPreviewUrl,
   videoAttachments,
   saving,
+  videoMarks,
 }: MessageFilesProps) {
   const save = saving ? { saving } : {}
   const read = getPreviewUrl ? { getPreviewUrl } : {}
@@ -40,7 +46,7 @@ export default function MessageFiles({
         align === 'end' ? 'justify-end' : 'justify-start',
       ].join(' ')}
     >
-      {paths.map((path, i) => {
+      {withMarkedVideos(paths, videoAttachments ? videoMarks : undefined).map((path, i) => {
         const key = `${keyPrefix}-att-${i}-${path}`
         if (getPreviewUrl && isImageAttachment(path)) {
           return (
@@ -56,6 +62,7 @@ export default function MessageFiles({
             chat={videoAttachments}
             place="sent"
             fallback={chip}
+            {...(videoMarks?.length ? { sentMarks: videoMarks } : {})}
             {...(saving
               ? { actions: <ChatFileSaveButton source={path} saving={saving} variant="overlay" /> }
               : {})}

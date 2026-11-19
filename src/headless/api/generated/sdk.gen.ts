@@ -420,6 +420,9 @@ import type {
   GetChatSummaryResponses,
   GetChatTurnData,
   GetChatTurnResponses,
+  GetChatVideoTimelineData,
+  GetChatVideoTimelineErrors,
+  GetChatVideoTimelineResponses,
   GetCliAgentRunData,
   GetCliAgentRunErrors,
   GetCliAgentRunResponses,
@@ -509,6 +512,12 @@ import type {
   GetGroupStoryData,
   GetGroupStoryErrors,
   GetGroupStoryResponses,
+  GetGroupTicketOverviewData,
+  GetGroupTicketOverviewErrors,
+  GetGroupTicketOverviewResponses,
+  GetGroupTicketTabsData,
+  GetGroupTicketTabsErrors,
+  GetGroupTicketTabsResponses,
   GetKnowledgeEvaluationSettingsData,
   GetKnowledgeEvaluationSettingsErrors,
   GetKnowledgeEvaluationSettingsResponses,
@@ -632,6 +641,8 @@ import type {
   GetReviewEvidenceContentResponses,
   GetReviewEvidenceDiffData,
   GetReviewEvidenceDiffResponses,
+  GetReviewEvidenceVideoComparisonPictureData,
+  GetReviewEvidenceVideoComparisonPictureResponses,
   GetRunDiagnosticsData,
   GetRunDiagnosticsErrors,
   GetRunDiagnosticsResponses,
@@ -1323,6 +1334,9 @@ import type {
   SetGroupMcpServerTokenData,
   SetGroupMcpServerTokenErrors,
   SetGroupMcpServerTokenResponses,
+  SetGroupTicketTabsData,
+  SetGroupTicketTabsErrors,
+  SetGroupTicketTabsResponses,
   SetOverseerRemoteData,
   SetOverseerRemoteResponses,
   SetProcessRunCleanupItemData,
@@ -3645,7 +3659,7 @@ export const checkpointScriptHost = <ThrowOnError extends boolean = false>(
   })
 
 /**
- * What was filed for a project. A filing a fresh retry replaced carries `supersededBy` — the run, attempt and step that replaced it — and stays readable.
+ * What was filed for a project. A filing a fresh retry replaced carries `supersededBy` — the run, attempt and step that replaced it — and stays readable. An after recording with a before of its subject under its run carries `videoComparison`: `comparing` until it is made, then `compared` — its picture at `getReviewEvidenceVideoComparisonPicture` — or `failed` with the reason.
  */
 export const listReviewEvidence = <ThrowOnError extends boolean = false>(
   options: Options<ListReviewEvidenceData, ThrowOnError>,
@@ -3702,6 +3716,22 @@ export const getReviewEvidenceContent = <ThrowOnError extends boolean = false>(
   (options.client ?? client).get<GetReviewEvidenceContentResponses, unknown, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/projects/{projectId}/review-evidence/{evidenceId}/content',
+    ...options,
+  })
+
+/**
+ * The side-by-side picture of an after recording’s comparison with its before: matching moments in rows, before on the left. 404 until the comparison is made, and for one that failed.
+ */
+export const getReviewEvidenceVideoComparisonPicture = <ThrowOnError extends boolean = false>(
+  options: Options<GetReviewEvidenceVideoComparisonPictureData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetReviewEvidenceVideoComparisonPictureResponses,
+    unknown,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/review-evidence/{evidenceId}/video-comparison/picture',
     ...options,
   })
 
@@ -5692,7 +5722,7 @@ export const readChatAttachment = <ThrowOnError extends boolean = false>(
   })
 
 /**
- * A short-lived signed URL for one of a chat’s videos and, beside it, for a still of it. They need no bearer, so a `<video>` or `<img>` can use them; the path is relative to the server.
+ * A short-lived signed URL for one of a chat’s videos, or a video its story names, and, beside it, for a still or close-up of it. They need no bearer, so a `<video>` or `<img>` can use them; the path is relative to the server.
  */
 export const createChatMediaUrl = <ThrowOnError extends boolean = false>(
   options: Options<CreateChatMediaUrlData, ThrowOnError>,
@@ -5721,6 +5751,23 @@ export const getChatMedia = <ThrowOnError extends boolean = false>(
   (options?.client ?? client).get<unknown, GetChatMediaErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/chat-attachments/media',
+    ...options,
+  })
+
+/**
+ * The timeline of one of a chat’s videos, or of a video its story names: every still, stretch of speech, action and sound in time order, each still and close-up with a short-lived signed URL that needs no bearer, as `POST /chat-attachments/media-url` gives. Until the digest is made it has no entries and says how it is getting on.
+ */
+export const getChatVideoTimeline = <ThrowOnError extends boolean = false>(
+  options: Options<GetChatVideoTimelineData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetChatVideoTimelineResponses,
+    GetChatVideoTimelineErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/chat-attachments/timeline',
     ...options,
   })
 
@@ -8499,7 +8546,7 @@ export const listProjectGroupStories = <ThrowOnError extends boolean = false>(
   })
 
 /**
- * The tickets assigned to the person in the open sprint, in board order, within the group’s Jira binding, each marked with the group story already working it.
+ * The group’s tickets within its Jira binding, in board order: one of its tabs (`tab`), or by default the person’s in the open sprint. Each is marked with the group story already working it, its tab, its sprint and whether it is the person’s; the answer counts each tab’s tickets.
  */
 export const listGroupTickets = <ThrowOnError extends boolean = false>(
   options: Options<ListGroupTicketsData, ThrowOnError>,
@@ -8547,6 +8594,61 @@ export const discussGroupTicket = <ThrowOnError extends boolean = false>(
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  })
+
+/**
+ * The tabs the group’s ticket list shows, in order: its own, or the default ones by status category (`custom: false`).
+ */
+export const getGroupTicketTabs = <ThrowOnError extends boolean = false>(
+  options: Options<GetGroupTicketTabsData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetGroupTicketTabsResponses,
+    GetGroupTicketTabsErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/ticket-tabs',
+    ...options,
+  })
+
+/**
+ * Set the tabs the group’s ticket list shows, in order: each a name, the statuses or status categories it shows, its sprint rule, and the actions on the person’s own tickets and on everyone else’s. An empty list goes back to the default tabs.
+ */
+export const setGroupTicketTabs = <ThrowOnError extends boolean = false>(
+  options: Options<SetGroupTicketTabsData, ThrowOnError>,
+) =>
+  (options.client ?? client).put<
+    SetGroupTicketTabsResponses,
+    SetGroupTicketTabsErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/ticket-tabs',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Everything about one ticket, in one read: the ticket, its tab and the person’s actions there, the updates colleagues posted for it, its review round by round with its runs, its pull requests as they stand, the group story working it and its open chats. A part that cannot be read is left out and named in `problems`.
+ */
+export const getGroupTicketOverview = <ThrowOnError extends boolean = false>(
+  options: Options<GetGroupTicketOverviewData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetGroupTicketOverviewResponses,
+    GetGroupTicketOverviewErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/tickets/{ticketKey}/overview',
+    ...options,
   })
 
 /**

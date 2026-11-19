@@ -20,6 +20,13 @@ import type {
   PendingTurnStep,
   StoredChatDraft,
 } from './chatDraftTypes'
+import {
+  mergeVideoMarks,
+  videoMarksOf,
+  withVideoMarkRefusal,
+  withoutVideoMarkRefusals,
+} from './videoMarks'
+import type { ChatVideoMarkDraft } from './videoMarksTypes'
 
 /** What was taken out of a draft to send — handed back by {@link restoreUnsent} if the send fails. */
 export type TakenChatDraft = {
@@ -38,7 +45,19 @@ export function chatDraftStorageKey(chatKey: string): string {
 }
 
 function hasContent(message: OutgoingChatMessage): boolean {
-  return message.text.trim().length > 0 || message.attachments.length > 0
+  return (
+    message.text.trim().length > 0 ||
+    message.attachments.length > 0 ||
+    (message.videoMarks?.length ?? 0) > 0
+  )
+}
+
+/** The value with these marks, or with no `videoMarks` at all when there are none. */
+function withMarks<T extends object>(value: T, marks: ChatVideoMarkDraft[]): T {
+  const next: T & { videoMarks?: ChatVideoMarkDraft[] } = { ...value }
+  if (marks.length > 0) next.videoMarks = marks
+  else delete next.videoMarks
+  return next
 }
 
 export function isEmptyChatDraft(draft: ChatDraft): boolean {
@@ -58,7 +77,10 @@ function joinTexts(first: string, second: string): string {
 /** The stored form of a draft, or `null` when there is nothing worth keeping. */
 export function serializeChatDraft(draft: ChatDraft, now: number): string | null {
   if (isEmptyChatDraft(draft)) return null
-  const stored: StoredChatDraft = { ...draft, savedAt: now }
+  const stored: StoredChatDraft = withMarks(
+    { ...draft, savedAt: now },
+    withoutVideoMarkRefusals(draft.videoMarks ?? []),
+  )
   return JSON.stringify(stored)
 }
 
@@ -71,13 +93,12 @@ function pendingOf(value: unknown): PendingChatMessage[] {
   const items: PendingChatMessage[] = []
   for (const entry of value) {
     if (typeof entry !== 'object' || entry === null) continue
-    const { id, text, attachments } = entry as Record<string, unknown>
+    const { id, text, attachments, videoMarks } = entry as Record<string, unknown>
     if (typeof id !== 'string') continue
-    const parsed = {
-      id,
-      text: typeof text === 'string' ? text : '',
-      attachments: stringsOf(attachments),
-    }
+    const parsed = withMarks(
+      { id, text: typeof text === 'string' ? text : '', attachments: stringsOf(attachments) },
+      videoMarksOf(videoMarks),
+    )
     if (hasContent(parsed)) items.push(parsed)
   }
   return items
@@ -103,31 +124,34 @@ export function parseChatDraft(
   const stored = value as Record<string, unknown>
   if (typeof stored.savedAt !== 'number') return null
   if (now - stored.savedAt > maxAgeMs) return null
-  const draft: ChatDraft = {
-    text: typeof stored.text === 'string' ? stored.text : '',
-    attachments: stringsOf(stored.attachments),
-    pending: pendingOf(stored.pending),
-    paused: stored.paused === true,
-  }
+  const draft: ChatDraft = withMarks(
+    {
+      text: typeof stored.text === 'string' ? stored.text : '',
+      attachments: stringsOf(stored.attachments),
+      pending: pendingOf(stored.pending),
+      paused: stored.paused === true,
+    },
+    videoMarksOf(stored.videoMarks),
+  )
   return isEmptyChatDraft(draft) ? null : draft
 }
 
-/** Queue a message sent while the agent is busy, clearing the composer it came from. */
+/**
+ * Queue a message sent while the agent is busy, clearing the composer it came from. The
+ * composer's marks go with it, as they were made for this message.
+ */
 export function enqueueMessage(
   draft: ChatDraft,
   id: string,
   message: OutgoingChatMessage,
 ): ChatDraft {
-  if (!hasContent(message)) return draft
-  return {
-    ...draft,
-    text: '',
-    attachments: [],
-    pending: [
-      ...draft.pending,
-      { id, text: message.text.trim(), attachments: uniqueInOrder(message.attachments) },
-    ],
-  }
+  const marks = withoutVideoMarkRefusals(mergeVideoMarks(message.videoMarks, draft.videoMarks))
+  if (!hasContent({ ...message, videoMarks: marks })) return draft
+  const queued = withMarks(
+    { id, text: message.text.trim(), attachments: uniqueInOrder(message.attachments) },
+    marks,
+  )
+  return withMarks({ ...draft, text: '', attachments: [], pending: [...draft.pending, queued] }, [])
 }
 
 function withoutPending(draft: ChatDraft, id: string): ChatDraft {
@@ -139,11 +163,14 @@ function withoutPending(draft: ChatDraft, id: string): ChatDraft {
 export function editPendingMessage(draft: ChatDraft, id: string): ChatDraft {
   const target = draft.pending.find((p) => p.id === id)
   if (!target) return draft
-  return {
-    ...withoutPending(draft, id),
-    text: joinTexts(draft.text, target.text),
-    attachments: uniqueInOrder([...draft.attachments, ...target.attachments]),
-  }
+  return withMarks(
+    {
+      ...withoutPending(draft, id),
+      text: joinTexts(draft.text, target.text),
+      attachments: uniqueInOrder([...draft.attachments, ...target.attachments]),
+    },
+    mergeVideoMarks(draft.videoMarks, target.videoMarks),
+  )
 }
 
 export function removePendingMessage(draft: ChatDraft, id: string): ChatDraft {
@@ -161,12 +188,17 @@ export function mergeOutgoing(
 ): OutgoingChatMessage {
   const texts: string[] = []
   const attachments: string[] = []
+  let marks: ChatVideoMarkDraft[] = []
   for (const message of messages) {
     const text = message.text.trim()
     if (text.length > 0) texts.push(canonicalize(text))
     attachments.push(...message.attachments)
+    marks = mergeVideoMarks(marks, message.videoMarks)
   }
-  return { text: texts.join(PENDING_MESSAGE_SEPARATOR), attachments: uniqueInOrder(attachments) }
+  return withMarks(
+    { text: texts.join(PENDING_MESSAGE_SEPARATOR), attachments: uniqueInOrder(attachments) },
+    withoutVideoMarkRefusals(marks),
+  )
 }
 
 /** Everything in the draft — the queue, then the composer — as one message, leaving the draft empty. */
@@ -175,7 +207,10 @@ export function takeOutgoing(
   canonicalize: (text: string) => string,
 ): ChatDraftTake {
   const composer: OutgoingChatMessage | null = hasContent(draft)
-    ? { text: draft.text, attachments: draft.attachments }
+    ? withMarks(
+        { text: draft.text, attachments: draft.attachments },
+        withoutVideoMarkRefusals(draft.videoMarks ?? []),
+      )
     : null
   return {
     message: mergeOutgoing([...draft.pending, ...(composer ? [composer] : [])], canonicalize),
@@ -204,14 +239,27 @@ export function takePending(
 export function restoreUnsent(draft: ChatDraft, taken: TakenChatDraft): ChatDraft {
   if (taken.pending.length === 0 && !taken.composer) return draft
   const composer = taken.composer
-  return {
-    text: composer ? joinTexts(composer.text, draft.text) : draft.text,
-    attachments: composer
-      ? uniqueInOrder([...composer.attachments, ...draft.attachments])
-      : draft.attachments,
-    pending: [...taken.pending, ...draft.pending],
-    paused: taken.pending.length > 0 ? true : draft.paused,
-  }
+  return withMarks(
+    {
+      text: composer ? joinTexts(composer.text, draft.text) : draft.text,
+      attachments: composer
+        ? uniqueInOrder([...composer.attachments, ...draft.attachments])
+        : draft.attachments,
+      pending: [...taken.pending, ...draft.pending],
+      paused: taken.pending.length > 0 ? true : draft.paused,
+    },
+    mergeVideoMarks(composer?.videoMarks, draft.videoMarks),
+  )
+}
+
+/** The draft with the composer's marks set to these. */
+export function setDraftVideoMarks(draft: ChatDraft, marks: ChatVideoMarkDraft[]): ChatDraft {
+  return withMarks(draft, marks)
+}
+
+/** The draft with a refused send's reason by the composer's mark it is about. */
+export function refuseDraftVideoMark(draft: ChatDraft, reason: string): ChatDraft {
+  return withMarks(draft, withVideoMarkRefusal(draft.videoMarks ?? [], reason))
 }
 
 export function isComposerBlocked(blockers: ChatComposerBlockers): boolean {

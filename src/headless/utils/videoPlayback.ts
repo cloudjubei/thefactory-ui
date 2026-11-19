@@ -36,7 +36,12 @@ export function videoPlaybackReducer(
   switch (action.type) {
     case 'open':
       if (state.failure === 'format') return state
-      return { ...backToPoster(state), stage: 'opening', fullscreenPending: action.fullscreen }
+      return {
+        ...backToPoster(state),
+        stage: 'opening',
+        fullscreenPending: action.fullscreen,
+        ...(action.atSec !== undefined ? { startAtSec: action.atSec } : {}),
+      }
     case 'source':
       if (state.stage !== 'opening') return state
       return { ...state, stage: 'playing', source: action.source }

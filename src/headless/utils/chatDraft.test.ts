@@ -11,7 +11,9 @@ import {
   pendingSendNowMode,
   pendingStackView,
   pendingTurnStep,
+  refuseDraftVideoMark,
   removePendingMessage,
+  setDraftVideoMarks,
   restoreUnsent,
   serializeChatDraft,
   takeOutgoing,
@@ -545,5 +547,122 @@ describe('pendingStackView', () => {
     expect(view.status).toBe(PENDING_STACK_TEXT.idle)
     expect(view.sendLabel).toBe(PENDING_STACK_TEXT.send)
     expect(view.title).toBe('3 pending')
+  })
+})
+
+describe('video marks in the draft', () => {
+  const VIDEO = 'attachments/checkout-bug.mov'
+  const mark = (timeSec: number, note = '') => ({ video: VIDEO, timeSec, note })
+
+  it('counts a draft holding only marks as something to keep and send', () => {
+    expect(isEmptyChatDraft(draft({ videoMarks: [mark(6)] }))).toBe(false)
+  })
+
+  it('keeps marks through storage, but not why a send was refused', () => {
+    const full = draft({
+      text: 'here',
+      videoMarks: [{ ...mark(6), refusal: 'no' }, mark(13.2, 'declined')],
+      pending: [{ ...item('1', 'queued'), videoMarks: [mark(2)] }],
+    })
+    expect(parseChatDraft(serializeChatDraft(full, NOW), NOW)).toEqual(
+      draft({
+        text: 'here',
+        videoMarks: [mark(6), mark(13.2, 'declined')],
+        pending: [{ ...item('1', 'queued'), videoMarks: [mark(2)] }],
+      }),
+    )
+  })
+
+  it('keeps a queued message that holds only marks', () => {
+    const raw = JSON.stringify({ savedAt: NOW, pending: [{ id: 'a', videoMarks: [mark(1)] }] })
+    expect(parseChatDraft(raw, NOW)).toEqual(
+      draft({ pending: [{ ...item('a', ''), videoMarks: [mark(1)] }] }),
+    )
+  })
+
+  it('queues the composer’s marks with the message sent while the agent is busy', () => {
+    const next = enqueueMessage(draft({ text: 'typed', videoMarks: [mark(6)] }), 'q1', {
+      text: 'typed',
+      attachments: [],
+    })
+    expect(next.videoMarks).toBeUndefined()
+    expect(next.pending).toEqual([{ ...item('q1', 'typed'), videoMarks: [mark(6)] }])
+  })
+
+  it('queues marks alone', () => {
+    const next = enqueueMessage(draft({ videoMarks: [mark(6)] }), 'q1', {
+      text: '',
+      attachments: [],
+    })
+    expect(next.pending).toEqual([{ ...item('q1', ''), videoMarks: [mark(6)] }])
+  })
+
+  it('moves a queued message’s marks back into the composer to edit', () => {
+    const before = draft({
+      videoMarks: [mark(1)],
+      pending: [{ ...item('q1', 'x'), videoMarks: [mark(6)] }],
+    })
+    expect(editPendingMessage(before, 'q1').videoMarks).toEqual([mark(1), mark(6)])
+  })
+
+  it('sends the queue’s and the composer’s marks as one message, without refusals', () => {
+    const before = draft({
+      text: 'composer',
+      videoMarks: [{ ...mark(13), refusal: 'no' }],
+      pending: [{ ...item('q1', 'queued'), videoMarks: [mark(6)] }],
+    })
+    const { message, rest, taken } = takeOutgoing(before, identity)
+    expect(message).toEqual({
+      text: 'queued\n\ncomposer',
+      attachments: [],
+      videoMarks: [mark(6), mark(13)],
+    })
+    expect(rest).toEqual(EMPTY_CHAT_DRAFT)
+    expect(taken.composer).toEqual({ text: 'composer', attachments: [], videoMarks: [mark(13)] })
+  })
+
+  it('merges the marks of several queued messages, each moment once', () => {
+    expect(
+      mergeOutgoing(
+        [
+          { text: 'a', attachments: [], videoMarks: [mark(6)] },
+          { text: 'b', attachments: [], videoMarks: [mark(6, 'again'), mark(9)] },
+        ],
+        identity,
+      ).videoMarks,
+    ).toEqual([mark(6), mark(9)])
+  })
+
+  it('puts a refused send’s marks back in front of any marked since', () => {
+    const next = restoreUnsent(draft({ videoMarks: [mark(20)] }), {
+      pending: [],
+      composer: { text: 'failed', attachments: [], videoMarks: [mark(6)] },
+    })
+    expect(next.videoMarks).toEqual([mark(6), mark(20)])
+  })
+
+  it('leaves the marks of a draft where none were taken', () => {
+    const next = restoreUnsent(draft({ videoMarks: [mark(20)] }), {
+      pending: [],
+      composer: { text: 'failed', attachments: [] },
+    })
+    expect(next.videoMarks).toEqual([mark(20)])
+  })
+
+  it('puts a refused send’s reason by the mark it is about', () => {
+    const reason = 'This video is 00:16 long (16 s), so there is nothing at 21 s to mark.'
+    expect(
+      refuseDraftVideoMark(draft({ videoMarks: [mark(6), mark(21)] }), reason).videoMarks,
+    ).toEqual([mark(6), { ...mark(21), refusal: reason }])
+  })
+
+  it('has no mark to refuse in a draft without marks', () => {
+    expect(refuseDraftVideoMark(draft({ text: 'x' }), 'no')).toEqual(draft({ text: 'x' }))
+  })
+
+  it('sets the composer’s marks, and drops the field once none are left', () => {
+    const marked = setDraftVideoMarks(draft({ text: 'x' }), [mark(6)])
+    expect(marked).toEqual(draft({ text: 'x', videoMarks: [mark(6)] }))
+    expect(setDraftVideoMarks(marked, [])).toEqual(draft({ text: 'x' }))
   })
 })

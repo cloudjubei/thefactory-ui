@@ -6,8 +6,10 @@ import {
   editPendingMessage,
   enqueueMessage,
   pendingSendNowMode,
+  refuseDraftVideoMark,
   removePendingMessage,
   restoreUnsent,
+  setDraftVideoMarks,
   takeOutgoing,
   takePending,
   type ChatDraftTake,
@@ -19,6 +21,13 @@ import type {
   PendingChatMessage,
   PendingSendNowMode,
 } from '../utils/chatDraftTypes'
+import {
+  addVideoMark,
+  removeVideoMark,
+  setVideoMarkNote,
+  videoMarksToSend,
+} from '../utils/videoMarks'
+import type { ChatVideoMarkDraft, ChatVideoMarks } from '../utils/videoMarksTypes'
 
 /** A chat's pending queue, as the composer area shows and drives it. */
 export type ChatPendingQueue = {
@@ -50,6 +59,11 @@ export type UseChatComposer = {
   /** Files on their way into this chat's composer, kept above it so they go on across chat switches. */
   uploads: ChatUploads
   /**
+   * Moments marked on the chat's videos, waiting to go with the next message. Hand it to the
+   * chat's `ChatVideoAttachments` as `marks`, so its players offer the flag.
+   */
+  videoMarks: ChatVideoMarks
+  /**
    * Send what the composer holds — after anything still queued, as one
    * message. A send that does not reach the server is put back.
    */
@@ -63,6 +77,8 @@ export type UseChatComposerOptions = {
   /** Fires as a message goes out (e.g. to scroll the list to the bottom). */
   onSent?: () => void
 }
+
+const NO_MARKS: ChatVideoMarkDraft[] = []
 
 let pendingIdSeq = 0
 function nextPendingId(): string {
@@ -147,15 +163,28 @@ export function useChatComposer(
       })
       if (!taken) return
       const { message } = taken
-      if (message.text.length === 0 && message.attachments.length === 0) return
+      const marks = message.videoMarks ?? NO_MARKS
+      if (message.text.length === 0 && message.attachments.length === 0 && marks.length === 0) {
+        return
+      }
       optionsRef.current.onSent?.()
       let delivered = false
+      let refusal: string | undefined
       try {
-        delivered = await sendMessage(ctx, message.text, message.attachments)
+        delivered = await sendMessage(ctx, message.text, message.attachments, {
+          videoMarks: videoMarksToSend(marks),
+          onVideoMarkRefused: (reason) => {
+            refusal = reason
+          },
+        })
       } catch {
         delivered = false
       }
-      if (!delivered) updateDraftState(ctx, (prev) => restoreUnsent(prev, taken!.taken))
+      if (delivered) return
+      updateDraftState(ctx, (prev) => {
+        const restored = restoreUnsent(prev, taken!.taken)
+        return refusal ? refuseDraftVideoMark(restored, refusal) : restored
+      })
     },
     [sendMessage, updateDraftState],
   )
@@ -191,6 +220,24 @@ export function useChatComposer(
     [draft.pending, draft.paused, isCliChat, update, dispatch, canonicalize],
   )
 
+  const markItems = draft.videoMarks ?? NO_MARKS
+  const videoMarks = useMemo<ChatVideoMarks>(
+    () => ({
+      items: markItems,
+      add: (mark) =>
+        update((prev) => setDraftVideoMarks(prev, addVideoMark(prev.videoMarks ?? NO_MARKS, mark))),
+      setNote: (key, note) =>
+        update((prev) =>
+          setDraftVideoMarks(prev, setVideoMarkNote(prev.videoMarks ?? NO_MARKS, key, note)),
+        ),
+      remove: (key) =>
+        update((prev) =>
+          setDraftVideoMarks(prev, removeVideoMark(prev.videoMarks ?? NO_MARKS, key)),
+        ),
+    }),
+    [markItems, update],
+  )
+
   return {
     text: draft.text,
     attachments: draft.attachments,
@@ -198,6 +245,7 @@ export function useChatComposer(
     setAttachments,
     addAttachment,
     uploads,
+    videoMarks,
     send,
     queue,
   }

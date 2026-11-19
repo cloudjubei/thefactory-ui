@@ -15,6 +15,8 @@ import { Button } from '../../primitives/Button'
 export type RunNeedsYouCardProps = {
   /** The step it stopped at, as chips — a feature's reference, then the step. */
   where: ReactNode
+  /** What the card is headed — "Needs you" unless the run waits on someone else. */
+  label?: string
   /** On hold for a stop, in review for a decision at a gate. */
   tone: 'on_hold' | 'review'
   /** Open the run's chat to ask the manager about it. */
@@ -33,6 +35,7 @@ export type RunNeedsYouCardProps = {
  */
 export default function RunNeedsYouCard({
   where,
+  label = PARK_ANSWERS_COPY.needsYou,
   tone,
   onAskManager,
   children,
@@ -42,7 +45,7 @@ export default function RunNeedsYouCard({
   const variant = status[tone]
   return (
     <View
-      accessibilityLabel={PARK_ANSWERS_COPY.needsYou}
+      accessibilityLabel={label}
       style={[
         {
           marginHorizontal: nativeSpace[3],
@@ -61,7 +64,7 @@ export default function RunNeedsYouCard({
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
         {where}
         <Text style={{ fontSize: 12, fontWeight: '600', color: theme.text.secondary }}>
-          {PARK_ANSWERS_COPY.needsYou}
+          {label}
         </Text>
         {onAskManager ? (
           <Button size="sm" variant="ghost" style={{ marginLeft: 'auto' }} onPress={onAskManager}>

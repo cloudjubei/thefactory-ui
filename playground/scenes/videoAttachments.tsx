@@ -23,7 +23,7 @@ import type { Scene, SceneState } from '../showcase/types'
 
 const noop = () => {}
 
-const CONTEXT = { type: 'PROJECT', projectId: 'overseer' } as ChatContext
+export const CONTEXT = { type: 'PROJECT', projectId: 'overseer' } as ChatContext
 const VIDEO = '.factory/attachments/3f2a9c1d0b7e4a51/8c1d2e3f4a5b-checkout-bug.mov'
 const NAME = 'checkout-bug.mov'
 const LARGE = 'site-walkthrough.mp4'
@@ -35,17 +35,17 @@ const QUIET_FIGURES = { overviewTokens: 5300, closerLookTokens: 1600 }
 const FACTS = { durationSec: 252, sizeBytes: 186 * MB }
 
 const POSTER_ART = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90"><rect width="160" height="90" fill="#1f2937"/><rect x="8" y="8" width="144" height="74" rx="3" fill="#f3f4f6"/><rect x="8" y="8" width="144" height="10" fill="#0073ea"/><rect x="16" y="26" width="60" height="6" rx="2" fill="#9ca3af"/><rect x="16" y="38" width="90" height="6" rx="2" fill="#d1d5db"/><rect x="16" y="50" width="74" height="6" rx="2" fill="#d1d5db"/><rect x="110" y="56" width="34" height="16" rx="3" fill="#00a862"/></svg>`
-const POSTER = `data:image/svg+xml;utf8,${encodeURIComponent(POSTER_ART)}`
+export const POSTER = `data:image/svg+xml;utf8,${encodeURIComponent(POSTER_ART)}`
 const POSTER_PATH = '.factory/video-digests/3f2a/stills/t-00m00.0s.jpg'
-const previewUrl = async () => POSTER
-const LANDSCAPE_VIDEO = new URL('./assets/sample-landscape.webm', import.meta.url).href
+export const previewUrl = async () => POSTER
+export const LANDSCAPE_VIDEO = new URL('./assets/sample-landscape.webm', import.meta.url).href
 const PORTRAIT_VIDEO = new URL('./assets/sample-portrait.webm', import.meta.url).href
 const NOT_A_VIDEO = 'data:video/mp4;base64,AAAAAAAA'
 const FAR_OFF = '2999-01-01T00:00:00.000Z'
-const LANDSCAPE = { width: 640, height: 360 }
+export const LANDSCAPE = { width: 640, height: 360 }
 const PORTRAIT = { width: 270, height: 480 }
 
-const STATES: Record<string, ChatVideoDigest> = {
+export const STATES: Record<string, ChatVideoDigest> = {
   checking: { stage: 'probing', ...FACTS },
   frames: { stage: 'picking-frames', percent: 42, tokens: ROUGH_FIGURES, ...FACTS },
   sheets: { stage: 'making-sheets', percent: 60, tokens: ROUGH_FIGURES, ...FACTS },
@@ -115,7 +115,7 @@ const TITLES: Record<string, [string, string]> = {
 
 const posterUrl = (digest: ChatVideoDigest) => (digest.poster ? POSTER : null)
 
-const sourceOf = (url: string) => ({ video: async () => ({ url, expiresAt: FAR_OFF }) })
+export const sourceOf = (url: string) => ({ video: async () => ({ url, expiresAt: FAR_OFF }) })
 
 function Card({ digest, retry }: { digest: ChatVideoDigest; retry?: boolean }) {
   return (
@@ -143,7 +143,7 @@ function Tile({ digest }: { digest: ChatVideoDigest }) {
 }
 
 /** Signed out with no backend: a chip reads its fixed digest, and nothing is asked of a server. */
-function Frame({ children, width = 640 }: { children: ReactNode; width?: number }) {
+export function Frame({ children, width = 640 }: { children: ReactNode; width?: number }) {
   return (
     <AuthProvider storage={{ read: () => null, write: noop }}>
       <ApiProvider apiBaseUrl={null} wsBaseUrl={null} client="web">
@@ -267,7 +267,7 @@ const FILE_FAILED: ChatAttachmentUpload = {
 }
 
 /** A card pressed as a person would press it, so a scene shows the real playing state. */
-function Pressed({ children }: { children: ReactNode }) {
+export function Pressed({ children }: { children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     ref.current?.querySelector<HTMLButtonElement>('button[aria-label^="Play"]')?.click()

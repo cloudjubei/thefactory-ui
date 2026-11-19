@@ -89,6 +89,7 @@ import { VARIANT_VIEWS } from './variantViews'
 import { APP_SELECTION_VIEWS } from './appSelectionsViews'
 import { ALREADY_HANDLED_VIEWS } from './alreadyHandledViews'
 import { CHAT_MESSAGING_VIEWS } from './chatMessagingViews'
+import { VIDEO_TIMELINE_VIEWS } from './videoTimelineViews'
 
 const noop = () => {}
 const AT = Date.parse(FAKE_GROUP_STATUS_AT)
@@ -675,4 +676,5 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   ...ALREADY_HANDLED_VIEWS,
   ...APP_SELECTION_VIEWS,
   ...CHAT_MESSAGING_VIEWS,
+  ...VIDEO_TIMELINE_VIEWS,
 ]

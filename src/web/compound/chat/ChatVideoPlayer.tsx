@@ -13,11 +13,24 @@ function enterFullscreen(video: FullscreenVideo): void {
   video.webkitEnterFullscreen?.()
 }
 
+/** What the card asks of the player while it is mounted. */
+export type ChatVideoPlayerControl = {
+  /** Plays on from that moment. */
+  seek: (atSec: number) => void
+  pause: () => void
+  /** Where the playhead is now. */
+  time: () => number
+}
+
 export type ChatVideoPlayerProps = {
   playback: UseVideoPlayback
   posterUrl: string | null | undefined
   /** Set by the card, for its full screen button. */
   fullscreenRef: { current: (() => void) | null }
+  /** Set while mounted, for the timeline's times and the flag. */
+  controlRef?: { current: ChatVideoPlayerControl | null }
+  /** Where the playhead is, as it moves. */
+  onTime?: (atSec: number) => void
 }
 
 /** The browser's own player, reading the video in ranges from its signed URL. */
@@ -25,6 +38,8 @@ export default function ChatVideoPlayer({
   playback,
   posterUrl,
   fullscreenRef,
+  controlRef,
+  onTime,
 }: ChatVideoPlayerProps) {
   const { state, onMetadata, onPlaying, onFailed, onFullscreenTaken } = playback
   const videoRef = useRef<FullscreenVideo>(null)
@@ -38,6 +53,23 @@ export default function ChatVideoPlayer({
       fullscreenRef.current = null
     }
   }, [fullscreenRef])
+
+  useEffect(() => {
+    if (!controlRef) return
+    controlRef.current = {
+      seek: (atSec) => {
+        const video = videoRef.current
+        if (!video) return
+        video.currentTime = atSec
+        video.play().catch(() => {})
+      },
+      pause: () => videoRef.current?.pause(),
+      time: () => videoRef.current?.currentTime ?? 0,
+    }
+    return () => {
+      controlRef.current = null
+    }
+  }, [controlRef])
 
   useEffect(() => {
     if (!state.fullscreenPending || !videoRef.current) return
@@ -69,6 +101,7 @@ export default function ChatVideoPlayer({
       preload="metadata"
       className="absolute inset-0 h-full w-full bg-black"
       onPlay={onPlaying}
+      onTimeUpdate={onTime ? ({ currentTarget: video }) => onTime(video.currentTime) : undefined}
       onLoadedMetadata={({ currentTarget: video }) => {
         onMetadata({ width: video.videoWidth, height: video.videoHeight })
         if (state.startAtSec) video.currentTime = state.startAtSec

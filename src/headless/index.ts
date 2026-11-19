@@ -2125,6 +2125,7 @@ export {
   getResponseDataMessage,
   gitHookRejection,
   unwrapGitEnvelope,
+  videoMarkRefusal,
   type ServerError,
 } from './api/helpers'
 export {
@@ -2154,6 +2155,7 @@ export {
   createChatsContext,
   type ChatLiveState,
   type ChatSettingsPatch,
+  type ChatSendOptions,
   type ChatsContextValue,
   type ChatsProviderProps,
   type CreateChatsContextDeps,
@@ -2180,9 +2182,11 @@ export {
   pendingSendNowMode,
   pendingStackView,
   pendingTurnStep,
+  refuseDraftVideoMark,
   removePendingMessage,
   restoreUnsent,
   serializeChatDraft,
+  setDraftVideoMarks,
   takeOutgoing,
   takePending,
   type ChatDraftTake,
@@ -2203,7 +2207,7 @@ export { CHAT_UPLOAD_TEXT } from './utils/chatAttachmentUploadConstants'
 export type * from './utils/chatAttachmentUploadTypes'
 export { useChatUploads } from './hooks/useChatUploads'
 export type { ChatAttachmentFile, SendFileFromUri, UploadChatFile } from './api'
-export { videoAttachmentView, videoCostLabel } from './utils/videoAttachment'
+export { videoAttachmentView, videoCostLabel, videoStageLine } from './utils/videoAttachment'
 export { VIDEO_ATTACHMENT_TEXT } from './utils/videoAttachmentConstants'
 export type * from './utils/videoAttachmentTypes'
 export { useVideoDigest, type UseVideoDigest } from './hooks/useVideoDigest'
@@ -2219,6 +2223,34 @@ export type * from './utils/videoPlaybackTypes'
 export { takeVideoTurn } from './utils/videoPlaybackTurn'
 export { useChatVideoMedia, type UseChatVideoMedia } from './hooks/useChatVideoMedia'
 export { useVideoPlayback, type UseVideoPlayback } from './hooks/useVideoPlayback'
+export {
+  videoTimelineOnServer,
+  videoTimelineRefreshInMs,
+  videoTimelineRowAt,
+  videoTimelineStillUrl,
+  videoTimelineView,
+} from './utils/videoTimeline'
+export { VIDEO_TIMELINE_TEXT } from './utils/videoTimelineConstants'
+export type * from './utils/videoTimelineTypes'
+export { useVideoTimeline } from './hooks/useVideoTimeline'
+export {
+  addVideoMark,
+  composerVideoMarkRows,
+  mergeVideoMarks,
+  removeVideoMark,
+  sentVideoMarkRows,
+  setVideoMarkNote,
+  videoMarkKey,
+  videoMarkTimeOf,
+  videoMarkVideos,
+  videoMarksOf,
+  videoMarksToSend,
+  withMarkedVideos,
+  withVideoMarkRefusal,
+  withoutVideoMarkRefusals,
+} from './utils/videoMarks'
+export { VIDEO_MARK_REFUSED_CODE, VIDEO_MARK_TEXT } from './utils/videoMarksConstants'
+export type * from './utils/videoMarksTypes'
 export { videoSetupView, NO_VIDEO_SETUP_JOBS } from './utils/videoSetup'
 export { VIDEO_SETUP_TEXT } from './utils/videoSetupConstants'
 export type * from './utils/videoSetupTypes'
@@ -4088,6 +4120,33 @@ export type {
   ReviewDecisionVerdict,
   ReviewGateAnswer,
 } from './utils/colleagueReviewDecisionTypes'
+export {
+  diffLineKinds,
+  isReviewPushApproval,
+  reviewBranchRow,
+  reviewBranchUpdatesOf,
+  reviewPushApprovalRows,
+  reviewRunRound,
+} from './utils/colleagueReviewBranchUpdates'
+export {
+  REVIEW_BRANCH_STATE_VIEW,
+  REVIEW_BRANCH_UPDATES_INPUT_KEY,
+  REVIEW_PUSH_APPROVAL_STEP_ID,
+  REVIEW_PUSH_COPY,
+} from './utils/colleagueReviewBranchUpdatesConstants'
+export type {
+  ColleagueReviewBranchCheck,
+  ColleagueReviewBranchCheckRow,
+  ColleagueReviewBranchRow,
+  ColleagueReviewBranchState,
+  ColleagueReviewBranchUpdate,
+} from './utils/colleagueReviewBranchUpdatesTypes'
+export { isOutsideWaitPending, processOutsideWaitView } from './utils/processOutsideWait'
+export {
+  PROCESS_OUTSIDE_PREVIEW_LINES,
+  PROCESS_OUTSIDE_WAIT_COPY,
+} from './utils/processOutsideWaitConstants'
+export type { ProcessOutsideWaitView } from './utils/processOutsideWaitTypes'
 export {
   colleagueReviewSourceStoreFor,
   useColleagueReviewSource,

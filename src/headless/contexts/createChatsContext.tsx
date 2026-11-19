@@ -33,10 +33,11 @@ import type {
 } from '../api'
 import { useApi, useAuth, type UploadChatFile } from '../api'
 import { ChatAttachmentUploadStore } from '../utils/chatAttachmentUploads'
-import type { ChatContextCheckpointEvent } from 'thefactory-tools/types'
+import type { ChatContextCheckpointEvent, VideoMarkedMoment } from 'thefactory-tools/types'
 import { ChatContextCheckpointLog } from '../utils/ChatContextCheckpointLog'
 import { chatContextCheckpointOfEvent } from '../utils/chatContextFill'
 import { errorStatus } from '../api/errorMessage'
+import { videoMarkRefusal } from '../api/helpers'
 import {
   buildChatPromptVariables,
   chatRestartMessages,
@@ -129,6 +130,19 @@ const FALLBACK_COMPLETION_SETTINGS: CompletionSettings = {
   allowErrorResponses: true,
 }
 
+/** What goes with a message besides its words and files. */
+export type ChatSendOptions = {
+  /** Moments the person marked on the chat's videos. */
+  videoMarks?: VideoMarkedMoment[]
+  /**
+   * The backend refused one of the marks: nothing was sent, and the reason goes by the mark
+   * rather than in the chat's send error.
+   */
+  onVideoMarkRefused?: (reason: string) => void
+}
+
+type SentChatMessage = ChatMessage & { videoMarks?: VideoMarkedMoment[] }
+
 export type ChatsContextValue = {
   /** True once the first chat-list fetch for the active project has completed. */
   isLoaded: boolean
@@ -195,9 +209,14 @@ export type ChatsContextValue = {
    *
    * Resolves `true` once the user message reached the server (a failure after
    * that still lands as `sendError`), `false` when it did not — the caller then
-   * puts the text back.
+   * puts the text back. `options.videoMarks` ride on the user message.
    */
-  sendMessage: (ctx: ChatCtx, content: string, attachments?: string[]) => Promise<boolean>
+  sendMessage: (
+    ctx: ChatCtx,
+    content: string,
+    attachments?: string[],
+    options?: ChatSendOptions,
+  ) => Promise<boolean>
   /**
    * Re-trigger the agent on the chat as it already stands, WITHOUT appending a
    * copy of the user's message. Offered when a turn ended without a reply and
@@ -348,7 +367,11 @@ function nowIso(): string {
   return new Date().toISOString()
 }
 
-function buildUserMessage(content: string, files?: string[]): ChatMessage {
+function buildUserMessage(
+  content: string,
+  files?: string[],
+  videoMarks?: VideoMarkedMoment[],
+): SentChatMessage {
   const ts = nowIso()
   return {
     role: 'user',
@@ -357,6 +380,7 @@ function buildUserMessage(content: string, files?: string[]): ChatMessage {
     completedAt: ts,
     durationMs: 0,
     ...(files && files.length > 0 ? { files } : {}),
+    ...(videoMarks && videoMarks.length > 0 ? { videoMarks } : {}),
   }
 }
 
@@ -1016,9 +1040,15 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
     )
 
     const sendMessage = useCallback(
-      async (ctx: ChatCtx, content: string, attachments?: string[]): Promise<boolean> => {
+      async (
+        ctx: ChatCtx,
+        content: string,
+        attachments?: string[],
+        options: ChatSendOptions = {},
+      ): Promise<boolean> => {
         const trimmed = content.trim()
-        if (trimmed.length === 0 && (!attachments || attachments.length === 0)) return false
+        const videoMarks = options.videoMarks ?? []
+        if (trimmed.length === 0 && !attachments?.length && videoMarks.length === 0) return false
 
         // A send made while an earlier one is still out (a queued message sent
         // now) owns the chat's live state from here: the earlier call's cleanup
@@ -1039,7 +1069,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         // cliRunId) for the run's terminal `cli:run-update` to clear.
         let detachedCli = false
         try {
-          const userMessage = buildUserMessage(trimmed, attachments)
+          const userMessage = buildUserMessage(trimmed, attachments, videoMarks)
           const { settings, systemPrompt } = buildToolSettings(ctx)
 
           // CLI-backed chat: the fast route persists the user message, STARTS the
@@ -1134,6 +1164,12 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
           await reloadChat(ctx)
           return delivered
         } catch (err) {
+          const refusal = delivered ? undefined : videoMarkRefusal(err)
+          if (refusal && options.onVideoMarkRefused) {
+            options.onVideoMarkRefused(refusal)
+            void reloadChat(ctx)
+            return delivered
+          }
           // eslint-disable-next-line no-console
           console.error('[chat] send failed:', err)
           updateLiveState(ctx, {

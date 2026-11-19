@@ -16,6 +16,7 @@ import type {
   ProcessManagerChatCard,
   UsageCompletenessReason,
   UsageTokenFields,
+  VideoMarkedMoment,
 } from 'thefactory-tools/types'
 
 import type { AgentQuestion } from './agentQuestionTypes'
@@ -153,6 +154,8 @@ export type ChatMessageLike = {
   cliRunId?: string
   /** Files sent with a message, or an agent's reply showed: project-relative attachment paths. */
   files?: string[]
+  /** Moments the person marked on the chat's videos, each with the still that shows it. */
+  videoMarks?: VideoMarkedMoment[]
   /** On a call that started a subagent: what that subagent said and called, in order. */
   subagentMessages?: ChatMessageLike[]
   /**

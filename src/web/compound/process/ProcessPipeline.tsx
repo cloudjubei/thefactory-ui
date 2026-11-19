@@ -207,7 +207,14 @@ import { type ProcessRunBranch } from '../../../headless'
 import { isProcessPublishGate, processPublicationView } from '../../../headless'
 import { isProcessActionsGate } from '../../../headless/utils/colleagueReviewDecision'
 import type { ReviewGateAnswer } from '../../../headless/utils/colleagueReviewDecisionTypes'
-import { RunReviewDecisionCard } from '../chat/ColleagueReviewDecisionCard'
+import { RunPushApprovalCard, RunReviewDecisionCard } from '../chat/ColleagueReviewDecisionCard'
+import RunOutsideWaitCard from './RunOutsideWaitCard'
+import { isReviewPushApproval } from '../../../headless/utils/colleagueReviewBranchUpdates'
+import {
+  isOutsideWaitPending,
+  processOutsideWaitView,
+} from '../../../headless/utils/processOutsideWait'
+import { PROCESS_OUTSIDE_WAIT_COPY } from '../../../headless/utils/processOutsideWaitConstants'
 import RunMergeProgress from './RunMergeProgress'
 import PublicationChip from './PublicationChip'
 import RunPublishCard from './RunPublishCard'
@@ -689,6 +696,9 @@ export default function ProcessPipeline({
                 </>
               }
               tone={stopTone}
+              {...(isOutsideWaitPending(stopRun.park)
+                ? { label: PROCESS_OUTSIDE_WAIT_COPY.onHold }
+                : {})}
               {...(canChat ? { onAskManager: () => void openRunChat() } : {})}
             >
               <ParkBlock
@@ -704,6 +714,7 @@ export default function ProcessPipeline({
                 }
                 onAnswer={(choice) => stopActions.resume(choice)}
                 onAnswerGate={stopActions.answerGate}
+                onStopRun={() => setConfirmStop(true)}
                 onChangeProof={(draft) => void stopActions.changeProof(draft)}
                 onSplitFollowUp={(draft) => void stopActions.splitFollowUp(draft)}
                 onAnswerRequest={(actionId, choice) =>
@@ -1484,6 +1495,7 @@ export function ParkBlock({
   onDrill,
   onAnswer,
   onAnswerGate,
+  onStopRun,
 }: {
   run: ProcessRun
   /** The manager's card when it handed this stop over: its word on it and the answers it prepared. */
@@ -1522,6 +1534,8 @@ export function ParkBlock({
   onAnswer?: (choice: ProcessResumeChoice) => Promise<boolean>
   /** Answer a colleague review run's actions gate from its decision card; only a person decides there. */
   onAnswerGate?: (answer: ReviewGateAnswer) => Promise<boolean>
+  /** Open the run's own Stop confirm — what a run waiting on someone outside it offers. */
+  onStopRun?: () => void
 }) {
   const [noteFor, setNoteFor] = useState<ProcessResumeChoice | undefined>()
   const [changingProof, setChangingProof] = useState(false)
@@ -1559,8 +1573,22 @@ export function ParkBlock({
       />
     )
   }
+  if (onAnswerGate && !managerLine && isReviewPushApproval(run)) {
+    return <RunPushApprovalCard run={run} embedded={embedded} onAnswer={onAnswerGate} />
+  }
   if (onAnswerGate && !managerLine && run.ticketReview && isProcessActionsGate(run)) {
     return <RunReviewDecisionCard run={run} embedded={embedded} onAnswer={onAnswerGate} />
+  }
+  const outside = managerLine ? undefined : processOutsideWaitView(run)
+  if (outside) {
+    return (
+      <RunOutsideWaitCard
+        view={outside}
+        embedded={embedded}
+        {...(onStopRun ? { onCancel: onStopRun } : {})}
+        {...(onAnswer ? { onCarryOn: () => onAnswer('resolved') } : {})}
+      />
+    )
   }
   const waiting = processWaitingView(run)
   if (waiting) {

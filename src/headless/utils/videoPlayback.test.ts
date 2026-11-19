@@ -36,6 +36,21 @@ describe('videoPlaybackReducer', () => {
     expect(after(...playing())).toMatchObject({ stage: 'playing', source: SOURCE })
   })
 
+  it('opens at a moment asked for, and from the start otherwise', () => {
+    expect(
+      after({ type: 'open', fullscreen: false, atSec: 13 }, { type: 'source', source: SOURCE }),
+    ).toMatchObject({
+      stage: 'playing',
+      startAtSec: 13,
+    })
+    const reopened = after(
+      { type: 'open', fullscreen: false, atSec: 13 },
+      { type: 'collapse' },
+      { type: 'open', fullscreen: false },
+    )
+    expect(reopened.startAtSec).toBeUndefined()
+  })
+
   it('remembers that full screen was asked for until it is taken up', () => {
     const asked = [
       { type: 'open', fullscreen: true },
