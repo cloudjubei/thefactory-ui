@@ -114,6 +114,9 @@ export interface GroupStoryListFilter {
   layout: GroupStoryListLayout
 }
 
+/** The part of the Stories tab's filter remembered across sessions: its status and run filters, order and layout. */
+export type GroupStoryListView = Pick<GroupStoryListFilter, 'status' | 'run' | 'sortBy' | 'layout'>
+
 /** A group story's Run button: whether it can be pressed and what it says, or why not. */
 export interface GroupStoryRunButton {
   disabled: boolean

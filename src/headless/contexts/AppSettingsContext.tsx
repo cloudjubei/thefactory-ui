@@ -111,6 +111,11 @@ function writeSettings(next: AppSettings): string {
   return JSON.stringify(next)
 }
 
+/** The app settings, or `null` outside an `AppSettingsProvider` — for a surface that only remembers with them. */
+export function useOptionalAppSettings(): AppSettingsContextValue | null {
+  return useContext(AppSettingsContext)
+}
+
 export function useAppSettings(): AppSettingsContextValue {
   const ctx = useContext(AppSettingsContext)
   if (!ctx) throw new Error('useAppSettings must be used within AppSettingsProvider')

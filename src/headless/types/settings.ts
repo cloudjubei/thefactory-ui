@@ -5,6 +5,7 @@
 
 import type { StoryStatus } from '../utils/status'
 import type { StoryListSorting } from '../utils/storiesOptions'
+import type { GroupStoryListView } from '../utils/groupStoryTypes'
 import type { Theme } from '../hooks/useResolvedTheme'
 import type { ChatBadgeCountMode } from '../hooks/useBadgeCountsCore'
 import type { AgentMessagesDisplay, ChatNotifyLevels } from '../utils/chatNotifyTypes'
@@ -84,6 +85,8 @@ export type UserPreferences = {
   storiesListViewSorting: StoriesListSorting
   /** Stories list status filter. `all` shows everything; `not-done` hides done items. */
   storiesListViewStatusFilter: StoriesListStatusFilter
+  /** A group's Stories tab: its status and run filters, order and layout, the same for every group. */
+  groupStoriesListView?: GroupStoryListView
   /**
    * Syntax-highlight theme applied to `<Code>` blocks (tool call args /
    * results, dynamic context, etc.). Independent of the overall app

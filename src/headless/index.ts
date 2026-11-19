@@ -2280,6 +2280,7 @@ export type * from './utils/chatDraftTypes'
 export {
   AppSettingsProvider,
   useAppSettings,
+  useOptionalAppSettings,
   type AppSettingsContextValue,
   type AppSettingsProviderProps,
 } from './contexts/AppSettingsContext'
@@ -3232,6 +3233,7 @@ export type {
   GroupStoryForm,
   GroupStoryFormRow,
   GroupStoryListFilter,
+  GroupStoryListView,
   GroupStoryListLayout,
   GroupStoryMemberProject,
   GroupStoryMembership,
