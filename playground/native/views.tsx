@@ -81,6 +81,7 @@ import { SEND_TO_DEVELOPER_VIEWS } from './sendToDeveloperViews'
 import { READY_ANSWER_VIEWS } from './readyAnswerViews'
 import { COLLEAGUE_REVIEW_VIEWS } from './colleagueReviewViews'
 import { SLACK_REVIEW_VIEWS } from './slackReviewViews'
+import { REVIEW_RUN_ROUNDS_VIEWS } from './reviewRunRoundsViews'
 import { TICKET_TAB_VIEWS } from './ticketTabsViews'
 import { REVIEW_GAP_VIEWS } from './reviewGapViews'
 import { TICKET_VIEWS } from './ticketViews'
@@ -671,6 +672,7 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   ...READY_ANSWER_VIEWS,
   ...COLLEAGUE_REVIEW_VIEWS,
   ...SLACK_REVIEW_VIEWS,
+  ...REVIEW_RUN_ROUNDS_VIEWS,
   ...TICKET_TAB_VIEWS,
   ...REVIEW_GAP_VIEWS,
   ...ALREADY_HANDLED_VIEWS,

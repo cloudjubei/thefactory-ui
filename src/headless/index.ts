@@ -4123,6 +4123,7 @@ export type {
   ReviewGateAnswer,
 } from './utils/colleagueReviewDecisionTypes'
 export {
+  diffFiles,
   diffLineKinds,
   isReviewPushApproval,
   reviewBranchRow,

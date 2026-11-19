@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ProcessRun } from 'thefactory-tools/types'
 
 import {
+  diffFiles,
   diffLineKinds,
   isReviewPushApproval,
   reviewBranchRow,
@@ -119,5 +120,22 @@ describe('reviewRunRound', () => {
     expect(reviewRunRound({ rounds: [{ n: 1 }, { n: 3 }] }, { round: 1 })).toBe(3)
     expect(reviewRunRound(undefined, { round: 2 })).toBe(2)
     expect(reviewRunRound({ rounds: [] }, undefined)).toBeUndefined()
+  })
+})
+
+describe('diffFiles', () => {
+  it('splits a diff into one patch per file, each under its path', () => {
+    const a =
+      'diff --git a/src/a.ts b/src/a.ts\n--- a/src/a.ts\n+++ b/src/a.ts\n@@ -1 +1 @@\n-x\n+y\n'
+    const b = 'diff --git a/b.ts b/b.ts\n--- a/b.ts\n+++ b/b.ts\n@@ -1 +1 @@\n-1\n+2'
+    expect(diffFiles(a + b)).toEqual([
+      { path: 'src/a.ts', patch: a },
+      { path: 'b.ts', patch: b },
+    ])
+  })
+
+  it('reads a bare patch by its +++ line, and nothing from an empty diff', () => {
+    expect(diffFiles('--- a/c.ts\n+++ b/c.ts\n@@ -1 +1 @@\n-1\n+2')[0]?.path).toBe('c.ts')
+    expect(diffFiles('')).toEqual([])
   })
 })

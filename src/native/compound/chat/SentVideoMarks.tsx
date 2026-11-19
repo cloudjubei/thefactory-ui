@@ -9,15 +9,15 @@ export interface SentVideoMarksProps {
   name: string
   rows: SentVideoMarkRow[]
   onPlay: (atSec: number) => void
+  /** The card's width, so the marks line up under it. */
+  width: number
 }
 
-const ROW_WIDTH = 280
-
-/** A sent message's marks on a video, under it: each plays the video from its moment. Native peer of web's `SentVideoMarks`. */
-export default function SentVideoMarks({ name, rows, onPlay }: SentVideoMarksProps) {
+/** A sent message's marks on a video, under it and as wide as its card: each plays the video from its moment. Native peer of web's `SentVideoMarks`. */
+export default function SentVideoMarks({ name, rows, onPlay, width }: SentVideoMarksProps) {
   const { theme } = useNativeTheme()
   return (
-    <View style={{ width: ROW_WIDTH, maxWidth: '100%', gap: nativeSpace[2] }}>
+    <View style={{ width, maxWidth: '100%', gap: nativeSpace[2] }}>
       {rows.map((row) => (
         <Pressable
           key={row.key}
@@ -50,7 +50,6 @@ export default function SentVideoMarks({ name, rows, onPlay }: SentVideoMarksPro
             {row.time}
           </Text>
           <Text
-            numberOfLines={1}
             style={{
               flex: 1,
               fontSize: 12,

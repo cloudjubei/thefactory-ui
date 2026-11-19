@@ -351,9 +351,11 @@ export default function SentVideoAttachment({
   return (
     <>
       {marks?.length ? (
-        <div className="flex max-w-full flex-col items-end gap-1">
-          {card}
-          <SentVideoMarks name={name} rows={marks} onPlay={playFrom} />
+        <div className="flex max-w-full flex-col items-end">
+          <div className="flex w-fit max-w-full flex-col gap-1">
+            {card}
+            <SentVideoMarks name={name} rows={marks} onPlay={playFrom} />
+          </div>
         </div>
       ) : (
         card

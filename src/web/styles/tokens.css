@@ -133,6 +133,7 @@
   --surface-raised: #ffffff;
   --surface-overlay: #ffffff;
   --surface-muted: #f3f4f6;
+  --surface-sunken: var(--surface-muted);
   --surface-hover: color-mix(in srgb, var(--border-default) 20%, transparent);
   --surface-0: var(--surface-base);
   --surface-1: var(--surface-raised);
@@ -296,6 +297,7 @@
   --surface-raised: #121821;
   --surface-overlay: #1a2230;
   --surface-muted: #0e141d;
+  --surface-sunken: var(--surface-muted);
   --surface-hover: color-mix(in srgb, #ffffff 8%, transparent);
   --surface-0: var(--surface-base);
   --surface-1: var(--surface-raised);

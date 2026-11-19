@@ -442,7 +442,14 @@ export default function SentVideoAttachment({
             ) : null}
           </View>
         </View>
-        {marks?.length ? <SentVideoMarks name={name} rows={marks} onPlay={playFrom} /> : null}
+        {marks?.length ? (
+          <SentVideoMarks
+            name={name}
+            rows={marks}
+            onPlay={playFrom}
+            width={size?.width ?? TILE_WIDTH}
+          />
+        ) : null}
       </View>
       <BottomSheet isOpen={open} onClose={() => setOpen(false)} title={name}>
         <VideoDetailsBody view={view} />

@@ -98,6 +98,7 @@ import { GROUP_TICKETS_SCENES } from '../scenes/groupTickets'
 import { GROUP_TICKET_TAB_SCENES } from '../scenes/groupTicketTabs'
 import { COLLEAGUE_REVIEW_SCENES } from '../scenes/colleagueReview'
 import { SLACK_REVIEW_SCENES } from '../scenes/slackReview'
+import { REVIEW_RUN_ROUNDS_SCENES } from '../scenes/reviewRunRounds'
 import { TICKET_SCENES } from '../scenes/ticketFlow'
 import { TICKET_NEW_ITEMS_SCENES } from '../scenes/ticketNewItems'
 import { UI_IMPACT_SCENES } from '../scenes/uiImpact'
@@ -226,6 +227,7 @@ export const SCENES: readonly Scene[] = [
   ...GROUP_TICKET_TAB_SCENES,
   ...COLLEAGUE_REVIEW_SCENES,
   ...SLACK_REVIEW_SCENES,
+  ...REVIEW_RUN_ROUNDS_SCENES,
   ...TICKET_SCENES,
   ...TICKET_NEW_ITEMS_SCENES,
   ...GROUP_SIGN_OFF_SCENES,

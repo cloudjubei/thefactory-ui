@@ -87,6 +87,16 @@ export function diffLineKinds(
   }))
 }
 
+/** A diff of several files as one patch per file, each under the path it changes. Pure. */
+export function diffFiles(diff: string): { path: string; patch: string }[] {
+  const parts = diff.split(/^(?=diff --git )/m).filter((part) => part.trim())
+  return parts.map((patch) => {
+    const head = /^diff --git a\/(.+?) b\/(.+)$/m.exec(patch)
+    const plus = /^\+\+\+ b\/(.+)$/m.exec(patch)
+    return { path: head?.[2] ?? plus?.[1] ?? '', patch }
+  })
+}
+
 /** The round a review run is on: its review's latest, never before the one it started on. Pure. */
 export function reviewRunRound(
   review: { rounds: readonly { n: number }[] } | null | undefined,

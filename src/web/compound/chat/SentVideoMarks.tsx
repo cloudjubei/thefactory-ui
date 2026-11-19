@@ -7,10 +7,10 @@ export type SentVideoMarksProps = {
   onPlay: (atSec: number) => void
 }
 
-/** A sent message's marks on a video, under it: each plays the video from its moment. */
+/** A sent message's marks on a video, under it and as wide as its card: each plays the video from its moment. */
 export default function SentVideoMarks({ name, rows, onPlay }: SentVideoMarksProps) {
   return (
-    <ul className="flex w-80 max-w-full flex-col gap-1">
+    <ul className="flex w-0 min-w-full flex-col gap-1">
       {rows.map((row) => (
         <li key={row.key}>
           <button
@@ -25,7 +25,7 @@ export default function SentVideoMarks({ name, rows, onPlay }: SentVideoMarksPro
             </span>
             <span
               className={[
-                'min-w-0 truncate text-[12px]',
+                'min-w-0 text-[12px] break-words',
                 row.hasNote ? 'text-(--text-secondary)' : 'text-(--text-muted)',
               ].join(' ')}
             >

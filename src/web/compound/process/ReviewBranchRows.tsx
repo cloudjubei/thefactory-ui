@@ -1,5 +1,6 @@
 import { useState } from 'react'
 
+import { diffFiles } from '../../../headless/utils/colleagueReviewBranchUpdates'
 import { REVIEW_PUSH_COPY as COPY } from '../../../headless/utils/colleagueReviewBranchUpdatesConstants'
 import type { ColleagueReviewBranchRow } from '../../../headless/utils/colleagueReviewBranchUpdatesTypes'
 import ToneBadge from '../chips/ToneBadge'
@@ -68,16 +69,21 @@ function BranchRow({ row, diffOpen }: { row: ColleagueReviewBranchRow; diffOpen:
             {open ? COPY.hideDiff : COPY.showDiff}
           </button>
           {open ? (
-            <div className="max-h-[50vh] overflow-auto rounded-md border border-(--border-subtle)">
-              <DiffViewer
-                patch={row.diff}
-                wrap={wrap}
-                ignoreWS={ignoreWS}
-                intra={intra}
-                onWrapChange={setWrap}
-                onIgnoreWSChange={setIgnoreWS}
-                onIntraChange={setIntra}
-              />
+            <div className="flex max-h-[50vh] flex-col gap-2 overflow-auto">
+              {diffFiles(row.diff).map((file) => (
+                <div key={file.path} className="rounded-md border border-(--border-subtle)">
+                  <DiffViewer
+                    path={file.path}
+                    patch={file.patch}
+                    wrap={wrap}
+                    ignoreWS={ignoreWS}
+                    intra={intra}
+                    onWrapChange={setWrap}
+                    onIgnoreWSChange={setIgnoreWS}
+                    onIntraChange={setIntra}
+                  />
+                </div>
+              ))}
             </div>
           ) : null}
         </>
@@ -95,7 +101,7 @@ export type ReviewBranchRowsProps = {
 /** Each pull request of a review run's push approval: its state, the files that conflicted, the changes, the checks and the diff. */
 export default function ReviewBranchRows({ rows, diffOpen = false }: ReviewBranchRowsProps) {
   return (
-    <ul className="m-0 flex list-none flex-col gap-2 p-0">
+    <ul className="m-0 flex list-none flex-col gap-2 p-0 text-[12.5px]">
       {rows.map((row) => (
         <BranchRow key={row.url} row={row} diffOpen={diffOpen} />
       ))}
