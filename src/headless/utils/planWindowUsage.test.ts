@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  subscriptionPlanUsage,
   claudePlanUsage,
   codexPlanUsage,
   planWindowChip,
@@ -18,6 +19,70 @@ const CLAUDE_CAPTURE = JSON.parse(
 const DAY = 86_400_000
 const HOUR = 3_600_000
 const MINUTE = 60_000
+
+describe('subscriptionPlanUsage', () => {
+  it('hides records without a subscription but retains explicitly not-reported records', () => {
+    expect(subscriptionPlanUsage('codex', undefined)).toBeUndefined()
+    expect(subscriptionPlanUsage('cursor-agent', { windowsNotReported: true })).toEqual({
+      cli: 'cursor-agent',
+      windows: [],
+    })
+  })
+
+  const now = 1_795_050_000_000
+  const resetsAt = now / 1000 + 3600
+
+  it('converts persisted Unix seconds once and preserves Codex percentages', () => {
+    const usage = subscriptionPlanUsage('codex', {
+      plan: 'plus',
+      windows: [{ usedPercent: 62, windowMinutes: 300, resetsAt }],
+    })!
+    expect(usage.windows[0]?.resetsAt).toBe(now + HOUR)
+    expect(planWindowChip(usage, now).windows[0]).toMatchObject({
+      window: '5-hour',
+      percent: 62,
+      status: 'ok',
+      reset: 'resets in 1 h',
+    })
+  })
+
+  it.each([
+    ['allowed', 'ok', 'OK'],
+    ['allowed_warning', 'near-limit', 'Near limit'],
+    ['rejected', 'limit-reached', 'Limit reached'],
+  ])('reads persisted Claude %s without a utilization value', (status, expected, value) => {
+    const usage = subscriptionPlanUsage('claude-code', {
+      windows: [{ windowMinutes: 300, resetsAt, status }],
+    })!
+    const window = planWindowChip(usage, now).windows[0]
+    expect(window).toMatchObject({
+      window: '5-hour',
+      status: expected,
+      value,
+      reset: 'resets in 1 h',
+    })
+    expect(window).not.toHaveProperty('percent')
+  })
+
+  it('preserves a persisted Claude percentage and its explicit warning status', () => {
+    const usage = subscriptionPlanUsage('claude-code', {
+      windows: [{ usedPercent: 12, windowMinutes: 300, resetsAt, status: 'allowed_warning' }],
+    })!
+    expect(planWindowChip(usage, now).windows[0]).toMatchObject({
+      percent: 12,
+      status: 'near-limit',
+      reset: 'resets in 1 h',
+    })
+  })
+
+  it('does not pass unknown backend statuses to the chip', () => {
+    expect(
+      subscriptionPlanUsage('codex', {
+        windows: [{ resetsAt: HOUR / 1000, usedPercent: 3, status: 'future-value' }],
+      })?.windows,
+    ).toEqual([{ resetsAt: HOUR, usedPercent: 3 }])
+  })
+})
 
 describe('codexPlanUsage', () => {
   it('reads the real free-plan capture: 3% of a 7-day window', () => {

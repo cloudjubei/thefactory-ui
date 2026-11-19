@@ -7,6 +7,8 @@ import {
   deleteCliAuthCache,
   getActiveCliState,
   listCliAgentModels,
+  listCliAgentSubscriptionWindows,
+  type CliAgentSubscriptionWindowEntry,
   listCliAuthCaches,
   liveCliAgentModels,
   listCliCapabilityScorecards,
@@ -85,6 +87,9 @@ export type CliConfigsContextValue = {
   isLoaded: boolean
   loadError: Error | null
   caches: RedactedCliAuthCacheEntry[]
+  /** Latest captured window per CLI and credential; empty until any run reports one. */
+  subscriptionWindows?: CliAgentSubscriptionWindowEntry[]
+  subscriptionWindowsError?: string
   cachesByCli: Record<string, RedactedCliAuthCacheEntry[]>
   activeState: CliConfigsActiveState
   activeCli: string | null
@@ -181,6 +186,10 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
   const { ws } = useApi()
   const [caches, setCaches] = useState<RedactedCliAuthCacheEntry[]>([])
   const [activeState, setActiveState] = useState<CliConfigsActiveState>({})
+  const [subscriptionWindows, setSubscriptionWindows] = useState<CliAgentSubscriptionWindowEntry[]>(
+    [],
+  )
+  const [subscriptionWindowsError, setSubscriptionWindowsError] = useState<string>()
   const [isLoaded, setIsLoaded] = useState(false)
   const [loadError, setLoadError] = useState<Error | null>(null)
   const [loginOutput, setLoginOutput] = useState<Record<string, string>>({})
@@ -202,6 +211,16 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
   const refreshSeqRef = useRef(0)
   const refresh = useCallback(async () => {
     const seq = ++refreshSeqRef.current
+    // Plan windows are advisory: neither credential readiness nor mutations wait for them.
+    void (async () => {
+      const windows = await listCliAgentSubscriptionWindows({ throwOnError: true }).catch(
+        () => undefined,
+      )
+      if (seq !== refreshSeqRef.current) return
+      setSubscriptionWindows(windows?.data ?? [])
+      setSubscriptionWindowsError(windows ? undefined : 'Could not load plan windows.')
+    })()
+
     try {
       const [{ data: cacheList }, { data: state }] = await Promise.all([
         listCliAuthCaches({ throwOnError: true }),
@@ -215,7 +234,7 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
       if (seq !== refreshSeqRef.current) return
       setLoadError(err instanceof Error ? err : new Error(String(err)))
     } finally {
-      setIsLoaded(true)
+      if (seq === refreshSeqRef.current) setIsLoaded(true)
     }
   }, [])
 
@@ -576,6 +595,8 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
       loadError,
       caches,
       cachesByCli,
+      subscriptionWindows,
+      subscriptionWindowsError,
       activeState,
       activeCli: activeState.activeCli ?? null,
       activeCliCredentialId: activeState.activeCliCredentialId ?? null,
@@ -616,6 +637,8 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
       loadError,
       caches,
       cachesByCli,
+      subscriptionWindows,
+      subscriptionWindowsError,
       activeState,
       enabledClis,
       createCache,

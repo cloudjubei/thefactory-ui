@@ -11,6 +11,8 @@ import type {
 import { CliImageBuildProgress } from './CliImageBuildProgress'
 import { CliCapabilityCardPanel } from './CliCapabilityCardPanel'
 import { CliImageVersionChip } from './CliImageVersionChip'
+import PlanWindowChip from '../chips/PlanWindowChip'
+import { planWindowChip, subscriptionPlanUsage } from '../../../headless/utils/planWindowUsage'
 import { useCliConfigs } from '../../../headless'
 import type { CliLiveProbeResult, RunCliCapabilityCheckResponse } from '../../../headless'
 import { cliCapabilityCardView } from '../../../headless/utils/cliCapabilityCard'
@@ -72,11 +74,13 @@ type LiveModelsProbeState =
  * sandbox round-trip, and delete credentials. Adding a credential is a separate
  * modal flow ({@link CliAddCredentialForm}). Consumes `useCliConfigs()`.
  */
-export function CliConfigForm() {
+export function CliConfigForm({ planWindowNow }: { planWindowNow?: number } = {}) {
   const {
     isLoaded,
     loadError,
     cachesByCli,
+    subscriptionWindows = [],
+    subscriptionWindowsError,
     activeCliCredentialId,
     enabledClis,
     defaultModel,
@@ -513,6 +517,12 @@ export function CliConfigForm() {
               )}
 
               {caches.map((cache) => {
+                const planUsage = subscriptionPlanUsage(
+                  cli,
+                  subscriptionWindows.find(
+                    (row) => row.cli === cli && row.credentialId === cache.id,
+                  )?.subscription,
+                )
                 const isDefault = activeCliCredentialId === cache.id
                 const liveState = liveProbe[cache.id] ?? { kind: 'idle' }
                 const storedCard = capabilityScorecards.find((c) => c.cli === cache.cli)
@@ -531,6 +541,15 @@ export function CliConfigForm() {
                   <div key={cache.id} className="flex flex-col gap-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-sm text-(--text-primary)">{cache.name}</span>
+                      {planUsage ? (
+                        <PlanWindowChip
+                          view={planWindowChip(planUsage, planWindowNow ?? Date.now())}
+                        />
+                      ) : (
+                        <span className="text-xs text-(--text-secondary)">
+                          {subscriptionWindowsError ?? 'No plan window yet'}
+                        </span>
+                      )}
                       <span className="text-[11px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-(--surface-muted) text-(--text-secondary)">
                         {cliLabel(cache.cli)}
                       </span>

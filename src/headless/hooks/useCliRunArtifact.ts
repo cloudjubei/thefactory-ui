@@ -49,6 +49,8 @@ import type { MessageUsageLike } from '../utils/chatTypes'
 import { cliRunCost, cliRunMessageUsage, cliRunSpendRecord } from '../utils/costDetails'
 import type { CostSource } from '../utils/costDetailsTypes'
 import { runModelOf, type RunModel } from '../utils/runModel'
+import { subscriptionPlanUsage } from '../utils/planWindowUsage'
+import type { CliPlanUsage } from '../utils/planWindowUsageTypes'
 import { asRunVerification } from '../utils/runReview'
 import { isReviewInProgress } from '../utils/reviewProgress'
 
@@ -160,6 +162,8 @@ export type UseCliRunArtifact = {
   cancelWork: () => Promise<void>
   /** Which agent and model carried the run out — a fact, not a picker. */
   runModel: RunModel | undefined
+  /** This run's own captured plan window, absent on records without a subscription. */
+  planUsage: CliPlanUsage | undefined
   /**
    * Epoch ms the run record was created, once loaded. The live view measures
    * elapsed time from here rather than from mount, so a page opened mid-run
@@ -314,6 +318,7 @@ export function useCliRunArtifact(
   const [chatContextId, setChatContextId] = useState<string | undefined>(undefined)
   const [landFailure, setLandFailure] = useState<CliRunLandFailure | undefined>(undefined)
   const [runModel, setRunModel] = useState<RunModel | undefined>(undefined)
+  const [planUsage, setPlanUsage] = useState<CliPlanUsage | undefined>(undefined)
   const [startedAtMs, setStartedAtMs] = useState<number | undefined>(undefined)
   const [cost, setCost] = useState<CostSource | undefined>(undefined)
   const [usage, setUsage] = useState<MessageUsageLike | undefined>(undefined)
@@ -463,6 +468,7 @@ export function useCliRunArtifact(
       setProcessRunId(run.processRunId ?? undefined)
       setChatContextId(run.chatContextId ?? undefined)
       setRunModel(runModelOf(run))
+      setPlanUsage(subscriptionPlanUsage(run.cli?.tool ?? 'CLI', run.subscription))
       setLandFailure(run.landFailure ?? undefined)
       setStartedAtMs(run.createdAt)
       applyRunSpend(run)
@@ -499,6 +505,7 @@ export function useCliRunArtifact(
     setProcessRunId(undefined)
     setLandFailure(undefined)
     setRunModel(undefined)
+    setPlanUsage(undefined)
     setStartedAtMs(undefined)
     setCost(undefined)
     setUsage(undefined)
@@ -960,6 +967,7 @@ export function useCliRunArtifact(
     processRole,
     landFailure,
     runModel,
+    planUsage,
     startedAtMs,
     cost,
     usage,

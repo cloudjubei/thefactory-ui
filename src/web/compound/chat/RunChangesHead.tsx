@@ -2,6 +2,9 @@ import type { RunModel, SignoffVerdict } from '../../../headless'
 import type { CostSource } from '../../../headless/utils/costDetailsTypes'
 import Tooltip from '../../primitives/Tooltip'
 import { CostChip, RefChip } from '../chips'
+import PlanWindowChip from '../chips/PlanWindowChip'
+import { planWindowChip } from '../../../headless/utils/planWindowUsage'
+import type { CliPlanUsage } from '../../../headless/utils/planWindowUsageTypes'
 import RunModelChip from './signoff/RunModelChip'
 
 /**
@@ -32,6 +35,8 @@ export type RunChangesHeadProps = {
   durationLabel?: string
   costLabel?: string
   cost?: CostSource
+  planUsage?: CliPlanUsage
+  now?: number
 }
 
 /**
@@ -48,6 +53,8 @@ export function RunChangesHead({
   durationLabel,
   costLabel,
   cost,
+  planUsage,
+  now = Date.now(),
 }: RunChangesHeadProps) {
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-(--border-subtle) px-3 py-2">
@@ -78,6 +85,7 @@ export function RunChangesHead({
         </Tooltip>
       ) : null}
       <RunModelChip model={model} />
+      {planUsage ? <PlanWindowChip view={planWindowChip(planUsage, now)} /> : null}
       <span className="flex-1" />
       {durationLabel || costLabel ? (
         <span className="inline-flex shrink-0 items-center gap-1.5 text-[11px] tabular-nums">

@@ -1,3 +1,5 @@
+import PlanWindowChip from '../chips/PlanWindowChip'
+import { planWindowChip } from '../../../headless/utils/planWindowUsage'
 import { gitDiffChangeFile } from '../../../headless/utils/processRunChanges'
 import RichText from '../files/RichText'
 import ReferenceTextarea from '../files/ReferenceTextarea'
@@ -105,6 +107,8 @@ export type CliRunArtifactPanelProps = {
   runId: string
   /** Project whose checkout the diff previews against + applies onto. */
   projectId: string
+  /** Reference time in epoch milliseconds for the plan window; defaults to the current time. */
+  planWindowNow?: number
   /**
    * Sends a message into the chat this panel sits in.
    *
@@ -179,6 +183,7 @@ function timeLabel(epochMs: number | undefined): string | undefined {
 export default function CliRunArtifactPanel({
   runId,
   projectId,
+  planWindowNow,
   onSendMessage,
   onDraftMessage,
   onOpenGit,
@@ -200,6 +205,7 @@ export default function CliRunArtifactPanel({
     processRole,
     landFailure,
     runModel,
+    planUsage,
     cancelWork,
     startedAtMs,
     cost,
@@ -419,15 +425,31 @@ export default function CliRunArtifactPanel({
     )
   }, [isWorking])
 
-  if (loading) return null
+  // Plan usage belongs to the run, not to its change card. Keep it visible
+  // when the normal review header is absent or replaced by a notice.
+  const planChip = planUsage ? (
+    <PlanWindowChip view={planWindowChip(planUsage, planWindowNow ?? Date.now())} />
+  ) : null
+  const planOnlyHeader = planChip ? (
+    <View
+      style={{ marginTop: 8, alignItems: 'flex-start', paddingHorizontal: 12, paddingVertical: 8 }}
+    >
+      {planChip}
+    </View>
+  ) : null
+
+  if (loading) return planOnlyHeader
   if (!artifact && error) {
     return (
-      <Text style={{ marginTop: 8, fontSize: 12, color: dangerText }}>
-        Failed to load agent changes: {error}{' '}
-        <Text style={{ textDecorationLine: 'underline' }} onPress={reload}>
-          Retry
+      <>
+        {planOnlyHeader}
+        <Text style={{ marginTop: 8, fontSize: 12, color: dangerText }}>
+          Failed to load agent changes: {error}{' '}
+          <Text style={{ textDecorationLine: 'underline' }} onPress={reload}>
+            Retry
+          </Text>
         </Text>
-      </Text>
+      </>
     )
   }
   // A verifier / judge / capture run changes no files, so it has no emitted
@@ -438,28 +460,34 @@ export default function CliRunArtifactPanel({
     verification !== undefined ||
     testChecks.length + buildChecks.length > 0 ||
     evidence.refs.length > 0
-  if (!artifact && !landFailure && !(reportOnly && hasReviewContent)) return null
+  if (!artifact && !landFailure && !(reportOnly && hasReviewContent)) return planOnlyHeader
   if (settledNotice) {
     return (
-      <Text style={{ marginTop: 8, fontSize: 12, color: theme.text.secondary }}>
-        {settledNotice}
-      </Text>
+      <>
+        {planOnlyHeader}
+        <Text style={{ marginTop: 8, fontSize: 12, color: theme.text.secondary }}>
+          {settledNotice}
+        </Text>
+      </>
     )
   }
 
   if (alreadyOnBase) {
     return (
-      <AlreadyOnBaseLine
-        text={alreadyOnBase.text}
-        {...(alreadyOnBase.sha
-          ? {
-              change: {
-                files: commitReceiptFiles(artifact?.payload.files ?? []),
-                ...(alreadyOnBase.subject ? { message: alreadyOnBase.subject } : {}),
-              },
-            }
-          : {})}
-      />
+      <>
+        {planOnlyHeader}
+        <AlreadyOnBaseLine
+          text={alreadyOnBase.text}
+          {...(alreadyOnBase.sha
+            ? {
+                change: {
+                  files: commitReceiptFiles(artifact?.payload.files ?? []),
+                  ...(alreadyOnBase.subject ? { message: alreadyOnBase.subject } : {}),
+                },
+              }
+            : {})}
+        />
+      </>
     )
   }
 
@@ -747,6 +775,7 @@ export default function CliRunArtifactPanel({
             </Tooltip>
           ) : null}
           <RunModelChip model={runModel} />
+          {planChip}
           <View style={{ flex: 1 }} />
           {/* Time and money together at the top right — see the web peer. The
             cost sat on the LEFT of the spacer, reading as a footnote to the
@@ -766,7 +795,9 @@ export default function CliRunArtifactPanel({
             </View>
           ) : null}
         </View>
-      ) : null}
+      ) : (
+        planOnlyHeader
+      )}
 
       <ReviewBody scrolls={!framed}>
         {noticeView ? (

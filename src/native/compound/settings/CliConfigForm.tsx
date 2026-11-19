@@ -48,6 +48,8 @@ import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { CliCapabilityCardPanel } from './CliCapabilityCardPanel'
 import { CliImageBuildProgress } from './CliImageBuildProgress'
 import { CliImageVersionChip } from './CliImageVersionChip'
+import PlanWindowChip from '../chips/PlanWindowChip'
+import { planWindowChip, subscriptionPlanUsage } from '../../../headless/utils/planWindowUsage'
 
 const CLI_LABELS: Record<string, string> = {
   'claude-code': 'Claude Code',
@@ -89,12 +91,14 @@ type LiveModelsProbeState =
  * live sandbox round-trip / the capability battery, and deletes credentials.
  * Adding is a separate modal flow ({@link CliAddCredentialForm}).
  */
-export function CliConfigForm() {
+export function CliConfigForm({ planWindowNow }: { planWindowNow?: number } = {}) {
   const { theme } = useNativeTheme()
   const {
     isLoaded,
     loadError,
     cachesByCli,
+    subscriptionWindows = [],
+    subscriptionWindowsError,
     activeCliCredentialId,
     enabledClis,
     defaultModel,
@@ -612,6 +616,11 @@ export function CliConfigForm() {
             ) : null}
 
             {caches.map((cache) => {
+              const planUsage = subscriptionPlanUsage(
+                cli,
+                subscriptionWindows.find((row) => row.cli === cli && row.credentialId === cache.id)
+                  ?.subscription,
+              )
               const isDefault = activeCliCredentialId === cache.id
               const liveState = liveProbe[cache.id] ?? { kind: 'idle' }
               const storedCard = capabilityScorecards.find((c) => c.cli === cache.cli)
@@ -641,6 +650,15 @@ export function CliConfigForm() {
                     }}
                   >
                     <Text style={{ fontSize: 14, color: theme.text.primary }}>{cache.name}</Text>
+                    {planUsage ? (
+                      <PlanWindowChip
+                        view={planWindowChip(planUsage, planWindowNow ?? Date.now())}
+                      />
+                    ) : (
+                      <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+                        {subscriptionWindowsError ?? 'No plan window yet'}
+                      </Text>
+                    )}
                     <View
                       style={{
                         borderRadius: nativeRadii[1],

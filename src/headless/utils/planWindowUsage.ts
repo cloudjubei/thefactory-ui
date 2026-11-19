@@ -1,3 +1,4 @@
+import type { CliAgentSubscriptionStatus } from '../api/generated'
 import { cliLabel } from './cliRunner'
 import {
   CLAUDE_RATE_LIMIT_STATUS,
@@ -16,6 +17,27 @@ import type {
   PlanWindowStatus,
   PlanWindowUsage,
 } from './planWindowUsageTypes'
+
+/** The persisted subscription snapshot, not a different run's latest account window. */
+export function subscriptionPlanUsage(
+  cli: string,
+  subscription: CliAgentSubscriptionStatus | undefined,
+): CliPlanUsage | undefined {
+  if (!subscription) return undefined
+  return {
+    cli,
+    ...(subscription.plan ? { plan: subscription.plan } : {}),
+    windows: (subscription.windows ?? []).map(({ status, resetsAt, ...window }) => {
+      const normalizedStatus = CLAUDE_RATE_LIMIT_STATUS[status ?? '']
+      return {
+        ...window,
+        // Persisted CLI records use Unix seconds; the chip uses epoch milliseconds.
+        resetsAt: resetsAt * 1000,
+        ...(normalizedStatus ? { status: normalizedStatus } : {}),
+      }
+    }),
+  }
+}
 
 const MINUTE_MS = 60_000
 const HOUR_MINUTES = 60

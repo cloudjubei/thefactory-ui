@@ -74,6 +74,8 @@ import { AlreadyOnBaseLine } from './AlreadyOnBaseLine'
 import { downloadDataUri, saveSideBySide } from './signoff/download'
 import { OpenChangesNotice } from './OpenChangesNotice'
 import { ReviewOnBaseOffer } from './ReviewOnBaseOffer'
+import PlanWindowChip from '../chips/PlanWindowChip'
+import { planWindowChip } from '../../../headless/utils/planWindowUsage'
 import { RunChangesHead } from './RunChangesHead'
 import { RunLandNotice } from './RunLandNotice'
 import { RunVerdictLine } from './RunVerdictLine'
@@ -100,6 +102,8 @@ export type CliRunArtifactPanelProps = {
   runId: string
   /** Project whose checkout the diff previews against + applies onto. */
   projectId: string
+  /** Reference time in epoch milliseconds for the plan window; defaults to the current time. */
+  planWindowNow?: number
   /**
    * Sends a message into the chat this panel sits in.
    *
@@ -170,6 +174,7 @@ function timeLabel(epochMs: number | undefined): string | undefined {
 export default function CliRunArtifactPanel({
   runId,
   projectId,
+  planWindowNow,
   onSendMessage,
   onDraftMessage,
   onOpenGit,
@@ -189,6 +194,7 @@ export default function CliRunArtifactPanel({
     processRole,
     landFailure,
     runModel,
+    planUsage,
     cancelWork,
     startedAtMs,
     cost,
@@ -408,15 +414,26 @@ export default function CliRunArtifactPanel({
     )
   }, [isWorking])
 
-  if (loading) return null
+  // Plan usage belongs to the run, not to its change card. Keep it visible
+  // when the normal review header is absent or replaced by a notice.
+  const planOnlyHeader = planUsage ? (
+    <div className="mt-2 flex flex-wrap items-center px-3 py-2">
+      <PlanWindowChip view={planWindowChip(planUsage, planWindowNow ?? Date.now())} />
+    </div>
+  ) : null
+
+  if (loading) return planOnlyHeader
   if (!artifact && error) {
     return (
-      <div className={`mt-2 text-[12px] ${DANGER_TEXT}`}>
-        Failed to load agent changes: {error}{' '}
-        <button type="button" className="underline" onClick={reload}>
-          Retry
-        </button>
-      </div>
+      <>
+        {planOnlyHeader}
+        <div className={`mt-2 text-[12px] ${DANGER_TEXT}`}>
+          Failed to load agent changes: {error}{' '}
+          <button type="button" className="underline" onClick={reload}>
+            Retry
+          </button>
+        </div>
+      </>
     )
   }
   // A verifier / judge / capture run changes no files, so it has no emitted
@@ -427,28 +444,34 @@ export default function CliRunArtifactPanel({
     verification !== undefined ||
     testChecks.length + buildChecks.length > 0 ||
     evidence.refs.length > 0
-  if (!artifact && !landFailure && !(reportOnly && hasReviewContent)) return null
+  if (!artifact && !landFailure && !(reportOnly && hasReviewContent)) return planOnlyHeader
   if (settledNotice) {
     return (
-      <div className="mt-2 rounded-md border border-(--border-subtle) bg-(--surface-base) px-3 py-2 text-[12px] text-(--text-secondary)">
-        {settledNotice}
-      </div>
+      <>
+        {planOnlyHeader}
+        <div className="mt-2 rounded-md border border-(--border-subtle) bg-(--surface-base) px-3 py-2 text-[12px] text-(--text-secondary)">
+          {settledNotice}
+        </div>
+      </>
     )
   }
 
   if (alreadyOnBase) {
     return (
-      <AlreadyOnBaseLine
-        text={alreadyOnBase.text}
-        {...(alreadyOnBase.sha
-          ? {
-              change: {
-                files: commitReceiptFiles(artifact?.payload.files ?? []),
-                ...(alreadyOnBase.subject ? { message: alreadyOnBase.subject } : {}),
-              },
-            }
-          : {})}
-      />
+      <>
+        {planOnlyHeader}
+        <AlreadyOnBaseLine
+          text={alreadyOnBase.text}
+          {...(alreadyOnBase.sha
+            ? {
+                change: {
+                  files: commitReceiptFiles(artifact?.payload.files ?? []),
+                  ...(alreadyOnBase.subject ? { message: alreadyOnBase.subject } : {}),
+                },
+              }
+            : {})}
+        />
+      </>
     )
   }
 
@@ -678,11 +701,15 @@ export default function CliRunArtifactPanel({
           {...(!reportOnly && artifact ? { meta: changesHeader.meta } : {})}
           {...(review && !review.shadow ? { branch: review.branch } : {})}
           model={runModel}
+          {...(planUsage ? { planUsage } : {})}
           {...(facts.durationLabel ? { durationLabel: facts.durationLabel } : {})}
           {...(facts.costLabel ? { costLabel: facts.costLabel } : {})}
           {...(facts.cost ? { cost: facts.cost } : {})}
+          {...(planWindowNow !== undefined ? { now: planWindowNow } : {})}
         />
-      ) : null}
+      ) : (
+        planOnlyHeader
+      )}
 
       <div className="flex flex-col gap-3 px-3 py-3">
         {noticeView ? (
