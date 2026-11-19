@@ -1,4 +1,10 @@
-import { IconFileAdded, IconFileDeleted, IconFileModified, IconWarningTriangle } from '../../icons'
+import {
+  IconFileAdded,
+  IconFileDeleted,
+  IconFileModified,
+  IconFileRenamed,
+  IconWarningTriangle,
+} from '../../icons'
 import { nativePalette } from '../../../tokens/native'
 
 export interface GitFileStatusIconProps {
@@ -10,7 +16,7 @@ export interface GitFileStatusIconProps {
 
 /**
  * Native peer of web's `GitFileStatusIcon`. Uses the same glyph icons —
- * `IconFileAdded` / `IconFileDeleted` / `IconFileModified` (and
+ * `IconFileAdded` / `IconFileDeleted` / `IconFileModified` / `IconFileRenamed` (and
  * `IconWarningTriangle` for conflicts) — so the file-row chrome reads
  * identically across clients. The Git pane, write-tool previews, and any
  * future status-bearing surfaces should all dispatch through this so the
@@ -24,5 +30,6 @@ export default function GitFileStatusIcon({
   if (isConflicted) return <IconWarningTriangle size={size} color={nativePalette.red[600]} />
   if (status === 'A') return <IconFileAdded size={size} />
   if (status === 'D') return <IconFileDeleted size={size} />
+  if (status === 'R') return <IconFileRenamed size={size} />
   return <IconFileModified size={size} />
 }

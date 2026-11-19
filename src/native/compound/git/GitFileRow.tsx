@@ -3,23 +3,17 @@ import { Pressable, Text, View } from 'react-native'
 import { countPatchAddDel } from 'thefactory-tools/utils'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
-import {
-  IconDelete,
-  IconDotsVertical,
-  IconFastMerge,
-  IconFileAdded,
-  IconFileDeleted,
-  IconFileModified,
-  IconRevert,
-  IconWarningTriangle,
-} from '../../icons'
+import { IconDelete, IconDotsVertical, IconFastMerge, IconRevert } from '../../icons'
 import IconButton from '../../primitives/IconButton'
 import ActionMenu, { type ActionMenuItem } from '../ActionMenu'
-import { PathDisplay } from '../PathDisplay'
+import { useGitFilePath } from './GitFilePath'
+import GitFileStatusIcon from './GitFileStatusIcon'
 
 export interface GitFileEntryLike {
   path: string
   status?: string
+  oldPath?: string
+  renameFrom?: string
   patch?: string
   /** Pre-computed numstat (from `git diff --numstat` on the backend).
    *  Prefer these over parsing `patch` — branch / commit diff summaries
@@ -45,30 +39,6 @@ export interface GitFileRowProps {
   onRemove?: (file: GitFileEntryLike) => void
   /** Resolve a merge conflict. */
   onResolveConflict?: (file: GitFileEntryLike) => void
-}
-
-const ICON_TINT: Record<string, string> = {
-  A: '#15803d',
-  M: '#b45309',
-  D: '#b91c1c',
-  R: '#1d4ed8',
-  C: '#1d4ed8',
-  T: '#b45309',
-  U: '#b91c1c',
-  '?': '#6b7280',
-  '!': '#6b7280',
-  X: '#6b7280',
-}
-
-function StatusIcon({ status, isConflicted }: { status?: string; isConflicted?: boolean }) {
-  if (isConflicted) {
-    return <IconWarningTriangle size={16} color="#dc2626" />
-  }
-  if (status === 'A') return <IconFileAdded size={16} color={ICON_TINT.A} />
-  if (status === 'D') return <IconFileDeleted size={16} color={ICON_TINT.D} />
-  return (
-    <IconFileModified size={16} color={status ? (ICON_TINT[status] ?? ICON_TINT.X) : ICON_TINT.X} />
-  )
 }
 
 function ChangesPills({ file }: { file: GitFileEntryLike }) {
@@ -134,6 +104,7 @@ export default function GitFileRow({
 }: GitFileRowProps) {
   const { theme } = useNativeTheme()
   const [menuOpen, setMenuOpen] = useState(false)
+  const { path, label, onLongPress, details } = useGitFilePath(file)
 
   const actions: ActionMenuItem[] = []
   if (file.isConflicted && onResolveConflict) {
@@ -212,16 +183,19 @@ export default function GitFileRow({
         ) : null}
 
         <View style={{ width: 20, alignItems: 'center', justifyContent: 'center' }}>
-          <StatusIcon status={file.status} isConflicted={file.isConflicted} />
+          <GitFileStatusIcon status={file.status} isConflicted={file.isConflicted} size={16} />
         </View>
 
         <Pressable
           accessibilityRole="button"
           onPress={onPress ? () => onPress(file) : undefined}
-          disabled={!onPress}
+          onLongPress={onLongPress}
+          accessibilityLabel={label}
+          accessibilityHint={onLongPress ? 'Long press to show both full paths' : undefined}
+          disabled={!onPress && !onLongPress}
           style={{ flex: 1, minWidth: 0 }}
         >
-          <PathDisplay path={file.path} />
+          {path}
         </Pressable>
 
         <ChangesPills file={file} />
@@ -238,6 +212,7 @@ export default function GitFileRow({
         ) : null}
       </View>
 
+      {details}
       <ActionMenu
         isOpen={menuOpen}
         onClose={() => setMenuOpen(false)}

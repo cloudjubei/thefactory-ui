@@ -8,7 +8,7 @@ import { IconChevron, IconExternalLink } from '../../../icons'
 import { StructuredUnifiedDiff } from '../../diff'
 import GitFileChangesPills from '../../git/common/GitFileChangesPills'
 import GitFileStatusIcon from '../../git/common/GitFileStatusIcon'
-import { PathDisplay } from '../../PathDisplay'
+import GitFilePath from '../../git/common/GitFilePath'
 import { CommitChip, RefChip } from '../../chips'
 
 /** One changed file, whichever path (review branch, process run or captured artifact) it came from. */
@@ -65,7 +65,7 @@ function FileRow({
           />
           <GitFileStatusIcon status={file.status} isConflicted={file.warning !== undefined} />
           <div className="min-w-0 flex-1">
-            <PathDisplay path={file.path} />
+            <GitFilePath file={file} />
           </div>
           {file.warning ? (
             <span
@@ -75,7 +75,11 @@ function FileRow({
               {file.warning}
             </span>
           ) : null}
-          <GitFileChangesPills patch={file.patch} />
+          <GitFileChangesPills
+            patch={file.patch}
+            additions={file.additions}
+            deletions={file.deletions}
+          />
         </button>
         {onToggleViewed ? (
           <label className="flex shrink-0 cursor-pointer items-center gap-1.5 px-2 text-[11px] text-(--text-secondary)">

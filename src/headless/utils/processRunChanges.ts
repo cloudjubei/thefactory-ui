@@ -8,19 +8,26 @@ import type { ReportSectionView } from './signoffReportTypes'
 const changeStatus = (status: GitFileChange['status']): GitChangeFile['status'] =>
   status === 'A' ? 'A' : status === 'D' ? 'D' : 'M'
 
-/**
- * A file of a git diff as the Changes view shows it: added and deleted as
- * themselves, renames and the rest as modified, and why there is no patch
- * when there is none. Pure.
- */
+/** A file of a git diff as the Changes view shows it, with rename metadata
+ * and a reason when there is no patch. Pure. */
 export function gitDiffChangeFile(file: GitFileChange): GitChangeFile {
-  if (file.patch) return { path: file.path, status: changeStatus(file.status), patch: file.patch }
+  const row: GitChangeFile =
+    file.status === 'R'
+      ? {
+          path: file.path,
+          status: 'R',
+          oldPath: file.oldPath || file.renameFrom,
+          additions: file.additions,
+          deletions: file.deletions,
+        }
+      : { path: file.path, status: changeStatus(file.status) }
+  if (file.patch) return { ...row, patch: file.patch }
   const note = file.patchSuppressed
     ? GIT_DIFF_SUPPRESSED_MESSAGE
     : file.binary
       ? PROCESS_CHANGES_TEXT.binary
       : PROCESS_CHANGES_TEXT.noText
-  return { path: file.path, status: changeStatus(file.status), note }
+  return { ...row, note }
 }
 
 const stat = (added: number | undefined, removed: number | undefined): string =>

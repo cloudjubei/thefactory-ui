@@ -2,6 +2,7 @@ import {
   IconFileAdded,
   IconFileDeleted,
   IconFileModified,
+  IconFileRenamed,
   IconWarningTriangle,
 } from '../../../icons'
 
@@ -20,5 +21,6 @@ export default function GitFileStatusIcon({
     return <IconWarningTriangle className={`text-red-600 dark:text-red-400 ${className}`} />
   if (status === 'A') return <IconFileAdded className={className} />
   if (status === 'D') return <IconFileDeleted className={className} />
+  if (status === 'R') return <IconFileRenamed className={className} />
   return <IconFileModified className={className} />
 }

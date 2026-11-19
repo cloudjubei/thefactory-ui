@@ -45,6 +45,8 @@ import { FILE_PREVIEW_SCENES } from '../scenes/filePreview'
 import { FILE_PANE_VIDEO_SCENES } from '../scenes/filePaneVideo'
 import { FILE_SUGGESTION_SCENES } from '../scenes/fileSuggestions'
 import { FILE_TREE_SCENES } from '../scenes/fileTree'
+import { GIT_FILE_STATUS_ICON_SCENES } from '../scenes/gitFileStatusIcons'
+import { GIT_RENAMED_ROWS_SCENES } from '../scenes/gitRenamedRows'
 import { GIT_GRAPH_UNCOMMITTED_SCENES } from '../scenes/gitGraphUncommitted'
 import { GIT_PUSH_AFTER_SCENES } from '../scenes/gitPushAfter'
 import { GIT_STASH_SCENES } from '../scenes/gitStash'
@@ -259,6 +261,8 @@ export const SCENES: readonly Scene[] = [
   ...BACKEND_CONNECTION_SCENES,
   ...PROJECT_OVERVIEW_MODEL_SCENES,
   ...PRIMITIVE_SCENES,
+  ...GIT_FILE_STATUS_ICON_SCENES,
+  ...GIT_RENAMED_ROWS_SCENES,
 ]
 
 export const SCENE_GROUPS: readonly SceneGroup[] = [

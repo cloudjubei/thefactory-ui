@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState, type DragEvent, type MouseEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import Tooltip from '../../../primitives/Tooltip'
-import { PathDisplay } from '../../PathDisplay'
+import type { GitRenamePathSource } from '../../../../headless/utils/gitRenamePath'
+import GitFilePath from './GitFilePath'
 import { IconDelete, IconDotsVertical, IconFastMerge, IconRevert } from '../../../icons'
 import GitFileStatusIcon from './GitFileStatusIcon'
 import { GitFileChangesPills } from './GitFileChangesPills'
 
-export type GitLocalFileEntry = {
-  path: string
-  status?: string
+export type GitLocalFileEntry = GitRenamePathSource & {
+  additions?: number
+  deletions?: number
   patch?: string
   binary?: boolean
   /** The diff was left out because of its size. */
@@ -58,7 +59,9 @@ export default function GitFileRow({
           aria-label={checked ? 'Unstage file' : 'Stage file'}
         />
         <GitFileStatusIcon status={file.status} isConflicted={file.isConflicted} />
-        <PathDisplay path={file.path} />
+        <div className="min-w-0 flex-1">
+          <GitFilePath file={file} />
+        </div>
       </div>
 
       <div className="flex items-center shrink-0 min-h-5 justify-end pl-2 gap-1">
@@ -70,7 +73,11 @@ export default function GitFileRow({
             covers the same entry points (touch has no hover). */}
         <div className="relative inline-flex items-center justify-end">
           <div className="flex items-center md:group-hover:invisible">
-            <GitFileChangesPills patch={file.patch} />
+            <GitFileChangesPills
+              patch={file.patch}
+              additions={file.additions}
+              deletions={file.deletions}
+            />
           </div>
           <div className="hidden md:group-hover:flex absolute inset-y-0 right-0 z-10 items-center gap-1">
             {file.isConflicted && onResolveConflict && (

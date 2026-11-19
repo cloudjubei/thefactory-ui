@@ -14,7 +14,7 @@ import RefChip from '../../chips/RefChip'
 import { GitFileChangesPills } from '../../git/GitFileChangesPills'
 import GitFileStatusIcon from '../../git/GitFileStatusIcon'
 import UnifiedDiff from '../../git/UnifiedDiff'
-import { PathDisplay } from '../../PathDisplay'
+import { useGitFilePath } from '../../git/GitFilePath'
 import { toneText } from './tones'
 
 /** One changed file, whichever path (review branch, process run or captured artifact) it came from. */
@@ -61,12 +61,16 @@ function FileRow({
 }) {
   const { theme } = useNativeTheme()
   const [open, setOpen] = useState(defaultOpen && !viewed)
+  const { path, label, onLongPress, details } = useGitFilePath(file)
   return (
     <View style={{ borderBottomWidth: last ? 0 : 1, borderBottomColor: theme.border.subtle }}>
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}
         onPress={() => setOpen((v) => !v)}
+        onLongPress={onLongPress}
+        accessibilityLabel={label}
+        accessibilityHint={onLongPress ? 'Long press to show both full paths' : undefined}
         style={({ pressed }) => ({
           flexDirection: 'row',
           alignItems: 'center',
@@ -80,9 +84,7 @@ function FileRow({
           <IconChevron size={14} color={theme.text.muted} />
         </View>
         <GitFileStatusIcon status={file.status} isConflicted={file.warning !== undefined} />
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <PathDisplay path={file.path} />
-        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>{path}</View>
         {file.warning ? (
           <Text
             numberOfLines={1}
@@ -96,8 +98,13 @@ function FileRow({
             {file.warning}
           </Text>
         ) : null}
-        <GitFileChangesPills patch={file.patch} />
+        <GitFileChangesPills
+          patch={file.patch}
+          additions={file.additions}
+          deletions={file.deletions}
+        />
       </Pressable>
+      {details}
       {onToggleViewed ? (
         <View style={{ paddingHorizontal: 8, paddingBottom: 6, alignItems: 'flex-end' }}>
           <Switch

@@ -45,10 +45,31 @@ describe('gitDiffChangeFile', () => {
     })
   })
 
-  it('reads added and deleted as themselves and every other letter as modified', () => {
+  it('keeps added and deleted and maps type changes to modified', () => {
     expect(gitDiffChangeFile(file({ status: 'A' })).status).toBe('A')
     expect(gitDiffChangeFile(file({ status: 'D' })).status).toBe('D')
-    expect(gitDiffChangeFile(file({ status: 'R' })).status).toBe('M')
+    expect(gitDiffChangeFile(file({ status: 'T' })).status).toBe('M')
+  })
+
+  it('preserves rename paths and line counts even when the patch is suppressed', () => {
+    expect(
+      gitDiffChangeFile(
+        file({
+          status: 'R',
+          renameFrom: 'old/package.json',
+          deletions: 2,
+          patch: undefined,
+          patchSuppressed: 'size',
+        }),
+      ),
+    ).toEqual({
+      path: 'package.json',
+      status: 'R',
+      oldPath: 'old/package.json',
+      additions: 1,
+      deletions: 2,
+      note: GIT_DIFF_SUPPRESSED_MESSAGE,
+    })
   })
 
   it('says why there is no patch', () => {

@@ -96,6 +96,8 @@ import { CHAT_MESSAGING_VIEWS } from './chatMessagingViews'
 import { VIDEO_TIMELINE_VIEWS } from './videoTimelineViews'
 import { RUN_THROUGH_VIEWS } from './runThroughViews'
 import { TRAINER_SUGGESTION_VIEWS } from './trainerSuggestionViews'
+import { GIT_FILE_STATUS_ICON_VIEWS } from './gitFileStatusIconViews'
+import { GIT_RENAMED_ROW_VIEWS } from './gitRenamedRowViews'
 
 const noop = () => {}
 const AT = Date.parse(FAKE_GROUP_STATUS_AT)
@@ -689,4 +691,6 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   ...CHAT_MESSAGING_VIEWS,
   ...VIDEO_TIMELINE_VIEWS,
   ...TRAINER_SUGGESTION_VIEWS,
+  ...GIT_FILE_STATUS_ICON_VIEWS,
+  ...GIT_RENAMED_ROW_VIEWS,
 ]

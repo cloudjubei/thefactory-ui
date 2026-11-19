@@ -5,7 +5,7 @@ import { EMPTY_TREE_SHA } from 'thefactory-tools/constants'
 import Alert from '../../primitives/Alert'
 import Spinner from '../../primitives/Spinner'
 import { ResizeHandle } from '../ResizeHandle'
-import { PathDisplay } from '../PathDisplay'
+import GitFilePath from './common/GitFilePath'
 import { DiffViewer, type IntraMode } from '../diff'
 import { GitFileChangesPills } from './common/GitFileChangesPills'
 import GitFileStatusIcon from './common/GitFileStatusIcon'
@@ -84,9 +84,13 @@ const FileRow = memo(
         >
           <GitFileStatusIcon status={file.status} className="w-4 h-4 shrink-0" />
           <div className="min-w-0 flex-1">
-            <PathDisplay path={file.path} />
+            <GitFilePath file={file} />
           </div>
-          <GitFileChangesPills patch={patch} />
+          <GitFileChangesPills
+            patch={patch}
+            additions={file.additions}
+            deletions={file.deletions}
+          />
         </button>
       )
     }
@@ -102,10 +106,10 @@ const FileRow = memo(
         title={file.path}
       >
         <GitFileStatusIcon status={file.status} className="w-3.5 h-3.5 shrink-0" />
-        <span className="min-w-0 flex-1 truncate">
-          <PathDisplay path={file.path} />
-        </span>
-        <GitFileChangesPills patch={patch} />
+        <div className="min-w-0 flex-1">
+          <GitFilePath file={file} />
+        </div>
+        <GitFileChangesPills patch={patch} additions={file.additions} deletions={file.deletions} />
       </button>
     )
   },

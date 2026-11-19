@@ -1,8 +1,10 @@
 /** One changed file as the Changes view shows it, whichever diff it came from. */
 export type GitChangeFile = {
   path: string
-  /** `A` / `M` / `D`, as the git views expect. */
-  status: 'A' | 'M' | 'D'
+  status: 'A' | 'M' | 'D' | 'R'
+  oldPath?: string
+  additions?: number
+  deletions?: number
   patch?: string
   /** Why there is no patch to show, when there is none. */
   note?: string
