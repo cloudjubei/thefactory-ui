@@ -14,6 +14,7 @@ import type { BadgeState, ProcessTally } from './badgeAggregationTypes'
 import type { ProcessRunChatNews } from './chatChannelTypes'
 import { isHeldForGroupSignOff } from './groupSignOffHold'
 import { isProcessRunCurrent } from './processRunCurrent'
+import { isProcessParkWaitingElsewhere } from './processRunWait'
 
 export const EMPTY_BADGE_STATE: BadgeState = {
   chat_messages: { unread: 0, waiting: 0, thinking: false },
@@ -72,7 +73,7 @@ export function processTallyByProject(
     else if (isWorking(r, now)) {
       tally.running += 1
       if (unread) tally.unread += 1
-    } else if (r.park?.reason !== 'waiting-on-blockers' && !isOutsideWaitPending(r.park)) {
+    } else if (!isProcessParkWaitingElsewhere(r.park) && !isOutsideWaitPending(r.park)) {
       tally.waiting += 1
     }
     out.set(r.projectId, tally)

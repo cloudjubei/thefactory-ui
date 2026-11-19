@@ -38,6 +38,7 @@ export type RunProposalKind =
   | 'model'
   | 'close-features'
   | 'already-landed'
+  | 'wait'
 
 /**
  * One part of what a proposal says, collapsed to a line on its card and opened

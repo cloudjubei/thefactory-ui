@@ -32,6 +32,10 @@ import {
   type FakeDataInProduct,
   type PendingToolGrant,
   type LaunchCapsTyped,
+  launchLegWaitsForMetadata,
+  processWaitForDraftsOf,
+  processWaitForDraftsProblem,
+  type ProcessWaitForDrafts,
 } from '../../../headless'
 import { grantDecideErrorMessage } from '../../../headless/utils/pendingToolGrants'
 import { runProposalArgs } from '../../../headless/utils/runProposalView'
@@ -46,6 +50,7 @@ import LaunchFakeDataChoice from './LaunchFakeDataChoice'
 import GroupLegLiveChecks from './GroupLegLiveChecks'
 import TicketMoveField from './TicketMoveField'
 import ToolAskCard from './ToolAskCard'
+import LaunchWaitFields from './LaunchWaitFields'
 
 export type GroupWorkLaunchPanelProps = {
   /** The pending `startGroupWork` ask. */
@@ -123,8 +128,21 @@ export default function GroupWorkLaunchPanel({
     of: 'leg',
   })
 
+  const [waitPicks, setWaitPicks] = useState<Record<string, ProcessWaitForDrafts>>({})
+  const legWait = (projectId: string): ProcessWaitForDrafts =>
+    waitPicks[projectId] ?? processWaitForDraftsOf(summary.legWaitsFor?.[projectId])
+  const waitProblems = (preview?.legs ?? []).flatMap((leg) => {
+    const problem = processWaitForDraftsProblem(legWait(leg.projectId))
+    return problem ? [problem] : []
+  })
+  const waitProjects = (preview?.legs ?? []).map((leg) => ({
+    id: leg.projectId,
+    title: leg.projectTitle,
+  }))
+
   const problems = preview?.problems ?? []
-  const canStart = isLoaded && preview !== undefined && problems.length === 0
+  const canStart =
+    isLoaded && preview !== undefined && problems.length === 0 && waitProblems.length === 0
   const view = groupWorkAskView(summary, runProposalArgs(grant), preview?.buildMode)
   const ticket = ticketMoveField(preview?.ticketMove)
   const ticketMove = ticketMoveDecisionOf(ticket, moveTicket)
@@ -146,6 +164,7 @@ export default function GroupWorkLaunchPanel({
               ...groupLaunchFakeDataMetadata(preview?.legs ?? [], fakeDataPicks),
               ...groupLaunchLiveCheckMetadata(preview?.legs ?? [], liveCheckPicks),
               ...(ticketMove ? { ticketMove } : {}),
+              ...launchLegWaitsForMetadata(waitPicks),
             }
           : undefined,
       )
@@ -250,6 +269,17 @@ export default function GroupWorkLaunchPanel({
                         />
                       </div>
                     ) : null}
+                    <LaunchWaitFields
+                      drafts={legWait(leg.projectId)}
+                      onChange={(next) =>
+                        setWaitPicks((prev) => ({ ...prev, [leg.projectId]: next }))
+                      }
+                      {...(processWaitForDraftsProblem(legWait(leg.projectId))
+                        ? { problem: processWaitForDraftsProblem(legWait(leg.projectId)) }
+                        : {})}
+                      projects={waitProjects.filter((p) => p.id !== leg.projectId)}
+                      busy={busy}
+                    />
                     {processGroupLegWaitsFor(preview, leg.dependsOn) ? (
                       <span className="text-[11px] text-(--text-muted)">
                         {processGroupLegWaitsFor(preview, leg.dependsOn)}

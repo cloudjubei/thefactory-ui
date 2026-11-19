@@ -162,6 +162,18 @@ describe('processTallyByProject', () => {
     expect(tally.get('p1')).toEqual({ running: 0, waiting: 0, failed: 0, unread: 0 })
   })
 
+  it('counts nothing for a run waiting for other work before its proof', () => {
+    const tally = processTallyByProject(
+      [
+        run('r1', 'p1', 'parked', {
+          park: { reason: 'waiting-on-work', message: 'Waits for ZNR-780', parkedAt: 2 },
+        }),
+      ],
+      NOW,
+    )
+    expect(tally.get('p1')).toEqual({ running: 0, waiting: 0, failed: 0, unread: 0 })
+  })
+
   it('counts a run waiting on someone outside only once what it waits for came', () => {
     const ask = {
       kind: 'blocker' as const,

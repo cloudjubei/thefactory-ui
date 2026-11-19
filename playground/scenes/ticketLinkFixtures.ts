@@ -181,3 +181,99 @@ export const STORY_PROPOSAL_MANY_ARGS = {
     Docs: ['Web', 'Admin'],
   },
 }
+
+const RENEWAL_CALL = {
+  title: 'Renewal call',
+  description: 'A `POST /sessions/renew` that extends a live session by its full length.',
+  acceptance: '- Renews a live session and answers its new end\n- Refuses an expired session',
+}
+const REFUSE_UNRENEWABLE = {
+  title: 'Refuse an upload that cannot renew',
+  description: 'An upload whose session cannot be renewed is refused before it starts.',
+  acceptance: 'An upload over 50 MB with an expired session is refused with a plain reason.',
+}
+const LAST_RENEWAL_COLUMN = {
+  title: 'Last renewal column',
+  description: 'The sessions table shows when each session was last renewed, and by which upload.',
+  acceptance: '1) The column shows the time 2) Hovering it names the upload',
+}
+const RENEWAL_FILTER = { title: 'Filter by renewal age', description: '', acceptance: '' }
+
+/** A proposal whose parts carry the features their stories are built from, in build order. */
+export const STORY_PROPOSAL_FEATURES_ARGS = {
+  ...STORY_PROPOSAL_ARGS,
+  parts: [
+    { projectId: 'Backend', storyId: 's-112', features: [RENEWAL_CALL, REFUSE_UNRENEWABLE] },
+    {
+      projectId: 'Admin',
+      newStoryTitle: 'Show the last session renewal',
+      features: [LAST_RENEWAL_COLUMN, RENEWAL_FILTER],
+    },
+  ],
+}
+
+/** The same proposal with the backend part waiting for other work before its proof. */
+export const STORY_PROPOSAL_WAIT_ARGS = {
+  ...STORY_PROPOSAL_FEATURES_ARGS,
+  parts: [
+    {
+      ...STORY_PROPOSAL_FEATURES_ARGS.parts[0],
+      waitsFor: [
+        { label: 'Session store', pullRequestUrl: 'https://github.com/acme/backend/pull/41' },
+        { label: 'Upload limits', branch: 'upload-limits' },
+      ],
+    },
+    STORY_PROPOSAL_FEATURES_ARGS.parts[1],
+  ],
+}
+
+/** A part with a long list of features, beside one with two. */
+export const STORY_PROPOSAL_LONG_FEATURES_ARGS = {
+  ...STORY_PROPOSAL_FEATURES_ARGS,
+  parts: [
+    STORY_PROPOSAL_FEATURES_ARGS.parts[0],
+    {
+      projectId: 'Web',
+      newStoryTitle: 'Renew before long uploads',
+      features: [
+        'Renew before an upload starts',
+        'Renew every ten minutes during an upload',
+        'Show a renewal failure on the upload',
+        'Retry a failed renewal once',
+        'Keep the upload queue across a renewal',
+        'Log each renewal for support',
+        'Settings toggle for renewal',
+        'Renewal in the offline queue',
+        'Help page on long uploads',
+      ].map((title, at) => ({
+        title,
+        description: `Step ${at + 1} of renewing a session around long uploads.`,
+        acceptance: `- ${title} works on a 200 MB upload\n- Nothing changes for uploads under 50 MB`,
+      })),
+    },
+  ],
+  needs: { Web: ['Backend'] },
+}
+
+/** What the backend tells the agent once the story is made: the first sentence is what the card shows. */
+export const STORY_PROPOSAL_READY_MESSAGE =
+  'Made and linked to ZNR-780, every part’s story with its features: it is ready to run. Add nothing to it. When the person says start, call `startGroupWork` with this `groupStoryId` and the `legs` getGroupStory gives.'
+
+/** The made story's answer: each part's features as "N/M done" text, and the message. */
+export const STORY_PROPOSAL_READY = {
+  ...STORY_PROPOSAL_CREATED,
+  parts: STORY_PROPOSAL_CREATED.parts.map((part) => ({ ...part, features: '0/2 done' })),
+  message: STORY_PROPOSAL_READY_MESSAGE,
+}
+
+/** A proposal with a part that has no features, which the backend refuses. */
+export const STORY_PROPOSAL_NO_FEATURES_ARGS = {
+  ...STORY_PROPOSAL_FEATURES_ARGS,
+  parts: [
+    STORY_PROPOSAL_FEATURES_ARGS.parts[0],
+    { projectId: 'Admin', newStoryTitle: 'Show the last session renewal' },
+  ],
+}
+
+export const STORY_PROPOSAL_NO_FEATURES_REFUSAL =
+  'A ticket’s group story is ready to run once approved, so every part needs its features: give Admin `features` — { title, description, acceptance, context? }, in the order they are built.'

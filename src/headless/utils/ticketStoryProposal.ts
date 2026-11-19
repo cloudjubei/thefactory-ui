@@ -1,12 +1,19 @@
+import { processWaitsForOf } from 'thefactory-tools/utils'
 import { cleanCliToolName } from './cliRunner'
+import { processPlannedWaitView } from './processRunWait'
+import { runProposalCriteria } from './runProposalView'
 import { ticketUrlOnSite } from './ticketLinks'
 import {
+  TICKET_STORY_FEATURES_SHOWN,
   TICKET_STORY_PROPOSAL_OUTCOME,
   TICKET_STORY_PROPOSAL_TEXT,
   TICKET_STORY_PROPOSAL_TOOL,
 } from './ticketStoryProposalConstants'
 import type {
+  TicketStoryFeatureView,
+  TicketStoryFeaturesFold,
   TicketStoryPartStory,
+  TicketStoryPartView,
   TicketStoryProposalInput,
   TicketStoryProposalOutcome,
   TicketStoryProposalView,
@@ -84,6 +91,53 @@ function outcomeOf(resultType: string | undefined, refused: boolean): TicketStor
 
 type RawPart = { projectId: string; story: TicketStoryPartStory; needs?: unknown }
 
+type PartPlan = Pick<TicketStoryPartView, 'features' | 'wait'>
+
+function plannedFeatures(raw: unknown): TicketStoryFeatureView[] {
+  const list = Array.isArray(raw) ? raw : []
+  return list.flatMap((entry) => {
+    const feature = record(entry)
+    const title = text(feature.title)
+    if (!title) return []
+    const description = text(feature.description)
+    const acceptance = text(feature.acceptance)
+    return [
+      {
+        title,
+        ...(description ? { description } : {}),
+        criteria: acceptance ? runProposalCriteria(acceptance) : [],
+      },
+    ]
+  })
+}
+
+function partPlans(raw: unknown): Map<string, PartPlan> {
+  const plans = new Map<string, PartPlan>()
+  for (const entry of Array.isArray(raw) ? raw : []) {
+    const part = record(entry)
+    const projectId = text(part.projectId)
+    if (!projectId || plans.has(projectId)) continue
+    const read = processWaitsForOf(part.waitsFor)
+    const wait = 'waitsFor' in read ? processPlannedWaitView(read.waitsFor) : undefined
+    plans.set(projectId, { features: plannedFeatures(part.features), ...(wait ? { wait } : {}) })
+  }
+  return plans
+}
+
+function firstSentence(value: unknown): string | undefined {
+  const message = text(value)
+  return message?.match(/^.*?[.!?](?=\s|$)/s)?.[0] ?? message
+}
+
+/**
+ * How many of a part's features show and how many fold behind "N more": the
+ * first few of a long list, all of it once opened, and never one alone folded. Pure.
+ */
+export function ticketStoryFeaturesFold(count: number, open: boolean): TicketStoryFeaturesFold {
+  if (open || count <= TICKET_STORY_FEATURES_SHOWN + 1) return { shown: count, more: 0 }
+  return { shown: TICKET_STORY_FEATURES_SHOWN, more: count - TICKET_STORY_FEATURES_SHOWN }
+}
+
 function askedParts(raw: unknown): RawPart[] {
   const list = Array.isArray(raw) ? raw : []
   return list.flatMap((entry) => {
@@ -120,8 +174,10 @@ function madeParts(raw: unknown): RawPart[] {
 /**
  * A `proposeTicketGroupStory` call as its ask and its row show it. Before
  * approval it reads the agent's arguments; once the story is made it reads what
- * was made, the part stories by their titles and the way to the group story. A
- * refusal shows why and offers no way to a story. Pure.
+ * was made, the part stories by their titles, that it is ready to run and the
+ * way to the group story. Each part keeps the features and the wait the agent
+ * planned for its project, before and after. A refusal shows why and offers no
+ * way to a story. Pure.
  */
 export function ticketStoryProposalView(input: TicketStoryProposalInput): TicketStoryProposalView {
   const args = record(input.args)
@@ -149,6 +205,8 @@ export function ticketStoryProposalView(input: TicketStoryProposalInput): Ticket
   const order = partsOrderLine(steps, nameOf)
   const groupId = text(answer.groupId)
   const groupStoryId = text(answer.groupStoryId)
+  const plans = partPlans(args.parts)
+  const ready = created ? firstSentence(answer.message) : undefined
   const failed = outcome === 'refused' || outcome === 'declined' || outcome === 'cancelled'
   const error = failed
     ? (refusal ?? toolRowReason(outcome === 'declined' ? 'not_allowed' : 'errored', input.result))
@@ -163,12 +221,14 @@ export function ticketStoryProposalView(input: TicketStoryProposalInput): Ticket
       projectTitle: nameOf(projectId),
       story,
       step: steps.findIndex((step) => step.includes(projectId)) + 1,
+      ...(plans.get(projectId) ?? { features: [] }),
     })),
     steps,
     ...(order ? { order } : {}),
     outcome,
     note: TICKET_STORY_PROPOSAL_OUTCOME[outcome],
     ...(error ? { error } : {}),
+    ...(ready ? { ready } : {}),
     ...(created && groupId && groupStoryId ? { groupStory: { groupId, groupStoryId, title } } : {}),
   }
 }

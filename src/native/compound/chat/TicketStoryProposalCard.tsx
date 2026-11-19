@@ -7,7 +7,10 @@ import { useTicketLinks } from '../../../headless/contexts/TicketLinksContext'
 import { ticketChipView } from '../../../headless/utils/groupTickets'
 import { collapsedMessage } from '../../../headless/utils/sendChatMessageView'
 import { ticketLinkOf } from '../../../headless/utils/ticketLinks'
-import { ticketStoryProposalView } from '../../../headless/utils/ticketStoryProposal'
+import {
+  ticketStoryFeaturesFold,
+  ticketStoryProposalView,
+} from '../../../headless/utils/ticketStoryProposal'
 import {
   TICKET_STORY_DESCRIPTION_FOLD_CHARS,
   TICKET_STORY_DESCRIPTION_FOLD_LINES,
@@ -15,17 +18,20 @@ import {
   TICKET_STORY_PROPOSAL_TEXT,
 } from '../../../headless/utils/ticketStoryProposalConstants'
 import type {
+  TicketStoryFeatureView,
   TicketStoryPartView,
   TicketStoryProposalLayout,
   TicketStoryProposalView,
 } from '../../../headless/utils/ticketStoryProposalTypes'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
+import { IconChevronDown } from '../../icons'
 import Markdown from '../Markdown'
 import ProjectChip from '../chips/ProjectChip'
 import TicketChip from '../chips/TicketChip'
 import TicketLinkChip from '../chips/TicketLinkChip'
 import { GroupStoryChip } from '../groupStories/GroupStoryBits'
+import RunWaitCard from '../process/RunWaitCard'
 
 export type TicketStoryProposalCardProps = {
   view: TicketStoryProposalView
@@ -37,6 +43,8 @@ export type TicketStoryProposalCardProps = {
   onOpenGroupStory?: (groupId: string, groupStoryId: string) => void
   /** Start with a long description unfolded. */
   defaultExpanded?: boolean
+  /** Start with every part's features listed whole and each one opened — for a fixed showcase state. */
+  defaultFeaturesOpen?: boolean
 }
 
 function Label({ children }: { children: string }) {
@@ -53,6 +61,149 @@ function Label({ children }: { children: string }) {
     >
       {children}
     </Text>
+  )
+}
+
+function FeatureItem({
+  feature,
+  at,
+  defaultOpen,
+}: {
+  feature: TicketStoryFeatureView
+  at: number
+  defaultOpen: boolean
+}) {
+  const { theme } = useNativeTheme()
+  const hasMore = feature.description !== undefined || feature.criteria.length > 0
+  const [open, setOpen] = useState(defaultOpen && hasMore)
+  const head = (
+    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
+      <Text style={{ width: 18, textAlign: 'right', fontSize: 11, color: theme.text.muted }}>
+        {`${at}.`}
+      </Text>
+      <Text style={{ flex: 1, fontSize: 13, color: theme.text.primary }}>{feature.title}</Text>
+      {hasMore ? (
+        <View style={{ marginTop: 2, transform: [{ rotate: open ? '180deg' : '0deg' }] }}>
+          <IconChevronDown size={13} color={theme.text.muted} />
+        </View>
+      ) : null}
+    </View>
+  )
+  return (
+    <View style={{ gap: 4 }}>
+      {hasMore ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ expanded: open }}
+          hitSlop={4}
+          onPress={() => setOpen((v) => !v)}
+        >
+          {head}
+        </Pressable>
+      ) : (
+        head
+      )}
+      {open ? (
+        <View style={{ marginLeft: 24, gap: 6 }}>
+          {feature.description ? (
+            <Markdown
+              text={feature.description}
+              textStyle={{ fontSize: 13, color: theme.text.secondary }}
+            />
+          ) : null}
+          {feature.criteria.length > 0 ? (
+            <View style={{ gap: 2 }}>
+              <Label>{TICKET_STORY_PROPOSAL_TEXT.doneWhen}</Label>
+              {feature.criteria.map((criterion, i) => (
+                <Text key={i} style={{ fontSize: 13, color: theme.text.secondary }}>
+                  {`• ${criterion}`}
+                </Text>
+              ))}
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+    </View>
+  )
+}
+
+function PartFeatures({
+  features,
+  planning,
+  defaultOpen,
+}: {
+  features: readonly TicketStoryFeatureView[]
+  planning: boolean
+  defaultOpen: boolean
+}) {
+  const { theme } = useNativeTheme()
+  const [whole, setWhole] = useState(defaultOpen)
+  if (features.length === 0) {
+    return planning ? (
+      <Text style={{ fontSize: 12, color: theme.text.muted }}>
+        {TICKET_STORY_PROPOSAL_TEXT.noFeatures}
+      </Text>
+    ) : null
+  }
+  const fold = ticketStoryFeaturesFold(features.length, whole)
+  const folds = ticketStoryFeaturesFold(features.length, false).more > 0
+  return (
+    <View
+      accessibilityLabel={TICKET_STORY_PROPOSAL_TEXT.features(features.length)}
+      style={{ gap: 6, alignItems: 'stretch' }}
+    >
+      {features.slice(0, fold.shown).map((feature, at) => (
+        <FeatureItem key={at} feature={feature} at={at + 1} defaultOpen={defaultOpen} />
+      ))}
+      {folds ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ expanded: whole }}
+          hitSlop={8}
+          onPress={() => setWhole((v) => !v)}
+          style={{ marginLeft: 24, alignSelf: 'flex-start' }}
+        >
+          <Text style={{ fontSize: 12, color: theme.accent.primary }}>
+            {whole
+              ? TICKET_STORY_PROPOSAL_TEXT.showLess
+              : TICKET_STORY_PROPOSAL_TEXT.moreFeatures(fold.more)}
+          </Text>
+        </Pressable>
+      ) : null}
+    </View>
+  )
+}
+
+function PartBlock({
+  part,
+  renderStory,
+  planning,
+  featuresOpen,
+}: {
+  part: TicketStoryPartView
+  renderStory: TicketStoryProposalCardProps['renderStory']
+  planning: boolean
+  featuresOpen: boolean
+}) {
+  const { theme } = useNativeTheme()
+  return (
+    <View style={{ gap: 6 }}>
+      <PartRow part={part} renderStory={renderStory} />
+      {part.wait || part.features.length > 0 || planning ? (
+        <View
+          style={{
+            marginLeft: nativeSpace[2],
+            paddingLeft: nativeSpace[3],
+            borderLeftWidth: 1,
+            borderLeftColor: theme.border.subtle,
+            gap: 6,
+          }}
+        >
+          {part.wait ? <RunWaitCard compact view={part.wait} /> : null}
+          <PartFeatures features={part.features} planning={planning} defaultOpen={featuresOpen} />
+        </View>
+      ) : null}
+    </View>
   )
 }
 
@@ -102,8 +253,11 @@ function PartRow({
  * Native peer of [web's `TicketStoryProposalCard`](../../../web/compound/chat/TicketStoryProposalCard.tsx):
  * the group story an agent proposes for a ticket, on its ask and on its tool
  * row: the ticket's chip, the title, the description folded past a few lines,
- * a row per part, and the order the parts run in said plainly. Once approved it
- * names the group story that was made and opens it; a refusal is one plain line.
+ * a row per part with what it waits for and its features in build order (each
+ * opening to its description and what makes it done, a long list folded behind
+ * "N more"), and the order the parts run in said plainly. Once approved it
+ * names the group story that was made, opens it, and says it is ready to run;
+ * a refusal is one plain line.
  */
 export default function TicketStoryProposalCard({
   view,
@@ -111,6 +265,7 @@ export default function TicketStoryProposalCard({
   renderStory,
   onOpenGroupStory,
   defaultExpanded = false,
+  defaultFeaturesOpen = false,
 }: TicketStoryProposalCardProps) {
   const { theme, status } = useNativeTheme()
   const [expanded, setExpanded] = useState(defaultExpanded)
@@ -132,6 +287,16 @@ export default function TicketStoryProposalCard({
         ? status.stuck.softFg
         : theme.text.secondary
   const partOf = (projectId: string) => view.parts.find((p) => p.projectId === projectId)
+  const planning = view.outcome !== 'created'
+  const block = (part: TicketStoryPartView) => (
+    <PartBlock
+      key={part.projectId}
+      part={part}
+      renderStory={renderStory}
+      planning={planning}
+      featuresOpen={defaultFeaturesOpen}
+    />
+  )
   return (
     <View style={{ gap: 10 }}>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
@@ -179,19 +344,15 @@ export default function TicketStoryProposalCard({
               <Label>{TICKET_STORY_PROPOSAL_TEXT.step(at + 1)}</Label>
               {step.map((projectId) => {
                 const part = partOf(projectId)
-                return part ? (
-                  <PartRow key={projectId} part={part} renderStory={renderStory} />
-                ) : null
+                return part ? block(part) : null
               })}
             </View>
           ))}
         </View>
       ) : view.parts.length > 0 ? (
-        <View style={{ gap: 6 }}>
+        <View style={{ gap: 8 }}>
           <Label>{TICKET_STORY_PROPOSAL_TEXT.parts}</Label>
-          {view.parts.map((part) => (
-            <PartRow key={part.projectId} part={part} renderStory={renderStory} />
-          ))}
+          {view.parts.map(block)}
           {view.order ? (
             <View style={{ marginTop: 4, gap: 2 }}>
               <Label>{TICKET_STORY_PROPOSAL_TEXT.order}</Label>
@@ -214,6 +375,9 @@ export default function TicketStoryProposalCard({
               : {})}
           />
         </View>
+      ) : null}
+      {view.ready ? (
+        <Text style={{ fontSize: 13, color: status.done.softFg }}>{view.ready}</Text>
       ) : null}
     </View>
   )

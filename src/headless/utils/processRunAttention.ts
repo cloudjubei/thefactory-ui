@@ -39,6 +39,7 @@ import type {
   ProcessRunListRow,
 } from './processRunAttentionTypes'
 import { processRunManagerLine } from './processRunStop'
+import { isProcessParkWaitingElsewhere, processRunWaitingLine } from './processRunWait'
 import { processRunBadge, processRunChain, processRunChipLabel } from './processView'
 import { PROCESS_RUN_WORDS } from './processViewConstants'
 import { ledgerCodeReview } from './storySignoff'
@@ -61,7 +62,7 @@ export function processRunAttentionSection(
   if (!isProcessRunCurrent(run)) return asks ? 'needs-you' : undefined
   if (run.integration?.status === 'integrating') return 'merging'
   if (run.status === 'parked') {
-    if (run.park?.reason === 'waiting-on-blockers' || isHeldForGroupSignOff(run)) {
+    if (isProcessParkWaitingElsewhere(run.park) || isHeldForGroupSignOff(run)) {
       return asks ? 'needs-you' : 'waiting'
     }
     if (processRunStopHolder(run, now) === 'manager') return asks ? 'needs-you' : 'running'
@@ -96,7 +97,7 @@ export function processRunNeedLine(
       return processIntegrationView(run)?.title ?? PROCESS_RUN_WORDS.merging
     case 'waiting':
       if (isHeldForGroupSignOff(run)) return GROUP_SIGN_OFF_TEXT.heldLine
-      return run.park?.message ?? PROCESS_RUN_WORDS.waiting
+      return processRunWaitingLine(run)
     default:
       return undefined
   }

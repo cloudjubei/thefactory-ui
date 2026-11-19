@@ -21,6 +21,7 @@ import type { ProcessAcceptedEntry } from './processAcceptedUncheckedTypes'
 import { PROCESS_CIRCLING_CARD_LINE } from './processCirclingViewConstants'
 import { processIntegrationBadge } from './processIntegration'
 import { processRunManagerLine } from './processRunStop'
+import { isProcessParkWaitingElsewhere, processRunWaitingLine } from './processRunWait'
 import {
   PROCESS_RUN_PERSON_ENDING_VIEW,
   PROCESS_RUN_WORDS,
@@ -752,7 +753,7 @@ export function processRunBadge(
   if (integration) return integration
   if (run.status === 'parked') {
     if (isHeldForGroupSignOff(run)) return { label: GROUP_SIGN_OFF_TEXT.heldBadge, tone: 'queued' }
-    if (run.park?.reason === 'waiting-on-blockers') {
+    if (isProcessParkWaitingElsewhere(run.park)) {
       return { label: PROCESS_RUN_WORDS.waiting, tone: 'queued' }
     }
     if (stopHolder === 'manager') {
@@ -803,6 +804,7 @@ export function processRunCardView(run: ProcessRun, now: number): ProcessRunCard
           processRunManagerLine(run, now) ??
           (run.park?.circling ? PROCESS_CIRCLING_CARD_LINE : undefined) ??
           (isHeldForGroupSignOff(run) ? GROUP_SIGN_OFF_TEXT.heldLine : undefined) ??
+          (isProcessParkWaitingElsewhere(run.park) ? processRunWaitingLine(run) : undefined) ??
           (run.park?.reason === 'gate'
             ? 'Ready to sign off — decide in the run'
             : '1 decision pending — answer it in the run'),

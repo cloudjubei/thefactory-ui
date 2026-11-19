@@ -214,6 +214,12 @@ import { isProcessActionsGate } from '../../../headless/utils/colleagueReviewDec
 import type { ReviewGateAnswer } from '../../../headless/utils/colleagueReviewDecisionTypes'
 import { RunPushApprovalCard, RunReviewDecisionCard } from '../chat/ColleagueReviewDecisionCard'
 import RunOutsideWaitCard from './RunOutsideWaitCard'
+import RunWaitCard from './RunWaitCard'
+import {
+  isProcessRunWaitingOnWork,
+  processRunWaitView,
+  processWaitConfirmView,
+} from '../../../headless/utils/processRunWait'
 import { isReviewPushApproval } from '../../../headless/utils/colleagueReviewBranchUpdates'
 import {
   isOutsideWaitPending,
@@ -345,6 +351,8 @@ export default function ProcessPipeline({
     withdrawChange,
     uploadAnswerFile,
     loadAnswerProjectFiles,
+    waitPending,
+    decideWait,
   } = own
   const answerFiles = useMemo<NativeAnswerFiles>(
     () => ({
@@ -583,9 +591,14 @@ export default function ProcessPipeline({
           (lane) => lane.stepId === featureStep.id,
         )
       : undefined
+  const waitView =
+    stack.length === 0
+      ? processRunWaitView(run, waitPending ? { pending: waitPending } : {})
+      : undefined
   const showStopCard =
     run.status === 'parked' &&
     !signoff &&
+    !isProcessRunWaitingOnWork(stopRun) &&
     stopHolder !== 'manager' &&
     !!stopPark &&
     (!nestedStopId || !!nested.run)
@@ -728,6 +741,15 @@ export default function ProcessPipeline({
         ) : null}
         <WorkBranchChangesNote run={run} />
         <DroppedChangesNote run={run} />
+        {waitView ? (
+          <View style={{ marginHorizontal: nativeSpace[3], marginTop: nativeSpace[3] }}>
+            <RunWaitCard
+              view={waitView}
+              confirmOf={(action) => processWaitConfirmView(action, run)}
+              onDecide={decideWait}
+            />
+          </View>
+        ) : null}
         <View
           onLayout={(e) => {
             needsYouY.current = e.nativeEvent.layout.y
@@ -1471,7 +1493,7 @@ function PipelineNode({
   const nodeState = processNodeState(state, parkStepId)
   const row = processStepRowView(state, parkStepId, run, stopHolder, now)
   const look = processNodeLook(
-    row.managerOnIt ? 'working' : nodeState,
+    row.managerOnIt ? 'working' : row.waitingOnWork ? 'queued' : nodeState,
     state.step.kind === 'gate',
     0,
   )

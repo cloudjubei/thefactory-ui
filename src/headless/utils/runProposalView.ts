@@ -1,5 +1,6 @@
 import type { ProcessRunModel } from 'thefactory-tools/types'
-import { processAlreadyLandedText } from 'thefactory-tools/utils'
+import { processAlreadyLandedText, processWaitForLabels } from 'thefactory-tools/utils'
+import { PROCESS_WAIT_ACTION_LABELS } from './processRunWaitConstants'
 import {
   runProposalLanding,
   runProposalLandingForm,
@@ -58,6 +59,8 @@ import {
   RUN_PROPOSAL_STOP,
   RUN_PROPOSAL_SUMMARY_MAX_CHARS,
   RUN_PROPOSAL_TOOL_NAMES,
+  RUN_PROPOSAL_WAIT_ACTIONS,
+  RUN_PROPOSAL_WAIT_EFFECT,
   RUN_PROPOSAL_WITHDRAW,
   SEND_RUN_BACK_TOOL_NAME,
   REVIVE_PROCESS_RUN_TOOL_NAME,
@@ -566,6 +569,26 @@ function runActionView(
       ],
       effect: effect ?? RUN_PROPOSAL_SEND_BACK.effect,
       approveLabel: RUN_PROPOSAL_SEND_BACK.approveLabel,
+    }
+  }
+  const waitAction = RUN_PROPOSAL_WAIT_ACTIONS[toolName]
+  if (waitAction) {
+    const labels = processWaitForLabels(strings(hostDetail.waitsFor).map((label) => ({ label })))
+    return {
+      ...base,
+      kind: 'wait',
+      kindLabel: PROCESS_WAIT_ACTION_LABELS[waitAction],
+      tone: 'working',
+      title: runTitle,
+      sections: [
+        ...run,
+        ...(labels
+          ? [{ key: 'waits-for', label: RUN_PROPOSAL_LINE_LABELS.waitsFor, summary: labels }]
+          : []),
+        ...wordsSection('note', RUN_PROPOSAL_LINE_LABELS.note, text(args, 'note')),
+      ],
+      effect: effect ?? RUN_PROPOSAL_WAIT_EFFECT[waitAction],
+      approveLabel: PROCESS_WAIT_ACTION_LABELS[waitAction],
     }
   }
   if (toolName === REVIVE_PROCESS_RUN_TOOL_NAME) {

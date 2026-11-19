@@ -231,6 +231,24 @@ describe('processRunStripEntries', () => {
     ])
   })
 
+  it('makes the wait step a run is parked at for other work current in the waiting tone', () => {
+    const r = run({
+      status: 'parked',
+      park: { reason: 'waiting-on-work', stepId: 'wait', message: '', parkedAt: 0 },
+      plan: {
+        ...run().plan,
+        steps: [
+          { id: 'impl', name: 'Implement', kind: 'agent', agentType: 'developer' },
+          { id: 'wait', name: 'Wait for other work', kind: 'check', waitsForWork: true },
+          { id: 'signoff', name: 'Sign-off', kind: 'gate' },
+        ],
+      },
+      ledger: [entry('impl'), entry('wait', { status: 'running', outcome: undefined })],
+    })
+    const wait = processRunStripEntries(r).find((e) => e.key === 'wait')
+    expect(wait).toMatchObject({ phase: 'current', tone: 'queued' })
+  })
+
   it('makes a parked gate current in the review tone', () => {
     const r = run({
       status: 'parked',

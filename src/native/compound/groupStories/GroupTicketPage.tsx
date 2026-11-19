@@ -5,12 +5,15 @@ import {
   GROUP_TICKET_PAGE_TEXT as TEXT,
   GROUP_TICKET_TAB_ACTION_LABELS,
   GROUP_TICKETS_TEXT,
+  REVIEW_REPLY_BANNER_DEFAULT_LAYOUT,
+  REVIEW_REPLY_TEXT,
   REVIEW_START_TEXT,
   type GroupTicketPageLayout,
   type GroupTicketPageState,
   type GroupTicketPageView,
   type GroupTicketTabAction,
   type ReviewCardMerge,
+  type ReviewReplyBannerLayout,
 } from '../../../headless'
 import type { ChatContext } from '../../../headless/api'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
@@ -23,6 +26,7 @@ import { MergeSection } from '../chat/ColleagueReviewCard'
 import TicketChip from '../chips/TicketChip'
 import ToneBadge from '../chips/ToneBadge'
 import { GroupStoryChip } from './GroupStoryBits'
+import ReviewReplyBanner from './ReviewReplyBanner'
 
 export type GroupTicketPageActions = {
   onDiscuss: () => void
@@ -54,6 +58,10 @@ export type GroupTicketPageProps = GroupTicketPageActions & {
   merge?: ReviewCardMerge | undefined
   /** A phone shows one column whatever layout is asked. */
   layout?: GroupTicketPageLayout
+  /** How a reply waiting on the review shows: a strip under the header, or a line in it. */
+  replyLayout?: ReviewReplyBannerLayout
+  /** Start with the whole reply showing — for a fixed showcase state. */
+  replyExpanded?: boolean
 }
 
 /**
@@ -65,6 +73,8 @@ export type GroupTicketPageProps = GroupTicketPageActions & {
 export default function GroupTicketPage({
   state,
   layout: _oneColumn,
+  replyLayout = REVIEW_REPLY_BANNER_DEFAULT_LAYOUT,
+  replyExpanded = false,
   ...props
 }: GroupTicketPageProps) {
   const { theme } = useNativeTheme()
@@ -85,9 +95,28 @@ export default function GroupTicketPage({
     )
   }
   const { page } = state
+  const { liveRun, reviewChat } = page
+  const banner = (
+    <ReviewReplyBanner
+      reply={page.reply}
+      commits={page.commits}
+      layout={replyLayout}
+      starting={props.reviewing}
+      expanded={replyExpanded}
+      onStart={props.onReview}
+      {...(liveRun ? { onOpenRun: () => props.onOpenRun(liveRun.projectId, liveRun.id) } : {})}
+      {...(reviewChat ? { onOpenChat: () => props.onOpenChat(reviewChat) } : {})}
+    />
+  )
   return (
     <View style={{ gap: nativeSpace[4], padding: nativeSpace[3] }}>
-      <Header page={page} refreshing={state.refreshing} {...props} />
+      <Header
+        page={page}
+        refreshing={state.refreshing}
+        {...(replyLayout === 'line' ? { banner } : {})}
+        {...props}
+      />
+      {replyLayout === 'strip' ? banner : null}
       <TicketPart page={page} />
       <UpdatesPart page={page} />
       <ReviewPart page={page} onOpenRun={props.onOpenRun} />
@@ -169,9 +198,17 @@ function PageButtons({
   onTake,
   onReview,
   onOpenStory,
+  onOpenChat,
 }: Pick<
   GroupTicketPageProps,
-  'starting' | 'busy' | 'reviewing' | 'onDiscuss' | 'onTake' | 'onReview' | 'onOpenStory'
+  | 'starting'
+  | 'busy'
+  | 'reviewing'
+  | 'onDiscuss'
+  | 'onTake'
+  | 'onReview'
+  | 'onOpenStory'
+  | 'onOpenChat'
 > & { page: GroupTicketPageView }) {
   const button = (action: GroupTicketTabAction) => {
     switch (action) {
@@ -231,19 +268,31 @@ function PageButtons({
   const actions: GroupTicketTabAction[] = page.actions.includes('discuss')
     ? page.actions
     : [...page.actions, 'discuss']
-  return <View style={ROW}>{actions.map(button)}</View>
+  const { reviewChat } = page
+  return (
+    <View style={ROW}>
+      {actions.map(button)}
+      {reviewChat ? (
+        <Button size="sm" variant="ghost" onPress={() => onOpenChat(reviewChat)}>
+          {REVIEW_REPLY_TEXT.openChat}
+        </Button>
+      ) : null}
+    </View>
+  )
 }
 
 function Header({
   page,
   refreshing,
+  banner,
   merge,
   onApproveAndMerge,
   startError,
   ...actions
-}: Omit<GroupTicketPageProps, 'state' | 'layout'> & {
+}: Omit<GroupTicketPageProps, 'state' | 'layout' | 'replyLayout' | 'replyExpanded'> & {
   page: GroupTicketPageView
   refreshing: boolean
+  banner?: ReactNode
 }) {
   const { theme } = useNativeTheme()
   const offersMerge = page.actions.includes('approve-and-merge') && merge !== undefined
@@ -268,6 +317,7 @@ function Header({
         </Text>
       ) : null}
       <PageButtons page={page} {...actions} />
+      {banner}
       {startError ? <Alert variant="error">{startError}</Alert> : null}
       {offersMerge ? (
         <MergeSection

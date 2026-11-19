@@ -16,6 +16,7 @@ import RunOutsideWaitCard from '../../src/native/compound/process/RunOutsideWait
 import {
   REVIEW_RUN_PUSHED,
   REVIEW_RUN_PUSH_FAILED,
+  REVIEW_RUN_PUSH_FAILS_ON_DEV,
   REVIEW_RUN_PUSH_PASSED,
   REVIEW_RUN_REPLIED,
   REVIEW_RUN_REPLIED_LONG,
@@ -75,20 +76,31 @@ function Wait({ address }: { address: URLSearchParams }) {
 
 function Push({ address }: { address: URLSearchParams }) {
   const state = address.get('state') ?? 'checks-passed'
-  if (state === 'pushed' || state === 'diff-open') {
+  if (state === 'pushed' || state === 'diff-open' || state === 'fails-on-dev-output') {
     const rows =
       state === 'pushed'
         ? REVIEW_RUN_PUSHED.map(reviewBranchRow)
-        : reviewPushApprovalRows(REVIEW_RUN_PUSH_PASSED)
+        : reviewPushApprovalRows(
+            state === 'fails-on-dev-output' ? REVIEW_RUN_PUSH_FAILS_ON_DEV : REVIEW_RUN_PUSH_PASSED,
+          )
     return (
       <Phone>
         <View style={{ paddingHorizontal: 12 }}>
-          <ReviewBranchRows rows={rows} diffOpen={state === 'diff-open'} />
+          <ReviewBranchRows
+            rows={rows}
+            diffOpen={state === 'diff-open'}
+            outputOpen={state === 'fails-on-dev-output'}
+          />
         </View>
       </Phone>
     )
   }
-  const run = state === 'checks-failed' ? REVIEW_RUN_PUSH_FAILED : REVIEW_RUN_PUSH_PASSED
+  const run =
+    state === 'checks-failed'
+      ? REVIEW_RUN_PUSH_FAILED
+      : state === 'fails-on-dev-too'
+        ? REVIEW_RUN_PUSH_FAILS_ON_DEV
+        : REVIEW_RUN_PUSH_PASSED
   return (
     <Phone>
       <Stop run={run} step="Approve the push">

@@ -2,6 +2,8 @@ import type { ProcessRun } from 'thefactory-tools/types'
 import { isProcessRunAwaitingIntegration, processRunStopHolder } from 'thefactory-tools/utils'
 
 import { isProcessRunActive } from './processRunCurrent'
+import { isProcessRunWaitingOnWork } from './processRunWait'
+import { PROCESS_RUN_WORDS } from './processViewConstants'
 import { processRunPersonEnding } from './processView'
 import {
   PROCESS_STATUS_OVERLAY_BRINGING_IN,
@@ -18,6 +20,7 @@ import type { StatusSemanticKey } from './status'
  * process run, the word to show and the run to jump to:
  *   - stopped with its agent manager on it (`processRunStopHolder`) → Working
  *   - parked at the sign-off gate  → Reviewable (go decide the sign-off)
+ *   - parked at its wait for other work → Waiting (it carries on by itself)
  *   - running / pending            → Working (watch the ongoing run)
  *   - parked for any other reason, or failed → Blocked (it is stuck; go unstick it)
  *   - ended on a request for changes → Changes requested (open it to send it back)
@@ -79,6 +82,14 @@ export function processStatusOverlay(
         runId: run.id,
       }
     case 'parked':
+      if (isProcessRunWaitingOnWork(run)) {
+        return {
+          label: PROCESS_RUN_WORDS.waiting,
+          semantic: 'queued',
+          title: PROCESS_STATUS_OVERLAY_TITLES.waitingOnWork,
+          runId: run.id,
+        }
+      }
       return isReviewable(run)
         ? {
             label: 'Reviewable',

@@ -56,6 +56,8 @@ export const GROUP_TICKETS_TEXT = {
   yours: 'Yours',
   others: 'Others in the sprint',
   othersShort: 'Others',
+  reviewing: 'Reviewing',
+  toReview: 'To review',
   noneYours: 'Nothing is assigned to you in the open sprint.',
   noneOthers: 'Nobody else has tickets in the open sprint.',
   take: 'Take ticket',

@@ -1,4 +1,6 @@
+import { PROCESS_RUN_TERMINAL_STATUSES } from 'thefactory-tools/constants'
 import { REVIEW_VERDICT_VIEW } from './colleagueReviewCardConstants'
+import { reviewOfChat } from './colleagueReviewStart'
 import { slackMessageLink } from './colleagueReviewSource'
 import { REVIEW_OFFER_TEXT } from './colleagueReviewSourceConstants'
 import {
@@ -20,6 +22,8 @@ import type {
   GroupTicketUpdateView,
 } from './groupTicketPageTypes'
 import type { GroupTicketTab } from './groupTicketTabTypes'
+import type { ReviewCommitsView } from './reviewCommitsTypes'
+import { reviewReplyView, waitingReviewReply } from './reviewReply'
 import { ticketChipView, ticketLink } from './groupTickets'
 import { PROCESS_RUN_STATUS_VIEW } from './processView'
 import { timeAgo } from './time'
@@ -98,17 +102,39 @@ function emptyLines(overview: GroupTicketOverview): GroupTicketPageView['emptyLi
   }
 }
 
+function replyParts(
+  overview: GroupTicketOverview,
+  now: number,
+  commits: ReviewCommitsView | undefined,
+): Pick<GroupTicketPageView, 'reply' | 'commits' | 'reviewChat' | 'liveRun'> {
+  const waiting = waitingReviewReply(overview.updates)
+  const latestRound = Math.max(0, ...(overview.review?.rounds ?? []).map((r) => r.n))
+  const reviewChat = overview.chats.find((chat) => reviewOfChat(chat.context))?.context
+  const liveRun = overview.review?.runs.find(
+    (run) => !PROCESS_RUN_TERMINAL_STATUSES.includes(run.status),
+  )
+  return {
+    ...(waiting ? { reply: reviewReplyView(waiting, latestRound, now, commits) } : {}),
+    ...(!waiting && commits && commits.tone !== 'quiet' ? { commits } : {}),
+    ...(reviewChat ? { reviewChat } : {}),
+    ...(liveRun ? { liveRun: { id: liveRun.id, projectId: liveRun.projectId } } : {}),
+  }
+}
+
 /**
  * A ticket's page: the ticket and its facts, its updates from Slack, its
  * review's rounds newest first with its runs, its pull requests, its story
  * and chats newest first, and the tab's actions on it. A part that could not
- * be read is named in `problems`; the rest still shows. Pure.
+ * be read is named in `problems`; the rest still shows. On top, the newest
+ * reply waiting to start the review's next round, with what was pushed since
+ * its last round (`commits`, once read), else what was pushed alone. Pure.
  */
 export function groupTicketPageView(
   ticketKey: string,
   overview: GroupTicketOverview,
   tabs: readonly GroupTicketTab[] | undefined,
   now: number,
+  commits?: ReviewCommitsView,
 ): GroupTicketPageView {
   const { ticket, tabId, actions, updates, review, pullRequests, story, chats } = overview
   const url = ticketLink(ticket?.url)
@@ -159,6 +185,7 @@ export function groupTicketPageView(
         title: chat.title,
         when: timeAgo(now, Date.parse(chat.updatedAt)),
       })),
+    ...replyParts(overview, now, commits),
     emptyLines: emptyLines(overview),
     problems: (overview.problems ?? []).map(
       (part) => GROUP_TICKET_PART_FAILED[part] ?? `${TEXT.partFailed} ${part}`,

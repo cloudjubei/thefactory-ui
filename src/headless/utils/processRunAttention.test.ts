@@ -120,6 +120,41 @@ describe('processRunAttentionSection', () => {
     expect(processRunAttentionSection(waiting, NOW, { unread: 0, asks: 1 })).toBe('needs-you')
   })
 
+  it('puts a run waiting for other work before its proof under Waiting, saying what for in the card’s words', () => {
+    const waiting = parked(
+      {
+        reason: 'waiting-on-work',
+        stepId: 'checks',
+        message: 'Waiting on other work: long words.',
+      },
+      {
+        waitsFor: [{ label: 'ZNR-780', branch: 'znr-780' }],
+        wait: { entries: [], since: 0, baseRef: 'dev' },
+      },
+    )
+    expect(processRunAttentionSection(waiting, NOW)).toBe('waiting')
+    expect(processRunNeedLine(waiting, NOW)).toMatch(
+      /^Waits for ZNR-780 to reach dev before its proof · since .+ · carries on by itself$/,
+    )
+    expect(processRunWaitingCount([waiting], NOW)).toBe(0)
+    expect(processRunBadge(waiting, NOW)).toEqual({ label: 'Waiting', tone: 'queued' })
+    expect(processRunCardView(waiting, NOW).body).toEqual({
+      text: processRunNeedLine(waiting, NOW),
+      tone: 'queued',
+    })
+  })
+
+  it('says a run waiting on blockers in the chat card by what it waits on, never as a decision', () => {
+    const waiting = parked({
+      reason: 'waiting-on-blockers',
+      stepId: 'features:f1',
+      message: 'Drafts waits on #s18 — it starts by itself once that is done.',
+    })
+    expect(processRunCardView(waiting, NOW).body?.text).toBe(
+      'Drafts waits on #s18 — it starts by itself once that is done.',
+    )
+  })
+
   it('puts a run at its gate under Sign off', () => {
     expect(processRunAttentionSection(parked({ reason: 'gate', stepId: 'sign-off' }), NOW)).toBe(
       'sign-off',

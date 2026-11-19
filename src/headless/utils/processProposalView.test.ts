@@ -147,6 +147,22 @@ describe('processProposalView', () => {
   })
 })
 
+describe('processProposalView — a wait for other work', () => {
+  it('marks the step the run waits at before its proof, and no other', () => {
+    const p = proposal()
+    p.steps.push({
+      id: 'wait-for-work',
+      name: 'Wait for other work',
+      kind: 'check',
+      agent: false,
+      waitsForWork: true,
+    })
+    const tail = processProposalView(p).tail
+    expect(tail.find((c) => c.id === 'wait-for-work')?.waitsForWork).toBe(true)
+    expect(tail.filter((c) => c.waitsForWork)).toHaveLength(1)
+  })
+})
+
 describe('processProposalView — a live check step', () => {
   it('carries each step’s kind, and marks the live check', () => {
     const base = proposal()

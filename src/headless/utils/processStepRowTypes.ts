@@ -9,6 +9,8 @@ export type ProcessStepRowView = {
   result: string | undefined
   /** The line is the step waiting on the person — drawn in the accent. */
   waitingOnYou: boolean
+  /** The run is parked at this step waiting for other work: it carries on by itself. */
+  waitingOnWork: boolean
   /** The run is stopped at this step and the agent manager has the stop — drawn as work going on. */
   managerOnIt: boolean
   /**

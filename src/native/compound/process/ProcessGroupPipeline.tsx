@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useState, type ReactNode } from 'react'
 import { Pressable, ScrollView, Switch, Text, View } from 'react-native'
 
 import {
@@ -25,6 +25,9 @@ import {
   useProcessGroupRun,
   useProcessGroupRunChat,
   useProcessDelivery,
+  useProcessRun,
+  processRunWaitView,
+  processWaitConfirmView,
   type ProcessDeliveryRepo,
   type ProcessGroupLeg,
   type ProcessGroupLegRow,
@@ -48,6 +51,7 @@ import ProcessGroupParkReview from './ProcessGroupParkReview'
 import PublicationChip from './PublicationChip'
 import ProcessGroupRunChatButton from './ProcessGroupRunChatButton'
 import GroupSignOffSection from './signoff/GroupSignOffSection'
+import RunWaitCard from './RunWaitCard'
 
 export type ProcessGroupPipelineProps = {
   groupRunId: string
@@ -314,7 +318,7 @@ export default function ProcessGroupPipeline({
               {i === 0 ? 'Starts at once' : `Then — step ${i + 1}`}
             </Text>
             {wave.map((row) => (
-              <LegCard
+              <ProcessGroupLegCard
                 key={row.leg.id}
                 row={row}
                 delivery={processDeliveryRepoOf(delivery.data, {
@@ -324,6 +328,16 @@ export default function ProcessGroupPipeline({
                 now={now}
                 onOpen={onOpenLegRun}
                 onMarkLanded={setLandingLeg}
+                {...(row.leg.waitsFor?.length && row.leg.runId
+                  ? {
+                      wait: (
+                        <LegWait
+                          runId={row.leg.runId}
+                          {...(row.waitsFor ? { fallback: row.waitsFor } : {})}
+                        />
+                      ),
+                    }
+                  : {})}
               />
             ))}
           </View>
@@ -460,20 +474,56 @@ export default function ProcessGroupPipeline({
   )
 }
 
-function LegCard({
-  row,
-  delivery,
-  now,
-  onOpen,
-  onMarkLanded,
-}: {
+/**
+ * A leg's run's wait for other work, read live from its run, with Continue now
+ * and Stop waiting on the leg itself; what the leg says of it until the run is read.
+ */
+function LegWait({ runId, fallback }: { runId: string; fallback?: string }) {
+  const { theme, status } = useNativeTheme()
+  const { run, waitPending, decideWait, actionError } = useProcessRun(runId)
+  const view = run
+    ? processRunWaitView(run, waitPending ? { pending: waitPending } : {})
+    : undefined
+  if (!run || !view) {
+    return fallback ? (
+      <Text style={{ fontSize: 11, color: theme.text.muted }}>{fallback}</Text>
+    ) : null
+  }
+  return (
+    <>
+      <RunWaitCard
+        compact
+        view={view}
+        confirmOf={(action) => processWaitConfirmView(action, run)}
+        onDecide={decideWait}
+      />
+      {actionError ? (
+        <Text style={{ fontSize: 11, color: status.stuck.softFg }}>{actionError}</Text>
+      ) : null}
+    </>
+  )
+}
+
+export type ProcessGroupLegCardProps = {
   row: ProcessGroupLegRow
   /** Its published work and its merge, once the group's delivery is read. */
   delivery: ProcessDeliveryRepo | undefined
   now: number
   onOpen: (runId: string, projectId: string) => void
   onMarkLanded: (leg: ProcessGroupLeg) => void
-}) {
+  /** Its run's wait for other work, in place of the leg's own line of it. */
+  wait?: ReactNode
+}
+
+/** Native peer of web's `ProcessGroupLegCard`: one project's leg of a group run. */
+export function ProcessGroupLegCard({
+  row,
+  delivery,
+  now,
+  onOpen,
+  onMarkLanded,
+  wait,
+}: ProcessGroupLegCardProps) {
   const { theme, status } = useNativeTheme()
   const { leg, totals } = row
   const workMs = processGroupWorkMs(totals, now)
@@ -506,9 +556,10 @@ function LegCard({
       </Text>
       {publication && !merge ? <PublicationChip view={publication} /> : null}
       {merge ? <MergeProgressRowView row={merge} /> : null}
-      {row.waitsFor ? (
-        <Text style={{ fontSize: 11, color: theme.text.muted }}>{row.waitsFor}</Text>
-      ) : null}
+      {wait ??
+        (row.waitsFor ? (
+          <Text style={{ fontSize: 11, color: theme.text.muted }}>{row.waitsFor}</Text>
+        ) : null)}
       {row.landed ? (
         <Text style={{ fontSize: 11, color: theme.text.muted }}>{row.landed}</Text>
       ) : null}

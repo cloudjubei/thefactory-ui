@@ -1,3 +1,4 @@
+import type { ProcessWaitFor } from 'thefactory-tools/types'
 import type {
   ProcessBaseBranchOptions,
   ProcessGroupBuildMode,
@@ -73,4 +74,6 @@ export interface StartGroupWorkGrantSummary {
   spendCapUsd?: number
   /** The turn limit the agent asked for, as it sent it — read with `processGrantTurnLimitView`. */
   turnLimit?: unknown
+  /** What each leg asked its run to wait for before its proof, by project — kept off the legs the preview reads. */
+  legWaitsFor?: Record<string, ProcessWaitFor[]>
 }

@@ -1,3 +1,4 @@
+import { groupSignOffWaitLine } from './processRunWait'
 import type { ProcessParkChoice } from 'thefactory-tools/types'
 
 import {
@@ -84,6 +85,7 @@ function repoRow(repo: GroupSignOffRepo, nameOf: NameOf, deciding: boolean): Gro
   const line = pullRequestLine(repo)
   const link = pullRequestLink(repo)
   const ticketPost = deciding ? ticketPostView(repo.ticketPost) : undefined
+  const waitLine = groupSignOffWaitLine(repo.wait, baseRef)
   return {
     legId,
     projectId,
@@ -101,6 +103,7 @@ function repoRow(repo: GroupSignOffRepo, nameOf: NameOf, deciding: boolean): Gro
     ...(error ? { error } : {}),
     busy: state === 'opening',
     ...(ticketPost ? { ticketPost } : {}),
+    ...(waitLine ? { waitLine } : {}),
   }
 }
 

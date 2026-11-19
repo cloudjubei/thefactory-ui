@@ -2590,6 +2590,7 @@ export type ProcessParkReason =
   | 'no-steps'
   | 'unknown-step'
   | 'waiting-on-blockers'
+  | 'waiting-on-work'
 
 export type ProcessCirclingSignal = 'no-change' | 'flip-flop' | 'repeated' | 'again'
 
@@ -12671,9 +12672,18 @@ export type GroupNoteSummary = {
   groupId: string
 }
 
+export type ProcessWaitFor = {
+  label: string
+  branch?: string
+  commit?: string
+  pullRequestUrl?: string
+  projectId?: string
+}
+
 export type GroupStoryPart = {
   projectId: string
   storyId: string
+  waitsFor?: Array<ProcessWaitFor>
 }
 
 export type GroupStory = {
@@ -12705,6 +12715,7 @@ export type GroupStoryUpdateInput = {
 export type GroupStoryPartStory = {
   projectId: string
   storyId: string
+  waitsFor?: Array<ProcessWaitFor>
   story?: {
     id: string
     title: string
@@ -15930,6 +15941,7 @@ export type ProcessStep = {
     mode: LiveCheckMode
     beforeAndAfter?: boolean
   }
+  waitsForWork?: true
   processId?: string
   expand?:
     | 'features'
@@ -16001,6 +16013,7 @@ export type ProcessPlanStep = {
     mode: LiveCheckMode
     beforeAndAfter?: boolean
   }
+  waitsForWork?: true
   processId?: string
   expand?:
     | 'features'
@@ -17642,6 +17655,75 @@ export type ProcessRunTotals = {
   }
 }
 
+export type ProcessWaitForHow = 'branch' | 'commit' | 'pull-request'
+
+export type ProcessWaitForStanding = {
+  label: string
+  onBase?: {
+    how: ProcessWaitForHow
+    commit: string
+    pullRequestUrl?: string
+    at: number
+  }
+  waiting?: string
+}
+
+export type ProcessWaitSettledHow = 'on-base' | 'continued' | 'dropped'
+
+export type ProcessWaitAction = 'continue-now' | 'stop-waiting' | 'wait-again'
+
+export type ProcessWaitDecision = {
+  action: ProcessWaitAction
+  at: number
+  note?: string
+} & (
+  | {
+      decidedBy?: 'person'
+      decidedVia?: ProcessDecisionClient | 'chat' | 'feature-question' | 'design'
+    }
+  | {
+      decidedBy?: 'agent'
+      decidedVia?: 'tool'
+      toolName?: string
+      chatContextId?: string
+    }
+  | {
+      decidedBy?: 'manager'
+      decidedVia?: 'manager'
+      toolName?: string
+      chatContextId?: string
+    }
+)
+
+export type ProcessRunWait = {
+  entries: Array<ProcessWaitForStanding>
+  since?: number
+  baseRef?: string
+  settled?: {
+    how: ProcessWaitSettledHow
+    at: number
+    baseSha?: string
+  } & (
+    | {
+        decidedBy?: 'person'
+        decidedVia?: ProcessDecisionClient | 'chat' | 'feature-question' | 'design'
+      }
+    | {
+        decidedBy?: 'agent'
+        decidedVia?: 'tool'
+        toolName?: string
+        chatContextId?: string
+      }
+    | {
+        decidedBy?: 'manager'
+        decidedVia?: 'manager'
+        toolName?: string
+        chatContextId?: string
+      }
+  )
+  decisions?: Array<ProcessWaitDecision>
+}
+
 export type ProcessDroppedChangeAcceptance = {
   mergeSha: string
   files: Array<{
@@ -18124,6 +18206,35 @@ export type ProcessRun = {
     }
   }
   baseUpdates?: Array<ProcessBaseUpdate>
+  waitsFor?: Array<ProcessWaitFor>
+  wait?: {
+    entries: Array<ProcessWaitForStanding>
+    since?: number
+    baseRef?: string
+    settled?: {
+      how: ProcessWaitSettledHow
+      at: number
+      baseSha?: string
+    } & (
+      | {
+          decidedBy?: 'person'
+          decidedVia?: ProcessDecisionClient | 'chat' | 'feature-question' | 'design'
+        }
+      | {
+          decidedBy?: 'agent'
+          decidedVia?: 'tool'
+          toolName?: string
+          chatContextId?: string
+        }
+      | {
+          decidedBy?: 'manager'
+          decidedVia?: 'manager'
+          toolName?: string
+          chatContextId?: string
+        }
+    )
+    decisions?: Array<ProcessWaitDecision>
+  }
   droppedChangesAccepted?: Array<ProcessDroppedChangeAcceptance>
   baseMoved?: {
     baseRef: string
@@ -31213,6 +31324,7 @@ export type ProcessGroupLeg = {
     reason: string
     at: number
   }
+  waitsFor?: Array<ProcessWaitFor>
 }
 
 export type ProcessGroupLegApproval = {
@@ -32169,6 +32281,39 @@ export type ProcessTicketSignOffInput = {
   evidenceSummary: string
 }
 
+export type ProcessWaitForCheck =
+  | {
+      kind: 'on-base'
+      how: ProcessWaitForHow
+      commit: string
+      pullRequestUrl?: string
+    }
+  | {
+      kind: 'waiting'
+      reason: string
+    }
+
+export type ProcessWaitsForReading = {
+  baseRef?: string
+  baseSha?: string
+  entries: Array<
+    {
+      label: string
+    } & ProcessWaitForCheck
+  >
+}
+
+export type ProcessWaitNotice = {
+  how: ProcessWaitSettledHow | 'waiting-again'
+  text: string
+}
+
+export type ProcessWaitForPullRequest = {
+  url: string
+  merged: boolean
+  mergeCommitSha?: string
+}
+
 export type ChainLink = {
   id: string
   continues?: string
@@ -33066,6 +33211,35 @@ export type ProcessRunChatState = {
       }
     }
     baseUpdates?: Array<ProcessBaseUpdate>
+    waitsFor?: Array<ProcessWaitFor>
+    wait?: {
+      entries: Array<ProcessWaitForStanding>
+      since?: number
+      baseRef?: string
+      settled?: {
+        how: ProcessWaitSettledHow
+        at: number
+        baseSha?: string
+      } & (
+        | {
+            decidedBy?: 'person'
+            decidedVia?: ProcessDecisionClient | 'chat' | 'feature-question' | 'design'
+          }
+        | {
+            decidedBy?: 'agent'
+            decidedVia?: 'tool'
+            toolName?: string
+            chatContextId?: string
+          }
+        | {
+            decidedBy?: 'manager'
+            decidedVia?: 'manager'
+            toolName?: string
+            chatContextId?: string
+          }
+      )
+      decisions?: Array<ProcessWaitDecision>
+    }
     droppedChangesAccepted?: Array<ProcessDroppedChangeAcceptance>
     baseMoved?: {
       baseRef: string
@@ -34036,6 +34210,35 @@ export type ProcessRunSummary = {
       }
     }
   }
+  waitsFor?: Array<ProcessWaitFor>
+  wait?: {
+    entries: Array<ProcessWaitForStanding>
+    since?: number
+    baseRef?: string
+    settled?: {
+      how: ProcessWaitSettledHow
+      at: number
+      baseSha?: string
+    } & (
+      | {
+          decidedBy?: 'person'
+          decidedVia?: ProcessDecisionClient | 'chat' | 'feature-question' | 'design'
+        }
+      | {
+          decidedBy?: 'agent'
+          decidedVia?: 'tool'
+          toolName?: string
+          chatContextId?: string
+        }
+      | {
+          decidedBy?: 'manager'
+          decidedVia?: 'manager'
+          toolName?: string
+          chatContextId?: string
+        }
+    )
+    decisions?: Array<ProcessWaitDecision>
+  }
   droppedChangesAccepted?: Array<ProcessDroppedChangeAcceptance>
   baseMoved?: {
     baseRef: string
@@ -34608,6 +34811,7 @@ export type StartProcessRunInput = {
     maxTurns: number
   }
   droppedChangesAccepted?: Array<ProcessDroppedChangeAcceptance>
+  waitsFor?: Array<ProcessWaitFor>
 }
 
 export type ProcessRunEnding = 'abandoned' | 'unmerged'
@@ -35435,6 +35639,7 @@ export type StartProcessGroupRunInput = {
     processId?: string
     integrationMode?: 'merge' | 'squash' | 'pull-request'
     baseBranch?: string
+    waitsFor?: Array<ProcessWaitFor>
   }>
 }
 
@@ -40230,6 +40435,10 @@ export type PreviewProcessData = {
      * The launch’s iteration limit, so each feature shows the attempts it will really have. The project’s default when absent.
      */
     maxIterations?: number
+    /**
+     * The work elsewhere the run would wait for before its proof: the proposal then shows its wait step and names what it waits for.
+     */
+    waitsFor?: Array<ProcessWaitFor>
   }
   path?: never
   query?: never
@@ -40319,6 +40528,7 @@ export type PreviewProcessResponses = {
         | ProcessVariantSubject
       processId?: string
       onlyWhenSentBack?: boolean
+      waitsForWork?: true
       children?: Array<unknown>
       maxIterations?: number
     }>
@@ -40340,6 +40550,7 @@ export type PreviewProcessResponses = {
     }
     proofPlans?: Array<LaunchProofPlan>
     waitingOn?: Array<string>
+    waitsFor?: Array<ProcessWaitFor>
     overlap?: {
       runs: Array<ProcessLaunchOverlapRun>
       base?: {
@@ -40757,6 +40968,7 @@ export type PreviewProcessRunResponses = {
           | ProcessVariantSubject
         processId?: string
         onlyWhenSentBack?: boolean
+        waitsForWork?: true
         children?: Array<unknown>
         maxIterations?: number
       }>
@@ -40778,6 +40990,7 @@ export type PreviewProcessRunResponses = {
       }
       proofPlans?: Array<LaunchProofPlan>
       waitingOn?: Array<string>
+      waitsFor?: Array<ProcessWaitFor>
       overlap?: {
         runs: Array<ProcessLaunchOverlapRun>
         base?: {
@@ -42542,6 +42755,167 @@ export type SettleProcessRunAlreadyLandedResponses = {
 export type SettleProcessRunAlreadyLandedResponse =
   SettleProcessRunAlreadyLandedResponses[keyof SettleProcessRunAlreadyLandedResponses]
 
+export type ContinueProcessRunWaitNowData = {
+  body: {
+    /**
+     * The app the person decided on — recorded on the decision with `decidedBy: person`. Required: a decision nobody can attribute is refused.
+     */
+    decidedVia: 'web' | 'desktop' | 'mobile'
+    /**
+     * Why, in the person’s words — kept on the run with the decision.
+     */
+    note?: string
+  }
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}/wait/continue'
+}
+
+export type ContinueProcessRunWaitNowErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type ContinueProcessRunWaitNowError =
+  ContinueProcessRunWaitNowErrors[keyof ContinueProcessRunWaitNowErrors]
+
+export type ContinueProcessRunWaitNowResponses = {
+  /**
+   * Default Response
+   */
+  200: ProcessRun
+}
+
+export type ContinueProcessRunWaitNowResponse =
+  ContinueProcessRunWaitNowResponses[keyof ContinueProcessRunWaitNowResponses]
+
+export type StopProcessRunWaitingData = {
+  body: {
+    /**
+     * The app the person decided on — recorded on the decision with `decidedBy: person`. Required: a decision nobody can attribute is refused.
+     */
+    decidedVia: 'web' | 'desktop' | 'mobile'
+    /**
+     * Why, in the person’s words — kept on the run with the decision.
+     */
+    note?: string
+  }
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}/wait/stop'
+}
+
+export type StopProcessRunWaitingErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type StopProcessRunWaitingError =
+  StopProcessRunWaitingErrors[keyof StopProcessRunWaitingErrors]
+
+export type StopProcessRunWaitingResponses = {
+  /**
+   * Default Response
+   */
+  200: ProcessRun
+}
+
+export type StopProcessRunWaitingResponse =
+  StopProcessRunWaitingResponses[keyof StopProcessRunWaitingResponses]
+
+export type WaitProcessRunAgainData = {
+  body: {
+    /**
+     * The app the person decided on — recorded on the decision with `decidedBy: person`. Required: a decision nobody can attribute is refused.
+     */
+    decidedVia: 'web' | 'desktop' | 'mobile'
+    /**
+     * Why, in the person’s words — kept on the run with the decision.
+     */
+    note?: string
+  }
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}/wait/again'
+}
+
+export type WaitProcessRunAgainErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type WaitProcessRunAgainError = WaitProcessRunAgainErrors[keyof WaitProcessRunAgainErrors]
+
+export type WaitProcessRunAgainResponses = {
+  /**
+   * Default Response
+   */
+  200: ProcessRun
+}
+
+export type WaitProcessRunAgainResponse =
+  WaitProcessRunAgainResponses[keyof WaitProcessRunAgainResponses]
+
 export type CancelProcessRunData = {
   body?: never
   path: {
@@ -43549,6 +43923,27 @@ export type GetProcessGroupSignOffResponses = {
          */
         followUps: number
       }
+      /**
+       * Its run waits for other work before its proof.
+       */
+      wait?: {
+        /**
+         * Every entry it waits for, by label.
+         */
+        waitsFor: Array<string>
+        /**
+         * Those not on the base yet.
+         */
+        waitingOn: Array<string>
+        /**
+         * When it stopped at its wait step, while it waits there.
+         */
+        since?: number
+        /**
+         * How the wait was settled, once it was.
+         */
+        settled?: 'on-base' | 'continued' | 'dropped'
+      }
     }>
     outputs: Array<SignOffOutputView>
     goingLive: ProcessGroupGoingLive
@@ -43764,6 +44159,27 @@ export type SignOffProcessGroupRunResponses = {
          * Its story’s code-review follow-ups still pending.
          */
         followUps: number
+      }
+      /**
+       * Its run waits for other work before its proof.
+       */
+      wait?: {
+        /**
+         * Every entry it waits for, by label.
+         */
+        waitsFor: Array<string>
+        /**
+         * Those not on the base yet.
+         */
+        waitingOn: Array<string>
+        /**
+         * When it stopped at its wait step, while it waits there.
+         */
+        since?: number
+        /**
+         * How the wait was settled, once it was.
+         */
+        settled?: 'on-base' | 'continued' | 'dropped'
       }
     }>
     outputs: Array<SignOffOutputView>
@@ -44340,6 +44756,27 @@ export type RetryProcessGroupPullRequestsResponses = {
          * Its story’s code-review follow-ups still pending.
          */
         followUps: number
+      }
+      /**
+       * Its run waits for other work before its proof.
+       */
+      wait?: {
+        /**
+         * Every entry it waits for, by label.
+         */
+        waitsFor: Array<string>
+        /**
+         * Those not on the base yet.
+         */
+        waitingOn: Array<string>
+        /**
+         * When it stopped at its wait step, while it waits there.
+         */
+        since?: number
+        /**
+         * How the wait was settled, once it was.
+         */
+        settled?: 'on-base' | 'continued' | 'dropped'
       }
     }>
     outputs: Array<SignOffOutputView>

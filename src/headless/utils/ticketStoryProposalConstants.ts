@@ -27,14 +27,22 @@ export const TICKET_STORY_PROPOSAL_TEXT = {
   openGroupStory: (title: string) => `Open the group story “${title}”`,
   showMore: 'Show more',
   showLess: 'Show less',
+  features: (n: number) => `${n} ${n === 1 ? 'feature' : 'features'}`,
+  noFeatures: 'No features',
+  moreFeatures: (n: number) => `${n} more`,
+  doneWhen: 'Done when',
 } as const
+
+/** Features a part shows before the rest fold behind "N more". */
+export const TICKET_STORY_FEATURES_SHOWN = 3
 
 export const TICKET_STORY_PROPOSAL_ASK = {
   ask: 'The agent proposes a group story for a ticket',
   tag: 'Tickets',
   headline: (ticketKey: string | undefined, title: string) =>
     ticketKey ? `${ticketKey}: ${title}` : title,
-  consequence: 'Approving makes the group story and links it to the ticket.',
+  consequence:
+    'Approving makes the group story, each part with its features, and links it to the ticket: ready to run.',
   verb: 'Create',
 } as const
 

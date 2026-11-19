@@ -16,9 +16,15 @@ import type { Scene, SceneState } from '../showcase/types'
 import {
   STORY_PROPOSAL_ARGS,
   STORY_PROPOSAL_CREATED,
+  STORY_PROPOSAL_FEATURES_ARGS,
   STORY_PROPOSAL_LONG_ARGS,
+  STORY_PROPOSAL_LONG_FEATURES_ARGS,
   STORY_PROPOSAL_MANY_ARGS,
+  STORY_PROPOSAL_NO_FEATURES_ARGS,
+  STORY_PROPOSAL_NO_FEATURES_REFUSAL,
+  STORY_PROPOSAL_READY,
   STORY_PROPOSAL_REFUSAL,
+  STORY_PROPOSAL_WAIT_ARGS,
   TICKET_SITE_URL,
   fakeTicketLinks,
 } from './ticketLinkFixtures'
@@ -91,10 +97,12 @@ function Card({
   args = STORY_PROPOSAL_ARGS,
   layout,
   expanded = false,
+  featuresOpen = false,
 }: {
   args?: Record<string, unknown>
   layout?: TicketStoryProposalLayout
   expanded?: boolean
+  featuresOpen?: boolean
 }) {
   return (
     <InChat>
@@ -106,6 +114,7 @@ function Card({
             siteUrl: TICKET_SITE_URL,
           })}
           defaultExpanded={expanded}
+          defaultFeaturesOpen={featuresOpen}
           {...(layout ? { layout } : {})}
         />
       </div>
@@ -240,6 +249,90 @@ export const TICKET_STORY_PROPOSAL_SCENES: Scene[] = [
         id: 'many-parts-phone',
         title: 'Many parts, on a phone',
         render: () => phone(<Card args={STORY_PROPOSAL_MANY_ARGS} />),
+      },
+    ],
+  },
+  {
+    id: 'ticket-story-proposal-features',
+    title: 'A ticket’s group story, each part with its features',
+    component: 'TicketStoryProposalCard',
+    group: 'Chat',
+    description:
+      'The proposal carries the whole plan, so the person approves it once and the story is ready to run. Under each part: what it waits for, in the same card a run’s wait uses, then its features in build order, each title opening to its description and what makes it done. Past four features the rest fold behind “N more”. A part with no features says so until the story is made: the backend refuses it. Once made, the planned features stay under each part and the card says it is ready to run, in the first sentence of the backend’s message. Fixed sample data.',
+    states: [
+      {
+        id: 'two-parts',
+        title: 'Two parts with features',
+        description: 'The ask: each part’s features by title, in build order.',
+        render: () => page(<Ask args={STORY_PROPOSAL_FEATURES_ARGS} />),
+      },
+      {
+        id: 'features-open',
+        title: 'Features opened',
+        description:
+          'Each feature opened: its description, and what makes it done as a list. A feature with only a title has nothing to open.',
+        render: () => page(<Card args={STORY_PROPOSAL_FEATURES_ARGS} featuresOpen />),
+      },
+      {
+        id: 'part-waits',
+        title: 'A part that waits for other work',
+        description:
+          'The backend part waits for a pull request and a branch before its proof: the run’s own wait card, with no actions yet.',
+        render: () => page(<Ask args={STORY_PROPOSAL_WAIT_ARGS} />),
+      },
+      {
+        id: 'long-list',
+        title: 'A long feature list, folded',
+        description: 'Nine features: the first three, then “6 more”.',
+        render: () => page(<Card args={STORY_PROPOSAL_LONG_FEATURES_ARGS} />),
+      },
+      {
+        id: 'long-list-steps',
+        title: 'A long feature list, by steps',
+        description: 'The same, with the parts grouped under the step they run in.',
+        render: () => page(<Card args={STORY_PROPOSAL_LONG_FEATURES_ARGS} layout="steps" />),
+      },
+      {
+        id: 'approved-ready',
+        title: 'Approved: ready to run',
+        description:
+          'The planned features stay under each part, matched by project; the group story opens from its chip, and the last line says it is ready to run.',
+        render: () =>
+          page(
+            <Row
+              args={STORY_PROPOSAL_FEATURES_ARGS}
+              result={STORY_PROPOSAL_READY}
+              resultType="success"
+            />,
+          ),
+      },
+      {
+        id: 'refused',
+        title: 'Refused: a part with no features',
+        description: 'The backend’s reason on one line, and the part that has none says so.',
+        render: () =>
+          page(
+            <Row
+              args={STORY_PROPOSAL_NO_FEATURES_ARGS}
+              result={{ error: STORY_PROPOSAL_NO_FEATURES_REFUSAL }}
+              resultType="success"
+            />,
+          ),
+      },
+      {
+        id: 'two-parts-phone',
+        title: 'Two parts, on a phone',
+        render: () => phone(<Ask args={STORY_PROPOSAL_FEATURES_ARGS} />),
+      },
+      {
+        id: 'part-waits-phone',
+        title: 'A part that waits, on a phone',
+        render: () => phone(<Card args={STORY_PROPOSAL_WAIT_ARGS} featuresOpen />),
+      },
+      {
+        id: 'long-list-phone',
+        title: 'A long feature list, on a phone',
+        render: () => phone(<Card args={STORY_PROPOSAL_LONG_FEATURES_ARGS} />),
       },
     ],
   },

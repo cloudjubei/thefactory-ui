@@ -1,3 +1,5 @@
+import type { ProcessWaitAction } from 'thefactory-tools/types'
+
 /** A run chat's proposal to add a feature to the run, waiting to start. */
 export const PROPOSE_RUN_FEATURE_TOOL_NAME = 'proposeRunFeature'
 
@@ -71,6 +73,30 @@ export const CLOSE_RUN_FEATURES_TOOL_NAME = 'closeRunFeatures'
 /** Finish an approved run whose base already holds its work as landed. */
 export const SETTLE_RUN_ALREADY_LANDED_TOOL_NAME = 'settleRunAlreadyLanded'
 
+/** Carry a run waiting for other work on now, as its Continue now does. */
+export const CONTINUE_RUN_WAIT_TOOL_NAME = 'continueRunWaitNow'
+
+/** Drop a run's wait for other work, as its Stop waiting does. */
+export const STOP_RUN_WAITING_TOOL_NAME = 'stopRunWaiting'
+
+/** Take back a Continue now or Stop waiting before the run reached its wait, as its Wait again does. */
+export const WAIT_RUN_AGAIN_TOOL_NAME = 'waitRunAgain'
+
+/** The action on a run's wait each wait tool takes. */
+export const RUN_PROPOSAL_WAIT_ACTIONS: Readonly<Record<string, ProcessWaitAction>> = {
+  [CONTINUE_RUN_WAIT_TOOL_NAME]: 'continue-now',
+  [STOP_RUN_WAITING_TOOL_NAME]: 'stop-waiting',
+  [WAIT_RUN_AGAIN_TOOL_NAME]: 'wait-again',
+}
+
+/** An action on a run's wait for other work, when the host stated none of its words. */
+export const RUN_PROPOSAL_WAIT_EFFECT: Record<ProcessWaitAction, string> = {
+  'continue-now':
+    'Carries the run on now without waiting: its base branch is brought in and checked again, then the proof.',
+  'stop-waiting': 'The run goes on to its proof as its work is, with nothing brought in.',
+  'wait-again': 'The run waits again before its proof until that work is on its base branch.',
+}
+
 export const RUN_PROPOSAL_TOOL_NAMES: readonly string[] = [
   PROPOSE_RUN_FEATURE_TOOL_NAME,
   PROPOSE_FEATURE_CHANGE_TOOL_NAME,
@@ -97,6 +123,9 @@ export const RUN_PROPOSAL_TOOL_NAMES: readonly string[] = [
   SET_RUN_MODEL_TOOL_NAME,
   CLOSE_RUN_FEATURES_TOOL_NAME,
   SETTLE_RUN_ALREADY_LANDED_TOOL_NAME,
+  CONTINUE_RUN_WAIT_TOOL_NAME,
+  STOP_RUN_WAITING_TOOL_NAME,
+  WAIT_RUN_AGAIN_TOOL_NAME,
 ]
 
 export const RUN_PROPOSAL_DECLINE_LABEL = 'Not now'
@@ -331,6 +360,7 @@ export const RUN_PROPOSAL_LINE_LABELS = {
   step: 'Stopped at',
   landedBy: 'Already on its base',
   marksDone: 'Becomes done',
+  waitsFor: 'Waits for',
 } as const
 
 /** The longest one-line summary a closed section shows. */

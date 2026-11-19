@@ -330,6 +330,7 @@ describe('reviewDecisionPullRequests', () => {
       n,
       ...(recorded ? { recordedAt: '2026-11-17T10:00:00.000Z' } : {}),
       submission: { pullRequests: prs },
+      reviewedHeads: [],
     })
     const review = {
       rounds: [
@@ -343,5 +344,9 @@ describe('reviewDecisionPullRequests', () => {
       'coach-web #77',
     ])
     expect(reviewDecisionPullRequests(null)).toEqual([])
+    const replied = {
+      rounds: [round(1, true, [pr('coach-web', 77)]), round(2, true, [])],
+    } as unknown as ColleagueReview
+    expect(reviewDecisionPullRequests(replied).map((p) => p.name)).toEqual(['coach-web #77'])
   })
 })

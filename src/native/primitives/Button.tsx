@@ -48,7 +48,7 @@ function variantStyles(variant: ButtonVariant): VariantStyle {
     case 'primary':
       return {
         container: { backgroundColor: theme.accent.primary, borderWidth: 0 },
-        text: { color: theme.text.inverted },
+        text: { color: theme.text.onAccent },
       }
     case 'secondary':
       return {

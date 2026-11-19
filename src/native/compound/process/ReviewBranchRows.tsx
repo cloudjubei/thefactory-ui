@@ -8,7 +8,69 @@ import { nativeFontFamilies, nativeRadii } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import ToneBadge from '../chips/ToneBadge'
 
-function BranchRow({ row, diffOpen }: { row: ColleagueReviewBranchRow; diffOpen: boolean }) {
+function FailedChecks({ row, outputOpen }: { row: ColleagueReviewBranchRow; outputOpen: boolean }) {
+  const { theme } = useNativeTheme()
+  const [open, setOpen] = useState(outputOpen)
+  const failed = row.checks.filter((check) => check.baseDetail || check.outputTail)
+  if (failed.length === 0) return null
+  const hasOutput = failed.some((check) => check.outputTail)
+  return (
+    <View style={{ gap: 6 }}>
+      {failed.map((check) => (
+        <View key={check.label} style={{ gap: 4 }}>
+          {check.baseDetail ? (
+            <Text style={{ fontSize: 12.5, color: theme.text.secondary }}>
+              <Text style={{ fontWeight: '500', color: theme.text.primary }}>{check.label}</Text>
+              {` · ${check.baseDetail}`}
+            </Text>
+          ) : null}
+          {open && check.outputTail ? (
+            <ScrollView
+              style={{
+                maxHeight: 192,
+                borderWidth: 1,
+                borderColor: theme.border.subtle,
+                borderRadius: nativeRadii[2],
+                backgroundColor: theme.surface.muted,
+                padding: 6,
+              }}
+            >
+              <Text
+                selectable
+                style={{
+                  fontFamily: nativeFontFamilies.mono,
+                  fontSize: 11.5,
+                  color: theme.text.secondary,
+                }}
+              >
+                {check.outputTail}
+              </Text>
+            </ScrollView>
+          ) : null}
+        </View>
+      ))}
+      {hasOutput ? (
+        <Pressable accessibilityRole="button" onPress={() => setOpen((o) => !o)}>
+          <Text
+            style={{ fontSize: 12, color: theme.text.secondary, textDecorationLine: 'underline' }}
+          >
+            {open ? COPY.hideOutput : COPY.showOutput}
+          </Text>
+        </Pressable>
+      ) : null}
+    </View>
+  )
+}
+
+function BranchRow({
+  row,
+  diffOpen,
+  outputOpen,
+}: {
+  row: ColleagueReviewBranchRow
+  diffOpen: boolean
+  outputOpen: boolean
+}) {
   const { theme, status } = useNativeTheme()
   const [open, setOpen] = useState(diffOpen)
   const mono = { fontFamily: nativeFontFamilies.mono, fontSize: 11.5 }
@@ -43,11 +105,8 @@ function BranchRow({ row, diffOpen }: { row: ColleagueReviewBranchRow; diffOpen:
           {row.name}
         </Text>
         <ToneBadge tone={row.tone} label={row.stateLabel} />
-        {row.checksPassed !== undefined ? (
-          <ToneBadge
-            tone={row.checksPassed ? 'done' : 'stuck'}
-            label={row.checksPassed ? COPY.checksPassed : COPY.checksFailed}
-          />
+        {row.checksBadge ? (
+          <ToneBadge tone={row.checksBadge.tone} label={row.checksBadge.label} />
         ) : null}
       </View>
       {row.branches ? (
@@ -74,12 +133,18 @@ function BranchRow({ row, diffOpen }: { row: ColleagueReviewBranchRow; diffOpen:
           {row.checks.map((check) => (
             <ToneBadge
               key={check.label}
-              tone={check.passed ? 'done' : 'stuck'}
-              label={`${check.label}: ${check.summary}`}
+              tone={check.tone}
+              label={`${check.label}: ${check.summary}${check.baseLabel ? ` · ${check.baseLabel}` : ''}`}
             />
           ))}
         </View>
+      ) : row.checksPassed === undefined && row.stateLabel === 'Resolved' ? (
+        <Text style={{ fontSize: 12.5, color: theme.text.muted }}>{COPY.noChecks}</Text>
       ) : null}
+      {row.checksNote ? (
+        <Text style={{ fontSize: 12.5, color: theme.text.secondary }}>{row.checksNote}</Text>
+      ) : null}
+      <FailedChecks row={row} outputOpen={outputOpen} />
       {row.diff ? (
         <>
           <Pressable accessibilityRole="button" onPress={() => setOpen((o) => !o)}>
@@ -119,14 +184,20 @@ export type ReviewBranchRowsProps = {
   rows: readonly ColleagueReviewBranchRow[]
   /** Start with every diff open — for a fixed showcase state. */
   diffOpen?: boolean
+  /** Start with every failed check's output open — for a fixed showcase state. */
+  outputOpen?: boolean
 }
 
 /** Native peer of web's `ReviewBranchRows`: each pull request of a review run's push approval. */
-export default function ReviewBranchRows({ rows, diffOpen = false }: ReviewBranchRowsProps) {
+export default function ReviewBranchRows({
+  rows,
+  diffOpen = false,
+  outputOpen = false,
+}: ReviewBranchRowsProps) {
   return (
     <View style={{ gap: 8 }}>
       {rows.map((row) => (
-        <BranchRow key={row.url} row={row} diffOpen={diffOpen} />
+        <BranchRow key={row.url} row={row} diffOpen={diffOpen} outputOpen={outputOpen} />
       ))}
     </View>
   )

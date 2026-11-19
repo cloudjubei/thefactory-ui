@@ -6,6 +6,7 @@ import {
   PROCESS_GROUP_SHORT_SHA_LENGTH,
   PROCESS_RUN_TERMINAL_STATUSES,
 } from 'thefactory-tools/constants'
+import { processGroupLegWaitLine } from './processRunWait'
 import type {
   ProcessGroupLeg,
   ProcessGroupLegLandingCheck,
@@ -187,6 +188,7 @@ function legWaitsFor(group: ProcessGroupRun, leg: ProcessGroupLeg): string | und
     const gate = processGroupLegMergeGate(group, leg.id)
     return gate.canMerge ? undefined : gate.reason
   }
+  if (leg.status === 'waiting') return processGroupLegWaitLine(leg)
   if (leg.status !== 'blocked') return undefined
   const met = isProcessGroupOnBranch(group) ? ['integrated', 'at-sign-off'] : ['integrated']
   const waiting = leg.dependsOn.filter(

@@ -115,6 +115,9 @@ function RepoFacts({ repo, plain = false }: { repo: GroupSignOffRepoRow; plain?:
       {repo.line ? (
         <Text style={{ fontSize: 12.5, color: theme.text.secondary }}>{repo.line}</Text>
       ) : null}
+      {repo.waitLine ? (
+        <Text style={{ fontSize: 12.5, color: theme.text.secondary }}>{repo.waitLine}</Text>
+      ) : null}
       {facts ? <Text style={{ fontSize: 12, color: theme.text.muted }}>{facts}</Text> : null}
       {repo.link && !plain ? <OpenLink label={repo.link.label} url={repo.link.url} /> : null}
       {repo.error && !plain ? <Alert variant="error">{repo.error}</Alert> : null}

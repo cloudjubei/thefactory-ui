@@ -141,6 +141,9 @@ import type {
   ConsolidateChatData,
   ConsolidateChatErrors,
   ConsolidateChatResponses,
+  ContinueProcessRunWaitNowData,
+  ContinueProcessRunWaitNowErrors,
+  ContinueProcessRunWaitNowResponses,
   CountPendingCliAgentActionsByChatData,
   CountPendingCliAgentActionsByChatResponses,
   CountProjectDataData,
@@ -1438,6 +1441,9 @@ import type {
   StopActivityData,
   StopActivityErrors,
   StopActivityResponses,
+  StopProcessRunWaitingData,
+  StopProcessRunWaitingErrors,
+  StopProcessRunWaitingResponses,
   StopVideoSetupJobData,
   StopVideoSetupJobResponses,
   SubmitCliAuthLoginInputData,
@@ -1563,6 +1569,9 @@ import type {
   ViewDesignPlaygroundResponses,
   ViewProjectFileData,
   ViewProjectFileResponses,
+  WaitProcessRunAgainData,
+  WaitProcessRunAgainErrors,
+  WaitProcessRunAgainResponses,
   WebSearchData,
   WebSearchErrors,
   WebSearchResponses,
@@ -3059,6 +3068,60 @@ export const settleProcessRunAlreadyLanded = <ThrowOnError extends boolean = fal
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/process-runs/{runId}/settle-already-landed',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const continueProcessRunWaitNow = <ThrowOnError extends boolean = false>(
+  options: Options<ContinueProcessRunWaitNowData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    ContinueProcessRunWaitNowResponses,
+    ContinueProcessRunWaitNowErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/wait/continue',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const stopProcessRunWaiting = <ThrowOnError extends boolean = false>(
+  options: Options<StopProcessRunWaitingData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    StopProcessRunWaitingResponses,
+    StopProcessRunWaitingErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/wait/stop',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const waitProcessRunAgain = <ThrowOnError extends boolean = false>(
+  options: Options<WaitProcessRunAgainData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    WaitProcessRunAgainResponses,
+    WaitProcessRunAgainErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/wait/again',
     ...options,
     headers: {
       'Content-Type': 'application/json',

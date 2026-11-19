@@ -8,6 +8,8 @@ import {
   type GroupTicketPageState,
   type GroupTicketsState,
   type ReviewCardMerge,
+  type ReviewCommitsView,
+  type ReviewReplyBannerLayout,
 } from 'thefactory-ui/headless'
 import ColleagueReviewCard from '../../src/native/compound/chat/ColleagueReviewCard'
 import { RunModelChip } from '../../src/native/compound/chat/signoff'
@@ -18,6 +20,9 @@ import { GroupTicketTabsPanel } from '../../src/native/compound/settings/GroupTi
 import { useNativeTheme } from '../../src/native/hooks/useNativeTheme'
 import { REVIEW_TICKET } from '../scenes/colleagueReviewFixtures'
 import {
+  COMMITS_NEW,
+  COMMITS_NONE,
+  COMMITS_REWRITTEN,
   defaultTickets,
   editorView,
   emptyTab,
@@ -31,8 +36,15 @@ import {
   OVERVIEW_FULL,
   OVERVIEW_NO_TICKET,
   OVERVIEW_PART_FAILED,
+  OVERVIEW_PUSHED,
+  OVERVIEW_REPLY,
+  OVERVIEW_REPLY_FILES,
+  OVERVIEW_REPLY_LONG,
+  OVERVIEW_REPLY_RUN,
   pageState,
   PENDING_TICKETS,
+  REVIEWING_COMMITS,
+  REVIEWING_TICKETS,
   TABS_NOW,
 } from '../scenes/groupTicketTabsFixtures'
 import { BOX_FROM_OFFER, ROUND_TWO_WITH_PRS, SLACK_NOW } from '../scenes/slackReviewFixtures'
@@ -58,15 +70,26 @@ const TABS: Record<string, () => GroupTicketsState> = {
   'tabs-in-progress': () => oscTickets('in-progress', IN_PROGRESS_TICKETS),
   'yours-in-review-replies': () => oscTickets('in-review', IN_REVIEW_TICKETS),
   'empty-tab': emptyTab,
+  'in-review-reviewing': () => oscTickets('in-review', REVIEWING_TICKETS),
+  'in-review-reviewing-segmented': () => oscTickets('in-review', REVIEWING_TICKETS),
+}
+
+const COMMITS: Record<string, Readonly<Record<string, ReviewCommitsView>>> = {
+  'in-review-reviewing': REVIEWING_COMMITS,
+  'in-review-reviewing-segmented': REVIEWING_COMMITS,
 }
 
 function Tabs({ address }: { address: URLSearchParams }) {
-  const start = (TABS[address.get('state') ?? 'tabs-custom'] ?? TABS['tabs-custom']!)()
+  const id = address.get('state') ?? 'tabs-custom'
+  const start = (TABS[id] ?? TABS['tabs-custom']!)()
   const [tab, setTab] = useState(start.tab)
   return (
     <Phone>
       <GroupTicketsList
-        view={groupTicketsView({ ...start, tab }, TABS_NOW)}
+        view={groupTicketsView({ ...start, tab }, TABS_NOW, COMMITS[id])}
+        {...(id === 'in-review-reviewing-segmented'
+          ? { layout: 'segmented' as const, shownFirst: 'others' as const }
+          : {})}
         query=""
         onQueryChange={noop}
         onPickTab={setTab}
@@ -84,7 +107,31 @@ function Tabs({ address }: { address: URLSearchParams }) {
   )
 }
 
-const PAGES: Record<string, { state: GroupTicketPageState; merge?: ReviewCardMerge }> = {
+type PageShown = {
+  state: GroupTicketPageState
+  merge?: ReviewCardMerge
+  replyLayout?: ReviewReplyBannerLayout
+  replyExpanded?: boolean
+}
+
+const REPLY_PAGES = (replyLayout: ReviewReplyBannerLayout): Record<string, PageShown> => ({
+  [`reply-${replyLayout}`]: { state: pageState(OVERVIEW_REPLY, COMMITS_NEW), replyLayout },
+  [`reply-${replyLayout}-long`]: {
+    state: pageState(OVERVIEW_REPLY_LONG, COMMITS_NONE),
+    replyLayout,
+  },
+  [`reply-${replyLayout}-files`]: {
+    state: pageState(OVERVIEW_REPLY_FILES, COMMITS_NEW),
+    replyLayout,
+    replyExpanded: true,
+  },
+  [`reply-${replyLayout}-run`]: { state: pageState(OVERVIEW_REPLY_RUN, COMMITS_NEW), replyLayout },
+})
+
+const PAGES: Record<string, PageShown> = {
+  ...REPLY_PAGES('strip'),
+  ...REPLY_PAGES('line'),
+  'pushed-no-reply': { state: pageState(OVERVIEW_PUSHED, COMMITS_REWRITTEN) },
   'page-full': { state: pageState(OVERVIEW_FULL), merge: mergeWith(null) },
   'page-part-failed': { state: pageState(OVERVIEW_PART_FAILED), merge: mergeWith(null) },
   'page-no-ticket': { state: pageState(OVERVIEW_NO_TICKET) },
@@ -107,6 +154,8 @@ function Page({ address }: { address: URLSearchParams }) {
         onRetry={noop}
         onApproveAndMerge={noop}
         {...(shown.merge ? { merge: shown.merge } : {})}
+        {...(shown.replyLayout ? { replyLayout: shown.replyLayout } : {})}
+        {...(shown.replyExpanded ? { replyExpanded: true } : {})}
       />
     </Phone>
   )

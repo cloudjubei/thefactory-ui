@@ -1314,7 +1314,8 @@ describe('toolAskCardView — a ticket’s group story', () => {
       ask: 'The agent proposes a group story for a ticket',
       tag: 'Tickets',
       headline: 'ZNR-780: Renew sessions before uploads',
-      consequence: 'Approving makes the group story and links it to the ticket.',
+      consequence:
+        'Approving makes the group story, each part with its features, and links it to the ticket: ready to run.',
       verb: 'Create',
       body: { kind: 'ticket-story', proposal: args },
     })

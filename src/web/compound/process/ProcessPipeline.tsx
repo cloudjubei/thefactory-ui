@@ -209,12 +209,18 @@ import { isProcessActionsGate } from '../../../headless/utils/colleagueReviewDec
 import type { ReviewGateAnswer } from '../../../headless/utils/colleagueReviewDecisionTypes'
 import { RunPushApprovalCard, RunReviewDecisionCard } from '../chat/ColleagueReviewDecisionCard'
 import RunOutsideWaitCard from './RunOutsideWaitCard'
+import RunWaitCard from './RunWaitCard'
 import { isReviewPushApproval } from '../../../headless/utils/colleagueReviewBranchUpdates'
 import {
   isOutsideWaitPending,
   processOutsideWaitView,
 } from '../../../headless/utils/processOutsideWait'
 import { PROCESS_OUTSIDE_WAIT_COPY } from '../../../headless/utils/processOutsideWaitConstants'
+import {
+  isProcessRunWaitingOnWork,
+  processRunWaitView,
+  processWaitConfirmView,
+} from '../../../headless/utils/processRunWait'
 import RunMergeProgress from './RunMergeProgress'
 import PublicationChip from './PublicationChip'
 import RunPublishCard from './RunPublishCard'
@@ -313,6 +319,8 @@ export default function ProcessPipeline({
     withdrawChange,
     uploadAnswerFile,
     loadAnswerProjectFiles,
+    waitPending,
+    decideWait,
   } = own
   const answerFiles = useMemo<AnswerFilesSource>(
     () => ({ upload: uploadAnswerFile, loadProjectFiles: loadAnswerProjectFiles }),
@@ -542,9 +550,14 @@ export default function ProcessPipeline({
           (lane) => lane.stepId === featureStep.id,
         )
       : undefined
+  const waitView =
+    stack.length === 0
+      ? processRunWaitView(run, waitPending ? { pending: waitPending } : {})
+      : undefined
   const showStopCard =
     run.status === 'parked' &&
     !signoff &&
+    !isProcessRunWaitingOnWork(stopRun) &&
     stopHolder !== 'manager' &&
     !!stopPark &&
     (!nestedStopId || !!nested.run)
@@ -683,6 +696,13 @@ export default function ProcessPipeline({
 
           <WorkBranchChangesNote run={run} />
           <DroppedChangesNote run={run} />
+          {waitView ? (
+            <RunWaitCard
+              view={waitView}
+              confirmOf={(action) => processWaitConfirmView(action, run)}
+              onDecide={decideWait}
+            />
+          ) : null}
 
           {showStopCard && stopRun.park ? (
             <RunNeedsYouCard
@@ -1322,7 +1342,7 @@ export function PipelineNode({
   const nodeState = processNodeState(state, parkStepId)
   const row = processStepRowView(state, parkStepId, run, stopHolder, now)
   const look = processNodeLook(
-    row.managerOnIt ? 'working' : nodeState,
+    row.managerOnIt ? 'working' : row.waitingOnWork ? 'queued' : nodeState,
     state.step.kind === 'gate',
     0,
   )

@@ -186,6 +186,31 @@ describe('processGroupLegRows', () => {
     })
   })
 
+  it('says a leg waiting for other work waits, what for and that it carries on by itself, never that it needs you', () => {
+    const [[row]] = processGroupLegRows(
+      group({
+        legs: [
+          leg('tools', {
+            status: 'waiting',
+            baseBranch: 'dev',
+            waitsFor: [{ label: 'ZNR-780', branch: 'znr-780' }],
+          }),
+        ],
+      }),
+    )
+    expect(row).toMatchObject({
+      label: 'Waiting on other work',
+      tone: 'queued',
+      openLabel: 'Open its pipeline',
+      waitsFor: 'Waits for ZNR-780 to reach dev before its proof · carries on by itself',
+    })
+  })
+
+  it('says nothing more of a waiting leg whose run waits for no other work of its own', () => {
+    const [[row]] = processGroupLegRows(group({ legs: [leg('tools', { status: 'waiting' })] }))
+    expect(row?.waitsFor).toBeUndefined()
+  })
+
   it('draws a running leg in the running blue, the host merging or building it in orange, merged in green', () => {
     const rows = processGroupLegRows(
       group({

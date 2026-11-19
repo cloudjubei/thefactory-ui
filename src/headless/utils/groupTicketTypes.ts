@@ -1,3 +1,4 @@
+import type { ReviewCommitsView } from './reviewCommitsTypes'
 import type { ChatContext, ExternalRef } from '../api'
 import type {
   ReviewOffer,
@@ -182,11 +183,37 @@ export interface GroupTicketRow {
   starting?: GroupTicketAction
   /** What pressing the row does. */
   hint: string
+  /** On a ticket under review: the reply waiting on it and what was pushed since the last round. */
+  reviewNews?: GroupTicketReviewNews
+}
+
+/** What came on a ticket under review since its last round, in a line on its row. */
+export interface GroupTicketReviewNews {
+  /** "Aashan replied · 1 hour ago", while a reply waits to start the next round. */
+  reply?: string
+  /** What its pull requests did since the round; "No new commits" only beside a reply. */
+  commits?: ReviewCommitsView
+  /** The whole line: the reply, then the commits. */
+  line: string
+}
+
+/** Which part of a list a group of rows is. */
+export type GroupTicketRowGroupId = 'all' | 'reviewing' | 'to-review'
+
+/**
+ * A part of a list, under its own heading when it has one: a list not split is
+ * one group, `all`; everyone else's tickets, once some are under review, are
+ * `reviewing` above `to-review`. An empty group is left out.
+ */
+export interface GroupTicketRowGroup {
+  id: GroupTicketRowGroupId
+  heading?: string
+  rows: GroupTicketRow[]
 }
 
 /** One list on the Tickets tab. */
 export interface GroupTicketSectionView {
-  rows: GroupTicketRow[]
+  groups: GroupTicketRowGroup[]
   /** How the list stands, in a line. */
   line: string
   /** Said when it has nothing to show. */
@@ -210,7 +237,7 @@ export type GroupTicketsView =
       tabs: GroupTicketTabItem[]
       /** The tab on screen. */
       tab: string
-      /** The top ticket that can be taken: it leaves `mine.rows` to stand above them. */
+      /** The top ticket that can be taken: it leaves `mine` to stand above its rows. */
       next?: GroupTicketRow
       mine: GroupTicketSectionView
       others: GroupTicketSectionView

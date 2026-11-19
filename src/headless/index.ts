@@ -3158,6 +3158,7 @@ export type {
 } from './utils/ticketStatusMoveTypes'
 export {
   isTicketStoryProposalTool,
+  ticketStoryFeaturesFold,
   partsOrderLine,
   partsOrderSteps,
   ticketStoryProposalView,
@@ -3165,6 +3166,7 @@ export {
 export {
   TICKET_STORY_DESCRIPTION_FOLD_CHARS,
   TICKET_STORY_DESCRIPTION_FOLD_LINES,
+  TICKET_STORY_FEATURES_SHOWN,
   TICKET_STORY_PROPOSAL_ASK,
   TICKET_STORY_PROPOSAL_DEFAULT_LAYOUT,
   TICKET_STORY_PROPOSAL_LAYOUT_LABELS,
@@ -3174,6 +3176,8 @@ export {
   TICKET_STORY_PROPOSAL_TOOL,
 } from './utils/ticketStoryProposalConstants'
 export type {
+  TicketStoryFeatureView,
+  TicketStoryFeaturesFold,
   TicketStoryPartStory,
   TicketStoryPartView,
   TicketStoryProposalInput,
@@ -3926,8 +3930,10 @@ export {
   groupStoryTicketChip,
   chatContextTickets,
   groupStoryTicketRef,
+  groupTicketSectionRows,
   groupTicketStatuses,
   groupTicketsView,
+  reviewOpenTicketKeys,
   ticketChipView,
   ticketLink,
   ticketMoveDecisionOf,
@@ -3952,7 +3958,10 @@ export type {
   GroupTicketAction,
   GroupTicketList,
   GroupTicketListName,
+  GroupTicketReviewNews,
   GroupTicketRow,
+  GroupTicketRowGroup,
+  GroupTicketRowGroupId,
   GroupTicketSearch,
   GroupTicketSection,
   GroupTicketSectionView,
@@ -4107,6 +4116,16 @@ export {
   runReviewDecisionActions,
 } from './utils/colleagueReviewDecision'
 export {
+  answerDecisionCardWithNote,
+  composerAnswerNote,
+  composerMessageRoute,
+  reviewDecisionNoteMetadata,
+  reviewGateNoteAnswer,
+  type ComposerReviewRun,
+} from './utils/composerAnswer'
+export { COMPOSER_ANSWER_FILES_LABEL, COMPOSER_ANSWER_TEXT } from './utils/composerAnswerConstants'
+export type { ComposerMessageRoute } from './utils/composerAnswerTypes'
+export {
   ASK_COLLEAGUE_REVIEW_DECISION_TOOL_NAME,
   INLINE_REVIEW_DECISION_ACTIONS,
   REVIEW_DECISION_APPROVE_AND_MERGE,
@@ -4150,6 +4169,55 @@ export {
   PROCESS_OUTSIDE_WAIT_COPY,
 } from './utils/processOutsideWaitConstants'
 export type { ProcessOutsideWaitView } from './utils/processOutsideWaitTypes'
+export {
+  groupSignOffWaitLine,
+  isProcessParkWaitingElsewhere,
+  isProcessRunWaitingOnWork,
+  processGroupLegWaitLine,
+  processPlannedWaitView,
+  processRunWaitLine,
+  processRunWaitView,
+  processRunWaitingLine,
+  processWaitActionBody,
+  processWaitConfirmView,
+  withPendingWaitAction,
+} from './utils/processRunWait'
+export {
+  PROCESS_RUN_WAIT_COPY,
+  PROCESS_WAIT_ACTION_LABELS,
+  PROCESS_WAIT_NOTE_MAX_CHARS,
+} from './utils/processRunWaitConstants'
+export type {
+  GroupSignOffRepoWait,
+  ProcessRunWaitActionView,
+  ProcessRunWaitEntryView,
+  ProcessRunWaitState,
+  ProcessRunWaitView,
+  ProcessWaitConfirmView,
+  ProcessWaitPending,
+} from './utils/processRunWaitTypes'
+export {
+  addProcessWaitForDraft,
+  launchLegWaitsForMetadata,
+  launchWaitsForMetadata,
+  processProposalWaitLine,
+  processWaitForDraftRows,
+  processWaitForDraftsOf,
+  processWaitForDraftsProblem,
+  processWaitForOfDraft,
+  processWaitForTargetKind,
+  processWaitsForOfDrafts,
+  removeProcessWaitForDraft,
+  updateProcessWaitForDraft,
+} from './utils/processWaitForDraft'
+export { PROCESS_WAIT_FOR_LAUNCH_COPY } from './utils/processWaitForDraftConstants'
+export type {
+  LaunchLegWaitsForMetadata,
+  LaunchWaitsForMetadata,
+  ProcessWaitForDraft,
+  ProcessWaitForDraftRow,
+  ProcessWaitForDrafts,
+} from './utils/processWaitForDraftTypes'
 export {
   colleagueReviewSourceStoreFor,
   useColleagueReviewSource,
@@ -5521,3 +5589,33 @@ export {
   setProcessInput,
   withProcessExpand,
 } from './utils/processEditorInputs'
+export { readColleagueReviewCommits } from './api/colleagueReviewApi'
+export { reviewCommitsOfState, reviewCommitsView } from './utils/reviewCommits'
+export { REVIEW_COMMITS_TEXT } from './utils/reviewCommitsConstants'
+export type {
+  ReviewCommits,
+  ReviewCommitsState,
+  ReviewCommitsView,
+  ReviewPullRequestCommits,
+  ReviewPullRequestCommitsState,
+} from './utils/reviewCommitsTypes'
+export { ReviewCommitsStore } from './hooks/reviewCommitsStore'
+export { reviewCommitsStoreFor, useReviewCommits } from './hooks/useReviewCommits'
+export { reviewReplyLine, reviewReplyView, waitingReviewReply } from './utils/reviewReply'
+export {
+  REVIEW_REPLY_BANNER_DEFAULT_LAYOUT,
+  REVIEW_REPLY_BANNER_LAYOUT_LABELS,
+  REVIEW_REPLY_BANNER_LAYOUTS,
+  REVIEW_REPLY_PREVIEW_CHARS,
+  REVIEW_REPLY_PREVIEW_LINES,
+  REVIEW_REPLY_TEXT,
+} from './utils/reviewReplyConstants'
+export type {
+  ReviewReplyBannerLayout,
+  ReviewReplySource,
+  ReviewReplyView,
+} from './utils/reviewReplyTypes'
+export { reviewChatLiveRun, reviewChatSlotKind } from './utils/reviewChatSlot'
+export type { ReviewChatSlotKind } from './utils/reviewChatSlotTypes'
+export { useReviewChatSlot, type UseReviewChatSlot } from './hooks/useReviewChatSlot'
+export { reviewReplyBoxOffer, reviewReplySources } from './utils/reviewReply'

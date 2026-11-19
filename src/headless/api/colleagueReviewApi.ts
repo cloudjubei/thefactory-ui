@@ -3,6 +3,7 @@ import type {
   ColleagueReviewStartBody,
   ColleagueReviewStarted,
 } from '../utils/colleagueReviewStartTypes'
+import type { ReviewCommits } from '../utils/reviewCommitsTypes'
 import { errorStatus } from './errorMessage'
 import { client } from './generated/client.gen'
 
@@ -42,6 +43,18 @@ export async function readColleagueReview(
     if (errorStatus(err) === 404) return null
     throw err
   }
+}
+
+/** A ticket's pull requests against the heads its review's last round reviewed. */
+export async function readColleagueReviewCommits(
+  groupId: string,
+  ticketKey: string,
+): Promise<ReviewCommits> {
+  const { data } = await client.get({
+    url: `${reviewUrl(groupId, ticketKey)}/commits`,
+    throwOnError: true,
+  })
+  return data as ReviewCommits
 }
 
 /** A group's reviews, most recently changed first. */

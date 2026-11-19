@@ -61,10 +61,121 @@ describe('reviewBranchRow', () => {
       diffStat: ' src/app.ts | 2 +-',
       diff: '@@ -1 +1 @@\n-a = 1\n+a = 23',
       checks: [
-        { label: 'Unit tests', summary: '12 passed', passed: true },
-        { label: 'Types', summary: '1 error', passed: false },
+        { label: 'Unit tests', summary: '12 passed', passed: true, tone: 'done' },
+        { label: 'Types', summary: '1 error', passed: false, tone: 'stuck' },
       ],
       checksPassed: false,
+      checksBadge: { label: 'Checks failed', tone: 'stuck' },
+    })
+  })
+
+  it('says a failure the base fails on the same way does not block the push, and how every other failure compares', () => {
+    const BASE = '28cf0123456789'
+    const row = reviewBranchRow({
+      ...resolved,
+      checks: [
+        { label: 'Unit tests', status: 'passed', summary: '12 passed' },
+        { label: 'Build', status: 'skipped', summary: 'Not run' },
+        {
+          label: 'Lint',
+          status: 'failed',
+          summary: 'Exited 1',
+          baseline: { sha: BASE, status: 'failed', verdict: 'pre-existing' },
+          outputTail: '✖ 132 problems (132 errors, 0 warnings)',
+        },
+      ],
+      checksPassed: true,
+    })
+    expect(row.checksBadge).toEqual({ label: 'Checks fail on dev too', tone: 'working' })
+    expect(row.checksNote).toBe('Lint fails on dev the same way, so it does not block the push.')
+    expect(row.checks).toEqual([
+      { label: 'Unit tests', summary: '12 passed', passed: true, tone: 'done' },
+      { label: 'Build', summary: 'Not run', passed: false, tone: 'empty' },
+      {
+        label: 'Lint',
+        summary: 'Exited 1',
+        passed: false,
+        tone: 'working',
+        baseLabel: 'fails on dev too',
+        baseDetail:
+          'Already failing at the base 28cf012 in the same environment — not caused by this change.',
+        outputTail: '✖ 132 problems (132 errors, 0 warnings)',
+      },
+    ])
+
+    const verdicts = reviewBranchRow({
+      ...resolved,
+      baseBranch: undefined,
+      checks: [
+        {
+          label: 'Lint',
+          status: 'failed',
+          summary: 'x',
+          baseline: { sha: BASE, verdict: 'pre-existing' },
+        },
+        {
+          label: 'Types',
+          status: 'failed',
+          summary: 'x',
+          baseline: { sha: BASE, verdict: 'pre-existing' },
+        },
+        {
+          label: 'Unit',
+          status: 'failed',
+          summary: 'x',
+          baseline: { sha: BASE, verdict: 'partly-pre-existing' },
+        },
+        { label: 'Build', status: 'error', summary: 'x', baseline: { sha: BASE, verdict: 'new' } },
+        {
+          label: 'E2E',
+          status: 'failed',
+          summary: 'x',
+          baseline: {
+            sha: BASE,
+            verdict: 'not-comparable',
+            reason: 'one side printed no failing line to compare',
+          },
+        },
+      ],
+      checksPassed: false,
+    })
+    expect(verdicts.checksBadge).toEqual({ label: 'Checks failed', tone: 'stuck' })
+    expect(verdicts.checksNote).toBeUndefined()
+    expect(verdicts.checks.map((c) => [c.baseLabel, c.tone])).toEqual([
+      ['fails on the base too', 'working'],
+      ['fails on the base too', 'working'],
+      ['partly fails on the base too', 'stuck'],
+      ['new on this branch', 'stuck'],
+      ['not compared with the base', 'stuck'],
+    ])
+    expect(verdicts.checks[4]?.baseDetail).toBe(
+      'Also failing at the base 28cf012 — the failures could not be compared line by line, so they count against the change. One side printed no failing line to compare.',
+    )
+
+    const several = reviewBranchRow({
+      ...resolved,
+      checks: [
+        {
+          label: 'Lint',
+          status: 'failed',
+          summary: 'x',
+          baseline: { sha: BASE, verdict: 'pre-existing' },
+        },
+        {
+          label: 'Types',
+          status: 'failed',
+          summary: 'x',
+          baseline: { sha: BASE, verdict: 'pre-existing' },
+        },
+      ],
+      checksPassed: true,
+    })
+    expect(several.checksNote).toBe(
+      'Lint and Types fail on dev the same way, so they do not block the push.',
+    )
+    expect(reviewBranchRow({ ...resolved, checks: [], checksPassed: true }).checksBadge).toEqual({
+      label: 'Checks passed',
+      tone: 'done',
     })
   })
 

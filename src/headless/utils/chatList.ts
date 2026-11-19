@@ -1,3 +1,4 @@
+import { isProcessParkWaitingElsewhere, processRunWaitingLine } from './processRunWait'
 import type { ChatContext, ProcessRun } from 'thefactory-tools/types'
 import {
   chatShownInList,
@@ -83,7 +84,9 @@ function rowTitle(input: ChatListRowInput, kind: ChatKind): string {
 
 function runSub(run: ProcessRun | undefined): string {
   if (!run) return CHAT_KIND_VIEW.run.label
-  if (run.status === 'parked' && run.park) return run.park.message
+  if (run.status === 'parked' && run.park) {
+    return isProcessParkWaitingElsewhere(run.park) ? processRunWaitingLine(run) : run.park.message
+  }
   const current = processStepStates(run).find((s) => s.current)
   return current?.step.name ?? run.plan.name
 }

@@ -18,6 +18,8 @@ export interface ProposalChip {
   stepKind?: ProcessProposalNode['kind']
   /** The step is a feature's live check on a test account. */
   liveCheck?: true
+  /** The run waits here for other work before its proof. */
+  waitsForWork?: true
 }
 
 /** One feature row of the proposal: the feature, and the pipeline it will run through. */
@@ -66,6 +68,7 @@ function chip(node: ProcessProposalNode, device: string | undefined): ProposalCh
     stepKind: node.kind,
     ...(device && drivesDevice(node) ? { device } : {}),
     ...(node.liveCheck ? { liveCheck: true as const } : {}),
+    ...(node.waitsForWork ? { waitsForWork: true as const } : {}),
   }
 }
 

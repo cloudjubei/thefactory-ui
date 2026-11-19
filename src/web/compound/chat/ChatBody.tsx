@@ -27,6 +27,15 @@ import type { ToolAskDecidedLine } from '../../../headless/utils/toolAskCardType
 import StillWaitingRow from './StillWaitingRow'
 import { ToolAskDecidedRow } from './ToolAskCard'
 import { panelApprovalGrants } from '../../../headless/utils/approvalGrant'
+import {
+  answerDecisionCardWithNote,
+  composerAnswerNote,
+  composerMessageRoute,
+  reviewGateNoteAnswer,
+} from '../../../headless/utils/composerAnswer'
+import { useReviewChatSlot } from '../../../headless/hooks/useReviewChatSlot'
+import ReviewChatSlot from './ReviewChatSlot'
+import { COMPOSER_ANSWER_TEXT } from '../../../headless/utils/composerAnswerConstants'
 import { useClaimedAsks } from '../../../headless/hooks/useInlineApprovals'
 import { useHeldAgentMessages } from '../../../headless/hooks/useHeldAgentMessages'
 import { useShownLiveRun } from '../../../headless/hooks/useShownLiveRun'
@@ -384,14 +393,15 @@ function ChatBodyInner({
     [grants, answerableCaptures],
   )
   const busy = isBusy ?? isSending
+  const reviewSlot = useReviewChatSlot(chatId)
   const composerBlockers = useMemo(
     () => ({
       askShown: !!shownAsk,
-      approvalShown: showApprovalPanel,
+      approvalShown: showApprovalPanel || reviewSlot.kind !== undefined,
       historyLocked: !!historyLocked,
       inputOverridden: !!inputOverride,
     }),
-    [shownAsk, showApprovalPanel, historyLocked, inputOverride],
+    [shownAsk, showApprovalPanel, reviewSlot.kind, historyLocked, inputOverride],
   )
   usePendingAutoDispatch({
     chatId,
@@ -643,6 +653,17 @@ function ChatBodyInner({
               {...(renderApprovalModelChip ? { renderModelChip: renderApprovalModelChip } : {})}
               {...(renderProcessRun ? { renderProcessRun } : {})}
             />
+          ) : reviewSlot.kind && !historyLocked && !inputOverride ? (
+            <ReviewChatSlot
+              slot={reviewSlot}
+              renderModelChip={renderApprovalModelChip}
+              {...(onResourceLink
+                ? {
+                    onOpenRun: (projectId: string, runId: string) =>
+                      onResourceLink({ kind: 'run', projectId, runId }),
+                  }
+                : {})}
+            />
           ) : historyLocked ? (
             // A closed chat keeps its history and takes no new work. Archiving is
             // one-way by design — reopening would contradict the very locking that
@@ -661,11 +682,26 @@ function ChatBodyInner({
               <ChatInput
                 value={inputValue}
                 onChange={onInputChange}
-                onSend={(content, attachments, meta) =>
-                  busy && pendingQueue && !meta?.appSelections?.length
+                onSend={(content, attachments, meta) => {
+                  const route = composerMessageRoute(grants, reviewSlot.liveRun)
+                  if (route.kind === 'decision-note') {
+                    const note = composerAnswerNote(content, attachments ?? [])
+                    return void answerDecisionCardWithNote(route.grant, note).then((ok) =>
+                      ok
+                        ? addDecidedLine(route.grant.id, COMPOSER_ANSWER_TEXT.noteSent)
+                        : onInputChange(content),
+                    )
+                  }
+                  if (route.kind === 'run-gate-note') {
+                    const note = composerAnswerNote(content, attachments ?? [])
+                    return void reviewSlot
+                      .answerGate(reviewGateNoteAnswer(note))
+                      .then((ok) => (ok ? undefined : onInputChange(content)))
+                  }
+                  return busy && pendingQueue && !meta?.appSelections?.length
                     ? pendingQueue.enqueue({ text: content, attachments })
                     : onSend(content, attachments, meta)
-                }
+                }}
                 onAbort={
                   onAbort
                     ? () => {

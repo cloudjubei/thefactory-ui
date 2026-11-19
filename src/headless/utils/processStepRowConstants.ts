@@ -1,11 +1,15 @@
 import { PROCESS_ACCEPTED_UNCHECKED_NOTE } from './processAcceptedUncheckedConstants'
 import type { ProcessNodeState } from './processView'
+import { PROCESS_RUN_WAIT_COPY } from './processRunWaitConstants'
 import { PROCESS_RUN_WORDS } from './processViewConstants'
 
 /** How long a step's one-line result may run. */
 export const PROCESS_STEP_RESULT_MAX = 60
 
 export const PROCESS_STEP_WAITING_ON_YOU = PROCESS_RUN_WORDS.needsYou
+
+/** The result line of a run's wait step while it waits there for other work. */
+export const PROCESS_STEP_WAITING_ON_WORK = PROCESS_RUN_WAIT_COPY.stepWaiting
 export const PROCESS_STEP_MANAGER_ON_IT = PROCESS_RUN_WORDS.managerOnIt
 export const PROCESS_STEP_NOT_NEEDED = 'Not needed — nothing was sent back'
 export const PROCESS_STEP_SKIPPED = 'Skipped'

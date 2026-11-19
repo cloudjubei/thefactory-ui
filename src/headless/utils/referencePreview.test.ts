@@ -199,6 +199,30 @@ describe('runReferencePreview', () => {
     expect(view.primary).toEqual({ label: 'Answer', link: RUN_LINK })
   })
 
+  it('says what a run waiting for other work waits for, and only opens it — nothing to answer', () => {
+    const view = runReferencePreview(
+      run({
+        status: 'parked',
+        waitsFor: [{ label: 'ENG-780', branch: 'eng-780' }],
+        wait: { entries: [], baseRef: 'dev' },
+        park: {
+          reason: 'waiting-on-work',
+          stepId: 'impl',
+          message: 'Waiting on other work.',
+          parkedAt: 0,
+        },
+      } as Partial<ProcessRun>),
+      { now: 0 },
+    )
+    expect(view.lines).toEqual([
+      {
+        label: 'Waiting',
+        value: 'Waits for ENG-780 to reach dev before its proof · carries on by itself',
+      },
+    ])
+    expect(view.primary).toEqual({ label: 'Open run', link: RUN_LINK })
+  })
+
   it('names the step a running run is on, and opens the run', () => {
     const view = runReferencePreview(
       run({

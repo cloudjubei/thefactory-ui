@@ -1,3 +1,4 @@
+import { PROCESS_RUN_WAIT_TONE } from './processRunWaitConstants'
 import type { Feature, ProcessRun, ProcessRunStopHolder } from 'thefactory-tools/types'
 import { processStepStates } from 'thefactory-tools/utils'
 
@@ -160,7 +161,10 @@ export function processRunStripEntries(
       key: state.step.id,
       label: state.step.name,
       phase,
-      tone: processNodeTone(nodeState, state.step.kind === 'gate'),
+      tone:
+        nodeState === 'parked' && state.step.waitsForWork
+          ? PROCESS_RUN_WAIT_TONE
+          : processNodeTone(nodeState, state.step.kind === 'gate'),
       ...(attempt ? { attempt } : {}),
       ...(accepted ? { acceptedUnchecked: accepted.line } : {}),
     }

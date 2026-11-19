@@ -11,6 +11,7 @@ import {
   type ReviewCardMerge,
   type ReviewMergeJob,
   type ReviewMergeSnapshot,
+  type ReviewCommitsView,
 } from 'thefactory-ui/headless'
 import { listOf, NOT_READ, read, ticket } from './groupTicketsFixtures'
 import { ROUND_TWO_PRS, ROUND_TWO_WITH_PRS } from './slackReviewFixtures'
@@ -210,6 +211,78 @@ export const IN_REVIEW_TICKETS: GroupTicket[] = [
   ),
 ]
 
+const replyOffer = (
+  id: string,
+  author: string,
+  minutesAgo: number,
+  files = 0,
+): NonNullable<GroupTicket['reviewOffer']> => ({
+  id,
+  kind: 'next-round',
+  author,
+  postedAt: AGO(minutesAgo),
+  permalink: `https://acme.slack.com/archives/C07REVIEWS/p17633806${String(minutesAgo).padStart(4, '0')}00300`,
+  state: 'new',
+  files,
+})
+
+/** In review with everyone else's tickets split: four under review, two not reviewed yet. */
+export const REVIEWING_TICKETS: GroupTicket[] = [
+  IN_REVIEW_TICKETS[0]!,
+  ticket(
+    'OSC-398',
+    'Streak counter resets at midnight in the wrong time zone',
+    inReview({ mine: false, assignee: 'Tom Reid', tabId: 'in-review', reviewOpen: true }),
+  ),
+  ticket(
+    'OSC-402',
+    'Weekly review email has the wrong week number',
+    inReview({
+      priority: 'Medium',
+      mine: false,
+      assignee: 'Priya Shah',
+      tabId: 'in-review',
+      reviewOpen: true,
+      reviewOffer: replyOffer('offer-priya-2', 'Priya Shah', 25, 2),
+    }),
+  ),
+  ticket(
+    'OSC-405',
+    'Coach can see notes from a client who left the programme',
+    inReview({
+      priority: 'High',
+      mine: false,
+      assignee: 'Aashan Patel',
+      tabId: 'in-review',
+      reviewOpen: true,
+      reviewOffer: replyOffer('offer-aashan-3', 'Aashan Patel', 70),
+    }),
+  ),
+  ticket(
+    'OSC-407',
+    'Goal reminders send twice after a plan change',
+    inReview({ mine: false, assignee: 'Saif Khan', tabId: 'in-review', reviewOpen: true }),
+  ),
+  ticket(
+    'OSC-414',
+    'Sign-up form keeps the old email after a typo is fixed',
+    inReview({ mine: false, assignee: 'Tom Reid', tabId: 'in-review' }),
+  ),
+  ticket(
+    'OSC-417',
+    'Dark mode: the plan card border disappears',
+    inReview({ priority: 'Low', mine: false, assignee: 'Priya Shah', tabId: 'in-review' }),
+  ),
+]
+
+/** What each reviewed ticket's pull requests did since its last round, as the list reads it. */
+export const REVIEWING_COMMITS: Readonly<Record<string, ReviewCommitsView>> = {
+  'OSC-402': { label: '3 new commits', tone: 'news' },
+  'OSC-405': { label: 'No new commits', tone: 'quiet' },
+  'OSC-407': { label: 'Rewritten since review', tone: 'warn' },
+  'OSC-398': { label: 'No new commits', tone: 'quiet' },
+}
+
 /** OSC's Tickets tab: its six tabs, `tab` on screen read from `tickets`. */
 export function oscTickets(
   tab: string,
@@ -382,11 +455,83 @@ export const OVERVIEW_NO_TICKET: GroupTicketOverview = (() => {
   return { ...rest, problems: ['ticket'] }
 })()
 
-export const pageState = (overview: GroupTicketOverview): GroupTicketPageState => ({
+export const pageState = (
+  overview: GroupTicketOverview,
+  commits?: ReviewCommitsView,
+): GroupTicketPageState => ({
   kind: 'page',
-  page: groupTicketPageView('OSC-409', overview, OSC_TABS, TABS_NOW),
+  page: groupTicketPageView('OSC-409', overview, OSC_TABS, TABS_NOW, commits),
   refreshing: false,
 })
+
+/** Commits pushed on the ticket's pull requests since its review's last round. */
+export const COMMITS_NEW: ReviewCommitsView = { label: '3 new commits', tone: 'news' }
+
+/** Nothing pushed since the last round. */
+export const COMMITS_NONE: ReviewCommitsView = { label: 'No new commits', tone: 'quiet' }
+
+/** A pull request's history rewritten since the last round. */
+export const COMMITS_REWRITTEN: ReviewCommitsView = {
+  label: 'Rewritten since review',
+  tone: 'warn',
+}
+
+const AASHAN_TEXT =
+  'Pushed the fix for the Irish currency: the plan page now reads it from the billing country, as checkout does.'
+
+const AASHAN_LONG = [
+  'Thanks for the review, all three points are in:',
+  '1. Currency now comes from the billing country on the plan page and on the upgrade sheet.',
+  '2. The fallback is the account country, then GBP, with a test for each.',
+  '3. I renamed `PLAN_CURRENCY_FALLBACK` to `PLAN_DEFAULT_CURRENCY` as you asked.',
+  'The recording of the Irish account is in the thread above.',
+  'Let me know if the e2e should cover the upgrade sheet too.',
+].join('\n')
+
+/** A reply in the update's thread, waiting to start round 3. */
+const pageReplyOffer = (over: Partial<GroupTicketOverview['updates'][number]> = {}) => ({
+  id: 'u-3',
+  kind: 'next-round' as const,
+  author: 'Aashan Shah',
+  postedAt: AGO(60),
+  permalink: 'https://acme.slack.com/archives/C07REVIEWS/p1763390000000950',
+  state: 'new' as const,
+  files: 0,
+  text: AASHAN_TEXT,
+  fileNames: [] as string[],
+  ...over,
+})
+
+const INLINE_REVIEW: GroupTicketOverview['review'] = {
+  ...OVERVIEW_FULL.review!,
+  runs: [],
+}
+
+const withReply = (
+  reply: ReturnType<typeof pageReplyOffer>,
+  review: GroupTicketOverview['review'] = INLINE_REVIEW,
+): GroupTicketOverview => ({
+  ...OVERVIEW_FULL,
+  updates: [reply, ...OVERVIEW_FULL.updates],
+  ...(review ? { review } : {}),
+})
+
+/** OSC-409 reviewed inline, Aashan's reply waiting to start round 3. */
+export const OVERVIEW_REPLY = withReply(pageReplyOffer())
+
+/** A long reply, cut on the page. */
+export const OVERVIEW_REPLY_LONG = withReply(pageReplyOffer({ text: AASHAN_LONG }))
+
+/** A reply with two files. */
+export const OVERVIEW_REPLY_FILES = withReply(
+  pageReplyOffer({ files: 2, fileNames: ['plan-ireland-after.png', 'upgrade-sheet.mov'] }),
+)
+
+/** A reply while the round 2 review run still holds the review: it starts its own round. */
+export const OVERVIEW_REPLY_RUN = withReply(pageReplyOffer(), OVERVIEW_FULL.review)
+
+/** No reply yet, but the pull requests moved since the last round. */
+export const OVERVIEW_PUSHED: GroupTicketOverview = { ...OVERVIEW_FULL, review: INLINE_REVIEW }
 
 const mergeJob = (over: Partial<ReviewMergeJob>): ReviewMergeJob => ({
   jobId: 'merge-2',

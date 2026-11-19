@@ -42,6 +42,19 @@ describe('processStatusOverlay', () => {
     }
   })
 
+  it('parked at its wait for other work → Waiting, linking to the run — never Blocked', () => {
+    const o = processStatusOverlay(
+      run({ status: 'parked', park: { reason: 'waiting-on-work' } as never }),
+      NOW,
+    )
+    expect(o).toEqual({
+      label: 'Waiting',
+      semantic: 'queued',
+      title: PROCESS_STATUS_OVERLAY_TITLES.waitingOnWork,
+      runId: 'run-1',
+    })
+  })
+
   it('running or pending → Working', () => {
     expect(processStatusOverlay(run({ status: 'running' }), NOW)?.label).toBe('Working')
     expect(processStatusOverlay(run({ status: 'pending' }), NOW)?.label).toBe('Working')

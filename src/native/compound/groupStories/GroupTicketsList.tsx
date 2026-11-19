@@ -8,7 +8,9 @@ import {
   GROUP_TICKETS_TEXT,
   REVIEW_OFFER_TEXT,
   REVIEW_START_TEXT,
+  groupTicketSectionRows,
   type GroupTicketListName,
+  type GroupTicketReviewNews,
   type GroupTicketRow,
   type GroupTicketSectionView,
   type GroupTicketsLayout,
@@ -223,7 +225,9 @@ function Count({
 }) {
   const { theme } = useNativeTheme()
   const total =
-    shown === 'mine' ? view.mine.rows.length + (view.next ? 1 : 0) : view.others.rows.length
+    shown === 'mine'
+      ? groupTicketSectionRows(view.mine).length + (view.next ? 1 : 0)
+      : groupTicketSectionRows(view.others).length
   if (total === 0) return null
   return (
     <Text style={{ fontSize: 12, color: selected ? theme.text.inverted : theme.text.muted }}>
@@ -265,7 +269,7 @@ function TicketSection({
 }) {
   const { theme } = useNativeTheme()
   const note = { fontSize: 13, color: theme.text.secondary }
-  const hasCard = Boolean(top) || section.rows.length > 0
+  const hasCard = Boolean(top) || section.groups.length > 0
   const hasWords = section.loading || section.emptyLine || section.readError
   if (!hasCard && !hasWords) return null
   return (
@@ -292,14 +296,47 @@ function TicketSection({
           }}
         >
           {top}
-          {section.rows.map((row, index) => (
-            <TicketRow
-              key={row.key}
-              row={row}
-              starting={starting}
-              divided={index > 0 || Boolean(top)}
-              {...actions}
-            />
+          {section.groups.map((group, at) => (
+            <View key={group.id} accessibilityLabel={group.heading}>
+              {group.heading ? (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'baseline',
+                    gap: nativeSpace[2],
+                    paddingHorizontal: nativeSpace[3],
+                    paddingVertical: 4,
+                    backgroundColor: theme.surface.muted,
+                    ...(at > 0 || top
+                      ? { borderTopWidth: 1, borderTopColor: theme.border.subtle }
+                      : {}),
+                  }}
+                >
+                  <Text
+                    accessibilityRole="header"
+                    style={{
+                      fontSize: 11,
+                      fontWeight: '600',
+                      letterSpacing: 0.6,
+                      textTransform: 'uppercase',
+                      color: theme.text.muted,
+                    }}
+                  >
+                    {group.heading}
+                  </Text>
+                  <Text style={{ fontSize: 11, color: theme.text.muted }}>{group.rows.length}</Text>
+                </View>
+              ) : null}
+              {group.rows.map((row, index) => (
+                <TicketRow
+                  key={row.key}
+                  row={row}
+                  starting={starting}
+                  divided={index > 0 || (!group.heading && (at > 0 || Boolean(top)))}
+                  {...actions}
+                />
+              ))}
+            </View>
           ))}
           {section.canLoadMore && onLoadMore ? (
             <View
@@ -520,6 +557,86 @@ function OfferStrip({
   )
 }
 
+/** What came on a ticket under review, in a line under its row: who replied and when, what was pushed, the reply's Slack message, and Dismiss. */
+function ReviewNewsLine({
+  row,
+  news,
+  offer,
+  onDismissOffer,
+}: {
+  row: GroupTicketRow
+  news: GroupTicketReviewNews
+  offer: ReviewOfferRowView | undefined
+  onDismissOffer?: ((ticketKey: string) => void) | undefined
+}) {
+  const { theme, status } = useNativeTheme()
+  const commitsColor = {
+    news: theme.accent.primary,
+    warn: status.working.softFg,
+    quiet: theme.text.muted,
+  }
+  const permalink = offer?.permalink
+  return (
+    <View
+      accessibilityLabel={news.line}
+      style={{
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: 6,
+        borderRadius: nativeRadii[2],
+        backgroundColor: news.reply ? theme.accent.softBg : 'transparent',
+        paddingHorizontal: news.reply ? nativeSpace[2] : 0,
+        paddingVertical: 4,
+      }}
+    >
+      {news.reply ? <IconChat size={14} color={theme.accent.primary} /> : null}
+      <Text style={{ flexShrink: 1, fontSize: 12 }}>
+        {news.reply ? (
+          <Text style={{ fontWeight: '500', color: theme.text.primary }}>{news.reply}</Text>
+        ) : null}
+        {news.reply && news.commits ? <Text style={{ color: theme.text.muted }}> · </Text> : null}
+        {news.commits ? (
+          <Text
+            style={{
+              fontWeight: news.commits.tone === 'quiet' ? '400' : '500',
+              color: commitsColor[news.commits.tone],
+            }}
+          >
+            {news.commits.label}
+          </Text>
+        ) : null}
+      </Text>
+      {permalink ? (
+        <Pressable
+          accessibilityRole="link"
+          hitSlop={6}
+          onPress={() => void Linking.openURL(permalink)}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}
+        >
+          <Text style={{ fontSize: 12, color: theme.accent.primary }}>
+            {REVIEW_OFFER_TEXT.open}
+          </Text>
+          <IconExternalLink size={11} color={theme.accent.primary} />
+        </Pressable>
+      ) : null}
+      {offer && onDismissOffer && !offer.dismissed ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={REVIEW_OFFER_TEXT.dismissHint(row.key)}
+          hitSlop={8}
+          onPress={() => onDismissOffer(row.key)}
+          style={{ marginLeft: 'auto' }}
+        >
+          <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+            {REVIEW_OFFER_TEXT.dismiss}
+          </Text>
+        </Pressable>
+      ) : null}
+    </View>
+  )
+}
+
 function NextTicket({
   row,
   starting,
@@ -585,10 +702,12 @@ function TicketRow({
 }: TicketActions & { row: GroupTicketRow; starting: boolean; divided: boolean }) {
   const { theme } = useNativeTheme()
   const { work } = row
-  const offer =
+  const news = row.reviewNews
+  const shownOffer =
     actions.onReview && row.reviewing === undefined && row.actions.includes('review')
       ? row.offer
       : undefined
+  const offer = news?.reply ? undefined : shownOffer
   return (
     <Pressable
       accessibilityRole="button"
@@ -639,6 +758,14 @@ function TicketRow({
         <RowButtons row={row} starting={starting} {...actions} />
       </View>
       {offer ? <OfferStrip row={row} offer={offer} onDismissOffer={onDismissOffer} /> : null}
+      {news ? (
+        <ReviewNewsLine
+          row={row}
+          news={news}
+          offer={news.reply ? shownOffer : undefined}
+          onDismissOffer={onDismissOffer}
+        />
+      ) : null}
     </Pressable>
   )
 }

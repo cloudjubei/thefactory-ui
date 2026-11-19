@@ -87,6 +87,8 @@ export {
 } from './screens/ProcessGroupRunsView'
 export {
   default as ProcessGroupPipeline,
+  ProcessGroupLegCard,
+  type ProcessGroupLegCardProps,
   type ProcessGroupPipelineProps,
 } from './compound/process/ProcessGroupPipeline'
 export {
@@ -293,6 +295,11 @@ export {
   default as RunOutsideWaitCard,
   type RunOutsideWaitCardProps,
 } from './compound/process/RunOutsideWaitCard'
+export { default as RunWaitCard, type RunWaitCardProps } from './compound/process/RunWaitCard'
+export {
+  default as LaunchWaitFields,
+  type LaunchWaitFieldsProps,
+} from './compound/chat/LaunchWaitFields'
 export {
   default as ReviewBranchRows,
   type ReviewBranchRowsProps,

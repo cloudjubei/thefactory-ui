@@ -70,6 +70,27 @@ describe('processStepRowView', () => {
     expect(line?.length).toBeLessThanOrEqual(PROCESS_STEP_RESULT_MAX)
   })
 
+  it('says the wait step waits on other work, never on you, while the run is parked there', () => {
+    const wait = state(
+      { id: 'wait-for-work', name: 'Wait for other work', kind: 'check', waitsForWork: true },
+      {
+        status: 'running',
+        outcome: undefined,
+        latest: entry({
+          stepId: 'wait-for-work',
+          status: 'running',
+          outcome: undefined,
+          endedAt: undefined,
+        }),
+      },
+    )
+    const row = processStepRowView(wait, 'wait-for-work')
+    expect(row.result).toBe('Waiting on other work')
+    expect(row.waitingOnYou).toBe(false)
+    expect(row.waitingOnWork).toBe(true)
+    expect(processStepRowView(wait, undefined).waitingOnWork).toBe(false)
+  })
+
   it('says the step waits on you, not its turn, when the run is stopped at it', () => {
     expect(processStepRowView(waitingChecks(), 'checks', undefined, undefined, 76_000).result).toBe(
       PROCESS_STEP_WAITING_ON_YOU,
@@ -133,6 +154,7 @@ describe('processStepRowView', () => {
       inert: false,
       result: 'Approved · Nothing blocks merging',
       waitingOnYou: false,
+      waitingOnWork: false,
       managerOnIt: false,
       expandable: true,
       preview: 'code-review',

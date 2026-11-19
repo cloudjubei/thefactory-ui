@@ -31,6 +31,15 @@ import type { ToolAskDecidedLine } from '../../../headless/utils/toolAskCardType
 import StillWaitingRow from './StillWaitingRow'
 import { ToolAskDecidedRow } from './ToolAskCard'
 import { panelApprovalGrants } from '../../../headless/utils/approvalGrant'
+import {
+  answerDecisionCardWithNote,
+  composerAnswerNote,
+  composerMessageRoute,
+  reviewGateNoteAnswer,
+} from '../../../headless/utils/composerAnswer'
+import { useReviewChatSlot } from '../../../headless/hooks/useReviewChatSlot'
+import ReviewChatSlot from './ReviewChatSlot'
+import { COMPOSER_ANSWER_TEXT } from '../../../headless/utils/composerAnswerConstants'
 import { useClaimedAsks } from '../../../headless/hooks/useInlineApprovals'
 import { useHeldAgentMessages } from '../../../headless/hooks/useHeldAgentMessages'
 import { useShownLiveRun } from '../../../headless/hooks/useShownLiveRun'
@@ -383,14 +392,15 @@ function ChatBodyInner({
       : null
 
   const busy = isBusy ?? liveState.isSending
+  const reviewSlot = useReviewChatSlot(chatId)
   const composerBlockers = useMemo(
     () => ({
       askShown: !!shownAsk,
-      approvalShown: showApprovalPanel,
+      approvalShown: showApprovalPanel || reviewSlot.kind !== undefined,
       historyLocked: !!historyLocked,
       inputOverridden: !!inputOverride,
     }),
-    [shownAsk, showApprovalPanel, historyLocked, inputOverride],
+    [shownAsk, showApprovalPanel, reviewSlot.kind, historyLocked, inputOverride],
   )
   usePendingAutoDispatch({
     chatId,
@@ -401,6 +411,23 @@ function ChatBodyInner({
   })
 
   const handleSend: ChatInputProps['onSend'] = async (text, attachments, meta) => {
+    const route = composerMessageRoute(grants, reviewSlot.liveRun)
+    if (route.kind === 'decision-note') {
+      const ok = await answerDecisionCardWithNote(
+        route.grant,
+        composerAnswerNote(text, attachments ?? []),
+      )
+      if (ok) addDecidedLine(route.grant.id, COMPOSER_ANSWER_TEXT.noteSent)
+      else onInputChange(text)
+      return
+    }
+    if (route.kind === 'run-gate-note') {
+      const ok = await reviewSlot.answerGate(
+        reviewGateNoteAnswer(composerAnswerNote(text, attachments ?? [])),
+      )
+      if (!ok) onInputChange(text)
+      return
+    }
     if (busy && pendingQueue && !meta?.appSelections?.length) {
       pendingQueue.enqueue({ text, attachments })
       return
@@ -679,6 +706,17 @@ function ChatBodyInner({
               />
             ) : null}
           </View>
+        ) : reviewSlot.kind && !historyLocked && !inputOverride ? (
+          <ReviewChatSlot
+            slot={reviewSlot}
+            renderModelChip={renderApprovalModelChip}
+            {...(onResourceLink
+              ? {
+                  onOpenRun: (projectId: string, runId: string) =>
+                    onResourceLink({ kind: 'run', projectId, runId }),
+                }
+              : {})}
+          />
         ) : historyLocked ? (
           // Parity with web: a closed chat keeps its history and takes no new work.
           <View style={{ paddingHorizontal: 12, paddingVertical: 8 }}>

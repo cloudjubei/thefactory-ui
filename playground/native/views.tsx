@@ -82,7 +82,9 @@ import { READY_ANSWER_VIEWS } from './readyAnswerViews'
 import { COLLEAGUE_REVIEW_VIEWS } from './colleagueReviewViews'
 import { SLACK_REVIEW_VIEWS } from './slackReviewViews'
 import { REVIEW_RUN_ROUNDS_VIEWS } from './reviewRunRoundsViews'
+import { RUN_WAITS_FOR_VIEWS } from './runWaitsForViews'
 import { TICKET_TAB_VIEWS } from './ticketTabsViews'
+import { REVIEW_CHAT_SLOT_VIEWS } from './reviewChatSlotViews'
 import { REVIEW_GAP_VIEWS } from './reviewGapViews'
 import { TICKET_VIEWS } from './ticketViews'
 import { TRY_ON_PHONE_VIEWS } from './tryOnPhoneViews'
@@ -674,7 +676,9 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   ...COLLEAGUE_REVIEW_VIEWS,
   ...SLACK_REVIEW_VIEWS,
   ...REVIEW_RUN_ROUNDS_VIEWS,
+  ...RUN_WAITS_FOR_VIEWS,
   ...TICKET_TAB_VIEWS,
+  ...REVIEW_CHAT_SLOT_VIEWS,
   ...REVIEW_GAP_VIEWS,
   ...ALREADY_HANDLED_VIEWS,
   ...APP_SELECTION_VIEWS,

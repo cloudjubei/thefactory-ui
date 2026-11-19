@@ -17,7 +17,7 @@ import type {
   ReviewFileUpload,
   ReviewPasteBox,
 } from '../utils/colleagueReviewStartTypes'
-import { groupTicketStatuses, groupTicketsView } from '../utils/groupTickets'
+import { groupTicketStatuses, groupTicketsView, reviewOpenTicketKeys } from '../utils/groupTickets'
 import type { LaunchAgentPickMetadata } from '../utils/launchAgentPickTypes'
 import type {
   GroupTicketListName,
@@ -26,6 +26,7 @@ import type {
   TicketPlanStarted,
 } from '../utils/groupTicketTypes'
 import { GroupTicketsStore } from './groupTicketsStore'
+import { useReviewCommits } from './useReviewCommits'
 import { colleagueReviewSourceStoreFor, useColleagueReviewSource } from './useColleagueReviewSource'
 
 const GROUP_STORIES_EVENT = 'groupStories:updated'
@@ -146,10 +147,11 @@ export function useGroupTickets(groupId: string): UseGroupTickets {
   }, [query, store])
 
   const review = useReviewPasteBox(groupId, store, state)
+  const commits = useReviewCommits(groupId, reviewOpenTicketKeys(state))
 
   return useMemo(
     () => ({
-      view: groupTicketsView(state),
+      view: groupTicketsView(state, Date.now(), commits),
       query,
       setQuery,
       discuss: store.discuss,
@@ -159,7 +161,7 @@ export function useGroupTickets(groupId: string): UseGroupTickets {
       pickTab: (tabId: string) => void store.pickTab(tabId),
       ...review,
     }),
-    [state, store, query, review],
+    [state, store, query, review, commits],
   )
 }
 

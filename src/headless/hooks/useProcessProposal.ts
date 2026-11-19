@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { AgentTypeSlotMap, ProcessProposal } from 'thefactory-tools/types'
+import type { AgentTypeSlotMap, ProcessProposal, ProcessWaitFor } from 'thefactory-tools/types'
 import { previewProcess } from '../api'
 import { useAuth } from '../api'
 import { launchRefusalMessage } from '../utils/approvalGrant'
+import { PROCESS_LAUNCH_PREVIEW_DEBOUNCE_MS } from '../utils/processLaunchFormConstants'
 
 export type UseProcessProposal = {
   isLoaded: boolean
@@ -10,6 +11,10 @@ export type UseProcessProposal = {
   proposal: ProcessProposal | undefined
   /** Why the launch would be refused, in the server's words — the dock must not offer it. */
   refusal: string | undefined
+  /** Why the preview refused the work the run is to wait for, in its words — the launch waits until it is fixed. */
+  waitProblem: string | undefined
+  /** The wait typed is being read by the preview. */
+  waitChecking: boolean
 }
 
 /**
@@ -35,8 +40,15 @@ export function useProcessProposal(input: {
   agentTypeSlots?: AgentTypeSlotMap
   /** The launch's iteration limit, so each feature shows the attempts it will really have. */
   maxIterations?: number
+  /**
+   * The work elsewhere the run is to wait for before its proof, as the card
+   * holds it: read by the preview a moment behind what is typed, its plan
+   * then holding the wait step, or its refusal said as the wait's problem.
+   */
+  waitsFor?: readonly ProcessWaitFor[]
 }): UseProcessProposal {
   const { projectId, storyId, processId, featureProcessId, maxIterations } = input
+  const waitKey = input.waitsFor && input.waitsFor.length > 0 ? JSON.stringify(input.waitsFor) : ''
   const featureKey = input.featureIds?.join(',') ?? ''
   const slotsKey = input.agentTypeSlots ? JSON.stringify(input.agentTypeSlots) : ''
   const { token } = useAuth()
@@ -44,6 +56,9 @@ export function useProcessProposal(input: {
   const [isLoaded, setIsLoaded] = useState(false)
   const [loadError, setLoadError] = useState<Error | null>(null)
   const [refusal, setRefusal] = useState<string | undefined>(undefined)
+  const [waited, setWaited] = useState<
+    { key: string; proposal?: ProcessProposal; problem?: string } | undefined
+  >(undefined)
 
   useEffect(() => {
     if (!token || !projectId || !storyId) {
@@ -86,8 +101,53 @@ export function useProcessProposal(input: {
     }
   }, [token, projectId, storyId, processId, featureProcessId, featureKey, slotsKey, maxIterations])
 
+  useEffect(() => {
+    if (!token || !projectId || !storyId || !waitKey || !proposal) return
+    let live = true
+    const wait = setTimeout(() => {
+      void previewProcess({
+        body: {
+          projectId,
+          storyId,
+          ...(processId ? { processId } : {}),
+          ...(featureProcessId ? { featureProcessId } : {}),
+          ...(featureKey ? { featureIds: featureKey.split(',') } : {}),
+          ...(slotsKey ? { agentTypeSlots: JSON.parse(slotsKey) as AgentTypeSlotMap } : {}),
+          ...(maxIterations !== undefined ? { maxIterations } : {}),
+          waitsFor: JSON.parse(waitKey) as ProcessWaitFor[],
+        },
+        throwOnError: true,
+      })
+        .then(({ data }) => {
+          if (live) setWaited({ key: waitKey, proposal: data as ProcessProposal })
+        })
+        .catch((err: unknown) => {
+          if (live) setWaited({ key: waitKey, problem: launchRefusalMessage(err) ?? String(err) })
+        })
+    }, PROCESS_LAUNCH_PREVIEW_DEBOUNCE_MS)
+    return () => {
+      live = false
+      clearTimeout(wait)
+    }
+  }, [
+    token,
+    projectId,
+    storyId,
+    processId,
+    featureProcessId,
+    featureKey,
+    slotsKey,
+    maxIterations,
+    waitKey,
+    proposal,
+  ])
+
+  const read = waitKey && waited?.key === waitKey ? waited : undefined
+  const shown = read?.proposal ?? proposal
+  const waitProblem = read?.problem
+  const waitChecking = waitKey !== '' && proposal !== undefined && read === undefined
   return useMemo<UseProcessProposal>(
-    () => ({ isLoaded, loadError, proposal, refusal }),
-    [isLoaded, loadError, proposal, refusal],
+    () => ({ isLoaded, loadError, proposal: shown, refusal, waitProblem, waitChecking }),
+    [isLoaded, loadError, shown, refusal, waitProblem, waitChecking],
   )
 }

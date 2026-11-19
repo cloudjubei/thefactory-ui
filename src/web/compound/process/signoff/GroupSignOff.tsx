@@ -82,6 +82,11 @@ function RepoFacts({ repo, plain = false }: { repo: GroupSignOffRepoRow; plain?:
         <span className="wrap-break-word font-medium text-(--text-primary)">{repo.prTitle}</span>
       ) : null}
       {repo.line ? <span className="wrap-break-word">{repo.line}</span> : null}
+      {repo.waitLine ? (
+        <span className="wrap-break-word" style={{ color: 'var(--status-queued-soft-fg)' }}>
+          {repo.waitLine}
+        </span>
+      ) : null}
       {repo.filesLine || repo.branchLine ? (
         <span className="wrap-anywhere text-(--text-muted)">
           {[repo.filesLine, repo.branchLine].filter(Boolean).join(' · ')}

@@ -1,4 +1,5 @@
-import type { AgentTypeSlotMap, WorkLaunchMode } from 'thefactory-tools/types'
+import type { AgentTypeSlotMap, ProcessWaitFor, WorkLaunchMode } from 'thefactory-tools/types'
+import { processWaitsForOf } from 'thefactory-tools/utils'
 import { partitionGrants } from './agentQuestions'
 import { agentTypeSlotsOf } from './agentTypeSlotChoice'
 import { cleanCliToolName } from './cliRunner'
@@ -135,6 +136,8 @@ export type StartFeatureWorkGrantSummary = {
   cliCredentialId?: string
   /** The agent type the agent proposed for each slot — the card starts on it, the person may change it. */
   agentTypeSlots?: AgentTypeSlotMap
+  /** The work elsewhere the agent asked the run to wait for before its proof. */
+  waitsFor?: ProcessWaitFor[]
 }
 
 /** A string argument, trimmed; blank or not a string is none. */
@@ -172,6 +175,7 @@ export function startFeatureWorkGrantSummary(
   const relevantNoteIds = Array.isArray(record.relevantNoteIds)
     ? record.relevantNoteIds.filter((x): x is string => typeof x === 'string' && x.length > 0)
     : []
+  const waits = processWaitsForOf(record.waitsFor)
   const files = Array.isArray(record.files)
     ? record.files.filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
     : []
@@ -191,6 +195,7 @@ export function startFeatureWorkGrantSummary(
     ...(cliModel ? { cliModel } : {}),
     ...(cliCredentialId ? { cliCredentialId } : {}),
     ...(agentTypeSlots ? { agentTypeSlots } : {}),
+    ...('waitsFor' in waits && waits.waitsFor.length > 0 ? { waitsFor: waits.waitsFor } : {}),
   }
 }
 

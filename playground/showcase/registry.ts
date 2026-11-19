@@ -36,6 +36,7 @@ import { DROPPED_CHANGE_SCENES } from '../scenes/droppedChange'
 import { SEND_TO_DEVELOPER_UNCHECKED_SCENES } from '../scenes/sendToDeveloperUnchecked'
 import { READY_ANSWER_SCENES } from '../scenes/readyAnswers'
 import { REVIEW_GAP_SCENES } from '../scenes/reviewGap'
+import { RUN_WAITS_FOR_SCENES } from '../scenes/runWaitsFor'
 import { FEATURE_POOL_SCENES } from '../scenes/featurePool'
 import { FEATURE_REQUEST_CARD_SCENES } from '../scenes/featureRequestCard'
 import { FEATURE_REQUEST_WAIT_CYCLE_SCENES } from '../scenes/featureRequestWaitCycle'
@@ -100,6 +101,7 @@ import { GROUP_TICKET_TAB_SCENES } from '../scenes/groupTicketTabs'
 import { COLLEAGUE_REVIEW_SCENES } from '../scenes/colleagueReview'
 import { SLACK_REVIEW_SCENES } from '../scenes/slackReview'
 import { REVIEW_RUN_ROUNDS_SCENES } from '../scenes/reviewRunRounds'
+import { REVIEW_CHAT_SLOT_SCENES } from '../scenes/reviewChatSlot'
 import { TICKET_SCENES } from '../scenes/ticketFlow'
 import { TICKET_NEW_ITEMS_SCENES } from '../scenes/ticketNewItems'
 import { UI_IMPACT_SCENES } from '../scenes/uiImpact'
@@ -201,6 +203,7 @@ export const SCENES: readonly Scene[] = [
   ...RUN_ACCESS_SCENES,
   ...TRY_ON_PHONE_SCENES,
   ...RUN_NEEDS_YOU_SCENES,
+  ...RUN_WAITS_FOR_SCENES,
   ...NEEDS_YOU_REFERENCE_SCENES,
   ...RUNNING_TONE_SCENES,
   ...STORY_WORK_SCENES,
@@ -230,6 +233,7 @@ export const SCENES: readonly Scene[] = [
   ...COLLEAGUE_REVIEW_SCENES,
   ...SLACK_REVIEW_SCENES,
   ...REVIEW_RUN_ROUNDS_SCENES,
+  ...REVIEW_CHAT_SLOT_SCENES,
   ...TICKET_SCENES,
   ...TICKET_NEW_ITEMS_SCENES,
   ...GROUP_SIGN_OFF_SCENES,

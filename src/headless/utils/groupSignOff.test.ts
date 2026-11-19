@@ -191,6 +191,27 @@ describe('groupSignOffScreen', () => {
     })
   })
 
+  it('says what a repo’s run waits for before its proof, and that it carries on by itself', () => {
+    const screen = groupSignOffScreen(
+      data({
+        repos: [
+          repo('be', {
+            status: 'waiting',
+            baseRef: 'dev',
+            wait: { waitsFor: ['ZNR-780'], waitingOn: ['ZNR-780'] },
+          }),
+          repo('web'),
+        ],
+      }),
+      state(),
+      nameOf,
+    )
+    expect(screen.repos[0]?.waitLine).toBe(
+      'Waits for ZNR-780 to reach dev before its proof · carries on by itself',
+    )
+    expect(screen.repos[1]?.waitLine).toBeUndefined()
+  })
+
   describe('what is left for the person', () => {
     it('says nothing is left only when every repo is clean', () => {
       expect(groupSignOffScreen(data(), state(), nameOf).leftForYou).toEqual({

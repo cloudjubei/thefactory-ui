@@ -1,11 +1,19 @@
 import type { ProcessRun } from 'thefactory-tools/types'
+import { checkBaselineLine } from 'thefactory-tools/utils'
 
 import {
   REVIEW_BRANCH_STATE_VIEW,
   REVIEW_BRANCH_UPDATES_INPUT_KEY,
   REVIEW_PUSH_APPROVAL_STEP_ID,
+  REVIEW_PUSH_BASE_FAILURE_TONE,
+  REVIEW_PUSH_BASE_LABELS,
+  REVIEW_PUSH_CHECK_TONES,
+  REVIEW_PUSH_COPY,
+  REVIEW_PUSH_UNNAMED_BASE,
 } from './colleagueReviewBranchUpdatesConstants'
 import type {
+  ColleagueReviewBranchCheck,
+  ColleagueReviewBranchCheckRow,
   ColleagueReviewBranchRow,
   ColleagueReviewBranchUpdate,
 } from './colleagueReviewBranchUpdatesTypes'
@@ -36,15 +44,70 @@ export function isReviewPushApproval(run: Pick<ProcessRun, 'park' | 'ticketRevie
   )
 }
 
-/** One pull request's row on the push approval: its name, state, files, changes and checks. Pure. */
+const failsAtBase = (check: ColleagueReviewBranchCheck) =>
+  check.status === 'failed' && check.baseline?.verdict === 'pre-existing'
+
+function branchCheckRow(
+  check: ColleagueReviewBranchCheck,
+  base: string,
+): ColleagueReviewBranchCheckRow {
+  const failed = check.status === 'failed' || check.status === 'error'
+  const baseline = failed ? check.baseline : undefined
+  const baseDetail = baseline
+    ? checkBaselineLine({
+        baseline: {
+          sha: baseline.sha,
+          verdict: baseline.verdict,
+          ...(baseline.reason ? { reason: baseline.reason } : {}),
+        },
+      })
+    : undefined
+  return {
+    label: check.label,
+    summary: check.summary,
+    passed: check.status === 'passed',
+    tone: failsAtBase(check)
+      ? REVIEW_PUSH_BASE_FAILURE_TONE
+      : (REVIEW_PUSH_CHECK_TONES[check.status] ?? 'stuck'),
+    ...(baseline ? { baseLabel: REVIEW_PUSH_BASE_LABELS[baseline.verdict](base) } : {}),
+    ...(baseDetail ? { baseDetail } : {}),
+    ...(failed && check.outputTail ? { outputTail: check.outputTail } : {}),
+  }
+}
+
+function listed(labels: readonly string[]): string {
+  return labels.length > 1
+    ? `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`
+    : (labels[0] ?? '')
+}
+
+function checksVerdict(
+  update: ColleagueReviewBranchUpdate,
+  base: string,
+): Pick<ColleagueReviewBranchRow, 'checksBadge' | 'checksNote'> {
+  if (update.checksPassed === undefined) return {}
+  if (!update.checksPassed) {
+    return { checksBadge: { label: REVIEW_PUSH_COPY.checksFailed, tone: 'stuck' } }
+  }
+  const shared = (update.checks ?? []).filter(failsAtBase).map((c) => c.label)
+  if (shared.length === 0) {
+    return { checksBadge: { label: REVIEW_PUSH_COPY.checksPassed, tone: 'done' } }
+  }
+  return {
+    checksBadge: {
+      label: REVIEW_PUSH_COPY.checksFailOnBase(base),
+      tone: REVIEW_PUSH_BASE_FAILURE_TONE,
+    },
+    checksNote: REVIEW_PUSH_COPY.checksBaseNote(listed(shared), shared.length > 1, base),
+  }
+}
+
+/** One pull request's row on the push approval: its name, state, files, changes and checks, each failure compared with the base. Pure. */
 export function reviewBranchRow(update: ColleagueReviewBranchUpdate): ColleagueReviewBranchRow {
   const parsed = GITHUB_PR.exec(update.pullRequestUrl)
   const view = REVIEW_BRANCH_STATE_VIEW[update.state]
-  const checks = (update.checks ?? []).map((c) => ({
-    label: c.label,
-    summary: c.summary,
-    passed: c.status === 'passed',
-  }))
+  const base = update.baseBranch ?? REVIEW_PUSH_UNNAMED_BASE
+  const checks = (update.checks ?? []).map((c) => branchCheckRow(c, base))
   return {
     url: update.pullRequestUrl,
     name: parsed ? `${parsed[1]} #${parsed[2]}` : update.pullRequestUrl,
@@ -59,6 +122,7 @@ export function reviewBranchRow(update: ColleagueReviewBranchUpdate): ColleagueR
     ...(update.diff ? { diff: update.diff } : {}),
     checks,
     ...(update.checksPassed !== undefined ? { checksPassed: update.checksPassed } : {}),
+    ...checksVerdict(update, base),
   }
 }
 

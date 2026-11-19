@@ -3,9 +3,11 @@ import {
   isTicketStoryProposalTool,
   partsOrderLine,
   partsOrderSteps,
+  ticketStoryFeaturesFold,
   ticketStoryProposalView,
 } from './ticketStoryProposal'
 import {
+  TICKET_STORY_FEATURES_SHOWN,
   TICKET_STORY_PROPOSAL_OUTCOME,
   TICKET_STORY_PROPOSAL_TEXT,
 } from './ticketStoryProposalConstants'
@@ -124,12 +126,14 @@ describe('ticketStoryProposalView', () => {
           projectTitle: 'Admin',
           story: { kind: 'new', title: 'Show the renewal in admin' },
           step: 2,
+          features: [],
         },
         {
           projectId: 'be',
           projectTitle: 'Backend',
           story: { kind: 'existing', storyId: 's-12' },
           step: 1,
+          features: [],
         },
       ],
       steps: [['be'], ['adm']],
@@ -145,7 +149,7 @@ describe('ticketStoryProposalView', () => {
       projects: PROJECTS,
     })
     expect(view.parts).toEqual([
-      { projectId: 'be', projectTitle: 'Backend', story: { kind: 'new' }, step: 1 },
+      { projectId: 'be', projectTitle: 'Backend', story: { kind: 'new' }, step: 1, features: [] },
     ])
     expect(view.order).toBeUndefined()
   })
@@ -262,5 +266,174 @@ describe('ticketStoryProposalView', () => {
     })
     expect(view.ticketKey).toBe('../admin')
     expect(view.ticketUrl).toBeUndefined()
+  })
+})
+
+const RENEW = {
+  title: 'Renewal call',
+  description: 'A **POST** that renews the session.',
+  acceptance: '- Renews a live session\n- Refuses an expired one',
+  context: ['src/session.ts'],
+}
+const SHOW = {
+  title: 'Last renewal column',
+  description: '',
+  acceptance: 'The column shows the time.',
+}
+const WAIT = { label: 'ZNR-781', branch: 'znr-781-limits' }
+const PLANNED = {
+  ...ARGS,
+  parts: [
+    { projectId: 'adm', newStoryTitle: 'Show the renewal in admin', features: [SHOW] },
+    { projectId: 'be', storyId: 's-12', features: [RENEW, SHOW], waitsFor: [WAIT] },
+  ],
+}
+
+describe('ticketStoryProposalView: features and waits', () => {
+  it('gives each part its features in the order given: title, description and what makes it done', () => {
+    const view = ticketStoryProposalView({ args: PLANNED, projects: PROJECTS })
+    expect(view.parts.map((p) => p.features)).toStrictEqual([
+      [{ title: 'Last renewal column', criteria: ['The column shows the time.'] }],
+      [
+        {
+          title: 'Renewal call',
+          description: 'A **POST** that renews the session.',
+          criteria: ['Renews a live session', 'Refuses an expired one'],
+        },
+        { title: 'Last renewal column', criteria: ['The column shows the time.'] },
+      ],
+    ])
+  })
+
+  it('shows a part that waits for other work as a run’s wait card would, and no wait on a part with none', () => {
+    const [adm, be] = ticketStoryProposalView({ args: PLANNED, projects: PROJECTS }).parts
+    expect(adm!.wait).toBeUndefined()
+    expect(be!.wait).toMatchObject({
+      state: 'ahead',
+      headline: 'Waits for ZNR-781 to reach the base branch before its proof',
+      entries: [{ label: 'ZNR-781', onBase: false, line: 'branch znr-781-limits' }],
+      actions: [],
+    })
+  })
+
+  it.each([
+    ['a list that is no list', 'Renewal call'],
+    ['entries that are no feature', [null, 'x', 7, { description: 'no title' }, { title: '  ' }]],
+  ])('draws no features from %s', (_name, features) => {
+    const view = ticketStoryProposalView({
+      args: { ...ARGS, parts: [{ projectId: 'be', features }] },
+    })
+    expect(view.parts[0]!.features).toEqual([])
+  })
+
+  it('reads a feature with only a title, and an acceptance that is no text, as a title alone', () => {
+    const view = ticketStoryProposalView({
+      args: {
+        ...ARGS,
+        parts: [{ projectId: 'be', features: [{ title: ' Renewal call ', acceptance: 3 }] }],
+      },
+    })
+    expect(view.parts[0]!.features).toEqual([{ title: 'Renewal call', criteria: [] }])
+  })
+
+  it('plans a project once: the first part given for it', () => {
+    const view = ticketStoryProposalView({
+      args: {
+        ...ARGS,
+        parts: [
+          { projectId: 'be', features: [RENEW] },
+          { projectId: 'be', features: [SHOW], waitsFor: [WAIT] },
+        ],
+      },
+    })
+    expect(view.parts.map((p) => [p.features.map((f) => f.title), p.wait])).toEqual([
+      [['Renewal call'], undefined],
+      [['Renewal call'], undefined],
+    ])
+  })
+
+  it('shows no wait the backend would refuse', () => {
+    const view = ticketStoryProposalView({
+      args: { ...ARGS, parts: [{ projectId: 'be', waitsFor: [{ label: 'ZNR-781' }] }] },
+    })
+    expect(view.parts[0]!.wait).toBeUndefined()
+  })
+
+  it('keeps the planned features and waits once made, matched to each made part by its project', () => {
+    const view = ticketStoryProposalView({
+      args: PLANNED,
+      result: {
+        ...CREATED,
+        parts: [
+          ...CREATED.parts.map((p) => ({ ...p, features: '0/2 done' })),
+          { projectId: 'web', storyId: 's-5', storyTitle: 'Web part', features: '0/0 done' },
+        ],
+      },
+      resultType: 'success',
+      projects: PROJECTS,
+    })
+    expect(view.parts.map((p) => [p.projectId, p.features.map((f) => f.title)])).toEqual([
+      ['adm', ['Last renewal column']],
+      ['be', ['Renewal call', 'Last renewal column']],
+      ['web', []],
+    ])
+    expect(view.parts.map((p) => p.wait?.headline)).toEqual([
+      undefined,
+      'Waits for ZNR-781 to reach the base branch before its proof',
+      undefined,
+    ])
+  })
+
+  it('says a made story is ready to run in the first sentence of the backend’s message', () => {
+    const view = ticketStoryProposalView({
+      args: PLANNED,
+      result: {
+        ...CREATED,
+        message:
+          'Made and linked to ZNR-780, every part’s story with its features: it is ready to run. Add nothing to it. When the person says start, call `startGroupWork`.',
+      },
+      resultType: 'success',
+    })
+    expect(view.ready).toBe(
+      'Made and linked to ZNR-780, every part’s story with its features: it is ready to run.',
+    )
+  })
+
+  it('says the whole message when it is one sentence with no stop', () => {
+    const view = ticketStoryProposalView({
+      args: PLANNED,
+      result: { ...CREATED, message: '  Ready to run  ' },
+      resultType: 'success',
+    })
+    expect(view.ready).toBe('Ready to run')
+  })
+
+  it.each([
+    ['still asking', undefined, 'require_confirmation'],
+    ['refused', { error: 'No.', message: 'Ready to run.' }, 'success'],
+    ['made with no message', CREATED, 'success'],
+    ['made with a message that is no text', { ...CREATED, message: 3 }, 'success'],
+  ])('says nothing of being ready when %s', (_name, result, resultType) => {
+    const view = ticketStoryProposalView({ args: PLANNED, result, resultType })
+    expect(view.ready).toBeUndefined()
+  })
+})
+
+describe('ticketStoryFeaturesFold', () => {
+  const max = TICKET_STORY_FEATURES_SHOWN
+
+  it('shows every feature of a short list', () => {
+    expect(ticketStoryFeaturesFold(0, false)).toEqual({ shown: 0, more: 0 })
+    expect(ticketStoryFeaturesFold(max, false)).toEqual({ shown: max, more: 0 })
+  })
+
+  it('never folds away a single feature behind "1 more"', () => {
+    expect(ticketStoryFeaturesFold(max + 1, false)).toEqual({ shown: max + 1, more: 0 })
+  })
+
+  it('folds a long list past the first few, and shows it whole once opened', () => {
+    expect(ticketStoryFeaturesFold(max + 2, false)).toEqual({ shown: max, more: 2 })
+    expect(ticketStoryFeaturesFold(12, false)).toEqual({ shown: max, more: 12 - max })
+    expect(ticketStoryFeaturesFold(12, true)).toEqual({ shown: 12, more: 0 })
   })
 })

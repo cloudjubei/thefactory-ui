@@ -4,8 +4,10 @@ import {
   groupStoryTicketChip,
   groupStoryTicketRef,
   groupTicketStatuses,
+  groupTicketSectionRows as rowsOf,
   groupTicketsView,
   chatContextTickets,
+  reviewOpenTicketKeys,
   ticketChipView,
   ticketLink,
   ticketMoveDecisionOf,
@@ -196,8 +198,8 @@ describe('the Tickets tab', () => {
   it('is loading while the tab on screen is unread', () => {
     const view = shown(state())
     expect(view.mine.loading).toBe(true)
-    expect(view.mine.rows).toEqual([])
-    expect(view.others.rows).toEqual([])
+    expect(rowsOf(view.mine)).toEqual([])
+    expect(rowsOf(view.others)).toEqual([])
   })
 
   it('splits the tab into the person’s tickets and everyone else’s, in board order', () => {
@@ -213,8 +215,8 @@ describe('the Tickets tab', () => {
       }),
     )
     expect(view.mine.loading).toBe(false)
-    expect(keys(view.mine.rows)).toEqual(['A-2', 'A-3'])
-    expect(keys(view.others.rows)).toEqual(['A-1'])
+    expect(keys(rowsOf(view.mine))).toEqual(['A-2', 'A-3'])
+    expect(keys(rowsOf(view.others))).toEqual(['A-1'])
     expect(view.mine.line).toBe('2 tickets')
   })
 
@@ -225,7 +227,7 @@ describe('the Tickets tab', () => {
         byTab: { pending: read([ticket('A-1')]), review: read([ticket('R-1')]) },
       }),
     )
-    expect(keys(view.others.rows)).toEqual(['R-1'])
+    expect(keys(rowsOf(view.others))).toEqual(['R-1'])
   })
 
   it('gives each row its tab’s actions for its side', () => {
@@ -240,8 +242,8 @@ describe('the Tickets tab', () => {
         },
       }),
     )
-    expect(view.mine.rows[0]?.actions).toEqual(['replies', 'approve-and-merge', 'discuss'])
-    expect(view.others.rows[0]?.actions).toEqual(['review', 'discuss'])
+    expect(rowsOf(view.mine)[0]?.actions).toEqual(['replies', 'approve-and-merge', 'discuss'])
+    expect(rowsOf(view.others)[0]?.actions).toEqual(['review', 'discuss'])
   })
 
   it('shows replies on the person’s rows of a tab that shows them', () => {
@@ -260,7 +262,7 @@ describe('the Tickets tab', () => {
       }),
       NOW,
     )
-    expect(view.mine.rows[0]?.replies).toEqual({
+    expect(rowsOf(view.mine)[0]?.replies).toEqual({
       line: '2 Slack replies · 1 GitHub comment',
       when: '1 hour ago',
       none: false,
@@ -273,7 +275,7 @@ describe('the Tickets tab', () => {
         byTab: { pending: read([ticket('A-1', { mine: true, replies: { slack: 1, github: 0 } })]) },
       }),
     )
-    expect(view.mine.rows[0]).not.toHaveProperty('replies')
+    expect(rowsOf(view.mine)[0]).not.toHaveProperty('replies')
   })
 
   it('says once that a tab holds nothing, and each side that has none', () => {
@@ -293,7 +295,7 @@ describe('the Tickets tab', () => {
       state({ byTab: { pending: { ...read([ticket('A-1')]), readError: 'Jira is down' } } }),
     )
     expect(view.readError).toBe('Jira is down')
-    expect(keys(view.others.rows)).toEqual(['A-1'])
+    expect(keys(rowsOf(view.others))).toEqual(['A-1'])
     expect(view.mine.readError).toBeUndefined()
   })
 
@@ -319,7 +321,7 @@ describe('the next ticket', () => {
       }),
     )
     expect(view.next?.key).toBe('A-2')
-    expect(keys(view.mine.rows)).toEqual(['A-1'])
+    expect(keys(rowsOf(view.mine))).toEqual(['A-1'])
   })
 
   it('is none for a ticket that cannot be taken, or in a tab that offers no Take', () => {
@@ -353,7 +355,7 @@ describe('the next ticket', () => {
 
 describe('a ticket’s row', () => {
   const rowOf = (t: GroupTicket, over: Partial<GroupTicketsState> = {}) =>
-    shown(state({ byTab: { pending: read([t]) }, ...over })).others.rows[0]!
+    rowsOf(shown(state({ byTab: { pending: read([t]) }, ...over })).others)[0]!
 
   it('carries its chip, priority and summary, and says a press opens it', () => {
     const row = rowOf(ticket('A-1', { priority: 'High', status: 'To Do' }))
@@ -388,7 +390,7 @@ describe('a ticket’s row', () => {
         reviewing: { 'A-2': { step: 'starting' } },
       }),
     )
-    const [a1, a2] = view.others.rows
+    const [a1, a2] = rowsOf(view.others)
     expect(a1?.starting).toBe('discuss')
     expect(a2?.starting).toBeUndefined()
     expect(a2?.reviewing).toBeDefined()
@@ -418,7 +420,7 @@ describe('a search', () => {
         read([ticket('R-1', { tabId: 'review', mine: false }), ticket('X-1', { canTake: true })]),
       ),
     )
-    expect(view.search?.rows.map((r) => r.actions)).toEqual([['review', 'discuss'], ['discuss']])
+    expect(rowsOf(view.search!).map((r) => r.actions)).toEqual([['review', 'discuss'], ['discuss']])
   })
 
   it('says so when nothing matches, in the person’s own words', () => {
@@ -630,7 +632,7 @@ describe('updates from Slack on the Tickets tab', () => {
       NOW,
     )
     expect(view.offerCount).toBe(3)
-    const [a1, a2] = view.others.rows
+    const [a1, a2] = rowsOf(view.others)
     expect(a1?.offer).toEqual({
       id: 'o1',
       kind: 'first-round',
@@ -647,5 +649,184 @@ describe('updates from Slack on the Tickets tab', () => {
     const view = shown(state({ offerError: 'Gone already.' }))
     expect(view.offerCount).toBe(0)
     expect(view.offerError).toBe('Gone already.')
+  })
+})
+
+describe('everyone else’s tickets under review', () => {
+  const NOW = Date.parse('2026-11-19T12:00:00.000Z')
+  const reply = (
+    id: string,
+    postedAt: string,
+    over: Partial<NonNullable<GroupTicket['reviewOffer']>> = {},
+  ): NonNullable<GroupTicket['reviewOffer']> => ({
+    id,
+    kind: 'next-round',
+    author: 'Aashan',
+    postedAt,
+    permalink: `https://acme.slack.com/archives/C1/p${id}`,
+    state: 'new',
+    files: 0,
+    ...over,
+  })
+  const othersOf = (tickets: GroupTicket[], tab = 'pending', commits = {}) =>
+    groupTicketsView(state({ tab, byTab: { [tab]: read(tickets) } }), NOW, commits)
+
+  const others = (...args: Parameters<typeof othersOf>) => {
+    const view = othersOf(...args)
+    if (view.kind !== 'tickets') throw new Error(view.kind)
+    return view.others
+  }
+
+  it('stand apart above the rest in any tab: Reviewing, then To review', () => {
+    for (const tab of ['pending', 'review']) {
+      const side = others([ticket('A-1'), ticket('A-2', { reviewOpen: true }), ticket('A-3')], tab)
+      expect(side.groups.map((g) => [g.id, g.heading, keys(g.rows)])).toEqual([
+        ['reviewing', 'Reviewing', ['A-2']],
+        ['to-review', 'To review', ['A-1', 'A-3']],
+      ])
+      expect(side.line).toBe('3 tickets')
+    }
+  })
+
+  it('put the ones with a reply waiting first, the newest reply first', () => {
+    const side = others([
+      ticket('A-1', { reviewOpen: true }),
+      ticket('A-2', { reviewOpen: true, reviewOffer: reply('1', '2026-11-19T09:00:00.000Z') }),
+      ticket('A-3', {
+        reviewOpen: true,
+        reviewOffer: reply('2', '2026-11-19T11:00:00.000Z', { state: 'dismissed' }),
+      }),
+      ticket('A-4', { reviewOpen: true, reviewOffer: reply('3', '2026-11-19T11:30:00.000Z') }),
+      ticket('A-5', {
+        reviewOpen: true,
+        reviewOffer: reply('4', '2026-11-19T11:45:00.000Z', { kind: 'first-round' }),
+      }),
+    ])
+    expect(keys(side.groups[0]!.rows)).toEqual(['A-4', 'A-2', 'A-1', 'A-3', 'A-5'])
+  })
+
+  it('leave the list as it was, with no heading, while nothing is under review', () => {
+    const side = others([ticket('A-1'), ticket('A-2')])
+    expect(side.groups).toEqual([{ id: 'all', rows: expect.any(Array) }])
+    expect(keys(rowsOf(side))).toEqual(['A-1', 'A-2'])
+  })
+
+  it('show no empty group', () => {
+    expect(others([ticket('A-1', { reviewOpen: true })]).groups.map((g) => g.id)).toEqual([
+      'reviewing',
+    ])
+    expect(others([]).groups).toEqual([])
+  })
+
+  it('leave the person’s own tickets and a search in one list', () => {
+    const view = groupTicketsView(
+      state({
+        byTab: { pending: read([ticket('A-1', { mine: true, reviewOpen: true })]) },
+        search: { ...read([ticket('S-1', { reviewOpen: true }), ticket('S-2')]), query: 's' },
+      }),
+      NOW,
+    )
+    if (view.kind !== 'tickets') throw new Error(view.kind)
+    expect(view.mine.groups.map((g) => g.id)).toEqual(['all'])
+    expect(view.search!.groups.map((g) => g.id)).toEqual(['all'])
+  })
+
+  it('say who replied and when, with what was pushed since the round when known', () => {
+    const side = others(
+      [
+        ticket('A-1', { reviewOpen: true, reviewOffer: reply('1', '2026-11-19T11:00:00.000Z') }),
+        ticket('A-2', { reviewOpen: true, reviewOffer: reply('2', '2026-11-19T11:00:00.000Z') }),
+      ],
+      'pending',
+      {
+        'A-1': { label: '3 new commits', tone: 'news' },
+        'A-2': { label: 'No new commits', tone: 'quiet' },
+      },
+    )
+    const [a1, a2] = side.groups[0]!.rows
+    expect(a1!.reviewNews).toEqual({
+      reply: 'Aashan replied · 1 hour ago',
+      commits: { label: '3 new commits', tone: 'news' },
+      line: 'Aashan replied · 1 hour ago · 3 new commits',
+    })
+    expect(a2!.reviewNews?.line).toBe('Aashan replied · 1 hour ago · No new commits')
+  })
+
+  it('say what was pushed without a reply only when something was, and nothing on a plain row', () => {
+    const side = others(
+      [
+        ticket('A-1', { reviewOpen: true }),
+        ticket('A-2', { reviewOpen: true }),
+        ticket('A-3', { reviewOpen: true }),
+        ticket('A-4', { reviewOpen: true }),
+        ticket('A-5'),
+      ],
+      'pending',
+      {
+        'A-1': { label: '2 new commits', tone: 'news' },
+        'A-2': { label: 'Rewritten since review', tone: 'warn' },
+        'A-3': { label: 'No new commits', tone: 'quiet' },
+        'A-5': { label: '1 new commit', tone: 'news' },
+      },
+    )
+    const byKey = Object.fromEntries(rowsOf(side).map((r) => [r.key, r.reviewNews] as const))
+    expect(byKey['A-1']).toEqual({
+      commits: { label: '2 new commits', tone: 'news' },
+      line: '2 new commits',
+    })
+    expect(byKey['A-2']?.line).toBe('Rewritten since review')
+    expect(byKey['A-3']).toBeUndefined()
+    expect(byKey['A-4']).toBeUndefined()
+    expect(byKey['A-5']).toBeUndefined()
+  })
+
+  it('name someone for a reply with no author', () => {
+    const side = others([
+      ticket('A-1', {
+        reviewOpen: true,
+        reviewOffer: reply('1', '2026-11-19T11:00:00.000Z', { author: ' ' }),
+      }),
+    ])
+    expect(rowsOf(side)[0]!.reviewNews?.reply).toBe('Someone replied · 1 hour ago')
+  })
+})
+
+describe('a list’s rows', () => {
+  it('are every group’s rows in order', () => {
+    expect(
+      rowsOf({
+        groups: [
+          { id: 'reviewing', heading: 'Reviewing', rows: [{ key: 'A' }, { key: 'B' }] },
+          { id: 'to-review', heading: 'To review', rows: [{ key: 'C' }] },
+        ],
+      } as unknown as Parameters<typeof rowsOf>[0]).map((r) => r.key),
+    ).toEqual(['A', 'B', 'C'])
+  })
+})
+
+describe('the tickets whose commits since review are read', () => {
+  it('are the ones under review on the tab on screen and in a search, each once', () => {
+    expect(
+      reviewOpenTicketKeys(
+        state({
+          tab: 'review',
+          byTab: {
+            pending: read([ticket('P-1', { reviewOpen: true })]),
+            review: read([
+              ticket('R-1', { reviewOpen: true }),
+              ticket('R-2'),
+              ticket('R-3', { reviewOpen: true, mine: true }),
+            ]),
+          },
+          search: {
+            ...read([ticket('R-1', { reviewOpen: true }), ticket('S-1', { reviewOpen: true })]),
+            query: 'r',
+          },
+        }),
+      ),
+    ).toEqual(['R-1', 'R-3', 'S-1'])
+    expect(
+      reviewOpenTicketKeys(state({ tabs: { tabs: undefined, custom: false, readError: null } })),
+    ).toEqual([])
   })
 })

@@ -1,6 +1,7 @@
 import { processRunStopHolder } from 'thefactory-tools/utils'
 import type { ProcessRun } from 'thefactory-tools/types'
 import { buildBridgePush, type BridgeRequest } from './appBridge'
+import { isProcessParkWaitingElsewhere } from './processRunWait'
 import { RUN_CHANGED_MESSAGE } from './appBridgeConstants'
 import { APP_RUN_QUERY_INVALID, APP_RUN_SIGN_OFF_ASK } from './appRunStateConstants'
 import type {
@@ -21,7 +22,7 @@ function kindOf(root: ProcessRun, now: number): AppRunStateKind {
   if (ended) return ended
   if (root.status === 'pending') return 'queued'
   if (root.status !== 'parked') return 'running'
-  if (root.park?.reason === 'waiting-on-blockers') return 'queued'
+  if (isProcessParkWaitingElsewhere(root.park)) return 'queued'
   return processRunStopHolder(root, now) === 'manager' ? 'running' : 'waiting'
 }
 

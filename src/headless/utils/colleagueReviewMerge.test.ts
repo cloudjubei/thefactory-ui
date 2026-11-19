@@ -198,6 +198,7 @@ describe('reviewCardMerge', () => {
     n,
     ...(recorded ? { recordedAt: '2026-11-17T10:00:00.000Z' } : {}),
     submission: { pullRequests: prs },
+    reviewedHeads: [],
   })
   const review = (...rounds: ReturnType<typeof round>[]) =>
     ({ rounds }) as unknown as ColleagueReview
@@ -232,6 +233,15 @@ describe('reviewCardMerge', () => {
     expect(
       reviewCardMerge(review(round(1, true, [API])), 1, { ...idle, starting: { round: 1 } }),
     ).toMatchObject({ starting: true, view: { label: 'Starting…' } })
+  })
+
+  it('offers the earlier round’s pull requests when the latest update, a thread reply, links none', () => {
+    expect(
+      reviewCardMerge(review(round(1, true, [WEB, API]), round(2, true, [])), 2, idle),
+    ).toEqual({
+      prs: reviewMergePullRequests([API, WEB]),
+      starting: false,
+    })
   })
 
   it('offers nothing on an earlier round, one not recorded yet, or one without pull requests', () => {

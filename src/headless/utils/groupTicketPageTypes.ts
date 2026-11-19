@@ -2,6 +2,8 @@ import type { ProcessRun, ReviewVerdict } from 'thefactory-tools/types'
 import type { ChatContext } from '../api'
 import type { ColleagueReviewOfferKind, ColleagueReviewOfferState } from '../api/generated'
 import type { TicketChipView } from './groupTicketTypes'
+import type { ReviewCommitsView } from './reviewCommitsTypes'
+import type { ReviewReplyView } from './reviewReplyTypes'
 import type { GroupTicketTabAction, GroupTicketToneLabel } from './groupTicketTabTypes'
 
 /** A ticket's sprint: its name and whether it is open. */
@@ -180,6 +182,14 @@ export interface GroupTicketPageView {
   pullRequests: GroupTicketPullRequestView[]
   story?: GroupTicketGroupStory
   chats: GroupTicketChatView[]
+  /** The newest reply waiting to start the review's next round. */
+  reply?: ReviewReplyView
+  /** What was pushed since the review's last round, when no reply waits and something was. */
+  commits?: ReviewCommitsView
+  /** The ticket's review chat, once a round opened it. */
+  reviewChat?: ChatContext
+  /** The review run still going, which starts its next round itself. */
+  liveRun?: { id: string; projectId: string }
   /** The parts that could not be read, each in a quiet line. */
   problems: string[]
   /** What a part read and found empty says; a part that failed says nothing here. */

@@ -65,6 +65,18 @@ describe('launchRunnerLabel', () => {
 })
 
 describe('startFeatureWorkGrantSummary', () => {
+  it('reads the work the agent asked the run to wait for before its proof, dropping a malformed list', () => {
+    const summary = (waitsFor: unknown) =>
+      startFeatureWorkGrantSummary({ detail: { args: { storyId: 's1', waitsFor } } })
+    expect(summary([{ label: ' ZNR-780 ', branch: ' znr-780 ' }]).waitsFor).toEqual([
+      { label: 'ZNR-780', branch: 'znr-780' },
+    ])
+    expect(summary([{ label: 'ZNR-780' }])).not.toHaveProperty('waitsFor')
+    expect(summary([])).not.toHaveProperty('waitsFor')
+    expect(summary('ZNR-780')).not.toHaveProperty('waitsFor')
+    expect(summary(undefined)).not.toHaveProperty('waitsFor')
+  })
+
   it('reads the files the work hands over, each a non-blank path', () => {
     const of = (files: unknown) =>
       startFeatureWorkGrantSummary(grant({ detail: { args: { storyId: 's', files } } })).files

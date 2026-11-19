@@ -1,3 +1,5 @@
+import { isProcessParkWaitingElsewhere, processRunWaitingLine } from './processRunWait'
+import { PROCESS_RUN_WORDS } from './processViewConstants'
 import type { ProcessRun, ReferenceDescription, ResourceLink } from 'thefactory-tools/types'
 import { processStepStates } from 'thefactory-tools/utils'
 import { filePreviewTarget } from './filePreview'
@@ -92,6 +94,9 @@ export function referencePreview(description: ReferenceDescription): ReferencePr
 function whereLine(run: ProcessRun): { label: string; value: string } | undefined {
   const park = run.park
   if (run.status === 'parked' && park) {
+    if (isProcessParkWaitingElsewhere(park)) {
+      return { label: PROCESS_RUN_WORDS.waiting, value: processRunWaitingLine(run) }
+    }
     if (park.reason !== 'gate') return { label: RUN_PREVIEW_NEEDS, value: park.message }
     const step = run.plan.steps.find((s) => s.id === park.stepId)
     return step
@@ -119,7 +124,7 @@ export function runReferencePreview(
   const link: ResourceLink = { kind: 'run', projectId: run.projectId, runId: run.id }
   const parked = run.status === 'parked' && run.park
   const open =
-    !parked || isHeldForGroupSignOff(run)
+    !parked || isHeldForGroupSignOff(run) || isProcessParkWaitingElsewhere(run.park)
       ? REFERENCE_OPEN_LABELS.run
       : run.park?.reason === 'gate'
         ? RUN_PREVIEW_OPEN_SIGNOFF

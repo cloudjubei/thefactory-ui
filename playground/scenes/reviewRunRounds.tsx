@@ -16,6 +16,7 @@ import type { Scene } from '../showcase/types'
 import {
   REVIEW_RUN_PUSHED,
   REVIEW_RUN_PUSH_FAILED,
+  REVIEW_RUN_PUSH_FAILS_ON_DEV,
   REVIEW_RUN_PUSH_PASSED,
   REVIEW_RUN_REPLIED,
   REVIEW_RUN_REPLIED_LONG,
@@ -121,7 +122,7 @@ export const REVIEW_RUN_ROUNDS_SCENES: Scene[] = [
     component: 'RunPushApprovalCard · ReviewBranchRows',
     group: 'Process',
     description:
-      'After Approve & merge, the run brings dev into each pull request. GitHub updates a branch with no conflict; a conflict is resolved in a checkout of its own and its checks run. Then you see each resolution — the files that conflicted, the change, the checks and the diff — and choose Approve push, Send back with a note, or Stop. Nothing is pushed before you choose.',
+      'After Approve & merge, the run brings dev into each pull request. GitHub updates a branch with no conflict; a conflict is resolved in a checkout of its own and its checks run. Then you see each resolution — the files that conflicted, the change, the checks (each failure compared with dev: one that fails on dev the same way does not block) and the diff — and choose Approve push, Send back with a note, or Stop. Nothing is pushed before you choose.',
     states: [
       {
         id: 'checks-passed',
@@ -132,6 +133,26 @@ export const REVIEW_RUN_ROUNDS_SCENES: Scene[] = [
         id: 'checks-failed',
         title: 'A resolution whose checks failed',
         render: () => push(REVIEW_RUN_PUSH_FAILED),
+      },
+      {
+        id: 'fails-on-dev-too',
+        title: 'A check that fails on dev too',
+        description:
+          'Lint fails on the resolution, and on dev the same way. It does not block the push: the badge and a line under the checks say so, and the comparison names the dev commit.',
+        render: () => push(REVIEW_RUN_PUSH_FAILS_ON_DEV),
+      },
+      {
+        id: 'fails-on-dev-output',
+        title: 'Its output open',
+        description: 'The last lines the failing check printed.',
+        render: () => (
+          <Frame>
+            <ReviewBranchRows
+              rows={reviewPushApprovalRows(REVIEW_RUN_PUSH_FAILS_ON_DEV)}
+              outputOpen
+            />
+          </Frame>
+        ),
       },
       {
         id: 'diff-open',
@@ -153,6 +174,11 @@ export const REVIEW_RUN_ROUNDS_SCENES: Scene[] = [
         ),
       },
       { id: 'phone', title: 'On a phone', render: () => push(REVIEW_RUN_PUSH_PASSED, 390) },
+      {
+        id: 'fails-on-dev-phone',
+        title: 'Fails on dev too, on a phone',
+        render: () => push(REVIEW_RUN_PUSH_FAILS_ON_DEV, 390),
+      },
     ],
   },
 ]

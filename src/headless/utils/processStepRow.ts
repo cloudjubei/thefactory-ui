@@ -23,6 +23,7 @@ import {
   PROCESS_STEP_NOT_NEEDED,
   PROCESS_STEP_RESULT_MAX,
   PROCESS_STEP_SKIPPED,
+  PROCESS_STEP_WAITING_ON_WORK,
   PROCESS_STEP_WAITING_ON_YOU,
   PROCESS_STEP_WORKING,
 } from './processStepRowConstants'
@@ -83,6 +84,7 @@ function resultLine(
   nodeState: ReturnType<typeof processNodeState>,
   now: number | undefined,
 ): string | undefined {
+  if (nodeState === 'parked' && state.step.waitsForWork) return PROCESS_STEP_WAITING_ON_WORK
   if (nodeState === 'parked' && state.step.kind === 'gate') return PROCESS_STEP_WAITING_ON_YOU
   if (nodeState === 'working') {
     const queued = queuedLine(state, now)
@@ -138,7 +140,8 @@ export function processStepRowView(
   return {
     inert,
     result: result ? clipLine(result.split('\n')[0], PROCESS_STEP_RESULT_MAX) : undefined,
-    waitingOnYou: nodeState === 'parked' && !managerOnIt,
+    waitingOnYou: nodeState === 'parked' && !managerOnIt && !state.step.waitsForWork,
+    waitingOnWork: nodeState === 'parked' && state.step.waitsForWork === true,
     managerOnIt,
     acceptedUnchecked,
     expandable: !inert && preview !== 'none' && state.latest !== undefined,

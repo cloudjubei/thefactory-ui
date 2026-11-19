@@ -4,12 +4,14 @@ import type {
   ProcessResumeChoice,
   ProcessRun,
   ProcessTurnLimit,
+  ProcessWaitAction,
   ProcessWaitingItemChoice,
   ProofKind,
 } from 'thefactory-tools/types'
 import {
   answerProcessRunWaitingRequest,
   cancelProcessRun,
+  continueProcessRunWaitNow,
   delegateProcessRunAsk,
   deleteProcessRun,
   getProcessRun,
@@ -25,6 +27,8 @@ import {
   setProcessRunModel,
   setProcessRunTurnLimit,
   startProcessRunChanges,
+  stopProcessRunWaiting,
+  waitProcessRunAgain,
   withdrawProcessRunChange,
 } from '../api'
 import { extractErrorMessage, useApi, useAuth, type ChatAttachmentFile } from '../api'
@@ -40,6 +44,8 @@ import type { FeatureSplitDraft } from '../utils/processFeatureSplitViewTypes'
 import type { LaunchAgentPick } from '../utils/launchAgentPickTypes'
 import { runModelChangeBody } from '../utils/runModelChange'
 import { reviewGateResumeBody } from '../utils/colleagueReviewDecision'
+import { processWaitActionBody } from '../utils/processRunWait'
+import type { ProcessWaitPending } from '../utils/processRunWaitTypes'
 import type { ReviewGateAnswer } from '../utils/colleagueReviewDecisionTypes'
 
 /** A review branch a run tree owns — shown in the delete confirm's list. */
@@ -181,7 +187,21 @@ export type UseProcessRun = {
   listBranches: () => Promise<ProcessRunBranch[]>
   /** Delete this run and everything it owns (chats, CLI runs, records, opt. branches). */
   deleteRun: (opts?: { deleteBranches?: boolean }) => Promise<DeleteProcessRunResult | undefined>
+  /** A person's action on the run's wait for other work, sent and not answered yet. */
+  waitPending: ProcessWaitPending | undefined
+  /**
+   * Continue now, stop waiting, or wait again, with the person's note: shown
+   * done at once and taken back when refused, the driver's reason in
+   * `actionError`. A second press while one is on its way does nothing.
+   */
+  decideWait: (action: ProcessWaitAction, note?: string) => Promise<boolean>
 }
+
+const WAIT_ROUTES = {
+  'continue-now': continueProcessRunWaitNow,
+  'stop-waiting': stopProcessRunWaiting,
+  'wait-again': waitProcessRunAgain,
+} as const
 
 /** A decision as the resume and integrate routes take it: the way, and who and what it lands as. */
 function integrationBody({ mode, ...landing }: ProcessIntegrationDecision) {
@@ -226,6 +246,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
   const [held, setHeld] = useState<HeldRun>(() => cachedHeldRun(runId))
   const [loadError, setLoadError] = useState<Error | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [waitPending, setWaitPending] = useState<ProcessWaitPending | undefined>()
   const current = held.runId === runId ? held : cachedHeldRun(runId)
   const run = current.run
   const isLoaded = current.settled
@@ -657,6 +678,29 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
     return (data as ProcessRunBranch[] | undefined) ?? []
   }, [runId])
 
+  const decideWait = useCallback(
+    async (action: ProcessWaitAction, note?: string) => {
+      if (!runId || waitPending) return false
+      setActionError(null)
+      setWaitPending({ action, at: Date.now() })
+      try {
+        const { data } = await WAIT_ROUTES[action]({
+          path: { runId },
+          body: processWaitActionBody(client, note),
+          throwOnError: true,
+        })
+        setRun(data as ProcessRun)
+        return true
+      } catch (err) {
+        setActionError(extractErrorMessage(err, 'The wait could not be changed.'))
+        return false
+      } finally {
+        setWaitPending(undefined)
+      }
+    },
+    [runId, client, setRun, waitPending],
+  )
+
   const deleteRun = useCallback(
     async (opts?: { deleteBranches?: boolean }) => {
       if (!runId) return undefined
@@ -700,6 +744,8 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       withdrawChange,
       listBranches,
       deleteRun,
+      waitPending,
+      decideWait,
     }),
     [
       isLoaded,
@@ -729,6 +775,8 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       withdrawChange,
       listBranches,
       deleteRun,
+      waitPending,
+      decideWait,
     ],
   )
 }

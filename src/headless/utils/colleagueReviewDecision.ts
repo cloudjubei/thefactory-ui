@@ -4,7 +4,7 @@ import type {
   ProcessRun,
   ProcessStep,
 } from 'thefactory-tools/types'
-import { latestReviewRound } from 'thefactory-tools/utils'
+import { latestReviewRound, reviewPullRequestsAt } from 'thefactory-tools/utils'
 import { cleanCliToolName } from './cliRunner'
 import { reviewRoundView } from './colleagueReviewCard'
 import { reviewMergePullRequests } from './colleagueReviewMerge'
@@ -185,5 +185,5 @@ export function reviewDecisionPullRequests(
   review: ColleagueReview | null | undefined,
 ): ReviewMergePullRequest[] {
   const recorded = review?.rounds.filter((r) => r.recordedAt).at(-1)
-  return recorded ? reviewMergePullRequests(recorded.submission.pullRequests) : []
+  return review && recorded ? reviewMergePullRequests(reviewPullRequestsAt(review, recorded.n)) : []
 }

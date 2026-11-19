@@ -48,6 +48,92 @@ describe('showcase registry', () => {
       expect(ids).toContain(id)
   })
 
+  it('shows a run’s wait for other work in every state, as waiting and never as needing the person', () => {
+    const states = (id: string) => SCENES.find((s) => s.id === id)?.states ?? []
+    const markup = (id: string, state: string) =>
+      renderToStaticMarkup(
+        <>
+          {states(id)
+            .find((s) => s.id === state)
+            ?.render()}
+        </>,
+      )
+    expect(states('run-waits-for').map((s) => s.id)).toEqual(
+      expect.arrayContaining(['waiting', 'one-on-base', 'cleared', 'continued', 'stopped']),
+    )
+    expect(markup('run-waits-for', 'waiting')).toMatch(
+      /Waits for ENG-780 to reach dev before its proof.*since .+ · carries on by itself.*Continue now.*Stop waiting/,
+    )
+    expect(markup('run-waits-for', 'one-on-base')).toMatch(
+      /Waits for ENG-781 to reach dev before its proof.*ENG-780.*on dev · by its branch/,
+    )
+    expect(markup('run-waits-for', 'cleared')).toMatch(/ENG-780 reached dev/)
+    expect(markup('run-waits-for', 'cleared')).not.toMatch(/Continue now|Wait again/)
+    expect(markup('run-waits-for', 'continued')).toMatch(
+      /Continued without waiting.*by you.*Wait again/,
+    )
+    expect(markup('run-waits-for', 'stopped')).toMatch(/Stopped waiting.*Wait again/)
+    const leg = markup('group-leg-waits-for', 'beside-others')
+    expect(leg).toMatch(/Waiting on other work.*Waits for ENG-780 to reach dev before its proof/)
+    expect(leg).not.toMatch(/Needs you|Answer it/)
+    expect(states('launch-waits-for').map((s) => s.id)).toEqual(
+      expect.arrayContaining(['empty', 'filled', 'invalid']),
+    )
+    expect(markup('launch-waits-for', 'empty')).toMatch(/Wait for other work before proof/)
+    expect(markup('launch-waits-for', 'filled')).toMatch(
+      /Waits for ENG-780 at “Wait for other work”, before Proof/,
+    )
+    expect(markup('launch-waits-for', 'invalid')).toMatch(/names nothing git can look for/)
+    for (const word of ['land', 'landed', 'landing']) {
+      for (const id of ['run-waits-for', 'group-leg-waits-for', 'launch-waits-for']) {
+        for (const state of states(id).filter((s) => !s.overlay)) {
+          const text = renderToStaticMarkup(<>{state.render()}</>).replace(/<[^>]+>/g, ' ')
+          expect(text, `${id}/${state.id}`).not.toMatch(new RegExp(`\\b${word}\\b`, 'i'))
+        }
+      }
+    }
+  })
+
+  it('shows a ticket’s proposal with each part’s features, its wait, and that the made story is ready to run', () => {
+    const id = 'ticket-story-proposal-features'
+    const states = SCENES.find((s) => s.id === id)?.states ?? []
+    const text = (state: string) =>
+      renderToStaticMarkup(<>{states.find((s) => s.id === state)?.render()}</>).replace(
+        /<[^>]+>/g,
+        ' ',
+      )
+    expect(states.map((s) => s.id)).toEqual(
+      expect.arrayContaining(['two-parts', 'part-waits', 'long-list', 'approved-ready', 'refused']),
+    )
+    const two = text('two-parts')
+    expect(two).toMatch(
+      /Backend.*Renewal call.*Refuse an upload that cannot renew.*Admin.*Last renewal column.*Filter by renewal age/s,
+    )
+    expect(two).not.toMatch(/Done when|Refuses an expired session/)
+    expect(text('features-open')).toMatch(
+      /Renewal call.*Done when.*Refuses an expired session.*Last renewal column.*The column shows the time.*Hovering it names the upload/s,
+    )
+    expect(text('part-waits')).toMatch(
+      /Waits for Session store and Upload limits to reach the base branch before its proof.*carries on by itself.*pull request https:\/\/github.com\/acme\/backend\/pull\/41.*branch upload-limits.*Renewal call/s,
+    )
+    expect(text('part-waits')).not.toMatch(/Continue now|Stop waiting/)
+    const long = text('long-list')
+    expect(long).toMatch(
+      /Renew before an upload starts.*Show a renewal failure on the upload.*6 more/s,
+    )
+    expect(long).not.toMatch(/Help page on long uploads/)
+    const ready = text('approved-ready')
+    expect(ready).toMatch(/Renewal call.*Last renewal column/s)
+    expect(ready).toMatch(/every part’s story with its features: it is ready to run\./)
+    expect(ready).not.toMatch(/Add nothing to it|startGroupWork|No features/)
+    expect(text('refused')).toMatch(/every part needs its features.*Admin.*No features/s)
+    for (const state of states) {
+      for (const word of ['land', 'landed', 'landing']) {
+        expect(text(state.id), state.id).not.toMatch(new RegExp(`\\b${word}\\b`, 'i'))
+      }
+    }
+  })
+
   it('pairs every accepted-unchecked state with a plain-pass base that never says it', () => {
     const scene = SCENES.find((s) => s.id === 'accepted-unchecked')
     const said = /accepted unchecked|never proven/i

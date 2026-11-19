@@ -612,6 +612,40 @@ describe('runProposalView — the run’s other buttons', () => {
     expect(view.sections[0]).toMatchObject({ key: 'step', summary: 'Fix' })
   })
 
+  it.each([
+    ['continueRunWaitNow', 'Continue now', 'Continue now'],
+    ['stopRunWaiting', 'Stop waiting', 'Stop waiting'],
+    ['waitRunAgain', 'Wait again', 'Wait again'],
+  ])(
+    'shows %s on a run’s wait by what it waits for, the note and what it does',
+    (tool, kindLabel, approve) => {
+      const view = runProposalView(tool, { note: 'Tested by hand' }, undefined, {
+        runTitle: 'ZNR-821',
+        waitsFor: ['ZNR-780', 'ZNR-781'],
+        effect: 'Carry “ZNR-821” on now.',
+      })!
+      expect(view).toMatchObject({
+        kind: 'wait',
+        kindLabel,
+        tone: 'working',
+        title: 'ZNR-821',
+        effect: 'Carry “ZNR-821” on now.',
+        approveLabel: approve,
+      })
+      expect(view.sections.map((s) => [s.key, s.summary])).toEqual([
+        ['waits-for', 'ZNR-780 and ZNR-781'],
+        ['note', 'Tested by hand'],
+      ])
+    },
+  )
+
+  it('says what a wait action does when the host stated nothing of its own', () => {
+    const view = runProposalView('stopRunWaiting', {}, undefined, {})!
+    expect(view.title).toBe('')
+    expect(view.sections).toEqual([])
+    expect(view.effect).toMatch(/goes on to its proof/)
+  })
+
   it('shows finishing a run as already landed, with where the work is and the features it makes done', () => {
     const landedBy = { commit: '1d1ed0a8841681a62be9ccb503bffaee08dedbd8', subject: 'notes' }
     const view = runProposalView('settleRunAlreadyLanded', {}, undefined, {

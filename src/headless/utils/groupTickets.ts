@@ -10,7 +10,9 @@ import {
 import type {
   GroupRunStartedWords,
   GroupTicket,
+  GroupTicketReviewNews,
   GroupTicketRow,
+  GroupTicketRowGroup,
   GroupTicketSection,
   GroupTicketSectionView,
   GroupTicketsState,
@@ -29,7 +31,11 @@ import {
   groupTicketTabItems,
 } from './groupTicketTabs'
 import type { GroupTicketTab } from './groupTicketTabTypes'
+import { reviewReplyLine } from './reviewReply'
+import { REVIEW_REPLY_TEXT } from './reviewReplyConstants'
+import type { ReviewCommitsView } from './reviewCommitsTypes'
 import { ticketStatusTone } from './ticketStatus'
+import { timeAgo } from './time'
 
 const NO_SECTION: GroupTicketSection = { list: undefined, readError: null, loadingMore: false }
 
@@ -120,16 +126,43 @@ export function groupStoryTicketChip(
   })
 }
 
+/** The reply waiting to start a ticket's next round: a next-round update still new. */
+function waitingReply(ticket: GroupTicket): GroupTicket['reviewOffer'] {
+  const offer = ticket.reviewOffer
+  return offer?.kind === 'next-round' && offer.state === 'new' ? offer : undefined
+}
+
+function reviewNewsOf(
+  ticket: GroupTicket,
+  commits: ReviewCommitsView | undefined,
+  now: number,
+): GroupTicketReviewNews | undefined {
+  if (!ticket.reviewOpen) return undefined
+  const offer = waitingReply(ticket)
+  if (offer) {
+    const who = REVIEW_REPLY_TEXT.replied(offer.author.trim() || REVIEW_REPLY_TEXT.someone)
+    const when = timeAgo(now, Date.parse(offer.postedAt))
+    return {
+      reply: reviewReplyLine(who, when, undefined),
+      ...(commits ? { commits } : {}),
+      line: reviewReplyLine(who, when, commits),
+    }
+  }
+  return commits && commits.tone !== 'quiet' ? { commits, line: commits.label } : undefined
+}
+
 function ticketRow(
   ticket: GroupTicket,
   tab: GroupTicketTab | undefined,
   state: Pick<GroupTicketsState, 'starting' | 'reviewing'>,
   now: number,
+  commits: ReviewCommitsView | undefined,
 ): GroupTicketRow {
   const { key, summary, priority, status, statusCategory, url, groupStory, chatOpen } = ticket
   const review = state.reviewing[key]
   const actions = groupTicketRowActions(ticket, tab)
   const { starting } = state
+  const news = reviewNewsOf(ticket, commits, now)
   return {
     key,
     summary,
@@ -146,7 +179,50 @@ function ticketRow(
       : {}),
     ...(starting?.key === key ? { starting: starting.action } : {}),
     hint: GROUP_TICKET_TAB_ROW_TEXT.openTicket(key),
+    ...(news ? { reviewNews: news } : {}),
   }
+}
+
+/** Every row of a list, its groups in order. Pure. */
+export function groupTicketSectionRows(
+  section: Pick<GroupTicketSectionView, 'groups'>,
+): GroupTicketRow[] {
+  return section.groups.flatMap((group) => group.rows)
+}
+
+function oneGroup(rows: GroupTicketRow[]): GroupTicketRowGroup[] {
+  return rows.length > 0 ? [{ id: 'all', rows }] : []
+}
+
+/**
+ * Everyone else's rows, split once some are under review: those first, the
+ * ones with a reply waiting on top, newest reply first, then the rest. One
+ * list, as before, while none is.
+ */
+function othersGroups(
+  rows: GroupTicketRow[],
+  tickets: readonly GroupTicket[],
+): GroupTicketRowGroup[] {
+  const replied = new Map<string, number>()
+  for (const ticket of tickets) {
+    const offer = waitingReply(ticket)
+    if (offer && ticket.reviewOpen) replied.set(ticket.key, Date.parse(offer.postedAt))
+  }
+  const reviewing = rows.filter((r) => r.reviewOpen)
+  if (reviewing.length === 0) return oneGroup(rows)
+  const toReview = rows.filter((r) => !r.reviewOpen)
+  const sorted = [
+    ...reviewing
+      .filter((r) => replied.has(r.key))
+      .sort((a, b) => replied.get(b.key)! - replied.get(a.key)!),
+    ...reviewing.filter((r) => !replied.has(r.key)),
+  ]
+  return [
+    { id: 'reviewing', heading: GROUP_TICKETS_TEXT.reviewing, rows: sorted },
+    ...(toReview.length > 0
+      ? [{ id: 'to-review' as const, heading: GROUP_TICKETS_TEXT.toReview, rows: toReview }]
+      : []),
+  ]
 }
 
 function listLine(rows: readonly GroupTicketRow[]): string {
@@ -157,9 +233,13 @@ function listLine(rows: readonly GroupTicketRow[]): string {
   return `${count} · ${withWork} ${withWork === 1 ? 'has' : 'have'} work`
 }
 
-function sideView(rows: GroupTicketRow[], emptyLine: string | undefined): GroupTicketSectionView {
+function sideView(
+  groups: GroupTicketRowGroup[],
+  emptyLine: string | undefined,
+): GroupTicketSectionView {
+  const rows = groupTicketSectionRows({ groups })
   return {
-    rows,
+    groups,
     line: listLine(rows),
     ...(rows.length === 0 && emptyLine ? { emptyLine } : {}),
     loading: false,
@@ -174,7 +254,7 @@ function searchView(
 ): GroupTicketSectionView {
   const { list, readError, loadingMore } = search
   return {
-    rows,
+    groups: oneGroup(rows),
     line: listLine(rows),
     ...(list?.tickets.length === 0
       ? { emptyLine: GROUP_TICKETS_TEXT.noResults(search.query) }
@@ -192,9 +272,16 @@ function searchView(
  * with its tab's actions for its side. A search stands in for the tab while
  * it is on, each row with the actions of the tab it falls in. The next
  * ticket is only ever one of the person's the tab lets them take. `now` says
- * how long ago each update and reply came.
+ * how long ago each update and reply came. Everyone else's tickets under
+ * review stand apart above the rest, each saying the reply waiting on it and
+ * what its pull requests did since the last round, from `commits` by key once
+ * read.
  */
-export function groupTicketsView(state: GroupTicketsState, now = Date.now()): GroupTicketsView {
+export function groupTicketsView(
+  state: GroupTicketsState,
+  now = Date.now(),
+  commits: Readonly<Record<string, ReviewCommitsView>> = {},
+): GroupTicketsView {
   const { tabs: read, byTab, tabCounts, search, startError, offerError } = state
   const tabs = read.tabs
   if (!tabs) return read.readError ? { kind: 'failed', error: read.readError } : { kind: 'loading' }
@@ -203,7 +290,9 @@ export function groupTicketsView(state: GroupTicketsState, now = Date.now()): Gr
   const { list } = section
   if (list?.connected === false || search.list?.connected === false) return { kind: 'no-jira' }
 
-  const rows = (list?.tickets ?? []).map((t) => ticketRow(t, shown, state, now))
+  const rowOf = (t: GroupTicket, tab: GroupTicketTab | undefined) =>
+    ticketRow(t, tab, state, now, commits[t.key])
+  const rows = (list?.tickets ?? []).map((t) => rowOf(t, shown))
   const mineKeys = new Set((list?.tickets ?? []).filter((t) => t.mine).map((t) => t.key))
   const mineRows = rows.filter((r) => mineKeys.has(r.key))
   const next = mineRows.find((r) => r.key === list?.nextTicketKey && r.actions.includes('take'))
@@ -211,7 +300,7 @@ export function groupTicketsView(state: GroupTicketsState, now = Date.now()): Gr
   const say = (line: string) => (list && !empty ? line : undefined)
   const tabOf = (ticket: GroupTicket) => tabs.find((t) => t.id === ticket.tabId)
   const mine = sideView(
-    mineRows.filter((r) => r !== next),
+    oneGroup(mineRows.filter((r) => r !== next)),
     next ? undefined : say(GROUP_TICKET_TAB_ROW_TEXT.noneYours),
   )
   return {
@@ -221,7 +310,10 @@ export function groupTicketsView(state: GroupTicketsState, now = Date.now()): Gr
     ...(next ? { next } : {}),
     mine: { ...mine, loading: !list && !section.readError },
     others: sideView(
-      rows.filter((r) => !mineKeys.has(r.key)),
+      othersGroups(
+        rows.filter((r) => !mineKeys.has(r.key)),
+        list?.tickets ?? [],
+      ),
       say(GROUP_TICKET_TAB_ROW_TEXT.noneOthers),
     ),
     ...(empty ? { emptyLine: GROUP_TICKET_TAB_ROW_TEXT.emptyTab } : {}),
@@ -233,7 +325,7 @@ export function groupTicketsView(state: GroupTicketsState, now = Date.now()): Gr
             query: search.query,
             ...searchView(
               search,
-              (search.list?.tickets ?? []).map((t) => ticketRow(t, tabOf(t), state, now)),
+              (search.list?.tickets ?? []).map((t) => rowOf(t, tabOf(t))),
             ),
           },
         }
@@ -244,6 +336,20 @@ export function groupTicketsView(state: GroupTicketsState, now = Date.now()): Gr
     offerCount: (list ?? search.list)?.reviewOfferCount ?? 0,
     ...(offerError ? { offerError } : {}),
   }
+}
+
+/**
+ * The tickets under review on the tab on screen and in the search, each once:
+ * the ones whose commits since review the list reads. Pure.
+ */
+export function reviewOpenTicketKeys(state: GroupTicketsState): string[] {
+  const tabs = state.tabs.tabs
+  const shown = tabs ? groupTicketShownTab(tabs, state.tab) : undefined
+  const tickets = [
+    ...((shown && state.byTab[shown.id]?.list?.tickets) || []),
+    ...(state.search.list?.tickets ?? []),
+  ]
+  return [...new Set(tickets.filter((t) => t.reviewOpen).map((t) => t.key))]
 }
 
 /** What a launch card draws of a ticket: a whole move to tick, why there is none, or nothing. */

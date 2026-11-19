@@ -8,11 +8,13 @@ import type { TicketReviewOffer } from '../utils/colleagueReviewSourceTypes'
 import { reviewStartLabel } from '../utils/colleagueReviewStart'
 import { COLLEAGUE_REVIEWS_EVENT } from '../utils/colleagueReviewStartConstants'
 import { groupTicketPageView } from '../utils/groupTicketPage'
+import { waitingReviewReply } from '../utils/reviewReply'
 import type { GroupTicketOverview, GroupTicketPageState } from '../utils/groupTicketPageTypes'
 import type { GroupTicketAction, TicketPlanStarted } from '../utils/groupTicketTypes'
 import { GroupTicketOverviewStore } from './groupTicketOverviewStore'
 import { useColleagueReview } from './useColleagueReview'
 import { useColleagueReviewMerge } from './useColleagueReviewMerge'
+import { useReviewCommits } from './useReviewCommits'
 import {
   groupTicketsStoreFor,
   useReviewPasteBox,
@@ -34,7 +36,8 @@ function overviewStoreFor(groupId: string): GroupTicketOverviewStore {
 
 /** The update a ticket's page opens the paste box on: the newest still waiting or put aside. */
 function knownOf(overview: GroupTicketOverview | undefined): TicketReviewKnown {
-  const update = overview?.updates.find((u) => u.state !== 'started')
+  const updates = overview?.updates ?? []
+  const update = waitingReviewReply(updates) ?? updates.find((u) => u.state !== 'started')
   const offer: TicketReviewOffer | undefined =
     update && update.state !== 'started'
       ? {
@@ -155,17 +158,19 @@ export function useGroupTicketPage(groupId: string, ticketKey: string): UseGroup
   )
 
   const tabs = ticketsState.tabs.tabs
+  const commitsKeys = useMemo(() => (overview?.review ? [ticketKey] : []), [overview, ticketKey])
+  const commits = useReviewCommits(groupId, commitsKeys)[ticketKey]
   const state = useMemo<GroupTicketPageState>(() => {
     if (snapshot.overview) {
       return {
         kind: 'page',
-        page: groupTicketPageView(ticketKey, snapshot.overview, tabs, Date.now()),
+        page: groupTicketPageView(ticketKey, snapshot.overview, tabs, Date.now(), commits),
         refreshing: snapshot.reading,
       }
     }
     if (snapshot.readError) return { kind: 'failed', error: snapshot.readError }
     return { kind: 'loading' }
-  }, [snapshot, ticketKey, tabs])
+  }, [snapshot, ticketKey, tabs, commits])
 
   const phase = ticketsState.reviewing[ticketKey]
   const starting =

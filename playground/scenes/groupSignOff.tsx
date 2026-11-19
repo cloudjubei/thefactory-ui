@@ -932,6 +932,31 @@ export const GROUP_SIGN_OFF_SCENES: Scene[] = [
           ),
       },
       {
+        id: 'building-waiting',
+        title: 'A repo waits for other work',
+        description:
+          'One repo’s run waits for ENG-780 to reach dev before its proof: it says so, and that it carries on by itself — never that it needs you.',
+        render: () =>
+          page(
+            signOffBoard({
+              view: data({
+                status: 'running',
+                canDecide: false,
+                repos: [
+                  BE,
+                  {
+                    ...WEB,
+                    status: 'waiting',
+                    baseRef: 'dev',
+                    pullRequest: { state: 'waiting' },
+                    wait: { waitsFor: ['ENG-780'], waitingOn: ['ENG-780'] },
+                  },
+                ],
+              }),
+            }),
+          ),
+      },
+      {
         id: 'ended',
         title: 'Rejected',
         render: () =>

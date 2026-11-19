@@ -14,6 +14,7 @@ import type {
 import type { CheckMethodRow } from './checkMethodTypes'
 import type { TicketChipView } from './groupTicketTypes'
 import type { ProcessStatusTone } from './processView'
+import type { GroupSignOffRepoWait } from './processRunWaitTypes'
 
 /** Where a repo stands with its pull request, as the group sign-off route says it. */
 export type GroupSignOffPullRequestState =
@@ -52,6 +53,8 @@ export interface GroupSignOffRepo {
   ticketPost?: TicketPost
   /** What its run still leaves for the person. */
   leftForYou: GroupSignOffLeftForYou
+  /** Its run waits for other work before its proof. */
+  wait?: GroupSignOffRepoWait
 }
 
 /** What a repo's run still leaves for the person at the sign-off. */
@@ -181,6 +184,8 @@ export interface GroupSignOffRepoRow {
   busy: boolean
   /** What approving would post, while that is still to decide. */
   ticketPost?: TicketPostView
+  /** What its run waits for before its proof, or how that wait settled. */
+  waitLine?: string
 }
 
 /** One thing to attach. */

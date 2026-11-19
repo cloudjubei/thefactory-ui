@@ -141,6 +141,11 @@ describe('appRunStateOf', () => {
       park: { reason: 'waiting-on-blockers', message: 'Waiting', parkedAt: 5 },
     } as never)
     expect(appRunStateOf([blocked], NOW).state).toBe('queued')
+    const waitsForWork = run({
+      status: 'parked',
+      park: { reason: 'waiting-on-work', message: 'Waiting', parkedAt: 5 },
+    } as never)
+    expect(appRunStateOf([waitsForWork], NOW).state).toBe('queued')
     expect(appRunStateOf([run({ status: 'pending' })], NOW).state).toBe('queued')
   })
 

@@ -9,7 +9,9 @@ import {
   REVIEW_OFFER_DEFAULT_LAYOUT,
   REVIEW_OFFER_TEXT,
   REVIEW_START_TEXT,
+  groupTicketSectionRows,
   type GroupTicketListName,
+  type GroupTicketReviewNews,
   type GroupTicketRow,
   type GroupTicketSectionView,
   type GroupTicketsLayout,
@@ -305,7 +307,9 @@ function TabMenu({ tabs, active, onPick }: TabPick) {
 
 function count(view: Listed, shown: GroupTicketsShown): ReactNode {
   const total =
-    shown === 'mine' ? view.mine.rows.length + (view.next ? 1 : 0) : view.others.rows.length
+    shown === 'mine'
+      ? groupTicketSectionRows(view.mine).length + (view.next ? 1 : 0)
+      : groupTicketSectionRows(view.others).length
   return total > 0 ? <span className="opacity-80">{total}</span> : null
 }
 
@@ -342,7 +346,7 @@ function TicketSection({
   onRetry?: () => void
   onLoadMore?: () => void
 }) {
-  const hasCard = Boolean(top) || section.rows.length > 0
+  const hasCard = Boolean(top) || section.groups.length > 0
   const hasWords = section.loading || section.emptyLine || section.readError
   if (!hasCard && !hasWords) return null
   return (
@@ -359,17 +363,37 @@ function TicketSection({
       {hasCard ? (
         <div className="overflow-hidden rounded-lg border border-(--border-subtle) bg-(--surface-raised)">
           {top}
-          <ul role="list" className="m-0 flex list-none flex-col p-0">
-            {section.rows.map((row, index) => (
-              <TicketRow
-                key={row.key}
-                row={row}
-                starting={starting}
-                divided={index > 0 || Boolean(top)}
-                {...actions}
-              />
-            ))}
-          </ul>
+          {section.groups.map((group, at) => (
+            <div
+              key={group.id}
+              role={group.heading ? 'group' : undefined}
+              aria-label={group.heading}
+            >
+              {group.heading ? (
+                <div
+                  className={`flex items-baseline gap-2 bg-(--surface-sunken) px-3 py-1 ${
+                    at > 0 || top ? 'border-t border-(--border-subtle)' : ''
+                  }`}
+                >
+                  <span className={LABEL_CLASS}>{group.heading}</span>
+                  <span className="text-[11px] tabular-nums text-(--text-muted)">
+                    {group.rows.length}
+                  </span>
+                </div>
+              ) : null}
+              <ul role="list" className="m-0 flex list-none flex-col p-0">
+                {group.rows.map((row, index) => (
+                  <TicketRow
+                    key={row.key}
+                    row={row}
+                    starting={starting}
+                    divided={index > 0 || (!group.heading && (at > 0 || Boolean(top)))}
+                    {...actions}
+                  />
+                ))}
+              </ul>
+            </div>
+          ))}
           {section.canLoadMore && onLoadMore ? (
             <div className="border-t border-(--border-subtle) px-3 py-1.5">
               <Button size="sm" variant="ghost" loading={section.loadingMore} onClick={onLoadMore}>
@@ -642,6 +666,58 @@ function OfferStrip({
   )
 }
 
+const COMMITS_TONE: Record<NonNullable<GroupTicketReviewNews['commits']>['tone'], string> = {
+  news: 'font-medium text-(--accent-primary)',
+  warn: 'font-medium text-(--status-working-soft-fg)',
+  quiet: 'text-(--text-muted)',
+}
+
+/** What came on a ticket under review, in a line under its row: who replied and when, what was pushed, the reply's Slack message, and Dismiss. */
+function ReviewNewsLine({
+  row,
+  news,
+  offer,
+  onDismissOffer,
+}: {
+  row: GroupTicketRow
+  news: GroupTicketReviewNews
+  offer: ReviewOfferRowView | undefined
+  onDismissOffer?: ((ticketKey: string) => void) | undefined
+}) {
+  return (
+    <div
+      title={news.line}
+      className={`flex min-w-0 basis-full flex-wrap items-center gap-x-2 gap-y-1 rounded-md py-1 text-[12px] ${
+        news.reply ? 'bg-(--accent-primary)/8 px-2' : ''
+      }`}
+    >
+      <span className="min-w-0">
+        {news.reply ? (
+          <IconChat className="mr-1.5 inline size-3.5 align-[-3px] text-(--accent-primary)" />
+        ) : null}
+        {news.reply ? (
+          <span className="font-medium text-(--text-primary)">{news.reply}</span>
+        ) : null}
+        {news.reply && news.commits ? <span className="text-(--text-muted)"> · </span> : null}
+        {news.commits ? (
+          <span className={COMMITS_TONE[news.commits.tone]}>{news.commits.label}</span>
+        ) : null}
+      </span>
+      {offer ? <OfferLink offer={offer} /> : null}
+      {offer && onDismissOffer && !offer.dismissed ? (
+        <button
+          type="button"
+          className="ml-auto shrink-0 text-(--text-secondary) hover:text-(--text-primary) hover:underline"
+          title={REVIEW_OFFER_TEXT.dismissHint(row.key)}
+          onClick={stop(() => onDismissOffer(row.key))}
+        >
+          {REVIEW_OFFER_TEXT.dismiss}
+        </button>
+      ) : null}
+    </div>
+  )
+}
+
 function NextTicket({
   row,
   starting,
@@ -684,7 +760,9 @@ function TicketRow({
   ...actions
 }: TicketActions & { row: GroupTicketRow; starting: boolean; divided: boolean }) {
   const { work } = row
-  const offer = actions.onReview && row.actions.includes('review') ? row.offer : undefined
+  const news = row.reviewNews
+  const shownOffer = actions.onReview && row.actions.includes('review') ? row.offer : undefined
+  const offer = news?.reply ? undefined : shownOffer
   return (
     <li className={divided ? 'border-t border-(--border-subtle)' : undefined}>
       <div
@@ -721,6 +799,14 @@ function TicketRow({
         </span>
         {offer && offerLayout === 'strip' ? (
           <OfferStrip row={row} offer={offer} onDismissOffer={actions.onDismissOffer} />
+        ) : null}
+        {news ? (
+          <ReviewNewsLine
+            row={row}
+            news={news}
+            offer={news.reply ? shownOffer : undefined}
+            onDismissOffer={offerLayout === 'button' ? undefined : actions.onDismissOffer}
+          />
         ) : null}
       </div>
     </li>

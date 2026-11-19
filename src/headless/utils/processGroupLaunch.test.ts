@@ -54,6 +54,23 @@ describe('startGroupWorkGrantSummary', () => {
     )
   })
 
+  it('reads what each leg asked its run to wait for, by project, beside the legs the preview reads', () => {
+    const summary = startGroupWorkGrantSummary({
+      detail: {
+        args: {
+          legs: [
+            { projectId: 'tools', storyId: 's1', waitsFor: [{ label: 'ZNR-780', branch: 'b' }] },
+            { projectId: 'ui', storyId: 's2', waitsFor: [{ label: 'bad' }] },
+            { projectId: 'web', storyId: 's3' },
+          ],
+        },
+      },
+    })
+    expect(summary.legWaitsFor).toEqual({ tools: [{ label: 'ZNR-780', branch: 'b' }] })
+    expect(summary.legs[0]).not.toHaveProperty('waitsFor')
+    expect(startGroupWorkGrantSummary({ detail: { args: ARGS } })).not.toHaveProperty('legWaitsFor')
+  })
+
   it('reads the branch each leg asked to go off, trimmed, dropping a blank one', () => {
     expect(
       startGroupWorkGrantSummary({

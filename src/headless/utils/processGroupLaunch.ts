@@ -1,3 +1,5 @@
+import type { ProcessWaitFor } from 'thefactory-tools/types'
+import { processWaitsForOf } from 'thefactory-tools/utils'
 import type { PendingToolGrant } from './chatTypes'
 import { START_GROUP_WORK_TOOL_NAME } from './processGroupLaunchConstants'
 import type {
@@ -27,6 +29,7 @@ export function startGroupWorkGrantSummary(
   const outer = isRecord(grant.detail) ? grant.detail : {}
   const record = isRecord(outer.args) ? outer.args : {}
   const legs: ProcessGroupLegRequest[] = []
+  const legWaitsFor: Record<string, ProcessWaitFor[]> = {}
   for (const raw of Array.isArray(record.legs) ? record.legs : []) {
     const projectId = isRecord(raw) ? text(raw.projectId) : undefined
     const storyId = isRecord(raw) ? text(raw.storyId) : undefined
@@ -36,6 +39,8 @@ export function startGroupWorkGrantSummary(
       : []
     const processId = text(raw.processId)
     const baseBranch = text(raw.baseBranch)
+    const waits = processWaitsForOf(raw.waitsFor)
+    if ('waitsFor' in waits && waits.waitsFor.length > 0) legWaitsFor[projectId] = waits.waitsFor
     legs.push({
       projectId,
       storyId,
@@ -60,6 +65,7 @@ export function startGroupWorkGrantSummary(
     ...(runner === 'cli' || runner === 'api' ? { runner } : {}),
     ...(typeof spendCapUsd === 'number' && spendCapUsd > 0 ? { spendCapUsd } : {}),
     ...(record.turnLimit !== undefined ? { turnLimit: record.turnLimit } : {}),
+    ...(Object.keys(legWaitsFor).length > 0 ? { legWaitsFor } : {}),
   }
 }
 

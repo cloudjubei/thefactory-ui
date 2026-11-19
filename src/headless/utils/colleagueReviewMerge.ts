@@ -1,5 +1,5 @@
 import type { ColleagueReview, ReviewPullRequestRef } from 'thefactory-tools/types'
-import { latestReviewRound } from 'thefactory-tools/utils'
+import { latestReviewRound, reviewPullRequestsAt } from 'thefactory-tools/utils'
 import { slackMessageLink } from './colleagueReviewSource'
 import {
   REVIEW_MERGE_BACKEND_REPO,
@@ -118,7 +118,7 @@ export function reviewCardMerge(
   if (!review || latestReviewRound(review) !== n) return undefined
   const round = review.rounds.find((r) => r.n === n)
   if (!round?.recordedAt) return undefined
-  const prs = reviewMergePullRequests(round.submission.pullRequests)
+  const prs = reviewMergePullRequests(reviewPullRequestsAt(review, n))
   const starting = snapshot.starting !== undefined
   const view = reviewMergeView({ job: snapshot.job, starting, prs })
   if (prs.length === 0 && !view) return undefined

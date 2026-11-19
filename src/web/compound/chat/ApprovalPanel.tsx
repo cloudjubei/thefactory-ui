@@ -77,9 +77,16 @@ import {
   useProcessProposal,
   useProcessRunStatistics,
   useProjectNotes,
+  useProjects,
   useStories,
+  launchWaitsForMetadata,
+  processProposalWaitLine,
+  processWaitForDraftsOf,
+  processWaitForDraftsProblem,
+  processWaitsForOfDrafts,
 } from '../../../headless'
 import type {
+  ProcessWaitForDrafts,
   AgentTypeSlotPicks,
   FakeDataInProduct,
   LaunchProofPlanEdits,
@@ -97,6 +104,7 @@ import AlreadyDoneNote from './AlreadyDoneNote'
 import LaunchCapsFields from './LaunchCapsFields'
 import LaunchFakeDataChoice from './LaunchFakeDataChoice'
 import LaunchFeatureList from './LaunchFeatureList'
+import LaunchWaitFields from './LaunchWaitFields'
 import ProjectNoteChip from '../chips/ProjectNoteChip'
 import GitSetupApprovalPanel from './GitSetupApprovalPanel'
 import GroupWorkLaunchPanel from './GroupWorkLaunchPanel'
@@ -344,10 +352,20 @@ function ToolApprovalPanel({
   const askedIterations = launchCapsMetadata(
     launchCapFields({ asked: askedCaps, typed: capsTyped }),
   ).maxIterations
+  const { projects } = useProjects()
+  const [waitDrafts, setWaitDrafts] = useState<ProcessWaitForDrafts>(() =>
+    processWaitForDraftsOf(summary.waitsFor),
+  )
+  const waitsForSent = processWaitsForOfDrafts(waitDrafts)
+  const waitProjects = projects
+    .filter((p) => p.id !== projectId)
+    .map((p) => ({ id: p.id, title: p.title }))
   const {
     proposal,
     refusal,
     isLoaded: proposalLoaded,
+    waitProblem: previewWaitProblem,
+    waitChecking,
   } = useProcessProposal({
     projectId,
     storyId: isLaunch ? summary.storyId : undefined,
@@ -356,7 +374,11 @@ function ToolApprovalPanel({
     ...(previewFeatureIds ? { featureIds: previewFeatureIds } : {}),
     ...(summary.agentTypeSlots ? { agentTypeSlots: summary.agentTypeSlots } : {}),
     ...(askedIterations !== undefined ? { maxIterations: askedIterations } : {}),
+    ...(!inChat && waitsForSent.length > 0 ? { waitsFor: waitsForSent } : {}),
   })
+  const waitProblem = inChat
+    ? undefined
+    : (previewWaitProblem ?? processWaitForDraftsProblem(waitDrafts))
   if (defaultFeatureProcessRef.current === undefined && featureProcessPick === undefined) {
     defaultFeatureProcessRef.current = proposalFeatureProcessId(proposal)
   }
@@ -516,6 +538,7 @@ function ToolApprovalPanel({
                   ...(decision === 'once' && proofPlanMeta ? proofPlanMeta : {}),
                   ...(decision === 'once' && pickMeta ? pickMeta : {}),
                   ...(decision === 'once' && fakeDataMeta ? fakeDataMeta : {}),
+                  ...(decision === 'once' ? launchWaitsForMetadata(waitDrafts) : {}),
                 }
               : undefined,
         ),
@@ -538,7 +561,10 @@ function ToolApprovalPanel({
         view={view}
         busy={busy}
         error={error}
-        ready={check.ready && (inChat || launchCapsValid(capFields))}
+        ready={
+          check.ready &&
+          (inChat || (launchCapsValid(capFields) && waitProblem === undefined && !waitChecking))
+        }
         {...(check.problem !== undefined ? { problem: check.problem } : {})}
         onApprove={() => decide('once')}
         onDeny={() => decide('deny')}
@@ -756,6 +782,20 @@ function ToolApprovalPanel({
 
         {!inChat && fakeData ? (
           <LaunchFakeDataChoice value={fakeData} busy={busy} onChange={setFakeDataPick} />
+        ) : null}
+
+        {isLaunch && !inChat ? (
+          <LaunchWaitFields
+            drafts={waitDrafts}
+            onChange={setWaitDrafts}
+            {...(waitProblem ? { problem: waitProblem } : {})}
+            checking={waitChecking}
+            {...(processProposalWaitLine(proposal)
+              ? { planLine: processProposalWaitLine(proposal) }
+              : {})}
+            projects={waitProjects}
+            busy={busy}
+          />
         ) : null}
 
         {isLaunch ? <WorkFilesList files={summary.files} /> : null}

@@ -359,3 +359,108 @@ describe('groupTicketUpdateLinks', () => {
     expect(groupTicketUpdateLinks(text)).toHaveLength(6)
   })
 })
+
+describe('groupTicketPageView: a reply waiting on the review', () => {
+  const REVIEW_CHAT = { type: 'GROUP_TOPIC', groupId: 'g1', topicId: 'review-ZNR-1' } as const
+  const reviewed = (over: Partial<GroupTicketOverview> = {}) =>
+    overview({
+      review: {
+        rounds: [
+          { n: 1, startedAt: HOURS_AGO(30) },
+          { n: 2, startedAt: HOURS_AGO(20) },
+        ],
+        openFindings: 1,
+        runs: [],
+      },
+      updates: [
+        offer('older', { kind: 'next-round', postedAt: HOURS_AGO(5), author: 'Aashan' }),
+        offer('reply', {
+          kind: 'next-round',
+          postedAt: HOURS_AGO(1),
+          author: 'Aashan',
+          text: 'Pushed the fix.',
+          files: 2,
+          fileNames: ['a.png', 'b.png'],
+        }),
+        offer('started', { kind: 'next-round', state: 'started', postedAt: HOURS_AGO(0.5) }),
+      ],
+      chats: [
+        {
+          context: REVIEW_CHAT,
+          chatContextId: 'review-chat',
+          title: 'Review ZNR-1',
+          updatedAt: HOURS_AGO(1),
+        },
+        {
+          context: { type: 'GROUP_TOPIC', groupId: 'g1', topicId: 'ticket-ZNR-1' },
+          chatContextId: 'ticket-chat',
+          title: 'ZNR-1',
+          updatedAt: HOURS_AGO(2),
+        },
+      ],
+      ...over,
+    })
+
+  it('shows the newest waiting reply with the round Start begins and the commits since', () => {
+    const page = groupTicketPageView('ZNR-1', reviewed(), TABS, NOW, {
+      label: '3 new commits',
+      tone: 'news',
+    })
+    expect(page.reply).toMatchObject({
+      offerId: 'reply',
+      who: 'Aashan replied',
+      text: 'Pushed the fix.',
+      filesLabel: '2 files',
+      round: 3,
+      startLabel: 'Start round 3',
+      commits: { label: '3 new commits', tone: 'news' },
+    })
+    expect(page.reply?.line).toBe(`Aashan replied · ${page.reply?.when} · 3 new commits`)
+    expect(page.reviewChat).toEqual(REVIEW_CHAT)
+    expect(page).not.toHaveProperty('commits')
+  })
+
+  it('shows what was pushed alone when no reply waits, and names the live run holding the review', () => {
+    const page = groupTicketPageView(
+      'ZNR-1',
+      reviewed({
+        updates: [],
+        review: {
+          rounds: [{ n: 1, startedAt: HOURS_AGO(3) }],
+          openFindings: 0,
+          runs: [
+            { id: 'done', status: 'succeeded', round: 1, projectId: 'p1' },
+            { id: 'live', status: 'parked', round: 1, projectId: 'p1' },
+          ],
+        },
+      }),
+      TABS,
+      NOW,
+      { label: 'Rewritten since review', tone: 'warn' },
+    )
+    expect(page).not.toHaveProperty('reply')
+    expect(page.commits).toEqual({ label: 'Rewritten since review', tone: 'warn' })
+    expect(page.liveRun).toEqual({ id: 'live', projectId: 'p1' })
+  })
+
+  it('says nothing when nothing was pushed and no reply waits, and has no review chat without one', () => {
+    const page = groupTicketPageView('ZNR-1', reviewed({ updates: [], chats: [] }), TABS, NOW, {
+      label: 'No new commits',
+      tone: 'quiet',
+    })
+    expect(page).not.toHaveProperty('commits')
+    expect(page).not.toHaveProperty('reply')
+    expect(page).not.toHaveProperty('reviewChat')
+    expect(page).not.toHaveProperty('liveRun')
+  })
+
+  it('starts the first round from a reply on a ticket with no review yet', () => {
+    const page = groupTicketPageView(
+      'ZNR-1',
+      overview({ updates: [offer('r', { kind: 'next-round' })] }),
+      TABS,
+      NOW,
+    )
+    expect(page.reply?.startLabel).toBe('Start round 1')
+  })
+})

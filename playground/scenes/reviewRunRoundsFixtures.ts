@@ -95,7 +95,40 @@ const DIFF = [
   ' }',
 ].join('\n')
 
-const resolved = (checksPassed: boolean): ColleagueReviewBranchUpdate => ({
+type PushChecks = 'passed' | 'failed' | 'fails-on-dev'
+
+const LINT_TAIL = [
+  'src/sync/queue.ts',
+  "  41:7   error  'pending' is assigned a value but never used  @typescript-eslint/no-unused-vars",
+  'src/plans/plan.service.ts',
+  '  88:12  error  Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any',
+  '',
+  '✖ 132 problems (132 errors, 0 warnings)',
+].join('\n')
+
+const PUSH_CHECKS: Record<PushChecks, ColleagueReviewBranchUpdate['checks']> = {
+  passed: [
+    { label: 'Unit tests', status: 'passed', summary: '214 passed' },
+    { label: 'Types', status: 'passed', summary: 'No errors' },
+  ],
+  failed: [
+    { label: 'Unit tests', status: 'failed', summary: '2 failed' },
+    { label: 'Types', status: 'passed', summary: 'No errors' },
+  ],
+  'fails-on-dev': [
+    { label: 'Build', status: 'passed', summary: 'Built' },
+    { label: 'Unit tests', status: 'passed', summary: '214 passed' },
+    {
+      label: 'Lint',
+      status: 'failed',
+      summary: 'Exited 1',
+      baseline: { sha: '28cf0129e4b7a3d6', status: 'failed', verdict: 'pre-existing' },
+      outputTail: LINT_TAIL,
+    },
+  ],
+}
+
+const resolved = (checks: PushChecks): ColleagueReviewBranchUpdate => ({
   pullRequestUrl: 'https://github.com/acme/osc-be/pull/418',
   state: 'resolved',
   headSha: '4f1c2aa',
@@ -106,16 +139,8 @@ const resolved = (checksPassed: boolean): ColleagueReviewBranchUpdate => ({
   conflictedFiles: ['src/sync/retry.ts'],
   diffStat: ' src/sync/retry.ts | 3 ++-\n 1 file changed, 2 insertions(+), 1 deletion(-)',
   diff: DIFF,
-  checks: checksPassed
-    ? [
-        { label: 'Unit tests', status: 'passed', summary: '214 passed' },
-        { label: 'Types', status: 'passed', summary: 'No errors' },
-      ]
-    : [
-        { label: 'Unit tests', status: 'failed', summary: '2 failed' },
-        { label: 'Types', status: 'passed', summary: 'No errors' },
-      ],
-  checksPassed,
+  checks: PUSH_CHECKS[checks],
+  checksPassed: checks !== 'failed',
 })
 
 const UPDATED_UI: ColleagueReviewBranchUpdate = {
@@ -128,23 +153,26 @@ const UPDATED_UI: ColleagueReviewBranchUpdate = {
   detail: 'GitHub brought dev in.',
 }
 
-const pushRun = (checksPassed: boolean): ProcessRun =>
+const pushRun = (checks: PushChecks): ProcessRun =>
   ({
     ...base,
     park: { reason: 'gate', stepId: 'push-approval', message: 'Approve the push', parkedAt: 3 },
-    input: { reviewBranchUpdates: [UPDATED_UI, resolved(checksPassed)] },
+    input: { reviewBranchUpdates: [UPDATED_UI, resolved(checks)] },
   }) as unknown as ProcessRun
 
 /** The push approval with a resolution whose checks passed. */
-export const REVIEW_RUN_PUSH_PASSED = pushRun(true)
+export const REVIEW_RUN_PUSH_PASSED = pushRun('passed')
 
 /** The push approval with a resolution whose checks failed. */
-export const REVIEW_RUN_PUSH_FAILED = pushRun(false)
+export const REVIEW_RUN_PUSH_FAILED = pushRun('failed')
+
+/** The push approval with a resolution whose lint fails on dev the same way: it does not block. */
+export const REVIEW_RUN_PUSH_FAILS_ON_DEV = pushRun('fails-on-dev')
 
 /** After the push and the merge: every pull request has its base. */
 export const REVIEW_RUN_PUSHED: ColleagueReviewBranchUpdate[] = [
   {
-    ...resolved(true),
+    ...resolved('passed'),
     state: 'pushed',
     detail: 'Pushed the resolution to feature/ZNR-767-retry, as you.',
   },

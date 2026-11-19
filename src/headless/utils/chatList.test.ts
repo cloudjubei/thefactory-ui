@@ -149,6 +149,23 @@ describe('chatListRow — what a row says', () => {
     })
   })
 
+  it('says what a run waiting for other work waits for in its card’s words, pilled as waiting', () => {
+    const waiting = run({
+      status: 'parked',
+      waitsFor: [{ label: 'ZNR-780', branch: 'znr-780' }],
+      wait: { entries: [], baseRef: 'dev' },
+      park: {
+        reason: 'waiting-on-work',
+        message: 'Waiting on other work: long words.',
+        parkedAt: 0,
+      },
+    } as Partial<ProcessRun>)
+    expect(row({ chat: { context: RUN_CHAT }, run: waiting })).toMatchObject({
+      sub: 'Waits for ZNR-780 to reach dev before its proof · carries on by itself',
+      pill: { label: 'Waiting' },
+    })
+  })
+
   it('pills a run whose stop its manager has as the manager’s', () => {
     const managed = run({
       status: 'parked',

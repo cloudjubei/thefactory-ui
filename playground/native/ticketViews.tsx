@@ -26,9 +26,15 @@ import {
   NOT_A_TICKET_MESSAGE,
   STORY_PROPOSAL_ARGS,
   STORY_PROPOSAL_CREATED,
+  STORY_PROPOSAL_FEATURES_ARGS,
   STORY_PROPOSAL_LONG_ARGS,
+  STORY_PROPOSAL_LONG_FEATURES_ARGS,
   STORY_PROPOSAL_MANY_ARGS,
+  STORY_PROPOSAL_NO_FEATURES_ARGS,
+  STORY_PROPOSAL_NO_FEATURES_REFUSAL,
+  STORY_PROPOSAL_READY,
   STORY_PROPOSAL_REFUSAL,
+  STORY_PROPOSAL_WAIT_ARGS,
   TICKET_SITE_URL,
   TICKET_IN_PROGRESS,
   TICKET_LONG_TITLE,
@@ -147,15 +153,37 @@ const PROPOSALS: Record<
   },
   long: { args: STORY_PROPOSAL_LONG_ARGS, resultType: 'require_confirmation' },
   many: { args: STORY_PROPOSAL_MANY_ARGS, resultType: 'require_confirmation' },
+  features: { args: STORY_PROPOSAL_FEATURES_ARGS, resultType: 'require_confirmation' },
+  waits: { args: STORY_PROPOSAL_WAIT_ARGS, resultType: 'require_confirmation' },
+  'long-features': { args: STORY_PROPOSAL_LONG_FEATURES_ARGS, resultType: 'require_confirmation' },
+  ready: {
+    args: STORY_PROPOSAL_FEATURES_ARGS,
+    result: STORY_PROPOSAL_READY,
+    resultType: 'success',
+  },
+  'refused-no-features': {
+    args: STORY_PROPOSAL_NO_FEATURES_ARGS,
+    result: { error: STORY_PROPOSAL_NO_FEATURES_REFUSAL },
+    resultType: 'success',
+  },
 }
 
-function StoryProposal({ state, layout }: { state: string; layout: TicketStoryProposalLayout }) {
+function StoryProposal({
+  state,
+  layout,
+  featuresOpen,
+}: {
+  state: string
+  layout: TicketStoryProposalLayout
+  featuresOpen: boolean
+}) {
   const call = PROPOSALS[state] ?? PROPOSALS.ask!
   return (
     <InChat read="ready">
       <View style={{ padding: 16 }}>
         <TicketStoryProposalCard
           layout={layout}
+          defaultFeaturesOpen={featuresOpen}
           onOpenGroupStory={() => undefined}
           view={ticketStoryProposalView({ ...call, siteUrl: TICKET_SITE_URL })}
         />
@@ -169,8 +197,9 @@ function StoryProposal({ state, layout }: { state: string; layout: TicketStoryPr
  * `moved-with-comment`, `failed`, `old` or `long`; `&layout=line` for the arrow
  * line) and a ticket link (`?state=message`, `not-a-ticket`, `no-jira`, `sheet`,
  * `sheet-failed`, `loading`, `loaded`, `long` or `failed`; `&layout=compact`), and
- * a ticket's proposed group story (`?state=ask`, `approved`, `refused`, `long` or
- * `many`; `&layout=steps`).
+ * a ticket's proposed group story (`?state=ask`, `approved`, `refused`, `long`,
+ * `many`, `features`, `waits`, `long-features`, `ready` or `refused-no-features`;
+ * `&layout=steps`; `&open=1` to list every feature whole and opened).
  * Fixed sample data: no Jira is read.
  */
 export const TICKET_VIEWS: NativeView[] = [
@@ -191,6 +220,7 @@ export const TICKET_VIEWS: NativeView[] = [
       <StoryProposal
         state={address.get('state') ?? 'ask'}
         layout={address.get('layout') === 'steps' ? 'steps' : 'rows'}
+        featuresOpen={address.get('open') === '1'}
       />
     ),
   },
