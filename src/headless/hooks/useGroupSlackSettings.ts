@@ -33,6 +33,8 @@ export type UseGroupSlackSettings = SlackReviewSettingsState & {
   setRunChecksUnasked: (on: boolean) => void
   /** How rounds start unless the person picks otherwise: in the review chat, or as a run. */
   setDefaultMode: (mode: ColleagueReviewMode) => void
+  /** The Jira status a ticket moves to once its review merged; empty leaves its status be. */
+  setMergedTicketStatus: (text: string) => void
 }
 
 /**
@@ -103,6 +105,11 @@ export function useGroupSlackSettings(groupId: string): UseGroupSlackSettings {
     [setSettings],
   )
 
+  const setMergedTicketStatus = useCallback(
+    (text: string) => setSettings({ mergedTicketStatus: text.trim() || null }),
+    [setSettings],
+  )
+
   return {
     view,
     clientId,
@@ -117,5 +124,6 @@ export function useGroupSlackSettings(groupId: string): UseGroupSlackSettings {
     setStartReaction,
     setRunChecksUnasked,
     setDefaultMode,
+    setMergedTicketStatus,
   }
 }

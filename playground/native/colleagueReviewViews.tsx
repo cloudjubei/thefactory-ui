@@ -110,6 +110,8 @@ function Tickets() {
         onQueryChange={noop}
         onDiscuss={noop}
         onPlan={noop}
+        onOpen={noop}
+        onPickTab={noop}
         onReview={noop}
         onOpenStory={noop}
         onOpenSettings={noop}

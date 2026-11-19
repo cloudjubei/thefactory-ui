@@ -96,6 +96,7 @@ export const SOURCE_SETTINGS_SET: ReviewSourceStatus = {
     skipTicketStatuses: ['Done', 'Won’t do'],
     startReaction: 'eyes',
     runChecksUnasked: true,
+    mergedTicketStatus: 'In QA',
   },
 }
 

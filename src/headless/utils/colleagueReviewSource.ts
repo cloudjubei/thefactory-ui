@@ -96,8 +96,12 @@ export function reviewSettingsShown(
   const base = settings ?? NO_SETTINGS
   if (changes.length === 0) return base
   return changes.reduce<ReviewSourceSettings>((shown, change) => {
-    const { startReaction, ...rest } = { ...shown, ...change }
-    return startReaction ? { ...rest, startReaction } : rest
+    const { startReaction, mergedTicketStatus, ...rest } = { ...shown, ...change }
+    return {
+      ...rest,
+      ...(startReaction ? { startReaction } : {}),
+      ...(mergedTicketStatus ? { mergedTicketStatus } : {}),
+    }
   }, base)
 }
 
@@ -117,7 +121,9 @@ export function reviewSettingsChangeNeeded(
     (change.startReaction !== undefined && change.startReaction !== (held.startReaction ?? '')) ||
     (change.runChecksUnasked !== undefined &&
       change.runChecksUnasked !== (held.runChecksUnasked ?? false)) ||
-    (change.defaultMode !== undefined && change.defaultMode !== (held.defaultMode ?? 'inline'))
+    (change.defaultMode !== undefined && change.defaultMode !== (held.defaultMode ?? 'inline')) ||
+    (change.mergedTicketStatus !== undefined &&
+      (change.mergedTicketStatus ?? '') !== (held.mergedTicketStatus ?? ''))
   )
 }
 
@@ -133,6 +139,7 @@ export function reviewSettingsView(
     startReaction: settings.startReaction ?? '',
     runChecksUnasked: settings.runChecksUnasked ?? false,
     defaultMode: settings.defaultMode ?? 'inline',
+    mergedTicketStatus: settings.mergedTicketStatus ?? '',
     ...(reactionError ? { reactionError: TEXT.reactionError(reactionError) } : {}),
   }
 }

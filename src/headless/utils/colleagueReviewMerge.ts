@@ -61,11 +61,17 @@ function slackLine(slack: ReviewMergeJob['slack']): ReviewMergeView['slack'] {
   return slack.detail ? { line: slack.detail } : undefined
 }
 
+function ticketMoveLine(job: ReviewMergeJob): ReviewMergeView['ticketMove'] {
+  const { ticket } = job
+  if (ticket?.error) return { line: ticket.error, failed: true }
+  return ticket?.detail ? { line: ticket.detail, failed: false } : undefined
+}
+
 /**
  * A ticket review's approve-and-merge as the card follows it: starting at
  * once with the round's pull requests waiting their turn, then each one's
  * state as the backend reports it, and what came of it with the Slack
- * message. Nothing while no merge was started. Pure.
+ * message and the ticket's move. Nothing while no merge was started. Pure.
  */
 export function reviewMergeView(input: ReviewMergeViewInput): ReviewMergeView | undefined {
   const { job, starting, prs } = input
@@ -82,6 +88,7 @@ export function reviewMergeView(input: ReviewMergeViewInput): ReviewMergeView | 
   if (!job) return undefined
   const overall = REVIEW_MERGE_STATE_VIEW[job.state]
   const slack = slackLine(job.slack)
+  const ticketMove = ticketMoveLine(job)
   return {
     ...overall,
     running: job.state === 'running',
@@ -94,6 +101,7 @@ export function reviewMergeView(input: ReviewMergeViewInput): ReviewMergeView | 
     ...(job.summary ? { summary: job.summary } : {}),
     ...(job.error ? { error: job.error } : {}),
     ...(slack ? { slack } : {}),
+    ...(ticketMove ? { ticketMove } : {}),
   }
 }
 

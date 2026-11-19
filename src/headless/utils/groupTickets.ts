@@ -21,7 +21,17 @@ import type {
   TicketMoveFieldView,
   TicketMoveOutcome,
 } from './groupTicketTypes'
+import { GROUP_TICKET_TAB_ROW_TEXT } from './groupTicketTabConstants'
+import {
+  groupTicketRepliesView,
+  groupTicketRowActions,
+  groupTicketShownTab,
+  groupTicketTabItems,
+} from './groupTicketTabs'
+import type { GroupTicketTab } from './groupTicketTabTypes'
 import { ticketStatusTone } from './ticketStatus'
+
+const NO_SECTION: GroupTicketSection = { list: undefined, readError: null, loadingMore: false }
 
 /** A link a chip may open: only a web page, as a ticket's text and link come from outside. */
 export function ticketLink(url: string | undefined): string | undefined {
@@ -112,13 +122,14 @@ export function groupStoryTicketChip(
 
 function ticketRow(
   ticket: GroupTicket,
-  starting: GroupTicketsState['starting'],
-  reviewing: GroupTicketsState['reviewing'],
+  tab: GroupTicketTab | undefined,
+  state: Pick<GroupTicketsState, 'starting' | 'reviewing'>,
   now: number,
 ): GroupTicketRow {
-  const { key, summary, priority, status, statusCategory, url, groupStory, canTake, chatOpen } =
-    ticket
-  const review = reviewing[key]
+  const { key, summary, priority, status, statusCategory, url, groupStory, chatOpen } = ticket
+  const review = state.reviewing[key]
+  const actions = groupTicketRowActions(ticket, tab)
+  const { starting } = state
   return {
     key,
     summary,
@@ -129,78 +140,108 @@ function ticketRow(
     reviewOpen: ticket.reviewOpen,
     ...(review ? { reviewing: reviewStartLabel(review) } : {}),
     ...(ticket.reviewOffer ? { offer: reviewOfferRowView(ticket.reviewOffer, now) } : {}),
-    canTake,
+    actions,
+    ...(ticket.replies && actions.includes('replies')
+      ? { replies: groupTicketRepliesView(ticket.replies, now) }
+      : {}),
     ...(starting?.key === key ? { starting: starting.action } : {}),
-    hint: chatOpen ? GROUP_TICKETS_TEXT.openChat(key) : GROUP_TICKETS_TEXT.discussTicket(key),
+    hint: GROUP_TICKET_TAB_ROW_TEXT.openTicket(key),
   }
 }
 
-function listLine(tickets: readonly GroupTicket[]): string {
-  if (tickets.length === 0) return ''
-  const withWork = tickets.filter((t) => t.groupStory).length
-  const count = `${tickets.length} ticket${tickets.length === 1 ? '' : 's'}`
+function listLine(rows: readonly GroupTicketRow[]): string {
+  if (rows.length === 0) return ''
+  const withWork = rows.filter((r) => r.work).length
+  const count = `${rows.length} ticket${rows.length === 1 ? '' : 's'}`
   if (withWork === 0) return count
   return `${count} · ${withWork} ${withWork === 1 ? 'has' : 'have'} work`
 }
 
-function sectionView(
-  section: GroupTicketSection,
-  rows: GroupTicketRow[],
-  emptyLine: string,
-  sayFailure = true,
-): GroupTicketSectionView {
-  const { list, readError, loadingMore } = section
+function sideView(rows: GroupTicketRow[], emptyLine: string | undefined): GroupTicketSectionView {
   return {
     rows,
-    line: listLine(list?.tickets ?? []),
-    ...(list?.tickets.length === 0 ? { emptyLine } : {}),
+    line: listLine(rows),
+    ...(rows.length === 0 && emptyLine ? { emptyLine } : {}),
+    loading: false,
+    canLoadMore: false,
+    loadingMore: false,
+  }
+}
+
+function searchView(
+  search: GroupTicketsState['search'],
+  rows: GroupTicketRow[],
+): GroupTicketSectionView {
+  const { list, readError, loadingMore } = search
+  return {
+    rows,
+    line: listLine(rows),
+    ...(list?.tickets.length === 0
+      ? { emptyLine: GROUP_TICKETS_TEXT.noResults(search.query) }
+      : {}),
     loading: !list && !readError,
-    ...(readError && sayFailure ? { readError } : {}),
+    ...(readError ? { readError } : {}),
     canLoadMore: Boolean(list?.nextPageToken),
     loadingMore,
   }
 }
 
 /**
- * What the Tickets tab shows. A search stands in for the lists while it is on. The
- * next ticket is only ever one that can be taken, whatever Jira's list says of it.
- * `now` says how long ago each waiting update came.
+ * What the Tickets tab shows: the group's tabs with their counts, and the tab
+ * on screen split into the person's tickets and everyone else's, each row
+ * with its tab's actions for its side. A search stands in for the tab while
+ * it is on, each row with the actions of the tab it falls in. The next
+ * ticket is only ever one of the person's the tab lets them take. `now` says
+ * how long ago each update and reply came.
  */
 export function groupTicketsView(state: GroupTicketsState, now = Date.now()): GroupTicketsView {
-  const { mine, sprint, search, starting, startError, reviewing, offerError } = state
-  if (mine.list?.connected === false || sprint.list?.connected === false) {
-    return { kind: 'no-jira' }
-  }
-  const answered = mine.list || sprint.list || mine.readError || sprint.readError
-  if (!answered) return { kind: 'loading' }
+  const { tabs: read, byTab, tabCounts, search, startError, offerError } = state
+  const tabs = read.tabs
+  if (!tabs) return read.readError ? { kind: 'failed', error: read.readError } : { kind: 'loading' }
+  const shown = groupTicketShownTab(tabs, state.tab)
+  const section = (shown && byTab[shown.id]) || NO_SECTION
+  const { list } = section
+  if (list?.connected === false || search.list?.connected === false) return { kind: 'no-jira' }
 
-  const rowsOf = (section: GroupTicketSection) =>
-    (section.list?.tickets ?? []).map((t) => ticketRow(t, starting, reviewing, now))
-  const mineRows = rowsOf(mine)
-  const next = mineRows.find((r) => r.key === mine.list?.nextTicketKey && r.canTake)
-  const sameFailure = mine.readError && mine.readError === sprint.readError
+  const rows = (list?.tickets ?? []).map((t) => ticketRow(t, shown, state, now))
+  const mineKeys = new Set((list?.tickets ?? []).filter((t) => t.mine).map((t) => t.key))
+  const mineRows = rows.filter((r) => mineKeys.has(r.key))
+  const next = mineRows.find((r) => r.key === list?.nextTicketKey && r.actions.includes('take'))
+  const empty = list !== undefined && list.tickets.length === 0
+  const say = (line: string) => (list && !empty ? line : undefined)
+  const tabOf = (ticket: GroupTicket) => tabs.find((t) => t.id === ticket.tabId)
+  const mine = sideView(
+    mineRows.filter((r) => r !== next),
+    next ? undefined : say(GROUP_TICKET_TAB_ROW_TEXT.noneYours),
+  )
   return {
     kind: 'tickets',
+    tabs: groupTicketTabItems(tabs, tabCounts),
+    tab: shown?.id ?? '',
     ...(next ? { next } : {}),
-    mine: sectionView(
-      mine,
-      mineRows.filter((r) => r !== next),
-      GROUP_TICKETS_TEXT.noneYours,
-      !sameFailure,
+    mine: { ...mine, loading: !list && !section.readError },
+    others: sideView(
+      rows.filter((r) => !mineKeys.has(r.key)),
+      say(GROUP_TICKET_TAB_ROW_TEXT.noneOthers),
     ),
-    others: sectionView(sprint, rowsOf(sprint), GROUP_TICKETS_TEXT.noneOthers, !sameFailure),
+    ...(empty ? { emptyLine: GROUP_TICKET_TAB_ROW_TEXT.emptyTab } : {}),
+    canLoadMore: Boolean(list?.nextPageToken),
+    loadingMore: section.loadingMore,
     ...(search.query
       ? {
           search: {
             query: search.query,
-            ...sectionView(search, rowsOf(search), GROUP_TICKETS_TEXT.noResults(search.query)),
+            ...searchView(
+              search,
+              (search.list?.tickets ?? []).map((t) => ticketRow(t, tabOf(t), state, now)),
+            ),
           },
         }
       : {}),
-    ...(sameFailure ? { readError: mine.readError! } : {}),
+    ...(section.readError ? { readError: section.readError } : {}),
     ...(startError ? { startError } : {}),
-    starting: starting !== undefined,
-    offerCount: (mine.list ?? sprint.list ?? search.list)?.reviewOfferCount ?? 0,
+    starting: state.starting !== undefined,
+    offerCount: (list ?? search.list)?.reviewOfferCount ?? 0,
     ...(offerError ? { offerError } : {}),
   }
 }

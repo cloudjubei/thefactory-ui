@@ -1,6 +1,14 @@
+import type { ReactNode } from 'react'
 import { ScrollView } from 'react-native'
 
-import { reviewStartedDestination, useGroupTickets } from '../../../headless'
+import {
+  launchAgentPickMetadata,
+  reviewStartedDestination,
+  useGroupTickets,
+  useLaunchAgentPick,
+  type ColleagueReviewStarted,
+  type LaunchModelChipSlot,
+} from '../../../headless'
 import type { ChatContext } from '../../../headless/api'
 import type { ChatAttachmentFile } from '../../../headless/api/chatAttachmentUploadTypes'
 import ColleagueReviewPasteBox from './ColleagueReviewPasteBox'
@@ -16,9 +24,24 @@ export type GroupTicketsScreenProps = {
   onOpenRun?: (runId: string) => void
   /** The app's file picker, for a review's screenshots and files; without it only the text goes. */
   pickFiles?: () => Promise<ChatAttachmentFile[]>
+  /** Open a ticket's page: what a press on its row does. */
+  onOpenTicket: (ticketKey: string) => void
+  /** The app's model chip — the agent a review round runs on. */
+  renderModelChip?: (picked: LaunchModelChipSlot) => ReactNode
 }
 
-/** Native peer of web's `GroupTicketsScreen`: a group's Jira tickets, to discuss, take or review. */
+/** Where a started round opens: its run when it is reviewed as one and the host can open runs, else its chat. */
+export function openStartedReview(
+  started: ColleagueReviewStarted,
+  onOpenChat: (context: ChatContext) => void,
+  onOpenRun?: (runId: string) => void,
+): void {
+  const to = reviewStartedDestination(started)
+  if (to.kind === 'run' && onOpenRun) onOpenRun(to.runId)
+  else onOpenChat(started.context)
+}
+
+/** Native peer of web's `GroupTicketsScreen`: a group's Jira tickets by tab, to open, discuss, take or review. */
 export function GroupTicketsScreen({
   groupId,
   onOpenStory,
@@ -26,11 +49,15 @@ export function GroupTicketsScreen({
   onOpenSettings,
   onOpenRun,
   pickFiles,
+  onOpenTicket,
+  renderModelChip,
 }: GroupTicketsScreenProps) {
+  const { pick, slot } = useLaunchAgentPick()
   const {
     view,
     query,
     setQuery,
+    pickTab,
     discuss,
     plan,
     loadMore,
@@ -56,6 +83,8 @@ export function GroupTicketsScreen({
           view={view}
           query={query}
           onQueryChange={setQuery}
+          onPickTab={pickTab}
+          onOpen={onOpenTicket}
           onDiscuss={(key) => open(discuss(key))}
           onPlan={(key) => open(plan(key))}
           onReview={openReview}
@@ -72,12 +101,10 @@ export function GroupTicketsScreen({
           onChange={editReview}
           mode={reviewMode}
           onModeChange={setReviewMode}
+          {...(renderModelChip ? { modelChip: renderModelChip(slot) } : {})}
           onStart={() =>
-            void startReview().then((started) => {
-              if (!started) return
-              const to = reviewStartedDestination(started)
-              if (to.kind === 'run' && onOpenRun) onOpenRun(to.runId)
-              else onOpenChat(started.context)
+            void startReview(launchAgentPickMetadata(pick)).then((started) => {
+              if (started) openStartedReview(started, onOpenChat, onOpenRun)
             })
           }
           onClose={closeReview}

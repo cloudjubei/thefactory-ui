@@ -81,6 +81,7 @@ import { SEND_TO_DEVELOPER_VIEWS } from './sendToDeveloperViews'
 import { READY_ANSWER_VIEWS } from './readyAnswerViews'
 import { COLLEAGUE_REVIEW_VIEWS } from './colleagueReviewViews'
 import { SLACK_REVIEW_VIEWS } from './slackReviewViews'
+import { TICKET_TAB_VIEWS } from './ticketTabsViews'
 import { REVIEW_GAP_VIEWS } from './reviewGapViews'
 import { TICKET_VIEWS } from './ticketViews'
 import { TRY_ON_PHONE_VIEWS } from './tryOnPhoneViews'
@@ -605,6 +606,8 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
           onQueryChange={noop}
           onDiscuss={noop}
           onPlan={noop}
+          onOpen={noop}
+          onPickTab={noop}
           onOpenStory={noop}
           onOpenSettings={noop}
           onRetry={noop}
@@ -667,6 +670,7 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   ...READY_ANSWER_VIEWS,
   ...COLLEAGUE_REVIEW_VIEWS,
   ...SLACK_REVIEW_VIEWS,
+  ...TICKET_TAB_VIEWS,
   ...REVIEW_GAP_VIEWS,
   ...ALREADY_HANDLED_VIEWS,
   ...APP_SELECTION_VIEWS,

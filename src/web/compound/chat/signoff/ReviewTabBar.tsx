@@ -1,19 +1,36 @@
-import type { ReviewTab, ReviewTabId } from '../../../../headless'
+import type { ReviewTabId } from '../../../../headless'
 
-export type ReviewTabBarProps = {
-  tabs: readonly ReviewTab[]
-  active: ReviewTabId
-  onChange: (tab: ReviewTabId) => void
+/** One tab on the bar: a sign-off's evidence, or any other set of tabs. */
+export type ReviewTabBarTab<Id extends string> = {
+  id: Id
+  label: string
+  /** Shown as a count pill; `undefined` when the tab has nothing to count. */
+  count: number | undefined
+}
+
+export type ReviewTabBarProps<Id extends string = ReviewTabId> = {
+  tabs: readonly ReviewTabBarTab<Id>[]
+  active: Id
+  onChange: (tab: Id) => void
+  /** Names the bar for a screen reader. */
+  ariaLabel?: string
 }
 
 /**
  * The evidence tabs. A tab exists only when that kind of proof was filed, so
- * the bar itself says what the run produced — no empty galleries.
+ * the bar itself says what the run produced — no empty galleries. Any other
+ * set of tabs with counts, such as a group's ticket tabs, draws on it too.
  */
-export default function ReviewTabBar({ tabs, active, onChange }: ReviewTabBarProps) {
+export default function ReviewTabBar<Id extends string = ReviewTabId>({
+  tabs,
+  active,
+  onChange,
+  ariaLabel,
+}: ReviewTabBarProps<Id>) {
   return (
     <div
       role="tablist"
+      aria-label={ariaLabel}
       className="no-scrollbar flex gap-0.5 overflow-x-auto overflow-y-hidden shadow-[inset_0_-1px_0_var(--border-subtle)]"
     >
       {tabs.map((tab) => {

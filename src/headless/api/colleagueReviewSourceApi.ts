@@ -46,14 +46,10 @@ export async function setColleagueReviewSettings(
   return data
 }
 
-/** The updates waiting for the person, newest first. */
-export async function listWaitingReviewOffers(groupId: string): Promise<ReviewOffer[]> {
-  const { data } = await listOffers({
-    path: { groupId },
-    query: { state: 'new' },
-    throwOnError: true,
-  })
-  return data.offers
+/** Every update no review started from yet, waiting or dismissed, newest first. */
+export async function listTicketReviewOffers(groupId: string): Promise<ReviewOffer[]> {
+  const { data } = await listOffers({ path: { groupId }, throwOnError: true })
+  return data.offers.filter((offer) => offer.state !== 'started')
 }
 
 /** The person dismissed an update; dismissing it again changes nothing. */

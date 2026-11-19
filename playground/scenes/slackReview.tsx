@@ -134,6 +134,9 @@ function Settings({
       }
       onRunChecksUnasked={(on) => setShown(withSettings(shown, { runChecksUnasked: on }))}
       onDefaultMode={(mode) => setShown(withSettings(shown, { defaultMode: mode }))}
+      onMergedTicketStatus={(text) =>
+        setShown(withSettings(shown, { mergedTicketStatus: text.trim() }))
+      }
     />,
   )
 }
@@ -238,6 +241,8 @@ function Tickets({ state = offeredTickets(), offerLayout, width = 'page' }: Tick
       onQueryChange={noop}
       onDiscuss={noop}
       onPlan={noop}
+      onOpen={noop}
+      onPickTab={noop}
       onReview={noop}
       onDismissOffer={noop}
       onOpenStory={noop}
@@ -594,7 +599,7 @@ export const SLACK_REVIEW_SCENES: Scene[] = [
         id: 'settings-set',
         title: 'Review settings filled in',
         description:
-          'Two statuses skipped, the eyes reaction, checks run without asking. A field saves when it is left, on Enter, or with Save, which shows while it is changed.',
+          'Two statuses skipped, the eyes reaction, checks run without asking, and a merged ticket moved to In QA. A field saves when it is left, on Enter, or with Save, which shows while it is changed.',
         render: () => settings({ state: slackSettings({ status: SOURCE_SETTINGS_SET }) }),
       },
       {

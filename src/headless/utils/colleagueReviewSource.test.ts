@@ -275,6 +275,12 @@ describe('reviewSettingsShown', () => {
     })
   })
 
+  it('sets the status a merged ticket moves to, and drops it when cleared', () => {
+    const moved = reviewSettingsShown(settings, [{ mergedTicketStatus: 'In QA' }])
+    expect(moved.mergedTicketStatus).toBe('In QA')
+    expect(reviewSettingsShown(moved, [{ mergedTicketStatus: null }])).toEqual(settings)
+  })
+
   it('starts from no settings before the first read', () => {
     expect(reviewSettingsShown(undefined, [{ startReaction: 'eyes' }])).toEqual({
       skipTicketStatuses: [],
@@ -300,6 +306,13 @@ describe('reviewSettingsChangeNeeded', () => {
     expect(reviewSettingsChangeNeeded(settings, {})).toBe(false)
     expect(reviewSettingsChangeNeeded(undefined, { skipTicketStatuses: [] })).toBe(false)
     expect(reviewSettingsChangeNeeded(undefined, { startReaction: '' })).toBe(false)
+    expect(reviewSettingsChangeNeeded(settings, { mergedTicketStatus: null })).toBe(false)
+    expect(
+      reviewSettingsChangeNeeded(
+        { ...settings, mergedTicketStatus: 'In QA' },
+        { mergedTicketStatus: 'In QA' },
+      ),
+    ).toBe(false)
   })
 
   it('is true when any part differs', () => {
@@ -308,6 +321,13 @@ describe('reviewSettingsChangeNeeded', () => {
     expect(reviewSettingsChangeNeeded(settings, { startReaction: '' })).toBe(true)
     expect(reviewSettingsChangeNeeded(settings, { runChecksUnasked: true })).toBe(true)
     expect(reviewSettingsChangeNeeded(settings, { defaultMode: 'process' })).toBe(true)
+    expect(reviewSettingsChangeNeeded(settings, { mergedTicketStatus: 'In QA' })).toBe(true)
+    expect(
+      reviewSettingsChangeNeeded(
+        { ...settings, mergedTicketStatus: 'In QA' },
+        { mergedTicketStatus: null },
+      ),
+    ).toBe(true)
     expect(
       reviewSettingsChangeNeeded(settings, { startReaction: 'eyes', runChecksUnasked: true }),
     ).toBe(true)
@@ -325,6 +345,7 @@ describe('reviewSettingsView', () => {
       startReaction: 'eyes',
       runChecksUnasked: false,
       defaultMode: 'inline',
+      mergedTicketStatus: '',
     })
     expect(
       reviewSettingsView({
@@ -333,6 +354,7 @@ describe('reviewSettingsView', () => {
           skipTicketStatuses: ['Done', 'Won’t do'],
           runChecksUnasked: true,
           defaultMode: 'process',
+          mergedTicketStatus: 'In QA',
         },
       }),
     ).toEqual({
@@ -340,6 +362,7 @@ describe('reviewSettingsView', () => {
       startReaction: '',
       runChecksUnasked: true,
       defaultMode: 'process',
+      mergedTicketStatus: 'In QA',
     })
   })
 
@@ -547,6 +570,7 @@ describe('slackReviewSettingsView', () => {
         startReaction: '',
         runChecksUnasked: false,
         defaultMode: 'inline',
+        mergedTicketStatus: '',
       },
       loading: false,
     })

@@ -250,3 +250,47 @@ describe('reviewCardMerge', () => {
     })
   })
 })
+
+describe('reviewMergeView ticket move', () => {
+  it('says what the merge did with the ticket, in the backend’s words', () => {
+    const view = reviewMergeView({
+      job: job({
+        state: 'merged',
+        ticket: {
+          moved: true,
+          status: 'In QA',
+          from: 'In Review',
+          detail: 'Moved OSC-402 to In QA',
+        },
+      }),
+      prs: [],
+    })
+    expect(view?.ticketMove).toEqual({ line: 'Moved OSC-402 to In QA', failed: false })
+    const already = reviewMergeView({
+      job: job({
+        ticket: { moved: false, status: 'In QA', detail: 'OSC-402 is in In QA already' },
+      }),
+      prs: [],
+    })
+    expect(already?.ticketMove).toEqual({ line: 'OSC-402 is in In QA already', failed: false })
+  })
+
+  it('says why the ticket did not move', () => {
+    const view = reviewMergeView({
+      job: job({
+        state: 'merged',
+        ticket: { moved: false, status: 'In QA', error: 'No transition to In QA.', detail: 'x' },
+      }),
+      prs: [],
+    })
+    expect(view?.ticketMove).toEqual({ line: 'No transition to In QA.', failed: true })
+  })
+
+  it('says nothing of the ticket while there is nothing to say, or nothing was asked', () => {
+    expect(
+      reviewMergeView({ job: job({ ticket: { moved: false, status: 'In QA' } }), prs: [] })
+        ?.ticketMove,
+    ).toBeUndefined()
+    expect(reviewMergeView({ job: job(), prs: [] })).not.toHaveProperty('ticketMove')
+  })
+})

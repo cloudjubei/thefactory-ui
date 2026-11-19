@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Linking, Pressable, Text, View } from 'react-native'
 import type { ChatAttachmentFile } from '../../../headless/api/chatAttachmentUploadTypes'
 import { reviewBoxOfferLine } from '../../../headless/utils/colleagueReviewSource'
@@ -33,6 +34,8 @@ export type ColleagueReviewPasteFormProps = {
   onModeChange?: (mode: ColleagueReviewMode) => void
   /** The app's file picker; without it only the text goes. */
   pickFiles?: () => Promise<ChatAttachmentFile[]>
+  /** The app's model chip: the agent the round runs on, in either mode. */
+  modelChip?: ReactNode
   /** When the update from Slack was posted is told against this — for a fixed showcase state. */
   now?: number
 }
@@ -122,8 +125,8 @@ function SlackFiles({ files }: { files: readonly string[] }) {
  * they wrote it, and the files that came with it, picked through the app's
  * own picker. Opened on an update from Slack, it starts filled with it,
  * editable, its own files listed as coming from Slack. The person picks
- * whether it is reviewed in the chat or as a run. Start is held until there
- * is something to review.
+ * whether it is reviewed in the chat or as a run, and the agent it runs on.
+ * Start is held until there is something to review.
  */
 export function ColleagueReviewPasteForm({
   box,
@@ -132,6 +135,7 @@ export function ColleagueReviewPasteForm({
   mode = 'inline',
   onModeChange,
   pickFiles,
+  modelChip,
   now = Date.now(),
 }: ColleagueReviewPasteFormProps) {
   const { theme, status } = useNativeTheme()
@@ -233,6 +237,14 @@ export function ColleagueReviewPasteForm({
             />
           </View>
           <Text style={{ fontSize: 12, color: theme.text.muted }}>{MODE_HINTS[mode]}</Text>
+        </View>
+      ) : null}
+      {modelChip ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+          <Text style={{ fontSize: 12, fontWeight: '500', color: theme.text.primary }}>
+            {TEXT.agent}
+          </Text>
+          {modelChip}
         </View>
       ) : null}
       <Button variant="primary" disabled={problem !== undefined} onPress={onStart}>

@@ -4,8 +4,23 @@ import type {
 } from '../api/generated'
 import type { ProcessStatusTone } from './processView'
 
+/** What the merge did with the ticket's Jira status once its pull requests merged. */
+export interface ReviewMergeTicketMove {
+  moved: boolean
+  /** The status it was to move to. */
+  status: string
+  from?: string
+  /** What came of it, in a line: "Moved ZNR-1 to In QA". */
+  detail?: string
+  /** Why it did not move. */
+  error?: string
+}
+
 /** A ticket review's approve-and-merge job, as the backend tells it. */
-export type ReviewMergeJob = GetColleagueReviewMergeResponse
+export type ReviewMergeJob = GetColleagueReviewMergeResponse & {
+  /** Only when the group moves a ticket once it merged. */
+  ticket?: ReviewMergeTicketMove
+}
 
 /** Where one pull request of the job stands. */
 export type ReviewMergePullRequestState = ReviewMergeJob['pullRequests'][number]['state']
@@ -45,6 +60,8 @@ export interface ReviewMergeView {
   error?: string
   /** What the update's Slack thread heard. */
   slack?: { line: string; permalink?: string }
+  /** What became of the ticket's status: moved, or why not. */
+  ticketMove?: { line: string; failed: boolean }
 }
 
 /** What the merge's view is built from. */

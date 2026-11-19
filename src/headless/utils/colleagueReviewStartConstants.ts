@@ -38,6 +38,7 @@ export const REVIEW_START_TEXT = {
   modeProcess: 'As a run',
   modeInlineHint: 'In the ticket’s review chat; you decide on a card at the end.',
   modeProcessHint: 'As a run; you decide at its approval. Nothing is posted or merged before.',
+  agent: 'Agent',
 } as const
 
 /** The ways a round may be reviewed, in the order the choice offers them. */

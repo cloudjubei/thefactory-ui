@@ -26,10 +26,10 @@ describe('the ticket calls', () => {
   })
 
   it('read a list by name, and a later page by its token', async () => {
-    await readGroupTickets('osc', { view: 'sprint', nextPageToken: 'p2' })
+    await readGroupTickets('osc', { tab: 'review', nextPageToken: 'p2' })
     expect(client.get).toHaveBeenCalledWith({
       url: '/api/v1/groups/osc/tickets',
-      query: { view: 'sprint', nextPageToken: 'p2' },
+      query: { tab: 'review', nextPageToken: 'p2' },
       throwOnError: true,
     })
   })

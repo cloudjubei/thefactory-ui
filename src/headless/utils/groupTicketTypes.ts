@@ -5,6 +5,14 @@ import type {
   TicketReviewOffer,
 } from './colleagueReviewSourceTypes'
 import type { ReviewStartPhase } from './colleagueReviewStartTypes'
+import type { GroupTicketSprint } from './groupTicketPageTypes'
+import type {
+  GroupTicketReplies,
+  GroupTicketRepliesView,
+  GroupTicketTab,
+  GroupTicketTabAction,
+  GroupTicketTabItem,
+} from './groupTicketTabTypes'
 import type { TicketStatusTone } from './ticketCardTypes'
 
 /** A ticket of a group's Jira. Its text comes from Jira: it is shown as plain text. */
@@ -27,16 +35,25 @@ export interface GroupTicket {
   reviewOpen: boolean
   /** The latest update the group's watched Slack thread brought for it, waiting for the person. */
   reviewOffer?: TicketReviewOffer
+  /** The tab it falls in; none when it matches no tab. */
+  tabId?: string
+  /** It is the person's. */
+  mine?: boolean
+  sprint?: GroupTicketSprint
+  /** Replies to the person's own update and comments on their pull requests, on their rows of a tab that shows them. */
+  replies?: GroupTicketReplies
 }
 
-/** The person's in the open sprint, everyone else's there, or a search. */
-export type GroupTicketListName = 'mine' | 'sprint' | 'search'
+/** The person's in the open sprint, the tab on screen, or a search. */
+export type GroupTicketListName = 'mine' | 'tab' | 'search'
 
-/** What one read of a group's tickets asks for. The person's when no view is named. */
+/** What one read of a group's tickets asks for. The person's when neither a view nor a tab is named. */
 export interface GroupTicketsQuery {
-  view?: GroupTicketListName
+  view?: 'mine' | 'search'
   /** With `search`: a ticket key, or words. */
   q?: string
+  /** A tab's tickets, the person's and everyone else's. */
+  tab?: string
   nextPageToken?: string
 }
 
@@ -52,6 +69,8 @@ export interface GroupTicketList {
   nextTicketKey?: string
   /** Pass back for the next page; absent on the last. */
   nextPageToken?: string
+  /** How many tickets each tab holds, by tab id. */
+  tabCounts?: Record<string, number>
 }
 
 /** The agent a ticket's chat runs on; empty uses the one the person runs on. */
@@ -91,10 +110,24 @@ export interface GroupTicketSearch extends GroupTicketSection {
 /** What opens a ticket's chat: talking it over, or planning its group story. */
 export type GroupTicketAction = 'discuss' | 'plan'
 
+/** The group's tabs as the store read them. */
+export interface GroupTicketTabsRead {
+  /** Undefined until the first read answers. */
+  tabs: GroupTicketTab[] | undefined
+  custom: boolean
+  readError: string | null
+}
+
 /** What the group's tickets stand at, as `GroupTicketsStore` keeps them. */
 export interface GroupTicketsState {
   mine: GroupTicketSection
-  sprint: GroupTicketSection
+  tabs: GroupTicketTabsRead
+  /** The tab the person picked; the first when none. */
+  tab: string | undefined
+  /** Each tab's tickets once read, kept while another is on screen. */
+  byTab: Readonly<Record<string, GroupTicketSection>>
+  /** How many tickets each tab holds, as the latest read said. */
+  tabCounts: Readonly<Record<string, number>>
   search: GroupTicketSearch
   /** The ticket whose chat is being opened. */
   starting: { key: string; action: GroupTicketAction } | undefined
@@ -125,7 +158,7 @@ export interface TicketChipView {
   hint: string
 }
 
-/** One ticket of a list. A press opens its discussion. */
+/** One ticket of a list. A press opens its page. */
 export interface GroupTicketRow {
   key: string
   summary: string
@@ -141,8 +174,10 @@ export interface GroupTicketRow {
   reviewing?: string
   /** An update from Slack waits on it: Review starts from it. */
   offer?: ReviewOfferRowView
-  /** Take ticket is offered; a ticket without it is only discussed. */
-  canTake: boolean
+  /** What its tab offers on it, in the order it shows them. */
+  actions: GroupTicketTabAction[]
+  /** Replies to the person's update and comments on their pull requests, when its tab shows them. */
+  replies?: GroupTicketRepliesView
   /** What is opening its chat right now. */
   starting?: GroupTicketAction
   /** What pressing the row does. */
@@ -167,15 +202,26 @@ export interface GroupTicketSectionView {
 export type GroupTicketsView =
   | { kind: 'loading' }
   | { kind: 'no-jira' }
+  /** The tabs could not be read, so no tab can be. */
+  | { kind: 'failed'; error: string }
   | {
       kind: 'tickets'
+      /** The tab bar. */
+      tabs: GroupTicketTabItem[]
+      /** The tab on screen. */
+      tab: string
       /** The top ticket that can be taken: it leaves `mine.rows` to stand above them. */
       next?: GroupTicketRow
       mine: GroupTicketSectionView
       others: GroupTicketSectionView
+      /** The tab holds no ticket at all, said once. */
+      emptyLine?: string
+      /** More of the tab's tickets can be read. */
+      canLoadMore: boolean
+      loadingMore: boolean
       /** While a search is on, the lists give way to it. */
       search?: GroupTicketSectionView & { query: string }
-      /** Why neither list could be read, said once. */
+      /** Why the tab could not be read, said once. */
       readError?: string
       startError?: string
       /** A chat is opening: nothing else can open one. */

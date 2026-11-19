@@ -9,8 +9,16 @@ import type { ColleagueReviewMode } from './colleagueReviewStartTypes'
 import type { ProcessStatusTone } from './processView'
 import type { ProviderOAuthState } from './providerConnectionFormTypes'
 
+/** What the group decides about its updates, as the backend tells it. */
+export type ReviewSourceSettings = GetColleagueReviewSourceResponse['settings'] & {
+  /** The Jira status a ticket moves to once its review merged; none leaves it be. */
+  mergedTicketStatus?: string
+}
+
 /** A group's watched Slack thread as the backend tells it, with what it brought. */
-export type ReviewSourceStatus = GetColleagueReviewSourceResponse
+export type ReviewSourceStatus = Omit<GetColleagueReviewSourceResponse, 'settings'> & {
+  settings: ReviewSourceSettings
+}
 
 /** The connection the watched thread is read through. */
 export type ReviewSourceConnection = NonNullable<ReviewSourceStatus['connection']>
@@ -18,11 +26,10 @@ export type ReviewSourceConnection = NonNullable<ReviewSourceStatus['connection'
 /** The latest read of the watched thread. */
 export type ReviewSourcePoll = NonNullable<ReviewSourceStatus['lastPoll']>
 
-/** What the group decides about its updates, as the backend tells it. */
-export type ReviewSourceSettings = ReviewSourceStatus['settings']
-
-/** A change to the group's review settings: what is left out stays, an empty value clears. */
-export type ReviewSettingsChange = SetColleagueReviewSourceSettingsData['body']
+/** A change to the group's review settings: what is left out stays, an empty value clears; `null` clears the merged status. */
+export type ReviewSettingsChange = SetColleagueReviewSourceSettingsData['body'] & {
+  mergedTicketStatus?: string | null
+}
 
 /** The group's review settings as Settings shows them. */
 export interface ReviewSettingsView {
@@ -33,6 +40,8 @@ export interface ReviewSettingsView {
   runChecksUnasked: boolean
   /** How a round starts unless the person picks otherwise: in the review chat, or as a run. */
   defaultMode: ColleagueReviewMode
+  /** The Jira status a ticket moves to once its review merged; empty leaves it be. */
+  mergedTicketStatus: string
   /** Why the reaction could not be added on the latest read, in a line. */
   reactionError?: string
 }

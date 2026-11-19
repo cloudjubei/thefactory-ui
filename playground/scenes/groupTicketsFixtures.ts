@@ -3,6 +3,7 @@ import type {
   GroupTicketList,
   GroupTicketSection,
   GroupTicketsState,
+  GroupTicketTab,
 } from 'thefactory-ui/headless'
 
 const JIRA = 'https://acme.atlassian.net/browse'
@@ -104,18 +105,73 @@ export const read = (list: GroupTicketList): GroupTicketSection => ({
 
 export const NOT_READ: GroupTicketSection = { list: undefined, readError: null, loadingMore: false }
 
-/** The sprint as a group with Jira sees it; each state changes what it needs to. */
-export const ticketsState = (over: Partial<GroupTicketsState> = {}): GroupTicketsState => ({
-  mine: read(listOf(MINE, { nextTicketKey: NEXT.key })),
-  sprint: read(listOf(OTHERS)),
-  search: { ...NOT_READ, query: '' },
-  starting: undefined,
-  startError: null,
-  reviewing: {},
-  offers: {},
-  offerError: null,
-  ...over,
-})
+/** The one tab the Yours / Others scenes show: the open sprint, every action a side can take there. */
+export const SPRINT_TAB: GroupTicketTab = {
+  id: 'sprint',
+  name: 'In the sprint',
+  statuses: [],
+  sprint: 'open',
+  yours: ['take', 'carry-on', 'review', 'discuss'],
+  others: ['take', 'review', 'discuss'],
+}
+
+/** A tab's list from the person's side and everyone else's, read on their own. */
+function bothSides(mine: GroupTicketSection, others: GroupTicketSection): GroupTicketSection {
+  const readError = mine.readError ?? others.readError
+  if (!mine.list && !others.list) return { ...NOT_READ, readError }
+  const connected = mine.list?.connected !== false && others.list?.connected !== false
+  const nextPageToken = others.list?.nextPageToken ?? mine.list?.nextPageToken
+  const nextTicketKey = mine.list?.nextTicketKey
+  return {
+    list: {
+      connected,
+      access: 'read-write',
+      tickets: [
+        ...(mine.list?.tickets ?? []).map((t) => ({ ...t, mine: true })),
+        ...(others.list?.tickets ?? []).map((t) => ({ ...t, mine: false })),
+      ],
+      reviewOfferCount: Math.max(
+        mine.list?.reviewOfferCount ?? 0,
+        others.list?.reviewOfferCount ?? 0,
+      ),
+      ...(nextTicketKey ? { nextTicketKey } : {}),
+      ...(nextPageToken ? { nextPageToken } : {}),
+    },
+    readError,
+    loadingMore: false,
+  }
+}
+
+/** What a scene changes: the person's side as `mine`, everyone else's as `sprint`, anything else as it is. */
+export type TicketsStateOver = Partial<Omit<GroupTicketsState, 'mine'>> & {
+  mine?: GroupTicketSection
+  sprint?: GroupTicketSection
+}
+
+/** The sprint as a group with Jira sees it, in one tab; each state changes what it needs to. */
+export const ticketsState = (over: TicketsStateOver = {}): GroupTicketsState => {
+  const {
+    mine = read(listOf(MINE, { nextTicketKey: NEXT.key })),
+    sprint = read(listOf(OTHERS)),
+    ...rest
+  } = over
+  return {
+    mine: NOT_READ,
+    tabs: { tabs: [SPRINT_TAB], custom: true, readError: null },
+    tab: undefined,
+    byTab: { [SPRINT_TAB.id]: bothSides(mine, sprint) },
+    tabCounts: {
+      [SPRINT_TAB.id]: (mine.list?.tickets.length ?? 0) + (sprint.list?.tickets.length ?? 0),
+    },
+    search: { ...NOT_READ, query: '' },
+    starting: undefined,
+    startError: null,
+    reviewing: {},
+    offers: {},
+    offerError: null,
+    ...rest,
+  }
+}
 
 /** The rest of the sprint once a colleague's ticket in review has a review of its own. */
 export const OTHERS_REVIEWED: GroupTicket[] = OTHERS.map((t) =>

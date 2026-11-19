@@ -3791,10 +3791,102 @@ export type {
   CapabilitySettingsView,
 } from './utils/capabilitySettingsTypes'
 export {
+  groupTicketsStoreFor,
   useGroupTickets,
   useGroupTicketStatuses,
+  type TicketReviewKnown,
   type UseGroupTickets,
+  type UseReviewPasteBox,
 } from './hooks/useGroupTickets'
+export { GroupTicketsStore } from './hooks/groupTicketsStore'
+export { useGroupTicketPage, type UseGroupTicketPage } from './hooks/useGroupTicketPage'
+export {
+  GroupTicketOverviewStore,
+  type GroupTicketOverviewSnapshot,
+} from './hooks/groupTicketOverviewStore'
+export {
+  useGroupTicketTabsSettings,
+  type UseGroupTicketTabsSettings,
+} from './hooks/useGroupTicketTabsSettings'
+export { GroupTicketTabsEditorStore } from './hooks/groupTicketTabsEditorStore'
+export {
+  readGroupTicketOverview,
+  readGroupTicketTabs,
+  saveGroupTicketTabs,
+} from './api/groupTicketTabsApi'
+export {
+  groupTicketRepliesView,
+  groupTicketRowActions,
+  groupTicketShownTab,
+  groupTicketTabItems,
+  groupTicketTabSummary,
+  type GroupTicketActionFacts,
+} from './utils/groupTicketTabs'
+export { changeGroupTicketTabs, groupTicketTabsEditorView } from './utils/groupTicketTabsEditor'
+export { groupTicketPageView, groupTicketUpdateLinks } from './utils/groupTicketPage'
+export {
+  GROUP_TICKET_NEW_TAB,
+  GROUP_TICKET_SIDE_LABELS,
+  GROUP_TICKET_STATUS_CATEGORIES,
+  GROUP_TICKET_STATUS_CATEGORY_LABELS,
+  GROUP_TICKET_TAB_ACTION_LABELS,
+  GROUP_TICKET_TAB_ACTIONS,
+  GROUP_TICKET_TAB_ROW_TEXT,
+  GROUP_TICKET_TAB_SPRINT_LABELS,
+  GROUP_TICKET_TAB_SPRINTS,
+  GROUP_TICKET_TABS_MAX,
+  GROUP_TICKET_TABS_TEXT,
+} from './utils/groupTicketTabConstants'
+export type {
+  GroupTicketReplies,
+  GroupTicketRepliesView,
+  GroupTicketSide,
+  GroupTicketStatusCategory,
+  GroupTicketTab,
+  GroupTicketTabAction,
+  GroupTicketTabEditorRow,
+  GroupTicketTabItem,
+  GroupTicketTabs,
+  GroupTicketTabsChange,
+  GroupTicketTabsEditorState,
+  GroupTicketTabsEditorView,
+  GroupTicketTabSideView,
+  GroupTicketTabSprint,
+  GroupTicketToneLabel,
+} from './utils/groupTicketTabTypes'
+export {
+  GROUP_TICKET_PAGE_DEFAULT_LAYOUT,
+  GROUP_TICKET_PAGE_LAYOUT_LABELS,
+  GROUP_TICKET_PAGE_LAYOUTS,
+  GROUP_TICKET_PAGE_TEXT,
+  GROUP_TICKET_PART_FAILED,
+  GROUP_TICKET_PR_CHECKS_VIEW,
+  GROUP_TICKET_PR_STATE_VIEW,
+  GROUP_TICKET_TABS_DEFAULT_LAYOUT,
+  GROUP_TICKET_TABS_LAYOUT_LABELS,
+  GROUP_TICKET_TABS_LAYOUTS,
+  GROUP_TICKET_UPDATE_STATE_VIEW,
+} from './utils/groupTicketPageConstants'
+export type {
+  GroupTicketChatView,
+  GroupTicketFact,
+  GroupTicketGroupStory,
+  GroupTicketOverview,
+  GroupTicketOverviewPart,
+  GroupTicketPageLayout,
+  GroupTicketPageState,
+  GroupTicketPageView,
+  GroupTicketPullRequest,
+  GroupTicketPullRequestView,
+  GroupTicketReviewRound,
+  GroupTicketReviewRun,
+  GroupTicketRoundView,
+  GroupTicketRunView,
+  GroupTicketSprint,
+  GroupTicketTabsLayout,
+  GroupTicketUpdate,
+  GroupTicketUpdateView,
+} from './utils/groupTicketPageTypes'
 export {
   groupRunStartedWords,
   groupStoryTicketChip,
@@ -3830,6 +3922,7 @@ export type {
   GroupTicketSearch,
   GroupTicketSection,
   GroupTicketSectionView,
+  GroupTicketTabsRead,
   GroupTicketsLayout,
   GroupTicketsQuery,
   GroupTicketsShown,
@@ -3928,7 +4021,7 @@ export type {
 export {
   clearColleagueReviewThread,
   dismissReviewOffer,
-  listWaitingReviewOffers,
+  listTicketReviewOffers,
   postColleagueReviewReply,
   readColleagueReviewSource,
   setColleagueReviewSettings,
@@ -3961,6 +4054,7 @@ export type {
   ReviewMergeRowView,
   ReviewMergeSnapshot,
   ReviewMergeStart,
+  ReviewMergeTicketMove,
   ReviewMergeView,
   ReviewMergeViewInput,
 } from './utils/colleagueReviewMergeTypes'

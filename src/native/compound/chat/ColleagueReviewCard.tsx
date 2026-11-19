@@ -158,16 +158,17 @@ export default function ColleagueReviewCard({
  * Native peer of web's merge section: Approve & merge on the latest round,
  * its confirm listing the pull requests in the order they merge and the Slack
  * line, then each one's progress, live; a round that asked for changes is
- * held with the backend's words and "Merge anyway".
+ * held with the backend's words and "Merge anyway". What became of the
+ * ticket's status once it merged shows last. The ticket page shows it too.
  */
-function MergeSection({
+export function MergeSection({
   merge,
   onStart,
-  confirmOpen,
+  confirmOpen = false,
 }: {
   merge: ReviewCardMerge
   onStart?: (slackText: string, override: boolean) => void
-  confirmOpen: boolean
+  confirmOpen?: boolean
 }) {
   const { theme, status } = useNativeTheme()
   const [confirming, setConfirming] = useState(confirmOpen)
@@ -265,6 +266,16 @@ function MergeSection({
         ) : (
           <Text style={muted}>{slack.line}</Text>
         )
+      ) : null}
+      {view?.ticketMove ? (
+        <Text
+          style={{
+            fontSize: 12,
+            color: view.ticketMove.failed ? status.stuck.softFg : theme.text.secondary,
+          }}
+        >
+          {view.ticketMove.line}
+        </Text>
       ) : null}
       {onStart ? (
         <BottomSheet

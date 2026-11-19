@@ -21,6 +21,7 @@ import {
   read,
   STARTED,
   ticketsState,
+  type TicketsStateOver,
   WORKED,
 } from './groupTicketsFixtures'
 
@@ -28,7 +29,7 @@ const noop = () => {}
 const JIRA_DOWN = 'Jira answered 503: try again soon.'
 
 type Options = {
-  state?: Partial<GroupTicketsState>
+  state?: TicketsStateOver
   layout?: GroupTicketsLayout
   shownFirst?: GroupTicketsShown
   /** Offer Review on every row. */
@@ -43,6 +44,8 @@ function Tab({ state, layout, shownFirst, review }: Options) {
       onQueryChange={noop}
       onDiscuss={noop}
       onPlan={noop}
+      onOpen={noop}
+      onPickTab={noop}
       onOpenStory={noop}
       onOpenSettings={noop}
       onRetry={noop}

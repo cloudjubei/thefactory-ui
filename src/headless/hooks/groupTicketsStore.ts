@@ -1,11 +1,12 @@
 import { startColleagueReview } from '../api/colleagueReviewApi'
-import { dismissReviewOffer, listWaitingReviewOffers } from '../api/colleagueReviewSourceApi'
+import { dismissReviewOffer, listTicketReviewOffers } from '../api/colleagueReviewSourceApi'
 import { extractErrorMessage } from '../api/errorMessage'
 import {
   readGroupTickets,
   startGroupTicketDiscussion,
   startGroupTicketPlan,
 } from '../api/groupTicketsApi'
+import { readGroupTicketTabs } from '../api/groupTicketTabsApi'
 import { reviewChatContext, reviewStartBody } from '../utils/colleagueReviewStart'
 import { REVIEW_OFFER_TEXT } from '../utils/colleagueReviewSourceConstants'
 import type { TicketReviewOffer } from '../utils/colleagueReviewSourceTypes'
@@ -20,6 +21,10 @@ import type {
   ReviewStartPhase,
 } from '../utils/colleagueReviewStartTypes'
 import { GROUP_TICKETS_SEARCH_WAIT_MS, GROUP_TICKETS_TEXT } from '../utils/groupTicketConstants'
+import { GROUP_TICKET_TAB_ROW_TEXT } from '../utils/groupTicketTabConstants'
+import { groupTicketShownTab } from '../utils/groupTicketTabs'
+import type { LaunchAgentPickMetadata } from '../utils/launchAgentPickTypes'
+import type { GroupTicketTabs } from '../utils/groupTicketTabTypes'
 import type {
   GroupTicket,
   GroupTicketAction,
@@ -35,7 +40,10 @@ const NOT_READ: GroupTicketSection = { list: undefined, readError: null, loading
 
 const EMPTY: GroupTicketsState = {
   mine: NOT_READ,
-  sprint: NOT_READ,
+  tabs: { tabs: undefined, custom: false, readError: null },
+  tab: undefined,
+  byTab: {},
+  tabCounts: {},
   search: { ...NOT_READ, query: '' },
   starting: undefined,
   startError: null,
@@ -46,9 +54,14 @@ const EMPTY: GroupTicketsState = {
 
 const READ_FAILED: Record<GroupTicketListName, string> = {
   mine: GROUP_TICKETS_TEXT.readFailed,
-  sprint: GROUP_TICKETS_TEXT.readFailed,
+  tab: GROUP_TICKETS_TEXT.readFailed,
   search: GROUP_TICKETS_TEXT.searchFailed,
 }
+
+/** A list the store reads: the person's, a search, or one tab's by its id. */
+type ListKey = 'mine' | 'search' | { tab: string }
+
+const keyName = (key: ListKey): string => (typeof key === 'string' ? key : `tab:${key.tab}`)
 
 const START_FAILED: Record<GroupTicketAction, string> = {
   discuss: GROUP_TICKETS_TEXT.discussFailed,
@@ -117,13 +130,15 @@ function without<V>(record: Readonly<Record<string, V>>, key: string): Record<st
 }
 
 /**
- * One group's tickets as its Tickets tab shows them: the person's, the rest of the
- * sprint and a search, each read on its own, so one failing or running late leaves
- * the others be. Only one chat opens at a time, as each can start an agent.
+ * One group's tickets as its Tickets tab shows them: its tabs, each tab's tickets
+ * kept once read so switching back shows them at once, the person's own and a
+ * search, each read on its own, so one failing or running late leaves the others
+ * be. Only one chat opens at a time, as each can start an agent.
  */
 export class GroupTicketsStore {
   private _state: GroupTicketsState = EMPTY
-  private readonly _reads: Record<GroupTicketListName, number> = { mine: 0, sprint: 0, search: 0 }
+  private readonly _reads = new Map<string, number>()
+  private _tabsRead: Promise<void> | undefined
   private readonly _listeners = new Set<() => void>()
   private readonly _groupId: string
   private _typing: ReturnType<typeof setTimeout> | undefined
@@ -149,16 +164,52 @@ export class GroupTicketsStore {
     for (const listener of this._listeners) listener()
   }
 
-  private _patch(name: GroupTicketListName, patch: Partial<GroupTicketSection>): void {
-    this._set({ [name]: { ...this._state[name], ...patch } })
+  /** The tab on screen: the one picked while the group has it, else the first. */
+  shownTab = (): string | undefined =>
+    groupTicketShownTab(this._state.tabs.tabs, this._state.tab)?.id
+
+  private _keyOf(name: GroupTicketListName): ListKey | undefined {
+    if (name !== 'tab') return name
+    const tab = this.shownTab()
+    return tab ? { tab } : undefined
   }
 
-  private _query(name: GroupTicketListName, nextPageToken?: string): GroupTicketsQuery {
+  private _section(key: ListKey): GroupTicketSection {
+    if (typeof key === 'string') return this._state[key]
+    return this._state.byTab[key.tab] ?? NOT_READ
+  }
+
+  private _patch(key: ListKey, patch: Partial<GroupTicketSection>): void {
+    if (typeof key === 'string') {
+      this._set({ [key]: { ...this._state[key], ...patch } })
+      return
+    }
+    const { byTab } = this._state
+    this._set({ byTab: { ...byTab, [key.tab]: { ...(byTab[key.tab] ?? NOT_READ), ...patch } } })
+  }
+
+  private _bump(key: ListKey): number {
+    const name = keyName(key)
+    const read = (this._reads.get(name) ?? 0) + 1
+    this._reads.set(name, read)
+    return read
+  }
+
+  private _current(key: ListKey, read: number): boolean {
+    return this._reads.get(keyName(key)) === read
+  }
+
+  private _query(key: ListKey, nextPageToken?: string): GroupTicketsQuery {
     return {
-      view: name,
-      ...(name === 'search' ? { q: this._state.search.query } : {}),
+      ...(typeof key === 'string' ? { view: key } : { tab: key.tab }),
+      ...(key === 'search' ? { q: this._state.search.query } : {}),
       ...(nextPageToken ? { nextPageToken } : {}),
     }
+  }
+
+  /** A list as it was read, and the tab counts it brought. */
+  private _took(list: GroupTicketList): Partial<GroupTicketsState> {
+    return list.tabCounts ? { tabCounts: { ...this._state.tabCounts, ...list.tabCounts } } : {}
   }
 
   /** What a read begun at `begun` answers, less the updates the backend may not have settled by then. */
@@ -172,16 +223,18 @@ export class GroupTicketsStore {
   }
 
   /** Read a list's first page again. A read a newer one overtook is dropped, a page being read too. */
-  private async _read(name: GroupTicketListName): Promise<void> {
-    const read = ++this._reads[name]
+  private async _read(key: ListKey): Promise<void> {
+    const read = this._bump(key)
     const begun = ++this._readCount
+    const name: GroupTicketListName = typeof key === 'string' ? key : 'tab'
     try {
-      const list = this._fresh(await readGroupTickets(this._groupId, this._query(name)), begun)
-      if (read === this._reads[name])
-        this._patch(name, { list, readError: null, loadingMore: false })
+      const list = this._fresh(await readGroupTickets(this._groupId, this._query(key)), begun)
+      if (!this._current(key, read)) return
+      this._set(this._took(list))
+      this._patch(key, { list, readError: null, loadingMore: false })
     } catch (err) {
-      if (read !== this._reads[name]) return
-      this._patch(name, {
+      if (!this._current(key, read)) return
+      this._patch(key, {
         readError: extractErrorMessage(err, READ_FAILED[name]),
         loadingMore: false,
       })
@@ -190,18 +243,67 @@ export class GroupTicketsStore {
 
   refreshMine = (): Promise<void> => this._read('mine')
 
-  /** Read every list on screen again, and the waiting updates whole once a list says some wait. */
-  refresh = async (): Promise<void> => {
-    const names: GroupTicketListName[] = ['mine', 'sprint']
-    if (this._state.search.query) names.push('search')
-    await Promise.all(names.map((name) => this._read(name)))
-    const { mine, sprint } = this._state
-    if ((mine.list ?? sprint.list)?.reviewOfferCount) void this.loadOffers()
+  /** Read the group's tabs, once however often it is asked meanwhile; a failed read keeps the tabs read before. */
+  readTabs = (): Promise<void> => {
+    this._tabsRead ??= readGroupTicketTabs(this._groupId)
+      .then(({ tabs, custom }) => this._set({ tabs: { tabs, custom, readError: null } }))
+      .catch((err: unknown) =>
+        this._set({
+          tabs: {
+            ...this._state.tabs,
+            readError: extractErrorMessage(err, GROUP_TICKET_TAB_ROW_TEXT.tabsFailed),
+          },
+        }),
+      )
+      .finally(() => {
+        this._tabsRead = undefined
+      })
+    return this._tabsRead
   }
 
-  /** Read the waiting updates whole, once however often it is asked meanwhile; a failed read keeps what was read. */
+  /** The group's tabs as Settings saved them: shown at once, the tab on screen read again. */
+  tabsChanged = (saved: GroupTicketTabs): void => {
+    this._set({ tabs: { tabs: saved.tabs, custom: saved.custom, readError: null } })
+    const tab = this.shownTab()
+    if (tab && this._state.tabs.tabs) void this._read({ tab })
+  }
+
+  /** Show a tab: its tickets at once when read before, read again either way. */
+  pickTab = async (tabId: string): Promise<void> => {
+    if (tabId === this.shownTab()) return
+    this._set({ tab: tabId })
+    const tab = this.shownTab()
+    if (tab) await this._read({ tab })
+  }
+
+  /**
+   * Read the tabs, the tab on screen and any search again, and the rows'
+   * updates whole once a row shows one. Tabs read before are read again
+   * beside the tab, not before it.
+   */
+  refresh = async (): Promise<void> => {
+    const tabsRead = this.readTabs()
+    if (!this._state.tabs.tabs) await tabsRead
+    const keys: ListKey[] = []
+    const tab = this.shownTab()
+    if (tab) keys.push({ tab })
+    if (this._state.search.query) keys.push('search')
+    await Promise.all([tabsRead, ...keys.map((key) => this._read(key))])
+    const showsOne = this._sections().some((section) =>
+      section.list?.tickets.some((ticket) => ticket.reviewOffer),
+    )
+    if (showsOne) void this.loadOffers()
+  }
+
+  /** Every list held: the person's, each tab's, and the search. */
+  private _sections(): GroupTicketSection[] {
+    const { mine, byTab, search } = this._state
+    return [mine, ...Object.values(byTab), search]
+  }
+
+  /** Read the rows' updates whole, waiting or dismissed, once however often it is asked meanwhile; a failed read keeps what was read. */
   loadOffers = (): Promise<void> => {
-    this._offersRead ??= listWaitingReviewOffers(this._groupId)
+    this._offersRead ??= listTicketReviewOffers(this._groupId)
       .then((offers) => this._set({ offers: Object.fromEntries(offers.map((o) => [o.id, o])) }))
       .catch(() => undefined)
       .finally(() => {
@@ -212,19 +314,28 @@ export class GroupTicketsStore {
 
   /** The update waiting on a ticket, in whichever list holds it. */
   private _offerOn(key: string): TicketReviewOffer | undefined {
-    const { mine, sprint, search } = this._state
-    return [mine, sprint, search]
+    return this._sections()
       .flatMap((section) => section.list?.tickets ?? [])
       .find((t) => t.key === key && t.reviewOffer)?.reviewOffer
+  }
+
+  private _eachSection(
+    change: <S extends GroupTicketSection>(section: S) => S,
+  ): Partial<GroupTicketsState> {
+    const { mine, byTab, search } = this._state
+    return {
+      mine: change(mine),
+      byTab: Object.fromEntries(Object.entries(byTab).map(([id, s]) => [id, change(s)])),
+      search: change(search),
+    }
   }
 
   private _eachList(
     change: (list: GroupTicketList) => GroupTicketList,
   ): Partial<GroupTicketsState> {
-    const { mine, sprint, search } = this._state
-    const changed = <S extends GroupTicketSection>(section: S): S =>
-      section.list ? { ...section, list: change(section.list) } : section
-    return { mine: changed(mine), sprint: changed(sprint), search: changed(search) }
+    return this._eachSection((section) =>
+      section.list ? { ...section, list: change(section.list) } : section,
+    )
   }
 
   /** Take an update off its ticket at once, as the person settled it. */
@@ -266,22 +377,25 @@ export class GroupTicketsStore {
   }
 
   loadMore = async (name: GroupTicketListName): Promise<void> => {
-    const { list, loadingMore } = this._state[name]
+    const key = this._keyOf(name)
+    if (!key) return
+    const { list, loadingMore } = this._section(key)
     if (!list?.nextPageToken || loadingMore) return
-    const read = ++this._reads[name]
+    const read = this._bump(key)
     const begun = ++this._readCount
-    this._patch(name, { loadingMore: true })
+    this._patch(key, { loadingMore: true })
     try {
       const page = this._fresh(
-        await readGroupTickets(this._groupId, this._query(name, list.nextPageToken)),
+        await readGroupTickets(this._groupId, this._query(key, list.nextPageToken)),
         begun,
       )
-      if (read === this._reads[name]) {
-        this._patch(name, { list: withPage(list, page), readError: null, loadingMore: false })
+      if (this._current(key, read)) {
+        this._set(this._took(page))
+        this._patch(key, { list: withPage(list, page), readError: null, loadingMore: false })
       }
     } catch (err) {
-      if (read !== this._reads[name]) return
-      this._patch(name, {
+      if (!this._current(key, read)) return
+      this._patch(key, {
         readError: extractErrorMessage(err, READ_FAILED[name]),
         loadingMore: false,
       })
@@ -292,7 +406,7 @@ export class GroupTicketsStore {
   search = async (typed: string): Promise<void> => {
     const query = typed.trim()
     if (query === this._state.search.query) return
-    this._reads.search++
+    this._bump('search')
     this._set({ search: { ...NOT_READ, query } })
     if (query) await this._read('search')
   }
@@ -317,11 +431,8 @@ export class GroupTicketsStore {
     this._set({ starting: { key, action }, startError: null })
     try {
       const started = await START[action](this._groupId, key)
-      const { mine, sprint, search } = this._state
       this._set({
-        mine: withTicket(mine, started.ticket),
-        sprint: withTicket(sprint, started.ticket),
-        search: withTicket(search, started.ticket),
+        ...this._eachSection((section) => withTicket(section, started.ticket)),
         starting: undefined,
       })
       return started
@@ -343,12 +454,7 @@ export class GroupTicketsStore {
   /** Mark a ticket as having a review, in every list that holds it. */
   markReviewOpen = (ticketKey: string): void => {
     const open = (t: GroupTicket) => (t.reviewOpen ? t : { ...t, reviewOpen: true })
-    const { mine, sprint, search } = this._state
-    this._set({
-      mine: withTicketPatch(mine, ticketKey, open),
-      sprint: withTicketPatch(sprint, ticketKey, open),
-      search: withTicketPatch(search, ticketKey, open),
-    })
+    this._set(this._eachSection((section) => withTicketPatch(section, ticketKey, open)))
   }
 
   /**
@@ -358,7 +464,8 @@ export class GroupTicketsStore {
    * A failure hands the draft back, every file that went up keeping its path.
    * Started from an update from Slack, the update leaves its ticket at once,
    * and comes back when the round does not start. `mode` says how the round
-   * is reviewed; the group's default when left out.
+   * is reviewed; the group's default when left out. `agent` is the agent
+   * picked for it; the chat's when left out.
    */
   review = async (
     ticketKey: string,
@@ -366,6 +473,7 @@ export class GroupTicketsStore {
     upload: ReviewFileUpload,
     offer?: ReviewBoxOffer,
     mode?: ColleagueReviewMode,
+    agent: LaunchAgentPickMetadata = {},
   ): Promise<ReviewStartOutcome | undefined> => {
     if (this._state.reviewing[ticketKey]) return undefined
     const shown = this._offerOn(ticketKey)
@@ -397,15 +505,14 @@ export class GroupTicketsStore {
     this._reviewPhase(ticketKey, { step: 'starting' })
     const attachments = files.flatMap((f) => (f.path ? [f.path] : []))
     try {
-      const started = await startColleagueReview(
-        this._groupId,
-        ticketKey,
-        reviewStartBody(
+      const started = await startColleagueReview(this._groupId, ticketKey, {
+        ...agent,
+        ...reviewStartBody(
           { ticketKey, nextRound: false, draft, ...(offer ? { offer } : {}) },
           attachments,
           mode,
         ),
-      )
+      })
       if (onTicket) this._settledBy(onTicket.id)
       this._reviewPhase(ticketKey, undefined)
       this.markReviewOpen(ticketKey)

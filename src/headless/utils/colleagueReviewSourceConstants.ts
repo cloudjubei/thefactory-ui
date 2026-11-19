@@ -101,6 +101,9 @@ export const SLACK_SETTINGS_TEXT = {
   skipStatuses: 'Skip tickets in these statuses',
   skipStatusesHint: 'Status names, comma-separated.',
   skipStatusesPlaceholder: 'Done, Won’t do',
+  mergedStatus: 'After merging, move the ticket to',
+  mergedStatusHint: 'A Jira status name. Empty leaves the ticket’s status as it is.',
+  mergedStatusPlaceholder: 'In QA',
   startReaction: 'React when a review starts',
   startReactionHint:
     'Needs the reactions:write scope on your Slack app; sign in again after adding it.',

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { GROUP_TICKETS_SEARCH_WAIT_MS } from '../utils/groupTicketConstants'
 import type { GroupTicket, GroupTicketList, TicketPlanStarted } from '../utils/groupTicketTypes'
+import type { GroupTicketTab } from '../utils/groupTicketTabTypes'
 
 const api = vi.hoisted(() => ({
   readGroupTickets: vi.fn(),
@@ -15,11 +16,25 @@ const reviewApi = vi.hoisted(() => ({ startColleagueReview: vi.fn() }))
 vi.mock('../api/colleagueReviewApi', () => reviewApi)
 
 const sourceApi = vi.hoisted(() => ({
-  listWaitingReviewOffers: vi.fn(),
+  listTicketReviewOffers: vi.fn(),
   dismissReviewOffer: vi.fn(),
 }))
 
 vi.mock('../api/colleagueReviewSourceApi', () => sourceApi)
+
+const tabsApi = vi.hoisted(() => ({ readGroupTicketTabs: vi.fn() }))
+
+vi.mock('../api/groupTicketTabsApi', () => tabsApi)
+
+/** The one tab the group has: its reads stand in for the open sprint's. */
+const SPRINT_TAB: GroupTicketTab = {
+  id: 'sprint',
+  name: 'Sprint',
+  statuses: [],
+  sprint: 'open',
+  yours: ['take', 'discuss'],
+  others: ['discuss'],
+}
 
 import { GroupTicketsStore } from './groupTicketsStore'
 
@@ -66,11 +81,13 @@ const refusal = (status: number, error: string) => ({
 
 /** Answers each list by name, so a test says what each read gets whatever order they run in. */
 const answers = (by: Partial<Record<'mine' | 'sprint' | 'search', GroupTicketList | Error>>) =>
-  api.readGroupTickets.mockImplementation(async (_group: string, query: { view: 'mine' }) => {
-    const answer = by[query.view] ?? list({ tickets: [] })
-    if (answer instanceof Error) throw answer
-    return answer
-  })
+  api.readGroupTickets.mockImplementation(
+    async (_group: string, query: { view?: 'mine' | 'search'; tab?: string }) => {
+      const answer = by[query.view ?? (query.tab ? 'sprint' : 'mine')] ?? list({ tickets: [] })
+      if (answer instanceof Error) throw answer
+      return answer
+    },
+  )
 
 const keys = (l: GroupTicketList | undefined) => l?.tickets.map((t) => t.key)
 
@@ -79,21 +96,23 @@ beforeEach(() => {
   api.startGroupTicketDiscussion.mockReset()
   api.startGroupTicketPlan.mockReset()
   reviewApi.startColleagueReview.mockReset()
-  sourceApi.listWaitingReviewOffers.mockReset()
+  sourceApi.listTicketReviewOffers.mockReset()
   sourceApi.dismissReviewOffer.mockReset()
+  tabsApi.readGroupTicketTabs.mockReset()
+  tabsApi.readGroupTicketTabs.mockResolvedValue({ tabs: [SPRINT_TAB], custom: true })
 })
 
 describe('GroupTicketsStore', () => {
-  it('reads the person’s tickets and the rest of the sprint, each into its own list', async () => {
+  it('reads the tabs, then the tab on screen into its own list', async () => {
     answers({ mine: list(), sprint: list({ tickets: [ticket('B-1')] }) })
     const store = new GroupTicketsStore('osc')
-    expect(store.getState().mine.list).toBeUndefined()
     await store.refresh()
-    expect(api.readGroupTickets).toHaveBeenCalledWith('osc', { view: 'mine' })
-    expect(api.readGroupTickets).toHaveBeenCalledWith('osc', { view: 'sprint' })
-    expect(api.readGroupTickets).toHaveBeenCalledTimes(2)
-    expect(keys(store.getState().mine.list)).toEqual(['A-1'])
-    expect(keys(store.getState().sprint.list)).toEqual(['B-1'])
+    expect(tabsApi.readGroupTicketTabs).toHaveBeenCalledWith('osc')
+    expect(store.getState().tabs).toEqual({ tabs: [SPRINT_TAB], custom: true, readError: null })
+    expect(api.readGroupTickets).toHaveBeenCalledWith('osc', { tab: 'sprint' })
+    expect(api.readGroupTickets).toHaveBeenCalledTimes(1)
+    expect(keys(store.getState().byTab.sprint?.list)).toEqual(['B-1'])
+    expect(store.getState().mine.list).toBeUndefined()
   })
 
   it('reads only the person’s when that is all that is asked for', async () => {
@@ -118,26 +137,26 @@ describe('GroupTicketsStore', () => {
   })
 
   it('says why a list failed on that list alone, and clears it on the next that works', async () => {
-    api.readGroupTickets.mockImplementation(async (_g: string, q: { view: string }) => {
-      if (q.view === 'sprint') throw refusal(502, 'Jira is down')
+    api.readGroupTickets.mockImplementation(async (_g: string, q: { tab?: string }) => {
+      if (q.tab) throw refusal(502, 'Jira is down')
       return list()
     })
     const store = new GroupTicketsStore('osc')
-    await store.refresh()
-    expect(store.getState().sprint.readError).toBe('Jira is down')
+    await Promise.all([store.refresh(), store.refreshMine()])
+    expect(store.getState().byTab.sprint?.readError).toBe('Jira is down')
     expect(store.getState().mine.readError).toBeNull()
     expect(keys(store.getState().mine.list)).toEqual(['A-1'])
     answers({ sprint: list() })
     await store.refresh()
-    expect(store.getState().sprint.readError).toBeNull()
+    expect(store.getState().byTab.sprint?.readError).toBeNull()
   })
 
   it('falls back to its own words for a failure with none', async () => {
     api.readGroupTickets.mockRejectedValue({})
     const store = new GroupTicketsStore('osc')
-    await store.refresh()
+    await Promise.all([store.refresh(), store.refreshMine()])
     expect(store.getState().mine.readError).toBe('Could not read the tickets.')
-    expect(store.getState().sprint.readError).toBe('Could not read the tickets.')
+    expect(store.getState().byTab.sprint?.readError).toBe('Could not read the tickets.')
   })
 
   it('keeps the list a later read could not refresh', async () => {
@@ -167,16 +186,16 @@ describe('GroupTicketsStore', () => {
   it('does not let a read of one list overtake the other', async () => {
     const mine = deferred<GroupTicketList>()
     const sprint = deferred<GroupTicketList>()
-    api.readGroupTickets.mockImplementation((_g: string, q: { view: string }) =>
+    api.readGroupTickets.mockImplementation((_g: string, q: { view?: string }) =>
       q.view === 'mine' ? mine.promise : sprint.promise,
     )
     const store = new GroupTicketsStore('osc')
-    const going = store.refresh()
+    const going = Promise.all([store.refresh(), store.refreshMine()])
     sprint.resolve(list({ tickets: [ticket('B-1')] }))
     mine.resolve(list({ tickets: [ticket('A-1')] }))
     await going
     expect(keys(store.getState().mine.list)).toEqual(['A-1'])
-    expect(keys(store.getState().sprint.list)).toEqual(['B-1'])
+    expect(keys(store.getState().byTab.sprint?.list)).toEqual(['B-1'])
   })
 
   describe('reading more', () => {
@@ -206,15 +225,15 @@ describe('GroupTicketsStore', () => {
         sprint: list({ tickets: [ticket('B-1')], nextPageToken: 's2' }),
       })
       const store = new GroupTicketsStore('osc')
-      await store.refresh()
+      await Promise.all([store.refresh(), store.refreshMine()])
       api.readGroupTickets.mockReset()
       api.readGroupTickets.mockResolvedValueOnce(list({ tickets: [ticket('B-2')] }))
-      await store.loadMore('sprint')
+      await store.loadMore('tab')
       expect(api.readGroupTickets).toHaveBeenCalledWith('osc', {
-        view: 'sprint',
+        tab: 'sprint',
         nextPageToken: 's2',
       })
-      expect(keys(store.getState().sprint.list)).toEqual(['B-1', 'B-2'])
+      expect(keys(store.getState().byTab.sprint?.list)).toEqual(['B-1', 'B-2'])
       expect(store.getState().mine.list?.nextPageToken).toBe('m2')
     })
 
@@ -458,12 +477,12 @@ describe('GroupTicketsStore', () => {
       answers({ search: list() })
       const store = new GroupTicketsStore('osc')
       await store.refresh()
-      expect(api.readGroupTickets).toHaveBeenCalledTimes(2)
+      expect(api.readGroupTickets).toHaveBeenCalledTimes(1)
       await store.search('renewal')
       api.readGroupTickets.mockClear()
       await store.refresh()
       expect(api.readGroupTickets).toHaveBeenCalledWith('osc', { view: 'search', q: 'renewal' })
-      expect(api.readGroupTickets).toHaveBeenCalledTimes(3)
+      expect(api.readGroupTickets).toHaveBeenCalledTimes(2)
     })
   })
 
@@ -508,14 +527,14 @@ describe('GroupTicketsStore', () => {
         search: list({ tickets: [ticket('A-1')] }),
       })
       const store = new GroupTicketsStore('osc')
-      await store.refresh()
+      await Promise.all([store.refresh(), store.refreshMine()])
       await store.search('a')
       api[call].mockResolvedValue(started('A-1'))
       await go(store, 'A-1')
-      const { mine, sprint, search } = store.getState()
+      const { mine, byTab, search } = store.getState()
       expect(mine.list?.tickets.map((t) => t.chatOpen)).toEqual([true, false])
       expect(search.list?.tickets[0]?.chatOpen).toBe(true)
-      expect(sprint.list?.tickets[0]?.chatOpen).toBe(false)
+      expect(byTab.sprint?.list?.tickets[0]?.chatOpen).toBe(false)
       expect(api.readGroupTickets).toHaveBeenCalledTimes(3)
     })
 
@@ -533,14 +552,14 @@ describe('GroupTicketsStore', () => {
 
     it('says why it was refused and reads the lists again, as they may be stale', async () => {
       api[call].mockRejectedValue(refusal(409, 'A-1 is In Progress.'))
-      answers({ mine: list({ tickets: [] }) })
+      answers({ sprint: list({ tickets: [] }) })
       const store = new GroupTicketsStore('osc')
       expect(await go(store, 'A-1')).toBeUndefined()
       const state = store.getState()
       expect(state.startError).toBe('A-1 is In Progress.')
       expect(state.starting).toBeUndefined()
-      expect(api.readGroupTickets).toHaveBeenCalledTimes(2)
-      expect(state.mine.list?.tickets).toEqual([])
+      expect(api.readGroupTickets).toHaveBeenCalledTimes(1)
+      expect(state.byTab.sprint?.list?.tickets).toEqual([])
     })
 
     it('clears the last refusal on the next try', async () => {
@@ -576,7 +595,7 @@ describe('GroupTicketsStore', () => {
     it('uploads each file to the review chat, then starts the round with their paths', async () => {
       answers({ mine: list() })
       const store = new GroupTicketsStore('osc')
-      await store.refresh()
+      await store.refreshMine()
       const upload = vi.fn(async (_c: unknown, f: { name: string }) => `up/${f.name}`)
       reviewApi.startColleagueReview.mockResolvedValue(roundStarted)
       const outcome = await store.review(
@@ -695,7 +714,7 @@ describe('GroupTicketsStore', () => {
     it('says why the backend refused the round, and leaves the ticket as it was', async () => {
       answers({ mine: list() })
       const store = new GroupTicketsStore('osc')
-      await store.refresh()
+      await store.refreshMine()
       reviewApi.startColleagueReview.mockRejectedValueOnce(refusal(409, 'The group has no Jira.'))
       const outcome = await store.review('A-1', { text: 'Done', files: [] }, vi.fn())
       expect(outcome).toMatchObject({ ok: false, error: 'The group has no Jira.' })
@@ -719,7 +738,7 @@ describe('GroupTicketsStore', () => {
     it('marks a ticket as reviewed in every list, once', async () => {
       answers({ mine: list(), search: list() })
       const store = new GroupTicketsStore('osc')
-      await store.refresh()
+      await store.refreshMine()
       await store.search('a')
       store.markReviewOpen('A-1')
       const marked = store.getState()
@@ -756,42 +775,56 @@ describe('GroupTicketsStore', () => {
     }
     const offered = () =>
       list({ tickets: [ticket('A-1', { reviewOffer: OFFER }), ticket('A-2')], reviewOfferCount: 2 })
-    const offerOf = (store: GroupTicketsStore, name: 'mine' | 'search' = 'mine') =>
-      store.getState()[name].list?.tickets.find((t) => t.key === 'A-1')?.reviewOffer
-    const count = (store: GroupTicketsStore) => store.getState().mine.list?.reviewOfferCount
+    const tabList = (store: GroupTicketsStore) => store.getState().byTab.sprint?.list
+    const offerOf = (store: GroupTicketsStore, name: 'tab' | 'search' = 'tab') =>
+      (name === 'search' ? store.getState().search.list : tabList(store))?.tickets.find(
+        (t) => t.key === 'A-1',
+      )?.reviewOffer
+    const count = (store: GroupTicketsStore) => tabList(store)?.reviewOfferCount
 
     const offeredStore = async () => {
-      answers({ mine: offered(), search: offered() })
-      sourceApi.listWaitingReviewOffers.mockResolvedValue([WHOLE])
+      answers({ sprint: offered(), search: offered() })
+      sourceApi.listTicketReviewOffers.mockResolvedValue([WHOLE])
       const store = new GroupTicketsStore('osc')
       await store.refresh()
       await store.search('a')
       return store
     }
 
-    it('reads the waiting updates whole once a list says some wait', async () => {
+    it('reads the updates whole once a row shows one', async () => {
       const store = await offeredStore()
       await vi.waitFor(() => expect(store.getState().offers).toEqual({ o1: WHOLE }))
-      expect(sourceApi.listWaitingReviewOffers).toHaveBeenCalledWith('osc')
+      expect(sourceApi.listTicketReviewOffers).toHaveBeenCalledWith('osc')
     })
 
-    it('reads no updates while none wait', async () => {
+    it('reads the updates whole when a row shows one that was dismissed, though none waits', async () => {
+      const dismissed = { ...OFFER, state: 'dismissed' as const }
+      answers({
+        sprint: list({ tickets: [ticket('A-1', { reviewOffer: dismissed })], reviewOfferCount: 0 }),
+      })
+      sourceApi.listTicketReviewOffers.mockResolvedValue([{ ...WHOLE, state: 'dismissed' }])
+      const store = new GroupTicketsStore('osc')
+      await store.refresh()
+      await vi.waitFor(() => expect(store.getState().offers.o1?.state).toBe('dismissed'))
+    })
+
+    it('reads no updates while no row shows one', async () => {
       answers({ mine: list() })
       const store = new GroupTicketsStore('osc')
       await store.refresh()
-      expect(sourceApi.listWaitingReviewOffers).not.toHaveBeenCalled()
+      expect(sourceApi.listTicketReviewOffers).not.toHaveBeenCalled()
     })
 
     it('reads the updates once however often it is asked meanwhile, and keeps them when a read fails', async () => {
       const reading = deferred<unknown>()
-      sourceApi.listWaitingReviewOffers.mockReturnValueOnce(reading.promise)
+      sourceApi.listTicketReviewOffers.mockReturnValueOnce(reading.promise)
       const store = new GroupTicketsStore('osc')
       const first = store.loadOffers()
       const second = store.loadOffers()
       reading.resolve([WHOLE])
       await Promise.all([first, second])
-      expect(sourceApi.listWaitingReviewOffers).toHaveBeenCalledTimes(1)
-      sourceApi.listWaitingReviewOffers.mockRejectedValueOnce(new Error('down'))
+      expect(sourceApi.listTicketReviewOffers).toHaveBeenCalledTimes(1)
+      sourceApi.listTicketReviewOffers.mockRejectedValueOnce(new Error('down'))
       await store.loadOffers()
       expect(store.getState().offers).toEqual({ o1: WHOLE })
     })
@@ -839,15 +872,15 @@ describe('GroupTicketsStore', () => {
       const store = await offeredStore()
       const reading = deferred<GroupTicketList>()
       api.readGroupTickets.mockReturnValueOnce(reading.promise)
-      const staleRead = store.refreshMine()
+      const staleRead = store.refresh()
       sourceApi.dismissReviewOffer.mockResolvedValueOnce(WHOLE)
       await store.dismissOffer('A-1')
       reading.resolve(offered())
       await staleRead
       expect(offerOf(store)).toBeUndefined()
       expect(count(store)).toBe(1)
-      answers({ mine: list({ tickets: [ticket('A-1')], reviewOfferCount: 1 }) })
-      await store.refreshMine()
+      answers({ sprint: list({ tickets: [ticket('A-1')], reviewOfferCount: 1 }) })
+      await store.refresh()
       expect(count(store)).toBe(1)
     })
 
@@ -883,6 +916,105 @@ describe('GroupTicketsStore', () => {
       expect(outcome).toMatchObject({ ok: false, error: 'after.png could not be fetched.' })
       expect(offerOf(store)).toEqual(OFFER)
       expect(count(store)).toBe(2)
+    })
+  })
+
+  describe('tabs', () => {
+    const REVIEW_TAB = { ...SPRINT_TAB, id: 'review', name: 'In review' }
+    const twoTabs = () =>
+      tabsApi.readGroupTicketTabs.mockResolvedValue({
+        tabs: [SPRINT_TAB, REVIEW_TAB],
+        custom: true,
+      })
+    const byTab = (by: Record<string, GroupTicketList>) =>
+      api.readGroupTickets.mockImplementation(async (_g: string, q: { tab?: string }) => {
+        return by[q.tab ?? ''] ?? list({ tickets: [] })
+      })
+
+    it('keeps the counts each read brings', async () => {
+      byTab({ sprint: list({ tabCounts: { sprint: 3, review: 1 } }) })
+      const store = new GroupTicketsStore('osc')
+      await store.refresh()
+      expect(store.getState().tabCounts).toEqual({ sprint: 3, review: 1 })
+    })
+
+    it('reads a picked tab, and shows one read before at once while it is read again', async () => {
+      twoTabs()
+      byTab({ sprint: list(), review: list({ tickets: [ticket('R-1')] }) })
+      const store = new GroupTicketsStore('osc')
+      await store.refresh()
+      await store.pickTab('review')
+      expect(store.shownTab()).toBe('review')
+      expect(api.readGroupTickets).toHaveBeenLastCalledWith('osc', { tab: 'review' })
+      expect(keys(store.getState().byTab.review?.list)).toEqual(['R-1'])
+      const reading = deferred<GroupTicketList>()
+      api.readGroupTickets.mockReturnValueOnce(reading.promise)
+      const back = store.pickTab('sprint')
+      expect(store.shownTab()).toBe('sprint')
+      expect(keys(store.getState().byTab.sprint?.list)).toEqual(['A-1'])
+      reading.resolve(list({ tickets: [ticket('A-9')] }))
+      await back
+      expect(keys(store.getState().byTab.sprint?.list)).toEqual(['A-9'])
+    })
+
+    it('reads nothing when the tab on screen is picked again', async () => {
+      byTab({})
+      const store = new GroupTicketsStore('osc')
+      await store.refresh()
+      api.readGroupTickets.mockClear()
+      await store.pickTab('sprint')
+      expect(api.readGroupTickets).not.toHaveBeenCalled()
+    })
+
+    it('says why the tabs could not be read, and keeps those read before', async () => {
+      byTab({})
+      const store = new GroupTicketsStore('osc')
+      tabsApi.readGroupTicketTabs.mockRejectedValueOnce(refusal(502, 'down'))
+      await store.refresh()
+      expect(store.getState().tabs).toEqual({ tabs: undefined, custom: false, readError: 'down' })
+      expect(api.readGroupTickets).not.toHaveBeenCalled()
+      await store.refresh()
+      tabsApi.readGroupTicketTabs.mockRejectedValueOnce({})
+      await store.readTabs()
+      expect(store.getState().tabs).toEqual({
+        tabs: [SPRINT_TAB],
+        custom: true,
+        readError: 'Could not read the ticket tabs.',
+      })
+    })
+
+    it('follows the tabs Settings saved at once, reading the tab on screen again', async () => {
+      byTab({})
+      const store = new GroupTicketsStore('osc')
+      await store.refresh()
+      api.readGroupTickets.mockClear()
+      store.tabsChanged({ tabs: [REVIEW_TAB], custom: true })
+      expect(store.getState().tabs.tabs).toEqual([REVIEW_TAB])
+      expect(store.shownTab()).toBe('review')
+      expect(api.readGroupTickets).toHaveBeenCalledWith('osc', { tab: 'review' })
+    })
+
+    it('reads no more of a tab before the tabs are read', async () => {
+      const store = new GroupTicketsStore('osc')
+      await store.loadMore('tab')
+      expect(api.readGroupTickets).not.toHaveBeenCalled()
+    })
+
+    it('starts a round on the agent picked for it', async () => {
+      reviewApi.startColleagueReview.mockResolvedValue({ round: 1 })
+      const store = new GroupTicketsStore('osc')
+      await store.review('A-1', { text: 'Done', files: [] }, vi.fn(), undefined, 'process', {
+        runner: 'cli',
+        cliTool: 'claude',
+        cliModel: 'opus',
+      })
+      expect(reviewApi.startColleagueReview).toHaveBeenCalledWith('osc', 'A-1', {
+        runner: 'cli',
+        cliTool: 'claude',
+        cliModel: 'opus',
+        text: 'Done',
+        mode: 'process',
+      })
     })
   })
 })

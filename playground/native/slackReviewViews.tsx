@@ -126,6 +126,9 @@ function Settings({ address }: { address: URLSearchParams }) {
         }
         onRunChecksUnasked={(on) => setState(withSettings(state, { runChecksUnasked: on }))}
         onDefaultMode={(mode) => setState(withSettings(state, { defaultMode: mode }))}
+        onMergedTicketStatus={(text) =>
+          setState(withSettings(state, { mergedTicketStatus: text.trim() }))
+        }
       />
     </Phone>
   )
@@ -141,6 +144,8 @@ function Tickets() {
         onQueryChange={noop}
         onDiscuss={noop}
         onPlan={noop}
+        onOpen={noop}
+        onPickTab={noop}
         onReview={noop}
         onDismissOffer={noop}
         onOpenStory={noop}

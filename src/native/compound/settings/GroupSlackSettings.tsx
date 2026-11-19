@@ -37,6 +37,8 @@ export type SlackReviewSettingsActions = {
   onRunChecksUnasked: (on: boolean) => void
   /** How rounds start unless the person picks otherwise. */
   onDefaultMode: (mode: ColleagueReviewMode) => void
+  /** The Jira status a ticket moves to once its review merged; empty leaves it be. Without it, not offered. */
+  onMergedTicketStatus?: (text: string) => void
 }
 
 export type SlackReviewSettingsPanelProps = SlackReviewSettingsActions & {
@@ -467,12 +469,21 @@ function SettingsPart({
         onCheckedChange={actions.onRunChecksUnasked}
         label={TEXT.runChecksUnasked}
       />
+      {actions.onMergedTicketStatus ? (
+        <SavedField
+          label={TEXT.mergedStatus}
+          hint={TEXT.mergedStatusHint}
+          placeholder={TEXT.mergedStatusPlaceholder}
+          saved={settings.mergedTicketStatus}
+          onSave={actions.onMergedTicketStatus}
+        />
+      ) : null}
     </View>
   )
 }
 
 /** A text setting saved on leaving the field, Return, or Save; the saved value shows again when it changes underneath. */
-function SavedField({
+export function SavedField({
   label,
   hint,
   placeholder,
@@ -548,6 +559,7 @@ export default function GroupSlackSettings({ groupId }: GroupSlackSettingsProps)
       onStartReaction={slack.setStartReaction}
       onRunChecksUnasked={slack.setRunChecksUnasked}
       onDefaultMode={slack.setDefaultMode}
+      onMergedTicketStatus={slack.setMergedTicketStatus}
     />
   )
 }

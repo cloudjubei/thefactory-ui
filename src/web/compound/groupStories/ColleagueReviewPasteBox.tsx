@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, type ReactNode } from 'react'
 import type { ChatAttachmentFile } from '../../../headless/api/chatAttachmentUploadTypes'
 import { reviewBoxOfferLine } from '../../../headless/utils/colleagueReviewSource'
 import { REVIEW_OFFER_TEXT } from '../../../headless/utils/colleagueReviewSourceConstants'
@@ -29,6 +29,8 @@ export type ColleagueReviewPasteFormProps = {
   mode?: ColleagueReviewMode
   /** Pick how the round is reviewed; without it the choice is not offered. */
   onModeChange?: (mode: ColleagueReviewMode) => void
+  /** The app's model chip: the agent the round runs on, in either mode. */
+  modelChip?: ReactNode
   /** When the update from Slack was posted is told against this — for a fixed showcase state. */
   now?: number
 }
@@ -103,6 +105,7 @@ export function ColleagueReviewPasteForm({
   onStart,
   mode = 'inline',
   onModeChange,
+  modelChip,
   now = Date.now(),
 }: ColleagueReviewPasteFormProps) {
   const inputRef = useRef<HTMLInputElement>(null)
@@ -215,6 +218,12 @@ export function ColleagueReviewPasteForm({
             />
           </div>
           <span className="text-[11.5px] text-(--text-muted)">{MODE_HINTS[mode]}</span>
+        </div>
+      ) : null}
+      {modelChip ? (
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span className="text-[12px] font-medium text-(--text-primary)">{TEXT.agent}</span>
+          {modelChip}
         </div>
       ) : null}
       <div className="flex justify-end">

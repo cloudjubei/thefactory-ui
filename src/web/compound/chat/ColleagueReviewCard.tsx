@@ -146,16 +146,17 @@ export default function ColleagueReviewCard({
  * Approve & merge on the latest round: a confirm listing its pull requests in
  * the order they merge and the Slack line to post once they did, then each
  * one's progress, live. A round that asked for changes is held with the
- * backend's words and "Merge anyway".
+ * backend's words and "Merge anyway". What became of the ticket's status
+ * once it merged shows last. The ticket page shows it too.
  */
-function MergeSection({
+export function MergeSection({
   merge,
   onStart,
-  confirmOpen,
+  confirmOpen = false,
 }: {
   merge: ReviewCardMerge
   onStart?: (slackText: string, override: boolean) => void
-  confirmOpen: boolean
+  confirmOpen?: boolean
 }) {
   const [confirming, setConfirming] = useState(confirmOpen)
   const [slackText, setSlackText] = useState('')
@@ -236,6 +237,15 @@ function MergeSection({
         ) : (
           <p className={`m-0 ${MUTED}`}>{view.slack.line}</p>
         )
+      ) : null}
+      {view?.ticketMove ? (
+        <p
+          className={`m-0 text-[12px] ${
+            view.ticketMove.failed ? 'text-(--status-stuck-soft-fg)' : 'text-(--text-secondary)'
+          }`}
+        >
+          {view.ticketMove.line}
+        </p>
       ) : null}
       {onStart ? (
         <Modal

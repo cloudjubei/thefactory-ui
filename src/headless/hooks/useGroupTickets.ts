@@ -18,6 +18,7 @@ import type {
   ReviewPasteBox,
 } from '../utils/colleagueReviewStartTypes'
 import { groupTicketStatuses, groupTicketsView } from '../utils/groupTickets'
+import type { LaunchAgentPickMetadata } from '../utils/launchAgentPickTypes'
 import type {
   GroupTicketListName,
   GroupTicketsState,
@@ -41,13 +42,26 @@ export type UseGroupTickets = {
   plan: (ticketKey: string) => Promise<TicketPlanStarted | undefined>
   loadMore: (name: GroupTicketListName) => Promise<void>
   refresh: () => Promise<void>
+  /** Show a tab: its tickets at once when read before, read again either way. */
+  pickTab: (tabId: string) => void
+} & UseReviewPasteBox
+
+/** What a ticket off every list says of itself, for the paste box to open on it. */
+export interface TicketReviewKnown {
+  reviewOpen: boolean
+  offer?: TicketReviewOffer
+}
+
+/** The paste box over a group's tickets. */
+export type UseReviewPasteBox = {
   /** The paste box, while it is open on a ticket. */
   reviewBox: ReviewPasteBox | undefined
   /**
    * Open the paste box on a ticket, with what was left in it last time — or,
-   * with an update from Slack waiting on it, filled from that update.
+   * with an update from Slack waiting on it, filled from that update. `known`
+   * speaks for a ticket on no list read here, such as one opened on its page.
    */
-  openReview: (ticketKey: string) => void
+  openReview: (ticketKey: string, known?: TicketReviewKnown) => void
   /** Dismiss the update from Slack waiting on a ticket: gone at once, back with why when refused. */
   dismissOffer: (ticketKey: string) => void
   /** Close the paste box; what it holds stays for the next time it opens on that ticket. */
@@ -61,9 +75,20 @@ export type UseGroupTickets = {
    * Start the open box's round: the box closes at once while the row shows the
    * round starting, and opens again with the draft and why when it fails.
    * Answers the round once it has started: its chat, and its run when it is
-   * reviewed as one.
+   * reviewed as one. `agent` is the agent picked for it; the chat's when left out.
    */
-  startReview: () => Promise<ColleagueReviewStarted | undefined>
+  startReview: (agent?: LaunchAgentPickMetadata) => Promise<ColleagueReviewStarted | undefined>
+}
+
+const stores = new Map<string, GroupTicketsStore>()
+
+/** The one store of a group's tickets: its Tickets tab, its ticket pages and Settings share it. */
+export function groupTicketsStoreFor(groupId: string): GroupTicketsStore {
+  const held = stores.get(groupId)
+  if (held) return held
+  const store = new GroupTicketsStore(groupId)
+  stores.set(groupId, store)
+  return store
 }
 
 /**
@@ -72,13 +97,13 @@ export type UseGroupTickets = {
  * work, as its watched Slack thread brings or settles updates, and on a reconnect.
  * `groupId === undefined` idles.
  */
-function useLiveTicketsStore(
+export function useLiveTicketsStore(
   groupId: string | undefined,
   read: (store: GroupTicketsStore) => Promise<void>,
 ) {
   const { token } = useAuth()
   const { ws } = useApi()
-  const store = useMemo(() => new GroupTicketsStore(groupId ?? ''), [groupId])
+  const store = useMemo(() => groupTicketsStoreFor(groupId ?? ''), [groupId])
   const state = useSyncExternalStore(store.subscribe, store.getState, store.getState)
 
   useEffect(() => {
@@ -110,7 +135,7 @@ function useLiveTicketsStore(
 const readAll = (store: GroupTicketsStore) => store.refresh()
 const readMine = (store: GroupTicketsStore) => store.refreshMine()
 
-/** The Tickets tab's tickets: the person's, the rest of the sprint, and a search. */
+/** The Tickets tab's tickets: the group's tabs, the one on screen, and a search. */
 export function useGroupTickets(groupId: string): UseGroupTickets {
   const { store, state } = useLiveTicketsStore(groupId, readAll)
   const [query, setQuery] = useState('')
@@ -131,6 +156,7 @@ export function useGroupTickets(groupId: string): UseGroupTickets {
       plan: store.plan,
       loadMore: store.loadMore,
       refresh: store.refresh,
+      pickTab: (tabId: string) => void store.pickTab(tabId),
       ...review,
     }),
     [state, store, query, review],
@@ -140,7 +166,9 @@ export function useGroupTickets(groupId: string): UseGroupTickets {
 const EMPTY_DRAFT: ReviewDraft = { text: '', files: [] }
 
 function ticketsOf(state: GroupTicketsState) {
-  return [state.mine, state.sprint, state.search].flatMap((section) => section.list?.tickets ?? [])
+  return [state.mine, ...Object.values(state.byTab), state.search].flatMap(
+    (section) => section.list?.tickets ?? [],
+  )
 }
 
 function isReviewOpen(state: GroupTicketsState, ticketKey: string): boolean {
@@ -156,7 +184,11 @@ function offerOn(state: GroupTicketsState, ticketKey: string): TicketReviewOffer
  * it is closed. A ticket an update from Slack waits on opens on that update at
  * once, filled as soon as it is read.
  */
-function useReviewPasteBox(groupId: string, store: GroupTicketsStore, state: GroupTicketsState) {
+export function useReviewPasteBox(
+  groupId: string,
+  store: GroupTicketsStore,
+  state: GroupTicketsState,
+): UseReviewPasteBox {
   const { uploadChatFile, ws } = useApi()
   const source = colleagueReviewSourceStoreFor(ws)
   const groupDefault = useColleagueReviewSource(groupId).source.status?.settings.defaultMode
@@ -187,12 +219,12 @@ function useReviewPasteBox(groupId: string, store: GroupTicketsStore, state: Gro
   )
 
   const openReview = useCallback(
-    (ticketKey: string) => {
+    (ticketKey: string, known?: TicketReviewKnown) => {
       const now = stateRef.current
       if (now.reviewing[ticketKey]) return
-      const nextRound = isReviewOpen(now, ticketKey)
+      const nextRound = isReviewOpen(now, ticketKey) || known?.reviewOpen === true
       const held = kept.current.get(ticketKey)
-      const offer = offerOn(now, ticketKey)
+      const offer = offerOn(now, ticketKey) ?? known?.offer
       if (offer && held?.offer?.id !== offer.id) {
         const whole = now.offers[offer.id]
         setBox(reviewBoxOf(ticketKey, nextRound, offer, whole))
@@ -227,33 +259,37 @@ function useReviewPasteBox(groupId: string, store: GroupTicketsStore, state: Gro
   }, [])
   const reviewMode = reviewStartMode(box?.mode, groupDefault)
 
-  const startReview = useCallback(async () => {
-    const open = boxRef.current
-    if (!open || reviewBoxProblem(open)) return undefined
-    kept.current.delete(open.ticketKey)
-    setBox(undefined)
-    const going = store.review(
-      open.ticketKey,
-      open.draft,
-      upload,
-      open.offer,
-      reviewStartMode(open.mode, groupDefault),
-    )
-    if (open.offer) {
-      void source.settleOffer(
-        groupId,
-        open.offer.id,
-        going.then((o) => o?.ok === true),
+  const startReview = useCallback(
+    async (agent?: LaunchAgentPickMetadata) => {
+      const open = boxRef.current
+      if (!open || reviewBoxProblem(open)) return undefined
+      kept.current.delete(open.ticketKey)
+      setBox(undefined)
+      const going = store.review(
+        open.ticketKey,
+        open.draft,
+        upload,
+        open.offer,
+        reviewStartMode(open.mode, groupDefault),
+        agent,
       )
-    }
-    const outcome = await going
-    if (!outcome) return undefined
-    if (outcome.ok) return outcome.started
-    const failed: ReviewPasteBox = { ...open, draft: outcome.draft, error: outcome.error }
-    if (boxRef.current) kept.current.set(open.ticketKey, failed)
-    else setBox(failed)
-    return undefined
-  }, [groupId, groupDefault, source, store, upload])
+      if (open.offer) {
+        void source.settleOffer(
+          groupId,
+          open.offer.id,
+          going.then((o) => o?.ok === true),
+        )
+      }
+      const outcome = await going
+      if (!outcome) return undefined
+      if (outcome.ok) return outcome.started
+      const failed: ReviewPasteBox = { ...open, draft: outcome.draft, error: outcome.error }
+      if (boxRef.current) kept.current.set(open.ticketKey, failed)
+      else setBox(failed)
+      return undefined
+    },
+    [groupId, groupDefault, source, store, upload],
+  )
 
   return useMemo(
     () => ({
