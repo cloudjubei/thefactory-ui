@@ -1283,3 +1283,8 @@ export {
   default as StartWorkDialog,
   type StartWorkDialogProps,
 } from './compound/chat/StartWorkDialog'
+export * from './compound/remoteBrowser'
+export {
+  default as NoteForAgentPopover,
+  type NoteForAgentPopoverProps,
+} from './compound/chat/NoteForAgentPopover'

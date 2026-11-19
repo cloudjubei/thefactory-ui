@@ -88,6 +88,16 @@ export class WsClient {
     }
   }
 
+  /**
+   * Send a message to the backend on this socket, as JSON. Only while it is open: returns false
+   * otherwise, and the caller sends it again from `onReconnect`.
+   */
+  send(message: object): boolean {
+    if (!this.socket || this.state !== 'open') return false
+    this.socket.send(JSON.stringify(message))
+    return true
+  }
+
   getState(): WsConnectionState {
     return this.state
   }

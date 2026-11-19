@@ -11,6 +11,7 @@ type Listener = (ev: unknown) => void
 type FakeSocket = {
   addEventListener: Mock
   close: Mock
+  send: Mock
   fire: (event: string, payload: unknown) => void
 }
 
@@ -21,6 +22,7 @@ vi.mock('reconnecting-websocket', () => {
     default: class {
       private readonly listeners = new Map<string, Set<Listener>>()
       close = vi.fn()
+      send = vi.fn()
       addEventListener: Mock
 
       constructor(_url: string | (() => string)) {
@@ -32,6 +34,7 @@ vi.mock('reconnecting-websocket', () => {
         fakeSockets.push({
           addEventListener: this.addEventListener,
           close: this.close,
+          send: this.send,
           fire: (event: string, payload: unknown) => {
             this.listeners.get(event)?.forEach((l) => l(payload))
           },
@@ -233,5 +236,29 @@ describe('WsClient', () => {
 
     expect(good).toHaveBeenCalledTimes(1)
     errSpy.mockRestore()
+  })
+
+  it('sends a message to the backend as JSON while the socket is open', () => {
+    const { client, socket } = connect()
+    socket.fire('open', {})
+
+    const sent = client.send({ type: 'remoteBrowser:watch', projectId: 'p', sessionId: 's' })
+
+    expect(sent).toBe(true)
+    expect(socket.send).toHaveBeenCalledWith(
+      JSON.stringify({ type: 'remoteBrowser:watch', projectId: 'p', sessionId: 's' }),
+    )
+  })
+
+  it('sends nothing while the socket is not open', () => {
+    const idle = new WsClient({ baseUrl: 'http://api.test', getToken: () => null })
+    expect(idle.send({ type: 'x' })).toBe(false)
+
+    const { client, socket } = connect()
+    expect(client.send({ type: 'x' })).toBe(false)
+    socket.fire('open', {})
+    socket.fire('close', {})
+    expect(client.send({ type: 'x' })).toBe(false)
+    expect(socket.send).not.toHaveBeenCalled()
   })
 })

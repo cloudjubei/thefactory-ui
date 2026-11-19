@@ -1183,3 +1183,8 @@ export {
   default as StartWorkDialog,
   type StartWorkDialogProps,
 } from './compound/chat/StartWorkDialog'
+export * from './compound/remoteBrowser'
+export {
+  default as NoteForAgentSheet,
+  type NoteForAgentSheetProps,
+} from './compound/chat/NoteForAgentSheet'

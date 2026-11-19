@@ -90,6 +90,7 @@ import { TICKET_VIEWS } from './ticketViews'
 import { TRY_ON_PHONE_VIEWS } from './tryOnPhoneViews'
 import { VARIANT_VIEWS } from './variantViews'
 import { APP_SELECTION_VIEWS } from './appSelectionsViews'
+import { REMOTE_BROWSER_VIEWS } from './remoteBrowserViews'
 import { ALREADY_HANDLED_VIEWS } from './alreadyHandledViews'
 import { CHAT_MESSAGING_VIEWS } from './chatMessagingViews'
 import { VIDEO_TIMELINE_VIEWS } from './videoTimelineViews'
@@ -684,6 +685,7 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   ...ALREADY_HANDLED_VIEWS,
   ...RUN_THROUGH_VIEWS,
   ...APP_SELECTION_VIEWS,
+  ...REMOTE_BROWSER_VIEWS,
   ...CHAT_MESSAGING_VIEWS,
   ...VIDEO_TIMELINE_VIEWS,
   ...TRAINER_SUGGESTION_VIEWS,

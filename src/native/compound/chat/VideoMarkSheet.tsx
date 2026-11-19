@@ -1,12 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Text, View } from 'react-native'
-
 import { VIDEO_MARK_TEXT } from '../../../headless'
-import { nativeSpace } from '../../../tokens/native'
-import { useNativeTheme } from '../../hooks/useNativeTheme'
-import BottomSheet from '../../primitives/BottomSheet'
-import { Button } from '../../primitives/Button'
-import { Textarea } from '../../primitives/Textarea'
+import NoteForAgentSheet from './NoteForAgentSheet'
 
 export interface VideoMarkSheetProps {
   isOpen: boolean
@@ -22,53 +15,13 @@ export interface VideoMarkSheetProps {
  * peer of web's `VideoMarkPopover`.
  */
 export default function VideoMarkSheet({ isOpen, time, onCancel, onAdd }: VideoMarkSheetProps) {
-  const { theme } = useNativeTheme()
-  const [note, setNote] = useState('')
-
-  useEffect(() => {
-    if (isOpen) setNote('')
-  }, [isOpen, time])
-
   return (
-    <BottomSheet
+    <NoteForAgentSheet
       isOpen={isOpen}
-      onClose={onCancel}
-      headerNode={
-        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: nativeSpace[2] }}>
-          <Text
-            accessibilityRole="header"
-            style={{
-              fontSize: 16,
-              fontWeight: '600',
-              fontVariant: ['tabular-nums'],
-              color: theme.text.primary,
-            }}
-          >
-            {VIDEO_MARK_TEXT.title(time)}
-          </Text>
-          <Text style={{ fontSize: 12, color: theme.text.muted }}>{VIDEO_MARK_TEXT.whereNow}</Text>
-        </View>
-      }
-      footer={
-        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: nativeSpace[3] }}>
-          <Button variant="secondary" onPress={onCancel}>
-            {VIDEO_MARK_TEXT.cancel}
-          </Button>
-          <Button onPress={() => onAdd(note)}>{VIDEO_MARK_TEXT.add}</Button>
-        </View>
-      }
-    >
-      <View style={{ gap: nativeSpace[2], paddingBottom: nativeSpace[3] }}>
-        <Text style={{ fontSize: 12, color: theme.text.secondary }}>
-          {VIDEO_MARK_TEXT.noteLabel}
-        </Text>
-        <Textarea
-          rows={3}
-          value={note}
-          onChangeText={setNote}
-          accessibilityLabel={VIDEO_MARK_TEXT.noteLabel}
-        />
-      </View>
-    </BottomSheet>
+      title={VIDEO_MARK_TEXT.title(time)}
+      where={VIDEO_MARK_TEXT.whereNow}
+      onCancel={onCancel}
+      onAdd={onAdd}
+    />
   )
 }
