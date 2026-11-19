@@ -2,6 +2,7 @@ import type { ReportProofSource, ReportProofStatus } from 'thefactory-tools/type
 
 import type { CheckMethodId, ReviewTabId } from './checkMethodTypes'
 import type { CodeReviewTone } from './signoffCodeReviewTypes'
+import { RUN_THROUGH_TEXT } from './runThroughReportConstants'
 
 export const REPORT_SECTION_TITLES = {
   outcome: 'Outcome',
@@ -45,6 +46,7 @@ export const REPORT_TAB_LABEL: Partial<Record<ReviewTabId, string>> = {
   build: 'Build',
   'code-review': 'Code review',
   walkthrough: 'Walkthrough',
+  runthrough: RUN_THROUGH_TEXT.label,
 }
 
 export const REPORT_NOTHING_NEEDS_YOU = 'Nothing'

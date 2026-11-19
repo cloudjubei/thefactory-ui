@@ -117,6 +117,8 @@ export type SignoffProofInput = {
   walkthrough: SignoffProofStepLine | undefined
   /** Each verified section's outcome — a feature's or a fix pass's latest verify. */
   verify: readonly { label: string; status: VerifyReviewStatus }[]
+  /** How a tester's run-through went, as `runThroughReport` says it. */
+  runThrough?: { text: string; status: ReportProofStatus }
   /** The tabs the evidence card has, so a line links only to one that exists. */
   tabs: readonly ReviewTabId[]
 }

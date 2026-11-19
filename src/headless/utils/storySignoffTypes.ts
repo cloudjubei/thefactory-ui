@@ -417,6 +417,8 @@ export type SignoffSection = {
   reports: EvidenceTile[]
   /** The Code review tab: the newest code review filed for the section, alone. */
   codeReviews: EvidenceTile[]
+  /** A tester's run-through: the record it ended with and every issue it flagged. */
+  runThrough: EvidenceTile[]
   /**
    * A feature's code review verdict, in the reviewer-verdict style. Empty on the
    * Overall, whose code review is said among its step notes.

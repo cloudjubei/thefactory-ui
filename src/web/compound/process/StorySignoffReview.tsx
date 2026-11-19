@@ -41,6 +41,7 @@ import {
   signoffProofRows,
   signoffRecordingsProofLine,
   signoffRowsWithRecordings,
+  signoffRunThrough,
   signoffReportView,
   signoffRequestOutcome,
   signoffSectionProps,
@@ -101,6 +102,7 @@ import {
   IdChip,
   ScreensTab,
   VerdictBadge,
+  RunThroughTab,
   WalkthroughTab,
 } from '../chat/signoff'
 import ProjectFlakesList from './ProjectFlakesList'
@@ -584,6 +586,7 @@ function StorySignoffPanel({
   const testTotals = aggregateTestCounts(testChecks)
   const proofRecordings = signoffProofRecordings(sections)
   const overallRows = signoffRowsWithRecordings(overall?.rows ?? [], proofRecordings.length)
+  const runThrough = signoffRunThrough(sections)
   const tabs = reviewTabs({
     screens: overall ? requestPairs.length : 0,
     walkthroughs: overall ? proofRecordings.length : 0,
@@ -596,6 +599,7 @@ function StorySignoffPanel({
     codeReviews: overall ? overallSection.codeReviews.length : 0,
     ...(overallSection.leadTab ? { lead: overallSection.leadTab } : {}),
     ...(loom.view ? { loom: { total: loom.view.rows.length, left: loom.view.left } } : {}),
+    ...(runThrough ? { runThrough: runThrough.state } : {}),
   })
   const tabOrder = reviewTabOrder(overallSection.leadTab ?? 'report')
   const chips = signoffEvidenceChips(overallRows, tabs, tabOrder)
@@ -658,6 +662,7 @@ function StorySignoffPanel({
         .filter((f) => verifyBySection.has(f.featureId))
         .map((f) => ({ label: f.title, status: f.statusLine })),
     ],
+    ...(runThrough ? { runThrough: runThrough.proof } : {}),
     tabs: tabs.map((t) => t.id),
   })
   const reportView = signoffReportView({
@@ -809,6 +814,8 @@ function StorySignoffPanel({
             <div className="pt-3">
               <WalkthroughTab projectId={projectId} recordings={proofRecordings} />
             </div>
+          ) : current?.target.tab === 'runthrough' && runThrough ? (
+            <RunThroughTab projectId={projectId} view={runThrough} />
           ) : current?.target.tab === 'changes' ? (
             <div className="flex flex-col gap-2 pt-3">
               {runChanges.changes?.seamsIncluded ? (

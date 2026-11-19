@@ -34,6 +34,8 @@ import type {
   SignoffRequestOutcome,
 } from './signoffPageTypes'
 import type { EvidenceTile, ScreenPair } from './reviewEvidenceViewTypes'
+import { runThroughReport } from './runThroughReport'
+import type { RunThroughReportView } from './runThroughReportTypes'
 import type { FixSignoff, SignoffSection } from './storySignoffTypes'
 import type { VerifyAttemptStanding } from './verifyProofTypes'
 import type { RunReviewFacts } from './runReviewTypes'
@@ -150,6 +152,21 @@ export function signoffProofRecordings(
       .map((tile) => [tile.ref.id, tile] as const),
   )
   return [...byId.values()]
+}
+
+/**
+ * A tester's run-through across the sign-off: its record and issues from
+ * whichever section they were filed under, its moments on that run's
+ * recording. Absent when no tester filed anything. Pure.
+ */
+export function signoffRunThrough(
+  sections: ReadonlyMap<string, Pick<SignoffSection, 'runThrough' | 'recordings'>>,
+): RunThroughReportView | undefined {
+  const all = [...sections.values()]
+  return runThroughReport(
+    all.flatMap((section) => section.runThrough),
+    all.flatMap((section) => section.recordings),
+  )
 }
 
 /** The Walkthrough check as the recordings that count stand it: passed once there is one. Pure. */

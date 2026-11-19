@@ -487,6 +487,10 @@ export {
   default as WalkthroughTab,
   type WalkthroughTabProps,
 } from './compound/chat/signoff/WalkthroughTab'
+export {
+  default as RunThroughTab,
+  type RunThroughTabProps,
+} from './compound/chat/signoff/RunThroughTab'
 export { ChatChangesBar, type ChatChangesBarProps } from './compound/chat/ChatChangesBar'
 export {
   ChatChangesBarConnected,

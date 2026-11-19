@@ -261,6 +261,29 @@ describe('signoffProofRows', () => {
     ])
   })
 
+  it('says how a run-through went last, linked to its tab when the card has one', () => {
+    const runThrough = {
+      text: 'Run-through: stopped at turn 3 — 1 blocker',
+      status: 'failed' as const,
+    }
+    const linked = signoffProofRows({
+      ...finalState,
+      runThrough,
+      tabs: [...finalState.tabs, 'runthrough'],
+    }).at(-1)
+    expect(linked).toMatchObject({
+      text: 'Run-through: stopped at turn 3 — 1 blocker',
+      status: 'failed',
+      mark: '✗',
+      tab: 'runthrough',
+      tabLabel: 'Run-through',
+    })
+    expect(signoffProofRows({ ...finalState, runThrough }).at(-1)).toMatchObject({
+      text: 'Run-through: stopped at turn 3 — 1 blocker',
+      tab: undefined,
+    })
+  })
+
   it('names the failing checks and the failed tests', () => {
     const rows = signoffProofRows({
       ...finalState,

@@ -18,6 +18,7 @@ import {
   signoffProofRecordings,
   signoffRecordingsProofLine,
   signoffRowsWithRecordings,
+  signoffRunThrough,
 } from './signoffPage'
 import type { ScreenPair } from './reviewEvidenceViewTypes'
 
@@ -307,6 +308,35 @@ describe('signoffProofRecordings', () => {
   it('counts no typed note as a recording', () => {
     const sections = new Map([['', { recordings: [tile('a', { inline: true })] }]])
     expect(signoffProofRecordings(sections)).toEqual([])
+  })
+})
+
+describe('signoffRunThrough', () => {
+  const tile = (id: string, over: Record<string, unknown> = {}) =>
+    ({ caption: id, ref: { id, runId: 'tester', createdAt: 1, kind: 'report', ...over } }) as never
+  const record = tile('rt', {
+    runThroughSections: { scenario: 'Play', reachedEnd: true, summary: 'Fine' },
+  })
+
+  it('reads one run-through from every section’s filings and recordings', () => {
+    const sections = new Map([
+      ['', { runThrough: [record], recordings: [] }],
+      [
+        'feature',
+        {
+          runThrough: [tile('issue', { issue: { severity: 'minor', title: 'T', happened: 'H' } })],
+          recordings: [tile('video', { kind: 'recording' })],
+        },
+      ],
+    ])
+    const view = signoffRunThrough(sections)
+    expect(view?.record?.scenario).toBe('Play')
+    expect(view?.issues.map((i) => i.key)).toEqual(['issue'])
+    expect(view?.recording?.ref.id).toBe('video')
+  })
+
+  it('is absent when no tester filed anything', () => {
+    expect(signoffRunThrough(new Map([['', { runThrough: [], recordings: [] }]]))).toBeUndefined()
   })
 })
 

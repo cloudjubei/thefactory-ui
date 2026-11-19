@@ -25,6 +25,15 @@ export const REVIEW_TONE_SURFACE: Record<CodeReviewTone, string> = {
   neutral: 'border-(--border-subtle) bg-(--surface-base)',
 }
 
+/** A review tone as a solid fill — a mark on a bar. */
+export const REVIEW_TONE_FILL: Record<CodeReviewTone, string> = {
+  done: 'bg-(--status-done-bg)',
+  review: 'bg-(--status-review-bg)',
+  stuck: 'bg-(--status-stuck-bg)',
+  working: 'bg-(--status-working-bg)',
+  neutral: 'bg-(--border-strong)',
+}
+
 /** A process status tone as a soft badge class. */
 export const PROCESS_TONE_BADGE: Record<ProcessStatusTone, string> = {
   empty: 'badge--empty',

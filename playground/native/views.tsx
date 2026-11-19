@@ -93,6 +93,7 @@ import { APP_SELECTION_VIEWS } from './appSelectionsViews'
 import { ALREADY_HANDLED_VIEWS } from './alreadyHandledViews'
 import { CHAT_MESSAGING_VIEWS } from './chatMessagingViews'
 import { VIDEO_TIMELINE_VIEWS } from './videoTimelineViews'
+import { RUN_THROUGH_VIEWS } from './runThroughViews'
 import { TRAINER_SUGGESTION_VIEWS } from './trainerSuggestionViews'
 
 const noop = () => {}
@@ -681,6 +682,7 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   ...REVIEW_CHAT_SLOT_VIEWS,
   ...REVIEW_GAP_VIEWS,
   ...ALREADY_HANDLED_VIEWS,
+  ...RUN_THROUGH_VIEWS,
   ...APP_SELECTION_VIEWS,
   ...CHAT_MESSAGING_VIEWS,
   ...VIDEO_TIMELINE_VIEWS,

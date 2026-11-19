@@ -24,6 +24,7 @@ import {
   IconMobile,
   IconMonitor,
   IconPlay,
+  IconRoute,
   IconTests,
 } from '../../icons'
 
@@ -39,6 +40,7 @@ const GLYPH: Record<CheckMethodId, ComponentType<{ size?: number; color?: string
   walkthrough: IconPlay,
   report: IconDocument,
   diff: IconDiff,
+  runthrough: IconRoute,
 }
 
 export type CheckChipPalette = { bg: string; border: string; fg: string; dashed: boolean }

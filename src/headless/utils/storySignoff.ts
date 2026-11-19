@@ -122,6 +122,7 @@ import type {
 } from './storySignoffTypes'
 import { signoffCarriedView } from './processSignoffCarriedView'
 import type { SignoffCarriedView } from './processSignoffCarriedViewTypes'
+import { isRunThroughFiling, withoutRunThroughFilings } from './runThroughReport'
 import {
   acceptedVerifyAttempt,
   codeReviewVerdictNote,
@@ -1433,7 +1434,8 @@ function signoffSection(
   tiles: readonly EvidenceTile[],
   baseShaByRun?: ReadonlyMap<string, string>,
 ): SignoffSection {
-  const { current, superseded } = partitionFilings(tiles)
+  const { current: filed, superseded } = partitionFilings(tiles)
+  const current = withoutRunThroughFilings(filed)
   const isStory = sectionId === ''
   const reports = current.filter((t) => t.ref.kind === 'report')
   const stepReport = newestOnly(
@@ -1455,6 +1457,7 @@ function signoffSection(
       ...newestOnly(reports.filter(isDeveloperReport)),
     ],
     codeReviews: newestOnly(reviews),
+    runThrough: filed.filter((t) => isRunThroughFiling(t.ref)),
     notes:
       !isStory && reading.state === 'concluded' ? [codeReviewVerdictNote(reading.verdict)] : [],
     leadTab: isStory && stepReport.length > 0 ? 'report' : undefined,

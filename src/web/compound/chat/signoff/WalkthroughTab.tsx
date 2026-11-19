@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react'
 
 import {
   useReviewEvidenceMediaUrl,
@@ -20,23 +20,45 @@ export type WalkthroughTabProps = {
   renderFooter?: (tile: EvidenceTile) => ReactNode
 }
 
-function Recording({
-  projectId,
-  tile,
-  label,
-  footer,
-}: {
+export type WalkthroughRecordingProps = {
   projectId: string
   tile: EvidenceTile
   /** Shown in place of the recording's own caption — a pair's "Before" or "After". */
   label?: string
   footer?: ReactNode
-}) {
+  /** Set while mounted: plays on from a moment. */
+  seekRef?: { current: ((atSec: number) => void) | null }
+  /** Where the playhead is, and how long the recording runs, as they become known. */
+  onProgress?: (atSec: number, durationSec: number) => void
+}
+
+/** One recording, played by the browser's own player, with its fullscreen and save. */
+export function WalkthroughRecording({
+  projectId,
+  tile,
+  label,
+  footer,
+  seekRef,
+  onProgress,
+}: WalkthroughRecordingProps) {
   const { url, loading } = useReviewEvidenceMediaUrl(projectId, tile.ref.id)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const positionRef = useRef(0)
   const playingRef = useRef(false)
   const restoringRef = useRef(false)
+
+  useEffect(() => {
+    if (!seekRef) return
+    seekRef.current = (atSec) => {
+      const video = videoRef.current
+      if (!video) return
+      video.currentTime = atSec
+      void video.play().catch(() => {})
+    }
+    return () => {
+      seekRef.current = null
+    }
+  }, [seekRef])
 
   // Assign src only after fencing transport events. A declarative src update can
   // queue pause/timeupdate at zero before metadata arrives for the new grant.
@@ -89,8 +111,13 @@ function Recording({
           ref={videoRef}
           preload="metadata"
           onTimeUpdate={(event) => {
-            if (!restoringRef.current) positionRef.current = event.currentTarget.currentTime
+            const video = event.currentTarget
+            if (!restoringRef.current) positionRef.current = video.currentTime
+            onProgress?.(video.currentTime, video.duration)
           }}
+          onDurationChange={(event) =>
+            onProgress?.(event.currentTarget.currentTime, event.currentTarget.duration)
+          }
           onPlay={() => {
             if (!restoringRef.current) playingRef.current = true
           }}
@@ -136,7 +163,7 @@ function PairSide({
   label: string
   absent: string | undefined
 }) {
-  if (tile) return <Recording projectId={projectId} tile={tile} label={label} />
+  if (tile) return <WalkthroughRecording projectId={projectId} tile={tile} label={label} />
   return (
     <section className="flex flex-col gap-2 rounded-md border border-(--border-subtle) bg-(--surface-raised) p-2.5">
       <span className="text-[10px] font-semibold uppercase tracking-wider text-(--text-muted)">
@@ -219,7 +246,7 @@ export default function WalkthroughTab({
         tile.ref.kind === 'trace' ? (
           <TraceDownload key={tile.ref.id} projectId={projectId} tile={tile} />
         ) : (
-          <Recording
+          <WalkthroughRecording
             key={tile.ref.id}
             projectId={projectId}
             tile={tile}

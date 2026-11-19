@@ -11,6 +11,7 @@ import type {
   SignoffVerdictKey,
 } from './checkMethodTypes'
 import { LOOM_WALKTHROUGH_TEXT } from './runWalkthroughConstants'
+import { RUN_THROUGH_TEXT } from './runThroughReportConstants'
 import type { ReviewTone } from './runReviewTypes'
 
 /**
@@ -47,6 +48,7 @@ export const CHECK_METHOD_LABELS: Record<CheckMethodId, string> = {
   walkthrough: 'Walkthrough',
   report: 'Report',
   diff: 'Code review',
+  runthrough: RUN_THROUGH_TEXT.label,
 }
 
 export const CHECK_METHOD_NOUNS: Record<CheckMethodId, string> = {
@@ -61,6 +63,7 @@ export const CHECK_METHOD_NOUNS: Record<CheckMethodId, string> = {
   walkthrough: 'a walkthrough recording',
   report: 'a written report',
   diff: 'a code review',
+  runthrough: 'a run-through',
 }
 
 /**
@@ -82,6 +85,7 @@ export const CHECK_METHOD_ABSENT_NOUNS: Record<CheckMethodId, string> = {
   walkthrough: 'walkthrough recording',
   report: 'written report',
   diff: 'code review',
+  runthrough: 'run-through',
 }
 
 /**
@@ -101,6 +105,7 @@ export const CHECK_METHOD_CAPTURE_VERBS: Record<CheckMethodId, string> = {
   walkthrough: 'record a walkthrough',
   report: 'write up what changed',
   diff: 'review the code',
+  runthrough: 'run through the app',
 }
 
 export const CHECK_METHOD_SETUP_VERBS: Record<CheckMethodId, string> = {
@@ -115,6 +120,7 @@ export const CHECK_METHOD_SETUP_VERBS: Record<CheckMethodId, string> = {
   walkthrough: 'record a walkthrough',
   report: 'write a report',
   diff: 'review the code',
+  runthrough: 'run through the app',
 }
 
 /**
@@ -136,6 +142,7 @@ export const CHECK_METHOD_FILL: Record<CheckMethodId, CheckMethodFill> = {
   walkthrough: 'agent',
   report: 'agent',
   diff: 'agent',
+  runthrough: 'agent',
 }
 
 /** Where a method's proof lives when it has some. */
@@ -153,6 +160,7 @@ export const CHECK_METHOD_TAB: Record<CheckMethodId, ReviewTabId> = {
   walkthrough: 'walkthrough',
   report: 'report',
   diff: 'changes',
+  runthrough: 'runthrough',
 }
 
 /** The verification approach that produces each evidence method, when one does. */
@@ -281,6 +289,7 @@ export const SIGNOFF_VERDICT_TONES: Record<SignoffVerdictKey, ReviewTone> = {
 export const REVIEW_TAB_ORDER: readonly ReviewTabId[] = [
   'screens',
   'walkthrough',
+  'runthrough',
   'loom',
   'tests',
   'build',
@@ -298,6 +307,7 @@ export const REVIEW_TAB_LABELS: Record<ReviewTabId, string> = {
   report: 'Report',
   'code-review': 'Code review',
   changes: 'Changes',
+  runthrough: RUN_THROUGH_TEXT.label,
 }
 
 /** Shown beside a disabled hand-off — both clients must give the same reason. */

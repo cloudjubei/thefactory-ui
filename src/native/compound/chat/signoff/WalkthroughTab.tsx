@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Text, View } from 'react-native'
 
 import {
@@ -15,7 +15,7 @@ import { useNativeTheme } from '../../../hooks/useNativeTheme'
 import { IconDownload } from '../../../icons'
 import { Button } from '../../../primitives/Button'
 import { useMediaHost } from './MediaHostContext'
-import type { SaveFileHandler } from './signoffTypes'
+import type { InlineVideoHandle, SaveFileHandler } from './signoffTypes'
 import TraceDownload from './TraceDownload'
 
 export type WalkthroughTabProps = {
@@ -61,26 +61,70 @@ function StageNote({ children }: { children: string }) {
   )
 }
 
-function Recording({
-  projectId,
-  tile,
-  label,
-  onSaveFile,
-  footer,
-}: {
+export type WalkthroughRecordingProps = {
   projectId: string
   tile: EvidenceTile
   /** Shown in place of the recording's own caption — a pair's "Before" or "After". */
   label?: string
   onSaveFile?: SaveFileHandler
   footer?: ReactNode
-}) {
+  /** Set while mounted, when the host's player can seek: plays on from a moment. */
+  seekRef?: { current: ((atSec: number) => void) | null }
+  /** Where the playhead is, and how long the recording runs, as the host's player says them. */
+  onProgress?: (atSec: number, durationSec: number) => void
+}
+
+/**
+ * One recording, played by the host's player. Asked to seek, it plays in the
+ * host's seekable player when the host has one.
+ */
+export function WalkthroughRecording({
+  projectId,
+  tile,
+  label,
+  onSaveFile,
+  footer,
+  seekRef,
+  onProgress,
+}: WalkthroughRecordingProps) {
   const { theme } = useNativeTheme()
-  const { renderVideo } = useMediaHost()
-  const { url, loading } = useReviewEvidenceMediaUrl(
-    renderVideo ? projectId : undefined,
-    tile.ref.id,
-  )
+  const { renderVideo, renderInlineVideo } = useMediaHost()
+  const seekable = seekRef && renderInlineVideo ? renderInlineVideo : undefined
+  const playable = Boolean(seekable ?? renderVideo)
+  const { url, loading } = useReviewEvidenceMediaUrl(playable ? projectId : undefined, tile.ref.id)
+  const [failed, setFailed] = useState(false)
+  const handleRef = useRef<InlineVideoHandle | null>(null)
+  const progressRef = useRef({ atSec: 0, durationSec: 0 })
+  const progressHandler = useRef(onProgress)
+  useEffect(() => {
+    progressHandler.current = onProgress
+  }, [onProgress])
+  useEffect(() => {
+    if (!seekRef) return
+    seekRef.current = (atSec) => handleRef.current?.seek?.(atSec)
+    return () => {
+      seekRef.current = null
+    }
+  }, [seekRef])
+  const player = useMemo(() => {
+    if (!url) return null
+    if (seekable) {
+      const report = (next: Partial<{ atSec: number; durationSec: number }>) => {
+        progressRef.current = { ...progressRef.current, ...next }
+        progressHandler.current?.(progressRef.current.atSec, progressRef.current.durationSec)
+      }
+      return seekable({
+        uri: url,
+        handleRef,
+        onMetadata: () => setFailed(false),
+        onFailed: () => setFailed(true),
+        onPlayingChange: () => {},
+        onTimeChange: (atSec) => report({ atSec }),
+        onDuration: (durationSec) => report({ durationSec }),
+      })
+    }
+    return renderVideo ? renderVideo(url) : null
+  }, [url, seekable, renderVideo])
   // Legacy hosts save bytes; fetch them only after an explicit save, never for playback.
   const [saving, setSaving] = useState(false)
   const [saveFailed, setSaveFailed] = useState(false)
@@ -144,7 +188,7 @@ function Recording({
           </Button>
         ) : null}
       </View>
-      {renderVideo && url ? (
+      {player && !failed ? (
         <View
           style={{
             height: STAGE_HEIGHT * 2,
@@ -155,12 +199,12 @@ function Recording({
             backgroundColor: '#000000',
           }}
         >
-          {renderVideo(url)}
+          {player}
         </View>
-      ) : renderVideo ? (
+      ) : playable ? (
         <Stage>
           <StageNote>
-            {loading ? 'Loading the recording…' : 'The recording could not be loaded.'}
+            {loading && !failed ? 'Loading the recording…' : 'The recording could not be loaded.'}
           </StageNote>
         </Stage>
       ) : (
@@ -201,7 +245,7 @@ function PairSide({
   const { theme } = useNativeTheme()
   if (tile) {
     return (
-      <Recording
+      <WalkthroughRecording
         projectId={projectId}
         tile={tile}
         label={label}
@@ -347,7 +391,7 @@ export default function WalkthroughTab({
         tile.ref.kind === 'trace' ? (
           <TraceDownload key={tile.ref.id} projectId={projectId} tile={tile} />
         ) : (
-          <Recording
+          <WalkthroughRecording
             key={tile.ref.id}
             projectId={projectId}
             tile={tile}

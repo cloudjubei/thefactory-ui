@@ -78,6 +78,7 @@ import type {
 import { processChangesChipLabel } from './processRunChanges'
 import { codeReviewVerdict, isCodeReview, reportAuthor } from './reviewEvidenceView'
 import { NOT_VERIFIED_DETAIL } from './runReviewConstants'
+import { isRunThroughFiling } from './runThroughReport'
 import { checkTestCounts, finishedTestFileCount } from './testCounts'
 import { formatDurationMs, timeAgo } from './time'
 
@@ -143,11 +144,13 @@ export function checkMethodFor(
  * is the code review, and the story's final report — an account of the whole
  * run, written from its record — proves nothing on its own; nor does the
  * developer's account of its own checks, whose proof is the checks the host
- * recorded.
+ * recorded. A run-through's record and issues prove no method: they stand on
+ * the run-through's own tab.
  */
 export function evidenceMethodFor(
-  ref: Pick<ReviewEvidenceRef, 'kind' | 'approach'>,
+  ref: Pick<ReviewEvidenceRef, 'kind' | 'approach' | 'runThroughSections' | 'issue'>,
 ): CheckMethodId | undefined {
+  if (isRunThroughFiling(ref)) return undefined
   switch (ref.kind) {
     case 'screenshot':
       return 'screens'
@@ -722,6 +725,7 @@ export function reviewTabs(input: ReviewTabsInput): ReviewTab[] {
   const counts: Record<ReviewTabId, number | undefined> = {
     screens: input.screensProof ?? input.screens,
     walkthrough: undefined,
+    runthrough: undefined,
     loom: input.loom && input.loom.left > 0 ? input.loom.left : undefined,
     tests: input.testCount > 0 ? input.testCount : undefined,
     build: undefined,
@@ -732,6 +736,7 @@ export function reviewTabs(input: ReviewTabsInput): ReviewTab[] {
   const present: Record<ReviewTabId, boolean> = {
     screens: input.screens > 0,
     walkthrough: input.walkthroughs > 0,
+    runthrough: input.runThrough !== undefined,
     loom: (input.loom?.total ?? 0) > 0,
     tests: input.testChecks > 0,
     build: input.buildChecks > 0,
@@ -746,6 +751,9 @@ export function reviewTabs(input: ReviewTabsInput): ReviewTab[] {
       label: REVIEW_TAB_LABELS[id],
       count: counts[id],
       ...(id === 'loom' && input.loom ? { chip: loomTabChip(input.loom.left) } : {}),
+      ...(id === 'runthrough' && input.runThrough
+        ? { chip: { label: REVIEW_TAB_LABELS.runthrough, state: input.runThrough } }
+        : {}),
       ...(id === 'changes' && input.changes
         ? {
             chip: { label: processChangesChipLabel(input.changes.files), state: 'passed' as const },

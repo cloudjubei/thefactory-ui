@@ -127,10 +127,16 @@ export function reportTiles(input: SignoffReportInput): ReportTile[] {
 
 function proofRow(
   key: string,
-  line: { text: string; status: ReportProofStatus; source: ReportProofSource },
+  line: {
+    text: string
+    status: ReportProofStatus
+    source: ReportProofSource
+    /** The tab it lives in, for a kind of proof no report source names. */
+    tab?: ReviewTabId
+  },
   tabs: readonly ReviewTabId[],
 ): ReportProofRow {
-  const target = REPORT_PROOF_TAB[line.source]
+  const target = line.tab ?? REPORT_PROOF_TAB[line.source]
   const tab = target && tabs.includes(target) ? target : undefined
   return {
     key,
@@ -275,8 +281,9 @@ function verifyLine(input: SignoffProofInput) {
 /**
  * How it was proven, from where the run stands at the end — never the report
  * agent's account of the attempts along the way: the checks at the final head,
- * the tests' count, the code review's verdict, Verify's outcome and the
- * walkthrough, one line each, each linked to the tab that holds it. Pure.
+ * the tests' count, the code review's verdict, Verify's outcome, the
+ * walkthrough and the run-through, one line each, each linked to the tab that
+ * holds it. Pure.
  */
 export function signoffProofRows(input: SignoffProofInput): ReportProofRow[] {
   return [
@@ -285,6 +292,9 @@ export function signoffProofRows(input: SignoffProofInput): ReportProofRow[] {
     stepProof(REPORT_STEP_NAMES['code-review'], input.codeReview, 'code-review'),
     verifyLine(input),
     stepProof(REPORT_STEP_NAMES.walkthrough, input.walkthrough, 'walkthrough'),
+    input.runThrough
+      ? { ...input.runThrough, source: 'other' as const, tab: 'runthrough' as const }
+      : undefined,
   ]
     .filter((line) => line !== undefined)
     .map((line, i) => proofRow(`proof-${i}`, line, input.tabs))

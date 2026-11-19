@@ -12,6 +12,7 @@ import {
   IconMobile,
   IconMonitor,
   IconPlay,
+  IconRoute,
   IconTests,
 } from '../../icons'
 
@@ -27,6 +28,7 @@ const GLYPH: Record<CheckMethodId, ComponentType<{ className?: string }>> = {
   walkthrough: IconPlay,
   report: IconDocument,
   diff: IconDiff,
+  runthrough: IconRoute,
 }
 
 export type CheckChipProps = {

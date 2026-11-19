@@ -21,6 +21,8 @@ export type CheckMethodId =
   | 'report'
   /** Did the code review pass the change — or, before code reviews, was the diff read? */
   | 'diff'
+  /** A tester used the app as a person would, flagging what it met — a tab's chip, never a check row. */
+  | 'runthrough'
 
 /**
  * Six states. Two of them are ABSENCE and must never read as a verdict:
@@ -62,6 +64,8 @@ export type CheckMethodFill = 'run' | 'agent'
 export type ReviewTabId =
   | 'screens'
   | 'walkthrough'
+  /** A tester's run-through: its record, its issues and its recording. */
+  | 'runthrough'
   /** What a person still has to record: a run's Loom walkthrough. */
   | 'loom'
   | 'tests'
@@ -224,4 +228,6 @@ export type ReviewTabsInput = {
   lead?: ReviewTabId
   /** How many Loom walkthrough steps the run has, and how many are still to record. */
   loom?: { total: number; left: number }
+  /** How a tester's run-through went, when one filed anything — its tab's chip. */
+  runThrough?: CheckMethodState
 }

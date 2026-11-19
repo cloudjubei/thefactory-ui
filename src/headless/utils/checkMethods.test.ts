@@ -190,6 +190,21 @@ describe('evidenceMethodFor', () => {
   it('maps a log to nothing — it proves no method by itself', () => {
     expect(evidenceMethodFor({ kind: 'log' })).toBeUndefined()
   })
+
+  it('maps a run-through’s record and issues to nothing — they stand on its own tab', () => {
+    expect(
+      evidenceMethodFor({
+        kind: 'screenshot',
+        issue: { severity: 'minor', title: 'T', happened: 'H' },
+      }),
+    ).toBeUndefined()
+    expect(
+      evidenceMethodFor({
+        kind: 'report',
+        runThroughSections: { scenario: 'S', reachedEnd: true, summary: 'X' },
+      }),
+    ).toBeUndefined()
+  })
 })
 
 describe('checkMethodRows', () => {
@@ -1268,6 +1283,33 @@ describe('reviewTabs › a Loom walkthrough', () => {
   it('leaves every other tab without a chip of its own', () => {
     const tabs = reviewTabs({ ...base, loom: { total: 1, left: 1 } })
     expect(tabs.filter((t) => t.chip).map((t) => t.id)).toEqual(['loom'])
+  })
+})
+
+describe('reviewTabs › a run-through', () => {
+  const base = {
+    screens: 0,
+    walkthroughs: 1,
+    reports: 1,
+    testCount: 0,
+    testChecks: 0,
+    buildChecks: 0,
+    changedFiles: undefined,
+  }
+
+  it('has no tab when no tester filed anything', () => {
+    expect(reviewTabs(base).map((t) => t.id)).not.toContain('runthrough')
+  })
+
+  it('sits beside the walkthrough, its chip saying how it went', () => {
+    const tabs = reviewTabs({ ...base, runThrough: 'flagged' })
+    expect(tabs.map((t) => t.id)).toEqual(['walkthrough', 'runthrough', 'report'])
+    expect(tabs[1]).toEqual({
+      id: 'runthrough',
+      label: 'Run-through',
+      count: undefined,
+      chip: { label: 'Run-through', state: 'flagged' },
+    })
   })
 })
 

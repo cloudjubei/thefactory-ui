@@ -85,6 +85,7 @@ import { LIVE_CHECK_SCENES } from '../scenes/liveCheck'
 import { REGENERATED_MERGE_SCENES } from '../scenes/regeneratedMerge'
 import { NEEDS_YOU_REFERENCE_SCENES } from '../scenes/needsYouReferences'
 import { RUN_ACCESS_SCENES } from '../scenes/runAccess'
+import { RUN_THROUGH_SCENES } from '../scenes/runThrough'
 import { TRY_ON_PHONE_SCENES } from '../scenes/tryOnPhone'
 import { RUN_NEEDS_YOU_SCENES } from '../scenes/runNeedsYou'
 import { RUNNING_TONE_SCENES } from '../scenes/runningTone'
@@ -201,6 +202,7 @@ export const SCENES: readonly Scene[] = [
   ...SIGNOFF_CHIP_SCENES,
   ...REGENERATED_MERGE_SCENES,
   ...RUN_ACCESS_SCENES,
+  ...RUN_THROUGH_SCENES,
   ...TRY_ON_PHONE_SCENES,
   ...RUN_NEEDS_YOU_SCENES,
   ...RUN_WAITS_FOR_SCENES,

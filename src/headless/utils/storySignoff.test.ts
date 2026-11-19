@@ -3562,6 +3562,29 @@ describe('signoffSections', () => {
     expect(section.pairs).toHaveLength(2)
     expect(section.pairs.every((p) => p.class === 'single' && p.note?.includes('wrong'))).toBe(true)
   })
+
+  it('keeps a run-through’s record and issues on their own tab, out of the report and the screens', () => {
+    const record = tileOf({
+      id: 'rt',
+      runId: 'tester',
+      kind: 'report',
+      createdAt: T + 9,
+      runThroughSections: { scenario: 'Play', reachedEnd: true, summary: 'Fine' },
+    })
+    const shot = tileOf({
+      id: 'issue',
+      runId: 'tester',
+      kind: 'screenshot',
+      mediaType: 'image/png',
+      subject: 'Board',
+      issue: { severity: 'minor', title: 'Tooltip', happened: 'Covers the button' },
+    })
+    const note = tileOf({ id: 'plain', runId: 'tester', kind: 'report', createdAt: T })
+    const section = signoffSections(story, [record, shot, note]).get('')!
+    expect(section.runThrough.map((t) => t.ref.id)).toEqual(['rt', 'issue'])
+    expect(section.reports.map((t) => t.ref.id)).toEqual(['plain'])
+    expect(section.pairs).toEqual([])
+  })
   const verifierReport = (over: Partial<ReviewEvidenceRef> = {}) =>
     tileOf({ id: 'ver', runId: 'dev', kind: 'report', createdAt: T, ...over })
   const final = (over: Partial<ReviewEvidenceRef> = {}) =>

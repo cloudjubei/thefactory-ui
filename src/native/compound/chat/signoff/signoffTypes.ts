@@ -44,6 +44,8 @@ export type InlineVideo = {
   onPlayingChange: (playing: boolean) => void
   /** Where the playhead is, as it moves. */
   onTimeChange?: (atSec: number) => void
+  /** How long the video runs, once the player knows. */
+  onDuration?: (durationSec: number) => void
 }
 
 /**

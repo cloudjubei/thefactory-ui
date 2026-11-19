@@ -34,6 +34,8 @@ import {
   reviewTabOrder,
   reviewTabs,
   runReports,
+  runThroughReport,
+  withoutRunThroughFilings,
   runReviewFacts,
   screenPairFileStem,
   screenPairs,
@@ -89,6 +91,7 @@ import {
   RunModelChip,
   ScreensTab,
   VerdictBadge,
+  RunThroughTab,
   WalkthroughTab,
   WorkBar,
   toneChip,
@@ -375,15 +378,20 @@ export default function CliRunArtifactPanel({
       }),
     [methodRows, verification, storyIncomplete],
   )
+  const shownFilings = useMemo(() => withoutRunThroughFilings(currentFilings), [currentFilings])
+  const runThrough = useMemo(
+    () => runThroughReport(currentFilings, currentFilings),
+    [currentFilings],
+  )
   const evidenceGroups = useMemo(
-    () => groupEvidence(currentFilings, { baseSha: review?.baseSha }),
-    [currentFilings, review?.baseSha],
+    () => groupEvidence(shownFilings, { baseSha: review?.baseSha }),
+    [shownFilings, review?.baseSha],
   )
   const pairs = useMemo(() => screenPairs(evidenceGroups), [evidenceGroups])
-  const recordings = currentFilings.filter(
+  const recordings = shownFilings.filter(
     (t) => t.ref.kind === 'recording' || t.ref.kind === 'trace',
   )
-  const reports = runReports(currentFilings)
+  const reports = runReports(shownFilings)
   const { tests: testChecks, build: buildChecks } = reviewCheckGroups(verification)
   // The Tests badge counts TESTS, not layers.
   const testTotals = aggregateTestCounts(testChecks)
@@ -510,6 +518,7 @@ export default function CliRunArtifactPanel({
     testChecks: ranReviewChecks(testChecks).length,
     buildChecks: ranReviewChecks(buildChecks).length,
     changedFiles: changesKnown ? changeFiles.length : files.length > 0 ? files.length : undefined,
+    ...(runThrough ? { runThrough: runThrough.state } : {}),
   })
   const currentTab: ReviewTabId =
     activeTab && tabs.some((t) => t.id === activeTab) ? activeTab : (tabs[0]?.id ?? 'changes')
@@ -998,6 +1007,8 @@ export default function CliRunArtifactPanel({
                     recordings={recordings}
                     {...(onSaveFile ? { onSaveFile } : {})}
                   />
+                ) : currentTab === 'runthrough' && runThrough ? (
+                  <RunThroughTab projectId={projectId} view={runThrough} />
                 ) : currentTab === 'tests' ? (
                   <ChecksTab
                     methods={methodRows.filter((r) => TEST_METHODS.includes(r.id))}
