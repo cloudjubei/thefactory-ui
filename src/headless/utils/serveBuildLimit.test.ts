@@ -3,31 +3,27 @@ import { describe, expect, it } from 'vitest'
 import {
   SERVE_BUILD_LIMIT_COPY,
   SERVE_BUILD_LIMIT_DEFAULT_MS,
-  SERVE_BUILD_LIMIT_METADATA_KEY,
   SERVE_BUILD_LIMIT_MINUTE_MS,
 } from './serveBuildLimitConstants'
 import {
   readServeBuildTimeoutMs,
   serveBuildLimitField,
   serveBuildLimitMinutesText,
-  withServeBuildTimeout,
+  serveBuildTimeoutMsToSave,
 } from './serveBuildLimit'
 
 const FORTY_FIVE_MS = 45 * SERVE_BUILD_LIMIT_MINUTE_MS
 
 describe('readServeBuildTimeoutMs', () => {
-  it('reads a positive whole number of milliseconds', () => {
-    expect(readServeBuildTimeoutMs({ [SERVE_BUILD_LIMIT_METADATA_KEY]: FORTY_FIVE_MS })).toBe(
-      FORTY_FIVE_MS,
-    )
+  it('reads the limit the serve settings hold, a positive whole number of milliseconds', () => {
+    expect(readServeBuildTimeoutMs({ buildTimeoutMs: FORTY_FIVE_MS })).toBe(FORTY_FIVE_MS)
   })
 
-  it('treats an absent or unusable value as unset, so the default applies', () => {
+  it('treats no settings, no limit or an unusable one as unset, so the default applies', () => {
     expect(readServeBuildTimeoutMs(undefined)).toBeUndefined()
-    expect(readServeBuildTimeoutMs(null)).toBeUndefined()
-    expect(readServeBuildTimeoutMs({})).toBeUndefined()
+    expect(readServeBuildTimeoutMs({ buildTimeoutMs: null })).toBeUndefined()
     for (const value of ['45', 0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
-      expect(readServeBuildTimeoutMs({ [SERVE_BUILD_LIMIT_METADATA_KEY]: value })).toBeUndefined()
+      expect(readServeBuildTimeoutMs({ buildTimeoutMs: value })).toBeUndefined()
     }
   })
 })
@@ -72,22 +68,17 @@ describe('serveBuildLimitField', () => {
   })
 })
 
-describe('withServeBuildTimeout', () => {
-  const metadata = { icon: 'folder', [SERVE_BUILD_LIMIT_METADATA_KEY]: FORTY_FIVE_MS }
-
-  it('stores minutes as milliseconds and keeps every other key', () => {
-    expect(withServeBuildTimeout({ icon: 'folder' }, '45')).toEqual({
-      icon: 'folder',
-      [SERVE_BUILD_LIMIT_METADATA_KEY]: FORTY_FIVE_MS,
-    })
+describe('serveBuildTimeoutMsToSave', () => {
+  it('saves minutes as milliseconds', () => {
+    expect(serveBuildTimeoutMsToSave('45')).toBe(FORTY_FIVE_MS)
   })
 
-  it('drops the key when the field is blank, so the default applies', () => {
-    expect(withServeBuildTimeout(metadata, '  ')).toEqual({ icon: 'folder' })
+  it('saves no limit for a blank field, so the default applies', () => {
+    expect(serveBuildTimeoutMsToSave('  ')).toBeNull()
   })
 
-  it('leaves the metadata as it was when the text cannot be saved', () => {
-    expect(withServeBuildTimeout(metadata, '0')).toEqual(metadata)
-    expect(withServeBuildTimeout(undefined, 'no')).toEqual({})
+  it('has nothing to save for text that is not a limit', () => {
+    expect(serveBuildTimeoutMsToSave('0')).toBeUndefined()
+    expect(serveBuildTimeoutMsToSave('no')).toBeUndefined()
   })
 })

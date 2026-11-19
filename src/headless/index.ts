@@ -505,7 +505,7 @@ export {
   readServeBuildTimeoutMs,
   serveBuildLimitField,
   serveBuildLimitMinutesText,
-  withServeBuildTimeout,
+  serveBuildTimeoutMsToSave,
 } from './utils/serveBuildLimit'
 export type { ServeBuildLimitField } from './utils/serveBuildLimit'
 export * from './utils/serveBuildLimitConstants'

@@ -9,12 +9,6 @@ export const SERVE_BUILD_LIMIT_MINUTE_MS = 60_000
  */
 export const SERVE_BUILD_LIMIT_DEFAULT_MS = UI_SERVE_BUILD_TIMEOUT_MS
 
-/**
- * Project metadata key a serve reads for this project's build limit, in milliseconds.
- * Absent means {@link SERVE_BUILD_LIMIT_DEFAULT_MS}.
- */
-export const SERVE_BUILD_LIMIT_METADATA_KEY = 'serveBuildTimeoutMs'
-
 export const SERVE_BUILD_LIMIT_COPY = {
   title: 'Serve',
   lead: 'How long a build of this project may run when it is served. A large app can have more time here without changing the limit for every project.',

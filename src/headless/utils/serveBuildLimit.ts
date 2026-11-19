@@ -1,7 +1,6 @@
 import {
   SERVE_BUILD_LIMIT_COPY,
   SERVE_BUILD_LIMIT_DEFAULT_MS,
-  SERVE_BUILD_LIMIT_METADATA_KEY,
   SERVE_BUILD_LIMIT_MINUTE_MS,
 } from './serveBuildLimitConstants'
 
@@ -33,13 +32,13 @@ const placeholder = serveBuildLimitMinutesText(SERVE_BUILD_LIMIT_DEFAULT_MS)
 const hint = SERVE_BUILD_LIMIT_COPY.hint(placeholder)
 
 /**
- * The build limit stored on a project, in milliseconds.
+ * The build limit a project's serve settings hold, in milliseconds.
  * Anything that is not a positive whole number of milliseconds counts as unset, so the default applies.
  */
 export function readServeBuildTimeoutMs(
-  metadata: Record<string, unknown> | null | undefined,
+  settings: { buildTimeoutMs: unknown } | undefined,
 ): number | undefined {
-  return heldMs(metadata?.[SERVE_BUILD_LIMIT_METADATA_KEY])
+  return heldMs(settings?.buildTimeoutMs)
 }
 
 function parseMinutes(text: string): { ms?: number; error?: string } {
@@ -77,18 +76,11 @@ export function serveBuildLimitField(
 }
 
 /**
- * Metadata after saving the field's text. A blank field drops the key so the default applies.
- * Text that cannot be saved leaves the metadata as it was. Other keys are kept: a project
- * update replaces its metadata whole.
+ * The limit a save of the field's text sends: milliseconds, `null` for a blank
+ * field so the default applies, `undefined` when the text is not a limit.
  */
-export function withServeBuildTimeout(
-  metadata: Record<string, unknown> | null | undefined,
-  text: string,
-): Record<string, unknown> {
+export function serveBuildTimeoutMsToSave(text: string): number | null | undefined {
   const parsed = parseMinutes(text)
-  const next: Record<string, unknown> = { ...(metadata ?? {}) }
-  if (parsed.error) return next
-  if (parsed.ms === undefined) delete next[SERVE_BUILD_LIMIT_METADATA_KEY]
-  else next[SERVE_BUILD_LIMIT_METADATA_KEY] = parsed.ms
-  return next
+  if (parsed.error) return undefined
+  return parsed.ms ?? null
 }
