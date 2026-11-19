@@ -1,14 +1,14 @@
 import { useState } from 'react'
-import { useActiveProject, useProjects } from '../../../headless'
+import { useProjects } from '../../../headless'
 import { useIngestion } from '../../../headless'
 import type { IngestionJobState } from '../../../headless'
 import { Alert } from '../..'
 import { Button } from '../..'
 import { Surface } from '../..'
 
-export default function IngestionPanel() {
+/** Reindexing: every project, and the named one when `projectId` is given. */
+export default function IngestionPanel({ projectId }: { projectId?: string }) {
   const { jobs, startProjectIngest, startGlobalIngest, dismissJob } = useIngestion()
-  const { projectId } = useActiveProject()
   const { projects } = useProjects()
   const [busyKind, setBusyKind] = useState<'project' | 'all' | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -41,13 +41,15 @@ export default function IngestionPanel() {
       {error && <Alert>{error}</Alert>}
 
       <div className="flex flex-wrap gap-2">
-        <Button
-          onClick={() => start('project')}
-          disabled={!projectId || busyKind !== null}
-          loading={busyKind === 'project'}
-        >
-          Reindex this project
-        </Button>
+        {projectId && (
+          <Button
+            onClick={() => start('project')}
+            disabled={busyKind !== null}
+            loading={busyKind === 'project'}
+          >
+            Reindex this project
+          </Button>
+        )}
         <Button
           variant="secondary"
           onClick={() => start('all')}
