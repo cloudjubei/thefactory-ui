@@ -31,6 +31,34 @@ export function replaceFeatureRequests(requests: ReadonlyArray<FeatureRequest>):
   emit()
 }
 
+/**
+ * Take a list read that started when the store was `before`. A record that changed while the
+ * read was in flight keeps its newer copy unless the listed one is newer still; every other
+ * record is what the list says, so one the list no longer has goes.
+ */
+export function replaceFeatureRequestsSince(
+  requests: ReadonlyArray<FeatureRequest>,
+  before: Record<string, FeatureRequest>,
+): void {
+  byId = listedFeatureRequestsSince(requests, before, byId)
+  emit()
+}
+
+/** The store {@link replaceFeatureRequestsSince} leaves: `requests`, kept behind changes seen since `before`. Pure. */
+export function listedFeatureRequestsSince(
+  requests: ReadonlyArray<FeatureRequest>,
+  before: Record<string, FeatureRequest>,
+  current: Record<string, FeatureRequest>,
+): Record<string, FeatureRequest> {
+  const next: Record<string, FeatureRequest> = Object.fromEntries(requests.map((r) => [r.id, r]))
+  for (const [id, record] of Object.entries(current)) {
+    if (before[id] === record) continue
+    const listed = next[id]
+    if (!listed || listed.updatedAt <= record.updatedAt) next[id] = record
+  }
+  return next
+}
+
 export function subscribeFeatureRequests(listener: () => void): () => void {
   listeners.add(listener)
   return () => {

@@ -19,7 +19,7 @@ import {
   inFlightCount,
   outboxFor,
   pendingCount,
-  replaceFeatureRequests,
+  replaceFeatureRequestsSince,
   requestById,
   sortedRequests,
   subscribeFeatureRequests,
@@ -157,9 +157,10 @@ async function rejectRequest(id: string, reason?: string): Promise<FeatureReques
 
 /** Seed the whole store once from the unfiltered (account-global) list endpoint. */
 async function seedFeatureRequests(): Promise<void> {
+  const before = featureRequestsSnapshot()
   try {
     const res = await listFeatureRequests({ throwOnError: true })
-    replaceFeatureRequests((res.data ?? []) as FeatureRequest[])
+    replaceFeatureRequestsSince((res.data ?? []) as FeatureRequest[], before)
   } catch {
     // Best-effort: leave the store as-is on a transient failure.
   }

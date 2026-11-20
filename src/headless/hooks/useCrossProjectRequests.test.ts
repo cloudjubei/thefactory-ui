@@ -106,6 +106,59 @@ describe('holdFeatureRequests', () => {
     expect(ws.reconnectHandlers.size).toBe(0)
   })
 
+  it('keeps an update that arrives while a read is in flight over the older listed copy', async () => {
+    let resolveList: (value: { data: unknown[] }) => void = () => {}
+    listFeatureRequests.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveList = resolve
+      }),
+    )
+    const ws = new FakeWs()
+    const release = holdFeatureRequests(ws)
+    ws.emit('featureRequest:updated', {
+      ...request('fr-1'),
+      status: 'in_progress',
+      updatedAt: '2026-10-13T00:05:00Z',
+    })
+    ws.emit('featureRequest:updated', { ...request('fr-new'), updatedAt: '2026-10-13T00:06:00Z' })
+    resolveList({ data: [request('fr-1'), request('fr-2')] })
+    await Promise.resolve()
+    await Promise.resolve()
+    const snapshot = featureRequestsSnapshot()
+    expect(snapshot['fr-1']?.status).toBe('in_progress')
+    expect(Object.keys(snapshot).sort()).toEqual(['fr-1', 'fr-2', 'fr-new'])
+    release()
+  })
+
+  it('takes the listed copy when it is newer than an update seen while the read was in flight', async () => {
+    let resolveList: (value: { data: unknown[] }) => void = () => {}
+    listFeatureRequests.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveList = resolve
+      }),
+    )
+    const ws = new FakeWs()
+    const release = holdFeatureRequests(ws)
+    ws.emit('featureRequest:updated', { ...request('fr-1'), status: 'accepted' })
+    resolveList({
+      data: [{ ...request('fr-1'), status: 'completed', updatedAt: '2026-10-13T00:09:00Z' }],
+    })
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(featureRequestsSnapshot()['fr-1']?.status).toBe('completed')
+    release()
+  })
+
+  it('drops a record the list no longer has when nothing changed it during the read', async () => {
+    replaceFeatureRequests([request('gone') as never])
+    const ws = new FakeWs()
+    const release = holdFeatureRequests(ws)
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(Object.keys(featureRequestsSnapshot())).toEqual(['fr-1'])
+    release()
+  })
+
   it('keeps what it had when the read fails', async () => {
     replaceFeatureRequests([request('kept') as never])
     listFeatureRequests.mockRejectedValueOnce(new Error('down'))

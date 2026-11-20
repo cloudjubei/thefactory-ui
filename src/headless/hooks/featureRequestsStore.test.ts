@@ -5,6 +5,7 @@ import {
   featureRequestsSnapshot,
   inFlightCount,
   inboxFor,
+  listedFeatureRequestsSince,
   outboxFor,
   pendingCount,
   replaceFeatureRequests,
@@ -172,6 +173,27 @@ describe('featureRequestsStore', () => {
       replaceFeatureRequests([fr({ id: 'a', status: 'in_review' })])
       expect(requestById(featureRequestsSnapshot(), 'a')?.status).toBe('in_review')
       expect(requestById(featureRequestsSnapshot(), 'missing')).toBeUndefined()
+    })
+  })
+})
+
+describe('listedFeatureRequestsSince', () => {
+  const at = (id: string, updatedAt: string, status = 'pending') =>
+    ({ id, status, updatedAt }) as unknown as FeatureRequest
+
+  it('keeps what changed during the read unless the listed copy is newer, and drops what the list lost', () => {
+    const before = { a: at('a', '1'), b: at('b', '1'), gone: at('gone', '1') }
+    const current = {
+      ...before,
+      a: at('a', '5', 'in_progress'),
+      b: at('b', '2'),
+      fresh: at('fresh', '3'),
+    }
+    const listed = [at('a', '2'), at('b', '9', 'completed')]
+    expect(listedFeatureRequestsSince(listed, before, current)).toEqual({
+      a: at('a', '5', 'in_progress'),
+      b: at('b', '9', 'completed'),
+      fresh: at('fresh', '3'),
     })
   })
 })
