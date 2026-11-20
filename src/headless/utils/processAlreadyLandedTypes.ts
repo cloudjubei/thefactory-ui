@@ -52,3 +52,15 @@ export interface ProcessNothingToMergeSignOff {
   /** What accepting sends: nothing is merged, so nothing more is asked. */
   decision: ProcessIntegrationDecision
 }
+
+/** What a person names the work as merged by: the pull request that brought it in, or the commit on the base. */
+export type ProcessNamedLanding = { pullRequestUrl: string } | { commit: string }
+
+/** "Finish as merged" by a pull request link or a commit, as the run page offers it. */
+export interface ProcessNamedLandingAction {
+  busy: boolean
+  /** Why the last try was refused. */
+  error: string | null
+  /** Finish the run as merged by what was named; resolves `false` when refused. */
+  onSettle: (named: ProcessNamedLanding) => Promise<boolean>
+}

@@ -58,6 +58,8 @@ export interface ProcessDeliveryRepo {
   changed: boolean
   publication?: ProcessRunPublication
   merge?: ProcessMergeProgress
+  /** What to look at before publishing, each a sentence; they never stop Publish. */
+  notices?: string[]
 }
 
 /** A run's or a group run's delivery. */
@@ -128,6 +130,8 @@ export interface ProcessPublishRow {
   titleError?: string
   account?: string
   changed: boolean
+  /** What to look at before publishing, each a sentence; absent when there is nothing. */
+  notices?: string[]
 }
 
 /** The publish gate as its card shows it. */

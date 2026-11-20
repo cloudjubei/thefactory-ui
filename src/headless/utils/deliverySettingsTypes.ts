@@ -16,6 +16,7 @@ export interface DeliveryFormDraft {
   baseBranch: string
   prFirst: DeliveryPrFirstChoice
   mergeMethod: DeliveryMergeChoice
+  prTitleTemplate: string
 }
 
 /** One answer of a switch, with its words. */
@@ -28,6 +29,7 @@ export interface DeliveryChoiceOption<T extends string> {
 export interface DeliveryDraftProblems {
   branchTemplate?: string
   baseBranch?: string
+  prTitleTemplate?: string
 }
 
 /** The main group a project's settings fall back to. */
@@ -61,6 +63,10 @@ export interface DeliverySettingsView {
   basePlaceholder: string
   /** The template in use, filled for a sample run. */
   preview: DeliveryBranchPreview
+  /** What an empty pull request title template takes: the group's, or the PR Text's title. */
+  titlePlaceholder: string
+  /** The title template in use, filled for a sample ticket, or where a title comes from without one. */
+  titlePreview: string
   problems: DeliveryDraftProblems
   prFirstOptions: DeliveryChoiceOption<DeliveryPrFirstChoice>[]
   mergeOptions: DeliveryChoiceOption<DeliveryMergeChoice>[]

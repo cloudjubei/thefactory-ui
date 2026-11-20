@@ -58,6 +58,16 @@ function StillToFill({ unfilled }: { unfilled: readonly string[] }) {
   )
 }
 
+function MissingLinks({ names }: { names: readonly string[] }) {
+  if (names.length === 0) return null
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 text-[11.5px] text-(--status-on_hold-soft-fg)">
+      <span className="font-medium">{SIGN_OFF_OUTPUT_TEXT.missingLinks}</span>
+      <span>{names.join(', ')}</span>
+    </div>
+  )
+}
+
 function Editor({
   section,
   draft,
@@ -208,6 +218,7 @@ export default function SignOffOutputPanel({
     const shown = sections.find((s) => s.key === picked) ?? sections[0]!
     return (
       <div className={`flex flex-col gap-3 ${gap}`}>
+        <MissingLinks names={view.missingPullRequests} />
         <SegmentedControl
           size="sm"
           ariaLabel={view.label}
@@ -227,6 +238,7 @@ export default function SignOffOutputPanel({
           : `flex flex-col gap-4 ${gap}`
       }
     >
+      <MissingLinks names={view.missingPullRequests} />
       {sections.map((section) => (
         <Section key={section.key} section={section} actions={actions} showHeading={several} />
       ))}

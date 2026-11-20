@@ -175,6 +175,9 @@ export const SIGN_OFF_OUTPUT_TEXT = {
   tooLong: (max: number) => `Keep it under ${max.toLocaleString('en-GB')} characters.`,
   toFill: (count: number) => `${count} to fill`,
   toWrite: (count: number) => `${count} to write`,
+  linksMissing: (count: number) =>
+    count === 1 ? '1 PR link missing' : `${count} PR links missing`,
+  missingLinks: 'No link yet to the pull request of:',
   stillToFill: 'Still to fill:',
   nothing: 'No outputs for this work.',
 } as const

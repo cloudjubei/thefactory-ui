@@ -30,22 +30,31 @@ import {
   PROCESS_MANAGER_PROJECT_LABEL,
   connectorWriteBackOf,
   projectManagerSettingsOf,
+  projectCheckCommandsOf,
   projectCheckEnvOf,
+  projectGeneratorsOf,
   projectMetadataCarried,
   readEvaluationDefaults,
   readTicketConnection,
   useKnowledgeEvaluationSettings,
   useProjectsGroups,
   withEvaluationDefaults,
+  withProjectGenerators,
   type ProcessManagerAutonomy,
 } from '../../../headless'
+import ProjectCheckCommandsField from './ProjectCheckCommandsField'
 import ProjectCheckEnvField from './ProjectCheckEnvField'
+import ProjectGeneratorsField from './ProjectGeneratorsField'
 import ProjectCodeInfoModal, { type CodeInfoValue } from './ProjectCodeInfoModal'
 import ProjectDefaultCapsField from './ProjectDefaultCapsField'
 import ProjectFakeDataInProductField from './ProjectFakeDataInProductField'
 import ProjectEvaluationDefaultsField from './ProjectEvaluationDefaultsField'
 import TicketConnectionPicker from './TicketConnectionPicker'
-import type { ProjectCheckEnvSetting } from 'thefactory-tools/types'
+import type {
+  ProjectCheckCommandsSetting,
+  ProjectCheckEnvSetting,
+  ProjectGeneratorSetting,
+} from 'thefactory-tools/types'
 
 export type ProjectFormState = {
   id: string
@@ -66,6 +75,10 @@ export type ProjectFormState = {
     processManager?: { enabled: boolean; autonomy: ProcessManagerAutonomy }
     /** The values and secrets a live check runs with. */
     checkEnv?: ProjectCheckEnvSetting
+    /** The commands the checks run in place of what they detect. */
+    checkCommands?: ProjectCheckCommandsSetting
+    /** The commands that write the project's generated sources. */
+    generators?: ProjectGeneratorSetting[]
     /** Every other key the project's metadata holds, carried through a save untouched. */
     [key: string]: unknown
   }
@@ -101,6 +114,8 @@ export function projectToFormState(p: GetProjectResponse): ProjectFormState {
   const appDir = typeof md.appDir === 'string' && md.appDir.trim() ? md.appDir : undefined
   const ticketConnection = readTicketConnection(md.ticketConnection)
   const checkEnv = projectCheckEnvOf(md)
+  const checkCommands = projectCheckCommandsOf(md)
+  const generators = projectGeneratorsOf(md)
   const anyP = p as unknown as Record<string, unknown>
   return {
     id: p.id,
@@ -118,6 +133,8 @@ export function projectToFormState(p: GetProjectResponse): ProjectFormState {
       ...(ticketConnection ? { ticketConnection } : {}),
       processManager: projectManagerSettingsOf(md),
       ...(checkEnv ? { checkEnv } : {}),
+      ...(checkCommands ? { checkCommands } : {}),
+      ...(generators ? { generators } : {}),
     },
     codeInfo: anyP.codeInfo as ProjectFormState['codeInfo'],
     mainGroupId: typeof anyP.mainGroupId === 'string' ? (anyP.mainGroupId as string) : undefined,
@@ -151,16 +168,27 @@ export function ProjectEditorForm({
   const [iconPickerOpen, setIconPickerOpen] = useState(false)
   const [codeInfoOpen, setCodeInfoOpen] = useState(false)
   const [capsError, setCapsError] = useState<string>()
+  const [commandsError, setCommandsError] = useState<string>()
+  const [generatorsError, setGeneratorsError] = useState<string>()
   const capsField = useRef<HTMLDivElement>(null)
+  const commandsField = useRef<HTMLDivElement>(null)
+  const generatorsField = useRef<HTMLDivElement>(null)
 
   const submit = (event: FormEvent) => {
-    if (!capsError) {
+    const invalid = capsError
+      ? capsField
+      : commandsError
+        ? commandsField
+        : generatorsError
+          ? generatorsField
+          : undefined
+    if (!invalid) {
       onSubmit(event)
       return
     }
     event.preventDefault()
-    capsField.current?.scrollIntoView({ block: 'center' })
-    capsField.current?.querySelector<HTMLInputElement>('[aria-invalid="true"]')?.focus()
+    invalid.current?.scrollIntoView({ block: 'center' })
+    invalid.current?.querySelector<HTMLInputElement>('[aria-invalid="true"]')?.focus()
   }
 
   const mainGroups = useMemo(() => groups.filter((g) => g.type === 'MAIN'), [groups])
@@ -419,6 +447,30 @@ export function ProjectEditorForm({
           })
         }
       />
+
+      <div ref={commandsField}>
+        <ProjectCheckCommandsField
+          value={form.metadata.checkCommands}
+          onChange={(checkCommands) =>
+            setForm((s) => {
+              const { checkCommands: _was, ...metadata } = s.metadata
+              return { ...s, metadata: checkCommands ? { ...metadata, checkCommands } : metadata }
+            })
+          }
+          onErrorChange={setCommandsError}
+        />
+      </div>
+
+      <div ref={generatorsField}>
+        <ProjectGeneratorsField
+          projectId={mode === 'edit' ? form.id : undefined}
+          value={form.metadata.generators}
+          onChange={(generators) =>
+            setForm((s) => ({ ...s, metadata: withProjectGenerators(s.metadata, generators) }))
+          }
+          onErrorChange={setGeneratorsError}
+        />
+      </div>
 
       {mode === 'edit' ? (
         <TicketConnectionPicker

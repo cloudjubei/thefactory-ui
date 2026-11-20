@@ -22,7 +22,8 @@ export type WalkthroughTabProps = {
 
 export type WalkthroughRecordingProps = {
   projectId: string
-  tile: EvidenceTile
+  /** The recording: its item's id and media type, and what it is called. */
+  tile: { ref: Pick<EvidenceTile['ref'], 'id' | 'mediaType'>; caption: string }
   /** Shown in place of the recording's own caption — a pair's "Before" or "After". */
   label?: string
   footer?: ReactNode
@@ -30,6 +31,8 @@ export type WalkthroughRecordingProps = {
   seekRef?: { current: ((atSec: number) => void) | null }
   /** Where the playhead is, and how long the recording runs, as they become known. */
   onProgress?: (atSec: number, durationSec: number) => void
+  /** Opens at this moment and plays from it — a reference to a moment of the recording. */
+  startAt?: number
 }
 
 /** One recording, played by the browser's own player, with its fullscreen and save. */
@@ -40,11 +43,12 @@ export function WalkthroughRecording({
   footer,
   seekRef,
   onProgress,
+  startAt,
 }: WalkthroughRecordingProps) {
   const { url, loading } = useReviewEvidenceMediaUrl(projectId, tile.ref.id)
   const videoRef = useRef<HTMLVideoElement | null>(null)
-  const positionRef = useRef(0)
-  const playingRef = useRef(false)
+  const positionRef = useRef(startAt ?? 0)
+  const playingRef = useRef(startAt !== undefined)
   const restoringRef = useRef(false)
 
   useEffect(() => {

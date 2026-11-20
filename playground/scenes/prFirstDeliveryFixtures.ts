@@ -68,6 +68,22 @@ export const DELIVERY_FORM_STATES: Record<string, DeliveryFormState> = {
     saved: { branchTemplate: 'web/{ticket}', prFirst: false, mergeMethod: 'rebase' },
   },
   scope: { owner: DELIVERY_GROUP, scope: true },
+  'title-template': {
+    owner: DELIVERY_GROUP,
+    saved: DELIVERY_FULL,
+    draft: {
+      ...deliveryDraftOf(DELIVERY_FULL, 'group'),
+      prTitleTemplate: '{ticket} {ticketTitle}',
+    },
+  },
+  'title-inherited': {
+    owner: DELIVERY_PROJECT,
+    saved: { prTitleTemplate: '[{ticket}] {ticketTitle}' },
+  },
+  'bad-title': {
+    owner: DELIVERY_GROUP,
+    draft: { ...deliveryDraftOf(undefined, 'group'), prTitleTemplate: '{ticket} {summary}' },
+  },
   'save-failed': {
     owner: DELIVERY_GROUP,
     draft: { ...deliveryDraftOf(DELIVERY_FULL, 'group'), baseBranch: 'main' },
@@ -181,6 +197,22 @@ export const PUBLISH_STATES: Record<string, PublishState> = {
   failed: {
     data: { repos: [WEB] },
     error: 'Someone else pushed to feature/abc-123-add-dark-mode. Nothing was published.',
+  },
+  notices: {
+    data: {
+      repos: [
+        {
+          ...API,
+          short: 'tokens',
+          notices: [
+            'The short name “tokens” is one word; a branch’s short name says what the work is in 2–4 words.',
+            'PR Text: The “How to test” section is missing.',
+          ],
+        },
+        { ...WEB, notices: ['PR Text: The “Screenshots” section is missing.'] },
+        DOCS,
+      ],
+    },
   },
 }
 

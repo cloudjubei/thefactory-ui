@@ -19,6 +19,8 @@ import { isProcessEntryAcceptedUnchecked } from './processAcceptedUnchecked'
 import { PROCESS_ACCEPTED_UNCHECKED_TONE } from './processAcceptedUncheckedConstants'
 import type { ProcessAcceptedEntry } from './processAcceptedUncheckedTypes'
 import { PROCESS_CIRCLING_CARD_LINE } from './processCirclingViewConstants'
+import { processAgentPauseOf } from './processAgentPause'
+import type { ProcessRunWithPause } from './processAgentPauseTypes'
 import { processIntegrationBadge } from './processIntegration'
 import { processRunManagerLine } from './processRunStop'
 import { isProcessParkWaitingElsewhere, processRunWaitingLine } from './processRunWait'
@@ -739,18 +741,19 @@ export function processLoopSenders(
  * The run's headline badge — refined for a park, which the plain status view
  * cannot be: a stop its agent manager has (`processRunStopHolder`) is "Manager
  * on it" in the running tone, a run stopped on the sign-off GATE is "Sign off"
- * (review), one stopped on a question or a failure is "Needs you" (on-hold).
- * A nested run passes `stopHolder` as its top-level run reads it
+ * (review), one stopped on a question or a failure is "Needs you" (on-hold),
+ * as is one whose step's agent paused (`processAgentPauseOf`). A nested run passes `stopHolder` as its top-level run reads it
  * (`processRunStopHolderOf`). Every other status reads straight from
  * {@link PROCESS_RUN_STATUS_VIEW}.
  */
 export function processRunBadge(
-  run: ProcessRun,
+  run: ProcessRun | ProcessRunWithPause,
   now: number,
   stopHolder: ProcessRunStopHolder | undefined = processRunStopHolder(run, now),
 ): { label: string; tone: ProcessStatusTone } {
   const integration = processIntegrationBadge(run)
   if (integration) return integration
+  if (processAgentPauseOf(run)) return { label: PROCESS_RUN_WORDS.needsYou, tone: 'on_hold' }
   if (run.status === 'parked') {
     if (isHeldForGroupSignOff(run)) return { label: GROUP_SIGN_OFF_TEXT.heldBadge, tone: 'queued' }
     if (isProcessParkWaitingElsewhere(run.park)) {

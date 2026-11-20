@@ -21,3 +21,21 @@ export const PROCESS_ACCEPT_REPORT_COPY = {
   notice: 'Nothing changed, so there is nothing to merge.',
   accepted: 'Report accepted. Nothing changed, so nothing merged.',
 } as const
+
+/** Finishing a run as merged by a pull request link or a commit the person names. */
+export const PROCESS_NAMED_LANDING_COPY = {
+  open: 'Merged another way?',
+  field: 'Pull request link or commit',
+  hint: 'The merged pull request, or the commit on the base that has the work.',
+  finish: 'Finish as merged',
+  finishing: 'Finishing…',
+  confirmTitle: 'Finish as merged?',
+  confirmByLink: (url: string) =>
+    `The run is recorded as merged by ${url}. Nothing is merged or pushed.`,
+  confirmByCommit: (sha: string) =>
+    `The run is recorded as merged at ${sha}. Nothing is merged or pushed.`,
+  keep: 'Keep it open',
+  cancel: 'Cancel',
+  notOne: 'Paste one pull request link or one commit.',
+  failed: 'The run could not be finished as merged.',
+} as const

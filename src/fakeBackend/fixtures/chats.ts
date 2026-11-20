@@ -5,6 +5,7 @@ import type {
   CompletionSettings,
   GetChatSummaryResponse,
 } from '../../headless/api/generated/types.gen'
+import { FAKE_EVIDENCE_IDS, type FakeEvidenceName } from './evidenceIdsConstants'
 import { CLI_MODELS } from './models'
 import { FAKE_GROUP_ID, FAKE_PROJECT_ID } from './projects'
 import { FAKE_AT, FAKE_STAMP } from './stamps'
@@ -21,6 +22,27 @@ export const CHAT_MESSAGES = [
     role: 'assistant',
     content:
       'The verifier ran `npm test -- --watch` and it never exited, so the step timed out. The feature works; the check needs `--watch=false` in CI.',
+  },
+] satisfies NonNullable<Chat['messages']>
+
+const cite = (name: FakeEvidenceName, at?: number): string =>
+  `\`&${FAKE_PROJECT_ID}/evidence/${FAKE_EVIDENCE_IDS[name]}${at !== undefined ? `@${at}` : ''}\``
+
+/** A follow-up that cites filed evidence by reference: a screenshot, an issue and a moment. */
+export const EVIDENCE_MESSAGES = [
+  {
+    id: 'u2',
+    role: 'user',
+    content: 'What did the sign-up run-through find?',
+  },
+  {
+    id: 'a2',
+    role: 'assistant',
+    content: [
+      `The worst is a blocker: Create account does nothing ${cite('run-through-blocker')}.`,
+      `It shows in the recording at 0:42 ${cite('run-through-recording', 42)}.`,
+      `The short sign-up variant stopped on the same form ${cite('short-stopped')}.`,
+    ].join(' '),
   },
 ] satisfies NonNullable<Chat['messages']>
 
@@ -82,7 +104,7 @@ export const FAKE_CHATS: Chat[] = [
   {
     context: PROJECT_CONTEXT,
     title: 'Why did verify fail?',
-    messages: CHAT_MESSAGES,
+    messages: [...CHAT_MESSAGES, ...EVIDENCE_MESSAGES],
     settings: PROJECT_SETTINGS,
     ...FAKE_STAMP,
   },

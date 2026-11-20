@@ -1,4 +1,5 @@
 import {
+  FAKE_BACKEND_BAD_REQUEST_CODE,
   FAKE_BACKEND_DEFAULT_PORT_ENV,
   FAKE_BACKEND_DEFAULT_TOKEN_ENV,
   FAKE_BACKEND_FAILED_CODE,
@@ -19,6 +20,8 @@ import type {
 const MAX_PORT = 65_535
 
 class FakeRecordMissing extends Error {}
+
+class FakeRequestInvalid extends Error {}
 
 function matchPath(pattern: string, pathname: string): Record<string, string> | undefined {
   const wanted = pattern.split('/')
@@ -102,10 +105,16 @@ export function answerFakeRequest(
       missing: (message) => {
         throw new FakeRecordMissing(message)
       },
+      invalid: (message) => {
+        throw new FakeRequestInvalid(message)
+      },
     })
     return { status: 200, body: answer }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
+    if (err instanceof FakeRequestInvalid) {
+      return refusal(400, FAKE_BACKEND_BAD_REQUEST_CODE, named, `${message} (${named})`)
+    }
     return err instanceof FakeRecordMissing
       ? refusal(404, FAKE_BACKEND_NO_RECORD_CODE, named, `${message} (${named})`)
       : refusal(

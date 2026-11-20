@@ -120,6 +120,7 @@ function publishRow(repo: ProcessDeliveryRepo, edit: ProcessPublishEdit): Proces
     ...(repo.changed && !edit.prTitle.trim() ? { titleError: PROCESS_PUBLISH_COPY.noTitle } : {}),
     ...(repo.account ? { account: repo.account } : {}),
     changed: repo.changed,
+    ...(repo.notices?.length ? { notices: repo.notices } : {}),
   }
 }
 

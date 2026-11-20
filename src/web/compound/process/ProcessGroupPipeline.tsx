@@ -1,6 +1,7 @@
 import { useCallback, useState, type ReactNode } from 'react'
 
 import {
+  type RunModelChipSlot,
   costChipLabel,
   formatProcessDuration,
   isGroupPublishPark,
@@ -55,6 +56,8 @@ export type ProcessGroupPipelineProps = {
   onOpenLegRun: (runId: string, projectId: string) => void
   /** Open a chat for the whole group on the run; no Chat button without it. */
   onOpenChat?: (opened: ProcessRunChatOpened) => void
+  /** The host's model chip, for the agent the sign-off's "Test with me" helper runs on. */
+  renderModelChip?: (slot: RunModelChipSlot) => ReactNode
 }
 
 const ENDED = ['succeeded', 'failed', 'cancelled']
@@ -74,6 +77,7 @@ export default function ProcessGroupPipeline({
   groupRunId,
   onOpenLegRun,
   onOpenChat,
+  renderModelChip,
 }: ProcessGroupPipelineProps) {
   const chat = useProcessGroupRunChat(groupRunId)
   const {
@@ -239,7 +243,12 @@ export default function ProcessGroupPipeline({
 
       {isProcessGroupOnBranch(group) ? (
         <div className="mx-3 mt-3">
-          <GroupSignOffSection group={group} onOpenLegRun={onOpenLegRun} />
+          <GroupSignOffSection
+            group={group}
+            onOpenLegRun={onOpenLegRun}
+            {...(renderModelChip ? { renderModelChip } : {})}
+            {...(onOpenChat ? { onOpenChat } : {})}
+          />
         </div>
       ) : null}
 

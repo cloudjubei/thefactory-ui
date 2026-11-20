@@ -44,6 +44,7 @@ export const PROCESS_PUBLISH_COPY = {
   readFailed: 'The repos to publish could not be read.',
   publishFailed: 'The work could not be published.',
   noTitle: 'Give it a title.',
+  notices: 'Worth a look',
 } as const
 
 export const PROCESS_PUBLICATION_BADGES: Record<

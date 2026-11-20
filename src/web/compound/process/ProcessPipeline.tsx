@@ -54,6 +54,8 @@ import {
   processRunIntegrationModes,
   processRunBadge,
   processRunChatContext,
+  TEST_SESSION_COPY,
+  type LaunchModelChipSlot,
   processRunModelChipView,
   processRunManagerLine,
   processBaseMovedView,
@@ -168,6 +170,7 @@ import DependencyBullet from '../stories/DependencyBullet'
 import RunCarriedOutChanges from './RunCarriedOutChanges'
 import RunPendingChanges from './RunPendingChanges'
 import ProcessTryBuildCard from './signoff/ProcessTryBuildCard'
+import TestWithMeCard from './signoff/TestWithMeCard'
 import SignoffCarriedCard from './signoff/SignoffCarriedCard'
 import AlreadyMergedOffer from './AlreadyMergedOffer'
 import CloseUnmergedConfirm from './CloseUnmergedConfirm'
@@ -187,6 +190,7 @@ import RunManagerBar from './RunManagerBar'
 import RunStepsCard from './RunStepsCard'
 import RunNeedsYouCard, { ManagerLine, RUN_NEEDS_YOU_CARD_ID } from './RunNeedsYouCard'
 import RunClosurePanel from './RunClosurePanel'
+import { RunNamedLandingPanel } from './NamedLandingForm'
 import RunTurnLimitChip from './RunTurnLimitChip'
 import RunStepSpendChip from './RunStepSpendChip'
 import RunModelControl from './RunModelControl'
@@ -227,6 +231,12 @@ import {
 import RunMergeProgress from './RunMergeProgress'
 import PublicationChip from './PublicationChip'
 import RunPublishCard from './RunPublishCard'
+import AgentPausePanel, { AgentPauseMarker } from './AgentPauseStep'
+import {
+  useAgentPauseDecision,
+  type AgentPauseAction,
+  type AgentPauseStepView,
+} from '../../../headless'
 import type { ChatContext } from '../../../headless/api'
 import { getChatContextKey } from 'thefactory-tools/utils'
 
@@ -304,7 +314,7 @@ export default function ProcessPipeline({
     isLoaded,
     loadError,
     actionError: runActionError,
-    run,
+    run: heldRun,
     resume,
     setTurnLimit,
     setManager,
@@ -324,7 +334,10 @@ export default function ProcessPipeline({
     loadAnswerProjectFiles,
     waitPending,
     decideWait,
+    decideAgentPause,
   } = own
+  const agentPause = useAgentPauseDecision(heldRun, decideAgentPause)
+  const run = agentPause.shownRun
   const answerFiles = useMemo<AnswerFilesSource>(
     () => ({ upload: uploadAnswerFile, loadProjectFiles: loadAnswerProjectFiles }),
     [uploadAnswerFile, loadAnswerProjectFiles],
@@ -603,6 +616,9 @@ export default function ProcessPipeline({
             resolveDependency={resolveDependency}
             onDrill={drillTo}
             onOpenPanel={setPanel}
+            {...(agentPause.step?.stepId === state.step.id
+              ? { agentPause: { view: agentPause.step, onDecide: agentPause.decide } }
+              : {})}
             {...(joinLine &&
             at === 0 &&
             variantLanes &&
@@ -630,6 +646,20 @@ export default function ProcessPipeline({
   const signoffDetails = (className?: string, carried?: SignoffCarriedView) => (
     <>
       <ProcessTryBuildCard runId={run.id} />
+      <TestWithMeCard
+        runId={run.id}
+        {...(renderModelChip
+          ? {
+              renderModelChip: (slot: LaunchModelChipSlot) =>
+                renderModelChip({
+                  ...slot,
+                  chatContext: processRunChatContext(run),
+                  note: TEST_SESSION_COPY.chipNote,
+                }),
+            }
+          : {})}
+        onOpenChat={({ context }) => showRunChat(context)}
+      />
       {carried ? <SignoffCarriedCard view={carried} /> : null}
       {runDetails(className)}
     </>
@@ -950,6 +980,7 @@ export default function ProcessPipeline({
 
           <RunEnding run={run} onSendBack={sendBack} onRevive={revive} />
           {stack.length === 0 ? <RunClosurePanel run={run} /> : null}
+          {stack.length === 0 ? <RunNamedLandingPanel run={run} /> : null}
 
           {confirmStop ? (
             <Modal
@@ -1333,6 +1364,7 @@ export function PipelineNode({
   onDrill,
   onOpenPanel,
   waitLine,
+  agentPause,
 }: {
   run: ProcessRun
   state: ReturnType<typeof processStepStates>[number]
@@ -1348,7 +1380,10 @@ export function PipelineNode({
   onOpenPanel: (target: StepPanelTarget) => void
   /** What a step says while it waits for the run's variants. */
   waitLine?: string
+  /** The step's paused agent: why, and the person's Resume, Retry step and Stop run. */
+  agentPause?: { view: AgentPauseStepView; onDecide: (action: AgentPauseAction) => void }
 }) {
+  const paused = agentPause?.view.kind === 'paused' ? agentPause.view : undefined
   const parkStepId = run.park?.stepId
   const parked = parkStepId === state.step.id
   const nodeState = processNodeState(state, parkStepId)
@@ -1377,11 +1412,19 @@ export function PipelineNode({
   return (
     <li
       className={`@container border-b border-(--border-subtle) last:border-b-0 ${row.waitingOnYou && signoffGate ? 'bg-(--accent-primary)/5' : ''}`}
+      style={
+        paused
+          ? {
+              background:
+                'color-mix(in srgb, var(--status-on_hold-soft-bg) 45%, var(--surface-raised))',
+            }
+          : undefined
+      }
     >
       <div
         className={`grid grid-cols-[22px_minmax(0,auto)_minmax(0,1fr)_auto_28px] items-center gap-x-3 gap-y-0.5 px-4 py-2.5 sm:px-5 ${row.inert ? 'text-(--text-muted)' : ''}`}
       >
-        <Marker look={look} />
+        {paused ? <AgentPauseMarker /> : <Marker look={look} />}
         <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
           {featureRef && resolves ? (
             <DependencyBullet dependency={featureRef} interactive />
@@ -1417,10 +1460,10 @@ export function PipelineNode({
           ) : null}
         </span>
         <span
-          className={`min-w-0 truncate text-[12.5px] ${row.result ? '@max-md:col-span-3 @max-md:col-start-2 @max-md:row-start-2 @max-md:line-clamp-2 @max-md:whitespace-normal' : ''} ${row.waitingOnYou ? 'font-semibold text-(--accent-primary)' : row.inert ? '' : 'text-(--text-secondary)'}`}
-          title={state.latest?.summary}
+          className={`min-w-0 truncate text-[12.5px] ${row.result || paused ? '@max-md:col-span-3 @max-md:col-start-2 @max-md:row-start-2 @max-md:line-clamp-2 @max-md:whitespace-normal' : ''} ${row.waitingOnYou || paused ? 'font-semibold text-(--accent-primary)' : row.inert ? '' : 'text-(--text-secondary)'}`}
+          title={paused ? paused.headline : state.latest?.summary}
         >
-          {row.result ?? waitLine ?? ''}
+          {paused ? paused.line : (row.result ?? waitLine ?? '')}
         </span>
         <span className="flex items-center gap-1.5 @max-md:col-start-4 @max-md:row-start-1">
           {!row.inert && stepModel ? <RunModelChip model={stepModel} /> : null}
@@ -1466,6 +1509,12 @@ export function PipelineNode({
             onOpen={onOpenPanel}
             onDrill={onDrill}
           />
+        </div>
+      ) : null}
+
+      {agentPause ? (
+        <div className="px-4 pb-3 sm:pl-[58px] sm:pr-5">
+          <AgentPausePanel view={agentPause.view} onDecide={agentPause.onDecide} />
         </div>
       ) : null}
 

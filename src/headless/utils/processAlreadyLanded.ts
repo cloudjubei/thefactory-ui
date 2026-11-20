@@ -19,10 +19,12 @@ import { processIntegrationChoices } from './processIntegration'
 import {
   PROCESS_ACCEPT_REPORT_COPY,
   PROCESS_ALREADY_LANDED_OFFER_DETAIL,
+  PROCESS_NAMED_LANDING_COPY,
 } from './processAlreadyLandedConstants'
 import type {
   ProcessAlreadyLandedOffer,
   ProcessAlreadyOnBaseSignOff,
+  ProcessNamedLanding,
   ProcessNothingToMergeSignOff,
   ProcessRunLandingPreview,
 } from './processAlreadyLandedTypes'
@@ -108,4 +110,27 @@ export function processNothingToMergeSignOff(
     approveDoes: PROCESS_ACCEPT_REPORT_COPY.does,
     decision: { mode: processIntegrationChoices(workBranch, modes)[0]?.mode ?? 'merge' },
   }
+}
+
+/**
+ * What a person typed to finish a run as merged by: a web link is the pull
+ * request that brought the work in, any other single word the commit on the
+ * base. Nothing for an empty field; more than one thing is refused. Pure.
+ */
+export function processNamedLandingInput(
+  text: string,
+): ProcessNamedLanding | { error: string } | undefined {
+  const said = text.trim()
+  if (!said) return undefined
+  if (/\s/.test(said)) return { error: PROCESS_NAMED_LANDING_COPY.notOne }
+  return /^https?:\/\//i.test(said) ? { pullRequestUrl: said } : { commit: said }
+}
+
+/** What finishing a run as merged by a link or a commit records, as its confirm says it. Pure. */
+export function processNamedLandingConfirm(named: ProcessNamedLanding): string {
+  return 'pullRequestUrl' in named
+    ? PROCESS_NAMED_LANDING_COPY.confirmByLink(named.pullRequestUrl)
+    : PROCESS_NAMED_LANDING_COPY.confirmByCommit(
+        /^[0-9a-f]{9,40}$/i.test(named.commit) ? named.commit.slice(0, 8) : named.commit,
+      )
 }

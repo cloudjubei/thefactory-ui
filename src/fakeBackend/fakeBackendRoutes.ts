@@ -161,11 +161,15 @@ import type {
   ListProjectsGroupsResponse,
   ListProjectsResponse,
   ListProviderConnectionsData,
+  ListReviewEvidenceData,
+  ListReviewEvidenceResponse,
   ListProviderConnectionsResponse,
   MarkConnectionItemsSeenData,
   MarkConnectionItemsSeenResponse,
   ReadProviderOAuthSetupData,
   ReadProviderOAuthSetupResponse,
+  ResolveReviewEvidenceData,
+  ResolveReviewEvidenceResponse,
   ListSourceRecordsData,
   ListSourceRecordsResponse,
   ListStoriesData,
@@ -240,6 +244,14 @@ import {
 } from './fixtures/processRuns'
 import { FAKE_GROUP_ID, FAKE_GROUPS, FAKE_PROJECTS } from './fixtures/projects'
 import { FAKE_GROUP_CONSTELLATION, FAKE_GROUP_STATUS } from './fixtures/projectsGroups'
+import { FAKE_EVIDENCE_NOT_FOUND } from './fixtures/resolvedEvidenceConstants'
+import { fakeReviewEvidenceList } from './fixtures/reviewEvidence'
+import {
+  FAKE_RUN_THROUGH_RUN,
+  FAKE_RUN_THROUGH_RUN_ID,
+  fakeRunThroughEvidence,
+} from './fixtures/runThroughRun'
+import { fakeEvidenceTargetOf, fakeResolvedEvidence } from './fixtures/resolvedEvidence'
 import { FAKE_AT } from './fixtures/stamps'
 import { FAKE_STORIES_BY_PROJECT } from './fixtures/stories'
 import { FAKE_TICKET_CONNECTION } from './fixtures/ticketConnections'
@@ -641,7 +653,27 @@ const READS: readonly FakeRoute[] = [
     ({ params }) =>
       params.runId === FAKE_VARIANT_RUN_ID
         ? fakeVariantEvidence('done')
-        : { runId: params.runId ?? '', groups: [] },
+        : params.runId === FAKE_RUN_THROUGH_RUN_ID
+          ? fakeRunThroughEvidence()
+          : { runId: params.runId ?? '', groups: [] },
+  ),
+  read<ListReviewEvidenceData, ListReviewEvidenceResponse>(
+    '/api/v1/projects/{projectId}/review-evidence',
+    ({ params, query, missing }) =>
+      fakeReviewEvidenceList(params.projectId ?? '', query) ??
+      missing(`No fake project '${params.projectId}'.`),
+  ),
+  read<ResolveReviewEvidenceData, ResolveReviewEvidenceResponse>(
+    '/api/v1/review-evidence/resolve',
+    ({ query, invalid, missing }) => {
+      const reading = fakeEvidenceTargetOf(query)
+      if (!reading.ok) return invalid(reading.error)
+      const { projectId, evidenceId } = reading.target
+      return (
+        fakeResolvedEvidence(reading.target) ??
+        missing(FAKE_EVIDENCE_NOT_FOUND(projectId, evidenceId))
+      )
+    },
   ),
   {
     method: 'GET',
@@ -665,6 +697,7 @@ const READS: readonly FakeRoute[] = [
     '/api/v1/process-runs/{runId}',
     ({ params, missing }) =>
       (params.runId === FAKE_VARIANT_RUN_ID ? fakeVariantRun('done') : undefined) ??
+      (params.runId === FAKE_RUN_THROUGH_RUN_ID ? FAKE_RUN_THROUGH_RUN : undefined) ??
       FAKE_PROCESS_RUNS.find((run) => run.id === params.runId) ??
       missing(`No fake run '${params.runId}'.`),
   ),

@@ -58,3 +58,23 @@ export const PROCESS_CHECK_BASELINE_LABELS: Partial<Record<VerificationBaselineV
   'pre-existing': 'pre-existing',
   'partly-pre-existing': 'partly pre-existing',
 }
+
+/** The chip on a unit tests row for which of its tests ran. */
+export const PROCESS_CHECK_SCOPE_LABELS = {
+  related: 'related tests',
+  full: 'whole suite',
+} as const
+
+/** What the chip says on hover. */
+export const PROCESS_CHECK_SCOPE_DETAILS = {
+  related: 'Ran only the tests related to the files the change touched.',
+  full: 'Ran the whole unit suite.',
+} as const
+
+/** What the chip says on hover when the related tests were asked for and the whole suite ran. */
+export const PROCESS_CHECK_SCOPE_FULL_BECAUSE = (reason: string): string =>
+  `Ran the whole unit suite: ${reason}.`
+
+/** The line under a checks step that formatted the change after its format check failed. */
+export const PROCESS_CHECKS_FORMATTED_LINE = (files: readonly string[], sha: string): string =>
+  `Formatted ${files.join(', ')} and committed ${files.length === 1 ? 'it' : 'them'} with the work as ${sha}.`

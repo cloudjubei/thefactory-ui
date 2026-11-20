@@ -43,6 +43,7 @@ import {
 } from 'thefactory-ui/web'
 import type { StorySignoffExtraChip } from '../../src/web/compound/process/StorySignoffReview'
 import type { Scene, SceneState } from '../showcase/types'
+import { TicketUpdateDemo } from './ticketUpdate'
 
 const noop = () => {}
 const refused = async () => false
@@ -266,6 +267,25 @@ const state = (over: Partial<GroupSignOffState> = {}): GroupSignOffState => ({
 
 const nameOf = (id: string) => id
 
+const MISSING_LINK = data({
+  outputs: [OUTPUTS[0]!, { ...OUTPUTS[1]!, missingPullRequests: ['acme-web'] }],
+})
+
+const MISSING_LINK_HELD = state({
+  documents: {
+    ...DOCUMENTS,
+    slack: doc(
+      'slack',
+      'Slack Message',
+      'acme-be',
+      SLACK_FILLED.replace(
+        'Web: https://github.com/acme/acme-web/pull/1207',
+        'Web: (link to come)',
+      ),
+    ),
+  },
+})
+
 const actions: SignOffOutputActions = {
   startEdit: noop,
   changeDraft: noop,
@@ -356,6 +376,7 @@ type Board = {
   actionError?: string
   requesting?: boolean
   ticketPost?: { startOpen: boolean }
+  ticketUpdate?: ReactNode
 }
 
 function signOffBoard({
@@ -370,6 +391,7 @@ function signOffBoard({
   actionError,
   requesting,
   ticketPost,
+  ticketUpdate,
 }: Board) {
   return (
     <GroupSignOff
@@ -389,6 +411,7 @@ function signOffBoard({
       {...(actionError ? { actionError } : {})}
       {...(requesting ? { requesting } : {})}
       {...(ticketPost ? { ticketPost } : {})}
+      {...(ticketUpdate ? { ticketUpdate } : {})}
     />
   )
 }
@@ -605,6 +628,14 @@ export const GROUP_SIGN_OFF_SCENES: Scene[] = [
         title: 'Slack Message, placeholders still to fill',
         description: 'They fill when the pull requests open; until then they stand out.',
         render: () => page(signOffBoard({ opens: 'output-Slack Message' })),
+      },
+      {
+        id: 'missing-link',
+        title: 'A shared post missing a pull request’s link',
+        description:
+          'acme-web’s pull request is open but the Slack Message does not link it: the chip says so and the panel names the repo.',
+        render: () =>
+          page(<Panel label="Slack Message" view={MISSING_LINK} held={MISSING_LINK_HELD} />),
       },
       {
         id: 'all-filled',
@@ -899,6 +930,28 @@ export const GROUP_SIGN_OFF_SCENES: Scene[] = [
         title: 'Write-back off',
         description: 'No comment to read, and why, on the repo it is off for.',
         render: () => page(signOffBoard({ view: data({ repos: [HELD_BE, WEB, SDK] }) })),
+      },
+      {
+        id: 'ticket-update',
+        title: 'The ticket update, ready to post',
+        description:
+          'Every repo is at its sign-off with its pull request open: the post, its channel and Post the ticket update sit on the decision.',
+        render: () => page(signOffBoard({ ticketUpdate: <TicketUpdateDemo id="ready" /> })),
+      },
+      {
+        id: 'ticket-update-missing-link',
+        title: 'The ticket update held back by a missing link',
+        description:
+          'The output chip flags the repo whose link is missing, and the ticket update lists it in its way.',
+        render: () =>
+          page(
+            signOffBoard({
+              view: MISSING_LINK,
+              held: MISSING_LINK_HELD,
+              opens: 'output-Slack Message',
+              ticketUpdate: <TicketUpdateDemo id="blocked" />,
+            }),
+          ),
       },
       {
         id: 'deciding',

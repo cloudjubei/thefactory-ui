@@ -73,6 +73,11 @@ export {
   default as ProcessPipeline,
   type ProcessPipelineProps,
 } from './compound/process/ProcessPipeline'
+export {
+  default as AgentPausePanel,
+  AgentPauseMarker,
+  type AgentPausePanelProps,
+} from './compound/process/AgentPauseStep'
 export type { NativeAnswerFiles } from './compound/process/answerFilesNativeTypes'
 export { default as StepsStrip, type StepsStripProps } from './compound/process/StepsStrip'
 export {
@@ -81,6 +86,12 @@ export {
 } from './compound/process/ProcessRunChip'
 export { default as ProcessesView } from './screens/ProcessesView'
 export { default as ProcessRunsView, type ProcessRunsViewProps } from './screens/ProcessRunsView'
+export {
+  default as EvidenceView,
+  EvidenceViewBody,
+  type EvidenceViewBodyProps,
+  type EvidenceViewProps,
+} from './screens/EvidenceView'
 export {
   default as ProcessGroupRunsView,
   type ProcessGroupRunsViewProps,
@@ -376,6 +387,12 @@ export {
   type NeedsYouReferenceChipViewProps,
 } from './compound/chips/NeedsYouReferenceChip'
 export {
+  default as EvidenceReferenceChip,
+  EvidenceReferenceChipView,
+  type EvidenceReferenceChipProps,
+  type EvidenceReferenceChipViewProps,
+} from './compound/chips/EvidenceReferenceChip'
+export {
   default as RunActionButton,
   type RunActionButtonProps,
 } from './compound/chips/RunActionButton'
@@ -510,6 +527,10 @@ export {
   default as EvidenceImageOverlay,
   type EvidenceImageOverlayProps,
 } from './compound/chat/EvidenceImageOverlay'
+export {
+  default as EvidenceTargetOverlay,
+  type EvidenceTargetOverlayProps,
+} from './compound/chat/EvidenceTargetOverlay'
 export { default as ChatHeader, type ChatHeaderProps } from './compound/chat/ChatHeader'
 export { default as ChatKindTile, type ChatKindTileProps } from './compound/chat/ChatKindTile'
 export {
@@ -870,6 +891,14 @@ export {
   type ProjectCheckEnvFieldProps,
 } from './compound/projects/ProjectCheckEnvField'
 export {
+  default as ProjectCheckCommandsField,
+  type ProjectCheckCommandsFieldProps,
+} from './compound/projects/ProjectCheckCommandsField'
+export {
+  default as ProjectGeneratorsField,
+  type ProjectGeneratorsFieldProps,
+} from './compound/projects/ProjectGeneratorsField'
+export {
   default as ProjectEvaluationDefaultsField,
   type ProjectEvaluationDefaultsFieldProps,
 } from './compound/projects/ProjectEvaluationDefaultsField'
@@ -927,6 +956,17 @@ export {
   type DeliverySettingsPanelProps,
 } from './compound/settings/DeliverySettingsPanel'
 export { default as PublishCard, type PublishCardProps } from './compound/process/PublishCard'
+export {
+  default as TicketUpdateCard,
+  GroupTicketUpdatePanel,
+  RunTicketUpdatePanel,
+  type TicketUpdateCardProps,
+} from './compound/process/TicketUpdateCard'
+export {
+  default as NamedLandingForm,
+  RunNamedLandingPanel,
+  type NamedLandingFormProps,
+} from './compound/process/NamedLandingForm'
 export {
   default as RunPublishCard,
   type RunPublishCardProps,
@@ -1131,6 +1171,12 @@ export {
   type ProcessTryBuildCardProps,
   type ProcessTryBuildPanelProps,
 } from './compound/process/signoff/ProcessTryBuildCard'
+export {
+  default as TestWithMeCard,
+  TestWithMePanel,
+  type TestWithMeCardProps,
+  type TestWithMePanelProps,
+} from './compound/process/signoff/TestWithMeCard'
 export {
   default as RunCarriedOutChanges,
   type RunCarriedOutChangesProps,

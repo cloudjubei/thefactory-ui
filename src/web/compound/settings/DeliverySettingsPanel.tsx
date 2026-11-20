@@ -44,8 +44,8 @@ export interface DeliverySettingsPanelProps {
 
 /**
  * A group's or a project's delivery in its Settings: the branch name template
- * with the name it makes, the base branch, pull request first, and the merge
- * method. Native peer: `native/compound/settings/DeliverySettingsPanel`.
+ * with the name it makes, the base branch, the pull request title template
+ * with the title it makes, pull request first, and the merge method. Native peer: `native/compound/settings/DeliverySettingsPanel`.
  */
 export default function DeliverySettingsPanel({
   view,
@@ -108,6 +108,24 @@ export default function DeliverySettingsPanel({
               onChange={(e) => onChange({ ...draft, baseBranch: e.target.value })}
             />
           </Field>
+          <Field
+            label={DELIVERY_SETTINGS_COPY.titleField}
+            hint={DELIVERY_SETTINGS_COPY.titleHint}
+            error={view.problems.prTitleTemplate}
+          >
+            <Input
+              value={draft.prTitleTemplate}
+              disabled={!view.editable}
+              placeholder={view.titlePlaceholder}
+              spellCheck={false}
+              className="font-mono"
+              onChange={(e) => onChange({ ...draft, prTitleTemplate: e.target.value })}
+            />
+          </Field>
+          <div className="-mt-1 flex min-w-0 items-center gap-2 text-[12px] text-(--text-secondary)">
+            <span className="shrink-0">{DELIVERY_SETTINGS_COPY.previewLabel}</span>
+            <span className="min-w-0 truncate text-(--text-primary)">{view.titlePreview}</span>
+          </div>
           <ChoiceField
             label={DELIVERY_SETTINGS_COPY.prFirstField}
             hint={DELIVERY_SETTINGS_COPY.prFirstHint}

@@ -54,6 +54,8 @@ export type GroupSignOffProps = {
   layout?: GroupSignOffLayout
   outputLayout?: SignOffOutputLayout
   submittedLayout?: GroupSignOffSubmittedLayout
+  /** The ticket's update to post once every repo's pull request is open. */
+  ticketUpdate?: ReactNode
 }
 
 function Heading({ children }: { children: string }) {
@@ -231,7 +233,8 @@ function Decision({
   actionError,
   onDecide,
   repoRows,
-}: Pick<GroupSignOffProps, 'screen' | 'acting' | 'actionError' | 'onDecide'> & {
+  ticketUpdate,
+}: Pick<GroupSignOffProps, 'screen' | 'acting' | 'actionError' | 'onDecide' | 'ticketUpdate'> & {
   repoRows: ReactNode
 }) {
   const { theme } = useNativeTheme()
@@ -269,6 +272,7 @@ function Decision({
           {GROUP_SIGN_OFF_TEXT.loomLeft(screen.loomLeft)}
         </Text>
       ) : null}
+      {ticketUpdate}
       {screen.unsaved.length > 0 ? (
         <Alert variant="info">{GROUP_SIGN_OFF_TEXT.unsaved(screen.unsaved.join(' and '))}</Alert>
       ) : null}
@@ -380,6 +384,7 @@ function Submitted({
   onCopy,
   onOpenRun,
   loom,
+  ticketUpdate,
   submittedLayout = GROUP_SIGN_OFF_SUBMITTED_DEFAULT_LAYOUT,
 }: GroupSignOffProps) {
   const { theme } = useNativeTheme()
@@ -423,6 +428,7 @@ function Submitted({
         <ToneBadge tone={screen.badge.tone} label={screen.badge.label} />
         <Head screen={screen} />
       </View>
+      {ticketUpdate}
       {postFirst ? post : pullRequests}
       {postFirst ? pullRequests : post}
       {loom ? <Card title={GROUP_SIGN_OFF_TEXT.record}>{loom}</Card> : null}
@@ -562,6 +568,7 @@ export default function GroupSignOff(props: GroupSignOffProps) {
     renderEvidence,
     layout = GROUP_SIGN_OFF_DEFAULT_LAYOUT,
     outputLayout,
+    ticketUpdate,
   } = props
   const evidence = (
     <View accessibilityLabel={GROUP_SIGN_OFF_TEXT.evidence} style={{ gap: nativeSpace[2] }}>
@@ -614,6 +621,7 @@ export default function GroupSignOff(props: GroupSignOffProps) {
         acting={acting}
         actionError={actionError ?? null}
         onDecide={onDecide}
+        {...(ticketUpdate ? { ticketUpdate } : {})}
         repoRows={
           layout === 'decision-first' ? (
             <RepoRows repos={screen.repos} onOpenRun={onOpenRun} />

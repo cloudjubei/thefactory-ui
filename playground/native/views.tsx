@@ -65,12 +65,15 @@ import { FAKE_DATA_VIEWS } from './fakeDataViews'
 import { LIVE_CHECK_VIEWS } from './liveCheckViews'
 import { PR_FIRST_DELIVERY_VIEWS } from './prFirstDeliveryViews'
 import { GROUP_LEG_PUBLISH_VIEWS } from './groupLegPublishViews'
+import { TICKET_UPDATE_VIEWS } from './ticketUpdateViews'
+import { NAMED_LANDING_VIEWS } from './namedLandingViews'
 import { FILE_PREVIEW_VIEWS } from './filePreviewViews'
 import { GIT_CREDENTIAL_VIEWS } from './gitCredentialViews'
 import { FILE_TREE_VIEWS } from './fileTreeViews'
 import { SCRIPT_STEP_VIEWS } from './scriptStepViews'
 import { PROJECT_SERVE_SETTINGS_VIEWS } from './projectServeSettingsViews'
 import { BUILD_LIMIT_AFTER_SAVE_VIEWS } from './buildLimitAfterSaveViews'
+import { PROJECT_CHECK_SETTINGS_VIEWS } from './projectCheckSettingsViews'
 import { RETRY_DEFINITIONS_VIEWS } from './retryDefinitionsViews'
 import { SIGNOFF_CHIP_VIEWS } from './signoffChipsViews'
 import { WAITING_RETRY_NOTE_VIEWS } from './waitingRetryNoteViews'
@@ -92,6 +95,7 @@ import { REVIEW_CHAT_SLOT_VIEWS } from './reviewChatSlotViews'
 import { REVIEW_GAP_VIEWS } from './reviewGapViews'
 import { TICKET_VIEWS } from './ticketViews'
 import { TICKET_RUN_VIEWS } from './ticketRunViews'
+import { TEST_WITH_ME_VIEWS } from './testWithMeViews'
 import { TRY_ON_PHONE_VIEWS } from './tryOnPhoneViews'
 import { VARIANT_VIEWS } from './variantViews'
 import { APP_NOTE_VIEWS } from './appNotesViews'
@@ -100,6 +104,8 @@ import { ALREADY_HANDLED_VIEWS } from './alreadyHandledViews'
 import { CHAT_MESSAGING_VIEWS } from './chatMessagingViews'
 import { VIDEO_TIMELINE_VIEWS } from './videoTimelineViews'
 import { RUN_THROUGH_VIEWS } from './runThroughViews'
+import { EVIDENCE_LINK_VIEWS } from './evidenceLinksViews'
+import { AGENT_PAUSE_VIEWS } from './agentPauseViews'
 import { TRAINER_SUGGESTION_VIEWS } from './trainerSuggestionViews'
 import { GIT_FILE_STATUS_ICON_VIEWS } from './gitFileStatusIconViews'
 import { GIT_RENAMED_ROW_VIEWS } from './gitRenamedRowViews'
@@ -663,12 +669,14 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   },
   ...VARIANT_VIEWS,
   ...TRY_ON_PHONE_VIEWS,
+  ...TEST_WITH_ME_VIEWS,
   ...SCRIPT_STEP_VIEWS,
   ...SPEND_LIMIT_VIEWS,
   ...MERGE_RECOVERY_VIEWS,
   ...MERGE_BASE_STOP_VIEWS,
   ...PROJECT_SERVE_SETTINGS_VIEWS,
   ...BUILD_LIMIT_AFTER_SAVE_VIEWS,
+  ...PROJECT_CHECK_SETTINGS_VIEWS,
   ...RETRY_DEFINITIONS_VIEWS,
   ...WAITING_RETRY_NOTE_VIEWS,
   ...SIGNOFF_CHIP_VIEWS,
@@ -678,6 +686,8 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   ...LIVE_CHECK_VIEWS,
   ...PR_FIRST_DELIVERY_VIEWS,
   ...GROUP_LEG_PUBLISH_VIEWS,
+  ...TICKET_UPDATE_VIEWS,
+  ...NAMED_LANDING_VIEWS,
   ...FILE_PREVIEW_VIEWS,
   ...GIT_CREDENTIAL_VIEWS,
   ...FILE_TREE_VIEWS,
@@ -696,6 +706,8 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   ...REVIEW_GAP_VIEWS,
   ...ALREADY_HANDLED_VIEWS,
   ...RUN_THROUGH_VIEWS,
+  ...EVIDENCE_LINK_VIEWS,
+  ...AGENT_PAUSE_VIEWS,
   ...APP_NOTE_VIEWS,
   ...REMOTE_BROWSER_VIEWS,
   ...CHAT_MESSAGING_VIEWS,

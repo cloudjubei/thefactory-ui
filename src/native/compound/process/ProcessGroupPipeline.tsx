@@ -2,6 +2,7 @@ import { useCallback, useState, type ReactNode } from 'react'
 import { Pressable, ScrollView, Switch, Text, View } from 'react-native'
 
 import {
+  type RunModelChipSlot,
   costChipLabel,
   formatProcessDuration,
   isGroupPublishPark,
@@ -66,6 +67,8 @@ export type ProcessGroupPipelineProps = {
   onCopy?: (text: string) => unknown
   /** The app's file picker, for a Loom walkthrough's video; without it a step takes a link alone. */
   pickLoomVideo?: () => Promise<ChatAttachmentFile[]>
+  /** The host's model chip, for the agent the sign-off's "Test with me" helper runs on. */
+  renderModelChip?: (slot: RunModelChipSlot) => ReactNode
 }
 
 const ENDED = ['succeeded', 'failed', 'cancelled']
@@ -90,6 +93,7 @@ export default function ProcessGroupPipeline({
   onSaveFile,
   onCopy,
   pickLoomVideo,
+  renderModelChip,
 }: ProcessGroupPipelineProps) {
   const { theme, status } = useNativeTheme()
   const chat = useProcessGroupRunChat(groupRunId)
@@ -293,6 +297,8 @@ export default function ProcessGroupPipeline({
             {...(onSaveFile ? { onSaveFile } : {})}
             {...(onCopy ? { onCopy } : {})}
             {...(pickLoomVideo ? { pickLoomVideo } : {})}
+            {...(renderModelChip ? { renderModelChip } : {})}
+            {...(onOpenChat ? { onOpenChat } : {})}
           />
         </View>
       ) : null}

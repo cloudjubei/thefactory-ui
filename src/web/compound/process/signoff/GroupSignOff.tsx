@@ -53,6 +53,8 @@ export type GroupSignOffProps = {
   requesting?: boolean
   /** How the note of what would post is drawn — for a fixed showcase state. */
   ticketPost?: Pick<TicketPostNoteProps, 'layout' | 'startOpen'>
+  /** The ticket's update to post once every repo's pull request is open. */
+  ticketUpdate?: ReactNode
 }
 
 function Heading({ children }: { children: string }) {
@@ -222,9 +224,10 @@ function Decision({
   repoRows,
   requesting,
   ticketPost,
+  ticketUpdate,
 }: Pick<
   GroupSignOffProps,
-  'screen' | 'acting' | 'actionError' | 'onDecide' | 'requesting' | 'ticketPost'
+  'screen' | 'acting' | 'actionError' | 'onDecide' | 'requesting' | 'ticketPost' | 'ticketUpdate'
 > & {
   repoRows: ReactNode
 }) {
@@ -260,6 +263,7 @@ function Decision({
           {GROUP_SIGN_OFF_TEXT.loomLeft(screen.loomLeft)}
         </span>
       ) : null}
+      {ticketUpdate}
       {screen.unsaved.length > 0 ? (
         <Alert variant="info">{GROUP_SIGN_OFF_TEXT.unsaved(screen.unsaved.join(' and '))}</Alert>
       ) : null}
@@ -353,6 +357,7 @@ function Submitted({
   onDownload,
   onOpenRun,
   loom,
+  ticketUpdate,
   submittedLayout = GROUP_SIGN_OFF_SUBMITTED_DEFAULT_LAYOUT,
 }: GroupSignOffProps) {
   const posts = outputs.filter((o) => !o.panel.perRepo)
@@ -395,6 +400,7 @@ function Submitted({
         <ToneBadge tone={screen.badge.tone}>{screen.badge.label}</ToneBadge>
       </div>
       <Head screen={screen} />
+      {ticketUpdate}
     </div>
   )
   if (submittedLayout === 'columns') {
@@ -591,6 +597,7 @@ export default function GroupSignOff(props: GroupSignOffProps) {
     outputLayout,
     requesting,
     ticketPost,
+    ticketUpdate,
   } = props
   const evidence = (
     <Evidence
@@ -633,6 +640,7 @@ export default function GroupSignOff(props: GroupSignOffProps) {
         onDecide={onDecide}
         requesting={requesting === true}
         {...(ticketPost ? { ticketPost } : {})}
+        {...(ticketUpdate ? { ticketUpdate } : {})}
         repoRows={
           layout === 'decision-first' ? (
             <RepoRows repos={screen.repos} onOpenRun={onOpenRun} ticketPost={ticketPost} />

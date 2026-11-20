@@ -305,6 +305,112 @@ describe('showcase registry', () => {
     expect(markup('background-results-last')).not.toMatch(/data-delete-preview/)
   })
 
+  it('offers the ticket update once the whole ticket is ready, holds it back with why, and shows where it went', () => {
+    const text = (scene: string, state: string) =>
+      renderToStaticMarkup(
+        <>
+          {SCENES.find((s) => s.id === scene)
+            ?.states.find((s) => s.id === state)
+            ?.render()}
+        </>,
+      )
+        .replace(/<[^>]+>/g, ' ')
+        .replace(
+          /&#x27;|&quot;|&amp;|&lt;|&gt;/g,
+          (e) => ({ '&#x27;': "'", '&quot;': '"', '&amp;': '&', '&lt;': '<', '&gt;': '>' })[e]!,
+        )
+    const all = SCENES.find((s) => s.id === 'ticket-update')?.states ?? []
+    const states = all.map((s) => s.id)
+    const inline = all.filter((s) => !s.overlay).map((s) => s.id)
+    expect(states).toEqual(
+      expect.arrayContaining([
+        'ready',
+        'blocked',
+        'posting',
+        'posted',
+        'refused',
+        'thread',
+        'confirm',
+      ]),
+    )
+    expect(text('ticket-update', 'ready')).toMatch(
+      /Ticket update.*Slack Message.*To #shop-team.*Open channel.*ABC-123 Add dark mode.*Post the ticket update/s,
+    )
+    expect(text('ticket-update', 'blocked')).toMatch(
+      /Before it can go:.*still has \{\{loom\}\}, \{\{pr:shop-web\}\} to fill in\..*no link to Shop web’s pull request\./s,
+    )
+    expect(text('ticket-update', 'thread')).toMatch(/To the group’s watched thread.*Open thread/s)
+    expect(text('ticket-update', 'posting')).toMatch(/Posting…/)
+    expect(text('ticket-update', 'posted')).toMatch(
+      /Posted.*Posted to #shop-team\..*Open in Slack/s,
+    )
+    expect(text('ticket-update', 'posted')).not.toMatch(/Post the ticket update/)
+    expect(text('ticket-update', 'refused')).toMatch(/not_in_channel/)
+    expect(text('ticket-update', 'no-channel')).toMatch(/No channel to post to yet/)
+    expect(text('group-sign-off', 'ticket-update')).toMatch(
+      /Ticket update.*Post the ticket update/s,
+    )
+    const held = text('group-sign-off', 'ticket-update-missing-link')
+    expect(held).toMatch(/Slack Message · 1 PR link missing/)
+    expect(held).toMatch(/No link yet to the pull request of:\s+acme-web/)
+    expect(text('sign-off-outputs', 'missing-link')).toMatch(
+      /No link yet to the pull request of:\s+acme-web/,
+    )
+    for (const [scene, ids] of [
+      ['ticket-update', inline],
+      ['merged-another-way', ['closed', 'link', 'commit', 'two-things', 'finishing', 'refused']],
+    ] as const) {
+      for (const id of ids) {
+        expect(text(scene, id), `${scene}/${id}`).not.toMatch(/\bland(ed|ing)?\b/i)
+        expect(text(scene, id), `${scene}/${id}`).not.toMatch(/\bAI\b|Claude/)
+      }
+    }
+  })
+
+  it('finishes a run as merged by a pull request link or a commit, asking first', () => {
+    const text = (state: string) =>
+      renderToStaticMarkup(
+        <>
+          {SCENES.find((s) => s.id === 'merged-another-way')
+            ?.states.find((s) => s.id === state)
+            ?.render()}
+        </>,
+      ).replace(/<[^>]+>/g, ' ')
+    expect(text('closed')).toMatch(/Merged another way\?/)
+    expect(text('closed')).not.toMatch(/Finish as merged/)
+    expect(text('link')).toMatch(/Pull request link or commit.*Finish as merged/s)
+    expect(text('two-things')).toMatch(/Paste one pull request link or one commit\./)
+    expect(text('finishing')).toMatch(/Finishing…/)
+    expect(text('refused')).toMatch(/is not merged into dev/)
+  })
+
+  it('lists each repo’s notices on the publish card, and previews a pull request title template', () => {
+    const text = (scene: string, state: string) =>
+      renderToStaticMarkup(
+        <>
+          {SCENES.find((s) => s.id === scene)
+            ?.states.find((s) => s.id === state)
+            ?.render()}
+        </>,
+      ).replace(/<[^>]+>/g, ' ')
+    expect(text('publish-card', 'notices')).toMatch(
+      /Shop API.*The short name “tokens” is one word.*How to test.*Shop web.*Screenshots.*Shop docs.*Open pull request/s,
+    )
+    expect(text('publish-card', 'ready')).not.toMatch(/section is missing/)
+    expect(text('delivery-settings', 'title-template')).toMatch(
+      /PR title.*Preview\s+ABC-123 Add dark mode/s,
+    )
+    expect(text('delivery-settings', 'title-inherited')).toMatch(
+      /Preview\s+\[ABC-123\] Add dark mode/,
+    )
+    expect(text('delivery-settings', 'bad-title')).toMatch(
+      /Uses \{summary\}; only \{ticket\} and \{ticketTitle\} are filled\./,
+    )
+    expect(text('delivery-settings', 'group-default')).toMatch(
+      /PR title.*The PR Text’s title, else the story’s/s,
+    )
+  })
+
   it('shows the stash dialog leaving untracked files out and taking them', () => {
     const stash = SCENES.find((s) => s.id === 'git-stash')
     expect(stash?.states.map((s) => s.id)).toEqual(['tracked-only', 'include-untracked'])

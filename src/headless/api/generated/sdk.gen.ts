@@ -39,6 +39,9 @@ import type {
   AddGroupMcpServerData,
   AddGroupMcpServerErrors,
   AddGroupMcpServerResponses,
+  AddProcessRunTestSessionProofData,
+  AddProcessRunTestSessionProofErrors,
+  AddProcessRunTestSessionProofResponses,
   AddProjectMcpServerData,
   AddProjectMcpServerErrors,
   AddProjectMcpServerResponses,
@@ -584,6 +587,9 @@ import type {
   GetProcessGroupRunDeliveryResponses,
   GetProcessGroupRunErrors,
   GetProcessGroupRunResponses,
+  GetProcessGroupRunTicketUpdateData,
+  GetProcessGroupRunTicketUpdateErrors,
+  GetProcessGroupRunTicketUpdateResponses,
   GetProcessGroupSignOffData,
   GetProcessGroupSignOffErrors,
   GetProcessGroupSignOffResponses,
@@ -614,14 +620,23 @@ import type {
   GetProcessRunResponses,
   GetProcessRunStatisticsData,
   GetProcessRunStatisticsResponses,
+  GetProcessRunTestSessionData,
+  GetProcessRunTestSessionErrors,
+  GetProcessRunTestSessionResponses,
   GetProcessRunTicketPostData,
   GetProcessRunTicketPostErrors,
   GetProcessRunTicketPostResponses,
+  GetProcessRunTicketUpdateData,
+  GetProcessRunTicketUpdateErrors,
+  GetProcessRunTicketUpdateResponses,
   GetProcessRunTryBuildApkData,
   GetProcessRunTryBuildApkResponses,
   GetProcessRunTryBuildData,
   GetProcessRunTryBuildErrors,
   GetProcessRunTryBuildResponses,
+  GetProjectCheckHostConsentData,
+  GetProjectCheckHostConsentErrors,
+  GetProjectCheckHostConsentResponses,
   GetProjectData,
   GetProjectDesignData,
   GetProjectDesignErrors,
@@ -1050,6 +1065,12 @@ import type {
   PostColleagueReviewReplyData,
   PostColleagueReviewReplyErrors,
   PostColleagueReviewReplyResponses,
+  PostProcessGroupRunTicketUpdateData,
+  PostProcessGroupRunTicketUpdateErrors,
+  PostProcessGroupRunTicketUpdateResponses,
+  PostProcessRunTicketUpdateData,
+  PostProcessRunTicketUpdateErrors,
+  PostProcessRunTicketUpdateResponses,
   PostRunnerJobEventsData,
   PostRunnerJobEventsErrors,
   PostRunnerJobEventsResponses,
@@ -1220,6 +1241,9 @@ import type {
   ResolveProcessRunNeedsYouItemData,
   ResolveProcessRunNeedsYouItemErrors,
   ResolveProcessRunNeedsYouItemResponses,
+  ResolveReviewEvidenceData,
+  ResolveReviewEvidenceErrors,
+  ResolveReviewEvidenceResponses,
   RestartChatWithCliData,
   RestartChatWithCliErrors,
   RestartChatWithCliResponses,
@@ -1235,12 +1259,18 @@ import type {
   ResumeProcessGroupRunData,
   ResumeProcessGroupRunErrors,
   ResumeProcessGroupRunResponses,
+  ResumeProcessRunAgentPauseData,
+  ResumeProcessRunAgentPauseErrors,
+  ResumeProcessRunAgentPauseResponses,
   ResumeProcessRunData,
   ResumeProcessRunErrors,
   ResumeProcessRunResponses,
   RetryProcessGroupPullRequestsData,
   RetryProcessGroupPullRequestsErrors,
   RetryProcessGroupPullRequestsResponses,
+  RetryProcessRunAgentPauseData,
+  RetryProcessRunAgentPauseErrors,
+  RetryProcessRunAgentPauseResponses,
   RetryProcessRunIntegrationData,
   RetryProcessRunIntegrationErrors,
   RetryProcessRunIntegrationResponses,
@@ -1265,6 +1295,9 @@ import type {
   ReviveProcessRunData,
   ReviveProcessRunErrors,
   ReviveProcessRunResponses,
+  RevokeProjectCheckHostConsentData,
+  RevokeProjectCheckHostConsentErrors,
+  RevokeProjectCheckHostConsentResponses,
   RunActivityData,
   RunActivityErrors,
   RunActivityResponses,
@@ -1466,6 +1499,9 @@ import type {
   StartProcessRunData,
   StartProcessRunErrors,
   StartProcessRunResponses,
+  StartProcessRunTestSessionData,
+  StartProcessRunTestSessionErrors,
+  StartProcessRunTestSessionResponses,
   StartProjectMcpServerSignInData,
   StartProjectMcpServerSignInErrors,
   StartProjectMcpServerSignInResponses,
@@ -1484,6 +1520,12 @@ import type {
   StopActivityData,
   StopActivityErrors,
   StopActivityResponses,
+  StopProcessRunAgentPauseData,
+  StopProcessRunAgentPauseErrors,
+  StopProcessRunAgentPauseResponses,
+  StopProcessRunTestSessionData,
+  StopProcessRunTestSessionErrors,
+  StopProcessRunTestSessionResponses,
   StopProcessRunWaitingData,
   StopProcessRunWaitingErrors,
   StopProcessRunWaitingResponses,
@@ -3118,6 +3160,34 @@ export const settleProcessRunAlreadyLanded = <ThrowOnError extends boolean = fal
     },
   })
 
+export const getProcessRunTicketUpdate = <ThrowOnError extends boolean = false>(
+  options: Options<GetProcessRunTicketUpdateData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetProcessRunTicketUpdateResponses,
+    GetProcessRunTicketUpdateErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/ticket-update',
+    ...options,
+  })
+
+export const postProcessRunTicketUpdate = <ThrowOnError extends boolean = false>(
+  options: Options<PostProcessRunTicketUpdateData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    PostProcessRunTicketUpdateResponses,
+    PostProcessRunTicketUpdateErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/ticket-update',
+    ...options,
+  })
+
 export const continueProcessRunWaitNow = <ThrowOnError extends boolean = false>(
   options: Options<ContinueProcessRunWaitNowData, ThrowOnError>,
 ) =>
@@ -3190,6 +3260,69 @@ export const listProcessRunBranches = <ThrowOnError extends boolean = false>(
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/process-runs/{runId}/branches',
     ...options,
+  })
+
+/**
+ * Carry the paused agent’s session on: the paused run is stopped and the step’s attempt goes on in the same session, told it was interrupted. 400 when no step is paused, or its session cannot be carried on.
+ */
+export const resumeProcessRunAgentPause = <ThrowOnError extends boolean = false>(
+  options: Options<ResumeProcessRunAgentPauseData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    ResumeProcessRunAgentPauseResponses,
+    ResumeProcessRunAgentPauseErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/agent-pause/resume',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Start the paused step’s agent afresh on the same attempt, keeping what the step already filed. 400 when no step is paused.
+ */
+export const retryProcessRunAgentPause = <ThrowOnError extends boolean = false>(
+  options: Options<RetryProcessRunAgentPauseData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    RetryProcessRunAgentPauseResponses,
+    RetryProcessRunAgentPauseErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/agent-pause/retry',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Stop the run at the paused step. An ending action: the client confirms it before calling. 400 when no step is paused.
+ */
+export const stopProcessRunAgentPause = <ThrowOnError extends boolean = false>(
+  options: Options<StopProcessRunAgentPauseData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    StopProcessRunAgentPauseResponses,
+    StopProcessRunAgentPauseErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/agent-pause/stop',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
   })
 
 export const listProjectAgentTypes = <ThrowOnError extends boolean = false>(
@@ -3506,6 +3639,34 @@ export const retryProcessGroupPullRequests = <ThrowOnError extends boolean = fal
     ...options,
   })
 
+export const getProcessGroupRunTicketUpdate = <ThrowOnError extends boolean = false>(
+  options: Options<GetProcessGroupRunTicketUpdateData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetProcessGroupRunTicketUpdateResponses,
+    GetProcessGroupRunTicketUpdateErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-group-runs/{groupRunId}/ticket-update',
+    ...options,
+  })
+
+export const postProcessGroupRunTicketUpdate = <ThrowOnError extends boolean = false>(
+  options: Options<PostProcessGroupRunTicketUpdateData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    PostProcessGroupRunTicketUpdateResponses,
+    PostProcessGroupRunTicketUpdateErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-group-runs/{groupRunId}/ticket-update',
+    ...options,
+  })
+
 export const getProcessGroupOutput = <ThrowOnError extends boolean = false>(
   options: Options<GetProcessGroupOutputData, ThrowOnError>,
 ) =>
@@ -3710,6 +3871,82 @@ export const getProcessRunTryBuildApk = <ThrowOnError extends boolean = false>(
   })
 
 /**
+ * A run’s test session: whether one can be started, and where it stands — the product’s url, the log lines worth reporting and the proof gathered.
+ */
+export const getProcessRunTestSession = <ThrowOnError extends boolean = false>(
+  options: Options<GetProcessRunTestSessionData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetProcessRunTestSessionResponses,
+    GetProcessRunTestSessionErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/test-session',
+    ...options,
+  })
+
+/**
+ * Start a test session: the product served from the work’s branches in throwaway checkouts on free ports, never the person’s own, and its helper chat — on the agent picked, else the usual one — gathering what the change wrote. Answers as it starts; one already up is answered as it is.
+ */
+export const startProcessRunTestSession = <ThrowOnError extends boolean = false>(
+  options: Options<StartProcessRunTestSessionData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    StartProcessRunTestSessionResponses,
+    StartProcessRunTestSessionErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/test-session/start',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Stop a run’s test session: what it served is taken down, its last lines read. Answers as it stops; one stopped already is answered as it is.
+ */
+export const stopProcessRunTestSession = <ThrowOnError extends boolean = false>(
+  options: Options<StopProcessRunTestSessionData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    StopProcessRunTestSessionResponses,
+    StopProcessRunTestSessionErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/test-session/stop',
+    ...options,
+  })
+
+/**
+ * Keep what was read of the project’s data — records the change kept, events it emitted — on a run’s test session as proof, each with its source and environment. An item kept already is not kept twice.
+ */
+export const addProcessRunTestSessionProof = <ThrowOnError extends boolean = false>(
+  options: Options<AddProcessRunTestSessionProofData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    AddProcessRunTestSessionProofResponses,
+    AddProcessRunTestSessionProofErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/test-session/proof',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
  * A running script step’s script asks the run’s model for an answer of the shape it sends: checked against that shape and asked once more when it does not fit, then refused (502). A keyed ask on a step with a memory is answered by the answer pinned under its key while it still fits. Takes the step attempt’s script token, never the Overseer bearer.
  */
 export const askScriptHost = <ThrowOnError extends boolean = false>(
@@ -3782,6 +4019,23 @@ export const listReviewEvidence = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/projects/{projectId}/review-evidence',
+    ...options,
+  })
+
+/**
+ * What a reference to a filed item shows: its kind and title — an issue’s with its severity — its picture or recording as a signed `media` URL, the moment, an issue’s recording opened at that moment, and the process run and step that filed it. 400 for a target that is not one, 404 for an item that is gone.
+ */
+export const resolveReviewEvidence = <ThrowOnError extends boolean = false>(
+  options?: Options<ResolveReviewEvidenceData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    ResolveReviewEvidenceResponses,
+    ResolveReviewEvidenceErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/review-evidence/resolve',
     ...options,
   })
 
@@ -7375,6 +7629,40 @@ export const setProjectDeviceAutomation = <ThrowOnError extends boolean = false>
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  })
+
+/**
+ * Revoke host-check consent for this project so the next host fallback parks and asks again.
+ */
+export const revokeProjectCheckHostConsent = <ThrowOnError extends boolean = false>(
+  options: Options<RevokeProjectCheckHostConsentData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<
+    RevokeProjectCheckHostConsentResponses,
+    RevokeProjectCheckHostConsentErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/check-host-consent',
+    ...options,
+  })
+
+/**
+ * Whether this project’s checks may fall back from the sandbox to the host. Allow is granted from the park card the first time they must; revoke here to ask again.
+ */
+export const getProjectCheckHostConsent = <ThrowOnError extends boolean = false>(
+  options: Options<GetProjectCheckHostConsentData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetProjectCheckHostConsentResponses,
+    GetProjectCheckHostConsentErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/check-host-consent',
+    ...options,
   })
 
 /**

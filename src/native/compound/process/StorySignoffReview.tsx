@@ -109,6 +109,7 @@ import {
   type SaveFileHandler,
 } from '../chat/signoff'
 import ProjectFlakesList from './ProjectFlakesList'
+import ProjectGeneratorsList from './ProjectGeneratorsList'
 import DependencyRef from '../stories/DependencyRef'
 import FeatureReviewSection from './FeatureReviewSection'
 import SupersededFilings from './SupersededFilings'
@@ -124,6 +125,7 @@ import LoomWalkthroughPanel from './signoff/LoomWalkthroughPanel'
 import Pill from './signoff/Pill'
 import SignoffDecisionList from './signoff/SignoffDecisionList'
 import { RunTicketPostNote } from './signoff/TicketPostNote'
+import { RunTicketUpdatePanel } from './TicketUpdateCard'
 import SignoffReportPanel from './signoff/SignoffReportPanel'
 import StorySpecCard from './signoff/StorySpecCard'
 
@@ -823,12 +825,17 @@ function StorySignoffPanel({
             ) : null}
           </View>
         ) : current?.target.tab === 'build' ? (
-          <ChecksTab
-            methods={overallRows.filter((r) => BUILD_METHODS.includes(r.id))}
-            checks={buildChecks}
-            branch={undefined}
-            busyId={undefined}
-          />
+          <View style={{ gap: 8 }}>
+            <ChecksTab
+              methods={overallRows.filter((r) => BUILD_METHODS.includes(r.id))}
+              checks={buildChecks}
+              branch={undefined}
+              busyId={undefined}
+            />
+            {projectChecks?.generators ? (
+              <ProjectGeneratorsList generators={projectChecks.generators} />
+            ) : null}
+          </View>
         ) : current?.target.tab === 'code-review' && storyReview ? (
           <CodeReviewPanel
             review={storyReview}
@@ -932,6 +939,12 @@ function StorySignoffPanel({
             onRequestImage={evidence.requestImage}
           />
           {canDecide ? <RunTicketPostNote runId={storyRunId} /> : null}
+          {canDecide ? (
+            <RunTicketUpdatePanel
+              runId={storyRunId}
+              revision={evidence.refs.map((ref) => ref.id).join(',')}
+            />
+          ) : null}
         </View>
 
         {integration}

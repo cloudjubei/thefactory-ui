@@ -368,12 +368,15 @@ export function signOffOutputChips(
     const sections = output.sections.map((s) => sectionView(data, state, nameOf, label, perRepo, s))
     const toWrite = sections.filter((s) => !s.written).length
     const toFill = sections.reduce((sum, s) => sum + s.unfilled.length, 0)
+    const missingPullRequests = (output.missingPullRequests ?? []).map(nameOf)
     const left =
       toWrite > 0
         ? SIGN_OFF_OUTPUT_TEXT.toWrite(toWrite)
         : toFill > 0
           ? SIGN_OFF_OUTPUT_TEXT.toFill(toFill)
-          : undefined
+          : missingPullRequests.length > 0
+            ? SIGN_OFF_OUTPUT_TEXT.linksMissing(missingPullRequests.length)
+            : undefined
     return {
       key: `output-${label}`,
       row: {
@@ -382,7 +385,7 @@ export function signOffOutputChips(
         state: left ? 'unchecked' : 'passed',
         ...(left ? { available: { commands: [] } } : {}),
       },
-      panel: { label, perRepo, sections },
+      panel: { label, perRepo, sections, missingPullRequests },
     }
   })
 }

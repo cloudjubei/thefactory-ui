@@ -13,7 +13,11 @@ import {
   signOffSectionKey,
   settleSignOffDrafts,
 } from './groupSignOff'
-import { GROUP_SIGN_OFF_TEXT, SIGN_OFF_OUTPUT_MAX_CHARS } from './groupSignOffConstants'
+import {
+  GROUP_SIGN_OFF_TEXT,
+  SIGN_OFF_OUTPUT_MAX_CHARS,
+  SIGN_OFF_OUTPUT_TEXT,
+} from './groupSignOffConstants'
 import { isHeldForGroupSignOff } from './groupSignOffHold'
 import type {
   GroupSignOffData,
@@ -753,6 +757,34 @@ describe('signOffOutputChips', () => {
     expect(chips[0]!.row).toMatchObject({ label: 'PR Text · 3 to fill', state: 'unchecked' })
     expect(chips[0]!.panel.sections[0]!.unfilled).toEqual(['{{pr:be}}', '{{ticket}}'])
     expect(chips[1]!.row).toMatchObject({ label: 'Slack Message', state: 'passed' })
+  })
+
+  it('flags a shared post missing an open pull request’s link, naming each repo', () => {
+    const flagged = [outputs[0]!, { ...outputs[1]!, missingPullRequests: ['be', 'web'] }]
+    const chips = signOffOutputChips(
+      data({ outputs: flagged }),
+      state({
+        documents: { a: doc('a', 'one'), b: doc('b', 'two', 'web'), c: doc('c', 'post') },
+      }),
+      nameOf,
+    )
+    expect(chips[1]!.row).toMatchObject({
+      label: `Slack Message · ${SIGN_OFF_OUTPUT_TEXT.linksMissing(2)}`,
+      state: 'unchecked',
+    })
+    expect(chips[1]!.panel.missingPullRequests).toEqual(['Backend', 'web'])
+    expect(chips[0]!.panel.missingPullRequests).toEqual([])
+    expect(chips[0]!.row.state).toBe('passed')
+  })
+
+  it('says what is left to write or fill before a missing link, the missing repos still named', () => {
+    const chips = signOffOutputChips(
+      data({ outputs: [{ ...outputs[1]!, missingPullRequests: ['web'] }] }),
+      state({ documents: { c: doc('c', 'post {{loom}}') } }),
+      nameOf,
+    )
+    expect(chips[0]!.row.label).toBe(`Slack Message · ${SIGN_OFF_OUTPUT_TEXT.toFill(1)}`)
+    expect(chips[0]!.panel.missingPullRequests).toEqual(['web'])
   })
 
   it('says what is not written, and neither passes nor claims a read', () => {

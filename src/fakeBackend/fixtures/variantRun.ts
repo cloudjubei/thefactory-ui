@@ -5,6 +5,7 @@ import type {
   ReviewEvidenceRef,
 } from '../../headless/api/generated/types.gen'
 import type { ProcessRun } from 'thefactory-tools/types'
+import { FAKE_EVIDENCE_IDS, type FakeEvidenceName } from './evidenceIdsConstants'
 import { FAKE_PROJECT_ID } from './projects'
 import { FAKE_SCRIPT_LOGS } from './scriptStepRun'
 import {
@@ -317,11 +318,11 @@ export function fakeVariantChildRun(state: FakeVariantRunState, id: VariantId): 
   } as unknown as ProcessRun
 }
 
-const filed = (id: string, over: Partial<ReviewEvidenceRef>): ReviewEvidenceRef =>
+const filed = (name: FakeEvidenceName, over: Partial<ReviewEvidenceRef>): ReviewEvidenceRef =>
   ({
-    id,
+    id: FAKE_EVIDENCE_IDS[name],
     kind: 'recording',
-    path: `${id}.mp4`,
+    path: `${name}.mp4`,
     mediaType: 'video/mp4',
     createdAt: 1,
     runId: FAKE_VARIANT_RUN_ID,
@@ -334,7 +335,7 @@ const LOG: Record<VariantId, keyof typeof FAKE_SCRIPT_LOGS> = {
   morning: 'two-sections',
 }
 
-const logId = (id: VariantId, stage: Stage): string =>
+const logId = (id: VariantId, stage: Stage): FakeEvidenceName =>
   `${id}-${stage === 'stopped' ? 'stopped' : 'step'}-log`
 
 /** What a variant's run filed by the stage it reached, in the order filed, each by its own label. */
@@ -430,11 +431,15 @@ const POST =
 
 /** What a filed report's text reads, by evidence id. */
 export const FAKE_VARIANT_TEXTS: Readonly<Record<string, string>> = {
-  'final-report': FINAL_REPORT,
-  'final-post': POST,
-  ...Object.fromEntries(VARIANTS.map((v) => [`${v.id}-review`, REVIEW[v.id]])),
-  ...Object.fromEntries(VARIANTS.map((v) => [logId(v.id, 'review'), FAKE_SCRIPT_LOGS[LOG[v.id]]])),
-  ...Object.fromEntries(VARIANTS.map((v) => [logId(v.id, 'stopped'), FAKE_SCRIPT_LOGS.stopped])),
+  [FAKE_EVIDENCE_IDS['final-report']]: FINAL_REPORT,
+  [FAKE_EVIDENCE_IDS['final-post']]: POST,
+  ...Object.fromEntries(VARIANTS.map((v) => [FAKE_EVIDENCE_IDS[`${v.id}-review`], REVIEW[v.id]])),
+  ...Object.fromEntries(
+    VARIANTS.map((v) => [FAKE_EVIDENCE_IDS[logId(v.id, 'review')], FAKE_SCRIPT_LOGS[LOG[v.id]]]),
+  ),
+  ...Object.fromEntries(
+    VARIANTS.map((v) => [FAKE_EVIDENCE_IDS[logId(v.id, 'stopped')], FAKE_SCRIPT_LOGS.stopped]),
+  ),
 }
 
 /** The body of `GET /process-runs/:runId/evidence`. */

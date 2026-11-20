@@ -1335,6 +1335,22 @@ describe('processRunBadge', () => {
     })
     expect(processRunBadge(r, 0)).toEqual({ label: 'Waiting', tone: 'queued' })
   })
+  it('a running run whose agent paused needs you (on-hold)', () => {
+    const r = {
+      ...run({ status: 'running' }),
+      agentPause: {
+        stepId: 'a',
+        entryId: 'a#1',
+        runner: 'api' as const,
+        cause: 'host-lost' as const,
+        reason: 'Lost.',
+        since: 1,
+        canResume: false,
+        actions: ['retry' as const, 'stop' as const],
+      },
+    }
+    expect(processRunBadge(r, 0)).toEqual({ label: 'Needs you', tone: 'on_hold' })
+  })
   it('falls through to the plain status view when not parked', () => {
     expect(processRunBadge(run({ status: 'running' }), 0)).toEqual(PROCESS_RUN_STATUS_VIEW.running)
   })

@@ -72,6 +72,8 @@ import {
   processRunIntegrationModes,
   processRunBadge,
   processRunChatContext,
+  TEST_SESSION_COPY,
+  type LaunchModelChipSlot,
   processRunModelChipView,
   processRunManagerLine,
   processBaseMovedView,
@@ -169,6 +171,7 @@ import DroppedChangesNote from './DroppedChangesNote'
 import RunCarriedOutChanges from './RunCarriedOutChanges'
 import RunPendingChanges from './RunPendingChanges'
 import ProcessTryBuildCard from './signoff/ProcessTryBuildCard'
+import TestWithMeCard from './signoff/TestWithMeCard'
 import SignoffCarriedCard from './signoff/SignoffCarriedCard'
 import IntegrationResult from './IntegrationResult'
 import { CirclingChip, CirclingNotice } from './CirclingNotice'
@@ -186,6 +189,7 @@ import RunManagerBar from './RunManagerBar'
 import RunStepsCard from './RunStepsCard'
 import RunNeedsYouCard, { ManagerLine } from './RunNeedsYouCard'
 import RunClosurePanel from './RunClosurePanel'
+import { RunNamedLandingPanel } from './NamedLandingForm'
 import RunTurnLimitChip from './RunTurnLimitChip'
 import RunStepSpendChip from './RunStepSpendChip'
 import RunModelControl from './RunModelControl'
@@ -232,6 +236,12 @@ import { PROCESS_OUTSIDE_WAIT_COPY } from '../../../headless/utils/processOutsid
 import PublicationChip from './PublicationChip'
 import RunMergeProgress from './RunMergeProgress'
 import RunPublishCard from './RunPublishCard'
+import AgentPausePanel, { AgentPauseMarker } from './AgentPauseStep'
+import {
+  useAgentPauseDecision,
+  type AgentPauseAction,
+  type AgentPauseStepView,
+} from '../../../headless'
 
 export type ProcessPipelineProps = {
   /** The top-level run. Drilling into a nested node stays inside this component. */
@@ -336,7 +346,7 @@ export default function ProcessPipeline({
     isLoaded,
     loadError,
     actionError: runActionError,
-    run,
+    run: heldRun,
     resume,
     setTurnLimit,
     setManager,
@@ -356,7 +366,10 @@ export default function ProcessPipeline({
     loadAnswerProjectFiles,
     waitPending,
     decideWait,
+    decideAgentPause,
   } = own
+  const agentPause = useAgentPauseDecision(heldRun, decideAgentPause)
+  const run = agentPause.shownRun
   const answerFiles = useMemo<NativeAnswerFiles>(
     () => ({
       upload: uploadAnswerFile,
@@ -657,6 +670,9 @@ export default function ProcessPipeline({
           onDrill={drillTo}
           onOpenPanel={setPanel}
           onChooseAtTop={chooseAtTop}
+          {...(agentPause.step?.stepId === state.step.id
+            ? { agentPause: { view: agentPause.step, onDecide: agentPause.decide } }
+            : {})}
         />
       ))}
     </RunStepsCard>
@@ -677,6 +693,20 @@ export default function ProcessPipeline({
   const signoffDetails = (style?: typeof flush, carried?: SignoffCarriedView) => (
     <>
       <ProcessTryBuildCard runId={run.id} />
+      <TestWithMeCard
+        runId={run.id}
+        {...(renderModelChip
+          ? {
+              renderModelChip: (slot: LaunchModelChipSlot) =>
+                renderModelChip({
+                  ...slot,
+                  chatContext: processRunChatContext(run),
+                  note: TEST_SESSION_COPY.chipNote,
+                }),
+            }
+          : {})}
+        {...(onOpenChat ? { onOpenChat: ({ context }) => onOpenChat(context) } : {})}
+      />
       {carried ? <SignoffCarriedCard view={carried} /> : null}
       {runDetails(style)}
     </>
@@ -1018,6 +1048,7 @@ export default function ProcessPipeline({
 
         <RunEnding run={run} onSendBack={sendBack} onRevive={revive} />
         {stack.length === 0 ? <RunClosurePanel run={run} /> : null}
+        {stack.length === 0 ? <RunNamedLandingPanel run={run} /> : null}
 
         {confirmStop ? (
           <Modal
@@ -1481,6 +1512,7 @@ function PipelineNode({
   onOpenPanel,
   onChooseAtTop,
   waitLine,
+  agentPause,
 }: {
   run: ProcessRun
   state: ReturnType<typeof processStepStates>[number]
@@ -1497,9 +1529,12 @@ function PipelineNode({
   onChooseAtTop: () => void
   /** What a step says while it waits for the run's variants. */
   waitLine?: string
+  /** The step's paused agent: why, and the person's Resume, Retry step and Stop run. */
+  agentPause?: { view: AgentPauseStepView; onDecide: (action: AgentPauseAction) => void }
 }) {
   const { theme, status } = useNativeTheme()
   const { resolveDependency } = useStories()
+  const paused = agentPause?.view.kind === 'paused' ? agentPause.view : undefined
   const parkStepId = run.park?.stepId
   const parked = parkStepId === state.step.id
   const nodeState = processNodeState(state, parkStepId)
@@ -1532,7 +1567,11 @@ function PipelineNode({
       style={{
         borderBottomWidth: isLast ? 0 : 1,
         borderBottomColor: theme.border.subtle,
-        backgroundColor: row.waitingOnYou && signoffGate ? status.review.softBg : 'transparent',
+        backgroundColor: paused
+          ? status.on_hold.softBg
+          : row.waitingOnYou && signoffGate
+            ? status.review.softBg
+            : 'transparent',
       }}
     >
       <Pressable
@@ -1548,7 +1587,7 @@ function PipelineNode({
           paddingVertical: 10,
         }}
       >
-        <Marker look={look} />
+        {paused ? <AgentPauseMarker /> : <Marker look={look} />}
         <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
             {featureRef && resolves ? (
@@ -1599,7 +1638,14 @@ function PipelineNode({
               </View>
             ) : null}
           </View>
-          {row.result || waitLine ? (
+          {paused ? (
+            <Text
+              numberOfLines={2}
+              style={{ fontSize: 12.5, fontWeight: '600', color: theme.accent.primary }}
+            >
+              {paused.line}
+            </Text>
+          ) : row.result || waitLine ? (
             <Text
               numberOfLines={2}
               style={{
@@ -1657,6 +1703,12 @@ function PipelineNode({
             onOpen={onOpenPanel}
             onDrill={onDrill}
           />
+        </View>
+      ) : null}
+
+      {agentPause ? (
+        <View style={{ paddingHorizontal: 12, paddingBottom: 12 }}>
+          <AgentPausePanel view={agentPause.view} onDecide={agentPause.onDecide} />
         </View>
       ) : null}
 

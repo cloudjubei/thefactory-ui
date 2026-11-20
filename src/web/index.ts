@@ -154,6 +154,9 @@ export {
   RunReferenceChip,
   NeedsYouReferenceChip,
   NeedsYouReferenceChipView,
+  EvidenceReferenceChip,
+  EvidenceReferenceChipView,
+  EvidencePreviewCard,
   SetUpWithAgentButton,
   StatusChip,
   StatusIcon,
@@ -180,6 +183,9 @@ export {
   type RunReferenceChipProps,
   type NeedsYouReferenceChipProps,
   type NeedsYouReferenceChipViewProps,
+  type EvidenceReferenceChipProps,
+  type EvidenceReferenceChipViewProps,
+  type EvidencePreviewCardProps,
   type SetUpWithAgentButtonProps,
   type StatusChipProps,
 } from './compound/chips'
@@ -540,6 +546,8 @@ export {
   ChatReviewPanelConnected,
   type ChatReviewPanelConnectedProps,
   EvidenceImageOverlay,
+  EvidenceTargetOverlay,
+  type EvidenceTargetOverlayProps,
   ChatContextSettings,
   LaunchCapsFields,
   ChatDebugModal,
@@ -792,6 +800,14 @@ export {
   type ProjectCheckEnvFieldProps,
 } from './compound/projects/ProjectCheckEnvField'
 export {
+  default as ProjectCheckCommandsField,
+  type ProjectCheckCommandsFieldProps,
+} from './compound/projects/ProjectCheckCommandsField'
+export {
+  default as ProjectGeneratorsField,
+  type ProjectGeneratorsFieldProps,
+} from './compound/projects/ProjectGeneratorsField'
+export {
   default as ProjectDefaultCapsField,
   type ProjectDefaultCapsFieldProps,
 } from './compound/projects/ProjectDefaultCapsField'
@@ -865,6 +881,17 @@ export {
   type DeliverySettingsPanelProps,
 } from './compound/settings/DeliverySettingsPanel'
 export { default as PublishCard, type PublishCardProps } from './compound/process/PublishCard'
+export {
+  default as TicketUpdateCard,
+  GroupTicketUpdatePanel,
+  RunTicketUpdatePanel,
+  type TicketUpdateCardProps,
+} from './compound/process/TicketUpdateCard'
+export {
+  default as NamedLandingForm,
+  RunNamedLandingPanel,
+  type NamedLandingFormProps,
+} from './compound/process/NamedLandingForm'
 export {
   default as RunPublishCard,
   type RunPublishCardProps,
@@ -1008,9 +1035,20 @@ export { default as ProjectTimelineView } from './screens/ProjectTimelineView'
 export { default as ProcessesView } from './screens/ProcessesView'
 export { default as ProcessRunsView, type ProcessRunsViewProps } from './screens/ProcessRunsView'
 export {
+  default as EvidenceView,
+  EvidenceViewBody,
+  type EvidenceViewBodyProps,
+  type EvidenceViewProps,
+} from './screens/EvidenceView'
+export {
   default as ProcessPipeline,
   type ProcessPipelineProps,
 } from './compound/process/ProcessPipeline'
+export {
+  default as AgentPausePanel,
+  AgentPauseMarker,
+  type AgentPausePanelProps,
+} from './compound/process/AgentPauseStep'
 export {
   default as SignoffReportPanel,
   type SignoffReportPanelProps,
@@ -1236,6 +1274,12 @@ export {
   type ProcessTryBuildCardProps,
   type ProcessTryBuildPanelProps,
 } from './compound/process/signoff/ProcessTryBuildCard'
+export {
+  default as TestWithMeCard,
+  TestWithMePanel,
+  type TestWithMeCardProps,
+  type TestWithMePanelProps,
+} from './compound/process/signoff/TestWithMeCard'
 export {
   default as RunCarriedOutChanges,
   type RunCarriedOutChangesProps,

@@ -10,6 +10,8 @@ export interface FakeRouteRequest {
   body: unknown
   /** Ends the answer as a 404 saying what the fixtures do not hold. */
   missing: (message: string) => never
+  /** Ends the answer as a 400 saying what the request gets wrong. */
+  invalid: (message: string) => never
 }
 
 /** One API route the fake answers. */

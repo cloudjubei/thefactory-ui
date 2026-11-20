@@ -78,6 +78,21 @@ const DELIVERY_STATE_TEXT: Record<string, { title: string; description: string }
     title: 'On a scope group',
     description: 'A scope group’s delivery reaches no project, so the form is read-only.',
   },
+  'title-template': {
+    title: 'A pull request title template',
+    description:
+      'Typed as {ticket} {ticketTitle}: the preview fills it for a sample ticket, and Save appears.',
+  },
+  'title-inherited': {
+    title: 'A project with its own title template',
+    description:
+      'Its own [{ticket}] {ticketTitle} over the group’s, previewed. Empty, it would take the group’s.',
+  },
+  'bad-title': {
+    title: 'A title template naming something unknown',
+    description:
+      'Only {ticket} and {ticketTitle} are filled: the reason sits under the field and Save waits. The backend refuses the same.',
+  },
   'save-failed': {
     title: 'A save failed',
     description: 'Shown saved at once; when refused it comes back unsaved, with why.',
@@ -88,7 +103,7 @@ const deliveryStates: SceneState[] = Object.entries(DELIVERY_FORM_STATES).flatMa
   const text = DELIVERY_STATE_TEXT[id]!
   return [
     { id, ...text, render: () => page(<DeliveryForm state={state} />) },
-    ...(id === 'group-pr-first' || id === 'project-inherits'
+    ...(id === 'group-pr-first' || id === 'project-inherits' || id === 'title-template'
       ? [
           {
             id: `${id}-phone`,
@@ -148,6 +163,11 @@ const PUBLISH_STATE_TEXT: Record<string, { title: string; description: string }>
     description: 'Shown at once on the press; the fields lock and a second press does nothing.',
   },
   failed: { title: 'Publishing failed', description: 'Back to the card with why, nothing lost.' },
+  notices: {
+    title: 'Notices under a repo',
+    description:
+      'What to look at before publishing — a one-word short name, a PR Text section its template has and it lacks — under each repo. They never stop Open pull request.',
+  },
 }
 
 const publishStates: SceneState[] = [
@@ -160,6 +180,11 @@ const publishStates: SceneState[] = [
     id: 'ready-phone',
     title: 'One repo, on a phone',
     render: () => phone(<Publish state={PUBLISH_STATES.ready!} />),
+  },
+  {
+    id: 'notices-phone',
+    title: 'Notices under a repo, on a phone',
+    render: () => phone(<Publish state={PUBLISH_STATES.notices!} />),
   },
   {
     id: 'loading',

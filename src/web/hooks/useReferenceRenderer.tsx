@@ -7,6 +7,7 @@ import ReferenceChip from '../compound/chips/ReferenceChip'
 import NeedsYouReferenceChip from '../compound/chips/NeedsYouReferenceChip'
 import RunReferenceChip from '../compound/chips/RunReferenceChip'
 import DesignReferenceChip from '../compound/design/DesignReferenceChip'
+import EvidenceReferenceChip from '../compound/chips/EvidenceReferenceChip'
 import type { UikitFileMeta } from '../compound/files/FileDisplay'
 import ProjectFileChip from '../compound/files/ProjectFileChip'
 import {
@@ -20,7 +21,8 @@ import {
  * the project has, with its preview on hover and a Preview there that opens
  * the whole file; a process run as a live
  * {@link RunReferenceChip}, one of its "Needs you" items as a live
- * {@link NeedsYouReferenceChip}; any other reference or in-app link — a folder, a
+ * {@link NeedsYouReferenceChip}; a cited evidence item as a live
+ * {@link EvidenceReferenceChip} that opens it in place; any other reference or in-app link — a folder, a
  * process — as a {@link ReferenceChip} that opens it. `undefined` — so the token
  * reads as text or code — for a file the project does not have, or a
  * reference that resolves to nothing.
@@ -82,6 +84,9 @@ export function useReferenceRenderer({
             {...(onOpen ? { onOpen } : {})}
           />
         )
+      }
+      if (description.link?.kind === 'evidence') {
+        return <EvidenceReferenceChip link={description.link} {...(onOpen ? { onOpen } : {})} />
       }
       if (description.link?.kind === 'design') {
         return (

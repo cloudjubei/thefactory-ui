@@ -63,7 +63,11 @@ function StageNote({ children }: { children: string }) {
 
 export type WalkthroughRecordingProps = {
   projectId: string
-  tile: EvidenceTile
+  /** The recording: its item's id and media type, its size when known, and what it is called. */
+  tile: {
+    ref: Pick<EvidenceTile['ref'], 'id' | 'mediaType'> & { bytes?: number }
+    caption: string
+  }
   /** Shown in place of the recording's own caption — a pair's "Before" or "After". */
   label?: string
   onSaveFile?: SaveFileHandler
@@ -72,6 +76,8 @@ export type WalkthroughRecordingProps = {
   seekRef?: { current: ((atSec: number) => void) | null }
   /** Where the playhead is, and how long the recording runs, as the host's player says them. */
   onProgress?: (atSec: number, durationSec: number) => void
+  /** Opens at this moment, in the host's seekable player when it has one. */
+  startAt?: number
 }
 
 /**
@@ -86,10 +92,13 @@ export function WalkthroughRecording({
   footer,
   seekRef,
   onProgress,
+  startAt,
 }: WalkthroughRecordingProps) {
   const { theme } = useNativeTheme()
   const { renderVideo, renderInlineVideo } = useMediaHost()
-  const seekable = seekRef && renderInlineVideo ? renderInlineVideo : undefined
+  const seekable =
+    (seekRef || startAt !== undefined) && renderInlineVideo ? renderInlineVideo : undefined
+  const startRef = useRef(startAt)
   const playable = Boolean(seekable ?? renderVideo)
   const { url, loading } = useReviewEvidenceMediaUrl(playable ? projectId : undefined, tile.ref.id)
   const [failed, setFailed] = useState(false)
@@ -116,7 +125,13 @@ export function WalkthroughRecording({
       return seekable({
         uri: url,
         handleRef,
-        onMetadata: () => setFailed(false),
+        onMetadata: () => {
+          setFailed(false)
+          const start = startRef.current
+          if (start === undefined) return
+          startRef.current = undefined
+          handleRef.current?.seek?.(start)
+        },
         onFailed: () => setFailed(true),
         onPlayingChange: () => {},
         onTimeChange: (atSec) => report({ atSec }),

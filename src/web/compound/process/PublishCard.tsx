@@ -90,6 +90,18 @@ function RepoRow({
           {PROCESS_PUBLISH_COPY.noChanges}
         </span>
       )}
+      {row.notices ? (
+        <ul
+          aria-label={PROCESS_PUBLISH_COPY.notices}
+          className="m-0 flex list-none flex-col gap-1 rounded-md border border-(--status-on_hold-soft-border) bg-(--status-on_hold-soft-bg) px-2.5 py-2"
+        >
+          {row.notices.map((notice) => (
+            <li key={notice} className="text-[11.5px] leading-snug text-(--status-on_hold-soft-fg)">
+              {notice}
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </li>
   )
 }

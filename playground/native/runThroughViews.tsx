@@ -56,7 +56,7 @@ function BrowserInlineVideo({ video }: { video: InlineVideo }) {
   )
 }
 
-const PLAYER: MediaHost = {
+export const RUN_THROUGH_PLAYER: MediaHost = {
   renderInlineVideo: (video) => <BrowserInlineVideo video={video} />,
 }
 
@@ -76,7 +76,7 @@ function Signoff({ which }: { which: RunThroughCase }) {
   )
   return (
     <OnFixtures routes={RUN_THROUGH_ROUTES}>
-      <MediaHostProvider value={PLAYER}>
+      <MediaHostProvider value={RUN_THROUGH_PLAYER}>
         <ScrollView style={{ backgroundColor: theme.surface.base }}>
           <View style={{ padding: 12, width: 390, maxWidth: '100%', gap: 10 }}>
             <Text style={{ fontSize: 12.5, color: theme.text.secondary }}>

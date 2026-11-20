@@ -1,0 +1,23 @@
+/** The ticket update card's words. */
+export const TICKET_UPDATE_COPY = {
+  title: 'Ticket update',
+  post: 'Post the ticket update',
+  posting: 'Posting…',
+  to: (where: string) => `To ${where}`,
+  channel: (name: string) => `#${name}`,
+  watchedChannel: 'the group’s channel',
+  watchedThread: 'the group’s watched thread',
+  nowhere: 'No channel to post to yet',
+  openChannel: 'Open channel',
+  openThread: 'Open thread',
+  blocked: 'Before it can go:',
+  confirmTitle: (where: string) => `Post to ${where}?`,
+  confirmBody: 'It goes out as you, word for word, so colleagues can review the pull requests.',
+  confirm: 'Post',
+  cancel: 'Not yet',
+  posted: (where: string) => `Posted to ${where}.`,
+  openPost: 'Open in Slack',
+  postedBadge: 'Posted',
+  failed: 'The update could not be posted.',
+  readFailed: 'The ticket update could not be read.',
+} as const

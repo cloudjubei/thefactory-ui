@@ -3,6 +3,8 @@ import { Image, Pressable, Text, View } from 'react-native'
 import { formatVideoTime } from 'thefactory-tools/utils'
 
 import {
+  EVIDENCE_REFERENCE_COPY,
+  evidenceCitation,
   RUN_THROUGH_TEXT,
   runThroughTickPercent,
   useReviewEvidenceImage,
@@ -15,6 +17,8 @@ import { useNativeTheme } from '../../../hooks/useNativeTheme'
 import { IconChevronRight, IconMonitor } from '../../../icons'
 import Pill from '../../process/signoff/Pill'
 import { reviewToneVariant } from '../../process/signoff/tones'
+import { Button } from '../../../primitives/Button'
+import { useClipboardHost } from '../../ClipboardHostContext'
 import EvidenceImageOverlay from '../EvidenceImageOverlay'
 import { WalkthroughRecording } from './WalkthroughTab'
 
@@ -209,6 +213,25 @@ function Screenshot({
   )
 }
 
+function CopyReference({ projectId, evidenceId }: { projectId: string; evidenceId: string }) {
+  const { copyText } = useClipboardHost()
+  const [copied, setCopied] = useState(false)
+  if (!copyText) return null
+  return (
+    <Button
+      size="sm"
+      variant="secondary"
+      onPress={() => {
+        void copyText(evidenceCitation({ kind: 'evidence', projectId, evidenceId })).then(() =>
+          setCopied(true),
+        )
+      }}
+    >
+      {copied ? EVIDENCE_REFERENCE_COPY.copied : EVIDENCE_REFERENCE_COPY.copyReference}
+    </Button>
+  )
+}
+
 function IssueDetail({
   projectId,
   row,
@@ -242,40 +265,39 @@ function IssueDetail({
       </Text>
       {line(RUN_THROUGH_TEXT.expected, row.expected)}
       {line(RUN_THROUGH_TEXT.doing, row.doing)}
-      {row.screenshot || row.view ? (
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-          <Screenshot projectId={projectId} row={row} onOpen={onOpenShot} />
-          {row.view ? (
-            <View
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+        <Screenshot projectId={projectId} row={row} onOpen={onOpenShot} />
+        {row.view ? (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
+              flexShrink: 1,
+              height: 24,
+              paddingHorizontal: 8,
+              borderRadius: nativeRadii[1],
+              borderWidth: 1,
+              borderColor: theme.border.subtle,
+              backgroundColor: theme.surface.muted,
+            }}
+          >
+            <IconMonitor size={12} color={theme.text.secondary} />
+            <Text
+              numberOfLines={1}
               style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 6,
                 flexShrink: 1,
-                height: 24,
-                paddingHorizontal: 8,
-                borderRadius: nativeRadii[1],
-                borderWidth: 1,
-                borderColor: theme.border.subtle,
-                backgroundColor: theme.surface.muted,
+                fontSize: 12,
+                fontFamily: 'Menlo',
+                color: theme.text.primary,
               }}
             >
-              <IconMonitor size={12} color={theme.text.secondary} />
-              <Text
-                numberOfLines={1}
-                style={{
-                  flexShrink: 1,
-                  fontSize: 12,
-                  fontFamily: 'Menlo',
-                  color: theme.text.primary,
-                }}
-              >
-                {row.view}
-              </Text>
-            </View>
-          ) : null}
-        </View>
-      ) : null}
+              {row.view}
+            </Text>
+          </View>
+        ) : null}
+        <CopyReference projectId={projectId} evidenceId={row.key} />
+      </View>
     </View>
   )
 }

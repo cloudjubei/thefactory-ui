@@ -23,10 +23,10 @@ export const RUN_THROUGH_ROUTES: FixtureRoutes = {
   }),
 }
 
-type Shot = 'board' | 'tooltip' | 'frozen' | 'result'
+export type Shot = 'board' | 'tooltip' | 'frozen' | 'result'
 
 /** A still of the fake game, as the tester's screenshot of it — base64, which every Image reads as is. */
-function shot(kind: Shot): string {
+export function shot(kind: Shot): string {
   const W = 320
   const H = 200
   const svg = (body: string) => {

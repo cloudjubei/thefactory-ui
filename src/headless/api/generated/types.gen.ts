@@ -4100,6 +4100,7 @@ export type UiStackSetting = {
   parts: Array<UiStackPart>
   start?: UiStackStartCommand | UiStackStartRequest
   buildTimeoutMs?: number
+  dataEnvironment?: string
 }
 
 export type DeliveryMergeMethod = 'squash' | 'merge' | 'rebase'
@@ -4165,6 +4166,7 @@ export type ProjectsGroup = {
     parts: Array<UiStackPart>
     start?: UiStackStartCommand | UiStackStartRequest
     buildTimeoutMs?: number
+    dataEnvironment?: string
   }
   delivery?: {
     branchTemplate?: string
@@ -4451,6 +4453,11 @@ export type ProjectCheckEnvSetting = {
   secrets?: Array<ProjectCheckEnvSecretRef>
 }
 
+export type ProjectCheckCommandsSetting = {
+  relatedTests?: string
+  formatFix?: string
+}
+
 export type ProjectGeneratorInputOrigin = {
   projectId: string
   path: string
@@ -4521,12 +4528,17 @@ export type ProjectRegistryMetadata = {
     timeoutSec?: number
     envFile?: string
   }
+  checkCommands?: {
+    relatedTests?: string
+    formatFix?: string
+  }
   generators?: Array<ProjectGeneratorSetting>
   serveStack?: {
     entry: string
     parts: Array<UiStackPart>
     start?: UiStackStartCommand | UiStackStartRequest
     buildTimeoutMs?: number
+    dataEnvironment?: string
   }
   serveBuildTimeoutMs?: number
   templateProvenance?: {
@@ -4593,12 +4605,17 @@ export type ProjectRegistryEntry = {
       timeoutSec?: number
       envFile?: string
     }
+    checkCommands?: {
+      relatedTests?: string
+      formatFix?: string
+    }
     generators?: Array<ProjectGeneratorSetting>
     serveStack?: {
       entry: string
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
       buildTimeoutMs?: number
+      dataEnvironment?: string
     }
     serveBuildTimeoutMs?: number
     templateProvenance?: {
@@ -4768,6 +4785,7 @@ export type ChatContextArguments = {
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
       buildTimeoutMs?: number
+      dataEnvironment?: string
     }
     delivery?: {
       branchTemplate?: string
@@ -4898,6 +4916,7 @@ export type ChatContextArgumentsGroup = {
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
       buildTimeoutMs?: number
+      dataEnvironment?: string
     }
     delivery?: {
       branchTemplate?: string
@@ -4947,6 +4966,7 @@ export type ChatContextArgumentsGroupTopic = {
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
       buildTimeoutMs?: number
+      dataEnvironment?: string
     }
     delivery?: {
       branchTemplate?: string
@@ -5342,6 +5362,8 @@ export type VerificationUnfinishedTestFile = {
   outputTail?: string
 }
 
+export type ProjectCheckTestScope = 'related' | 'full'
+
 export type VerificationTestReportMissingCause =
   | 'absent'
   | 'too-large'
@@ -5365,6 +5387,8 @@ export type VerificationCheckResult = {
   summary: string
   details?: string
   command?: string
+  testScope?: 'related' | 'full'
+  testScopeReason?: string
   variant?: string
   variantReason?: string
   testCount?: {
@@ -18358,6 +18382,10 @@ export type ProcessLedgerEntry = {
     files: Array<string>
     sha: string
   }
+  formatted?: {
+    files: Array<string>
+    sha: string
+  }
   checkedSha?: string
   checkedTree?: string
   checkedEnvironment?: string
@@ -19767,12 +19795,17 @@ export type ProjectSpecCreateInput = {
       timeoutSec?: number
       envFile?: string
     }
+    checkCommands?: {
+      relatedTests?: string
+      formatFix?: string
+    }
     generators?: Array<ProjectGeneratorSetting>
     serveStack?: {
       entry: string
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
       buildTimeoutMs?: number
+      dataEnvironment?: string
     }
     serveBuildTimeoutMs?: number
     templateProvenance?: {
@@ -19882,12 +19915,17 @@ export type ProjectSpecEditInput = {
       timeoutSec?: number
       envFile?: string
     }
+    checkCommands?: {
+      relatedTests?: string
+      formatFix?: string
+    }
     generators?: Array<ProjectGeneratorSetting>
     serveStack?: {
       entry: string
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
       buildTimeoutMs?: number
+      dataEnvironment?: string
     }
     serveBuildTimeoutMs?: number
     templateProvenance?: {
@@ -20346,6 +20384,29 @@ export type ProjectCheckTestFilter = {
   describe: string
 }
 
+export type ProjectCheckRelatedTests = {
+  argv: Array<string>
+  args: Array<string>
+  reports: boolean
+  source: string
+}
+
+export type ProjectCheckTestScoping =
+  | {
+      scope: 'related'
+      files: Array<string>
+    }
+  | {
+      scope: 'full'
+      reason?: string
+    }
+
+export type ProjectCheckFormatFix = {
+  argv: Array<string>
+  takesFiles: boolean
+  source: string
+}
+
 export type ProjectCheckNamedTestFallback = {
   id: string
   label: string
@@ -20399,6 +20460,17 @@ export type ProjectCheck = {
     each: Array<string>
     join?: string
     describe: string
+  }
+  relatedTests?: {
+    argv: Array<string>
+    args: Array<string>
+    reports: boolean
+    source: string
+  }
+  formatFix?: {
+    argv: Array<string>
+    takesFiles: boolean
+    source: string
   }
   testReport?: {
     format: ProjectCheckTestReportFormat
@@ -20651,6 +20723,7 @@ export type RunProjectCheckInput = {
   check: ProjectCheckKind
   variant?: string
   tests?: Array<string>
+  relatedTo?: Array<string>
 }
 
 export type LiveProjectCheckEnv = {
@@ -21253,6 +21326,7 @@ export type ProjectsGroupCreateInput = {
     parts: Array<UiStackPart>
     start?: UiStackStartCommand | UiStackStartRequest
     buildTimeoutMs?: number
+    dataEnvironment?: string
   }
   checkAllowedHosts?: Array<string>
 }
@@ -29644,6 +29718,116 @@ export type TestConfigDeclaration = {
   env?: Array<TestConfigEnvVar>
 }
 
+export type TestSessionStatus = 'starting' | 'running' | 'stopping' | 'stopped' | 'failed'
+
+export type TestSessionLineKind = 'error' | 'warning' | 'feature'
+
+export type TestSessionLogStream = 'stdout' | 'stderr' | 'trail'
+
+export type TestSessionLogLine = {
+  role: string
+  kind: TestSessionLineKind
+  text: string
+  at: number
+}
+
+export type TestSessionLog = {
+  lines: Array<TestSessionLogLine>
+  errors: number
+  warnings: number
+  feature: number
+  read: number
+}
+
+export type TestSessionProofKind = 'record' | 'event'
+
+export type TestSessionProofInput = {
+  kind: TestSessionProofKind
+  label: string
+  detail?: string
+  source: string
+  environment?: string
+}
+
+export type TestSessionProof = {
+  id: string
+  kind: TestSessionProofKind
+  label: string
+  detail?: string
+  source: string
+  environment?: string
+  at: number
+}
+
+export type TestSessionPart = {
+  role: string
+  project: string
+  url: string
+  ref: string
+  sha: string
+}
+
+export type TestSessionHelperStatus = 'gathering' | 'stopped' | 'not-started'
+
+export type TestSessionHelper = {
+  chatContext: ChatContext
+  chatContextId: string
+  status: TestSessionHelperStatus
+  problem?: string
+}
+
+export type TestSession = {
+  key: string
+  runId: string
+  status: TestSessionStatus
+  startedAt: number
+  stoppedAt?: number
+  url?: string
+  parts: Array<TestSessionPart>
+  environment?: string
+  problem?: string
+  terms: Array<string>
+  log: TestSessionLog
+  proof: Array<TestSessionProof>
+  helper?: {
+    chatContext: ChatContext
+    chatContextId: string
+    status: TestSessionHelperStatus
+    problem?: string
+  }
+}
+
+export type TestSessionLogSource = {
+  role: string
+  stream: TestSessionLogStream
+  file: string
+}
+
+export type TestSessionLogCursor = {
+  [key: string]: number
+}
+
+export type TestSessionLogChunk = {
+  role: string
+  stream: TestSessionLogStream
+  lines: Array<string>
+}
+
+export type TestSessionLogRead = {
+  chunks: Array<TestSessionLogChunk>
+  cursor: TestSessionLogCursor
+}
+
+export type TestSessionProofOutcome =
+  | {
+      ok: true
+      session: TestSession
+    }
+  | {
+      ok: false
+      problem: string
+    }
+
 export type ToolCallSlipKind = 'invalid-args' | 'unknown-tool' | 'failed' | 'corrected'
 
 export type ToolCallRoute = 'mcp' | 'api' | 'host'
@@ -34508,7 +34692,7 @@ export type ProcessFeatureClosureCandidate = {
 export type ProcessWaitingItemChoice = 'allow' | 'allow-site' | 'decline'
 
 export type ProcessChangeRequest = {
-  from: 'sign-off' | 'code-review' | 'report'
+  from: 'sign-off' | 'checks' | 'code-review' | 'report'
   note?: string
   proofKinds?: Array<ProofKind>
   chosenProofKinds?: Array<ProofKind>
@@ -35252,6 +35436,22 @@ export type ProcessRegeneratedCommitOutcome =
     } & ProcessRegeneratedCommit)
   | {
       status: 'unchanged'
+    }
+  | {
+      status: 'refused'
+      reason: string
+    }
+
+export type ProcessFormatFixOutcome =
+  | ({
+      status: 'committed'
+      fixedBy: string
+    } & ProcessRegeneratedCommit)
+  | {
+      status: 'unchanged'
+    }
+  | {
+      status: 'no-fix'
     }
   | {
       status: 'refused'
@@ -36389,6 +36589,10 @@ export type ProcessStepResult = {
     files: Array<string>
     sha: string
   }
+  formatted?: {
+    files: Array<string>
+    sha: string
+  }
   checkedSha?: string
   checkedTree?: string
   checkedEnvironment?: string
@@ -36907,6 +37111,10 @@ export type ProcessStepState = {
     }
     checks?: Array<VerificationCheckResult>
     regenerated?: {
+      files: Array<string>
+      sha: string
+    }
+    formatted?: {
       files: Array<string>
       sha: string
     }
@@ -38607,6 +38815,118 @@ export type EvidenceVideoComparison = {
   reason?: string
 }
 
+export type ResolvedReviewEvidence = {
+  projectId: string
+  evidenceId: string
+  /**
+   * The item’s reference in full, with its project, and its moment when it has one.
+   */
+  reference: string
+  kind: ReviewEvidenceKind
+  /**
+   * An issue’s title; else the item’s label, subject or kind.
+   */
+  title: string
+  severity?: 'blocker' | 'major' | 'minor' | 'nit'
+  media?: {
+    kind: 'image' | 'video'
+    mediaType: string
+    /**
+     * A short-lived signed content URL, as `createReviewEvidenceMediaUrl` gives it.
+     */
+    url: string
+    expiresAt: string
+  }
+  /**
+   * The recording an issue was met in, opened at its moment.
+   */
+  recording?: {
+    evidenceId: string
+    reference: string
+    media: {
+      kind: 'image' | 'video'
+      mediaType: string
+      /**
+       * A short-lived signed content URL, as `createReviewEvidenceMediaUrl` gives it.
+       */
+      url: string
+      expiresAt: string
+    }
+  }
+  /**
+   * The moment, in seconds into the recording.
+   */
+  at?: number
+  /**
+   * The agent run it was filed under.
+   */
+  runId: string
+  /**
+   * The process run, and the step of it, that filed it.
+   */
+  owner?: {
+    processRunId: string
+    stepId?: string
+    stepName?: string
+    entryId?: string
+  }
+  createdAt: number
+}
+
+export type ProcessRunView = ProcessRun & {
+  agentPause?: {
+    stepId: string
+    /**
+     * The attempt of the step whose agent paused.
+     */
+    entryId: string
+    runner: 'cli' | 'api'
+    /**
+     * `asleep`: the computer slept under it; `cli-stopped`: its CLI stopped, saying why; `host-lost`: the host lost track of it.
+     */
+    cause: 'asleep' | 'cli-stopped' | 'host-lost'
+    /**
+     * Why it paused, in a sentence a person reads.
+     */
+    reason: string
+    since: number
+    /**
+     * Whether its session can be carried on.
+     */
+    canResume: boolean
+    /**
+     * What a person can do: `resume` (`resumeProcessRunAgentPause`), `retry` (`retryProcessRunAgentPause`), `stop` (`stopProcessRunAgentPause`). The client confirms stop.
+     */
+    actions: Array<'resume' | 'retry' | 'stop'>
+  }
+}
+
+export type ProcessAgentPauseView = {
+  stepId: string
+  /**
+   * The attempt of the step whose agent paused.
+   */
+  entryId: string
+  runner: 'cli' | 'api'
+  /**
+   * `asleep`: the computer slept under it; `cli-stopped`: its CLI stopped, saying why; `host-lost`: the host lost track of it.
+   */
+  cause: 'asleep' | 'cli-stopped' | 'host-lost'
+  /**
+   * Why it paused, in a sentence a person reads.
+   */
+  reason: string
+  since: number
+  /**
+   * Whether its session can be carried on.
+   */
+  canResume: boolean
+  /**
+   * What a person can do: `resume` (`resumeProcessRunAgentPause`), `retry` (`retryProcessRunAgentPause`), `stop` (`stopProcessRunAgentPause`). The client confirms stop.
+   */
+  actions: Array<'resume' | 'retry' | 'stop'>
+}
+
 export type HealthData = {
   body?: never
   path?: never
@@ -39555,6 +39875,7 @@ export type ListProjectsGroupsResponses = {
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
       buildTimeoutMs?: number
+      dataEnvironment?: string
     }
     delivery?: {
       branchTemplate?: string
@@ -39621,6 +39942,7 @@ export type CreateProjectsGroupResponses = {
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
       buildTimeoutMs?: number
+      dataEnvironment?: string
     }
     delivery?: {
       branchTemplate?: string
@@ -39924,6 +40246,7 @@ export type DeleteProjectsGroupResponses = {
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
       buildTimeoutMs?: number
+      dataEnvironment?: string
     }
     delivery?: {
       branchTemplate?: string
@@ -39992,6 +40315,7 @@ export type GetProjectsGroupResponses = {
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
       buildTimeoutMs?: number
+      dataEnvironment?: string
     }
     delivery?: {
       branchTemplate?: string
@@ -40069,6 +40393,7 @@ export type UpdateProjectsGroupResponses = {
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
       buildTimeoutMs?: number
+      dataEnvironment?: string
     }
     delivery?: {
       branchTemplate?: string
@@ -40138,6 +40463,7 @@ export type ReorderProjectInGroupResponses = {
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
       buildTimeoutMs?: number
+      dataEnvironment?: string
     }
     delivery?: {
       branchTemplate?: string
@@ -40205,6 +40531,7 @@ export type ReorderProjectsGroupsResponses = {
       parts: Array<UiStackPart>
       start?: UiStackStartCommand | UiStackStartRequest
       buildTimeoutMs?: number
+      dataEnvironment?: string
     }
     delivery?: {
       branchTemplate?: string
@@ -42518,7 +42845,7 @@ export type GetProcessRunResponses = {
   /**
    * Default Response
    */
-  200: ProcessRun
+  200: ProcessRunView
 }
 
 export type GetProcessRunResponse = GetProcessRunResponses[keyof GetProcessRunResponses]
@@ -42834,7 +43161,7 @@ export type ResumeProcessRunResponses = {
   /**
    * Default Response
    */
-  200: ProcessRun
+  200: ProcessRunView
 }
 
 export type ResumeProcessRunResponse = ResumeProcessRunResponses[keyof ResumeProcessRunResponses]
@@ -43123,7 +43450,7 @@ export type AnswerProcessRunWaitingRequestResponses = {
   /**
    * Default Response
    */
-  200: ProcessRun
+  200: ProcessRunView
 }
 
 export type AnswerProcessRunWaitingRequestResponse =
@@ -43385,7 +43712,7 @@ export type ResolveProcessRunNeedsYouItemResponses = {
   /**
    * Default Response
    */
-  200: ProcessRun
+  200: ProcessRunView
 }
 
 export type ResolveProcessRunNeedsYouItemResponse =
@@ -43439,7 +43766,7 @@ export type StartProcessRunChangesResponses = {
   /**
    * Default Response
    */
-  200: ProcessRun
+  200: ProcessRunView
 }
 
 export type StartProcessRunChangesResponse =
@@ -43485,7 +43812,7 @@ export type WithdrawProcessRunChangeResponses = {
   /**
    * Default Response
    */
-  200: ProcessRun
+  200: ProcessRunView
 }
 
 export type WithdrawProcessRunChangeResponse =
@@ -43814,7 +44141,7 @@ export type SetProcessRunManagerResponses = {
   /**
    * Default Response
    */
-  200: ProcessRun
+  200: ProcessRunView
 }
 
 export type SetProcessRunManagerResponse =
@@ -44143,6 +44470,170 @@ export type SettleProcessRunAlreadyLandedResponses = {
 export type SettleProcessRunAlreadyLandedResponse =
   SettleProcessRunAlreadyLandedResponses[keyof SettleProcessRunAlreadyLandedResponses]
 
+export type GetProcessRunTicketUpdateData = {
+  body?: never
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}/ticket-update'
+}
+
+export type GetProcessRunTicketUpdateErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type GetProcessRunTicketUpdateError =
+  GetProcessRunTicketUpdateErrors[keyof GetProcessRunTicketUpdateErrors]
+
+export type GetProcessRunTicketUpdateResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    /**
+     * The sign-off shows it: offered now, or posted already.
+     */
+    offered: boolean
+    /**
+     * The shared output’s label.
+     */
+    label?: string
+    /**
+     * The post, word for word, as it goes out.
+     */
+    text?: string
+    channel?: {
+      kind: 'channel' | 'thread'
+      /**
+       * The channel’s name, once Slack named it.
+       */
+      name?: string
+      /**
+       * The channel’s link, or the watched thread’s.
+       */
+      permalink: string
+    }
+    /**
+     * Why it cannot be posted now; empty when it can, or once it was.
+     */
+    problems: Array<string>
+    posted?: {
+      /**
+       * The conversation id it was posted in.
+       */
+      channel: string
+      ts: string
+      permalink: string
+      postedAt: string
+    }
+  }
+}
+
+export type GetProcessRunTicketUpdateResponse =
+  GetProcessRunTicketUpdateResponses[keyof GetProcessRunTicketUpdateResponses]
+
+export type PostProcessRunTicketUpdateData = {
+  body?: never
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}/ticket-update'
+}
+
+export type PostProcessRunTicketUpdateErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  502: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type PostProcessRunTicketUpdateError =
+  PostProcessRunTicketUpdateErrors[keyof PostProcessRunTicketUpdateErrors]
+
+export type PostProcessRunTicketUpdateResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    /**
+     * The sign-off shows it: offered now, or posted already.
+     */
+    offered: boolean
+    /**
+     * The shared output’s label.
+     */
+    label?: string
+    /**
+     * The post, word for word, as it goes out.
+     */
+    text?: string
+    channel?: {
+      kind: 'channel' | 'thread'
+      /**
+       * The channel’s name, once Slack named it.
+       */
+      name?: string
+      /**
+       * The channel’s link, or the watched thread’s.
+       */
+      permalink: string
+    }
+    /**
+     * Why it cannot be posted now; empty when it can, or once it was.
+     */
+    problems: Array<string>
+    posted?: {
+      /**
+       * The conversation id it was posted in.
+       */
+      channel: string
+      ts: string
+      permalink: string
+      postedAt: string
+    }
+  }
+}
+
+export type PostProcessRunTicketUpdateResponse =
+  PostProcessRunTicketUpdateResponses[keyof PostProcessRunTicketUpdateResponses]
+
 export type ContinueProcessRunWaitNowData = {
   body: {
     /**
@@ -44191,7 +44682,7 @@ export type ContinueProcessRunWaitNowResponses = {
   /**
    * Default Response
    */
-  200: ProcessRun
+  200: ProcessRunView
 }
 
 export type ContinueProcessRunWaitNowResponse =
@@ -44245,7 +44736,7 @@ export type StopProcessRunWaitingResponses = {
   /**
    * Default Response
    */
-  200: ProcessRun
+  200: ProcessRunView
 }
 
 export type StopProcessRunWaitingResponse =
@@ -44298,7 +44789,7 @@ export type WaitProcessRunAgainResponses = {
   /**
    * Default Response
    */
-  200: ProcessRun
+  200: ProcessRunView
 }
 
 export type WaitProcessRunAgainResponse =
@@ -44358,6 +44849,168 @@ export type ListProcessRunBranchesResponses = {
 
 export type ListProcessRunBranchesResponse =
   ListProcessRunBranchesResponses[keyof ListProcessRunBranchesResponses]
+
+export type ResumeProcessRunAgentPauseData = {
+  body: {
+    /**
+     * The app the person decided on — recorded on the decision.
+     */
+    decidedVia: 'web' | 'desktop' | 'mobile'
+    /**
+     * Why, in the person’s words — kept on the run with the decision.
+     */
+    note?: string
+  }
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}/agent-pause/resume'
+}
+
+export type ResumeProcessRunAgentPauseErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type ResumeProcessRunAgentPauseError =
+  ResumeProcessRunAgentPauseErrors[keyof ResumeProcessRunAgentPauseErrors]
+
+export type ResumeProcessRunAgentPauseResponses = {
+  /**
+   * Default Response
+   */
+  200: ProcessRunView
+}
+
+export type ResumeProcessRunAgentPauseResponse =
+  ResumeProcessRunAgentPauseResponses[keyof ResumeProcessRunAgentPauseResponses]
+
+export type RetryProcessRunAgentPauseData = {
+  body: {
+    /**
+     * The app the person decided on — recorded on the decision.
+     */
+    decidedVia: 'web' | 'desktop' | 'mobile'
+    /**
+     * Why, in the person’s words — kept on the run with the decision.
+     */
+    note?: string
+  }
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}/agent-pause/retry'
+}
+
+export type RetryProcessRunAgentPauseErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type RetryProcessRunAgentPauseError =
+  RetryProcessRunAgentPauseErrors[keyof RetryProcessRunAgentPauseErrors]
+
+export type RetryProcessRunAgentPauseResponses = {
+  /**
+   * Default Response
+   */
+  200: ProcessRunView
+}
+
+export type RetryProcessRunAgentPauseResponse =
+  RetryProcessRunAgentPauseResponses[keyof RetryProcessRunAgentPauseResponses]
+
+export type StopProcessRunAgentPauseData = {
+  body: {
+    /**
+     * The app the person decided on — recorded on the decision.
+     */
+    decidedVia: 'web' | 'desktop' | 'mobile'
+    /**
+     * Why, in the person’s words — kept on the run with the decision.
+     */
+    note?: string
+  }
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}/agent-pause/stop'
+}
+
+export type StopProcessRunAgentPauseErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type StopProcessRunAgentPauseError =
+  StopProcessRunAgentPauseErrors[keyof StopProcessRunAgentPauseErrors]
+
+export type StopProcessRunAgentPauseResponses = {
+  /**
+   * Default Response
+   */
+  200: ProcessRunView
+}
+
+export type StopProcessRunAgentPauseResponse =
+  StopProcessRunAgentPauseResponses[keyof StopProcessRunAgentPauseResponses]
 
 export type ListProjectAgentTypesData = {
   body?: never
@@ -46245,6 +46898,170 @@ export type RetryProcessGroupPullRequestsResponses = {
 export type RetryProcessGroupPullRequestsResponse =
   RetryProcessGroupPullRequestsResponses[keyof RetryProcessGroupPullRequestsResponses]
 
+export type GetProcessGroupRunTicketUpdateData = {
+  body?: never
+  path: {
+    groupRunId: string
+  }
+  query?: never
+  url: '/api/v1/process-group-runs/{groupRunId}/ticket-update'
+}
+
+export type GetProcessGroupRunTicketUpdateErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type GetProcessGroupRunTicketUpdateError =
+  GetProcessGroupRunTicketUpdateErrors[keyof GetProcessGroupRunTicketUpdateErrors]
+
+export type GetProcessGroupRunTicketUpdateResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    /**
+     * The sign-off shows it: offered now, or posted already.
+     */
+    offered: boolean
+    /**
+     * The shared output’s label.
+     */
+    label?: string
+    /**
+     * The post, word for word, as it goes out.
+     */
+    text?: string
+    channel?: {
+      kind: 'channel' | 'thread'
+      /**
+       * The channel’s name, once Slack named it.
+       */
+      name?: string
+      /**
+       * The channel’s link, or the watched thread’s.
+       */
+      permalink: string
+    }
+    /**
+     * Why it cannot be posted now; empty when it can, or once it was.
+     */
+    problems: Array<string>
+    posted?: {
+      /**
+       * The conversation id it was posted in.
+       */
+      channel: string
+      ts: string
+      permalink: string
+      postedAt: string
+    }
+  }
+}
+
+export type GetProcessGroupRunTicketUpdateResponse =
+  GetProcessGroupRunTicketUpdateResponses[keyof GetProcessGroupRunTicketUpdateResponses]
+
+export type PostProcessGroupRunTicketUpdateData = {
+  body?: never
+  path: {
+    groupRunId: string
+  }
+  query?: never
+  url: '/api/v1/process-group-runs/{groupRunId}/ticket-update'
+}
+
+export type PostProcessGroupRunTicketUpdateErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  502: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type PostProcessGroupRunTicketUpdateError =
+  PostProcessGroupRunTicketUpdateErrors[keyof PostProcessGroupRunTicketUpdateErrors]
+
+export type PostProcessGroupRunTicketUpdateResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    /**
+     * The sign-off shows it: offered now, or posted already.
+     */
+    offered: boolean
+    /**
+     * The shared output’s label.
+     */
+    label?: string
+    /**
+     * The post, word for word, as it goes out.
+     */
+    text?: string
+    channel?: {
+      kind: 'channel' | 'thread'
+      /**
+       * The channel’s name, once Slack named it.
+       */
+      name?: string
+      /**
+       * The channel’s link, or the watched thread’s.
+       */
+      permalink: string
+    }
+    /**
+     * Why it cannot be posted now; empty when it can, or once it was.
+     */
+    problems: Array<string>
+    posted?: {
+      /**
+       * The conversation id it was posted in.
+       */
+      channel: string
+      ts: string
+      permalink: string
+      postedAt: string
+    }
+  }
+}
+
+export type PostProcessGroupRunTicketUpdateResponse =
+  PostProcessGroupRunTicketUpdateResponses[keyof PostProcessGroupRunTicketUpdateResponses]
+
 export type GetProcessGroupOutputData = {
   body?: never
   path: {
@@ -46843,6 +47660,339 @@ export type GetProcessRunTryBuildApkResponses = {
   200: unknown
 }
 
+export type GetProcessRunTestSessionData = {
+  body?: never
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}/test-session'
+}
+
+export type GetProcessRunTestSessionErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type GetProcessRunTestSessionError =
+  GetProcessRunTestSessionErrors[keyof GetProcessRunTestSessionErrors]
+
+export type GetProcessRunTestSessionResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    runId: string
+    /**
+     * What the session is for: the run’s group run when it is a leg of one, else the run.
+     */
+    key: string
+    /**
+     * Whether a session can be started: the run has work to serve and a serve stack.
+     */
+    offered: boolean
+    /**
+     * Why none can be started.
+     */
+    reason?: string
+    session?: {
+      key: string
+      runId: string
+      status: TestSessionStatus
+      startedAt: number
+      stoppedAt?: number
+      url?: string
+      parts: Array<TestSessionPart>
+      environment?: string
+      problem?: string
+      terms: Array<string>
+      log: TestSessionLog
+      proof: Array<TestSessionProof>
+      helper?: {
+        chatContext: ChatContext
+        chatContextId: string
+        status: TestSessionHelperStatus
+        problem?: string
+      }
+    }
+  }
+}
+
+export type GetProcessRunTestSessionResponse =
+  GetProcessRunTestSessionResponses[keyof GetProcessRunTestSessionResponses]
+
+export type StartProcessRunTestSessionData = {
+  body: {
+    /**
+     * The helper’s agent, as every launch picks it. Omitted: the usual one.
+     */
+    runner?: 'api' | 'cli'
+    /**
+     * The CLI picked for the helper.
+     */
+    cliTool?: string
+    /**
+     * The CLI’s model picked for the helper.
+     */
+    cliModel?: string
+    /**
+     * The CLI’s login picked.
+     */
+    cliCredentialId?: string
+    /**
+     * The effort picked for the helper.
+     */
+    effort?: string
+    /**
+     * Words of the change’s own log lines, beside the names of the files it changes.
+     */
+    watchFor?: Array<string>
+  }
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}/test-session/start'
+}
+
+export type StartProcessRunTestSessionErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type StartProcessRunTestSessionError =
+  StartProcessRunTestSessionErrors[keyof StartProcessRunTestSessionErrors]
+
+export type StartProcessRunTestSessionResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    runId: string
+    /**
+     * What the session is for: the run’s group run when it is a leg of one, else the run.
+     */
+    key: string
+    /**
+     * Whether a session can be started: the run has work to serve and a serve stack.
+     */
+    offered: boolean
+    /**
+     * Why none can be started.
+     */
+    reason?: string
+    session?: {
+      key: string
+      runId: string
+      status: TestSessionStatus
+      startedAt: number
+      stoppedAt?: number
+      url?: string
+      parts: Array<TestSessionPart>
+      environment?: string
+      problem?: string
+      terms: Array<string>
+      log: TestSessionLog
+      proof: Array<TestSessionProof>
+      helper?: {
+        chatContext: ChatContext
+        chatContextId: string
+        status: TestSessionHelperStatus
+        problem?: string
+      }
+    }
+  }
+}
+
+export type StartProcessRunTestSessionResponse =
+  StartProcessRunTestSessionResponses[keyof StartProcessRunTestSessionResponses]
+
+export type StopProcessRunTestSessionData = {
+  body?: never
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}/test-session/stop'
+}
+
+export type StopProcessRunTestSessionErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type StopProcessRunTestSessionError =
+  StopProcessRunTestSessionErrors[keyof StopProcessRunTestSessionErrors]
+
+export type StopProcessRunTestSessionResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    runId: string
+    /**
+     * What the session is for: the run’s group run when it is a leg of one, else the run.
+     */
+    key: string
+    /**
+     * Whether a session can be started: the run has work to serve and a serve stack.
+     */
+    offered: boolean
+    /**
+     * Why none can be started.
+     */
+    reason?: string
+    session?: {
+      key: string
+      runId: string
+      status: TestSessionStatus
+      startedAt: number
+      stoppedAt?: number
+      url?: string
+      parts: Array<TestSessionPart>
+      environment?: string
+      problem?: string
+      terms: Array<string>
+      log: TestSessionLog
+      proof: Array<TestSessionProof>
+      helper?: {
+        chatContext: ChatContext
+        chatContextId: string
+        status: TestSessionHelperStatus
+        problem?: string
+      }
+    }
+  }
+}
+
+export type StopProcessRunTestSessionResponse =
+  StopProcessRunTestSessionResponses[keyof StopProcessRunTestSessionResponses]
+
+export type AddProcessRunTestSessionProofData = {
+  body: {
+    items: Array<TestSessionProofInput>
+  }
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}/test-session/proof'
+}
+
+export type AddProcessRunTestSessionProofErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type AddProcessRunTestSessionProofError =
+  AddProcessRunTestSessionProofErrors[keyof AddProcessRunTestSessionProofErrors]
+
+export type AddProcessRunTestSessionProofResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    runId: string
+    /**
+     * What the session is for: the run’s group run when it is a leg of one, else the run.
+     */
+    key: string
+    /**
+     * Whether a session can be started: the run has work to serve and a serve stack.
+     */
+    offered: boolean
+    /**
+     * Why none can be started.
+     */
+    reason?: string
+    session?: {
+      key: string
+      runId: string
+      status: TestSessionStatus
+      startedAt: number
+      stoppedAt?: number
+      url?: string
+      parts: Array<TestSessionPart>
+      environment?: string
+      problem?: string
+      terms: Array<string>
+      log: TestSessionLog
+      proof: Array<TestSessionProof>
+      helper?: {
+        chatContext: ChatContext
+        chatContextId: string
+        status: TestSessionHelperStatus
+        problem?: string
+      }
+    }
+  }
+}
+
+export type AddProcessRunTestSessionProofResponse =
+  AddProcessRunTestSessionProofResponses[keyof AddProcessRunTestSessionProofResponses]
+
 export type AskScriptHostData = {
   body: ScriptAskRequest
   path?: never
@@ -47036,6 +48186,66 @@ export type ListReviewEvidenceResponses = {
 
 export type ListReviewEvidenceResponse =
   ListReviewEvidenceResponses[keyof ListReviewEvidenceResponses]
+
+export type ResolveReviewEvidenceData = {
+  body?: never
+  path?: never
+  query?: {
+    /**
+     * The item’s reference, `&<projectId>/evidence/<evidenceId>[@<seconds>]`; without its project it is read in `projectId`.
+     */
+    reference?: string
+    /**
+     * The project, for an `evidenceId` or a reference without one.
+     */
+    projectId?: string
+    /**
+     * The item, in place of a reference.
+     */
+    evidenceId?: string
+    /**
+     * A moment, in seconds into the recording, when the reference names none.
+     */
+    at?: number
+  }
+  url: '/api/v1/review-evidence/resolve'
+}
+
+export type ResolveReviewEvidenceErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type ResolveReviewEvidenceError =
+  ResolveReviewEvidenceErrors[keyof ResolveReviewEvidenceErrors]
+
+export type ResolveReviewEvidenceResponses = {
+  /**
+   * Default Response
+   */
+  200: ResolvedReviewEvidence
+}
+
+export type ResolveReviewEvidenceResponse =
+  ResolveReviewEvidenceResponses[keyof ResolveReviewEvidenceResponses]
 
 export type ListReviewEvidenceTextsData = {
   body: {
@@ -59436,6 +60646,100 @@ export type SetProjectDeviceAutomationResponses = {
 
 export type SetProjectDeviceAutomationResponse =
   SetProjectDeviceAutomationResponses[keyof SetProjectDeviceAutomationResponses]
+
+export type RevokeProjectCheckHostConsentData = {
+  body?: never
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/check-host-consent'
+}
+
+export type RevokeProjectCheckHostConsentErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type RevokeProjectCheckHostConsentError =
+  RevokeProjectCheckHostConsentErrors[keyof RevokeProjectCheckHostConsentErrors]
+
+export type RevokeProjectCheckHostConsentResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    allowed: boolean
+  }
+}
+
+export type RevokeProjectCheckHostConsentResponse =
+  RevokeProjectCheckHostConsentResponses[keyof RevokeProjectCheckHostConsentResponses]
+
+export type GetProjectCheckHostConsentData = {
+  body?: never
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/check-host-consent'
+}
+
+export type GetProjectCheckHostConsentErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type GetProjectCheckHostConsentError =
+  GetProjectCheckHostConsentErrors[keyof GetProjectCheckHostConsentErrors]
+
+export type GetProjectCheckHostConsentResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    allowed: boolean
+  }
+}
+
+export type GetProjectCheckHostConsentResponse =
+  GetProjectCheckHostConsentResponses[keyof GetProjectCheckHostConsentResponses]
 
 export type GetProjectServeSettingsData = {
   body?: never

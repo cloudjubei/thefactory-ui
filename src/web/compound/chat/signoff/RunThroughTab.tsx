@@ -2,6 +2,8 @@ import { useRef, useState } from 'react'
 import { formatVideoTime } from 'thefactory-tools/utils'
 
 import {
+  EVIDENCE_REFERENCE_COPY,
+  evidenceCitation,
   RUN_THROUGH_TEXT,
   runThroughTickPercent,
   useReviewEvidenceImage,
@@ -11,6 +13,7 @@ import {
 } from '../../../../headless'
 import { IconChevronRight, IconMonitor } from '../../../icons'
 import { REVIEW_TONE_BADGE, REVIEW_TONE_FILL, REVIEW_TONE_TEXT } from '../../process/signoff/tones'
+import { CopyButton } from '../../CopyButton'
 import EvidenceImageOverlay from '../EvidenceImageOverlay'
 import { WalkthroughRecording } from './WalkthroughTab'
 
@@ -150,20 +153,23 @@ function IssueDetail({
       <p className="m-0 text-[13px] leading-snug text-(--text-secondary)">{row.happened}</p>
       {line(RUN_THROUGH_TEXT.expected, row.expected)}
       {line(RUN_THROUGH_TEXT.doing, row.doing)}
-      {row.screenshot || row.view ? (
-        <div className="flex flex-wrap items-center gap-2 pt-0.5">
-          <Screenshot projectId={projectId} row={row} onOpen={onOpenShot} />
-          {row.view ? (
-            <span
-              title={row.view}
-              className="inline-flex h-6 max-w-full items-center gap-1.5 rounded-md border border-(--border-subtle) bg-(--surface-sunken) px-2 font-mono text-[12px] text-(--text-primary)"
-            >
-              <IconMonitor className="size-3 shrink-0 text-(--text-secondary)" />
-              <span className="truncate">{row.view}</span>
-            </span>
-          ) : null}
-        </div>
-      ) : null}
+      <div className="flex flex-wrap items-center gap-2 pt-0.5">
+        <Screenshot projectId={projectId} row={row} onOpen={onOpenShot} />
+        {row.view ? (
+          <span
+            title={row.view}
+            className="inline-flex h-6 max-w-full items-center gap-1.5 rounded-md border border-(--border-subtle) bg-(--surface-sunken) px-2 font-mono text-[12px] text-(--text-primary)"
+          >
+            <IconMonitor className="size-3 shrink-0 text-(--text-secondary)" />
+            <span className="truncate">{row.view}</span>
+          </span>
+        ) : null}
+        <CopyButton
+          text={evidenceCitation({ kind: 'evidence', projectId, evidenceId: row.key })}
+          label={EVIDENCE_REFERENCE_COPY.copyReference}
+          title={EVIDENCE_REFERENCE_COPY.copyReference}
+        />
+      </div>
     </div>
   )
 }

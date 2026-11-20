@@ -21,6 +21,7 @@ const FULL = {
   baseBranch: 'dev',
   prFirst: true,
   mergeMethod: 'squash' as const,
+  prTitleTemplate: '{ticket} {ticketTitle}',
 }
 
 const draft = (over: Partial<DeliveryFormDraft> = {}): DeliveryFormDraft => ({
@@ -64,6 +65,7 @@ describe('deliveryDraftOf', () => {
       baseBranch: 'dev',
       prFirst: 'on',
       mergeMethod: 'squash',
+      prTitleTemplate: '{ticket} {ticketTitle}',
     })
     expect(deliveryDraftOf({ prFirst: false }, 'project').prFirst).toBe('off')
   })
@@ -86,6 +88,7 @@ describe('deliverySettingsOfDraft', () => {
           baseBranch: ' dev ',
           prFirst: 'on',
           mergeMethod: 'squash',
+          prTitleTemplate: ' {ticket} {ticketTitle}  ',
         }),
         'group',
       ),
@@ -93,7 +96,9 @@ describe('deliverySettingsOfDraft', () => {
   })
 
   it('leaves out empty and inherited fields', () => {
-    expect(deliverySettingsOfDraft(draft({ branchTemplate: '   ' }), 'project')).toEqual({})
+    expect(
+      deliverySettingsOfDraft(draft({ branchTemplate: '   ', prTitleTemplate: ' ' }), 'project'),
+    ).toEqual({})
   })
 
   it('keeps a project’s off, which overrides its group, but not a group’s', () => {
@@ -104,7 +109,12 @@ describe('deliverySettingsOfDraft', () => {
   })
 
   it('reads back to the same form', () => {
-    const form = draft({ branchTemplate: 'pr/{runid8}', prFirst: 'off', mergeMethod: 'rebase' })
+    const form = draft({
+      branchTemplate: 'pr/{runid8}',
+      prFirst: 'off',
+      mergeMethod: 'rebase',
+      prTitleTemplate: '[{ticket}] {ticketTitle}',
+    })
     expect(deliveryDraftOf(deliverySettingsOfDraft(form, 'project'), 'project')).toEqual(form)
   })
 })
@@ -114,6 +124,7 @@ describe('sameDeliverySettings', () => {
     expect(sameDeliverySettings(FULL, { ...FULL })).toBe(true)
     expect(sameDeliverySettings(FULL, { ...FULL, baseBranch: 'main' })).toBe(false)
     expect(sameDeliverySettings({}, { prFirst: false })).toBe(false)
+    expect(sameDeliverySettings(FULL, { ...FULL, prTitleTemplate: '{ticket}' })).toBe(false)
   })
 })
 
@@ -132,6 +143,19 @@ describe('deliveryDraftProblems', () => {
     expect(deliveryDraftProblems(draft({ branchTemplate: 'f/{title}-{runid8}' }))).toEqual({
       branchTemplate: 'Uses {title}; only {ticket}, {short} and {runid8} are filled.',
     })
+  })
+
+  it('says why a title template cannot title pull requests, as a sentence', () => {
+    expect(deliveryDraftProblems(draft({ prTitleTemplate: 'Fix things' }))).toEqual({
+      prTitleTemplate: 'Must hold {ticket} or {ticketTitle}.',
+    })
+    expect(deliveryDraftProblems(draft({ prTitleTemplate: '{ticket} {summary}' }))).toEqual({
+      prTitleTemplate: 'Uses {summary}; only {ticket} and {ticketTitle} are filled.',
+    })
+    expect(deliveryDraftProblems(draft({ prTitleTemplate: '{ticket} }' }))).toEqual({
+      prTitleTemplate: 'Has a { or } outside a placeholder.',
+    })
+    expect(deliveryDraftProblems(draft({ prTitleTemplate: '{ticket}: {ticketTitle}' }))).toEqual({})
   })
 
   it('refuses a base branch git would not take', () => {
@@ -257,11 +281,39 @@ describe('deliverySettingsView', () => {
     expect(view.preview).toEqual({ branch: 'pr/0a1b2c3d' })
   })
 
+  it('previews a title template being typed, and says where a title comes from without one', () => {
+    const typed = deliverySettingsView(
+      groupInput({ draft: draft({ prFirst: 'off', prTitleTemplate: '{ticket} {ticketTitle}' }) }),
+    )
+    expect(typed).toMatchObject({
+      titlePlaceholder: DELIVERY_SETTINGS_COPY.titleNone,
+      titlePreview: 'ABC-123 Add dark mode',
+      dirty: true,
+      canSave: true,
+    })
+    expect(deliverySettingsView(groupInput()).titlePreview).toBe(DELIVERY_SETTINGS_COPY.titleNone)
+    const bad = deliverySettingsView(groupInput({ draft: draft({ prTitleTemplate: 'x' }) }))
+    expect(bad.canSave).toBe(false)
+    expect(bad.titlePreview).toBe(DELIVERY_SETTINGS_COPY.titleNone)
+  })
+
+  it('shows a project the title template its group gives, and previews its own over it', () => {
+    expect(deliverySettingsView(projectInput())).toMatchObject({
+      titlePlaceholder: '{ticket} {ticketTitle}',
+      titlePreview: 'ABC-123 Add dark mode',
+    })
+    const own = deliverySettingsView(
+      projectInput({ draft: draft({ prTitleTemplate: '[{ticket}]' }) }),
+    )
+    expect(own.titlePreview).toBe('[ABC-123]')
+  })
+
   it('takes nothing from a scope group', () => {
     const view = deliverySettingsView(
       projectInput({ mainGroup: { title: 'Scope', type: 'SCOPE', delivery: FULL } }),
     )
     expect(view.templatePlaceholder).toBe(DELIVERY_DEFAULT_BRANCH_TEMPLATE)
+    expect(view.titlePlaceholder).toBe(DELIVERY_SETTINGS_COPY.titleNone)
     expect(view.prFirstOptions[0]!.label).toBe(DELIVERY_SETTINGS_COPY.fromGroup('Off'))
     expect(view.mergeOptions[0]!.label).toBe(DELIVERY_SETTINGS_COPY.repoChoice)
   })

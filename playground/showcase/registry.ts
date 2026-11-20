@@ -67,6 +67,8 @@ import { PROVIDER_CONNECTION_FORM_SCENES } from '../scenes/providerConnectionFor
 import { SIGN_OFF_OUTPUT_SETTINGS_SCENES } from '../scenes/signOffOutputSettings'
 import { PR_FIRST_DELIVERY_SCENES } from '../scenes/prFirstDelivery'
 import { GROUP_LEG_PUBLISH_SCENES } from '../scenes/groupLegPublish'
+import { TICKET_UPDATE_SCENES } from '../scenes/ticketUpdate'
+import { NAMED_LANDING_SCENES } from '../scenes/namedLanding'
 import { TICKET_POST_SCENES } from '../scenes/ticketPost'
 import { TICKET_TRANSITION_SCENES } from '../scenes/ticketTransition'
 import { TICKET_STATUS_MOVE_SCENES } from '../scenes/ticketStatusMove'
@@ -92,6 +94,9 @@ import { REGENERATED_MERGE_SCENES } from '../scenes/regeneratedMerge'
 import { NEEDS_YOU_REFERENCE_SCENES } from '../scenes/needsYouReferences'
 import { RUN_ACCESS_SCENES } from '../scenes/runAccess'
 import { RUN_THROUGH_SCENES } from '../scenes/runThrough'
+import { EVIDENCE_LINK_SCENES } from '../scenes/evidenceLinks'
+import { AGENT_PAUSE_SCENES } from '../scenes/agentPause'
+import { TEST_WITH_ME_SCENES } from '../scenes/testWithMe'
 import { TRY_ON_PHONE_SCENES } from '../scenes/tryOnPhone'
 import { RUN_NEEDS_YOU_SCENES } from '../scenes/runNeedsYou'
 import { RUNNING_TONE_SCENES } from '../scenes/runningTone'
@@ -123,6 +128,7 @@ import { SHOWN_FILE_SCENES } from '../scenes/shownFiles'
 import { PROJECT_DEVICE_SETTINGS_SCENES } from '../scenes/projectDeviceSettings'
 import { PROJECT_SERVE_SETTINGS_SCENES } from '../scenes/projectServeSettings'
 import { BUILD_LIMIT_AFTER_SAVE_SCENES } from '../scenes/buildLimitAfterSave'
+import { PROJECT_CHECK_SETTINGS_SCENES } from '../scenes/projectCheckSettings'
 import { SIGNOFF_CHIP_SCENES } from '../scenes/signoffChips'
 import { WAITING_RETRY_NOTE_SCENES } from '../scenes/waitingRetryNote'
 import { VIDEO_SETTINGS_SCENES } from '../scenes/videoSettings'
@@ -195,6 +201,7 @@ export const SCENES: readonly Scene[] = [
   ...PROJECT_DEVICE_SETTINGS_SCENES,
   ...PROJECT_SERVE_SETTINGS_SCENES,
   ...BUILD_LIMIT_AFTER_SAVE_SCENES,
+  ...PROJECT_CHECK_SETTINGS_SCENES,
   ...CROSS_PROJECT_RESUME_SCENES,
   ...UI_IMPACT_SCENES,
   ...PARK_CLOSING_SCENES,
@@ -213,7 +220,10 @@ export const SCENES: readonly Scene[] = [
   ...REGENERATED_MERGE_SCENES,
   ...RUN_ACCESS_SCENES,
   ...RUN_THROUGH_SCENES,
+  ...EVIDENCE_LINK_SCENES,
+  ...AGENT_PAUSE_SCENES,
   ...TRY_ON_PHONE_SCENES,
+  ...TEST_WITH_ME_SCENES,
   ...RUN_NEEDS_YOU_SCENES,
   ...RUN_WAITS_FOR_SCENES,
   ...NEEDS_YOU_REFERENCE_SCENES,
@@ -231,6 +241,8 @@ export const SCENES: readonly Scene[] = [
   ...SIGN_OFF_OUTPUT_SETTINGS_SCENES,
   ...PR_FIRST_DELIVERY_SCENES,
   ...GROUP_LEG_PUBLISH_SCENES,
+  ...TICKET_UPDATE_SCENES,
+  ...NAMED_LANDING_SCENES,
   ...TICKET_POST_SCENES,
   ...TICKET_TRANSITION_SCENES,
   ...TICKET_STATUS_MOVE_SCENES,

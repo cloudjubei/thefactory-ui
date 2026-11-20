@@ -499,6 +499,30 @@ export {
 } from './utils/projectCheckEnv'
 export * from './utils/projectCheckEnvConstants'
 export type * from './utils/projectCheckEnvTypes'
+export {
+  projectCheckCommandsError,
+  projectCheckCommandsErrors,
+  projectCheckCommandsFrom,
+  projectCheckCommandsOf,
+} from './utils/projectCheckCommands'
+export * from './utils/projectCheckCommandsConstants'
+export type * from './utils/projectCheckCommandsTypes'
+export {
+  blankProjectGenerator,
+  projectGeneratorErrors,
+  projectGeneratorLines,
+  projectGeneratorsError,
+  projectGeneratorsOf,
+  withProjectGenerators,
+} from './utils/projectGenerators'
+export * from './utils/projectGeneratorsConstants'
+export {
+  projectGeneratorSourceProjects,
+  withoutProjectGeneratorAt,
+  withProjectGeneratorAt,
+  withProjectGeneratorInputFrom,
+} from './utils/projectGeneratorsEdit'
+export type * from './utils/projectGeneratorsTypes'
 export { projectMetadataCarried } from './utils/projectFormMetadata'
 export * from './utils/projectFormMetadataConstants'
 export {
@@ -972,6 +996,7 @@ export {
   developerChecksNote,
   latestProcessChecks,
   processCheckRows,
+  processChecksFormattedLine,
   processCheckWaitingView,
   withProcessChecks,
 } from './utils/processChecksView'
@@ -982,10 +1007,15 @@ export {
   CHECK_RAN_IN_LABELS,
   PROCESS_CHECK_ADVISORY_LABEL,
   PROCESS_CHECK_MARKS,
+  PROCESS_CHECK_SCOPE_DETAILS,
+  PROCESS_CHECK_SCOPE_FULL_BECAUSE,
+  PROCESS_CHECK_SCOPE_LABELS,
+  PROCESS_CHECKS_FORMATTED_LINE,
 } from './utils/processChecksViewConstants'
 export type {
   DeveloperChecksNote,
   ProcessCheckRow,
+  ProcessCheckScopeChip,
   ProcessCheckWaitingView,
   ProcessChecksResult,
 } from './utils/processChecksViewTypes'
@@ -3386,6 +3416,8 @@ export type {
 export {
   processAlreadyLandedOffer,
   processAlreadyOnBaseSignOff,
+  processNamedLandingConfirm,
+  processNamedLandingInput,
   processNothingToMergeSignOff,
 } from './utils/processAlreadyLanded'
 export {
@@ -3393,14 +3425,30 @@ export {
   PROCESS_ALREADY_LANDED_FEATURE_DONE,
   PROCESS_ALREADY_LANDED_FEATURE_STAYS,
   PROCESS_ALREADY_LANDED_FEATURES_HEAD,
+  PROCESS_NAMED_LANDING_COPY,
 } from './utils/processAlreadyLandedConstants'
 export type {
   ProcessAlreadyLandedOffer,
   ProcessAlreadyMergedAction,
   ProcessAlreadyOnBaseSignOff,
+  ProcessNamedLanding,
+  ProcessNamedLandingAction,
   ProcessNothingToMergeSignOff,
   ProcessRunLandingPreview,
 } from './utils/processAlreadyLandedTypes'
+export { ticketUpdateCard } from './utils/ticketUpdate'
+export { TICKET_UPDATE_COPY } from './utils/ticketUpdateConstants'
+export type {
+  TicketUpdateCardView,
+  TicketUpdateChannel,
+  TicketUpdateData,
+  TicketUpdatePhase,
+  TicketUpdatePosted,
+  TicketUpdateState,
+} from './utils/ticketUpdateTypes'
+export { TicketUpdateStore } from './hooks/ticketUpdateStore'
+export { useTicketUpdate, type UseTicketUpdate } from './hooks/useTicketUpdate'
+export { useProcessRunNamedLanding } from './hooks/useProcessRunNamedLanding'
 export {
   PROCESS_RETRY_MODE_DETAILS,
   PROCESS_RETRY_MODE_LABELS,
@@ -5414,6 +5462,38 @@ export type {
   ProcessTryBuildTone,
   ProcessTryBuildView,
 } from './utils/processTryBuildViewTypes'
+export { readTestSession, startTestSession, stopTestSession } from './api/testSessionApi'
+export { TestSessionStore } from './hooks/testSessionStore'
+export { useTestSession, type UseTestSession } from './hooks/useTestSession'
+export { testSessionDisplay } from './utils/testSessionView'
+export {
+  TEST_SESSION_COPY,
+  TEST_SESSION_EVENT,
+  TEST_SESSION_LINE_LABELS,
+  TEST_SESSION_SHOWN_LINES,
+  TEST_SESSION_STOP_CONFIRM_COPY,
+} from './utils/testSessionViewConstants'
+export type {
+  TestSession,
+  TestSessionAction,
+  TestSessionCount,
+  TestSessionDisplay,
+  TestSessionHelper,
+  TestSessionHelperRow,
+  TestSessionHelperStatus,
+  TestSessionLine,
+  TestSessionLineKind,
+  TestSessionLineRow,
+  TestSessionLog,
+  TestSessionPart,
+  TestSessionPending,
+  TestSessionProof,
+  TestSessionProofRow,
+  TestSessionState,
+  TestSessionStatus,
+  TestSessionTone,
+  TestSessionView,
+} from './utils/testSessionViewTypes'
 export { qrCodePath } from './utils/qrCodePath'
 export { QR_CODE_QUIET_MODULES } from './utils/qrCodePathConstants'
 export type { QrCodePath } from './utils/qrCodePathTypes'
@@ -5668,6 +5748,16 @@ export { reviewReplyBoxOffer, reviewReplySources } from './utils/reviewReply'
 export * from './utils/runThroughReport'
 export * from './utils/runThroughReportConstants'
 export type * from './utils/runThroughReportTypes'
+export * from './utils/evidenceReference'
+export * from './utils/evidenceReferenceConstants'
+export { EVIDENCE_MOMENT_LINK_PARAM } from './utils/evidenceLinkConstants'
+export type * from './utils/evidenceReferenceTypes'
+export { EvidenceReferenceStore, evidenceReferenceKey } from './hooks/evidenceReferenceStore'
+export { useEvidenceReference, type UseEvidenceReference } from './hooks/useEvidenceReference'
+export * from './utils/processAgentPause'
+export * from './utils/processAgentPauseConstants'
+export type * from './utils/processAgentPauseTypes'
+export { useAgentPauseDecision, type UseAgentPauseDecision } from './hooks/useAgentPauseDecision'
 export {
   boxBetween,
   canGoBack,

@@ -200,6 +200,26 @@ describe('answerFakeRequest', () => {
       error: expect.stringContaining("No fake story 's9'."),
     })
   })
+
+  it('answers a request the route cannot take as a bad request, naming the route', () => {
+    const routes: FakeRoute[] = [
+      {
+        method: 'GET',
+        path: '/api/v1/resolve',
+        answer: ({ invalid }) => invalid('Name the item.'),
+      },
+    ]
+    const { status, body } = answerFakeRequest(request({ pathname: '/api/v1/resolve' }), {
+      routes,
+      token: TOKEN,
+    })
+    expect(status).toBe(400)
+    expect(body).toMatchObject({
+      code: 'FAKE_BACKEND_BAD_REQUEST',
+      route: 'GET /api/v1/resolve',
+      error: expect.stringContaining('Name the item.'),
+    })
+  })
 })
 
 describe('readFakeBackendOptions', () => {

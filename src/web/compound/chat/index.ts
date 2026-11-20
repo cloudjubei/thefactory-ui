@@ -25,6 +25,10 @@ export {
   type EvidenceImageOverlayProps,
 } from './EvidenceImageOverlay'
 export {
+  default as EvidenceTargetOverlay,
+  type EvidenceTargetOverlayProps,
+} from './EvidenceTargetOverlay'
+export {
   default as CredentialCaptureCard,
   type CredentialCaptureCardProps,
 } from './CredentialCaptureCard'

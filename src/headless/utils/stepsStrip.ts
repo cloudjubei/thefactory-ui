@@ -3,6 +3,9 @@ import type { Feature, ProcessRun, ProcessRunStopHolder } from 'thefactory-tools
 import { processStepStates } from 'thefactory-tools/utils'
 
 import { processStepAcceptedUnchecked } from './processAcceptedUnchecked'
+import { processAgentPauseOf } from './processAgentPause'
+import { AGENT_PAUSE_COPY } from './processAgentPauseConstants'
+import type { ProcessRunWithPause } from './processAgentPauseTypes'
 import { processVariantHeading, processVariantSteps } from './processVariantView'
 import { PROCESS_VARIANT_COPY } from './processVariantViewConstants'
 import { processNodeBadge, processNodeState, processNodeTone } from './processView'
@@ -139,13 +142,15 @@ export function stepsStripView(
  * or will run again are upcoming. A retried step carries its attempt pill. The
  * step a run is stopped at reads as work going on while `stopHolder` says its
  * agent manager has the stop. A step carried on past although it was never
- * proven is done in the gold of "Accepted unchecked", saying who accepted it. Pure.
+ * proven is done in the gold of "Accepted unchecked", saying who accepted it.
+ * The step whose agent paused is current, marked paused, in "Needs you". Pure.
  */
 export function processRunStripEntries(
-  run: ProcessRun,
+  run: ProcessRun | ProcessRunWithPause,
   stopHolder?: ProcessRunStopHolder,
 ): StepsStripEntry[] {
   const parkStepId = run.park?.stepId
+  const pausedStepId = processAgentPauseOf(run)?.stepId
   const entries = processStepStates(run).map((state) => {
     const stopped = processNodeState(state, parkStepId)
     const nodeState = stopped === 'parked' && stopHolder === 'manager' ? 'working' : stopped
@@ -157,6 +162,15 @@ export function processRunStripEntries(
           : 'done'
     const attempt = processNodeBadge(state, run)
     const accepted = nodeState === 'accepted' ? processStepAcceptedUnchecked(state) : undefined
+    if (state.step.id === pausedStepId) {
+      return {
+        key: state.step.id,
+        label: `${state.step.name} · ${AGENT_PAUSE_COPY.stripMark}`,
+        phase: 'current' as const,
+        tone: 'on_hold' as const,
+        ...(attempt ? { attempt } : {}),
+      }
+    }
     return {
       key: state.step.id,
       label: state.step.name,

@@ -1,11 +1,16 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, type ReactNode } from 'react'
 import { Text, View } from 'react-native'
 
 import {
   evidenceDataUri,
   GROUP_SIGN_OFF_TEXT,
   signOffAttachmentFileName,
+  processRunChatContext,
+  TEST_SESSION_COPY,
   useGroupSignOff,
+  type LaunchModelChipSlot,
+  type ProcessRunChatOpened,
+  type RunModelChipSlot,
   useRunWalkthrough,
   type GroupSignOffAttachmentRow,
   type GroupSignOffRepoRow,
@@ -16,12 +21,18 @@ import { useNativeTheme } from '../../../hooks/useNativeTheme'
 import Alert from '../../../primitives/Alert'
 import type { SaveFileHandler } from '../../chat/signoff'
 import StorySignoffReview, { type StorySignoffExtraChip } from '../StorySignoffReview'
+import { GroupTicketUpdatePanel } from '../TicketUpdateCard'
 import GroupSignOff from './GroupSignOff'
+import TestWithMeCard from './TestWithMeCard'
 import LoomWalkthroughPanel from './LoomWalkthroughPanel'
 
 const ANY_FILE = 'application/octet-stream'
 
 export type GroupSignOffSectionProps = {
+  /** The host's model chip, for the agent "Test with me" starts its helper on. */
+  renderModelChip?: (slot: RunModelChipSlot) => ReactNode
+  /** Open a chat: where "Test with me"'s helper works. */
+  onOpenChat?: (opened: ProcessRunChatOpened) => void
   group: ProcessGroupRun
   onOpenLegRun: (runId: string, projectId: string) => void
   /** Puts a file where the user can reach it; downloads stay hidden without it. */
@@ -55,12 +66,15 @@ function RepoLoom({
 export default function GroupSignOffSection({
   group,
   onOpenLegRun,
+  renderModelChip,
+  onOpenChat,
   onSaveFile,
   onCopy,
   pickLoomVideo,
 }: GroupSignOffSectionProps) {
   const { theme } = useNativeTheme()
   const signOff = useGroupSignOff(group.id)
+  const testRepo = signOff.screen?.repos.find((repo) => repo.runId)
   const { screen, readAttachment } = signOff
   const storyOf = useMemo(() => new Map(group.legs.map((l) => [l.id, l.storyId])), [group.legs])
 
@@ -124,6 +138,14 @@ export default function GroupSignOffSection({
         {...(onCopy ? { onCopy } : {})}
         onOpenRun={onOpenLegRun}
         renderEvidence={renderEvidence}
+        ticketUpdate={
+          <GroupTicketUpdatePanel
+            groupRunId={group.id}
+            revision={`${group.updatedAt}:${signOff.outputs
+              .flatMap((output) => output.panel.sections.map((section) => section.text ?? ''))
+              .join('\u0000')}`}
+          />
+        }
         {...(screen.loomLeft > 0
           ? {
               loom: screen.repos.flatMap((repo) =>
@@ -134,6 +156,25 @@ export default function GroupSignOffSection({
             }
           : {})}
       />
+      {testRepo?.runId ? (
+        <TestWithMeCard
+          runId={testRepo.runId}
+          {...(renderModelChip
+            ? {
+                renderModelChip: (slot: LaunchModelChipSlot) =>
+                  renderModelChip({
+                    ...slot,
+                    chatContext: processRunChatContext({
+                      id: testRepo.runId!,
+                      projectId: testRepo.projectId,
+                    }),
+                    note: TEST_SESSION_COPY.chipNote,
+                  }),
+              }
+            : {})}
+          {...(onOpenChat ? { onOpenChat } : {})}
+        />
+      ) : null}
     </View>
   )
 }

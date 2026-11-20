@@ -39,6 +39,14 @@ export type ProcessCheckRow = {
   dependencyDetail: string | undefined
   /** "2 flaky" — tests that failed in the full run and passed alone, named on hover. */
   flaky: CheckFlakyChip | undefined
+  /** "related tests" / "whole suite" — which of a test command's tests ran, why on hover; unset when no scope was asked for. */
+  scope: ProcessCheckScopeChip | undefined
+}
+
+/** Which tests a unit test command ran, as its chip says it. */
+export type ProcessCheckScopeChip = {
+  label: string
+  detail: string
 }
 
 /** What a sign-off section says about the checks its developer ran before handing over. */

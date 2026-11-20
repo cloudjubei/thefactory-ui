@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react'
 import type { ReferenceDescription } from 'thefactory-tools/types'
+import type { EvidenceGlyph } from '../../../headless'
 import {
   IconAttach,
   IconBoard,
@@ -7,11 +8,14 @@ import {
   IconChat,
   IconDocument,
   IconEye,
+  IconEyeOff,
   IconFiles,
+  IconFlag,
   IconFolder,
   IconList,
   IconMonitor,
   IconPalette,
+  IconVideo,
   IconWorkflow,
 } from '../../icons'
 
@@ -37,4 +41,17 @@ const GLYPHS: Record<ReferenceDescription['kind'], Glyph> = {
 export function referenceGlyph(description: Pick<ReferenceDescription, 'kind' | 'label'>): Glyph {
   if (description.kind === 'file' && description.label.endsWith('/')) return IconFolder
   return GLYPHS[description.kind]
+}
+
+const EVIDENCE_GLYPHS: Record<EvidenceGlyph, Glyph> = {
+  screenshot: IconMonitor,
+  issue: IconFlag,
+  recording: IconVideo,
+  file: IconDocument,
+  gone: IconEyeOff,
+}
+
+/** The glyph an evidence chip shows: a screen, an issue's flag, a recording, or gone. */
+export function evidenceGlyph(glyph: EvidenceGlyph): Glyph {
+  return EVIDENCE_GLYPHS[glyph]
 }

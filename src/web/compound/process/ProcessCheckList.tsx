@@ -1,6 +1,7 @@
 import {
   PROCESS_CHECK_ADVISORY_LABEL,
   processCheckRows,
+  processChecksFormattedLine,
   processCheckWaitingView,
   useDurationTimer,
   type ProcessLedgerEntry,
@@ -9,7 +10,7 @@ import {
 
 export type ProcessCheckListProps = {
   step: Pick<ProcessStep, 'kind'>
-  latest: Pick<ProcessLedgerEntry, 'checks' | 'status' | 'queued'> | undefined
+  latest: Pick<ProcessLedgerEntry, 'checks' | 'status' | 'queued' | 'formatted'> | undefined
   /** A fixed clock for the waiting time; omitted ⇒ it ticks every second while the step waits. */
   now?: number
 }
@@ -19,7 +20,9 @@ export type ProcessCheckListProps = {
  * type check, lint, format, unit tests — with how it came out, whether it was
  * only advisory, where it ran (sandbox or host, with the reason on hover), the
  * code outside the checkout it built against, whether its failure already fails at
- * the change's base, and how long it took. While the step waits its turn behind
+ * the change's base, which unit tests ran — those related to the change, or the
+ * whole suite and why — and how long it took; then what it formatted and
+ * committed with the work after its format check failed. While the step waits its turn behind
  * another check run of the project, that wait and how long it has lasted.
  * Nothing for any other step.
  */
@@ -28,6 +31,7 @@ export default function ProcessCheckList({ step, latest, now }: ProcessCheckList
   const ticking = useDurationTimer(waitingNow && now === undefined)
   const waiting = processCheckWaitingView({ step, ...(latest ? { latest } : {}) }, now ?? ticking)
   const rows = processCheckRows({ step, ...(latest ? { latest } : {}) })
+  const formatted = processChecksFormattedLine({ step, ...(latest ? { latest } : {}) })
   if (waiting) {
     return (
       <p
@@ -63,6 +67,14 @@ export default function ProcessCheckList({ step, latest, now }: ProcessCheckList
           </span>
           {row.testCountLabel ? (
             <span className="shrink-0 text-(--text-secondary)">— {row.testCountLabel}</span>
+          ) : null}
+          {row.scope ? (
+            <span
+              className="shrink-0 rounded-full border border-(--border-strong) px-1.5 text-[10px] text-(--text-secondary)"
+              title={row.scope.detail}
+            >
+              {row.scope.label}
+            </span>
           ) : null}
           {row.advisory ? (
             <span className="shrink-0 rounded-full border border-dashed border-(--border-strong) px-1.5 text-[10px] text-(--text-secondary)">
@@ -108,6 +120,7 @@ export default function ProcessCheckList({ step, latest, now }: ProcessCheckList
           ) : null}
         </li>
       ))}
+      {formatted ? <li className="pl-5 text-[12px] text-(--text-secondary)">{formatted}</li> : null}
     </ul>
   )
 }

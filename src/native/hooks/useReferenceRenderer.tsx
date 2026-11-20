@@ -12,6 +12,7 @@ import {
   storyChipLabel,
 } from '../../headless/utils/referenceTargets'
 import DesignReferenceChip from '../compound/design/DesignReferenceChip'
+import EvidenceReferenceChip from '../compound/chips/EvidenceReferenceChip'
 import type { UikitFileMeta } from '../compound/files/FileDisplay'
 import ProjectFileChip from '../compound/files/ProjectFileChip'
 
@@ -19,7 +20,8 @@ import ProjectFileChip from '../compound/files/ProjectFileChip'
  * Native peer of web's `useReferenceRenderer`: each thing a chat's messages
  * point at as a {@link ReferenceChip} that opens it — a process run as a live
  * {@link RunReferenceChip}, one of its "Needs you" items as a live
- * {@link NeedsYouReferenceChip} — a design screen or item
+ * {@link NeedsYouReferenceChip}, a cited evidence item as a live
+ * {@link EvidenceReferenceChip} that opens it in place — a design screen or item
  * as a {@link DesignReferenceChip}, whose long press shows its miniature. A
  * file the project has (`onResolveFile`) is a {@link ProjectFileChip}, whose
  * sheet opens it in Files or previews it; a file it does not have reads as
@@ -77,6 +79,9 @@ export function useReferenceRenderer({
             {...(onOpen ? { onOpen } : {})}
           />
         )
+      }
+      if (description?.link?.kind === 'evidence') {
+        return <EvidenceReferenceChip link={description.link} {...(onOpen ? { onOpen } : {})} />
       }
       if (description?.kind === 'design' && description.link?.kind === 'design') {
         return (

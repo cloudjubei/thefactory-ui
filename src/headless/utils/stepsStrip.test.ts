@@ -186,6 +186,31 @@ describe('stepsStripView — steps accepted unchecked', () => {
 })
 
 describe('processRunStripEntries', () => {
+  it('marks the step whose agent paused as paused, needing the person', () => {
+    const r = {
+      ...run({
+        cursor: { stepId: 'verify' } as ProcessRun['cursor'],
+        ledger: [entry('impl'), entry('verify', { status: 'running', outcome: undefined })],
+      }),
+      agentPause: {
+        stepId: 'verify',
+        entryId: 'verify#1',
+        runner: 'cli' as const,
+        cause: 'asleep' as const,
+        reason: 'Asleep.',
+        since: 1,
+        canResume: true,
+        actions: ['resume' as const],
+      },
+    }
+    expect(processRunStripEntries(r).map((e) => [e.key, e.label, e.phase, e.tone])).toEqual([
+      ['impl', 'Implement', 'done', 'done'],
+      ['verify', 'Verify · paused', 'current', 'on_hold'],
+      ['signoff', 'Sign-off', 'upcoming', 'queued'],
+      ['cleanup', 'Cleanup', 'upcoming', 'queued'],
+    ])
+  })
+
   it('draws a step carried on past unproven as done in gold, saying who accepted it', () => {
     const r = run({
       status: 'parked',

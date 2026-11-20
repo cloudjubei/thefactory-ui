@@ -8,6 +8,7 @@ import {
   developerChecksNote,
   latestProcessChecks,
   processCheckRows,
+  processChecksFormattedLine,
   processCheckWaitingView,
   verificationStatusOf,
   withProcessChecks,
@@ -16,6 +17,10 @@ import {
   DEVELOPER_RAN_NO_CHECKS,
   PROCESS_CHECK_ADVISORY_TONE,
   PROCESS_CHECK_MARKS,
+  PROCESS_CHECK_SCOPE_DETAILS,
+  PROCESS_CHECK_SCOPE_FULL_BECAUSE,
+  PROCESS_CHECK_SCOPE_LABELS,
+  PROCESS_CHECKS_FORMATTED_LINE,
 } from './processChecksViewConstants'
 
 function result(over: Partial<VerificationCheckResult> = {}): VerificationCheckResult {
@@ -184,6 +189,36 @@ describe('verificationStatusOf', () => {
 
 describe('processCheckRows', () => {
   const checkStep = { kind: 'check' as const }
+
+  it('shows which unit tests ran: those related to the change, or the whole suite and why', () => {
+    const rows = processCheckRows({
+      step: checkStep,
+      latest: entry({
+        checks: [
+          result({ id: 'test', category: 'test', testScope: 'related' }),
+          result({ id: 'test:2', category: 'test', testScope: 'full' }),
+          result({
+            id: 'test:3',
+            category: 'test',
+            testScope: 'full',
+            testScopeReason: 'the change touches package.json, which every test may read',
+          }),
+          result({}),
+        ],
+      }),
+    })
+    expect(rows.map((row) => row.scope)).toEqual([
+      { label: PROCESS_CHECK_SCOPE_LABELS.related, detail: PROCESS_CHECK_SCOPE_DETAILS.related },
+      { label: PROCESS_CHECK_SCOPE_LABELS.full, detail: PROCESS_CHECK_SCOPE_DETAILS.full },
+      {
+        label: PROCESS_CHECK_SCOPE_LABELS.full,
+        detail: PROCESS_CHECK_SCOPE_FULL_BECAUSE(
+          'the change touches package.json, which every test may read',
+        ),
+      },
+      undefined,
+    ])
+  })
 
   it('says how many tests a test command ran', () => {
     const [row] = processCheckRows({
@@ -525,5 +560,27 @@ describe('processCheckWaitingView', () => {
     ).toBeUndefined()
     expect(processCheckWaitingView({ step: { kind: 'agent' }, latest: waiting }, 1)).toBeUndefined()
     expect(processCheckWaitingView({ step: checkStep }, 1)).toBeUndefined()
+  })
+})
+
+describe('processChecksFormattedLine', () => {
+  it('says what the checks formatted and the commit that holds it', () => {
+    expect(
+      processChecksFormattedLine({
+        step: { kind: 'check' },
+        latest: { formatted: { files: ['src/a.ts', 'src/b.ts'], sha: 'abc1234def' } },
+      }),
+    ).toBe(PROCESS_CHECKS_FORMATTED_LINE(['src/a.ts', 'src/b.ts'], 'abc1234'))
+  })
+
+  it('says nothing for checks that formatted nothing, or any other step', () => {
+    expect(processChecksFormattedLine({ step: { kind: 'check' }, latest: {} })).toBeUndefined()
+    expect(processChecksFormattedLine({ step: { kind: 'check' } })).toBeUndefined()
+    expect(
+      processChecksFormattedLine({
+        step: { kind: 'agent' },
+        latest: { formatted: { files: ['a.ts'], sha: 'abc1234' } },
+      }),
+    ).toBeUndefined()
   })
 })

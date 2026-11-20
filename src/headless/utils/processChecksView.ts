@@ -29,12 +29,17 @@ import {
   PROCESS_CHECK_FLAGGED_MARK,
   PROCESS_CHECK_FLAGGED_WORD,
   PROCESS_CHECK_MARKS,
+  PROCESS_CHECK_SCOPE_DETAILS,
+  PROCESS_CHECK_SCOPE_FULL_BECAUSE,
+  PROCESS_CHECK_SCOPE_LABELS,
   PROCESS_CHECK_TONES,
   PROCESS_CHECK_WORDS,
+  PROCESS_CHECKS_FORMATTED_LINE,
 } from './processChecksViewConstants'
 import type {
   DeveloperChecksNote,
   ProcessCheckRow,
+  ProcessCheckScopeChip,
   ProcessChecksResult,
   ProcessCheckWaitingView,
 } from './processChecksViewTypes'
@@ -162,8 +167,37 @@ export function processCheckRows(state: {
       baselineDetail: checkBaselineLine(check),
       dependencyDetail: dependencyRevisionsLine(check.dependencyRevisions),
       flaky: checkFlakyChip(check),
+      scope: checkScopeChip(check),
     }
   })
+}
+
+/** Which tests a test command ran, as its chip; none when no scope was asked for. Pure. */
+function checkScopeChip(
+  check: Pick<VerificationCheckResult, 'testScope' | 'testScopeReason'>,
+): ProcessCheckScopeChip | undefined {
+  if (!check.testScope) return undefined
+  return {
+    label: PROCESS_CHECK_SCOPE_LABELS[check.testScope],
+    detail:
+      check.testScope === 'full' && check.testScopeReason
+        ? PROCESS_CHECK_SCOPE_FULL_BECAUSE(check.testScopeReason)
+        : PROCESS_CHECK_SCOPE_DETAILS[check.testScope],
+  }
+}
+
+/**
+ * The line under a checks step whose newest attempt formatted the files the
+ * change touched and committed them with the work; none for any other step,
+ * or an attempt that formatted nothing. Pure.
+ */
+export function processChecksFormattedLine(state: {
+  step: Pick<ProcessPlanStep, 'kind'>
+  latest?: Pick<ProcessLedgerEntry, 'formatted'>
+}): string | undefined {
+  const formatted = state.latest?.formatted
+  if (state.step.kind !== 'check' || !formatted || formatted.files.length === 0) return undefined
+  return PROCESS_CHECKS_FORMATTED_LINE(formatted.files, formatted.sha.slice(0, 7))
 }
 
 /**

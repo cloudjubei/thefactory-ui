@@ -4,6 +4,7 @@ import type { DeliveryFormDraft } from './deliverySettingsTypes'
 /** A sample run the branch template is previewed with. */
 export const DELIVERY_PREVIEW_SAMPLE = {
   ticket: 'ABC-123',
+  ticketTitle: 'Add dark mode',
   short: 'add dark mode',
   runId: '0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d',
 } as const
@@ -13,6 +14,7 @@ export const DELIVERY_EMPTY_DRAFT: DeliveryFormDraft = {
   baseBranch: '',
   prFirst: 'inherit',
   mergeMethod: 'inherit',
+  prTitleTemplate: '',
 }
 
 export const DELIVERY_MERGE_METHOD_LABELS: Record<DeliveryMergeMethod, string> = {
@@ -38,6 +40,9 @@ export const DELIVERY_SETTINGS_COPY = {
   prFirstField: 'Pull request first',
   prFirstHint:
     'Publish one commit with a pull request before sign-off. Accept then merges that pull request.',
+  titleField: 'PR title',
+  titleHint: 'Use {ticket} and {ticketTitle}.',
+  titleNone: 'The PR Text’s title, else the story’s',
   mergeField: 'Merge method',
   mergeHint: 'How Accept merges the pull request.',
   repoChoice: 'Repo’s choice',

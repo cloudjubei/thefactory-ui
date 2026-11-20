@@ -1,5 +1,8 @@
 import type { ProcessInput, ProcessRun, ReviewEvidenceRef } from 'thefactory-tools/types'
 
+import type { GetProcessRunEvidenceResponse } from '../../headless/api/generated/types.gen'
+
+import { FAKE_EVIDENCE_IDS, type FakeEvidenceName } from './evidenceIdsConstants'
 import { FAKE_PROJECT_ID } from './projects'
 import {
   FAKE_SCRIPT_LOG_LABEL,
@@ -178,12 +181,12 @@ export const FAKE_SCRIPT_LOGS: Readonly<Record<FakeScriptStepState, string>> = {
   'take-overs': logText([...SIGN_IN, ...SETTINGS_PAST_TAKE_OVERS, ...SIGN_OUT]),
 }
 
-const LOG_ID = (state: FakeScriptStepState): string => `step-log-${state}`
+const LOG_ID = (state: FakeScriptStepState): FakeEvidenceName => `step-log-${state}`
 
 /** What a filed step log's text reads, by evidence id. */
 export const FAKE_SCRIPT_TEXTS: Readonly<Record<string, string>> = Object.fromEntries(
   (Object.keys(FAKE_SCRIPT_LOGS) as FakeScriptStepState[]).map((state) => [
-    LOG_ID(state),
+    FAKE_EVIDENCE_IDS[LOG_ID(state)],
     FAKE_SCRIPT_LOGS[state],
   ]),
 )
@@ -256,11 +259,11 @@ export function fakeScriptRun(state: FakeScriptStepState): ProcessRun {
   } as unknown as ProcessRun
 }
 
-const filed = (id: string, over: Partial<ReviewEvidenceRef>): ReviewEvidenceRef =>
+const filed = (name: FakeEvidenceName, over: Partial<ReviewEvidenceRef>): ReviewEvidenceRef =>
   ({
-    id,
+    id: FAKE_EVIDENCE_IDS[name],
     kind: 'recording',
-    path: `${id}.webm`,
+    path: `${name}.webm`,
     mediaType: 'video/webm',
     createdAt: 9,
     runId: FAKE_SCRIPT_RUN_ID,
@@ -269,7 +272,7 @@ const filed = (id: string, over: Partial<ReviewEvidenceRef>): ReviewEvidenceRef 
   }) as ReviewEvidenceRef
 
 /** What `GET /process-runs/:runId/evidence` answers for the script step's run. */
-export function fakeScriptEvidence(state: FakeScriptStepState) {
+export function fakeScriptEvidence(state: FakeScriptStepState): GetProcessRunEvidenceResponse {
   return {
     runId: FAKE_SCRIPT_RUN_ID,
     groups: [

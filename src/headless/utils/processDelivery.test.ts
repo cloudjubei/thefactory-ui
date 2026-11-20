@@ -257,6 +257,20 @@ describe('processPublishView', () => {
     ])
   })
 
+  it('carries each repo’s notices under it, and none where it has none', () => {
+    const notices = [
+      'The short name “fonts” is one word; a branch says the work in 2–4 words.',
+      'PR Text: The “How to test” section is missing.',
+    ]
+    const view = processPublishView(
+      { repos: [repo({ notices }), repo({ projectId: 'api', name: 'API', notices: [] })] },
+      {},
+      { publishing: false },
+    )
+    expect(view.rows.map((r) => r.notices)).toEqual([notices, undefined])
+    expect(view.canPublish).toBe(true)
+  })
+
   it('follows the short name as it is typed', () => {
     const view = processPublishView(
       data(repo()),

@@ -3,6 +3,7 @@ import { Text, View } from 'react-native'
 import {
   PROCESS_CHECK_ADVISORY_LABEL,
   processCheckRows,
+  processChecksFormattedLine,
   processCheckWaitingView,
   useDurationTimer,
   type ProcessLedgerEntry,
@@ -12,7 +13,7 @@ import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 export type ProcessCheckListProps = {
   step: Pick<ProcessStep, 'kind'>
-  latest: Pick<ProcessLedgerEntry, 'checks' | 'status' | 'queued'> | undefined
+  latest: Pick<ProcessLedgerEntry, 'checks' | 'status' | 'queued' | 'formatted'> | undefined
   /** A fixed clock for the waiting time; omitted ⇒ it ticks every second while the step waits. */
   now?: number
 }
@@ -22,7 +23,9 @@ export type ProcessCheckListProps = {
  * command its newest attempt ran, how it came out, whether it was only
  * advisory, where it ran (sandbox or host, with the reason read aloud), the code
  * outside the checkout it built against, whether its failure already fails at
- * the change's base, and how long it took. While the step waits its turn behind
+ * the change's base, which unit tests ran (related to the change, or the whole
+ * suite and why, read aloud), and how long it took; then what it formatted and
+ * committed with the work after its format check failed. While the step waits its turn behind
  * another check run of the project, that wait and how long it has lasted.
  * Nothing for any other step.
  */
@@ -32,6 +35,7 @@ export default function ProcessCheckList({ step, latest, now }: ProcessCheckList
   const ticking = useDurationTimer(waitingNow && now === undefined)
   const waiting = processCheckWaitingView({ step, ...(latest ? { latest } : {}) }, now ?? ticking)
   const rows = processCheckRows({ step, ...(latest ? { latest } : {}) })
+  const formatted = processChecksFormattedLine({ step, ...(latest ? { latest } : {}) })
   if (waiting) {
     return (
       <View
@@ -66,6 +70,7 @@ export default function ProcessCheckList({ step, latest, now }: ProcessCheckList
               row.label,
               row.word,
               row.testCountLabel,
+              row.scope?.detail,
               row.advisory ? PROCESS_CHECK_ADVISORY_LABEL : undefined,
               row.ranInDetail,
               row.dependencyDetail,
@@ -104,6 +109,18 @@ export default function ProcessCheckList({ step, latest, now }: ProcessCheckList
               <Text style={{ fontSize: 12, color: theme.text.secondary }}>
                 {`— ${row.testCountLabel}`}
               </Text>
+            ) : null}
+            {row.scope ? (
+              <View
+                style={{
+                  borderColor: theme.border.strong,
+                  borderWidth: 1,
+                  borderRadius: 999,
+                  paddingHorizontal: 5,
+                }}
+              >
+                <Text style={{ fontSize: 10, color: theme.text.secondary }}>{row.scope.label}</Text>
+              </View>
             ) : null}
             {row.advisory ? (
               <View
@@ -180,6 +197,11 @@ export default function ProcessCheckList({ step, latest, now }: ProcessCheckList
           </View>
         )
       })}
+      {formatted ? (
+        <Text style={{ paddingLeft: 18, fontSize: 12, color: theme.text.secondary }}>
+          {formatted}
+        </Text>
+      ) : null}
     </View>
   )
 }

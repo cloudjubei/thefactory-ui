@@ -106,6 +106,7 @@ import {
   WalkthroughTab,
 } from '../chat/signoff'
 import ProjectFlakesList from './ProjectFlakesList'
+import ProjectGeneratorsList from './ProjectGeneratorsList'
 import DependencyBullet from '../stories/DependencyBullet'
 import FeatureReviewSection from './FeatureReviewSection'
 import SupersededFilings from './SupersededFilings'
@@ -122,6 +123,7 @@ import SignoffDecisionList from './signoff/SignoffDecisionList'
 import SignoffReportPanel from './signoff/SignoffReportPanel'
 import StorySpecCard from './signoff/StorySpecCard'
 import { RunTicketPostNote } from './signoff/TicketPostNote'
+import { RunTicketUpdatePanel } from './TicketUpdateCard'
 import { PROCESS_TONE_BADGE, REVIEW_TONE_BADGE } from './signoff/tones'
 
 /** A group leg that cannot merge yet, and the way to its group run. */
@@ -802,6 +804,9 @@ function StorySignoffPanel({
                 branch={undefined}
                 busyId={undefined}
               />
+              {projectChecks?.generators ? (
+                <ProjectGeneratorsList generators={projectChecks.generators} />
+              ) : null}
             </div>
           ) : current?.target.tab === 'code-review' && storyReview ? (
             <div className="pt-3">
@@ -905,6 +910,12 @@ function StorySignoffPanel({
             onRequestImage={evidence.requestImage}
           />
           {canDecide ? <RunTicketPostNote runId={storyRunId} /> : null}
+          {canDecide ? (
+            <RunTicketUpdatePanel
+              runId={storyRunId}
+              revision={evidence.refs.map((ref) => ref.id).join(',')}
+            />
+          ) : null}
         </div>
 
         {integration}

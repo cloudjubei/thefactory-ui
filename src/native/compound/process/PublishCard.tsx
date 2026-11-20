@@ -105,6 +105,28 @@ function RepoRow({
           {PROCESS_PUBLISH_COPY.noChanges}
         </Text>
       )}
+      {row.notices ? (
+        <View
+          accessibilityLabel={PROCESS_PUBLISH_COPY.notices}
+          style={{
+            gap: 4,
+            padding: nativeSpace[2],
+            borderRadius: nativeRadii[2],
+            borderWidth: 1,
+            borderColor: status.on_hold.softBorder,
+            backgroundColor: status.on_hold.softBg,
+          }}
+        >
+          {row.notices.map((notice) => (
+            <Text
+              key={notice}
+              style={{ fontSize: 12, lineHeight: 17, color: status.on_hold.softFg }}
+            >
+              {notice}
+            </Text>
+          ))}
+        </View>
+      ) : null}
     </View>
   )
 }

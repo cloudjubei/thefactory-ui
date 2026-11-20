@@ -5,8 +5,10 @@ import {
 } from 'thefactory-tools/constants'
 import {
   deliveryBranchTemplateErrors,
+  deliveryPrTitleTemplateErrors,
   isGitBranchName,
   processPublishBranchName,
+  processPublishPullRequestTitle,
   resolveDeliverySettings,
 } from 'thefactory-tools/utils'
 import { validateDeliverySettings } from 'thefactory-tools/validations'
@@ -59,6 +61,7 @@ export function deliveryDraftOf(
     baseBranch: setting?.baseBranch ?? '',
     prFirst,
     mergeMethod: setting?.mergeMethod ?? 'inherit',
+    prTitleTemplate: setting?.prTitleTemplate ?? '',
   }
 }
 
@@ -72,6 +75,7 @@ export function deliverySettingsOfDraft(
 ): DeliverySettings {
   const branchTemplate = draft.branchTemplate.trim()
   const baseBranch = draft.baseBranch.trim()
+  const prTitleTemplate = draft.prTitleTemplate.trim()
   const prFirst =
     draft.prFirst === 'on'
       ? true
@@ -83,6 +87,7 @@ export function deliverySettingsOfDraft(
     ...(baseBranch ? { baseBranch } : {}),
     ...(prFirst !== undefined ? { prFirst } : {}),
     ...(draft.mergeMethod !== 'inherit' ? { mergeMethod: draft.mergeMethod } : {}),
+    ...(prTitleTemplate ? { prTitleTemplate } : {}),
   }
 }
 
@@ -92,18 +97,33 @@ const sentence = (text: string): string => text.charAt(0).toUpperCase() + text.s
 export function deliveryDraftProblems(draft: DeliveryFormDraft): DeliveryDraftProblems {
   const template = draft.branchTemplate.trim()
   const base = draft.baseBranch.trim()
+  const title = draft.prTitleTemplate.trim()
   const templateErrors = template ? deliveryBranchTemplateErrors(template) : []
+  const titleErrors = title ? deliveryPrTitleTemplateErrors(title) : []
   return {
     ...(templateErrors.length > 0
       ? { branchTemplate: sentence(templateErrors[0]!.replace(/^branchTemplate /, '')) }
       : {}),
     ...(base && !isGitBranchName(base) ? { baseBranch: DELIVERY_SETTINGS_COPY.badBase } : {}),
+    ...(titleErrors.length > 0
+      ? { prTitleTemplate: sentence(titleErrors[0]!.replace(/^prTitleTemplate /, '')) }
+      : {}),
   }
 }
 
 /** The branch name `template` makes for a sample run, or why it makes none. */
 export function deliveryBranchPreview(template: string): DeliveryBranchPreview {
   return processPublishBranchName(template, DELIVERY_PREVIEW_SAMPLE)
+}
+
+/** The title `template` makes for a sample ticket, or where a title comes from when it makes none. */
+function deliveryTitlePreview(template: string | undefined): string {
+  return (
+    processPublishPullRequestTitle(template, {
+      key: DELIVERY_PREVIEW_SAMPLE.ticket,
+      title: DELIVERY_PREVIEW_SAMPLE.ticketTitle,
+    }) ?? DELIVERY_SETTINGS_COPY.titleNone
+  )
 }
 
 const onOff = (on: boolean) => (on ? DELIVERY_SETTINGS_COPY.on : DELIVERY_SETTINGS_COPY.off)
@@ -158,7 +178,8 @@ export function sameDeliverySettings(a: DeliverySettings, b: DeliverySettings): 
     a.branchTemplate === b.branchTemplate &&
     a.baseBranch === b.baseBranch &&
     a.prFirst === b.prFirst &&
-    a.mergeMethod === b.mergeMethod
+    a.mergeMethod === b.mergeMethod &&
+    a.prTitleTemplate === b.prTitleTemplate
   )
 }
 
@@ -190,6 +211,8 @@ export function deliverySettingsView(input: DeliverySettingsInput): DeliverySett
     templatePlaceholder: inherited.branchTemplate ?? DELIVERY_DEFAULT_BRANCH_TEMPLATE,
     basePlaceholder: inherited.baseBranch ?? DELIVERY_SETTINGS_COPY.baseOwnRun,
     preview: deliveryBranchPreview(effective.branchTemplate),
+    titlePlaceholder: inherited.prTitleTemplate ?? DELIVERY_SETTINGS_COPY.titleNone,
+    titlePreview: deliveryTitlePreview(effective.prTitleTemplate),
     problems,
     prFirstOptions: prFirstOptions(input, inherited),
     mergeOptions: mergeOptions(input, inherited),

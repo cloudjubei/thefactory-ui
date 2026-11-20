@@ -2,6 +2,9 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { fakeBackendRoutes } from './fakeBackendRoutes'
 import { answerFakeRequest, matchFakeRoute } from './fakeBackendUtils'
+import { FAKE_CHATS } from './fixtures/chats'
+import { FAKE_PROJECT_ID } from './fixtures/projects'
+import { FAKE_RUN_THROUGH_RUN_ID } from './fixtures/runThroughRun'
 import { STORY } from './fixtures/stories'
 import { FAKE_VARIANT_RUN_ID } from './fixtures/variantRun'
 
@@ -68,6 +71,71 @@ describe('fakeBackendRoutes', () => {
     const evidence = get(`/api/v1/process-runs/${FAKE_VARIANT_RUN_ID}/evidence`)
     expect((evidence.body as { groups: unknown[] }).groups).toHaveLength(4)
     expect(get('/api/v1/process-runs/other/evidence').body).toEqual({ runId: 'other', groups: [] })
+  })
+
+  it('resolves an item a run filed, as a chip or the evidence page asks for it', () => {
+    const evidence = get(`/api/v1/process-runs/${FAKE_VARIANT_RUN_ID}/evidence`).body as {
+      groups: { evidence: { id: string }[] }[]
+    }
+    const filedId = evidence.groups[1]!.evidence[0]!.id
+    const { status, body } = get(
+      '/api/v1/review-evidence/resolve',
+      `projectId=${FAKE_PROJECT_ID}&evidenceId=${filedId}&at=90`,
+    )
+    expect(status).toBe(200)
+    expect(body).toMatchObject({
+      evidenceId: filedId,
+      reference: `&${FAKE_PROJECT_ID}/evidence/${filedId}@90`,
+      media: { kind: 'video', url: expect.stringMatching(/^data:video\//) },
+    })
+  })
+
+  it('refuses a target that is not one, and answers an item never filed as gone', () => {
+    const resolve = (search: string) => get('/api/v1/review-evidence/resolve', search).status
+    expect(resolve(`projectId=${FAKE_PROJECT_ID}`)).toBe(400)
+    expect(resolve('reference=%23thefactory-tools/story-1')).toBe(400)
+    expect(resolve(`projectId=${FAKE_PROJECT_ID}&evidenceId=gone`)).toBe(404)
+    expect(
+      resolve(`reference=%26${FAKE_PROJECT_ID}/evidence/0b6f5a52-6c1e-4d0c-9a51-3f2f6a1d9e10`),
+    ).toBe(404)
+  })
+
+  it('answers a tester’s run-through, and the issues it flagged by run', () => {
+    expect(get(`/api/v1/process-runs/${FAKE_RUN_THROUGH_RUN_ID}`).status).toBe(200)
+    const evidence = get(`/api/v1/process-runs/${FAKE_RUN_THROUGH_RUN_ID}/evidence`).body as {
+      groups: { evidence: { issue?: { severity: string } }[] }[]
+    }
+    const severities = evidence.groups[0]!.evidence.flatMap((ref) =>
+      ref.issue ? [ref.issue.severity] : [],
+    )
+    expect(severities).toEqual(['blocker', 'major', 'minor'])
+  })
+
+  it('lists a project’s evidence by run, so a chip reads what an issue says', () => {
+    const listed = (search: string, projectId = FAKE_PROJECT_ID) =>
+      get(`/api/v1/projects/${projectId}/review-evidence`, search)
+    const { status, body } = listed(`runId=${FAKE_RUN_THROUGH_RUN_ID}`)
+    expect(status).toBe(200)
+    expect(
+      (body as { issue?: { happened: string } }[]).map((ref) => ref.issue?.happened),
+    ).toContain('Tapping Create account left the form as it was, with no message.')
+    expect(listed('', 'no-such-project').status).toBe(404)
+  })
+
+  it('resolves every evidence reference a stored chat cites: a screenshot, an issue and a moment', () => {
+    const cited = FAKE_CHATS.flatMap((chat) => chat.messages ?? []).flatMap((message) => [
+      ...String(message.content).matchAll(/`(&[^`]+\/evidence\/[^`]+)`/g),
+    ])
+    const resolved = cited.map(([, reference]) =>
+      get('/api/v1/review-evidence/resolve', `reference=${encodeURIComponent(reference!)}`),
+    )
+    expect(resolved.map(({ status }) => status)).toEqual(cited.map(() => 200))
+    const items = resolved.map(
+      ({ body }) => body as { kind: string; severity?: string; at?: number },
+    )
+    expect(items.some((item) => item.kind === 'screenshot' && !item.severity)).toBe(true)
+    expect(items.some((item) => item.severity)).toBe(true)
+    expect(items.some((item) => item.kind === 'recording' && item.at !== undefined)).toBe(true)
   })
 
   it('offers the process that starts from a form', () => {
@@ -326,7 +394,7 @@ describe('fakeBackendRoutes', () => {
 
   it('answers the summary of a stored chat', () => {
     const context = { type: 'PROJECT', projectId: 'thefactory-tools' }
-    expect(post('/api/v1/chats/summary', { context }).body).toMatchObject({ messageCount: 2 })
+    expect(post('/api/v1/chats/summary', { context }).body).toMatchObject({ messageCount: 4 })
   })
 
   it('answers a summary of a chat never stored as not found, as a client drops it', () => {

@@ -265,6 +265,8 @@ export interface SignOffOutputPanelView {
   label: string
   perRepo: boolean
   sections: SignOffOutputSectionView[]
+  /** The repos, by name, whose open pull request's link a shared post lacks. */
+  missingPullRequests: string[]
 }
 
 /** An output as a chip beside Report, Tests and Build. */

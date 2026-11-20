@@ -60,6 +60,17 @@ export function SignOffOutputText({ segments }: { segments: readonly SignOffText
   )
 }
 
+function MissingLinks({ names }: { names: readonly string[] }) {
+  const { status } = useNativeTheme()
+  if (names.length === 0) return null
+  return (
+    <Text style={{ fontSize: 12, color: status.on_hold.softFg }}>
+      <Text style={{ fontWeight: '600' }}>{SIGN_OFF_OUTPUT_TEXT.missingLinks}</Text>{' '}
+      {names.join(', ')}
+    </Text>
+  )
+}
+
 function CopyAction({ text, onCopy }: { text: string; onCopy: SignOffOutputPanelProps['onCopy'] }) {
   if (!onCopy) return null
   return (
@@ -246,6 +257,7 @@ export default function SignOffOutputPanel({
     const shown = sections.find((s) => s.key === picked) ?? sections[0]!
     return (
       <View style={{ gap: nativeSpace[3] }}>
+        <MissingLinks names={view.missingPullRequests} />
         <SegmentedControl
           size="sm"
           ariaLabel={view.label}
@@ -259,6 +271,7 @@ export default function SignOffOutputPanel({
   }
   return (
     <View style={{ gap: nativeSpace[4] }}>
+      <MissingLinks names={view.missingPullRequests} />
       {sections.map((section) => (
         <Section
           key={section.key}

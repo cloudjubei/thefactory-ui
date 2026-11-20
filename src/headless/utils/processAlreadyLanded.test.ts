@@ -6,8 +6,11 @@ import {
   processAlreadyLandedAsked,
   processAlreadyLandedOffer,
   processAlreadyOnBaseSignOff,
+  processNamedLandingConfirm,
+  processNamedLandingInput,
   processNothingToMergeSignOff,
 } from './processAlreadyLanded'
+import { PROCESS_NAMED_LANDING_COPY } from './processAlreadyLandedConstants'
 
 const SHA = '1d1ed0a8841681a62be9ccb503bffaee08dedbd8'
 const landedBy = { commit: SHA, subject: 'notes' }
@@ -146,5 +149,45 @@ describe('processNothingToMergeSignOff', () => {
 
   it('stands aside while there is work to merge', () => {
     expect(processNothingToMergeSignOff(branch, undefined)).toBeUndefined()
+  })
+})
+
+describe('processNamedLandingInput', () => {
+  it('reads a link as the pull request that brought the work in', () => {
+    expect(processNamedLandingInput('  https://github.com/acme/api/pull/394 ')).toEqual({
+      pullRequestUrl: 'https://github.com/acme/api/pull/394',
+    })
+    expect(processNamedLandingInput('http://git.local/acme/web/pull/3')).toEqual({
+      pullRequestUrl: 'http://git.local/acme/web/pull/3',
+    })
+  })
+
+  it('reads anything else of one word as the commit on the base', () => {
+    expect(processNamedLandingInput('3e4fcebd')).toEqual({ commit: '3e4fcebd' })
+    expect(processNamedLandingInput(` ${SHA}\n`)).toEqual({ commit: SHA })
+    expect(processNamedLandingInput('origin/dev~2')).toEqual({ commit: 'origin/dev~2' })
+  })
+
+  it('reads nothing from an empty field, and refuses more than one thing', () => {
+    expect(processNamedLandingInput('   ')).toBeUndefined()
+    for (const text of ['3e4f 2fbb', 'https://github.com/a/b/pull/1 3e4fcebd']) {
+      expect(processNamedLandingInput(text)).toEqual({ error: PROCESS_NAMED_LANDING_COPY.notOne })
+    }
+  })
+})
+
+describe('processNamedLandingConfirm', () => {
+  it('says what finishing by a link or a commit records, and that nothing is merged', () => {
+    const url = 'https://github.com/acme/api/pull/394'
+    expect(processNamedLandingConfirm({ pullRequestUrl: url })).toBe(
+      PROCESS_NAMED_LANDING_COPY.confirmByLink(url),
+    )
+    expect(processNamedLandingConfirm({ commit: SHA })).toBe(
+      PROCESS_NAMED_LANDING_COPY.confirmByCommit(SHA.slice(0, 8)),
+    )
+    expect(processNamedLandingConfirm({ commit: 'origin/dev~2' })).toBe(
+      PROCESS_NAMED_LANDING_COPY.confirmByCommit('origin/dev~2'),
+    )
+    expect(PROCESS_NAMED_LANDING_COPY.confirmByCommit('x')).toMatch(/Nothing is merged or pushed/)
   })
 })

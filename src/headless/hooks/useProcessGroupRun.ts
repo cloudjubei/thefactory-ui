@@ -68,7 +68,7 @@ export type UseProcessGroupRun = {
  */
 export function useProcessGroupRun(groupRunId: string | undefined): UseProcessGroupRun {
   const { token } = useAuth()
-  const { ws } = useApi()
+  const { ws, client } = useApi()
   const [group, setGroup] = useState<ProcessGroupRun | undefined>(undefined)
   const [isLoaded, setIsLoaded] = useState(false)
   const [loadError, setLoadError] = useState<Error | null>(null)
@@ -181,7 +181,7 @@ export function useProcessGroupRun(groupRunId: string | undefined): UseProcessGr
       try {
         const { data } = await markProcessGroupLegLanded({
           path: { groupRunId, legId },
-          body: claim,
+          body: { ...claim, decidedVia: client },
           throwOnError: true,
         })
         setGroup(data as ProcessGroupRun)
@@ -191,7 +191,7 @@ export function useProcessGroupRun(groupRunId: string | undefined): UseProcessGr
         return false
       }
     },
-    [groupRunId],
+    [groupRunId, client],
   )
 
   const planRebuild = useCallback(

@@ -110,6 +110,32 @@ export default function DeliverySettingsPanel({
             />
           </Field>
           <Field
+            label={DELIVERY_SETTINGS_COPY.titleField}
+            hint={DELIVERY_SETTINGS_COPY.titleHint}
+            error={view.problems.prTitleTemplate}
+          >
+            <Input
+              value={draft.prTitleTemplate}
+              disabled={!view.editable}
+              placeholder={view.titlePlaceholder}
+              autoCapitalize="none"
+              autoCorrect={false}
+              accessibilityLabel={DELIVERY_SETTINGS_COPY.titleField}
+              onChangeText={(prTitleTemplate) => onChange({ ...draft, prTitleTemplate })}
+            />
+          </Field>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}>
+            <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+              {DELIVERY_SETTINGS_COPY.previewLabel}
+            </Text>
+            <Text
+              numberOfLines={1}
+              style={{ flexShrink: 1, fontSize: 12, color: theme.text.primary }}
+            >
+              {view.titlePreview}
+            </Text>
+          </View>
+          <Field
             label={DELIVERY_SETTINGS_COPY.prFirstField}
             hint={DELIVERY_SETTINGS_COPY.prFirstHint}
           >

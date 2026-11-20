@@ -20,6 +20,8 @@ import {
   resolveProcessRunIntegrationConflict,
   resolveProcessRunNeedsYouItem,
   resumeProcessRun,
+  resumeProcessRunAgentPause,
+  retryProcessRunAgentPause,
   retryProcessRunIntegration,
   reviveProcessRun,
   sendProcessRunBackForChanges,
@@ -27,6 +29,7 @@ import {
   setProcessRunModel,
   setProcessRunTurnLimit,
   startProcessRunChanges,
+  stopProcessRunAgentPause,
   stopProcessRunWaiting,
   waitProcessRunAgain,
   withdrawProcessRunChange,
@@ -47,6 +50,8 @@ import { reviewGateResumeBody } from '../utils/colleagueReviewDecision'
 import { processWaitActionBody } from '../utils/processRunWait'
 import type { ProcessWaitPending } from '../utils/processRunWaitTypes'
 import type { ReviewGateAnswer } from '../utils/colleagueReviewDecisionTypes'
+import { AGENT_PAUSE_COPY } from '../utils/processAgentPauseConstants'
+import type { AgentPauseAction, ProcessRunWithPause } from '../utils/processAgentPauseTypes'
 
 /** A review branch a run tree owns — shown in the delete confirm's list. */
 export type ProcessRunBranch = { projectId: string; branch: string }
@@ -70,7 +75,8 @@ export type UseProcessRun = {
   loadError: Error | null
   /** Why the last answer or stop was refused — shown on the run, cleared by the next one. */
   actionError: string | null
-  run: ProcessRun | undefined
+  /** The run as its run view gives it, with its paused agent when one is. */
+  run: ProcessRunWithPause | undefined
   refresh: () => Promise<void>
   /**
    * Answer the park this run is sitting on — an approval of a work branch says
@@ -197,7 +203,19 @@ export type UseProcessRun = {
    * `actionError`. A second press while one is on its way does nothing.
    */
   decideWait: (action: ProcessWaitAction, note?: string) => Promise<boolean>
+  /**
+   * Answer a step's paused agent: resume its session, retry the step with a new
+   * agent, or stop the run. Resolves `false` when it was refused; the reason is
+   * in `actionError`.
+   */
+  decideAgentPause: (action: AgentPauseAction, note?: string) => Promise<boolean>
 }
+
+const AGENT_PAUSE_ROUTES = {
+  resume: resumeProcessRunAgentPause,
+  retry: retryProcessRunAgentPause,
+  stop: stopProcessRunAgentPause,
+} as const
 
 const WAIT_ROUTES = {
   'continue-now': continueProcessRunWaitNow,
@@ -211,16 +229,16 @@ function integrationBody({ mode, ...landing }: ProcessIntegrationDecision) {
 }
 
 /** The run this instance holds, for the id it was read for. */
-type HeldRun = { runId: string | undefined; run: ProcessRun | undefined; settled: boolean }
+type HeldRun = { runId: string | undefined; run: ProcessRunWithPause | undefined; settled: boolean }
 
 /** Reads of a run under way, by id: every card and chip showing one run shares a single request. */
-const readsInFlight = new Map<string, Promise<ProcessRun>>()
+const readsInFlight = new Map<string, Promise<ProcessRunWithPause>>()
 
-function readProcessRunShared(runId: string): Promise<ProcessRun> {
+function readProcessRunShared(runId: string): Promise<ProcessRunWithPause> {
   const inFlight = readsInFlight.get(runId)
   if (inFlight) return inFlight
   const read = getProcessRun({ path: { runId }, throwOnError: true })
-    .then(({ data }) => data as ProcessRun)
+    .then(({ data }) => data as ProcessRunWithPause)
     .finally(() => readsInFlight.delete(runId))
   readsInFlight.set(runId, read)
   return read
@@ -254,7 +272,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
   const isLoaded = current.settled
 
   const setRun = useCallback(
-    (next: ProcessRun) => setHeld({ runId, run: next, settled: true }),
+    (next: ProcessRunWithPause) => setHeld({ runId, run: next, settled: true }),
     [runId],
   )
 
@@ -290,7 +308,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
   useEffect(() => {
     if (!runId) return
     const offUpdate = ws.on('process:run-update', (data: unknown) => {
-      const update = data as { runId?: string; run?: ProcessRun; deleted?: boolean }
+      const update = data as { runId?: string; run?: ProcessRunWithPause; deleted?: boolean }
       if (update?.runId !== runId) return
       if (update.run) {
         setRun(update.run)
@@ -705,6 +723,26 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
     [runId, client, setRun, waitPending],
   )
 
+  const decideAgentPause = useCallback(
+    async (action: AgentPauseAction, note?: string) => {
+      if (!runId) return false
+      setActionError(null)
+      try {
+        const { data } = await AGENT_PAUSE_ROUTES[action]({
+          path: { runId },
+          body: { decidedVia: client, ...(note ? { note } : {}) },
+          throwOnError: true,
+        })
+        setRun(data as ProcessRunWithPause)
+        return true
+      } catch (err) {
+        setActionError(extractErrorMessage(err, AGENT_PAUSE_COPY.failed[action]))
+        return false
+      }
+    },
+    [runId, client, setRun],
+  )
+
   const deleteRun = useCallback(
     async (opts?: { deleteBranches?: boolean }) => {
       if (!runId) return undefined
@@ -750,6 +788,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       deleteRun,
       waitPending,
       decideWait,
+      decideAgentPause,
     }),
     [
       isLoaded,
@@ -781,6 +820,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       deleteRun,
       waitPending,
       decideWait,
+      decideAgentPause,
     ],
   )
 }
