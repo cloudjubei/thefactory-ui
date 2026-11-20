@@ -1,30 +1,32 @@
 import { useEffect, useRef, useState } from 'react'
+import type { AppNote } from 'thefactory-ui/headless'
 import { ChatInput, ProjectAppView } from 'thefactory-ui/web'
-// Fixture-owned controlled data: this scene must also build over the pre-feature base.
-// Never import a head-only product hook into a before/after comparison fixture.
-type AppSelection = {
-  id: string
-  projectId: string
-  selector: string
-  outerHtml: string
-  comment: string
-}
 import type { Scene } from '../showcase/types'
 
-export const SAMPLE_APP_SELECTIONS: AppSelection[] = [
+export const SAMPLE_APP_NOTES: AppNote[] = [
   {
-    id: 'app-selection-1',
+    id: 'app-note-1',
     projectId: 'sample',
-    selector: '#renewal',
-    outerHtml: '<p id="renewal">Renews November 20</p>',
     comment: 'Make the renewal date easier to find.',
+    targets: [
+      {
+        kind: 'element',
+        selector: '#renewal',
+        outerHtml: '<p id="renewal">Renews November 20</p>',
+      },
+    ],
   },
   {
-    id: 'app-selection-2',
+    id: 'app-note-2',
     projectId: 'sample',
-    selector: '[data-testid="upgrade"]',
-    outerHtml: '<button data-testid="upgrade">Upgrade</button>',
     comment: 'Explain what is included before this action.',
+    targets: [
+      {
+        kind: 'element',
+        selector: '[data-testid="upgrade"]',
+        outerHtml: '<button data-testid="upgrade">Upgrade</button>',
+      },
+    ],
   },
 ]
 
@@ -33,9 +35,7 @@ export const SAMPLE_APP_SELECTIONS: AppSelection[] = [
 const PAGE = `<!doctype html><html><body style="font:16px system-ui;padding:72px 20px;background:#f4f5f7;color:#17202a"><h2>Workspace plan</h2><p id="renewal">Renews November 20</p><button data-testid="upgrade">Upgrade</button><script>let active=false;addEventListener('message',e=>{if(e.data?.type==='overseer:pick.set')active=e.data.payload.active});addEventListener('click',e=>{if(!active)return;e.preventDefault();e.stopImmediatePropagation();const el=e.target;parent.postMessage({type:'overseer:pick.selected',payload:{selector:el.id?'#'+el.id:el.hasAttribute('data-testid')?'[data-testid="'+el.getAttribute('data-testid')+'"]':el.tagName.toLowerCase(),outerHtml:el.outerHTML}},'*')},true)</script></body></html>`
 
 function Demo({ populated = false }: { populated?: boolean }) {
-  const [appSelections, setAppSelections] = useState<AppSelection[]>(
-    populated ? SAMPLE_APP_SELECTIONS : [],
-  )
+  const [appNotes, setAppNotes] = useState<AppNote[]>(populated ? SAMPLE_APP_NOTES : [])
   const nextPickId = useRef(0)
   const [picking, setPicking] = useState(false)
   const [url, setUrl] = useState<string>()
@@ -54,9 +54,14 @@ function Demo({ populated = false }: { populated?: boolean }) {
         onExitPickMode={() => setPicking(false)}
         onElementPick={(pick) => {
           const id = `pick-${++nextPickId.current}`
-          setAppSelections((current) => [
+          setAppNotes((current) => [
             ...current,
-            { ...pick, id, projectId: 'sample', comment: '' },
+            {
+              id,
+              projectId: 'sample',
+              comment: '',
+              targets: [{ kind: 'element', selector: pick.selector, outerHtml: pick.outerHtml }],
+            },
           ])
         }}
         style={{ height: 300 }}
@@ -64,10 +69,10 @@ function Demo({ populated = false }: { populated?: boolean }) {
       <ChatInput
         value={text}
         onChange={setText}
-        appSelections={appSelections}
-        onChangeAppSelections={setAppSelections}
+        appNotes={appNotes}
+        onChangeAppNotes={setAppNotes}
         onShowApp={() => setPicking(true)}
-        onSend={(_, __, meta) => setSent(JSON.stringify(meta?.appSelections ?? []))}
+        onSend={(_, __, meta) => setSent(JSON.stringify(meta?.appNotes ?? []))}
         clearOnSend
         leftHints={null}
         rightHints={null}
@@ -84,7 +89,7 @@ function Demo({ populated = false }: { populated?: boolean }) {
   )
 }
 
-export const APP_SELECTION_SCENES: Scene[] = [
+export const APP_NOTE_SCENES: Scene[] = [
   {
     id: 'app-selections',
     title: 'Show app and comment on elements',

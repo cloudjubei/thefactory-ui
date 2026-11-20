@@ -1211,6 +1211,10 @@ export type CliNativeSessionDispatch = {
   resumePrompt?: string
 }
 
+export type WaitingChatTurn = {
+  stopped: boolean
+}
+
 export type BeginApiChatTurnOptions = {
   userMessage: boolean
 }
@@ -1661,6 +1665,71 @@ export type CompletionImage = {
   url?: string
 }
 
+export type ChatAppNoteRect = {
+  x: number
+  y: number
+  width: number
+  height: number
+  space: 'app-viewport'
+}
+
+export type ChatAppElementDetails = {
+  tag?: string
+  id?: string
+  classes?: Array<string>
+  text?: string
+  styles?: {
+    [key: string]: string
+  }
+  component?: {
+    name: string
+    stack?: Array<string>
+  }
+}
+
+export type ChatAppNoteTarget =
+  | {
+      kind: 'element'
+      selector: string
+      outerHtml: string
+      rect?: {
+        x: number
+        y: number
+        width: number
+        height: number
+        space: 'app-viewport'
+      }
+      details?: {
+        tag?: string
+        id?: string
+        classes?: Array<string>
+        text?: string
+        styles?: {
+          [key: string]: string
+        }
+        component?: {
+          name: string
+          stack?: Array<string>
+        }
+      }
+    }
+  | {
+      kind: 'area'
+      rect: ChatAppNoteRect
+    }
+
+export type ChatAppNote = {
+  id: string
+  projectId: string
+  view?: string
+  params?: {
+    [key: string]: string
+  }
+  comment: string
+  targets: Array<ChatAppNoteTarget>
+  screenshotFile?: string
+}
+
 export type ChatBackgroundJobResult = {
   jobId: string
   toolName: string
@@ -1709,25 +1778,7 @@ export type CompletionUserMessage = {
   files?: Array<string>
   videoMarks?: Array<VideoMarkedMoment>
   images?: Array<CompletionImage>
-  appSelections?: Array<{
-    id: string
-    projectId: string
-    view?: string
-    params?: {
-      [key: string]: string
-    }
-    comment: string
-    selector: string
-    outerHtml: string
-    rect?: {
-      x: number
-      y: number
-      width: number
-      height: number
-      space: 'app-viewport'
-    }
-    screenshotFile?: string
-  }>
+  appNotes?: Array<ChatAppNote>
   handoffFrom?: string
   backgroundResults?: Array<ChatBackgroundJobResult>
   restartedAfter?: {
@@ -2854,6 +2905,10 @@ export type ToolName =
   | 'uiTestGetNetwork'
   | 'uiTestMeasure'
   | 'uiTestFillForm'
+  | 'uiTestDrag'
+  | 'uiTestClickAt'
+  | 'uiTestHoverAt'
+  | 'uiTestWheelAt'
   | 'uiTestHover'
   | 'uiTestSelectOption'
   | 'uiTestScroll'
@@ -3282,6 +3337,12 @@ export type ResourceLink =
       projectId: string
       processId: string
     }
+  | {
+      kind: 'evidence'
+      projectId: string
+      evidenceId: string
+      at?: number
+    }
 
 export type ChatSettings = {
   systemPrompt: string
@@ -3402,25 +3463,7 @@ export type Chat = {
     processRunParkedAt?: number
     processGroupRunId?: string
     handoffFrom?: string
-    appSelections?: Array<{
-      id: string
-      projectId: string
-      view?: string
-      params?: {
-        [key: string]: string
-      }
-      comment: string
-      selector: string
-      outerHtml: string
-      rect?: {
-        x: number
-        y: number
-        width: number
-        height: number
-        space: 'app-viewport'
-      }
-      screenshotFile?: string
-    }>
+    appNotes?: Array<ChatAppNote>
     videoMarks?: Array<VideoMarkedMoment>
     answersHandoffFrom?: string
     backgroundResults?: Array<{
@@ -3584,71 +3627,6 @@ export type ChatSummary = {
   needsYouTimes: Array<string | unknown>
 }
 
-export type ChatAppNoteRect = {
-  x: number
-  y: number
-  width: number
-  height: number
-  space: 'app-viewport'
-}
-
-export type ChatAppElementDetails = {
-  tag?: string
-  id?: string
-  classes?: Array<string>
-  text?: string
-  styles?: {
-    [key: string]: string
-  }
-  component?: {
-    name: string
-    stack?: Array<string>
-  }
-}
-
-export type ChatAppNoteTarget =
-  | {
-      kind: 'element'
-      selector: string
-      outerHtml: string
-      rect?: {
-        x: number
-        y: number
-        width: number
-        height: number
-        space: 'app-viewport'
-      }
-      details?: {
-        tag?: string
-        id?: string
-        classes?: Array<string>
-        text?: string
-        styles?: {
-          [key: string]: string
-        }
-        component?: {
-          name: string
-          stack?: Array<string>
-        }
-      }
-    }
-  | {
-      kind: 'area'
-      rect: ChatAppNoteRect
-    }
-
-export type ChatAppNote = {
-  id: string
-  projectId: string
-  view?: string
-  params?: {
-    [key: string]: string
-  }
-  comment: string
-  targets: Array<ChatAppNoteTarget>
-  screenshotFile?: string
-}
-
 export type ChatAudienceMessage = {
   role?: string
   handoffFrom?: string
@@ -3728,25 +3706,7 @@ export type ChatCreateInput = {
     processRunParkedAt?: number
     processGroupRunId?: string
     handoffFrom?: string
-    appSelections?: Array<{
-      id: string
-      projectId: string
-      view?: string
-      params?: {
-        [key: string]: string
-      }
-      comment: string
-      selector: string
-      outerHtml: string
-      rect?: {
-        x: number
-        y: number
-        width: number
-        height: number
-        space: 'app-viewport'
-      }
-      screenshotFile?: string
-    }>
+    appNotes?: Array<ChatAppNote>
     videoMarks?: Array<VideoMarkedMoment>
     answersHandoffFrom?: string
     backgroundResults?: Array<{
@@ -3876,25 +3836,7 @@ export type ChatEditInput = {
     processRunParkedAt?: number
     processGroupRunId?: string
     handoffFrom?: string
-    appSelections?: Array<{
-      id: string
-      projectId: string
-      view?: string
-      params?: {
-        [key: string]: string
-      }
-      comment: string
-      selector: string
-      outerHtml: string
-      rect?: {
-        x: number
-        y: number
-        width: number
-        height: number
-        space: 'app-viewport'
-      }
-      screenshotFile?: string
-    }>
+    appNotes?: Array<ChatAppNote>
     videoMarks?: Array<VideoMarkedMoment>
     answersHandoffFrom?: string
     backgroundResults?: Array<{
@@ -4586,6 +4528,7 @@ export type ProjectRegistryMetadata = {
     start?: UiStackStartCommand | UiStackStartRequest
     buildTimeoutMs?: number
   }
+  serveBuildTimeoutMs?: number
   templateProvenance?: {
     templateId: string
     commit: string
@@ -4657,6 +4600,7 @@ export type ProjectRegistryEntry = {
       start?: UiStackStartCommand | UiStackStartRequest
       buildTimeoutMs?: number
     }
+    serveBuildTimeoutMs?: number
     templateProvenance?: {
       templateId: string
       commit: string
@@ -8307,6 +8251,7 @@ export type ColleagueReviewOffer = {
   messageTs: string
   permalink: string
   author: string
+  authorId?: string
   postedAt: string
   text: string
   attachments: Array<ColleagueReviewOfferAttachment>
@@ -8346,6 +8291,12 @@ export type ColleagueReviewSourceState = {
   updatedAt: string
 }
 
+export type ColleagueReviewCheckRequirement = {
+  repository: string
+  check: string
+  required: boolean
+}
+
 export type ColleagueReviewSourceSettings = {
   skipTicketStatuses: Array<string>
   startReaction?: string
@@ -8364,11 +8315,7 @@ export type SetColleagueReviewSettingsInput = {
   runChecksUnasked?: boolean
   defaultMode?: 'inline' | 'process'
   mergedTicketStatus?: string | unknown
-  checkRequirements?: Array<{
-    repository: string
-    check: string
-    required: boolean
-  }>
+  checkRequirements?: Array<ColleagueReviewCheckRequirement>
 }
 
 export type ColleagueReviewSettingsSet = {
@@ -13441,6 +13388,75 @@ export type ShadowGitState =
       created: boolean
     }
 
+export type GitPathEntry = {
+  mode: string
+  oid: string
+}
+
+export type GitAdvanceChangedPath = {
+  path: string
+  base?: {
+    mode: string
+    oid: string
+  }
+  theirs?: {
+    mode: string
+    oid: string
+  }
+}
+
+export type GitIndexEntry = GitPathEntry & {
+  stage: number
+}
+
+export type GitHeldPathSides = GitAdvanceChangedPath & {
+  index: Array<GitIndexEntry>
+  worktree:
+    | {
+        kind: 'file'
+        oid: string
+      }
+    | {
+        kind: 'absent'
+      }
+    | {
+        kind: 'other'
+      }
+}
+
+export type GitHeldPathMove =
+  | {
+      kind: 'take'
+    }
+  | {
+      kind: 'merge'
+      mode: string
+    }
+  | {
+      kind: 'refuse'
+    }
+
+export type GitHeldMergedPath = {
+  path: string
+  mode: string
+  stagedOid: string
+  bytes: unknown
+  workingSha256: string
+  stagedBeforeOid: string
+  changesMode: boolean
+}
+
+export type GitHeldAdvancePlan = {
+  changed: Array<GitAdvanceChangedPath>
+  withWork: Array<string>
+  inTheWay: Array<string>
+  taken: Array<{
+    path: string
+    workingSha256: string
+  }>
+  merged: Array<GitHeldMergedPath>
+}
+
 export type ProjectNoteKind = 'note' | 'secret'
 
 export type ProjectNotePurpose = 'test-accounts' | 'test-device'
@@ -15644,6 +15660,8 @@ export type VideoActionKind =
   | 'hover'
   | 'select'
   | 'fill'
+  | 'drag'
+  | 'wheel'
 
 export type VideoAction = {
   atSec: number
@@ -17537,6 +17555,7 @@ export type ProcessEntryOverride = {
   at: number
   note?: string
   files?: Array<string>
+  recovery?: string
   integration?: 'merge' | 'squash' | 'pull-request'
   landing?: {
     identity?: {
@@ -17807,6 +17826,7 @@ export type ProcessResumeOptions = {
     id: string
     text?: string
   }
+  recovery?: string
 }
 
 export type ProcessRunRevival = {
@@ -18088,6 +18108,23 @@ export type ProcessCirclingEvidence = {
   tip?: string
 }
 
+export type ProcessGateDecision = {
+  gate: string
+  action: string
+  text?: string
+}
+
+export type ProcessStepRecovery = {
+  id: string
+  label: string
+  detail: string
+  decidesGate?: {
+    gate: string
+    action: string
+    text?: string
+  }
+}
+
 export type ProcessQueueWait = {
   reason: string
   since: number
@@ -18181,6 +18218,7 @@ export type ProcessLedgerEntry = {
     at: number
     note?: string
     files?: Array<string>
+    recovery?: string
     integration?: 'merge' | 'squash' | 'pull-request'
     landing?: {
       identity?: {
@@ -18445,6 +18483,8 @@ export type ProcessLedgerEntry = {
     at: number
   }
   agentNotStarted?: string
+  failureReason?: string
+  recoveries?: Array<ProcessStepRecovery>
   featureDone?: true
   retryMode?: 'continue' | 'fresh'
   resumes?: string
@@ -19734,6 +19774,7 @@ export type ProjectSpecCreateInput = {
       start?: UiStackStartCommand | UiStackStartRequest
       buildTimeoutMs?: number
     }
+    serveBuildTimeoutMs?: number
     templateProvenance?: {
       templateId: string
       commit: string
@@ -19848,6 +19889,7 @@ export type ProjectSpecEditInput = {
       start?: UiStackStartCommand | UiStackStartRequest
       buildTimeoutMs?: number
     }
+    serveBuildTimeoutMs?: number
     templateProvenance?: {
       templateId: string
       commit: string
@@ -24289,6 +24331,12 @@ export type ChatReference =
       projectId?: string
       processId: string
     }
+  | {
+      kind: 'evidence'
+      projectId?: string
+      evidenceId: string
+      at?: number
+    }
 
 export type TypedReference =
   | {
@@ -25000,6 +25048,138 @@ export type FlagRunThroughIssueInput = {
 
 export type ReportSectionName = 'outcome' | 'howProven' | 'decisions' | 'needsYou'
 
+export type CitedReviewEvidence = {
+  runId: string
+  projectId: string
+  storyId?: string
+  featureId?: string
+  chatContextId?: string
+  supersededBy?: {
+    processRunId: string
+    entryId: string
+    stepId: string
+  }
+  id: string
+  kind: 'screenshot' | 'recording' | 'report' | 'log' | 'file' | 'trace'
+  path: string
+  label?: string
+  phase?: 'before' | 'after'
+  subject?: string
+  observedBefore?: {
+    reason: string
+  }
+  design?: {
+    app: string
+    screen: string
+    state?: string
+    variant?: string
+  }
+  approach?: string
+  capturedOn?: string
+  comparison?: {
+    changedPixels: number
+    totalPixels: number
+    identical: boolean
+    resized: boolean
+    unavailable?: string
+    beforeId?: string
+  }
+  chromeTopPx?: number
+  matchesBeforeIds?: Array<string>
+  inline?: boolean
+  verdict?: 'approved' | 'changes-requested' | 'rejected'
+  verdictReason?: string
+  verdictCause?: 'defect' | 'proof-impossible'
+  verdictScreens?: Array<string>
+  verdictNotShown?: Array<string>
+  verdictNewScreens?: Array<string>
+  uiImpact?: {
+    visible: boolean
+    reason: string
+  }
+  verificationMode?: 'live' | 'dry'
+  dryAssumptions?: string
+  standInScreen?: string
+  reviewSections?: {
+    verdict: CodeReviewVerdictSection
+    findings: Array<CodeReviewFinding>
+    criteria: Array<CodeReviewCriterion>
+    evidence: CodeReviewEvidenceSection
+  }
+  reportSections?: {
+    outcome: ReportOutcomeSection
+    howProven: Array<ReportProofLine>
+    decisions: Array<string>
+    needsYou: Array<string>
+    settled?: Array<ReportSettledItem>
+    recordingScript?: {
+      open: string
+      steps: Array<RecordingScriptStep>
+    }
+  }
+  runThroughSections?: {
+    scenario: string
+    reachedEnd: boolean
+    stoppedAt?: string
+    summary: string
+  }
+  issue?: {
+    severity: CodeReviewFindingSeverity
+    title: string
+    happened: string
+    expected?: string
+    doing?: string
+    view?: string
+    screenshotFile?: string
+    at?: number
+  }
+  walkthroughItem?: {
+    title: string
+    open: string
+    steps: Array<string>
+    mustShow: Array<string>
+  }
+  walkthroughResult?: {
+    itemId: string
+    url?: string
+  }
+  build?: {
+    platform?: 'android' | 'ios' | 'web'
+    sha: string
+    dirty: boolean
+    dirtyPaths?: Array<string>
+    variant?: string
+    overlays?: Array<string>
+    overlayFiles?: Array<ReviewEvidenceOverlayFile>
+    sceneOverlayHead?: string
+    fakeDataOverlayHead?: string
+    fakeDataDirs?: Array<string>
+    tree?: string
+    fakeBackend?: string
+    fakeData?: string
+  }
+  screen?: {
+    ids: Array<string>
+    texts: Array<string>
+    activity?: string
+    playgroundScene?: string
+  }
+  checkRun?: {
+    check: ProjectCheckKind
+    status: 'passed' | 'failed' | 'error' | 'skipped' | 'not-detected' | 'refused' | 'running'
+    summary: string
+    commands: Array<string>
+    variant?: string
+    tests?: Array<string>
+  }
+  unvouchedReason?: string
+  mediaType: string
+  bytes: number
+  sha256?: string
+  createdAt: number
+  reference: string
+}
+
 export type VisualProofAssessment = {
   pairs: number
   provenPairs: number
@@ -25593,6 +25773,10 @@ export type CaptureToolSet = {
     | 'uiTestGetNetwork'
     | 'uiTestMeasure'
     | 'uiTestFillForm'
+    | 'uiTestDrag'
+    | 'uiTestClickAt'
+    | 'uiTestHoverAt'
+    | 'uiTestWheelAt'
     | 'uiTestHover'
     | 'uiTestSelectOption'
     | 'uiTestScroll'
@@ -26173,6 +26357,10 @@ export type CaptureToolSet = {
     | 'uiTestGetNetwork'
     | 'uiTestMeasure'
     | 'uiTestFillForm'
+    | 'uiTestDrag'
+    | 'uiTestClickAt'
+    | 'uiTestHoverAt'
+    | 'uiTestWheelAt'
     | 'uiTestHover'
     | 'uiTestSelectOption'
     | 'uiTestScroll'
@@ -26760,6 +26948,10 @@ export type CaptureToolSet = {
     | 'uiTestGetNetwork'
     | 'uiTestMeasure'
     | 'uiTestFillForm'
+    | 'uiTestDrag'
+    | 'uiTestClickAt'
+    | 'uiTestHoverAt'
+    | 'uiTestWheelAt'
     | 'uiTestHover'
     | 'uiTestSelectOption'
     | 'uiTestScroll'
@@ -27340,6 +27532,10 @@ export type CaptureToolSet = {
     | 'uiTestGetNetwork'
     | 'uiTestMeasure'
     | 'uiTestFillForm'
+    | 'uiTestDrag'
+    | 'uiTestClickAt'
+    | 'uiTestHoverAt'
+    | 'uiTestWheelAt'
     | 'uiTestHover'
     | 'uiTestSelectOption'
     | 'uiTestScroll'
@@ -27921,6 +28117,10 @@ export type CaptureToolSet = {
     | 'uiTestGetNetwork'
     | 'uiTestMeasure'
     | 'uiTestFillForm'
+    | 'uiTestDrag'
+    | 'uiTestClickAt'
+    | 'uiTestHoverAt'
+    | 'uiTestWheelAt'
     | 'uiTestHover'
     | 'uiTestSelectOption'
     | 'uiTestScroll'
@@ -29815,6 +30015,7 @@ export type UiStackTarget = {
   ref: string
   patch?: string
   root: string
+  buildTimeoutMs?: number
 }
 
 export type UiServeStackRequest = {
@@ -30172,6 +30373,10 @@ export type UiRecordedWhat = {
   ref?: string
   target?: string
   text?: string
+  x?: number
+  y?: number
+  toX?: number
+  toY?: number
 } & {
   secret?: true
 }
@@ -30180,6 +30385,10 @@ export type UiLoggedWhat = {
   kind: VideoActionKind
   target?: string
   text?: string
+  x?: number
+  y?: number
+  toX?: number
+  toY?: number
 } & {
   secret?: true
 } & {
@@ -30214,6 +30423,11 @@ export type UiPoint = {
 
 export type UiMouseButton = 'left' | 'right' | 'middle'
 
+export type UiClickOptions = {
+  button?: 'left' | 'right' | 'middle'
+  clickCount?: number
+}
+
 export type UiClickInput = {
   x: number
   y: number
@@ -30221,11 +30435,35 @@ export type UiClickInput = {
   clickCount?: number
 }
 
+export type UiWheelDelta = {
+  dx: number
+  dy: number
+}
+
 export type UiWheelInput = {
   x: number
   y: number
   dx: number
   dy: number
+}
+
+export type UiPointerTarget = {
+  x?: number
+  y?: number
+  ref?: string
+  across?: number
+  down?: number
+}
+
+export type UiDragOptions = {
+  steps?: number
+}
+
+export type UiBox = {
+  x: number
+  y: number
+  width: number
+  height: number
 }
 
 export type UiScreencastOptions = {
@@ -32953,11 +33191,140 @@ export type LoopedRun = {
   ledger: Array<ProcessLedgerEntry>
 }
 
+export type ProcessRetryOffer = {
+  canContinue: boolean
+  defaultMode: ProcessRetryMode
+  reason: string
+}
+
+export type ProcessTurnLimitOffer = {
+  current: ProcessTurnLimit
+  suggested: number
+}
+
+export type ProcessSpendCapOffer = {
+  cap: 'step' | 'run'
+  currentUsd: number
+  suggestedUsd: number
+}
+
+export type ProcessProofChangeOffer = {
+  featureId?: string
+  stepId: string
+  current: Array<ProofKind>
+  standings: Array<ProofKindStanding>
+  unavailable: Array<ProofKindUnavailable>
+  keepsScreens?: true
+}
+
+export type ProcessFeatureSplitOffer = {
+  featureId: string
+  stepId: string
+  points: Array<string>
+  proofChange?: {
+    featureId?: string
+    stepId: string
+    current: Array<ProofKind>
+    standings: Array<ProofKindStanding>
+    unavailable: Array<ProofKindUnavailable>
+    keepsScreens?: true
+  }
+}
+
 export type ProcessPartialProofOffer = {
   stepId: string
   entryId: string
   shown: Array<string>
   notShown: Array<string>
+}
+
+export type ProcessParkChoice = {
+  choice: ProcessParkAction
+  label: string
+  detail: string
+  primary?: boolean
+  retry?: {
+    canContinue: boolean
+    defaultMode: ProcessRetryMode
+    reason: string
+  }
+  turnLimit?: {
+    current: ProcessTurnLimit
+    suggested: number
+  }
+  spendCap?: {
+    cap: 'step' | 'run'
+    currentUsd: number
+    suggestedUsd: number
+  }
+  proofChange?: {
+    featureId?: string
+    stepId: string
+    current: Array<ProofKind>
+    standings: Array<ProofKindStanding>
+    unavailable: Array<ProofKindUnavailable>
+    keepsScreens?: true
+  }
+  featureSplit?: {
+    featureId: string
+    stepId: string
+    points: Array<string>
+    proofChange?: {
+      featureId?: string
+      stepId: string
+      current: Array<ProofKind>
+      standings: Array<ProofKindStanding>
+      unavailable: Array<ProofKindUnavailable>
+      keepsScreens?: true
+    }
+  }
+  partialProof?: {
+    stepId: string
+    entryId: string
+    shown: Array<string>
+    notShown: Array<string>
+  }
+  preExistingBreak?: {
+    source: ProcessPreExistingBreakSource
+    checks: Array<string>
+    files: Array<string>
+    baseRef: string
+    baseSha?: string
+    headline: string
+  }
+  noteRequired?: true
+  action?: {
+    id: string
+    label: string
+    detail: string
+    primary?: true
+    editsText?: true
+  }
+  recovery?: {
+    id: string
+    label: string
+    detail: string
+    decidesGate?: {
+      gate: string
+      action: string
+      text?: string
+    }
+  }
+}
+
+export type OfferedAnswer = {
+  choice: ProcessParkAction
+  label: string
+  recovery?: {
+    id: string
+    label: string
+    detail: string
+    decidesGate?: {
+      gate: string
+      action: string
+      text?: string
+    }
+  }
 }
 
 export type ProcessPointsToTry = {
@@ -33108,6 +33475,23 @@ export type ProofChangeRun = {
   status?: 'pending' | 'running' | 'parked' | 'succeeded' | 'failed' | 'cancelled'
   proofUnavailable?: Array<ProofKindUnavailable>
   changeUiPaths?: Array<string>
+}
+
+export type ProcessProofScaffoldFile = {
+  path: string
+  added: boolean
+  lines: Array<string>
+}
+
+export type ProcessProofScaffoldMarker =
+  | 'proof-file'
+  | 'proof-file-load'
+  | 'fake-backend-check'
+  | 'transport-shim'
+
+export type ProcessProofScaffoldHit = {
+  path: string
+  markers: Array<ProcessProofScaffoldMarker>
 }
 
 export type ProcessPullRequestNeedReason = 'real-changes' | 'generated-only' | 'no-changes'
@@ -34088,27 +34472,10 @@ export type ProcessRetryDefinitionOffer = {
   }
 }
 
-export type ProcessRetryOffer = {
-  canContinue: boolean
-  defaultMode: ProcessRetryMode
-  reason: string
-}
-
 export type ProcessStepSpendCaps = {
   stepCapUsd?: number
   runCapUsd?: number
   spentBeforeUsd: number
-}
-
-export type ProcessSpendCapOffer = {
-  cap: 'step' | 'run'
-  currentUsd: number
-  suggestedUsd: number
-}
-
-export type ProcessTurnLimitOffer = {
-  current: ProcessTurnLimit
-  suggested: number
 }
 
 export type ProcessRetryStart =
@@ -34861,6 +35228,11 @@ export type ProcessLaunchGateDecision = {
   action: string
   text?: string
   decidedVia: ProcessDecisionClient | 'chat' | 'feature-question' | 'design'
+}
+
+export type ProcessParkSentAnswer = {
+  choice: ProcessParkAction
+  recovery?: string
 }
 
 export type ProcessAttemptAgentRun = {
@@ -36152,6 +36524,8 @@ export type ProcessStepResult = {
     outcomes: Array<ProcessCleanupOutcome>
     keptIds: Array<string>
   }
+  failureReason?: string
+  recoveries?: Array<ProcessStepRecovery>
 }
 
 export type ProcessTimeInterval = {
@@ -36396,6 +36770,7 @@ export type ProcessStepState = {
       at: number
       note?: string
       files?: Array<string>
+      recovery?: string
       integration?: 'merge' | 'squash' | 'pull-request'
       landing?: {
         identity?: {
@@ -36660,6 +37035,8 @@ export type ProcessStepState = {
       at: number
     }
     agentNotStarted?: string
+    failureReason?: string
+    recoveries?: Array<ProcessStepRecovery>
     featureDone?: true
     retryMode?: 'continue' | 'fresh'
     resumes?: string
@@ -36686,29 +37063,6 @@ export type ProcessRunProgress = {
   total: number
   completed: number
   currentStepId?: string
-}
-
-export type ProcessProofChangeOffer = {
-  featureId?: string
-  stepId: string
-  current: Array<ProofKind>
-  standings: Array<ProofKindStanding>
-  unavailable: Array<ProofKindUnavailable>
-  keepsScreens?: true
-}
-
-export type ProcessFeatureSplitOffer = {
-  featureId: string
-  stepId: string
-  points: Array<string>
-  proofChange?: {
-    featureId?: string
-    stepId: string
-    current: Array<ProofKind>
-    standings: Array<ProofKindStanding>
-    unavailable: Array<ProofKindUnavailable>
-    keepsScreens?: true
-  }
 }
 
 export type ProcessFeatureSplitWrite = {
@@ -36746,84 +37100,6 @@ export type ProcessFeatureSplitAnswer = {
       beforeAndAfter?: boolean
     }
   }
-}
-
-export type ProcessParkChoice = {
-  choice: ProcessParkAction
-  label: string
-  detail: string
-  primary?: boolean
-  retry?: {
-    canContinue: boolean
-    defaultMode: ProcessRetryMode
-    reason: string
-  }
-  turnLimit?: {
-    current: ProcessTurnLimit
-    suggested: number
-  }
-  spendCap?: {
-    cap: 'step' | 'run'
-    currentUsd: number
-    suggestedUsd: number
-  }
-  proofChange?: {
-    featureId?: string
-    stepId: string
-    current: Array<ProofKind>
-    standings: Array<ProofKindStanding>
-    unavailable: Array<ProofKindUnavailable>
-    keepsScreens?: true
-  }
-  featureSplit?: {
-    featureId: string
-    stepId: string
-    points: Array<string>
-    proofChange?: {
-      featureId?: string
-      stepId: string
-      current: Array<ProofKind>
-      standings: Array<ProofKindStanding>
-      unavailable: Array<ProofKindUnavailable>
-      keepsScreens?: true
-    }
-  }
-  partialProof?: {
-    stepId: string
-    entryId: string
-    shown: Array<string>
-    notShown: Array<string>
-  }
-  preExistingBreak?: {
-    source: ProcessPreExistingBreakSource
-    checks: Array<string>
-    files: Array<string>
-    baseRef: string
-    baseSha?: string
-    headline: string
-  }
-  noteRequired?: true
-  action?: {
-    id: string
-    label: string
-    detail: string
-    primary?: true
-    editsText?: true
-  }
-  recovery?: ProcessStepRecovery
-}
-
-export type ProcessStepRecovery = {
-  id: string
-  label: string
-  detail: string
-  decidesGate?: ProcessGateDecision
-}
-
-export type ProcessGateDecision = {
-  gate: string
-  action: string
-  text?: string
 }
 
 export type ProcessSettledQuestion = {
@@ -37726,25 +38002,7 @@ export type AddMessagesInput = {
     processRunParkedAt?: number
     processGroupRunId?: string
     handoffFrom?: string
-    appSelections?: Array<{
-      id: string
-      projectId: string
-      view?: string
-      params?: {
-        [key: string]: string
-      }
-      comment: string
-      selector: string
-      outerHtml: string
-      rect?: {
-        x: number
-        y: number
-        width: number
-        height: number
-        space: 'app-viewport'
-      }
-      screenshotFile?: string
-    }>
+    appNotes?: Array<ChatAppNote>
     videoMarks?: Array<VideoMarkedMoment>
     answersHandoffFrom?: string
     backgroundResults?: Array<{
@@ -45626,6 +45884,10 @@ export type UpdateProcessGroupRunDeliveryResponse =
 
 export type PublishProcessGroupRunData = {
   body: {
+    /**
+     * The one repo to publish on its own, once its leg waits at its publish gate, whatever the other legs are doing. Absent: every leg waiting at its gate, while the group run waits to publish.
+     */
+    projectId?: string
     repos?: Array<{
       projectId: string
       /**
@@ -52401,6 +52663,16 @@ export type AddChatMessagesErrors = {
   /**
    * Default Response
    */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
@@ -57638,25 +57910,7 @@ export type SendCompletionWithToolsResponses = {
           processRunParkedAt?: number
           processGroupRunId?: string
           handoffFrom?: string
-          appSelections?: Array<{
-            id: string
-            projectId: string
-            view?: string
-            params?: {
-              [key: string]: string
-            }
-            comment: string
-            selector: string
-            outerHtml: string
-            rect?: {
-              x: number
-              y: number
-              width: number
-              height: number
-              space: 'app-viewport'
-            }
-            screenshotFile?: string
-          }>
+          appNotes?: Array<ChatAppNote>
           videoMarks?: Array<VideoMarkedMoment>
           answersHandoffFrom?: string
           backgroundResults?: Array<{
@@ -57805,25 +58059,7 @@ export type SendChatCompletionWithToolsData = {
       processRunParkedAt?: number
       processGroupRunId?: string
       handoffFrom?: string
-      appSelections?: Array<{
-        id: string
-        projectId: string
-        view?: string
-        params?: {
-          [key: string]: string
-        }
-        comment: string
-        selector: string
-        outerHtml: string
-        rect?: {
-          x: number
-          y: number
-          width: number
-          height: number
-          space: 'app-viewport'
-        }
-        screenshotFile?: string
-      }>
+      appNotes?: Array<ChatAppNote>
       videoMarks?: Array<VideoMarkedMoment>
       answersHandoffFrom?: string
       backgroundResults?: Array<{
@@ -57979,25 +58215,7 @@ export type SendChatCompletionWithToolsResponses = {
           processRunParkedAt?: number
           processGroupRunId?: string
           handoffFrom?: string
-          appSelections?: Array<{
-            id: string
-            projectId: string
-            view?: string
-            params?: {
-              [key: string]: string
-            }
-            comment: string
-            selector: string
-            outerHtml: string
-            rect?: {
-              x: number
-              y: number
-              width: number
-              height: number
-              space: 'app-viewport'
-            }
-            screenshotFile?: string
-          }>
+          appNotes?: Array<ChatAppNote>
           videoMarks?: Array<VideoMarkedMoment>
           answersHandoffFrom?: string
           backgroundResults?: Array<{
@@ -58152,25 +58370,7 @@ export type SendChatWithCliData = {
       processRunParkedAt?: number
       processGroupRunId?: string
       handoffFrom?: string
-      appSelections?: Array<{
-        id: string
-        projectId: string
-        view?: string
-        params?: {
-          [key: string]: string
-        }
-        comment: string
-        selector: string
-        outerHtml: string
-        rect?: {
-          x: number
-          y: number
-          width: number
-          height: number
-          space: 'app-viewport'
-        }
-        screenshotFile?: string
-      }>
+      appNotes?: Array<ChatAppNote>
       videoMarks?: Array<VideoMarkedMoment>
       answersHandoffFrom?: string
       backgroundResults?: Array<{
@@ -58507,25 +58707,7 @@ export type ResumeCompletionResponses = {
           processRunParkedAt?: number
           processGroupRunId?: string
           handoffFrom?: string
-          appSelections?: Array<{
-            id: string
-            projectId: string
-            view?: string
-            params?: {
-              [key: string]: string
-            }
-            comment: string
-            selector: string
-            outerHtml: string
-            rect?: {
-              x: number
-              y: number
-              width: number
-              height: number
-              space: 'app-viewport'
-            }
-            screenshotFile?: string
-          }>
+          appNotes?: Array<ChatAppNote>
           videoMarks?: Array<VideoMarkedMoment>
           answersHandoffFrom?: string
           backgroundResults?: Array<{

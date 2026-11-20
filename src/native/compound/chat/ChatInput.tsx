@@ -33,14 +33,14 @@ import type { NativeAttachmentImages } from './chatNativeTypes'
 import { COMPOSER_IMAGE_THUMB_SIZE } from './sentImageAttachmentConstants'
 import VideoAttachmentCard from './VideoAttachmentCard'
 
-import AppSelectionChips from './AppSelectionChips'
-import type { AppSelection, AppSelectionComposerProps } from '../../../headless/utils/appSelections'
+import AppNoteChips from './AppNoteChips'
+import type { AppNote, AppNoteComposerProps } from '../../../headless/utils/appNotesTypes'
 
 type SendReason = 'user' | 'suggested_action'
 
 export type ChatInputAttachment = string
 
-export interface ChatInputProps extends AppSelectionComposerProps {
+export interface ChatInputProps extends AppNoteComposerProps {
   value: string
   attachments?: ChatInputAttachment[]
   onChange: (val: string) => void
@@ -49,7 +49,7 @@ export interface ChatInputProps extends AppSelectionComposerProps {
   onSend: (
     message: string,
     attachments: ChatInputAttachment[],
-    meta?: { reason?: SendReason; appSelections?: AppSelection[] },
+    meta?: { reason?: SendReason; appNotes?: AppNote[] },
   ) => void | Promise<void>
   onAbort?: () => void
   isThinking?: boolean
@@ -101,8 +101,8 @@ export interface ChatInputProps extends AppSelectionComposerProps {
 
 export default function ChatInput({
   value,
-  appSelections = [],
-  onChangeAppSelections,
+  appNotes = [],
+  onChangeAppNotes,
   onShowApp,
   attachments = [],
   onChange,
@@ -133,8 +133,8 @@ export default function ChatInput({
   const { theme } = useNativeTheme()
   const inputRef = useRef<FileMentionsTextareaHandle>(null)
   const [submitting, setSubmitting] = useState(false)
-  const draftRef = useRef({ value, attachments, appSelections })
-  draftRef.current = { value, attachments, appSelections }
+  const draftRef = useRef({ value, attachments, appNotes })
+  draftRef.current = { value, attachments, appNotes }
   const uploads = useChatUploads(attachmentUploads)
   const holdingForUpload = isChatUploading(uploads)
 
@@ -209,9 +209,9 @@ export default function ChatInput({
   const hasContent =
     value.trim().length > 0 ||
     attachments.length > 0 ||
-    appSelections.length > 0 ||
+    appNotes.length > 0 ||
     markedVideos.length > 0
-  const thinkingBlocks = isThinking && (!queueWhileThinking || appSelections.length > 0)
+  const thinkingBlocks = isThinking && (!queueWhileThinking || appNotes.length > 0)
   const canSend = useMemo(
     () =>
       hasContent &&
@@ -228,7 +228,7 @@ export default function ChatInput({
       if (
         (!text.trim() &&
           attachments.length === 0 &&
-          appSelections.length === 0 &&
+          appNotes.length === 0 &&
           markedVideos.length === 0) ||
         thinkingBlocks ||
         submitting ||
@@ -241,16 +241,14 @@ export default function ChatInput({
       try {
         await onSend(text.trim(), attachments, {
           ...meta,
-          ...(appSelections.length ? { appSelections } : {}),
+          ...(appNotes.length ? { appNotes } : {}),
         })
         if (clearOnSend) {
           // Picks stay editable during the send. Only consume the unchanged submitted objects.
           const current = draftRef.current
           if (current.value === value) onChange('')
           onChangeAttachments?.(current.attachments.filter((path) => !attachments.includes(path)))
-          onChangeAppSelections?.(
-            current.appSelections.filter((pick) => !appSelections.includes(pick)),
-          )
+          onChangeAppNotes?.(current.appNotes.filter((pick) => !appNotes.includes(pick)))
         }
       } finally {
         setSubmitting(false)
@@ -259,9 +257,9 @@ export default function ChatInput({
     [
       onSend,
       value,
-      appSelections,
+      appNotes,
       markedVideos.length,
-      onChangeAppSelections,
+      onChangeAppNotes,
       disconnected,
       attachments,
       onChange,
@@ -343,10 +341,10 @@ export default function ChatInput({
           paddingBottom: nativeSpace[5],
         }}
       >
-        {onShowApp || appSelections.length ? (
-          <AppSelectionChips
-            appSelections={appSelections}
-            onChangeAppSelections={onChangeAppSelections}
+        {onShowApp || appNotes.length ? (
+          <AppNoteChips
+            appNotes={appNotes}
+            onChangeAppNotes={onChangeAppNotes}
             onShowApp={onShowApp}
           />
         ) : null}
@@ -402,7 +400,7 @@ export default function ChatInput({
           suggestedActions.length > 0 &&
           !isThinking &&
           isConfigured &&
-          appSelections.length === 0 && (
+          appNotes.length === 0 && (
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}

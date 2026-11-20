@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
-import { parseAppElementPick, type AppElementPick } from '../utils/appSelections'
+import { parseAppElementPick } from '../utils/appNotes'
+import type { AppElementPick } from '../utils/appNotesTypes'
 
 /** Shared lifecycle for iframe and WebView; transport and trusted-source checks stay in the peer. */
 export function useAppElementPicker({

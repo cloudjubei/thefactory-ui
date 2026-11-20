@@ -3,34 +3,36 @@ import { Pressable, Text, View } from 'react-native'
 import ProjectAppView from '../../src/native/compound/ProjectAppView'
 import { WebViewFixture } from './stubs/webview'
 import ChatInput from '../../src/native/compound/chat/ChatInput'
+import type { AppNote } from '../../src/headless/utils/appNotesTypes'
 import type { NativeView } from './views'
-
-// Local controlled fixture data keeps the comparison independent of head-only product modules.
-type AppSelection = {
-  id: string
-  projectId: string
-  selector: string
-  outerHtml: string
-  comment: string
-}
 
 function Demo() {
   const [text, setText] = useState('')
   const [picking, setPicking] = useState(false)
-  const [selections, setSelections] = useState<AppSelection[]>([
+  const [notes, setNotes] = useState<AppNote[]>([
     {
       id: 'one',
       projectId: 'sample',
-      selector: '#renewal',
-      outerHtml: '<p id="renewal">Renews November 20</p>',
       comment: 'Make the renewal date easier to find.',
+      targets: [
+        {
+          kind: 'element',
+          selector: '#renewal',
+          outerHtml: '<p id="renewal">Renews November 20</p>',
+        },
+      ],
     },
     {
       id: 'two',
       projectId: 'sample',
-      selector: '[data-testid="upgrade"]',
-      outerHtml: '<button data-testid="upgrade">Upgrade</button>',
       comment: 'Explain what is included before this action.',
+      targets: [
+        {
+          kind: 'element',
+          selector: '[data-testid="upgrade"]',
+          outerHtml: '<button data-testid="upgrade">Upgrade</button>',
+        },
+      ],
     },
   ])
   const [sent, setSent] = useState('')
@@ -40,10 +42,10 @@ function Demo() {
       <ChatInput
         value={text}
         onChange={setText}
-        appSelections={selections}
-        onChangeAppSelections={setSelections}
+        appNotes={notes}
+        onChangeAppNotes={setNotes}
         onShowApp={() => setPicking(true)}
-        onSend={(_, __, meta) => setSent(JSON.stringify(meta?.appSelections ?? []))}
+        onSend={(_, __, meta) => setSent(JSON.stringify(meta?.appNotes ?? []))}
         clearOnSend
       />
       {sent ? <Text accessibilityLabel="Sent structured context">{sent}</Text> : null}
@@ -94,7 +96,7 @@ const pickSurface = (active: boolean, post: (message: unknown) => void) => (
 
 function PickerDemo() {
   const nextPickId = useRef(0)
-  const [appSelections, setAppSelections] = useState<AppSelection[]>([])
+  const [appNotes, setAppNotes] = useState<AppNote[]>([])
   const [picking, setPicking] = useState(true)
   const [text, setText] = useState('')
   const [sent, setSent] = useState('')
@@ -109,9 +111,16 @@ function PickerDemo() {
             onExitPickMode={() => setPicking(false)}
             onElementPick={(pick) => {
               const id = `pick-${++nextPickId.current}`
-              setAppSelections((current) => [
+              setAppNotes((current) => [
                 ...current,
-                { ...pick, id, projectId: 'sample', comment: '' },
+                {
+                  id,
+                  projectId: 'sample',
+                  comment: '',
+                  targets: [
+                    { kind: 'element', selector: pick.selector, outerHtml: pick.outerHtml },
+                  ],
+                },
               ])
             }}
           />
@@ -120,10 +129,10 @@ function PickerDemo() {
       <ChatInput
         value={text}
         onChange={setText}
-        appSelections={appSelections}
-        onChangeAppSelections={setAppSelections}
+        appNotes={appNotes}
+        onChangeAppNotes={setAppNotes}
         onShowApp={() => setPicking(true)}
-        onSend={(_, __, meta) => setSent(JSON.stringify(meta?.appSelections ?? []))}
+        onSend={(_, __, meta) => setSent(JSON.stringify(meta?.appNotes ?? []))}
         clearOnSend
       />
       {sent ? <Text accessibilityLabel="Sent structured context">{sent}</Text> : null}
@@ -131,7 +140,7 @@ function PickerDemo() {
   )
 }
 
-export const APP_SELECTION_VIEWS: NativeView[] = [
+export const APP_NOTE_VIEWS: NativeView[] = [
   { id: 'app-selections', title: 'App selections: edit, remove and send', render: () => <Demo /> },
   {
     id: 'app-picker',

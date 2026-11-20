@@ -8,7 +8,7 @@ import { BACKEND_CONNECTION_SCENES } from '../scenes/backendConnection'
 import { BEFORE_AFTER_VIDEO_SCENES } from '../scenes/beforeAfterVideo'
 import { APP_BRIDGE_ASK_SCENES } from '../scenes/appBridgeAsks'
 import { APP_FEATURE_REQUEST_SCENES } from '../scenes/appFeatureRequest'
-import { APP_SELECTION_SCENES } from '../scenes/appSelections'
+import { APP_NOTE_SCENES } from '../scenes/appNotes'
 import { REMOTE_BROWSER_SCENES } from '../scenes/remoteBrowser'
 import { APP_UNREAD_SCENES } from '../scenes/appUnread'
 import { CHAT_SCENES } from '../scenes/chat'
@@ -257,7 +257,7 @@ export const SCENES: readonly Scene[] = [
   ...APP_BRIDGE_ASK_SCENES,
   ...APP_FEATURE_REQUEST_SCENES,
   ...APP_UNREAD_SCENES,
-  ...APP_SELECTION_SCENES,
+  ...APP_NOTE_SCENES,
   ...REMOTE_BROWSER_SCENES,
   ...DOCUMENT_REPORT_SCENES,
   ...GIT_GRAPH_UNCOMMITTED_SCENES,

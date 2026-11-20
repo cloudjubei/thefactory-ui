@@ -2978,8 +2978,9 @@ export {
 export { useProjectAppView, type UseProjectAppView } from './hooks/useProjectAppView'
 export { useLiveAppCapture } from './hooks/useLiveAppCapture'
 export type { ProjectAppViewHandle } from './utils/appCapture'
-export { useAppSelections, parseAppElementPick } from './utils/appSelections'
-export type { AppSelection, AppElementPick, AppSelectionComposerProps } from './utils/appSelections'
+export { useAppNotes } from './hooks/useAppNotes'
+export { parseAppElementPick } from './utils/appNotes'
+export type { AppNote, AppElementPick, AppNoteComposerProps } from './utils/appNotesTypes'
 export { useProjectData, type UseProjectData } from './hooks/useProjectData'
 
 // Per-project encrypted store of standing context (logins, API keys,

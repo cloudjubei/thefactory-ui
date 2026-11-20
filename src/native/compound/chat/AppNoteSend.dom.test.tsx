@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import ChatInput from './ChatInput'
-import type { AppSelection } from '../../../headless/utils/appSelections'
+import type { AppNote } from '../../../headless/utils/appNotesTypes'
 
 vi.mock('nativewind', () => ({ useColorScheme: () => ({ colorScheme: 'light' }) }))
 vi.mock('react-native', () => ({
@@ -56,16 +56,15 @@ vi.mock('./VideoAttachmentCard', () => ({ default: () => null }))
 
 afterEach(cleanup)
 
-const pick: AppSelection = {
+const pick: AppNote = {
   id: 'a',
   projectId: 'p',
-  selector: '#a',
-  outerHtml: '<p>A</p>',
   comment: 'Original',
+  targets: [{ kind: 'element', selector: '#a', outerHtml: '<p>A</p>' }],
 }
 
-describe('native app selections send', () => {
-  it('holds selection-only drafts while busy even when text queueing is enabled', () => {
+describe('native app notes send', () => {
+  it('holds note-only drafts while busy even when text queueing is enabled', () => {
     const send = vi.fn()
     const change = vi.fn()
     const view = render(
@@ -73,8 +72,8 @@ describe('native app selections send', () => {
         value=""
         onChange={() => {}}
         onSend={send}
-        appSelections={[pick]}
-        onChangeAppSelections={change}
+        appNotes={[pick]}
+        onChangeAppNotes={change}
         isThinking
         queueWhileThinking
       />,
@@ -87,18 +86,21 @@ describe('native app selections send', () => {
     expect(view.getByLabelText('Comment on app selection 1')).toBeTruthy()
   })
 
-  it('edits and removes real cards before forwarding selection-only context', async () => {
+  it('edits and removes real cards before forwarding note-only context', async () => {
     const send = vi.fn()
     const show = vi.fn()
     function Composer() {
-      const [selections, setSelections] = useState([pick, { ...pick, id: 'b', selector: '#b' }])
+      const [notes, setNotes] = useState<AppNote[]>([
+        pick,
+        { ...pick, id: 'b', targets: [{ kind: 'element', selector: '#b', outerHtml: '<p>B</p>' }] },
+      ])
       return (
         <ChatInput
           value=""
           onChange={() => {}}
           onSend={send}
-          appSelections={selections}
-          onChangeAppSelections={setSelections}
+          appNotes={notes}
+          onChangeAppNotes={setNotes}
           onShowApp={show}
         />
       )
@@ -114,7 +116,7 @@ describe('native app selections send', () => {
     await act(async () => fireEvent.click(view.getByLabelText('Send message')))
     expect(send).toHaveBeenCalledWith('', [], {
       reason: 'user',
-      appSelections: [{ ...pick, comment: 'Updated comment' }],
+      appNotes: [{ ...pick, comment: 'Updated comment' }],
     })
     expect(view.queryByLabelText('Comment on app selection 1')).toBeNull()
   })
@@ -135,21 +137,21 @@ describe('native app selections send', () => {
       value: '',
       onChange: vi.fn(),
       onSend: send,
-      onChangeAppSelections: change,
+      onChangeAppNotes: change,
       clearOnSend: true,
     }
-    const view = render(<ChatInput {...props} appSelections={submitted} />)
+    const view = render(<ChatInput {...props} appNotes={submitted} />)
     fireEvent.click(view.getByLabelText('Send message'))
     expect(change).not.toHaveBeenCalled()
     const edited = { ...pick, comment: 'Edited during send' }
     const added = { ...pick, id: 'new' }
-    view.rerender(<ChatInput {...props} appSelections={[edited, unchanged, added]} />)
+    view.rerender(<ChatInput {...props} appNotes={[edited, unchanged, added]} />)
     await act(async () => resolve())
-    expect(send).toHaveBeenCalledWith('', [], { reason: 'user', appSelections: submitted })
+    expect(send).toHaveBeenCalledWith('', [], { reason: 'user', appNotes: submitted })
     expect(change).toHaveBeenLastCalledWith([edited, added])
   })
 
-  it('clears unchanged selections after a successful asynchronous send', async () => {
+  it('clears unchanged notes after a successful asynchronous send', async () => {
     let resolve!: () => void
     const send = vi.fn(
       () =>
@@ -163,8 +165,8 @@ describe('native app selections send', () => {
         value=""
         onChange={() => {}}
         onSend={send}
-        appSelections={[pick]}
-        onChangeAppSelections={change}
+        appNotes={[pick]}
+        onChangeAppNotes={change}
         clearOnSend
       />,
     )

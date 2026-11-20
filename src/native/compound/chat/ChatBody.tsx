@@ -428,7 +428,7 @@ function ChatBodyInner({
       if (!ok) onInputChange(text)
       return
     }
-    if (busy && pendingQueue && !meta?.appSelections?.length) {
+    if (busy && pendingQueue && !meta?.appNotes?.length) {
       pendingQueue.enqueue({ text, attachments })
       return
     }

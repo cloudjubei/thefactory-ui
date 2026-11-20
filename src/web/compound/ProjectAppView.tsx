@@ -17,7 +17,7 @@ import {
   type BridgeRequest,
 } from '../../headless/utils/appBridge'
 import { useAppElementPicker } from '../../headless/hooks/useAppElementPicker'
-import type { AppElementPick } from '../../headless/utils/appSelections'
+import type { AppElementPick } from '../../headless/utils/appNotesTypes'
 import { NAV_CHANGED_MESSAGE } from '../../headless/utils/appBridgeConstants'
 import type { AppPushChannel } from '../../headless/utils/appPushChannel'
 import {

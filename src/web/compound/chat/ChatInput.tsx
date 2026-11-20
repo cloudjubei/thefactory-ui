@@ -39,14 +39,14 @@ import ChatVideoAttachment from './ChatVideoAttachment'
 import { useChatDropTarget } from './ChatDropController'
 import VideoAttachmentCard from './VideoAttachmentCard'
 
-import AppSelectionChips from './AppSelectionChips'
-import type { AppSelection, AppSelectionComposerProps } from '../../../headless/utils/appSelections'
+import AppNoteChips from './AppNoteChips'
+import type { AppNote, AppNoteComposerProps } from '../../../headless/utils/appNotesTypes'
 
 type SendReason = 'user' | 'suggested_action'
 
 export type ChatInputAttachment = string
 
-export type ChatInputProps = AppSelectionComposerProps & {
+export type ChatInputProps = AppNoteComposerProps & {
   value: string
   attachments?: ChatInputAttachment[]
   onChange: (val: string) => void
@@ -60,7 +60,7 @@ export type ChatInputProps = AppSelectionComposerProps & {
   onSend: (
     message: string,
     attachments: ChatInputAttachment[],
-    meta?: { reason?: SendReason; appSelections?: AppSelection[] },
+    meta?: { reason?: SendReason; appNotes?: AppNote[] },
   ) => void | Promise<void>
   onAbort?: () => void
   isThinking?: boolean
@@ -124,8 +124,8 @@ const MAX_INPUT_HEIGHT_PX = 250
 
 export default function ChatInput({
   value,
-  appSelections = [],
-  onChangeAppSelections,
+  appNotes = [],
+  onChangeAppNotes,
   onShowApp,
   attachments,
   onChange,
@@ -165,10 +165,10 @@ export default function ChatInput({
   const holdingForUpload = isChatUploading(uploads)
 
   const [flashBlocked, setFlashBlocked] = useState(false)
-  const [submittingSelection, setSubmittingSelection] = useState(false)
-  const selectionSendingRef = useRef(false)
-  const draftRef = useRef({ value: safeValue, attachments: safeAttachments, appSelections })
-  draftRef.current = { value: safeValue, attachments: safeAttachments, appSelections }
+  const [submittingNotes, setSubmittingNotes] = useState(false)
+  const noteSendingRef = useRef(false)
+  const draftRef = useRef({ value: safeValue, attachments: safeAttachments, appNotes })
+  draftRef.current = { value: safeValue, attachments: safeAttachments, appNotes }
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const chatInputRef = useRef<HTMLDivElement>(null)
@@ -420,12 +420,12 @@ export default function ChatInput({
   const clearInput = () => {
     onChange('')
     onChangeAttachments?.([])
-    onChangeAppSelections?.([])
+    onChangeAppNotes?.([])
     onSelectionChange?.({ selectionStart: 0, selectionEnd: 0 })
   }
 
   const handleSend = async () => {
-    if (isThinking && (!queueWhileThinking || appSelections.length > 0)) {
+    if (isThinking && (!queueWhileThinking || appNotes.length > 0)) {
       triggerBlockedFlash()
       return
     }
@@ -434,22 +434,20 @@ export default function ChatInput({
       !isConfigured ||
       (!safeValue.trim() &&
         safeAttachments.length === 0 &&
-        appSelections.length === 0 &&
+        appNotes.length === 0 &&
         markedVideos.length === 0)
     )
       return
-    if (selectionSendingRef.current) return
-    if (appSelections.length) {
-      selectionSendingRef.current = true
-      setSubmittingSelection(true)
+    if (noteSendingRef.current) return
+    if (appNotes.length) {
+      noteSendingRef.current = true
+      setSubmittingNotes(true)
       try {
-        await onSend(safeValue, safeAttachments, { reason: 'user', appSelections })
+        await onSend(safeValue, safeAttachments, { reason: 'user', appNotes })
         if (clearOnSend) {
           // Picks stay editable during the send. Only consume the unchanged submitted objects.
           const current = draftRef.current
-          onChangeAppSelections?.(
-            current.appSelections.filter((pick) => !appSelections.includes(pick)),
-          )
+          onChangeAppNotes?.(current.appNotes.filter((pick) => !appNotes.includes(pick)))
           if (current.value === safeValue) {
             onChange('')
             onSelectionChange?.({ selectionStart: 0, selectionEnd: 0 })
@@ -459,11 +457,11 @@ export default function ChatInput({
           )
         }
       } catch {
-        // Keep selections and comments available for retry; the host reports the send error.
+        // Keep notes and comments available for retry; the host reports the send error.
         return
       } finally {
-        selectionSendingRef.current = false
-        setSubmittingSelection(false)
+        noteSendingRef.current = false
+        setSubmittingNotes(false)
       }
     } else {
       void onSend(safeValue, safeAttachments, { reason: 'user' })
@@ -479,7 +477,7 @@ export default function ChatInput({
     if (isThinking || !isConfigured) return
     void onSend(action, [], {
       reason: 'suggested_action',
-      ...(appSelections.length ? { appSelections } : {}),
+      ...(appNotes.length ? { appNotes } : {}),
     })
     if (clearOnSuggestedAction) clearInput()
     requestAnimationFrame(() => {
@@ -572,12 +570,12 @@ export default function ChatInput({
   const canSend =
     (safeValue.trim().length > 0 ||
       safeAttachments.length > 0 ||
-      appSelections.length > 0 ||
+      appNotes.length > 0 ||
       markedVideos.length > 0) &&
     isConfigured &&
     !holdingForUpload &&
-    !submittingSelection &&
-    !(isThinking && appSelections.length > 0)
+    !submittingNotes &&
+    !(isThinking && appNotes.length > 0)
   const failedUploads = uploads.filter((upload) => upload.status === 'failed')
   const runningUploads = uploads.filter((upload) => upload.status === 'uploading')
 
@@ -627,7 +625,7 @@ export default function ChatInput({
   const showSuggestedActions =
     !isThinking &&
     isConfigured &&
-    appSelections.length === 0 &&
+    appNotes.length === 0 &&
     Array.isArray(suggestedActions) &&
     suggestedActions.length > 0
 
@@ -660,10 +658,10 @@ export default function ChatInput({
         </div>
       ) : null}
 
-      {onShowApp || appSelections.length ? (
-        <AppSelectionChips
-          appSelections={appSelections}
-          onChangeAppSelections={onChangeAppSelections}
+      {onShowApp || appNotes.length ? (
+        <AppNoteChips
+          appNotes={appNotes}
+          onChangeAppNotes={onChangeAppNotes}
           onShowApp={onShowApp}
         />
       ) : null}

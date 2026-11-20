@@ -2,7 +2,7 @@ import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { describe, expect, it, vi } from 'vitest'
 import ChatInput from './ChatInput'
-import type { AppSelection } from '../../../headless/utils/appSelections'
+import type { AppNote } from '../../../headless/utils/appNotesTypes'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 vi.stubGlobal(
@@ -24,12 +24,17 @@ vi.mock('../../primitives/Tooltip', () => ({
   default: ({ children }: { children: React.ReactNode }) => children,
 }))
 
-const picks: AppSelection[] = [
-  { id: 'a', projectId: 'p', selector: '#a', outerHtml: '<p id="a">A</p>', comment: 'Change this' },
+const picks: AppNote[] = [
+  {
+    id: 'a',
+    projectId: 'p',
+    comment: 'Change this',
+    targets: [{ kind: 'element', selector: '#a', outerHtml: '<p id="a">A</p>' }],
+  },
 ]
 
-describe('App selections send', () => {
-  it('holds selection-only drafts while busy even when text queueing is enabled', async () => {
+describe('App notes send', () => {
+  it('holds note-only drafts while busy even when text queueing is enabled', async () => {
     const host = document.createElement('div')
     const root = createRoot(host)
     const send = vi.fn()
@@ -40,8 +45,8 @@ describe('App selections send', () => {
           value=""
           onChange={() => {}}
           onSend={send}
-          appSelections={picks}
-          onChangeAppSelections={change}
+          appNotes={picks}
+          onChangeAppNotes={change}
           isThinking
           queueWhileThinking
         />,
@@ -70,14 +75,14 @@ describe('App selections send', () => {
         }),
     )
     const change = vi.fn()
-    const renderDraft = (appSelections: AppSelection[]) =>
+    const renderDraft = (appNotes: AppNote[]) =>
       root.render(
         <ChatInput
           value=""
           onChange={() => {}}
           onSend={send}
-          appSelections={appSelections}
-          onChangeAppSelections={change}
+          appNotes={appNotes}
+          onChangeAppNotes={change}
           clearOnSend
         />,
       )
@@ -95,11 +100,11 @@ describe('App selections send', () => {
     const added = { ...picks[0], id: 'new', comment: 'New pick during send' }
     await act(async () => renderDraft([edited, unchanged, added]))
     await act(async () => resolve())
-    expect(send).toHaveBeenCalledWith('', [], { reason: 'user', appSelections: submitted })
+    expect(send).toHaveBeenCalledWith('', [], { reason: 'user', appNotes: submitted })
     expect(change).toHaveBeenLastCalledWith([edited, added])
     await act(async () => root.unmount())
   })
-  it('sends selection-only context without flattening it and clears after success', async () => {
+  it('sends note-only context without flattening it and clears after success', async () => {
     const rootNode = document.createElement('div')
     const root = createRoot(rootNode)
     const send = vi.fn()
@@ -110,8 +115,8 @@ describe('App selections send', () => {
           value=""
           onChange={() => {}}
           onSend={send}
-          appSelections={picks}
-          onChangeAppSelections={change}
+          appNotes={picks}
+          onChangeAppNotes={change}
           clearOnSend
         />,
       ),
@@ -121,7 +126,7 @@ describe('App selections send', () => {
         .querySelector('form')!
         .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })),
     )
-    expect(send).toHaveBeenCalledWith('', [], { reason: 'user', appSelections: picks })
+    expect(send).toHaveBeenCalledWith('', [], { reason: 'user', appNotes: picks })
     expect(change).toHaveBeenCalledWith([])
     await act(async () => root.unmount())
   })
@@ -136,8 +141,8 @@ describe('App selections send', () => {
           value=""
           onChange={() => {}}
           onSend={send}
-          appSelections={picks}
-          onChangeAppSelections={change}
+          appNotes={picks}
+          onChangeAppNotes={change}
           clearOnSend
         />,
       ),
@@ -155,7 +160,7 @@ describe('App selections send', () => {
           value=""
           onChange={() => {}}
           onSend={send}
-          appSelections={picks}
+          appNotes={picks}
           isThinking
           queueWhileThinking
         />,

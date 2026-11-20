@@ -1,12 +1,13 @@
 import { Pressable, Text, TextInput, View } from 'react-native'
-import type { AppSelectionComposerProps } from '../../../headless/utils/appSelections'
+import { appNoteLabel } from '../../../headless/utils/appNotes'
+import type { AppNoteComposerProps } from '../../../headless/utils/appNotesTypes'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 
-export default function AppSelectionChips({
-  appSelections = [],
-  onChangeAppSelections,
+export default function AppNoteChips({
+  appNotes = [],
+  onChangeAppNotes,
   onShowApp,
-}: AppSelectionComposerProps) {
+}: AppNoteComposerProps) {
   const { theme } = useNativeTheme()
   return (
     <View accessibilityLabel="App selections" style={{ gap: 8 }}>
@@ -15,9 +16,9 @@ export default function AppSelectionChips({
           <Text style={{ color: theme.accent.primary }}>Show app</Text>
         </Pressable>
       ) : null}
-      {appSelections.map((selection, index) => (
+      {appNotes.map((note, index) => (
         <View
-          key={selection.id}
+          key={note.id}
           style={{
             borderWidth: 1,
             borderColor: theme.border.subtle,
@@ -28,15 +29,13 @@ export default function AppSelectionChips({
         >
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <Text style={{ flex: 1, color: theme.text.primary }}>
-              {index + 1}. {selection.selector}
+              {index + 1}. {appNoteLabel(note)}
             </Text>
-            {onChangeAppSelections ? (
+            {onChangeAppNotes ? (
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={`Remove app selection ${index + 1}`}
-                onPress={() =>
-                  onChangeAppSelections(appSelections.filter((item) => item.id !== selection.id))
-                }
+                onPress={() => onChangeAppNotes(appNotes.filter((item) => item.id !== note.id))}
               >
                 <Text style={{ color: theme.text.secondary }}>×</Text>
               </Pressable>
@@ -47,13 +46,11 @@ export default function AppSelectionChips({
             placeholder="What should change here?"
             placeholderTextColor={theme.text.muted}
             multiline
-            value={selection.comment}
-            editable={!!onChangeAppSelections}
+            value={note.comment}
+            editable={!!onChangeAppNotes}
             onChangeText={(comment) =>
-              onChangeAppSelections?.(
-                appSelections.map((item) =>
-                  item.id === selection.id ? { ...item, comment } : item,
-                ),
+              onChangeAppNotes?.(
+                appNotes.map((item) => (item.id === note.id ? { ...item, comment } : item)),
               )
             }
             style={{

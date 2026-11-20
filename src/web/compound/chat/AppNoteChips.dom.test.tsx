@@ -1,34 +1,39 @@
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { describe, expect, it, vi } from 'vitest'
-import AppSelectionChips from './AppSelectionChips'
-import type { AppSelection } from '../../../headless/utils/appSelections'
+import AppNoteChips from './AppNoteChips'
+import type { AppNote } from '../../../headless/utils/appNotesTypes'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
-describe('App selection chips', () => {
+describe('App note chips', () => {
   it('shows multiple picks as text, edits comments, removes by id and opens the app', async () => {
     const host = document.createElement('div')
     const root = createRoot(host)
     const change = vi.fn()
     const show = vi.fn()
-    const picks: AppSelection[] = [
+    const picks: AppNote[] = [
       {
         id: 'a',
         projectId: 'p',
-        selector: '#a',
-        outerHtml: '<script>bad()</script>',
         comment: 'First',
+        targets: [{ kind: 'element', selector: '#a', outerHtml: '<script>bad()</script>' }],
       },
-      { id: 'b', projectId: 'p', selector: '#b', outerHtml: '<p>B</p>', comment: 'Second' },
+      {
+        id: 'b',
+        projectId: 'p',
+        comment: 'Second',
+        targets: [{ kind: 'element', selector: '#b', outerHtml: '<p>B</p>' }],
+      },
     ]
     await act(async () =>
-      root.render(
-        <AppSelectionChips appSelections={picks} onChangeAppSelections={change} onShowApp={show} />,
-      ),
+      root.render(<AppNoteChips appNotes={picks} onChangeAppNotes={change} onShowApp={show} />),
     )
     expect(host.querySelectorAll('textarea')).toHaveLength(2)
     expect(host.querySelector('script')).toBeNull()
+    const labels = [...host.querySelectorAll('code')]
+    expect(labels.map((code) => code.textContent)).toEqual(['1. #a', '2. #b'])
+    expect(labels[0].getAttribute('title')).toBe('<script>bad()</script>')
     const area = host.querySelector('textarea')!
     await act(async () => {
       Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(

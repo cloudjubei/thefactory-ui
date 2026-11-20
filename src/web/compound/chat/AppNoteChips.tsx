@@ -1,10 +1,11 @@
-import type { AppSelectionComposerProps } from '../../../headless/utils/appSelections'
+import { appNoteLabel, appNoteMarkup } from '../../../headless/utils/appNotes'
+import type { AppNoteComposerProps } from '../../../headless/utils/appNotesTypes'
 
-export default function AppSelectionChips({
-  appSelections = [],
-  onChangeAppSelections,
+export default function AppNoteChips({
+  appNotes = [],
+  onChangeAppNotes,
   onShowApp,
-}: AppSelectionComposerProps) {
+}: AppNoteComposerProps) {
   return (
     <div className="flex flex-col gap-2 p-2" aria-label="App selections">
       {onShowApp ? (
@@ -16,22 +17,20 @@ export default function AppSelectionChips({
           Show app
         </button>
       ) : null}
-      {appSelections.map((selection, index) => (
+      {appNotes.map((note, index) => (
         <div
-          key={selection.id}
+          key={note.id}
           className="rounded-md border border-(--border-subtle) bg-(--surface-base) p-2 text-sm"
         >
           <div className="flex items-start gap-2">
-            <code className="min-w-0 flex-1 break-all" title={selection.outerHtml}>
-              {index + 1}. {selection.selector}
+            <code className="min-w-0 flex-1 break-all" title={appNoteMarkup(note)}>
+              {index + 1}. {appNoteLabel(note)}
             </code>
-            {onChangeAppSelections ? (
+            {onChangeAppNotes ? (
               <button
                 type="button"
                 aria-label={`Remove app selection ${index + 1}`}
-                onClick={() =>
-                  onChangeAppSelections(appSelections.filter((item) => item.id !== selection.id))
-                }
+                onClick={() => onChangeAppNotes(appNotes.filter((item) => item.id !== note.id))}
               >
                 ×
               </button>
@@ -41,12 +40,12 @@ export default function AppSelectionChips({
             aria-label={`Comment on app selection ${index + 1}`}
             placeholder="What should change here?"
             rows={2}
-            value={selection.comment}
-            readOnly={!onChangeAppSelections}
+            value={note.comment}
+            readOnly={!onChangeAppNotes}
             onChange={(event) =>
-              onChangeAppSelections?.(
-                appSelections.map((item) =>
-                  item.id === selection.id ? { ...item, comment: event.target.value } : item,
+              onChangeAppNotes?.(
+                appNotes.map((item) =>
+                  item.id === note.id ? { ...item, comment: event.target.value } : item,
                 ),
               )
             }

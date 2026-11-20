@@ -1,17 +1,14 @@
 import type { ReactNode } from 'react'
 import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type {
-  AppSelectionComposerProps,
-  AppElementPick,
-} from '../../../headless/utils/appSelections'
+import type { AppElementPick, AppNoteComposerProps } from '../../../headless/utils/appNotesTypes'
 
 const fixture = vi.hoisted(() => ({
-  composer: {} as AppSelectionComposerProps,
+  composer: {} as AppNoteComposerProps,
   pick: undefined as ((pick: AppElementPick) => void) | undefined,
 }))
 vi.mock('thefactory-ui/web', () => ({
-  ChatInput: (props: AppSelectionComposerProps) => {
+  ChatInput: (props: AppNoteComposerProps) => {
     fixture.composer = props
     return null
   },
@@ -21,7 +18,7 @@ vi.mock('thefactory-ui/web', () => ({
   },
 }))
 vi.mock('../../../native/compound/chat/ChatInput', () => ({
-  default: (props: AppSelectionComposerProps) => {
+  default: (props: AppNoteComposerProps) => {
     fixture.composer = props
     return null
   },
@@ -49,40 +46,40 @@ Object.defineProperties(URL, {
 
 // Load playground fixtures through Vitest so source-only tsc does not pull the whole
 // playground (with its separate package aliases) into the library compilation.
-const { APP_SELECTION_SCENES } = await vi.importActual<{
-  APP_SELECTION_SCENES: { states: { render: () => ReactNode }[] }[]
-}>('../../../../playground/scenes/appSelections')
-const { APP_SELECTION_VIEWS } = await vi.importActual<{
-  APP_SELECTION_VIEWS: { id: string; render: (address: URLSearchParams) => ReactNode }[]
-}>('../../../../playground/native/appSelectionsViews')
+const { APP_NOTE_SCENES } = await vi.importActual<{
+  APP_NOTE_SCENES: { states: { render: () => ReactNode }[] }[]
+}>('../../../../playground/scenes/appNotes')
+const { APP_NOTE_VIEWS } = await vi.importActual<{
+  APP_NOTE_VIEWS: { id: string; render: (address: URLSearchParams) => ReactNode }[]
+}>('../../../../playground/native/appNotesViews')
 const pick = { selector: '#renewal', outerHtml: '<p id="renewal">Renewal</p>' }
 
-describe('app selection comparison fixtures', () => {
+describe('app note comparison fixtures', () => {
   for (const [name, scene] of [
-    ['web', () => APP_SELECTION_SCENES[0].states[0].render()],
+    ['web', () => APP_NOTE_SCENES[0].states[0].render()],
     [
       'native',
-      () =>
-        APP_SELECTION_VIEWS.find((view) => view.id === 'app-picker')!.render(new URLSearchParams()),
+      () => APP_NOTE_VIEWS.find((view) => view.id === 'app-picker')!.render(new URLSearchParams()),
     ],
   ] as const) {
     it(`${name} keeps IDs unique after removing an earlier pick and picking again`, () => {
       render(scene())
       act(() => fixture.pick!(pick))
       act(() => fixture.pick!(pick))
-      const retained = fixture.composer.appSelections![1]
-      act(() => fixture.composer.onChangeAppSelections!([retained]))
+      const retained = fixture.composer.appNotes![1]
+      expect(retained).toMatchObject({
+        projectId: 'sample',
+        comment: '',
+        targets: [{ kind: 'element', ...pick }],
+      })
+      act(() => fixture.composer.onChangeAppNotes!([retained]))
       act(() => fixture.pick!(pick))
-      const selections = fixture.composer.appSelections!
-      expect(selections[0]).toBe(retained)
-      expect(new Set(selections.map((selection) => selection.id)).size).toBe(2)
+      const notes = fixture.composer.appNotes!
+      expect(notes[0]).toBe(retained)
+      expect(new Set(notes.map((note) => note.id)).size).toBe(2)
       // Editing/removing the new entry must not also target the retained entry.
-      act(() =>
-        fixture.composer.onChangeAppSelections!(
-          selections.filter((selection) => selection.id !== selections[1].id),
-        ),
-      )
-      expect(fixture.composer.appSelections).toEqual([retained])
+      act(() => fixture.composer.onChangeAppNotes!(notes.filter((note) => note.id !== notes[1].id)))
+      expect(fixture.composer.appNotes).toEqual([retained])
     })
   }
 })

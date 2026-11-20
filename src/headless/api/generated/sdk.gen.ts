@@ -7378,7 +7378,7 @@ export const setProjectDeviceAutomation = <ThrowOnError extends boolean = false>
   })
 
 /**
- * The project’s own serve build limit, in milliseconds. Null when it sets none, so the default applies.
+ * The project’s own serve build limit, in milliseconds. Null when it sets none, so the build limit of the stack it is served by applies, else the default.
  */
 export const getProjectServeSettings = <ThrowOnError extends boolean = false>(
   options: Options<GetProjectServeSettingsData, ThrowOnError>,
@@ -7395,7 +7395,7 @@ export const getProjectServeSettings = <ThrowOnError extends boolean = false>(
   })
 
 /**
- * Set or clear the project’s serve build limit, in milliseconds. A limit that is not a positive whole number is refused. The rest of the serve setting is left as it is.
+ * Set or clear the project’s serve build limit, in milliseconds. A limit that is not a positive whole number is refused. The project’s other settings, its serve stack included, are left as they are.
  */
 export const setProjectServeSettings = <ThrowOnError extends boolean = false>(
   options: Options<SetProjectServeSettingsData, ThrowOnError>,

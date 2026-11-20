@@ -1,10 +1,10 @@
 import {
   REMOTE_BROWSER_TEXT,
   noteLabel,
-  type AppSelection,
+  type AppNote,
   type RemoteBrowserNote,
 } from '../../../headless'
-import AppSelectionChips from '../chat/AppSelectionChips'
+import AppNoteChips from '../chat/AppNoteChips'
 
 export type RemoteBrowserNotesProps = {
   projectId: string
@@ -25,18 +25,17 @@ export default function RemoteBrowserNotes({
   onRemove,
 }: RemoteBrowserNotesProps) {
   if (!notes.length) return null
-  const rows: AppSelection[] = notes.map((note) => ({
+  const rows: AppNote[] = notes.map((note) => ({
     id: note.id,
     projectId,
-    selector: noteLabel(note),
-    outerHtml: note.url,
     comment: note.comment,
+    targets: [{ kind: 'element', selector: noteLabel(note), outerHtml: note.url }],
   }))
   return (
     <section aria-label={REMOTE_BROWSER_TEXT.notes}>
-      <AppSelectionChips
-        appSelections={rows}
-        onChangeAppSelections={(next) => {
+      <AppNoteChips
+        appNotes={rows}
+        onChangeAppNotes={(next) => {
           for (const note of notes) {
             const row = next.find((r) => r.id === note.id)
             if (!row) onRemove(note.id)

@@ -698,7 +698,7 @@ function ChatBodyInner({
                       .answerGate(reviewGateNoteAnswer(note))
                       .then((ok) => (ok ? undefined : onInputChange(content)))
                   }
-                  return busy && pendingQueue && !meta?.appSelections?.length
+                  return busy && pendingQueue && !meta?.appNotes?.length
                     ? pendingQueue.enqueue({ text: content, attachments })
                     : onSend(content, attachments, meta)
                 }}

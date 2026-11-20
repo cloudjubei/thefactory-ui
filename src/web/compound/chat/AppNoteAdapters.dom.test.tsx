@@ -5,6 +5,7 @@ import WebChatBody from './ChatBody'
 import NativeChatBody from '../../../native/compound/chat/ChatBody'
 import type { ChatInputProps } from './ChatInput'
 import type { ChatPendingQueue } from '../../../headless/hooks/useChatComposer'
+import type { AppNote } from '../../../headless/utils/appNotesTypes'
 
 const probe = vi.hoisted(() => ({ input: {} as ChatInputProps }))
 // Only the leaf composer is a probe: both real ChatBody adapters run their send routing.
@@ -66,22 +67,21 @@ vi.stubGlobal(
   },
 )
 afterEach(cleanup)
-const selections = [
+const notes: AppNote[] = [
   {
     id: 'pick',
     projectId: 'p',
-    selector: '#renewal',
-    outerHtml: '<p>Renewal</p>',
     comment: 'Fix date',
+    targets: [{ kind: 'element', selector: '#renewal', outerHtml: '<p>Renewal</p>' }],
   },
 ]
 
-describe('ChatBody app selection adapters', () => {
+describe('ChatBody app note adapters', () => {
   for (const [name, Body] of [
     ['web', WebChatBody],
     ['native', NativeChatBody],
   ] as const) {
-    it(`${name} forwards selection-only metadata and holds selections out of the text-only queue`, async () => {
+    it(`${name} forwards note-only metadata and holds notes out of the text-only queue`, async () => {
       const send = vi.fn()
       const change = vi.fn()
       const show = vi.fn()
@@ -103,17 +103,17 @@ describe('ChatBody app selection adapters', () => {
         inputValue: '',
         onInputChange: vi.fn(),
         pendingQueue: queue,
-        inputProps: { appSelections: selections, onChangeAppSelections: change, onShowApp: show },
+        inputProps: { appNotes: notes, onChangeAppNotes: change, onShowApp: show },
       }
       const view = render(<Body {...props} />)
-      expect(probe.input.appSelections).toBe(selections)
-      expect(probe.input.onChangeAppSelections).toBe(change)
+      expect(probe.input.appNotes).toBe(notes)
+      expect(probe.input.onChangeAppNotes).toBe(change)
       expect(probe.input.onShowApp).toBe(show)
       expect(probe.input.isThinking).toBe(false)
       await act(async () => {
-        await probe.input.onSend('', [], { reason: 'user', appSelections: selections })
+        await probe.input.onSend('', [], { reason: 'user', appNotes: notes })
       })
-      expect(send).toHaveBeenCalledWith('', [], { reason: 'user', appSelections: selections })
+      expect(send).toHaveBeenCalledWith('', [], { reason: 'user', appNotes: notes })
       expect(enqueue).not.toHaveBeenCalled()
       send.mockClear()
       view.rerender(<Body {...props} liveState={{ ...props.liveState, isSending: true }} />)
@@ -121,9 +121,9 @@ describe('ChatBody app selection adapters', () => {
       expect(probe.input.queueWhileThinking).toBe(true)
       // Defence in depth: even a direct callback must never put structured context in a text queue.
       await act(async () => {
-        await probe.input.onSend('', [], { appSelections: selections })
+        await probe.input.onSend('', [], { appNotes: notes })
       })
-      expect(send).toHaveBeenCalledWith('', [], { appSelections: selections })
+      expect(send).toHaveBeenCalledWith('', [], { appNotes: notes })
       expect(enqueue).not.toHaveBeenCalled()
       send.mockClear()
       await act(async () => {
