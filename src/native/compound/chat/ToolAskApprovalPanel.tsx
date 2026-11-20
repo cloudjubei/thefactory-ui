@@ -388,6 +388,21 @@ export default function ToolAskApprovalPanel({
           <Boxed>
             <RichText text={body.text} textColor={theme.text.secondary} fontSize={13} />
           </Boxed>
+        ) : body.kind === 'host-check-consent' ? (
+          <View style={{ gap: 8 }}>
+            <Text style={{ fontSize: 13, color: theme.text.secondary }}>{body.lead}</Text>
+            <Boxed>
+              {body.commands.map((command) => (
+                <Text
+                  key={command}
+                  selectable
+                  style={[{ fontSize: 12, color: theme.text.primary }, MONO]}
+                >
+                  {command}
+                </Text>
+              ))}
+            </Boxed>
+          </View>
         ) : body.kind === 'details' && body.text ? (
           <Boxed>
             <Text selectable style={[{ fontSize: 12, color: theme.text.secondary }, MONO]}>

@@ -86,6 +86,29 @@ describe('toolAskCardView — sandbox requests', () => {
     })
   })
 
+  it('lists host-check consent commands and offers Allow for this project', () => {
+    expect(
+      toolAskCardView({
+        label: 'Project check host consent',
+        detail: {
+          title: 'Allow host checks for this project',
+          hostReason: 'No sandbox image has python3.',
+          commands: ['pytest', 'ruff check'],
+          checkIds: ['unit', 'lint'],
+        },
+      }),
+    ).toMatchObject({
+      icon: 'run',
+      headline: 'Allow host checks for this project',
+      verb: 'Allow for this project',
+      why: 'No sandbox image has python3.',
+      body: {
+        kind: 'host-check-consent',
+        commands: ['pytest', 'ruff check'],
+      },
+    })
+  })
+
   it('shows a project script as the command it runs, asked to run in the chat’s copy', () => {
     expect(
       toolAskCardView(

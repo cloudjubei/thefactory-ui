@@ -121,6 +121,12 @@ describe('processWaitingHeading', () => {
         request: { actionId: 'a', actionKind: 'workspace-limit-raise' },
       }),
     ).toBe('The verifier needs more workspace space')
+    expect(
+      processWaitingHeading({
+        ...permission,
+        request: { actionId: 'a', actionKind: 'project-check-host-consent' },
+      }),
+    ).toBe('The verifier needs host checks allowed')
   })
 
   it('asks for approval of any other request, or one with none recorded', () => {
@@ -214,6 +220,33 @@ describe('processWaitingView', () => {
     expect(processWaitingView(parked(permission, { stepInFlight: true }))).toEqual(
       processWaitingView(parked(permission)),
     )
+  })
+
+  it('lists host-check consent commands and offers Allow for this project', () => {
+    const ask: ProcessWaitingAsk = {
+      kind: 'permission',
+      agent: 'developer',
+      title: 'The developer needs your approval to use project-check-host-consent',
+      detail: 'It called project-check-host-consent and is waiting for your decision.',
+      request: {
+        actionId: 'act-host',
+        actionKind: 'project-check-host-consent',
+        args: {
+          title: 'Allow host checks for this project',
+          hostReason: 'No sandbox image has the Android SDK.',
+          commands: ['npm run build', 'npm run test'],
+          checkIds: ['build', 'unit'],
+        },
+      },
+    }
+    const view = processWaitingView(parked(ask))!
+    expect(view.heading).toBe('The developer needs host checks allowed')
+    expect(view.title).toBe('Allow host checks for this project')
+    expect(view.words).toContain('No sandbox image has the Android SDK.')
+    expect(view.words).toContain('These checks cannot run in the sandbox')
+    expect(view.commands).toEqual(['npm run build', 'npm run test'])
+    expect(view.details).toEqual([])
+    expect(view.choices.find((c) => c.choice === 'allow')?.label).toBe('Allow for this project')
   })
 
   it('leads a question with the answer', () => {

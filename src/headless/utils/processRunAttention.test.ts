@@ -260,6 +260,7 @@ describe('processRunNeedLine — Needs you', () => {
       'Approve: fetch https://example.com/a',
     ],
     [{ actionKind: 'workspace-limit-raise' }, 'Approve: more workspace space'],
+    [{ actionKind: 'project-check-host-consent' }, 'Approve: host checks on this machine'],
     [
       { actionKind: 'host-tool', toolName: 'mcp__thefactory__pushWorkBranch' },
       'Approve: push work branch',

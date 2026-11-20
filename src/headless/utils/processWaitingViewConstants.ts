@@ -1,9 +1,15 @@
+import {
+  PROJECT_CHECK_HOST_CONSENT_HEADING,
+  PROJECT_CHECK_HOST_CONSENT_KIND,
+} from './projectCheckHostConsentConstants'
+
 /** A permission's heading, by the kind of request — the agent's label goes first. */
 export const WAITING_PERMISSION_HEADINGS: Readonly<Record<string, string>> = {
   'network-unlock': 'needs network access',
   'install-package': 'needs to install a package',
   'external-fetch': 'needs to fetch a page',
   'workspace-limit-raise': 'needs more workspace space',
+  [PROJECT_CHECK_HOST_CONSENT_KIND]: PROJECT_CHECK_HOST_CONSENT_HEADING,
 }
 
 /** A permission's heading for a request of any other kind. */

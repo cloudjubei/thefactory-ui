@@ -7,6 +7,7 @@ import { grantDetailView } from './approvalGrant'
 import { cleanCliToolName } from './cliRunner'
 import { evaluationLaunchAskView } from './evaluationLaunchAskView'
 import { EVALUATE_KNOWLEDGE_TOOL } from './evaluationLaunchAskViewConstants'
+import { hostCheckConsentAskView, hostCheckConsentOf } from './projectCheckHostConsent'
 import { LAUNCH_FEATURE_PICK_NONE } from './launchFeaturePickConstants'
 import type { AlwaysAllowScope, GrantCovers, PendingToolGrantDecision } from './chatTypes'
 import type { GitChangeCardView } from './gitChangeApprovalTypes'
@@ -363,6 +364,11 @@ export function toolAskCardView(grant: GrantLike): ToolAskCardView {
   const { headline: sentence, detail } = grantDetailView(grant.detail)
   const why = text(args.reason)
   const base = { tone: 'ask' as const, ...(why ? { why } : {}) }
+
+  // Host-check consent has no tool name — the broker kind parks a payload with
+  // commands and hostReason. Recognise it before the generic approval.
+  const hostConsent = hostCheckConsentOf(grant.detail) ?? hostCheckConsentOf(args)
+  if (hostConsent) return hostCheckConsentAskView(hostConsent, why)
 
   if (
     tool === 'proposeDesign' ||

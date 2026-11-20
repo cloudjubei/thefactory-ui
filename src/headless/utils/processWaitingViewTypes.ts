@@ -52,6 +52,11 @@ export interface ProcessWaitingView {
   /** The agent's own reason or question, verbatim. */
   words: string
   details: ProcessWaitingDetail[]
+  /**
+   * Exact command lines that would run on the host — a host-check consent ask
+   * lists them under the lead in `words`.
+   */
+  commands?: readonly string[]
   /** The agent's run, to open its transcript. */
   transcript?: ProcessNodeRunRef
   transcriptLabel: string

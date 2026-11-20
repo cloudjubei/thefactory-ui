@@ -2292,6 +2292,29 @@ export {
   type UseProjectDeviceAutomation,
 } from './hooks/useProjectDeviceAutomation'
 export {
+  PROJECT_CHECK_HOST_CONSENT_ALLOW,
+  PROJECT_CHECK_HOST_CONSENT_ASK,
+  PROJECT_CHECK_HOST_CONSENT_HEADING,
+  PROJECT_CHECK_HOST_CONSENT_KIND,
+  PROJECT_CHECK_HOST_CONSENT_LEAD,
+  PROJECT_CHECK_HOST_CONSENT_NEED,
+  PROJECT_CHECK_HOST_CONSENT_SETTINGS,
+  PROJECT_CHECK_HOST_CONSENT_TITLE,
+} from './utils/projectCheckHostConsentConstants'
+export type { HostCheckConsentView } from './utils/projectCheckHostConsentTypes'
+export {
+  hostCheckConsentAskView,
+  hostCheckConsentFromRequest,
+  hostCheckConsentOf,
+  hostCheckConsentWords,
+  isHostCheckConsentKind,
+  withHostCheckConsentAllowLabel,
+} from './utils/projectCheckHostConsent'
+export {
+  useProjectCheckHostConsent,
+  type UseProjectCheckHostConsent,
+} from './hooks/useProjectCheckHostConsent'
+export {
   attachmentUploadError,
   chatDropAction,
   chatDropOverlay,

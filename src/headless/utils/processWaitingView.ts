@@ -29,6 +29,11 @@ import {
 } from './processWaitingViewConstants'
 import type { ChatContext } from '../api'
 import { preExistingBreakView } from './processPreExistingBreakView'
+import {
+  hostCheckConsentFromRequest,
+  hostCheckConsentWords,
+  withHostCheckConsentAllowLabel,
+} from './projectCheckHostConsent'
 import type {
   ProcessWaitingDelegatedView,
   ProcessWaitingDetail,
@@ -129,17 +134,23 @@ export function processWaitingView(
   const chatContext: ChatContext | undefined = delegatedTo
     ? { type: 'PROJECT_TOPIC', projectId: run.projectId, topicId: delegatedTo.topicId }
     : undefined
+  const hostConsent =
+    !ask.items && ask.request ? hostCheckConsentFromRequest(ask.request) : undefined
+  const choices = processRunParkChoices(run)
   return {
     kind: ask.kind,
     heading: processWaitingHeading(ask),
-    title: ask.title,
+    title: hostConsent?.title ?? ask.title,
     words: ask.items
       ? WAITING_REQUESTS_WORDS(processWaitingOpenItems(ask).length, ask.items.length)
-      : ask.detail,
-    details: processWaitingDetails(ask),
+      : hostConsent
+        ? hostCheckConsentWords(hostConsent)
+        : ask.detail,
+    details: hostConsent ? [] : processWaitingDetails(ask),
+    ...(hostConsent ? { commands: hostConsent.commands } : {}),
     ...(ask.runRef?.chatContextId ? { transcript: ask.runRef } : {}),
     transcriptLabel: `Open the ${processAgentLabel(ask.agent)}’s transcript →`,
-    choices: processRunParkChoices(run),
+    choices: hostConsent ? withHostCheckConsentAllowLabel(choices) : choices,
     ...(ask.items ? { requests: ask.items.map(processWaitingRequestView) } : {}),
     ...(chatContext ? { delegated: processWaitingDelegatedView(chatContext) } : {}),
     ...(ask.preExistingBreak

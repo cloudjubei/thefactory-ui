@@ -1,3 +1,7 @@
+import {
+  PROJECT_CHECK_HOST_CONSENT_KIND,
+  PROJECT_CHECK_HOST_CONSENT_NEED,
+} from './projectCheckHostConsentConstants'
 import { PROCESS_RUN_WORDS } from './processViewConstants'
 import type { ProcessRunAttentionSectionHead } from './processRunAttentionTypes'
 
@@ -28,6 +32,7 @@ export const PROCESS_RUN_NEED_PERMISSIONS: Readonly<
   'install-package': (r) => `install ${r.packageName ?? 'a package'}`,
   'external-fetch': (r) => `fetch ${r.url ?? 'a page'}`,
   'workspace-limit-raise': () => 'more workspace space',
+  [PROJECT_CHECK_HOST_CONSENT_KIND]: () => PROJECT_CHECK_HOST_CONSENT_NEED,
 }
 
 /** How a stopped step's decision is said, by why the run stopped — after "Decide:". */

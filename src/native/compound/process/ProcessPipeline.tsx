@@ -2353,6 +2353,28 @@ export function WaitingCard({
           </Text>
         </View>
       )}
+      {view.commands && view.commands.length > 0 ? (
+        <View
+          style={{
+            gap: nativeSpace[1],
+            borderWidth: 1,
+            borderColor: theme.border.subtle,
+            backgroundColor: theme.surface.base,
+            borderRadius: nativeRadii[2],
+            padding: nativeSpace[2],
+          }}
+        >
+          {view.commands.map((command) => (
+            <Text
+              key={command}
+              selectable
+              style={{ fontSize: 12, fontFamily: 'monospace', color: theme.text.primary }}
+            >
+              {command}
+            </Text>
+          ))}
+        </View>
+      ) : null}
       <WaitingDetails details={view.details} />
       {view.requests?.map((request) => (
         <WaitingRequestRow

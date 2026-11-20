@@ -838,6 +838,12 @@ export {
   type ProjectDeviceSettingsProps,
 } from './compound/projects/ProjectDeviceSettings'
 export {
+  default as ProjectCheckHostConsentSettings,
+  ProjectCheckHostConsentSettingsPanel,
+  type ProjectCheckHostConsentSettingsPanelProps,
+  type ProjectCheckHostConsentSettingsProps,
+} from './compound/projects/ProjectCheckHostConsentSettings'
+export {
   default as ProjectServeSettings,
   ProjectServeSettingsPanel,
   type ProjectServeSettingsPanelProps,

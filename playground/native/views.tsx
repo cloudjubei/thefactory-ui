@@ -77,6 +77,7 @@ import { PROJECT_CHECK_SETTINGS_VIEWS } from './projectCheckSettingsViews'
 import { RETRY_DEFINITIONS_VIEWS } from './retryDefinitionsViews'
 import { SIGNOFF_CHIP_VIEWS } from './signoffChipsViews'
 import { WAITING_RETRY_NOTE_VIEWS } from './waitingRetryNoteViews'
+import { HOST_CHECK_CONSENT_VIEWS } from './hostCheckConsentViews'
 import { SUPERSEDED_FILINGS_VIEWS } from './supersededFilingsViews'
 import { SPEND_LIMIT_VIEWS } from './spendLimitViews'
 import { MERGE_RECOVERY_VIEWS } from './mergeRecoveriesViews'
@@ -679,6 +680,7 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   ...PROJECT_CHECK_SETTINGS_VIEWS,
   ...RETRY_DEFINITIONS_VIEWS,
   ...WAITING_RETRY_NOTE_VIEWS,
+  ...HOST_CHECK_CONSENT_VIEWS,
   ...SIGNOFF_CHIP_VIEWS,
   ...SUPERSEDED_FILINGS_VIEWS,
   ...PLAN_WINDOW_VIEWS,

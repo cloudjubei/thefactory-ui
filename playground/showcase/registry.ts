@@ -126,6 +126,7 @@ import { VIDEO_ATTACHMENT_SCENES } from '../scenes/videoAttachments'
 import { VIDEO_TIMELINE_SCENES } from '../scenes/videoTimeline'
 import { SHOWN_FILE_SCENES } from '../scenes/shownFiles'
 import { PROJECT_DEVICE_SETTINGS_SCENES } from '../scenes/projectDeviceSettings'
+import { HOST_CHECK_CONSENT_SCENES } from '../scenes/hostCheckConsent'
 import { PROJECT_SERVE_SETTINGS_SCENES } from '../scenes/projectServeSettings'
 import { BUILD_LIMIT_AFTER_SAVE_SCENES } from '../scenes/buildLimitAfterSave'
 import { PROJECT_CHECK_SETTINGS_SCENES } from '../scenes/projectCheckSettings'
@@ -199,6 +200,7 @@ export const SCENES: readonly Scene[] = [
   ...ANSWER_FILES_SCENES,
   ...VIDEO_SETTINGS_SCENES,
   ...PROJECT_DEVICE_SETTINGS_SCENES,
+  ...HOST_CHECK_CONSENT_SCENES,
   ...PROJECT_SERVE_SETTINGS_SCENES,
   ...BUILD_LIMIT_AFTER_SAVE_SCENES,
   ...PROJECT_CHECK_SETTINGS_SCENES,

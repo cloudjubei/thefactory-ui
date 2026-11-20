@@ -45,6 +45,8 @@ export type ToolAskBody =
   | { kind: 'delete-story'; storyId: string; featureId?: string }
   | { kind: 'delete'; what: string }
   | { kind: 'details'; text?: string }
+  /** Host-check consent: the lead and the exact commands that would run on the host. */
+  | { kind: 'host-check-consent'; lead: string; commands: string[] }
   /** Text naming stories and features by id — drawn with their chips. */
   | { kind: 'references'; text: string }
   | { kind: 'git' }

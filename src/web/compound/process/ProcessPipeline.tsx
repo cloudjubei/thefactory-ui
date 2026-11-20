@@ -2180,6 +2180,15 @@ export function WaitingCard({
           {view.words}
         </blockquote>
       )}
+      {view.commands && view.commands.length > 0 ? (
+        <ul className="m-0 flex list-none flex-col gap-1 rounded-md border border-(--border-subtle) bg-(--surface-base) p-2.5 font-mono text-[12px] text-(--text-primary)">
+          {view.commands.map((command) => (
+            <li key={command} className="whitespace-pre-wrap break-all">
+              {command}
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {view.details.length > 0 ? <WaitingDetails details={view.details} /> : null}
       {view.requests ? (
         <ul className="m-0 flex list-none flex-col gap-2 p-0">

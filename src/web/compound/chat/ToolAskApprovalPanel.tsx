@@ -344,6 +344,17 @@ export default function ToolAskApprovalPanel({
         <div className="rounded-md bg-(--surface-muted) p-3 text-[13px]">
           <RichText text={body.text} />
         </div>
+      ) : body.kind === 'host-check-consent' ? (
+        <div className="flex flex-col gap-2">
+          <p className="m-0 text-[13px] text-(--text-secondary)">{body.lead}</p>
+          <ul className="m-0 flex list-none flex-col gap-1 rounded-md border border-(--border-subtle) bg-(--surface-muted) p-3 font-mono text-xs text-(--text-primary)">
+            {body.commands.map((command) => (
+              <li key={command} className="whitespace-pre-wrap break-all">
+                {command}
+              </li>
+            ))}
+          </ul>
+        </div>
       ) : body.kind === 'details' && body.text ? (
         <pre className="m-0 max-h-40 overflow-auto rounded-md bg-(--surface-muted) p-3 font-mono text-xs whitespace-pre-wrap wrap-break-word opacity-90">
           {body.text}
