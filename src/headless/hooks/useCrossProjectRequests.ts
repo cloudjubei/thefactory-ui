@@ -167,14 +167,18 @@ async function seedFeatureRequests(): Promise<void> {
 
 type FeatureRequestSocket = {
   on: (event: string, handler: (data: unknown) => void) => () => void
+  onReconnect: (handler: () => void) => () => void
 }
 
 let holders = 0
 let stopListening: (() => void) | undefined
+let stopReconnect: (() => void) | undefined
 
 /**
  * Keep the request store current for one more view: the first holder reads the
- * list and listens for `featureRequest:updated`; every later one shares both, so
+ * list, listens for `featureRequest:updated` and reads the list again whenever the
+ * socket reconnects, since updates sent while it was down never arrive; every
+ * later one shares all of it, so
  * a chat whose rows each show a request reads the list once, not once per row.
  * Returns the release, which counts once however often it is called.
  */
@@ -184,6 +188,7 @@ export function holdFeatureRequests(ws: FeatureRequestSocket): () => void {
     stopListening = ws.on('featureRequest:updated', (fr) =>
       upsertFeatureRequest(fr as FeatureRequest),
     )
+    stopReconnect = ws.onReconnect(() => void seedFeatureRequests())
     void seedFeatureRequests()
   }
   let released = false
@@ -194,6 +199,8 @@ export function holdFeatureRequests(ws: FeatureRequestSocket): () => void {
     if (holders > 0) return
     stopListening?.()
     stopListening = undefined
+    stopReconnect?.()
+    stopReconnect = undefined
   }
 }
 

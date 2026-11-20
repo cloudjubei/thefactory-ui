@@ -39,6 +39,17 @@ class FakeWs {
   count(event: string): number {
     return this.handlers.get(event)?.size ?? 0
   }
+
+  readonly reconnectHandlers = new Set<() => void>()
+
+  onReconnect(handler: () => void): () => void {
+    this.reconnectHandlers.add(handler)
+    return () => this.reconnectHandlers.delete(handler)
+  }
+
+  reconnect(): void {
+    for (const handler of this.reconnectHandlers) handler()
+  }
 }
 
 const request = (id: string) => ({ id, status: 'pending', updatedAt: '2026-10-13T00:00:00Z' })
@@ -79,6 +90,20 @@ describe('holdFeatureRequests', () => {
     holdFeatureRequests(ws)()
     holdFeatureRequests(ws)()
     expect(listFeatureRequests).toHaveBeenCalledTimes(2)
+  })
+
+  it('reads again after the socket reconnects while held — updates sent meanwhile were missed', () => {
+    const ws = new FakeWs()
+    const releaseA = holdFeatureRequests(ws)
+    const releaseB = holdFeatureRequests(ws)
+    expect(listFeatureRequests).toHaveBeenCalledTimes(1)
+    ws.reconnect()
+    expect(listFeatureRequests).toHaveBeenCalledTimes(2)
+    releaseA()
+    releaseB()
+    ws.reconnect()
+    expect(listFeatureRequests).toHaveBeenCalledTimes(2)
+    expect(ws.reconnectHandlers.size).toBe(0)
   })
 
   it('keeps what it had when the read fails', async () => {
