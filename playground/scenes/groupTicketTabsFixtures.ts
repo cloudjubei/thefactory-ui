@@ -588,6 +588,7 @@ const NO_MERGE: ReviewMergeSnapshot = {
   starting: undefined,
   refusal: undefined,
   actionError: undefined,
+  choosing: undefined,
 }
 
 export const mergeWith = (job: ReviewMergeJob | null): ReviewCardMerge =>

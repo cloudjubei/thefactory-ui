@@ -11,6 +11,7 @@ import {
 import RunOutsideWaitCard from '../process/RunOutsideWaitCard'
 import { RunPushApprovalCard, RunReviewDecisionCard } from './ColleagueReviewDecisionCard'
 import ReviewReplyComposerCard from './ReviewReplyComposerCard'
+import RunWorkingCard from './RunWorkingCard'
 
 export type ReviewChatSlotProps = {
   slot: UseReviewChatSlot
@@ -23,10 +24,21 @@ export type ReviewChatSlotProps = {
 /**
  * What a review chat shows in its composer's place: its run's decision card,
  * push approval or the reply it waited for — the run's own cards, answered
- * here as on the run's page, with Open run — or, in an inline review, the
- * reply waiting to start the next round. Not now hides it for this view.
+ * here as on the run's page, with Open run — its working card while it works
+ * off the chat, or, in an inline review, the reply waiting to start the next
+ * round. Not now hides it for this view.
  */
 export default function ReviewChatSlot({ slot, renderModelChip, onOpenRun }: ReviewChatSlotProps) {
+  if (!slot.kind) return null
+  return (
+    <div className="flex max-h-[65%] min-h-0 shrink flex-col gap-2 overflow-y-auto border-t border-(--border-default) bg-(--surface-raised) px-3 py-3">
+      <ReviewChatSlotCard slot={slot} renderModelChip={renderModelChip} onOpenRun={onOpenRun} />
+    </div>
+  )
+}
+
+/** The slot's card alone, for wherever the run's own card is drawn: the review chat's composer place, a ticket's page. */
+export function ReviewChatSlotCard({ slot, renderModelChip, onOpenRun }: ReviewChatSlotProps) {
   const { pick, slot: chip } = useLaunchAgentPick()
   const { kind, run, reply } = slot
   if (!kind) return null
@@ -77,11 +89,11 @@ export default function ReviewChatSlot({ slot, renderModelChip, onOpenRun }: Rev
         <RunOutsideWaitCard view={processOutsideWaitView(run)!} embedded onCarryOn={slot.carryOn} />
         {footer}
       </>
+    ) : run && kind === 'run-working' && slot.working ? (
+      <>
+        <RunWorkingCard view={slot.working} />
+        {footer}
+      </>
     ) : null
-  if (!card) return null
-  return (
-    <div className="flex max-h-[65%] min-h-0 shrink flex-col gap-2 overflow-y-auto border-t border-(--border-default) bg-(--surface-raised) px-3 py-3">
-      {card}
-    </div>
-  )
+  return card
 }

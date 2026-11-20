@@ -16,6 +16,14 @@ import {
   type Said,
 } from './reviewChatSlotFixtures'
 import { ROUND_TWO_PRS, ROUND_TWO_REPLY, ROUND_TWO_WITH_PRS } from './slackReviewFixtures'
+import {
+  BRINGING_BASE_SLOT,
+  MERGE_DONE,
+  MERGE_FIRST_CHECKS,
+  MERGE_ONE_MERGED,
+  MERGE_STOPPED,
+  workingSlot,
+} from './ticketRunFixtures'
 
 const noop = () => undefined
 
@@ -192,6 +200,45 @@ export const REVIEW_CHAT_SLOT_SCENES: Scene[] = [
         id: 'run-push',
         title: 'The run asks to approve a push',
         render: () => slotIn(chatSlot({ kind: 'run-push', run: REVIEW_RUN_PUSH_PASSED })),
+      },
+      {
+        id: 'run-working-base',
+        title: 'After Approve & merge: bringing the base in',
+        description:
+          'Right after the person chose, the run works off the chat: its card stays in the composer’s place with the step it is on, so the chat is never blank while it goes.',
+        render: () => slotIn(BRINGING_BASE_SLOT),
+      },
+      {
+        id: 'run-working-checks',
+        title: 'Merging: waiting for checks',
+        description:
+          'The run’s merge, pull request by pull request, drawn by the same rows as an inline Approve & merge: the backend’s first waits on its checks, the next waits its turn.',
+        render: () => slotIn(workingSlot(MERGE_FIRST_CHECKS)),
+      },
+      {
+        id: 'run-working-one-merged',
+        title: 'Merging: one merged, one waiting',
+        description: 'compass-be #392 merged; compass-web-user #302 waits on its Playwright check.',
+        render: () => slotIn(workingSlot(MERGE_ONE_MERGED)),
+      },
+      {
+        id: 'run-working-failed',
+        title: 'Merging: stopped on a failed check',
+        description:
+          'The merge stopped; the card says where and why until the run stops for the person.',
+        render: () => slotIn(workingSlot(MERGE_STOPPED)),
+      },
+      {
+        id: 'run-working-done',
+        title: 'Merged: thanks posted, ticket moved',
+        description:
+          'Both merged, the thanks posted in Slack and the ticket moved; the run writes its report.',
+        render: () => slotIn(workingSlot(MERGE_DONE, 'report')),
+      },
+      {
+        id: 'run-working-phone',
+        title: 'Merging, on a phone',
+        render: () => slotIn(workingSlot(MERGE_ONE_MERGED), 'phone'),
       },
     ],
   },

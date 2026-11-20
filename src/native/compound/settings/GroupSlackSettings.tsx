@@ -7,7 +7,9 @@ import {
   slackClientIdProblem,
   slackWatchLinkProblem,
   useGroupSlackSettings,
+  useReviewMergeChecks,
   type ColleagueReviewMode,
+  type ReviewMergeChecksView,
   type ReviewSettingsView,
   type SlackReviewSettingsState,
 } from '../../../headless'
@@ -23,6 +25,7 @@ import { Switch } from '../../primitives/Switch'
 import ToneBadge from '../chips/ToneBadge'
 import { useClipboardHost } from '../ClipboardHostContext'
 import ProviderOAuthWaiting from './ProviderOAuthWaiting'
+import { ReviewMergeChecksPanel } from './ReviewMergeChecks'
 
 export type SlackReviewSettingsActions = {
   onClientIdChange: (clientId: string) => void
@@ -39,10 +42,14 @@ export type SlackReviewSettingsActions = {
   onDefaultMode: (mode: ColleagueReviewMode) => void
   /** The Jira status a ticket moves to once its review merged; empty leaves it be. Without it, not offered. */
   onMergedTicketStatus?: (text: string) => void
+  /** Make a check required to merge or not. Without it, the checks are not offered. */
+  onCheckRequired?: (repository: string, check: string, required: boolean) => void
 }
 
 export type SlackReviewSettingsPanelProps = SlackReviewSettingsActions & {
   state: SlackReviewSettingsState
+  /** The checks the group's approve-and-merge waits for, per repository. */
+  mergeChecks?: ReviewMergeChecksView
   /** Start with the thread link being changed — for a fixed showcase state. */
   editingThread?: boolean
   /** Start with this link typed — for a fixed showcase state. */
@@ -61,6 +68,7 @@ export function SlackReviewSettingsPanel({
   editingThread = false,
   typedLink = '',
   confirmingClear = false,
+  mergeChecks,
   ...actions
 }: SlackReviewSettingsPanelProps) {
   const { theme } = useNativeTheme()
@@ -93,7 +101,7 @@ export function SlackReviewSettingsPanel({
       </Step>
       {view.settings ? (
         <Step n={3} title={TEXT.settingsStep}>
-          <SettingsPart settings={view.settings} actions={actions} />
+          <SettingsPart settings={view.settings} actions={actions} mergeChecks={mergeChecks} />
         </Step>
       ) : null}
     </View>
@@ -414,9 +422,11 @@ function ThreadLinkForm({
 function SettingsPart({
   settings,
   actions,
+  mergeChecks,
 }: {
   settings: ReviewSettingsView
   actions: SlackReviewSettingsActions
+  mergeChecks: ReviewMergeChecksView | undefined
 }) {
   const { theme } = useNativeTheme()
   return (
@@ -478,6 +488,9 @@ function SettingsPart({
           onSave={actions.onMergedTicketStatus}
         />
       ) : null}
+      {mergeChecks && actions.onCheckRequired ? (
+        <ReviewMergeChecksPanel view={mergeChecks} onRequired={actions.onCheckRequired} />
+      ) : null}
     </View>
   )
 }
@@ -537,6 +550,7 @@ export type GroupSlackSettingsProps = {
 /** Native peer of web's `GroupSlackSettings`: the panel on the group's live data, in Settings → Group. */
 export default function GroupSlackSettings({ groupId }: GroupSlackSettingsProps) {
   const slack = useGroupSlackSettings(groupId)
+  const checks = useReviewMergeChecks(groupId)
   const open = (going: Promise<string | undefined>) => {
     void going.then((page) => {
       if (page) void Linking.openURL(page)
@@ -560,6 +574,8 @@ export default function GroupSlackSettings({ groupId }: GroupSlackSettingsProps)
       onRunChecksUnasked={slack.setRunChecksUnasked}
       onDefaultMode={slack.setDefaultMode}
       onMergedTicketStatus={slack.setMergedTicketStatus}
+      mergeChecks={checks.view}
+      onCheckRequired={checks.setRequired}
     />
   )
 }

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import type { ColleagueReview, ReviewPullRequestRef } from 'thefactory-tools/types'
 import {
   reviewCardMerge,
+  reviewMergeStopView,
+  reviewMergeProgressLine,
   reviewMergePullRequests,
   reviewMergeStartBody,
   reviewMergeView,
@@ -208,6 +210,7 @@ describe('reviewCardMerge', () => {
     starting: undefined,
     refusal: undefined,
     actionError: undefined,
+    choosing: undefined,
   }
 
   it('offers the latest recorded round’s pull requests, the backend’s first', () => {
@@ -261,6 +264,103 @@ describe('reviewCardMerge', () => {
   })
 })
 
+describe('reviewMergeStopView', () => {
+  const conflict = {
+    pullRequestUrl: API.url,
+    name: 'coach-be#418',
+    baseBranch: 'main',
+    conflicts: true,
+    files: ['src/app.ts', 'src/b.ts'],
+    developer: 'Ana',
+    ask: '@Ana coach-be#418 conflicts with main in src/app.ts and src/b.ts — could you bring main in and resolve it? Then I’ll merge.',
+  }
+  const stopped = (over: Partial<NonNullable<ReviewMergeJob['baseConflict']>> = {}) =>
+    job({ state: 'failed', baseConflict: { ...conflict, ...over } })
+
+  it('says which pull request conflicts with its base, on which files, offering to ask its developer', () => {
+    expect(reviewMergeStopView(stopped(), undefined)).toEqual({
+      line: 'coach-be #418 conflicts with main in src/app.ts and src/b.ts',
+      askLabel: 'Ask Ana',
+      draft: conflict.ask,
+    })
+  })
+
+  it('says one that only lacks its base’s commits is behind, a few files named and the rest counted', () => {
+    expect(
+      reviewMergeStopView(
+        stopped({ conflicts: false, files: [], developer: undefined }),
+        undefined,
+      ),
+    ).toMatchObject({ line: 'coach-be #418 is behind main', askLabel: 'Ask the developer' })
+    expect(
+      reviewMergeStopView(stopped({ files: ['a', 'b', 'c', 'd', 'e'] }), undefined)?.line,
+    ).toBe('coach-be #418 conflicts with main in a, b, c and 2 more')
+    expect(reviewMergeStopView(stopped({ files: [] }), undefined)?.line).toBe(
+      'coach-be #418 conflicts with main',
+    )
+  })
+
+  it('shows the person’s choice at once while it is on its way', () => {
+    expect(reviewMergeStopView(stopped(), { kind: 'resolve' })?.chosen).toEqual({
+      line: 'Resolving it here…',
+      tone: 'working',
+      pending: true,
+    })
+    expect(reviewMergeStopView(stopped(), { kind: 'ask', text: 'x' })?.chosen).toEqual({
+      line: 'Posting in the thread…',
+      tone: 'working',
+      pending: true,
+    })
+  })
+
+  it('says what the person chose once it is done: resolving in the run, or asked with the post', () => {
+    expect(
+      reviewMergeStopView(stopped({ resolving: { at: 't', runId: 'run-1' } }), undefined)?.chosen,
+    ).toEqual({ line: 'Resolving it in the review run', tone: 'working', pending: false })
+    expect(
+      reviewMergeStopView(
+        stopped({ asked: { at: 't', permalink: 'https://acme.slack.com/archives/C1/p2' } }),
+        undefined,
+      )?.chosen,
+    ).toEqual({
+      line: 'Asked Ana in the thread',
+      tone: 'review',
+      pending: false,
+      permalink: 'https://acme.slack.com/archives/C1/p2',
+    })
+    expect(
+      reviewMergeStopView(
+        stopped({ developer: undefined, asked: { at: 't', permalink: 'javascript:x' } }),
+        undefined,
+      )?.chosen,
+    ).toEqual({ line: 'Asked the developer in the thread', tone: 'review', pending: false })
+  })
+
+  it('is nothing for a merge that did not stop on a base', () => {
+    expect(reviewMergeStopView(job({ state: 'failed' }), undefined)).toBe(undefined)
+    expect(reviewMergeStopView(job({ baseConflict: conflict }), undefined)).toBe(undefined)
+    expect(reviewMergeStopView(null, undefined)).toBe(undefined)
+  })
+
+  it('rides on the review card’s merge', () => {
+    const shown = reviewCardMerge(
+      {
+        rounds: [{ n: 1, recordedAt: 't', submission: { pullRequests: [API] }, reviewedHeads: [] }],
+      } as unknown as ColleagueReview,
+      1,
+      {
+        job: stopped(),
+        readError: undefined,
+        starting: undefined,
+        refusal: undefined,
+        actionError: undefined,
+        choosing: { kind: 'resolve' },
+      },
+    )
+    expect(shown?.stop).toMatchObject({ askLabel: 'Ask Ana', chosen: { pending: true } })
+  })
+})
+
 describe('reviewMergeView ticket move', () => {
   it('says what the merge did with the ticket, in the backend’s words', () => {
     const view = reviewMergeView({
@@ -302,5 +402,51 @@ describe('reviewMergeView ticket move', () => {
         ?.ticketMove,
     ).toBeUndefined()
     expect(reviewMergeView({ job: job(), prs: [] })).not.toHaveProperty('ticketMove')
+  })
+})
+
+describe('reviewMergeProgressLine', () => {
+  it('says how many merged of how many, and the step the one going is at', () => {
+    expect(reviewMergeProgressLine(job())).toBe(
+      'Merging · 1 of 2 merged · waiting for checks on coach-web #77',
+    )
+    expect(
+      reviewMergeProgressLine(
+        job({
+          pullRequests: [
+            { url: API.url, state: 'approving' },
+            { url: WEB.url, state: 'queued' },
+          ],
+        }),
+      ),
+    ).toBe('Merging · 0 of 2 merged · approving on coach-be #418')
+  })
+
+  it('says only the count while every pull request waits its turn, and how it ended once finished', () => {
+    expect(
+      reviewMergeProgressLine(job({ pullRequests: [{ url: API.url, state: 'queued' }] })),
+    ).toBe('Merging · 0 of 1 merged')
+    expect(
+      reviewMergeProgressLine(
+        job({
+          state: 'merged',
+          pullRequests: [
+            { url: API.url, state: 'merged' },
+            { url: WEB.url, state: 'merged' },
+          ],
+        }),
+      ),
+    ).toBe('Merged · 2 of 2 merged')
+    expect(
+      reviewMergeProgressLine(
+        job({
+          state: 'failed',
+          pullRequests: [
+            { url: API.url, state: 'merged' },
+            { url: WEB.url, state: 'failed', detail: 'checks failed' },
+          ],
+        }),
+      ),
+    ).toBe('Stopped · 1 of 2 merged · failed on coach-web #77')
   })
 })

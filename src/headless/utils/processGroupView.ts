@@ -29,6 +29,7 @@ import {
   processGroupStartWords,
 } from 'thefactory-tools/utils'
 import { GROUP_SIGN_OFF_TEXT } from './groupSignOffConstants'
+import { isGroupPublishPark } from './processDelivery'
 import {
   PROCESS_GROUP_CARD_CTA,
   PROCESS_GROUP_LANDED_RESUME_NEXT,
@@ -152,6 +153,7 @@ export function processGroupProgress(group: Pick<ProcessGroupRun, 'legs'>): {
  */
 export function processGroupLegRows(group: ProcessGroupRun): ProcessGroupLegRow[][] {
   const byId = new Map(group.legs.map((l) => [l.id, l]))
+  const groupPublishes = isGroupPublishPark(group)
   return processGroupLegWaves(group.legs).map((wave) =>
     wave.flatMap((id) => {
       const leg = byId.get(id)
@@ -177,6 +179,7 @@ export function processGroupLegRows(group: ProcessGroupRun): ProcessGroupLegRow[
           canMarkLanded: !processGroupLegLandingRefusal(group, leg.id),
           ...(leg.landedBy ? { landed: landedText(leg.landedBy) } : {}),
           ...(leg.followsOpenRun ? { follows: PROCESS_GROUP_LEG_FOLLOWS_OPEN_RUN } : {}),
+          ...(leg.status === 'at-publish' && !groupPublishes ? { publishes: true as const } : {}),
         },
       ]
     }),

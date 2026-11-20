@@ -38,6 +38,8 @@ export type ParkNoteComposerProps = {
   initialFiles?: readonly string[]
   /** The app's file picker, for files attached from this device. */
   pickAnswerFiles?: () => Promise<ChatAttachmentFile[]>
+  /** What the field starts with — a drafted message to edit. */
+  initialDraft?: string
   onSend: (note: string | undefined, requestedProof?: ProofKind[], files?: string[]) => void
   onCancel: () => void
 }
@@ -50,12 +52,13 @@ export default function ParkNoteComposer({
   proofPreset,
   answerFiles,
   initialFiles,
+  initialDraft,
   pickAnswerFiles,
   onSend,
   onCancel,
 }: ParkNoteComposerProps) {
   const { theme, status } = useNativeTheme()
-  const [draft, setDraft] = useState('')
+  const [draft, setDraft] = useState(initialDraft ?? '')
   const [files, setFiles] = useState<string[]>(() => [...(initialFiles ?? [])])
   const [proof, setProof] = useState<ProofKind[]>(() => [...(proofPreset ?? [])])
   const copy = givenCopy ?? PARK_NOTE_COPY

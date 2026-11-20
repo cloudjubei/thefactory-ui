@@ -47,6 +47,12 @@ export const RETRY_NOTE_COPY: ParkNoteCopy = {
   submitLabel: 'Try again',
 }
 
+/** The composer's words for a way on that sends a drafted message: the person edits it, then sends it. */
+export const PARK_RECOVERY_DRAFT_COPY: ParkNoteCopy = {
+  prompt: 'The message, as it will be sent',
+  submitLabel: 'Send',
+}
+
 /** The composer's words when a person accepts that an earlier merge dropped a change on purpose. */
 export const ACCEPT_DROPPED_NOTE_COPY: ParkNoteCopy = {
   prompt: 'Why was dropping it right?',

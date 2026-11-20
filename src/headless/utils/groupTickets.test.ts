@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { ProcessRun } from 'thefactory-tools/types'
 import {
   groupRunStartedWords,
   groupStoryTicketChip,
@@ -14,6 +15,7 @@ import {
   ticketMoveField,
 } from './groupTickets'
 import type { GroupTicketTab } from './groupTicketTabTypes'
+import { ticketRunIndex } from './ticketRunState'
 import type {
   GroupTicket,
   GroupTicketList,
@@ -828,5 +830,49 @@ describe('the tickets whose commits since review are read', () => {
     expect(
       reviewOpenTicketKeys(state({ tabs: { tabs: undefined, custom: false, readError: null } })),
     ).toEqual([])
+  })
+})
+
+describe('the run working a ticket, on its row', () => {
+  const reviewRun = {
+    id: 'r1',
+    projectId: 'osc-be',
+    title: 'Review of P-1',
+    status: 'parked',
+    ticketReview: { groupId: 'g1', ticketKey: 'P-1', round: 1 },
+    plan: { steps: [{ id: 'push-approval', name: 'Approve the push', kind: 'gate' }], loops: [] },
+    loopCounts: {},
+    ledger: [],
+    park: { reason: 'gate', stepId: 'push-approval', message: 'm', parkedAt: 1 },
+    startedAt: 1,
+    updatedAt: 2,
+  } as unknown as ProcessRun
+  const runs = ticketRunIndex('g1', [reviewRun], [])
+
+  it('says it on every row it works, in the tab and in the search, and on no other', () => {
+    const view = shown(
+      state({
+        byTab: { pending: read([ticket('P-1', { mine: true }), ticket('P-2')]) },
+        search: { ...read([ticket('P-1')]), query: 'p' },
+      }),
+    )
+    const withRuns = groupTicketsView(
+      state({
+        byTab: { pending: read([ticket('P-1', { mine: true }), ticket('P-2')]) },
+        search: { ...read([ticket('P-1')]), query: 'p' },
+      }),
+      1,
+      {},
+      runs,
+    )
+    if (withRuns.kind !== 'tickets') throw new Error(withRuns.kind)
+    const mineRow = rowsOf(withRuns.mine).find((r) => r.key === 'P-1')
+    expect(mineRow?.run).toMatchObject({
+      label: 'Review run · Waiting for you: Approve the push',
+      open: { kind: 'run', projectId: 'osc-be', runId: 'r1' },
+    })
+    expect(rowsOf(withRuns.others).find((r) => r.key === 'P-2')).not.toHaveProperty('run')
+    expect(rowsOf(withRuns.search!).find((r) => r.key === 'P-1')?.run?.asks).toBe(true)
+    expect(rowsOf(view.mine).find((r) => r.key === 'P-1')).not.toHaveProperty('run')
   })
 })

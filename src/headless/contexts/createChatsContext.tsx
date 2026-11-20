@@ -1333,10 +1333,19 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
           [live.cliRunId, serverRunId],
           finalizedCliRunIdsRef.current,
         )
+        // Mark this as a user stop so the terminal event treats the resulting
+        // `aborted` status as a clean stop (no error Alert).
+        if (runId) userAbortedRunIdsRef.current.add(runId)
+        // The chat's own stop goes first: it also stops the turns waiting behind
+        // the running one, which would otherwise start the moment it ends.
+        try {
+          await abortChatCompletion({ body: { context: ctx }, throwOnError: true })
+        } catch {
+          // 404 means no completion was in flight — harmless. Other errors
+          // are intentionally swallowed: the user already chose to abort,
+          // and the in-flight call (if any) will surface its own outcome.
+        }
         if (runId) {
-          // Mark this as a user stop so the terminal event treats the resulting
-          // `aborted` status as a clean stop (no error Alert).
-          userAbortedRunIdsRef.current.add(runId)
           try {
             await abortCliAgentRun({
               path: { runId },
@@ -1354,13 +1363,6 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
           // The CLI run is starting but its id isn't known yet (pre-202) — record
           // the intent so `sendMessage` aborts it the instant the runId arrives.
           pendingCliAbortKeysRef.current.add(getChatContextKey(ctx))
-        }
-        try {
-          await abortChatCompletion({ body: { context: ctx }, throwOnError: true })
-        } catch {
-          // 404 means no completion was in flight — harmless. Other errors
-          // are intentionally swallowed: the user already chose to abort,
-          // and the in-flight call (if any) will surface its own outcome.
         }
       },
       [getChatLiveState, getChat, updateLiveState],

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import type { ProcessRun } from 'thefactory-tools/types'
 import { groupTicketPageView, groupTicketUpdateLinks } from './groupTicketPage'
+import { ticketRunIndex } from './ticketRunState'
 import type { GroupTicketOverview, GroupTicketUpdate } from './groupTicketPageTypes'
 import type { GroupTicketTab } from './groupTicketTabTypes'
 
@@ -479,5 +481,83 @@ describe('groupTicketPageView: a reply waiting on the review', () => {
       NOW,
     )
     expect(page.reply?.startLabel).toBe('Start round 1')
+  })
+})
+
+describe('groupTicketPageView: the run working the ticket', () => {
+  const live = (status: string, over: object = {}) =>
+    ({
+      id: 'live',
+      projectId: 'p1',
+      title: 'Review of ZNR-1, round 1',
+      status,
+      ticketReview: { groupId: 'g1', ticketKey: 'ZNR-1', round: 1 },
+      plan: { steps: [{ id: 'merge', name: 'Merge', kind: 'action' }], loops: [] },
+      loopCounts: {},
+      ledger: [{ id: 'e1', stepId: 'merge', iteration: 1, status: 'running', startedAt: 1 }],
+      cursor: { stepId: 'merge', iteration: 1 },
+      startedAt: 1,
+      updatedAt: 2,
+      ...over,
+    }) as unknown as ProcessRun
+  const withRuns = (runs: ProcessRun[]) => ({ index: ticketRunIndex('g1', runs, []), merges: {} })
+  const reviewedOnce = overview({
+    review: {
+      rounds: [{ n: 1, startedAt: HOURS_AGO(3) }],
+      openFindings: 0,
+      runs: [{ id: 'live', status: 'parked', round: 1, projectId: 'p1' }],
+    },
+  })
+
+  it('says the run as the row does, live, with the run it opens', () => {
+    const page = groupTicketPageView(
+      'ZNR-1',
+      reviewedOnce,
+      TABS,
+      NOW,
+      undefined,
+      withRuns([live('running')]),
+    )
+    expect(page.run).toMatchObject({
+      label: 'Review run · Merge',
+      live: true,
+      open: { kind: 'run', projectId: 'p1', runId: 'live' },
+    })
+    expect(page.liveRun).toEqual({ id: 'live', projectId: 'p1' })
+    expect(page.review?.runs[0]?.status).toEqual({ label: 'Running', tone: 'running' })
+  })
+
+  it('finds a part story’s run by the group story’s parts', () => {
+    const own = live('running', {
+      id: 'own',
+      ticketReview: undefined,
+      storyId: 's1',
+      projectId: 'be',
+    })
+    const page = groupTicketPageView(
+      'ZNR-1',
+      overview({
+        story: { id: 'gs1', title: 'Code sign-in', parts: [{ projectId: 'be', storyId: 's1' }] },
+      }),
+      TABS,
+      NOW,
+      undefined,
+      withRuns([own]),
+    )
+    expect(page.run?.kind).toBe('story')
+  })
+
+  it('says no run once it ended well, its status in the review part as it is now', () => {
+    const page = groupTicketPageView(
+      'ZNR-1',
+      reviewedOnce,
+      TABS,
+      NOW,
+      undefined,
+      withRuns([live('succeeded')]),
+    )
+    expect(page).not.toHaveProperty('run')
+    expect(page.review?.runs[0]?.status.label).toBe('Done')
+    expect(page).not.toHaveProperty('liveRun')
   })
 })

@@ -280,7 +280,7 @@ export const PR_FIRST_DELIVERY_SCENES: Scene[] = [
   },
   {
     id: 'publish-card',
-    title: 'Publish for review',
+    title: 'Open pull request',
     component: 'PublishCard',
     group: 'Process',
     description:

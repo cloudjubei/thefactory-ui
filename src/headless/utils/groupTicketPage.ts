@@ -26,7 +26,19 @@ import type { ReviewCommitsView } from './reviewCommitsTypes'
 import { reviewReplyView, waitingReviewReply } from './reviewReply'
 import { ticketChipView, ticketLink } from './groupTickets'
 import { PROCESS_RUN_STATUS_VIEW } from './processView'
+import { ticketRunState } from './ticketRunState'
+import { NO_TICKET_RUNS } from './ticketRunStateConstants'
+import type { TicketRunIndex } from './ticketRunStateTypes'
+import type { ReviewMergeJob } from './colleagueReviewMergeTypes'
 import { timeAgo } from './time'
+
+/** The runs a page reads the ticket's run from, kept live, and the merges of its review run. */
+export interface GroupTicketPageRuns {
+  index: TicketRunIndex
+  merges: Readonly<Record<string, ReviewMergeJob>>
+}
+
+const NO_RUNS: GroupTicketPageRuns = { index: NO_TICKET_RUNS, merges: {} }
 
 const WEB_LINK = /<(https?:\/\/[^|>\s]+)(?:\|[^>]*)?>|(https?:\/\/[^\s<>()]+)/gi
 const TRAILING = /[.,;:!?'"’)\]]+$/
@@ -102,17 +114,29 @@ function emptyLines(overview: GroupTicketOverview): GroupTicketPageView['emptyLi
   }
 }
 
+/** The review's runs as they stand now: live where the page holds them, else as the page read them. */
+function liveReviewRuns(
+  overview: GroupTicketOverview,
+  key: string,
+  runs: GroupTicketPageRuns,
+): NonNullable<GroupTicketOverview['review']>['runs'] {
+  const held = new Map((runs.index.reviews.get(key.toUpperCase()) ?? []).map((r) => [r.id, r]))
+  return (overview.review?.runs ?? []).map((run) => {
+    const live = held.get(run.id)
+    return live ? { ...run, status: live.status } : run
+  })
+}
+
 function replyParts(
   overview: GroupTicketOverview,
   now: number,
   commits: ReviewCommitsView | undefined,
+  reviewRuns: NonNullable<GroupTicketOverview['review']>['runs'],
 ): Pick<GroupTicketPageView, 'reply' | 'commits' | 'reviewChat' | 'liveRun'> {
   const waiting = waitingReviewReply(overview.updates)
   const latestRound = Math.max(0, ...(overview.review?.rounds ?? []).map((r) => r.n))
   const reviewChat = overview.chats.find((chat) => reviewOfChat(chat.context))?.context
-  const liveRun = overview.review?.runs.find(
-    (run) => !PROCESS_RUN_TERMINAL_STATUSES.includes(run.status),
-  )
+  const liveRun = reviewRuns.find((run) => !PROCESS_RUN_TERMINAL_STATUSES.includes(run.status))
   return {
     ...(waiting ? { reply: reviewReplyView(waiting, latestRound, now, commits) } : {}),
     ...(!waiting && commits && commits.tone !== 'quiet' ? { commits } : {}),
@@ -128,7 +152,9 @@ function replyParts(
  * and chats newest first, and the tab's actions on it. A part that could not
  * be read is named in `problems`; the rest still shows. On top, the newest
  * reply waiting to start the review's next round, with what was pushed since
- * its last round (`commits`, once read), else what was pushed alone. Pure.
+ * its last round (`commits`, once read), else what was pushed alone. The run
+ * working the ticket, as its row says it, and its review's runs as they stand
+ * now, from `runs` kept live. Pure.
  */
 export function groupTicketPageView(
   ticketKey: string,
@@ -136,11 +162,23 @@ export function groupTicketPageView(
   tabs: readonly GroupTicketTab[] | undefined,
   now: number,
   commits?: ReviewCommitsView,
+  runs: GroupTicketPageRuns = NO_RUNS,
 ): GroupTicketPageView {
   const { ticket, tabId, actions, updates, review, pullRequests, story, chats } = overview
   const url = ticketLink(ticket?.url)
   const tabName = tabs?.find((t) => t.id === tabId)?.name
   const key = ticket?.key ?? ticketKey
+  const reviewRuns = liveReviewRuns(overview, key, runs)
+  const run = ticketRunState(
+    {
+      key,
+      statusCategory: ticket?.statusCategory,
+      ...(story ? { groupStory: { id: story.id, parts: story.parts } } : {}),
+    },
+    runs.index,
+    now,
+    runs.merges,
+  )
   return {
     key,
     summary: ticket?.summary ?? '',
@@ -162,7 +200,7 @@ export function groupTicketPageView(
           review: {
             rounds: [...review.rounds].sort((a, b) => b.n - a.n).map((r) => roundView(r, now)),
             findings: TEXT.openFindings(review.openFindings),
-            runs: review.runs.map((run) => ({
+            runs: reviewRuns.map((run) => ({
               id: run.id,
               projectId: run.projectId,
               label: TEXT.runOf(run.round),
@@ -186,7 +224,8 @@ export function groupTicketPageView(
         title: chat.title,
         when: timeAgo(now, Date.parse(chat.updatedAt)),
       })),
-    ...replyParts(overview, now, commits),
+    ...replyParts(overview, now, commits, reviewRuns),
+    ...(run ? { run } : {}),
     emptyLines: emptyLines(overview),
     problems: (overview.problems ?? []).map(
       (part) => GROUP_TICKET_PART_FAILED[part] ?? `${TEXT.partFailed} ${part}`,

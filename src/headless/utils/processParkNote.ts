@@ -25,6 +25,11 @@ import {
 import { LIVE_CHECK_SEND_NOTE_COPY } from './liveCheckWatchConstants'
 import type { ParkNoteCopy, RequestProofChoice } from './processParkNoteTypes'
 
+/** The text a way on drafts for the earlier gate it decides — a message to send — for the person to edit before it goes. Pure. */
+export function parkRecoveryDraft(offer: Pick<ProcessParkChoice, 'recovery'>): string | undefined {
+  return offer.recovery?.decidesGate?.text
+}
+
 /** Whether choosing this at a park opens a note composer rather than acting at once. */
 export function choiceTakesNote(choice: ProcessParkAction): boolean {
   return PARK_NOTE_CHOICES.has(choice)

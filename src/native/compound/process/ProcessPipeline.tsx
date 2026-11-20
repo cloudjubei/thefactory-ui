@@ -12,10 +12,13 @@ import {
   View,
 } from 'react-native'
 
+import type { ProcessStepRecovery } from 'thefactory-tools/types'
 import {
   accessRecordProjectNames,
   accessRecordSection,
   parkAnswerOpensNote,
+  parkRecoveryDraft,
+  PARK_RECOVERY_DRAFT_COPY,
   partialProofOfChoices,
   partialProofView,
   preExistingBreakOfChoices,
@@ -555,7 +558,8 @@ export default function ProcessPipeline({
     requestedProof?: readonly ProofKind[],
     retry?: ProcessRetryPick,
     files?: readonly string[],
-  ) => resume(choice, note, integration, requestedProof, retry, files)
+    recovery?: string,
+  ) => resume(choice, note, integration, requestedProof, retry, files, recovery)
   const alreadyMerged: ProcessAlreadyMergedAction | undefined = parkAlreadyLanded.offer
     ? {
         offer: parkAlreadyLanded.offer,
@@ -784,8 +788,16 @@ export default function ProcessPipeline({
                 embedded
                 answerFiles={nested.run ? nestedAnswerFiles : answerFiles}
                 {...(alreadyMerged && !nested.run ? { alreadyMerged } : {})}
-                onChoose={(choice, note, integration, requestedProof, retry, files) =>
-                  void stopActions.resume(choice, note, integration, requestedProof, retry, files)
+                onChoose={(choice, note, integration, requestedProof, retry, files, recovery) =>
+                  void stopActions.resume(
+                    choice,
+                    note,
+                    integration,
+                    requestedProof,
+                    retry,
+                    files,
+                    recovery,
+                  )
                 }
                 onAnswer={(choice) => stopActions.resume(choice)}
                 onAnswerGate={stopActions.answerGate}
@@ -1728,6 +1740,7 @@ function ParkBlock({
     requestedProof?: readonly ProofKind[],
     retry?: ProcessRetryPick,
     files?: readonly string[],
+    recovery?: string,
   ) => void
   onChangeProof: (draft: ProofChangeDraft) => void
   /** Move picked acceptance points into a follow-up; without it the stop does not offer it. */
@@ -1750,6 +1763,7 @@ function ParkBlock({
 }) {
   const { theme, status } = useNativeTheme()
   const [noteFor, setNoteFor] = useState<ProcessResumeChoice | undefined>()
+  const [drafting, setDrafting] = useState<ProcessStepRecovery | undefined>()
   const [changingProof, setChangingProof] = useState(false)
   const [splitting, setSplitting] = useState(false)
   const [asking, setAsking] = useState(false)
@@ -1761,6 +1775,7 @@ function ParkBlock({
   useEffect(() => {
     setRetryPick(undefined)
     setSelected(undefined)
+    setDrafting(undefined)
   }, [parkedAt])
   const park = run.park
   if (!park) return null
@@ -1873,6 +1888,20 @@ function ParkBlock({
       if (retryChoice && !processRetrySpendReady(retryChoice, pick)) return
       return onChoose('retry', note, undefined, undefined, pick)
     }
+    if (answer.offer.recovery && parkRecoveryDraft(answer.offer) !== undefined && !note) {
+      return setDrafting(answer.offer.recovery)
+    }
+    if (answer.choice === 'recover' && answer.offer.recovery) {
+      return onChoose(
+        'retry',
+        note,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        answer.offer.recovery.id,
+      )
+    }
     onChoose(answer.choice as ProcessResumeChoice, note)
   }
 
@@ -1926,6 +1955,16 @@ function ParkBlock({
               : onChoose(noteFor, note, undefined, requestedProof)
           }
           onCancel={() => setNoteFor(undefined)}
+        />
+      ) : drafting ? (
+        <ParkNoteComposer
+          copy={PARK_RECOVERY_DRAFT_COPY}
+          required
+          initialDraft={parkRecoveryDraft({ recovery: drafting }) ?? ''}
+          onSend={(note) =>
+            onChoose('retry', note, undefined, undefined, undefined, undefined, drafting.id)
+          }
+          onCancel={() => setDrafting(undefined)}
         />
       ) : changingProof && proofChange ? (
         <ProofChangeComposer
@@ -2137,6 +2176,7 @@ export function WaitingCard({
     requestedProof?: readonly ProofKind[],
     retry?: ProcessRetryPick,
     files?: readonly string[],
+    recovery?: string,
   ) => void
   /** Change what proves the work, where the agent's block is proof the run cannot give. */
   onChangeProof: (draft: ProofChangeDraft) => void
@@ -2195,6 +2235,17 @@ export function WaitingCard({
     }
     if (answer.choice === 'retry' && retry) {
       return onChoose('retry', note, undefined, undefined, retry.pick)
+    }
+    if (answer.choice === 'recover' && answer.offer.recovery) {
+      return onChoose(
+        'retry',
+        note,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        answer.offer.recovery.id,
+      )
     }
     onChoose(answer.choice as ProcessResumeChoice, note)
   }

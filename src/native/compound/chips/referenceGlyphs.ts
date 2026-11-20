@@ -6,6 +6,7 @@ import {
   IconBranch,
   IconChat,
   IconDocument,
+  IconEye,
   IconFiles,
   IconFolder,
   IconList,
@@ -29,6 +30,7 @@ const GLYPHS: Record<ReferenceDescription['kind'], Glyph> = {
   design: IconPalette,
   run: IconBranch,
   process: IconWorkflow,
+  evidence: IconEye,
 }
 
 /** Native peer of web's `referenceGlyph`: by its kind, a folder for a path ending in a slash. */

@@ -69,6 +69,9 @@ import type {
   AskAgentAboutProcessRunParkData,
   AskAgentAboutProcessRunParkErrors,
   AskAgentAboutProcessRunParkResponses,
+  AskColleagueReviewDeveloperData,
+  AskColleagueReviewDeveloperErrors,
+  AskColleagueReviewDeveloperResponses,
   AskScriptHostData,
   AskScriptHostErrors,
   AskScriptHostResponses,
@@ -450,6 +453,9 @@ import type {
   GetCodeIntelOutlineData,
   GetCodeIntelOutlineErrors,
   GetCodeIntelOutlineResponses,
+  GetColleagueReviewChecksData,
+  GetColleagueReviewChecksErrors,
+  GetColleagueReviewChecksResponses,
   GetColleagueReviewCommitsData,
   GetColleagueReviewCommitsErrors,
   GetColleagueReviewCommitsResponses,
@@ -1205,6 +1211,9 @@ import type {
   ResolveCliRunReviewToBaseData,
   ResolveCliRunReviewToBaseErrors,
   ResolveCliRunReviewToBaseResponses,
+  ResolveColleagueReviewMergeHereData,
+  ResolveColleagueReviewMergeHereErrors,
+  ResolveColleagueReviewMergeHereResponses,
   ResolveProcessRunIntegrationConflictData,
   ResolveProcessRunIntegrationConflictErrors,
   ResolveProcessRunIntegrationConflictResponses,
@@ -1359,6 +1368,9 @@ import type {
   SetCliRunFileViewedData,
   SetCliRunFileViewedErrors,
   SetCliRunFileViewedResponses,
+  SetColleagueReviewCheckRequiredData,
+  SetColleagueReviewCheckRequiredErrors,
+  SetColleagueReviewCheckRequiredResponses,
   SetColleagueReviewSourceData,
   SetColleagueReviewSourceErrors,
   SetColleagueReviewSourceResponses,
@@ -9088,6 +9100,48 @@ export const approveAndMergeColleagueReview = <ThrowOnError extends boolean = fa
   })
 
 /**
+ * The person chose to resolve a merge that stopped on a pull request’s base (it conflicts with it, or lacks its commits) here: a review run’s own merge stop is answered with its way on; an inline merge starts the ticket’s review run past its approval, Approve & merge chosen — it brings the base in (a conflict resolved in a checkout of its own, its checks run, the push waiting for the person’s approval), then merges as the press asked. Once however often pressed. Answers the job, its stop saying the run doing it. 404 when there is no review or no merge; 409 when the merge did not stop on a base, a review run holds the ticket’s chat, or the run cannot be started or answered.
+ */
+export const resolveColleagueReviewMergeHere = <ThrowOnError extends boolean = false>(
+  options: Options<ResolveColleagueReviewMergeHereData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    ResolveColleagueReviewMergeHereResponses,
+    ResolveColleagueReviewMergeHereErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/tickets/{ticketKey}/review/approve-and-merge/resolve-here',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * The person asks the developer to bring the base in, for a merge that stopped on a pull request’s base: the ask, as they edited it (the drafted one without `text`), is posted as the round’s reply in the update’s Slack thread, as the person — a review run’s merge stop is answered with its way on, which posts it and waits for the developer. Once however often pressed. Answers the job, its stop saying it was asked. 400 for an empty ask; 404 when there is no review or no merge; 409 when the merge did not stop on a base or the run moved past it; 502 when Slack refused.
+ */
+export const askColleagueReviewDeveloper = <ThrowOnError extends boolean = false>(
+  options: Options<AskColleagueReviewDeveloperData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    AskColleagueReviewDeveloperResponses,
+    AskColleagueReviewDeveloperErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/tickets/{ticketKey}/review/approve-and-merge/ask-developer',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
  * Stop watching the group’s thread. The offers it brought stay.
  */
 export const clearColleagueReviewSource = <ThrowOnError extends boolean = false>(
@@ -9156,6 +9210,44 @@ export const setColleagueReviewSourceSettings = <ThrowOnError extends boolean = 
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/groups/{groupId}/review-source/settings',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * The checks seen on the heads of the pull requests of the group’s most recent reviews, by repository, and whether an approve-and-merge waits for each: every check is required until the group says otherwise. Checks the group lets go that no pull request showed are listed too. A repository none of whose pull requests could be read says why.
+ */
+export const getColleagueReviewChecks = <ThrowOnError extends boolean = false>(
+  options: Options<GetColleagueReviewChecksData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetColleagueReviewChecksResponses,
+    GetColleagueReviewChecksErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/review-source/checks',
+    ...options,
+  })
+
+/**
+ * Whether the group’s approve-and-merge waits for one check of one repository: one not required may fail or still run and the pull request merges anyway. GitHub’s own branch protection still applies. Answers the check as kept. 400 for a repository that is not `owner/repo`.
+ */
+export const setColleagueReviewCheckRequired = <ThrowOnError extends boolean = false>(
+  options: Options<SetColleagueReviewCheckRequiredData, ThrowOnError>,
+) =>
+  (options.client ?? client).put<
+    SetColleagueReviewCheckRequiredResponses,
+    SetColleagueReviewCheckRequiredErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/review-source/checks',
     ...options,
     headers: {
       'Content-Type': 'application/json',

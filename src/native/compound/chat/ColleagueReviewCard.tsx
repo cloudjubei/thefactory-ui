@@ -16,8 +16,14 @@ import type {
   ReviewWaitingOnView,
 } from '../../../headless/utils/colleagueReviewCardTypes'
 import { REVIEW_POST_TEXT } from '../../../headless/utils/colleagueReviewSourceConstants'
-import { REVIEW_MERGE_TEXT } from '../../../headless/utils/colleagueReviewMergeConstants'
-import type { ReviewCardMerge } from '../../../headless/utils/colleagueReviewMergeTypes'
+import {
+  REVIEW_MERGE_STOP_TEXT,
+  REVIEW_MERGE_TEXT,
+} from '../../../headless/utils/colleagueReviewMergeConstants'
+import type {
+  ReviewCardMerge,
+  ReviewMergeStopView,
+} from '../../../headless/utils/colleagueReviewMergeTypes'
 import { ticketChipView } from '../../../headless/utils/groupTickets'
 import { ticketLinkOf } from '../../../headless/utils/ticketLinks'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
@@ -28,6 +34,7 @@ import BottomSheet from '../../primitives/BottomSheet'
 import { Button } from '../../primitives/Button'
 import { Input } from '../../primitives/Input'
 import SegmentedControl from '../../primitives/SegmentedControl'
+import Spinner from '../../primitives/Spinner'
 import { Textarea } from '../../primitives/Textarea'
 import { useClipboardHost } from '../ClipboardHostContext'
 import TicketChip from '../chips/TicketChip'
@@ -52,6 +59,12 @@ export type ColleagueReviewCardProps = {
   onApproveAndMerge?: (slackText: string, override: boolean) => void
   /** Start with Approve & merge's confirm open — for a fixed showcase state. */
   mergeConfirm?: boolean
+  /** A merge stopped on a pull request's base: resolve it here. Without it, not offered. */
+  onResolveHere?: () => void
+  /** A merge stopped on a pull request's base: ask the developer with the ask as edited. Without it, not offered. */
+  onAskDeveloper?: (text: string) => void
+  /** Start with the ask to the developer open — for a fixed showcase state. */
+  mergeAskOpen?: boolean
   /** Start with this finding opened — for a fixed showcase state. */
   openFinding?: string
   /** Start with this note open — for a fixed showcase state. */
@@ -102,6 +115,9 @@ export default function ColleagueReviewCard({
   merge,
   onApproveAndMerge,
   mergeConfirm = false,
+  onResolveHere,
+  onAskDeveloper,
+  mergeAskOpen = false,
   openFinding,
   noteOpen,
   expanded = false,
@@ -148,6 +164,9 @@ export default function ColleagueReviewCard({
           merge={merge}
           {...(onApproveAndMerge ? { onStart: onApproveAndMerge } : {})}
           confirmOpen={mergeConfirm}
+          {...(onResolveHere ? { onResolveHere } : {})}
+          {...(onAskDeveloper ? { onAsk: onAskDeveloper } : {})}
+          askOpen={mergeAskOpen}
         />
       ) : null}
     </View>
@@ -158,17 +177,25 @@ export default function ColleagueReviewCard({
  * Native peer of web's merge section: Approve & merge on the latest round,
  * its confirm listing the pull requests in the order they merge and the Slack
  * line, then each one's progress, live; a round that asked for changes is
- * held with the backend's words and "Merge anyway". What became of the
- * ticket's status once it merged shows last. The ticket page shows it too.
+ * held with the backend's words and "Merge anyway"; one stopped on a pull
+ * request's base offers to resolve it here or ask the developer, the ask
+ * editable before it is sent. What became of the ticket's status once it
+ * merged shows last. The ticket page shows it too.
  */
 export function MergeSection({
   merge,
   onStart,
   confirmOpen = false,
+  onResolveHere,
+  onAsk,
+  askOpen = false,
 }: {
   merge: ReviewCardMerge
   onStart?: (slackText: string, override: boolean) => void
   confirmOpen?: boolean
+  onResolveHere?: () => void
+  onAsk?: (text: string) => void
+  askOpen?: boolean
 }) {
   const { theme, status } = useNativeTheme()
   const [confirming, setConfirming] = useState(confirmOpen)
@@ -250,6 +277,15 @@ export function MergeSection({
           ))
         : null}
       {view?.summary ? <Text style={muted}>{view.summary}</Text> : null}
+      {merge.stop ? (
+        <MergeStop
+          key={merge.stop.draft}
+          stop={merge.stop}
+          askOpen={askOpen}
+          {...(onResolveHere ? { onResolveHere } : {})}
+          {...(onAsk ? { onAsk } : {})}
+        />
+      ) : null}
       {view?.error ? (
         <Text style={{ fontSize: 12, color: status.stuck.softFg }}>{view.error}</Text>
       ) : null}
@@ -326,6 +362,98 @@ export function MergeSection({
             </View>
           </View>
         </BottomSheet>
+      ) : null}
+    </View>
+  )
+}
+
+/** Native peer of web's merge stop: where a merge stopped on a pull request's base, and the two ways on, what the person chose shown at once in their place. */
+function MergeStop({
+  stop,
+  askOpen,
+  onResolveHere,
+  onAsk,
+}: {
+  stop: ReviewMergeStopView
+  askOpen: boolean
+  onResolveHere?: () => void
+  onAsk?: (text: string) => void
+}) {
+  const { theme, status } = useNativeTheme()
+  const [asking, setAsking] = useState(askOpen)
+  const [text, setText] = useState(stop.draft)
+  const { chosen } = stop
+  const permalink = chosen?.permalink
+  return (
+    <View
+      style={{
+        gap: 8,
+        borderWidth: 1,
+        borderColor: status.working.softBorder,
+        backgroundColor: status.working.softBg,
+        borderRadius: nativeRadii[2],
+        padding: nativeSpace[2],
+      }}
+    >
+      <Text style={{ fontSize: 13, fontWeight: '500', color: theme.text.primary }}>
+        {stop.line}
+      </Text>
+      {chosen ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+          {chosen.pending ? <Spinner size={12} /> : null}
+          <ToneBadge tone={chosen.tone} label={chosen.line} />
+          {permalink ? (
+            <Pressable
+              accessibilityRole="link"
+              onPress={() => void Linking.openURL(permalink)}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+            >
+              <Text style={{ fontSize: 12, color: theme.accent.primary }}>
+                {REVIEW_MERGE_STOP_TEXT.openPost}
+              </Text>
+              <IconExternalLink size={12} color={theme.accent.primary} />
+            </Pressable>
+          ) : null}
+        </View>
+      ) : asking && onAsk ? (
+        <View style={{ gap: 6 }}>
+          <Text style={{ fontSize: 13, fontWeight: '500', color: theme.text.primary }}>
+            {REVIEW_MERGE_STOP_TEXT.askField}
+          </Text>
+          <Textarea
+            value={text}
+            onChangeText={setText}
+            accessibilityLabel={REVIEW_MERGE_STOP_TEXT.askField}
+            rows={3}
+            style={{ fontSize: 13 }}
+          />
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
+            <Button size="sm" variant="secondary" onPress={() => setAsking(false)}>
+              {REVIEW_MERGE_STOP_TEXT.cancel}
+            </Button>
+            <Button
+              size="sm"
+              variant="primary"
+              disabled={!text.trim()}
+              onPress={() => onAsk(text.trim())}
+            >
+              {REVIEW_MERGE_STOP_TEXT.send}
+            </Button>
+          </View>
+        </View>
+      ) : onResolveHere || onAsk ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          {onResolveHere ? (
+            <Button size="sm" variant="primary" onPress={() => onResolveHere()}>
+              {REVIEW_MERGE_STOP_TEXT.resolveHere}
+            </Button>
+          ) : null}
+          {onAsk ? (
+            <Button size="sm" variant="secondary" onPress={() => setAsking(true)}>
+              {stop.askLabel}
+            </Button>
+          ) : null}
+        </View>
       ) : null}
     </View>
   )
@@ -960,13 +1088,21 @@ export function ColleagueReviewConnected({
   resultType,
   layout,
 }: ColleagueReviewConnectedProps) {
-  const { view, dropFinding, markGiven, postReply, merge, approveAndMerge } =
-    useColleagueReviewCall({
-      tool,
-      args,
-      result,
-      resultType,
-    })
+  const {
+    view,
+    dropFinding,
+    markGiven,
+    postReply,
+    merge,
+    approveAndMerge,
+    resolveHere,
+    askDeveloper,
+  } = useColleagueReviewCall({
+    tool,
+    args,
+    result,
+    resultType,
+  })
   return (
     <ColleagueReviewCard
       view={view}
@@ -976,6 +1112,8 @@ export function ColleagueReviewConnected({
       onPost={postReply}
       {...(merge ? { merge } : {})}
       onApproveAndMerge={approveAndMerge}
+      onResolveHere={resolveHere}
+      onAskDeveloper={askDeveloper}
     />
   )
 }

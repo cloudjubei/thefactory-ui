@@ -174,6 +174,27 @@ describe('processGroupProgress', () => {
 })
 
 describe('processGroupLegRows', () => {
+  it('offers a leg at its publish gate its own pull request while the others still work', () => {
+    const [[ready, building]] = processGroupLegRows(
+      group({
+        legs: [leg('docs', { status: 'at-publish' }), leg('api', { status: 'running' })],
+      }),
+    )
+    expect(ready).toMatchObject({ label: 'Ready for PR', tone: 'review', publishes: true })
+    expect(building!.publishes).toBeUndefined()
+  })
+
+  it('leaves a leg’s pull request to the group’s own card while the group waits to publish', () => {
+    const [[row]] = processGroupLegRows(
+      group({
+        status: 'parked',
+        park: { reason: 'publish', message: 'Publish?', parkedAt: 1 } as never,
+        legs: [leg('docs', { status: 'at-publish' })],
+      }),
+    )
+    expect(row!.publishes).toBeUndefined()
+  })
+
   it('says a leg whose stop its manager has is the manager’s, in the running tone, to open', () => {
     const [[row]] = processGroupLegRows(
       group({ legs: [leg('tools', { status: 'manager-on-it' })] }),

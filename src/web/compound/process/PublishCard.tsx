@@ -19,8 +19,8 @@ export interface PublishCardProps {
   embedded?: boolean
   onEdit: (projectId: string, field: keyof ProcessPublishEdit, value: string) => void
   onPublish: () => void
-  /** Stop the run here, once confirmed. */
-  onStop: () => void
+  /** Stop the run here, once confirmed; no Stop without it. */
+  onStop?: () => void
   /** Start on the confirm to stop. */
   initialStopping?: boolean
 }
@@ -97,7 +97,8 @@ function RepoRow({
 /**
  * The publish gate of a pull-request-first run: each repo with its branch name
  * and its pull request's title, both editable, who it is pushed as, and
- * Publish or Stop. Native peer: `native/compound/process/PublishCard`.
+ * Open pull request or — where the run can be stopped from it — Stop. Native
+ * peer: `native/compound/process/PublishCard`.
  */
 export default function PublishCard({
   view,
@@ -163,11 +164,13 @@ export default function PublishCard({
         <Button size="sm" disabled={!view?.canPublish} loading={busy} onClick={onPublish}>
           {busy ? PROCESS_PUBLISH_COPY.publishing : PROCESS_PUBLISH_COPY.publish}
         </Button>
-        <Button size="sm" variant="ghost" disabled={busy} onClick={() => setStopping(true)}>
-          {PROCESS_PUBLISH_COPY.stop}
-        </Button>
+        {onStop ? (
+          <Button size="sm" variant="ghost" disabled={busy} onClick={() => setStopping(true)}>
+            {PROCESS_PUBLISH_COPY.stop}
+          </Button>
+        ) : null}
       </div>
-      {stopping ? (
+      {stopping && onStop ? (
         <ConfirmDialog
           isOpen
           onClose={() => setStopping(false)}

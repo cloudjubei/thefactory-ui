@@ -13,6 +13,7 @@ import { useNativeTheme } from '../../hooks/useNativeTheme'
 import RunOutsideWaitCard from '../process/RunOutsideWaitCard'
 import { RunPushApprovalCard, RunReviewDecisionCard } from './ColleagueReviewDecisionCard'
 import ReviewReplyComposerCard from './ReviewReplyComposerCard'
+import RunWorkingCard from './RunWorkingCard'
 
 export type ReviewChatSlotProps = {
   slot: UseReviewChatSlot
@@ -23,10 +24,25 @@ export type ReviewChatSlotProps = {
 /**
  * Native peer of web's `ReviewChatSlot`: a review chat's composer place while
  * its run needs the person — its decision card, push approval or the reply
- * it waited for, with Open run — or the reply waiting to start an inline
- * review's next round. Not now hides it for this view.
+ * it waited for, with Open run — its working card while it works off the
+ * chat, or the reply waiting to start an inline review's next round. Not now
+ * hides it for this view.
  */
 export default function ReviewChatSlot({ slot, renderModelChip, onOpenRun }: ReviewChatSlotProps) {
+  const { theme } = useNativeTheme()
+  if (!slot.kind) return null
+  return (
+    <ScrollView
+      style={{ maxHeight: 520, borderTopWidth: 1, borderTopColor: theme.border.default }}
+      contentContainerStyle={{ gap: 8, padding: 12 }}
+    >
+      <ReviewChatSlotCard slot={slot} renderModelChip={renderModelChip} onOpenRun={onOpenRun} />
+    </ScrollView>
+  )
+}
+
+/** The slot's card alone, for wherever the run's own card is drawn: the review chat's composer place, a ticket's page. */
+export function ReviewChatSlotCard({ slot, renderModelChip, onOpenRun }: ReviewChatSlotProps) {
   const { theme } = useNativeTheme()
   const { pick, slot: chip } = useLaunchAgentPick()
   const { kind, run, reply } = slot
@@ -71,14 +87,11 @@ export default function ReviewChatSlot({ slot, renderModelChip, onOpenRun }: Rev
         <RunOutsideWaitCard view={processOutsideWaitView(run)!} onCarryOn={slot.carryOn} />
         {footer}
       </>
+    ) : run && kind === 'run-working' && slot.working ? (
+      <>
+        <RunWorkingCard view={slot.working} />
+        {footer}
+      </>
     ) : null
-  if (!card) return null
-  return (
-    <ScrollView
-      style={{ maxHeight: 520, borderTopWidth: 1, borderTopColor: theme.border.default }}
-      contentContainerStyle={{ gap: 8, padding: 12 }}
-    >
-      {card}
-    </ScrollView>
-  )
+  return card
 }

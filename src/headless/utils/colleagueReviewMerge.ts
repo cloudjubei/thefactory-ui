@@ -2,17 +2,22 @@ import type { ColleagueReview, ReviewPullRequestRef } from 'thefactory-tools/typ
 import { latestReviewRound, reviewPullRequestsAt } from 'thefactory-tools/utils'
 import { slackMessageLink } from './colleagueReviewSource'
 import {
+  REVIEW_MERGE_AT_STATES,
   REVIEW_MERGE_BACKEND_REPO,
   REVIEW_MERGE_PR_VIEW,
   REVIEW_MERGE_STATE_VIEW,
+  REVIEW_MERGE_STOP_MAX_FILES,
+  REVIEW_MERGE_STOP_TEXT,
   REVIEW_MERGE_TEXT,
 } from './colleagueReviewMergeConstants'
 import type {
   ReviewCardMerge,
+  ReviewMergeChoosing,
   ReviewMergeJob,
   ReviewMergePullRequest,
   ReviewMergeSnapshot,
   ReviewMergeStart,
+  ReviewMergeStopView,
   ReviewMergeView,
   ReviewMergeViewInput,
 } from './colleagueReviewMergeTypes'
@@ -105,6 +110,59 @@ export function reviewMergeView(input: ReviewMergeViewInput): ReviewMergeView | 
   }
 }
 
+function listed(items: readonly string[]): string {
+  return items.length < 2
+    ? (items[0] ?? '')
+    : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`
+}
+
+/**
+ * A merge stopped on a pull request's base, as the merge section offers it:
+ * the pull request, its base and the files it conflicts on (a few, the rest
+ * counted), the ask drafted for its developer — and, once the person chose,
+ * what they chose in place of the two ways on: at once while it is on its
+ * way, then as the backend says. Nothing for any other merge. Pure.
+ */
+export function reviewMergeStopView(
+  job: ReviewMergeJob | null | undefined,
+  choosing: ReviewMergeChoosing | undefined,
+): ReviewMergeStopView | undefined {
+  const stop = job?.state === 'failed' ? job.baseConflict : undefined
+  if (!stop) return undefined
+  const name = prName(stop.pullRequestUrl)
+  const named = stop.files.slice(0, REVIEW_MERGE_STOP_MAX_FILES)
+  const rest = stop.files.length - named.length
+  const files = listed(rest > 0 ? [...named, REVIEW_MERGE_STOP_TEXT.more(rest)] : named)
+  const permalink = slackMessageLink(stop.asked?.permalink)
+  const chosen: ReviewMergeStopView['chosen'] = choosing
+    ? {
+        line:
+          choosing.kind === 'resolve'
+            ? REVIEW_MERGE_STOP_TEXT.resolving
+            : REVIEW_MERGE_STOP_TEXT.posting,
+        tone: 'working',
+        pending: true,
+      }
+    : stop.resolving
+      ? { line: REVIEW_MERGE_STOP_TEXT.resolvingInRun, tone: 'working', pending: false }
+      : stop.asked
+        ? {
+            line: REVIEW_MERGE_STOP_TEXT.asked(stop.developer),
+            tone: 'review',
+            pending: false,
+            ...(permalink ? { permalink } : {}),
+          }
+        : undefined
+  return {
+    line: stop.conflicts
+      ? REVIEW_MERGE_STOP_TEXT.conflicts(name, stop.baseBranch, files)
+      : REVIEW_MERGE_STOP_TEXT.behind(name, stop.baseBranch),
+    askLabel: REVIEW_MERGE_STOP_TEXT.ask(stop.developer),
+    draft: stop.ask,
+    ...(chosen ? { chosen } : {}),
+  }
+}
+
 /**
  * Approve & merge as the review card offers it on round `n`: only on the
  * latest round once it is recorded, with its pull requests — or, without any
@@ -122,11 +180,28 @@ export function reviewCardMerge(
   const starting = snapshot.starting !== undefined
   const view = reviewMergeView({ job: snapshot.job, starting, prs })
   if (prs.length === 0 && !view) return undefined
+  const stop = reviewMergeStopView(snapshot.job, snapshot.choosing)
   return {
     prs,
     ...(view ? { view } : {}),
     starting,
     ...(snapshot.refusal ? { refusal: snapshot.refusal } : {}),
     ...(snapshot.actionError ? { actionError: snapshot.actionError } : {}),
+    ...(stop ? { stop } : {}),
   }
+}
+
+/**
+ * An approve-and-merge in one line, for a row or a run's card: how it stands,
+ * how many merged of how many, and the step the pull request it is at is on —
+ * "Merging · 1 of 2 merged · waiting for checks on coach-web #77". Pure.
+ */
+export function reviewMergeProgressLine(job: ReviewMergeJob): string {
+  const merged = job.pullRequests.filter((p) => p.state === 'merged').length
+  const at = job.pullRequests.find((p) => REVIEW_MERGE_AT_STATES.includes(p.state))
+  return [
+    REVIEW_MERGE_STATE_VIEW[job.state].label,
+    REVIEW_MERGE_TEXT.progress(merged, job.pullRequests.length),
+    ...(at ? [REVIEW_MERGE_TEXT.at(REVIEW_MERGE_PR_VIEW[at.state].label, prName(at.url))] : []),
+  ].join(REVIEW_MERGE_TEXT.separator)
 }

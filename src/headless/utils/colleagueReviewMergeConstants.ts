@@ -43,4 +43,38 @@ export const REVIEW_MERGE_TEXT = {
   notPosted: (why: string) => `Not posted in Slack: ${why}`,
   failed: 'The merge did not start.',
   readFailed: 'Could not read the merge.',
+  progress: (merged: number, total: number) => `${merged} of ${total} merged`,
+  at: (step: string, name: string) => `${step.toLowerCase()} on ${name}`,
+  separator: ' · ',
 } as const
+
+/** Where a pull request stands once it is the one the merge is at: working on it, or stopped on it. */
+export const REVIEW_MERGE_AT_STATES: readonly ReviewMergePullRequestState[] = [
+  'waiting-for-checks',
+  'marking-viewed',
+  'approving',
+  'merging',
+  'failed',
+]
+
+/** A merge stopped on a pull request's base: what it says, and the two ways on. */
+export const REVIEW_MERGE_STOP_TEXT = {
+  conflicts: (name: string, base: string, files: string) =>
+    `${name} conflicts with ${base}${files ? ` in ${files}` : ''}`,
+  behind: (name: string, base: string) => `${name} is behind ${base}`,
+  more: (count: number) => `${count} more`,
+  resolveHere: 'Resolve it here',
+  ask: (developer: string | undefined) => `Ask ${developer ?? 'the developer'}`,
+  askField: 'Message in the update’s thread',
+  send: 'Send',
+  cancel: 'Cancel',
+  resolving: 'Resolving it here…',
+  posting: 'Posting in the thread…',
+  resolvingInRun: 'Resolving it in the review run',
+  asked: (developer: string | undefined) => `Asked ${developer ?? 'the developer'} in the thread`,
+  openPost: 'Open in Slack',
+  failed: 'That did not go through.',
+} as const
+
+/** How many conflicted files a stop names before counting the rest. */
+export const REVIEW_MERGE_STOP_MAX_FILES = 3

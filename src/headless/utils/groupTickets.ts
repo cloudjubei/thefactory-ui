@@ -34,6 +34,10 @@ import type { GroupTicketTab } from './groupTicketTabTypes'
 import { reviewReplyLine } from './reviewReply'
 import { REVIEW_REPLY_TEXT } from './reviewReplyConstants'
 import type { ReviewCommitsView } from './reviewCommitsTypes'
+import type { ReviewMergeJob } from './colleagueReviewMergeTypes'
+import { ticketRunState } from './ticketRunState'
+import { NO_TICKET_RUNS } from './ticketRunStateConstants'
+import type { TicketRunIndex } from './ticketRunStateTypes'
 import { ticketStatusTone } from './ticketStatus'
 import { timeAgo } from './time'
 
@@ -151,18 +155,26 @@ function reviewNewsOf(
   return commits && commits.tone !== 'quiet' ? { commits, line: commits.label } : undefined
 }
 
+/** The runs a list reads its rows' runs from, and the merges of the tickets whose review run works. */
+interface RowRuns {
+  index: TicketRunIndex
+  merges: Readonly<Record<string, ReviewMergeJob>>
+}
+
 function ticketRow(
   ticket: GroupTicket,
   tab: GroupTicketTab | undefined,
   state: Pick<GroupTicketsState, 'starting' | 'reviewing'>,
   now: number,
   commits: ReviewCommitsView | undefined,
+  runs: RowRuns,
 ): GroupTicketRow {
   const { key, summary, priority, status, statusCategory, url, groupStory, chatOpen } = ticket
   const review = state.reviewing[key]
   const actions = groupTicketRowActions(ticket, tab)
   const { starting } = state
   const news = reviewNewsOf(ticket, commits, now)
+  const run = ticketRunState(ticket, runs.index, now, runs.merges)
   return {
     key,
     summary,
@@ -180,6 +192,7 @@ function ticketRow(
     ...(starting?.key === key ? { starting: starting.action } : {}),
     hint: GROUP_TICKET_TAB_ROW_TEXT.openTicket(key),
     ...(news ? { reviewNews: news } : {}),
+    ...(run ? { run } : {}),
   }
 }
 
@@ -275,12 +288,15 @@ function searchView(
  * how long ago each update and reply came. Everyone else's tickets under
  * review stand apart above the rest, each saying the reply waiting on it and
  * what its pull requests did since the last round, from `commits` by key once
- * read.
+ * read. Each row says the run working its ticket, from `runs` read once for
+ * the whole list, a review run that merges saying its merge from `merges`.
  */
 export function groupTicketsView(
   state: GroupTicketsState,
   now = Date.now(),
   commits: Readonly<Record<string, ReviewCommitsView>> = {},
+  runs: TicketRunIndex = NO_TICKET_RUNS,
+  merges: Readonly<Record<string, ReviewMergeJob>> = {},
 ): GroupTicketsView {
   const { tabs: read, byTab, tabCounts, search, startError, offerError } = state
   const tabs = read.tabs
@@ -291,7 +307,7 @@ export function groupTicketsView(
   if (list?.connected === false || search.list?.connected === false) return { kind: 'no-jira' }
 
   const rowOf = (t: GroupTicket, tab: GroupTicketTab | undefined) =>
-    ticketRow(t, tab, state, now, commits[t.key])
+    ticketRow(t, tab, state, now, commits[t.key], { index: runs, merges })
   const rows = (list?.tickets ?? []).map((t) => rowOf(t, shown))
   const mineKeys = new Set((list?.tickets ?? []).filter((t) => t.mine).map((t) => t.key))
   const mineRows = rows.filter((r) => mineKeys.has(r.key))

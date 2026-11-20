@@ -31,6 +31,69 @@ describe('processParkAnswersView', () => {
     expect(view.minor.map((a) => a.key)).toEqual(['continue', 'abandon'])
   })
 
+  it('keeps each way on a failed step offers as its own answer, beside trying again', () => {
+    const rerun = { id: 'rerun-failed-checks', label: 'Re-run failed checks', detail: 'Run them.' }
+    const anyway = { id: 'merge-anyway', label: 'Merge anyway', detail: 'Merge now.' }
+    const view = processParkAnswersView([
+      choice('retry', { label: 'Try again', primary: true }),
+      choice('recover', { label: rerun.label, detail: rerun.detail, recovery: rerun }),
+      choice('recover', { label: anyway.label, detail: anyway.detail, recovery: anyway }),
+      choice('continue'),
+      choice('abandon'),
+    ])
+    expect(view.lead?.key).toBe('retry')
+    expect(view.others.map((a) => [a.key, a.label])).toEqual([
+      ['recover:rerun-failed-checks', 'Re-run failed checks'],
+      ['recover:merge-anyway', 'Merge anyway'],
+    ])
+    expect(view.others[1]?.offer.recovery).toEqual(anyway)
+  })
+
+  it('matches the manager’s answer on a way on to that way on, by its id, and keeps the others', () => {
+    const rerun = { id: 'rerun-failed-checks', label: 'Re-run failed checks', detail: 'Run them.' }
+    const anyway = { id: 'merge-anyway', label: 'Merge anyway', detail: 'Merge now.' }
+    const view = processParkAnswersView(
+      [
+        choice('retry', { label: 'Try again', primary: true }),
+        choice('recover', { label: rerun.label, detail: rerun.detail, recovery: rerun }),
+        choice('recover', { label: anyway.label, detail: anyway.detail, recovery: anyway }),
+        choice('abandon'),
+      ],
+      {
+        recommendedChoice: 'recover',
+        answers: [
+          { choice: 'recover', recovery: 'merge-anyway', why: 'Its base fails the same way.' },
+          { choice: 'retry', note: 'Pin the version.' },
+        ],
+      },
+    )
+    expect(view.lead).toMatchObject({
+      key: 'recover:0',
+      choice: 'recover',
+      label: 'Merge anyway',
+      does: 'Merge now.',
+      pick: true,
+      why: 'Its base fails the same way.',
+    })
+    expect(view.lead?.offer.recovery).toEqual(anyway)
+    expect(view.others.map((a) => [a.key, a.label])).toEqual([
+      ['retry:1', 'Try again'],
+      ['recover:rerun-failed-checks', 'Re-run failed checks'],
+    ])
+    expect(view.minor.map((a) => a.key)).toEqual(['abandon'])
+  })
+
+  it('drops the manager’s answer on a way on the stop does not offer', () => {
+    const anyway = { id: 'merge-anyway', label: 'Merge anyway', detail: 'Merge now.' }
+    const view = processParkAnswersView(
+      [choice('retry', { primary: true }), choice('recover', { ...anyway, recovery: anyway })],
+      { answers: [{ choice: 'recover', recovery: 'skip-review' }] },
+    )
+    expect(view.fromManager).toBe(false)
+    expect(view.lead?.key).toBe('retry')
+    expect(view.others.map((a) => a.key)).toEqual(['recover:merge-anyway'])
+  })
+
   it('leads with the manager’s pick and its words, and keeps every choice it did not answer with', () => {
     const view = processParkAnswersView(turnLimit, {
       recommendedChoice: 'update-base',

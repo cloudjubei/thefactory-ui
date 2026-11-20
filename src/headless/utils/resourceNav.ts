@@ -1,4 +1,5 @@
 import type { ChatContext, ResourceLink } from 'thefactory-tools/types'
+import { EVIDENCE_MOMENT_LINK_PARAM } from './evidenceLinkConstants'
 import { FEATURE_LINK_PARAM } from './featureLinkConstants'
 import { fileLocationPath } from './fileLocation'
 import { NEEDS_YOU_LINK_PARAM } from './needsYouReferenceConstants'
@@ -64,6 +65,13 @@ export function resolveResourceNav(link: ResourceLink): ResourceNav {
         path: link.needsYouItemId
           ? `${path}?${NEEDS_YOU_LINK_PARAM}=${enc(link.needsYouItemId)}`
           : path,
+      }
+    }
+    case 'evidence': {
+      const path = `/projects/${enc(link.projectId)}/evidence/${enc(link.evidenceId)}`
+      return {
+        type: 'path',
+        path: link.at !== undefined ? `${path}?${EVIDENCE_MOMENT_LINK_PARAM}=${link.at}` : path,
       }
     }
     case 'process':

@@ -74,6 +74,9 @@ export interface ReviewMergeViewInput {
   prs: readonly ReviewMergePullRequest[]
 }
 
+/** What the person chose at a merge stopped on a pull request's base, on its way: resolving it here, or asking the developer with this text. */
+export type ReviewMergeChoosing = { kind: 'resolve' } | { kind: 'ask'; text: string }
+
 /** A ticket review's approve-and-merge as views draw it. */
 export interface ReviewMergeSnapshot {
   job: ReviewMergeJob | null | undefined
@@ -83,6 +86,20 @@ export interface ReviewMergeSnapshot {
   /** The backend asked first, since the round asked for changes: "Merge anyway" sends it again. */
   refusal: string | undefined
   actionError: string | undefined
+  /** The person's answer to a stop on a pull request's base, on its way. */
+  choosing: ReviewMergeChoosing | undefined
+}
+
+/** A merge stopped on a pull request's base: what is in the way, and the two ways on — resolve it here, or ask the developer. */
+export interface ReviewMergeStopView {
+  /** "coach-be #418 conflicts with main in src/app.ts" */
+  line: string
+  /** "Ask Ana" */
+  askLabel: string
+  /** The message drafted for the developer, to edit before it is sent. */
+  draft: string
+  /** What the person chose — on its way, or done — in place of the two ways on. */
+  chosen?: { line: string; tone: ProcessStatusTone; pending: boolean; permalink?: string }
 }
 
 /** Approve & merge on the review card's latest round: what it offers and how it goes. */
@@ -96,4 +113,6 @@ export interface ReviewCardMerge {
   /** The backend asked first, since the round asked for changes. */
   refusal?: string
   actionError?: string
+  /** Where it stopped on a pull request's base, and the ways on. */
+  stop?: ReviewMergeStopView
 }

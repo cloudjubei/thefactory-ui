@@ -1,11 +1,17 @@
 import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react'
 import { useApi } from '../api/ApiContext'
 import { useAuth } from '../api/AuthContext'
-import { processMergeActive, processMergeRows, processPublishView } from '../utils/processDelivery'
+import {
+  processLegPublishCard,
+  processMergeActive,
+  processMergeRows,
+  processPublishView,
+} from '../utils/processDelivery'
 import { PROCESS_DELIVERY_POLL_MS } from '../utils/processDeliveryConstants'
 import type {
   ProcessDeliveryData,
   ProcessDeliveryTarget,
+  ProcessLegPublishCard,
   ProcessMergeRow,
   ProcessPublishEdit,
   ProcessPublishView,
@@ -27,6 +33,10 @@ export type UseProcessDelivery = {
    * when refused.
    */
   publishNow: (answer?: () => Promise<boolean>) => Promise<boolean>
+  /** One leg's own publish card on its group run's page; undefined when it has none to show. */
+  legPublish: (projectId: string) => ProcessLegPublishCard | undefined
+  /** Publish one leg of a group run on its own. Resolves `false` when refused. */
+  publishLeg: (projectId: string) => Promise<boolean>
 }
 
 const NO_ROWS: ProcessMergeRow[] = []
@@ -81,6 +91,11 @@ export function useProcessDelivery(
       readError: state?.readError ?? null,
       setEdit: store?.setEdit ?? NO_EDIT,
       publishNow: store?.publish ?? NO_PUBLISH,
+      legPublish: (projectId: string) =>
+        state
+          ? processLegPublishCard(state.data, state.edits, projectId, state.legs[projectId])
+          : undefined,
+      publishLeg: store?.publishLeg ?? NO_PUBLISH,
     }),
     [state, store],
   )

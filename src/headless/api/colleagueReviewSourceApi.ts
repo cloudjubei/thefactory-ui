@@ -6,12 +6,15 @@ import type {
   ReviewSourceStatus,
   ReviewThreadWatch,
 } from '../utils/colleagueReviewSourceTypes'
+import type { ReviewCheckRequirement, ReviewMergeChecks } from '../utils/reviewMergeChecksTypes'
 import {
   clearColleagueReviewSource as clearSource,
   dismissColleagueReviewOffer as dismissOffer,
+  getColleagueReviewChecks as getChecks,
   getColleagueReviewSource as getSource,
   listColleagueReviewOffers as listOffers,
   postColleagueReviewReply as postReply,
+  setColleagueReviewCheckRequired as setCheckRequired,
   setColleagueReviewSource as setSource,
   setColleagueReviewSourceSettings as setSettings,
 } from './generated'
@@ -43,6 +46,25 @@ export async function setColleagueReviewSettings(
   change: ReviewSettingsChange,
 ): Promise<ReviewSourceStatus> {
   const { data } = await setSettings({ path: { groupId }, body: change, throwOnError: true })
+  return data
+}
+
+/** The checks seen on the group's recent pull requests, by repository, and whether merges wait for each. */
+export async function readColleagueReviewChecks(groupId: string): Promise<ReviewMergeChecks> {
+  const { data } = await getChecks({ path: { groupId }, throwOnError: true })
+  return data
+}
+
+/** Whether the group's merges wait for one check of one repository; answers it as kept. */
+export async function setColleagueReviewCheckRequired(
+  groupId: string,
+  requirement: ReviewCheckRequirement,
+): Promise<ReviewCheckRequirement> {
+  const { data } = await setCheckRequired({
+    path: { groupId },
+    body: requirement,
+    throwOnError: true,
+  })
   return data
 }
 

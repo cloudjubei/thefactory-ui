@@ -17,6 +17,14 @@ import {
 } from '../scenes/reviewChatSlotFixtures'
 import { REVIEW_RUN_PUSH_PASSED, REVIEW_RUN_REPLIED } from '../scenes/reviewRunRoundsFixtures'
 import { ROUND_TWO_PRS, ROUND_TWO_REPLY, ROUND_TWO_WITH_PRS } from '../scenes/slackReviewFixtures'
+import {
+  BRINGING_BASE_SLOT,
+  MERGE_DONE,
+  MERGE_FIRST_CHECKS,
+  MERGE_ONE_MERGED,
+  MERGE_STOPPED,
+  workingSlot,
+} from '../scenes/ticketRunFixtures'
 import type { NativeView } from './views'
 
 const noop = () => undefined
@@ -111,6 +119,11 @@ const SLOTS: Record<string, UseReviewChatSlot> = {
   'start-failed': { ...REPLY, startError: 'Offer o-3 already started round 3.' },
   'run-outside': chatSlot({ kind: 'run-outside', run: REVIEW_RUN_REPLIED }),
   'run-push': chatSlot({ kind: 'run-push', run: REVIEW_RUN_PUSH_PASSED }),
+  'run-working-base': BRINGING_BASE_SLOT,
+  'run-working-checks': workingSlot(MERGE_FIRST_CHECKS),
+  'run-working-one-merged': workingSlot(MERGE_ONE_MERGED),
+  'run-working-failed': workingSlot(MERGE_STOPPED),
+  'run-working-done': workingSlot(MERGE_DONE, 'report'),
 }
 
 function Slot({ address }: { address: URLSearchParams }) {

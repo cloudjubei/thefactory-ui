@@ -64,6 +64,7 @@ import {
 import { FAKE_DATA_VIEWS } from './fakeDataViews'
 import { LIVE_CHECK_VIEWS } from './liveCheckViews'
 import { PR_FIRST_DELIVERY_VIEWS } from './prFirstDeliveryViews'
+import { GROUP_LEG_PUBLISH_VIEWS } from './groupLegPublishViews'
 import { FILE_PREVIEW_VIEWS } from './filePreviewViews'
 import { GIT_CREDENTIAL_VIEWS } from './gitCredentialViews'
 import { FILE_TREE_VIEWS } from './fileTreeViews'
@@ -75,18 +76,22 @@ import { SIGNOFF_CHIP_VIEWS } from './signoffChipsViews'
 import { WAITING_RETRY_NOTE_VIEWS } from './waitingRetryNoteViews'
 import { SUPERSEDED_FILINGS_VIEWS } from './supersededFilingsViews'
 import { SPEND_LIMIT_VIEWS } from './spendLimitViews'
+import { MERGE_RECOVERY_VIEWS } from './mergeRecoveriesViews'
+import { MERGE_BASE_STOP_VIEWS } from './mergeBaseStopViews'
 import { SHOWN_FILE_VIEWS } from './shownFileViews'
 import { PLAN_WINDOW_VIEWS } from './planWindowViews'
 import { SEND_TO_DEVELOPER_VIEWS } from './sendToDeveloperViews'
 import { READY_ANSWER_VIEWS } from './readyAnswerViews'
 import { COLLEAGUE_REVIEW_VIEWS } from './colleagueReviewViews'
 import { SLACK_REVIEW_VIEWS } from './slackReviewViews'
+import { REVIEW_MERGE_CHECKS_VIEWS } from './reviewMergeChecksViews'
 import { REVIEW_RUN_ROUNDS_VIEWS } from './reviewRunRoundsViews'
 import { RUN_WAITS_FOR_VIEWS } from './runWaitsForViews'
 import { TICKET_TAB_VIEWS } from './ticketTabsViews'
 import { REVIEW_CHAT_SLOT_VIEWS } from './reviewChatSlotViews'
 import { REVIEW_GAP_VIEWS } from './reviewGapViews'
 import { TICKET_VIEWS } from './ticketViews'
+import { TICKET_RUN_VIEWS } from './ticketRunViews'
 import { TRY_ON_PHONE_VIEWS } from './tryOnPhoneViews'
 import { VARIANT_VIEWS } from './variantViews'
 import { APP_SELECTION_VIEWS } from './appSelectionsViews'
@@ -660,6 +665,8 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   ...TRY_ON_PHONE_VIEWS,
   ...SCRIPT_STEP_VIEWS,
   ...SPEND_LIMIT_VIEWS,
+  ...MERGE_RECOVERY_VIEWS,
+  ...MERGE_BASE_STOP_VIEWS,
   ...PROJECT_SERVE_SETTINGS_VIEWS,
   ...BUILD_LIMIT_AFTER_SAVE_VIEWS,
   ...RETRY_DEFINITIONS_VIEWS,
@@ -670,6 +677,7 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   ...FAKE_DATA_VIEWS,
   ...LIVE_CHECK_VIEWS,
   ...PR_FIRST_DELIVERY_VIEWS,
+  ...GROUP_LEG_PUBLISH_VIEWS,
   ...FILE_PREVIEW_VIEWS,
   ...GIT_CREDENTIAL_VIEWS,
   ...FILE_TREE_VIEWS,
@@ -679,9 +687,11 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   ...READY_ANSWER_VIEWS,
   ...COLLEAGUE_REVIEW_VIEWS,
   ...SLACK_REVIEW_VIEWS,
+  ...REVIEW_MERGE_CHECKS_VIEWS,
   ...REVIEW_RUN_ROUNDS_VIEWS,
   ...RUN_WAITS_FOR_VIEWS,
   ...TICKET_TAB_VIEWS,
+  ...TICKET_RUN_VIEWS,
   ...REVIEW_CHAT_SLOT_VIEWS,
   ...REVIEW_GAP_VIEWS,
   ...ALREADY_HANDLED_VIEWS,

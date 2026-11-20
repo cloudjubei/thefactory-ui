@@ -8,6 +8,7 @@ import {
   useLaunchAgentPick,
   type ColleagueReviewStarted,
   type LaunchModelChipSlot,
+  type TicketRunOpen,
 } from '../../../headless'
 import type { ChatContext } from '../../../headless/api'
 import type { ChatAttachmentFile } from '../../../headless/api/chatAttachmentUploadTypes'
@@ -41,7 +42,17 @@ export function openStartedReview(
   else onOpenChat(started.context)
 }
 
-/** Native peer of web's `GroupTicketsScreen`: a group's Jira tickets by tab, to open, discuss, take or review. */
+/** Open the run working a ticket: a project's run on its page, a group run on its group story. */
+export function openTicketRun(
+  open: TicketRunOpen,
+  onOpenStory: (groupStoryId: string) => void,
+  onOpenRun?: (runId: string) => void,
+): void {
+  if (open.kind === 'group-run') onOpenStory(open.groupStoryId)
+  else onOpenRun?.(open.runId)
+}
+
+/** Native peer of web's `GroupTicketsScreen`: a group's Jira tickets by tab, to open, discuss, take or review, each saying the run working it, live. */
 export function GroupTicketsScreen({
   groupId,
   onOpenStory,
@@ -90,6 +101,7 @@ export function GroupTicketsScreen({
           onReview={openReview}
           onDismissOffer={dismissOffer}
           onOpenStory={onOpenStory}
+          onOpenRun={(open) => openTicketRun(open, onOpenStory, onOpenRun)}
           onOpenSettings={onOpenSettings}
           onRetry={() => void refresh()}
           onLoadMore={(name) => void loadMore(name)}

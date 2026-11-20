@@ -21,6 +21,9 @@ import type {
   ProcessDeliveryData,
   ProcessDeliveryRepo,
   ProcessDeliveryTarget,
+  ProcessLegPublish,
+  ProcessLegPublishBody,
+  ProcessLegPublishCard,
   ProcessMergeRow,
   ProcessPublicationView,
   ProcessPublishBody,
@@ -172,6 +175,40 @@ export function processPublishBody(
         const edit = editOf(repo, edits)
         return { projectId: repo.projectId, short: edit.short.trim(), prTitle: edit.prTitle.trim() }
       }),
+  }
+}
+
+/** One leg of a group run published on its own: its repo and that repo's edits; `undefined` for a repo the delivery does not hold. Pure. */
+export function processLegPublishBody(
+  data: ProcessDeliveryData,
+  edits: Readonly<Record<string, ProcessPublishEdit>>,
+  projectId: string,
+): ProcessLegPublishBody | undefined {
+  const repo = data.repos.find((r) => r.projectId === projectId)
+  if (!repo) return undefined
+  return { projectId, ...processPublishBody({ repos: [repo] }, edits) }
+}
+
+/**
+ * One leg's publish card on its group run's page: that repo alone, locked
+ * while it goes and with why when refused; `undefined` once sent, or for a
+ * repo the delivery does not hold. Pure.
+ */
+export function processLegPublishCard(
+  data: ProcessDeliveryData | undefined,
+  edits: Readonly<Record<string, ProcessPublishEdit>>,
+  projectId: string,
+  leg: ProcessLegPublish | undefined,
+): ProcessLegPublishCard | undefined {
+  if (leg?.phase === 'sent') return undefined
+  if (!data) return { view: undefined }
+  const repo = data.repos.find((r) => r.projectId === projectId)
+  if (!repo) return undefined
+  return {
+    view: processPublishView({ repos: [repo] }, edits, {
+      publishing: leg?.phase === 'publishing',
+      error: leg?.error ?? null,
+    }),
   }
 }
 

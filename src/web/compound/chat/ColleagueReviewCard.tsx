@@ -15,8 +15,14 @@ import type {
   ReviewWaitingOnView,
 } from '../../../headless/utils/colleagueReviewCardTypes'
 import { REVIEW_POST_TEXT } from '../../../headless/utils/colleagueReviewSourceConstants'
-import { REVIEW_MERGE_TEXT } from '../../../headless/utils/colleagueReviewMergeConstants'
-import type { ReviewCardMerge } from '../../../headless/utils/colleagueReviewMergeTypes'
+import {
+  REVIEW_MERGE_STOP_TEXT,
+  REVIEW_MERGE_TEXT,
+} from '../../../headless/utils/colleagueReviewMergeConstants'
+import type {
+  ReviewCardMerge,
+  ReviewMergeStopView,
+} from '../../../headless/utils/colleagueReviewMergeTypes'
 import Alert from '../../primitives/Alert'
 import Field from '../../primitives/Field'
 import { ticketChipView } from '../../../headless/utils/groupTickets'
@@ -59,6 +65,12 @@ export type ColleagueReviewCardProps = {
   onApproveAndMerge?: (slackText: string, override: boolean) => void
   /** Start with Approve & merge's confirm open — for a fixed showcase state. */
   mergeConfirm?: boolean
+  /** A merge stopped on a pull request's base: resolve it here. Without it, not offered. */
+  onResolveHere?: () => void
+  /** A merge stopped on a pull request's base: ask the developer with the ask as edited. Without it, not offered. */
+  onAskDeveloper?: (text: string) => void
+  /** Start with the ask to the developer open — for a fixed showcase state. */
+  mergeAskOpen?: boolean
   /** Start with this finding opened — for a fixed showcase state. */
   openFinding?: string
   /** Start with this note open — for a fixed showcase state. */
@@ -92,6 +104,9 @@ export default function ColleagueReviewCard({
   merge,
   onApproveAndMerge,
   mergeConfirm = false,
+  onResolveHere,
+  onAskDeveloper,
+  mergeAskOpen = false,
   openFinding,
   noteOpen,
   expanded = false,
@@ -136,6 +151,9 @@ export default function ColleagueReviewCard({
           merge={merge}
           {...(onApproveAndMerge ? { onStart: onApproveAndMerge } : {})}
           confirmOpen={mergeConfirm}
+          {...(onResolveHere ? { onResolveHere } : {})}
+          {...(onAskDeveloper ? { onAsk: onAskDeveloper } : {})}
+          askOpen={mergeAskOpen}
         />
       ) : null}
     </div>
@@ -146,17 +164,25 @@ export default function ColleagueReviewCard({
  * Approve & merge on the latest round: a confirm listing its pull requests in
  * the order they merge and the Slack line to post once they did, then each
  * one's progress, live. A round that asked for changes is held with the
- * backend's words and "Merge anyway". What became of the ticket's status
- * once it merged shows last. The ticket page shows it too.
+ * backend's words and "Merge anyway". A merge stopped on a pull request's
+ * base offers to resolve it here or ask the developer, the ask editable
+ * before it is sent. What became of the ticket's status once it merged shows
+ * last. The ticket page shows it too.
  */
 export function MergeSection({
   merge,
   onStart,
   confirmOpen = false,
+  onResolveHere,
+  onAsk,
+  askOpen = false,
 }: {
   merge: ReviewCardMerge
   onStart?: (slackText: string, override: boolean) => void
   confirmOpen?: boolean
+  onResolveHere?: () => void
+  onAsk?: (text: string) => void
+  askOpen?: boolean
 }) {
   const [confirming, setConfirming] = useState(confirmOpen)
   const [slackText, setSlackText] = useState('')
@@ -219,6 +245,15 @@ export function MergeSection({
         </ul>
       ) : null}
       {view?.summary ? <p className={`m-0 ${MUTED}`}>{view.summary}</p> : null}
+      {merge.stop ? (
+        <MergeStop
+          key={merge.stop.draft}
+          stop={merge.stop}
+          askOpen={askOpen}
+          {...(onResolveHere ? { onResolveHere } : {})}
+          {...(onAsk ? { onAsk } : {})}
+        />
+      ) : null}
       {view?.error ? (
         <p className="m-0 text-[12px] text-(--status-stuck-soft-fg)">{view.error}</p>
       ) : null}
@@ -294,6 +329,87 @@ export function MergeSection({
         </Modal>
       ) : null}
     </section>
+  )
+}
+
+/**
+ * Where a merge stopped on a pull request's base, and the two ways on: resolve
+ * it here, or ask the developer — the drafted ask opened to edit, sent as it
+ * stands. What the person chose shows at once in their place.
+ */
+function MergeStop({
+  stop,
+  askOpen,
+  onResolveHere,
+  onAsk,
+}: {
+  stop: ReviewMergeStopView
+  askOpen: boolean
+  onResolveHere?: () => void
+  onAsk?: (text: string) => void
+}) {
+  const [asking, setAsking] = useState(askOpen)
+  const [text, setText] = useState(stop.draft)
+  const { chosen } = stop
+  return (
+    <div className="flex min-w-0 flex-col gap-2 rounded-md border border-(--status-working-soft-border) bg-(--status-working-soft-bg) px-2.5 py-2 text-(--text-primary)">
+      <span className="min-w-0 break-words font-medium">{stop.line}</span>
+      {chosen ? (
+        <span className="flex min-w-0 flex-wrap items-center gap-2">
+          {chosen.pending ? <Spinner size={12} /> : null}
+          <ToneBadge tone={chosen.tone}>{chosen.line}</ToneBadge>
+          {chosen.permalink ? (
+            <a
+              href={chosen.permalink}
+              target="_blank"
+              rel="noreferrer noopener"
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex items-center gap-1 text-[12px] text-(--accent-primary) hover:underline"
+            >
+              {REVIEW_MERGE_STOP_TEXT.openPost}
+              <IconExternalLink className="size-3" />
+            </a>
+          ) : null}
+        </span>
+      ) : asking && onAsk ? (
+        <div className="flex min-w-0 flex-col gap-2">
+          <Field label={REVIEW_MERGE_STOP_TEXT.askField}>
+            <Textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              rows={3}
+              className="resize-y text-[13px]"
+            />
+          </Field>
+          <div className="flex justify-end gap-2">
+            <Button size="sm" variant="secondary" onClick={() => setAsking(false)}>
+              {REVIEW_MERGE_STOP_TEXT.cancel}
+            </Button>
+            <Button
+              size="sm"
+              variant="primary"
+              disabled={!text.trim()}
+              onClick={() => onAsk(text.trim())}
+            >
+              {REVIEW_MERGE_STOP_TEXT.send}
+            </Button>
+          </div>
+        </div>
+      ) : onResolveHere || onAsk ? (
+        <div className="flex flex-wrap gap-2">
+          {onResolveHere ? (
+            <Button size="sm" variant="primary" onClick={() => onResolveHere()}>
+              {REVIEW_MERGE_STOP_TEXT.resolveHere}
+            </Button>
+          ) : null}
+          {onAsk ? (
+            <Button size="sm" variant="secondary" onClick={() => setAsking(true)}>
+              {stop.askLabel}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
   )
 }
 
@@ -864,13 +980,21 @@ export function ColleagueReviewConnected({
   resultType,
   layout,
 }: ColleagueReviewConnectedProps) {
-  const { view, dropFinding, markGiven, postReply, merge, approveAndMerge } =
-    useColleagueReviewCall({
-      tool,
-      args,
-      result,
-      resultType,
-    })
+  const {
+    view,
+    dropFinding,
+    markGiven,
+    postReply,
+    merge,
+    approveAndMerge,
+    resolveHere,
+    askDeveloper,
+  } = useColleagueReviewCall({
+    tool,
+    args,
+    result,
+    resultType,
+  })
   return (
     <ColleagueReviewCard
       view={view}
@@ -880,6 +1004,8 @@ export function ColleagueReviewConnected({
       onPost={postReply}
       {...(merge ? { merge } : {})}
       onApproveAndMerge={approveAndMerge}
+      onResolveHere={resolveHere}
+      onAskDeveloper={askDeveloper}
     />
   )
 }

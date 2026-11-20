@@ -27,6 +27,10 @@ export type UseColleagueReviewCall = {
   merge: ReviewCardMerge | undefined
   /** Approve the round's pull requests and merge them, with the Slack line typed; `override` merges a round that asked for changes. */
   approveAndMerge: (slackText: string, override: boolean) => void
+  /** A merge stopped on a pull request's base: resolve it here. */
+  resolveHere: () => void
+  /** A merge stopped on a pull request's base: ask the developer, with the ask as the person edited it. */
+  askDeveloper: (text: string) => void
 }
 
 /**
@@ -70,7 +74,12 @@ export function useColleagueReviewCall(call: {
     })
   }, [tool, args, result, resultType, ticketKey, known, live, thread])
   const shownRound = view.kind === 'review' ? view.round.n : undefined
-  const { merge: mergeSnapshot, start } = useColleagueReviewMerge(key?.groupId, key?.ticketKey)
+  const {
+    merge: mergeSnapshot,
+    start,
+    resolveHere,
+    askDeveloper,
+  } = useColleagueReviewMerge(key?.groupId, key?.ticketKey)
   const merge = useMemo(
     () =>
       shownRound !== undefined && known
@@ -91,5 +100,7 @@ export function useColleagueReviewCall(call: {
     postReply: live.postReply,
     merge,
     approveAndMerge,
+    resolveHere,
+    askDeveloper,
   }
 }

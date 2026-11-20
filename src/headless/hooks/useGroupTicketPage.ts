@@ -15,6 +15,10 @@ import { GroupTicketOverviewStore } from './groupTicketOverviewStore'
 import { useColleagueReview } from './useColleagueReview'
 import { useColleagueReviewMerge } from './useColleagueReviewMerge'
 import { useReviewCommits } from './useReviewCommits'
+import { useTicketRuns } from './useTicketRuns'
+import { useReviewChatSlot, type UseReviewChatSlot } from './useReviewChatSlot'
+import { getChatContextKey } from 'thefactory-tools/utils'
+import { reviewChatContext } from '../utils/colleagueReviewStart'
 import {
   groupTicketsStoreFor,
   useReviewPasteBox,
@@ -70,13 +74,19 @@ export type UseGroupTicketPage = UseReviewPasteBox & {
   /** Approve & merge on the review's latest round; absent while there is none to merge. */
   merge: ReviewCardMerge | undefined
   approveAndMerge: (slackText: string, override: boolean) => void
+  /** A merge stopped on a pull request's base: resolve it here. */
+  resolveHere: () => void
+  /** A merge stopped on a pull request's base: ask the developer, with the ask as the person edited it. */
+  askDeveloper: (text: string) => void
   refresh: () => void
+  /** The ticket's review run's own card, as its review chat shows it: while it waits on the person or works. */
+  runSlot: UseReviewChatSlot
 }
 
 /**
  * A ticket's page, live: its overview read once and kept, so it opens again
  * at once, read again as its group stories or its review change and on a
- * reconnect. Its actions are the Tickets tab's own, on the group's one
+ * reconnect; the run working it followed on the run updates. Its actions are the Tickets tab's own, on the group's one
  * store, so a press on the page and one on its row are the same press.
  */
 export function useGroupTicketPage(groupId: string, ticketKey: string): UseGroupTicketPage {
@@ -141,10 +151,12 @@ export function useGroupTicketPage(groupId: string, ticketKey: string): UseGroup
   const take = useCallback(() => after(tickets.plan(ticketKey)), [after, tickets, ticketKey])
 
   const live = useColleagueReview(overview?.review ? groupId : undefined, ticketKey)
-  const { merge: mergeSnapshot, start } = useColleagueReviewMerge(
-    overview?.review ? groupId : undefined,
-    ticketKey,
-  )
+  const {
+    merge: mergeSnapshot,
+    start,
+    resolveHere,
+    askDeveloper,
+  } = useColleagueReviewMerge(overview?.review ? groupId : undefined, ticketKey)
   const latest = live.review ? latestReviewRound(live.review) : undefined
   const merge = useMemo(
     () => (latest !== undefined ? reviewCardMerge(live.review, latest, mergeSnapshot) : undefined),
@@ -160,17 +172,19 @@ export function useGroupTicketPage(groupId: string, ticketKey: string): UseGroup
   const tabs = ticketsState.tabs.tabs
   const commitsKeys = useMemo(() => (overview?.review ? [ticketKey] : []), [overview, ticketKey])
   const commits = useReviewCommits(groupId, commitsKeys)[ticketKey]
+  const runs = useTicketRuns(groupId)
+  const runSlot = useReviewChatSlot(getChatContextKey(reviewChatContext(groupId, ticketKey)))
   const state = useMemo<GroupTicketPageState>(() => {
     if (snapshot.overview) {
       return {
         kind: 'page',
-        page: groupTicketPageView(ticketKey, snapshot.overview, tabs, Date.now(), commits),
+        page: groupTicketPageView(ticketKey, snapshot.overview, tabs, Date.now(), commits, runs),
         refreshing: snapshot.reading,
       }
     }
     if (snapshot.readError) return { kind: 'failed', error: snapshot.readError }
     return { kind: 'loading' }
-  }, [snapshot, ticketKey, tabs, commits])
+  }, [snapshot, ticketKey, tabs, commits, runs])
 
   const phase = ticketsState.reviewing[ticketKey]
   const starting =
@@ -187,6 +201,9 @@ export function useGroupTicketPage(groupId: string, ticketKey: string): UseGroup
     review,
     merge,
     approveAndMerge,
+    resolveHere,
+    askDeveloper,
     refresh,
+    runSlot,
   }
 }

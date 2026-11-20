@@ -27,6 +27,7 @@ import TicketChip from '../chips/TicketChip'
 import ToneBadge from '../chips/ToneBadge'
 import { GroupStoryChip } from './GroupStoryBits'
 import ReviewReplyBanner from './ReviewReplyBanner'
+import { TicketRunStrip } from './TicketRunState'
 
 export type GroupTicketPageActions = {
   onDiscuss: () => void
@@ -43,6 +44,12 @@ export type GroupTicketPageActions = {
   onRetry: () => void
   /** Approve the round's pull requests and merge them. */
   onApproveAndMerge?: (slackText: string, override: boolean) => void
+  /** A merge stopped on a pull request's base: resolve it here. */
+  onResolveHere?: () => void
+  /** A merge stopped on a pull request's base: ask the developer with the ask as edited. */
+  onAskDeveloper?: (text: string) => void
+  /** Start with the ask to the developer open — for a fixed showcase state. */
+  mergeAskOpen?: boolean
 }
 
 export type GroupTicketPageProps = GroupTicketPageActions & {
@@ -62,6 +69,8 @@ export type GroupTicketPageProps = GroupTicketPageActions & {
   replyLayout?: ReviewReplyBannerLayout
   /** Start with the whole reply showing — for a fixed showcase state. */
   replyExpanded?: boolean
+  /** The run's own card under the run on top, while it waits on the person or works. */
+  runCard?: ReactNode
 }
 
 /**
@@ -75,6 +84,7 @@ export default function GroupTicketPage({
   layout: _oneColumn,
   replyLayout = REVIEW_REPLY_BANNER_DEFAULT_LAYOUT,
   replyExpanded = false,
+  runCard,
   ...props
 }: GroupTicketPageProps) {
   const { theme } = useNativeTheme()
@@ -108,6 +118,7 @@ export default function GroupTicketPage({
       {...(reviewChat ? { onOpenChat: () => props.onOpenChat(reviewChat) } : {})}
     />
   )
+  const { run } = page
   return (
     <View style={{ gap: nativeSpace[4], padding: nativeSpace[3] }}>
       <Header
@@ -116,6 +127,17 @@ export default function GroupTicketPage({
         {...(replyLayout === 'line' ? { banner } : {})}
         {...props}
       />
+      {run ? (
+        <TicketRunStrip
+          run={run}
+          card={runCard}
+          onOpen={(open) =>
+            open.kind === 'run'
+              ? props.onOpenRun(open.projectId, open.runId)
+              : props.onOpenStory(open.groupStoryId)
+          }
+        />
+      ) : null}
       {replyLayout === 'strip' ? banner : null}
       <TicketPart page={page} />
       <UpdatesPart page={page} />
@@ -287,6 +309,9 @@ function Header({
   banner,
   merge,
   onApproveAndMerge,
+  onResolveHere,
+  onAskDeveloper,
+  mergeAskOpen = false,
   startError,
   ...actions
 }: Omit<GroupTicketPageProps, 'state' | 'layout' | 'replyLayout' | 'replyExpanded'> & {
@@ -323,6 +348,9 @@ function Header({
         <MergeSection
           merge={merge}
           {...(onApproveAndMerge ? { onStart: onApproveAndMerge } : {})}
+          {...(onResolveHere ? { onResolveHere } : {})}
+          {...(onAskDeveloper ? { onAsk: onAskDeveloper } : {})}
+          askOpen={mergeAskOpen}
         />
       ) : null}
       {page.problems.length > 0 ? (

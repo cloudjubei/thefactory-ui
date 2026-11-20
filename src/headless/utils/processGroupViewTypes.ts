@@ -40,6 +40,8 @@ export interface ProcessGroupLegRow {
   landed?: string
   /** Its run was started outside the group — from a feature request or by a person — and the leg follows it. */
   follows?: string
+  /** It waits at its publish gate while the group does not: its pull request is opened from its card. */
+  publishes?: true
 }
 
 /** Resuming an ended group run: what it starts, or why it cannot yet. */

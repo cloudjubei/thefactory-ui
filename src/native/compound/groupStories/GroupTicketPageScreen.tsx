@@ -9,6 +9,7 @@ import {
 } from '../../../headless'
 import type { ChatContext } from '../../../headless/api'
 import type { ChatAttachmentFile } from '../../../headless/api/chatAttachmentUploadTypes'
+import { ReviewChatSlotCard } from '../chat/ReviewChatSlot'
 import ColleagueReviewPasteBox from './ColleagueReviewPasteBox'
 import GroupTicketPage from './GroupTicketPage'
 import { openStartedReview } from './GroupTicketsScreen'
@@ -30,7 +31,7 @@ export type GroupTicketPageScreenProps = {
   pickFiles?: () => Promise<ChatAttachmentFile[]>
 }
 
-/** Native peer of web's `GroupTicketPageScreen`: a ticket's page, live, with the paste box its Review opens. */
+/** Native peer of web's `GroupTicketPageScreen`: a ticket's page, live, with the paste box its Review opens, and the run working it on top with the run's own card. */
 export function GroupTicketPageScreen({
   groupId,
   ticketKey,
@@ -60,6 +61,8 @@ export function GroupTicketPageScreen({
           reviewing={page.reviewing}
           merge={page.merge}
           onApproveAndMerge={page.approveAndMerge}
+          onResolveHere={page.resolveHere}
+          onAskDeveloper={page.askDeveloper}
           onDiscuss={() => open(page.discuss())}
           onTake={() => open(page.take())}
           onReview={page.review}
@@ -68,6 +71,13 @@ export function GroupTicketPageScreen({
           onOpenRun={onOpenRun}
           onOpenChat={onOpenChat}
           onRetry={page.refresh}
+          {...(page.runSlot.kind && page.runSlot.kind !== 'reply'
+            ? {
+                runCard: (
+                  <ReviewChatSlotCard slot={page.runSlot} renderModelChip={renderModelChip} />
+                ),
+              }
+            : {})}
         />
       </ScrollView>
       {page.reviewBox ? (

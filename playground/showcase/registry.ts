@@ -18,6 +18,8 @@ import { CHAT_LIST_CLOSED_SCENES } from '../scenes/chatListClosed'
 import { CHAT_STOP_SCENES } from '../scenes/chatStop'
 import { CHAT_TOOL_STEP_SCENES } from '../scenes/chatToolSteps'
 import { CIRCLING_SCENES } from '../scenes/circling'
+import { MERGE_RECOVERY_SCENES } from '../scenes/mergeRecoveries'
+import { MERGE_BASE_STOP_SCENES } from '../scenes/mergeBaseStop'
 import { CAPABILITY_SETTINGS_SCENES } from '../scenes/capabilitySettings'
 import { CLI_CAPABILITY_CARD_SCENES } from '../scenes/cliCapabilityCard'
 import { CHAT_CHANGES_SCENES } from '../scenes/chatChanges'
@@ -64,6 +66,7 @@ import { MCP_SERVER_SCENES } from '../scenes/mcpServers'
 import { PROVIDER_CONNECTION_FORM_SCENES } from '../scenes/providerConnectionForm'
 import { SIGN_OFF_OUTPUT_SETTINGS_SCENES } from '../scenes/signOffOutputSettings'
 import { PR_FIRST_DELIVERY_SCENES } from '../scenes/prFirstDelivery'
+import { GROUP_LEG_PUBLISH_SCENES } from '../scenes/groupLegPublish'
 import { TICKET_POST_SCENES } from '../scenes/ticketPost'
 import { TICKET_TRANSITION_SCENES } from '../scenes/ticketTransition'
 import { TICKET_STATUS_MOVE_SCENES } from '../scenes/ticketStatusMove'
@@ -104,8 +107,10 @@ import { GROUP_TICKETS_SCENES } from '../scenes/groupTickets'
 import { GROUP_TICKET_TAB_SCENES } from '../scenes/groupTicketTabs'
 import { COLLEAGUE_REVIEW_SCENES } from '../scenes/colleagueReview'
 import { SLACK_REVIEW_SCENES } from '../scenes/slackReview'
+import { REVIEW_MERGE_CHECKS_SCENES } from '../scenes/reviewMergeChecks'
 import { REVIEW_RUN_ROUNDS_SCENES } from '../scenes/reviewRunRounds'
 import { REVIEW_CHAT_SLOT_SCENES } from '../scenes/reviewChatSlot'
+import { TICKET_RUN_SCENES } from '../scenes/ticketRuns'
 import { TICKET_SCENES } from '../scenes/ticketFlow'
 import { TICKET_NEW_ITEMS_SCENES } from '../scenes/ticketNewItems'
 import { UI_IMPACT_SCENES } from '../scenes/uiImpact'
@@ -198,6 +203,8 @@ export const SCENES: readonly Scene[] = [
   ...READY_ANSWER_SCENES,
   ...REVIEW_GAP_SCENES,
   ...CIRCLING_SCENES,
+  ...MERGE_RECOVERY_SCENES,
+  ...MERGE_BASE_STOP_SCENES,
   ...SPEND_LIMIT_SCENES,
   ...RETRY_DEFINITIONS_SCENES,
   ...WAITING_RETRY_NOTE_SCENES,
@@ -223,6 +230,7 @@ export const SCENES: readonly Scene[] = [
   ...PROVIDER_CONNECTION_FORM_SCENES,
   ...SIGN_OFF_OUTPUT_SETTINGS_SCENES,
   ...PR_FIRST_DELIVERY_SCENES,
+  ...GROUP_LEG_PUBLISH_SCENES,
   ...TICKET_POST_SCENES,
   ...TICKET_TRANSITION_SCENES,
   ...TICKET_STATUS_MOVE_SCENES,
@@ -237,8 +245,10 @@ export const SCENES: readonly Scene[] = [
   ...GROUP_TICKET_TAB_SCENES,
   ...COLLEAGUE_REVIEW_SCENES,
   ...SLACK_REVIEW_SCENES,
+  ...REVIEW_MERGE_CHECKS_SCENES,
   ...REVIEW_RUN_ROUNDS_SCENES,
   ...REVIEW_CHAT_SLOT_SCENES,
+  ...TICKET_RUN_SCENES,
   ...TICKET_SCENES,
   ...TICKET_NEW_ITEMS_SCENES,
   ...GROUP_SIGN_OFF_SCENES,

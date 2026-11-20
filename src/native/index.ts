@@ -986,6 +986,10 @@ export {
   type SlackReviewSettingsPanelProps,
 } from './compound/settings/GroupSlackSettings'
 export {
+  ReviewMergeChecksPanel,
+  type ReviewMergeChecksPanelProps,
+} from './compound/settings/ReviewMergeChecks'
+export {
   default as GroupNotesSettings,
   type GroupNotesSettingsProps,
 } from './compound/settings/GroupNotesSettings'

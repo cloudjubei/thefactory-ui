@@ -7,8 +7,12 @@ import { reviewOfChat } from '../utils/colleagueReviewStart'
 import type { ReviewFileUpload } from '../utils/colleagueReviewStartTypes'
 import type { ReviewGateAnswer } from '../utils/colleagueReviewDecisionTypes'
 import type { LaunchAgentPickMetadata } from '../utils/launchAgentPickTypes'
-import { reviewChatLiveRun, reviewChatSlotKind } from '../utils/reviewChatSlot'
-import type { ReviewChatSlotKind } from '../utils/reviewChatSlotTypes'
+import {
+  reviewChatLiveRun,
+  reviewChatSlotKind,
+  reviewRunWorkingView,
+} from '../utils/reviewChatSlot'
+import type { ReviewChatSlotKind, ReviewRunWorkingView } from '../utils/reviewChatSlotTypes'
 import {
   reviewReplyBoxOffer,
   reviewReplySources,
@@ -19,6 +23,7 @@ import { REVIEW_REPLY_TEXT } from '../utils/reviewReplyConstants'
 import type { ReviewReplyView } from '../utils/reviewReplyTypes'
 import { colleagueReviewSourceStoreFor } from './useColleagueReviewSource'
 import { useColleagueReview } from './useColleagueReview'
+import { useColleagueReviewMerge } from './useColleagueReviewMerge'
 import { groupTicketsStoreFor } from './useGroupTickets'
 import { useProcessRun } from './useProcessRun'
 import { useProcessRuns } from './useProcessRuns'
@@ -34,6 +39,8 @@ export type UseReviewChatSlot = {
   run: ProcessRun | undefined
   /** The review run holding the chat, its card shown or not: what a typed message answers at its approval. */
   liveRun: ProcessRun | undefined
+  /** While the run works off the chat: its working card — the step it is on, and its round's merge as it goes. */
+  working: ReviewRunWorkingView | undefined
   /** Answer the run's approval from its card; `false` when refused. */
   answerGate: (answer: ReviewGateAnswer) => Promise<boolean>
   /** Start the round from the reply the run waited for; `false` when refused. */
@@ -54,7 +61,9 @@ export type UseReviewChatSlot = {
  * What a review chat (`review-<KEY>`) shows in its composer's place, live.
  * While a colleague review run holds the chat, the run's own card whenever
  * it needs the person — its approval, a push, a reply it waited for — so the
- * chat is never a dead end. In an inline review, the reply waiting to start
+ * chat is never a dead end, and its working card while it works off the
+ * chat, its round's merge followed pull request by pull request, so the
+ * chat is never blank while it goes. In an inline review, the reply waiting to start
  * the next round, with what was pushed since the last round; Start begins it
  * inline from that offer at once, one round however often it is pressed, and
  * the card goes once the offer is started or settled elsewhere. Not now hides
@@ -108,6 +117,15 @@ export function useReviewChatSlot(chatId: string | undefined): UseReviewChatSlot
   const shownId = run ? `${run.id}:${run.park?.parkedAt ?? 0}` : waiting?.id
   const kind = reviewChatSlotKind(run, waiting !== undefined, live !== undefined)
   const shown = kind !== undefined && shownId !== hidden && !(kind === 'reply' && !reply)
+  const followsMerge = shown && kind === 'run-working'
+  const merging = useColleagueReviewMerge(
+    followsMerge ? groupId : undefined,
+    followsMerge ? ticketKey : undefined,
+  ).merge.job
+  const working = useMemo(
+    () => (followsMerge && run ? reviewRunWorkingView(run, merging, Date.now()) : undefined),
+    [followsMerge, run, merging],
+  )
 
   const upload = useCallback<ReviewFileUpload>(
     (context, file) => uploadChatFile(context, file),
@@ -155,6 +173,7 @@ export function useReviewChatSlot(chatId: string | undefined): UseReviewChatSlot
     kind: shown ? kind : undefined,
     run: shown && kind !== 'reply' ? run : undefined,
     liveRun: run,
+    working,
     answerGate,
     carryOn,
     reply: shown && kind === 'reply' ? reply : undefined,

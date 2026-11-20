@@ -4,6 +4,8 @@ import type { ReviewMergeJob } from '../utils/colleagueReviewMergeTypes'
 const api = vi.hoisted(() => ({
   readColleagueReviewMerge: vi.fn(),
   startColleagueReviewMerge: vi.fn(),
+  resolveColleagueReviewMergeHere: vi.fn(),
+  askColleagueReviewDeveloper: vi.fn(),
 }))
 
 vi.mock('../api/colleagueReviewMergeApi', () => api)
@@ -76,6 +78,96 @@ const ready = async (store: ColleagueReviewMergeStore) => {
 beforeEach(() => {
   api.readColleagueReviewMerge.mockReset()
   api.startColleagueReviewMerge.mockReset()
+  api.resolveColleagueReviewMergeHere.mockReset()
+  api.askColleagueReviewDeveloper.mockReset()
+})
+
+const STOPPED: ReviewMergeJob = {
+  ...RUNNING,
+  state: 'failed',
+  pullRequests: [{ url: 'https://github.com/acme/coach-be/pull/418', state: 'failed' }],
+  baseConflict: {
+    pullRequestUrl: 'https://github.com/acme/coach-be/pull/418',
+    name: 'coach-be#418',
+    baseBranch: 'main',
+    conflicts: true,
+    files: ['src/app.ts'],
+    ask: 'coach-be#418 conflicts with main in src/app.ts — could you bring main in and resolve it?',
+  },
+}
+
+describe('ColleagueReviewMergeStore — a merge stopped on a base', () => {
+  it('shows resolving it here at once, once however often pressed, then the job', async () => {
+    api.readColleagueReviewMerge.mockResolvedValue(STOPPED)
+    const store = new ColleagueReviewMergeStore(fakeWs())
+    await ready(store)
+    const answered = deferred<ReviewMergeJob>()
+    api.resolveColleagueReviewMergeHere.mockReturnValueOnce(answered.promise)
+    const going = store.resolveHere(KEY, 'web')
+    expect(store.snapshot(KEY).choosing).toEqual({ kind: 'resolve' })
+    await store.resolveHere(KEY, 'web')
+    await store.askDeveloper(KEY, 'hi', 'web')
+    expect(api.resolveColleagueReviewMergeHere).toHaveBeenCalledTimes(1)
+    expect(api.resolveColleagueReviewMergeHere).toHaveBeenCalledWith('osc', 'OSC-402', 'web')
+    expect(api.askColleagueReviewDeveloper).not.toHaveBeenCalled()
+    const resolving = {
+      ...STOPPED,
+      baseConflict: { ...STOPPED.baseConflict!, resolving: { at: 't', runId: 'run-1' } },
+    }
+    answered.resolve(resolving)
+    await going
+    expect(store.snapshot(KEY)).toMatchObject({ job: resolving, choosing: undefined })
+    await store.askDeveloper(KEY, 'hi', 'web')
+    await store.resolveHere(KEY, 'web')
+    expect(api.askColleagueReviewDeveloper).not.toHaveBeenCalled()
+    expect(api.resolveColleagueReviewMergeHere).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows asking the developer at once with the person’s words, then the job', async () => {
+    api.readColleagueReviewMerge.mockResolvedValue(STOPPED)
+    const store = new ColleagueReviewMergeStore(fakeWs())
+    await ready(store)
+    const asked = { ...STOPPED, baseConflict: { ...STOPPED.baseConflict!, asked: { at: 't' } } }
+    api.askColleagueReviewDeveloper.mockResolvedValueOnce(asked)
+    const going = store.askDeveloper(KEY, '@Ana please', 'mobile')
+    expect(store.snapshot(KEY).choosing).toEqual({ kind: 'ask', text: '@Ana please' })
+    await going
+    expect(api.askColleagueReviewDeveloper).toHaveBeenCalledWith(
+      'osc',
+      'OSC-402',
+      '@Ana please',
+      'mobile',
+    )
+    expect(store.snapshot(KEY)).toMatchObject({ job: asked, choosing: undefined })
+    await store.resolveHere(KEY, 'web')
+    expect(api.resolveColleagueReviewMergeHere).not.toHaveBeenCalled()
+  })
+
+  it('rolls a choice back with why it did not go', async () => {
+    api.readColleagueReviewMerge.mockResolvedValue(STOPPED)
+    const store = new ColleagueReviewMergeStore(fakeWs())
+    await ready(store)
+    api.askColleagueReviewDeveloper.mockRejectedValueOnce(refusal(502, 'Slack said no.'))
+    await store.askDeveloper(KEY, 'x', 'web')
+    expect(store.snapshot(KEY)).toMatchObject({
+      job: STOPPED,
+      choosing: undefined,
+      actionError: 'Slack said no.',
+    })
+    api.resolveColleagueReviewMergeHere.mockRejectedValueOnce({})
+    await store.resolveHere(KEY, 'web')
+    expect(store.snapshot(KEY).actionError).toBe('That did not go through.')
+  })
+
+  it('offers nothing to choose on a merge that did not stop on a base', async () => {
+    api.readColleagueReviewMerge.mockResolvedValue(MERGED)
+    const store = new ColleagueReviewMergeStore(fakeWs())
+    await ready(store)
+    await store.resolveHere(KEY, 'web')
+    await store.askDeveloper(KEY, 'x', 'web')
+    expect(api.resolveColleagueReviewMergeHere).not.toHaveBeenCalled()
+    expect(api.askColleagueReviewDeveloper).not.toHaveBeenCalled()
+  })
 })
 
 describe('ColleagueReviewMergeStore', () => {
@@ -98,6 +190,7 @@ describe('ColleagueReviewMergeStore', () => {
       starting: undefined,
       refusal: undefined,
       actionError: undefined,
+      choosing: undefined,
     })
   })
 

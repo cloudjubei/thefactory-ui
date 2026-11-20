@@ -94,6 +94,41 @@ describe('showcase registry', () => {
     }
   })
 
+  it('opens one group leg’s pull request from its own card while the others build, and the group’s card when every leg waits', () => {
+    const states = SCENES.find((s) => s.id === 'group-leg-publish')?.states ?? []
+    const text = (state: string) =>
+      renderToStaticMarkup(<>{states.find((s) => s.id === state)?.render()}</>).replace(
+        /<[^>]+>/g,
+        ' ',
+      )
+    const count = (state: string, pattern: RegExp) => (text(state).match(pattern) ?? []).length
+    expect(states.map((s) => s.id)).toEqual(
+      expect.arrayContaining(['one-ready', 'publishing', 'published', 'refused', 'both-ready']),
+    )
+    const ready = text('one-ready')
+    expect(ready).toMatch(
+      /shop-docs.*Ready for PR.*Open pull request.*Branch.*feature\/abc-321-weekly-review.*PR title.*shop-bot \(GitHub\).*Open pull request.*shop-api.*Running/s,
+    )
+    expect(ready).not.toMatch(/Stop/)
+    expect(count('one-ready', /Open pull request/g)).toBe(2)
+    expect(text('publishing')).toMatch(/Opening…/)
+    expect(text('published')).toMatch(/shop-docs.*PR #9.*shop-api.*Running/s)
+    expect(text('published')).not.toMatch(/Open pull request|Opening…/)
+    expect(text('refused')).toMatch(
+      /shop-docs does not wait at its publish gate, so there is nothing of it to publish now\./,
+    )
+    const both = text('both-ready')
+    expect(both).toMatch(
+      /Open pull request.*Shop docs.*Shop API.*Open pull request.*Stop.*shop-docs.*shop-api/s,
+    )
+    expect(count('both-ready', /Open pull request/g)).toBe(2)
+    for (const state of states) {
+      for (const word of ['land', 'landed', 'landing', 'publish for review']) {
+        expect(text(state.id), state.id).not.toMatch(new RegExp(`\\b${word}\\b`, 'i'))
+      }
+    }
+  })
+
   it('shows a ticket’s proposal with each part’s features, its wait, and that the made story is ready to run', () => {
     const id = 'ticket-story-proposal-features'
     const states = SCENES.find((s) => s.id === id)?.states ?? []

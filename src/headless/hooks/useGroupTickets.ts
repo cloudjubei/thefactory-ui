@@ -27,6 +27,7 @@ import type {
 } from '../utils/groupTicketTypes'
 import { GroupTicketsStore } from './groupTicketsStore'
 import { useReviewCommits } from './useReviewCommits'
+import { useTicketRuns } from './useTicketRuns'
 import { colleagueReviewSourceStoreFor, useColleagueReviewSource } from './useColleagueReviewSource'
 
 const GROUP_STORIES_EVENT = 'groupStories:updated'
@@ -148,10 +149,11 @@ export function useGroupTickets(groupId: string): UseGroupTickets {
 
   const review = useReviewPasteBox(groupId, store, state)
   const commits = useReviewCommits(groupId, reviewOpenTicketKeys(state))
+  const runs = useTicketRuns(groupId)
 
   return useMemo(
     () => ({
-      view: groupTicketsView(state, Date.now(), commits),
+      view: groupTicketsView(state, Date.now(), commits, runs.index, runs.merges),
       query,
       setQuery,
       discuss: store.discuss,
@@ -161,7 +163,7 @@ export function useGroupTickets(groupId: string): UseGroupTickets {
       pickTab: (tabId: string) => void store.pickTab(tabId),
       ...review,
     }),
-    [state, store, query, review, commits],
+    [state, store, query, review, commits, runs],
   )
 }
 

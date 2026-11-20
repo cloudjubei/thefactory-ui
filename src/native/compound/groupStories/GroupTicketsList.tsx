@@ -8,6 +8,7 @@ import {
   GROUP_TICKETS_TEXT,
   REVIEW_OFFER_TEXT,
   REVIEW_START_TEXT,
+  TICKET_RUN_DEFAULT_LAYOUT,
   groupTicketSectionRows,
   type GroupTicketListName,
   type GroupTicketReviewNews,
@@ -18,6 +19,8 @@ import {
   type GroupTicketsView,
   type GroupTicketTabsLayout,
   type ReviewOfferRowView,
+  type TicketRunLayout,
+  type TicketRunOpen,
 } from '../../../headless'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
@@ -30,6 +33,7 @@ import Spinner from '../../primitives/Spinner'
 import ReviewTabBar from '../chat/signoff/ReviewTabBar'
 import TicketChip from '../chips/TicketChip'
 import { GroupStoryChip, GroupStoryStoryChip } from './GroupStoryBits'
+import { TicketRunChip, TicketRunLine, TicketRunWords } from './TicketRunState'
 
 export type TicketActions = {
   /** Open a ticket's page: what a press on its row does. */
@@ -43,6 +47,10 @@ export type TicketActions = {
   onReview?: (ticketKey: string) => void
   /** Dismiss the update from Slack waiting on a ticket; without it, Dismiss is not offered. */
   onDismissOffer?: (ticketKey: string) => void
+  /** Open the run working a ticket. Without it the run is only said. */
+  onOpenRun?: (open: TicketRunOpen) => void
+  /** How the run working a ticket shows on its row. */
+  runLayout?: TicketRunLayout
 }
 
 export type GroupTicketsListProps = TicketActions & {
@@ -637,6 +645,21 @@ function ReviewNewsLine({
   )
 }
 
+/** The run working the row's ticket, in the layout asked for: among its chips, or a line under it. */
+function RowRun({
+  row,
+  at,
+  runLayout = TICKET_RUN_DEFAULT_LAYOUT,
+  onOpenRun,
+}: Pick<TicketActions, 'runLayout' | 'onOpenRun'> & { row: GroupTicketRow; at: 'chips' | 'line' }) {
+  const { run } = row
+  if (!run) return null
+  if (at === 'line')
+    return runLayout === 'line' ? <TicketRunLine run={run} onOpen={onOpenRun} /> : null
+  if (runLayout === 'chip') return <TicketRunChip run={run} onOpen={onOpenRun} />
+  return runLayout === 'dot' ? <TicketRunWords run={run} onOpen={onOpenRun} /> : null
+}
+
 function NextTicket({
   row,
   starting,
@@ -682,6 +705,7 @@ function NextTicket({
         {row.priority ? <GroupStoryChip label={row.priority} /> : null}
         {row.chatOpen ? <GroupStoryChip label={GROUP_TICKETS_TEXT.chatOpen} /> : null}
         {row.reviewOpen ? <GroupStoryChip label={REVIEW_START_TEXT.reviewOpen} /> : null}
+        <RowRun row={row} at="chips" {...actions} />
       </View>
       <Text style={{ fontSize: 14, fontWeight: '500', color: theme.text.primary }}>
         {row.summary}
@@ -689,6 +713,7 @@ function NextTicket({
       <Text style={{ fontSize: 12, color: theme.text.muted }}>{GROUP_TICKETS_TEXT.explain}</Text>
       <RowButtons row={row} starting={starting} {...actions} />
       {offer ? <OfferStrip row={row} offer={offer} onDismissOffer={onDismissOffer} /> : null}
+      <RowRun row={row} at="line" {...actions} />
     </Pressable>
   )
 }
@@ -752,7 +777,8 @@ function TicketRow({
         {row.chatOpen ? <GroupStoryChip label={GROUP_TICKETS_TEXT.chatOpen} /> : null}
         {row.reviewOpen ? <GroupStoryChip label={REVIEW_START_TEXT.reviewOpen} /> : null}
         <RepliesChip row={row} />
-        {!work && !row.chatOpen && !row.reviewOpen && !row.replies ? (
+        <RowRun row={row} at="chips" {...actions} />
+        {!work && !row.chatOpen && !row.reviewOpen && !row.replies && !row.run ? (
           <Text style={{ fontSize: 12, color: theme.text.muted }}>{GROUP_TICKETS_TEXT.noWork}</Text>
         ) : null}
         <RowButtons row={row} starting={starting} {...actions} />
@@ -766,6 +792,7 @@ function TicketRow({
           onDismissOffer={onDismissOffer}
         />
       ) : null}
+      <RowRun row={row} at="line" {...actions} />
     </Pressable>
   )
 }

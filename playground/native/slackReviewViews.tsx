@@ -29,7 +29,9 @@ import {
   offeredTickets,
   MERGE_FAILED,
   MERGE_MERGED,
+  MERGE_PAST_NOT_REQUIRED,
   MERGE_RUNNING,
+  MERGE_WAITING_NOT_REQUIRED,
   REVIEW_RUN_CHOICES,
   ROUND_TWO_POSTED,
   ROUND_TWO_POSTED_EDITED,
@@ -264,6 +266,8 @@ const MERGES: Record<string, { merge: ReviewCardMerge; confirm?: boolean }> = {
   running: { merge: roundTwoMerge({ job: MERGE_RUNNING }) },
   merged: { merge: roundTwoMerge({ job: MERGE_MERGED }) },
   failed: { merge: roundTwoMerge({ job: MERGE_FAILED }) },
+  'waiting-not-required': { merge: roundTwoMerge({ job: MERGE_WAITING_NOT_REQUIRED }) },
+  'merged-not-required': { merge: roundTwoMerge({ job: MERGE_PAST_NOT_REQUIRED }) },
   held: {
     merge: roundTwoMerge({
       refusal: 'Round 2 asked for changes. Merge anyway to approve and merge it.',

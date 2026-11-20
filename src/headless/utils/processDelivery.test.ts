@@ -8,6 +8,8 @@ import {
   processDeliveryPath,
   processDeliveryRepoOf,
   processGroupReadsDelivery,
+  processLegPublishBody,
+  processLegPublishCard,
   processMergeActive,
   processMergeRows,
   processPublicationView,
@@ -154,6 +156,79 @@ describe('the publish card’s edits', () => {
     expect(processPublishBody(d, { web: { short: ' night ', prTitle: ' Night ' } })).toEqual({
       repos: [{ projectId: 'web', short: 'night', prTitle: 'Night' }],
     })
+  })
+})
+
+describe('one leg’s publish', () => {
+  const two = data(repo(), repo({ projectId: 'api', name: 'API', short: 'tokens' }))
+
+  it('sends that repo alone, its edits trimmed', () => {
+    expect(
+      processLegPublishBody(two, { api: { short: ' night ', prTitle: ' Night ' } }, 'api'),
+    ).toEqual({
+      projectId: 'api',
+      repos: [{ projectId: 'api', short: 'night', prTitle: 'Night' }],
+    })
+  })
+
+  it('sends no edits for a repo without changes', () => {
+    expect(processLegPublishBody(data(repo({ changed: false })), {}, 'web')).toEqual({
+      projectId: 'web',
+      repos: [],
+    })
+  })
+
+  it('sends nothing for a repo the delivery does not hold', () => {
+    expect(processLegPublishBody(two, {}, 'docs')).toBeUndefined()
+  })
+
+  it('shows the card for that repo alone, ready to open its pull request', () => {
+    const card = processLegPublishCard(two, {}, 'api', undefined)
+    expect(card?.view).toMatchObject({
+      title: PROCESS_PUBLISH_COPY.title,
+      line: PROCESS_PUBLISH_COPY.line(1),
+      publishing: false,
+      canPublish: true,
+    })
+    expect(card?.view?.rows.map((r) => r.projectId)).toEqual(['api'])
+    expect(card?.view?.error).toBeUndefined()
+  })
+
+  it('follows the person’s edits of that repo', () => {
+    const card = processLegPublishCard(
+      two,
+      { api: { short: 'night', prTitle: 'Night' } },
+      'api',
+      undefined,
+    )
+    expect(card?.view?.rows[0]).toMatchObject({ short: 'night', prTitle: 'Night' })
+  })
+
+  it('locks while it goes, and cannot be pressed again', () => {
+    const card = processLegPublishCard(two, {}, 'api', { phase: 'publishing' })
+    expect(card?.view).toMatchObject({ publishing: true, canPublish: false })
+  })
+
+  it('comes back with why when refused', () => {
+    const card = processLegPublishCard(two, {}, 'api', {
+      phase: 'refused',
+      error: 'Not at its gate.',
+    })
+    expect(card?.view).toMatchObject({
+      publishing: false,
+      canPublish: true,
+      error: 'Not at its gate.',
+    })
+  })
+
+  it('waits for the delivery while it is read', () => {
+    expect(processLegPublishCard(undefined, {}, 'api', undefined)).toEqual({ view: undefined })
+  })
+
+  it('shows nothing once sent, or for a repo the delivery does not hold', () => {
+    expect(processLegPublishCard(two, {}, 'api', { phase: 'sent' })).toBeUndefined()
+    expect(processLegPublishCard(undefined, {}, 'api', { phase: 'sent' })).toBeUndefined()
+    expect(processLegPublishCard(two, {}, 'docs', undefined)).toBeUndefined()
   })
 })
 

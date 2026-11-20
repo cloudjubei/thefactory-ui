@@ -109,7 +109,7 @@ export const PR_FIRST_DELIVERY_VIEWS: NativeView[] = [
   },
   {
     id: 'publish-card',
-    title: 'Publish for review',
+    title: 'Open pull request',
     render: (address) => {
       const id = address.get('state') ?? 'ready'
       return (

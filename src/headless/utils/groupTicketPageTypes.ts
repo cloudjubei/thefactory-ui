@@ -1,3 +1,4 @@
+import type { TicketRunState } from './ticketRunStateTypes'
 import type { ProcessRun, ReviewVerdict } from 'thefactory-tools/types'
 import type { ChatContext } from '../api'
 import type { ColleagueReviewOfferKind, ColleagueReviewOfferState } from '../api/generated'
@@ -190,6 +191,8 @@ export interface GroupTicketPageView {
   reviewChat?: ChatContext
   /** The review run still going, which starts its next round itself. */
   liveRun?: { id: string; projectId: string }
+  /** The run working the ticket now, as its row says it. */
+  run?: TicketRunState
   /** The parts that could not be read, each in a quiet line. */
   problems: string[]
   /** What a part read and found empty says; a part that failed says nothing here. */

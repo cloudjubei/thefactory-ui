@@ -49,6 +49,7 @@ import GroupPublishCard from './GroupPublishCard'
 import { MergeProgressRowView } from './MergeProgressList'
 import ProcessGroupParkReview from './ProcessGroupParkReview'
 import PublicationChip from './PublicationChip'
+import PublishCard from './PublishCard'
 import ProcessGroupRunChatButton from './ProcessGroupRunChatButton'
 import GroupSignOffSection from './signoff/GroupSignOffSection'
 import RunWaitCard from './RunWaitCard'
@@ -317,29 +318,44 @@ export default function ProcessGroupPipeline({
             >
               {i === 0 ? 'Starts at once' : `Then — step ${i + 1}`}
             </Text>
-            {wave.map((row) => (
-              <ProcessGroupLegCard
-                key={row.leg.id}
-                row={row}
-                delivery={processDeliveryRepoOf(delivery.data, {
-                  legId: row.leg.id,
-                  projectId: row.leg.projectId,
-                })}
-                now={now}
-                onOpen={onOpenLegRun}
-                onMarkLanded={setLandingLeg}
-                {...(row.leg.waitsFor?.length && row.leg.runId
-                  ? {
-                      wait: (
-                        <LegWait
-                          runId={row.leg.runId}
-                          {...(row.waitsFor ? { fallback: row.waitsFor } : {})}
-                        />
-                      ),
-                    }
-                  : {})}
-              />
-            ))}
+            {wave.map((row) => {
+              const legPublish = row.publishes ? delivery.legPublish(row.leg.projectId) : undefined
+              return (
+                <ProcessGroupLegCard
+                  key={row.leg.id}
+                  row={row}
+                  delivery={processDeliveryRepoOf(delivery.data, {
+                    legId: row.leg.id,
+                    projectId: row.leg.projectId,
+                  })}
+                  now={now}
+                  onOpen={onOpenLegRun}
+                  onMarkLanded={setLandingLeg}
+                  {...(legPublish
+                    ? {
+                        publish: (
+                          <PublishCard
+                            view={legPublish.view}
+                            readError={delivery.readError}
+                            onEdit={delivery.setEdit}
+                            onPublish={() => void delivery.publishLeg(row.leg.projectId)}
+                          />
+                        ),
+                      }
+                    : {})}
+                  {...(row.leg.waitsFor?.length && row.leg.runId
+                    ? {
+                        wait: (
+                          <LegWait
+                            runId={row.leg.runId}
+                            {...(row.waitsFor ? { fallback: row.waitsFor } : {})}
+                          />
+                        ),
+                      }
+                    : {})}
+                />
+              )
+            })}
           </View>
         ))}
       </View>
@@ -513,6 +529,8 @@ export type ProcessGroupLegCardProps = {
   onMarkLanded: (leg: ProcessGroupLeg) => void
   /** Its run's wait for other work, in place of the leg's own line of it. */
   wait?: ReactNode
+  /** Its own publish card, while it waits at its publish gate and the group does not. */
+  publish?: ReactNode
 }
 
 /** Native peer of web's `ProcessGroupLegCard`: one project's leg of a group run. */
@@ -523,6 +541,7 @@ export function ProcessGroupLegCard({
   onOpen,
   onMarkLanded,
   wait,
+  publish,
 }: ProcessGroupLegCardProps) {
   const { theme, status } = useNativeTheme()
   const { leg, totals } = row
@@ -556,6 +575,7 @@ export function ProcessGroupLegCard({
       </Text>
       {publication && !merge ? <PublicationChip view={publication} /> : null}
       {merge ? <MergeProgressRowView row={merge} /> : null}
+      {publish}
       {wait ??
         (row.waitsFor ? (
           <Text style={{ fontSize: 11, color: theme.text.muted }}>{row.waitsFor}</Text>

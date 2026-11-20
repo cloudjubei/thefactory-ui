@@ -26,6 +26,7 @@ import TicketChip from '../chips/TicketChip'
 import ToneBadge from '../chips/ToneBadge'
 import { GroupStoryBackButton } from './GroupStoryBits'
 import ReviewReplyBanner from './ReviewReplyBanner'
+import { TicketRunStrip } from './TicketRunState'
 
 export type GroupTicketPageActions = {
   onDiscuss: () => void
@@ -44,6 +45,12 @@ export type GroupTicketPageActions = {
   onBack?: () => void
   /** Approve the round's pull requests and merge them. */
   onApproveAndMerge?: (slackText: string, override: boolean) => void
+  /** A merge stopped on a pull request's base: resolve it here. */
+  onResolveHere?: () => void
+  /** A merge stopped on a pull request's base: ask the developer with the ask as edited. */
+  onAskDeveloper?: (text: string) => void
+  /** Start with the ask to the developer open — for a fixed showcase state. */
+  mergeAskOpen?: boolean
 }
 
 export type GroupTicketPageProps = GroupTicketPageActions & {
@@ -64,6 +71,8 @@ export type GroupTicketPageProps = GroupTicketPageActions & {
   replyLayout?: ReviewReplyBannerLayout
   /** Start with the whole reply showing — for a fixed showcase state. */
   replyExpanded?: boolean
+  /** The run's own card under the run on top, while it waits on the person or works. */
+  runCard?: ReactNode
 }
 
 type PagePart = 'ticket' | 'updates' | 'review' | 'work'
@@ -127,6 +136,18 @@ export default function GroupTicketPage({
       {...(reviewChat ? { onOpenChat: () => props.onOpenChat(reviewChat) } : {})}
     />
   )
+  const { run } = page
+  const runStrip = run ? (
+    <TicketRunStrip
+      run={run}
+      card={props.runCard}
+      onOpen={(open) =>
+        open.kind === 'run'
+          ? props.onOpenRun(open.projectId, open.runId)
+          : props.onOpenStory(open.groupStoryId)
+      }
+    />
+  ) : null
   const parts: Record<PagePart, ReactNode> = {
     ticket: <TicketPart page={page} />,
     updates: <UpdatesPart page={page} />,
@@ -141,6 +162,7 @@ export default function GroupTicketPage({
         {...(replyLayout === 'line' ? { banner } : {})}
         {...props}
       />
+      {runStrip}
       {replyLayout === 'strip' ? banner : null}
       {layout === 'tabs' ? (
         <>
@@ -314,6 +336,9 @@ function Header({
   banner,
   merge,
   onApproveAndMerge,
+  onResolveHere,
+  onAskDeveloper,
+  mergeAskOpen = false,
   onBack,
   startError,
   ...actions
@@ -355,6 +380,9 @@ function Header({
         <MergeSection
           merge={merge}
           {...(onApproveAndMerge ? { onStart: onApproveAndMerge } : {})}
+          {...(onResolveHere ? { onResolveHere } : {})}
+          {...(onAskDeveloper ? { onAsk: onAskDeveloper } : {})}
+          askOpen={mergeAskOpen}
         />
       ) : null}
       {page.problems.length > 0 ? (

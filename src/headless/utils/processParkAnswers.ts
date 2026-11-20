@@ -13,7 +13,8 @@ import type { ParkAnswerView, ParkAnswersView } from './processParkAnswersTypes'
 /**
  * A stop's answers for the "Needs you" card. The manager's answers come first,
  * in its order, each with the words it sends; every choice the stop offers that
- * the manager did not answer with follows as plain — so no choice is ever lost,
+ * the manager did not answer with — a way on told apart by its id — follows as
+ * plain, so no choice is ever lost,
  * and with no manager answers the card offers the plain choices. The one in
  * front is the one the person picked (`selectedKey`), else the manager's pick
  * (the first answer on its `recommendedChoice`), else the stop's primary choice,
@@ -30,13 +31,21 @@ export function processParkAnswersView(
   const written = processManagerOfferedAnswers(manager?.answers, choices)
   const pickIndex = written.findIndex((a) => a.choice === manager?.recommendedChoice)
   const fromManager: ParkAnswerView[] = written.flatMap((answer, i) => {
-    const offer = choices.find((c) => c.choice === answer.choice)
+    const offer = choices.find(
+      (c) => offerKey(c.choice, c.recovery?.id) === offerKey(answer.choice, answer.recovery),
+    )
     return offer ? [answerView(offer, `${answer.choice}:${i}`, i === pickIndex, answer)] : []
   })
-  const answered = new Set(written.map((a) => a.choice))
+  const answered = new Set(written.map((a) => offerKey(a.choice, a.recovery)))
   const plain = choices
-    .filter((c) => !answered.has(c.choice))
-    .map((c) => answerView(c, c.choice, fromManager.length === 0 && c.primary === true))
+    .filter((c) => !answered.has(offerKey(c.choice, c.recovery?.id)))
+    .map((c) =>
+      answerView(
+        c,
+        offerKey(c.choice, c.recovery?.id),
+        fromManager.length === 0 && c.primary === true,
+      ),
+    )
   const all = [...fromManager, ...plain]
   const lead =
     all.find((a) => a.key === selectedKey) ??
@@ -69,6 +78,11 @@ export function parkOwnAnswerChoice(
   choices: readonly Pick<ProcessParkChoice, 'choice'>[],
 ): ProcessParkChoice['choice'] | undefined {
   return PARK_OWN_ANSWER_CHOICES.find((c) => choices.some((offer) => offer.choice === c))
+}
+
+/** The offered choice an answer is on: its choice, and for a way on, which one by its id. */
+function offerKey(choice: string, recovery: string | undefined): string {
+  return recovery ? `${choice}:${recovery}` : choice
 }
 
 function answerView(

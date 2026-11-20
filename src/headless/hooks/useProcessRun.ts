@@ -85,6 +85,8 @@ export type UseProcessRun = {
     requestedProof?: readonly ProofKind[],
     retry?: ProcessRetryPick,
     files?: readonly string[],
+    /** With retry at a failed step's stop: the way on it offered that the person chose. */
+    recovery?: string,
   ) => Promise<boolean>
   /**
    * Answer the run's actions gate — only a person decides there: the action
@@ -314,6 +316,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       requestedProof?: readonly ProofKind[],
       retry?: ProcessRetryPick,
       files?: readonly string[],
+      recovery?: string,
     ) => {
       if (!runId) return false
       setActionError(null)
@@ -322,6 +325,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
           path: { runId },
           body: {
             choice,
+            ...(recovery ? { recovery } : {}),
             decidedVia: client,
             ...(note ? { note } : {}),
             ...(integration ? integrationBody(integration) : {}),

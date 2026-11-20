@@ -1,8 +1,15 @@
-import { readColleagueReviewMerge, startColleagueReviewMerge } from '../api/colleagueReviewMergeApi'
+import type { ProcessDecisionClient } from 'thefactory-tools/types'
+import {
+  askColleagueReviewDeveloper,
+  readColleagueReviewMerge,
+  resolveColleagueReviewMergeHere,
+  startColleagueReviewMerge,
+} from '../api/colleagueReviewMergeApi'
 import { errorStatus, extractErrorMessage } from '../api/errorMessage'
 import type { WsClient } from '../api/WsClient'
-import { REVIEW_MERGE_TEXT } from '../utils/colleagueReviewMergeConstants'
+import { REVIEW_MERGE_STOP_TEXT, REVIEW_MERGE_TEXT } from '../utils/colleagueReviewMergeConstants'
 import type {
+  ReviewMergeChoosing,
   ReviewMergeJob,
   ReviewMergeSnapshot,
   ReviewMergeStart,
@@ -28,6 +35,7 @@ const EMPTY: ReviewMergeSnapshot = {
   starting: undefined,
   refusal: undefined,
   actionError: undefined,
+  choosing: undefined,
 }
 
 const idOf = ({ groupId, ticketKey }: Key) => JSON.stringify([groupId, ticketKey])
@@ -119,6 +127,7 @@ export class ColleagueReviewMergeStore {
       starting: entry.starting,
       refusal: entry.refusal,
       actionError: entry.actionError,
+      choosing: entry.choosing,
     }
     return entry.shown
   }
@@ -155,6 +164,38 @@ export class ColleagueReviewMergeStore {
       this._tell(entry, {
         starting: undefined,
         ...(held ? { refusal: why } : { actionError: why }),
+      })
+    }
+  }
+
+  /** Resolve a merge stopped on a pull request's base here: shown at once, once however often pressed, rolled back with why when refused. */
+  resolveHere = (key: Key, decidedVia: ProcessDecisionClient): Promise<void> =>
+    this._choose(key, { kind: 'resolve' }, () =>
+      resolveColleagueReviewMergeHere(key.groupId, key.ticketKey, decidedVia),
+    )
+
+  /** Ask the developer to bring the base in, with the person's words: shown at once, once however often pressed, rolled back with why when refused. */
+  askDeveloper = (key: Key, text: string, decidedVia: ProcessDecisionClient): Promise<void> =>
+    this._choose(key, { kind: 'ask', text }, () =>
+      askColleagueReviewDeveloper(key.groupId, key.ticketKey, text, decidedVia),
+    )
+
+  private async _choose(
+    key: Key,
+    choosing: ReviewMergeChoosing,
+    send: () => Promise<ReviewMergeJob>,
+  ): Promise<void> {
+    const entry = this._entry(key)
+    const stop = entry.job?.state === 'failed' ? entry.job.baseConflict : undefined
+    if (!stop || entry.choosing || stop.resolving || stop.asked) return
+    this._tell(entry, { choosing, actionError: undefined })
+    try {
+      const job: ReviewMergeJob = await send()
+      this._tell(entry, { job, choosing: undefined, changedAt: entry.reads })
+    } catch (err) {
+      this._tell(entry, {
+        choosing: undefined,
+        actionError: extractErrorMessage(err, REVIEW_MERGE_STOP_TEXT.failed),
       })
     }
   }

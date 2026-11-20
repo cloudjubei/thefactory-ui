@@ -1272,6 +1272,7 @@ export type ProcessManagerBriefAnswer = {
   choice: string
   label: string
   detail: string
+  recovery?: string
 }
 
 export type ProcessManagerBriefCard = {
@@ -1335,6 +1336,7 @@ export type ProcessManagerMove =
         limitTurns: boolean
         maxTurns: number
       }
+      recovery?: string
     }
   | {
       kind: 'stage-rerun'
@@ -1472,13 +1474,14 @@ export type ProcessResumeChoice =
   | 'split-follow-up'
   | 'recapture'
 
-export type ProcessParkAction = ProcessResumeChoice | 'delegate'
+export type ProcessParkAction = ProcessResumeChoice | 'delegate' | 'recover'
 
 export type ProcessManagerAnswer = {
   choice: ProcessParkAction
   label?: string
   note?: string
   why?: string
+  recovery?: string
 }
 
 export type ProcessManagerMoreTries = {
@@ -1508,7 +1511,7 @@ export type ProcessManagerEscalation = {
   found: string
   tried: Array<string>
   recommendation: string
-  recommendedChoice?: ProcessResumeChoice | 'delegate'
+  recommendedChoice?: ProcessResumeChoice | 'delegate' | 'recover'
   answers?: Array<ProcessManagerAnswer>
   moreTries?: {
     verdict: 'helps' | 'pointless'
@@ -8337,6 +8340,9 @@ export type ColleagueReviewSourceState = {
   runChecksUnasked?: boolean
   defaultMode?: 'inline' | 'process'
   mergedTicketStatus?: string
+  notRequiredChecks?: {
+    [key: string]: Array<string>
+  }
   updatedAt: string
 }
 
@@ -8346,6 +8352,9 @@ export type ColleagueReviewSourceSettings = {
   runChecksUnasked?: boolean
   defaultMode?: 'inline' | 'process'
   mergedTicketStatus?: string
+  notRequiredChecks?: {
+    [key: string]: Array<string>
+  }
 }
 
 export type SetColleagueReviewSettingsInput = {
@@ -8355,6 +8364,11 @@ export type SetColleagueReviewSettingsInput = {
   runChecksUnasked?: boolean
   defaultMode?: 'inline' | 'process'
   mergedTicketStatus?: string | unknown
+  checkRequirements?: Array<{
+    repository: string
+    check: string
+    required: boolean
+  }>
 }
 
 export type ColleagueReviewSettingsSet = {
@@ -8466,6 +8480,9 @@ export type ColleagueReviewSourceRead = {
   runChecksUnasked?: boolean
   defaultMode?: 'inline' | 'process'
   mergedTicketStatus?: string
+  notRequiredChecks?: {
+    [key: string]: Array<string>
+  }
 }
 
 export type ColleagueReviewOffersRecorded = {
@@ -16233,7 +16250,7 @@ export type ProcessRunManager = {
     found: string
     tried: Array<string>
     recommendation: string
-    recommendedChoice?: ProcessResumeChoice | 'delegate'
+    recommendedChoice?: ProcessResumeChoice | 'delegate' | 'recover'
     answers?: Array<ProcessManagerAnswer>
     moreTries?: {
       verdict: 'helps' | 'pointless'
@@ -16373,7 +16390,7 @@ export type ProcessManagerRun = {
       found: string
       tried: Array<string>
       recommendation: string
-      recommendedChoice?: ProcessResumeChoice | 'delegate'
+      recommendedChoice?: ProcessResumeChoice | 'delegate' | 'recover'
       answers?: Array<ProcessManagerAnswer>
       moreTries?: {
         verdict: 'helps' | 'pointless'
@@ -19204,7 +19221,7 @@ export type ProcessRun = {
       found: string
       tried: Array<string>
       recommendation: string
-      recommendedChoice?: ProcessResumeChoice | 'delegate'
+      recommendedChoice?: ProcessResumeChoice | 'delegate' | 'recover'
       answers?: Array<ProcessManagerAnswer>
       moreTries?: {
         verdict: 'helps' | 'pointless'
@@ -19404,7 +19421,7 @@ export type ProcessManagerCardStandingRun = {
       found: string
       tried: Array<string>
       recommendation: string
-      recommendedChoice?: ProcessResumeChoice | 'delegate'
+      recommendedChoice?: ProcessResumeChoice | 'delegate' | 'recover'
       answers?: Array<ProcessManagerAnswer>
       moreTries?: {
         verdict: 'helps' | 'pointless'
@@ -19509,7 +19526,7 @@ export type ProcessManagerBriefInput = {
         found: string
         tried: Array<string>
         recommendation: string
-        recommendedChoice?: ProcessResumeChoice | 'delegate'
+        recommendedChoice?: ProcessResumeChoice | 'delegate' | 'recover'
         answers?: Array<ProcessManagerAnswer>
         moreTries?: {
           verdict: 'helps' | 'pointless'
@@ -34756,7 +34773,7 @@ export type ProcessRunChatState = {
         found: string
         tried: Array<string>
         recommendation: string
-        recommendedChoice?: ProcessResumeChoice | 'delegate'
+        recommendedChoice?: ProcessResumeChoice | 'delegate' | 'recover'
         answers?: Array<ProcessManagerAnswer>
         moreTries?: {
           verdict: 'helps' | 'pointless'
@@ -34838,6 +34855,13 @@ export type ProcessNeedsYouItem = {
 }
 
 export type ProcessContinueChoice = 'allow' | 'allow-site' | 'resolved' | 'more-info'
+
+export type ProcessLaunchGateDecision = {
+  gate: string
+  action: string
+  text?: string
+  decidedVia: ProcessDecisionClient | 'chat' | 'feature-question' | 'design'
+}
 
 export type ProcessAttemptAgentRun = {
   id: string
@@ -35747,7 +35771,7 @@ export type ProcessRunSummary = {
       found: string
       tried: Array<string>
       recommendation: string
-      recommendedChoice?: ProcessResumeChoice | 'delegate'
+      recommendedChoice?: ProcessResumeChoice | 'delegate' | 'recover'
       answers?: Array<ProcessManagerAnswer>
       moreTries?: {
         verdict: 'helps' | 'pointless'
@@ -36230,6 +36254,12 @@ export type StartProcessRunInput = {
   }
   droppedChangesAccepted?: Array<ProcessDroppedChangeAcceptance>
   waitsFor?: Array<ProcessWaitFor>
+  decidedGate?: {
+    gate: string
+    action: string
+    text?: string
+    decidedVia: ProcessDecisionClient | 'chat' | 'feature-question' | 'design'
+  }
 }
 
 export type ProcessRunEnding = 'abandoned' | 'unmerged'
@@ -36780,6 +36810,20 @@ export type ProcessParkChoice = {
     primary?: true
     editsText?: true
   }
+  recovery?: ProcessStepRecovery
+}
+
+export type ProcessStepRecovery = {
+  id: string
+  label: string
+  detail: string
+  decidesGate?: ProcessGateDecision
+}
+
+export type ProcessGateDecision = {
+  gate: string
+  action: string
+  text?: string
 }
 
 export type ProcessSettledQuestion = {
@@ -42491,6 +42535,10 @@ export type ResumeProcessRunData = {
        */
       text?: string
     }
+    /**
+     * With retry (or `recover`) at a failed step’s stop: a way on the step offered (`park.choices[]` with choice `recover`), by `recovery.id` or its label. Its label or id sent as `choice` is the same answer. The next attempt carries it out. Refused anywhere else.
+     */
+    recovery?: string
   }
   path: {
     runId: string
@@ -64592,6 +64640,13 @@ export type ListGroupTicketsResponses = {
       groupStory?: {
         id: string
         title: string
+        /**
+         * Each part’s project and story: what a run working the ticket is found by.
+         */
+        parts: Array<{
+          projectId: string
+          storyId: string
+        }>
       }
       /**
        * No group story and not started: anything else can only be discussed.
@@ -64744,6 +64799,13 @@ export type PlanGroupTicketResponses = {
       groupStory?: {
         id: string
         title: string
+        /**
+         * Each part’s project and story: what a run working the ticket is found by.
+         */
+        parts: Array<{
+          projectId: string
+          storyId: string
+        }>
       }
       /**
        * No group story and not started: anything else can only be discussed.
@@ -64894,6 +64956,13 @@ export type DiscussGroupTicketResponses = {
       groupStory?: {
         id: string
         title: string
+        /**
+         * Each part’s project and story: what a run working the ticket is found by.
+         */
+        parts: Array<{
+          projectId: string
+          storyId: string
+        }>
       }
       /**
        * No group story and not started: anything else can only be discussed.
@@ -65807,10 +65876,78 @@ export type GetColleagueReviewMergeResponses = {
        */
       detail?: string
     }
+    ticket?: {
+      moved: boolean
+      /**
+       * The status it was to move to.
+       */
+      status: string
+      /**
+       * The status it left, when it moved.
+       */
+      from?: string
+      /**
+       * One line: moved, or there already.
+       */
+      detail?: string
+      /**
+       * Why it was not moved.
+       */
+      error?: string
+    }
     /**
      * Why it stopped when no one pull request is to blame.
      */
     error?: string
+    /**
+     * The pull request whose failed checks stopped it, when they did.
+     */
+    failedChecksAt?: string
+    /**
+     * The pull request the merge stopped at because it conflicts with its base or lacks its commits.
+     */
+    baseConflict?: {
+      pullRequestUrl: string
+      /**
+       * `repo#n`.
+       */
+      name: string
+      baseBranch: string
+      /**
+       * Bringing the base in conflicts; false when the head only lacks the base’s commits.
+       */
+      conflicts: boolean
+      /**
+       * The files it conflicts on, when a trial merge could tell.
+       */
+      files: Array<string>
+      /**
+       * Who the update came from, when known.
+       */
+      developer?: string
+      /**
+       * The message drafted for the developer, for the person to edit before sending.
+       */
+      ask: string
+      /**
+       * Once the person asked the developer: where, once posted.
+       */
+      asked?: {
+        at: string
+        permalink?: string
+      }
+      /**
+       * Once the person chose to resolve it here: the review run that does it.
+       */
+      resolving?: {
+        at: string
+        runId: string
+      }
+    }
+    /**
+     * The review run whose merge this is, when a run’s step started it.
+     */
+    runId?: string
   }
 }
 
@@ -65932,15 +66069,457 @@ export type ApproveAndMergeColleagueReviewResponses = {
        */
       detail?: string
     }
+    ticket?: {
+      moved: boolean
+      /**
+       * The status it was to move to.
+       */
+      status: string
+      /**
+       * The status it left, when it moved.
+       */
+      from?: string
+      /**
+       * One line: moved, or there already.
+       */
+      detail?: string
+      /**
+       * Why it was not moved.
+       */
+      error?: string
+    }
     /**
      * Why it stopped when no one pull request is to blame.
      */
     error?: string
+    /**
+     * The pull request whose failed checks stopped it, when they did.
+     */
+    failedChecksAt?: string
+    /**
+     * The pull request the merge stopped at because it conflicts with its base or lacks its commits.
+     */
+    baseConflict?: {
+      pullRequestUrl: string
+      /**
+       * `repo#n`.
+       */
+      name: string
+      baseBranch: string
+      /**
+       * Bringing the base in conflicts; false when the head only lacks the base’s commits.
+       */
+      conflicts: boolean
+      /**
+       * The files it conflicts on, when a trial merge could tell.
+       */
+      files: Array<string>
+      /**
+       * Who the update came from, when known.
+       */
+      developer?: string
+      /**
+       * The message drafted for the developer, for the person to edit before sending.
+       */
+      ask: string
+      /**
+       * Once the person asked the developer: where, once posted.
+       */
+      asked?: {
+        at: string
+        permalink?: string
+      }
+      /**
+       * Once the person chose to resolve it here: the review run that does it.
+       */
+      resolving?: {
+        at: string
+        runId: string
+      }
+    }
+    /**
+     * The review run whose merge this is, when a run’s step started it.
+     */
+    runId?: string
   }
 }
 
 export type ApproveAndMergeColleagueReviewResponse =
   ApproveAndMergeColleagueReviewResponses[keyof ApproveAndMergeColleagueReviewResponses]
+
+export type ResolveColleagueReviewMergeHereData = {
+  body: {
+    /**
+     * The app the person chose it in.
+     */
+    decidedVia: 'web' | 'desktop' | 'mobile'
+  }
+  path: {
+    groupId: string
+    ticketKey: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/tickets/{ticketKey}/review/approve-and-merge/resolve-here'
+}
+
+export type ResolveColleagueReviewMergeHereErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type ResolveColleagueReviewMergeHereError =
+  ResolveColleagueReviewMergeHereErrors[keyof ResolveColleagueReviewMergeHereErrors]
+
+export type ResolveColleagueReviewMergeHereResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    jobId: string
+    groupId: string
+    ticketKey: string
+    /**
+     * The round whose pull requests are merged.
+     */
+    round: number
+    state: 'running' | 'merged' | 'failed'
+    startedAt: string
+    finishedAt?: string
+    /**
+     * In the order they are merged: the backend’s first.
+     */
+    pullRequests: Array<{
+      url: string
+      /**
+       * `queued` waits its turn; `skipped` was not merged because one before it failed or the job stopped.
+       */
+      state:
+        | 'queued'
+        | 'waiting-for-checks'
+        | 'marking-viewed'
+        | 'approving'
+        | 'merging'
+        | 'merged'
+        | 'failed'
+        | 'skipped'
+      /**
+       * Why it stands there: the checks waited on, GitHub’s words.
+       */
+      detail?: string
+    }>
+    /**
+     * Once finished: what merged, or where it stopped and why.
+     */
+    summary?: string
+    slack?: {
+      posted: boolean
+      /**
+       * The message: posted now, or by an earlier attempt for the round.
+       */
+      permalink?: string
+      /**
+       * Why it was not posted though it was owed.
+       */
+      error?: string
+      /**
+       * Why nothing was posted when nothing was owed: no merged message, or posted already.
+       */
+      detail?: string
+    }
+    ticket?: {
+      moved: boolean
+      /**
+       * The status it was to move to.
+       */
+      status: string
+      /**
+       * The status it left, when it moved.
+       */
+      from?: string
+      /**
+       * One line: moved, or there already.
+       */
+      detail?: string
+      /**
+       * Why it was not moved.
+       */
+      error?: string
+    }
+    /**
+     * Why it stopped when no one pull request is to blame.
+     */
+    error?: string
+    /**
+     * The pull request whose failed checks stopped it, when they did.
+     */
+    failedChecksAt?: string
+    /**
+     * The pull request the merge stopped at because it conflicts with its base or lacks its commits.
+     */
+    baseConflict?: {
+      pullRequestUrl: string
+      /**
+       * `repo#n`.
+       */
+      name: string
+      baseBranch: string
+      /**
+       * Bringing the base in conflicts; false when the head only lacks the base’s commits.
+       */
+      conflicts: boolean
+      /**
+       * The files it conflicts on, when a trial merge could tell.
+       */
+      files: Array<string>
+      /**
+       * Who the update came from, when known.
+       */
+      developer?: string
+      /**
+       * The message drafted for the developer, for the person to edit before sending.
+       */
+      ask: string
+      /**
+       * Once the person asked the developer: where, once posted.
+       */
+      asked?: {
+        at: string
+        permalink?: string
+      }
+      /**
+       * Once the person chose to resolve it here: the review run that does it.
+       */
+      resolving?: {
+        at: string
+        runId: string
+      }
+    }
+    /**
+     * The review run whose merge this is, when a run’s step started it.
+     */
+    runId?: string
+  }
+}
+
+export type ResolveColleagueReviewMergeHereResponse =
+  ResolveColleagueReviewMergeHereResponses[keyof ResolveColleagueReviewMergeHereResponses]
+
+export type AskColleagueReviewDeveloperData = {
+  body: {
+    /**
+     * The ask as the person edited it; the drafted one when left out.
+     */
+    text?: string
+    /**
+     * The app the person chose it in.
+     */
+    decidedVia: 'web' | 'desktop' | 'mobile'
+  }
+  path: {
+    groupId: string
+    ticketKey: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/tickets/{ticketKey}/review/approve-and-merge/ask-developer'
+}
+
+export type AskColleagueReviewDeveloperErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  502: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type AskColleagueReviewDeveloperError =
+  AskColleagueReviewDeveloperErrors[keyof AskColleagueReviewDeveloperErrors]
+
+export type AskColleagueReviewDeveloperResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    jobId: string
+    groupId: string
+    ticketKey: string
+    /**
+     * The round whose pull requests are merged.
+     */
+    round: number
+    state: 'running' | 'merged' | 'failed'
+    startedAt: string
+    finishedAt?: string
+    /**
+     * In the order they are merged: the backend’s first.
+     */
+    pullRequests: Array<{
+      url: string
+      /**
+       * `queued` waits its turn; `skipped` was not merged because one before it failed or the job stopped.
+       */
+      state:
+        | 'queued'
+        | 'waiting-for-checks'
+        | 'marking-viewed'
+        | 'approving'
+        | 'merging'
+        | 'merged'
+        | 'failed'
+        | 'skipped'
+      /**
+       * Why it stands there: the checks waited on, GitHub’s words.
+       */
+      detail?: string
+    }>
+    /**
+     * Once finished: what merged, or where it stopped and why.
+     */
+    summary?: string
+    slack?: {
+      posted: boolean
+      /**
+       * The message: posted now, or by an earlier attempt for the round.
+       */
+      permalink?: string
+      /**
+       * Why it was not posted though it was owed.
+       */
+      error?: string
+      /**
+       * Why nothing was posted when nothing was owed: no merged message, or posted already.
+       */
+      detail?: string
+    }
+    ticket?: {
+      moved: boolean
+      /**
+       * The status it was to move to.
+       */
+      status: string
+      /**
+       * The status it left, when it moved.
+       */
+      from?: string
+      /**
+       * One line: moved, or there already.
+       */
+      detail?: string
+      /**
+       * Why it was not moved.
+       */
+      error?: string
+    }
+    /**
+     * Why it stopped when no one pull request is to blame.
+     */
+    error?: string
+    /**
+     * The pull request whose failed checks stopped it, when they did.
+     */
+    failedChecksAt?: string
+    /**
+     * The pull request the merge stopped at because it conflicts with its base or lacks its commits.
+     */
+    baseConflict?: {
+      pullRequestUrl: string
+      /**
+       * `repo#n`.
+       */
+      name: string
+      baseBranch: string
+      /**
+       * Bringing the base in conflicts; false when the head only lacks the base’s commits.
+       */
+      conflicts: boolean
+      /**
+       * The files it conflicts on, when a trial merge could tell.
+       */
+      files: Array<string>
+      /**
+       * Who the update came from, when known.
+       */
+      developer?: string
+      /**
+       * The message drafted for the developer, for the person to edit before sending.
+       */
+      ask: string
+      /**
+       * Once the person asked the developer: where, once posted.
+       */
+      asked?: {
+        at: string
+        permalink?: string
+      }
+      /**
+       * Once the person chose to resolve it here: the review run that does it.
+       */
+      resolving?: {
+        at: string
+        runId: string
+      }
+    }
+    /**
+     * The review run whose merge this is, when a run’s step started it.
+     */
+    runId?: string
+  }
+}
+
+export type AskColleagueReviewDeveloperResponse =
+  AskColleagueReviewDeveloperResponses[keyof AskColleagueReviewDeveloperResponses]
 
 export type ClearColleagueReviewSourceData = {
   body?: never
@@ -66471,6 +67050,139 @@ export type SetColleagueReviewSourceSettingsResponses = {
 
 export type SetColleagueReviewSourceSettingsResponse =
   SetColleagueReviewSourceSettingsResponses[keyof SetColleagueReviewSourceSettingsResponses]
+
+export type GetColleagueReviewChecksData = {
+  body?: never
+  path: {
+    groupId: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/review-source/checks'
+}
+
+export type GetColleagueReviewChecksErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type GetColleagueReviewChecksError =
+  GetColleagueReviewChecksErrors[keyof GetColleagueReviewChecksErrors]
+
+export type GetColleagueReviewChecksResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    /**
+     * By repository.
+     */
+    repositories: Array<{
+      /**
+       * `owner/repo`, lowercase.
+       */
+      repository: string
+      /**
+       * By name.
+       */
+      checks: Array<{
+        name: string
+        /**
+         * Merges wait for it to pass.
+         */
+        required: boolean
+      }>
+      /**
+       * Why its pull requests’ checks could not be read, when none could.
+       */
+      error?: string
+    }>
+  }
+}
+
+export type GetColleagueReviewChecksResponse =
+  GetColleagueReviewChecksResponses[keyof GetColleagueReviewChecksResponses]
+
+export type SetColleagueReviewCheckRequiredData = {
+  /**
+   * Whether the group’s merges wait for one check of one repository.
+   */
+  body: {
+    /**
+     * The repository the check runs on, as `owner/repo`; any case.
+     */
+    repository: string
+    /**
+     * The check’s name as its pull requests show it; any case.
+     */
+    check: string
+    /**
+     * Merges wait for it to pass; false lets it fail or still run.
+     */
+    required: boolean
+  }
+  path: {
+    groupId: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/review-source/checks'
+}
+
+export type SetColleagueReviewCheckRequiredErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type SetColleagueReviewCheckRequiredError =
+  SetColleagueReviewCheckRequiredErrors[keyof SetColleagueReviewCheckRequiredErrors]
+
+export type SetColleagueReviewCheckRequiredResponses = {
+  /**
+   * Whether the group’s merges wait for one check of one repository.
+   */
+  200: {
+    /**
+     * The repository the check runs on, as `owner/repo`; any case.
+     */
+    repository: string
+    /**
+     * The check’s name as its pull requests show it; any case.
+     */
+    check: string
+    /**
+     * Merges wait for it to pass; false lets it fail or still run.
+     */
+    required: boolean
+  }
+}
+
+export type SetColleagueReviewCheckRequiredResponse =
+  SetColleagueReviewCheckRequiredResponses[keyof SetColleagueReviewCheckRequiredResponses]
 
 export type ListColleagueReviewOffersData = {
   body?: never

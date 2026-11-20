@@ -23,6 +23,7 @@ const IDLE: ReviewMergeSnapshot = {
   starting: undefined,
   refusal: undefined,
   actionError: undefined,
+  choosing: undefined,
 }
 
 const noListen = () => () => undefined
@@ -31,6 +32,10 @@ export type UseColleagueReviewMerge = {
   merge: ReviewMergeSnapshot
   /** Approve the round's pull requests and merge them: starting at once, held with why when refused. */
   start: (body: ReviewMergeStart) => void
+  /** A merge stopped on a pull request's base: resolve it here, at once. */
+  resolveHere: () => void
+  /** A merge stopped on a pull request's base: ask the developer with these words, at once. */
+  askDeveloper: (text: string) => void
 }
 
 /**
@@ -43,7 +48,7 @@ export function useColleagueReviewMerge(
   ticketKey: string | undefined,
 ): UseColleagueReviewMerge {
   const { token } = useAuth()
-  const { ws } = useApi()
+  const { ws, client } = useApi()
   const store = colleagueReviewMergeStoreFor(ws)
   const key = useMemo(
     () => (groupId && ticketKey ? { groupId, ticketKey } : undefined),
@@ -69,5 +74,17 @@ export function useColleagueReviewMerge(
     },
     [store, key],
   )
-  return useMemo(() => ({ merge, start }), [merge, start])
+  const resolveHere = useCallback(() => {
+    if (key) void store.resolveHere(key, client)
+  }, [store, key, client])
+  const askDeveloper = useCallback(
+    (text: string) => {
+      if (key) void store.askDeveloper(key, text, client)
+    },
+    [store, key, client],
+  )
+  return useMemo(
+    () => ({ merge, start, resolveHere, askDeveloper }),
+    [merge, start, resolveHere, askDeveloper],
+  )
 }

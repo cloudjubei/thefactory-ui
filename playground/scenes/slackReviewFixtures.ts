@@ -350,6 +350,43 @@ export const MERGE_MERGED = mergeJob({
   },
 })
 
+/** The backend merged; the web waits on its build, its end-to-end check, which the group does not require, failed already. */
+export const MERGE_WAITING_NOT_REQUIRED = mergeJob({
+  pullRequests: urls.map((url, at) =>
+    at === 0
+      ? { url, state: 'merged' as const, detail: 'Merged as 4f2c9a1' }
+      : at === 1
+        ? {
+            url,
+            state: 'waiting-for-checks' as const,
+            detail: 'Waiting on build; e2e (playwright) not required: failed',
+          }
+        : { url, state: 'queued' as const },
+  ),
+})
+
+const NOT_REQUIRED_DETAILS = [
+  'Merged as 4f2c9a1',
+  'Merged as 9b7e310; e2e (playwright) not required: failed, merged anyway',
+  'Merged as 1d0c552; visual not required: still running',
+]
+
+/** All merged; on the web a check not required failed, on the API one still ran. */
+export const MERGE_PAST_NOT_REQUIRED = mergeJob({
+  state: 'merged',
+  finishedAt: '2026-11-17T12:09:00.000Z',
+  pullRequests: urls.map((url, at) => ({
+    url,
+    state: 'merged' as const,
+    detail: NOT_REQUIRED_DETAILS[at] ?? 'Merged',
+  })),
+  summary: `Merged ${urls.length} pull requests`,
+  slack: {
+    posted: true,
+    permalink: 'https://acme.slack.com/archives/C07REVIEWS/p1763381400000400',
+  },
+})
+
 export const MERGE_FAILED = mergeJob({
   state: 'failed',
   finishedAt: '2026-11-17T12:06:00.000Z',
@@ -368,6 +405,7 @@ const NO_MERGE: ReviewMergeSnapshot = {
   starting: undefined,
   refusal: undefined,
   actionError: undefined,
+  choosing: undefined,
 }
 
 /** Approve & merge on round 2 as the card gets it, from a fixed merge. */

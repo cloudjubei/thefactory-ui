@@ -6,6 +6,7 @@ import {
   useLaunchAgentPick,
   type ColleagueReviewStarted,
   type LaunchModelChipSlot,
+  type TicketRunOpen,
 } from '../../../headless'
 import type { ChatContext } from '../../../headless/api'
 import ColleagueReviewPasteBox from './ColleagueReviewPasteBox'
@@ -37,10 +38,21 @@ export function openStartedReview(
   else onOpenChat(started.context)
 }
 
+/** Open the run working a ticket: a project's run on its page, a group run on its group story. */
+export function openTicketRun(
+  open: TicketRunOpen,
+  onOpenStory: (groupStoryId: string) => void,
+  onOpenRun?: (runId: string) => void,
+): void {
+  if (open.kind === 'group-run') onOpenStory(open.groupStoryId)
+  else onOpenRun?.(open.runId)
+}
+
 /**
  * A group's Tickets tab: its Jira tickets by tab, to open, discuss, take or
- * review — from an update its Slack thread brought too. The agent picked for
- * a review stays picked for the next one.
+ * review — from an update its Slack thread brought too — each saying the run
+ * working it, live, with a way to open it. The agent picked for a review
+ * stays picked for the next one.
  */
 export function GroupTicketsScreen({
   groupId,
@@ -88,6 +100,7 @@ export function GroupTicketsScreen({
         onReview={openReview}
         onDismissOffer={dismissOffer}
         onOpenStory={onOpenStory}
+        onOpenRun={(open) => openTicketRun(open, onOpenStory, onOpenRun)}
         onOpenSettings={onOpenSettings}
         onRetry={() => void refresh()}
         onLoadMore={(name) => void loadMore(name)}

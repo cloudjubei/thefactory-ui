@@ -28,6 +28,16 @@ describe('resolveResourceNav', () => {
     })
   })
 
+  it('maps an evidence link to its evidence page, at its moment when it has one', () => {
+    expect(resolveResourceNav({ kind: 'evidence', projectId: 'p 1', evidenceId: 'e/1' })).toEqual({
+      type: 'path',
+      path: '/projects/p%201/evidence/e%2F1',
+    })
+    expect(
+      resolveResourceNav({ kind: 'evidence', projectId: 'p1', evidenceId: 'e1', at: 12.5 }),
+    ).toEqual({ type: 'path', path: '/projects/p1/evidence/e1?at=12.5' })
+  })
+
   it('opens a “Needs you” item link on its run’s page at the item', () => {
     expect(
       resolveResourceNav({

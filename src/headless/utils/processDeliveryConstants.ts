@@ -22,7 +22,7 @@ export const PROCESS_MERGE_ACTIVE_PHASES: readonly ProcessMergePhase[] = [
 ]
 
 export const PROCESS_PUBLISH_COPY = {
-  title: 'Publish for review',
+  title: 'Open pull request',
   line: (repos: number) =>
     repos === 1
       ? 'One commit and a pull request, before sign-off.'
@@ -34,8 +34,8 @@ export const PROCESS_PUBLISH_COPY = {
   noAccount: 'No account to push with. Add one in the project’s settings.',
   onto: (base: string) => `onto ${base}`,
   noChanges: 'No changes here. Nothing to publish.',
-  publish: 'Publish',
-  publishing: 'Publishing…',
+  publish: 'Open pull request',
+  publishing: 'Opening…',
   stop: 'Stop',
   stopTitle: 'Stop here?',
   stopBody: 'The run ends here and nothing is published.',

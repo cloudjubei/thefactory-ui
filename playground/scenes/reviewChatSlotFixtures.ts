@@ -59,6 +59,7 @@ export const chatSlot = (over: Partial<UseReviewChatSlot> = {}): UseReviewChatSl
   kind: undefined,
   run: undefined,
   liveRun: undefined,
+  working: undefined,
   answerGate: async () => true,
   carryOn: async () => true,
   reply: undefined,
@@ -107,6 +108,20 @@ const PUSH_SAID: Said[] = [
   },
 ]
 
+const WORKING_SAID: Said[] = [
+  {
+    who: 'Agent',
+    text: 'Round 1 is recorded: approve. Both pull requests are ready to merge.',
+  },
+  { who: 'You', text: 'Approve & merge' },
+]
+
 /** What a review chat said last before its slot's card. */
 export const chatSaid = (kind: UseReviewChatSlot['kind']): Said[] =>
-  kind === 'run-outside' ? OUTSIDE_SAID : kind === 'run-push' ? PUSH_SAID : REPLY_SAID
+  kind === 'run-outside'
+    ? OUTSIDE_SAID
+    : kind === 'run-push'
+      ? PUSH_SAID
+      : kind === 'run-working'
+        ? WORKING_SAID
+        : REPLY_SAID

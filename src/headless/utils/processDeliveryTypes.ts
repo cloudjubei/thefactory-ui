@@ -83,9 +83,29 @@ export interface ProcessPublishBody {
   repos: ProcessPublishRepoBody[]
 }
 
-/** What `POST /process-group-runs/:id/publish` takes: the edits, and who published. */
+/** One leg of a group run published on its own: its repo, and that repo's edits. */
+export interface ProcessLegPublishBody extends ProcessPublishBody {
+  projectId: string
+}
+
+/**
+ * What `POST /process-group-runs/:id/publish` takes: the edits, who published,
+ * and — for one leg on its own — its repo.
+ */
 export interface ProcessGroupPublishBody extends ProcessPublishBody {
+  projectId?: string
   decidedVia: ProcessDecisionClient
+}
+
+/** Where one leg's own publish stands: on its way, sent, or refused with why. */
+export interface ProcessLegPublish {
+  phase: 'publishing' | 'sent' | 'refused'
+  error?: string
+}
+
+/** One leg's publish card on its group run's page; `view` is undefined while the repos are read. */
+export interface ProcessLegPublishCard {
+  view: ProcessPublishView | undefined
 }
 
 /** A link safe to open, with its words. */
@@ -157,4 +177,6 @@ export interface ProcessDeliveryState {
   edits: Readonly<Record<string, ProcessPublishEdit>>
   publishing: boolean
   actionError: string | null
+  /** Each leg published on its own, by project id. */
+  legs: Readonly<Record<string, ProcessLegPublish>>
 }

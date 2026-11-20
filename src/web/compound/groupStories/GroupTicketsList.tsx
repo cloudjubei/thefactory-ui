@@ -9,6 +9,7 @@ import {
   REVIEW_OFFER_DEFAULT_LAYOUT,
   REVIEW_OFFER_TEXT,
   REVIEW_START_TEXT,
+  TICKET_RUN_DEFAULT_LAYOUT,
   groupTicketSectionRows,
   type GroupTicketListName,
   type GroupTicketReviewNews,
@@ -21,6 +22,8 @@ import {
   type GroupTicketTabsLayout,
   type ReviewOfferLayout,
   type ReviewOfferRowView,
+  type TicketRunLayout,
+  type TicketRunOpen,
 } from '../../../headless'
 import { IconChat, IconClose, IconExternalLink, IconSearch } from '../../icons'
 import Alert from '../../primitives/Alert'
@@ -32,6 +35,7 @@ import Spinner from '../../primitives/Spinner'
 import ReviewTabBar from '../chat/signoff/ReviewTabBar'
 import TicketChip from '../chips/TicketChip'
 import { GroupStoryStoryChip } from './GroupStoryBits'
+import { TicketRunChip, TicketRunLine, TicketRunWords } from './TicketRunState'
 
 export type TicketActions = {
   /** Open a ticket's page: what a press on its row does. */
@@ -48,6 +52,10 @@ export type TicketActions = {
   onDismissOffer?: (ticketKey: string) => void
   /** How a waiting update from Slack shows on its row. */
   offerLayout?: ReviewOfferLayout
+  /** Open the run working a ticket. Without it the run is only said. */
+  onOpenRun?: (open: TicketRunOpen) => void
+  /** How the run working a ticket shows on its row. */
+  runLayout?: TicketRunLayout
 }
 
 export type GroupTicketsListProps = TicketActions & {
@@ -718,6 +726,21 @@ function ReviewNewsLine({
   )
 }
 
+/** The run working the row's ticket, in the layout asked for: among its chips, or a line under it. */
+function RowRun({
+  row,
+  at,
+  runLayout = TICKET_RUN_DEFAULT_LAYOUT,
+  onOpenRun,
+}: Pick<TicketActions, 'runLayout' | 'onOpenRun'> & { row: GroupTicketRow; at: 'chips' | 'line' }) {
+  const { run } = row
+  if (!run) return null
+  if (at === 'line')
+    return runLayout === 'line' ? <TicketRunLine run={run} onOpen={onOpenRun} /> : null
+  if (runLayout === 'chip') return <TicketRunChip run={run} onOpen={onOpenRun} />
+  return runLayout === 'dot' ? <TicketRunWords run={run} onOpen={onOpenRun} /> : null
+}
+
 function NextTicket({
   row,
   starting,
@@ -740,6 +763,7 @@ function NextTicket({
           {offer && offerLayout === 'chip' ? (
             <OfferChip row={row} offer={offer} onDismissOffer={actions.onDismissOffer} />
           ) : null}
+          <RowRun row={row} at="chips" {...actions} />
         </div>
         <span className="text-[13.5px] font-medium text-(--text-primary)">{row.summary}</span>
         <span className="text-[11.5px] text-(--text-muted)">{GROUP_TICKETS_TEXT.explain}</span>
@@ -748,6 +772,7 @@ function NextTicket({
       {offer && offerLayout === 'strip' ? (
         <OfferStrip row={row} offer={offer} onDismissOffer={actions.onDismissOffer} />
       ) : null}
+      <RowRun row={row} at="line" {...actions} />
     </div>
   )
 }
@@ -786,10 +811,12 @@ function TicketRow({
           {offer && offerLayout === 'chip' ? (
             <OfferChip row={row} offer={offer} onDismissOffer={actions.onDismissOffer} />
           ) : null}
+          <RowRun row={row} at="chips" {...actions} />
           {!work &&
           !row.chatOpen &&
           !row.reviewOpen &&
           !row.replies &&
+          !row.run &&
           !(offer && offerLayout === 'chip') ? (
             <span className="shrink-0 text-[11.5px] text-(--text-muted)">
               {GROUP_TICKETS_TEXT.noWork}
@@ -808,6 +835,7 @@ function TicketRow({
             onDismissOffer={offerLayout === 'button' ? undefined : actions.onDismissOffer}
           />
         ) : null}
+        <RowRun row={row} at="line" {...actions} />
       </div>
     </li>
   )

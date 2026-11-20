@@ -50,7 +50,9 @@ import {
   offeredTickets,
   MERGE_FAILED,
   MERGE_MERGED,
+  MERGE_PAST_NOT_REQUIRED,
   MERGE_RUNNING,
+  MERGE_WAITING_NOT_REQUIRED,
   REVIEW_RUN_CHOICES,
   ROUND_TWO_POSTED,
   ROUND_TWO_POSTED_EDITED,
@@ -948,6 +950,20 @@ export const SLACK_REVIEW_SCENES: Scene[] = [
         title: 'Merged',
         description: 'With the Slack message it posted.',
         render: () => mergeCard(roundTwoMerge({ job: MERGE_MERGED })),
+      },
+      {
+        id: 'waiting-not-required',
+        title: 'Waiting, a check not required failed',
+        description:
+          'It waits only for the checks the group requires; one it does not that failed is named, not waited on.',
+        render: () => mergeCard(roundTwoMerge({ job: MERGE_WAITING_NOT_REQUIRED })),
+      },
+      {
+        id: 'merged-not-required',
+        title: 'Merged past checks not required',
+        description:
+          'One not required failed, another still ran: each row says so, and all merged.',
+        render: () => mergeCard(roundTwoMerge({ job: MERGE_PAST_NOT_REQUIRED })),
       },
       {
         id: 'failed',

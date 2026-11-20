@@ -13,6 +13,7 @@ import {
   waitingNoteCopy,
   addAnswerFiles,
   answerTakesFiles,
+  parkRecoveryDraft,
 } from './processParkNote'
 import { LIVE_CHECK_SEND_NOTE_COPY } from './liveCheckWatchConstants'
 import {
@@ -302,5 +303,30 @@ describe('parkAnswerOpensNote', () => {
       parkAnswerOpensNote({ choice: 'send-to-developer', preExistingBreak: brk }, undefined),
     ).toBe(false)
     expect(parkAnswerOpensNote({ choice: 'retry', partialProof: partial }, undefined)).toBe(false)
+  })
+})
+
+describe('parkRecoveryDraft', () => {
+  const recovery = { id: 'ask-developer', label: 'Ask Ana', detail: 'Post it.' }
+
+  it('is the text a way on drafts for the gate it decides, to edit before it is sent', () => {
+    expect(
+      parkRecoveryDraft({
+        recovery: {
+          ...recovery,
+          decidesGate: { gate: 'approval', action: 'send-reply', text: '@Ana bring main in?' },
+        },
+      }),
+    ).toBe('@Ana bring main in?')
+  })
+
+  it('is nothing for a way on that drafts nothing, or no way on', () => {
+    expect(
+      parkRecoveryDraft({
+        recovery: { ...recovery, decidesGate: { gate: 'approval', action: 'approve-and-merge' } },
+      }),
+    ).toBe(undefined)
+    expect(parkRecoveryDraft({ recovery })).toBe(undefined)
+    expect(parkRecoveryDraft({})).toBe(undefined)
   })
 })

@@ -14,6 +14,7 @@ export const REFERENCE_KIND_CAPTIONS: Record<ReferenceDescription['kind'], strin
   project: 'Project',
   chat: 'Chat',
   app: 'App',
+  evidence: 'Evidence',
 }
 
 /** What a preview card's button says, by what it opens. */
@@ -30,6 +31,7 @@ export const REFERENCE_OPEN_LABELS: Record<ReferenceDescription['kind'], string>
   project: 'Open project',
   chat: 'Open chat',
   app: 'Open app',
+  evidence: 'Open evidence',
 }
 
 export const REFERENCE_FOLDER_CAPTION = 'Folder'

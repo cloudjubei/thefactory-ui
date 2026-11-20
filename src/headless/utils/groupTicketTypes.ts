@@ -15,6 +15,7 @@ import type {
   GroupTicketTabItem,
 } from './groupTicketTabTypes'
 import type { TicketStatusTone } from './ticketCardTypes'
+import type { TicketRunState } from './ticketRunStateTypes'
 
 /** A ticket of a group's Jira. Its text comes from Jira: it is shown as plain text. */
 export interface GroupTicket {
@@ -26,8 +27,8 @@ export interface GroupTicket {
   priority?: string
   issueType?: string
   assignee?: string
-  /** The group story already working it. */
-  groupStory?: { id: string; title: string }
+  /** The group story already working it, with each part's project and story. */
+  groupStory?: { id: string; title: string; parts?: { projectId: string; storyId: string }[] }
   /** No group story and not started. Anything else can only be discussed. */
   canTake: boolean
   /** Its chat is already open. */
@@ -185,6 +186,8 @@ export interface GroupTicketRow {
   hint: string
   /** On a ticket under review: the reply waiting on it and what was pushed since the last round. */
   reviewNews?: GroupTicketReviewNews
+  /** The run working it now: its review run, its group run or a part story's run. */
+  run?: TicketRunState
 }
 
 /** What came on a ticket under review since its last round, in a line on its row. */
