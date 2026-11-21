@@ -218,6 +218,20 @@ describe('useSpeechToText', () => {
     expect(result.current.status).toBe('listening')
   })
 
+  it('keeps the pending interim through a reset that consumes a final mid-capture', async () => {
+    const stub = stubEngine()
+    const { result } = renderHook(useSpeechToText, { wrapper: stub.wrapper })
+    await act(() => result.current.start())
+    act(() => {
+      stub.callbacks().onFinal('Hello.')
+      stub.callbacks().onPartial('still talking')
+    })
+    act(() => result.current.reset())
+    expect(result.current.finalTranscript).toBe('')
+    expect(result.current.partialTranscript).toBe('still talking')
+    expect(result.current.status).toBe('listening')
+  })
+
   it('resets transcripts and errors to a supported idle state', async () => {
     const stub = stubEngine()
     const { result } = renderHook(useSpeechToText, { wrapper: stub.wrapper })

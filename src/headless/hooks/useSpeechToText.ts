@@ -43,7 +43,7 @@ export const SpeechToTextEngineContext = createContext<SpeechToTextEngine | null
 
 export interface UseSpeechToText {
   status: SpeechToTextStatus
-  /** Live in-progress transcript. Cleared on `stop()` / `reset()`. */
+  /** Live in-progress transcript. Cleared on `stop()`, and on `reset()` when not capturing. */
   partialTranscript: string
   /** Last finalised utterance — what the host typically appends to the textarea. */
   finalTranscript: string
@@ -52,9 +52,10 @@ export interface UseSpeechToText {
   start(opts?: { locale?: string }): Promise<void>
   stop(): Promise<void>
   /**
-   * Clears the transcripts and any error. While the engine is capturing it keeps
-   * capturing — a host consumes each final this way and dictation carries on —
-   * so only `stop()` ends a capture.
+   * Clears the final transcript and any error. While the engine is capturing it
+   * keeps capturing and keeps the pending interim — a host consumes each final
+   * this way and dictation carries on, so what was said after that final is not
+   * lost — and only `stop()` ends a capture. Not capturing, it clears the interim too.
    */
   reset(): void
 }
@@ -173,8 +174,10 @@ export function useSpeechToText(): UseSpeechToText {
   }, [])
 
   const reset = useCallback((): void => {
-    if (!stopFnRef.current) setStatus(supported ? 'idle' : 'unsupported')
-    setPartialTranscript('')
+    if (!stopFnRef.current) {
+      setStatus(supported ? 'idle' : 'unsupported')
+      setPartialTranscript('')
+    }
     setFinalTranscript('')
     setError(undefined)
   }, [supported])
