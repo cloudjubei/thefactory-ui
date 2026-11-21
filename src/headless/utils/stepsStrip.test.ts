@@ -274,6 +274,24 @@ describe('processRunStripEntries', () => {
     expect(wait).toMatchObject({ phase: 'current', tone: 'queued' })
   })
 
+  it('draws the wait step as any stop once bringing the base in there conflicted', () => {
+    const r = run({
+      status: 'parked',
+      park: { reason: 'step-errored', stepId: 'wait', message: '', parkedAt: 0 },
+      plan: {
+        ...run().plan,
+        steps: [
+          { id: 'impl', name: 'Implement', kind: 'agent', agentType: 'developer' },
+          { id: 'wait', name: 'Wait for other work', kind: 'check', waitsForWork: true },
+          { id: 'signoff', name: 'Sign-off', kind: 'gate' },
+        ],
+      },
+      ledger: [entry('impl'), entry('wait', { outcome: 'errored' })],
+    })
+    const wait = processRunStripEntries(r).find((e) => e.key === 'wait')
+    expect(wait).toMatchObject({ phase: 'current', tone: 'on_hold' })
+  })
+
   it('makes a parked gate current in the review tone', () => {
     const r = run({
       status: 'parked',

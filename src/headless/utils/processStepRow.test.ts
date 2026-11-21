@@ -4,7 +4,11 @@ import {
   FEATURE_REPORT_APPROACH,
   FINAL_REPORT_APPROACH,
 } from 'thefactory-tools/constants'
-import type { ProcessLedgerEntry, ProcessStepState } from 'thefactory-tools/types'
+import type {
+  ProcessLedgerEntry,
+  ProcessParkReason,
+  ProcessStepState,
+} from 'thefactory-tools/types'
 
 import {
   processStageChips,
@@ -43,6 +47,10 @@ const state = (
     ...overrides,
   }
 }
+
+const waitingRun = (reason: ProcessParkReason) => ({
+  park: { reason, stepId: 'wait-for-work', message: 'm', parkedAt: 1 },
+})
 
 describe('processStepRowView', () => {
   const waitingChecks = () =>
@@ -84,11 +92,32 @@ describe('processStepRowView', () => {
         }),
       },
     )
-    const row = processStepRowView(wait, 'wait-for-work')
+    const row = processStepRowView(wait, 'wait-for-work', waitingRun('waiting-on-work'))
     expect(row.result).toBe('Waiting on other work')
     expect(row.waitingOnYou).toBe(false)
     expect(row.waitingOnWork).toBe(true)
     expect(processStepRowView(wait, undefined).waitingOnWork).toBe(false)
+  })
+
+  it('says the wait step stopped for you, as any stop, once bringing the base in there conflicted', () => {
+    const message = 'Bringing in dev conflicts in a.ts.'
+    const wait = state(
+      { id: 'wait-for-work', name: 'Wait for other work', kind: 'check', waitsForWork: true },
+      {
+        status: 'done',
+        outcome: 'errored',
+        latest: entry({ stepId: 'wait-for-work', outcome: 'errored', summary: message }),
+      },
+    )
+    const stopped = waitingRun('step-errored')
+
+    const row = processStepRowView(wait, 'wait-for-work', stopped)
+    expect(row).toMatchObject({ result: message, waitingOnYou: true, waitingOnWork: false })
+    expect(processStepRowView(wait, 'wait-for-work', stopped, 'manager')).toMatchObject({
+      waitingOnYou: false,
+      waitingOnWork: false,
+      managerOnIt: true,
+    })
   })
 
   it('says the step waits on you, not its turn, when the run is stopped at it', () => {

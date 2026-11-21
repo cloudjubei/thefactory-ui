@@ -143,7 +143,9 @@ export function stepsStripView(
  * step a run is stopped at reads as work going on while `stopHolder` says its
  * agent manager has the stop. A step carried on past although it was never
  * proven is done in the gold of "Accepted unchecked", saying who accepted it.
- * The step whose agent paused is current, marked paused, in "Needs you". Pure.
+ * The step whose agent paused is current, marked paused, in "Needs you". A
+ * run's wait for other work is in the waiting tone only while the run waits
+ * there for that work. Pure.
  */
 export function processRunStripEntries(
   run: ProcessRun | ProcessRunWithPause,
@@ -176,7 +178,7 @@ export function processRunStripEntries(
       label: state.step.name,
       phase,
       tone:
-        nodeState === 'parked' && state.step.waitsForWork
+        nodeState === 'parked' && state.step.waitsForWork && run.park?.reason === 'waiting-on-work'
           ? PROCESS_RUN_WAIT_TONE
           : processNodeTone(nodeState, state.step.kind === 'gate'),
       ...(attempt ? { attempt } : {}),

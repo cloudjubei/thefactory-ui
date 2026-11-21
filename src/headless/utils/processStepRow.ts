@@ -82,9 +82,10 @@ function queuedLine(state: ProcessStepState, now: number | undefined): string | 
 function resultLine(
   state: ProcessStepState,
   nodeState: ReturnType<typeof processNodeState>,
+  waitingOnWork: boolean,
   now: number | undefined,
 ): string | undefined {
-  if (nodeState === 'parked' && state.step.waitsForWork) return PROCESS_STEP_WAITING_ON_WORK
+  if (waitingOnWork) return PROCESS_STEP_WAITING_ON_WORK
   if (nodeState === 'parked' && state.step.kind === 'gate') return PROCESS_STEP_WAITING_ON_YOU
   if (nodeState === 'working') {
     const queued = queuedLine(state, now)
@@ -116,32 +117,39 @@ function resultLine(
  * story run's sign-off opens to its decision once the person has made it. The
  * step the run is stopped at waits on the person — unless `stopHolder` (from
  * `processRunStopHolder`) says the agent manager has the stop: then it says
- * the manager is on it. A running step waiting its turn behind work the host
- * runs one at a time — a checks step behind another check run of the project —
- * says so, with how long it has waited when it is given `now`. A step the run
- * carried on past although it was never proven says who accepted what.
+ * the manager is on it. A run's wait for other work reads as waiting on that
+ * work only while the run's stop is that wait; stopped there on anything else,
+ * a conflict bringing the base in say, it is a stop like any other. A running
+ * step waiting its turn behind work the host runs one at a time — a checks step
+ * behind another check run of the project — says so, with how long it has
+ * waited when it is given `now`. A step the run carried on past although it
+ * was never proven says who accepted what.
  */
 export function processStepRowView(
   state: ProcessStepState,
   parkStepId: string | undefined,
-  run?: Pick<ProcessRun, 'storyId' | 'parentRunId'>,
+  run?: Partial<Pick<ProcessRun, 'storyId' | 'parentRunId' | 'park'>>,
   stopHolder?: ProcessRunStopHolder,
   now?: number,
 ): ProcessStepRowView {
   const nodeState = processNodeState(state, parkStepId)
   const managerOnIt = nodeState === 'parked' && stopHolder === 'manager'
+  const waitingOnWork =
+    nodeState === 'parked' &&
+    state.step.waitsForWork === true &&
+    run?.park?.reason === 'waiting-on-work'
   const inert = nodeState === 'skipped' || (nodeState === 'queued' && state.entries.length === 0)
   const preview = previewKind(state, run)
   const acceptedUnchecked =
     nodeState === 'accepted' ? processStepAcceptedUnchecked(state) : undefined
   const result = managerOnIt
     ? PROCESS_STEP_MANAGER_ON_IT
-    : (acceptedUnchecked?.line ?? resultLine(state, nodeState, now))
+    : (acceptedUnchecked?.line ?? resultLine(state, nodeState, waitingOnWork, now))
   return {
     inert,
     result: result ? clipLine(result.split('\n')[0], PROCESS_STEP_RESULT_MAX) : undefined,
-    waitingOnYou: nodeState === 'parked' && !managerOnIt && !state.step.waitsForWork,
-    waitingOnWork: nodeState === 'parked' && state.step.waitsForWork === true,
+    waitingOnYou: nodeState === 'parked' && !managerOnIt && !waitingOnWork,
+    waitingOnWork,
     managerOnIt,
     acceptedUnchecked,
     expandable: !inert && preview !== 'none' && state.latest !== undefined,

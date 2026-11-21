@@ -1,9 +1,15 @@
 import type {
+  ProcessBaseConflict,
   ProcessGroupLeg,
+  ProcessLedgerEntry,
   ProcessProposal,
   ProcessRun,
   ProcessRunWait,
 } from 'thefactory-tools/types'
+import {
+  addProcessBaseConflictResolver,
+  processBaseConflictParkMessage,
+} from 'thefactory-tools/utils'
 
 import type { ProcessGroupLegRow } from '../../src/headless/utils/processGroupViewTypes'
 import type { ProcessWaitForDrafts } from '../../src/headless/utils/processWaitForDraftTypes'
@@ -127,6 +133,88 @@ export const WAIT_STOPPED = run({
     settled: { how: 'dropped', at: LATER, decidedBy: 'person', decidedVia: 'mobile' },
     decisions: [{ action: 'stop-waiting', at: LATER, decidedBy: 'person', decidedVia: 'mobile' }],
   },
+})
+
+const CONFLICT: ProcessBaseConflict = {
+  baseRef: 'dev',
+  baseSha: 'c'.repeat(40),
+  commits: 3,
+  paths: ['src/usage/export.prompt.ts', 'src/usage/usage.service.spec.ts'],
+  workSha: 'd'.repeat(40),
+}
+
+const done = (stepId: string, summary: string): ProcessLedgerEntry => ({
+  id: `${stepId}-1`,
+  stepId,
+  iteration: 1,
+  status: 'done',
+  outcome: 'passed',
+  summary,
+  startedAt: SINCE,
+  endedAt: SINCE,
+})
+
+const conflictAtWait: ProcessLedgerEntry = {
+  id: 'wait-1',
+  stepId: 'wait-for-work',
+  iteration: 1,
+  status: 'done',
+  outcome: 'errored',
+  summary: processBaseConflictParkMessage(CONFLICT),
+  baseConflict: CONFLICT,
+  startedAt: LATER,
+  endedAt: LATER,
+}
+
+const cleared: ProcessRunWait = {
+  entries: [{ label: 'ENG-780', onBase: { how: 'branch', commit: 'b'.repeat(40), at: LATER } }],
+  since: SINCE,
+  baseRef: 'dev',
+  settled: { how: 'on-base', at: LATER, baseSha: CONFLICT.baseSha },
+}
+
+/** ENG-780 reached dev, and bringing dev in conflicted in two files: the run stops at its wait. */
+export const WAIT_CONFLICT = run({
+  status: 'parked',
+  wait: cleared,
+  ledger: [done('features', 'Built 2 features.'), done('code-review', 'Approved'), conflictAtWait],
+  park: {
+    reason: 'step-errored',
+    stepId: 'wait-for-work',
+    message: processBaseConflictParkMessage(CONFLICT),
+    parkedAt: LATER,
+    baseConflict: CONFLICT,
+  },
+})
+
+/** The manager sent an agent: Resolve conflict goes in front of the wait, which checks its merge next. */
+export const WAIT_CONFLICT_RESOLVING = run({
+  wait: cleared,
+  plan: addProcessBaseConflictResolver(base.plan as ProcessRun['plan'], 'wait-for-work', LATER),
+  cursor: { stepId: 'resolve-conflict', iteration: 1 },
+  ledger: [
+    done('features', 'Built 2 features.'),
+    done('code-review', 'Approved'),
+    {
+      ...conflictAtWait,
+      override: {
+        choice: 'resolve-base-conflict',
+        at: LATER,
+        decidedBy: 'manager',
+        decidedVia: 'manager',
+        toolName: 'answerRunPark',
+        chatContextId: 'manager',
+      },
+    },
+    {
+      id: 'resolve-1',
+      stepId: 'resolve-conflict',
+      iteration: 1,
+      status: 'running',
+      viaLoopId: 'base-conflict-fix',
+      startedAt: LATER,
+    },
+  ],
 })
 
 const leg = (over: Partial<ProcessGroupLeg>): ProcessGroupLeg => ({

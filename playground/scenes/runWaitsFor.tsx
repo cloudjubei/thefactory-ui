@@ -1,20 +1,33 @@
 import { useState, type ReactNode } from 'react'
+import { MemoryRouter } from 'react-router-dom'
 import type { ProcessRun, ProcessWaitAction } from 'thefactory-tools/types'
+import { processStepStates } from 'thefactory-tools/utils'
 
 import {
+  ApiProvider,
+  AppSettingsProvider,
+  AuthProvider,
+  FilesProvider,
+  ProjectsProvider,
+  processAmendmentView,
   processProposalWaitLine,
   processRunWaitView,
   processWaitConfirmView,
   processWaitForDraftsProblem,
+  type DependencyResolution,
+  type SyncKVStorage,
 } from '../../src/headless'
 import type { ProcessWaitForDrafts } from '../../src/headless/utils/processWaitForDraftTypes'
 import LaunchWaitFields from '../../src/web/compound/chat/LaunchWaitFields'
 import { ProcessGroupLegCard } from '../../src/web/compound/process/ProcessGroupPipeline'
+import { ParkBlock, PipelineNode } from '../../src/web/compound/process/ProcessPipeline'
 import RunWaitCard from '../../src/web/compound/process/RunWaitCard'
 import type { Scene } from '../showcase/types'
 import {
   WAIT_AHEAD,
   WAIT_CLEARED,
+  WAIT_CONFLICT,
+  WAIT_CONFLICT_RESOLVING,
   WAIT_CONTINUED,
   WAIT_DRAFTS_EMPTY,
   WAIT_DRAFTS_FILLED,
@@ -30,6 +43,15 @@ import {
 
 const decided = async () => true
 const noop = () => undefined
+const handedOn = async () => true
+const NOW = new Date(2026, 10, 19, 14, 20).getTime()
+const unresolved = (id: string): DependencyResolution => ({
+  id,
+  code: 'STORY_NOT_FOUND',
+  message: '',
+})
+const MEMORY: SyncKVStorage = { get: () => null, set: noop }
+const NO_TOKEN = { read: () => null, write: noop }
 
 function Frame({ children, width = 720 }: { children: ReactNode; width?: number }) {
   return <div style={{ maxWidth: width }}>{children}</div>
@@ -124,6 +146,70 @@ function Launch({
   )
 }
 
+/** Signed out with no backend: each state draws only what it is given. */
+function Providers({ children, width = 720 }: { children: ReactNode; width?: number }) {
+  return (
+    <AuthProvider storage={NO_TOKEN}>
+      <ApiProvider apiBaseUrl={null} wsBaseUrl={null} client="web">
+        <AppSettingsProvider storage={MEMORY}>
+          <ProjectsProvider>
+            <FilesProvider>
+              <MemoryRouter>
+                <div
+                  className="flex flex-col gap-3 bg-(--surface-base) p-4"
+                  style={{ maxWidth: width }}
+                >
+                  {children}
+                </div>
+              </MemoryRouter>
+            </FilesProvider>
+          </ProjectsProvider>
+        </AppSettingsProvider>
+      </ApiProvider>
+    </AuthProvider>
+  )
+}
+
+/** The pipeline's rows for a run, with the tag of a step added after it started. */
+function Rows({ run }: { run: ProcessRun }) {
+  const added = processAmendmentView(run).addedSteps
+  return (
+    <ol className="m-0 flex list-none flex-col rounded-xl border border-(--border-subtle) bg-(--surface-raised) p-0 py-1.5">
+      {processStepStates(run).map((state) => (
+        <PipelineNode
+          key={state.step.id}
+          run={run}
+          state={state}
+          now={NOW}
+          stopHolder={undefined}
+          managerLine={undefined}
+          addedTag={added[state.step.id]}
+          resolveDependency={unresolved}
+          onDrill={noop}
+          onOpenPanel={noop}
+        />
+      ))}
+    </ol>
+  )
+}
+
+function conflictStop(width?: number) {
+  return (
+    <Providers {...(width ? { width } : {})}>
+      <Rows run={WAIT_CONFLICT} />
+      <ParkBlock
+        run={WAIT_CONFLICT}
+        managerLine={undefined}
+        onChoose={noop}
+        onChangeProof={noop}
+        onAnswerRequest={noop}
+        onDelegate={handedOn}
+        onDrill={noop}
+      />
+    </Providers>
+  )
+}
+
 export const RUN_WAITS_FOR_SCENES: Scene[] = [
   {
     id: 'run-waits-for',
@@ -195,6 +281,39 @@ export const RUN_WAITS_FOR_SCENES: Scene[] = [
         id: 'phone',
         title: 'On a phone',
         render: () => card(WAIT_ONE_ON_BASE, { width: 390 }),
+      },
+    ],
+  },
+  {
+    id: 'wait-base-conflict',
+    title: 'Conflict bringing the base in at the wait',
+    component: 'PipelineNode · ParkBlock (ProcessPipeline)',
+    group: 'Process',
+    description:
+      'Once the work waited for is on the base, the wait brings the base into the work branch. A conflict there stops the run as at any other base-conflict stop: the wait step reads as stopped, not waiting on other work, and the stop offers an agent to resolve it — never the same merge again. Choosing it, by the person or the manager, adds “Resolve conflict” in front of the wait; the wait then checks the merged work before the proof.',
+    states: [
+      {
+        id: 'stop',
+        title: 'Stopped on the conflict',
+        description:
+          'The wait step’s row says what conflicted and that it waits on you; “Have an agent resolve it” leads, “Stop here” after it.',
+        render: () => conflictStop(),
+      },
+      {
+        id: 'resolving',
+        title: 'An agent resolving it',
+        description:
+          '“Resolve conflict”, tagged as added, runs in front of the wait; the wait comes next and checks the merge.',
+        render: () => (
+          <Providers>
+            <Rows run={WAIT_CONFLICT_RESOLVING} />
+          </Providers>
+        ),
+      },
+      {
+        id: 'phone',
+        title: 'On a phone',
+        render: () => conflictStop(390),
       },
     ],
   },
