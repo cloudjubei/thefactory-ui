@@ -126,7 +126,7 @@ export const PLAN_WINDOW_VIEWS: NativeView[] = [
         <OnFixtures
           routes={{
             '/api/v1/cli-runs/{runId}': () => run,
-            '/api/v1/cli-runs/{runId}/artifacts/{artifactId}/preview': () => ({
+            'POST /api/v1/cli-runs/{runId}/artifacts/{artifactId}/preview': () => ({
               files: [
                 {
                   path: 'plan-window-example.txt',

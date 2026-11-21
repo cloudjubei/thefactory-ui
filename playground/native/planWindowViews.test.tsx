@@ -19,7 +19,12 @@ vi.mock('../../src/native/compound/files/ReferenceTextarea', () => ({ default: (
 vi.mock('../../src/native/compound/process/SupersededFilings', () => ({ default: () => null }))
 vi.mock('../../src/native/compound/chat/signoff', async () => ({
   RunModelChip: (await import('../../src/native/compound/chat/signoff/RunModelChip')).default,
-  ChangesTab: () => null,
+  ChangesTab: ({ files, error }: { files: { patch?: string }[]; error?: string }) =>
+    error
+      ? `Changes failed: ${error}`
+      : files.some((file) => file.patch)
+        ? 'Changes patched'
+        : null,
   CheckChipRow: () => null,
   ChecksTab: () => null,
   ComparisonOverlay: () => null,
@@ -151,5 +156,15 @@ describe('native CLI run plan-window scene', () => {
     } else {
       expect(chip).not.toBeNull()
     }
+  })
+})
+
+describe('the native plan-window header preview', () => {
+  it('loads the change card’s preview from its fixture', async () => {
+    const view = PLAN_WINDOW_VIEWS.find((item) => item.id === 'cli-run-plan-window')!
+    render(view.render(new URLSearchParams({ state: 'codex-paid' })))
+
+    expect(await screen.findByText('Changes patched')).toBeTruthy()
+    expect(screen.queryByText(/Changes failed/)).toBeNull()
   })
 })
