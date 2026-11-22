@@ -992,6 +992,9 @@ export {
   tabForMethod,
 } from './utils/checkMethods'
 export type { CheckRowLayout } from './utils/checkMethods'
+export { checkRunButton, checkRunWorkingLabel, runningCheckMethod } from './utils/checkRunButton'
+export { verifyReviewBody } from './utils/verifyReviewRequest'
+export type { VerifyReviewBody } from './utils/verifyReviewRequest'
 export {
   developerChecksNote,
   latestProcessChecks,
@@ -1035,6 +1038,7 @@ export type {
   CheckMethodId,
   CheckMethodRow,
   CheckMethodState,
+  CheckRunButton,
   CheckUnfinishedTests,
   ReviewTab,
   ReviewTabId,
@@ -1050,6 +1054,8 @@ export {
   CHECK_CHIP_MARKS,
   CHECK_METHOD_LABELS,
   CHECK_METHOD_ORDER,
+  CHECK_RUN_LABEL,
+  CHECK_RUN_WORKING,
   PROJECT_CHECK_METHOD,
   AGENT_UNREACHABLE,
   CHECK_STATE_LABELS,

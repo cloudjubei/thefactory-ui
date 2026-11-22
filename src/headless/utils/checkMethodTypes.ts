@@ -231,3 +231,19 @@ export type ReviewTabsInput = {
   /** How a tester's run-through went, when one filed anything — its tab's chip. */
   runThrough?: CheckMethodState
 }
+
+/**
+ * The Run control on one Checks-tab block.
+ *
+ * `checkIds` is that block alone: one test layer, or every check rolled into
+ * a method row. Never the whole pass.
+ */
+export type CheckRunButton = {
+  checkIds: readonly string[]
+  /** Names the block for assistive tech and the tooltip: "Run Unit tests". */
+  label: string
+  /** This block's checks are the ones in flight, or the whole pass is. */
+  running: boolean
+  /** Some other run is in flight, so this button waits. */
+  blocked: boolean
+}

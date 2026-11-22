@@ -50,6 +50,8 @@ import {
   ranReviewChecks,
   reviewCheckGroups,
   type ApproveActionDescriptor,
+  checkRunWorkingLabel,
+  runningCheckMethod,
   type CheckMethodId,
   type CheckActionHost,
   type CheckMethodRow,
@@ -229,6 +231,8 @@ export default function CliRunArtifactPanel({
     mergeResult,
     verify,
     verifying,
+    verifyingCheckIds,
+    verifyStartedAtMs,
     verificationApproaches,
     projectChecks,
     verificationPlatform,
@@ -577,7 +581,7 @@ export default function CliRunArtifactPanel({
     currentRefs.length > 0 ? Math.min(...currentRefs.map((r) => r.createdAt)) : undefined,
   )
   const busyMethod: CheckMethodId | undefined = verifying
-    ? (methodRows.find((r) => r.action.kind === 'run' && r.state !== 'passed')?.id ?? 'types')
+    ? runningCheckMethod(methodRows, verifyingCheckIds)
     : requestingReview
       ? methodRows.find(
           (r) => r.action.kind === 'request' && r.action.approachId === requestingReview,
@@ -586,7 +590,7 @@ export default function CliRunArtifactPanel({
   const working = reviewInProgress
     ? 'Verifying the change on a device'
     : verifying
-      ? 'Running the configured checks'
+      ? checkRunWorkingLabel(verifyingCheckIds, [...testChecks, ...buildChecks])
       : requestingReview
         ? `Capturing ${methodRows.find((r) => r.id === busyMethod)?.noun ?? 'evidence'}`
         : undefined
@@ -641,6 +645,8 @@ export default function CliRunArtifactPanel({
   const runMethod = () => {
     void verify()
   }
+
+  const runChecks = reportOnly ? undefined : (checkIds: readonly string[]) => void verify(checkIds)
 
   // EVERY hand-off confirms, capture included: it spends an agent run, and the
   // button's own ellipsis promises a step before anything happens.
@@ -1048,6 +1054,8 @@ export default function CliRunArtifactPanel({
                     busyId={busyMethod}
                     actions={checkActions}
                     {...(onSetUp ? { onSetUp } : {})}
+                    {...(runChecks ? { onRunChecks: runChecks } : {})}
+                    {...(verifyingCheckIds ? { runningCheckIds: verifyingCheckIds } : {})}
                     emptyState={{
                       title: 'This project has no tests at all.',
                       body: 'Nothing here can be proven by running anything. Adding a suite is a code change, so it is work for the agent — and the one request from this panel that changes what every future run can prove.',
@@ -1061,6 +1069,8 @@ export default function CliRunArtifactPanel({
                     busyId={busyMethod}
                     actions={checkActions}
                     {...(onSetUp ? { onSetUp } : {})}
+                    {...(runChecks ? { onRunChecks: runChecks } : {})}
+                    {...(verifyingCheckIds ? { runningCheckIds: verifyingCheckIds } : {})}
                   />
                 ) : currentTab === 'report' ? (
                   <ReportTab reports={reports} onSaveFile={onSaveFile} />
@@ -1155,7 +1165,7 @@ export default function CliRunArtifactPanel({
           ) : working ? (
             <WorkBar
               label={working}
-              startedAtMs={startedAtMs}
+              startedAtMs={verifying ? verifyStartedAtMs : startedAtMs}
               onCancel={reviewInProgress ? cancelReview : undefined}
               cancelling={cancelling}
             />

@@ -11,6 +11,8 @@ export type RunActionButtonProps = {
   busyLabel?: string
   disabled?: boolean
   title?: string
+  /** Names what it runs when its face alone does not, e.g. "Run Unit tests" on a "Run". */
+  ariaLabel?: string
 }
 
 /**
@@ -25,6 +27,7 @@ export default function RunActionButton({
   busyLabel,
   disabled,
   title,
+  ariaLabel,
 }: RunActionButtonProps) {
   return (
     <Button
@@ -34,6 +37,7 @@ export default function RunActionButton({
       loading={busy}
       disabled={disabled}
       title={title}
+      aria-label={ariaLabel}
     >
       {busy ? (
         (busyLabel ?? 'Running…')

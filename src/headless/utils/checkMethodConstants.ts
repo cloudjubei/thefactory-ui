@@ -400,3 +400,9 @@ export const CHECK_RAN_IN_SANDBOX_SENTENCE = 'Ran in the sandbox.'
 
 /** How a check's detail starts when it ran on the machine hosting the backend. */
 export const CHECK_RAN_ON_HOST_SENTENCE = 'Ran on the host'
+
+/** The word on a sign-off check block's Run button, on every client. */
+export const CHECK_RUN_LABEL = 'Run'
+
+/** What the panel says while a verify with no `checkIds` runs the whole pass. */
+export const CHECK_RUN_WORKING = 'Running the configured checks'

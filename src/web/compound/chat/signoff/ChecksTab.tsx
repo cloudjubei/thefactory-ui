@@ -4,7 +4,9 @@ import {
   AGENT_UNREACHABLE,
   aggregateTestCounts,
   capabilitySetupOffered,
+  CHECK_RUN_LABEL,
   checkActionOffer,
+  checkRunButton,
   handoffRequest,
   ranCheckMethods,
   reviewCheckMeta,
@@ -38,6 +40,16 @@ export type ChecksTabProps = {
   emptyState?: { title: string; body: string }
   /** Opens a chat drafted to set a missing capability up, in place of the hand-off. */
   onSetUp?: (row: CheckMethodRow) => void
+  /**
+   * Re-runs this block's checks only. Absent on a read-only record, which
+   * offers no Run button.
+   */
+  onRunChecks?: (checkIds: readonly string[]) => void
+  /**
+   * What the in-flight verify is running. Empty while the whole pass runs;
+   * absent when nothing is.
+   */
+  runningCheckIds?: readonly string[]
 }
 
 /** A plain note about the record itself — what it cannot show, or what the run could not cover. */
@@ -75,6 +87,10 @@ function CheckBlock({
   busy,
   actions,
   onSetUp,
+  checkIds,
+  runLabel,
+  onRunChecks,
+  runningCheckIds,
 }: {
   row: CheckMethodRow
   title: ReactNode
@@ -94,9 +110,19 @@ function CheckBlock({
   busy: boolean
   actions: CheckActionHost | undefined
   onSetUp: ((row: CheckMethodRow) => void) | undefined
+  /** This block's checks: one layer, or every check rolled into the method. */
+  checkIds: readonly string[]
+  /** Names the block on its Run button's tooltip and accessible label. */
+  runLabel: string
+  onRunChecks: ((checkIds: readonly string[]) => void) | undefined
+  runningCheckIds: readonly string[] | undefined
 }) {
   const offer = checkActionOffer(row.action, actions)
   const setUp = onSetUp && capabilitySetupOffered(row) ? onSetUp : undefined
+  const run =
+    onRunChecks && row.action.kind !== 'run'
+      ? checkRunButton(checkIds, runLabel, runningCheckIds)
+      : undefined
   return (
     <section className="flex flex-col gap-2 rounded-md border border-(--border-subtle) bg-(--surface-raised) p-2.5">
       <div className="flex flex-wrap items-center gap-2">
@@ -108,6 +134,17 @@ function CheckBlock({
         )}
         <span className="flex-1" />
         {durationLabel ? <span className={DURATION_CHIP_CLASS}>{durationLabel}</span> : null}
+        {run && onRunChecks ? (
+          <RunActionButton
+            busy={run.running}
+            disabled={run.blocked}
+            title={run.label}
+            ariaLabel={run.label}
+            onClick={() => onRunChecks(run.checkIds)}
+          >
+            {CHECK_RUN_LABEL}
+          </RunActionButton>
+        ) : null}
       </div>
 
       {command && summary ? (
@@ -194,6 +231,8 @@ export default function ChecksTab({
   actions,
   emptyState,
   onSetUp,
+  onRunChecks,
+  runningCheckIds,
 }: ChecksTabProps) {
   const allUnconfigured = methods.length > 0 && methods.every((m) => m.state === 'unconfigured')
   if (emptyState && allUnconfigured) {
@@ -280,6 +319,10 @@ export default function ChecksTab({
                 busy={busyId === testsRow.id}
                 actions={actions}
                 onSetUp={onSetUp}
+                checkIds={[layer.id]}
+                runLabel={layer.label}
+                onRunChecks={onRunChecks}
+                runningCheckIds={runningCheckIds}
               />
             )
           })
@@ -302,6 +345,10 @@ export default function ChecksTab({
                 busy={busyId === row.id}
                 actions={actions}
                 onSetUp={onSetUp}
+                checkIds={row.checkIds}
+                runLabel={row.label}
+                onRunChecks={onRunChecks}
+                runningCheckIds={runningCheckIds}
               />
             )
           })}

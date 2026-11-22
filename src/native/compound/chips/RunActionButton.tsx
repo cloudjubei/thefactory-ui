@@ -12,6 +12,8 @@ export type RunActionButtonProps = {
   busy?: boolean
   busyLabel?: string
   disabled?: boolean
+  /** Names what it runs when its face alone does not, e.g. "Run Unit tests" on a "Run". */
+  accessibilityLabel?: string
 }
 
 /**
@@ -25,10 +27,18 @@ export default function RunActionButton({
   busy = false,
   busyLabel,
   disabled,
+  accessibilityLabel,
 }: RunActionButtonProps) {
   const { theme } = useNativeTheme()
   return (
-    <Button variant="run" size="sm" onPress={onPress} loading={busy} disabled={disabled}>
+    <Button
+      variant="run"
+      size="sm"
+      onPress={onPress}
+      loading={busy}
+      disabled={disabled}
+      {...(accessibilityLabel ? { accessibilityLabel } : {})}
+    >
       {busy ? (
         (busyLabel ?? 'Running…')
       ) : (

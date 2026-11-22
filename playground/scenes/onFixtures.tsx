@@ -245,8 +245,9 @@ function doStep(element: HTMLElement, step: SceneStep): boolean {
     if (input) fill(input, step.value)
     return input !== null
   }
-  const button = [...element.querySelectorAll('button')].find((candidate) =>
-    (candidate.getAttribute('aria-label') ?? candidate.textContent)?.includes(step.press),
+  const button = [...element.querySelectorAll<HTMLElement>('button, [role="button"]')].find(
+    (candidate) =>
+      (candidate.getAttribute('aria-label') ?? candidate.textContent)?.includes(step.press),
   )
   button?.click()
   return button !== undefined

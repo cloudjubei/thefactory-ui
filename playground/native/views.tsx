@@ -105,6 +105,7 @@ import { ALREADY_HANDLED_VIEWS } from './alreadyHandledViews'
 import { CHAT_MESSAGING_VIEWS } from './chatMessagingViews'
 import { VIDEO_TIMELINE_VIEWS } from './videoTimelineViews'
 import { RUN_THROUGH_VIEWS } from './runThroughViews'
+import { CHECK_RUN_VIEWS } from './checkRunViews'
 import { RUN_THROUGH_ISSUE_REVIEW_VIEWS } from './runThroughIssueReviewViews'
 import { EVIDENCE_LINK_VIEWS } from './evidenceLinksViews'
 import { AGENT_PAUSE_VIEWS } from './agentPauseViews'
@@ -709,6 +710,7 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   ...REVIEW_GAP_VIEWS,
   ...ALREADY_HANDLED_VIEWS,
   ...RUN_THROUGH_VIEWS,
+  ...CHECK_RUN_VIEWS,
   ...RUN_THROUGH_ISSUE_REVIEW_VIEWS,
   ...EVIDENCE_LINK_VIEWS,
   ...AGENT_PAUSE_VIEWS,

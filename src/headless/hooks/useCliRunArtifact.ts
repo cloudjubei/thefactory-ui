@@ -32,7 +32,9 @@ import {
   type CliRunApproveAction,
   type CliRunApproveResult,
   type VerificationApproachOption,
+  type VerifyCliRunReviewData,
 } from '../api/generated'
+import { verifyReviewBody } from '../utils/verifyReviewRequest'
 import { useApi } from '../api/ApiContext'
 import {
   appendCliRunTranscript,
@@ -235,10 +237,20 @@ export type UseCliRunArtifact = {
   merging: boolean
   /** Result of the last merge (ok / conflicts / mergeCommit), once attempted. */
   mergeResult: GitMergeResult | undefined
-  /** Re-run the project's verification checks against the run's changes. */
-  verify: () => Promise<void>
+  /**
+   * Re-run verification against the run's changes. With `checkIds`, only those
+   * checks; without, the whole pass.
+   */
+  verify: (checkIds?: readonly string[]) => Promise<void>
   /** True while verification is running. */
   verifying: boolean
+  /**
+   * The check ids the in-flight verify was asked for. Empty while a whole pass
+   * runs; absent when nothing is.
+   */
+  verifyingCheckIds: readonly string[] | undefined
+  /** When the in-flight verify started, so its elapsed time counts from the press, not the run. */
+  verifyStartedAtMs: number | undefined
   /**
    * Approve the run: keep the branch, open a pull request, or merge. A refusal
    * lands in {@link approveResult} with a reason rather than throwing.
@@ -334,6 +346,12 @@ export function useCliRunArtifact(
   const [merging, setMerging] = useState(false)
   const [mergeResult, setMergeResult] = useState<GitMergeResult | undefined>(undefined)
   const [verifying, setVerifying] = useState(false)
+  const [verifyingCheckIds, setVerifyingCheckIds] = useState<readonly string[] | undefined>(
+    undefined,
+  )
+  const [verifyStartedAtMs, setVerifyStartedAtMs] = useState<number | undefined>(undefined)
+  /** One verify at a time — a second click while one is in flight is ignored. */
+  const verifyingRef = useRef(false)
   const [verificationApproaches, setVerificationApproaches] = useState<
     VerificationApproachOption[]
   >([])
@@ -517,6 +535,13 @@ export function useCliRunArtifact(
     setError(undefined)
     setNotReady(false)
     setLoading(false)
+    // An in-flight verify belongs to the run that started it. Leaving it set
+    // makes the next run look busy and drops its Run press until the old
+    // request ends.
+    verifyingRef.current = false
+    setVerifying(false)
+    setVerifyingCheckIds(undefined)
+    setVerifyStartedAtMs(undefined)
   }, [runId])
 
   useEffect(() => {
@@ -812,24 +837,38 @@ export function useCliRunArtifact(
     [runId, projectId],
   )
 
-  const verify = useCallback(async () => {
-    if (!runId || !projectId) return
-    const epoch = epochRef.current
-    setVerifying(true)
-    setError(undefined)
-    try {
-      const { data } = await verifyCliRunReview({
-        path: { runId },
-        body: { projectId },
-        throwOnError: true,
-      })
-      if (epoch === epochRef.current) setVerification(asRunVerification(data))
-    } catch (err: unknown) {
-      if (epoch === epochRef.current) setError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setVerifying(false)
-    }
-  }, [runId, projectId])
+  const verify = useCallback(
+    async (checkIds?: readonly string[]) => {
+      if (!runId || !projectId || verifyingRef.current) return
+      const body = verifyReviewBody(projectId, checkIds)
+      const epoch = epochRef.current
+      verifyingRef.current = true
+      setVerifying(true)
+      setVerifyingCheckIds(body.checkIds ?? [])
+      setVerifyStartedAtMs(Date.now())
+      setError(undefined)
+      try {
+        const { data } = await verifyCliRunReview({
+          path: { runId },
+          body: body as VerifyCliRunReviewData['body'],
+          throwOnError: true,
+        })
+        if (epoch === epochRef.current) setVerification(asRunVerification(data))
+      } catch (err: unknown) {
+        if (epoch === epochRef.current) setError(err instanceof Error ? err.message : String(err))
+      } finally {
+        // A run change already released this verify. Clearing here would
+        // cancel a verify the next run has since started.
+        if (epoch === epochRef.current) {
+          verifyingRef.current = false
+          setVerifying(false)
+          setVerifyingCheckIds(undefined)
+          setVerifyStartedAtMs(undefined)
+        }
+      }
+    },
+    [runId, projectId],
+  )
 
   const decide = useCallback(
     async (decision: 'rejected' | 'changes-requested', reason: string) => {
@@ -996,6 +1035,8 @@ export function useCliRunArtifact(
     approveResult,
     verify,
     verifying,
+    verifyingCheckIds,
+    verifyStartedAtMs,
     verificationApproaches,
     projectChecks,
     verificationPlatform,
