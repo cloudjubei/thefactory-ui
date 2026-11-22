@@ -107,6 +107,8 @@ import type {
   ListCliCapabilityScorecardsResponse,
   CheckCliImageUpdatesData,
   CheckCliImageUpdatesResponse,
+  CheckProjectTemplateUpdatesData,
+  CheckProjectTemplateUpdatesResponse,
   ListCliImageVersionsData,
   ListCliImageVersionsResponse,
   ListConnectionAssignedItemsData,
@@ -247,7 +249,14 @@ import {
   FAKE_PROCESSES,
   fakeProcessRunsMatching,
 } from './fixtures/processRuns'
-import { FAKE_GROUP_ID, FAKE_GROUPS, FAKE_PROJECTS } from './fixtures/projects'
+import {
+  FAKE_FORKED_FROM_TEMPLATE_ID,
+  FAKE_FORKED_TEMPLATE_PROVENANCE_COMMIT,
+  FAKE_FORKED_TEMPLATE_UPSTREAM_COMMIT,
+  FAKE_GROUP_ID,
+  FAKE_GROUPS,
+  FAKE_PROJECTS,
+} from './fixtures/projects'
 import { FAKE_GROUP_CONSTELLATION, FAKE_GROUP_STATUS } from './fixtures/projectsGroups'
 import { FAKE_EVIDENCE_NOT_FOUND } from './fixtures/resolvedEvidenceConstants'
 import { fakeReviewEvidenceList } from './fixtures/reviewEvidence'
@@ -429,7 +438,68 @@ const READS: readonly FakeRoute[] = [
     '/api/v1/projects/{id}/mcp-servers/status',
     ({ params }) => fakeProjectMcpServerStatus(params.id),
   ),
-  read<ListTemplatesData, ListTemplatesResponse>('/api/v1/templates', () => ({ templates: [] })),
+  read<ListTemplatesData, ListTemplatesResponse>('/api/v1/templates', () => ({
+    templates: [
+      {
+        id: 'investment-planner',
+        name: 'Investment Planner',
+        description:
+          'A working investment planner you sculpt into your own — calculator, holdings tracker, and personalised top picks.',
+        repoUrl: 'https://github.com/cloudjubei/thefactory-templates-financialplanner',
+        difficulty: 'intermediate',
+        estimatedTime: '1-2 hours',
+      },
+      {
+        id: 'car-finder',
+        name: 'Car Finder',
+        description:
+          'A working car-buying helper you sculpt into your own — a needs profile, a shortlist, fit-score comparison, and LLM-researched recommendations.',
+        repoUrl: 'https://github.com/cloudjubei/thefactory-templates-carfinder',
+        difficulty: 'intermediate',
+        estimatedTime: '1-2 hours',
+      },
+      {
+        id: 'plastic-free',
+        name: 'Plastic-Free',
+        description:
+          'A working plastic-free replacement finder you sculpt into your own — state a goal, get products whose materials are verified with proof, stack your own criteria, and see every rejection explained.',
+        repoUrl: 'https://github.com/cloudjubei/thefactory-templates-plasticfree',
+        difficulty: 'intermediate',
+        estimatedTime: '1-2 hours',
+      },
+    ],
+  })),
+  // Settled pixels for a forked project: provenance behind the catalog tip →
+  // "Template updates available". Other projects are not from a template.
+  read<CheckProjectTemplateUpdatesData, CheckProjectTemplateUpdatesResponse>(
+    '/api/v1/projects/{projectId}/template-updates',
+    ({ params, missing }) => {
+      const project = FAKE_PROJECTS.find((row) => row.id === params.projectId)
+      if (!project) return missing(`No fake project '${params.projectId}'.`)
+      const provenance = project.metadata?.templateProvenance
+      if (!provenance) return { available: false, status: 'not-from-template' }
+      if (params.projectId === FAKE_FORKED_FROM_TEMPLATE_ID) {
+        return {
+          available: true,
+          status: 'updates-available',
+          provenance: {
+            templateId: provenance.templateId,
+            commit: FAKE_FORKED_TEMPLATE_PROVENANCE_COMMIT,
+          },
+          upstreamCommit: FAKE_FORKED_TEMPLATE_UPSTREAM_COMMIT,
+        }
+      }
+      return {
+        available: false,
+        status: 'up-to-date',
+        provenance: {
+          templateId: provenance.templateId,
+          commit: provenance.commit,
+        },
+        upstreamCommit: provenance.commit,
+      }
+    },
+  ),
   read<GetPricingData, GetPricingResponse>('/api/v1/pricing', () => ({
     updatedAt: FAKE_AT,
     prices: [],

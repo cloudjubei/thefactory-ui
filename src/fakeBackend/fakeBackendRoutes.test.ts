@@ -3,7 +3,12 @@ import { describe, expect, it } from 'vitest'
 import { fakeBackendRoutes } from './fakeBackendRoutes'
 import { answerFakeRequest, matchFakeRoute } from './fakeBackendUtils'
 import { FAKE_CHATS } from './fixtures/chats'
-import { FAKE_PROJECT_ID } from './fixtures/projects'
+import {
+  FAKE_FORKED_FROM_TEMPLATE_ID,
+  FAKE_FORKED_TEMPLATE_PROVENANCE_COMMIT,
+  FAKE_FORKED_TEMPLATE_UPSTREAM_COMMIT,
+  FAKE_PROJECT_ID,
+} from './fixtures/projects'
 import { FAKE_RUN_THROUGH_RUN_ID } from './fixtures/runThroughRun'
 import { STORY } from './fixtures/stories'
 import { FAKE_VARIANT_RUN_ID } from './fixtures/variantRun'
@@ -452,5 +457,30 @@ describe('fakeBackendRoutes', () => {
     const { body } = get('/api/v1/tools/chat-catalog', 'runner=cli')
     expect((body as { name: string }[]).map((row) => row.name)).toContain('spawnAgent')
     expect((body as { name: string }[]).map((row) => row.name)).not.toContain('sendChatMessage')
+  })
+
+  it('shows template updates available for a forked project behind the catalog tip', () => {
+    const { status, body } = get(
+      `/api/v1/projects/${FAKE_FORKED_FROM_TEMPLATE_ID}/template-updates`,
+    )
+    expect(status).toBe(200)
+    expect(body).toEqual({
+      available: true,
+      status: 'updates-available',
+      provenance: {
+        templateId: 'investment-planner',
+        commit: FAKE_FORKED_TEMPLATE_PROVENANCE_COMMIT,
+      },
+      upstreamCommit: FAKE_FORKED_TEMPLATE_UPSTREAM_COMMIT,
+    })
+  })
+
+  it('reports not-from-template when the project has no provenance', () => {
+    const { body } = get(`/api/v1/projects/${FAKE_PROJECT_ID}/template-updates`)
+    expect(body).toEqual({ available: false, status: 'not-from-template' })
+  })
+
+  it('404s template-updates for an unknown project', () => {
+    expect(get('/api/v1/projects/missing/template-updates').status).toBe(404)
   })
 })

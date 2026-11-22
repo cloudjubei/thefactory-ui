@@ -42,7 +42,8 @@ export type ProjectsGroupsContextValue = {
   refresh: () => Promise<void>
 }
 
-const ProjectsGroupsContext = createContext<ProjectsGroupsContextValue | null>(null)
+/** Exported so the design playground can paint fixed groups without a fetch. */
+export const ProjectsGroupsContext = createContext<ProjectsGroupsContextValue | null>(null)
 
 export function ProjectsGroupsProvider({ children }: { children: ReactNode }) {
   const { token } = useAuth()

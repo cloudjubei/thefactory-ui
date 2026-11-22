@@ -2987,6 +2987,7 @@ export type {
 // of truth across clients. Listens to the `projectsGroups:updated` WS topic.
 export {
   ProjectsGroupsProvider,
+  ProjectsGroupsContext,
   useOptionalProjectsGroups,
   useProjectsGroups,
   type GroupType,
@@ -3006,6 +3007,7 @@ export {
 // `useAppSettings().userPreferences.lastActiveProjectId` so the headless
 // `AppSettingsProvider` must be mounted above this one.
 export {
+  ProjectsContext,
   ProjectsProvider,
   useActiveProject,
   useProjects,
@@ -3018,12 +3020,56 @@ export {
 // `LLMConfigsContext.createConfig` pattern of co-locating mutations with
 // their list. Requires `AuthProvider` + `ApiProvider` above.
 export {
+  TemplatesContext,
   TemplatesProvider,
   useTemplates,
   type Template,
+  type TemplateForkProgress,
   type TemplatesContextValue,
   type CreateFromTemplateInput,
+  type CreateFromTemplateGithubInput,
+  type CreateFromTemplateResult,
 } from './contexts/TemplatesContext'
+export {
+  useCreateFromTemplateForm,
+  type UseCreateFromTemplateForm,
+  type UseCreateFromTemplateFormOptions,
+} from './hooks/useCreateFromTemplateForm'
+export {
+  sanitizeProjectId,
+  suggestProjectIdFromName,
+  projectIdAvailability,
+  templateDifficultyLabel,
+  forkProgressLabel,
+  isForkProgressTerminal,
+  parseTemplateForkProgress,
+  type ProjectIdAvailability,
+} from './utils/createFromTemplate'
+export {
+  TEMPLATE_FORK_PROGRESS_EVENT,
+  TEMPLATE_FORK_DONE_TIMEOUT_MS,
+  CREATE_FROM_TEMPLATE_COPY,
+  TEMPLATE_DIFFICULTY_LABEL,
+  TEMPLATE_FORK_PHASE_LABEL,
+} from './utils/createFromTemplateConstants'
+
+// Template-update check for a forked project — compares recorded provenance
+// with the catalog tip so hosts can show "Template updates available".
+export {
+  useProjectTemplateUpdates,
+  type UseProjectTemplateUpdates,
+} from './hooks/useProjectTemplateUpdates'
+export {
+  isTemplateUpdatesAvailable,
+  templateUpdatesAvailableLabel,
+  templateUpdatesStatusLabel,
+  type TemplateUpdatesCheck,
+  type TemplateUpdatesStatus,
+} from './utils/templateUpdates'
+export {
+  TEMPLATE_UPDATES_AVAILABLE_LABEL,
+  TEMPLATE_UPDATES_STATUS_LABEL,
+} from './utils/templateUpdatesConstants'
 
 // App-view URL + signed-token refresh for one project. Standalone hook
 // (no context) because the surface is per-project; bundling it into

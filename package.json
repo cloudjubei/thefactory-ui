@@ -59,7 +59,7 @@
     "dist"
   ],
   "scripts": {
-    "typecheck": "tsc --noEmit && tsc --noEmit -p playground",
+    "typecheck": "node ./node_modules/typescript/bin/tsc --noEmit && node ./node_modules/typescript/bin/tsc --noEmit -p playground",
     "check:uikit": "bash scripts/check-uikit-boundaries.sh",
     "check:hooks": "node scripts/check-hook-order.mjs",
     "generate:tokens": "tsx scripts/generate-tokens-css.ts && prettier --write --ignore-path /dev/null './src/web/styles/tokens.css' './src/native/styles/tokens.css'",

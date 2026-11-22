@@ -85,6 +85,7 @@ import { PROCESS_LAUNCH_SCENES } from '../scenes/processLaunch'
 import { PROCESS_MODEL_SCENES } from '../scenes/processModel'
 import { PROCESS_STEP_TOOL_SCENES } from '../scenes/processStepTools'
 import { PROJECT_EDITOR_LIMIT_SCENES } from '../scenes/projectEditorLimits'
+import { CREATE_FROM_TEMPLATE_SCENES } from '../scenes/createFromTemplate'
 import { PROJECT_OVERVIEW_MODEL_SCENES } from '../scenes/projectOverviewModel'
 import { PROOF_CHANGE_SCENES } from '../scenes/proofChange'
 import { FEATURE_SPLIT_SCENES } from '../scenes/featureSplit'
@@ -256,6 +257,7 @@ export const SCENES: readonly Scene[] = [
   ...KNOWLEDGE_SCENES,
   ...GROUP_HOME_SCENES,
   ...PROJECT_EDITOR_LIMIT_SCENES,
+  ...CREATE_FROM_TEMPLATE_SCENES,
   ...GROUP_STORY_SCENES,
   ...GROUP_TICKETS_SCENES,
   ...GROUP_TICKET_TAB_SCENES,

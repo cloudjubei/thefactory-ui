@@ -1150,6 +1150,10 @@ export {
 // from the dedicated subpath instead: `thefactory-ui/native/ProjectAppView`.
 export { default as TemplatePicker, type TemplatePickerProps } from './compound/TemplatePicker'
 export {
+  default as CreateFromTemplateForm,
+  type CreateFromTemplateFormProps,
+} from './compound/CreateFromTemplateForm'
+export {
   default as SavedRulesSettings,
   type SavedRulesSettingsProps,
 } from './compound/rules/SavedRulesSettings'

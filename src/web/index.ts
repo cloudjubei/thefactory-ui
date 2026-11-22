@@ -1263,6 +1263,10 @@ export {
 } from './compound/LiveDataTaskSourceFields'
 export { default as TemplatePicker, type TemplatePickerProps } from './compound/TemplatePicker'
 export {
+  default as CreateFromTemplateForm,
+  type CreateFromTemplateFormProps,
+} from './compound/CreateFromTemplateForm'
+export {
   default as AlwaysAllowControl,
   type AlwaysAllowControlProps,
 } from './compound/chat/AlwaysAllowControl'

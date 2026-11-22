@@ -19,6 +19,19 @@ export const FAKE_GROUP_ID = 'overseer'
 
 const STANDALONE_PROJECT_ID = 'wargames'
 
+/**
+ * A project forked from the Investment Planner template whose recorded
+ * provenance is behind the catalog tip — so
+ * `GET /projects/:id/template-updates` returns `updates-available`.
+ */
+export const FAKE_FORKED_FROM_TEMPLATE_ID = 'forked-investment-planner'
+
+/** Provenance commit recorded on {@link FAKE_FORKED_FROM_TEMPLATE_ID}. */
+export const FAKE_FORKED_TEMPLATE_PROVENANCE_COMMIT = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+
+/** Catalog tip SHA the fake template-updates check reports as upstream. */
+export const FAKE_FORKED_TEMPLATE_UPSTREAM_COMMIT = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+
 const project = (id: string, title: string, over: Partial<ProjectSpec> = {}): ProjectSpec => ({
   id,
   title,
@@ -43,6 +56,14 @@ export const FAKE_PROJECTS: ProjectSpec[] = [
   ),
   project(STANDALONE_PROJECT_ID, 'WarGames', {
     codeInfo: { language: 'javascript' },
+  }),
+  project(FAKE_FORKED_FROM_TEMPLATE_ID, 'My Investment Planner', {
+    metadata: {
+      templateProvenance: {
+        templateId: 'investment-planner',
+        commit: FAKE_FORKED_TEMPLATE_PROVENANCE_COMMIT,
+      },
+    },
   }),
 ]
 

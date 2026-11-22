@@ -19,7 +19,8 @@ export type ProjectsContextValue = {
   refresh: () => Promise<void>
 }
 
-const ProjectsContext = createContext<ProjectsContextValue | null>(null)
+/** Exported so the design playground can paint fixed project lists without a fetch. */
+export const ProjectsContext = createContext<ProjectsContextValue | null>(null)
 
 export function ProjectsProvider({ children }: { children: ReactNode }) {
   const { token } = useAuth()
