@@ -111,6 +111,42 @@ describe('fakeBackendRoutes', () => {
     expect(severities).toEqual(['blocker', 'major', 'minor'])
   })
 
+  it('goes over the run-through’s issues: answers each, then makes the story and closes the run', () => {
+    const routes = fakeBackendRoutes()
+    const on = (method: 'GET' | 'POST', pathname: string, body?: unknown) =>
+      answerFakeRequest(
+        { method, pathname, query: new URLSearchParams(), authorization: `Bearer ${TOKEN}`, body },
+        { routes, token: TOKEN },
+      )
+    const run = `/api/v1/process-runs/${FAKE_RUN_THROUGH_RUN_ID}`
+    const issueIds = (
+      on('GET', `${run}/evidence`).body as {
+        groups: { evidence: { id: string; issue?: unknown }[] }[]
+      }
+    ).groups[0]!.evidence.flatMap((ref) => (ref.issue ? [ref.id] : []))
+    expect(on('POST', `${run}/issues/finish`, { decidedVia: 'web' }).status).toBe(400)
+    expect(on('POST', `${run}/issues/nope/answer`, { answer: 'fix' }).status).toBe(404)
+    expect(
+      on('POST', '/api/v1/process-runs/other/issues/finish', { decidedVia: 'web' }).status,
+    ).toBe(404)
+    for (const [index, issueId] of issueIds.entries()) {
+      const answered = on('POST', `${run}/issues/${issueId}/answer`, {
+        answer: index === 0 ? 'not-an-issue' : 'fix',
+      })
+      expect(answered.status).toBe(200)
+    }
+    const finished = on('POST', `${run}/issues/finish`, { decidedVia: 'web' })
+    expect(finished.body).toMatchObject({
+      status: 'succeeded',
+      issueReview: { fixes: 2, notIssues: 1 },
+    })
+    const storyId = (finished.body as { issueReview: { storyId: string } }).issueReview.storyId
+    expect(on('GET', run).body).toMatchObject({ status: 'succeeded' })
+    expect(on('GET', `/api/v1/projects/${FAKE_PROJECT_ID}/stories/${storyId}`).status).toBe(200)
+    expect(get(run).body).toMatchObject({ status: 'parked' })
+    expect(get(`/api/v1/projects/${FAKE_PROJECT_ID}/stories/${storyId}`).status).toBe(404)
+  })
+
   it('lists a project’s evidence by run, so a chip reads what an issue says', () => {
     const listed = (search: string, projectId = FAKE_PROJECT_ID) =>
       get(`/api/v1/projects/${projectId}/review-evidence`, search)

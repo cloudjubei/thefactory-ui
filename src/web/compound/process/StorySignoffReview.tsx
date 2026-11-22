@@ -8,6 +8,7 @@ import {
   PROCESS_CHANGES_TEXT,
   processChangesSummary,
   useProcessRunChanges,
+  useProcessRun,
   aggregateTestCounts,
   capabilitySetupHandler,
   capabilitySetupOffered,
@@ -114,6 +115,9 @@ import IntegrationChooser from './IntegrationChooser'
 import ParkAnswers from './ParkAnswers'
 import ParkNoteComposer from './ParkNoteComposer'
 import RunNeedsYouCard, { ManagerLine } from './RunNeedsYouCard'
+import { useRunThroughIssueReviewOnPage } from './RunThroughIssueReview'
+import RunThroughIssueReviewEntry from './RunThroughIssueReviewEntry'
+import RunThroughIssueReviewPanel from './RunThroughIssueReviewPanel'
 import ProofPlanMarks from './ProofPlanMarks'
 import ScreensDecisionNote from './ScreensDecisionNote'
 import OutsideScopeNote from './signoff/OutsideScopeNote'
@@ -320,6 +324,7 @@ function StorySignoffPanel({
     inRun: true,
   })
   const loom = useRunWalkthrough(storyRunId)
+  const storyRun = useProcessRun(storyRunId).run
   const { getStory } = useStories()
   const { projects } = useProjects()
   const navigate = useNavigate()
@@ -589,6 +594,14 @@ function StorySignoffPanel({
   const proofRecordings = signoffProofRecordings(sections)
   const overallRows = signoffRowsWithRecordings(overall?.rows ?? [], proofRecordings.length)
   const runThrough = signoffRunThrough(sections)
+  const issueReview = useRunThroughIssueReviewOnPage(storyRun, runThrough)
+  const issueEntry = (
+    <RunThroughIssueReviewEntry
+      entry={issueReview.review.entry}
+      projectName={issueReview.projectName}
+      onStart={issueReview.review.open}
+    />
+  )
   const tabs = reviewTabs({
     screens: overall ? requestPairs.length : 0,
     walkthroughs: overall ? proofRecordings.length : 0,
@@ -820,7 +833,7 @@ function StorySignoffPanel({
               <WalkthroughTab projectId={projectId} recordings={proofRecordings} />
             </div>
           ) : current?.target.tab === 'runthrough' && runThrough ? (
-            <RunThroughTab projectId={projectId} view={runThrough} />
+            <RunThroughTab projectId={projectId} view={runThrough} top={issueEntry} />
           ) : current?.target.tab === 'changes' ? (
             <div className="flex flex-col gap-2 pt-3">
               {runChanges.changes?.seamsIncluded ? (
@@ -864,15 +877,26 @@ function StorySignoffPanel({
     ) : null
 
   const overlay = (
-    <ComparisonOverlay
-      pairs={overlayPairs}
-      openKey={openPairKey}
-      onClose={() => setOpenPairKey(undefined)}
-      baseSha={undefined}
-      headSha={undefined}
-      onRequestImage={evidence.requestImage}
-      projectId={projectId}
-    />
+    <>
+      <ComparisonOverlay
+        pairs={overlayPairs}
+        openKey={openPairKey}
+        onClose={() => setOpenPairKey(undefined)}
+        baseSha={undefined}
+        headSha={undefined}
+        onRequestImage={evidence.requestImage}
+        projectId={projectId}
+      />
+      {runThrough ? (
+        <RunThroughIssueReviewPanel
+          review={issueReview.review}
+          projectId={projectId}
+          projectName={issueReview.projectName}
+          {...(runThrough.recording ? { recording: runThrough.recording } : {})}
+          {...(onAskManager ? { onDiscuss: onAskManager } : {})}
+        />
+      ) : null}
+    </>
   )
 
   if (evidenceCardOnly) {
@@ -902,6 +926,7 @@ function StorySignoffPanel({
             </div>
           ) : null}
           {signoff.outsideScope ? <OutsideScopeNote line={signoff.outsideScope} /> : null}
+          {runThrough ? issueEntry : null}
           <SignoffDecisionList
             items={decisionItems}
             onOpenPair={setOpenPairKey}

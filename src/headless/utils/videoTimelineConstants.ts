@@ -20,7 +20,6 @@ export const VIDEO_TIMELINE_TEXT = {
   onEveryScreen: (text: string) => `On every screen: ${text}`,
   closeUp: (place: string, text: string) =>
     text ? `Close-up, ${place}: ${text}` : `Close-up, ${place}`,
-  failedAction: (text: string) => `${text}, failed`,
   playFrom: (time: string) => `Play from ${time}`,
   back: 'Back',
 } as const

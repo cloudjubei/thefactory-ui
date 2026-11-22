@@ -5771,6 +5771,14 @@ export { reviewReplyBoxOffer, reviewReplySources } from './utils/reviewReply'
 export * from './utils/runThroughReport'
 export * from './utils/runThroughReportConstants'
 export type * from './utils/runThroughReportTypes'
+export * from './utils/runThroughIssueReview'
+export * from './utils/runThroughIssueReviewConstants'
+export type * from './utils/runThroughIssueReviewTypes'
+export {
+  useRunThroughIssueReview,
+  type UseRunThroughIssueReview,
+  type UseRunThroughIssueReviewOptions,
+} from './hooks/useRunThroughIssueReview'
 export * from './utils/evidenceReference'
 export * from './utils/evidenceReferenceConstants'
 export { EVIDENCE_MOMENT_LINK_PARAM } from './utils/evidenceLinkConstants'

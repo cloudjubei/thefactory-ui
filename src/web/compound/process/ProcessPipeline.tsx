@@ -3,6 +3,7 @@ import type { ProcessStepRecovery } from 'thefactory-tools/types'
 import { chatNotifyLevel } from '../../../headless/utils/chatNotify'
 import {
   accessRecordProjectNames,
+  runThroughIssueReviewEntry,
   accessRecordSection,
   parkAnswerOpensNote,
   parkRecoveryDraft,
@@ -189,6 +190,7 @@ import RunDetails from './RunDetails'
 import RunManagerBar from './RunManagerBar'
 import RunStepsCard from './RunStepsCard'
 import RunNeedsYouCard, { ManagerLine, RUN_NEEDS_YOU_CARD_ID } from './RunNeedsYouCard'
+import RunThroughIssueReviewEntry from './RunThroughIssueReviewEntry'
 import RunClosurePanel from './RunClosurePanel'
 import { RunNamedLandingPanel } from './NamedLandingForm'
 import RunTurnLimitChip from './RunTurnLimitChip'
@@ -821,6 +823,14 @@ export default function ProcessPipeline({
             <RunPendingChanges run={run} onStart={startChanges} onRemove={withdrawChange} />
           ) : null}
           {stack.length === 0 && signoff ? <RunCarriedOutChanges run={run} /> : null}
+          {stack.length === 0 && !signoff && run.issueReview ? (
+            <div className="mx-3 mt-3 rounded-xl border border-(--status-done-soft-border) bg-(--status-done-soft-bg) px-4 py-3 sm:px-5">
+              <RunThroughIssueReviewEntry
+                entry={runThroughIssueReviewEntry(run, 0)}
+                {...(projectName ? { projectName } : {})}
+              />
+            </div>
+          ) : null}
 
           {variantLanes && shownView === 'lanes' ? (
             <>

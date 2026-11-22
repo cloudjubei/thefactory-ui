@@ -258,10 +258,10 @@ export const VIDEO_TIMELINE_SCENES: Scene[] = [
         TIMELINES.closeUps,
       ),
       timelineState(
-        'sounds-and-actions',
-        'Sounds and actions',
-        'Silence and music until when they end, a sudden sound, and every kind of action, one that failed.',
-        TIMELINES.soundsAndActions,
+        'sounds',
+        'Sounds',
+        'Silence and music until when they end, and a sudden sound.',
+        TIMELINES.sounds,
       ),
       timelineState(
         'on-every-screen',

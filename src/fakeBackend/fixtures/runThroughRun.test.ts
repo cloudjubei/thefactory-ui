@@ -10,8 +10,13 @@ import {
 const filed = () => fakeRunThroughEvidence().groups.flatMap((group) => group.evidence)
 
 describe('the run-through fixture', () => {
-  it('is a tester’s run', () => {
-    expect(FAKE_RUN_THROUGH_RUN.plan.steps.map((step) => step.agentType)).toEqual(['tester'])
+  it('is a tester’s run, parked at its sign-off', () => {
+    expect(FAKE_RUN_THROUGH_RUN.plan.steps.map((step) => step.kind)).toEqual(['agent', 'gate'])
+    expect(FAKE_RUN_THROUGH_RUN.plan.steps[0]?.agentType).toBe('tester')
+    expect(FAKE_RUN_THROUGH_RUN).toMatchObject({
+      status: 'parked',
+      park: { reason: 'gate', stepId: 'sign-off' },
+    })
   })
 
   it('flags issues of different severities, each on a screenshot of its run', () => {

@@ -11,6 +11,7 @@ import {
   processParkAnswersView,
   processVariantReport,
   requestProofChoices,
+  runThroughReportOfRun,
   soleIntegrationMode,
   useProcessIntegrationOptions,
   useProcessRunEvidence,
@@ -26,6 +27,7 @@ import {
   type ProcessWorkBranch,
   type ProofKind,
   type ProofKindUnavailable,
+  type RunThroughReportView,
 } from '../../../headless'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
@@ -35,6 +37,7 @@ import ParkAnswers from './ParkAnswers'
 import ParkNoteComposer from './ParkNoteComposer'
 import ProcessVariantReport from './ProcessVariantReport'
 import RunNeedsYouCard, { ManagerLine } from './RunNeedsYouCard'
+import RunThroughIssueReview from './RunThroughIssueReview'
 
 export type RunReportReviewProps = {
   run: ProcessRun
@@ -73,12 +76,13 @@ export default function RunReportReview(props: RunReportReviewProps) {
   const { theme } = useNativeTheme()
   const evidence = useProcessRunEvidence(run.projectId, run.id)
   const view = processVariantReport(run, evidence.groups, now)
+  const runThrough = runThroughReportOfRun(evidence.groups)
   const reportText = view.reportTile?.text
   useEffect(() => {
     onReportText?.(reportText)
   }, [reportText, onReportText])
   const top = evidence.loaded ? (
-    <RunReportDecision {...props} view={view} />
+    <RunReportDecision {...props} view={view} {...(runThrough ? { runThrough } : {})} />
   ) : (
     <Text style={{ fontSize: 12, color: theme.text.secondary }}>
       {evidence.error ? `${SIGNOFF_LOAD_FAILED} — ${evidence.error}` : 'Reading what was filed…'}
@@ -113,7 +117,12 @@ export function RunReportDecision({
   proofUnavailable,
   integration,
   view,
-}: RunReportReviewProps & { view: ProcessVariantReportView }) {
+  runThrough,
+}: RunReportReviewProps & {
+  view: ProcessVariantReportView
+  /** The run-through the run filed: its issues are gone over here before the run closes. */
+  runThrough?: RunThroughReportView
+}) {
   const { theme, status } = useNativeTheme()
   const [step, setStep] = useState<DecisionStep>('idle')
   const [busy, setBusy] = useState(false)
@@ -193,6 +202,13 @@ export function RunReportDecision({
         >
           <Text style={{ fontSize: 13, color: theme.text.primary }}>{notice}</Text>
         </View>
+      ) : null}
+      {runThrough ? (
+        <RunThroughIssueReview
+          run={run}
+          report={runThrough}
+          {...(onAskManager ? { onDiscuss: onAskManager } : {})}
+        />
       ) : null}
       {manager ? <ManagerLine view={manager} /> : null}
       {canDecide && step === 'idle' ? (

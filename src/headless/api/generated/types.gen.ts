@@ -5481,56 +5481,6 @@ export type PackageScripts = {
   [key: string]: string
 }
 
-export type CliRunTranscriptEntry = {
-  at: number
-  kind: 'assistant' | 'tool-call' | 'tool-result' | 'system' | 'result' | 'other'
-  payload: unknown
-  streaming?: boolean
-  costUSD?: number
-}
-
-export type RealTranscriptLine = {
-  kind: 'assistant' | 'tool-call' | 'tool-result' | 'system' | 'result' | 'other'
-} & {
-  payload: {
-    [key: string]: unknown
-  }
-}
-
-export type RealCliRunTranscripts = {
-  cursorComposer25_86f37c86: Array<RealTranscriptLine>
-  cursorAuto_19ca191b: Array<RealTranscriptLine>
-  cursorComposer25FastInner_d5d6ac74: Array<RealTranscriptLine>
-  claudeOneShotSonnet5_88342735: Array<RealTranscriptLine>
-  claudeOneShotSubagentSpend_69ddd7b2: Array<RealTranscriptLine>
-  claudeResidentTurn1_3d4befd2: Array<RealTranscriptLine>
-  claudeResidentTurn2_84fe1469: Array<RealTranscriptLine>
-  cursorAcpResident_026fbbbe: Array<RealTranscriptLine>
-  claudeSubagentToolCall_69ddd7b2: Array<RealTranscriptLine>
-}
-
-export type CursorAcpLiveProbe = {
-  messages: Array<{
-    id?: number
-    method?: string
-    result?: unknown
-    params?: unknown
-  }>
-}
-
-export type CodexTokenCountEvents = {
-  model: string
-  tokenCounts: Array<{
-    [key: string]: unknown
-  }>
-}
-
-export type ClaudeRateLimitEvents = {
-  events: Array<{
-    [key: string]: unknown
-  }>
-}
-
 export type CliSandboxBoundaryToolName =
   | 'requestNetworkUnlock'
   | 'requestInstallPackage'
@@ -5711,6 +5661,14 @@ export type CliRunStatus =
   | 'errored'
   | 'aborted'
   | 'paused'
+
+export type CliRunTranscriptEntry = {
+  at: number
+  kind: 'assistant' | 'tool-call' | 'tool-result' | 'system' | 'result' | 'other'
+  payload: unknown
+  streaming?: boolean
+  costUSD?: number
+}
 
 export type CliRunAssistantMessage = {
   text: string
@@ -6030,6 +5988,7 @@ export type CliRun = {
   authCredentialId?: string
   apiKeyCredentialId?: string
   prompt: string
+  images?: Array<string>
   workspaceHostPath?: string
   parent?: {
     runId: string
@@ -6326,6 +6285,7 @@ export type CliRunSummary = {
   effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
   authCredentialId?: string
   apiKeyCredentialId?: string
+  images?: Array<string>
   workspaceHostPath?: string
   parent?: {
     runId: string
@@ -7051,6 +7011,7 @@ export type CliRunApproveResult = {
     authCredentialId?: string
     apiKeyCredentialId?: string
     prompt: string
+    images?: Array<string>
     workspaceHostPath?: string
     parent?: {
       runId: string
@@ -7420,6 +7381,28 @@ export type AcpHostToolCall = {
 export type CliStagedFile = {
   hostPath: string
   workspacePath: string
+}
+
+export type CliTurnImage = {
+  hostPath: string
+  workspacePath: string
+  mediaType: string
+}
+
+export type CliTurnImageContent = {
+  sandboxPath: string
+  mediaType: string
+  data: string
+}
+
+export type CliTurnImageMissed = {
+  workspacePath: string
+  reason: string
+}
+
+export type CliTurnImages = {
+  given: Array<CliTurnImageContent>
+  missed: Array<CliTurnImageMissed>
 }
 
 export type CliChatAttachment = {
@@ -8544,31 +8527,6 @@ export type CompileCheckResult = {
     | 'outside-program'
 }
 
-export type ImageCacheArm = 'text' | 'kept' | 'pinnedBytes' | 'pinned'
-
-export type ImageCacheHistory = ImageCacheArm | 'production'
-
-export type ImageCacheStep = {
-  step: number
-  total: number
-  cached: number
-  written: number
-  images: number
-  firstChangedItem?: number
-  fixedChanged?: true
-}
-
-export type ImageCacheRun = {
-  round: number
-  arm: ImageCacheArm
-  steps: Array<ImageCacheStep>
-}
-
-export type ImageCacheVerdict = {
-  outcome: 'invalid' | 'cause-refuted' | 'inconclusive' | 'fix-fails' | 'proved'
-  reason: string
-}
-
 export type SummarizeOptions = {
   keepLastTurns?: number
   maxOpsInSummary?: number
@@ -9293,21 +9251,6 @@ export type SpawnStreamingCommandExit = {
   timedOut: boolean
 }
 
-export type InMemoryEntityShape = {
-  id?: string
-  type: string
-  content?: unknown
-}
-
-export type InMemoryEntity = {
-  id?: string
-  type: string
-  content: {
-    [key: string]: unknown
-  }
-  [key: string]: unknown
-}
-
 export type ExternalItem = {
   provider: string
   externalId: string
@@ -9563,14 +9506,6 @@ export type ProviderOAuthTokens = {
 export type PkcePair = {
   codeVerifier: string
   codeChallenge: string
-}
-
-export type TicketWriteOutcome = 'sent' | 'already-sent' | 'ambiguous' | 'not-attempted'
-
-export type ConnectorWriteAttempt = {
-  comment: TicketWriteOutcome
-  transition: TicketWriteOutcome
-  error?: string
 }
 
 export type QueryValue = string | number | boolean | Array<string> | unknown
@@ -14721,19 +14656,6 @@ export type McpOAuthTokenFields = {
   scopes: Array<string> | unknown
 }
 
-export type FakeToolCall = {
-  name: string
-  args: JsonObject
-  authorization: string | unknown
-}
-
-export type FakeRequest = {
-  method: string
-  path: string
-  authorization: string | unknown
-  body: string
-}
-
 export type McpHostJobStatus = 'running' | 'succeeded' | 'failed' | 'cancelled'
 
 export type McpHostJobNote = {
@@ -18730,6 +18652,23 @@ export type ChangeScreensDecision = {
   disputedUiPaths?: Array<string>
 }
 
+export type RunThroughIssueAnswerKind = 'fix' | 'not-an-issue'
+
+export type RunThroughIssueAnswer = {
+  issueId: string
+  answer: RunThroughIssueAnswerKind
+  note?: string
+  at: number
+}
+
+export type RunThroughIssueReview = {
+  projectId: string
+  storyId?: string
+  fixes: number
+  notIssues: number
+  at: number
+}
+
 export type ProcessStepRerun = {
   stepId: string
   note?: string
@@ -19210,6 +19149,16 @@ export type ProcessRun = {
   }
   needsYouResolutions?: {
     [key: string]: ProcessNeedsYouResolution
+  }
+  issueAnswers?: {
+    [key: string]: RunThroughIssueAnswer
+  }
+  issueReview?: {
+    projectId: string
+    storyId?: string
+    fixes: number
+    notIssues: number
+    at: number
   }
   reruns?: Array<ProcessStepRerun>
   pendingChanges?: Array<ProcessRunPendingChange>
@@ -20117,11 +20066,6 @@ export type ProjectAppSettingsLayers = {
         [key: string]: unknown
       }
     | unknown
-}
-
-export type BuildFailureOutput = {
-  stdout: string
-  stderr: string
 }
 
 export type OutOfTreeDependency = {
@@ -28383,6 +28327,12 @@ export type ReviewEvidenceBuildHint = {
   vouched: boolean
 }
 
+export type EvidenceVideo = {
+  home: string
+  path: string
+  at?: number
+}
+
 export type ServedLogTokenPattern = {
   find: unknown
   keep: string
@@ -28849,11 +28799,6 @@ export type ScriptEvidence = {
   }
 } & {
   label: string
-}
-
-export type ScriptFakeReply = {
-  text: string
-  costUsd?: number
 }
 
 export type SearchRecordAudience = 'person' | 'agent'
@@ -29960,29 +29905,6 @@ export type ReorderPayload = {
   toIndex: number
 }
 
-export type UiProjectAppFixtureCommits = {
-  base: string
-  seam: string
-  head: string
-}
-
-export type UiServeFakeBackendCommits = {
-  base: string
-  head: string
-}
-
-export type UiServeFixtureCommits = {
-  base: string
-  seam: string
-  head: string
-}
-
-export type UiStackFixtureRepo = {
-  root: string
-  first: string
-  second: string
-}
-
 export type UiTarget = 'web' | 'electron'
 
 export type UiConnection = 'host' | 'sandbox' | 'cdp-remote'
@@ -30717,486 +30639,6 @@ export type UiNoteTargetResult = {
   screenshotPath?: string
 }
 
-export type VideoBenchArmRole = 'baseline' | 'validity' | 'candidate'
-
-export type VideoBenchQuestionType =
-  | 'text-at'
-  | 'when'
-  | 'before-error'
-  | 'small-text'
-  | 'spoken'
-  | 'sound'
-  | 'compare'
-  | 'mixed-language'
-
-export type VideoBenchStoryFeature =
-  | 'screen-text'
-  | 'find'
-  | 'actions'
-  | 'screen-changes'
-  | 'portrait'
-  | 'compare'
-
-export type VideoBenchStripId = VideoBenchStoryFeature | 'transcript'
-
-export type VideoBenchArm = {
-  id: string
-  role: VideoBenchArmRole
-  summary: string
-  tools: Array<string>
-  targets: Array<VideoBenchQuestionType>
-  over?: string
-  keeps: Array<VideoBenchStoryFeature>
-  without: Array<VideoBenchStripId>
-}
-
-export type ArmWiring = {
-  id: string
-  role: VideoBenchArmRole
-  keeps: Array<VideoBenchStoryFeature>
-  without: Array<VideoBenchStripId>
-  over?: string
-}
-
-export type VideoBenchArmBuild = {
-  keeps: Array<VideoBenchStoryFeature>
-  without: Array<VideoBenchStripId>
-}
-
-export type BuildVideoBenchDigestsOptions = {
-  textReaderDir?: string
-  signal?: unknown
-  arms?: Array<VideoBenchArmBuild>
-}
-
-export type VideoBenchAnswerKey =
-  | {
-      kind: 'choice'
-      options: Array<string>
-      correct: number
-    }
-  | {
-      kind: 'value'
-      accepted: Array<string>
-    }
-  | {
-      kind: 'time'
-      atSec: number
-    }
-
-export type VideoBenchEvidence =
-  | {
-      kind: 'shown-at'
-      atSec: number
-      text: string
-      video?: number
-    }
-  | {
-      kind: 'first-shown'
-      text: string
-      video?: number
-    }
-  | {
-      kind: 'first-said'
-      text: string
-    }
-  | {
-      kind: 'action-before-error'
-    }
-  | {
-      kind: 'said-only'
-    }
-  | {
-      kind: 'beep-count'
-    }
-  | {
-      kind: 'beep-at'
-      index: number
-    }
-  | {
-      kind: 'differs'
-    }
-  | {
-      kind: 'nothing-shared'
-    }
-  | {
-      kind: 'spoken-language'
-      text: string
-    }
-
-export type VideoBenchQuestion = {
-  id: string
-  type: VideoBenchQuestionType
-  videos: Array<string>
-  ask: string
-  key: VideoBenchAnswerKey
-  evidence: VideoBenchEvidence
-}
-
-export type VideoBenchAsk = {
-  root: string
-  arm: VideoBenchArm
-  question: VideoBenchQuestion
-  round: number
-}
-
-export type VideoBenchViewport = {
-  width: number
-  height: number
-}
-
-export type VideoBenchLine =
-  | {
-      kind: 'heading'
-      text: string
-    }
-  | {
-      kind: 'text'
-      text: string
-    }
-  | {
-      kind: 'field'
-      label: string
-      value: string
-    }
-  | {
-      kind: 'button'
-      label: string
-    }
-  | {
-      kind: 'item'
-      text: string
-    }
-
-export type VideoBenchScreen = {
-  app: string
-  lines: Array<VideoBenchLine>
-  error?: string
-  toast?: string
-}
-
-export type VideoBenchAction =
-  | {
-      kind: 'tap'
-      target: string
-    }
-  | {
-      kind: 'type'
-      target: string
-      text: string
-    }
-
-export type VideoBenchStep = {
-  atSec: number
-  screen: VideoBenchScreen
-  action?:
-    | {
-        kind: 'tap'
-        target: string
-      }
-    | {
-        kind: 'type'
-        target: string
-        text: string
-      }
-}
-
-export type VideoBenchLanguage = 'en' | 'de'
-
-export type VideoBenchSpeech = {
-  atSec: number
-  text: string
-  voice: string
-  language: VideoBenchLanguage
-}
-
-export type VideoBenchSound = {
-  atSec: number
-  kind: 'beep'
-  hz: number
-  durationSec: number
-}
-
-export type VideoBenchScript = {
-  id: string
-  summary: string
-  viewport: VideoBenchViewport
-  durationSec: number
-  steps: Array<VideoBenchStep>
-  speech: Array<VideoBenchSpeech>
-  sounds: Array<VideoBenchSound>
-}
-
-export type VideoBenchFrame = {
-  fromSec: number
-  toSec: number
-  screen: VideoBenchScreen
-  tapped?: string
-  step: number
-}
-
-export type VideoBenchShownTruth = {
-  fromSec: number
-  toSec: number
-  step: number
-  texts: Array<string>
-  small: Array<string>
-  error?: string
-}
-
-export type VideoBenchActionEvent = {
-  atSec: number
-  kind: 'tap' | 'type'
-  target: string
-  text?: string
-}
-
-export type VideoBenchSpeechTruth = {
-  startSec: number
-  endSec: number
-  text: string
-  language: VideoBenchLanguage
-}
-
-export type VideoBenchSoundTruth = {
-  startSec: number
-  endSec: number
-  kind: 'beep'
-  hz: number
-}
-
-export type VideoBenchTruth = {
-  id: string
-  durationSec: number
-  viewport: VideoBenchViewport
-  shown: Array<VideoBenchShownTruth>
-  actions: Array<VideoBenchActionEvent>
-  speech: Array<VideoBenchSpeechTruth>
-  sounds: Array<VideoBenchSoundTruth>
-}
-
-export type VideoBenchReplyProblem = 'malformed' | 'not-an-option' | 'not-a-time'
-
-export type VideoBenchScore = {
-  correct: boolean
-  given?: string
-  problem?: 'malformed' | 'not-an-option' | 'not-a-time'
-}
-
-export type VideoThumbCompare = {
-  changedPixels: number
-  pixelChange: number
-}
-
-export type VideoThumbSize =
-  | {
-      width: number
-    }
-  | {
-      pixels: number
-    }
-
-export type VideoSettleRule = {
-  holdSec: number
-  restSec: number
-  afterRestSec: number
-  flickerSec: number
-}
-
-export type VideoStillPicking = VideoThumbCompare & {
-  thumbShape: 'frame' | 'landscape'
-  thumbSize: VideoThumbSize
-  settle?: {
-    holdSec: number
-    restSec: number
-    afterRestSec: number
-    flickerSec: number
-  }
-}
-
-export type VideoBenchBuildStrip = {
-  build: {
-    changedPixels?: number
-    pixelChange?: number
-  } & {
-    thumbShape?: 'frame' | 'landscape'
-    thumbSize?:
-      | {
-          width: number
-        }
-      | {
-          pixels: number
-        }
-    settle?: {
-      holdSec: number
-      restSec: number
-      afterRestSec: number
-      flickerSec: number
-    }
-  }
-}
-
-export type VideoBenchBuild = {
-  id: string
-  picking: VideoStillPicking
-  sidecars: boolean
-  strips: Array<VideoBenchStripId>
-}
-
-export type VideoBenchArmDigests = {
-  scriptId: string
-  stillsSec: {
-    [key: string]: Array<number>
-  }
-  markdown: {
-    [key: string]: string
-  }
-}
-
-export type VideoBenchArmPlan = {
-  id: string
-  role: VideoBenchArmRole
-  targets: Array<VideoBenchQuestionType>
-  over?: string
-}
-
-export type VideoBenchPlan = {
-  rounds: number
-  arms: Array<VideoBenchArmPlan>
-  questions: Array<{
-    id: string
-    type: VideoBenchQuestionType
-  }>
-}
-
-export type VideoBenchRecord = {
-  round: number
-  arm: string
-  question: string
-  type: VideoBenchQuestionType
-  reply: string
-  given?: string
-  correct: boolean
-  problem?: 'malformed' | 'not-an-option' | 'not-a-time'
-  error?: string
-  inputTokens: number
-  cachedTokens: number
-  writtenTokens: number
-  outputTokens: number
-  turns: number
-  costUsd: number
-}
-
-export type VideoBenchTally = {
-  answered: number
-  correct: number
-  accuracy: number
-  byType: {
-    'text-at'?: {
-      answered: number
-      correct: number
-      accuracy: number
-    }
-    when?: {
-      answered: number
-      correct: number
-      accuracy: number
-    }
-    'before-error'?: {
-      answered: number
-      correct: number
-      accuracy: number
-    }
-    'small-text'?: {
-      answered: number
-      correct: number
-      accuracy: number
-    }
-    spoken?: {
-      answered: number
-      correct: number
-      accuracy: number
-    }
-    sound?: {
-      answered: number
-      correct: number
-      accuracy: number
-    }
-    compare?: {
-      answered: number
-      correct: number
-      accuracy: number
-    }
-    'mixed-language'?: {
-      answered: number
-      correct: number
-      accuracy: number
-    }
-  }
-  inputTokens: number
-}
-
-export type VideoBenchArmOutcome = 'keep' | 'drop' | 'inconclusive'
-
-export type VideoBenchArmVerdict = {
-  outcome: VideoBenchArmOutcome
-  over: string
-  reason: string
-}
-
-export type VideoBenchVerdict = {
-  outcome: 'valid' | 'invalid'
-  reason: string
-  arms: {
-    [key: string]: VideoBenchArmVerdict
-  }
-}
-
-export type VideoBenchFixture = {
-  script: VideoBenchScript
-  videoPath: string
-  truth: VideoBenchTruth
-  actionsPath: string
-}
-
-export type VideoBenchAskAssumption = {
-  uncachedTokens: number
-  cachedTokens: number
-  outputTokens: number
-}
-
-export type VideoBenchPrices = {
-  input: number
-  cached: number
-  written: number
-  output: number
-}
-
-export type VideoBenchStillsMeasure = {
-  scriptId: string
-  viewport: string
-  stills: number
-  changes: number
-  late: number
-  maxLateSec: number
-  meanLateSec: number
-  textAnswers: {
-    asked: number
-    onStill: number
-    missed: Array<string>
-  }
-  whenLateSec: {
-    [key: string]: number
-  }
-}
-
-export type TokenCounts = {
-  inputTokens: number
-  cachedTokens: number
-  writtenTokens: number
-  outputTokens: number
-}
-
 export type VideoProbe = {
   durationSec: number
   width: number
@@ -31465,6 +30907,37 @@ export type VideoMomentCandidate = {
 export type VideoThumbDims = {
   width: number
   height: number
+}
+
+export type VideoThumbSize =
+  | {
+      width: number
+    }
+  | {
+      pixels: number
+    }
+
+export type VideoSettleRule = {
+  holdSec: number
+  restSec: number
+  afterRestSec: number
+  flickerSec: number
+}
+
+export type VideoThumbCompare = {
+  changedPixels: number
+  pixelChange: number
+}
+
+export type VideoStillPicking = VideoThumbCompare & {
+  thumbShape: 'frame' | 'landscape'
+  thumbSize: VideoThumbSize
+  settle?: {
+    holdSec: number
+    restSec: number
+    afterRestSec: number
+    flickerSec: number
+  }
 }
 
 export type VideoScreenChanges = {
@@ -34254,6 +33727,8 @@ export type WhenStep = {
   onlyWhenAsked?: true
 }
 
+export type TicketWriteOutcome = 'sent' | 'already-sent' | 'ambiguous' | 'not-attempted'
+
 export type TicketWriteReason =
   | ConnectorWriteReason
   | 'reservation-failed'
@@ -35246,6 +34721,16 @@ export type ProcessRunChatState = {
     needsYouResolutions?: {
       [key: string]: ProcessNeedsYouResolution
     }
+    issueAnswers?: {
+      [key: string]: RunThroughIssueAnswer
+    }
+    issueReview?: {
+      projectId: string
+      storyId?: string
+      fixes: number
+      notIssues: number
+      at: number
+    }
     reruns?: Array<ProcessStepRerun>
     pendingChanges?: Array<ProcessRunPendingChange>
     carriedOutChanges?: Array<ProcessRunCarriedOutChange>
@@ -35384,6 +34869,31 @@ export type ProcessRunChatState = {
     name: string
     tipSha: string
   }
+}
+
+export type RunThroughIssueForReview = {
+  id: string
+  issue: RunThroughIssue
+  reference: string
+}
+
+export type RunThroughIssueReviewStanding = {
+  answered: number
+  open: Array<string>
+  fixes: number
+  notIssues: number
+}
+
+export type RunThroughIssueFixFeature = {
+  title: string
+  description: string
+  acceptance: string
+}
+
+export type RunThroughIssueStoryDraft = {
+  title: string
+  description: string
+  features: Array<RunThroughIssueFixFeature>
 }
 
 export type ProcessNeedsYouItem = {
@@ -36269,6 +35779,16 @@ export type ProcessRunSummary = {
     basis: ChangeScreensBasis
     reason: string
     disputedUiPaths?: Array<string>
+  }
+  issueAnswers?: {
+    [key: string]: RunThroughIssueAnswer
+  }
+  issueReview?: {
+    projectId: string
+    storyId?: string
+    fixes: number
+    notIssues: number
+    at: number
   }
   cleanup?: {
     items: Array<ProcessCleanupItem>
@@ -38407,7 +37927,20 @@ export type Template = {
   name: string
   description: string
   repoUrl: string
+  difficulty: 'beginner' | 'intermediate' | 'advanced'
+  estimatedTime: string
   thumbnailUrl?: string
+  ref?: string
+  appDir?: string
+}
+
+export type TemplateForkProgress = {
+  jobId: string
+  templateId: string
+  projectId: string
+  phase: 'cloning' | 'installing' | 'initializing' | 'creating-repo' | 'done' | 'error'
+  message?: string
+  error?: string
 }
 
 export type LlmConfigEditInput = {
@@ -39381,6 +38914,65 @@ export type UpdateProjectResponses = {
 
 export type UpdateProjectResponse = UpdateProjectResponses[keyof UpdateProjectResponses]
 
+export type CheckProjectTemplateUpdatesData = {
+  body?: never
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/template-updates'
+}
+
+export type CheckProjectTemplateUpdatesErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type CheckProjectTemplateUpdatesError =
+  CheckProjectTemplateUpdatesErrors[keyof CheckProjectTemplateUpdatesErrors]
+
+export type CheckProjectTemplateUpdatesResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    available: boolean
+    status:
+      | 'up-to-date'
+      | 'updates-available'
+      | 'not-from-template'
+      | 'unknown-template'
+      | 'upstream-unreachable'
+    provenance?: {
+      templateId: string
+      commit: string
+    }
+    upstreamCommit?: string
+    error?: string
+  }
+}
+
+export type CheckProjectTemplateUpdatesResponse =
+  CheckProjectTemplateUpdatesResponses[keyof CheckProjectTemplateUpdatesResponses]
+
 export type ListProjectChecksData = {
   body?: never
   path: {
@@ -39431,6 +39023,11 @@ export type CreateProjectFromTemplateData = {
     templateId: string
     id: string
     mainGroupId?: string | unknown
+    github?: {
+      tokenId?: string
+      name: string
+      private?: boolean
+    }
   }
   path?: never
   query?: never
@@ -39487,11 +39084,50 @@ export type CreateProjectFromTemplateResponses = {
   /**
    * Default Response
    */
-  201: ProjectSpec
+  202: {
+    jobId: string
+  }
 }
 
 export type CreateProjectFromTemplateResponse =
   CreateProjectFromTemplateResponses[keyof CreateProjectFromTemplateResponses]
+
+export type AbortCreateProjectFromTemplateData = {
+  body: {
+    jobId: string
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/projects/from-template/abort'
+}
+
+export type AbortCreateProjectFromTemplateErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type AbortCreateProjectFromTemplateError =
+  AbortCreateProjectFromTemplateErrors[keyof AbortCreateProjectFromTemplateErrors]
+
+export type AbortCreateProjectFromTemplateResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    aborted: boolean
+  }
+}
+
+export type AbortCreateProjectFromTemplateResponse =
+  AbortCreateProjectFromTemplateResponses[keyof AbortCreateProjectFromTemplateResponses]
 
 export type SetProjectActiveData = {
   body: {
@@ -43717,6 +43353,112 @@ export type ResolveProcessRunNeedsYouItemResponses = {
 
 export type ResolveProcessRunNeedsYouItemResponse =
   ResolveProcessRunNeedsYouItemResponses[keyof ResolveProcessRunNeedsYouItemResponses]
+
+export type AnswerRunThroughIssueData = {
+  body: {
+    /**
+     * `fix` — make a feature to fix it — or `not-an-issue`.
+     */
+    answer: 'fix' | 'not-an-issue'
+    /**
+     * The person’s own words; for a fix, what the fix is asked to do.
+     */
+    note?: string
+  }
+  path: {
+    runId: string
+    issueId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}/issues/{issueId}/answer'
+}
+
+export type AnswerRunThroughIssueErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type AnswerRunThroughIssueError =
+  AnswerRunThroughIssueErrors[keyof AnswerRunThroughIssueErrors]
+
+export type AnswerRunThroughIssueResponses = {
+  /**
+   * Default Response
+   */
+  200: ProcessRunView
+}
+
+export type AnswerRunThroughIssueResponse =
+  AnswerRunThroughIssueResponses[keyof AnswerRunThroughIssueResponses]
+
+export type FinishRunThroughIssueReviewData = {
+  body: {
+    /**
+     * The app the person decided on — recorded on the decision with `decidedBy: person`. Required: a decision nobody can attribute is refused.
+     */
+    decidedVia: 'web' | 'desktop' | 'mobile'
+    integration?: 'merge' | 'squash' | 'pull-request'
+  }
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}/issues/finish'
+}
+
+export type FinishRunThroughIssueReviewErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type FinishRunThroughIssueReviewError =
+  FinishRunThroughIssueReviewErrors[keyof FinishRunThroughIssueReviewErrors]
+
+export type FinishRunThroughIssueReviewResponses = {
+  /**
+   * Default Response
+   */
+  200: ProcessRunView
+}
+
+export type FinishRunThroughIssueReviewResponse =
+  FinishRunThroughIssueReviewResponses[keyof FinishRunThroughIssueReviewResponses]
 
 export type StartProcessRunChangesData = {
   body: {
@@ -60879,6 +60621,214 @@ export type ListTemplatesResponses = {
 }
 
 export type ListTemplatesResponse = ListTemplatesResponses[keyof ListTemplatesResponses]
+
+export type RegisterTemplateData = {
+  body: {
+    id: string
+    name: string
+    description: string
+    repoUrl: string
+    difficulty: 'beginner' | 'intermediate' | 'advanced'
+    estimatedTime: string
+    thumbnailUrl?: string
+    ref?: string
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/templates/register'
+}
+
+export type RegisterTemplateErrors = {
+  /**
+   * Default Response
+   */
+  422: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type RegisterTemplateError = RegisterTemplateErrors[keyof RegisterTemplateErrors]
+
+export type RegisterTemplateResponses = {
+  /**
+   * Default Response
+   */
+  201: {
+    template: Template
+    published: false
+  }
+}
+
+export type RegisterTemplateResponse = RegisterTemplateResponses[keyof RegisterTemplateResponses]
+
+export type PublishTemplateData = {
+  body?: never
+  path: {
+    id: string
+  }
+  query?: never
+  url: '/api/v1/templates/{id}/publish'
+}
+
+export type PublishTemplateErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type PublishTemplateError = PublishTemplateErrors[keyof PublishTemplateErrors]
+
+export type PublishTemplateResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    template: Template
+    published: true
+  }
+}
+
+export type PublishTemplateResponse = PublishTemplateResponses[keyof PublishTemplateResponses]
+
+export type PublishProjectAsTemplateData = {
+  body: {
+    projectId: string
+    id: string
+    name: string
+    description: string
+    difficulty: 'beginner' | 'intermediate' | 'advanced'
+    estimatedTime: string
+    thumbnailUrl?: string
+    github: {
+      tokenId?: string
+      name: string
+      private?: boolean
+    }
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/templates/from-project'
+}
+
+export type PublishProjectAsTemplateErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  422: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  502: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type PublishProjectAsTemplateError =
+  PublishProjectAsTemplateErrors[keyof PublishProjectAsTemplateErrors]
+
+export type PublishProjectAsTemplateResponses = {
+  /**
+   * Default Response
+   */
+  201: {
+    template: Template
+    published: false
+  }
+}
+
+export type PublishProjectAsTemplateResponse =
+  PublishProjectAsTemplateResponses[keyof PublishProjectAsTemplateResponses]
 
 export type DeleteEntitiesData = {
   body?: never

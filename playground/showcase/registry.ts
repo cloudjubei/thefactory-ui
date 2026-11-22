@@ -94,6 +94,7 @@ import { REGENERATED_MERGE_SCENES } from '../scenes/regeneratedMerge'
 import { NEEDS_YOU_REFERENCE_SCENES } from '../scenes/needsYouReferences'
 import { RUN_ACCESS_SCENES } from '../scenes/runAccess'
 import { RUN_THROUGH_SCENES } from '../scenes/runThrough'
+import { RUN_THROUGH_ISSUE_REVIEW_SCENES } from '../scenes/runThroughIssueReview'
 import { EVIDENCE_LINK_SCENES } from '../scenes/evidenceLinks'
 import { AGENT_PAUSE_SCENES } from '../scenes/agentPause'
 import { TEST_WITH_ME_SCENES } from '../scenes/testWithMe'
@@ -222,6 +223,7 @@ export const SCENES: readonly Scene[] = [
   ...REGENERATED_MERGE_SCENES,
   ...RUN_ACCESS_SCENES,
   ...RUN_THROUGH_SCENES,
+  ...RUN_THROUGH_ISSUE_REVIEW_SCENES,
   ...EVIDENCE_LINK_SCENES,
   ...AGENT_PAUSE_SCENES,
   ...TRY_ON_PHONE_SCENES,

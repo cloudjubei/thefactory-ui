@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { formatVideoTime } from 'thefactory-tools/utils'
 
 import {
@@ -20,6 +20,8 @@ import { WalkthroughRecording } from './WalkthroughTab'
 export type RunThroughTabProps = {
   projectId: string
   view: RunThroughReportView
+  /** Shown first: the way into going over its issues, or how they were gone over. */
+  top?: ReactNode
 }
 
 function RecordHead({ record }: { record: RunThroughRecordView }) {
@@ -180,7 +182,7 @@ function IssueDetail({
  * issue a tick on its moments; and the issues worst first, one open at a
  * time. Opening an issue plays its moment; its screenshot opens large.
  */
-export default function RunThroughTab({ projectId, view }: RunThroughTabProps) {
+export default function RunThroughTab({ projectId, view, top }: RunThroughTabProps) {
   const [openKey, setOpenKey] = useState<string | undefined>(view.issues[0]?.key)
   const [time, setTime] = useState({ atSec: 0, durationSec: 0 })
   const [shot, setShot] = useState<
@@ -199,6 +201,7 @@ export default function RunThroughTab({ projectId, view }: RunThroughTabProps) {
 
   return (
     <div className="@container flex flex-col gap-3 pt-3">
+      {top}
       {record ? <RecordHead record={record} /> : null}
       <div className="grid grid-cols-1 items-start gap-3.5 @2xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
         {recording ? (

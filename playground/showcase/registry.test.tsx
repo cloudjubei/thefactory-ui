@@ -17,6 +17,12 @@ describe('showcase registry', () => {
     expect(sceneProblems(SCENES)).toEqual([])
   })
 
+  it('goes over a run-through’s issues in every state the chosen design names', () => {
+    const scene = SCENES.find((s) => s.id === 'run-through-issue-review')
+    expect(scene?.states.map((s) => s.id)).toEqual(['first', 'some', 'ready', 'creating', 'closed'])
+    expect(scene?.states.filter((s) => !s.overlay).map((s) => s.id)).toEqual(['closed'])
+  })
+
   it('lists every scene under a group the index shows', () => {
     for (const scene of SCENES) expect(SCENE_GROUPS).toContain(scene.group)
   })

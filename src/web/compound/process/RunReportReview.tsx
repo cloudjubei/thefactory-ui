@@ -8,6 +8,7 @@ import {
   processParkAnswersView,
   processVariantReport,
   requestProofChoices,
+  runThroughReportOfRun,
   soleIntegrationMode,
   useProcessIntegrationOptions,
   useProcessRunEvidence,
@@ -24,6 +25,7 @@ import {
   type ProcessWorkBranch,
   type ProofKind,
   type ProofKindUnavailable,
+  type RunThroughReportView,
 } from '../../../headless'
 import { VerdictBadge } from '../chat/signoff'
 import IntegrationChooser from './IntegrationChooser'
@@ -31,6 +33,7 @@ import ParkAnswers from './ParkAnswers'
 import ParkNoteComposer from './ParkNoteComposer'
 import ProcessVariantReport from './ProcessVariantReport'
 import RunNeedsYouCard, { ManagerLine } from './RunNeedsYouCard'
+import RunThroughIssueReview from './RunThroughIssueReview'
 
 export type RunReportReviewProps = {
   run: ProcessRun
@@ -73,12 +76,13 @@ export default function RunReportReview(props: RunReportReviewProps) {
   const { run, now, steps, details, onOpenSteps, onReportText } = props
   const evidence = useProcessRunEvidence(run.projectId, run.id)
   const view = processVariantReport(run, evidence.groups, now)
+  const runThrough = runThroughReportOfRun(evidence.groups)
   const reportText = view.reportTile?.text
   useEffect(() => {
     onReportText?.(reportText)
   }, [reportText, onReportText])
   const top = evidence.loaded ? (
-    <RunReportDecision {...props} view={view} />
+    <RunReportDecision {...props} view={view} {...(runThrough ? { runThrough } : {})} />
   ) : (
     <div className="text-[12px] text-(--text-secondary)">
       {evidence.error ? `${SIGNOFF_LOAD_FAILED} — ${evidence.error}` : 'Reading what was filed…'}
@@ -110,7 +114,12 @@ export function RunReportDecision({
   proofUnavailable,
   integration,
   view,
-}: RunReportReviewProps & { view: ProcessVariantReportView }) {
+  runThrough,
+}: RunReportReviewProps & {
+  view: ProcessVariantReportView
+  /** The run-through the run filed: its issues are gone over here before the run closes. */
+  runThrough?: RunThroughReportView
+}) {
   const [step, setStep] = useState<DecisionStep>('idle')
   const [busy, setBusy] = useState(false)
   const [selected, setSelected] = useState<string | undefined>()
@@ -184,6 +193,13 @@ export function RunReportDecision({
         >
           {(accept ?? alreadyOnBase)?.notice}
         </div>
+      ) : null}
+      {runThrough ? (
+        <RunThroughIssueReview
+          run={run}
+          report={runThrough}
+          {...(onAskManager ? { onDiscuss: onAskManager } : {})}
+        />
       ) : null}
       {manager ? <ManagerLine view={manager} /> : null}
       {canDecide && step === 'idle' ? (

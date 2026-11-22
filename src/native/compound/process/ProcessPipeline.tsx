@@ -16,6 +16,7 @@ import type { ProcessStepRecovery } from 'thefactory-tools/types'
 import {
   accessRecordProjectNames,
   accessRecordSection,
+  runThroughIssueReviewEntry,
   parkAnswerOpensNote,
   parkRecoveryDraft,
   PARK_RECOVERY_DRAFT_COPY,
@@ -188,6 +189,7 @@ import RunDetails from './RunDetails'
 import RunManagerBar from './RunManagerBar'
 import RunStepsCard from './RunStepsCard'
 import RunNeedsYouCard, { ManagerLine } from './RunNeedsYouCard'
+import RunThroughIssueReviewEntry from './RunThroughIssueReviewEntry'
 import RunClosurePanel from './RunClosurePanel'
 import { RunNamedLandingPanel } from './NamedLandingForm'
 import RunTurnLimitChip from './RunTurnLimitChip'
@@ -880,6 +882,25 @@ export default function ProcessPipeline({
           <RunPendingChanges run={run} onStart={startChanges} onRemove={withdrawChange} />
         ) : null}
         {stack.length === 0 && signoff ? <RunCarriedOutChanges run={run} /> : null}
+        {stack.length === 0 && !signoff && run.issueReview ? (
+          <View
+            style={{
+              marginHorizontal: 12,
+              marginTop: 12,
+              paddingHorizontal: 16,
+              paddingVertical: 12,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: status.done.softBorder,
+              backgroundColor: status.done.softBg,
+            }}
+          >
+            <RunThroughIssueReviewEntry
+              entry={runThroughIssueReviewEntry(run, 0)}
+              {...(projectName ? { projectName } : {})}
+            />
+          </View>
+        ) : null}
         {variantLanes && shownView === 'lanes' ? (
           <>
             {signoff && variantReport ? (

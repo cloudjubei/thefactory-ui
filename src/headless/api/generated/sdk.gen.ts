@@ -15,6 +15,9 @@ import type {
   AbortCompletionData,
   AbortCompletionErrors,
   AbortCompletionResponses,
+  AbortCreateProjectFromTemplateData,
+  AbortCreateProjectFromTemplateErrors,
+  AbortCreateProjectFromTemplateResponses,
   AbortIngestionData,
   AbortIngestionErrors,
   AbortIngestionResponses,
@@ -54,6 +57,9 @@ import type {
   AnswerProcessRunWaitingRequestData,
   AnswerProcessRunWaitingRequestErrors,
   AnswerProcessRunWaitingRequestResponses,
+  AnswerRunThroughIssueData,
+  AnswerRunThroughIssueErrors,
+  AnswerRunThroughIssueResponses,
   ApplyCliAgentArtifactData,
   ApplyCliAgentArtifactErrors,
   ApplyCliAgentArtifactResponses,
@@ -118,6 +124,9 @@ import type {
   CheckProjectGithubNameData,
   CheckProjectGithubNameErrors,
   CheckProjectGithubNameResponses,
+  CheckProjectTemplateUpdatesData,
+  CheckProjectTemplateUpdatesErrors,
+  CheckProjectTemplateUpdatesResponses,
   ChooseDesignProposalData,
   ChooseDesignProposalErrors,
   ChooseDesignProposalResponses,
@@ -396,6 +405,9 @@ import type {
   FinishProviderOAuthData,
   FinishProviderOAuthErrors,
   FinishProviderOAuthResponses,
+  FinishRunThroughIssueReviewData,
+  FinishRunThroughIssueReviewErrors,
+  FinishRunThroughIssueReviewResponses,
   GetActiveCliStateData,
   GetActiveCliStateErrors,
   GetActiveCliStateResponses,
@@ -1112,6 +1124,12 @@ import type {
   PublishProcessGroupRunData,
   PublishProcessGroupRunErrors,
   PublishProcessGroupRunResponses,
+  PublishProjectAsTemplateData,
+  PublishProjectAsTemplateErrors,
+  PublishProjectAsTemplateResponses,
+  PublishTemplateData,
+  PublishTemplateErrors,
+  PublishTemplateResponses,
   PushOverseerData,
   PushOverseerErrors,
   PushOverseerResponses,
@@ -1167,6 +1185,9 @@ import type {
   RefreshPricingData,
   RefreshPricingErrors,
   RefreshPricingResponses,
+  RegisterTemplateData,
+  RegisterTemplateErrors,
+  RegisterTemplateResponses,
   RejectCliRunReviewData,
   RejectCliRunReviewErrors,
   RejectCliRunReviewResponses,
@@ -1801,6 +1822,20 @@ export const updateProject = <ThrowOnError extends boolean = false>(
     },
   })
 
+export const checkProjectTemplateUpdates = <ThrowOnError extends boolean = false>(
+  options: Options<CheckProjectTemplateUpdatesData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    CheckProjectTemplateUpdatesResponses,
+    CheckProjectTemplateUpdatesErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/template-updates',
+    ...options,
+  })
+
 export const listProjectChecks = <ThrowOnError extends boolean = false>(
   options: Options<ListProjectChecksData, ThrowOnError>,
 ) =>
@@ -1824,6 +1859,24 @@ export const createProjectFromTemplate = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/projects/from-template',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const abortCreateProjectFromTemplate = <ThrowOnError extends boolean = false>(
+  options: Options<AbortCreateProjectFromTemplateData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    AbortCreateProjectFromTemplateResponses,
+    AbortCreateProjectFromTemplateErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/from-template/abort',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -2919,6 +2972,42 @@ export const resolveProcessRunNeedsYouItem = <ThrowOnError extends boolean = fal
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/process-runs/{runId}/needs-you',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const answerRunThroughIssue = <ThrowOnError extends boolean = false>(
+  options: Options<AnswerRunThroughIssueData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    AnswerRunThroughIssueResponses,
+    AnswerRunThroughIssueErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/issues/{issueId}/answer',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const finishRunThroughIssueReview = <ThrowOnError extends boolean = false>(
+  options: Options<FinishRunThroughIssueReviewData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    FinishRunThroughIssueReviewResponses,
+    FinishRunThroughIssueReviewErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/issues/finish',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -7711,6 +7800,48 @@ export const listTemplates = <ThrowOnError extends boolean = false>(
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/templates',
     ...options,
+  })
+
+export const registerTemplate = <ThrowOnError extends boolean = false>(
+  options: Options<RegisterTemplateData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<RegisterTemplateResponses, RegisterTemplateErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/templates/register',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const publishTemplate = <ThrowOnError extends boolean = false>(
+  options: Options<PublishTemplateData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<PublishTemplateResponses, PublishTemplateErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/templates/{id}/publish',
+    ...options,
+  })
+
+export const publishProjectAsTemplate = <ThrowOnError extends boolean = false>(
+  options: Options<PublishProjectAsTemplateData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    PublishProjectAsTemplateResponses,
+    PublishProjectAsTemplateErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/templates/from-project',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
   })
 
 export const deleteEntities = <ThrowOnError extends boolean = false>(

@@ -11,12 +11,13 @@ export const FAKE_RUN_THROUGH_RUN_ID = 'run-through-sign-up'
 
 const TITLE = 'Run through sign-up as a new user'
 
-/** A tester's run through sign-up, done, as `GET /process-runs/:runId` answers it. */
+/** A tester's run through sign-up, parked at its sign-off with what it met, as `GET /process-runs/:runId` answers it. */
 export const FAKE_RUN_THROUGH_RUN = {
   id: FAKE_RUN_THROUGH_RUN_ID,
   projectId: FAKE_PROJECT_ID,
   title: TITLE,
-  status: 'succeeded',
+  status: 'parked',
+  park: { reason: 'gate', stepId: 'sign-off', message: 'Sign off.', parkedAt: 22 },
   loopCounts: {},
   ledger: [
     {
@@ -36,7 +37,10 @@ export const FAKE_RUN_THROUGH_RUN = {
     definitionScope: 'global',
     definitionVersion: 1,
     name: 'Run-through',
-    steps: [{ id: 'run-through', name: 'Run through', kind: 'agent', agentType: 'tester' }],
+    steps: [
+      { id: 'run-through', name: 'Run through', kind: 'agent', agentType: 'tester' },
+      { id: 'sign-off', name: 'Sign-off', kind: 'gate' },
+    ],
     loops: [],
     frozenAt: 0,
   },
@@ -122,7 +126,7 @@ export function fakeRunThroughEvidence(): GetProcessRunEvidenceResponse {
       {
         runId: FAKE_RUN_THROUGH_RUN_ID,
         label: TITLE,
-        status: 'succeeded',
+        status: 'parked',
         evidence: [...FAKE_RUN_THROUGH_ISSUES, RECORDING, RECORD],
       },
     ],

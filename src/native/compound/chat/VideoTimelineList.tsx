@@ -7,7 +7,7 @@ import {
 } from '../../../headless'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
-import { IconPointer, IconSoundLevels, IconSpeech } from '../../icons'
+import { IconSoundLevels, IconSpeech } from '../../icons'
 
 export interface VideoTimelineListProps {
   view: VideoTimelineView
@@ -35,8 +35,6 @@ function Glyph({ glyph }: { glyph: VideoTimelineGlyph }) {
           }}
         />
       )
-    case 'action':
-      return <IconPointer size={16} color={theme.accent.primary} />
     case 'speech':
       return <IconSpeech size={16} color={status.done.softFg} />
     case 'sound':

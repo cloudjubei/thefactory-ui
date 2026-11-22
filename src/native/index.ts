@@ -1228,6 +1228,19 @@ export {
   type RunReportReviewProps,
 } from './compound/process/RunReportReview'
 export {
+  default as RunThroughIssueReview,
+  useRunThroughIssueReviewOnPage,
+  type RunThroughIssueReviewProps,
+} from './compound/process/RunThroughIssueReview'
+export {
+  default as RunThroughIssueReviewEntry,
+  type RunThroughIssueReviewEntryProps,
+} from './compound/process/RunThroughIssueReviewEntry'
+export {
+  default as RunThroughIssueReviewPanel,
+  type RunThroughIssueReviewPanelProps,
+} from './compound/process/RunThroughIssueReviewPanel'
+export {
   default as StoryLaunchDock,
   type StoryLaunchDockProps,
 } from './compound/chat/StoryLaunchDock'

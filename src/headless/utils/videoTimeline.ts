@@ -1,10 +1,5 @@
-import {
-  VIDEO_ACTION_UNQUOTED_TARGETS,
-  VIDEO_ACTION_VERBS,
-  VIDEO_SOUND_CUE_WORDS,
-  VIDEO_SOUND_UNTIL,
-} from 'thefactory-tools/constants'
-import type { VideoTimelineAction, VideoTimelineSound } from 'thefactory-tools/types'
+import { VIDEO_SOUND_CUE_WORDS, VIDEO_SOUND_UNTIL } from 'thefactory-tools/constants'
+import type { VideoTimelineSound } from 'thefactory-tools/types'
 import { formatVideoTime } from 'thefactory-tools/utils'
 import { videoStageLine } from './videoAttachment'
 import {
@@ -27,17 +22,6 @@ const capitalized = (words: string): string => words.charAt(0).toUpperCase() + w
 
 const joined = (lines: readonly string[]): string => lines.join(VIDEO_TIMELINE_TEXT_SEPARATOR)
 
-function actionText({ action, target, ok }: VideoTimelineAction): string {
-  const aimed =
-    target === undefined
-      ? undefined
-      : VIDEO_ACTION_UNQUOTED_TARGETS.includes(action)
-        ? target
-        : `"${target}"`
-  const said = [capitalized(VIDEO_ACTION_VERBS[action]), aimed].filter(Boolean).join(' ')
-  return ok ? said : VIDEO_TIMELINE_TEXT.failedAction(said)
-}
-
 function soundText({ sound, endSec }: VideoTimelineSound): string {
   const words = VIDEO_SOUND_CUE_WORDS[sound]
   return capitalized(sound === 'sudden' ? words : VIDEO_SOUND_UNTIL(words, formatVideoTime(endSec)))
@@ -57,11 +41,10 @@ function rowOf(entry: ChatVideoTimelineEntry, index: number): VideoTimelineRow {
     timeSec: entry.timeSec,
     time: formatVideoTime(entry.timeSec),
   }
-  const row = (glyph: VideoTimelineGlyph, text: string, failed = false) => ({
+  const row = (glyph: VideoTimelineGlyph, text: string) => ({
     ...base,
     glyph,
     text,
-    failed,
     closeUps: entry.kind === 'still' ? closeUpRows(entry) : [],
   })
   switch (entry.kind) {
@@ -72,8 +55,6 @@ function rowOf(entry: ChatVideoTimelineEntry, index: number): VideoTimelineRow {
       )
     case 'speech':
       return row({ kind: 'speech' }, `"${entry.text}"`)
-    case 'action':
-      return row({ kind: 'action' }, actionText(entry), !entry.ok)
     case 'sound':
       return row({ kind: 'sound' }, soundText(entry))
   }

@@ -3,7 +3,7 @@ import {
   type VideoTimelineGlyph,
   type VideoTimelineView,
 } from '../../../headless'
-import { IconPointer, IconSoundLevels, IconSpeech } from '../../icons'
+import { IconSoundLevels, IconSpeech } from '../../icons'
 
 export type VideoTimelineListProps = {
   view: VideoTimelineView
@@ -26,8 +26,6 @@ function Glyph({ glyph }: { glyph: VideoTimelineGlyph }) {
           className="h-6 w-10 rounded-xs border border-(--border-subtle) bg-(--surface-muted) object-cover"
         />
       )
-    case 'action':
-      return <IconPointer className="h-4 w-4 text-(--accent-primary)" />
     case 'speech':
       return <IconSpeech className="h-4 w-4 text-(--status-done-soft-fg)" />
     case 'sound':

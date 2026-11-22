@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { Image, Pressable, Text, View } from 'react-native'
 import { formatVideoTime } from 'thefactory-tools/utils'
 
@@ -25,6 +25,8 @@ import { WalkthroughRecording } from './WalkthroughTab'
 export type RunThroughTabProps = {
   projectId: string
   view: RunThroughReportView
+  /** Shown first: the way into going over its issues, or how they were gone over. */
+  top?: ReactNode
 }
 
 function Eyebrow({ children }: { children: string }) {
@@ -309,7 +311,7 @@ function IssueDetail({
  * time. Opening an issue plays its moment where the host's player can seek;
  * its screenshot opens large.
  */
-export default function RunThroughTab({ projectId, view }: RunThroughTabProps) {
+export default function RunThroughTab({ projectId, view, top }: RunThroughTabProps) {
   const { theme } = useNativeTheme()
   const [openKey, setOpenKey] = useState<string | undefined>(view.issues[0]?.key)
   const [time, setTime] = useState({ atSec: 0, durationSec: 0 })
@@ -327,6 +329,7 @@ export default function RunThroughTab({ projectId, view }: RunThroughTabProps) {
 
   return (
     <View style={{ gap: 12 }}>
+      {top}
       {record ? <RecordHead record={record} /> : null}
       {recording ? (
         <WalkthroughRecording

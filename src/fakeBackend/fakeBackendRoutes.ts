@@ -1,4 +1,7 @@
+import type { ProcessRun } from 'thefactory-tools/types'
 import type {
+  AnswerRunThroughIssueData,
+  AnswerRunThroughIssueResponse,
   ChatContext,
   CompactChatNowData,
   CompactChatNowResponse,
@@ -56,6 +59,8 @@ import type {
   GetProjectsGroupStatusResponse,
   GetProcessCapabilitiesData,
   GetProcessCapabilitiesResponse,
+  FinishRunThroughIssueReviewData,
+  FinishRunThroughIssueReviewResponse,
   GetProcessRunData,
   GetProcessRunEvidenceData,
   GetProcessRunEvidenceResponse,
@@ -246,15 +251,12 @@ import { FAKE_GROUP_ID, FAKE_GROUPS, FAKE_PROJECTS } from './fixtures/projects'
 import { FAKE_GROUP_CONSTELLATION, FAKE_GROUP_STATUS } from './fixtures/projectsGroups'
 import { FAKE_EVIDENCE_NOT_FOUND } from './fixtures/resolvedEvidenceConstants'
 import { fakeReviewEvidenceList } from './fixtures/reviewEvidence'
-import {
-  FAKE_RUN_THROUGH_RUN,
-  FAKE_RUN_THROUGH_RUN_ID,
-  fakeRunThroughEvidence,
-} from './fixtures/runThroughRun'
+import { FAKE_RUN_THROUGH_RUN_ID, fakeRunThroughEvidence } from './fixtures/runThroughRun'
 import { fakeEvidenceTargetOf, fakeResolvedEvidence } from './fixtures/resolvedEvidence'
 import { FAKE_AT } from './fixtures/stamps'
 import { FAKE_STORIES_BY_PROJECT } from './fixtures/stories'
 import { FAKE_TICKET_CONNECTION } from './fixtures/ticketConnections'
+import { FakeRunThroughReview, type FakeRunThroughReviewAnswer } from './FakeRunThroughReview'
 import { FakeTicketInbox } from './FakeTicketInbox'
 
 const FAKE_JIRA_CLOUD_ID = '11111111-2222-4333-8444-555555555555'
@@ -281,8 +283,6 @@ const publicRead = <TData extends ContractData, TResponse>(
   path: TData['url'],
   answer: (request: FakeRouteRequest) => TResponse,
 ): FakeRoute => ({ method: 'GET', path, isPublic: true, answer })
-
-const storiesOf = (projectId: string | undefined) => FAKE_STORIES_BY_PROJECT[projectId ?? ''] ?? []
 
 function contextOf({ body, missing }: FakeRouteRequest): ChatContext {
   const { context } = (body ?? {}) as { context?: ChatContext }
@@ -450,19 +450,6 @@ const READS: readonly FakeRoute[] = [
   ),
   read<GetDbHealthData, GetDbHealthResponse>('/api/v1/db/health', () => FAKE_DB_HEALTH),
 
-  read<ListStoriesData, ListStoriesResponse>('/api/v1/projects/{projectId}/stories', ({ params }) =>
-    storiesOf(params.projectId),
-  ),
-  read<GetStoriesOrderData, GetStoriesOrderResponse>(
-    '/api/v1/projects/{projectId}/stories/order',
-    ({ params }) => storiesOf(params.projectId).map((story) => story.id),
-  ),
-  read<GetStoryData, GetStoryResponse>(
-    '/api/v1/projects/{projectId}/stories/{storyId}',
-    ({ params, missing }) =>
-      storiesOf(params.projectId).find((story) => story.id === params.storyId) ??
-      missing(`No fake story '${params.storyId}' in '${params.projectId}'.`),
-  ),
   read<ListProjectGroupStoriesData, ListProjectGroupStoriesResponse>(
     '/api/v1/projects/{projectId}/group-stories',
     () => ({}),
@@ -693,14 +680,6 @@ const READS: readonly FakeRoute[] = [
     () => fakeVariantPreview() as PreviewProcessRunResponse,
   ),
   { method: 'POST', path: '/api/v1/process-runs', answer: () => fakeVariantRun('running') },
-  read<GetProcessRunData, GetProcessRunResponse>(
-    '/api/v1/process-runs/{runId}',
-    ({ params, missing }) =>
-      (params.runId === FAKE_VARIANT_RUN_ID ? fakeVariantRun('done') : undefined) ??
-      (params.runId === FAKE_RUN_THROUGH_RUN_ID ? FAKE_RUN_THROUGH_RUN : undefined) ??
-      FAKE_PROCESS_RUNS.find((run) => run.id === params.runId) ??
-      missing(`No fake run '${params.runId}'.`),
-  ),
   read<ListProcessesData, ListProcessesResponse>('/api/v1/processes', () => [
     ...FAKE_PROCESSES,
     FAKE_VARIANT_PROCESS,
@@ -747,9 +726,76 @@ function ticketRoutes(inbox: FakeTicketInbox): FakeRoute[] {
 }
 
 /**
- * The route table one fake server answers from: every read, and the tickets it
- * has shown, which start new for each table.
+ * The run reads, the stories, and going over the run-through's issues: the
+ * answers and the story finishing makes, held by `review`.
+ */
+function runThroughReviewRoutes(review: FakeRunThroughReview): FakeRoute[] {
+  const storiesOf = (projectId: string | undefined) => [
+    ...(FAKE_STORIES_BY_PROJECT[projectId ?? ''] ?? []),
+    ...review.stories(projectId ?? ''),
+  ]
+  const answered = (
+    result: FakeRunThroughReviewAnswer,
+    { missing, invalid }: Pick<FakeRouteRequest, 'missing' | 'invalid'>,
+  ): ProcessRun => {
+    if (result.ok) return result.run
+    return result.status === 404 ? missing(result.error) : invalid(result.error)
+  }
+  const isRunThrough = (runId: string | undefined, missing: FakeRouteRequest['missing']) => {
+    if (runId !== FAKE_RUN_THROUGH_RUN_ID) missing(`No run-through issues in run '${runId}'.`)
+  }
+  return [
+    read<ListStoriesData, ListStoriesResponse>(
+      '/api/v1/projects/{projectId}/stories',
+      ({ params }) => storiesOf(params.projectId),
+    ),
+    read<GetStoriesOrderData, GetStoriesOrderResponse>(
+      '/api/v1/projects/{projectId}/stories/order',
+      ({ params }) => storiesOf(params.projectId).map((story) => story.id),
+    ),
+    read<GetStoryData, GetStoryResponse>(
+      '/api/v1/projects/{projectId}/stories/{storyId}',
+      ({ params, missing }) =>
+        storiesOf(params.projectId).find((story) => story.id === params.storyId) ??
+        missing(`No fake story '${params.storyId}' in '${params.projectId}'.`),
+    ),
+    read<GetProcessRunData, GetProcessRunResponse>(
+      '/api/v1/process-runs/{runId}',
+      ({ params, missing }) =>
+        (params.runId === FAKE_VARIANT_RUN_ID ? fakeVariantRun('done') : undefined) ??
+        (params.runId === FAKE_RUN_THROUGH_RUN_ID ? review.run() : undefined) ??
+        FAKE_PROCESS_RUNS.find((run) => run.id === params.runId) ??
+        missing(`No fake run '${params.runId}'.`),
+    ),
+    write<AnswerRunThroughIssueData, AnswerRunThroughIssueResponse>(
+      '/api/v1/process-runs/{runId}/issues/{issueId}/answer',
+      (request) => {
+        isRunThrough(request.params.runId, request.missing)
+        return answered(
+          review.answer(request.params.issueId ?? '', request.body),
+          request,
+        ) as AnswerRunThroughIssueResponse
+      },
+    ),
+    write<FinishRunThroughIssueReviewData, FinishRunThroughIssueReviewResponse>(
+      '/api/v1/process-runs/{runId}/issues/finish',
+      (request) => {
+        isRunThrough(request.params.runId, request.missing)
+        return answered(review.finish(), request) as FinishRunThroughIssueReviewResponse
+      },
+    ),
+  ]
+}
+
+/**
+ * The route table one fake server answers from: every read, the tickets it
+ * has shown, which start new for each table, and the run-through's issues,
+ * which start unanswered for each table.
  */
 export function fakeBackendRoutes(): readonly FakeRoute[] {
-  return [...READS, ...ticketRoutes(new FakeTicketInbox())]
+  return [
+    ...READS,
+    ...runThroughReviewRoutes(new FakeRunThroughReview()),
+    ...ticketRoutes(new FakeTicketInbox()),
+  ]
 }
