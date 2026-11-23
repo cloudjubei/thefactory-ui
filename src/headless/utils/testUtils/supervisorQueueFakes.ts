@@ -41,6 +41,7 @@ export function fakeWorkQueue(spy: () => Spy, empty = false): UseWorkQueue {
 export const FAKE_SUPERVISOR_RECORD: SupervisorRecord = {
   scope: { kind: 'project', projectId: 'tools' },
   enabled: true,
+  agent: true,
   actions: [
     {
       id: 'act-1',

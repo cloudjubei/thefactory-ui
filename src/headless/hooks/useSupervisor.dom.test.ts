@@ -13,7 +13,7 @@ vi.mock('../api/supervisorApi', () => ({
 import { useSupervisor } from './useSupervisor'
 
 const SCOPE: WorkQueueScope = { kind: 'group', groupId: 'factory' }
-const OFF: SupervisorRecord = { scope: SCOPE, enabled: false, actions: [] }
+const OFF: SupervisorRecord = { scope: SCOPE, enabled: false, agent: true, actions: [] }
 const ON: SupervisorRecord = { ...OFF, enabled: true }
 
 function deferred<T>() {

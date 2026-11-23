@@ -48647,10 +48647,37 @@ export type GetProjectSupervisorResponses = {
   200: {
     scope: WorkQueueScope
     enabled: boolean
+    agent: boolean
+    agentModel?: {
+      runner: 'cli' | 'api'
+      cli?: string
+      model?: string
+      effort?: string
+    }
+    turn?: {
+      runId: string
+      rootRunId: string
+      projectId?: string
+      parkedAt: number
+      signature: string
+      chatContextId: string
+      startedAt: number
+    }
     actions: Array<{
       id: string
       at: number
-      kind: 'answered' | 'asked' | 'approved' | 'closed-ask' | 'started' | 'refused'
+      kind:
+        | 'answered'
+        | 'asked'
+        | 'approved'
+        | 'closed-ask'
+        | 'started'
+        | 'refused'
+        | 'agent-started'
+        | 'agent-acted'
+        | 'agent-asked'
+        | 'agent-undecided'
+        | 'agent-failed'
       what: string
       runId?: string
       rootRunId?: string
@@ -48695,7 +48722,15 @@ export type SetProjectSupervisorData = {
     /**
      * true switches the scope’s supervisor on; it is off by default.
      */
-    enabled: boolean
+    enabled?: boolean
+    /**
+     * false stops the supervisor starting an agent turn on a stop its rules cannot answer; on with the supervisor by default.
+     */
+    agent?: boolean
+    /**
+     * The model the supervisor’s agent turns run on; null goes back to the Overseer’s fallback model.
+     */
+    agentModel?: ProcessRunModel | unknown
   }
   path: {
     projectId: string
@@ -48736,10 +48771,37 @@ export type SetProjectSupervisorResponses = {
   200: {
     scope: WorkQueueScope
     enabled: boolean
+    agent: boolean
+    agentModel?: {
+      runner: 'cli' | 'api'
+      cli?: string
+      model?: string
+      effort?: string
+    }
+    turn?: {
+      runId: string
+      rootRunId: string
+      projectId?: string
+      parkedAt: number
+      signature: string
+      chatContextId: string
+      startedAt: number
+    }
     actions: Array<{
       id: string
       at: number
-      kind: 'answered' | 'asked' | 'approved' | 'closed-ask' | 'started' | 'refused'
+      kind:
+        | 'answered'
+        | 'asked'
+        | 'approved'
+        | 'closed-ask'
+        | 'started'
+        | 'refused'
+        | 'agent-started'
+        | 'agent-acted'
+        | 'agent-asked'
+        | 'agent-undecided'
+        | 'agent-failed'
       what: string
       runId?: string
       rootRunId?: string
@@ -48820,10 +48882,37 @@ export type GetGroupSupervisorResponses = {
   200: {
     scope: WorkQueueScope
     enabled: boolean
+    agent: boolean
+    agentModel?: {
+      runner: 'cli' | 'api'
+      cli?: string
+      model?: string
+      effort?: string
+    }
+    turn?: {
+      runId: string
+      rootRunId: string
+      projectId?: string
+      parkedAt: number
+      signature: string
+      chatContextId: string
+      startedAt: number
+    }
     actions: Array<{
       id: string
       at: number
-      kind: 'answered' | 'asked' | 'approved' | 'closed-ask' | 'started' | 'refused'
+      kind:
+        | 'answered'
+        | 'asked'
+        | 'approved'
+        | 'closed-ask'
+        | 'started'
+        | 'refused'
+        | 'agent-started'
+        | 'agent-acted'
+        | 'agent-asked'
+        | 'agent-undecided'
+        | 'agent-failed'
       what: string
       runId?: string
       rootRunId?: string
@@ -48868,7 +48957,15 @@ export type SetGroupSupervisorData = {
     /**
      * true switches the scope’s supervisor on; it is off by default.
      */
-    enabled: boolean
+    enabled?: boolean
+    /**
+     * false stops the supervisor starting an agent turn on a stop its rules cannot answer; on with the supervisor by default.
+     */
+    agent?: boolean
+    /**
+     * The model the supervisor’s agent turns run on; null goes back to the Overseer’s fallback model.
+     */
+    agentModel?: ProcessRunModel | unknown
   }
   path: {
     groupId: string
@@ -48909,10 +49006,37 @@ export type SetGroupSupervisorResponses = {
   200: {
     scope: WorkQueueScope
     enabled: boolean
+    agent: boolean
+    agentModel?: {
+      runner: 'cli' | 'api'
+      cli?: string
+      model?: string
+      effort?: string
+    }
+    turn?: {
+      runId: string
+      rootRunId: string
+      projectId?: string
+      parkedAt: number
+      signature: string
+      chatContextId: string
+      startedAt: number
+    }
     actions: Array<{
       id: string
       at: number
-      kind: 'answered' | 'asked' | 'approved' | 'closed-ask' | 'started' | 'refused'
+      kind:
+        | 'answered'
+        | 'asked'
+        | 'approved'
+        | 'closed-ask'
+        | 'started'
+        | 'refused'
+        | 'agent-started'
+        | 'agent-acted'
+        | 'agent-asked'
+        | 'agent-undecided'
+        | 'agent-failed'
       what: string
       runId?: string
       rootRunId?: string
@@ -48992,10 +49116,37 @@ export type GetOverseerSupervisorResponses = {
   200: {
     scope: WorkQueueScope
     enabled: boolean
+    agent: boolean
+    agentModel?: {
+      runner: 'cli' | 'api'
+      cli?: string
+      model?: string
+      effort?: string
+    }
+    turn?: {
+      runId: string
+      rootRunId: string
+      projectId?: string
+      parkedAt: number
+      signature: string
+      chatContextId: string
+      startedAt: number
+    }
     actions: Array<{
       id: string
       at: number
-      kind: 'answered' | 'asked' | 'approved' | 'closed-ask' | 'started' | 'refused'
+      kind:
+        | 'answered'
+        | 'asked'
+        | 'approved'
+        | 'closed-ask'
+        | 'started'
+        | 'refused'
+        | 'agent-started'
+        | 'agent-acted'
+        | 'agent-asked'
+        | 'agent-undecided'
+        | 'agent-failed'
       what: string
       runId?: string
       rootRunId?: string
@@ -49037,7 +49188,18 @@ export type GetOverseerSupervisorResponse =
 
 export type SetOverseerSupervisorData = {
   body: {
+    /**
+     * true switches the scope’s supervisor on; it is off by default.
+     */
     enabled?: boolean
+    /**
+     * false stops the supervisor starting an agent turn on a stop its rules cannot answer; on with the supervisor by default.
+     */
+    agent?: boolean
+    /**
+     * The model the supervisor’s agent turns run on; null goes back to the Overseer’s fallback model.
+     */
+    agentModel?: ProcessRunModel | unknown
     /**
      * The CLI model a run that ran out of credits switches to; null clears it.
      */
@@ -49081,10 +49243,37 @@ export type SetOverseerSupervisorResponses = {
   200: {
     scope: WorkQueueScope
     enabled: boolean
+    agent: boolean
+    agentModel?: {
+      runner: 'cli' | 'api'
+      cli?: string
+      model?: string
+      effort?: string
+    }
+    turn?: {
+      runId: string
+      rootRunId: string
+      projectId?: string
+      parkedAt: number
+      signature: string
+      chatContextId: string
+      startedAt: number
+    }
     actions: Array<{
       id: string
       at: number
-      kind: 'answered' | 'asked' | 'approved' | 'closed-ask' | 'started' | 'refused'
+      kind:
+        | 'answered'
+        | 'asked'
+        | 'approved'
+        | 'closed-ask'
+        | 'started'
+        | 'refused'
+        | 'agent-started'
+        | 'agent-acted'
+        | 'agent-asked'
+        | 'agent-undecided'
+        | 'agent-failed'
       what: string
       runId?: string
       rootRunId?: string

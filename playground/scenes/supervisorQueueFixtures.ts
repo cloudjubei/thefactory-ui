@@ -291,6 +291,7 @@ export function useBoardSupervisor(which: SupervisorCase): UseSupervisor {
   const record: SupervisorRecord = {
     scope: { kind: 'project', projectId: PROJECT },
     enabled,
+    agent: true,
     actions: quiet ? [] : ACTIONS,
     fallbackModel: { runner: 'cli', cli: 'claude', model: 'claude-sonnet-4-5' },
   }

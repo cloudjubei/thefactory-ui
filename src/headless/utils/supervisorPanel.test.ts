@@ -6,6 +6,7 @@ import type { ScopeStop, SupervisorRecord } from './supervisorPanelTypes'
 const RECORD: SupervisorRecord = {
   scope: { kind: 'project', projectId: 'tools' },
   enabled: true,
+  agent: true,
   actions: [
     {
       id: 'a1',

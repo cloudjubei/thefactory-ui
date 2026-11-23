@@ -28,6 +28,11 @@ export const SUPERVISOR_ACTION_WHY: Readonly<Record<ActionKind, string>> = {
   'closed-ask': 'What it asked was settled elsewhere.',
   started: 'Next in the queue, with a slot free.',
   refused: 'The start was refused.',
+  'agent-started': 'Its rules had no answer, so an agent is looking into it.',
+  'agent-acted': 'The agent found the cause and dealt with it.',
+  'agent-asked': 'The agent looked into it and asks you.',
+  'agent-undecided': 'The agent could not settle it, so it is yours.',
+  'agent-failed': 'The agent could not start, so it is yours.',
 }
 
 /** What "Did:" names when the action carried no tool or choice. */
@@ -38,4 +43,9 @@ export const SUPERVISOR_ACTION_DID: Readonly<Record<ActionKind, string>> = {
   'closed-ask': 'close ask',
   started: 'start queued work',
   refused: 'start queued work',
+  'agent-started': 'start an agent',
+  'agent-acted': 'act',
+  'agent-asked': 'ask',
+  'agent-undecided': 'hand to you',
+  'agent-failed': 'hand to you',
 }
