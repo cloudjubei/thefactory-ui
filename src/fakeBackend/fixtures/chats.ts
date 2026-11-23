@@ -141,17 +141,50 @@ const CONTEXT_FIELDS = [
 const sameContext = (a: ChatContext, b: ChatContext) =>
   CONTEXT_FIELDS.every((field) => a[field] === b[field])
 
+/**
+ * Identity of a chat inside this store.
+ * Kept here so the fake backend imports no package at run time.
+ */
+function sentChatKey(context: ChatContext): string {
+  return JSON.stringify(CONTEXT_FIELDS.map((field) => context[field] ?? null))
+}
+
 export const findFakeChat = (context: ChatContext): Chat | undefined =>
   FAKE_CHATS.find((chat) => sameContext(chat.context, context))
 
+type StoredMessage = NonNullable<Chat['messages']>[number]
+
+/** Messages a send appended, keyed by chat, so a later read returns them. */
+const sentMessages = new Map<string, StoredMessage[]>()
+
+function openedChat(context: ChatContext): Chat {
+  return (
+    findFakeChat(context) ?? {
+      context,
+      messages: [],
+      settings: FAKE_CHAT_SETTINGS[context.type],
+      ...FAKE_STAMP,
+    }
+  )
+}
+
 /** The chat of a context: stored, or opened the first time it is asked for, as the real backend does. */
-export const fakeChatOf = (context: ChatContext): Chat =>
-  findFakeChat(context) ?? {
-    context,
-    messages: [],
-    settings: FAKE_CHAT_SETTINGS[context.type],
-    ...FAKE_STAMP,
-  }
+export const fakeChatOf = (context: ChatContext): Chat => {
+  const base = openedChat(context)
+  const sent = sentMessages.get(sentChatKey(context))
+  return sent ? { ...base, messages: sent } : base
+}
+
+/** Remember messages a send stored, and return the chat as a later read would. */
+export function appendFakeChatMessages(
+  context: ChatContext,
+  messages: readonly StoredMessage[],
+): Chat {
+  const current = fakeChatOf(context)
+  const next = [...(current.messages ?? []), ...messages]
+  sentMessages.set(sentChatKey(context), next)
+  return { ...current, messages: next }
+}
 
 export function fakeChatSummaryOf({ messages = [], ...chat }: Chat): GetChatSummaryResponse {
   return {

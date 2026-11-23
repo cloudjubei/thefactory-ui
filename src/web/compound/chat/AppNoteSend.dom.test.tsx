@@ -2,7 +2,9 @@ import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { describe, expect, it, vi } from 'vitest'
 import ChatInput from './ChatInput'
+import { useChatComposer } from '../../../headless/hooks/useChatComposer'
 import type { AppNote } from '../../../headless/utils/appNotesTypes'
+import type { ChatDraft } from '../../../headless/utils/chatDraftTypes'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 vi.stubGlobal(
@@ -23,6 +25,50 @@ vi.mock('../files/FileMentionsTextarea', () => ({
 vi.mock('../../primitives/Tooltip', () => ({
   default: ({ children }: { children: React.ReactNode }) => children,
 }))
+
+const draftHarness = vi.hoisted(() => {
+  const listeners = new Set<() => void>()
+  const state: { draft: ChatDraft } = {
+    draft: { text: '', attachments: [], pending: [], paused: false },
+  }
+  const sendMessage = vi.fn(async () => false)
+  const uploads = {
+    subscribe: () => () => {},
+    getUploads: () => [],
+    attach: () => {},
+    stop: () => {},
+    dismiss: () => {},
+    retry: () => {},
+  }
+  return { listeners, state, sendMessage, uploads }
+})
+
+vi.mock('../../../headless/contexts/createChatsContext', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../../../headless/contexts/createChatsContext')>()
+  return {
+    ...actual,
+    useChats: () =>
+      ({
+        getDraftState: () => draftHarness.state.draft,
+        updateDraftState: (_ctx: unknown, fn: (prev: ChatDraft) => ChatDraft) => {
+          const next = fn(draftHarness.state.draft)
+          if (next === draftHarness.state.draft) return
+          draftHarness.state.draft = next
+          for (const listener of draftHarness.listeners) listener()
+        },
+        subscribeDraft: (_ctx: unknown, listener: () => void) => {
+          draftHarness.listeners.add(listener)
+          return () => {
+            draftHarness.listeners.delete(listener)
+          }
+        },
+        sendMessage: draftHarness.sendMessage,
+        getChat: () => undefined,
+        attachmentUploads: { forChat: () => draftHarness.uploads },
+      }) as unknown as ReturnType<typeof actual.useChats>,
+  }
+})
 
 const picks: AppNote[] = [
   {
@@ -172,6 +218,59 @@ describe('App notes send', () => {
         .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })),
     )
     expect(send).toHaveBeenCalledOnce()
+    await act(async () => root.unmount())
+  })
+
+  it('keeps notes when composer.send returns false and clearOnSend is set', async () => {
+    let release!: (delivered: boolean) => void
+    draftHarness.listeners.clear()
+    draftHarness.sendMessage.mockReset()
+    draftHarness.sendMessage.mockImplementation(
+      () =>
+        new Promise<boolean>((done) => {
+          release = done
+        }),
+    )
+    const note = picks[0]!
+    draftHarness.state.draft = {
+      text: 'Look at the renewal date.',
+      attachments: [],
+      appNotes: [note],
+      pending: [],
+      paused: false,
+    }
+    const host = document.createElement('div')
+    const root = createRoot(host)
+    function Wired() {
+      const composer = useChatComposer({ type: 'PROJECT', projectId: 'p1' })
+      return (
+        <ChatInput
+          value={composer.text}
+          onChange={composer.setText}
+          onSend={composer.send}
+          appNotes={composer.appNotes}
+          onChangeAppNotes={composer.setAppNotes}
+          attachments={composer.attachments}
+          onChangeAttachments={composer.setAttachments}
+          clearOnSend
+        />
+      )
+    }
+    await act(async () => {
+      root.render(<Wired />)
+    })
+    expect(host.querySelector('[aria-label="Comment on app selection 1"]')).not.toBeNull()
+    await act(async () => {
+      host
+        .querySelector('form')!
+        .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    })
+    expect(draftHarness.sendMessage).toHaveBeenCalled()
+    await act(async () => {
+      release(false)
+    })
+    expect(draftHarness.state.draft.appNotes).toEqual([note])
+    expect(host.querySelector('[aria-label="Comment on app selection 1"]')).not.toBeNull()
     await act(async () => root.unmount())
   })
 })

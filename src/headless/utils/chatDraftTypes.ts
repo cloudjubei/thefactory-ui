@@ -1,4 +1,5 @@
 import type { SyncKVStorage } from '../hooks/useStorageBackedState'
+import type { AppNote } from './appNotesTypes'
 import type { ChatVideoMarkDraft } from './videoMarksTypes'
 
 /**
@@ -12,6 +13,8 @@ export type PendingChatMessage = {
   attachments: string[]
   /** Moments marked on the chat's videos, as the composer held them. */
   videoMarks?: ChatVideoMarkDraft[]
+  /** App notes waiting to go with this message, as the composer held them. */
+  appNotes?: AppNote[]
 }
 
 /**
@@ -23,6 +26,8 @@ export type ChatDraft = {
   attachments: string[]
   /** Moments marked on the chat's videos, to go with the message; left out while there are none. */
   videoMarks?: ChatVideoMarkDraft[]
+  /** App notes to go with the message; left out while there are none. */
+  appNotes?: AppNote[]
   pending: PendingChatMessage[]
   /**
    * The queue waits for the person instead of going out on its own — set when
@@ -42,6 +47,8 @@ export type OutgoingChatMessage = {
   text: string
   attachments: string[]
   videoMarks?: ChatVideoMarkDraft[]
+  /** App notes to send with this message. A note-only message has text of `''`. */
+  appNotes?: AppNote[]
 }
 
 /**

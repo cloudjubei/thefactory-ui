@@ -621,6 +621,10 @@ export {
   type ChatInputAttachment,
   type ChatInputProps,
 } from './compound/chat/ChatInput'
+export {
+  default as ScreenshotAnnotationPanel,
+  type ScreenshotAnnotationPanelProps,
+} from './compound/chat/ScreenshotAnnotationPanel'
 export { default as MessageList, type MessageListProps } from './compound/chat/MessageList'
 export { default as MessageRow, type MessageRowProps } from './compound/chat/MessageRow'
 export { default as ChatStopCard, type ChatStopCardProps } from './compound/chat/ChatStopCard'

@@ -2,7 +2,9 @@ import { useState, type ReactNode } from 'react'
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import ChatInput from './ChatInput'
+import { useChatComposer } from '../../../headless/hooks/useChatComposer'
 import type { AppNote } from '../../../headless/utils/appNotesTypes'
+import type { ChatDraft } from '../../../headless/utils/chatDraftTypes'
 
 vi.mock('nativewind', () => ({ useColorScheme: () => ({ colorScheme: 'light' }) }))
 vi.mock('react-native', () => ({
@@ -53,6 +55,50 @@ vi.mock('./DictationWave', () => ({ default: () => null }))
 vi.mock('./ChatUploadStrip', () => ({ default: () => null }))
 vi.mock('./ChatVideoAttachment', () => ({ default: () => null }))
 vi.mock('./VideoAttachmentCard', () => ({ default: () => null }))
+
+const draftHarness = vi.hoisted(() => {
+  const listeners = new Set<() => void>()
+  const state: { draft: ChatDraft } = {
+    draft: { text: '', attachments: [], pending: [], paused: false },
+  }
+  const sendMessage = vi.fn(async () => false)
+  const uploads = {
+    subscribe: () => () => {},
+    getUploads: () => [],
+    attach: () => {},
+    stop: () => {},
+    dismiss: () => {},
+    retry: () => {},
+  }
+  return { listeners, state, sendMessage, uploads }
+})
+
+vi.mock('../../../headless/contexts/createChatsContext', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../../../headless/contexts/createChatsContext')>()
+  return {
+    ...actual,
+    useChats: () =>
+      ({
+        getDraftState: () => draftHarness.state.draft,
+        updateDraftState: (_ctx: unknown, fn: (prev: ChatDraft) => ChatDraft) => {
+          const next = fn(draftHarness.state.draft)
+          if (next === draftHarness.state.draft) return
+          draftHarness.state.draft = next
+          for (const listener of draftHarness.listeners) listener()
+        },
+        subscribeDraft: (_ctx: unknown, listener: () => void) => {
+          draftHarness.listeners.add(listener)
+          return () => {
+            draftHarness.listeners.delete(listener)
+          }
+        },
+        sendMessage: draftHarness.sendMessage,
+        getChat: () => undefined,
+        attachmentUploads: { forChat: () => draftHarness.uploads },
+      }) as unknown as ReturnType<typeof actual.useChats>,
+  }
+})
 
 afterEach(cleanup)
 
@@ -174,5 +220,48 @@ describe('native app notes send', () => {
     expect(change).not.toHaveBeenCalled()
     await act(async () => resolve())
     expect(change).toHaveBeenCalledWith([])
+  })
+
+  it('keeps notes when composer.send returns false and clearOnSend is set', async () => {
+    let release!: (delivered: boolean) => void
+    draftHarness.listeners.clear()
+    draftHarness.sendMessage.mockReset()
+    draftHarness.sendMessage.mockImplementation(
+      () =>
+        new Promise<boolean>((done) => {
+          release = done
+        }),
+    )
+    draftHarness.state.draft = {
+      text: 'Look at the renewal date.',
+      attachments: [],
+      appNotes: [pick],
+      pending: [],
+      paused: false,
+    }
+    function Wired() {
+      const composer = useChatComposer({ type: 'PROJECT', projectId: 'p1' })
+      return (
+        <ChatInput
+          value={composer.text}
+          onChange={composer.setText}
+          onSend={composer.send}
+          appNotes={composer.appNotes}
+          onChangeAppNotes={composer.setAppNotes}
+          attachments={composer.attachments}
+          onChangeAttachments={composer.setAttachments}
+          clearOnSend
+        />
+      )
+    }
+    const view = render(<Wired />)
+    expect(view.getByLabelText('Comment on app selection 1')).toBeTruthy()
+    fireEvent.click(view.getByLabelText('Send message'))
+    expect(draftHarness.sendMessage).toHaveBeenCalled()
+    await act(async () => {
+      release(false)
+    })
+    expect(draftHarness.state.draft.appNotes).toEqual([pick])
+    expect(view.getByLabelText('Comment on app selection 1')).toBeTruthy()
   })
 })

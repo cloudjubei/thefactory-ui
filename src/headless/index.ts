@@ -2203,6 +2203,7 @@ export {
 } from './contexts/createChatsContext'
 export {
   useChatComposer,
+  type ChatComposerSendMeta,
   type ChatPendingQueue,
   type UseChatComposer,
   type UseChatComposerOptions,
@@ -2227,6 +2228,7 @@ export {
   removePendingMessage,
   restoreUnsent,
   serializeChatDraft,
+  setDraftAppNotes,
   setDraftVideoMarks,
   takeOutgoing,
   takePending,
@@ -3094,6 +3096,23 @@ export type { ProjectAppViewHandle } from './utils/appCapture'
 export { useAppNotes } from './hooks/useAppNotes'
 export { parseAppElementPick } from './utils/appNotes'
 export type { AppNote, AppElementPick, AppNoteComposerProps } from './utils/appNotesTypes'
+export { useScreenshotAnnotation } from './hooks/useScreenshotAnnotation'
+export { ScreenshotAnnotationDraft } from './utils/screenshotAnnotationDraft'
+export {
+  cropToImagePixels,
+  keptAttachmentPath,
+  previewCropMapping,
+  resolveScreenshotCrop,
+  screenshotCropPercent,
+  screenshotDragRect,
+  screenshotPreviewUri,
+  screenshotUnavailableReason,
+} from './utils/screenshotAnnotation'
+export {
+  SCREENSHOT_ANNOTATION_IDLE,
+  SCREENSHOT_ANNOTATION_TEXT,
+} from './utils/screenshotAnnotationConstants'
+export type * from './utils/screenshotAnnotationTypes'
 export { useProjectData, type UseProjectData } from './hooks/useProjectData'
 
 // Per-project encrypted store of standing context (logins, API keys,

@@ -433,6 +433,50 @@ describe('fakeBackendRoutes', () => {
     expect(post('/api/v1/chats/get', {}).status).toBe(404)
   })
 
+  it('keeps an app note on the message a chat send stored', () => {
+    const context = {
+      type: 'PROJECT_TOPIC',
+      projectId: 'thefactory-tools',
+      topicId: 'route-note',
+    }
+    const note = {
+      id: 'app-note-1',
+      projectId: 'thefactory-tools',
+      comment: 'Make the renewal date easier to find.',
+      targets: [
+        {
+          kind: 'element',
+          selector: '#renewal',
+          outerHtml: '<p id="renewal">Renews November 20</p>',
+        },
+      ],
+    }
+    const message = { role: 'user', content: 'Look at the renewal date.', appNotes: [note] }
+    expect(post('/api/v1/chats/messages', { context, messages: [message] }).status).toBe(200)
+    const stored = post('/api/v1/chats/get', { context }).body as {
+      messages: { content: string; appNotes?: unknown[] }[]
+    }
+    expect(stored.messages.at(-1)).toMatchObject({ content: message.content, appNotes: [note] })
+    expect(
+      post('/api/v1/completions/send-with-tools', {
+        request: { chatContext: context, llmConfig: { model: 'm', provider: 'anthropic' } },
+        settings: {},
+      }).body,
+    ).toEqual({ resultType: 'success', results: [] })
+    const cli = {
+      type: 'PROJECT_TOPIC',
+      projectId: 'thefactory-tools',
+      topicId: 'route-note-cli',
+    }
+    expect(
+      post('/api/v1/completions/send-chat-with-cli', { chatContext: cli, message }).status,
+    ).toBe(200)
+    const cliChat = post('/api/v1/chats/get', { context: cli }).body as {
+      messages: { appNotes?: unknown[] }[]
+    }
+    expect(cliChat.messages.at(-1)?.appNotes).toEqual([note])
+  })
+
   it('answers the summary of a stored chat', () => {
     const context = { type: 'PROJECT', projectId: 'thefactory-tools' }
     expect(post('/api/v1/chats/summary', { context }).body).toMatchObject({ messageCount: 4 })

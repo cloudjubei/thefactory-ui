@@ -557,6 +557,8 @@ export {
   ChatKindTile,
   ChatSettingsMenu,
   ChatInput,
+  ScreenshotAnnotationPanel,
+  type ScreenshotAnnotationPanelProps,
   ChatDropController,
   useChatDropTarget,
   PendingMessagesStack,

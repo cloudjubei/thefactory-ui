@@ -13,6 +13,7 @@ import {
   pendingTurnStep,
   refuseDraftVideoMark,
   removePendingMessage,
+  setDraftAppNotes,
   setDraftVideoMarks,
   restoreUnsent,
   serializeChatDraft,
@@ -26,6 +27,7 @@ import {
   CHAT_DRAFT_STORAGE_PREFIX,
   EMPTY_CHAT_DRAFT,
 } from './chatDraftConstants'
+import type { AppNote } from './appNotesTypes'
 import type {
   ChatComposerBlockers,
   ChatDraft,
@@ -664,5 +666,118 @@ describe('video marks in the draft', () => {
     const marked = setDraftVideoMarks(draft({ text: 'x' }), [mark(6)])
     expect(marked).toEqual(draft({ text: 'x', videoMarks: [mark(6)] }))
     expect(setDraftVideoMarks(marked, [])).toEqual(draft({ text: 'x' }))
+  })
+})
+
+describe('app notes in the draft', () => {
+  const note = (id: string, selector: string): AppNote => ({
+    id,
+    projectId: 'p1',
+    comment: id,
+    targets: [{ kind: 'element', selector, outerHtml: `<p id="${selector.slice(1)}"></p>` }],
+  })
+
+  it('counts a draft holding only notes as something to keep and send', () => {
+    expect(isEmptyChatDraft(draft({ appNotes: [note('app-note-1', '#renewal')] }))).toBe(false)
+  })
+
+  it('keeps notes through storage', () => {
+    const full = draft({
+      text: 'here',
+      appNotes: [note('app-note-1', '#renewal')],
+      pending: [{ ...item('1', 'queued'), appNotes: [note('app-note-2', '#save')] }],
+    })
+    expect(parseChatDraft(serializeChatDraft(full, NOW), NOW)).toEqual(full)
+  })
+
+  it('drops a stored note whose screenshot is not a kept attachment path', () => {
+    const raw = JSON.stringify({
+      savedAt: NOW,
+      appNotes: [
+        { ...note('app-note-1', '#renewal'), screenshotFile: 'data:image/png;base64,abc' },
+      ],
+    })
+    expect(parseChatDraft(raw, NOW)).toBeNull()
+  })
+
+  it('queues the composer’s notes with the message, and clears them from the composer', () => {
+    const next = enqueueMessage(
+      draft({ text: 'typed', appNotes: [note('app-note-1', '#renewal')] }),
+      'q1',
+      {
+        text: 'typed',
+        attachments: [],
+      },
+    )
+    expect(next.appNotes).toBeUndefined()
+    expect(next.pending).toEqual([
+      { ...item('q1', 'typed'), appNotes: [note('app-note-1', '#renewal')] },
+    ])
+  })
+
+  it('sends the notes that were on the draft and leaves the draft without them', () => {
+    const before = draft({ text: 'Look', appNotes: [note('app-note-1', '#renewal')] })
+    const { message, rest, taken } = takeOutgoing(before, identity)
+    expect(message).toEqual({
+      text: 'Look',
+      attachments: [],
+      appNotes: [note('app-note-1', '#renewal')],
+    })
+    expect(rest).toEqual(EMPTY_CHAT_DRAFT)
+    expect(taken.composer?.appNotes).toEqual([note('app-note-1', '#renewal')])
+  })
+
+  it('keeps notes picked on the composer when the queue alone is sent', () => {
+    const before = draft({
+      appNotes: [note('app-note-2', '#save')],
+      pending: [{ ...item('q1', 'queued'), appNotes: [note('app-note-1', '#renewal')] }],
+    })
+    const { message, rest } = takePending(before, identity)
+    expect(message.appNotes).toEqual([note('app-note-1', '#renewal')])
+    expect(rest.appNotes).toEqual([note('app-note-2', '#save')])
+  })
+
+  it('puts a failed send’s notes in front of notes picked since', () => {
+    const next = restoreUnsent(draft({ appNotes: [note('app-note-2', '#save')] }), {
+      pending: [],
+      composer: { text: 'failed', attachments: [], appNotes: [note('app-note-1', '#renewal')] },
+    })
+    expect(next.appNotes).toEqual([note('app-note-1', '#renewal'), note('app-note-2', '#save')])
+  })
+
+  it('keeps the first note when two lists share its id', () => {
+    expect(
+      mergeOutgoing(
+        [
+          { text: 'a', attachments: [], appNotes: [note('app-note-1', '#renewal')] },
+          {
+            text: 'b',
+            attachments: [],
+            appNotes: [
+              { ...note('app-note-1', '#other'), comment: 'later' },
+              note('app-note-2', '#save'),
+            ],
+          },
+        ],
+        identity,
+      ).appNotes,
+    ).toEqual([note('app-note-1', '#renewal'), note('app-note-2', '#save')])
+  })
+
+  it('moves a queued message’s notes back into the composer to edit', () => {
+    const before = draft({
+      appNotes: [note('app-note-1', '#renewal')],
+      pending: [{ ...item('q1', 'x'), appNotes: [note('app-note-2', '#save')] }],
+    })
+    expect(editPendingMessage(before, 'q1').appNotes).toEqual([
+      note('app-note-1', '#renewal'),
+      note('app-note-2', '#save'),
+    ])
+  })
+
+  it('sets the composer’s notes, and drops the field once none are left', () => {
+    const noted = setDraftAppNotes(draft({ text: 'x' }), [note('app-note-1', '#renewal')])
+    expect(noted).toEqual(draft({ text: 'x', appNotes: [note('app-note-1', '#renewal')] }))
+    expect(setDraftAppNotes(noted, [])).toEqual(draft({ text: 'x' }))
   })
 })

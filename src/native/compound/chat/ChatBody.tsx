@@ -166,7 +166,7 @@ export interface ChatBodyProps {
     content: string,
     attachments?: string[],
     meta?: Parameters<ChatInputProps['onSend']>[2],
-  ) => Promise<void> | void
+  ) => void | boolean | Promise<void | boolean>
   onAbort?: () => Promise<void> | void
   /**
    * Whether a turn is still running, according to the SERVER. `liveState.isSending`
@@ -438,7 +438,7 @@ function ChatBodyInner({
       pendingQueue.enqueue({ text, attachments })
       return
     }
-    await onSend(text, attachments, meta)
+    return onSend(text, attachments, meta)
   }
   const handleAbort = onAbort
     ? () => {

@@ -2,6 +2,8 @@ import type { ProcessRun } from 'thefactory-tools/types'
 import type {
   AnswerRunThroughIssueData,
   AnswerRunThroughIssueResponse,
+  AddChatMessagesData,
+  AddChatMessagesResponse,
   ChatContext,
   CompactChatNowData,
   CompactChatNowResponse,
@@ -177,6 +179,10 @@ import type {
   ReadProviderOAuthSetupResponse,
   ResolveReviewEvidenceData,
   ResolveReviewEvidenceResponse,
+  SendChatWithCliData,
+  SendChatWithCliResponse,
+  SendCompletionWithToolsData,
+  SendCompletionWithToolsResponse,
   ListSourceRecordsData,
   ListSourceRecordsResponse,
   ListStoriesData,
@@ -226,6 +232,7 @@ import { FAKE_CLI_RUN } from './fixtures/cliRuns'
 import {
   FAKE_CHAT_SETTINGS,
   FAKE_CHATS,
+  appendFakeChatMessages,
   fakeChatOf,
   fakeChatSummaryOf,
   findFakeChat,
@@ -640,6 +647,28 @@ const READS: readonly FakeRoute[] = [
   })),
   readByPost<GetChatData, GetChatResponse>('/api/v1/chats/get', (request) =>
     fakeChatOf(contextOf(request)),
+  ),
+  write<AddChatMessagesData, AddChatMessagesResponse>('/api/v1/chats/messages', (request) => {
+    const body = request.body as AddChatMessagesData['body']
+    if (!body?.context || !body.messages?.length) {
+      return request.invalid('A chat message names its context and at least one message.')
+    }
+    return appendFakeChatMessages(body.context, body.messages)
+  }),
+  write<SendCompletionWithToolsData, SendCompletionWithToolsResponse>(
+    '/api/v1/completions/send-with-tools',
+    () => ({ resultType: 'success', results: [] }),
+  ),
+  write<SendChatWithCliData, SendChatWithCliResponse>(
+    '/api/v1/completions/send-chat-with-cli',
+    (request) => {
+      const body = request.body as SendChatWithCliData['body']
+      if (!body?.chatContext || !body.message) {
+        return request.invalid('A CLI send names its chat and its message.')
+      }
+      appendFakeChatMessages(body.chatContext, [body.message])
+      return {}
+    },
   ),
   readByPost<GetChatSummaryData, GetChatSummaryResponse>('/api/v1/chats/summary', (request) => {
     const context = contextOf(request)

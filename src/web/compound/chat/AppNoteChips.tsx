@@ -1,11 +1,20 @@
+import { useRef } from 'react'
 import { appNoteLabel, appNoteMarkup } from '../../../headless/utils/appNotes'
 import type { AppNoteComposerProps } from '../../../headless/utils/appNotesTypes'
+import { useScreenshotAnnotation } from '../../../headless/hooks/useScreenshotAnnotation'
+import ScreenshotAnnotationPanel from './ScreenshotAnnotationPanel'
 
 export default function AppNoteChips({
   appNotes = [],
   onChangeAppNotes,
   onShowApp,
+  screenshot,
 }: AppNoteComposerProps) {
+  const noteIds = useRef(appNotes)
+  noteIds.current = appNotes
+  const screenshotView = useScreenshotAnnotation(screenshot, () =>
+    noteIds.current.map((note) => note.id),
+  )
   return (
     <div className="flex flex-col gap-2 p-2" aria-label="App selections">
       {onShowApp ? (
@@ -17,6 +26,7 @@ export default function AppNoteChips({
           Show app
         </button>
       ) : null}
+      {screenshotView ? <ScreenshotAnnotationPanel view={screenshotView} /> : null}
       {appNotes.map((note, index) => (
         <div
           key={note.id}

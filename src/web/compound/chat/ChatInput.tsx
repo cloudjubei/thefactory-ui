@@ -40,9 +40,8 @@ import { useChatDropTarget } from './ChatDropController'
 import VideoAttachmentCard from './VideoAttachmentCard'
 
 import AppNoteChips from './AppNoteChips'
-import type { AppNote, AppNoteComposerProps } from '../../../headless/utils/appNotesTypes'
-
-type SendReason = 'user' | 'suggested_action'
+import type { ChatComposerSendMeta } from '../../../headless/hooks/useChatComposer'
+import type { AppNoteComposerProps } from '../../../headless/utils/appNotesTypes'
 
 export type ChatInputAttachment = string
 
@@ -60,8 +59,8 @@ export type ChatInputProps = AppNoteComposerProps & {
   onSend: (
     message: string,
     attachments: ChatInputAttachment[],
-    meta?: { reason?: SendReason; appNotes?: AppNote[] },
-  ) => void | Promise<void>
+    meta?: ChatComposerSendMeta,
+  ) => void | boolean | Promise<void | boolean>
   onAbort?: () => void
   isThinking?: boolean
   isConfigured?: boolean
@@ -127,6 +126,7 @@ export default function ChatInput({
   appNotes = [],
   onChangeAppNotes,
   onShowApp,
+  screenshot,
   attachments,
   onChange,
   onChangeAttachments,
@@ -443,8 +443,10 @@ export default function ChatInput({
       noteSendingRef.current = true
       setSubmittingNotes(true)
       try {
-        await onSend(safeValue, safeAttachments, { reason: 'user', appNotes })
-        if (clearOnSend) {
+        const sent = await onSend(safeValue, safeAttachments, { reason: 'user', appNotes })
+        // False means the transport did not take the message. The composer has
+        // already put the notes back; clearing them here would empty the chips.
+        if (clearOnSend && sent !== false) {
           // Picks stay editable during the send. Only consume the unchanged submitted objects.
           const current = draftRef.current
           onChangeAppNotes?.(current.appNotes.filter((pick) => !appNotes.includes(pick)))
@@ -658,11 +660,12 @@ export default function ChatInput({
         </div>
       ) : null}
 
-      {onShowApp || appNotes.length ? (
+      {onShowApp || screenshot || appNotes.length ? (
         <AppNoteChips
           appNotes={appNotes}
           onChangeAppNotes={onChangeAppNotes}
           onShowApp={onShowApp}
+          screenshot={screenshot}
         />
       ) : null}
       <form onSubmit={handleFormSubmit} className="p-2">

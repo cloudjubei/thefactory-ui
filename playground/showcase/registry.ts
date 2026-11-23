@@ -9,6 +9,8 @@ import { BEFORE_AFTER_VIDEO_SCENES } from '../scenes/beforeAfterVideo'
 import { APP_BRIDGE_ASK_SCENES } from '../scenes/appBridgeAsks'
 import { APP_FEATURE_REQUEST_SCENES } from '../scenes/appFeatureRequest'
 import { APP_NOTE_SCENES } from '../scenes/appNotes'
+import { APP_NOTE_SEND_SCENES } from '../scenes/appNoteSend'
+import { SCREENSHOT_ANNOTATION_SCENES } from '../scenes/screenshotAnnotation'
 import { REMOTE_BROWSER_SCENES } from '../scenes/remoteBrowser'
 import { APP_UNREAD_SCENES } from '../scenes/appUnread'
 import { CHAT_SCENES } from '../scenes/chat'
@@ -280,6 +282,8 @@ export const SCENES: readonly Scene[] = [
   ...APP_FEATURE_REQUEST_SCENES,
   ...APP_UNREAD_SCENES,
   ...APP_NOTE_SCENES,
+  ...APP_NOTE_SEND_SCENES,
+  ...SCREENSHOT_ANNOTATION_SCENES,
   ...REMOTE_BROWSER_SCENES,
   ...DOCUMENT_REPORT_SCENES,
   ...GIT_GRAPH_UNCOMMITTED_SCENES,

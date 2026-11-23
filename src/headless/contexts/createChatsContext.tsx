@@ -71,6 +71,8 @@ import { lastMessageDeleteFromIndex } from '../utils/chatTurnDelete'
 import { chatCliRunnerToDispatchOptions, parseCliRunUpdateEvent } from '../utils/cliRunner'
 import { cliRunSettlement, cliRunUpdateSettlement } from '../utils/cliRunActivity'
 import type { CliRunEndRecord } from '../utils/cliRunActivityTypes'
+import { appNotesToSend } from '../utils/appNotes'
+import type { AppNote } from '../utils/appNotesTypes'
 import { ChatDraftStore } from '../utils/chatDraftStore'
 import { CHAT_TURN_LIMIT_START } from '../utils/chatTurnLimitConstants'
 import type { ChatDraft, ChatDraftListener } from '../utils/chatDraftTypes'
@@ -132,6 +134,8 @@ const FALLBACK_COMPLETION_SETTINGS: CompletionSettings = {
 
 /** What goes with a message besides its words and files. */
 export type ChatSendOptions = {
+  /** App notes from the launching chat's draft. A note-only send has no text. */
+  appNotes?: AppNote[]
   /** Moments the person marked on the chat's videos. */
   videoMarks?: VideoMarkedMoment[]
   /**
@@ -209,7 +213,8 @@ export type ChatsContextValue = {
    *
    * Resolves `true` once the user message reached the server (a failure after
    * that still lands as `sendError`), `false` when it did not — the caller then
-   * puts the text back. `options.videoMarks` ride on the user message.
+   * puts the text back. `options.appNotes` and `options.videoMarks` ride on the user message,
+   * on an API turn and a CLI turn alike. A note alone is enough to send.
    */
   sendMessage: (
     ctx: ChatCtx,
@@ -371,8 +376,10 @@ function buildUserMessage(
   content: string,
   files?: string[],
   videoMarks?: VideoMarkedMoment[],
+  appNotes?: AppNote[],
 ): SentChatMessage {
   const ts = nowIso()
+  const notes = appNotesToSend(appNotes ?? [])
   return {
     role: 'user',
     content,
@@ -381,6 +388,7 @@ function buildUserMessage(
     durationMs: 0,
     ...(files && files.length > 0 ? { files } : {}),
     ...(videoMarks && videoMarks.length > 0 ? { videoMarks } : {}),
+    ...(notes.length > 0 ? { appNotes: notes } : {}),
   }
 }
 
@@ -1048,7 +1056,14 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
       ): Promise<boolean> => {
         const trimmed = content.trim()
         const videoMarks = options.videoMarks ?? []
-        if (trimmed.length === 0 && !attachments?.length && videoMarks.length === 0) return false
+        const appNotes = appNotesToSend(options.appNotes ?? [])
+        if (
+          trimmed.length === 0 &&
+          !attachments?.length &&
+          videoMarks.length === 0 &&
+          appNotes.length === 0
+        )
+          return false
 
         // A send made while an earlier one is still out (a queued message sent
         // now) owns the chat's live state from here: the earlier call's cleanup
@@ -1069,7 +1084,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         // cliRunId) for the run's terminal `cli:run-update` to clear.
         let detachedCli = false
         try {
-          const userMessage = buildUserMessage(trimmed, attachments, videoMarks)
+          const userMessage = buildUserMessage(trimmed, attachments, videoMarks, appNotes)
           const { settings, systemPrompt } = buildToolSettings(ctx)
 
           // CLI-backed chat: the fast route persists the user message, STARTS the

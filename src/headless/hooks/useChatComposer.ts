@@ -2,6 +2,8 @@ import { useCallback, useMemo, useRef, useSyncExternalStore } from 'react'
 import { getChatContextKey } from 'thefactory-tools/utils'
 import type { ChatContext } from '../api'
 import { useChats } from '../contexts/createChatsContext'
+import { appNotesToSend } from '../utils/appNotes'
+import type { AppNote } from '../utils/appNotesTypes'
 import {
   editPendingMessage,
   enqueueMessage,
@@ -9,6 +11,7 @@ import {
   refuseDraftVideoMark,
   removePendingMessage,
   restoreUnsent,
+  setDraftAppNotes,
   setDraftVideoMarks,
   takeOutgoing,
   takePending,
@@ -46,6 +49,15 @@ export type ChatPendingQueue = {
   pause: () => void
 }
 
+/**
+ * What a chat input passes as `onSend`'s third argument. `reason` is why the
+ * input sent; the message does not carry it. `appNotes` are the chips.
+ */
+export type ChatComposerSendMeta = {
+  reason?: 'user' | 'suggested_action'
+  appNotes?: AppNote[]
+}
+
 export type UseChatComposer = {
   text: string
   attachments: string[]
@@ -64,10 +76,21 @@ export type UseChatComposer = {
    */
   videoMarks: ChatVideoMarks
   /**
-   * Send what the composer holds — after anything still queued, as one
-   * message. A send that does not reach the server is put back.
+   * App notes waiting to go with the next message. A note-only send (no text) still goes out.
+   * Notes picked while a send is in flight stay; a send that does not reach the server puts its
+   * notes back.
    */
-  send: (text: string, attachments?: string[]) => Promise<void>
+  appNotes: AppNote[]
+  setAppNotes: (notes: AppNote[]) => void
+  /**
+   * Send what the composer holds — after anything still queued, as one
+   * message. Resolves false when the send does not reach the server: the
+   * notes are put back, and a `clearOnSend` input must not clear them.
+   * Resolves true when it went out. `meta.appNotes`, when passed, are the
+   * chips at send time and go out in place of the notes still on the draft.
+   * Omit them to send the draft's.
+   */
+  send: (text: string, attachments?: string[], meta?: ChatComposerSendMeta) => Promise<boolean>
   queue: ChatPendingQueue
 }
 
@@ -79,6 +102,7 @@ export type UseChatComposerOptions = {
 }
 
 const NO_MARKS: ChatVideoMarkDraft[] = []
+const NO_NOTES: AppNote[] = []
 
 let pendingIdSeq = 0
 function nextPendingId(): string {
@@ -154,18 +178,24 @@ export function useChatComposer(
   )
 
   const dispatch = useCallback(
-    async (take: (prev: ChatDraft) => ChatDraftTake) => {
+    async (take: (prev: ChatDraft) => ChatDraftTake): Promise<boolean> => {
       const ctx = contextRef.current
       let taken: ChatDraftTake | undefined
       updateDraftState(ctx, (prev) => {
         taken = take(prev)
         return taken.rest
       })
-      if (!taken) return
+      if (!taken) return false
       const { message } = taken
       const marks = message.videoMarks ?? NO_MARKS
-      if (message.text.length === 0 && message.attachments.length === 0 && marks.length === 0) {
-        return
+      const notes = appNotesToSend(message.appNotes ?? NO_NOTES)
+      if (
+        message.text.length === 0 &&
+        message.attachments.length === 0 &&
+        marks.length === 0 &&
+        notes.length === 0
+      ) {
+        return false
       }
       optionsRef.current.onSent?.()
       let delivered = false
@@ -173,6 +203,7 @@ export function useChatComposer(
       try {
         delivered = await sendMessage(ctx, message.text, message.attachments, {
           videoMarks: videoMarksToSend(marks),
+          ...(notes.length > 0 ? { appNotes: notes } : {}),
           onVideoMarkRefused: (reason) => {
             refusal = reason
           },
@@ -180,11 +211,12 @@ export function useChatComposer(
       } catch {
         delivered = false
       }
-      if (delivered) return
+      if (delivered) return true
       updateDraftState(ctx, (prev) => {
         const restored = restoreUnsent(prev, taken!.taken)
         return refusal ? refuseDraftVideoMark(restored, refusal) : restored
       })
+      return false
     },
     [sendMessage, updateDraftState],
   )
@@ -194,11 +226,22 @@ export function useChatComposer(
     [],
   )
 
+  const setAppNotes = useCallback(
+    (appNotes: AppNote[]) => update((prev) => setDraftAppNotes(prev, appNotes)),
+    [update],
+  )
+
   const send = useCallback(
-    (text: string, attachments?: string[]) =>
-      dispatch((prev) =>
-        takeOutgoing({ ...prev, text, attachments: attachments ?? [] }, canonicalize),
-      ),
+    (text: string, attachments?: string[], meta?: ChatComposerSendMeta) =>
+      dispatch((prev) => {
+        const snapshot = { ...prev, text, attachments: attachments ?? [] }
+        // Chips passed with the send replace the draft's notes. A reason alone
+        // leaves the draft's notes to go out, as a send with no meta does.
+        return takeOutgoing(
+          meta?.appNotes === undefined ? snapshot : setDraftAppNotes(snapshot, meta.appNotes),
+          canonicalize,
+        )
+      }),
     [dispatch, canonicalize],
   )
 
@@ -211,7 +254,9 @@ export function useChatComposer(
       enqueue: (message) => update((prev) => enqueueMessage(prev, nextPendingId(), message)),
       edit: (id) => update((prev) => editPendingMessage(prev, id)),
       remove: (id) => update((prev) => removePendingMessage(prev, id)),
-      sendNow: () => dispatch((prev) => takePending(prev, canonicalize)),
+      sendNow: async () => {
+        await dispatch((prev) => takePending(prev, canonicalize))
+      },
       pause: () =>
         update((prev) =>
           prev.paused || prev.pending.length === 0 ? prev : { ...prev, paused: true },
@@ -220,6 +265,7 @@ export function useChatComposer(
     [draft.pending, draft.paused, isCliChat, update, dispatch, canonicalize],
   )
 
+  const noteItems = draft.appNotes ?? NO_NOTES
   const markItems = draft.videoMarks ?? NO_MARKS
   const videoMarks = useMemo<ChatVideoMarks>(
     () => ({
@@ -246,6 +292,8 @@ export function useChatComposer(
     addAttachment,
     uploads,
     videoMarks,
+    appNotes: noteItems,
+    setAppNotes,
     send,
     queue,
   }

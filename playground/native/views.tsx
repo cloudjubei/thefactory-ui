@@ -101,6 +101,7 @@ import { TEST_WITH_ME_VIEWS } from './testWithMeViews'
 import { TRY_ON_PHONE_VIEWS } from './tryOnPhoneViews'
 import { VARIANT_VIEWS } from './variantViews'
 import { APP_NOTE_VIEWS } from './appNotesViews'
+import { SCREENSHOT_ANNOTATION_VIEWS } from './screenshotAnnotationViews'
 import { REMOTE_BROWSER_VIEWS } from './remoteBrowserViews'
 import { ALREADY_HANDLED_VIEWS } from './alreadyHandledViews'
 import { GROUP_STORY_VIEWS } from './groupStoryViews'
@@ -719,6 +720,7 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   ...EVIDENCE_LINK_VIEWS,
   ...AGENT_PAUSE_VIEWS,
   ...APP_NOTE_VIEWS,
+  ...SCREENSHOT_ANNOTATION_VIEWS,
   ...REMOTE_BROWSER_VIEWS,
   ...CHAT_MESSAGING_VIEWS,
   ...VIDEO_TIMELINE_VIEWS,

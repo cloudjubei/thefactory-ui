@@ -20,6 +20,8 @@ import type {
   PendingTurnStep,
   StoredChatDraft,
 } from './chatDraftTypes'
+import { appNotesOf, mergeAppNotes } from './appNotes'
+import type { AppNote } from './appNotesTypes'
 import {
   mergeVideoMarks,
   videoMarksOf,
@@ -48,7 +50,8 @@ function hasContent(message: OutgoingChatMessage): boolean {
   return (
     message.text.trim().length > 0 ||
     message.attachments.length > 0 ||
-    (message.videoMarks?.length ?? 0) > 0
+    (message.videoMarks?.length ?? 0) > 0 ||
+    (message.appNotes?.length ?? 0) > 0
   )
 }
 
@@ -57,6 +60,14 @@ function withMarks<T extends object>(value: T, marks: ChatVideoMarkDraft[]): T {
   const next: T & { videoMarks?: ChatVideoMarkDraft[] } = { ...value }
   if (marks.length > 0) next.videoMarks = marks
   else delete next.videoMarks
+  return next
+}
+
+/** The value with these notes, or with no `appNotes` at all when there are none. */
+function withNotes<T extends object>(value: T, notes: AppNote[]): T {
+  const next: T & { appNotes?: AppNote[] } = { ...value }
+  if (notes.length > 0) next.appNotes = notes
+  else delete next.appNotes
   return next
 }
 
@@ -77,9 +88,9 @@ function joinTexts(first: string, second: string): string {
 /** The stored form of a draft, or `null` when there is nothing worth keeping. */
 export function serializeChatDraft(draft: ChatDraft, now: number): string | null {
   if (isEmptyChatDraft(draft)) return null
-  const stored: StoredChatDraft = withMarks(
-    { ...draft, savedAt: now },
-    withoutVideoMarkRefusals(draft.videoMarks ?? []),
+  const stored: StoredChatDraft = withNotes(
+    withMarks({ ...draft, savedAt: now }, withoutVideoMarkRefusals(draft.videoMarks ?? [])),
+    draft.appNotes ?? [],
   )
   return JSON.stringify(stored)
 }
@@ -93,11 +104,14 @@ function pendingOf(value: unknown): PendingChatMessage[] {
   const items: PendingChatMessage[] = []
   for (const entry of value) {
     if (typeof entry !== 'object' || entry === null) continue
-    const { id, text, attachments, videoMarks } = entry as Record<string, unknown>
+    const { id, text, attachments, videoMarks, appNotes } = entry as Record<string, unknown>
     if (typeof id !== 'string') continue
-    const parsed = withMarks(
-      { id, text: typeof text === 'string' ? text : '', attachments: stringsOf(attachments) },
-      videoMarksOf(videoMarks),
+    const parsed = withNotes(
+      withMarks(
+        { id, text: typeof text === 'string' ? text : '', attachments: stringsOf(attachments) },
+        videoMarksOf(videoMarks),
+      ),
+      appNotesOf(appNotes),
     )
     if (hasContent(parsed)) items.push(parsed)
   }
@@ -124,21 +138,24 @@ export function parseChatDraft(
   const stored = value as Record<string, unknown>
   if (typeof stored.savedAt !== 'number') return null
   if (now - stored.savedAt > maxAgeMs) return null
-  const draft: ChatDraft = withMarks(
-    {
-      text: typeof stored.text === 'string' ? stored.text : '',
-      attachments: stringsOf(stored.attachments),
-      pending: pendingOf(stored.pending),
-      paused: stored.paused === true,
-    },
-    videoMarksOf(stored.videoMarks),
+  const draft: ChatDraft = withNotes(
+    withMarks(
+      {
+        text: typeof stored.text === 'string' ? stored.text : '',
+        attachments: stringsOf(stored.attachments),
+        pending: pendingOf(stored.pending),
+        paused: stored.paused === true,
+      },
+      videoMarksOf(stored.videoMarks),
+    ),
+    appNotesOf(stored.appNotes),
   )
   return isEmptyChatDraft(draft) ? null : draft
 }
 
 /**
  * Queue a message sent while the agent is busy, clearing the composer it came from. The
- * composer's marks go with it, as they were made for this message.
+ * composer's marks and app notes go with it, as they were made for this message.
  */
 export function enqueueMessage(
   draft: ChatDraft,
@@ -146,12 +163,19 @@ export function enqueueMessage(
   message: OutgoingChatMessage,
 ): ChatDraft {
   const marks = withoutVideoMarkRefusals(mergeVideoMarks(message.videoMarks, draft.videoMarks))
-  if (!hasContent({ ...message, videoMarks: marks })) return draft
-  const queued = withMarks(
-    { id, text: message.text.trim(), attachments: uniqueInOrder(message.attachments) },
-    marks,
+  const notes = mergeAppNotes(message.appNotes, draft.appNotes)
+  if (!hasContent({ ...message, videoMarks: marks, appNotes: notes })) return draft
+  const queued = withNotes(
+    withMarks(
+      { id, text: message.text.trim(), attachments: uniqueInOrder(message.attachments) },
+      marks,
+    ),
+    notes,
   )
-  return withMarks({ ...draft, text: '', attachments: [], pending: [...draft.pending, queued] }, [])
+  return withNotes(
+    withMarks({ ...draft, text: '', attachments: [], pending: [...draft.pending, queued] }, []),
+    [],
+  )
 }
 
 function withoutPending(draft: ChatDraft, id: string): ChatDraft {
@@ -163,13 +187,16 @@ function withoutPending(draft: ChatDraft, id: string): ChatDraft {
 export function editPendingMessage(draft: ChatDraft, id: string): ChatDraft {
   const target = draft.pending.find((p) => p.id === id)
   if (!target) return draft
-  return withMarks(
-    {
-      ...withoutPending(draft, id),
-      text: joinTexts(draft.text, target.text),
-      attachments: uniqueInOrder([...draft.attachments, ...target.attachments]),
-    },
-    mergeVideoMarks(draft.videoMarks, target.videoMarks),
+  return withNotes(
+    withMarks(
+      {
+        ...withoutPending(draft, id),
+        text: joinTexts(draft.text, target.text),
+        attachments: uniqueInOrder([...draft.attachments, ...target.attachments]),
+      },
+      mergeVideoMarks(draft.videoMarks, target.videoMarks),
+    ),
+    mergeAppNotes(draft.appNotes, target.appNotes),
   )
 }
 
@@ -189,15 +216,20 @@ export function mergeOutgoing(
   const texts: string[] = []
   const attachments: string[] = []
   let marks: ChatVideoMarkDraft[] = []
+  let notes: AppNote[] = []
   for (const message of messages) {
     const text = message.text.trim()
     if (text.length > 0) texts.push(canonicalize(text))
     attachments.push(...message.attachments)
     marks = mergeVideoMarks(marks, message.videoMarks)
+    notes = mergeAppNotes(notes, message.appNotes)
   }
-  return withMarks(
-    { text: texts.join(PENDING_MESSAGE_SEPARATOR), attachments: uniqueInOrder(attachments) },
-    withoutVideoMarkRefusals(marks),
+  return withNotes(
+    withMarks(
+      { text: texts.join(PENDING_MESSAGE_SEPARATOR), attachments: uniqueInOrder(attachments) },
+      withoutVideoMarkRefusals(marks),
+    ),
+    notes,
   )
 }
 
@@ -207,9 +239,12 @@ export function takeOutgoing(
   canonicalize: (text: string) => string,
 ): ChatDraftTake {
   const composer: OutgoingChatMessage | null = hasContent(draft)
-    ? withMarks(
-        { text: draft.text, attachments: draft.attachments },
-        withoutVideoMarkRefusals(draft.videoMarks ?? []),
+    ? withNotes(
+        withMarks(
+          { text: draft.text, attachments: draft.attachments },
+          withoutVideoMarkRefusals(draft.videoMarks ?? []),
+        ),
+        draft.appNotes ?? [],
       )
     : null
   return {
@@ -226,7 +261,7 @@ export function takePending(
 ): ChatDraftTake {
   return {
     message: mergeOutgoing(draft.pending, canonicalize),
-    rest: { ...draft, pending: [], paused: false },
+    rest: withNotes({ ...draft, pending: [], paused: false }, draft.appNotes ?? []),
     taken: { pending: draft.pending, composer: null },
   }
 }
@@ -239,22 +274,30 @@ export function takePending(
 export function restoreUnsent(draft: ChatDraft, taken: TakenChatDraft): ChatDraft {
   if (taken.pending.length === 0 && !taken.composer) return draft
   const composer = taken.composer
-  return withMarks(
-    {
-      text: composer ? joinTexts(composer.text, draft.text) : draft.text,
-      attachments: composer
-        ? uniqueInOrder([...composer.attachments, ...draft.attachments])
-        : draft.attachments,
-      pending: [...taken.pending, ...draft.pending],
-      paused: taken.pending.length > 0 ? true : draft.paused,
-    },
-    mergeVideoMarks(composer?.videoMarks, draft.videoMarks),
+  return withNotes(
+    withMarks(
+      {
+        text: composer ? joinTexts(composer.text, draft.text) : draft.text,
+        attachments: composer
+          ? uniqueInOrder([...composer.attachments, ...draft.attachments])
+          : draft.attachments,
+        pending: [...taken.pending, ...draft.pending],
+        paused: taken.pending.length > 0 ? true : draft.paused,
+      },
+      mergeVideoMarks(composer?.videoMarks, draft.videoMarks),
+    ),
+    mergeAppNotes(composer?.appNotes, draft.appNotes),
   )
 }
 
 /** The draft with the composer's marks set to these. */
 export function setDraftVideoMarks(draft: ChatDraft, marks: ChatVideoMarkDraft[]): ChatDraft {
   return withMarks(draft, marks)
+}
+
+/** The draft with the composer's app notes set to these. An empty list leaves the field off. */
+export function setDraftAppNotes(draft: ChatDraft, notes: AppNote[]): ChatDraft {
+  return withNotes(draft, notes)
 }
 
 /** The draft with a refused send's reason by the composer's mark it is about. */

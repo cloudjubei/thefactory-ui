@@ -154,7 +154,7 @@ export type ChatBodyProps = {
     content: string,
     attachments?: string[],
     meta?: Parameters<ChatInputProps['onSend']>[2],
-  ) => Promise<void> | void
+  ) => void | boolean | Promise<void | boolean>
   onAbort?: () => Promise<void> | void
   /**
    * Whether a turn is still running, according to the SERVER. `liveState.isSending`

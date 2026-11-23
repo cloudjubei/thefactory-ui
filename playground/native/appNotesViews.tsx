@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
+import { OnFixtures } from '../scenes/onFixtures'
+import { APP_NOTE_SEND_ROUTES, useSentAppNote } from '../scenes/appNoteSend'
 import ProjectAppView from '../../src/native/compound/ProjectAppView'
 import { WebViewFixture } from './stubs/webview'
 import ChatInput from '../../src/native/compound/chat/ChatInput'
@@ -140,8 +142,31 @@ function PickerDemo() {
   )
 }
 
+function SentNote() {
+  const sent = useSentAppNote()
+  if (sent.status === 'sending') return <Text>Sending the note to the launching chat…</Text>
+  if (sent.status === 'error') return <Text>{sent.message}</Text>
+  return (
+    <View>
+      <Text>Sent to the launching chat</Text>
+      <Text>{sent.content}</Text>
+      <Text>{sent.selector}</Text>
+      <Text>{sent.comment}</Text>
+    </View>
+  )
+}
+
 export const APP_NOTE_VIEWS: NativeView[] = [
   { id: 'app-selections', title: 'App selections: edit, remove and send', render: () => <Demo /> },
+  {
+    id: 'app-note-send',
+    title: 'App note sent to the launching chat',
+    render: () => (
+      <OnFixtures routes={APP_NOTE_SEND_ROUTES}>
+        <SentNote />
+      </OnFixtures>
+    ),
+  },
   {
     id: 'app-picker',
     title: 'ProjectAppView: native picker to selection card',

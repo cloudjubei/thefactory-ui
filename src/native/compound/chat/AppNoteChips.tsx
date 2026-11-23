@@ -1,14 +1,23 @@
+import { useRef } from 'react'
 import { Pressable, Text, TextInput, View } from 'react-native'
 import { appNoteLabel } from '../../../headless/utils/appNotes'
 import type { AppNoteComposerProps } from '../../../headless/utils/appNotesTypes'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
+import { useScreenshotAnnotation } from '../../../headless/hooks/useScreenshotAnnotation'
+import ScreenshotAnnotationPanel from './ScreenshotAnnotationPanel'
 
 export default function AppNoteChips({
   appNotes = [],
   onChangeAppNotes,
   onShowApp,
+  screenshot,
 }: AppNoteComposerProps) {
   const { theme } = useNativeTheme()
+  const noteIds = useRef(appNotes)
+  noteIds.current = appNotes
+  const screenshotView = useScreenshotAnnotation(screenshot, () =>
+    noteIds.current.map((note) => note.id),
+  )
   return (
     <View accessibilityLabel="App selections" style={{ gap: 8 }}>
       {onShowApp ? (
@@ -16,6 +25,7 @@ export default function AppNoteChips({
           <Text style={{ color: theme.accent.primary }}>Show app</Text>
         </Pressable>
       ) : null}
+      {screenshotView ? <ScreenshotAnnotationPanel view={screenshotView} /> : null}
       {appNotes.map((note, index) => (
         <View
           key={note.id}

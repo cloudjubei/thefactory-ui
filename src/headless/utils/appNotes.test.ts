@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { appNoteLabel, appNoteMarkup, appNoteOfPick, parseAppElementPick } from './appNotes'
+import {
+  appNoteLabel,
+  appNoteMarkup,
+  appNoteOfPick,
+  appNotesToSend,
+  nextAppNoteId,
+  parseAppElementPick,
+} from './appNotes'
 import type { AppNote } from './appNotesTypes'
 
 describe('App element picks', () => {
@@ -82,6 +89,15 @@ describe('appNoteOfPick', () => {
   })
 })
 
+describe('nextAppNoteId', () => {
+  it('skips ids the composer already holds', () => {
+    expect(nextAppNoteId([])).toBe('app-note-1')
+    expect(nextAppNoteId(['app-note-1'])).toBe('app-note-2')
+    expect(nextAppNoteId(['app-note-1', 'app-note-3'])).toBe('app-note-2')
+    expect(nextAppNoteId(['app-note-2'])).toBe('app-note-1')
+  })
+})
+
 describe('appNoteLabel and appNoteMarkup', () => {
   const note = (targets: AppNote['targets']): AppNote => ({
     id: 'n',
@@ -102,5 +118,23 @@ describe('appNoteLabel and appNoteMarkup', () => {
     ])
     expect(appNoteLabel(many)).toBe('#a, Area 120 × 40, #b')
     expect(appNoteMarkup(many)).toBe('<p id="a" />\n<p id="b" />')
+  })
+})
+
+describe('appNotesToSend', () => {
+  const note = (screenshotFile?: string): AppNote => ({
+    id: 'app-note-1',
+    projectId: 'p1',
+    comment: 'Make the renewal date easier to find.',
+    targets: [{ kind: 'element', selector: '#renewal', outerHtml: '<p id="renewal"></p>' }],
+    ...(screenshotFile ? { screenshotFile } : {}),
+  })
+
+  it('leaves a kept attachment path on the note and drops a data URL', () => {
+    const kept = note('.factory/attachments/shot.png')
+    const [sentKept, sentData] = appNotesToSend([kept, note('data:image/png;base64,abc')])
+    expect(sentKept).toBe(kept)
+    expect(sentData).not.toHaveProperty('screenshotFile')
+    expect(sentData?.comment).toBe(kept.comment)
   })
 })

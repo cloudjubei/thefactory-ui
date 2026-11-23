@@ -36,6 +36,10 @@ export { default as ChatHeader, type ChatHeaderProps } from './ChatHeader'
 export { default as ChatKindTile, type ChatKindTileProps } from './ChatKindTile'
 export { default as ChatSettingsMenu, type ChatSettingsMenuProps } from './ChatSettingsMenu'
 export { default as ChatInput, type ChatInputProps } from './ChatInput'
+export {
+  default as ScreenshotAnnotationPanel,
+  type ScreenshotAnnotationPanelProps,
+} from './ScreenshotAnnotationPanel'
 export { ChatDropController, useChatDropTarget } from './ChatDropController'
 export {
   default as PendingMessagesStack,
