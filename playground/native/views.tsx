@@ -109,6 +109,7 @@ import { CHAT_MESSAGING_VIEWS } from './chatMessagingViews'
 import { VIDEO_TIMELINE_VIEWS } from './videoTimelineViews'
 import { RUN_THROUGH_VIEWS } from './runThroughViews'
 import { CHECK_RUN_VIEWS } from './checkRunViews'
+import { SUPERVISOR_QUEUE_VIEWS } from './supervisorQueueViews'
 import { RUN_THROUGH_ISSUE_REVIEW_VIEWS } from './runThroughIssueReviewViews'
 import { EVIDENCE_LINK_VIEWS } from './evidenceLinksViews'
 import { AGENT_PAUSE_VIEWS } from './agentPauseViews'
@@ -716,6 +717,7 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   ...GROUP_STORY_VIEWS,
   ...RUN_THROUGH_VIEWS,
   ...CHECK_RUN_VIEWS,
+  ...SUPERVISOR_QUEUE_VIEWS,
   ...RUN_THROUGH_ISSUE_REVIEW_VIEWS,
   ...EVIDENCE_LINK_VIEWS,
   ...AGENT_PAUSE_VIEWS,

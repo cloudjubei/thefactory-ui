@@ -27,6 +27,7 @@ import { CLI_CAPABILITY_CARD_SCENES } from '../scenes/cliCapabilityCard'
 import { CHAT_CHANGES_SCENES } from '../scenes/chatChanges'
 import { CHAT_CHANGES_DOCK_SCENES } from '../scenes/chatChangesDock'
 import { CHECK_RUN_SCENES } from '../scenes/checkRun'
+import { SUPERVISOR_QUEUE_SCENES } from '../scenes/supervisorQueue'
 import { CHECKS_UNFINISHED_SCENES } from '../scenes/checksUnfinished'
 import { COMMIT_CHECKS_SCENES } from '../scenes/commitChecks'
 import { COMMIT_RECEIPT_SCENES } from '../scenes/commitReceipt'
@@ -183,6 +184,7 @@ export const SCENES: readonly Scene[] = [
   ...CHAT_CHANGES_DOCK_SCENES,
   ...CHECKS_UNFINISHED_SCENES,
   ...CHECK_RUN_SCENES,
+  ...SUPERVISOR_QUEUE_SCENES,
   ...COMMIT_RECEIPT_SCENES,
   ...CHAT_PAUSED_RUN_SCENES,
   ...FEATURE_REQUEST_CARD_SCENES,

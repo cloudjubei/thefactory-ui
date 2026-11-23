@@ -23,6 +23,46 @@ describe('showcase registry', () => {
     expect(scene?.states.filter((s) => !s.overlay).map((s) => s.id)).toEqual(['closed'])
   })
 
+  it('shows the queue, the supervisor, readiness and plan first in every state the stories name', () => {
+    const states = (id: string) => SCENES.find((s) => s.id === id)?.states ?? []
+    const markup = (id: string, state: string) =>
+      renderToStaticMarkup(
+        <>
+          {states(id)
+            .find((s) => s.id === state)
+            ?.render()}
+        </>,
+      )
+    expect(states('work-queue-panel').map((s) => s.id)).toEqual(['empty', 'mixed', 'cap-reached'])
+    expect(markup('work-queue-panel', 'empty')).toMatch(/Nothing queued/)
+    for (const label of [
+      'Running',
+      'Next',
+      'Waiting for a slot',
+      'Waiting on blockers',
+      'Not ready',
+      'Done',
+    ])
+      expect(markup('work-queue-panel', 'mixed')).toContain(label)
+    expect(markup('work-queue-panel', 'cap-reached')).toMatch(/10 of 10 running.*Cap reached/)
+    expect(states('supervisor-panel').map((s) => s.id)).toEqual(['on', 'off', 'quiet'])
+    const on = markup('supervisor-panel', 'on')
+    for (const part of ['aria-checked="true"', 'Recommended', 'Handled', 'Fix main first'])
+      expect(on).toContain(part)
+    const off = markup('supervisor-panel', 'off')
+    for (const part of ['aria-checked="false"', 'Off:']) expect(off).toContain(part)
+    const quiet = markup('supervisor-panel', 'quiet')
+    for (const part of ['Nothing waits for you.', 'Nothing yet.']) expect(quiet).toContain(part)
+    expect(markup('story-readiness-badge', 'problems')).toContain('Not ready · 4')
+    expect(markup('story-readiness-badge', 'ready')).toContain('Ready')
+    expect(states('launch-plan-first').map((s) => s.id)).toEqual([
+      'on',
+      'off',
+      'not-offered',
+      'group-dialog',
+    ])
+  })
+
   it('lists every scene under a group the index shows', () => {
     for (const scene of SCENES) expect(SCENE_GROUPS).toContain(scene.group)
   })
