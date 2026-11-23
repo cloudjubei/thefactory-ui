@@ -69,16 +69,35 @@ export function startGroupWorkGrantSummary(
   }
 }
 
-/** The project titles of what a leg waits for, in the card's words. */
+/** How a launch card names a leg: its project, and its story too when its project has another leg. */
+function launchLegName(
+  legs: ProcessGroupLaunchPreview['legs'],
+  leg: ProcessGroupLaunchPreview['legs'][number],
+): string {
+  const several = legs.filter((l) => l.projectId === leg.projectId).length > 1
+  return several ? `${leg.projectTitle} · ${leg.storyTitle ?? leg.storyId}` : leg.projectTitle
+}
+
+/** What a leg waits for, the legs named by their stories' ids, in the card's words. */
 export function processGroupLegWaitsFor(
   preview: Pick<ProcessGroupLaunchPreview, 'legs' | 'buildMode'>,
   dependsOn: readonly string[],
 ): string | undefined {
   if (dependsOn.length === 0) return undefined
-  const titles = dependsOn.map(
-    (id) => preview.legs.find((l) => l.projectId === id)?.projectTitle ?? id,
-  )
+  const titles = dependsOn.map((id) => {
+    const leg = preview.legs.find((l) => l.storyId === id)
+    return leg ? launchLegName(preview.legs, leg) : id
+  })
   const verb = titles.length === 1 ? 'is' : 'are'
   const done = preview.buildMode === 'on-branch' ? 'finished, on its branch' : 'merged'
   return `Starts once ${titles.join(' and ')} ${verb} ${done}`
+}
+
+/** A launch's legs wave by wave, each wave naming its legs by their stories' ids. */
+export function processGroupLaunchLegsByWave(
+  preview: Pick<ProcessGroupLaunchPreview, 'legs' | 'waves'> | undefined,
+): ProcessGroupLaunchPreview['legs'][] {
+  return (preview?.waves ?? []).map((wave) =>
+    wave.flatMap((id) => preview?.legs.filter((l) => l.storyId === id) ?? []),
+  )
 }

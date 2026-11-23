@@ -15,6 +15,7 @@ import {
   groupLaunchLiveCheckMetadata,
   type GroupLaunchLiveCheckPicks,
   LAUNCH_NOTE_MAX_CHARS,
+  processGroupLaunchLegsByWave,
   processGroupLegWaitsFor,
   processGrantTurnLimitView,
   LAUNCH_CAPS_COPY,
@@ -177,9 +178,7 @@ export default function GroupWorkLaunchPanel({
       })
   }
 
-  const legsByWave = (preview?.waves ?? []).map((wave) =>
-    wave.flatMap((id) => preview?.legs.filter((l) => l.projectId === id) ?? []),
-  )
+  const legsByWave = processGroupLaunchLegsByWave(preview)
 
   return (
     <View style={{ margin: nativeSpace[3] }}>
@@ -236,7 +235,7 @@ export default function GroupWorkLaunchPanel({
                 {wave.map((leg) => {
                   const waitsFor = processGroupLegWaitsFor(preview, leg.dependsOn)
                   return (
-                    <View key={leg.projectId} style={{ gap: 4, paddingLeft: 4 }}>
+                    <View key={leg.storyId} style={{ gap: 4, paddingLeft: 4 }}>
                       <View
                         style={{
                           flexDirection: 'row',

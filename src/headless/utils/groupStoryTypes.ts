@@ -20,6 +20,9 @@ export type GroupStoryView = ListGroupStoriesResponses[200][number] & {
 /** One part of a group story as its page shows it. */
 export type GroupStoryPartView = GroupStoryView['partViews'][number]
 
+/** One story a group story links, as its page shows it: tracked only, never run. */
+export type GroupStoryLinkView = GroupStoryView['linkViews'][number]
+
 /** A group story's latest group run. */
 export type GroupStoryRunSummary = NonNullable<GroupStoryView['latestRun']>
 
@@ -61,11 +64,13 @@ export interface GroupStoryStepColumn {
   parts: GroupStoryPartView[]
 }
 
-/** How a project takes part, on the new group story form. */
-export type GroupStoryPartChoice = 'none' | 'existing' | 'new'
+/** How a part is had, on the group story form: one of its project's stories, or a new one. */
+export type GroupStoryPartChoice = 'existing' | 'new'
 
-/** One member project's row on the group story form. */
+/** One part on the group story form: a story of a project, in run order among its project's parts. */
 export interface GroupStoryFormRow {
+  /** Stable on the form: the story id of a part read from a group story, `new-<n>` for one added. */
+  key: string
   projectId: string
   projectTitle: string
   choice: GroupStoryPartChoice
@@ -73,15 +78,34 @@ export interface GroupStoryFormRow {
   storyId?: string
   /** With `new`: its title; the group story's own when blank. */
   newStoryTitle?: string
-  /** The other rows' projects it needs first. */
+  /** The other projects' parts it needs first, by their keys. */
   needs: string[]
+}
+
+/** One story the group story tracks without running, on its form. */
+export interface GroupStoryFormLink {
+  key: string
+  projectId: string
+  projectTitle: string
+  /** The project's story picked; absent until one is. */
+  storyId?: string
 }
 
 /** The group story form as the person fills it. */
 export interface GroupStoryForm {
   title: string
   description: string
+  /** The projects parts and links can be added in: the group's members, and any a part or link is in. */
+  projects: GroupStoryMemberProject[]
+  /** Its parts; one project's run in the order they are here. */
   rows: GroupStoryFormRow[]
+  links: GroupStoryFormLink[]
+}
+
+/** Which ways a part can move among its project's parts. */
+export interface GroupStoryFormPartMoves {
+  up: boolean
+  down: boolean
 }
 
 /** A member project, as the form lists it. */

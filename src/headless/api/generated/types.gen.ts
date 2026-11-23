@@ -13510,12 +13510,18 @@ export type GroupStoryPart = {
   waitsFor?: Array<ProcessWaitFor>
 }
 
+export type GroupStoryLink = {
+  projectId: string
+  storyId: string
+}
+
 export type GroupStory = {
   id: string
   groupId: string
   title: string
   description: string
   parts: Array<GroupStoryPart>
+  links?: Array<GroupStoryLink>
   externalIds?: Array<ExternalRef>
   createdAt: string
   updatedAt: string
@@ -13526,6 +13532,7 @@ export type GroupStoryCreateInput = {
   title: string
   description?: string
   parts: Array<GroupStoryPart>
+  links?: Array<GroupStoryLink>
   externalIds?: Array<ExternalRef>
 }
 
@@ -13533,6 +13540,7 @@ export type GroupStoryUpdateInput = {
   title?: string
   description?: string
   parts?: Array<GroupStoryPart>
+  links?: Array<GroupStoryLink>
   externalIds?: Array<ExternalRef>
 }
 
@@ -13556,6 +13564,7 @@ export type GroupStoryPlan = {
   needs: {
     [key: string]: Array<string>
   }
+  tracked: Array<string>
   problems: Array<string>
   status?: 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
 }
@@ -65207,10 +65216,14 @@ export type ListGroupStoriesResponses = {
     title: string
     description: string
     parts: Array<GroupStoryPart>
+    links?: Array<GroupStoryLink>
     externalIds?: Array<ExternalRef>
     createdAt: string
     updatedAt: string
     groupTitle?: string
+    /**
+     * Its parts, in run order.
+     */
     partViews: Array<{
       projectId: string
       projectTitle: string
@@ -65219,12 +65232,30 @@ export type ListGroupStoriesResponses = {
       status?: 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
       featuresDone: number
       featuresTotal: number
+      /**
+       * The parts’ story ids it needs: the part of its project before it, and those its blockers name.
+       */
       needs: Array<string>
       /**
        * The step it runs in, 1 first.
        */
       step?: number
     }>
+    /**
+     * The stories it links: tracked only, never run.
+     */
+    linkViews: Array<{
+      projectId: string
+      projectTitle: string
+      storyId: string
+      storyTitle?: string
+      status?: 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
+      featuresDone: number
+      featuresTotal: number
+    }>
+    /**
+     * Part story ids, step by step.
+     */
     steps: Array<Array<string>>
     problems: Array<string>
     status?: 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
@@ -65238,7 +65269,9 @@ export type ListGroupStoriesResponses = {
       }
       waitingOn?: string
       legs: Array<{
+        legId: string
         projectId: string
+        storyId: string
         status: ProcessGroupLegStatus
       }>
       startedAt: number
@@ -65253,7 +65286,7 @@ export type CreateGroupStoryData = {
     title?: string
     description?: string
     /**
-     * Every part, one per project. Parts left out stop being parts; their stories stay.
+     * Every part, in run order: a project may have several, run one after another. Parts left out stop being parts; their stories stay.
      */
     parts?: Array<{
       /**
@@ -65279,7 +65312,11 @@ export type CreateGroupStoryData = {
       }>
     }>
     /**
-     * For each part’s project, the parts’ projects it needs first — written as its story’s blockers on theirs.
+     * Every story it tracks without running, each a member project’s; `[]` clears them. A story may be linked from several group stories.
+     */
+    links?: Array<GroupStoryLink>
+    /**
+     * For each part, the other parts it needs first — by story id, or a part this write makes by its new story’s title — written as its story’s blockers on theirs.
      */
     needs?: {
       [key: string]: Array<string>
@@ -65351,10 +65388,14 @@ export type CreateGroupStoryResponses = {
     title: string
     description: string
     parts: Array<GroupStoryPart>
+    links?: Array<GroupStoryLink>
     externalIds?: Array<ExternalRef>
     createdAt: string
     updatedAt: string
     groupTitle?: string
+    /**
+     * Its parts, in run order.
+     */
     partViews: Array<{
       projectId: string
       projectTitle: string
@@ -65363,12 +65404,30 @@ export type CreateGroupStoryResponses = {
       status?: 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
       featuresDone: number
       featuresTotal: number
+      /**
+       * The parts’ story ids it needs: the part of its project before it, and those its blockers name.
+       */
       needs: Array<string>
       /**
        * The step it runs in, 1 first.
        */
       step?: number
     }>
+    /**
+     * The stories it links: tracked only, never run.
+     */
+    linkViews: Array<{
+      projectId: string
+      projectTitle: string
+      storyId: string
+      storyTitle?: string
+      status?: 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
+      featuresDone: number
+      featuresTotal: number
+    }>
+    /**
+     * Part story ids, step by step.
+     */
     steps: Array<Array<string>>
     problems: Array<string>
     status?: 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
@@ -65382,7 +65441,9 @@ export type CreateGroupStoryResponses = {
       }
       waitingOn?: string
       legs: Array<{
+        legId: string
         projectId: string
+        storyId: string
         status: ProcessGroupLegStatus
       }>
       startedAt: number
@@ -65483,10 +65544,14 @@ export type GetGroupStoryResponses = {
     title: string
     description: string
     parts: Array<GroupStoryPart>
+    links?: Array<GroupStoryLink>
     externalIds?: Array<ExternalRef>
     createdAt: string
     updatedAt: string
     groupTitle?: string
+    /**
+     * Its parts, in run order.
+     */
     partViews: Array<{
       projectId: string
       projectTitle: string
@@ -65495,12 +65560,30 @@ export type GetGroupStoryResponses = {
       status?: 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
       featuresDone: number
       featuresTotal: number
+      /**
+       * The parts’ story ids it needs: the part of its project before it, and those its blockers name.
+       */
       needs: Array<string>
       /**
        * The step it runs in, 1 first.
        */
       step?: number
     }>
+    /**
+     * The stories it links: tracked only, never run.
+     */
+    linkViews: Array<{
+      projectId: string
+      projectTitle: string
+      storyId: string
+      storyTitle?: string
+      status?: 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
+      featuresDone: number
+      featuresTotal: number
+    }>
+    /**
+     * Part story ids, step by step.
+     */
     steps: Array<Array<string>>
     problems: Array<string>
     status?: 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
@@ -65514,7 +65597,9 @@ export type GetGroupStoryResponses = {
       }
       waitingOn?: string
       legs: Array<{
+        legId: string
         projectId: string
+        storyId: string
         status: ProcessGroupLegStatus
       }>
       startedAt: number
@@ -65529,7 +65614,7 @@ export type UpdateGroupStoryData = {
     title?: string
     description?: string
     /**
-     * Every part, one per project. Parts left out stop being parts; their stories stay.
+     * Every part, in run order: a project may have several, run one after another. Parts left out stop being parts; their stories stay.
      */
     parts?: Array<{
       /**
@@ -65555,7 +65640,11 @@ export type UpdateGroupStoryData = {
       }>
     }>
     /**
-     * For each part’s project, the parts’ projects it needs first — written as its story’s blockers on theirs.
+     * Every story it tracks without running, each a member project’s; `[]` clears them. A story may be linked from several group stories.
+     */
+    links?: Array<GroupStoryLink>
+    /**
+     * For each part, the other parts it needs first — by story id, or a part this write makes by its new story’s title — written as its story’s blockers on theirs.
      */
     needs?: {
       [key: string]: Array<string>
@@ -65628,10 +65717,14 @@ export type UpdateGroupStoryResponses = {
     title: string
     description: string
     parts: Array<GroupStoryPart>
+    links?: Array<GroupStoryLink>
     externalIds?: Array<ExternalRef>
     createdAt: string
     updatedAt: string
     groupTitle?: string
+    /**
+     * Its parts, in run order.
+     */
     partViews: Array<{
       projectId: string
       projectTitle: string
@@ -65640,12 +65733,30 @@ export type UpdateGroupStoryResponses = {
       status?: 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
       featuresDone: number
       featuresTotal: number
+      /**
+       * The parts’ story ids it needs: the part of its project before it, and those its blockers name.
+       */
       needs: Array<string>
       /**
        * The step it runs in, 1 first.
        */
       step?: number
     }>
+    /**
+     * The stories it links: tracked only, never run.
+     */
+    linkViews: Array<{
+      projectId: string
+      projectTitle: string
+      storyId: string
+      storyTitle?: string
+      status?: 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
+      featuresDone: number
+      featuresTotal: number
+    }>
+    /**
+     * Part story ids, step by step.
+     */
     steps: Array<Array<string>>
     problems: Array<string>
     status?: 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
@@ -65659,7 +65770,9 @@ export type UpdateGroupStoryResponses = {
       }
       waitingOn?: string
       legs: Array<{
+        legId: string
         projectId: string
+        storyId: string
         status: ProcessGroupLegStatus
       }>
       startedAt: number

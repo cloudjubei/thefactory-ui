@@ -253,11 +253,11 @@ export default function TicketStoryProposalCard({
     : undefined
   const shown = folded !== undefined && !expanded ? folded : view.description
   const made = view.groupStory
-  const partOf = (projectId: string) => view.parts.find((p) => p.projectId === projectId)
+  const partOf = (key: string) => view.parts.find((p) => p.key === key)
   const planning = view.outcome !== 'created'
   const block = (part: TicketStoryPartView) => (
     <PartBlock
-      key={part.projectId}
+      key={part.key}
       part={part}
       renderStory={renderStory}
       planning={planning}
@@ -308,8 +308,8 @@ export default function TicketStoryProposalCard({
           {view.steps.map((step, at) => (
             <div key={at} className="flex flex-col gap-1.5">
               <span className={LABEL}>{TICKET_STORY_PROPOSAL_TEXT.step(at + 1)}</span>
-              {step.map((projectId) => {
-                const part = partOf(projectId)
+              {step.map((key) => {
+                const part = partOf(key)
                 return part ? block(part) : null
               })}
             </div>

@@ -103,6 +103,7 @@ import { VARIANT_VIEWS } from './variantViews'
 import { APP_NOTE_VIEWS } from './appNotesViews'
 import { REMOTE_BROWSER_VIEWS } from './remoteBrowserViews'
 import { ALREADY_HANDLED_VIEWS } from './alreadyHandledViews'
+import { GROUP_STORY_VIEWS } from './groupStoryViews'
 import { CHAT_MESSAGING_VIEWS } from './chatMessagingViews'
 import { VIDEO_TIMELINE_VIEWS } from './videoTimelineViews'
 import { RUN_THROUGH_VIEWS } from './runThroughViews'
@@ -711,6 +712,7 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   ...REVIEW_CHAT_SLOT_VIEWS,
   ...REVIEW_GAP_VIEWS,
   ...ALREADY_HANDLED_VIEWS,
+  ...GROUP_STORY_VIEWS,
   ...RUN_THROUGH_VIEWS,
   ...CHECK_RUN_VIEWS,
   ...RUN_THROUGH_ISSUE_REVIEW_VIEWS,

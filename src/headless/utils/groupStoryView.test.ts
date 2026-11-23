@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type {
   GroupStoryForm,
+  GroupStoryFormRow,
   GroupStoryPartView,
   GroupStoryRunSummary,
   GroupStoryView,
@@ -10,12 +11,22 @@ import { GROUP_STORY_ACTION_LABELS, GROUP_STORY_LIST_FILTER_DEFAULT } from './gr
 import {
   filterGroupStories,
   groupStoryFormFor,
+  groupStoryFormMovedPart,
+  groupStoryFormPartMoves,
   groupStoryFormProblems,
   groupStoryFormRequest,
+  groupStoryFormWithLink,
+  groupStoryFormWithLinkStory,
+  groupStoryFormWithoutLink,
+  groupStoryFormWithoutPart,
+  groupStoryFormWithPart,
+  groupStoryLinksText,
   groupStoryListCount,
   groupStoryListProjects,
   groupStoryNeedOptions,
   groupStoryNeedTitles,
+  groupStoryPartName,
+  groupStoryPartPlace,
   groupStoryPartsText,
   groupStoryProgress,
   groupStoryToggledFold,
@@ -54,6 +65,7 @@ function view(partViews: GroupStoryPartView[], over: Partial<GroupStoryView> = {
     createdAt: 'a',
     updatedAt: 'b',
     partViews,
+    linkViews: [],
     steps: [],
     problems: [],
     ...over,
@@ -134,8 +146,61 @@ describe('groupStoryToggledFold', () => {
 
 describe('groupStoryNeedTitles', () => {
   it('names the parts a part needs by their project', () => {
-    const v = view([part('backend'), part('ui', { needs: ['backend'] })])
+    const v = view([part('backend'), part('ui', { needs: ['s-backend'] })])
     expect(groupStoryNeedTitles(v.partViews[1]!, v)).toEqual(['BACKEND'])
+  })
+
+  it('names a part by its story too when its project has several', () => {
+    const v = view([
+      part('ui', { storyId: 'u1', storyTitle: 'First' }),
+      part('ui', { storyId: 'u2', storyTitle: 'Second', needs: ['u1'], step: 2 }),
+    ])
+    expect(groupStoryNeedTitles(v.partViews[1]!, v)).toEqual(['UI · First'])
+  })
+})
+
+describe('groupStoryPartName', () => {
+  it('is the project alone while it has one part, and its place and story once it has more', () => {
+    const v = view([
+      part('backend'),
+      part('ui', { storyId: 'u1', storyTitle: 'First' }),
+      part('ui', { storyId: 'u2', storyTitle: undefined }),
+    ])
+    expect(v.partViews.map((p) => groupStoryPartName(v, p))).toEqual([
+      'BACKEND',
+      'UI · First',
+      'UI · u2',
+    ])
+  })
+})
+
+describe('groupStoryPartPlace', () => {
+  it('says where a part runs among its project’s parts, only when there are several', () => {
+    const v = view([part('backend'), part('ui', { storyId: 'u1' }), part('ui', { storyId: 'u2' })])
+    expect(v.partViews.map((p) => groupStoryPartPlace(v, p))).toEqual([
+      undefined,
+      '1 of 2 in UI',
+      '2 of 2 in UI',
+    ])
+  })
+})
+
+describe('groupStoryLinksText', () => {
+  it('counts the linked stories, or says there are none', () => {
+    const link = {
+      projectId: 'web',
+      projectTitle: 'Web',
+      storyId: 'w',
+      featuresDone: 0,
+      featuresTotal: 0,
+    }
+    expect(groupStoryLinksText(view([], { linkViews: [link, { ...link, storyId: 'w2' }] }))).toBe(
+      '2 linked stories · tracked only',
+    )
+    expect(groupStoryLinksText(view([], { linkViews: [link] }))).toBe(
+      '1 linked story · tracked only',
+    )
+    expect(groupStoryLinksText(view([]))).toBeUndefined()
   })
 })
 
@@ -229,158 +294,267 @@ describe('groupStoryRunButton', () => {
   )
 })
 
+const row = (
+  key: string,
+  projectId: string,
+  over: Partial<GroupStoryFormRow> = {},
+): GroupStoryFormRow => ({
+  key,
+  projectId,
+  projectTitle: projectId.toUpperCase(),
+  choice: 'existing',
+  storyId: key,
+  needs: [],
+  ...over,
+})
+
+const form = (over: Partial<GroupStoryForm> = {}): GroupStoryForm => ({
+  title: 'Empty folders',
+  description: '',
+  projects: MEMBERS,
+  rows: [],
+  links: [],
+  ...over,
+})
+
 describe('groupStoryFormFor', () => {
-  it('gives every member project a row that takes no part', () => {
-    expect(groupStoryFormFor(MEMBERS).rows).toEqual([
-      { projectId: 'backend', projectTitle: 'Backend', choice: 'none', needs: [] },
-      { projectId: 'ui', projectTitle: 'UI', choice: 'none', needs: [] },
-      { projectId: 'web', projectTitle: 'Web', choice: 'none', needs: [] },
+  it('starts with no parts and no links, offering every member project', () => {
+    expect(groupStoryFormFor(MEMBERS)).toEqual({
+      title: '',
+      description: '',
+      projects: MEMBERS,
+      rows: [],
+      links: [],
+    })
+  })
+
+  it('fills a group story’s parts in run order, each needing the other projects’ parts it needs', () => {
+    const v = view([
+      part('backend'),
+      part('ui', { storyId: 'u1', needs: ['s-backend'] }),
+      part('ui', { storyId: 'u2', needs: ['u1', 's-backend'], step: 2 }),
+    ])
+    expect(groupStoryFormFor(MEMBERS, v).rows).toEqual([
+      row('s-backend', 'backend'),
+      row('u1', 'ui', { needs: ['s-backend'] }),
+      row('u2', 'ui', { needs: ['s-backend'] }),
     ])
   })
 
-  it('fills a group story’s parts and needs in', () => {
-    const v = view([part('backend'), part('ui', { needs: ['backend'] })])
-    const form = groupStoryFormFor(MEMBERS, v)
-    expect(form).toMatchObject({ title: 'Conflict-safe editing', description: '' })
-    expect(form.rows.slice(0, 2)).toEqual([
-      {
-        projectId: 'backend',
-        projectTitle: 'Backend',
-        choice: 'existing',
-        storyId: 's-backend',
-        needs: [],
-      },
-      {
-        projectId: 'ui',
-        projectTitle: 'UI',
-        choice: 'existing',
-        storyId: 's-ui',
-        needs: ['backend'],
-      },
+  it('fills its linked stories in', () => {
+    const v = view([part('backend')], {
+      linkViews: [
+        { projectId: 'web', projectTitle: 'Web', storyId: 'w1', featuresDone: 0, featuresTotal: 1 },
+      ],
+    })
+    expect(groupStoryFormFor(MEMBERS, v).links).toEqual([
+      { key: 'link-w1', projectId: 'web', projectTitle: 'Web', storyId: 'w1' },
     ])
   })
 
   it('keeps a part whose project left the group, so saving does not drop it unseen', () => {
     const v = view([part('mobile')])
-    expect(groupStoryFormFor(MEMBERS, v).rows.at(-1)).toMatchObject({
-      projectId: 'mobile',
-      choice: 'existing',
+    const filled = groupStoryFormFor(MEMBERS, v)
+    expect(filled.rows).toEqual([row('s-mobile', 'mobile', { projectTitle: 'MOBILE' })])
+    expect(filled.projects.at(-1)).toEqual({ id: 'mobile', title: 'MOBILE' })
+  })
+})
+
+describe('the form’s parts and links', () => {
+  it('adds a project’s next part after its others, as a new story', () => {
+    const start = form({ rows: [row('u1', 'ui', { projectTitle: 'UI' })] })
+    const added = groupStoryFormWithPart(start, 'ui')
+    expect(added.rows).toEqual([
+      row('u1', 'ui', { projectTitle: 'UI' }),
+      { key: 'new-1', projectId: 'ui', projectTitle: 'UI', choice: 'new', needs: [] },
+    ])
+    expect(groupStoryFormWithPart(added, 'backend').rows.at(-1)).toMatchObject({
+      key: 'new-2',
+      projectId: 'backend',
+      projectTitle: 'Backend',
     })
+  })
+
+  it('moves a part up or down among its own project’s parts only', () => {
+    const start = form({
+      rows: [row('u1', 'ui'), row('b1', 'backend'), row('u2', 'ui'), row('u3', 'ui')],
+    })
+    expect(groupStoryFormMovedPart(start, 'u2', 'up').rows.map((r) => r.key)).toEqual([
+      'u2',
+      'b1',
+      'u1',
+      'u3',
+    ])
+    expect(groupStoryFormMovedPart(start, 'u2', 'down').rows.map((r) => r.key)).toEqual([
+      'u1',
+      'b1',
+      'u3',
+      'u2',
+    ])
+    expect(groupStoryFormMovedPart(start, 'u1', 'up')).toBe(start)
+    expect(groupStoryFormMovedPart(start, 'u3', 'down')).toBe(start)
+    expect(groupStoryFormMovedPart(start, 'b1', 'up')).toBe(start)
+  })
+
+  it('says whether a part can move up or down', () => {
+    const start = form({ rows: [row('u1', 'ui'), row('b1', 'backend'), row('u2', 'ui')] })
+    expect(start.rows.map((r) => groupStoryFormPartMoves(start, r.key))).toEqual([
+      { up: false, down: true },
+      { up: false, down: false },
+      { up: true, down: false },
+    ])
+  })
+
+  it('drops a part and every need on it', () => {
+    const start = form({ rows: [row('b1', 'backend'), row('u1', 'ui', { needs: ['b1'] })] })
+    expect(groupStoryFormWithoutPart(start, 'b1').rows).toEqual([row('u1', 'ui')])
+  })
+
+  it('adds, fills and drops a linked story', () => {
+    const linked = groupStoryFormWithLink(form(), 'web')
+    expect(linked.links).toEqual([{ key: 'link-new-1', projectId: 'web', projectTitle: 'Web' }])
+    const picked = groupStoryFormWithLinkStory(linked, 'link-new-1', 'w1')
+    expect(picked.links).toEqual([
+      { key: 'link-new-1', projectId: 'web', projectTitle: 'Web', storyId: 'w1' },
+    ])
+    expect(groupStoryFormWithoutLink(picked, 'link-new-1').links).toEqual([])
   })
 })
 
 describe('groupStoryFormProblems', () => {
-  const filled = (over: Partial<GroupStoryForm> = {}): GroupStoryForm => ({
-    title: 'Empty folders',
-    description: '',
-    rows: [
-      { projectId: 'ui', projectTitle: 'UI', choice: 'existing', storyId: 's-ui', needs: [] },
-      { projectId: 'web', projectTitle: 'Web', choice: 'new', needs: ['ui'] },
-    ],
-    ...over,
-  })
+  const filled = () =>
+    form({ rows: [row('s-ui', 'ui'), row('new-1', 'web', { choice: 'new', needs: ['s-ui'] })] })
 
   it('finds nothing wrong with a filled form', () => {
     expect(groupStoryFormProblems(filled())).toEqual([])
   })
 
   it('needs a title', () => {
-    expect(groupStoryFormProblems(filled({ title: '  ' }))).toEqual(['Give it a title.'])
+    expect(groupStoryFormProblems({ ...filled(), title: '  ' })).toEqual(['Give it a title.'])
   })
 
-  it('needs a project to take part', () => {
+  it('needs a part or a linked story', () => {
+    expect(groupStoryFormProblems(form())).toEqual(['Add a part or a linked story.'])
     expect(
       groupStoryFormProblems(
-        filled({ rows: [{ projectId: 'ui', projectTitle: 'UI', choice: 'none', needs: [] }] }),
+        form({ links: [{ key: 'l', projectId: 'web', projectTitle: 'Web', storyId: 'w1' }] }),
       ),
-    ).toEqual(['Pick at least one project.'])
+    ).toEqual([])
   })
 
-  it('needs the story of a project using one', () => {
+  it('needs the story of a part using one, and of each link', () => {
     expect(
-      groupStoryFormProblems(
-        filled({ rows: [{ projectId: 'ui', projectTitle: 'UI', choice: 'existing', needs: [] }] }),
-      ),
+      groupStoryFormProblems(form({ rows: [row('k', 'ui', { storyId: undefined })] })),
     ).toEqual(['Pick UI’s story.'])
+    expect(
+      groupStoryFormProblems(
+        form({ links: [{ key: 'l', projectId: 'web', projectTitle: 'Web' }] }),
+      ),
+    ).toEqual(['Pick the Web story to link.'])
+  })
+
+  it('refuses one story picked twice', () => {
+    expect(
+      groupStoryFormProblems(form({ rows: [row('a', 'ui'), row('b', 'ui', { storyId: 'a' })] })),
+    ).toEqual(['A story is picked twice: each part and link is a story of its own.'])
+    expect(
+      groupStoryFormProblems(
+        form({
+          rows: [row('a', 'ui')],
+          links: [{ key: 'l', projectId: 'ui', projectTitle: 'UI', storyId: 'a' }],
+        }),
+      ),
+    ).toEqual(['A story is picked twice: each part and link is a story of its own.'])
   })
 
   it('refuses parts that need each other', () => {
     expect(
       groupStoryFormProblems(
-        filled({
+        form({
           rows: [
-            { projectId: 'ui', projectTitle: 'UI', choice: 'new', needs: ['web'] },
-            { projectId: 'web', projectTitle: 'Web', choice: 'new', needs: ['ui'] },
+            row('u', 'ui', { projectTitle: 'UI', needs: ['w'] }),
+            row('w', 'web', { projectTitle: 'Web', needs: ['u'] }),
           ],
         }),
       ),
     ).toEqual(['UI and Web need each other, so neither could start.'])
   })
+
+  it('refuses a part needing one that runs after an earlier part of its own project', () => {
+    expect(
+      groupStoryFormProblems(
+        form({
+          rows: [
+            row('u1', 'ui', { projectTitle: 'UI', needs: ['b1'] }),
+            row('b1', 'backend', { projectTitle: 'Backend', needs: ['u2'] }),
+            row('u2', 'ui', { projectTitle: 'UI' }),
+          ],
+        }),
+      ),
+    ).toEqual(['UI, Backend and UI wait on one another, so none could start.'])
+  })
+
+  it('asks new stories another part needs for titles of their own', () => {
+    expect(
+      groupStoryFormProblems(
+        form({
+          rows: [
+            row('n1', 'ui', { choice: 'new' }),
+            row('n2', 'backend', { choice: 'new' }),
+            row('w', 'web', { needs: ['n1'] }),
+          ],
+        }),
+      ),
+    ).toEqual(['Give each new story another part needs its own title.'])
+  })
 })
 
 describe('groupStoryFormRequest', () => {
-  it('sends the projects taking part, and what each needs among them', () => {
+  it('sends the parts in order, what each needs by story or new title, and the links', () => {
     expect(
       groupStoryFormRequest({
         title: ' Empty folders ',
         description: 'Show them',
+        projects: MEMBERS,
         rows: [
-          { projectId: 'backend', projectTitle: 'Backend', choice: 'none', needs: [] },
-          {
-            projectId: 'ui',
-            projectTitle: 'UI',
-            choice: 'existing',
-            storyId: 's-ui',
-            needs: ['backend'],
-          },
-          {
-            projectId: 'web',
-            projectTitle: 'Web',
-            choice: 'new',
-            newStoryTitle: ' ',
-            needs: ['ui'],
-          },
+          row('s-ui', 'ui'),
+          row('new-1', 'ui', { choice: 'new', newStoryTitle: ' Then this ' }),
+          row('new-2', 'web', { choice: 'new', newStoryTitle: ' ', needs: ['new-1', 's-ui'] }),
+          row('new-3', 'backend', { choice: 'new' }),
         ],
+        links: [{ key: 'l', projectId: 'web', projectTitle: 'Web', storyId: 'w1' }],
       }),
     ).toEqual({
       title: 'Empty folders',
       description: 'Show them',
-      parts: [{ projectId: 'ui', storyId: 's-ui' }, { projectId: 'web' }],
-      needs: { ui: [], web: ['ui'] },
+      parts: [
+        { projectId: 'ui', storyId: 's-ui' },
+        { projectId: 'ui', newStoryTitle: 'Then this' },
+        { projectId: 'web' },
+        { projectId: 'backend' },
+      ],
+      links: [{ projectId: 'web', storyId: 'w1' }],
+      needs: { 's-ui': [], 'Empty folders': ['Then this', 's-ui'] },
     })
-  })
-
-  it('names a new story when the form gives it a title', () => {
-    expect(
-      groupStoryFormRequest({
-        title: 'A',
-        description: '',
-        rows: [
-          {
-            projectId: 'web',
-            projectTitle: 'Web',
-            choice: 'new',
-            newStoryTitle: 'Web part',
-            needs: [],
-          },
-        ],
-      }).parts,
-    ).toEqual([{ projectId: 'web', newStoryTitle: 'Web part' }])
   })
 })
 
 describe('groupStoryNeedOptions', () => {
-  it('offers the other projects taking part', () => {
-    const form: GroupStoryForm = {
-      title: 'A',
-      description: '',
+  it('offers the other projects’ parts, by project and, when it has several, by story', () => {
+    const start = form({
       rows: [
-        { projectId: 'backend', projectTitle: 'Backend', choice: 'new', needs: [] },
-        { projectId: 'ui', projectTitle: 'UI', choice: 'existing', storyId: 's', needs: [] },
-        { projectId: 'web', projectTitle: 'Web', choice: 'none', needs: [] },
+        row('b1', 'backend', { projectTitle: 'Backend' }),
+        row('u1', 'ui', { projectTitle: 'UI' }),
+        row('new-1', 'ui', { projectTitle: 'UI', choice: 'new', newStoryTitle: 'Then this' }),
+        row('w1', 'web', { projectTitle: 'Web' }),
       ],
-    }
-    expect(groupStoryNeedOptions(form, 'ui')).toEqual([{ id: 'backend', title: 'Backend' }])
+    })
+    expect(groupStoryNeedOptions(start, 'w1', { ui: [{ id: 'u1', title: 'First' }] })).toEqual([
+      { id: 'b1', title: 'Backend' },
+      { id: 'u1', title: 'UI · First' },
+      { id: 'new-1', title: 'UI · Then this' },
+    ])
+    expect(groupStoryNeedOptions(start, 'u1').map((o) => o.id)).toEqual(['b1', 'w1'])
   })
 })
 
@@ -417,21 +591,29 @@ describe('groupStoryRunState', () => {
 
   it('reads a stopped run, a project’s ask and a sign-off as needing you', () => {
     expect(groupStoryRunState(run('parked'))).toBe('needs-you')
-    expect(groupStoryRunState(run('running', [{ projectId: 'ui', status: 'needs-you' }]))).toBe(
-      'needs-you',
-    )
-    expect(groupStoryRunState(run('running', [{ projectId: 'ui', status: 'at-sign-off' }]))).toBe(
-      'needs-you',
-    )
+    expect(
+      groupStoryRunState(
+        run('running', [{ legId: 'ui', projectId: 'ui', storyId: 's-ui', status: 'needs-you' }]),
+      ),
+    ).toBe('needs-you')
+    expect(
+      groupStoryRunState(
+        run('running', [{ legId: 'ui', projectId: 'ui', storyId: 's-ui', status: 'at-sign-off' }]),
+      ),
+    ).toBe('needs-you')
   })
 
   it('reads projects only waiting on other work as waiting, and working ones as running', () => {
-    expect(groupStoryRunState(run('running', [{ projectId: 'ui', status: 'waiting' }]))).toBe(
-      'waiting',
-    )
-    expect(groupStoryRunState(run('running', [{ projectId: 'ui', status: 'running' }]))).toBe(
-      'running',
-    )
+    expect(
+      groupStoryRunState(
+        run('running', [{ legId: 'ui', projectId: 'ui', storyId: 's-ui', status: 'waiting' }]),
+      ),
+    ).toBe('waiting')
+    expect(
+      groupStoryRunState(
+        run('running', [{ legId: 'ui', projectId: 'ui', storyId: 's-ui', status: 'running' }]),
+      ),
+    ).toBe('running')
   })
 })
 
@@ -449,16 +631,16 @@ describe('groupStoryRunState on a run built on branches', () => {
 
   it('reads one project finished and another working as running, not needing you', () => {
     const legs = [
-      { projectId: 'ui', status: 'at-sign-off' },
-      { projectId: 'web', status: 'running' },
+      { legId: 'ui', projectId: 'ui', storyId: 's-ui', status: 'at-sign-off' },
+      { legId: 'web', projectId: 'web', storyId: 's-web', status: 'running' },
     ]
     expect(groupStoryRunState(onBranch({ status: 'running', legs }))).toBe('running')
   })
 
   it('reads the same legs on a run with its own sign-offs as needing you', () => {
     const legs = [
-      { projectId: 'ui', status: 'at-sign-off' },
-      { projectId: 'web', status: 'running' },
+      { legId: 'ui', projectId: 'ui', storyId: 's-ui', status: 'at-sign-off' },
+      { legId: 'web', projectId: 'web', storyId: 's-web', status: 'running' },
     ]
     expect(
       groupStoryRunState(onBranch({ status: 'running', legs, buildMode: 'merge-first' })),
@@ -466,14 +648,14 @@ describe('groupStoryRunState on a run built on branches', () => {
   })
 
   it.each(['sign-off', 'sign-off-failed'])('reads a run stopped at %s as needing you', (reason) => {
-    const legs = [{ projectId: 'ui', status: 'at-sign-off' }]
+    const legs = [{ legId: 'ui', projectId: 'ui', storyId: 's-ui', status: 'at-sign-off' }]
     expect(groupStoryRunState(onBranch({ status: 'parked', legs, park: { reason } }))).toBe(
       'needs-you',
     )
   })
 
   it('names the one sign-off on the row’s badge from its stop', () => {
-    const legs = [{ projectId: 'ui', status: 'at-sign-off' }]
+    const legs = [{ legId: 'ui', projectId: 'ui', storyId: 's-ui', status: 'at-sign-off' }]
     const badgeOf = (reason: string) =>
       processGroupBadge(onBranch({ status: 'parked', legs, park: { reason } }).latestRun!).label
     expect(badgeOf('sign-off')).toBe(PROCESS_RUN_WORDS.signOff)
@@ -505,7 +687,7 @@ describe('filterGroupStories', () => {
       groupRunId: 'r',
       title: 't',
       status: 'running',
-      legs: [{ projectId: 'backend', status: 'waiting' }],
+      legs: [{ legId: 'backend', projectId: 'backend', storyId: 's-backend', status: 'waiting' }],
       startedAt: 0,
     },
   })

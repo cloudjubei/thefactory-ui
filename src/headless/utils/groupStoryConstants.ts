@@ -60,7 +60,28 @@ export const GROUP_STORY_FOLDS_DEFAULT: GroupStoryFolds = {
 /** The group story page's section headings and controls. */
 export const GROUP_STORY_PAGE_LABELS = {
   parts: 'Parts',
+  linked: 'Linked stories',
+  linkedHint: 'Tracked here, never run by this group story.',
   overview: 'Overview',
   expandAll: 'Expand all',
   collapseAll: 'Collapse all',
+} as const
+
+/** The group story form's headings and controls, the same on web and mobile. */
+export const GROUP_STORY_FORM_LABELS = {
+  parts: 'Parts',
+  partsHint: 'One project’s stories run one after another, top first.',
+  addPart: 'Add story',
+  linked: 'Linked stories',
+  linkedHint: 'Tracked only: a linked story is never run.',
+  addLink: 'Link a story from',
+  needsFirst: 'Needs first',
+  existing: 'Use a story',
+  new: 'New story',
+  pickStory: 'Pick a story…',
+  loadingStories: 'Loading its stories…',
+  moveUp: (name: string) => `Move ${name} up`,
+  moveDown: (name: string) => `Move ${name} down`,
+  remove: (name: string) => `Remove ${name}`,
+  noParts: 'No stories',
 } as const

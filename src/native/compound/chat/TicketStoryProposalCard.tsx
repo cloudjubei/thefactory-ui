@@ -286,11 +286,11 @@ export default function TicketStoryProposalCard({
       : view.outcome === 'refused'
         ? status.stuck.softFg
         : theme.text.secondary
-  const partOf = (projectId: string) => view.parts.find((p) => p.projectId === projectId)
+  const partOf = (key: string) => view.parts.find((p) => p.key === key)
   const planning = view.outcome !== 'created'
   const block = (part: TicketStoryPartView) => (
     <PartBlock
-      key={part.projectId}
+      key={part.key}
       part={part}
       renderStory={renderStory}
       planning={planning}
@@ -342,8 +342,8 @@ export default function TicketStoryProposalCard({
           {view.steps.map((step, at) => (
             <View key={at} style={{ gap: 6 }}>
               <Label>{TICKET_STORY_PROPOSAL_TEXT.step(at + 1)}</Label>
-              {step.map((projectId) => {
-                const part = partOf(projectId)
+              {step.map((key) => {
+                const part = partOf(key)
                 return part ? block(part) : null
               })}
             </View>

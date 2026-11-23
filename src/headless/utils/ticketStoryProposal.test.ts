@@ -26,7 +26,7 @@ const ARGS = {
     { projectId: 'adm', newStoryTitle: 'Show the renewal in admin' },
     { projectId: 'be', storyId: 's-12' },
   ],
-  needs: { adm: ['be'] },
+  needs: { 'Show the renewal in admin': ['s-12'] },
 }
 const CREATED = {
   groupStoryId: 'gs-1',
@@ -34,7 +34,7 @@ const CREATED = {
   title: 'Renew sessions before uploads',
   description: 'Renew the session first.',
   parts: [
-    { projectId: 'adm', storyId: 's-90', storyTitle: 'Show the renewal in admin', needs: ['be'] },
+    { projectId: 'adm', storyId: 's-90', storyTitle: 'Show the renewal in admin', needs: ['s-12'] },
     { projectId: 'be', storyId: 's-12', storyTitle: 'Session renewal', needs: [] },
   ],
 }
@@ -52,26 +52,50 @@ describe('isTicketStoryProposalTool', () => {
 })
 
 describe('partsOrderSteps', () => {
+  const p = (key: string, projectId = key) => ({ key, projectId, name: key })
   it.each([
-    ['one part needing another', ['adm', 'be'], { adm: ['be'] }, [['be'], ['adm']]],
+    ['one part needing another', [p('adm'), p('be')], { adm: ['be'] }, [['be'], ['adm']]],
     [
       'two parts needing the same one',
-      ['adm', 'be', 'web'],
+      [p('adm'), p('be'), p('web')],
       { adm: ['be'], web: ['be'] },
       [['be'], ['adm', 'web']],
     ],
-    ['a chain', ['web', 'adm', 'be'], { adm: ['be'], web: ['adm'] }, [['be'], ['adm'], ['web']]],
-    ['no needs at all', ['adm', 'be'], {}, [['adm', 'be']]],
-    ['a need for a project that is no part', ['adm', 'be'], { adm: ['ops'] }, [['adm', 'be']]],
-    ['a part needing itself', ['adm', 'be'], { adm: ['adm'] }, [['adm', 'be']]],
-    ['needs that are not lists', ['adm', 'be'], { adm: 'be' }, [['adm', 'be']]],
-    ['needs that are no object', ['adm', 'be'], ['be'], [['adm', 'be']]],
+    [
+      'a chain',
+      [p('web'), p('adm'), p('be')],
+      { adm: ['be'], web: ['adm'] },
+      [['be'], ['adm'], ['web']],
+    ],
+    ['no needs at all', [p('adm'), p('be')], {}, [['adm', 'be']]],
+    ['a need for a part that is not there', [p('adm'), p('be')], { adm: ['ops'] }, [['adm', 'be']]],
+    ['a part needing itself', [p('adm'), p('be')], { adm: ['adm'] }, [['adm', 'be']]],
+    ['needs that are not lists', [p('adm'), p('be')], { adm: 'be' }, [['adm', 'be']]],
+    ['needs that are no object', [p('adm'), p('be')], ['be'], [['adm', 'be']]],
+    [
+      'one project’s parts, each after the one before it',
+      [p('a1', 'adm'), p('be'), p('a2', 'adm')],
+      {},
+      [['a1', 'be'], ['a2']],
+    ],
   ])('reads %s', (_name, parts, needs, steps) => {
     expect(partsOrderSteps(parts, needs)).toEqual(steps)
   })
 
+  it('reads a part named by its name, not its key', () => {
+    expect(
+      partsOrderSteps(
+        [
+          { key: 'k1', projectId: 'adm', name: 'Admin story' },
+          { key: 'k2', projectId: 'be', name: 's-12' },
+        ],
+        { 'Admin story': ['s-12'] },
+      ),
+    ).toEqual([['k2'], ['k1']])
+  })
+
   it('puts parts that need each other in a circle together, last', () => {
-    expect(partsOrderSteps(['adm', 'be', 'web'], { adm: ['be'], be: ['adm'] })).toEqual([
+    expect(partsOrderSteps([p('adm'), p('be'), p('web')], { adm: ['be'], be: ['adm'] })).toEqual([
       ['web'],
       ['adm', 'be'],
     ])
@@ -122,6 +146,7 @@ describe('ticketStoryProposalView', () => {
       description: 'Renew the session first.',
       parts: [
         {
+          key: 'part-0',
           projectId: 'adm',
           projectTitle: 'Admin',
           story: { kind: 'new', title: 'Show the renewal in admin' },
@@ -129,6 +154,7 @@ describe('ticketStoryProposalView', () => {
           features: [],
         },
         {
+          key: 'part-1',
           projectId: 'be',
           projectTitle: 'Backend',
           story: { kind: 'existing', storyId: 's-12' },
@@ -136,7 +162,7 @@ describe('ticketStoryProposalView', () => {
           features: [],
         },
       ],
-      steps: [['be'], ['adm']],
+      steps: [['part-1'], ['part-0']],
       order: 'Backend first, then Admin',
       outcome: 'asking',
       note: TICKET_STORY_PROPOSAL_OUTCOME.asking,
@@ -149,7 +175,14 @@ describe('ticketStoryProposalView', () => {
       projects: PROJECTS,
     })
     expect(view.parts).toEqual([
-      { projectId: 'be', projectTitle: 'Backend', story: { kind: 'new' }, step: 1, features: [] },
+      {
+        key: 'part-0',
+        projectId: 'be',
+        projectTitle: 'Backend',
+        story: { kind: 'new' },
+        step: 1,
+        features: [],
+      },
     ])
     expect(view.order).toBeUndefined()
   })
@@ -189,7 +222,7 @@ describe('ticketStoryProposalView', () => {
       resultType: 'success',
       projects: PROJECTS,
     })
-    expect(view.steps).toEqual([['be'], ['adm']])
+    expect(view.steps).toEqual([['part-1'], ['part-0']])
   })
 
   it.each([

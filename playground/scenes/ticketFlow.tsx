@@ -89,7 +89,7 @@ function part(projectId: string, projectTitle: string, step: number): GroupStory
     status: 'pending',
     featuresDone: 0,
     featuresTotal: 2,
-    needs: step > 1 ? ['compass-be'] : [],
+    needs: step > 1 ? ['story-compass-be'] : [],
     step,
   }
 }
@@ -112,7 +112,8 @@ function groupStory(
     createdAt: AT,
     updatedAt: AT,
     partViews,
-    steps: [['compass-be'], ['compass-web']],
+    linkViews: [],
+    steps: [['story-compass-be'], ['story-compass-web']],
     problems: [],
     status: 'pending',
     ...(key
@@ -268,9 +269,9 @@ const previewOf = (ticketMove?: TicketLaunchMove): GroupStoryRunPreview => ({
   groupTitle: 'OSC',
   legs: [
     leg('compass-be', 'Compass BE', []),
-    { ...leg('compass-web', 'Compass Web', ['compass-be']), isPrerequisite: false },
+    { ...leg('compass-web', 'Compass Web', ['story-compass-be']), isPrerequisite: false },
   ],
-  waves: [['compass-be'], ['compass-web']],
+  waves: [['story-compass-be'], ['story-compass-web']],
   problems: [],
   buildMode: 'on-branch',
   ...(ticketMove ? { ticketMove } : {}),

@@ -2,6 +2,8 @@ import { GROUP_STORY_ACTION_LABELS, NO_GROUP_STORIES } from './groupStoryConstan
 import type {
   GroupStoryFolds,
   GroupStoryForm,
+  GroupStoryFormLink,
+  GroupStoryFormPartMoves,
   GroupStoryFormRow,
   GroupStoryListFilter,
   GroupStoryMemberProject,
@@ -67,9 +69,35 @@ export function groupStoryToggledFold(folds: GroupStoryFolds, key: string): Grou
   }
 }
 
-/** The projects of the parts a part needs, by title. */
+/** How a part is named: its project, and its story too once its project has several parts. */
+export function groupStoryPartName(view: GroupStoryView, part: GroupStoryPartView): string {
+  const several = view.partViews.filter((p) => p.projectId === part.projectId).length > 1
+  return several ? `${part.projectTitle} · ${part.storyTitle ?? part.storyId}` : part.projectTitle
+}
+
+/** Where a part runs among its project's parts — “2 of 3 in UI” — while its project has several. */
+export function groupStoryPartPlace(
+  view: GroupStoryView,
+  part: GroupStoryPartView,
+): string | undefined {
+  const own = view.partViews.filter((p) => p.projectId === part.projectId)
+  if (own.length < 2) return undefined
+  return `${own.indexOf(part) + 1} of ${own.length} in ${part.projectTitle}`
+}
+
+/** The parts a part needs, by name. */
 export function groupStoryNeedTitles(part: GroupStoryPartView, view: GroupStoryView): string[] {
-  return part.needs.map((id) => view.partViews.find((p) => p.projectId === id)?.projectTitle ?? id)
+  return part.needs.map((id) => {
+    const needed = view.partViews.find((p) => p.storyId === id)
+    return needed ? groupStoryPartName(view, needed) : id
+  })
+}
+
+/** How many stories it links, as its Linked heading says it; nothing when it links none. */
+export function groupStoryLinksText(view: GroupStoryView): string | undefined {
+  const count = view.linkViews.length
+  if (count === 0) return undefined
+  return `${count} linked ${count === 1 ? 'story' : 'stories'} · tracked only`
 }
 
 /** Whether a group story's latest run is still going. */
@@ -94,56 +122,198 @@ export function groupStoryRunButton(view: GroupStoryView): GroupStoryRunButton |
     : { disabled: true, label: blocked }
 }
 
-/** The form for a new group story — every member project taking no part — or for changing one. */
+/** The form for a new group story — no parts, no links — or for changing one. */
 export function groupStoryFormFor(
   members: readonly GroupStoryMemberProject[],
   view?: GroupStoryView,
 ): GroupStoryForm {
-  const partOf = (projectId: string) => view?.partViews.find((p) => p.projectId === projectId)
-  const row = (projectId: string, projectTitle: string): GroupStoryFormRow => {
-    const part = partOf(projectId)
-    return part
-      ? {
-          projectId,
-          projectTitle,
-          choice: 'existing',
-          storyId: part.storyId,
-          needs: [...part.needs],
-        }
-      : { projectId, projectTitle, choice: 'none', needs: [] }
-  }
-  const rows = members.map((m) => row(m.id, m.title))
-  for (const part of view?.partViews ?? []) {
-    if (!members.some((m) => m.id === part.projectId)) {
-      rows.push(row(part.projectId, part.projectTitle))
+  const projects = [...members]
+  for (const p of [...(view?.partViews ?? []), ...(view?.linkViews ?? [])]) {
+    if (!projects.some((m) => m.id === p.projectId)) {
+      projects.push({ id: p.projectId, title: p.projectTitle })
     }
   }
-  return { title: view?.title ?? '', description: view?.description ?? '', rows }
+  const parts = view?.partViews ?? []
+  const projectOf = new Map(parts.map((p) => [p.storyId, p.projectId]))
+  const rows: GroupStoryFormRow[] = parts.map((p) => ({
+    key: p.storyId,
+    projectId: p.projectId,
+    projectTitle: p.projectTitle,
+    choice: 'existing',
+    storyId: p.storyId,
+    needs: p.needs.filter((n) => projectOf.has(n) && projectOf.get(n) !== p.projectId),
+  }))
+  const links: GroupStoryFormLink[] = (view?.linkViews ?? []).map((l) => ({
+    key: `link-${l.storyId}`,
+    projectId: l.projectId,
+    projectTitle: l.projectTitle,
+    storyId: l.storyId,
+  }))
+  return { title: view?.title ?? '', description: view?.description ?? '', projects, rows, links }
 }
 
-function takingPart(form: GroupStoryForm): GroupStoryFormRow[] {
-  return form.rows.filter((r) => r.choice !== 'none')
+function nextKey(taken: readonly string[], prefix: string): string {
+  let n = 1
+  while (taken.includes(`${prefix}${n}`)) n++
+  return `${prefix}${n}`
+}
+
+function projectTitleIn(form: GroupStoryForm, projectId: string): string {
+  return form.projects.find((p) => p.id === projectId)?.title ?? projectId
+}
+
+/** The form with a new part — a new story — after its project's other parts. */
+export function groupStoryFormWithPart(form: GroupStoryForm, projectId: string): GroupStoryForm {
+  const row: GroupStoryFormRow = {
+    key: nextKey(
+      form.rows.map((r) => r.key),
+      'new-',
+    ),
+    projectId,
+    projectTitle: projectTitleIn(form, projectId),
+    choice: 'new',
+    needs: [],
+  }
+  return { ...form, rows: [...form.rows, row] }
+}
+
+/** The form without a part, and without every need on it. */
+export function groupStoryFormWithoutPart(form: GroupStoryForm, key: string): GroupStoryForm {
+  return {
+    ...form,
+    rows: form.rows
+      .filter((r) => r.key !== key)
+      .map((r) => ({ ...r, needs: r.needs.filter((n) => n !== key) })),
+  }
+}
+
+function neighbourOf(
+  form: GroupStoryForm,
+  key: string,
+  direction: 'up' | 'down',
+): number | undefined {
+  const at = form.rows.findIndex((r) => r.key === key)
+  if (at < 0) return undefined
+  const projectId = form.rows[at]!.projectId
+  const same = form.rows.flatMap((r, i) => (r.projectId === projectId ? [i] : []))
+  const place = same.indexOf(at)
+  return same[direction === 'up' ? place - 1 : place + 1]
+}
+
+/** Which ways a part can move among its project's parts. */
+export function groupStoryFormPartMoves(
+  form: GroupStoryForm,
+  key: string,
+): GroupStoryFormPartMoves {
+  return {
+    up: neighbourOf(form, key, 'up') !== undefined,
+    down: neighbourOf(form, key, 'down') !== undefined,
+  }
+}
+
+/** The form with a part moved one place up or down among its project's parts; the same form when it cannot move. */
+export function groupStoryFormMovedPart(
+  form: GroupStoryForm,
+  key: string,
+  direction: 'up' | 'down',
+): GroupStoryForm {
+  const other = neighbourOf(form, key, direction)
+  if (other === undefined) return form
+  const at = form.rows.findIndex((r) => r.key === key)
+  const rows = [...form.rows]
+  ;[rows[at], rows[other]] = [rows[other]!, rows[at]!]
+  return { ...form, rows }
+}
+
+/** The form with a new linked story of a project, its story not picked yet. */
+export function groupStoryFormWithLink(form: GroupStoryForm, projectId: string): GroupStoryForm {
+  const link: GroupStoryFormLink = {
+    key: nextKey(
+      form.links.map((l) => l.key),
+      'link-new-',
+    ),
+    projectId,
+    projectTitle: projectTitleIn(form, projectId),
+  }
+  return { ...form, links: [...form.links, link] }
+}
+
+/** The form with a linked story picked, or unpicked. */
+export function groupStoryFormWithLinkStory(
+  form: GroupStoryForm,
+  key: string,
+  storyId: string | undefined,
+): GroupStoryForm {
+  return {
+    ...form,
+    links: form.links.map((l) => {
+      if (l.key !== key) return l
+      const { storyId: _old, ...rest } = l
+      return storyId ? { ...rest, storyId } : rest
+    }),
+  }
+}
+
+/** The form without a linked story. */
+export function groupStoryFormWithoutLink(form: GroupStoryForm, key: string): GroupStoryForm {
+  return { ...form, links: form.links.filter((l) => l.key !== key) }
+}
+
+/** What each part needs on the form: the part of its project before it, and the parts it names. */
+function formNeeds(form: GroupStoryForm): Map<string, string[]> {
+  const keys = new Set(form.rows.map((r) => r.key))
+  return new Map(
+    form.rows.map((r, i) => {
+      const before = form.rows
+        .slice(0, i)
+        .filter((o) => o.projectId === r.projectId)
+        .at(-1)
+      const named = r.needs.filter((n) => keys.has(n))
+      return [r.key, before ? [before.key, ...named] : named]
+    }),
+  )
+}
+
+/** The name a new part goes by in what parts need: its title, else the group story's. */
+function newPartName(form: GroupStoryForm, row: GroupStoryFormRow): string {
+  return row.newStoryTitle?.trim() || form.title.trim()
 }
 
 /** What still stops the form from being saved, in the words it shows. */
 export function groupStoryFormProblems(form: GroupStoryForm): string[] {
   if (!form.title.trim()) return ['Give it a title.']
-  const rows = takingPart(form)
-  if (rows.length === 0) return ['Pick at least one project.']
-  const unpicked = rows.find((r) => r.choice === 'existing' && !r.storyId)
+  if (form.rows.length === 0 && form.links.length === 0) return ['Add a part or a linked story.']
+  const unpicked = form.rows.find((r) => r.choice === 'existing' && !r.storyId)
   if (unpicked) return [`Pick ${unpicked.projectTitle}’s story.`]
-  const ids = new Set(rows.map((r) => r.projectId))
-  const needs = new Map(rows.map((r) => [r.projectId, r.needs.filter((n) => ids.has(n))]))
+  const unlinked = form.links.find((l) => !l.storyId)
+  if (unlinked) return [`Pick the ${unlinked.projectTitle} story to link.`]
+  const stories = [
+    ...form.rows.flatMap((r) => (r.choice === 'existing' && r.storyId ? [r.storyId] : [])),
+    ...form.links.flatMap((l) => (l.storyId ? [l.storyId] : [])),
+  ]
+  if (new Set(stories).size < stories.length) {
+    return ['A story is picked twice: each part and link is a story of its own.']
+  }
+  const named = new Set(form.rows.flatMap((r) => r.needs))
+  const newNames = form.rows
+    .filter((r) => r.choice === 'new')
+    .map((r) => ({ key: r.key, name: newPartName(form, r) }))
+  if (
+    newNames.some((n) => named.has(n.key) && newNames.filter((o) => o.name === n.name).length > 1)
+  ) {
+    return ['Give each new story another part needs its own title.']
+  }
+  const needs = formNeeds(form)
   const placed = new Set<string>()
-  let left = rows.map((r) => r.projectId)
+  let left = form.rows.map((r) => r.key)
   while (left.length > 0) {
-    const step = left.filter((id) => (needs.get(id) ?? []).every((n) => placed.has(n)))
+    const step = left.filter((key) => (needs.get(key) ?? []).every((n) => placed.has(n)))
     if (step.length === 0) break
-    for (const id of step) placed.add(id)
-    left = left.filter((id) => !placed.has(id))
+    for (const key of step) placed.add(key)
+    left = left.filter((key) => !placed.has(key))
   }
   if (left.length === 0) return []
-  const titles = left.map((id) => rows.find((r) => r.projectId === id)!.projectTitle)
+  const titles = left.map((key) => form.rows.find((r) => r.key === key)!.projectTitle)
   return [
     titles.length === 2
       ? `${titles[0]} and ${titles[1]} need each other, so neither could start.`
@@ -151,30 +321,57 @@ export function groupStoryFormProblems(form: GroupStoryForm): string[] {
   ]
 }
 
-/** What saving the form sends: the projects taking part, and what each needs among them. */
+/**
+ * What saving the form sends: its parts in order, its links, and what each part
+ * needs among the other projects' parts — an existing story by its id, a new one
+ * by its title. A new part that needs nothing is left out: it has no blockers.
+ */
 export function groupStoryFormRequest(form: GroupStoryForm): GroupStoryWriteBody {
-  const rows = takingPart(form)
-  const ids = new Set(rows.map((r) => r.projectId))
+  const keys = new Set(form.rows.map((r) => r.key))
+  const nameOf = (row: GroupStoryFormRow) =>
+    row.choice === 'existing' ? row.storyId! : newPartName(form, row)
+  const needs = form.rows.flatMap((r) => {
+    const named = r.needs.filter((n) => keys.has(n))
+    if (r.choice === 'new' && named.length === 0) return []
+    return [[nameOf(r), named.map((n) => nameOf(form.rows.find((o) => o.key === n)!))] as const]
+  })
   return {
     title: form.title.trim(),
     description: form.description.trim(),
-    parts: rows.map((r) => {
+    parts: form.rows.map((r) => {
       if (r.choice === 'existing') return { projectId: r.projectId, storyId: r.storyId }
       const title = r.newStoryTitle?.trim()
       return title ? { projectId: r.projectId, newStoryTitle: title } : { projectId: r.projectId }
     }),
-    needs: Object.fromEntries(rows.map((r) => [r.projectId, r.needs.filter((n) => ids.has(n))])),
+    links: form.links.flatMap((l) =>
+      l.storyId ? [{ projectId: l.projectId, storyId: l.storyId }] : [],
+    ),
+    needs: Object.fromEntries(needs),
   }
 }
 
-/** The projects a row may need: the other projects taking part. */
+/**
+ * The parts a part may need: the other projects' parts, each by its project
+ * and — when its project has several — its story's title.
+ */
 export function groupStoryNeedOptions(
   form: GroupStoryForm,
-  projectId: string,
+  key: string,
+  storiesByProject: Readonly<Record<string, readonly { id: string; title: string }[]>> = {},
 ): GroupStoryMemberProject[] {
-  return takingPart(form)
-    .filter((r) => r.projectId !== projectId)
-    .map((r) => ({ id: r.projectId, title: r.projectTitle }))
+  const own = form.rows.find((r) => r.key === key)
+  const label = (r: GroupStoryFormRow) => {
+    const several = form.rows.filter((o) => o.projectId === r.projectId).length > 1
+    if (!several) return r.projectTitle
+    const story =
+      r.choice === 'existing'
+        ? (storiesByProject[r.projectId]?.find((s) => s.id === r.storyId)?.title ?? r.storyId)
+        : r.newStoryTitle?.trim() || 'New story'
+    return `${r.projectTitle} · ${story}`
+  }
+  return form.rows
+    .filter((r) => r.key !== key && r.projectId !== own?.projectId)
+    .map((r) => ({ id: r.key, title: label(r) }))
 }
 
 /** The group stories a listed story is a part of; none, always the same list, for a story that is no part. */

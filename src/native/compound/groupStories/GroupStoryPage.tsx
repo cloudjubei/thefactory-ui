@@ -4,7 +4,10 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 import {
   GROUP_STORY_ACTION_LABELS,
   GROUP_STORY_PAGE_LABELS,
+  groupStoryLinksText,
   groupStoryNeedTitles,
+  groupStoryPartName,
+  groupStoryPartPlace,
   groupStoryPartsText,
   groupStoryRunButton,
   groupStoryStepColumns,
@@ -15,6 +18,7 @@ import {
   statusLabel,
   useGroupStoryFolds,
   type GroupStoryFolds,
+  type GroupStoryLinkView,
   type GroupStoryPartView,
   type GroupStoryView,
   type MarkdownSection,
@@ -72,6 +76,7 @@ export default function GroupStoryPage({
   )
   const { columns, looping } = groupStoryStepColumns(story)
   const partsText = groupStoryPartsText(story)
+  const linksText = groupStoryLinksText(story)
   const runButton = groupStoryRunButton(story)
   const description = story.description ?? ''
   const doc = useMemo(() => markdownSections(description), [description])
@@ -92,12 +97,7 @@ export default function GroupStoryPage({
         {label}
       </Text>
       {parts.map((part) => (
-        <PartCard
-          key={part.projectId}
-          part={part}
-          story={story}
-          onOpenPartStory={onOpenPartStory}
-        />
+        <PartCard key={part.storyId} part={part} story={story} onOpenPartStory={onOpenPartStory} />
       ))}
     </View>
   )
@@ -187,7 +187,7 @@ export default function GroupStoryPage({
         meta={partsText}
         open={folds.parts}
         onToggle={toggleParts}
-        folded={<PartsLine columns={columns} looping={looping} />}
+        folded={<PartsLine story={story} columns={columns} looping={looping} />}
       >
         <View style={{ gap: nativeSpace[4] }}>
           {columns.map((column) =>
@@ -202,6 +202,31 @@ export default function GroupStoryPage({
           {looping.length > 0 ? step('looping', 'Cannot start', looping, true) : null}
         </View>
       </FoldPanel>
+
+      {linksText ? (
+        <View
+          accessibilityLabel={GROUP_STORY_PAGE_LABELS.linked}
+          style={{
+            gap: nativeSpace[2],
+            padding: nativeSpace[4],
+            borderBottomWidth: 1,
+            borderBottomColor: theme.border.subtle,
+          }}
+        >
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', gap: 8 }}>
+            <Text style={{ fontSize: 15, fontWeight: '600', color: theme.text.primary }}>
+              {GROUP_STORY_PAGE_LABELS.linked}
+            </Text>
+            <Text style={{ fontSize: 12, color: theme.text.muted }}>{linksText}</Text>
+          </View>
+          <Text style={{ fontSize: 12, color: theme.text.muted }}>
+            {GROUP_STORY_PAGE_LABELS.linkedHint}
+          </Text>
+          {story.linkViews.map((link) => (
+            <LinkCard key={link.storyId} link={link} onOpenPartStory={onOpenPartStory} />
+          ))}
+        </View>
+      ) : null}
 
       {description.trim() ? (
         <FoldPanel
@@ -410,18 +435,22 @@ function FoldSection({
 
 /** The parts in the order they run: a status dot and project each, → between steps. */
 function PartsLine({
+  story,
   columns,
   looping,
 }: {
+  story: GroupStoryView
   columns: ReturnType<typeof groupStoryStepColumns>['columns']
   looping: GroupStoryPartView[]
 }) {
   const { theme, status } = useNativeTheme()
   const dot = (part: GroupStoryPartView) => (
     <View
-      key={part.projectId}
+      key={part.storyId}
       accessibilityLabel={
-        part.status ? `${part.projectTitle}, ${statusLabel(part.status)}` : part.projectTitle
+        part.status
+          ? `${groupStoryPartName(story, part)}, ${statusLabel(part.status)}`
+          : groupStoryPartName(story, part)
       }
       style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
     >
@@ -435,7 +464,9 @@ function PartsLine({
             : theme.border.default,
         }}
       />
-      <Text style={{ fontSize: 12.5, color: theme.text.secondary }}>{part.projectTitle}</Text>
+      <Text style={{ fontSize: 12.5, color: theme.text.secondary }}>
+        {groupStoryPartName(story, part)}
+      </Text>
     </View>
   )
   return (
@@ -477,6 +508,7 @@ function PartCard({
 }) {
   const { theme } = useNativeTheme()
   const needs = groupStoryNeedTitles(part, story)
+  const place = groupStoryPartPlace(story, part)
   return (
     <View
       style={{
@@ -495,6 +527,7 @@ function PartCard({
         >
           {part.projectTitle}
         </Text>
+        {place ? <Text style={{ fontSize: 12, color: theme.text.muted }}>{place}</Text> : null}
         {part.status ? <StatusControl status={part.status} /> : null}
       </View>
       <View style={{ flexDirection: 'row' }}>
@@ -518,6 +551,50 @@ function PartCard({
           </>
         ) : null}
       </View>
+    </View>
+  )
+}
+
+/** Native peer of web's linked story card: tracked only, opening the story, never a step. */
+function LinkCard({
+  link,
+  onOpenPartStory,
+}: {
+  link: GroupStoryLinkView
+  onOpenPartStory: (projectId: string, storyId: string) => void
+}) {
+  const { theme } = useNativeTheme()
+  return (
+    <View
+      style={{
+        gap: nativeSpace[2],
+        padding: nativeSpace[3],
+        borderRadius: nativeRadii[3],
+        borderWidth: 1,
+        borderStyle: 'dashed',
+        borderColor: theme.border.default,
+      }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}>
+        <Text
+          numberOfLines={1}
+          style={{ flex: 1, fontSize: 14, fontWeight: '600', color: theme.text.primary }}
+        >
+          {link.projectTitle}
+        </Text>
+        {link.status ? <StatusControl status={link.status} /> : null}
+      </View>
+      <View style={{ flexDirection: 'row' }}>
+        <GroupStoryStoryChip
+          title={link.storyTitle}
+          onOpen={() => onOpenPartStory(link.projectId, link.storyId)}
+        />
+      </View>
+      <Text style={{ fontSize: 12, color: theme.text.muted }}>
+        {link.featuresTotal === 0
+          ? 'No features yet'
+          : `${link.featuresDone}/${link.featuresTotal} done`}
+      </Text>
     </View>
   )
 }

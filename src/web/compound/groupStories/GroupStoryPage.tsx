@@ -3,7 +3,10 @@ import { Fragment, useId, useMemo, useState, type ReactNode } from 'react'
 import {
   GROUP_STORY_ACTION_LABELS,
   GROUP_STORY_PAGE_LABELS,
+  groupStoryLinksText,
   groupStoryNeedTitles,
+  groupStoryPartName,
+  groupStoryPartPlace,
   groupStoryPartsText,
   groupStoryRunButton,
   groupStoryStepColumns,
@@ -14,6 +17,7 @@ import {
   statusLabel,
   useGroupStoryFolds,
   type GroupStoryFolds,
+  type GroupStoryLinkView,
   type GroupStoryPartView,
   type GroupStoryView,
   type MarkdownSection,
@@ -72,6 +76,7 @@ export default function GroupStoryPage({
   )
   const { columns, looping } = groupStoryStepColumns(story)
   const partsText = groupStoryPartsText(story)
+  const linksText = groupStoryLinksText(story)
   const runButton = groupStoryRunButton(story)
   const description = story.description ?? ''
   const doc = useMemo(() => markdownSections(description), [description])
@@ -137,7 +142,7 @@ export default function GroupStoryPage({
           meta={partsText}
           open={folds.parts}
           onToggle={toggleParts}
-          folded={<PartsLine columns={columns} looping={looping} />}
+          folded={<PartsLine story={story} columns={columns} looping={looping} />}
         >
           <div className="flex flex-wrap gap-3 pb-1">
             {columns.map((column) => (
@@ -160,6 +165,28 @@ export default function GroupStoryPage({
             ) : null}
           </div>
         </FoldPanel>
+
+        {linksText ? (
+          <section
+            aria-label={GROUP_STORY_PAGE_LABELS.linked}
+            className="flex flex-col gap-2 rounded-lg border border-dashed border-(--border-default) px-3.5 py-2.5 @max-3xl:rounded-none @max-3xl:border-x-0 @max-3xl:border-t-0 @max-3xl:px-4"
+          >
+            <div className="flex flex-wrap items-baseline gap-x-2">
+              <h2 className="m-0 text-[13px] font-semibold text-(--text-primary)">
+                {GROUP_STORY_PAGE_LABELS.linked}
+              </h2>
+              <span className="text-[11.5px] text-(--text-muted)">{linksText}</span>
+            </div>
+            <span className="text-[11.5px] text-(--text-muted)">
+              {GROUP_STORY_PAGE_LABELS.linkedHint}
+            </span>
+            <ul role="list" className="flex flex-wrap gap-2">
+              {story.linkViews.map((link) => (
+                <LinkCard key={link.storyId} link={link} onOpenPartStory={onOpenPartStory} />
+              ))}
+            </ul>
+          </section>
+        ) : null}
 
         {description.trim() ? (
           <FoldPanel
@@ -345,15 +372,17 @@ function FoldSection({
 
 /** The parts in the order they run, one line: a status dot and project each, → between steps. */
 function PartsLine({
+  story,
   columns,
   looping,
 }: {
+  story: GroupStoryView
   columns: ReturnType<typeof groupStoryStepColumns>['columns']
   looping: GroupStoryPartView[]
 }) {
   const dot = (part: GroupStoryPartView) => (
     <span
-      key={part.projectId}
+      key={part.storyId}
       className="inline-flex items-center gap-1.5 whitespace-nowrap"
       title={part.status ? statusLabel(part.status) : undefined}
     >
@@ -361,7 +390,7 @@ function PartsLine({
         className={`status-bullet status-bullet--${part.status ? statusKey(part.status) : 'empty'}`}
         aria-hidden
       />
-      <span className="text-(--text-secondary)">{part.projectTitle}</span>
+      <span className="text-(--text-secondary)">{groupStoryPartName(story, part)}</span>
       {part.status ? <span className="sr-only">{statusLabel(part.status)}</span> : null}
     </span>
   )
@@ -411,12 +440,7 @@ function StepColumn({
         {label}
       </h3>
       {parts.map((part) => (
-        <PartCard
-          key={part.projectId}
-          part={part}
-          story={story}
-          onOpenPartStory={onOpenPartStory}
-        />
+        <PartCard key={part.storyId} part={part} story={story} onOpenPartStory={onOpenPartStory} />
       ))}
     </section>
   )
@@ -432,12 +456,14 @@ function PartCard({
   onOpenPartStory: (projectId: string, storyId: string) => void
 }) {
   const needs = groupStoryNeedTitles(part, story)
+  const place = groupStoryPartPlace(story, part)
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-(--border-subtle) bg-(--surface-raised) p-3">
       <div className="flex items-center gap-2">
         <span className="min-w-0 truncate text-[12.5px] font-semibold text-(--text-primary)">
           {part.projectTitle}
         </span>
+        {place ? <span className="shrink-0 text-[11px] text-(--text-muted)">{place}</span> : null}
         <span className="grow" />
         {part.status ? <StatusControl status={part.status} /> : null}
       </div>
@@ -465,5 +491,37 @@ function PartCard({
         ) : null}
       </div>
     </div>
+  )
+}
+
+/** A story the group story links: tracked only, opening the story, never a step. */
+function LinkCard({
+  link,
+  onOpenPartStory,
+}: {
+  link: GroupStoryLinkView
+  onOpenPartStory: (projectId: string, storyId: string) => void
+}) {
+  return (
+    <li className="flex min-w-0 flex-[1_1_14rem] flex-col gap-1.5 rounded-lg border border-(--border-subtle) p-2.5 @3xl:max-w-80">
+      <div className="flex items-center gap-2">
+        <span className="min-w-0 truncate text-[12px] font-semibold text-(--text-primary)">
+          {link.projectTitle}
+        </span>
+        <span className="grow" />
+        {link.status ? <StatusControl status={link.status} /> : null}
+      </div>
+      <div className="flex min-w-0">
+        <GroupStoryStoryChip
+          title={link.storyTitle}
+          onOpen={() => onOpenPartStory(link.projectId, link.storyId)}
+        />
+      </div>
+      <span className="chips-sub__label">
+        {link.featuresTotal === 0
+          ? 'No features yet'
+          : `${link.featuresDone}/${link.featuresTotal} done`}
+      </span>
+    </li>
   )
 }

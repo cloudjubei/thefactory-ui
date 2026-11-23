@@ -156,14 +156,14 @@ export function liveCheckGroupPreview(): GroupStoryRunPreview {
     legs: [
       leg('thefactory-backend', 'TheFactory Backend', []),
       {
-        ...leg('thefactory-overseer-web', 'Overseer Web', ['thefactory-backend']),
+        ...leg('thefactory-overseer-web', 'Overseer Web', ['read-receipts-thefactory-backend']),
         liveCheckOffers: [
           { featureId: 'w1', title: 'Read ticks', offer: LIVE_CHECK_OFFERS['ask-me'] },
           { featureId: 'w2', title: 'Read receipts setting', offer: LIVE_CHECK_OFFERS.optional },
         ],
       } as GroupLeg,
     ],
-    waves: [['thefactory-backend'], ['thefactory-overseer-web']],
+    waves: [['read-receipts-thefactory-backend'], ['read-receipts-thefactory-overseer-web']],
     problems: [],
   }
 }

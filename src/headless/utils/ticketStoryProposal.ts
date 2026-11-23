@@ -34,26 +34,40 @@ export function isTicketStoryProposalTool(name: string | undefined): boolean {
 }
 
 /**
- * The steps a group story's parts run in, first step first: a part runs once
- * every part it needs has. A need for a project that is no part, or for itself,
- * is no need. Parts that need each other in a circle go together, last. Pure.
+ * The steps a group story's parts run in, first step first, by the parts'
+ * keys: a part runs after the part of its project before it and once every
+ * part it needs has. `needs` names parts by their names — a story id, or a new
+ * part's title. A need for no part, or for itself, is no need. Parts that need
+ * each other in a circle go together, last. Pure.
  */
-export function partsOrderSteps(projectIds: readonly string[], needs: unknown): string[][] {
+export function partsOrderSteps(
+  parts: readonly { key: string; projectId: string; name: string }[],
+  needs: unknown,
+): string[][] {
   const wanted = record(needs)
-  const needsOf = (id: string): string[] => {
-    const raw = wanted[id]
-    const list = Array.isArray(raw) ? raw : []
-    return list.filter((n): n is string => n !== id && projectIds.includes(n as string))
+  const keyOf = (name: string) => parts.find((p) => p.name === name)?.key
+  const needsOf = (part: (typeof parts)[number], at: number): string[] => {
+    const raw = wanted[part.name]
+    const named = (Array.isArray(raw) ? raw : []).flatMap((n) => {
+      const key = typeof n === 'string' ? keyOf(n) : undefined
+      return key && key !== part.key ? [key] : []
+    })
+    const before = parts
+      .slice(0, at)
+      .filter((p) => p.projectId === part.projectId)
+      .at(-1)
+    return before ? [before.key, ...named] : named
   }
+  const needed = new Map(parts.map((p, at) => [p.key, needsOf(p, at)]))
   const steps: string[][] = []
   const placed = new Set<string>()
-  let left = [...new Set(projectIds)]
+  let left = [...new Set(parts.map((p) => p.key))]
   while (left.length > 0) {
-    const ready = left.filter((id) => needsOf(id).every((need) => placed.has(need)))
+    const ready = left.filter((key) => (needed.get(key) ?? []).every((n) => placed.has(n)))
     const step = ready.length > 0 ? ready : left
     steps.push(step)
-    for (const id of step) placed.add(id)
-    left = left.filter((id) => !placed.has(id))
+    for (const key of step) placed.add(key)
+    left = left.filter((key) => !placed.has(key))
   }
   return steps
 }
@@ -70,7 +84,7 @@ function listed(names: readonly string[]): string {
  */
 export function partsOrderLine(
   steps: readonly (readonly string[])[],
-  nameOf: (projectId: string) => string,
+  nameOf: (key: string) => string,
 ): string | undefined {
   const [first, ...rest] = steps
   if (!first) return undefined
@@ -187,12 +201,20 @@ export function ticketStoryProposalView(input: TicketStoryProposalInput): Ticket
   const created = outcome === 'created'
   const made = created ? madeParts(answer.parts) : []
   const raw = made.length > 0 ? made : askedParts(args.parts)
+  const askedTitle = text(args.title) ?? ''
+  const keyed = raw.map((p, at) => ({
+    key: `part-${at}`,
+    projectId: p.projectId,
+    name: p.story.kind === 'existing' ? p.story.storyId : (p.story.title ?? askedTitle),
+  }))
   const needs =
-    made.length > 0 ? Object.fromEntries(made.map((p) => [p.projectId, p.needs])) : args.needs
-  const steps = partsOrderSteps(
-    raw.map((p) => p.projectId),
-    needs,
-  )
+    made.length > 0
+      ? Object.fromEntries(
+          made.map((p) => [p.story.kind === 'existing' ? p.story.storyId : '', p.needs]),
+        )
+      : args.needs
+  const steps = partsOrderSteps(keyed, needs)
+  const projectOfKey = (key: string) => keyed.find((k) => k.key === key)?.projectId ?? key
   const nameOf = (projectId: string) =>
     text(input.projects?.find((p) => p.id === projectId)?.title) ?? projectId
   const ticketKey = text(args.ticketKey)
@@ -202,7 +224,7 @@ export function ticketStoryProposalView(input: TicketStoryProposalInput): Ticket
     text(args.title) ??
     TICKET_STORY_PROPOSAL_TEXT.untitled
   const description = (created ? text(answer.description) : undefined) ?? text(args.description)
-  const order = partsOrderLine(steps, nameOf)
+  const order = partsOrderLine(steps, (key) => nameOf(projectOfKey(key)))
   const groupId = text(answer.groupId)
   const groupStoryId = text(answer.groupStoryId)
   const plans = partPlans(args.parts)
@@ -216,11 +238,12 @@ export function ticketStoryProposalView(input: TicketStoryProposalInput): Ticket
     ...(ticketUrl ? { ticketUrl } : {}),
     title,
     ...(description ? { description } : {}),
-    parts: raw.map(({ projectId, story }) => ({
+    parts: raw.map(({ projectId, story }, at) => ({
+      key: `part-${at}`,
       projectId,
       projectTitle: nameOf(projectId),
       story,
-      step: steps.findIndex((step) => step.includes(projectId)) + 1,
+      step: steps.findIndex((step) => step.includes(`part-${at}`)) + 1,
       ...(plans.get(projectId) ?? { features: [] }),
     })),
     steps,

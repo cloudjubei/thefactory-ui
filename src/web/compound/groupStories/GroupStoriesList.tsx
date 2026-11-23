@@ -324,7 +324,7 @@ function GroupStoryParts({
           ) : null}
           {column.parts.map((part) => (
             <span
-              key={part.projectId}
+              key={part.storyId}
               className="chip"
               title={`${part.projectTitle}: ${part.storyTitle ?? 'story gone'} — ${part.featuresDone}/${part.featuresTotal} done`}
             >
@@ -334,7 +334,7 @@ function GroupStoryParts({
         </Fragment>
       ))}
       {looping.map((part) => (
-        <span key={part.projectId} className="chip chip--missing" title="Caught in a loop of needs">
+        <span key={part.storyId} className="chip chip--missing" title="Caught in a loop of needs">
           {part.projectTitle}
         </span>
       ))}

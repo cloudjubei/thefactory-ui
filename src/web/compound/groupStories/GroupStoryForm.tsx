@@ -2,15 +2,25 @@ import { useEffect, useRef, useState } from 'react'
 
 import {
   extractErrorMessage,
+  GROUP_STORY_FORM_LABELS as TEXT,
+  groupStoryFormMovedPart,
+  groupStoryFormPartMoves,
   groupStoryFormProblems,
   groupStoryFormRequest,
+  groupStoryFormWithLink,
+  groupStoryFormWithLinkStory,
+  groupStoryFormWithoutLink,
+  groupStoryFormWithoutPart,
+  groupStoryFormWithPart,
   groupStoryNeedOptions,
   type GroupProjectStoryOption,
   type GroupStoryForm as GroupStoryFormValue,
+  type GroupStoryFormLink,
   type GroupStoryFormRow,
   type GroupStoryPartChoice,
   type GroupStoryWriteBody,
 } from '../../../headless'
+import { IconArrowDown, IconArrowUp, IconDelete, IconPlus } from '../../icons'
 import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
 import Field from '../../primitives/Field'
@@ -21,23 +31,28 @@ import SegmentedControl from '../../primitives/SegmentedControl'
 import { Textarea } from '../../primitives/Textarea'
 
 const CHOICES: { value: GroupStoryPartChoice; label: string }[] = [
-  { value: 'none', label: 'None' },
-  { value: 'existing', label: 'Use a story' },
-  { value: 'new', label: 'New story' },
+  { value: 'existing', label: TEXT.existing },
+  { value: 'new', label: TEXT.new },
 ]
+
+const ICON_BUTTON =
+  'inline-flex size-7 shrink-0 items-center justify-center rounded text-(--text-muted) hover:bg-(--surface-hover) hover:text-(--text-primary) disabled:opacity-40 disabled:hover:bg-transparent'
+
+const HEADING = 'text-[10.5px] font-semibold uppercase tracking-wider text-(--text-muted)'
 
 export type GroupStoryFormProps = {
   form: GroupStoryFormValue
   onChange: (form: GroupStoryFormValue) => void
-  /** Each project's stories, for "Use a story"; a project still loading has none listed. */
+  /** Each project's stories, for "Use a story" and links; a project still loading has none listed. */
   storiesByProject: Readonly<Record<string, readonly GroupProjectStoryOption[]>>
   disabled?: boolean
 }
 
 /**
- * A group story's fields: its title and description, and a row per member
- * project — no part, one of its stories, or a new story — with the other parts
- * it needs first.
+ * A group story's fields: its title and description; its parts, each
+ * project's in the order they run — one of its stories or a new one, moved up
+ * or down, with the other projects' parts it needs first; and the stories it
+ * links, tracked only.
  */
 export function GroupStoryFormFields({
   form,
@@ -45,14 +60,8 @@ export function GroupStoryFormFields({
   storiesByProject,
   disabled = false,
 }: GroupStoryFormProps) {
-  const setRow = (projectId: string, change: Partial<GroupStoryFormRow>) => {
-    const rows = form.rows.map((r) => (r.projectId === projectId ? { ...r, ...change } : r))
-    const taking = new Set(rows.filter((r) => r.choice !== 'none').map((r) => r.projectId))
-    onChange({
-      ...form,
-      rows: rows.map((r) => ({ ...r, needs: r.needs.filter((n) => taking.has(n)) })),
-    })
-  }
+  const setRow = (key: string, change: Partial<GroupStoryFormRow>) =>
+    onChange({ ...form, rows: form.rows.map((r) => (r.key === key ? { ...r, ...change } : r)) })
 
   return (
     <div className="flex flex-col gap-4">
@@ -73,86 +82,167 @@ export function GroupStoryFormFields({
         />
       </Field>
       <div className="flex flex-col gap-1">
-        <span className="text-[10.5px] font-semibold uppercase tracking-wider text-(--text-muted)">
-          Parts — one story per project
-        </span>
+        <span className={HEADING}>{TEXT.parts}</span>
+        <span className="text-[11px] text-(--text-muted)">{TEXT.partsHint}</span>
         <ul
           role="list"
           className="flex flex-col divide-y divide-(--border-subtle) rounded-md border border-(--border-subtle)"
         >
-          {form.rows.map((row) => (
-            <PartRow
-              key={row.projectId}
-              row={row}
-              form={form}
-              stories={storiesByProject[row.projectId]}
-              disabled={disabled}
-              onChange={(change) => setRow(row.projectId, change)}
-            />
-          ))}
+          {form.projects.map((project) => {
+            const rows = form.rows.filter((r) => r.projectId === project.id)
+            return (
+              <li key={project.id} className="flex flex-col gap-2 px-3 py-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="min-w-0 grow truncate text-[12.5px] font-medium text-(--text-primary)">
+                    {project.title}
+                  </span>
+                  {rows.length === 0 ? (
+                    <span className="text-[11px] text-(--text-muted)">{TEXT.noParts}</span>
+                  ) : null}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={disabled}
+                    onClick={() => onChange(groupStoryFormWithPart(form, project.id))}
+                  >
+                    <IconPlus className="size-3.5" />
+                    {TEXT.addPart}
+                  </Button>
+                </div>
+                {rows.length > 0 ? (
+                  <ol className="flex flex-col gap-2">
+                    {rows.map((row, i) => (
+                      <PartRow
+                        key={row.key}
+                        row={row}
+                        place={rows.length > 1 ? i + 1 : undefined}
+                        form={form}
+                        storiesByProject={storiesByProject}
+                        disabled={disabled}
+                        onChange={(change) => setRow(row.key, change)}
+                        onMove={(direction) =>
+                          onChange(groupStoryFormMovedPart(form, row.key, direction))
+                        }
+                        onRemove={() => onChange(groupStoryFormWithoutPart(form, row.key))}
+                      />
+                    ))}
+                  </ol>
+                ) : null}
+              </li>
+            )
+          })}
         </ul>
       </div>
+      <LinkedStories
+        form={form}
+        onChange={onChange}
+        storiesByProject={storiesByProject}
+        disabled={disabled}
+      />
     </div>
   )
 }
 
 function PartRow({
   row,
+  place,
   form,
-  stories,
+  storiesByProject,
   disabled,
   onChange,
+  onMove,
+  onRemove,
 }: {
   row: GroupStoryFormRow
+  place: number | undefined
   form: GroupStoryFormValue
-  stories: readonly GroupProjectStoryOption[] | undefined
+  storiesByProject: Readonly<Record<string, readonly GroupProjectStoryOption[]>>
   disabled: boolean
   onChange: (change: Partial<GroupStoryFormRow>) => void
+  onMove: (direction: 'up' | 'down') => void
+  onRemove: () => void
 }) {
-  const needOptions = groupStoryNeedOptions(form, row.projectId)
+  const stories = storiesByProject[row.projectId]
+  const needOptions = groupStoryNeedOptions(form, row.key, storiesByProject)
+  const moves = groupStoryFormPartMoves(form, row.key)
+  const name = place ? `${row.projectTitle} story ${place}` : `${row.projectTitle}’s story`
   return (
-    <li className="flex flex-col gap-2 px-3 py-2.5">
+    <li className="flex flex-col gap-2 rounded border border-(--border-subtle) px-2.5 py-2">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="min-w-0 grow truncate text-[12.5px] font-medium text-(--text-primary)">
-          {row.projectTitle}
-        </span>
+        {place ? (
+          <span className="text-[11px] tabular-nums text-(--text-muted)">{place}.</span>
+        ) : null}
         <SegmentedControl
           size="sm"
-          ariaLabel={`How ${row.projectTitle} takes part`}
+          ariaLabel={`How ${name} is made`}
           options={CHOICES}
           value={row.choice}
           onChange={(value) => onChange({ choice: value as GroupStoryPartChoice })}
         />
+        <span className="grow" />
+        {place ? (
+          <>
+            <button
+              type="button"
+              className={ICON_BUTTON}
+              disabled={disabled || !moves.up}
+              aria-label={TEXT.moveUp(name)}
+              title={TEXT.moveUp(name)}
+              onClick={() => onMove('up')}
+            >
+              <IconArrowUp className="size-4" />
+            </button>
+            <button
+              type="button"
+              className={ICON_BUTTON}
+              disabled={disabled || !moves.down}
+              aria-label={TEXT.moveDown(name)}
+              title={TEXT.moveDown(name)}
+              onClick={() => onMove('down')}
+            >
+              <IconArrowDown className="size-4" />
+            </button>
+          </>
+        ) : null}
+        <button
+          type="button"
+          className={ICON_BUTTON}
+          disabled={disabled}
+          aria-label={TEXT.remove(name)}
+          title={TEXT.remove(name)}
+          onClick={onRemove}
+        >
+          <IconDelete className="size-4" />
+        </button>
       </div>
       {row.choice === 'existing' ? (
         <NativeSelect
           size="sm"
           disabled={disabled}
-          aria-label={`${row.projectTitle}’s story`}
+          aria-label={name}
           value={row.storyId ?? ''}
           onChange={(e) => onChange({ storyId: e.target.value || undefined })}
         >
-          <option value="">{stories ? 'Pick a story…' : 'Loading its stories…'}</option>
+          <option value="">{stories ? TEXT.pickStory : TEXT.loadingStories}</option>
           {(stories ?? []).map((s) => (
             <option key={s.id} value={s.id}>
               {s.title}
             </option>
           ))}
         </NativeSelect>
-      ) : null}
-      {row.choice === 'new' ? (
+      ) : (
         <Input
           size="sm"
           disabled={disabled}
-          aria-label={`${row.projectTitle}’s new story`}
+          aria-label={`${name}, new`}
           placeholder={form.title.trim() || 'The group story’s title'}
           value={row.newStoryTitle ?? ''}
           onChange={(e) => onChange({ newStoryTitle: e.target.value })}
         />
-      ) : null}
-      {row.choice !== 'none' && needOptions.length > 0 ? (
+      )}
+      {needOptions.length > 0 ? (
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-[11px] text-(--text-muted)">Needs first</span>
+          <span className="text-[11px] text-(--text-muted)">{TEXT.needsFirst}</span>
           {needOptions.map((option) => {
             const on = row.needs.includes(option.id)
             return (
@@ -176,6 +266,98 @@ function PartRow({
           })}
         </div>
       ) : null}
+    </li>
+  )
+}
+
+function LinkedStories({
+  form,
+  onChange,
+  storiesByProject,
+  disabled,
+}: GroupStoryFormProps & { disabled: boolean }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className={HEADING}>{TEXT.linked}</span>
+      <span className="text-[11px] text-(--text-muted)">{TEXT.linkedHint}</span>
+      {form.links.length > 0 ? (
+        <ul role="list" className="flex flex-col gap-1.5">
+          {form.links.map((link) => (
+            <LinkRow
+              key={link.key}
+              link={link}
+              stories={storiesByProject[link.projectId]}
+              disabled={disabled}
+              onPick={(storyId) => onChange(groupStoryFormWithLinkStory(form, link.key, storyId))}
+              onRemove={() => onChange(groupStoryFormWithoutLink(form, link.key))}
+            />
+          ))}
+        </ul>
+      ) : null}
+      <NativeSelect
+        size="sm"
+        disabled={disabled}
+        aria-label={TEXT.addLink}
+        value=""
+        onChange={(e) => {
+          if (e.target.value) onChange(groupStoryFormWithLink(form, e.target.value))
+        }}
+      >
+        <option value="">{`${TEXT.addLink}…`}</option>
+        {form.projects.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.title}
+          </option>
+        ))}
+      </NativeSelect>
+    </div>
+  )
+}
+
+function LinkRow({
+  link,
+  stories,
+  disabled,
+  onPick,
+  onRemove,
+}: {
+  link: GroupStoryFormLink
+  stories: readonly GroupProjectStoryOption[] | undefined
+  disabled: boolean
+  onPick: (storyId: string | undefined) => void
+  onRemove: () => void
+}) {
+  const name = `the linked ${link.projectTitle} story`
+  return (
+    <li className="flex items-center gap-2 rounded border border-(--border-subtle) px-2.5 py-1.5">
+      <span className="shrink-0 text-[12px] font-medium text-(--text-primary)">
+        {link.projectTitle}
+      </span>
+      <NativeSelect
+        size="sm"
+        className="min-w-0 grow"
+        disabled={disabled}
+        aria-label={name}
+        value={link.storyId ?? ''}
+        onChange={(e) => onPick(e.target.value || undefined)}
+      >
+        <option value="">{stories ? TEXT.pickStory : TEXT.loadingStories}</option>
+        {(stories ?? []).map((s) => (
+          <option key={s.id} value={s.id}>
+            {s.title}
+          </option>
+        ))}
+      </NativeSelect>
+      <button
+        type="button"
+        className={ICON_BUTTON}
+        disabled={disabled}
+        aria-label={TEXT.remove(name)}
+        title={TEXT.remove(name)}
+        onClick={onRemove}
+      >
+        <IconDelete className="size-4" />
+      </button>
     </li>
   )
 }

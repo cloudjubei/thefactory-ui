@@ -141,17 +141,20 @@ export function fakeDataGroupPreview(launch: FakeDataGroupLaunch): GroupStoryRun
       groupLeg(
         'thefactory-overseer-web',
         'Overseer Web',
-        ['thefactory-backend'],
+        ['read-receipts-thefactory-backend'],
         screens ? 'ship' : undefined,
       ),
       groupLeg(
         'thefactory-overseer-mobile',
         'Overseer Mobile',
-        ['thefactory-backend'],
+        ['read-receipts-thefactory-backend'],
         screens ? 'keep-out' : undefined,
       ),
     ],
-    waves: [['thefactory-backend'], ['thefactory-overseer-web', 'thefactory-overseer-mobile']],
+    waves: [
+      ['read-receipts-thefactory-backend'],
+      ['read-receipts-thefactory-overseer-web', 'read-receipts-thefactory-overseer-mobile'],
+    ],
     problems: [],
   }
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   isStartGroupWorkGrant,
+  processGroupLaunchLegsByWave,
   processGroupLegWaitsFor,
   startGroupWorkGrantSummary,
 } from './processGroupLaunch'
@@ -108,28 +109,53 @@ describe('startGroupWorkGrantSummary', () => {
 
 const PREVIEW = {
   legs: [
-    { projectId: 'tools', projectTitle: 'Tools', isPrerequisite: true },
-    { projectId: 'db', projectTitle: 'DB', isPrerequisite: true },
-    { projectId: 'ui', projectTitle: 'UI', isPrerequisite: false },
+    { projectId: 'tools', storyId: 's-tools', projectTitle: 'Tools', isPrerequisite: true },
+    { projectId: 'db', storyId: 's-db', projectTitle: 'DB', isPrerequisite: true },
+    { projectId: 'ui', storyId: 's-ui', projectTitle: 'UI', isPrerequisite: false },
   ],
 } as never
 
+const TWO_IN_UI = {
+  legs: [
+    { projectId: 'ui', storyId: 'u1', projectTitle: 'UI', storyTitle: 'First' },
+    { projectId: 'tools', storyId: 't1', projectTitle: 'Tools' },
+    { projectId: 'ui', storyId: 'u2', projectTitle: 'UI', storyTitle: 'Second' },
+  ],
+  waves: [['u1', 't1'], ['u2']],
+} as never
+
 describe('processGroupLegWaitsFor', () => {
-  it('names what a leg waits for by project title', () => {
-    expect(processGroupLegWaitsFor(PREVIEW, ['tools'])).toBe('Starts once Tools is merged')
-    expect(processGroupLegWaitsFor(PREVIEW, ['tools', 'gone'])).toBe(
+  it('names what a leg waits for, the legs named by their stories', () => {
+    expect(processGroupLegWaitsFor(PREVIEW, ['s-tools'])).toBe('Starts once Tools is merged')
+    expect(processGroupLegWaitsFor(PREVIEW, ['s-tools', 'gone'])).toBe(
       'Starts once Tools and gone are merged',
     )
     expect(processGroupLegWaitsFor(PREVIEW, [])).toBeUndefined()
   })
 
+  it('names a leg by its story too when its project has another', () => {
+    expect(processGroupLegWaitsFor(TWO_IN_UI, ['u1'])).toBe('Starts once UI · First is merged')
+  })
+
   it('says finished, not merged, for a run built on branches', () => {
     const built = (buildMode: string) => Object.assign({}, PREVIEW, { buildMode }) as never
-    expect(processGroupLegWaitsFor(built('on-branch'), ['tools'])).toBe(
+    expect(processGroupLegWaitsFor(built('on-branch'), ['s-tools'])).toBe(
       'Starts once Tools is finished, on its branch',
     )
-    expect(processGroupLegWaitsFor(built('merge-first'), ['tools'])).toBe(
+    expect(processGroupLegWaitsFor(built('merge-first'), ['s-tools'])).toBe(
       'Starts once Tools is merged',
     )
+  })
+})
+
+describe('processGroupLaunchLegsByWave', () => {
+  it('puts each leg in its wave by its story, one project’s legs apart', () => {
+    expect(
+      processGroupLaunchLegsByWave(TWO_IN_UI).map((wave) => wave.map((l) => l.storyId)),
+    ).toEqual([['u1', 't1'], ['u2']])
+  })
+
+  it('has no waves without a preview', () => {
+    expect(processGroupLaunchLegsByWave(undefined)).toEqual([])
   })
 })

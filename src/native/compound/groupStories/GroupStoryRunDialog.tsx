@@ -18,6 +18,7 @@ import {
   launchCapsValid,
   launchWorstCaseLine,
   PROCESS_GROUP_ON_BRANCH_LINE,
+  processGroupLaunchLegsByWave,
   processGroupLegWaitsFor,
   processLaunchTurnLimitView,
   processTurnLimitOfView,
@@ -125,9 +126,7 @@ export default function GroupStoryRunDialog({
     preview !== undefined &&
     problems.length === 0 &&
     launchCapsValid(capFields)
-  const legsByStep = (preview?.waves ?? []).map((wave) =>
-    wave.flatMap((id) => preview?.legs.filter((l) => l.projectId === id) ?? []),
-  )
+  const legsByStep = processGroupLaunchLegsByWave(preview)
   const fakeData = groupLaunchFakeDataChoices(preview?.legs ?? [], fakeDataPicks)
   const ticket = ticketMoveField(preview?.ticketMove)
   const ticketMove = ticketMoveDecisionOf(ticket, moveTicket)
@@ -223,7 +222,7 @@ export default function GroupStoryRunDialog({
                   {legs.map((leg) => {
                     const waits = processGroupLegWaitsFor(preview, leg.dependsOn)
                     return (
-                      <View key={leg.projectId} style={{ gap: 4 }}>
+                      <View key={leg.storyId} style={{ gap: 4 }}>
                         <Text
                           style={{ fontSize: 14, fontWeight: '500', color: theme.text.primary }}
                         >

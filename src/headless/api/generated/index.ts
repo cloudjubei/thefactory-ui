@@ -2913,6 +2913,7 @@ export type {
   GroupNoteSummary,
   GroupStory,
   GroupStoryCreateInput,
+  GroupStoryLink,
   GroupStoryPart,
   GroupStoryPartStory,
   GroupStoryPlan,

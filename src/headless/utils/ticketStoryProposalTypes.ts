@@ -28,6 +28,8 @@ export interface TicketStoryFeatureView {
 
 /** One part of a proposed group story: a project, its story, its features in build order, and what it waits for. */
 export interface TicketStoryPartView {
+  /** The part's place on the proposal, which `steps` names it by. */
+  key: string
   projectId: string
   projectTitle: string
   story: TicketStoryPartStory
@@ -68,7 +70,7 @@ export interface TicketStoryProposalView {
   /** Markdown, as the agent wrote it. */
   description?: string
   parts: TicketStoryPartView[]
-  /** The projects of each step, first step first. */
+  /** The parts of each step by their keys, first step first. */
   steps: string[][]
   /** The order in a line, e.g. "Backend first, then Admin". */
   order?: string

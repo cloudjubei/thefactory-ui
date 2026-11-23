@@ -331,12 +331,12 @@ function GroupStoryParts({
         <Fragment key={column.step}>
           {i > 0 ? <Text style={{ fontSize: 11, color: theme.text.muted }}>→</Text> : null}
           {column.parts.map((part) => (
-            <GroupStoryChip key={part.projectId} label={part.projectTitle} />
+            <GroupStoryChip key={part.storyId} label={part.projectTitle} />
           ))}
         </Fragment>
       ))}
       {looping.map((part) => (
-        <GroupStoryChip key={part.projectId} label={part.projectTitle} tone="missing" />
+        <GroupStoryChip key={part.storyId} label={part.projectTitle} tone="missing" />
       ))}
     </View>
   )

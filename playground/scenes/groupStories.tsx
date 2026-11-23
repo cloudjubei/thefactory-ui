@@ -2,12 +2,10 @@ import { useState } from 'react'
 import {
   GROUP_STORY_LIST_FILTER_DEFAULT,
   groupStoryFormFor,
-  type GroupProjectStoryOption,
   type GroupStoryFolds,
   type GroupStoryForm,
   type GroupStoryListFilter,
   type GroupStoryMembership,
-  type GroupStoryPartView,
   type GroupStoryRunPreview,
   type GroupStoryView,
 } from 'thefactory-ui/headless'
@@ -24,66 +22,38 @@ import {
 import type { ModelInfo } from '../../src/headless/api'
 import { MEMBERS } from '../../src/fakeBackend/fixtures/projects'
 import type { Scene } from '../showcase/types'
+import {
+  FILLED_FORM,
+  LINKED_FORM,
+  LOOP_FORM,
+  NEW_FORM,
+  ONLY_LINKS,
+  ORDERED_FORM,
+  STORIES_BY_PROJECT,
+  TWO_IN_UI,
+  WITH_LINKS,
+  part,
+  story,
+  title,
+} from './groupStoryFixtures'
 
 const noop = () => {}
 const asyncNoop = async () => {}
-const AT = '2026-10-25T10:00:00.000Z'
 const STARTED_AT = 1_761_386_400_000
-
-const title = (id: string) => MEMBERS.find((m) => m.id === id)?.title ?? id
-
-function part(projectId: string, over: Partial<GroupStoryPartView> = {}): GroupStoryPartView {
-  return {
-    projectId,
-    projectTitle: title(projectId),
-    storyId: `story-${projectId}`,
-    storyTitle: 'Conflict-safe editing',
-    status: 'pending',
-    featuresDone: 0,
-    featuresTotal: 2,
-    needs: [],
-    step: 1,
-    ...over,
-  }
-}
-
-function story(
-  id: string,
-  storyTitle: string,
-  partViews: GroupStoryPartView[],
-  over: Partial<GroupStoryView> = {},
-): GroupStoryView {
-  const steps: string[][] = []
-  for (const p of partViews) {
-    if (p.step === undefined) continue
-    ;(steps[p.step - 1] ??= []).push(p.projectId)
-  }
-  return {
-    id,
-    groupId: 'factory',
-    groupTitle: 'TheFactory',
-    title: storyTitle,
-    description: '',
-    parts: partViews.map((p) => ({ projectId: p.projectId, storyId: p.storyId })),
-    createdAt: AT,
-    updatedAt: AT,
-    partViews,
-    steps,
-    problems: [],
-    status: 'pending',
-    ...over,
-  }
-}
 
 const CONFLICT_SAFE = story(
   'gs-conflict',
   'Conflict-safe editing',
   [
     part('thefactory-backend', { featuresDone: 1, featuresTotal: 2, status: 'in_progress' }),
-    part('thefactory-ui', { step: 2, needs: ['thefactory-backend'], featuresTotal: 4 }),
-    part('thefactory-overseer-web', { step: 3, needs: ['thefactory-ui'], featuresTotal: 1 }),
-    part('overseer-local', { step: 3, needs: ['thefactory-ui'], featuresTotal: 1 }),
-    part('thefactory-overseer-mobile', { step: 3, needs: ['thefactory-ui'], featuresTotal: 1 }),
+    part('thefactory-ui', { step: 2, needs: ['story-thefactory-backend'], featuresTotal: 4 }),
+    part('thefactory-overseer-web', { step: 3, needs: ['story-thefactory-ui'], featuresTotal: 1 }),
+    part('overseer-local', { step: 3, needs: ['story-thefactory-ui'], featuresTotal: 1 }),
+    part('thefactory-overseer-mobile', {
+      step: 3,
+      needs: ['story-thefactory-ui'],
+      featuresTotal: 1,
+    }),
   ],
   {
     description:
@@ -94,8 +64,18 @@ const CONFLICT_SAFE = story(
       title: 'Conflict-safe editing',
       status: 'running',
       legs: [
-        { projectId: 'thefactory-backend', status: 'running' },
-        { projectId: 'thefactory-ui', status: 'blocked' },
+        {
+          legId: 'story-thefactory-backend',
+          projectId: 'thefactory-backend',
+          storyId: 'story-thefactory-backend',
+          status: 'running',
+        },
+        {
+          legId: 'story-thefactory-ui',
+          projectId: 'thefactory-ui',
+          storyId: 'story-thefactory-ui',
+          status: 'blocked',
+        },
       ],
       startedAt: STARTED_AT,
     },
@@ -107,7 +87,7 @@ const EMPTY_FOLDERS = story('gs-folders', 'Files tree shows empty folders', [
   part('thefactory-ui', {
     storyTitle: 'Show empty folders in the files tree',
     step: 2,
-    needs: ['thefactory-tools'],
+    needs: ['story-thefactory-tools'],
     featuresTotal: 2,
   }),
 ])
@@ -116,8 +96,8 @@ const HARDENING_LOOP = story(
   'gs-hardening',
   'Chat and CLI session hardening',
   [
-    part('thefactory-tools', { step: undefined, needs: ['thefactory-backend'] }),
-    part('thefactory-backend', { step: undefined, needs: ['thefactory-tools'] }),
+    part('thefactory-tools', { step: undefined, needs: ['story-thefactory-backend'] }),
+    part('thefactory-backend', { step: undefined, needs: ['story-thefactory-tools'] }),
   ],
   { problems: ['thefactory-tools and thefactory-backend need each other, so neither can start.'] },
 )
@@ -132,7 +112,7 @@ const KNOWLEDGE_DONE = story(
       featuresDone: 1,
       featuresTotal: 1,
       step: 2,
-      needs: ['thefactory-backend'],
+      needs: ['story-thefactory-backend'],
     }),
   ],
   {
@@ -142,8 +122,18 @@ const KNOWLEDGE_DONE = story(
       title: 'Knowledge in every run',
       status: 'succeeded',
       legs: [
-        { projectId: 'thefactory-backend', status: 'integrated' },
-        { projectId: 'thefactory-ui', status: 'integrated' },
+        {
+          legId: 'story-thefactory-backend',
+          projectId: 'thefactory-backend',
+          storyId: 'story-thefactory-backend',
+          status: 'integrated',
+        },
+        {
+          legId: 'story-thefactory-ui',
+          projectId: 'thefactory-ui',
+          storyId: 'story-thefactory-ui',
+          status: 'integrated',
+        },
       ],
       startedAt: STARTED_AT,
     },
@@ -157,7 +147,14 @@ const WAITING = story('gs-waiting', 'Conflict-safe editing', CONFLICT_SAFE.partV
     title: 'Conflict-safe editing',
     status: 'parked',
     waitingOn: 'TheFactory Backend is waiting on you: its sign-off.',
-    legs: [{ projectId: 'thefactory-backend', status: 'start-failed' }],
+    legs: [
+      {
+        legId: 'story-thefactory-backend',
+        projectId: 'thefactory-backend',
+        storyId: 'story-thefactory-backend',
+        status: 'start-failed',
+      },
+    ],
     startedAt: STARTED_AT,
   },
 })
@@ -169,12 +166,12 @@ const OVERSIGHT_WAITING = story(
     part('thefactory-tools', { status: 'done', featuresDone: 2, featuresTotal: 2 }),
     part('thefactory-backend', {
       step: 2,
-      needs: ['thefactory-tools'],
+      needs: ['story-thefactory-tools'],
       status: 'in_progress',
       featuresDone: 1,
       featuresTotal: 3,
     }),
-    part('thefactory-ui', { step: 3, needs: ['thefactory-backend'], featuresTotal: 2 }),
+    part('thefactory-ui', { step: 3, needs: ['story-thefactory-backend'], featuresTotal: 2 }),
   ],
   {
     status: 'in_progress',
@@ -183,9 +180,24 @@ const OVERSIGHT_WAITING = story(
       title: 'Oversight: condensed chats and the group cockpit',
       status: 'running',
       legs: [
-        { projectId: 'thefactory-tools', status: 'integrated' },
-        { projectId: 'thefactory-backend', status: 'waiting' },
-        { projectId: 'thefactory-ui', status: 'blocked' },
+        {
+          legId: 'story-thefactory-tools',
+          projectId: 'thefactory-tools',
+          storyId: 'story-thefactory-tools',
+          status: 'integrated',
+        },
+        {
+          legId: 'story-thefactory-backend',
+          projectId: 'thefactory-backend',
+          storyId: 'story-thefactory-backend',
+          status: 'waiting',
+        },
+        {
+          legId: 'story-thefactory-ui',
+          projectId: 'thefactory-ui',
+          storyId: 'story-thefactory-ui',
+          status: 'blocked',
+        },
       ],
       startedAt: STARTED_AT,
     },
@@ -199,7 +211,7 @@ const MOBILE_ASKS = story(
     part('thefactory-ui', { status: 'done', featuresDone: 3, featuresTotal: 3 }),
     part('thefactory-overseer-mobile', {
       step: 2,
-      needs: ['thefactory-ui'],
+      needs: ['story-thefactory-ui'],
       status: 'in_progress',
       featuresDone: 2,
       featuresTotal: 5,
@@ -212,8 +224,18 @@ const MOBILE_ASKS = story(
       title: 'Mobile parity gaps',
       status: 'running',
       legs: [
-        { projectId: 'thefactory-ui', status: 'integrated' },
-        { projectId: 'thefactory-overseer-mobile', status: 'needs-you' },
+        {
+          legId: 'story-thefactory-ui',
+          projectId: 'thefactory-ui',
+          storyId: 'story-thefactory-ui',
+          status: 'integrated',
+        },
+        {
+          legId: 'story-thefactory-overseer-mobile',
+          projectId: 'thefactory-overseer-mobile',
+          storyId: 'story-thefactory-overseer-mobile',
+          status: 'needs-you',
+        },
       ],
       startedAt: STARTED_AT,
     },
@@ -275,13 +297,13 @@ const CONTEXT_FRESH = story(
       storyTitle: 'Unified API+CLI context — backend slices for workstreams B, C, D',
       status: 'blocked',
       step: 2,
-      needs: ['thefactory-tools'],
+      needs: ['story-thefactory-tools'],
       featuresTotal: 3,
     }),
     part('thefactory-ui', {
       storyTitle: 'CLI agents: keep conversation context fresh and bounded',
       step: 3,
-      needs: ['thefactory-backend'],
+      needs: ['story-thefactory-backend'],
       featuresTotal: 6,
     }),
   ],
@@ -326,41 +348,6 @@ function ListState({
       onNew={noop}
     />
   )
-}
-
-const STORIES_BY_PROJECT: Record<string, GroupProjectStoryOption[]> = {
-  'thefactory-tools': [
-    { id: 'story-thefactory-tools', title: 'Empty folders in the file listing', status: 'pending' },
-    { id: 't2', title: 'Ongoing improvements', status: 'pending' },
-  ],
-  'thefactory-backend': [{ id: 'b1', title: 'Say which file changed', status: 'pending' }],
-  'thefactory-ui': [
-    { id: 'story-thefactory-ui', title: 'Show empty folders in the files tree', status: 'pending' },
-  ],
-  'thefactory-overseer-web': [],
-  'overseer-local': [],
-  'thefactory-overseer-mobile': [],
-}
-
-const NEW_FORM = groupStoryFormFor(MEMBERS)
-
-const FILLED_FORM: GroupStoryForm = {
-  title: 'Files tree shows empty folders',
-  description: 'An empty folder shows in the files tree on every client.',
-  rows: NEW_FORM.rows.map((row) =>
-    row.projectId === 'thefactory-tools'
-      ? { ...row, choice: 'existing', storyId: 'story-thefactory-tools' }
-      : row.projectId === 'thefactory-ui'
-        ? { ...row, choice: 'new', needs: ['thefactory-tools'] }
-        : row,
-  ),
-}
-
-const LOOP_FORM: GroupStoryForm = {
-  ...FILLED_FORM,
-  rows: FILLED_FORM.rows.map((row) =>
-    row.projectId === 'thefactory-tools' ? { ...row, needs: ['thefactory-ui'] } : row,
-  ),
 }
 
 const EDIT_FORM = groupStoryFormFor(MEMBERS, EMPTY_FOLDERS)
@@ -411,11 +398,17 @@ const READY_PREVIEW: GroupStoryRunPreview = {
   groupTitle: 'TheFactory',
   legs: [
     previewLeg('thefactory-tools', 'Empty folders in the file listing', [], 1),
-    previewLeg('thefactory-ui', 'Show empty folders in the files tree', ['thefactory-tools'], 2, {
-      isPrerequisite: false,
-    }),
+    previewLeg(
+      'thefactory-ui',
+      'Show empty folders in the files tree',
+      ['story-thefactory-tools'],
+      2,
+      {
+        isPrerequisite: false,
+      },
+    ),
   ],
-  waves: [['thefactory-tools'], ['thefactory-ui']],
+  waves: [['story-thefactory-tools'], ['story-thefactory-ui']],
   problems: [],
 }
 
@@ -600,6 +593,26 @@ export const GROUP_STORY_SCENES: Scene[] = [
         render: () => <PageState story={CONFLICT_SAFE} />,
       },
       {
+        id: 'ordered-in-one-project',
+        title: 'Two stories in one project — run one after another',
+        description:
+          'The UI holds two parts: the second waits for the first, so it sits a step later and its card says “2 of 2 in TheFactory UI”. Where a project has several parts, its parts are named by story too — in the folded line and in what a part needs.',
+        render: () => <PageState story={TWO_IN_UI} />,
+      },
+      {
+        id: 'linked',
+        title: 'Linked stories — tracked only',
+        description:
+          'Below Parts, a dashed panel lists the stories it links: each with its project, story, status and features done, opening the story. They are never a step and never run with it.',
+        render: () => <PageState story={WITH_LINKS} />,
+      },
+      {
+        id: 'only-links',
+        title: 'Only linked stories, no parts',
+        description: 'A group story may only track stories: Parts is empty and Run stays off.',
+        render: () => <PageState story={ONLY_LINKS} />,
+      },
+      {
         id: 'loop',
         title: 'Parts that need each other',
         description:
@@ -666,13 +679,27 @@ export const GROUP_STORY_SCENES: Scene[] = [
     component: 'GroupStoryFormFields · GroupStoryFormDialog',
     group: 'Project',
     description:
-      'One form: title, description, and a row per member project — None, Use a story (one of its stories) or New story (its title optional) — with the other parts it needs first. Save stays off, saying why, until nothing stops it.',
+      'One form: title, description, a block per member project holding its parts in run order — each Use a story (one of its stories) or New story (its title optional), moved up or down, with the other projects’ parts it needs first — and the stories it links, tracked only. Save stays off, saying why, until nothing stops it.',
     states: [
       { id: 'new', title: 'New — nothing picked', render: () => <FormState start={NEW_FORM} /> },
       {
         id: 'filled',
         title: 'Two parts, the UI needing the tools first',
         render: () => <FormState start={FILLED_FORM} />,
+      },
+      {
+        id: 'ordered',
+        title: 'Three stories in one project, in order',
+        description:
+          'Add story puts a project’s next part after its others; each of its parts shows its place and moves up or down among them only. Needs first offers only the other projects’ parts, named by story where a project has several.',
+        render: () => <FormState start={ORDERED_FORM} />,
+      },
+      {
+        id: 'linked',
+        title: 'Linked stories — one picked, one still to pick',
+        description:
+          'Link a story from… adds a project’s story to track; it is never run. Save stays off until each link has its story.',
+        render: () => <FormState start={LINKED_FORM} />,
       },
       { id: 'edit', title: 'Editing a group story', render: () => <FormState start={EDIT_FORM} /> },
       {

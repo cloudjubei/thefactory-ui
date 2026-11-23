@@ -14,6 +14,7 @@ import {
   groupLaunchLiveCheckMetadata,
   type GroupLaunchLiveCheckPicks,
   LAUNCH_NOTE_MAX_CHARS,
+  processGroupLaunchLegsByWave,
   processGroupLegWaitsFor,
   processGrantTurnLimitView,
   LAUNCH_CAPS_COPY,
@@ -175,9 +176,7 @@ export default function GroupWorkLaunchPanel({
       })
   }
 
-  const legsByWave = (preview?.waves ?? []).map((wave) =>
-    wave.flatMap((id) => preview?.legs.filter((l) => l.projectId === id) ?? []),
-  )
+  const legsByWave = processGroupLaunchLegsByWave(preview)
 
   return (
     <div className="m-3 flex max-h-[min(70vh,640px)] min-h-0 flex-col">
@@ -214,7 +213,7 @@ export default function GroupWorkLaunchPanel({
                   {i === 0 ? 'Starts at once' : `Then — step ${i + 1}`}
                 </span>
                 {wave.map((leg) => (
-                  <div key={leg.projectId} className="flex flex-col gap-1 pl-1">
+                  <div key={leg.storyId} className="flex flex-col gap-1 pl-1">
                     <div className="flex flex-wrap items-baseline gap-2 text-[12.5px]">
                       <span className="font-medium text-(--text-primary)">{leg.projectTitle}</span>
                       <span className="min-w-0 truncate text-(--text-secondary)">
