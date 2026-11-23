@@ -506,6 +506,7 @@ export type AgentRunType =
   | 'analyst'
   | 'designer'
   | 'fixer'
+  | 'planner'
 
 export type StandaloneTask = {
   prompt: string
@@ -593,6 +594,7 @@ export type AgentRunParams = {
     | 'analyst'
     | 'designer'
     | 'fixer'
+    | 'planner'
   commitMessage?: string
   stepTask?: string
   featureIds?: Array<string>
@@ -1279,6 +1281,64 @@ export type ProcessManagerBriefAnswer = {
   recovery?: string
 }
 
+export type ProcessResumeChoice =
+  | 'continue'
+  | 'retry'
+  | 'abandon'
+  | 'approve'
+  | 'request-changes'
+  | 'reject'
+  | 'allow'
+  | 'allow-site'
+  | 'resolved'
+  | 'more-info'
+  | 'update-base'
+  | 'resolve-base-conflict'
+  | 'change-proof'
+  | 'send-to-developer'
+  | 'recheck'
+  | 'close-unmerged'
+  | 'accept-dropped-change'
+  | 'accept-with-follow-ups'
+  | 'split-follow-up'
+  | 'recapture'
+
+export type ProcessParkAction = ProcessResumeChoice | 'delegate' | 'recover'
+
+export type ProcessManagerDependency =
+  | {
+      kind: 'run'
+      runId: string
+    }
+  | {
+      kind: 'feature-request'
+      requestId: string
+    }
+  | {
+      kind: 'base-fix'
+      sha: string
+    }
+
+export type ProcessManagerOpenBaseFix =
+  | {
+      kind: 'run'
+      runId: string
+    }
+  | {
+      kind: 'base-fix'
+      sha: string
+    }
+
+export type ProcessManagerDiagnosisAnswer =
+  | {
+      move: 'answer-park'
+      choice: unknown
+    }
+  | {
+      move: 'hold'
+      dependsOn: ProcessManagerOpenBaseFix
+    }
+
 export type ProcessManagerBriefCard = {
   kind: 'brief'
   mode: 'triage' | 'diagnose' | 'pre-read'
@@ -1315,6 +1375,15 @@ export type ProcessManagerBriefCard = {
   }
   failed: Array<string>
   answers: Array<ProcessManagerBriefAnswer>
+  diagnosisAnswer?:
+    | {
+        move: 'answer-park'
+        choice: unknown
+      }
+    | {
+        move: 'hold'
+        dependsOn: ProcessManagerOpenBaseFix
+      }
   tried: Array<string>
   triesUsed: number
   triesMax: number
@@ -1455,30 +1524,6 @@ export type ProcessManagerEscalationReason =
   | 'no-decision'
   | 'not-started'
   | 'circling'
-
-export type ProcessResumeChoice =
-  | 'continue'
-  | 'retry'
-  | 'abandon'
-  | 'approve'
-  | 'request-changes'
-  | 'reject'
-  | 'allow'
-  | 'allow-site'
-  | 'resolved'
-  | 'more-info'
-  | 'update-base'
-  | 'resolve-base-conflict'
-  | 'change-proof'
-  | 'send-to-developer'
-  | 'recheck'
-  | 'close-unmerged'
-  | 'accept-dropped-change'
-  | 'accept-with-follow-ups'
-  | 'split-follow-up'
-  | 'recapture'
-
-export type ProcessParkAction = ProcessResumeChoice | 'delegate' | 'recover'
 
 export type ProcessManagerAnswer = {
   choice: ProcessParkAction
@@ -2208,6 +2253,7 @@ export type ProvingStepShape = {
     | 'analyst'
     | 'designer'
     | 'fixer'
+    | 'planner'
   agentProves?: false
   liveCheck?: {
     mode: LiveCheckMode
@@ -2622,7 +2668,6 @@ export type ToolName =
   | 'uploadFile'
   | 'viewImage'
   | 'viewVideo'
-  | 'compareVideos'
   | 'getAbsolutePath'
   | 'gitStatus'
   | 'listRemotes'
@@ -4733,6 +4778,7 @@ export type Story = {
       beforeAndAfter?: boolean
     }
   }
+  plan?: string
   externalIds?: Array<ExternalRef>
   notes?: Array<StoryNote>
   createdAt: string
@@ -4831,6 +4877,7 @@ export type ChatContextArguments = {
         beforeAndAfter?: boolean
       }
     }
+    plan?: string
     externalIds?: Array<ExternalRef>
     notes?: Array<StoryNote>
     createdAt: string
@@ -4887,6 +4934,7 @@ export type ChatContextArguments = {
     | 'analyst'
     | 'designer'
     | 'fixer'
+    | 'planner'
 }
 
 export type ChatContextArgumentsGroup = {
@@ -5031,6 +5079,7 @@ export type ChatContextArgumentsStory = {
         beforeAndAfter?: boolean
       }
     }
+    plan?: string
     externalIds?: Array<ExternalRef>
     notes?: Array<StoryNote>
     createdAt: string
@@ -5070,6 +5119,7 @@ export type ChatContextArgumentsFeature = {
         beforeAndAfter?: boolean
       }
     }
+    plan?: string
     externalIds?: Array<ExternalRef>
     notes?: Array<StoryNote>
     createdAt: string
@@ -5146,6 +5196,7 @@ export type ChatContextArgumentsAgentRun = {
         beforeAndAfter?: boolean
       }
     }
+    plan?: string
     externalIds?: Array<ExternalRef>
     notes?: Array<StoryNote>
     createdAt: string
@@ -5186,6 +5237,7 @@ export type ChatContextArgumentsAgentRunFeature = {
         beforeAndAfter?: boolean
       }
     }
+    plan?: string
     externalIds?: Array<ExternalRef>
     notes?: Array<StoryNote>
     createdAt: string
@@ -12722,6 +12774,22 @@ export type GitPushRefWithCredentialOptions = {
   timeoutMs?: number
 }
 
+export type GitFetchWithCredentialOptions = {
+  repoPath: string
+  remoteUrl: string
+  username: string
+  token: string
+  timeoutMs?: number
+}
+
+export type GitFetchRefsWithCredentialOptions = GitFetchWithCredentialOptions & {
+  refspecs: Array<string>
+}
+
+export type GitFetchBranchTipWithCredentialOptions = GitFetchWithCredentialOptions & {
+  branch: string
+}
+
 export type GitBuildMergeReportOptions = {
   includePatch?: boolean
   maxPatchedFiles?: number
@@ -15950,20 +16018,6 @@ export type ProcessManagerSignature = {
   tip?: string
 }
 
-export type ProcessManagerDependency =
-  | {
-      kind: 'run'
-      runId: string
-    }
-  | {
-      kind: 'feature-request'
-      requestId: string
-    }
-  | {
-      kind: 'base-fix'
-      sha: string
-    }
-
 export type ProcessManagerHoldResume = 'retry' | 'update-base'
 
 export type ProcessManagerHold = {
@@ -16292,10 +16346,30 @@ export type ProcessManagerRun = {
     reason: ProcessParkReason
     stepId?: string
     parkedAt: number
+    circling?: {
+      summary: string
+      signals: Array<ProcessCirclingSignal>
+      ranOut: boolean
+      turnsUsed?: number
+      maxTurns?: number
+      changed?: boolean
+      repeatedActions?: Array<ProcessCirclingRepeat>
+      flipFlopFiles?: Array<string>
+      sameFailures?: Array<string>
+      streak: number
+      afterRaise?: true
+      afterRetry?: true
+      afterManager?: true
+      tip?: string
+      at: number
+    }
   }
   workBranch?: {
     name: string
     baseRef?: string
+  }
+  baseMoved?: {
+    baseRef: string
   }
   manager?: {
     interventions?: Array<ProcessManagerIntervention>
@@ -16422,6 +16496,17 @@ export type ProcessManagerPolicyInput = {
   }
   commitResetsToHead?: Array<string>
   baseFailure?: boolean
+  diagnosis?: Array<string>
+  choices?: Array<string>
+  openBaseFix?:
+    | {
+        kind: 'run'
+        runId: string
+      }
+    | {
+        kind: 'base-fix'
+        sha: string
+      }
 }
 
 export type ProcessManagerHandledLine = {
@@ -16811,6 +16896,7 @@ export type ProcessStep = {
   onlyWhenSentBack?: boolean
   produces?: Array<string>
   mayChangeNothing?: boolean
+  checksStoryReadiness?: true
   cleanupPathsOnly?: boolean
   serveVariant?: boolean
   runsWhen?: {
@@ -16883,6 +16969,7 @@ export type ProcessPlanStep = {
   onlyWhenSentBack?: boolean
   produces?: Array<string>
   mayChangeNothing?: boolean
+  checksStoryReadiness?: true
   cleanupPathsOnly?: boolean
   serveVariant?: boolean
   runsWhen?: {
@@ -16938,6 +17025,7 @@ export type ProcessPlanStep = {
     | 'analyst'
     | 'designer'
     | 'fixer'
+    | 'planner'
   agentProves?: false
 }
 
@@ -18063,6 +18151,21 @@ export type ProcessCirclingEvidence = {
   tip?: string
 }
 
+export type StoryReadinessProblemKind =
+  | 'spec'
+  | 'plan'
+  | 'acceptance'
+  | 'feature-plan'
+  | 'context'
+  | 'question'
+  | 'blocker'
+
+export type StoryReadinessProblem = {
+  featureId?: string
+  kind: StoryReadinessProblemKind
+  message: string
+}
+
 export type ProcessGateDecision = {
   gate: string
   action: string
@@ -18443,6 +18546,7 @@ export type ProcessLedgerEntry = {
   }
   agentNotStarted?: string
   failureReason?: string
+  notReady?: Array<StoryReadinessProblem>
   recoveries?: Array<ProcessStepRecovery>
   featureDone?: true
   retryMode?: 'continue' | 'fresh'
@@ -19585,10 +19689,28 @@ export type ProcessManagerBriefInput = {
       }
       reversedKeys?: Array<string>
     }
+  } & {
+    storyId?: string
+    featureId?: string
+    workBranch?: {
+      name: string
+      baseRef?: string
+    }
   }
   holder: ProcessRun
   signature: ProcessManagerSignature
   kind: 'triage' | 'diagnose' | 'pre-read'
+  autonomy?: 'observe' | 'recommend' | 'act'
+  diagnosis?: Array<string>
+  openBaseFix?:
+    | {
+        kind: 'run'
+        runId: string
+      }
+    | {
+        kind: 'base-fix'
+        sha: string
+      }
 }
 
 export type DataCapabilityView = {
@@ -21682,6 +21804,58 @@ export type JudgingProofPlanInput = {
   }
   screensRequired: boolean
   shape: ProofPlanStepShape
+}
+
+export type WorkQueueEntry =
+  | {
+      kind: 'story'
+      projectId: string
+      storyId: string
+      planning?: boolean
+    }
+  | {
+      kind: 'groupStory'
+      groupId: string
+      groupStoryId: string
+      planning?: boolean
+    }
+
+export type WorkQueueScope =
+  | {
+      kind: 'project'
+      projectId: string
+    }
+  | {
+      kind: 'group'
+      groupId: string
+    }
+  | {
+      kind: 'overseer'
+    }
+
+export type WorkQueue = {
+  scope: WorkQueueScope
+  entries: Array<WorkQueueEntry>
+}
+
+export type WorkQueueEntryState = {
+  done?: boolean
+  running?: boolean
+  waitingOn?: Array<string>
+  ready?: boolean
+}
+
+export type WorkQueueState = {
+  liveRuns: number
+  entries: {
+    [key: string]: WorkQueueEntryState
+  }
+}
+
+export type WorkQueueSkipReason = 'done' | 'running' | 'blocked' | 'not-ready' | 'unknown'
+
+export type WorkQueueFile = {
+  entries: Array<unknown>
 }
 
 export type IdentityReliability = 'reliable' | 'provisional' | 'underspecified' | 'unreliable'
@@ -25520,7 +25694,6 @@ export type CaptureToolSet = {
     | 'uploadFile'
     | 'viewImage'
     | 'viewVideo'
-    | 'compareVideos'
     | 'getAbsolutePath'
     | 'gitStatus'
     | 'listRemotes'
@@ -26104,7 +26277,6 @@ export type CaptureToolSet = {
     | 'uploadFile'
     | 'viewImage'
     | 'viewVideo'
-    | 'compareVideos'
     | 'getAbsolutePath'
     | 'gitStatus'
     | 'listRemotes'
@@ -26695,7 +26867,6 @@ export type CaptureToolSet = {
     | 'uploadFile'
     | 'viewImage'
     | 'viewVideo'
-    | 'compareVideos'
     | 'getAbsolutePath'
     | 'gitStatus'
     | 'listRemotes'
@@ -27279,7 +27450,6 @@ export type CaptureToolSet = {
     | 'uploadFile'
     | 'viewImage'
     | 'viewVideo'
-    | 'compareVideos'
     | 'getAbsolutePath'
     | 'gitStatus'
     | 'listRemotes'
@@ -27864,7 +28034,6 @@ export type CaptureToolSet = {
     | 'uploadFile'
     | 'viewImage'
     | 'viewVideo'
-    | 'compareVideos'
     | 'getAbsolutePath'
     | 'gitStatus'
     | 'listRemotes'
@@ -29203,6 +29372,16 @@ export type RetireQuestionsOptions = {
   askedBefore?: string
 }
 
+export type StoryGroupStoryRef = {
+  groupId: string
+  groupStoryId: string
+  title: string
+}
+
+export type AgentStory = Story & {
+  groupStories?: Array<StoryGroupStoryRef>
+}
+
 export type FeatureSummary = {
   id: string
   title: string
@@ -29215,6 +29394,7 @@ export type StorySummary = {
   status: Status
 } & {
   features: Array<FeatureSummary>
+  groupStories?: Array<StoryGroupStoryRef>
 }
 
 export type StoryNoteCreateInput = {
@@ -29291,6 +29471,12 @@ export type StoryCreateInput = {
       beforeAndAfter?: boolean
     }
   }
+  plan?: string
+}
+
+export type StoryReadiness = {
+  ready: boolean
+  problems: Array<StoryReadinessProblem>
 }
 
 export type StoryEditInput = {
@@ -29316,6 +29502,7 @@ export type StoryEditInput = {
       beforeAndAfter?: boolean
     }
   }
+  plan?: string
   externalIds?: Array<ExternalRef>
   completedAt?: string
 }
@@ -29351,6 +29538,7 @@ export type StoryUpdate = {
         beforeAndAfter?: boolean
       }
     }
+    plan?: string
     externalIds?: Array<ExternalRef>
     notes?: Array<StoryNote>
     createdAt: string
@@ -29450,6 +29638,298 @@ export type StuckAskTarget = {
   runId: string
   chatContextId: string
   credentialId?: string
+}
+
+export type SupervisorDiffCommit = {
+  subject: string
+  diff: string
+}
+
+export type ProcessProofScaffoldMarker =
+  | 'proof-file'
+  | 'proof-file-load'
+  | 'fake-backend-check'
+  | 'transport-shim'
+
+export type SupervisorScaffoldMarker =
+  | ProcessProofScaffoldMarker
+  | 'forced-state'
+  | 'fake-seam'
+  | 'proof-seam'
+
+export type SupervisorScaffoldHit = {
+  path: string
+  markers: Array<SupervisorScaffoldMarker>
+}
+
+export type SupervisorRoutine = {
+  choice: ProcessParkAction
+  note: string
+  model?: {
+    runner: 'cli' | 'api'
+    cli?: string
+    model?: string
+    effort?: string
+  }
+  integration?: 'squash'
+}
+
+export type SupervisorAnswer = {
+  choice: ProcessParkAction
+  label: string
+  note?: string
+}
+
+export type SupervisorForPerson = {
+  question: string
+  recommended: SupervisorAnswer
+  options: Array<SupervisorAnswer>
+}
+
+export type SupervisorStop = {
+  runId: string
+  rootRunId: string
+  parkedAt: number
+  reason: ProcessParkReason
+  stepId?: string
+  detail: string
+  signature: string
+  managerHandling: boolean
+  routine?: {
+    choice: ProcessParkAction
+    note: string
+    model?: {
+      runner: 'cli' | 'api'
+      cli?: string
+      model?: string
+      effort?: string
+    }
+    integration?: 'squash'
+  }
+  forPerson?: {
+    question: string
+    recommended: SupervisorAnswer
+    options: Array<SupervisorAnswer>
+  }
+}
+
+export type SupervisorAsk = {
+  actionId: string
+  mootReason?: string
+}
+
+export type SupervisorAskClose = {
+  actionId: string
+  note: string
+}
+
+export type SupervisorSignOffChange = {
+  commits: Array<SupervisorDiffCommit>
+  declared?: Array<string>
+}
+
+export type SupervisorAnswered = {
+  signature: string
+  choice: ProcessParkAction
+}
+
+export type SupervisorSweepInput = {
+  runs: Array<ProcessRun>
+  asks?: Array<SupervisorAsk>
+  queue?: {
+    queue: WorkQueue
+    state: WorkQueueState
+    cap?: number
+  }
+  signOffs?: {
+    [key: string]: SupervisorSignOffChange
+  }
+  fallbackModel?: {
+    runner: 'cli' | 'api'
+    cli?: string
+    model?: string
+    effort?: string
+  }
+  answered?: Array<SupervisorAnswered>
+  now: number
+}
+
+export type SupervisorSweep = {
+  stops: Array<SupervisorStop>
+  closeAsks: Array<SupervisorAskClose>
+  starts: Array<WorkQueueEntry>
+}
+
+export type TemplateDifficulty = 'beginner' | 'intermediate' | 'advanced'
+
+export type CatalogTemplate = {
+  id: string
+  name: string
+  description: string
+  repoUrl: string
+  difficulty: TemplateDifficulty
+  estimatedTime: string
+  thumbnailUrl?: string
+  ref?: string
+  appDir?: string
+}
+
+export type StoredTemplate = CatalogTemplate & {
+  published: boolean
+  registeredAt: string
+  publishedAt?: string
+}
+
+export type TemplateCatalogFile = {
+  templates: Array<StoredTemplate>
+}
+
+export type TemplateRegisterFields = {
+  id: string
+  name: string
+  description: string
+  repoUrl: string
+  difficulty: TemplateDifficulty
+  estimatedTime: string
+  appDir: string
+  thumbnailUrl?: string
+  ref?: string
+}
+
+export type RegisterTemplateInput = {
+  id: string
+  name: string
+  description: string
+  repoUrl: string
+  difficulty: TemplateDifficulty
+  estimatedTime: string
+  thumbnailUrl?: string
+  ref?: string
+}
+
+export type TemplateProjectConfig = {
+  title: string
+  description: string
+  appDir: string
+  codeInfo?: {
+    [key: string]: unknown
+  }
+  scopeGroupIds?: Array<string>
+}
+
+export type TemplateForkProjectConfig = {
+  title: string
+  description: string
+  codeInfo?: {
+    [key: string]: unknown
+  }
+  scopeGroupIds?: Array<string>
+} & {
+  appDir?: string
+}
+
+export type TemplatePublishProject = {
+  id: string
+  title: string
+  description: string
+  codeInfo?: {
+    language: ProgrammingLanguage
+    framework?:
+      | JavaScriptFramework
+      | PythonFramework
+      | JavaFramework
+      | GoFramework
+      | RubyFramework
+      | PhpFramework
+      | CSharpFramework
+      | CppFramework
+      | RustFramework
+      | KotlinFramework
+      | SwiftFramework
+    testFramework?:
+      | JavaScriptTestFramework
+      | PythonTestFramework
+      | JavaTestFramework
+      | GoTestFramework
+      | RubyTestFramework
+      | PhpTestFramework
+      | CSharpTestFramework
+      | CppTestFramework
+      | RustTestFramework
+      | KotlinTestFramework
+      | SwiftTestFramework
+  }
+  metadata?: {
+    appDir?: string
+    hasApp?: boolean
+    icon?: string
+    [key: string]: unknown
+  }
+}
+
+export type TemplateProjectJson = {
+  title: string
+  description: string
+  repo_url: ''
+  scopeGroupIds: Array<unknown>
+  createdAt: string
+  updatedAt: string
+  codeInfo?: {
+    language: ProgrammingLanguage
+    framework?:
+      | JavaScriptFramework
+      | PythonFramework
+      | JavaFramework
+      | GoFramework
+      | RubyFramework
+      | PhpFramework
+      | CSharpFramework
+      | CppFramework
+      | RustFramework
+      | KotlinFramework
+      | SwiftFramework
+    testFramework?:
+      | JavaScriptTestFramework
+      | PythonTestFramework
+      | JavaTestFramework
+      | GoTestFramework
+      | RubyTestFramework
+      | PhpTestFramework
+      | CSharpTestFramework
+      | CppTestFramework
+      | RustTestFramework
+      | KotlinTestFramework
+      | SwiftTestFramework
+  }
+  metadata: {
+    appDir: string
+    hasApp?: boolean
+    icon?: string
+  }
+}
+
+export type TemplateProjectJsonResult =
+  | {
+      ok: true
+      value: TemplateProjectJson
+    }
+  | {
+      ok: false
+      error: string
+    }
+
+export type TemplatePublishCatalogFields = {
+  id: string
+  name: string
+  description: string
+  difficulty: TemplateDifficulty
+  estimatedTime: string
+  thumbnailUrl?: string
+}
+
+export type TemplateToolsOptions = {
+  configRoot: string
+  seedTemplates?: Array<CatalogTemplate>
 }
 
 export type CreateTestTempDirOptions = {
@@ -30718,17 +31198,13 @@ export type VideoTranscriptSegment = {
   endSec: number
   text: string
   words?: Array<VideoTranscriptWord>
-  language?: string
 }
-
-export type VideoLanguagesUntold = 'no-detector'
 
 export type VideoTranscript = {
   state: VideoTranscriptState
   segments: Array<VideoTranscriptSegment>
   language?: string
   file?: string
-  languagesUntold?: 'no-detector'
 }
 
 export type VideoScreenTextState = 'done' | 'not-set-up' | 'failed'
@@ -30820,15 +31296,6 @@ export type Names = {
   after: string
 }
 
-export type Searchable = {
-  stills: Array<VideoStill>
-  transcript: VideoTranscript
-  screenText?: {
-    state: VideoScreenTextState
-    onEveryScreen: Array<string>
-  }
-}
-
 export type VideoTimelineStill = {
   kind: 'still'
   timeSec: number
@@ -30842,7 +31309,6 @@ export type VideoTimelineSpeech = {
   timeSec: number
   endSec: number
   text: string
-  language?: string
 }
 
 export type VideoTimelineAction = {
@@ -30916,48 +31382,18 @@ export type VideoMomentCandidate = {
   thumb: unknown
 }
 
+export type VideoCloseUpCandidate = VideoMomentCandidate & {
+  closeUpThumb: unknown
+}
+
 export type VideoThumbDims = {
   width: number
   height: number
 }
 
-export type VideoThumbSize =
-  | {
-      width: number
-    }
-  | {
-      pixels: number
-    }
-
-export type VideoSettleRule = {
-  holdSec: number
-  restSec: number
-  afterRestSec: number
-  flickerSec: number
-}
-
 export type VideoThumbCompare = {
   changedPixels: number
   pixelChange: number
-}
-
-export type VideoStillPicking = VideoThumbCompare & {
-  thumbShape: 'frame' | 'landscape'
-  thumbSize: VideoThumbSize
-  settle?: {
-    holdSec: number
-    restSec: number
-    afterRestSec: number
-    flickerSec: number
-  }
-}
-
-export type VideoScreenChanges = {
-  moments: Array<VideoMomentCandidate>
-  steady: Array<{
-    fromSec: number
-    toSec: number
-  }>
 }
 
 export type VideoCloseUpPlan = {
@@ -31040,8 +31476,6 @@ export type VideoScreenTextSplit = {
   onEveryScreen: Array<string>
   stills: Array<Array<string>>
 }
-
-export type VideoTranscriptLanguages = 'per-file' | 'per-segment'
 
 export type VideoRecordingStart = {
   atMs: number
@@ -31131,12 +31565,6 @@ export type VideoLookRequest = {
   to?: string | number
   count?: number
   size?: number
-  find?: string
-}
-
-export type VideoFindStretch = {
-  fromSec: number
-  toSec: number
 }
 
 export type VideoLookPlan =
@@ -31153,60 +31581,12 @@ export type VideoLookPlan =
       timesSec: Array<number>
     }
   | {
-      kind: 'find'
-      phrase: string
-      stretch: VideoFindStretch
-    }
-  | {
       kind: 'refused'
       reason: string
     }
 
-export type VideoFindSource = 'screen' | 'said'
-
-export type VideoFindMatch = 'exact' | 'words' | 'near'
-
-export type VideoFindHit = {
-  source: VideoFindSource
-  match: VideoFindMatch
-  startSec: number
-  endSec: number
-  text: string
-  onEveryScreen?: boolean
-}
-
-export type VideoFindClosest = {
-  source: VideoFindSource
-  timeSec: number
-  text: string
-  onEveryScreen?: boolean
-}
-
-export type VideoFindOutcome = {
-  hits: Array<VideoFindHit>
-  total: number
-  closest?: {
-    source: VideoFindSource
-    timeSec: number
-    text: string
-    onEveryScreen?: boolean
-  }
-  searched: Array<VideoFindSource>
-  unsearched: Array<string>
-}
-
-export type VideoFoundMoment = {
-  source: VideoFindSource
-  match: VideoFindMatch
-  at: string
-  until?: string
-  text: string
-  onEveryScreen?: true
-}
-
 export type ViewedVideo = ViewedImage & {
   times?: Array<string>
-  found?: Array<VideoFoundMoment>
   digest?: string
   sheets?: Array<string>
   note?: string
@@ -31348,53 +31728,6 @@ export type VideoHeardWord = {
   text: string
 }
 
-export type VideoSpeechChunk = {
-  startSec: number
-  endSec: number
-}
-
-export type VideoWavData = {
-  offset: number
-  bytes: number
-}
-
-export type VideoHeardLanguage = {
-  language: string
-  confidence: number
-}
-
-export type VideoReheardSpeech = {
-  chunk: number
-  language?: string
-  words: Array<VideoHeardWord>
-}
-
-export type VideoSpeechLanguages = {
-  chunks: Array<VideoSpeechChunk>
-  heard: Array<VideoHeardLanguage | unknown>
-  main?: string
-}
-
-export type VideoSpeechTelling = {
-  told?: {
-    chunks: Array<VideoSpeechChunk>
-    heard: Array<VideoHeardLanguage | unknown>
-    main?: string
-  }
-  untold?: 'no-detector'
-}
-
-export type VideoMomentCandidates = {
-  picked: Array<VideoMomentCandidate>
-  changes?: {
-    moments: Array<VideoMomentCandidate>
-    steady: Array<{
-      fromSec: number
-      toSec: number
-    }>
-  }
-}
-
 export type VideoUseSource = 'chat-attachment' | 'run-recording' | 'evidence' | 'project-file'
 
 export type VideoUseRoute = 'mcp' | 'api'
@@ -31407,7 +31740,6 @@ export type VideoDigestStageName =
   | 'text'
   | 'closeUps'
   | 'transcript'
-  | 'languages'
   | 'sound'
 
 export type VideoDigestStageTimes = {
@@ -31418,7 +31750,6 @@ export type VideoDigestStageTimes = {
   text?: number
   closeUps?: number
   transcript?: number
-  languages?: number
   sound?: number
 }
 
@@ -31444,7 +31775,6 @@ export type VideoDigestCounts = {
 export type VideoDigestOutcomes = {
   noAudio: boolean
   noSpeech: boolean
-  languagesUntold: boolean
   failed?:
     | 'not-found'
     | 'no-ffmpeg'
@@ -31486,9 +31816,9 @@ export type VideoDigestReusedDraft = {
   durationSec?: number
 }
 
-export type VideoReadTool = 'viewVideo' | 'compareVideos' | 'readFile' | 'viewImage' | 'readPaths'
+export type VideoReadTool = 'viewVideo' | 'readFile' | 'viewImage' | 'readPaths'
 
-export type VideoReadTake = 'overview' | 'at' | 'range' | 'find' | 'compare' | 'digest-file'
+export type VideoReadTake = 'overview' | 'at' | 'range' | 'digest-file'
 
 export type VideoDigestFileKind =
   | 'digest'
@@ -31500,14 +31830,14 @@ export type VideoDigestFileKind =
   | 'closer'
   | 'other'
 
-export type VideoReadImageKind = 'sheet' | 'still' | 'close-up' | 'range' | 'compare'
+export type VideoReadImageKind = 'sheet' | 'still' | 'close-up' | 'range'
 
 export type VideoReadImage = {
   kind: VideoReadImageKind
   tokens: number
 }
 
-export type VideoReadAsked = 'at' | 'from' | 'to' | 'find' | 'count' | 'size'
+export type VideoReadAsked = 'at' | 'from' | 'to' | 'count' | 'size'
 
 export type VideoReadDraft = {
   kind: 'read'
@@ -31515,7 +31845,6 @@ export type VideoReadDraft = {
   tool: VideoReadTool
   take: VideoReadTake
   videoHash?: string
-  otherVideoHash?: string
   durationSec?: number
   asked: Array<VideoReadAsked>
   count?: number
@@ -31677,7 +32006,6 @@ export type VideoUseOpened = {
   closeUps: number
   sheets: number
   ranges: number
-  compares: number
 }
 
 export type VideoUseBuildStats = {
@@ -33152,12 +33480,6 @@ export type ProcessProofScaffoldFile = {
   lines: Array<string>
 }
 
-export type ProcessProofScaffoldMarker =
-  | 'proof-file'
-  | 'proof-file-load'
-  | 'fake-backend-check'
-  | 'transport-shim'
-
 export type ProcessProofScaffoldHit = {
   path: string
   markers: Array<ProcessProofScaffoldMarker>
@@ -33842,6 +34164,7 @@ export type ProcessStepToolSource =
         | 'analyst'
         | 'designer'
         | 'fixer'
+        | 'planner'
     }
   | {
       from: 'agent-role'
@@ -33878,6 +34201,7 @@ export type ProcessStepKindMeta = {
           | 'analyst'
           | 'designer'
           | 'fixer'
+          | 'planner'
       }
     | {
         from: 'agent-role'
@@ -33912,6 +34236,7 @@ export type ProcessStepToolsAndExit = {
     | 'analyst'
     | 'designer'
     | 'fixer'
+    | 'planner'
   exit:
     | 'handoff'
     | 'check-result'
@@ -36264,6 +36589,7 @@ export type ProcessStepResult = {
     keptIds: Array<string>
   }
   failureReason?: string
+  notReady?: Array<StoryReadinessProblem>
   recoveries?: Array<ProcessStepRecovery>
 }
 
@@ -36779,6 +37105,7 @@ export type ProcessStepState = {
     }
     agentNotStarted?: string
     failureReason?: string
+    notReady?: Array<StoryReadinessProblem>
     recoveries?: Array<ProcessStepRecovery>
     featureDone?: true
     retryMode?: 'continue' | 'fresh'
@@ -38113,6 +38440,56 @@ export type RemoteBrowserSessionsChangedData = {
   chatKey: string
 }
 
+export type FileChangeOrigin =
+  | {
+      kind: 'agent'
+      runId: string
+      chatContextId?: string
+    }
+  | {
+      kind: 'chat'
+      chatContextId: string
+    }
+  | {
+      kind: 'person'
+    }
+  | {
+      kind: 'git'
+    }
+  | {
+      kind: 'external'
+    }
+
+export type FilesChangedData =
+  | {
+      projectId: string
+      action: 'written' | 'patched' | 'uploaded'
+      path: string
+      paths?: Array<string>
+      origin: FileChangeOrigin
+    }
+  | {
+      projectId: string
+      action: 'deleted'
+      paths: Array<string>
+      origin: FileChangeOrigin
+    }
+  | {
+      projectId: string
+      action: 'renamed'
+      moves: Array<{
+        src: string
+        dst: string
+      }>
+      origin: FileChangeOrigin
+    }
+  | {
+      projectId: string
+      action: 'exact_replaced'
+      queries: Array<WriteExactReplaceQuery>
+      origin: FileChangeOrigin
+    }
+
 export type OverseerState = {
   path: string
   hasRemote: boolean
@@ -38474,56 +38851,6 @@ export type ProcessAgentPauseView = {
    */
   actions: Array<'resume' | 'retry' | 'stop'>
 }
-
-export type FileChangeOrigin =
-  | {
-      kind: 'agent'
-      runId: string
-      chatContextId?: string
-    }
-  | {
-      kind: 'chat'
-      chatContextId: string
-    }
-  | {
-      kind: 'person'
-    }
-  | {
-      kind: 'git'
-    }
-  | {
-      kind: 'external'
-    }
-
-export type FilesChangedData =
-  | {
-      projectId: string
-      action: 'written' | 'patched' | 'uploaded'
-      path: string
-      paths?: Array<string>
-      origin: FileChangeOrigin
-    }
-  | {
-      projectId: string
-      action: 'deleted'
-      paths: Array<string>
-      origin: FileChangeOrigin
-    }
-  | {
-      projectId: string
-      action: 'renamed'
-      moves: Array<{
-        src: string
-        dst: string
-      }>
-      origin: FileChangeOrigin
-    }
-  | {
-      projectId: string
-      action: 'exact_replaced'
-      queries: Array<WriteExactReplaceQuery>
-      origin: FileChangeOrigin
-    }
 
 export type HealthData = {
   body?: never
@@ -41181,6 +41508,7 @@ export type CreateStoryData = {
         beforeAndAfter?: boolean
       }
     }
+    plan?: string
     /**
      * Project-relative files handed over with the story, kept as they are now; every agent that works it gets them at the same paths.
      */
@@ -41929,6 +42257,7 @@ export type PreviewProcessResponses = {
         | 'analyst'
         | 'designer'
         | 'fixer'
+        | 'planner'
       agentProves?: false
       subject?:
         | {
@@ -42370,6 +42699,7 @@ export type PreviewProcessRunResponses = {
           | 'analyst'
           | 'designer'
           | 'fixer'
+          | 'planner'
         agentProves?: false
         subject?:
           | {
