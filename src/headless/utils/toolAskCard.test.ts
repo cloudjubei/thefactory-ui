@@ -1353,3 +1353,37 @@ describe('toolAskCardView — a ticket’s group story', () => {
     expect(view.body).toEqual({ kind: 'ticket-story', proposal: {} })
   })
 })
+
+describe('toolAskCardView: a delete names what goes', () => {
+  it('lists each path deletePaths would delete', () => {
+    expect(
+      toolAskCardView({
+        label: 'deletePaths',
+        toolName: 'deletePaths',
+        args: { paths: ['games/tests/_temp_phone_audit.test.ts', '_temp_mobile_audit_shots'] },
+      }),
+    ).toMatchObject({
+      tone: 'danger',
+      ask: 'The agent wants to delete something',
+      headline: 'Delete 2 paths',
+      body: {
+        kind: 'delete',
+        what: 'Delete 2 paths',
+        items: ['games/tests/_temp_phone_audit.test.ts', '_temp_mobile_audit_shots'],
+      },
+    })
+  })
+
+  it('names the one thing another delete is about, and the tool only when nothing names it', () => {
+    expect(
+      toolAskCardView({
+        label: 'deletePaths',
+        toolName: 'deletePaths',
+        args: { paths: ['notes/old.md'] },
+      }),
+    ).toMatchObject({ headline: 'Delete 1 path', body: { items: ['notes/old.md'] } })
+    const bare = toolAskCardView({ label: 'deleteWidget', toolName: 'deleteWidget', args: {} })
+    expect(bare.headline).toBe('Use deleteWidget')
+    expect(bare.body).toEqual({ kind: 'delete', what: 'Use deleteWidget' })
+  })
+})

@@ -43,7 +43,12 @@ export type ToolAskBody =
     }
   | { kind: 'write'; projectId?: string; path: string; content: string; lines: number }
   | { kind: 'delete-story'; storyId: string; featureId?: string }
-  | { kind: 'delete'; what: string }
+  | {
+      kind: 'delete'
+      what: string
+      /** What it would remove, one per line: each path, or the one thing it names. */
+      items?: string[]
+    }
   | { kind: 'details'; text?: string }
   /** Host-check consent: the lead and the exact commands that would run on the host. */
   | { kind: 'host-check-consent'; lead: string; commands: string[] }

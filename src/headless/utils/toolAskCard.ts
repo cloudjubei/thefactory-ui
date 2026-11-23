@@ -4,6 +4,7 @@
 
 import type { ProcessGroupBuildMode, WorkLaunchMode } from 'thefactory-tools/types'
 import { grantDetailView } from './approvalGrant'
+import { getToolHeaderPath } from './toolPreview'
 import { cleanCliToolName } from './cliRunner'
 import { evaluationLaunchAskView } from './evaluationLaunchAskView'
 import { EVALUATE_KNOWLEDGE_TOOL } from './evaluationLaunchAskViewConstants'
@@ -355,6 +356,20 @@ export function featureQuestionAnswerProblem(value: string): string | undefined 
  * payload; its arguments, the grant's or the payload's; the host's sentence
  * from the payload. A tool it has no words for reads as a generic approval. Pure.
  */
+/**
+ * What a delete would remove, as the tool rows name it: each path a
+ * `deletePaths` call lists, else the one thing the call is about
+ * ({@link getToolHeaderPath}); none when the call names nothing. Pure.
+ */
+function deleteTargets(tool: string, args: Record<string, unknown>): string[] {
+  if (tool === 'deletePaths') {
+    const paths = Array.isArray(args.paths) ? args.paths : []
+    return paths.filter((p): p is string => typeof p === 'string' && p.length > 0)
+  }
+  const one = getToolHeaderPath({ name: tool, arguments: args })
+  return one ? [one] : []
+}
+
 export function toolAskCardView(grant: GrantLike): ToolAskCardView {
   const payload = record(grant.detail)
   // MCP-prefixed names (`mcp__thefactory__sendChatMessage`) match the bare tool.
@@ -633,7 +648,14 @@ export function toolAskCardView(grant: GrantLike): ToolAskCardView {
     }
   }
   if (DELETE_TOOL.test(tool)) {
-    const headline = sentence ?? `Use ${tool}`
+    const items = deleteTargets(tool, args)
+    const headline =
+      sentence ??
+      (tool === 'deletePaths' && items.length > 0
+        ? `Delete ${plural(items.length, 'path')}`
+        : items.length === 1
+          ? `Delete ${items[0]}`
+          : `Use ${tool}`)
     return {
       ...base,
       tone: 'danger',
@@ -642,7 +664,7 @@ export function toolAskCardView(grant: GrantLike): ToolAskCardView {
       tag: TOOL_ASK_COPY.cannotUndo,
       headline,
       verb: 'Delete',
-      body: { kind: 'delete', what: headline },
+      body: { kind: 'delete', what: headline, ...(items.length > 0 ? { items } : {}) },
     }
   }
   return {

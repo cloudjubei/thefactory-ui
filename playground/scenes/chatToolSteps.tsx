@@ -68,13 +68,13 @@ const CHAT: ChatMessageLike[] = [
 ]
 
 const WAITING_ON_YOU: ChatMessageLike = {
-  id: 't-deleteFile',
+  id: 't-deletePaths',
   role: 'tool',
   content: '',
   toolCall: {
-    toolCallId: 't-deleteFile',
-    name: 'deleteFile',
-    arguments: { path: 'notes/old.md' },
+    toolCallId: 't-deletePaths',
+    name: 'deletePaths',
+    arguments: { paths: ['notes/old.md', 'scratch/audit-shots'] },
     awaitingDecision: true,
   },
   toolResult: { type: 'require_confirmation' },

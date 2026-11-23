@@ -353,6 +353,14 @@ export default function ToolAskApprovalPanel({
             <Text style={{ fontSize: 13, fontWeight: '600', color: status.blocked.softFg }}>
               {body.what}
             </Text>
+            {(body.items ?? []).map((item) => (
+              <Text
+                key={item}
+                style={[{ marginTop: 4, fontSize: 12, color: status.blocked.softFg }, MONO]}
+              >
+                {item}
+              </Text>
+            ))}
           </Boxed>
         ) : body.kind === 'review' ? (
           <ReviewBox body={body} />

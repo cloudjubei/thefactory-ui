@@ -307,8 +307,17 @@ export default function ToolAskApprovalPanel({
           {...(body.featureId ? { featureId: body.featureId } : {})}
         />
       ) : body.kind === 'delete' ? (
-        <div className="rounded-lg border border-(--status-blocked-soft-border) bg-(--status-blocked-soft-bg) px-3 py-2.5 text-[13px] font-semibold text-(--status-blocked-soft-fg)">
-          {body.what}
+        <div className="rounded-lg border border-(--status-blocked-soft-border) bg-(--status-blocked-soft-bg) px-3 py-2.5 text-[13px] text-(--status-blocked-soft-fg)">
+          <div className="font-semibold">{body.what}</div>
+          {body.items && body.items.length > 0 ? (
+            <ul className="mt-1.5 flex flex-col gap-0.5">
+              {body.items.map((item) => (
+                <li key={item} className="font-mono text-[12px] break-all">
+                  {item}
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </div>
       ) : body.kind === 'review' ? (
         <ReviewBox body={body} />
