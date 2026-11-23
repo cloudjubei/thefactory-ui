@@ -20,7 +20,8 @@ export type SentImageAttachmentProps = {
  * zoom and pan — so a screenshot stays readable after it was sent. Its name
  * sits under it, cut short to the thumbnail's width, whole on hover. An image an
  * agent showed carries Save to project in the thumbnail's corner. Falls back
- * to the file chip until the image loads, and when it cannot be read.
+ * to the file chip until the image loads, and when it cannot be read; the chip
+ * still opens the preview, which says when the file is gone.
  */
 export function SentImageAttachment({
   path,
@@ -51,7 +52,13 @@ export function SentImageAttachment({
   }, [path, getPreviewUrl])
 
   if (!url) {
-    return <AttachmentFileChip path={path} {...(saving ? { saving } : {})} />
+    return (
+      <AttachmentFileChip
+        path={path}
+        getPreviewUrl={getPreviewUrl}
+        {...(saving ? { saving } : {})}
+      />
+    )
   }
 
   return (

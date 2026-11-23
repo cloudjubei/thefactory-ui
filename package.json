@@ -66,7 +66,7 @@
     "generate:backend": "openapi-ts && prettier --write --ignore-path /dev/null './src/headless/api/generated/**/*.ts'",
     "prebuild": "npm run check:uikit && npm run check:hooks && npm run generate:tokens",
     "pretest": "npm run check:uikit && npm run check:hooks",
-    "build": "tsup",
+    "build": "NODE_OPTIONS=--max-old-space-size=8192 tsup",
     "prepublishOnly": "npm run build",
     "dev": "tsup --watch",
     "playground:dev": "vite playground",

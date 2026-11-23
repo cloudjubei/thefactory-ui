@@ -45,7 +45,7 @@ export default function SentImageAttachment({
   const source = images.sourceOf(path)
 
   if (!source || failed) {
-    return <AttachmentFileChip path={path} {...(saving ? { saving } : {})} />
+    return <AttachmentFileChip path={path} images={images} {...(saving ? { saving } : {})} />
   }
 
   return (

@@ -34,11 +34,18 @@ describe('chatAttachmentRawUrl', () => {
 
 describe('chatFileRawUrl', () => {
   const path = '.factory/attachments/abc/1-board.png'
-  it('reads a project chat’s file through its project, where files are attached by name too', () => {
-    expect(
-      chatFileRawUrl('http://x', { type: 'STORY', projectId: 'p1', storyId: 's1' }, path),
-    ).toBe(rawFileUrl('http://x', 'p1', path))
+  const story = { type: 'STORY', projectId: 'p1', storyId: 's1' } as const
+  it('reads a project chat’s kept file from where the chat keeps it, not the checkout', () => {
+    expect(chatFileRawUrl('http://x', story, path)).toBe(
+      chatAttachmentRawUrl('http://x', story, path),
+    )
   })
+  it.each(['src/board.png', '.factory/attachments/', '.factory/attachments/../src/a.png'])(
+    'reads a project chat’s other file %s through its project',
+    (other) => {
+      expect(chatFileRawUrl('http://x', story, other)).toBe(rawFileUrl('http://x', 'p1', other))
+    },
+  )
   it.each([
     ['a group chat', { type: 'GROUP_TOPIC', groupId: 'g1', topicId: 't1' }],
     ['the general chat', { type: 'GENERAL', timestamp: '1' }],

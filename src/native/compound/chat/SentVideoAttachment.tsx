@@ -139,6 +139,7 @@ export default function SentVideoAttachment({
   const [tapped, setTapped] = useState(false)
   const handleRef = useRef<InlineVideoHandle | null>(null)
   const playheadRef = useRef<number | undefined>(undefined)
+  const playingRef = useRef(false)
   const [playheadSec, setPlayheadSec] = useState<number>()
   const [markingSec, setMarkingSec] = useState<number>()
   const failed = view.state === 'failed'
@@ -169,6 +170,7 @@ export default function SentVideoAttachment({
       onMetadata,
       onFailed: (message, atSec) => onFailed(nativeVideoFailureKind(message), atSec),
       onPlayingChange: (playing) => {
+        playingRef.current = playing
         if (playing) onPlaying()
       },
       onTimeChange: (atSec) => {
@@ -185,9 +187,10 @@ export default function SentVideoAttachment({
 
   const playFrom = (atSec: number) => {
     setPlayheadSec(atSec)
-    const seek = isOpen ? handleRef.current?.seek : undefined
-    if (seek) seek(atSec)
-    else play({ atSec })
+    const handle = isOpen ? handleRef.current : null
+    if (!handle?.seek) return play({ atSec })
+    handle.seek(atSec)
+    if (!playingRef.current) handle.pause?.()
   }
 
   const startMark = () => {

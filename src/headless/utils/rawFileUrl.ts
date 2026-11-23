@@ -1,3 +1,4 @@
+import { chatAttachmentPathInStore } from 'thefactory-tools/utils'
 import type { ChatContext } from '../api/generated'
 
 /**
@@ -26,12 +27,13 @@ export function chatAttachmentRawUrl(
 }
 
 /**
- * Where a chat's file is read: a project chat's through its project's files,
- * as it may name a project file as well as an attachment; any other chat's
- * from where it keeps its own files.
+ * Where a chat's file is read: a file the chat keeps — attached to it or shown
+ * in it — from where the chat keeps it, which for a project chat is the
+ * project's data home, not its checkout; any other file a project chat names
+ * through its project's files.
  */
 export function chatFileRawUrl(apiBaseUrl: string, context: ChatContext, path: string): string {
-  return context.projectId
+  return context.projectId && !chatAttachmentPathInStore(path)
     ? rawFileUrl(apiBaseUrl, context.projectId, path)
     : chatAttachmentRawUrl(apiBaseUrl, context, path)
 }

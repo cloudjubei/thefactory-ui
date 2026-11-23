@@ -15,7 +15,7 @@ function enterFullscreen(video: FullscreenVideo): void {
 
 /** What the card asks of the player while it is mounted. */
 export type ChatVideoPlayerControl = {
-  /** Plays on from that moment. */
+  /** Moves to that moment, playing on if it was playing and staying paused if it was paused. */
   seek: (atSec: number) => void
   pause: () => void
   /** Where the playhead is now. */
@@ -61,7 +61,6 @@ export default function ChatVideoPlayer({
         const video = videoRef.current
         if (!video) return
         video.currentTime = atSec
-        video.play().catch(() => {})
       },
       pause: () => videoRef.current?.pause(),
       time: () => videoRef.current?.currentTime ?? 0,
