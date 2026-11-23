@@ -1303,8 +1303,6 @@ export type ProcessResumeChoice =
   | 'split-follow-up'
   | 'recapture'
 
-export type ProcessParkAction = ProcessResumeChoice | 'delegate' | 'recover'
-
 export type ProcessManagerDependency =
   | {
       kind: 'run'
@@ -1332,7 +1330,7 @@ export type ProcessManagerOpenBaseFix =
 export type ProcessManagerDiagnosisAnswer =
   | {
       move: 'answer-park'
-      choice: unknown
+      choice: 'resolved' | 'update-base'
     }
   | {
       move: 'hold'
@@ -1378,7 +1376,7 @@ export type ProcessManagerBriefCard = {
   diagnosisAnswer?:
     | {
         move: 'answer-park'
-        choice: unknown
+        choice: 'resolved' | 'update-base'
       }
     | {
         move: 'hold'
@@ -1524,6 +1522,8 @@ export type ProcessManagerEscalationReason =
   | 'no-decision'
   | 'not-started'
   | 'circling'
+
+export type ProcessParkAction = ProcessResumeChoice | 'delegate' | 'recover'
 
 export type ProcessManagerAnswer = {
   choice: ProcessParkAction
