@@ -729,3 +729,27 @@ describe('live check steps', () => {
     expect(processStepRowView(signoff, undefined, { storyId: 's1' }).preview).toBe('signoff')
   })
 })
+
+describe('processStepRowView of the planner’s step', () => {
+  const plan = (overrides: Partial<ProcessStepState> = {}) =>
+    state({ id: 'plan', name: 'Plan', kind: 'agent', agentType: 'planner' }, overrides)
+
+  it('reads a finished plan step as any other step: opened on click, not inert', () => {
+    const row = processStepRowView(plan(), undefined)
+    expect(row.inert).toBe(false)
+    expect(row.waitingOnYou).toBe(false)
+  })
+
+  it('waits on the person when the plan step stops on what the story lacks', () => {
+    const lacks = 'The story has no plan.'
+    const row = processStepRowView(
+      plan({
+        outcome: 'errored',
+        latest: entry({ stepId: 'plan', outcome: 'errored', summary: lacks }),
+      }),
+      'plan',
+      { park: { reason: 'step-waiting', stepId: 'plan', message: lacks, parkedAt: 1 } },
+    )
+    expect(row).toMatchObject({ result: lacks, waitingOnYou: true })
+  })
+})

@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ScrollView, Text, View } from 'react-native'
 
 import {
+  launchPlanningChoice,
+  launchPlanningMetadata,
   extractErrorMessage,
   groupLaunchFakeDataChoices,
   groupLaunchFakeDataMetadata,
@@ -41,6 +43,7 @@ import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
 import BaseBranchChooser from '../chat/BaseBranchChooser'
 import LaunchFakeDataChoice from '../chat/LaunchFakeDataChoice'
+import LaunchPlanFirstToggle from '../chat/LaunchPlanFirstToggle'
 import GroupLegLiveChecks from '../chat/GroupLegLiveChecks'
 import TicketMoveField from '../chat/TicketMoveField'
 import LaunchCapsFields from '../chat/LaunchCapsFields'
@@ -98,6 +101,8 @@ export default function GroupStoryRunDialog({
   const [moveTicket, setMoveTicket] = useState(true)
   const [fakeDataPicks, setFakeDataPicks] = useState<Record<string, FakeDataInProduct>>({})
   const [liveCheckPicks, setLiveCheckPicks] = useState<GroupLaunchLiveCheckPicks>({})
+  const [planningPick, setPlanningPick] = useState<boolean | undefined>(undefined)
+  const planning = launchPlanningChoice(true, planningPick) ?? true
   const wasOpen = useRef(false)
   useEffect(() => {
     if (isOpen && !wasOpen.current) {
@@ -106,6 +111,7 @@ export default function GroupStoryRunDialog({
       setMoveTicket(true)
       setFakeDataPicks({})
       setLiveCheckPicks({})
+      setPlanningPick(undefined)
     }
     wasOpen.current = isOpen
   }, [isOpen, startedShown])
@@ -144,6 +150,7 @@ export default function GroupStoryRunDialog({
       ...(Object.keys(basePicks).length > 0 ? { baseBranches: { ...basePicks } } : {}),
       ...groupLaunchFakeDataMetadata(preview?.legs ?? [], fakeDataPicks),
       ...groupLaunchLiveCheckMetadata(preview?.legs ?? [], liveCheckPicks),
+      ...launchPlanningMetadata(planning),
       ...(ticketMove ? { ticketMove } : {}),
     })
       .then(setStarted)
@@ -309,6 +316,7 @@ export default function GroupStoryRunDialog({
               {renderModelChip(slot)}
             </View>
           ) : null}
+          <LaunchPlanFirstToggle value={planning} busy={busy} onChange={setPlanningPick} />
           <LaunchCapsFields
             fields={capFields}
             summary={launchCapsSummary(capsMeta)}

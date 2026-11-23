@@ -46,8 +46,11 @@ export function useProcessProposal(input: {
    * then holding the wait step, or its refusal said as the wait's problem.
    */
   waitsFor?: readonly ProcessWaitFor[]
+  /** `false` once the card turns Plan first off: the plan then shows no plan step. */
+  planning?: boolean
 }): UseProcessProposal {
   const { projectId, storyId, processId, featureProcessId, maxIterations } = input
+  const skipsPlanning = input.planning === false
   const waitKey = input.waitsFor && input.waitsFor.length > 0 ? JSON.stringify(input.waitsFor) : ''
   const featureKey = input.featureIds?.join(',') ?? ''
   const slotsKey = input.agentTypeSlots ? JSON.stringify(input.agentTypeSlots) : ''
@@ -80,6 +83,7 @@ export function useProcessProposal(input: {
         ...(featureKey ? { featureIds: featureKey.split(',') } : {}),
         ...(slotsKey ? { agentTypeSlots: JSON.parse(slotsKey) as AgentTypeSlotMap } : {}),
         ...(maxIterations !== undefined ? { maxIterations } : {}),
+        ...(skipsPlanning ? { planning: false } : {}),
       },
       throwOnError: true,
     })
@@ -99,7 +103,17 @@ export function useProcessProposal(input: {
     return () => {
       live = false
     }
-  }, [token, projectId, storyId, processId, featureProcessId, featureKey, slotsKey, maxIterations])
+  }, [
+    token,
+    projectId,
+    storyId,
+    processId,
+    featureProcessId,
+    featureKey,
+    slotsKey,
+    maxIterations,
+    skipsPlanning,
+  ])
 
   useEffect(() => {
     if (!token || !projectId || !storyId || !waitKey || !proposal) return
@@ -114,6 +128,7 @@ export function useProcessProposal(input: {
           ...(featureKey ? { featureIds: featureKey.split(',') } : {}),
           ...(slotsKey ? { agentTypeSlots: JSON.parse(slotsKey) as AgentTypeSlotMap } : {}),
           ...(maxIterations !== undefined ? { maxIterations } : {}),
+          ...(skipsPlanning ? { planning: false } : {}),
           waitsFor: JSON.parse(waitKey) as ProcessWaitFor[],
         },
         throwOnError: true,
@@ -138,6 +153,7 @@ export function useProcessProposal(input: {
     featureKey,
     slotsKey,
     maxIterations,
+    skipsPlanning,
     waitKey,
     proposal,
   ])

@@ -70,6 +70,10 @@ import {
   launchFakeDataChoice,
   launchFakeDataMetadata,
   launchFakeDataOffered,
+  launchPlanningAsked,
+  launchPlanningChoice,
+  launchPlanningMetadata,
+  launchPlanningOffered,
   launchWorstCaseLine,
   processStatisticsLine,
   processTurnLimitOfView,
@@ -107,6 +111,7 @@ import OpenWorkChooser from './OpenWorkChooser'
 import AlreadyDoneNote from './AlreadyDoneNote'
 import LaunchCapsFields from './LaunchCapsFields'
 import LaunchFakeDataChoice from './LaunchFakeDataChoice'
+import LaunchPlanFirstToggle from './LaunchPlanFirstToggle'
 import LaunchFeatureList from './LaunchFeatureList'
 import LaunchWaitFields from './LaunchWaitFields'
 import ProjectNoteChip from '../chips/ProjectNoteChip'
@@ -301,6 +306,7 @@ function ToolApprovalPanel({
   // A process run or the chat: the agent's proposal first, the person's to switch.
   const [mode, setMode] = useState<WorkLaunchMode>(summary.mode ?? 'process')
   const inChat = mode === 'chat'
+  const [planningPick, setPlanningPick] = useState<boolean | undefined>(undefined)
   // The story process — the agent's, until a suggestion the person used changes it.
   const [processPick, setProcessPick] = useState<string | undefined>(summary.processId)
   const story = isLaunch && summary.storyId ? getStory(summary.storyId) : undefined
@@ -359,6 +365,9 @@ function ToolApprovalPanel({
     ...(summary.agentTypeSlots ? { agentTypeSlots: summary.agentTypeSlots } : {}),
     ...(askedIterations !== undefined ? { maxIterations: askedIterations } : {}),
     ...(!inChat && waitsForSent.length > 0 ? { waitsFor: waitsForSent } : {}),
+    ...(!inChat && (planningPick ?? launchPlanningAsked(runProposalArgs(grant))) === false
+      ? { planning: false }
+      : {}),
   })
   const waitProblem = inChat
     ? undefined
@@ -424,6 +433,15 @@ function ToolApprovalPanel({
     ? undefined
     : launchFakeDataChoice(launchFakeDataOffered(proposal), fakeDataPick)
   const fakeDataMeta = launchFakeDataMetadata(fakeData)
+  const planningAsked = launchPlanningAsked(runProposalArgs(grant))
+  const planning = joinsOpenRun
+    ? undefined
+    : launchPlanningChoice(
+        launchPlanningOffered(proposal) || (planningPick ?? planningAsked) === false,
+        planningPick,
+        planningAsked,
+      )
+  const planningMeta = launchPlanningMetadata(planning, planningAsked)
   const worstCase = launchWorstCaseLine({
     attempts:
       capsMeta.maxIterations ?? Math.max(0, ...featureRows.map((r) => r.maxIterations ?? 0)),
@@ -535,6 +553,7 @@ function ToolApprovalPanel({
                   ...(decision === 'once' && proofPlanMeta ? proofPlanMeta : {}),
                   ...(decision === 'once' && pickMeta ? pickMeta : {}),
                   ...(decision === 'once' && fakeDataMeta ? fakeDataMeta : {}),
+                  ...(decision === 'once' ? planningMeta : {}),
                   ...(decision === 'once' ? launchWaitsForMetadata(waitDrafts) : {}),
                 }
               : undefined,
@@ -838,6 +857,10 @@ function ToolApprovalPanel({
 
         {!inChat && fakeData ? (
           <LaunchFakeDataChoice value={fakeData} busy={busy} onChange={setFakeDataPick} />
+        ) : null}
+
+        {!inChat && planning !== undefined ? (
+          <LaunchPlanFirstToggle value={planning} busy={busy} onChange={setPlanningPick} />
         ) : null}
 
         {isLaunch && !inChat ? (

@@ -7,6 +7,9 @@ import {
 import type { LaunchModelChipSlot } from '../../../headless/utils/launchAgentPickTypes'
 
 import {
+  launchPlanningAsked,
+  launchPlanningChoice,
+  launchPlanningMetadata,
   groupBaseBranchMetadata,
   groupLaunchFakeDataChoices,
   groupLaunchFakeDataMetadata,
@@ -48,6 +51,7 @@ import { TurnLimitField } from '../TurnLimitField'
 import LaunchCapsFields from './LaunchCapsFields'
 import BaseBranchChooser from './BaseBranchChooser'
 import LaunchFakeDataChoice from './LaunchFakeDataChoice'
+import LaunchPlanFirstToggle from './LaunchPlanFirstToggle'
 import GroupLegLiveChecks from './GroupLegLiveChecks'
 import TicketMoveField from './TicketMoveField'
 import ToolAskCard from './ToolAskCard'
@@ -113,6 +117,9 @@ export default function GroupWorkLaunchPanel({
   const [basePicks, setBasePicks] = useState<Record<string, string>>({})
   const baseBranchMeta = groupBaseBranchMetadata(preview?.legs ?? [], basePicks)
   const [fakeDataPicks, setFakeDataPicks] = useState<Record<string, FakeDataInProduct>>({})
+  const [planningPick, setPlanningPick] = useState<boolean | undefined>(undefined)
+  const planningAsked = launchPlanningAsked(runProposalArgs(grant))
+  const planning = launchPlanningChoice(true, planningPick, planningAsked) ?? true
   const fakeData = groupLaunchFakeDataChoices(preview?.legs ?? [], fakeDataPicks)
   const [liveCheckPicks, setLiveCheckPicks] = useState<GroupLaunchLiveCheckPicks>({})
   const [capsTyped, setCapsTyped] = useState<LaunchCapsTyped>({})
@@ -163,6 +170,7 @@ export default function GroupWorkLaunchPanel({
               ...launchAgentPickMetadata(agentPick),
               ...(baseBranchMeta ?? {}),
               ...groupLaunchFakeDataMetadata(preview?.legs ?? [], fakeDataPicks),
+              ...launchPlanningMetadata(planning, planningAsked),
               ...groupLaunchLiveCheckMetadata(preview?.legs ?? [], liveCheckPicks),
               ...(ticketMove ? { ticketMove } : {}),
               ...launchLegWaitsForMetadata(waitPicks),
@@ -347,6 +355,7 @@ export default function GroupWorkLaunchPanel({
           disabled={busy}
           onChange={setTurnLimitPick}
         />
+        <LaunchPlanFirstToggle value={planning} busy={busy} onChange={setPlanningPick} />
         <LaunchCapsFields
           fields={capFields}
           summary={launchCapsSummary(capsMeta)}
