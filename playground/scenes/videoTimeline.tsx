@@ -378,12 +378,14 @@ export const VIDEO_TIMELINE_SCENES: Scene[] = [
         description:
           'Decision 6A: a close-up line is a button of its own. It opens the crop at its real size over the chat, with its time, place and text, the arrows through every close-up of the video and Play from its time.',
         render: () => <MarkFromRow timeline={TIMELINES.closeUps} closeUpIndex={0} />,
+        overlay: true,
       },
       {
         id: 'close-up-viewer-middle',
         title: 'Close-up, one of several',
         description: 'The second of four: both arrows step, the count says where it is.',
         render: () => <MarkFromRow timeline={TIMELINES.closeUps} closeUpIndex={1} />,
+        overlay: true,
       },
     ],
   },
