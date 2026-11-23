@@ -42177,6 +42177,10 @@ export type PreviewProcessData = {
      * The work elsewhere the run would wait for before its proof: the proposal then shows its wait step and names what it waits for.
      */
     waitsFor?: Array<ProcessWaitFor>
+    /**
+     * false when the launch starts at the features without planning the story first; it plans first when absent.
+     */
+    planning?: boolean
   }
   path?: never
   query?: never
@@ -42309,6 +42313,7 @@ export type PreviewProcessResponses = {
       maxIterations?: number
     }
     fakeDataInProduct?: 'ship' | 'keep-out'
+    planning?: boolean
   }
 }
 
@@ -42751,6 +42756,7 @@ export type PreviewProcessRunResponses = {
         maxIterations?: number
       }
       fakeDataInProduct?: 'ship' | 'keep-out'
+      planning?: boolean
     }
     /**
      * What the form asks for.
@@ -47576,6 +47582,1547 @@ export type ListProcessGroupRunBranchesResponses = {
 
 export type ListProcessGroupRunBranchesResponse =
   ListProcessGroupRunBranchesResponses[keyof ListProcessGroupRunBranchesResponses]
+
+export type GetProcessRunSlotsData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/process-runs/slots'
+}
+
+export type GetProcessRunSlotsErrors = {
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type GetProcessRunSlotsError = GetProcessRunSlotsErrors[keyof GetProcessRunSlotsErrors]
+
+export type GetProcessRunSlotsResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    /**
+     * The most process runs live at once.
+     */
+    cap: number
+    /**
+     * The top-level runs holding a slot now.
+     */
+    live: number
+    waiting: Array<{
+      runId: string
+      projectId: string
+      title: string
+      /**
+       * Its place in line; 1 starts next.
+       */
+      position: number
+    }>
+  }
+}
+
+export type GetProcessRunSlotsResponse =
+  GetProcessRunSlotsResponses[keyof GetProcessRunSlotsResponses]
+
+export type SetProcessRunSlotCapData = {
+  body: {
+    /**
+     * The most process runs live at once; a launch beyond it waits its turn and starts by itself once a run finishes.
+     */
+    cap: number
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/process-runs/slots'
+}
+
+export type SetProcessRunSlotCapErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type SetProcessRunSlotCapError = SetProcessRunSlotCapErrors[keyof SetProcessRunSlotCapErrors]
+
+export type SetProcessRunSlotCapResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    /**
+     * The most process runs live at once.
+     */
+    cap: number
+    /**
+     * The top-level runs holding a slot now.
+     */
+    live: number
+    waiting: Array<{
+      runId: string
+      projectId: string
+      title: string
+      /**
+       * Its place in line; 1 starts next.
+       */
+      position: number
+    }>
+  }
+}
+
+export type SetProcessRunSlotCapResponse =
+  SetProcessRunSlotCapResponses[keyof SetProcessRunSlotCapResponses]
+
+export type RemoveFromProjectQueueData = {
+  body: {
+    entry: WorkQueueEntry
+  }
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/queue'
+}
+
+export type RemoveFromProjectQueueErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type RemoveFromProjectQueueError =
+  RemoveFromProjectQueueErrors[keyof RemoveFromProjectQueueErrors]
+
+export type RemoveFromProjectQueueResponses = {
+  /**
+   * Default Response
+   */
+  200: WorkQueue
+}
+
+export type RemoveFromProjectQueueResponse =
+  RemoveFromProjectQueueResponses[keyof RemoveFromProjectQueueResponses]
+
+export type GetProjectQueueData = {
+  body?: never
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/queue'
+}
+
+export type GetProjectQueueErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type GetProjectQueueError = GetProjectQueueErrors[keyof GetProjectQueueErrors]
+
+export type GetProjectQueueResponses = {
+  /**
+   * Default Response
+   */
+  200: WorkQueue
+}
+
+export type GetProjectQueueResponse = GetProjectQueueResponses[keyof GetProjectQueueResponses]
+
+export type MoveInProjectQueueData = {
+  body: {
+    entry: WorkQueueEntry
+    /**
+     * The place to move it to, 0 first.
+     */
+    index: number
+  }
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/queue'
+}
+
+export type MoveInProjectQueueErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type MoveInProjectQueueError = MoveInProjectQueueErrors[keyof MoveInProjectQueueErrors]
+
+export type MoveInProjectQueueResponses = {
+  /**
+   * Default Response
+   */
+  200: WorkQueue
+}
+
+export type MoveInProjectQueueResponse =
+  MoveInProjectQueueResponses[keyof MoveInProjectQueueResponses]
+
+export type AddToProjectQueueData = {
+  body: {
+    entry: WorkQueueEntry
+    /**
+     * The place to queue it at, 0 first; last when absent.
+     */
+    index?: number
+  }
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/queue'
+}
+
+export type AddToProjectQueueErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type AddToProjectQueueError = AddToProjectQueueErrors[keyof AddToProjectQueueErrors]
+
+export type AddToProjectQueueResponses = {
+  /**
+   * Default Response
+   */
+  200: WorkQueue
+}
+
+export type AddToProjectQueueResponse = AddToProjectQueueResponses[keyof AddToProjectQueueResponses]
+
+export type RemoveFromGroupQueueData = {
+  body: {
+    entry: WorkQueueEntry
+  }
+  path: {
+    groupId: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/queue'
+}
+
+export type RemoveFromGroupQueueErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type RemoveFromGroupQueueError = RemoveFromGroupQueueErrors[keyof RemoveFromGroupQueueErrors]
+
+export type RemoveFromGroupQueueResponses = {
+  /**
+   * Default Response
+   */
+  200: WorkQueue
+}
+
+export type RemoveFromGroupQueueResponse =
+  RemoveFromGroupQueueResponses[keyof RemoveFromGroupQueueResponses]
+
+export type GetGroupQueueData = {
+  body?: never
+  path: {
+    groupId: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/queue'
+}
+
+export type GetGroupQueueErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type GetGroupQueueError = GetGroupQueueErrors[keyof GetGroupQueueErrors]
+
+export type GetGroupQueueResponses = {
+  /**
+   * Default Response
+   */
+  200: WorkQueue
+}
+
+export type GetGroupQueueResponse = GetGroupQueueResponses[keyof GetGroupQueueResponses]
+
+export type MoveInGroupQueueData = {
+  body: {
+    entry: WorkQueueEntry
+    /**
+     * The place to move it to, 0 first.
+     */
+    index: number
+  }
+  path: {
+    groupId: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/queue'
+}
+
+export type MoveInGroupQueueErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type MoveInGroupQueueError = MoveInGroupQueueErrors[keyof MoveInGroupQueueErrors]
+
+export type MoveInGroupQueueResponses = {
+  /**
+   * Default Response
+   */
+  200: WorkQueue
+}
+
+export type MoveInGroupQueueResponse = MoveInGroupQueueResponses[keyof MoveInGroupQueueResponses]
+
+export type AddToGroupQueueData = {
+  body: {
+    entry: WorkQueueEntry
+    /**
+     * The place to queue it at, 0 first; last when absent.
+     */
+    index?: number
+  }
+  path: {
+    groupId: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/queue'
+}
+
+export type AddToGroupQueueErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type AddToGroupQueueError = AddToGroupQueueErrors[keyof AddToGroupQueueErrors]
+
+export type AddToGroupQueueResponses = {
+  /**
+   * Default Response
+   */
+  200: WorkQueue
+}
+
+export type AddToGroupQueueResponse = AddToGroupQueueResponses[keyof AddToGroupQueueResponses]
+
+export type RemoveFromOverseerQueueData = {
+  body: {
+    entry: WorkQueueEntry
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/queue'
+}
+
+export type RemoveFromOverseerQueueErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type RemoveFromOverseerQueueError =
+  RemoveFromOverseerQueueErrors[keyof RemoveFromOverseerQueueErrors]
+
+export type RemoveFromOverseerQueueResponses = {
+  /**
+   * Default Response
+   */
+  200: WorkQueue
+}
+
+export type RemoveFromOverseerQueueResponse =
+  RemoveFromOverseerQueueResponses[keyof RemoveFromOverseerQueueResponses]
+
+export type GetOverseerQueueData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/queue'
+}
+
+export type GetOverseerQueueErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type GetOverseerQueueError = GetOverseerQueueErrors[keyof GetOverseerQueueErrors]
+
+export type GetOverseerQueueResponses = {
+  /**
+   * Default Response
+   */
+  200: WorkQueue
+}
+
+export type GetOverseerQueueResponse = GetOverseerQueueResponses[keyof GetOverseerQueueResponses]
+
+export type MoveInOverseerQueueData = {
+  body: {
+    entry: WorkQueueEntry
+    /**
+     * The place to move it to, 0 first.
+     */
+    index: number
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/queue'
+}
+
+export type MoveInOverseerQueueErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type MoveInOverseerQueueError = MoveInOverseerQueueErrors[keyof MoveInOverseerQueueErrors]
+
+export type MoveInOverseerQueueResponses = {
+  /**
+   * Default Response
+   */
+  200: WorkQueue
+}
+
+export type MoveInOverseerQueueResponse =
+  MoveInOverseerQueueResponses[keyof MoveInOverseerQueueResponses]
+
+export type AddToOverseerQueueData = {
+  body: {
+    entry: WorkQueueEntry
+    /**
+     * The place to queue it at, 0 first; last when absent.
+     */
+    index?: number
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/queue'
+}
+
+export type AddToOverseerQueueErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type AddToOverseerQueueError = AddToOverseerQueueErrors[keyof AddToOverseerQueueErrors]
+
+export type AddToOverseerQueueResponses = {
+  /**
+   * Default Response
+   */
+  200: WorkQueue
+}
+
+export type AddToOverseerQueueResponse =
+  AddToOverseerQueueResponses[keyof AddToOverseerQueueResponses]
+
+export type ListStopsData = {
+  body?: never
+  path?: never
+  query: {
+    /**
+     * Whose stops: the whole Overseer, one project, or a group’s projects.
+     */
+    scope: 'overseer' | 'project' | 'group'
+    /**
+     * The project or group, for those scopes.
+     */
+    id?: string
+  }
+  url: '/api/v1/stops'
+}
+
+export type ListStopsErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type ListStopsError = ListStopsErrors[keyof ListStopsErrors]
+
+export type ListStopsResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    scope: WorkQueueScope
+    stops: Array<{
+      runId: string
+      rootRunId: string
+      parkedAt: number
+      reason: ProcessParkReason
+      stepId?: string
+      detail: string
+      signature: string
+      managerHandling: boolean
+      routine?: {
+        choice: ProcessParkAction
+        note: string
+        model?: {
+          runner: 'cli' | 'api'
+          cli?: string
+          model?: string
+          effort?: string
+        }
+        integration?: 'squash'
+      }
+      forPerson?: {
+        question: string
+        recommended: SupervisorAnswer
+        options: Array<SupervisorAnswer>
+      }
+      projectId: string
+      title: string
+      stepName?: string
+      asks: Array<{
+        actionId: string
+        kind: string
+        toolName?: string
+      }>
+      manager: {
+        /**
+         * The run’s manager is switched on.
+         */
+        on: boolean
+        /**
+         * It is handling this stop now.
+         */
+        handling: boolean
+        /**
+         * It handed this stop to the person.
+         */
+        escalated: boolean
+      }
+    }>
+  }
+}
+
+export type ListStopsResponse = ListStopsResponses[keyof ListStopsResponses]
+
+export type GetProjectSupervisorData = {
+  body?: never
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/supervisor'
+}
+
+export type GetProjectSupervisorErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type GetProjectSupervisorError = GetProjectSupervisorErrors[keyof GetProjectSupervisorErrors]
+
+export type GetProjectSupervisorResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    scope: WorkQueueScope
+    enabled: boolean
+    actions: Array<{
+      id: string
+      at: number
+      kind: 'answered' | 'asked' | 'approved' | 'closed-ask' | 'started' | 'refused'
+      what: string
+      runId?: string
+      rootRunId?: string
+      projectId?: string
+      parkedAt?: number
+      signature?: string
+      choice?: ProcessResumeChoice | 'delegate' | 'recover'
+      tool?: string
+      args?: {
+        [key: string]: unknown
+      }
+      actionId?: string
+      entry?:
+        | {
+            kind: 'story'
+            projectId: string
+            storyId: string
+            planning?: boolean
+          }
+        | {
+            kind: 'groupStory'
+            groupId: string
+            groupStoryId: string
+            planning?: boolean
+          }
+      result?: string
+    }>
+    fallbackModel?: {
+      runner: 'cli' | 'api'
+      cli?: string
+      model?: string
+      effort?: string
+    }
+  }
+}
+
+export type GetProjectSupervisorResponse =
+  GetProjectSupervisorResponses[keyof GetProjectSupervisorResponses]
+
+export type SetProjectSupervisorData = {
+  body: {
+    /**
+     * true switches the scope’s supervisor on; it is off by default.
+     */
+    enabled: boolean
+  }
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/supervisor'
+}
+
+export type SetProjectSupervisorErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type SetProjectSupervisorError = SetProjectSupervisorErrors[keyof SetProjectSupervisorErrors]
+
+export type SetProjectSupervisorResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    scope: WorkQueueScope
+    enabled: boolean
+    actions: Array<{
+      id: string
+      at: number
+      kind: 'answered' | 'asked' | 'approved' | 'closed-ask' | 'started' | 'refused'
+      what: string
+      runId?: string
+      rootRunId?: string
+      projectId?: string
+      parkedAt?: number
+      signature?: string
+      choice?: ProcessResumeChoice | 'delegate' | 'recover'
+      tool?: string
+      args?: {
+        [key: string]: unknown
+      }
+      actionId?: string
+      entry?:
+        | {
+            kind: 'story'
+            projectId: string
+            storyId: string
+            planning?: boolean
+          }
+        | {
+            kind: 'groupStory'
+            groupId: string
+            groupStoryId: string
+            planning?: boolean
+          }
+      result?: string
+    }>
+    fallbackModel?: {
+      runner: 'cli' | 'api'
+      cli?: string
+      model?: string
+      effort?: string
+    }
+  }
+}
+
+export type SetProjectSupervisorResponse =
+  SetProjectSupervisorResponses[keyof SetProjectSupervisorResponses]
+
+export type GetGroupSupervisorData = {
+  body?: never
+  path: {
+    groupId: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/supervisor'
+}
+
+export type GetGroupSupervisorErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type GetGroupSupervisorError = GetGroupSupervisorErrors[keyof GetGroupSupervisorErrors]
+
+export type GetGroupSupervisorResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    scope: WorkQueueScope
+    enabled: boolean
+    actions: Array<{
+      id: string
+      at: number
+      kind: 'answered' | 'asked' | 'approved' | 'closed-ask' | 'started' | 'refused'
+      what: string
+      runId?: string
+      rootRunId?: string
+      projectId?: string
+      parkedAt?: number
+      signature?: string
+      choice?: ProcessResumeChoice | 'delegate' | 'recover'
+      tool?: string
+      args?: {
+        [key: string]: unknown
+      }
+      actionId?: string
+      entry?:
+        | {
+            kind: 'story'
+            projectId: string
+            storyId: string
+            planning?: boolean
+          }
+        | {
+            kind: 'groupStory'
+            groupId: string
+            groupStoryId: string
+            planning?: boolean
+          }
+      result?: string
+    }>
+    fallbackModel?: {
+      runner: 'cli' | 'api'
+      cli?: string
+      model?: string
+      effort?: string
+    }
+  }
+}
+
+export type GetGroupSupervisorResponse =
+  GetGroupSupervisorResponses[keyof GetGroupSupervisorResponses]
+
+export type SetGroupSupervisorData = {
+  body: {
+    /**
+     * true switches the scope’s supervisor on; it is off by default.
+     */
+    enabled: boolean
+  }
+  path: {
+    groupId: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/supervisor'
+}
+
+export type SetGroupSupervisorErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type SetGroupSupervisorError = SetGroupSupervisorErrors[keyof SetGroupSupervisorErrors]
+
+export type SetGroupSupervisorResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    scope: WorkQueueScope
+    enabled: boolean
+    actions: Array<{
+      id: string
+      at: number
+      kind: 'answered' | 'asked' | 'approved' | 'closed-ask' | 'started' | 'refused'
+      what: string
+      runId?: string
+      rootRunId?: string
+      projectId?: string
+      parkedAt?: number
+      signature?: string
+      choice?: ProcessResumeChoice | 'delegate' | 'recover'
+      tool?: string
+      args?: {
+        [key: string]: unknown
+      }
+      actionId?: string
+      entry?:
+        | {
+            kind: 'story'
+            projectId: string
+            storyId: string
+            planning?: boolean
+          }
+        | {
+            kind: 'groupStory'
+            groupId: string
+            groupStoryId: string
+            planning?: boolean
+          }
+      result?: string
+    }>
+    fallbackModel?: {
+      runner: 'cli' | 'api'
+      cli?: string
+      model?: string
+      effort?: string
+    }
+  }
+}
+
+export type SetGroupSupervisorResponse =
+  SetGroupSupervisorResponses[keyof SetGroupSupervisorResponses]
+
+export type GetOverseerSupervisorData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/supervisor'
+}
+
+export type GetOverseerSupervisorErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type GetOverseerSupervisorError =
+  GetOverseerSupervisorErrors[keyof GetOverseerSupervisorErrors]
+
+export type GetOverseerSupervisorResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    scope: WorkQueueScope
+    enabled: boolean
+    actions: Array<{
+      id: string
+      at: number
+      kind: 'answered' | 'asked' | 'approved' | 'closed-ask' | 'started' | 'refused'
+      what: string
+      runId?: string
+      rootRunId?: string
+      projectId?: string
+      parkedAt?: number
+      signature?: string
+      choice?: ProcessResumeChoice | 'delegate' | 'recover'
+      tool?: string
+      args?: {
+        [key: string]: unknown
+      }
+      actionId?: string
+      entry?:
+        | {
+            kind: 'story'
+            projectId: string
+            storyId: string
+            planning?: boolean
+          }
+        | {
+            kind: 'groupStory'
+            groupId: string
+            groupStoryId: string
+            planning?: boolean
+          }
+      result?: string
+    }>
+    fallbackModel?: {
+      runner: 'cli' | 'api'
+      cli?: string
+      model?: string
+      effort?: string
+    }
+  }
+}
+
+export type GetOverseerSupervisorResponse =
+  GetOverseerSupervisorResponses[keyof GetOverseerSupervisorResponses]
+
+export type SetOverseerSupervisorData = {
+  body: {
+    enabled?: boolean
+    /**
+     * The CLI model a run that ran out of credits switches to; null clears it.
+     */
+    fallbackModel?: ProcessRunModel | unknown
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/supervisor'
+}
+
+export type SetOverseerSupervisorErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type SetOverseerSupervisorError =
+  SetOverseerSupervisorErrors[keyof SetOverseerSupervisorErrors]
+
+export type SetOverseerSupervisorResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    scope: WorkQueueScope
+    enabled: boolean
+    actions: Array<{
+      id: string
+      at: number
+      kind: 'answered' | 'asked' | 'approved' | 'closed-ask' | 'started' | 'refused'
+      what: string
+      runId?: string
+      rootRunId?: string
+      projectId?: string
+      parkedAt?: number
+      signature?: string
+      choice?: ProcessResumeChoice | 'delegate' | 'recover'
+      tool?: string
+      args?: {
+        [key: string]: unknown
+      }
+      actionId?: string
+      entry?:
+        | {
+            kind: 'story'
+            projectId: string
+            storyId: string
+            planning?: boolean
+          }
+        | {
+            kind: 'groupStory'
+            groupId: string
+            groupStoryId: string
+            planning?: boolean
+          }
+      result?: string
+    }>
+    fallbackModel?: {
+      runner: 'cli' | 'api'
+      cli?: string
+      model?: string
+      effort?: string
+    }
+  }
+}
+
+export type SetOverseerSupervisorResponse =
+  SetOverseerSupervisorResponses[keyof SetOverseerSupervisorResponses]
 
 export type GetProcessRunCleanupData = {
   body?: never
@@ -66316,6 +67863,10 @@ export type RunGroupStoryData = {
      */
     note?: string
     proofRequired?: boolean
+    /**
+     * false starts every part at its features, without planning its story first.
+     */
+    planning?: boolean
     turnLimit?: {
       limitTurns: boolean
       maxTurns: number

@@ -51,6 +51,15 @@ import type {
   AddStoryNoteData,
   AddStoryNoteErrors,
   AddStoryNoteResponses,
+  AddToGroupQueueData,
+  AddToGroupQueueErrors,
+  AddToGroupQueueResponses,
+  AddToOverseerQueueData,
+  AddToOverseerQueueErrors,
+  AddToOverseerQueueResponses,
+  AddToProjectQueueData,
+  AddToProjectQueueErrors,
+  AddToProjectQueueResponses,
   AnswerFeatureQuestionData,
   AnswerFeatureQuestionErrors,
   AnswerFeatureQuestionResponses,
@@ -539,9 +548,15 @@ import type {
   GetGitTextRecoveryData,
   GetGitTextRecoveryErrors,
   GetGitTextRecoveryResponses,
+  GetGroupQueueData,
+  GetGroupQueueErrors,
+  GetGroupQueueResponses,
   GetGroupStoryData,
   GetGroupStoryErrors,
   GetGroupStoryResponses,
+  GetGroupSupervisorData,
+  GetGroupSupervisorErrors,
+  GetGroupSupervisorResponses,
   GetGroupTicketOverviewData,
   GetGroupTicketOverviewErrors,
   GetGroupTicketOverviewResponses,
@@ -582,7 +597,13 @@ import type {
   GetOverseerGitStatusData,
   GetOverseerGitStatusErrors,
   GetOverseerGitStatusResponses,
+  GetOverseerQueueData,
+  GetOverseerQueueErrors,
+  GetOverseerQueueResponses,
   GetOverseerResponses,
+  GetOverseerSupervisorData,
+  GetOverseerSupervisorErrors,
+  GetOverseerSupervisorResponses,
   GetPricingData,
   GetPricingErrors,
   GetPricingResponses,
@@ -630,6 +651,9 @@ import type {
   GetProcessRunLandingCheckErrors,
   GetProcessRunLandingCheckResponses,
   GetProcessRunResponses,
+  GetProcessRunSlotsData,
+  GetProcessRunSlotsErrors,
+  GetProcessRunSlotsResponses,
   GetProcessRunStatisticsData,
   GetProcessRunStatisticsResponses,
   GetProcessRunTestSessionData,
@@ -660,6 +684,9 @@ import type {
   GetProjectKnowledgeOverviewData,
   GetProjectKnowledgeOverviewErrors,
   GetProjectKnowledgeOverviewResponses,
+  GetProjectQueueData,
+  GetProjectQueueErrors,
+  GetProjectQueueResponses,
   GetProjectResponses,
   GetProjectServeSettingsData,
   GetProjectServeSettingsErrors,
@@ -676,6 +703,9 @@ import type {
   GetProjectStorageUsageData,
   GetProjectStorageUsageErrors,
   GetProjectStorageUsageResponses,
+  GetProjectSupervisorData,
+  GetProjectSupervisorErrors,
+  GetProjectSupervisorResponses,
   GetProviderConnectionData,
   GetProviderConnectionErrors,
   GetProviderConnectionResponses,
@@ -974,6 +1004,9 @@ import type {
   ListSourceRecordsData,
   ListSourceRecordsErrors,
   ListSourceRecordsResponses,
+  ListStopsData,
+  ListStopsErrors,
+  ListStopsResponses,
   ListStoriesData,
   ListStoriesResponses,
   ListStoryGroupStoriesData,
@@ -1035,6 +1068,15 @@ import type {
   MergeCliRunReviewResponses,
   MetricsData,
   MetricsResponses,
+  MoveInGroupQueueData,
+  MoveInGroupQueueErrors,
+  MoveInGroupQueueResponses,
+  MoveInOverseerQueueData,
+  MoveInOverseerQueueErrors,
+  MoveInOverseerQueueResponses,
+  MoveInProjectQueueData,
+  MoveInProjectQueueErrors,
+  MoveInProjectQueueResponses,
   OpenCredentialCaptureData,
   OpenCredentialCaptureErrors,
   OpenCredentialCaptureResponses,
@@ -1203,6 +1245,15 @@ import type {
   RemoveActionRuleData,
   RemoveActionRuleErrors,
   RemoveActionRuleResponses,
+  RemoveFromGroupQueueData,
+  RemoveFromGroupQueueErrors,
+  RemoveFromGroupQueueResponses,
+  RemoveFromOverseerQueueData,
+  RemoveFromOverseerQueueErrors,
+  RemoveFromOverseerQueueResponses,
+  RemoveFromProjectQueueData,
+  RemoveFromProjectQueueErrors,
+  RemoveFromProjectQueueResponses,
   RemoveGroupMcpServerData,
   RemoveGroupMcpServerErrors,
   RemoveGroupMcpServerResponses,
@@ -1434,11 +1485,17 @@ import type {
   SetGroupMcpServerTokenData,
   SetGroupMcpServerTokenErrors,
   SetGroupMcpServerTokenResponses,
+  SetGroupSupervisorData,
+  SetGroupSupervisorErrors,
+  SetGroupSupervisorResponses,
   SetGroupTicketTabsData,
   SetGroupTicketTabsErrors,
   SetGroupTicketTabsResponses,
   SetOverseerRemoteData,
   SetOverseerRemoteResponses,
+  SetOverseerSupervisorData,
+  SetOverseerSupervisorErrors,
+  SetOverseerSupervisorResponses,
   SetProcessRunCleanupItemData,
   SetProcessRunCleanupItemErrors,
   SetProcessRunCleanupItemResponses,
@@ -1451,6 +1508,9 @@ import type {
   SetProcessRunModelData,
   SetProcessRunModelErrors,
   SetProcessRunModelResponses,
+  SetProcessRunSlotCapData,
+  SetProcessRunSlotCapErrors,
+  SetProcessRunSlotCapResponses,
   SetProcessRunTurnLimitData,
   SetProcessRunTurnLimitErrors,
   SetProcessRunTurnLimitResponses,
@@ -1469,6 +1529,9 @@ import type {
   SetProjectServeSettingsData,
   SetProjectServeSettingsErrors,
   SetProjectServeSettingsResponses,
+  SetProjectSupervisorData,
+  SetProjectSupervisorErrors,
+  SetProjectSupervisorResponses,
   SettleProcessRunAlreadyLandedData,
   SettleProcessRunAlreadyLandedErrors,
   SettleProcessRunAlreadyLandedResponses,
@@ -3878,6 +3941,330 @@ export const listProcessGroupRunBranches = <ThrowOnError extends boolean = false
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/process-group-runs/{groupRunId}/branches',
     ...options,
+  })
+
+export const getProcessRunSlots = <ThrowOnError extends boolean = false>(
+  options?: Options<GetProcessRunSlotsData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    GetProcessRunSlotsResponses,
+    GetProcessRunSlotsErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/slots',
+    ...options,
+  })
+
+export const setProcessRunSlotCap = <ThrowOnError extends boolean = false>(
+  options: Options<SetProcessRunSlotCapData, ThrowOnError>,
+) =>
+  (options.client ?? client).put<
+    SetProcessRunSlotCapResponses,
+    SetProcessRunSlotCapErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/slots',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const removeFromProjectQueue = <ThrowOnError extends boolean = false>(
+  options: Options<RemoveFromProjectQueueData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<
+    RemoveFromProjectQueueResponses,
+    RemoveFromProjectQueueErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/queue',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const getProjectQueue = <ThrowOnError extends boolean = false>(
+  options: Options<GetProjectQueueData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<GetProjectQueueResponses, GetProjectQueueErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/queue',
+    ...options,
+  })
+
+export const moveInProjectQueue = <ThrowOnError extends boolean = false>(
+  options: Options<MoveInProjectQueueData, ThrowOnError>,
+) =>
+  (options.client ?? client).patch<
+    MoveInProjectQueueResponses,
+    MoveInProjectQueueErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/queue',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const addToProjectQueue = <ThrowOnError extends boolean = false>(
+  options: Options<AddToProjectQueueData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    AddToProjectQueueResponses,
+    AddToProjectQueueErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/queue',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const removeFromGroupQueue = <ThrowOnError extends boolean = false>(
+  options: Options<RemoveFromGroupQueueData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<
+    RemoveFromGroupQueueResponses,
+    RemoveFromGroupQueueErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/queue',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const getGroupQueue = <ThrowOnError extends boolean = false>(
+  options: Options<GetGroupQueueData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<GetGroupQueueResponses, GetGroupQueueErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/queue',
+    ...options,
+  })
+
+export const moveInGroupQueue = <ThrowOnError extends boolean = false>(
+  options: Options<MoveInGroupQueueData, ThrowOnError>,
+) =>
+  (options.client ?? client).patch<MoveInGroupQueueResponses, MoveInGroupQueueErrors, ThrowOnError>(
+    {
+      responseType: 'json',
+      security: [{ scheme: 'bearer', type: 'http' }],
+      url: '/api/v1/groups/{groupId}/queue',
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    },
+  )
+
+export const addToGroupQueue = <ThrowOnError extends boolean = false>(
+  options: Options<AddToGroupQueueData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<AddToGroupQueueResponses, AddToGroupQueueErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/queue',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const removeFromOverseerQueue = <ThrowOnError extends boolean = false>(
+  options: Options<RemoveFromOverseerQueueData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<
+    RemoveFromOverseerQueueResponses,
+    RemoveFromOverseerQueueErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/queue',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const getOverseerQueue = <ThrowOnError extends boolean = false>(
+  options?: Options<GetOverseerQueueData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<GetOverseerQueueResponses, GetOverseerQueueErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/queue',
+    ...options,
+  })
+
+export const moveInOverseerQueue = <ThrowOnError extends boolean = false>(
+  options: Options<MoveInOverseerQueueData, ThrowOnError>,
+) =>
+  (options.client ?? client).patch<
+    MoveInOverseerQueueResponses,
+    MoveInOverseerQueueErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/queue',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const addToOverseerQueue = <ThrowOnError extends boolean = false>(
+  options: Options<AddToOverseerQueueData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    AddToOverseerQueueResponses,
+    AddToOverseerQueueErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/queue',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const listStops = <ThrowOnError extends boolean = false>(
+  options: Options<ListStopsData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<ListStopsResponses, ListStopsErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/stops',
+    ...options,
+  })
+
+export const getProjectSupervisor = <ThrowOnError extends boolean = false>(
+  options: Options<GetProjectSupervisorData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetProjectSupervisorResponses,
+    GetProjectSupervisorErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/supervisor',
+    ...options,
+  })
+
+export const setProjectSupervisor = <ThrowOnError extends boolean = false>(
+  options: Options<SetProjectSupervisorData, ThrowOnError>,
+) =>
+  (options.client ?? client).put<
+    SetProjectSupervisorResponses,
+    SetProjectSupervisorErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/supervisor',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const getGroupSupervisor = <ThrowOnError extends boolean = false>(
+  options: Options<GetGroupSupervisorData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetGroupSupervisorResponses,
+    GetGroupSupervisorErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/supervisor',
+    ...options,
+  })
+
+export const setGroupSupervisor = <ThrowOnError extends boolean = false>(
+  options: Options<SetGroupSupervisorData, ThrowOnError>,
+) =>
+  (options.client ?? client).put<
+    SetGroupSupervisorResponses,
+    SetGroupSupervisorErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/supervisor',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const getOverseerSupervisor = <ThrowOnError extends boolean = false>(
+  options?: Options<GetOverseerSupervisorData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    GetOverseerSupervisorResponses,
+    GetOverseerSupervisorErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/supervisor',
+    ...options,
+  })
+
+export const setOverseerSupervisor = <ThrowOnError extends boolean = false>(
+  options: Options<SetOverseerSupervisorData, ThrowOnError>,
+) =>
+  (options.client ?? client).put<
+    SetOverseerSupervisorResponses,
+    SetOverseerSupervisorErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/supervisor',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
   })
 
 export const getProcessRunCleanup = <ThrowOnError extends boolean = false>(
