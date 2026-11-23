@@ -14,6 +14,10 @@ export type NoteForAgentPopoverProps = {
   where: string
   /** Which edge of the anchor it lines up with. */
   align?: 'start' | 'end'
+  /** The note it opens with, to change or add to. */
+  initialNote?: string
+  /** The button that hands the note back. Left out, Add to message. */
+  addLabel?: string
   onCancel: () => void
   onAdd: (note: string) => void
 }
@@ -48,10 +52,12 @@ export default function NoteForAgentPopover({
   title,
   where,
   align = 'end',
+  initialNote = '',
+  addLabel = VIDEO_MARK_TEXT.add,
   onCancel,
   onAdd,
 }: NoteForAgentPopoverProps) {
-  const [note, setNote] = useState('')
+  const [note, setNote] = useState(initialNote)
   const [place, setPlace] = useState<CSSProperties>()
   const rootRef = useRef<HTMLDivElement>(null)
   const titleId = useId()
@@ -116,7 +122,7 @@ export default function NoteForAgentPopover({
           {VIDEO_MARK_TEXT.cancel}
         </Button>
         <Button size="sm" onClick={() => onAdd(note)}>
-          {VIDEO_MARK_TEXT.add}
+          {addLabel}
         </Button>
       </div>
     </div>,

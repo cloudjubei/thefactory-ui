@@ -1,5 +1,6 @@
 import type {
   VideoDigestStage,
+  VideoMarkedMoment,
   VideoTokenEstimate,
   VideoTranscriptState,
 } from 'thefactory-tools/types'
@@ -99,4 +100,9 @@ export type ChatVideoAttachments = {
    * flag, and the composer lists the marks under their video.
    */
   marks?: ChatVideoMarks
+  /**
+   * Every mark the chat's messages sent, for the timelines that show them under their rows. The
+   * chat body fills it in from its messages.
+   */
+  sentMarks?: VideoMarkedMoment[]
 }

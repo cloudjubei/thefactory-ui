@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { processRunEntryOf } from '../../../headless/utils/processRunEntry'
 import type { ProcessStepRecovery } from 'thefactory-tools/types'
 import { chatNotifyLevel } from '../../../headless/utils/chatNotify'
 import {
@@ -281,6 +282,24 @@ export type ProcessPipelineProps = {
 const isStorySignoff = (run: ProcessRun): boolean => isProcessRunAtSignOff(run)
 
 /**
+ * A run's pipeline, opened where the run belongs: a feature's run inside its
+ * story run, drilled into, so the breadcrumb leads back up however it was
+ * reached ({@link processRunEntryOf}).
+ */
+export default function ProcessPipeline(props: ProcessPipelineProps) {
+  const { run } = useProcessRun(props.runId)
+  const entry = processRunEntryOf(run, props.runId)
+  return (
+    <ProcessPipelineAt
+      key={[entry.rootId, ...entry.stack].join('/')}
+      {...props}
+      runId={entry.rootId}
+      initialStack={entry.stack}
+    />
+  )
+}
+
+/**
  * The surface a process run is watched on — a pipeline, not a transcript.
  *
  * At a story's sign-off the decision leads, above the steps. Each step is one
@@ -291,7 +310,7 @@ const isStorySignoff = (run: ProcessRun): boolean => isProcessRunAtSignOff(run)
  * breadcrumb. Every level — the run, a nested run, a step's panel — offers the
  * one chat of the whole run tree, docked beside the page.
  */
-export default function ProcessPipeline({
+function ProcessPipelineAt({
   runId,
   onOpenAgentRun,
   renderAgentRun,
@@ -300,8 +319,9 @@ export default function ProcessPipeline({
   renderChat,
   narrow = false,
   renderModelChip,
-}: ProcessPipelineProps) {
-  const [stack, setStack] = useState<string[]>([])
+  initialStack,
+}: ProcessPipelineProps & { initialStack: string[] }) {
+  const [stack, setStack] = useState<string[]>(initialStack)
   const [panel, setPanel] = useState<StepPanelTarget | null>(null)
   const [reportText, setReportText] = useState<string | undefined>()
   const [needsYouFocus, setNeedsYouFocus] = useState<RunNeedsYouFocus | undefined>()

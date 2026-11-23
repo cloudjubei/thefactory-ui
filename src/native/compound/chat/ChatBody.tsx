@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import type { LaunchModelChipSlot } from '../../../headless/utils/launchAgentPickTypes'
 import { useProjectsOptional } from '../../../headless/contexts/ProjectsContext'
 import { chatTitleFromContextId } from '../../../headless/utils/sendChatMessageView'
+import { chatSentVideoMarks } from '../../../headless/utils/videoMarks'
 import { Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native'
 import Alert from '../../primitives/Alert'
 import { IconChevronLeft, IconChevronRight } from '../../icons'
@@ -300,6 +301,11 @@ function ChatBodyInner({
   // Hosts rarely pass chatTitle; derive it from this chat's context id so
   // sendChatMessage cards name the sender instead of "an agent".
   const projects = useProjectsOptional()?.projects
+  const chatVideos = inputProps?.videoAttachments
+  const videoAttachments = useMemo(
+    () => (chatVideos ? { ...chatVideos, sentMarks: chatSentVideoMarks(messages) } : undefined),
+    [chatVideos, messages],
+  )
   const chatTitle = useMemo(
     () =>
       chatTitleProp ??
@@ -568,7 +574,7 @@ function ChatBodyInner({
             onResourceLink={onResourceLink}
             {...(chatTitle ? { chatTitle } : {})}
             attachmentImages={inputProps?.attachmentImages}
-            videoAttachments={inputProps?.videoAttachments}
+            videoAttachments={videoAttachments}
             fileSaving={fileSaving}
             renderCliRunArtifact={renderChanges}
             renderProcessRun={renderProcessRun}

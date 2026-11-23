@@ -1,5 +1,6 @@
 import type {
   VideoCloseUp,
+  VideoMarkedMoment,
   VideoTimeline,
   VideoTimelineAction,
   VideoTimelineSound,
@@ -44,6 +45,43 @@ export type VideoTimelineCloseUpRow = {
   url: string
   /** "Close-up, top right: Total 41.40". */
   text: string
+  /** The time of the still it was cut from. */
+  timeSec: number
+  /** "00:13". */
+  time: string
+  /** "Bottom of the screen". */
+  place: string
+  /** The text read on it, joined; empty for none. */
+  words: string
+  /** Its real size in pixels. */
+  width: number
+  height: number
+}
+
+/** Where a mark on a timeline was made: sent with a message, or waiting in the composer. */
+export type VideoTimelineMarkSource = 'sent' | 'composer'
+
+/** A mark as a timeline shows it, under the row it falls in. */
+export type VideoTimelineMarkLine = {
+  key: string
+  timeSec: number
+  /** "00:13". */
+  time: string
+  /** The note, or that there is none. */
+  note: string
+  hasNote: boolean
+  source: VideoTimelineMarkSource
+  /** "Sent", "In your message". */
+  tag: string
+}
+
+/** A mark of one video, as the timeline takes it. */
+export type VideoTimelineMarkInput = Pick<VideoMarkedMoment, 'timeSec' | 'note'>
+
+/** One video's marks: those its chat's messages sent, and those waiting in the composer. */
+export type VideoTimelineMarks = {
+  sent: readonly VideoTimelineMarkInput[]
+  composer: readonly VideoTimelineMarkInput[]
 }
 
 /** One moment as a timeline row shows it. */
@@ -57,6 +95,8 @@ export type VideoTimelineRow = {
   /** An action that did not go through. */
   failed: boolean
   closeUps: VideoTimelineCloseUpRow[]
+  /** The person's marks from this row's time until the next row's. */
+  marks: VideoTimelineMarkLine[]
 }
 
 /** A video's timeline as the fold, or the screen, draws it. */

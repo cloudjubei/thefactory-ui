@@ -14,6 +14,10 @@ export interface NoteForAgentSheetProps {
   title: string
   /** What it is on, beside the title. */
   where: string
+  /** The note it opens with, to change or add to. */
+  initialNote?: string
+  /** The button that hands the note back. Left out, Add to message. */
+  addLabel?: string
   onCancel: () => void
   onAdd: (note: string) => void
 }
@@ -27,6 +31,8 @@ export default function NoteForAgentSheet({
   isOpen,
   title,
   where,
+  initialNote = '',
+  addLabel = VIDEO_MARK_TEXT.add,
   onCancel,
   onAdd,
 }: NoteForAgentSheetProps) {
@@ -34,8 +40,8 @@ export default function NoteForAgentSheet({
   const [note, setNote] = useState('')
 
   useEffect(() => {
-    if (isOpen) setNote('')
-  }, [isOpen, title])
+    if (isOpen) setNote(initialNote)
+  }, [isOpen, title, initialNote])
 
   return (
     <BottomSheet
@@ -64,7 +70,7 @@ export default function NoteForAgentSheet({
           <Button variant="secondary" onPress={onCancel}>
             {VIDEO_MARK_TEXT.cancel}
           </Button>
-          <Button onPress={() => onAdd(note)}>{VIDEO_MARK_TEXT.add}</Button>
+          <Button onPress={() => onAdd(note)}>{addLabel}</Button>
         </View>
       }
     >

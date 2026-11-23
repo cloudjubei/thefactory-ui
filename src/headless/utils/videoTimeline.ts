@@ -4,10 +4,16 @@ import {
   VIDEO_SOUND_CUE_WORDS,
   VIDEO_SOUND_UNTIL,
 } from 'thefactory-tools/constants'
-import type { VideoTimelineAction, VideoTimelineSound } from 'thefactory-tools/types'
+import type {
+  VideoMarkedMoment,
+  VideoTimelineAction,
+  VideoTimelineSound,
+} from 'thefactory-tools/types'
 import { formatVideoTime } from 'thefactory-tools/utils'
 import { videoStageLine } from './videoAttachment'
+import type { ChatVideoMarkDraft } from './videoMarksTypes'
 import {
+  VIDEO_TIMELINE_PLACE,
   VIDEO_TIMELINE_PLAYHEAD_SLACK_SEC,
   VIDEO_TIMELINE_REFRESH_MARGIN_MS,
   VIDEO_TIMELINE_TEXT,
@@ -19,6 +25,10 @@ import type {
   ChatVideoTimelineStill,
   VideoTimelineCloseUpRow,
   VideoTimelineGlyph,
+  VideoTimelineMarkInput,
+  VideoTimelineMarkLine,
+  VideoTimelineMarks,
+  VideoTimelineMarkSource,
   VideoTimelineRow,
   VideoTimelineView,
 } from './videoTimelineTypes'
@@ -43,12 +53,21 @@ function soundText({ sound, endSec }: VideoTimelineSound): string {
   return capitalized(sound === 'sudden' ? words : VIDEO_SOUND_UNTIL(words, formatVideoTime(endSec)))
 }
 
-function closeUpRows({ closeUps }: ChatVideoTimelineStill): VideoTimelineCloseUpRow[] {
-  return closeUps.map(({ file, url, place, text }) => ({
-    key: file,
-    url,
-    text: VIDEO_TIMELINE_TEXT.closeUp(place, joined(text ?? [])),
-  }))
+function closeUpRows({ timeSec, closeUps }: ChatVideoTimelineStill): VideoTimelineCloseUpRow[] {
+  return closeUps.map(({ file, url, place, box, text }) => {
+    const words = joined(text ?? [])
+    return {
+      key: file,
+      url,
+      text: VIDEO_TIMELINE_TEXT.closeUp(place, words),
+      timeSec,
+      time: formatVideoTime(timeSec),
+      place: VIDEO_TIMELINE_PLACE[place],
+      words,
+      width: box.width,
+      height: box.height,
+    }
+  })
 }
 
 function rowOf(entry: ChatVideoTimelineEntry, index: number): VideoTimelineRow {
@@ -63,6 +82,7 @@ function rowOf(entry: ChatVideoTimelineEntry, index: number): VideoTimelineRow {
     text,
     failed,
     closeUps: entry.kind === 'still' ? closeUpRows(entry) : [],
+    marks: [],
   })
   switch (entry.kind) {
     case 'still':
@@ -79,8 +99,74 @@ function rowOf(entry: ChatVideoTimelineEntry, index: number): VideoTimelineRow {
   }
 }
 
-/** A video's timeline as the fold and the screen draw it, from what the route last said. */
-export function videoTimelineView(timeline: ChatVideoTimeline | undefined): VideoTimelineView {
+const MARK_TAGS: Record<VideoTimelineMarkSource, string> = {
+  sent: VIDEO_TIMELINE_TEXT.markSent,
+  composer: VIDEO_TIMELINE_TEXT.markWaiting,
+}
+
+function markLines(
+  source: VideoTimelineMarkSource,
+  marks: readonly VideoTimelineMarkInput[],
+): VideoTimelineMarkLine[] {
+  const byTime = new Map<number, VideoTimelineMarkInput>()
+  for (const one of marks) byTime.set(one.timeSec, one)
+  return [...byTime.values()].map(({ timeSec, note }) => {
+    const written = note?.trim() ?? ''
+    return {
+      key: `${source}-${timeSec}`,
+      timeSec,
+      time: formatVideoTime(timeSec),
+      note: written || VIDEO_TIMELINE_TEXT.noNote,
+      hasNote: !!written,
+      source,
+      tag: MARK_TAGS[source],
+    }
+  })
+}
+
+function withMarks(rows: VideoTimelineRow[], marks: VideoTimelineMarks): VideoTimelineRow[] {
+  const lines = [...markLines('sent', marks.sent), ...markLines('composer', marks.composer)].sort(
+    (a, b) => a.timeSec - b.timeSec,
+  )
+  if (lines.length === 0) return rows
+  const under = rows.map((): VideoTimelineMarkLine[] => [])
+  for (const line of lines) {
+    let at = 0
+    rows.forEach((row, index) => {
+      if (row.timeSec <= line.timeSec) at = index
+    })
+    under[at]?.push(line)
+  }
+  return rows.map((row, index) => ({ ...row, marks: under[index] ?? [] }))
+}
+
+/** One video's marks out of a chat's sent ones and the composer's, for its timeline. */
+export function videoTimelineMarksOf(
+  video: string,
+  sent: readonly VideoMarkedMoment[] | undefined,
+  composer: readonly ChatVideoMarkDraft[] | undefined,
+): VideoTimelineMarks {
+  const of = (marks: readonly { video: string; timeSec: number; note?: string }[] | undefined) =>
+    (marks ?? [])
+      .filter((one) => one.video === video)
+      .map(({ timeSec, note }) => ({ timeSec, ...(note !== undefined ? { note } : {}) }))
+  return { sent: of(sent), composer: of(composer) }
+}
+
+/** Every close-up of a timeline, in the order its rows show them, for the viewer to step through. */
+export function videoTimelineCloseUps(view: VideoTimelineView): VideoTimelineCloseUpRow[] {
+  return view.state === 'rows' ? view.rows.flatMap((row) => row.closeUps) : []
+}
+
+/**
+ * A video's timeline as the fold and the screen draw it, from what the route last said, with the
+ * person's marks of it under the rows they fall in: the last at or before each, the first for one
+ * before them all.
+ */
+export function videoTimelineView(
+  timeline: ChatVideoTimeline | undefined,
+  marks?: VideoTimelineMarks,
+): VideoTimelineView {
   if (!timeline) return { state: 'loading' }
   switch (timeline.state) {
     case 'not-started':
@@ -96,7 +182,7 @@ export function videoTimelineView(timeline: ChatVideoTimeline | undefined): Vide
   return {
     state: 'rows',
     count: VIDEO_TIMELINE_TEXT.moments(timeline.entries.length),
-    rows: timeline.entries.map(rowOf),
+    rows: marks ? withMarks(timeline.entries.map(rowOf), marks) : timeline.entries.map(rowOf),
     ...(timeline.onEveryScreen.length
       ? { onEveryScreen: VIDEO_TIMELINE_TEXT.onEveryScreen(joined(timeline.onEveryScreen)) }
       : {}),

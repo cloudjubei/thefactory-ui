@@ -23,7 +23,10 @@ export function videoMarkKey({ video, timeSec }: { video: string; timeSec: numbe
 
 const timeOrder = (a: { timeSec: number }, b: { timeSec: number }) => a.timeSec - b.timeSec
 
-/** A mark added; one at a moment already marked takes its place, keeping its note if none is given. */
+/**
+ * A mark added; one at a moment already marked takes its place. A note given, empty too, is its
+ * note now; with none given it keeps the one it had.
+ */
 export function addVideoMark(
   marks: readonly ChatVideoMarkDraft[],
   { video, timeSec, note }: VideoMarkInput,
@@ -33,7 +36,19 @@ export function addVideoMark(
   const given = note?.trim() ?? ''
   const existing = marks.find((one) => videoMarkKey(one) === key)
   if (!existing) return [...marks, { ...added, note: given }]
-  return marks.map((one) => (one === existing ? { ...added, note: given || existing.note } : one))
+  return marks.map((one) =>
+    one === existing ? { ...added, note: note === undefined ? existing.note : given } : one,
+  )
+}
+
+/** The note of the mark waiting at that moment of a video, or nothing when none waits there. */
+export function videoMarkNoteAt(
+  marks: readonly ChatVideoMarkDraft[],
+  video: string,
+  timeSec: number,
+): string | undefined {
+  const key = videoMarkKey({ video, timeSec: videoMarkTimeOf(timeSec) })
+  return marks.find((one) => videoMarkKey(one) === key)?.note
 }
 
 export function setVideoMarkNote(
@@ -180,4 +195,11 @@ export function sentVideoMarkRows(
         ...(stillUrl ? { stillUrl } : {}),
       }
     })
+}
+
+/** Every mark a chat's messages carried, in message order, for the timelines that show them. */
+export function chatSentVideoMarks(
+  messages: readonly { videoMarks?: VideoMarkedMoment[] }[],
+): VideoMarkedMoment[] {
+  return messages.flatMap((message) => message.videoMarks ?? [])
 }

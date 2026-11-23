@@ -5,6 +5,8 @@ import {
   removeVideoMark,
   setVideoMarkNote,
   videoAttachmentView,
+  videoMarkNoteAt,
+  videoTimelineMarksOf,
   videoTimelineView,
   type ChatVideoAttachments,
   type ChatVideoDigest,
@@ -34,6 +36,7 @@ import {
   EARLIER_VIDEO,
   SENT_MARKS,
   TIMELINES,
+  TIMELINE_MARKS,
   TIMELINE_VIDEO,
   TIMELINE_VIDEO_NAME,
   videoUrlOf,
@@ -114,6 +117,58 @@ function useSceneMarks(initial: ChatVideoMarkDraft[]): ChatVideoMarks {
       remove: (key) => setItems((prev) => removeVideoMark(prev, key)),
     }),
     [items],
+  )
+}
+
+/**
+ * A sent card with its timeline open and the composer under it, sharing one set of marks: a row's
+ * Mark puts its moment in the composer, and the marks show under the rows they fall in.
+ */
+function MarkFromRow({
+  timeline = TIMELINES.checkout,
+  sent = [],
+  waiting = [],
+  markAtSec,
+  closeUpIndex,
+}: {
+  timeline?: ChatVideoTimeline
+  sent?: VideoMarkedMoment[]
+  waiting?: ChatVideoMarkDraft[]
+  markAtSec?: number
+  closeUpIndex?: number
+}) {
+  const marks = useSceneMarks(waiting)
+  const [timelineOpen, setTimelineOpen] = useState(true)
+  return (
+    <Frame width={560}>
+      <div className="flex flex-col gap-4">
+        <SentVideoAttachment
+          name={TIMELINE_VIDEO_NAME}
+          view={videoAttachmentView(READY)}
+          posterUrl={POSTER}
+          source={sourceOf(videoUrlOf(timeline))}
+          timeline={videoTimelineView(
+            timeline,
+            videoTimelineMarksOf(TIMELINE_VIDEO, sent, marks.items),
+          )}
+          timelineOpen={timelineOpen}
+          onTimelineOpenChange={setTimelineOpen}
+          onMark={(timeSec, note) => marks.add({ video: TIMELINE_VIDEO, timeSec, note })}
+          markNoteAt={(timeSec) => videoMarkNoteAt(marks.items, TIMELINE_VIDEO, timeSec)}
+          {...(markAtSec !== undefined ? { initialRowMarkSec: markAtSec } : {})}
+          {...(closeUpIndex !== undefined ? { initialCloseUpIndex: closeUpIndex } : {})}
+        />
+        <ChatInput
+          value=""
+          onChange={noop}
+          onSend={noop}
+          attachments={[]}
+          onChangeAttachments={noop}
+          getAttachmentPreviewUrl={previewUrl}
+          videoAttachments={chatWith(marks)}
+        />
+      </div>
+    </Frame>
   )
 }
 
@@ -295,6 +350,40 @@ export const VIDEO_TIMELINE_SCENES: Scene[] = [
         title: 'In a message',
         description: 'The real message row: the pill opens and closes the fold.',
         render: () => <Sent />,
+      },
+      {
+        id: 'row-mark',
+        title: 'Mark from a row',
+        description:
+          'Decision 4A: hovering or focusing a row shows Mark at its end, beside the row’s own play button, not in it. The composer under the card gets what Add to message adds.',
+        render: () => <MarkFromRow />,
+      },
+      {
+        id: 'row-mark-open',
+        title: 'Marking a row',
+        description:
+          'Mark on the 00:13 row opens the flag’s own note box under the row: Mark 00:13, the row’s text, the optional note, Cancel and Add to message.',
+        render: () => <MarkFromRow markAtSec={13} />,
+      },
+      {
+        id: 'marks-in-timeline',
+        title: 'Marks in the timeline',
+        description:
+          'Decision 5B: each of the person’s marks of the video is a line under the row it falls in: the flag, its time, its note or No note, and Sent or In your message. The rows are as they were.',
+        render: () => <MarkFromRow sent={TIMELINE_MARKS.sent} waiting={TIMELINE_MARKS.composer} />,
+      },
+      {
+        id: 'close-up-viewer',
+        title: 'Close-up opened',
+        description:
+          'Decision 6A: a close-up line is a button of its own. It opens the crop at its real size over the chat, with its time, place and text, the arrows through every close-up of the video and Play from its time.',
+        render: () => <MarkFromRow timeline={TIMELINES.closeUps} closeUpIndex={0} />,
+      },
+      {
+        id: 'close-up-viewer-middle',
+        title: 'Close-up, one of several',
+        description: 'The second of four: both arrows step, the count says where it is.',
+        render: () => <MarkFromRow timeline={TIMELINES.closeUps} closeUpIndex={1} />,
       },
     ],
   },

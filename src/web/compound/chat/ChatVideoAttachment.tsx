@@ -5,10 +5,12 @@ import { attachmentDisplayName } from 'thefactory-tools/utils'
 import {
   composerVideoMarkRows,
   sentVideoMarkRows,
+  videoMarkNoteAt,
   useChatVideoMedia,
   useVideoDigest,
   useVideoTimeline,
   videoAttachmentView,
+  videoTimelineMarksOf,
   videoTimelineView,
   type ChatVideoAttachments,
 } from '../../../headless'
@@ -52,7 +54,16 @@ export default function ChatVideoAttachment({
   const composerMarked = place === 'composer' && !!marks?.items.some((one) => one.video === path)
   const sentMarked = place === 'sent' && !!sentMarks?.some((one) => one.video === path)
   const timeline = useVideoTimeline(chat, path, timelineOpen || composerMarked || sentMarked)
-  const timelineShown = useMemo(() => videoTimelineView(timeline), [timeline])
+  const chatSentMarks = chat.sentMarks
+  const composerItems = marks?.items
+  const timelineShown = useMemo(
+    () =>
+      videoTimelineView(
+        timeline,
+        place === 'sent' ? videoTimelineMarksOf(path, chatSentMarks, composerItems) : undefined,
+      ),
+    [timeline, place, path, chatSentMarks, composerItems],
+  )
   const name = attachmentDisplayName(path)
   if (missing) return <>{fallback}</>
   const setup = chat.onOpenSetup ? { onOpenSetup: chat.onOpenSetup } : {}
@@ -68,7 +79,12 @@ export default function ChatVideoAttachment({
         timeline={timelineShown}
         timelineOpen={timelineOpen}
         onTimelineOpenChange={setTimelineOpen}
-        {...(marks ? { onMark: (timeSec, note) => marks.add({ video: path, timeSec, note }) } : {})}
+        {...(marks
+          ? {
+              onMark: (timeSec, note) => marks.add({ video: path, timeSec, note }),
+              markNoteAt: (timeSec) => videoMarkNoteAt(marks.items, path, timeSec),
+            }
+          : {})}
         {...(sentMarked ? { marks: sentVideoMarkRows(sentMarks, path, timeline) } : {})}
       />
     )

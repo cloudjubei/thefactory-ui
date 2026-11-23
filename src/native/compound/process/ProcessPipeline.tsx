@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { processRunEntryOf } from '../../../headless/utils/processRunEntry'
 import { chatNotifyLevel } from '../../../headless/utils/chatNotify'
 import {
   AccessibilityInfo,
@@ -303,13 +304,31 @@ export type ProcessPipelineProps = {
 const isStorySignoff = (run: ProcessRun): boolean => isProcessRunAtSignOff(run)
 
 /**
+ * A run's pipeline, opened where the run belongs: a feature's run inside its
+ * story run, drilled into, so the breadcrumb leads back up however it was
+ * reached ({@link processRunEntryOf}).
+ */
+export default function ProcessPipeline(props: ProcessPipelineProps) {
+  const { run } = useProcessRun(props.runId)
+  const entry = processRunEntryOf(run, props.runId)
+  return (
+    <ProcessPipelineAt
+      key={[entry.rootId, ...entry.stack].join('/')}
+      {...props}
+      runId={entry.rootId}
+      initialStack={entry.stack}
+    />
+  )
+}
+
+/**
  * Native peer of
  * [web's `ProcessPipeline`](../../../web/compound/process/ProcessPipeline.tsx).
  * At a story's sign-off the decision leads; each step is one line with a
  * chevron to a preview of its output, and a preview opens the full view on a
  * pushed step screen — native's form of web's side panel.
  */
-export default function ProcessPipeline({
+function ProcessPipelineAt({
   runId,
   onOpenAgentRun,
   renderAgentRun,
@@ -324,9 +343,10 @@ export default function ProcessPipeline({
   pickAnswerFiles,
   focusNeedsYouItemId,
   onOpenRun,
-}: ProcessPipelineProps) {
+  initialStack,
+}: ProcessPipelineProps & { initialStack: string[] }) {
   const { theme, status } = useNativeTheme()
-  const [stack, setStack] = useState<string[]>([])
+  const [stack, setStack] = useState<string[]>(initialStack)
   const [panel, setPanel] = useState<StepPanelTarget | null>(null)
   const [reportText, setReportText] = useState<string | undefined>()
   const [needsYouFocus, setNeedsYouFocus] = useState<RunNeedsYouFocus | undefined>()

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  videoTimelineCloseUps,
+  videoTimelineMarksOf,
   videoTimelineOnServer,
   videoTimelineRefreshInMs,
   videoTimelineRowAt,
@@ -104,6 +106,7 @@ describe('videoTimelineView', () => {
       text: 'Payment · Card ending 4242',
       failed: false,
       closeUps: [],
+      marks: [],
     })
   })
 
@@ -133,8 +136,24 @@ describe('videoTimelineView', () => {
         key: 'stills/t-13-c1.jpg',
         url: '/media/t-13-c1.jpg',
         text: 'Close-up, bottom: Card declined. · Try another card.',
+        timeSec: 13,
+        time: '00:13',
+        place: 'Bottom of the screen',
+        words: 'Card declined. · Try another card.',
+        width: 640,
+        height: 60,
       },
-      { key: 'stills/t-13-c2.jpg', url: '/media/t-13-c2.jpg', text: 'Close-up, top right' },
+      {
+        key: 'stills/t-13-c2.jpg',
+        url: '/media/t-13-c2.jpg',
+        text: 'Close-up, top right',
+        timeSec: 13,
+        time: '00:13',
+        place: 'Top right of the screen',
+        words: '',
+        width: 140,
+        height: 40,
+      },
     ])
   })
 
@@ -267,5 +286,157 @@ describe('videoTimelineOnServer', () => {
     const full = done([still(1, [], { url: 'https://cdn/a.jpg' })])
     expect(videoTimelineOnServer(full, 'http://h')).toEqual(full)
     expect(videoTimelineOnServer(timeline, null)).toEqual(timeline)
+  })
+})
+
+const closeUp = (file: string, place: 'bottom' | 'middle' | 'top right' = 'bottom') => ({
+  file,
+  url: `/media/${file}`,
+  place,
+  box: { x: 0, y: 0, width: 200, height: 50 },
+})
+
+describe('videoTimelineCloseUps', () => {
+  it('is every close-up of the timeline, in time order and in each still’s order', () => {
+    const view = videoTimelineView(
+      done([
+        still(4, ['a'], { closeUps: [closeUp('c4-1.jpg')] }),
+        { kind: 'speech', timeSec: 6, endSec: 7, text: 'Hi' },
+        still(9, ['b']),
+        still(13, ['c'], { closeUps: [closeUp('c13-1.jpg'), closeUp('c13-2.jpg', 'middle')] }),
+      ]),
+    )
+    expect(videoTimelineCloseUps(view).map((one) => [one.key, one.time, one.place])).toEqual([
+      ['c4-1.jpg', '00:04', 'Bottom of the screen'],
+      ['c13-1.jpg', '00:13', 'Bottom of the screen'],
+      ['c13-2.jpg', '00:13', 'Middle of the screen'],
+    ])
+  })
+
+  it('is none for a timeline with no close-ups, or none read yet', () => {
+    expect(videoTimelineCloseUps(videoTimelineView(done([still(0, ['a'])])))).toEqual([])
+    expect(videoTimelineCloseUps(videoTimelineView(undefined))).toEqual([])
+    expect(videoTimelineCloseUps(videoTimelineView(done([])))).toEqual([])
+  })
+})
+
+describe('videoTimelineView with marks', () => {
+  const timeline = done([
+    still(4, ['Shipping']),
+    { kind: 'speech', timeSec: 6, endSec: 8, text: 'Now' },
+    still(13, ['Payment']),
+  ])
+  const rowsIn = (view: ReturnType<typeof videoTimelineView>) => {
+    if (view.state !== 'rows') throw new Error(`no rows: ${view.state}`)
+    return view.rows
+  }
+  const marksUnder = (marks: Parameters<typeof videoTimelineView>[1]) =>
+    rowsIn(videoTimelineView(timeline, marks)).map((row) =>
+      row.marks.map((one) => [one.time, one.note, one.hasNote, one.tag]),
+    )
+
+  it('leaves every row without marks when there are none', () => {
+    expect(marksUnder(undefined)).toEqual([[], [], []])
+    expect(marksUnder({ sent: [], composer: [] })).toEqual([[], [], []])
+  })
+
+  it('puts a mark under the last row at or before it', () => {
+    expect(marksUnder({ sent: [{ timeSec: 7.5, note: 'here' }], composer: [] })).toEqual([
+      [],
+      [['00:07', 'here', true, 'Sent']],
+      [],
+    ])
+  })
+
+  it('puts a mark before the first row under the first', () => {
+    expect(marksUnder({ sent: [], composer: [{ timeSec: 1, note: '' }] })).toEqual([
+      [['00:01', 'No note', false, 'In your message']],
+      [],
+      [],
+    ])
+  })
+
+  it('puts a mark exactly on a row’s time under that row', () => {
+    expect(marksUnder({ sent: [{ timeSec: 13 }], composer: [] })).toEqual([
+      [],
+      [],
+      [['00:13', 'No note', false, 'Sent']],
+    ])
+  })
+
+  it('lists two marks on one row in time order, a sent one before one waiting at that time', () => {
+    expect(
+      marksUnder({
+        sent: [
+          { timeSec: 15, note: 'later' },
+          { timeSec: 13.5, note: 'sent' },
+        ],
+        composer: [{ timeSec: 13.5, note: '  waiting  ' }],
+      }),
+    ).toEqual([
+      [],
+      [],
+      [
+        ['00:13', 'sent', true, 'Sent'],
+        ['00:13', 'waiting', true, 'In your message'],
+        ['00:15', 'later', true, 'Sent'],
+      ],
+    ])
+  })
+
+  it('shows a moment sent twice once, with the later note', () => {
+    expect(
+      marksUnder({
+        sent: [
+          { timeSec: 6, note: 'first' },
+          { timeSec: 6, note: 'again' },
+        ],
+        composer: [],
+      })[1],
+    ).toEqual([['00:06', 'again', true, 'Sent']])
+  })
+
+  it('gives each mark a key of its own, by where it is and its time', () => {
+    const rows = rowsIn(
+      videoTimelineView(timeline, {
+        sent: [{ timeSec: 13.5 }],
+        composer: [{ timeSec: 13.5, note: '' }],
+      }),
+    )
+    expect(rows[2]?.marks.map((one) => [one.key, one.timeSec, one.source])).toEqual([
+      ['sent-13.5', 13.5, 'sent'],
+      ['composer-13.5', 13.5, 'composer'],
+    ])
+  })
+
+  it('leaves the rows themselves as they were', () => {
+    const plain = rowsIn(videoTimelineView(timeline))
+    const marked = rowsIn(videoTimelineView(timeline, { sent: [{ timeSec: 5 }], composer: [] }))
+    expect(marked.map((row) => ({ ...row, marks: [] }))).toEqual(plain)
+  })
+})
+
+describe('videoTimelineMarksOf', () => {
+  const A = 'attachments/a.mov'
+  const B = 'attachments/b.mov'
+
+  it('keeps one video’s marks, sent and waiting', () => {
+    expect(
+      videoTimelineMarksOf(
+        A,
+        [
+          { video: A, timeSec: 4, note: 'x' },
+          { video: B, timeSec: 5 },
+        ],
+        [
+          { video: B, timeSec: 6, note: '' },
+          { video: A, timeSec: 7, note: 'y' },
+        ],
+      ),
+    ).toEqual({ sent: [{ timeSec: 4, note: 'x' }], composer: [{ timeSec: 7, note: 'y' }] })
+  })
+
+  it('is none of either when nothing is given', () => {
+    expect(videoTimelineMarksOf(A, undefined, undefined)).toEqual({ sent: [], composer: [] })
   })
 })

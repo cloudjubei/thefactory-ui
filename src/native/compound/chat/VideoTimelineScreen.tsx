@@ -5,9 +5,12 @@ import { nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { IconChevronLeft } from '../../icons'
 import FullScreenOverlay from '../../primitives/FullScreenOverlay'
-import VideoTimelineList from './VideoTimelineList'
+import VideoTimelineList, { type VideoTimelineListProps } from './VideoTimelineList'
 
-export interface VideoTimelineScreenProps {
+export interface VideoTimelineScreenProps extends Pick<
+  VideoTimelineListProps,
+  'onMark' | 'markNoteAt' | 'initialMenuSec' | 'initialCloseUpIndex'
+> {
   isOpen: boolean
   name: string
   view: VideoTimelineView
@@ -25,6 +28,7 @@ export default function VideoTimelineScreen({
   playheadIndex,
   onBack,
   onPlayFrom,
+  ...list
 }: VideoTimelineScreenProps) {
   const { theme } = useNativeTheme()
   return (
@@ -63,7 +67,12 @@ export default function VideoTimelineScreen({
         ) : null}
       </View>
       <ScrollView contentContainerStyle={{ padding: nativeSpace[2] }}>
-        <VideoTimelineList view={view} playheadIndex={playheadIndex} onPlayFrom={onPlayFrom} />
+        <VideoTimelineList
+          view={view}
+          playheadIndex={playheadIndex}
+          onPlayFrom={onPlayFrom}
+          {...list}
+        />
       </ScrollView>
     </FullScreenOverlay>
   )

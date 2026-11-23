@@ -53,8 +53,13 @@ export interface SentVideoAttachmentProps {
   /** The timeline's screen is open. */
   timelineOpen?: boolean
   onTimelineOpenChange?: (open: boolean) => void
-  /** Given, a playing video offers the flag, which marks the moment it is at for the next message. */
+  /**
+   * Given, a playing video offers the flag, which marks the moment it is at for the next message,
+   * and a long press on a timeline row offers Mark, which marks its own.
+   */
   onMark?: (timeSec: number, note: string) => void
+  /** The note of the mark already waiting at a moment, which marking it again opens with. */
+  markNoteAt?: (timeSec: number) => string | undefined
   /** The moments the message marked on this video, under the card. */
   marks?: SentVideoMarkRow[]
   /** Opens the flag's sheet at this moment once the video plays, for a showcase view. */
@@ -112,7 +117,8 @@ function OverlayButton({
  *
  * Timeline opens the video's digest as a screen of its own; a time there plays
  * the video from that moment. The flag pauses it and marks the moment for the
- * next message. The marks a message carries are rows under the card.
+ * next message; a long press on a row marks its moment the same way. The marks a
+ * message carries are rows under the card.
  */
 export default function SentVideoAttachment({
   name,
@@ -125,6 +131,7 @@ export default function SentVideoAttachment({
   timelineOpen = false,
   onTimelineOpenChange,
   onMark,
+  markNoteAt,
   marks,
   initialMarkSec,
   fixedPlayheadSec,
@@ -468,12 +475,15 @@ export default function SentVideoAttachment({
             onTimelineOpenChange(false)
             playFrom(atSec)
           }}
+          {...(onMark ? { onMark } : {})}
+          {...(markNoteAt ? { markNoteAt } : {})}
         />
       ) : null}
       {onMark ? (
         <VideoMarkSheet
           isOpen={marking}
           time={formatVideoTime(markingSec ?? 0)}
+          note={markingSec !== undefined ? markNoteAt?.(markingSec) : undefined}
           onCancel={() => setMarkingSec(undefined)}
           onAdd={(note) => {
             if (markingSec !== undefined) onMark(markingSec, note)

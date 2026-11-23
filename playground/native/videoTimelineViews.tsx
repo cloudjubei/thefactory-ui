@@ -5,6 +5,8 @@ import {
   removeVideoMark,
   setVideoMarkNote,
   videoAttachmentView,
+  videoMarkNoteAt,
+  videoTimelineMarksOf,
   videoTimelineRowAt,
   videoTimelineView,
   type ChatVideoAttachments,
@@ -30,6 +32,7 @@ import {
   CHECKOUT_VIDEO_URL,
   videoUrlOf,
   TIMELINES,
+  TIMELINE_MARKS,
 } from '../scenes/videoTimelineFixtures'
 import type { NativeView } from './views'
 
@@ -204,6 +207,46 @@ function SentMarks() {
   )
 }
 
+/**
+ * The timeline's screen with the composer under it sharing one set of marks: a long press on a row
+ * offers Play from and Mark, and the marks show under the rows they fall in. A time played stands
+ * out as the playhead's row.
+ */
+function MarkableTimeline({
+  timeline = TIMELINES.checkout,
+  marked = false,
+  menuAtSec,
+  closeUpIndex,
+}: {
+  timeline?: ChatVideoTimeline
+  marked?: boolean
+  menuAtSec?: number
+  closeUpIndex?: number
+}) {
+  const marks = useMarks(marked ? TIMELINE_MARKS.composer : [])
+  const [played, setPlayed] = useState<number>()
+  const view = videoTimelineView(
+    timeline,
+    videoTimelineMarksOf(TIMELINE_VIDEO, marked ? TIMELINE_MARKS.sent : [], marks.items),
+  )
+  return (
+    <VideoTimelineScreen
+      isOpen
+      name={TIMELINE_VIDEO_NAME}
+      view={view}
+      playheadIndex={
+        played !== undefined && view.state === 'rows' ? videoTimelineRowAt(view.rows, played) : -1
+      }
+      onBack={noop}
+      onPlayFrom={setPlayed}
+      onMark={(timeSec, note) => marks.add({ video: TIMELINE_VIDEO, timeSec, note })}
+      markNoteAt={(timeSec) => videoMarkNoteAt(marks.items, TIMELINE_VIDEO, timeSec)}
+      {...(menuAtSec !== undefined ? { initialMenuSec: menuAtSec } : {})}
+      {...(closeUpIndex !== undefined ? { initialCloseUpIndex: closeUpIndex } : {})}
+    />
+  )
+}
+
 const timelineOf = (state: string | null) =>
   TIMELINE_STATES[state ?? 'checkout'] ?? TIMELINES.checkout
 
@@ -258,6 +301,36 @@ export const VIDEO_TIMELINE_VIEWS: readonly NativeView[] = [
         </Frame>
       )
     },
+  },
+  {
+    id: 'video-timeline-row-menu',
+    title: 'Long press a timeline row',
+    render: (address) => (
+      <OnFixtures>
+        <MarkableTimeline {...(address.get('state') === 'open' ? { menuAtSec: 13 } : {})} />
+      </OnFixtures>
+    ),
+  },
+  {
+    id: 'video-timeline-marks',
+    title: 'Marks in the timeline',
+    render: () => (
+      <OnFixtures>
+        <MarkableTimeline marked />
+      </OnFixtures>
+    ),
+  },
+  {
+    id: 'video-close-up',
+    title: 'Close-up screen',
+    render: (address) => (
+      <OnFixtures>
+        <MarkableTimeline
+          timeline={TIMELINES.closeUps}
+          closeUpIndex={address.get('state') === 'middle' ? 1 : 0}
+        />
+      </OnFixtures>
+    ),
   },
   {
     id: 'video-sent-marks',

@@ -199,3 +199,15 @@ export const SENT_MARKS: VideoMarkedMoment[] = [
     still: { timeSec: 13, file: 'stills/t-00m13.0s.jpg' },
   },
 ]
+
+/** The person's marks of the checkout video: sent with earlier messages, and waiting in the composer. */
+export const TIMELINE_MARKS = {
+  sent: [
+    ...SENT_MARKS,
+    { video: TIMELINE_VIDEO, timeSec: 15.2, note: 'and it says nothing else' },
+  ] satisfies VideoMarkedMoment[],
+  composer: [
+    { video: TIMELINE_VIDEO, timeSec: 3.4, note: '' },
+    { video: TIMELINE_VIDEO, timeSec: 13.5, note: 'try the same card again' },
+  ] satisfies ChatVideoMarkDraft[],
+}

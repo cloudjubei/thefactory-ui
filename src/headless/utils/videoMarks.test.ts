@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
   addVideoMark,
+  chatSentVideoMarks,
   composerVideoMarkRows,
   mergeVideoMarks,
   removeVideoMark,
   sentVideoMarkRows,
   setVideoMarkNote,
   videoMarkKey,
+  videoMarkNoteAt,
   videoMarkTimeOf,
   videoMarkVideos,
   videoMarksOf,
@@ -87,6 +89,28 @@ describe('addVideoMark', () => {
 
   it('keeps marks on another video apart', () => {
     expect(addVideoMark([mark(A, 6)], { video: B, timeSec: 6 })).toEqual([mark(A, 6), mark(B, 6)])
+  })
+
+  it('clears the note when the same moment is saved again with an empty one', () => {
+    const marks = [mark(A, 13.2, 'old')]
+    expect(addVideoMark(marks, { video: A, timeSec: 13.2, note: '  ' })).toEqual([mark(A, 13.2)])
+  })
+})
+
+describe('videoMarkNoteAt', () => {
+  const marks = [mark(A, 6), mark(A, 13.2, 'card declined'), mark(B, 13.2, 'other video')]
+
+  it('gives the note waiting at that moment, matched to its tenth of a second', () => {
+    expect(videoMarkNoteAt(marks, A, 13.24)).toBe('card declined')
+  })
+
+  it('gives an empty note for a mark written without one', () => {
+    expect(videoMarkNoteAt(marks, A, 6)).toBe('')
+  })
+
+  it('gives nothing where no mark waits, or for another video', () => {
+    expect(videoMarkNoteAt(marks, A, 9)).toBeUndefined()
+    expect(videoMarkNoteAt([mark(B, 6)], A, 6)).toBeUndefined()
   })
 })
 
@@ -284,5 +308,31 @@ describe('sentVideoMarkRows', () => {
 
   it('has none at all for no marks', () => {
     expect(sentVideoMarkRows(undefined, A, TIMELINE)).toEqual([])
+  })
+})
+
+describe('chatSentVideoMarks', () => {
+  it('is every mark the chat’s messages carried, in message order', () => {
+    const messages = [
+      { videoMarks: [{ video: A, timeSec: 4 }] },
+      {},
+      { videoMarks: [] },
+      {
+        videoMarks: [
+          { video: B, timeSec: 2, note: 'b' },
+          { video: A, timeSec: 9, note: 'a' },
+        ],
+      },
+    ]
+    expect(chatSentVideoMarks(messages)).toEqual([
+      { video: A, timeSec: 4 },
+      { video: B, timeSec: 2, note: 'b' },
+      { video: A, timeSec: 9, note: 'a' },
+    ])
+  })
+
+  it('is none for a chat with no marks or no messages', () => {
+    expect(chatSentVideoMarks([{}, { videoMarks: [] }])).toEqual([])
+    expect(chatSentVideoMarks([])).toEqual([])
   })
 })

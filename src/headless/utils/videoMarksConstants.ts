@@ -11,6 +11,7 @@ export const VIDEO_MARK_TEXT = {
   noteLabel: 'Note for the agent (optional)',
   cancel: 'Cancel',
   add: 'Add to message',
+  save: 'Save note',
   noNote: 'No note',
   noteFor: (time: string) => `Note for the mark at ${time}`,
   remove: (time: string) => `Remove the mark at ${time}`,

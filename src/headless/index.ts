@@ -2265,23 +2265,27 @@ export { takeVideoTurn } from './utils/videoPlaybackTurn'
 export { useChatVideoMedia, type UseChatVideoMedia } from './hooks/useChatVideoMedia'
 export { useVideoPlayback, type UseVideoPlayback } from './hooks/useVideoPlayback'
 export {
+  videoTimelineCloseUps,
+  videoTimelineMarksOf,
   videoTimelineOnServer,
   videoTimelineRefreshInMs,
   videoTimelineRowAt,
   videoTimelineStillUrl,
   videoTimelineView,
 } from './utils/videoTimeline'
-export { VIDEO_TIMELINE_TEXT } from './utils/videoTimelineConstants'
+export { VIDEO_TIMELINE_PLACE, VIDEO_TIMELINE_TEXT } from './utils/videoTimelineConstants'
 export type * from './utils/videoTimelineTypes'
 export { useVideoTimeline } from './hooks/useVideoTimeline'
 export {
   addVideoMark,
+  chatSentVideoMarks,
   composerVideoMarkRows,
   mergeVideoMarks,
   removeVideoMark,
   sentVideoMarkRows,
   setVideoMarkNote,
   videoMarkKey,
+  videoMarkNoteAt,
   videoMarkTimeOf,
   videoMarkVideos,
   videoMarksOf,

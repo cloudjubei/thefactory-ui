@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import type { LaunchModelChipSlot } from '../../../headless/utils/launchAgentPickTypes'
 import { useProjectsOptional } from '../../../headless/contexts/ProjectsContext'
 import { chatTitleFromContextId } from '../../../headless/utils/sendChatMessageView'
+import { chatSentVideoMarks } from '../../../headless/utils/videoMarks'
 import Alert from '../../primitives/Alert'
 import AgentQuestionCard from './AgentQuestionCard'
 import StuckCard from './StuckCard'
@@ -321,6 +322,11 @@ function ChatBodyInner({
   // Held past the run's end until the persisted reply carries it — see
   // `useShownLiveRun`.
   const cliRunId = useShownLiveRun(chatId, liveState.cliRunId ?? activeCliRunId, messages)
+  const chatVideos = inputProps?.videoAttachments
+  const videoAttachments = useMemo(
+    () => (chatVideos ? { ...chatVideos, sentMarks: chatSentVideoMarks(messages) } : undefined),
+    [chatVideos, messages],
+  )
   // A capture is only actionable when the host wired both resolutions, so an
   // unwired ChatBody shows no form rather than one that cannot be answered.
   const answerableCaptures = useMemo(
@@ -545,7 +551,7 @@ function ChatBodyInner({
               onRestartTurn={onRestartTurn ? () => void onRestartTurn() : undefined}
               previewTool={previewTool}
               getAttachmentPreviewUrl={inputProps?.getAttachmentPreviewUrl}
-              videoAttachments={inputProps?.videoAttachments}
+              videoAttachments={videoAttachments}
               fileSaving={fileSaving}
               isSending={isSending}
               isDeleting={liveState.isDeleting === true}

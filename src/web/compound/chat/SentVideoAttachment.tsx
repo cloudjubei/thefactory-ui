@@ -50,14 +50,23 @@ export type SentVideoAttachmentProps = {
   timeline?: VideoTimelineView
   timelineOpen?: boolean
   onTimelineOpenChange?: (open: boolean) => void
-  /** Given, a playing video offers the flag, which marks the moment it is at for the next message. */
+  /**
+   * Given, a playing video offers the flag, which marks the moment it is at for the next message,
+   * and each timeline row offers Mark, which marks its own.
+   */
   onMark?: (timeSec: number, note: string) => void
+  /** The note of the mark already waiting at a moment, which marking it again opens with. */
+  markNoteAt?: (timeSec: number) => string | undefined
   /** The moments the message marked on this video, under the card. */
   marks?: SentVideoMarkRow[]
   /** Opens the flag's popover at this moment once the video plays, for a showcase scene. */
   initialMarkSec?: number
   /** Holds the playhead's row at this moment whatever plays, for a showcase scene. */
   fixedPlayheadSec?: number
+  /** Opens the note box on the timeline row at this time, for a showcase scene. */
+  initialRowMarkSec?: number
+  /** Opens the close-up viewer on this close-up of the timeline, for a showcase scene. */
+  initialCloseUpIndex?: number
 }
 
 const hasNoHover = () => window.matchMedia('(hover: none)').matches
@@ -103,7 +112,8 @@ function OverlayButton({
  *
  * Timeline opens the video's digest under the card, or as a screen of its own on a
  * small one; each time plays the video from there. The flag pauses it and marks the
- * moment for the next message. The marks a message carries are rows under the card.
+ * moment for the next message; a row's Mark marks its moment the same way. The marks
+ * a message carries are rows under the card.
  */
 export default function SentVideoAttachment({
   name,
@@ -117,9 +127,12 @@ export default function SentVideoAttachment({
   timelineOpen = false,
   onTimelineOpenChange,
   onMark,
+  markNoteAt,
   marks,
   initialMarkSec,
   fixedPlayheadSec,
+  initialRowMarkSec,
+  initialCloseUpIndex,
 }: SentVideoAttachmentProps) {
   const playback = useVideoPlayback(source, view.frame)
   const { state, frame, isOpen, canPlay, play, collapse } = playback
@@ -181,6 +194,12 @@ export default function SentVideoAttachment({
 
   const fold = timelineOpen && !narrow && timeline
   const wide = isOpen || !!fold
+  const listExtras = {
+    ...(onMark ? { onMark } : {}),
+    ...(markNoteAt ? { markNoteAt } : {}),
+    ...(initialRowMarkSec !== undefined ? { initialMarkSec: initialRowMarkSec } : {}),
+    ...(initialCloseUpIndex !== undefined ? { initialCloseUpIndex } : {}),
+  }
 
   const card = (
     <div
@@ -342,7 +361,12 @@ export default function SentVideoAttachment({
       </div>
       {fold ? (
         <div className="max-h-[300px] overflow-y-auto border-t border-(--border-subtle) px-1 pt-2 pb-1.5">
-          <VideoTimelineList view={fold} playheadIndex={playheadIndex} onPlayFrom={playFrom} />
+          <VideoTimelineList
+            view={fold}
+            playheadIndex={playheadIndex}
+            onPlayFrom={playFrom}
+            {...listExtras}
+          />
         </div>
       ) : null}
     </div>
@@ -371,12 +395,14 @@ export default function SentVideoAttachment({
             onTimelineOpenChange(false)
             playFrom(atSec)
           }}
+          {...listExtras}
         />
       ) : null}
       {marking && onMark ? (
         <VideoMarkPopover
           anchorRef={flagRef}
           time={formatVideoTime(markingSec)}
+          note={markNoteAt?.(markingSec)}
           onCancel={endMark}
           onAdd={(note) => {
             onMark(markingSec, note)

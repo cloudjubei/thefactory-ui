@@ -1,9 +1,12 @@
 import { VIDEO_TIMELINE_TEXT, type VideoTimelineView } from '../../../headless'
 import { IconChevronLeft } from '../../icons'
 import { FullScreenOverlay } from '../../primitives/FullScreenOverlay'
-import VideoTimelineList from './VideoTimelineList'
+import VideoTimelineList, { type VideoTimelineListProps } from './VideoTimelineList'
 
-export type VideoTimelineScreenProps = {
+export type VideoTimelineScreenProps = Pick<
+  VideoTimelineListProps,
+  'onMark' | 'markNoteAt' | 'initialMarkSec' | 'initialCloseUpIndex'
+> & {
   isOpen: boolean
   name: string
   view: VideoTimelineView
@@ -21,6 +24,7 @@ export default function VideoTimelineScreen({
   playheadIndex,
   onBack,
   onPlayFrom,
+  ...list
 }: VideoTimelineScreenProps) {
   return (
     <FullScreenOverlay isOpen={isOpen} onClose={onBack} hideHeader>
@@ -46,6 +50,7 @@ export default function VideoTimelineScreen({
           playheadIndex={playheadIndex}
           onPlayFrom={onPlayFrom}
           hideCaption
+          {...list}
         />
       </div>
     </FullScreenOverlay>
