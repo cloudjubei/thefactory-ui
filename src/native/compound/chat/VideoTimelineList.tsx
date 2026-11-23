@@ -84,25 +84,27 @@ export default function VideoTimelineList({
         </Text>
       ) : null}
       {view.rows.map((row, index) => (
-        <View
+        <Pressable
           key={row.key}
-          style={{
+          accessibilityRole="button"
+          accessibilityHint={VIDEO_TIMELINE_TEXT.playFrom(row.time)}
+          onPress={() => onPlayFrom(row.timeSec)}
+          style={({ pressed }) => ({
             flexDirection: 'row',
             alignItems: 'flex-start',
             gap: nativeSpace[3],
             paddingHorizontal: nativeSpace[3],
             paddingVertical: nativeSpace[3],
             borderRadius: nativeRadii[3],
-            backgroundColor: index === playheadIndex ? theme.accent.softBg : 'transparent',
-          }}
+            backgroundColor:
+              index === playheadIndex
+                ? theme.accent.softBg
+                : pressed
+                  ? theme.surface.hover
+                  : 'transparent',
+          })}
         >
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={VIDEO_TIMELINE_TEXT.playFrom(row.time)}
-            onPress={() => onPlayFrom(row.timeSec)}
-            hitSlop={8}
-            style={{ width: 42 }}
-          >
+          <View style={{ width: 42 }}>
             <Text
               style={{
                 fontSize: 12,
@@ -113,7 +115,7 @@ export default function VideoTimelineList({
             >
               {row.time}
             </Text>
-          </Pressable>
+          </View>
           <View style={{ width: 40, height: 24, alignItems: 'center', justifyContent: 'center' }}>
             <Glyph glyph={row.glyph} />
           </View>
@@ -144,7 +146,7 @@ export default function VideoTimelineList({
               </View>
             ))}
           </View>
-        </View>
+        </Pressable>
       ))}
     </View>
   )

@@ -79,41 +79,39 @@ export default function VideoTimelineList({
       ) : null}
       <ol className="flex flex-col gap-0.5">
         {view.rows.map((row, index) => (
-          <li
-            key={row.key}
-            aria-current={index === playheadIndex ? 'time' : undefined}
-            className={[
-              'flex items-start gap-2 rounded-md px-2 py-1.5',
-              index === playheadIndex ? 'bg-(--accent-soft-bg)' : 'hover:bg-(--surface-hover)',
-            ].join(' ')}
-          >
+          <li key={row.key} aria-current={index === playheadIndex ? 'time' : undefined}>
             <button
               type="button"
-              aria-label={VIDEO_TIMELINE_TEXT.playFrom(row.time)}
-              className="w-[38px] shrink-0 cursor-pointer text-left text-[11px] leading-4 tabular-nums text-(--accent-primary) hover:underline focus-visible:outline-2 focus-visible:outline-(--accent-primary)"
+              title={VIDEO_TIMELINE_TEXT.playFrom(row.time)}
+              className={[
+                'flex w-full cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 text-left focus-visible:outline-2 focus-visible:outline-(--accent-primary)',
+                index === playheadIndex ? 'bg-(--accent-soft-bg)' : 'hover:bg-(--surface-hover)',
+              ].join(' ')}
               onClick={() => onPlayFrom(row.timeSec)}
             >
-              {row.time}
+              <span className="w-[38px] shrink-0 text-[11px] leading-4 tabular-nums text-(--accent-primary)">
+                {row.time}
+              </span>
+              <span className="flex h-6 w-10 shrink-0 items-center justify-center">
+                <Glyph glyph={row.glyph} />
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col text-[12px] leading-4 text-(--text-primary)">
+                <span className="break-words">{row.text}</span>
+                {row.closeUps.map((closeUp) => (
+                  <span
+                    key={closeUp.key}
+                    className="mt-0.5 flex items-center gap-1.5 text-[11px] leading-[15px] text-(--text-secondary)"
+                  >
+                    <img
+                      src={closeUp.url}
+                      alt=""
+                      className="h-3.5 w-[26px] shrink-0 rounded-xs border border-(--border-subtle) object-cover"
+                    />
+                    <span className="min-w-0 break-words">{closeUp.text}</span>
+                  </span>
+                ))}
+              </span>
             </button>
-            <span className="flex h-6 w-10 shrink-0 items-center justify-center">
-              <Glyph glyph={row.glyph} />
-            </span>
-            <div className="min-w-0 flex-1 text-[12px] leading-4 text-(--text-primary)">
-              <span className="break-words">{row.text}</span>
-              {row.closeUps.map((closeUp) => (
-                <span
-                  key={closeUp.key}
-                  className="mt-0.5 flex items-center gap-1.5 text-[11px] leading-[15px] text-(--text-secondary)"
-                >
-                  <img
-                    src={closeUp.url}
-                    alt=""
-                    className="h-3.5 w-[26px] shrink-0 rounded-xs border border-(--border-subtle) object-cover"
-                  />
-                  <span className="min-w-0 break-words">{closeUp.text}</span>
-                </span>
-              ))}
-            </div>
           </li>
         ))}
       </ol>

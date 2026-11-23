@@ -8,6 +8,16 @@ const stub = (name: string) => `${here}stubs/${name}`
 const src = (path: string) => fileURLToPath(new URL(`../../src/${path}`, import.meta.url))
 const reactNativeWeb = createRequire(import.meta.url).resolve('react-native-web')
 const port = Number(process.env.PORT) || 5175
+const WEB_FIRST_EXTENSIONS = [
+  '.web.tsx',
+  '.web.ts',
+  '.web.js',
+  '.mjs',
+  '.tsx',
+  '.ts',
+  '.js',
+  '.json',
+]
 
 /**
  * The native components in a browser, on react-native-web: `npm run playground:native:dev`. What
@@ -20,7 +30,7 @@ export default defineConfig({
   define: { __DEV__: 'false', global: 'globalThis' },
   resolve: {
     dedupe: ['react', 'react-dom'],
-    extensions: ['.web.tsx', '.web.ts', '.web.js', '.mjs', '.tsx', '.ts', '.js', '.json'],
+    extensions: WEB_FIRST_EXTENSIONS,
     alias: [
       { find: /^react-native$/, replacement: reactNativeWeb },
       { find: /^react-native-gesture-handler$/, replacement: stub('gestureHandler.tsx') },
@@ -30,6 +40,10 @@ export default defineConfig({
       { find: /^nativewind$/, replacement: stub('nativewind.ts') },
       { find: /^thefactory-ui\/headless$/, replacement: src('headless/index.ts') },
     ],
+  },
+  optimizeDeps: {
+    entries: ['index.html'],
+    esbuildOptions: { resolveExtensions: WEB_FIRST_EXTENSIONS },
   },
   server: { port: 5175 },
   preview: { port, strictPort: true },

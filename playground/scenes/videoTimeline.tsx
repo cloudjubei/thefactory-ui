@@ -22,7 +22,6 @@ import {
   CONTEXT,
   Frame,
   LANDSCAPE,
-  LANDSCAPE_VIDEO,
   POSTER,
   Pressed,
   STATES,
@@ -30,12 +29,14 @@ import {
   sourceOf,
 } from './videoAttachments'
 import {
+  CHECKOUT_VIDEO_URL,
   COMPOSER_MARKS,
   EARLIER_VIDEO,
   SENT_MARKS,
   TIMELINES,
   TIMELINE_VIDEO,
   TIMELINE_VIDEO_NAME,
+  videoUrlOf,
 } from './videoTimelineFixtures'
 
 const noop = () => {}
@@ -59,9 +60,12 @@ function TimelineCard({
   return (
     <SentVideoAttachment
       name={TIMELINE_VIDEO_NAME}
-      view={videoAttachmentView(READY)}
+      view={videoAttachmentView({
+        ...READY,
+        durationSec: timeline?.durationSec ?? READY.durationSec,
+      })}
       posterUrl={POSTER}
-      source={sourceOf(LANDSCAPE_VIDEO)}
+      source={sourceOf(videoUrlOf(timeline))}
       timeline={videoTimelineView(timeline)}
       timelineOpen={timelineOpen}
       onTimelineOpenChange={setTimelineOpen}
@@ -85,7 +89,7 @@ function Playing({
           name={TIMELINE_VIDEO_NAME}
           view={videoAttachmentView(READY_LANDSCAPE)}
           posterUrl={POSTER}
-          source={sourceOf(LANDSCAPE_VIDEO)}
+          source={sourceOf(CHECKOUT_VIDEO_URL)}
           showControls={showControls}
           timeline={videoTimelineView(TIMELINES.checkout)}
           timelineOpen={timelineOpen}
@@ -117,8 +121,8 @@ const chatWith = (marks?: ChatVideoMarks): ChatVideoAttachments => ({
   context: CONTEXT,
   fixedDigests: { [TIMELINE_VIDEO]: READY_LANDSCAPE, [EARLIER_VIDEO]: READY_LANDSCAPE },
   fixedMedia: {
-    [TIMELINE_VIDEO]: { video: LANDSCAPE_VIDEO, still: POSTER },
-    [EARLIER_VIDEO]: { video: LANDSCAPE_VIDEO, still: POSTER },
+    [TIMELINE_VIDEO]: { video: CHECKOUT_VIDEO_URL, still: POSTER },
+    [EARLIER_VIDEO]: { video: CHECKOUT_VIDEO_URL, still: POSTER },
   },
   fixedTimelines: { [TIMELINE_VIDEO]: TIMELINES.checkout, [EARLIER_VIDEO]: TIMELINES.checkout },
   ...(marks ? { marks } : {}),

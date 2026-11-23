@@ -72,6 +72,7 @@ export default defineConfig({
       ...thefactoryToolsAliases(),
     ],
   },
+  optimizeDeps: { entries: ['index.html'] },
   server: {
     port: 5174,
   },

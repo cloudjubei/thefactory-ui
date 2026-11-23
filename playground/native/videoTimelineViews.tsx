@@ -27,12 +27,13 @@ import {
   SENT_MARKS,
   TIMELINE_VIDEO,
   TIMELINE_VIDEO_NAME,
+  CHECKOUT_VIDEO_URL,
+  videoUrlOf,
   TIMELINES,
 } from '../scenes/videoTimelineFixtures'
 import type { NativeView } from './views'
 
 const noop = () => {}
-const VIDEO_URL = new URL('../scenes/assets/sample-landscape.webm', import.meta.url).href
 const FAR_OFF = '2999-01-01T00:00:00.000Z'
 const CONTEXT = { type: 'PROJECT', projectId: 'overseer' } as ChatContext
 const POSTER =
@@ -136,9 +137,12 @@ function TimelineCard({ timeline, markAt }: { timeline: ChatVideoTimeline; markA
   return (
     <SentVideoAttachment
       name={TIMELINE_VIDEO_NAME}
-      view={videoAttachmentView(DIGEST)}
+      view={videoAttachmentView({
+        ...DIGEST,
+        durationSec: timeline.durationSec ?? DIGEST.durationSec,
+      })}
       poster={{ uri: POSTER }}
-      source={sourceOf(VIDEO_URL)}
+      source={sourceOf(videoUrlOf(timeline))}
       timeline={videoTimelineView(timeline)}
       timelineOpen={open}
       onTimelineOpenChange={setOpen}
@@ -164,7 +168,7 @@ function useMarks(initial: ChatVideoMarkDraft[]): ChatVideoMarks {
 const chatWith = (marks?: ChatVideoMarks): ChatVideoAttachments => ({
   context: CONTEXT,
   fixedDigests: { [TIMELINE_VIDEO]: DIGEST },
-  fixedMedia: { [TIMELINE_VIDEO]: { video: VIDEO_URL, still: POSTER } },
+  fixedMedia: { [TIMELINE_VIDEO]: { video: CHECKOUT_VIDEO_URL, still: POSTER } },
   fixedTimelines: { [TIMELINE_VIDEO]: TIMELINES.checkout },
   ...(marks ? { marks } : {}),
 })

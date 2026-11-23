@@ -9,6 +9,10 @@ import type {
 /** The checkout bug the video showcase plays: the same path, name and length as its other states. */
 export const TIMELINE_VIDEO = '.factory/attachments/3f2a9c1d0b7e4a51/8c1d2e3f4a5b-checkout-bug.mov'
 export const TIMELINE_VIDEO_NAME = 'checkout-bug.mov'
+/** Played for the 16 s checkout: the four screens its stills show, a clock in the corner. */
+export const CHECKOUT_VIDEO_URL = new URL('./assets/timeline-checkout.webm', import.meta.url).href
+/** Played for the two-minute timeline: one settings step every 12 s, a clock in the corner. */
+export const LONG_VIDEO_URL = new URL('./assets/timeline-long.webm', import.meta.url).href
 /** A second video sent earlier in the chat, marked from the next message. */
 export const EARLIER_VIDEO =
   '.factory/attachments/3f2a9c1d0b7e4a51/1a2b3c4d5e6f-settings-walkthrough.mp4'
@@ -156,6 +160,10 @@ export const TIMELINES = {
     entries: [],
   },
 } satisfies Record<string, ChatVideoTimeline>
+
+/** The video a timeline was read from: as long as the timeline says it is. */
+export const videoUrlOf = (timeline: ChatVideoTimeline | undefined) =>
+  timeline === TIMELINES.long ? LONG_VIDEO_URL : CHECKOUT_VIDEO_URL
 
 /** Marks waiting in the composer: none, one, three, and one the backend refused. */
 export const COMPOSER_MARKS = {
