@@ -1191,6 +1191,7 @@ export {
 } from './utils/runModel'
 export {
   activeLlmConfig,
+  chatChipApiSide,
   chatChipCliSelection,
   modelChipLabel,
   modelChipProviderLabel,
@@ -1202,6 +1203,9 @@ export type {
   ModelChipOff,
   ChatChipCliInput,
   ChatChipCliSelection,
+  ChatChipApiInput,
+  ChatChipApiSide,
+  ModelChipApiConfig,
 } from './utils/modelChipTypes'
 export {
   asEffortLevel,

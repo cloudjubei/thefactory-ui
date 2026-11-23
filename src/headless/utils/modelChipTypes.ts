@@ -59,3 +59,30 @@ export type ChatChipCliSelection = {
   selectedCliModelId: string | undefined
   credentialId: string | undefined
 }
+
+/** An LLM config as a chip lists it. */
+export type ModelChipApiConfig = { id: string; name?: string; provider?: string; model?: string }
+
+/** What a chat's model chip reads to show its API side: the chat's own models, and those runs work on. */
+export type ChatChipApiInput<C extends ModelChipApiConfig = ModelChipApiConfig> = {
+  activeConfig: C | null
+  recents: C[]
+  configs: C[]
+  /** Picks the chat's own API model. */
+  onPick: (id: string) => void
+  /** The API model runs work on. */
+  runConfig: C | null
+  runRecents: C[]
+  /** Picks the API model runs work on. */
+  onPickRunConfig: (id: string) => void
+  /** Reports the API for the run the chip chooses for. */
+  onOverrideApi?: () => void
+}
+
+/** The API side a chat's model chip shows, and what a pick there does. */
+export type ChatChipApiSide<C extends ModelChipApiConfig = ModelChipApiConfig> = {
+  activeConfig: C | null
+  recents: C[]
+  configs: C[]
+  onPick: (id: string) => void
+}

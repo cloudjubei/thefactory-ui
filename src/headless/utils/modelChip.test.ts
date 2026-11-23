@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   activeLlmConfig,
+  chatChipApiSide,
   chatChipCliSelection,
   modelChipLabel,
   modelChipProviderLabel,
@@ -210,5 +211,56 @@ describe('chatChipCliSelection', () => {
       selectedCliModelId: undefined,
       credentialId: undefined,
     })
+  })
+})
+
+describe('chatChipApiSide', () => {
+  const chat = { id: 'chat-cfg', name: 'Chat', provider: 'openai', model: 'gpt' }
+  const run = { id: 'run-cfg', name: 'Run', provider: 'gemini', model: 'gemini-4' }
+  const recent = { id: 'recent-cfg', name: 'Recent', provider: 'anthropic', model: 'claude' }
+  const all = [chat, run, recent]
+
+  function wiring() {
+    const calls: string[] = []
+    return {
+      calls,
+      input: {
+        activeConfig: chat,
+        recents: [chat],
+        configs: all,
+        onPick: (id: string) => calls.push(`chat:${id}`),
+        runConfig: run,
+        runRecents: [run, recent],
+        onPickRunConfig: (id: string) => calls.push(`run:${id}`),
+        onOverrideApi: () => calls.push('api'),
+      },
+    }
+  }
+
+  it('shows the chat its own model, and a pick changes the chat', () => {
+    const { calls, input } = wiring()
+    const side = chatChipApiSide(input, false)
+    expect(side.activeConfig).toBe(chat)
+    expect(side.recents).toEqual([chat])
+    expect(side.configs).toBe(all)
+    side.onPick('recent-cfg')
+    expect(calls).toEqual(['chat:recent-cfg'])
+  })
+
+  it('offers a run the API models runs work on, and a pick sets that model and the API for the run, never the chat', () => {
+    const { calls, input } = wiring()
+    const side = chatChipApiSide(input, true)
+    expect(side.activeConfig).toBe(run)
+    expect(side.recents).toEqual([run, recent])
+    expect(side.configs).toBe(all)
+    side.onPick('recent-cfg')
+    expect(calls).toEqual(['run:recent-cfg', 'api'])
+  })
+
+  it('still sets the model runs use when nothing reports the API for the run', () => {
+    const { calls, input } = wiring()
+    const { onOverrideApi: _onOverrideApi, ...withoutReport } = input
+    chatChipApiSide(withoutReport, true).onPick('run-cfg')
+    expect(calls).toEqual(['run:run-cfg'])
   })
 })

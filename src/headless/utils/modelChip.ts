@@ -10,8 +10,11 @@ import {
   MODEL_CHIP_UNKNOWN_TITLE,
 } from './modelChipConstants'
 import type {
+  ChatChipApiInput,
+  ChatChipApiSide,
   ChatChipCliInput,
   ChatChipCliSelection,
+  ModelChipApiConfig,
   ModelChipConfigLike,
   ModelChipLabel,
   ModelChipLabelInput,
@@ -86,5 +89,33 @@ export function chatChipCliSelection(input: ChatChipCliInput): ChatChipCliSelect
       (overrideCli ? defaultModel[overrideCli] : cliRunner?.model) ??
       (selectedCli ? defaultModel[selectedCli] : undefined),
     credentialId: cliRunner?.credentialId ?? input.activeCliCredentialId ?? undefined,
+  }
+}
+
+/**
+ * The API side of a chat's model chip. For the chat itself: its own models,
+ * a pick changing them. As a chooser for a run: the models runs work on, a
+ * pick setting that model and the API for the run, never the chat's.
+ */
+export function chatChipApiSide<C extends ModelChipApiConfig>(
+  input: ChatChipApiInput<C>,
+  chooser: boolean,
+): ChatChipApiSide<C> {
+  if (!chooser) {
+    return {
+      activeConfig: input.activeConfig,
+      recents: input.recents,
+      configs: input.configs,
+      onPick: input.onPick,
+    }
+  }
+  return {
+    activeConfig: input.runConfig,
+    recents: input.runRecents,
+    configs: input.configs,
+    onPick: (id) => {
+      input.onPickRunConfig(id)
+      input.onOverrideApi?.()
+    },
   }
 }

@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { getPrice, type ChatContext } from '../../headless/api'
 import { ModelChip as ModelChipBase, type ModelChipMode } from './ModelChip'
 import {
+  chatChipApiSide,
   useActivityChipCli,
   useAgentRunChipCli,
   useLLMConfigs,
@@ -76,20 +77,10 @@ type ModelChipLlmWiring = {
   onOpenSettings: () => void
   /** The API config a run works on — what a chooser shows on its API side. */
   runConfig: ModelChipLlmWiring['activeConfig']
-}
-
-/**
- * The API side a chat chip offers. As a chooser for a run it shows the API
- * config runs work on, with nothing to pick: picking here would change the
- * chat's own model, and a run cannot carry an API config of its own.
- */
-function chooserApiSide(
-  llm: ModelChipLlmWiring,
-  chooser: boolean,
-): Pick<ModelChipLlmWiring, 'activeConfig' | 'recents' | 'configs'> {
-  return chooser
-    ? { activeConfig: llm.runConfig, recents: [], configs: [] }
-    : { activeConfig: llm.activeConfig, recents: llm.recents, configs: llm.configs }
+  /** The API configs runs worked on lately — what a chooser lists. */
+  runRecents: ModelChipLlmWiring['recents']
+  /** Picks the API config runs work on. */
+  onPickRunConfig: (id: string) => void
 }
 
 /**
@@ -108,7 +99,13 @@ function ModelChipWithCli({
   note?: string
 } & ChatChipCliOverrides) {
   const cli = useChatChipCli(chatContext, overrides)
-  const api = chooserApiSide(llm, cli.chooser)
+  const api = chatChipApiSide(
+    {
+      ...llm,
+      ...(overrides.onOverrideApi ? { onOverrideApi: overrides.onOverrideApi } : {}),
+    },
+    cli.chooser,
+  )
 
   return (
     <ModelChipBase
@@ -120,7 +117,7 @@ function ModelChipWithCli({
       activeConfig={api.activeConfig}
       recents={api.recents}
       configs={api.configs}
-      onPick={llm.onPick}
+      onPick={api.onPick}
       onOpenSettings={llm.onOpenSettings}
       getPrice={getPrice}
       useCli={cli.useCli}
@@ -364,6 +361,17 @@ export default function ModelChipConnected({
     [recents],
   )
 
+  const baseRunRecents = useMemo(
+    () =>
+      recentAgentRunConfigs.map((c) => ({
+        id: c.id,
+        name: c.name,
+        provider: c.provider,
+        model: c.model,
+      })),
+    [recentAgentRunConfigs],
+  )
+
   const baseConfigs = useMemo(
     () =>
       configs.map((c) => ({
@@ -383,6 +391,8 @@ export default function ModelChipConnected({
     mode,
     activeConfig: baseActive,
     runConfig: baseRunConfig,
+    runRecents: baseRunRecents,
+    onPickRunConfig: setActiveAgentRun,
     recents: baseRecents,
     configs: baseConfigs,
     onPick,
