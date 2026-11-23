@@ -1,6 +1,7 @@
 import type {
   VideoCloseUp,
   VideoTimeline,
+  VideoTimelineAction,
   VideoTimelineSound,
   VideoTimelineSpeech,
   VideoTimelineStill,
@@ -21,6 +22,7 @@ export type ChatVideoTimelineStill = Omit<VideoTimelineStill, 'closeUps'> & {
 export type ChatVideoTimelineEntry =
   | ChatVideoTimelineStill
   | VideoTimelineSpeech
+  | VideoTimelineAction
   | VideoTimelineSound
 
 /** A chat video's timeline, as `GET /chat-attachments/timeline` answers. */
@@ -33,6 +35,7 @@ export type ChatVideoTimeline = Omit<VideoTimeline, 'entries'> & {
 /** What stands left of a timeline row's text. */
 export type VideoTimelineGlyph =
   | { kind: 'still'; url: string }
+  | { kind: 'action' }
   | { kind: 'speech' }
   | { kind: 'sound' }
 
@@ -51,6 +54,8 @@ export type VideoTimelineRow = {
   time: string
   glyph: VideoTimelineGlyph
   text: string
+  /** An action that did not go through. */
+  failed: boolean
   closeUps: VideoTimelineCloseUpRow[]
 }
 

@@ -102,6 +102,7 @@ describe('videoTimelineView', () => {
       time: '00:09',
       glyph: { kind: 'still', url: '/media/t-9.jpg' },
       text: 'Payment · Card ending 4242',
+      failed: false,
       closeUps: [],
     })
   })
@@ -145,6 +146,22 @@ describe('videoTimelineView', () => {
   })
 
   it.each([
+    [{ action: 'tap', target: 'Checkout', ok: true }, 'Tap "Checkout"'],
+    [{ action: 'long-press', target: 'Row', ok: true }, 'Long press "Row"'],
+    [{ action: 'type', target: 'Email', ok: true }, 'Type "Email"'],
+    [{ action: 'type', ok: true }, 'Type'],
+    [{ action: 'swipe', target: 'up', ok: true }, 'Swipe up'],
+    [{ action: 'key', target: 'Enter', ok: true }, 'Key Enter'],
+    [{ action: 'back', ok: true }, 'Back'],
+    [{ action: 'scroll', target: 'Pay now', ok: true }, 'Scroll to "Pay now"'],
+    [{ action: 'open', target: 'Settings', ok: true }, 'Open "Settings"'],
+    [{ action: 'tap', target: 'Pay now', ok: false }, 'Tap "Pay now", failed'],
+  ] as const)('says an action as it was done: %j', (action, text) => {
+    const [row] = rowsOf(done([{ kind: 'action', timeSec: 3, ...action }]))
+    expect(row).toMatchObject({ glyph: { kind: 'action' }, text, failed: !action.ok })
+  })
+
+  it.each([
     [{ sound: 'silence', timeSec: 2, endSec: 7 }, 'Silence until 00:07'],
     [{ sound: 'sudden', timeSec: 11, endSec: 11.4 }, 'Sudden sound'],
     [{ sound: 'music', timeSec: 3, endSec: 17 }, 'Music until 00:17'],
@@ -155,9 +172,12 @@ describe('videoTimelineView', () => {
 
   it('keeps the timeline’s order and gives moments at one time keys of their own', () => {
     const rows = rowsOf(
-      done([{ kind: 'speech', timeSec: 3, endSec: 4, text: 'Checkout.' }, still(3, ['Shipping'])]),
+      done([
+        { kind: 'action', timeSec: 3, action: 'tap', target: 'Checkout', ok: true },
+        still(3, ['Shipping']),
+      ]),
     )
-    expect(rows.map((row) => row.key)).toEqual(['speech-0-3', 'still-1-3'])
+    expect(rows.map((row) => row.key)).toEqual(['action-0-3', 'still-1-3'])
   })
 
   it('says once what is on every screen', () => {

@@ -62,13 +62,15 @@ const DECLINED_CLOSE_UP = {
   text: ['Card declined.', 'Try another card.'],
 }
 
-/** The board's seven moments: stills with their text and close-ups, speech and a sound. */
+/** The board's nine moments: stills with their text and close-ups, actions, speech and a sound. */
 const CHECKOUT_ENTRIES: ChatVideoTimelineEntry[] = [
   still(0, ['Cart', '2 items', 'Total 38.40']),
+  { kind: 'action', timeSec: 3, action: 'tap', target: 'Checkout', ok: true },
   still(4, ['Shipping', 'Standard, Express']),
   { kind: 'speech', timeSec: 6, endSec: 8.4, text: 'Now I pick express shipping.' },
   still(9, ['Payment', 'Card ending 4242'], [TOTAL_CLOSE_UP]),
   { kind: 'sound', timeSec: 11, endSec: 11.3, sound: 'sudden' },
+  { kind: 'action', timeSec: 12, action: 'tap', target: 'Pay now', ok: true },
   still(13, ['Payment', 'error banner'], [DECLINED_CLOSE_UP]),
   { kind: 'speech', timeSec: 15, endSec: 16, text: 'And here it fails.' },
 ]
@@ -91,7 +93,7 @@ const LONG_ENTRIES: ChatVideoTimelineEntry[] = Array.from({ length: 40 }, (_, in
     case 0:
       return still(timeSec, [`Step ${index / 4 + 1}`, 'Settings', 'Notifications on'])
     case 1:
-      return still(timeSec, [`Row ${index}`, 'Settings'])
+      return { kind: 'action', timeSec, action: 'scroll', target: `Row ${index}`, ok: true }
     case 2:
       return { kind: 'speech', timeSec, endSec: timeSec + 2, text: `Moving on to part ${index}.` }
     default:
@@ -99,11 +101,17 @@ const LONG_ENTRIES: ChatVideoTimelineEntry[] = Array.from({ length: 40 }, (_, in
   }
 })
 
-const SOUND_ENTRIES: ChatVideoTimelineEntry[] = [
+const SOUND_AND_ACTION_ENTRIES: ChatVideoTimelineEntry[] = [
   { kind: 'sound', timeSec: 0, endSec: 7, sound: 'silence' },
+  { kind: 'action', timeSec: 1, action: 'open', target: 'Shop', ok: true },
+  { kind: 'action', timeSec: 2.5, action: 'swipe', target: 'up', ok: true },
   { kind: 'sound', timeSec: 3, endSec: 17, sound: 'music' },
-  { kind: 'speech', timeSec: 8, endSec: 10, text: 'Over the music.' },
+  { kind: 'action', timeSec: 5, action: 'type', target: 'Promo code', ok: true },
+  { kind: 'action', timeSec: 7, action: 'key', target: 'Enter', ok: true },
+  { kind: 'action', timeSec: 9, action: 'long-press', target: 'Express', ok: true },
   { kind: 'sound', timeSec: 11, endSec: 11.3, sound: 'sudden' },
+  { kind: 'action', timeSec: 12, action: 'tap', target: 'Pay now', ok: false },
+  { kind: 'action', timeSec: 14, action: 'back', ok: true },
 ]
 
 const CLOSE_UP_ENTRIES: ChatVideoTimelineEntry[] = [
@@ -128,7 +136,7 @@ export const TIMELINES = {
   checkout: done(CHECKOUT_ENTRIES),
   everyScreen: done(CHECKOUT_ENTRIES, { onEveryScreen: ['09:41', 'Wi-Fi', '82%'] }),
   long: done(LONG_ENTRIES, { durationSec: 120 }),
-  sounds: done(SOUND_ENTRIES),
+  soundsAndActions: done(SOUND_AND_ACTION_ENTRIES),
   closeUps: done(CLOSE_UP_ENTRIES),
   empty: done([]),
   preparing: {

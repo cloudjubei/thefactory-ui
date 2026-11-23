@@ -54,7 +54,7 @@ const TIMELINE_STATES: Record<string, ChatVideoTimeline> = {
   'every-screen': TIMELINES.everyScreen,
   long: TIMELINES.long,
   'close-ups': TIMELINES.closeUps,
-  sounds: TIMELINES.sounds,
+  'sounds-and-actions': TIMELINES.soundsAndActions,
   preparing: TIMELINES.preparing,
   failed: TIMELINES.failed,
   empty: TIMELINES.empty,
