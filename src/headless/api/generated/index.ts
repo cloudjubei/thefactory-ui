@@ -4246,6 +4246,7 @@ export type {
   ProcessWaitingKind,
   ProcessWaitingRequest,
   ProcessWaitNotice,
+  ProcessWaitNoticeHow,
   ProcessWaitSettledHow,
   ProcessWaitsForReading,
   ProcessWorkBranch,

@@ -18563,6 +18563,9 @@ export type ProcessWaitDecision = {
   action: ProcessWaitAction
   at: number
   note?: string
+  byHost?: {
+    because: string
+  }
 } & (
   | {
       decidedBy?: 'person'
@@ -33775,6 +33778,7 @@ export type ProcessWaitForCheck =
   | {
       kind: 'waiting'
       reason: string
+      unread?: true
     }
 
 export type ProcessWaitsForReading = {
@@ -33787,8 +33791,10 @@ export type ProcessWaitsForReading = {
   >
 }
 
+export type ProcessWaitNoticeHow = ProcessWaitSettledHow | 'waiting-again' | 'left-base'
+
 export type ProcessWaitNotice = {
-  how: ProcessWaitSettledHow | 'waiting-again'
+  how: ProcessWaitNoticeHow
   text: string
 }
 
