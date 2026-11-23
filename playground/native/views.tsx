@@ -82,6 +82,7 @@ import { SUPERSEDED_FILINGS_VIEWS } from './supersededFilingsViews'
 import { SPEND_LIMIT_VIEWS } from './spendLimitViews'
 import { MERGE_RECOVERY_VIEWS } from './mergeRecoveriesViews'
 import { MERGE_BASE_STOP_VIEWS } from './mergeBaseStopViews'
+import { FILE_PANE_INCOMING_VIEW } from './filePaneIncomingView'
 import { SHOWN_FILE_VIEWS } from './shownFileViews'
 import { PLAN_WINDOW_VIEWS } from './planWindowViews'
 import { SEND_TO_DEVELOPER_VIEWS } from './sendToDeveloperViews'
@@ -696,6 +697,7 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   ...GIT_CREDENTIAL_VIEWS,
   ...FILE_TREE_VIEWS,
   ...SHOWN_FILE_VIEWS,
+  FILE_PANE_INCOMING_VIEW,
   ...TICKET_VIEWS,
   ...SEND_TO_DEVELOPER_VIEWS,
   ...READY_ANSWER_VIEWS,

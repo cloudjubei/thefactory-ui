@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useOptionalFiles } from '../../../headless/contexts/FilesContext'
 import { useReferenceRendering } from '../../../headless/contexts/ReferenceRenderingContext'
 import type { FormEvent, ReactNode } from 'react'
 
@@ -13,6 +14,8 @@ import Tooltip from '../../primitives/Tooltip'
 import { IconCopy, IconDelete, IconEdit, IconSave } from '../../icons'
 
 import { default as FilePaneHeader } from './FilePaneHeader'
+import FileMergeDialog from './FileMergeDialog'
+import type { FileMergeInput } from '../../../headless/hooks/useFileMerge'
 import { default as ImageViewer } from './ImageViewer'
 import { default as PdfViewer } from './PdfViewer'
 import VideoViewer from './VideoViewer'
@@ -21,7 +24,13 @@ import type { MarkdownEditorPaneView } from '../MarkdownEditor'
 import { default as HtmlEditor } from './HtmlEditor'
 import type { FileInfoData } from './FileInfoButton'
 import { classifyFileByExtension, type FilePaneKind } from '../../../headless/utils/filePaneKind'
+import type { PendingFileChange } from '../../../headless/utils/pendingFileChange'
 import { revealTextLine } from '../../utils/revealTextLine'
+import {
+  retainedReferences,
+  saveRetainedMarkdown,
+  shiftRetainedReferences,
+} from './retainedMarkdownReferences'
 
 export { classifyFileByExtension }
 export type { FilePaneKind }
@@ -72,6 +81,8 @@ export type FilePaneProps = {
   headerCaption?: string
   /** After the header's tools: a popup's own buttons. */
   headerTrailing?: ReactNode
+  /** Override the callout's built-in merge review for the displayed disk version and canonical draft. */
+  onReviewFileChange?: (change: PendingFileChange, draft: string) => void
 }
 
 type ModalRoute = { kind: 'rename'; from: string } | { kind: 'delete'; path: string } | null
@@ -94,10 +105,16 @@ export function FilePane({
   initialPaneView = 'both',
   headerCaption,
   headerTrailing,
+  onReviewFileChange,
 }: FilePaneProps) {
   const [draft, setDraft] = useState('')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [merge, setMerge] = useState<{
+    input: FileMergeInput
+    change: PendingFileChange
+    save: boolean
+  } | null>(null)
   const [modal, setModal] = useState<ModalRoute>(null)
   const [paneView, setPaneView] = useState<MarkdownEditorPaneView>(initialPaneView)
   const [blobUrl, setBlobUrl] = useState<string | null>(null)
@@ -113,6 +130,7 @@ export function FilePane({
   useEffect(() => {
     setDraft('')
     setSaveError(null)
+    setMerge(null)
   }, [filePath])
 
   // A markdown file is edited with its references as a person types them —
@@ -124,30 +142,89 @@ export function FilePane({
     () => (content === null || !typesReferences ? content : references.toTyped(content)),
     [content, typesReferences, references],
   )
+  const files = useOptionalFiles()
+  const reportFileDraft = files?.reportFileDraft
+  const tracksSelection = !!filePath && files?.selectedPath === filePath
+  const diskBase = tracksSelection && files?.isDeletedOnDisk ? null : content
+
+  // Keep mine updates the disk base for conflict detection, not the text
+  // against which the editor resolves references in the retained draft.
+  const [keptDraft, setKeptDraft] = useState<{
+    path: string | null
+    diskBase: string | null
+    typed: string
+    refs: ReturnType<typeof retainedReferences>
+  } | null>(null)
+  const kept = keptDraft?.path === filePath && keptDraft.diskBase === diskBase ? keptDraft : null
   const toSave = useCallback(
-    (text: string) =>
-      typesReferences && content !== null ? references.canonicalize(text, content) : text,
-    [typesReferences, references, content],
+    (text: string) => {
+      if (kept && kind === 'markdown') {
+        return saveRetainedMarkdown(text, kept.refs, references?.canonicalize)
+      }
+      return typesReferences && content !== null ? references.canonicalize(text, content) : text
+    },
+    [typesReferences, references, content, kept, kind],
   )
 
   // A new version of the file replaces the draft; the same file reading
   // differently once its references load leaves an edited draft alone.
-  const shownRef = useRef<{ content: string | null; shown: string | null }>({
+  const shownRef = useRef<{
+    content: string | null
+    diskBase: string | null
+    shown: string | null
+  }>({
     content: null,
+    diskBase: null,
     shown: null,
   })
   useEffect(() => {
-    shownRef.current = { content: null, shown: null }
+    shownRef.current = { content: null, diskBase: null, shown: null }
   }, [filePath])
   useEffect(() => {
     const before = shownRef.current
-    shownRef.current = { content, shown }
-    if (shown === null) return
-    if (before.content !== content) setDraft(shown)
+    shownRef.current = { content, diskBase, shown }
+    if (kept) return
+    if (keptDraft) setKeptDraft(null)
+    if (shown === null) {
+      if (before.content !== null) setDraft('')
+      return
+    }
+    if (before.content !== content || before.diskBase !== diskBase) setDraft(shown)
     else setDraft((d) => (d === before.shown ? shown : d))
-  }, [filePath, content, shown])
+  }, [filePath, content, diskBase, shown, kept, keptDraft])
+
+  const isText = kind === 'text' || kind === 'markdown' || kind === 'html'
+  const readOnly = !onWrite
+  // A retained Markdown draft can look identical to the remote in the
+  // editor while storing different references; a deleted-on-disk file stays
+  // dirty until recreated on save.
+  const isDirty = isText && shown !== null && (kept ? toSave(draft) !== diskBase : draft !== shown)
+  const pendingChange = tracksSelection && !readOnly && isText ? files?.pendingFileChange : null
+  const checkingChange = tracksSelection && files?.isCheckingFileChange
+  const changeCheckFailed = tracksSelection && !readOnly && isText && files?.fileChangeCheckFailed
+  const hasUncheckedFileChange = tracksSelection ? files?.hasUncheckedFileChange : undefined
+  useEffect(() => {
+    if (!tracksSelection || !filePath || readOnly || !isText) return
+    reportFileDraft?.(filePath, isDirty ? toSave(draft) : null)
+  }, [tracksSelection, filePath, reportFileDraft, readOnly, isText, isDirty, draft, toSave])
+  useEffect(() => {
+    if (!tracksSelection || !filePath || readOnly || !isText) return
+    return () => reportFileDraft?.(filePath, null)
+  }, [tracksSelection, filePath, reportFileDraft, readOnly, isText])
 
   const editorRef = useRef<HTMLTextAreaElement>(null)
+  const editMarkdown = (next: string) => {
+    if (kept) {
+      const editor = editorRef.current
+      const caret = editor?.value === next ? editor.selectionStart : undefined
+      setKeptDraft({
+        ...kept,
+        typed: next,
+        refs: shiftRetainedReferences(kept.refs, kept.typed, next, caret),
+      })
+    }
+    setDraft(next)
+  }
   const revealedRef = useRef<string | null>(null)
   useEffect(() => {
     if (!filePath || focusLine === undefined || isContentLoading || shown === null) return
@@ -188,18 +265,81 @@ export function FilePane({
     }
   }, [filePath, kind, getBinaryUrl, revokeBinaryUrl])
 
-  const save = useCallback(async () => {
-    if (!filePath || !onWrite) return
+  const persist = async (path: string, text: string) => {
+    if (!onWrite) return
     setSaving(true)
     setSaveError(null)
     try {
-      await onWrite(filePath, toSave(draft))
+      await onWrite(path, text)
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Failed to save file')
     } finally {
       setSaving(false)
     }
-  }, [filePath, draft, onWrite, toSave])
+  }
+
+  const retainDraft = (path: string, nextDiskBase: string | null, canonical: string) => {
+    const toTyped = typesReferences ? references.toTyped : (value: string) => value
+    const typed = toTyped(canonical)
+    setKeptDraft({
+      path,
+      diskBase: nextDiskBase,
+      typed,
+      refs: kind === 'markdown' ? retainedReferences(canonical, toTyped) : [],
+    })
+    setDraft(typed)
+  }
+
+  useEffect(() => {
+    if (merge && pendingChange?.kind === 'deleted') {
+      setMerge(null)
+    }
+  }, [merge, pendingChange])
+
+  const openMerge = (save: boolean) => {
+    if (
+      !filePath ||
+      content === null ||
+      !pendingChange ||
+      pendingChange.kind === 'deleted' ||
+      merge ||
+      saving ||
+      hasUncheckedFileChange?.()
+    )
+      return
+    const ours = toSave(draft)
+    if (!save && onReviewFileChange) {
+      onReviewFileChange(pendingChange, ours)
+      return
+    }
+    setMerge({
+      input: { path: filePath, base: content, ours, theirs: pendingChange.remote },
+      change: pendingChange,
+      save,
+    })
+  }
+
+  const save = async () => {
+    if (!filePath || !onWrite || !isDirty || saving || merge || hasUncheckedFileChange?.()) return
+    if (pendingChange) openMerge(true)
+    else await persist(filePath, toSave(draft))
+  }
+
+  const mergeStale =
+    !!merge &&
+    (merge.change !== pendingChange ||
+      merge.input.ours !== toSave(draft) ||
+      !!checkingChange ||
+      !!changeCheckFailed)
+  const finishMerge = (text: string) => {
+    if (!merge || mergeStale || !files || !onWrite || merge.input.path !== filePath) return
+    // The provider also checks notifications received before the next render.
+    if (!files.acceptFileChangeBase(merge.change, 'keep')) return
+    retainDraft(merge.input.path, merge.input.theirs, text)
+    files.reportFileDraft(merge.input.path, text === merge.input.theirs ? null : text)
+    setMerge(null)
+    if (merge.save) void persist(merge.input.path, text)
+  }
 
   const previewText = useMemo(
     () => (typesReferences ? toSave(draft) : undefined),
@@ -214,10 +354,7 @@ export function FilePane({
     )
   }
 
-  const isText = kind === 'text' || kind === 'markdown' || kind === 'html'
-  const readOnly = !onWrite
   const hasPaneToggle = kind === 'markdown' || kind === 'html'
-  const isDirty = isText && shown !== null && draft !== shown
 
   const copyAll = async () => {
     try {
@@ -237,12 +374,33 @@ export function FilePane({
         </Tooltip>
       )}
       {isText && !readOnly && (
-        <Tooltip content={isDirty ? 'Save' : 'No unsaved changes'}>
+        <Tooltip
+          content={
+            changeCheckFailed
+              ? 'Retry the remote check before saving'
+              : checkingChange
+                ? 'Waiting to verify remote edits'
+                : pendingChange
+                  ? pendingChange.kind === 'deleted'
+                    ? 'File deleted remotely'
+                    : 'Review incoming edits before saving'
+                  : isDirty
+                    ? 'Save'
+                    : 'No unsaved changes'
+          }
+        >
           <Button
             variant="secondary"
             size="icon"
             onClick={save}
-            disabled={!isDirty || saving}
+            disabled={
+              !isDirty ||
+              saving ||
+              !!merge ||
+              pendingChange?.kind === 'deleted' ||
+              checkingChange ||
+              changeCheckFailed
+            }
             aria-label="Save"
           >
             <IconSave className="w-4 h-4" />
@@ -291,16 +449,60 @@ export function FilePane({
   )
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div
+      className="flex flex-col h-full overflow-hidden"
+      onKeyDown={(event) => {
+        if (event.target !== editorRef.current || readOnly || event.defaultPrevented) return
+        if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 's') return
+        event.preventDefault()
+        void save()
+      }}
+    >
       <FilePaneHeader
         name={resolvedName}
         path={filePath}
         size={fileSize}
         info={fileInfo}
         actions={actions}
+        {...(pendingChange && files
+          ? {
+              pendingChange,
+              pendingChangeActions: {
+                disabled: !!(checkingChange || changeCheckFailed || saving || merge),
+                onReviewAndMerge: () => openMerge(false),
+                onKeepMine: () => {
+                  const canonical = toSave(draft)
+                  if (files.acceptFileChangeBase(pendingChange, 'keep')) {
+                    retainDraft(filePath, pendingChange.remote, canonical)
+                  }
+                },
+                onTakeRemote: () => {
+                  files.acceptFileChangeBase(pendingChange, 'take')
+                },
+              },
+            }
+          : {})}
         {...(headerCaption ? { caption: headerCaption } : {})}
         {...(headerTrailing ? { trailing: headerTrailing } : {})}
       />
+
+      {changeCheckFailed && (
+        <div className="px-4 pt-4">
+          <Alert>
+            <div className="flex flex-wrap items-center gap-2">
+              <span>Could not check for remote edits. Your draft is still here.</span>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={files?.retryFileChangeCheck}
+              >
+                Retry remote check
+              </Button>
+            </div>
+          </Alert>
+        </div>
+      )}
 
       {kind === 'markdown' ? (
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
@@ -313,7 +515,7 @@ export function FilePane({
           <div className="flex-1 min-h-0">
             <MarkdownEditor
               value={draft}
-              onChange={setDraft}
+              onChange={editMarkdown}
               onSave={save}
               isDirty={isDirty}
               loading={isContentLoading}
@@ -421,6 +623,35 @@ export function FilePane({
         </div>
       )}
 
+      {merge?.input.path === filePath && (
+        <FileMergeDialog
+          input={merge.input}
+          onClose={() => setMerge(null)}
+          onApply={finishMerge}
+          stale={mergeStale}
+          {...(mergeStale &&
+          pendingChange &&
+          pendingChange.kind !== 'deleted' &&
+          !checkingChange &&
+          !changeCheckFailed &&
+          content !== null
+            ? {
+                onReload: () =>
+                  setMerge({
+                    input: {
+                      path: merge.input.path,
+                      base: content,
+                      ours: toSave(draft),
+                      theirs: pendingChange.remote,
+                    },
+                    change: pendingChange,
+                    save: merge.save,
+                  }),
+              }
+            : {})}
+          save={merge.save}
+        />
+      )}
       {modal?.kind === 'rename' && onRename && (
         <RenameDialog from={modal.from} onClose={() => setModal(null)} onRename={onRename} />
       )}

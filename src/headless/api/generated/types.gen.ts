@@ -38460,6 +38460,56 @@ export type ProcessAgentPauseView = {
   actions: Array<'resume' | 'retry' | 'stop'>
 }
 
+export type FileChangeOrigin =
+  | {
+      kind: 'agent'
+      runId: string
+      chatContextId?: string
+    }
+  | {
+      kind: 'chat'
+      chatContextId: string
+    }
+  | {
+      kind: 'person'
+    }
+  | {
+      kind: 'git'
+    }
+  | {
+      kind: 'external'
+    }
+
+export type FilesChangedData =
+  | {
+      projectId: string
+      action: 'written' | 'patched' | 'uploaded'
+      path: string
+      paths?: Array<string>
+      origin: FileChangeOrigin
+    }
+  | {
+      projectId: string
+      action: 'deleted'
+      paths: Array<string>
+      origin: FileChangeOrigin
+    }
+  | {
+      projectId: string
+      action: 'renamed'
+      moves: Array<{
+        src: string
+        dst: string
+      }>
+      origin: FileChangeOrigin
+    }
+  | {
+      projectId: string
+      action: 'exact_replaced'
+      queries: Array<WriteExactReplaceQuery>
+      origin: FileChangeOrigin
+    }
+
 export type HealthData = {
   body?: never
   path?: never
@@ -63824,6 +63874,7 @@ export type VerifyCliRunReviewData = {
   body: {
     projectId: string
     reason?: string
+    checkIds?: Array<string>
   }
   path: {
     runId: string

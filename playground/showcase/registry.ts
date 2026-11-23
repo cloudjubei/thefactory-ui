@@ -45,6 +45,7 @@ import { FEATURE_POOL_SCENES } from '../scenes/featurePool'
 import { FEATURE_REQUEST_CARD_SCENES } from '../scenes/featureRequestCard'
 import { FEATURE_REQUEST_WAIT_CYCLE_SCENES } from '../scenes/featureRequestWaitCycle'
 import { FILE_PREVIEW_SCENES } from '../scenes/filePreview'
+import { FILE_PANE_INCOMING_SCENES } from '../scenes/filePaneIncoming'
 import { FILE_PANE_VIDEO_SCENES } from '../scenes/filePaneVideo'
 import { FILE_SUGGESTION_SCENES } from '../scenes/fileSuggestions'
 import { FILE_TREE_SCENES } from '../scenes/fileTree'
@@ -161,6 +162,7 @@ export const SCENES: readonly Scene[] = [
   ...FILE_TREE_SCENES,
   ...FILE_PREVIEW_SCENES,
   ...FILE_PANE_VIDEO_SCENES,
+  ...FILE_PANE_INCOMING_SCENES,
   ...VIDEO_ATTACHMENT_SCENES,
   ...VIDEO_TIMELINE_SCENES,
   ...SHOWN_FILE_SCENES,

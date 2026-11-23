@@ -1,6 +1,15 @@
 import type { ReactNode } from 'react'
 
+import { useIncomingFileToast } from '../../../headless/hooks/useIncomingFileToast'
+import {
+  PENDING_FILE_CHANGE_LABEL,
+  type PendingFileChange,
+  type PendingFileChangeActions,
+} from '../../../headless/utils/pendingFileChange'
+import { IconWarningTriangle } from '../../icons/IconWarningTriangle'
+import { useToast } from '../../primitives/Toast'
 import { FileInfoButton, type FileInfoData } from './FileInfoButton'
+import { PendingFileChangeCallout } from './PendingFileChangeCallout'
 
 export type FilePaneHeaderProps = {
   /** Basename (e.g. `Foo.tsx`). Falls back to last `/`-segment of `path`. */
@@ -16,6 +25,9 @@ export type FilePaneHeaderProps = {
   info?: FileInfoData
   /** Right-side action slot (icon buttons such as copy / save / rename / delete). */
   actions?: ReactNode
+  /** Pending disk change for the dirty editor, if any. */
+  pendingChange?: PendingFileChange['kind'] | PendingFileChange
+  pendingChangeActions?: PendingFileChangeActions
   /** A small line over the name: where the file is from, in a popup. */
   caption?: string
   /** After the actions, set apart from them: a popup's own buttons. */
@@ -40,7 +52,17 @@ export function FilePaneHeader({
   actions,
   caption,
   trailing,
+  pendingChange,
+  pendingChangeActions,
 }: FilePaneHeaderProps) {
+  const { toast } = useToast()
+  const pendingKind = typeof pendingChange === 'string' ? pendingChange : pendingChange?.kind
+  useIncomingFileToast(path, pendingKind, toast)
+  const pendingColor = {
+    clean: 'var(--status-done-soft-fg)',
+    conflict: 'var(--status-review-soft-fg)',
+    deleted: 'var(--status-stuck-soft-fg)',
+  }
   const resolvedName = name ?? (path ? path.split('/').pop() : undefined) ?? ''
   return (
     <header
@@ -69,7 +91,19 @@ export function FilePaneHeader({
           </div>
         </div>
       </div>
-      {(actions || trailing) && (
+      {typeof pendingChange === 'object' ? (
+        <PendingFileChangeCallout
+          key={path}
+          change={pendingChange}
+          color={pendingColor[pendingChange.kind]}
+          actions={pendingChangeActions}
+        />
+      ) : pendingChange ? (
+        <span className="shrink-0" role="img" aria-label={PENDING_FILE_CHANGE_LABEL[pendingChange]}>
+          <IconWarningTriangle className="size-5" color={pendingColor[pendingChange]} />
+        </span>
+      ) : null}
+      {(actions || trailing || pendingChange) && (
         <div className="flex items-center gap-1 shrink-0 h-full">
           {actions}
           {trailing && <div className="flex items-center gap-1 pl-2">{trailing}</div>}

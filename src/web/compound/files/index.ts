@@ -22,6 +22,7 @@ export {
   type FileInfoData,
 } from './FileInfoButton'
 export { default as FilePaneHeader, type FilePaneHeaderProps } from './FilePaneHeader'
+export { default as FileMergeDialog } from './FileMergeDialog'
 export { default as FilePreviewDialog, type FilePreviewDialogProps } from './FilePreviewDialog'
 export {
   default as FilePreviewDialogConnected,

@@ -737,6 +737,7 @@ export {
   default as FilePaneHeader,
   type FilePaneHeaderProps,
 } from './compound/files/FilePaneHeader'
+export { default as FileMergeDialog } from './compound/files/FileMergeDialog'
 export {
   default as FilePreviewSheet,
   type FilePreviewSheetProps,

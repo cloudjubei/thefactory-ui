@@ -1,7 +1,16 @@
 import type { ReactNode } from 'react'
 import { Text, View } from 'react-native'
 
+import { useIncomingFileToast } from '../../../headless/hooks/useIncomingFileToast'
+import {
+  PENDING_FILE_CHANGE_LABEL,
+  type PendingFileChange,
+  type PendingFileChangeActions,
+} from '../../../headless/utils/pendingFileChange'
+import { IconWarningTriangle } from '../../icons/IconWarningTriangle'
+import { useToast } from '../../primitives/Toast'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
+import { PendingFileChangeCallout } from './PendingFileChangeCallout'
 
 export type FilePaneHeaderProps = {
   /** Basename (e.g. `Foo.tsx`). Falls back to last `/`-segment of `path`. */
@@ -14,6 +23,9 @@ export type FilePaneHeaderProps = {
   info?: ReactNode
   /** Right-side action slot (icon buttons such as copy / save / rename / delete). */
   actions?: ReactNode
+  /** Pending disk change for the dirty editor, if any. */
+  pendingChange?: PendingFileChange['kind'] | PendingFileChange
+  pendingChangeActions?: PendingFileChangeActions
 }
 
 function humanSize(n: number): string {
@@ -32,8 +44,24 @@ function humanSize(n: number): string {
  * an optional human-readable size, with a right-side row for icon actions
  * supplied by the host (Copy / Save / pane toggle / Rename / Delete).
  */
-export function FilePaneHeader({ name, path, size, info, actions }: FilePaneHeaderProps) {
-  const { theme } = useNativeTheme()
+export function FilePaneHeader({
+  name,
+  path,
+  size,
+  info,
+  actions,
+  pendingChange,
+  pendingChangeActions,
+}: FilePaneHeaderProps) {
+  const { theme, status } = useNativeTheme()
+  const { toast } = useToast()
+  const pendingKind = typeof pendingChange === 'string' ? pendingChange : pendingChange?.kind
+  useIncomingFileToast(path, pendingKind, toast)
+  const pendingColor = {
+    clean: status.done.softFg,
+    conflict: status.review.softFg,
+    deleted: status.stuck.softFg,
+  }
   const resolvedName = name ?? (path ? path.split('/').pop() : undefined) ?? ''
   return (
     <View
@@ -80,7 +108,23 @@ export function FilePaneHeader({ name, path, size, info, actions }: FilePaneHead
           </Text>
         ) : null}
       </View>
-      {actions ? (
+      {typeof pendingChange === 'object' ? (
+        <PendingFileChangeCallout
+          key={path}
+          change={pendingChange}
+          color={pendingColor[pendingChange.kind]}
+          actions={pendingChangeActions}
+        />
+      ) : pendingChange ? (
+        <View
+          accessible
+          accessibilityRole="image"
+          accessibilityLabel={PENDING_FILE_CHANGE_LABEL[pendingChange]}
+        >
+          <IconWarningTriangle size={20} strokeColor={pendingColor[pendingChange]} />
+        </View>
+      ) : null}
+      {actions || pendingChange ? (
         <View
           style={{
             flexDirection: 'row',

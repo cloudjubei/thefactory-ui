@@ -5288,6 +5288,12 @@ export {
 // `files:changed` WS topic. Routes binary/PDF/image clicks to the raw-bytes
 // endpoint by skipping the text read for non-text extensions.
 export { FilesProvider, useFiles, type FilesContextValue } from './contexts/FilesContext'
+export type {
+  FileChangeOrigin,
+  PendingFileChange,
+  PendingFileChangeActions,
+} from './utils/pendingFileChange'
+export type { FileMergeInput, FileMergeDialogProps } from './hooks/useFileMerge'
 
 // Ingestion job tracker. Listens to `ingestion:progress` WS topic and
 // maintains a Map of in-flight + recently-completed jobs.

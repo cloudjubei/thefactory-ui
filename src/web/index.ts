@@ -97,6 +97,7 @@ export {
   FileInfoButton,
   FilePane,
   FilePaneHeader,
+  FileMergeDialog,
   FilePreviewDialog,
   FilePreviewDialogConnected,
   FileSelector,
