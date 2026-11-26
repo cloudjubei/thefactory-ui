@@ -1893,6 +1893,8 @@ export type ModelSpend = {
   incompleteReasons?: Array<UsageCompletenessReason>
 }
 
+export type LlmCostSourceKind = 'api' | 'cli'
+
 export type CompletionUsage = {
   promptTokens: number
   completionTokens: number
@@ -1921,6 +1923,8 @@ export type CompletionUsage = {
     cacheWrite?: 'reported' | 'derived' | 'unavailable'
   }
   incompleteReasons?: Array<UsageCompletenessReason>
+  source?: 'api' | 'cli'
+  cliTool?: string
 }
 
 export type CompletionAssistantMessage = {
@@ -1988,6 +1992,8 @@ export type CompletionAssistantMessage = {
       cacheWrite?: 'reported' | 'derived' | 'unavailable'
     }
     incompleteReasons?: Array<UsageCompletenessReason>
+    source?: 'api' | 'cli'
+    cliTool?: string
   }
   model: {
     model: string
@@ -3495,6 +3501,8 @@ export type Chat = {
         cacheWrite?: 'reported' | 'derived' | 'unavailable'
       }
       incompleteReasons?: Array<UsageCompletenessReason>
+      source?: 'api' | 'cli'
+      cliTool?: string
     }
     model?: {
       model: string
@@ -3738,6 +3746,8 @@ export type ChatCreateInput = {
         cacheWrite?: 'reported' | 'derived' | 'unavailable'
       }
       incompleteReasons?: Array<UsageCompletenessReason>
+      source?: 'api' | 'cli'
+      cliTool?: string
     }
     model?: {
       model: string
@@ -3868,6 +3878,8 @@ export type ChatEditInput = {
         cacheWrite?: 'reported' | 'derived' | 'unavailable'
       }
       incompleteReasons?: Array<UsageCompletenessReason>
+      source?: 'api' | 'cli'
+      cliTool?: string
     }
     model?: {
       model: string
@@ -5337,6 +5349,7 @@ export type VerificationCheckBaseline = {
   ranAt?: number
   reused?: boolean
   freshRounds?: number
+  testFiles?: Array<string>
 }
 
 export type VerificationStatus = 'passed' | 'failed' | 'error' | 'unchecked'
@@ -5472,6 +5485,7 @@ export type VerificationCheckResult = {
     ranAt?: number
     reused?: boolean
     freshRounds?: number
+    testFiles?: Array<string>
   }
   testReportMissing?: {
     cause: VerificationTestReportMissingCause
@@ -5484,6 +5498,7 @@ export type VerificationCheckResult = {
   knownFlakeFailures?: Array<string>
   failedAgainAlone?: Array<string>
   rewrittenFiles?: Array<string>
+  sameCommandNote?: string
 }
 
 export type VerificationUncheckedReason = {
@@ -5740,8 +5755,6 @@ export type CliRunUsage = {
   incompleteReasons?: Array<UsageCompletenessReason>
 }
 
-export type LlmCostSourceKind = 'api' | 'cli'
-
 export type UsageEventOrigin = {
   source: LlmCostSourceKind
   requestId?: string
@@ -5942,6 +5955,36 @@ export type CliRunRetryHistoryEntry = {
   }
 }
 
+export type CliRunVerdictAuthor = 'user' | 'reviewer-agent'
+
+export type CliRunMergeShape = 'merge-commit' | 'squash' | 'fast-forward'
+
+export type GitIdentity = {
+  name: string
+  email: string
+}
+
+export type CliRunMergeWhenGreenRefusal = {
+  at: number
+  reason: string
+}
+
+export type CliRunMergeWhenGreen = {
+  armedAt: number
+  by: CliRunVerdictAuthor
+  message?: string
+  mergeAs?: 'merge-commit' | 'squash' | 'fast-forward'
+  notes?: string
+  identity?: {
+    name: string
+    email: string
+  }
+  settleRefused?: {
+    at: number
+    reason: string
+  }
+}
+
 export type CliRunReviewUnfit = {
   at: number
   paths: Array<string>
@@ -5962,6 +6005,21 @@ export type CliRunReview = {
   mergedAt?: number
   mergeCommit?: string
   rejectedAt?: number
+  mergeWhenGreen?: {
+    armedAt: number
+    by: CliRunVerdictAuthor
+    message?: string
+    mergeAs?: 'merge-commit' | 'squash' | 'fast-forward'
+    notes?: string
+    identity?: {
+      name: string
+      email: string
+    }
+    settleRefused?: {
+      at: number
+      reason: string
+    }
+  }
   resolution?: string
   unfit?: {
     at: number
@@ -5990,8 +6048,6 @@ export type CliRunLandFailure = {
   }
   at: number
 }
-
-export type CliRunVerdictAuthor = 'user' | 'reviewer-agent'
 
 export type CliRunVerdict = {
   decision: 'approved' | 'changes-requested' | 'rejected'
@@ -6110,6 +6166,21 @@ export type CliRun = {
     mergedAt?: number
     mergeCommit?: string
     rejectedAt?: number
+    mergeWhenGreen?: {
+      armedAt: number
+      by: CliRunVerdictAuthor
+      message?: string
+      mergeAs?: 'merge-commit' | 'squash' | 'fast-forward'
+      notes?: string
+      identity?: {
+        name: string
+        email: string
+      }
+      settleRefused?: {
+        at: number
+        reason: string
+      }
+    }
     resolution?: string
     unfit?: {
       at: number
@@ -6402,6 +6473,21 @@ export type CliRunSummary = {
     mergedAt?: number
     mergeCommit?: string
     rejectedAt?: number
+    mergeWhenGreen?: {
+      armedAt: number
+      by: CliRunVerdictAuthor
+      message?: string
+      mergeAs?: 'merge-commit' | 'squash' | 'fast-forward'
+      notes?: string
+      identity?: {
+        name: string
+        email: string
+      }
+      settleRefused?: {
+        at: number
+        reason: string
+      }
+    }
     resolution?: string
     unfit?: {
       at: number
@@ -6514,6 +6600,21 @@ export type ChatOpenChangesRebuild =
         mergedAt?: number
         mergeCommit?: string
         rejectedAt?: number
+        mergeWhenGreen?: {
+          armedAt: number
+          by: CliRunVerdictAuthor
+          message?: string
+          mergeAs?: 'merge-commit' | 'squash' | 'fast-forward'
+          notes?: string
+          identity?: {
+            name: string
+            email: string
+          }
+          settleRefused?: {
+            at: number
+            reason: string
+          }
+        }
         resolution?: string
         unfit?: {
           at: number
@@ -6699,11 +6800,6 @@ export type PrepareIsolatedChatWorkspaceInput = {
   }
   readOnly?: boolean
   dataHome?: string
-}
-
-export type GitIdentity = {
-  name: string
-  email: string
 }
 
 export type FinalizeIsolatedChatTurnInput = {
@@ -6956,7 +7052,19 @@ export type CliAgentRunFilter = {
   chatContextId?: string
 }
 
-export type CliRunApproveAction = 'leave-branch' | 'create-pr' | 'merge'
+export type CliRunApproveAction =
+  | 'leave-branch'
+  | 'create-pr'
+  | 'merge'
+  | 'merge-when-green'
+  | 'reword'
+  | 'merge-as'
+
+export type RunSignOffDecision = {
+  allowed: boolean
+  reason?: string
+  awaitingVerification: boolean
+}
 
 export type CliRunCheckoutMove = {
   from: string
@@ -6967,17 +7075,23 @@ export type CliRunApproveOutcome = {
   allowed: boolean
   needsPush: boolean
   needsMerge: boolean
+  mergeShape?: 'merge-commit' | 'squash' | 'fast-forward'
+  armed?: boolean
   prUrl?: string
   blockedReason?: string
+  waitReason?: string
 }
 
 export type CliRunApprovalPlan = {
   allowed: boolean
   needsPush: boolean
   needsMerge: boolean
+  mergeShape?: 'merge-commit' | 'squash' | 'fast-forward'
+  armed?: boolean
   prUrl?: string
   blockedReason?: string
-  action: 'leave-branch' | 'create-pr' | 'merge'
+  waitReason?: string
+  action: 'leave-branch' | 'create-pr' | 'merge' | 'merge-when-green' | 'reword' | 'merge-as'
   branch: string
   target: string
 }
@@ -7065,7 +7179,9 @@ export type GitMergeResult = {
 export type CliRunApproveResult = {
   action: CliRunApproveAction
   approved: boolean
+  armed?: boolean
   blockedReason?: string
+  waitReason?: string
   checkoutMove?: {
     kind: GitBranchMoveFailureKind
     branch: string
@@ -7180,6 +7296,21 @@ export type CliRunApproveResult = {
       mergedAt?: number
       mergeCommit?: string
       rejectedAt?: number
+      mergeWhenGreen?: {
+        armedAt: number
+        by: CliRunVerdictAuthor
+        message?: string
+        mergeAs?: 'merge-commit' | 'squash' | 'fast-forward'
+        notes?: string
+        identity?: {
+          name: string
+          email: string
+        }
+        settleRefused?: {
+          at: number
+          reason: string
+        }
+      }
       resolution?: string
       unfit?: {
         at: number
@@ -8748,6 +8879,11 @@ export type LlmModelWindow = LlmModel & {
 export type CompletionRequestFingerprint = {
   fixed: string
   items: Array<string>
+}
+
+export type CompletionUsageSource = {
+  source?: 'api' | 'cli'
+  cliTool?: string
 }
 
 export type CompletionResponse = {
@@ -10597,6 +10733,8 @@ export type ResearchTraceEvent = {
       cacheWrite?: 'reported' | 'derived' | 'unavailable'
     }
     incompleteReasons?: Array<UsageCompletenessReason>
+    source?: 'api' | 'cli'
+    cliTool?: string
   }
   query?: string
   results?: Array<{
@@ -14003,6 +14141,8 @@ export type InferenceResult = {
       | 'output-not-reported'
       | 'cache-not-reported'
     >
+    source?: 'api' | 'cli'
+    cliTool?: string
   }
 }
 
@@ -21214,11 +21354,15 @@ export type ProjectCheckBaselineCache = unknown
 export type ProjectCheckBaselineCacheEntry = {
   results: Array<VerificationCheckResult>
   ranAt: number
+  testFiles?: {
+    [key: string]: Array<string>
+  }
 }
 
 export type ProjectCheckBaselineStamp = {
   ranAt: number
   reused: boolean
+  testFiles?: Array<string>
 }
 
 export type ProjectCheckFreshDue = {
@@ -21238,6 +21382,13 @@ export type ProjectCheckQueueWait = {
   reason: string
   since: number
 }
+
+export type ProjectCheckQueueEntry = {
+  waitedMs: number
+  expectedMs?: number
+}
+
+export type ProjectCheckExpectedScope = 'whole' | 'narrowed'
 
 export type SandboxImageToolchain = {
   image: string
@@ -21391,6 +21542,14 @@ export type ProjectCheckSeamFailures = {
   note: string
 }
 
+export type ProjectCheckSharedRun = {
+  label: string
+  timeoutMs: number | unknown
+  results: Array<VerificationCheckResult>
+}
+
+export type ProjectCheckSharedRuns = unknown
+
 export type ProjectCheckSnapshotNotMade = {
   reason: string
 }
@@ -21486,6 +21645,7 @@ export type ProjectCheckPreStep = {
   argv: Array<string>
   command: string
   source: string
+  resolvesTo?: Array<string>
 }
 
 export type ProjectCheck = {
@@ -21547,6 +21707,7 @@ export type ProjectCheck = {
   namedTestFallbacks?: Array<ProjectCheckNamedTestFallback>
   preSteps?: Array<ProjectCheckPreStep>
   envFile?: string
+  resolvesTo?: Array<string>
 }
 
 export type AndroidBuildVariant = {
@@ -21691,6 +21852,7 @@ export type ProjectCheckRunMemory = {
   variant?: string
   tests?: Array<string>
   fullRunMs?: number
+  narrowedRunMs?: number
   ranIn?: 'sandbox' | 'host'
   hostReason?: string
 }
@@ -24408,6 +24570,8 @@ export type RecommendTraceEvent = {
       cacheWrite?: 'reported' | 'derived' | 'unavailable'
     }
     incompleteReasons?: Array<UsageCompletenessReason>
+    source?: 'api' | 'cli'
+    cliTool?: string
   }
   unit?: string
   item?: string
@@ -26050,6 +26214,11 @@ export type LoomWalkthroughItemFields = {
   mustShow: Array<string>
 }
 
+export type RecordingBeat = {
+  atSec: number
+  label: string
+}
+
 export type LoomWalkthroughAttachment = {
   itemId: string
   url?: string
@@ -26156,6 +26325,7 @@ export type ReviewEvidenceRef = {
     steps: Array<string>
     mustShow: Array<string>
   }
+  beats?: Array<RecordingBeat>
   walkthroughResult?: {
     itemId: string
     url?: string
@@ -26444,6 +26614,7 @@ export type CitedReviewEvidence = {
     steps: Array<string>
     mustShow: Array<string>
   }
+  beats?: Array<RecordingBeat>
   walkthroughResult?: {
     itemId: string
     url?: string
@@ -29524,6 +29695,7 @@ export type RecordReviewEvidenceFiling = {
     steps: Array<string>
     mustShow: Array<string>
   }
+  beats?: Array<RecordingBeat>
 }
 
 export type RecordReviewEvidenceInput = RecordReviewEvidenceFiling & ReviewEvidenceScope
@@ -30083,6 +30255,7 @@ export type ScriptEvidence = {
     steps: Array<string>
     mustShow: Array<string>
   }
+  beats?: Array<RecordingBeat>
 } & {
   [key: string]: unknown
 } & {
@@ -39707,6 +39880,8 @@ export type AddMessagesInput = {
         cacheWrite?: 'reported' | 'derived' | 'unavailable'
       }
       incompleteReasons?: Array<UsageCompletenessReason>
+      source?: 'api' | 'cli'
+      cliTool?: string
     }
     model?: {
       model: string
@@ -40301,6 +40476,7 @@ export type FiledReviewEvidence = {
     steps: Array<string>
     mustShow: Array<string>
   }
+  beats?: Array<RecordingBeat>
   walkthroughResult?: {
     itemId: string
     url?: string
@@ -62762,6 +62938,8 @@ export type SendCompletionWithToolsResponses = {
               cacheWrite?: 'reported' | 'derived' | 'unavailable'
             }
             incompleteReasons?: Array<UsageCompletenessReason>
+            source?: 'api' | 'cli'
+            cliTool?: string
           }
           model?: {
             model: string
@@ -62911,6 +63089,8 @@ export type SendChatCompletionWithToolsData = {
           cacheWrite?: 'reported' | 'derived' | 'unavailable'
         }
         incompleteReasons?: Array<UsageCompletenessReason>
+        source?: 'api' | 'cli'
+        cliTool?: string
       }
       model?: {
         model: string
@@ -63067,6 +63247,8 @@ export type SendChatCompletionWithToolsResponses = {
               cacheWrite?: 'reported' | 'derived' | 'unavailable'
             }
             incompleteReasons?: Array<UsageCompletenessReason>
+            source?: 'api' | 'cli'
+            cliTool?: string
           }
           model?: {
             model: string
@@ -63222,6 +63404,8 @@ export type SendChatWithCliData = {
           cacheWrite?: 'reported' | 'derived' | 'unavailable'
         }
         incompleteReasons?: Array<UsageCompletenessReason>
+        source?: 'api' | 'cli'
+        cliTool?: string
       }
       model?: {
         model: string
@@ -63560,6 +63744,8 @@ export type ResumeCompletionResponses = {
               cacheWrite?: 'reported' | 'derived' | 'unavailable'
             }
             incompleteReasons?: Array<UsageCompletenessReason>
+            source?: 'api' | 'cli'
+            cliTool?: string
           }
           model?: {
             model: string
