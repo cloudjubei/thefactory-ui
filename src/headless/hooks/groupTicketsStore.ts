@@ -147,6 +147,7 @@ export class GroupTicketsStore {
   /** The updates the person dismissed or started from, and the read count once the backend had it. */
   private readonly _settled = new Map<string, { after?: number }>()
   private _offersRead: Promise<void> | undefined
+  private readonly _closedReviews = new Set<string>()
 
   constructor(groupId: string) {
     this._groupId = groupId
@@ -451,15 +452,40 @@ export class GroupTicketsStore {
     this._set({ reviewing: phase ? { ...reviewing, [key]: phase } : without(reviewing, key) })
   }
 
-  /** Mark a ticket as having a review, in every list that holds it. */
+  /** Mark a ticket as having a review, in every list that holds it; one held closed is held no longer. */
   markReviewOpen = (ticketKey: string): void => {
+    this._closedReviews.delete(ticketKey)
     const open = (t: GroupTicket) => (t.reviewOpen ? t : { ...t, reviewOpen: true })
     this._set(this._eachSection((section) => withTicketPatch(section, ticketKey, open)))
   }
 
+  /** Whether the person closed the ticket's review here, and no round has started on it since. */
+  isReviewClosed = (ticketKey: string): boolean => this._closedReviews.has(ticketKey)
+
+  /**
+   * The person closed a ticket's review: it stops showing as under review at
+   * once, in every list that holds it. Answers the undo for a closing the
+   * backend refused, which puts back only a ticket that was under review.
+   */
+  markReviewClosed = (ticketKey: string): (() => void) => {
+    const wasOpen = this._sections().some((section) =>
+      section.list?.tickets.some((t) => t.key === ticketKey && t.reviewOpen),
+    )
+    this._closedReviews.add(ticketKey)
+    const closed = (t: GroupTicket) => (t.reviewOpen ? { ...t, reviewOpen: false } : t)
+    if (wasOpen) {
+      this._set(this._eachSection((section) => withTicketPatch(section, ticketKey, closed)))
+    }
+    return () => {
+      if (wasOpen) this.markReviewOpen(ticketKey)
+      else this._closedReviews.delete(ticketKey)
+    }
+  }
+
   /**
    * Start a ticket's next review round: its files go up to the review's chat
-   * one by one, then the round starts. Each ticket's round starts on its own,
+   * folder one by one, then the round starts — in the review chat, marked
+   * open, or as a run, which opens no chat. Each ticket's round starts on its own,
    * beside any chat opening; a ticket already starting one answers `undefined`.
    * A failure hands the draft back, every file that went up keeping its path.
    * Started from an update from Slack, the update leaves its ticket at once,
@@ -515,7 +541,7 @@ export class GroupTicketsStore {
       })
       if (onTicket) this._settledBy(onTicket.id)
       this._reviewPhase(ticketKey, undefined)
-      this.markReviewOpen(ticketKey)
+      if (started.mode === 'inline') this.markReviewOpen(ticketKey)
       return { ok: true, started }
     } catch (err) {
       return fail(extractErrorMessage(err, REVIEW_START_TEXT.failed))

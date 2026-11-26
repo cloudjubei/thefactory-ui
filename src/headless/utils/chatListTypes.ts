@@ -2,6 +2,7 @@ import type { ChatContext, ProcessRun } from 'thefactory-tools/types'
 
 import type { ChatKind } from './chatHeaderTypes'
 import type { ChatNewsShape, ChatTimesShape } from './chatListEntry'
+import type { ChatNotifyLevel } from './chatNotifyTypes'
 import type { ChatRowStatus } from './chatRowStatus'
 import type { ProcessStatusTone } from './processView'
 
@@ -53,6 +54,8 @@ export type ChatListRowInput = {
   groupName?: string
   /** The clock a run's status is read against. */
   now: number
+  /** How much of the chat reaches the person: at `everything` each message moves a run chat in the list. */
+  level?: ChatNotifyLevel
 }
 
 /** One chat as a row of the list. */

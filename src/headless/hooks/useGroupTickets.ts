@@ -118,10 +118,13 @@ export function useLiveTicketsStore(
       if ((data as { groupId?: string })?.groupId === groupId) void read(store)
     })
     const offReview = ws.on(COLLEAGUE_REVIEWS_EVENT, (data: unknown) => {
-      const update = data as { groupId?: string; ticketKey?: string } | undefined
+      const update = data as { groupId?: string; ticketKey?: string; closed?: string } | undefined
       if (update?.groupId !== groupId) return
-      if (update.ticketKey) store.markReviewOpen(update.ticketKey)
-      else void read(store)
+      if (update.ticketKey && update.closed) {
+        store.markReviewClosed(update.ticketKey)
+      } else if (update.ticketKey && !store.isReviewClosed(update.ticketKey)) {
+        store.markReviewOpen(update.ticketKey)
+      } else void read(store)
     })
     const offReconnect = ws.onReconnect(() => void read(store))
     return () => {

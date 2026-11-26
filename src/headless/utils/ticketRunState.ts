@@ -1,7 +1,6 @@
 import type { ProcessGroupRun, ProcessRun } from 'thefactory-tools/types'
 import { reviewMergeProgressLine } from './colleagueReviewMerge'
 import type { ReviewMergeJob } from './colleagueReviewMergeTypes'
-import { reviewOfChat } from './colleagueReviewStart'
 import { processGroupBadge, processGroupCardView, processGroupLiveState } from './processGroupView'
 import { isOutsideWaitPending, processOutsideWaitView } from './processOutsideWait'
 import { processRunAttentionSection, processRunNeedLine } from './processRunAttention'
@@ -27,9 +26,9 @@ function add<T>(map: Map<string, T[]>, key: string, value: T): void {
   else map.set(key, [value])
 }
 
-/** The ticket a run reviews in the group, by its subject, else by its review chat. */
+/** The ticket a run reviews in the group, by its subject: a review run holds no chat of the ticket's. */
 function reviewedTicket(run: ProcessRun, groupId: string): string | null | undefined {
-  const subject = run.ticketReview ?? reviewOfChat(run.chatContextId)
+  const subject = run.ticketReview
   if (!subject) return undefined
   return subject.groupId === groupId ? subject.ticketKey.toUpperCase() : null
 }

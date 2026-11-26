@@ -59,6 +59,12 @@ export const PROCESS_RUN_PERSON_ENDING_VIEW = {
   'close-unmerged': { label: 'Closed without merging', tone: 'empty' },
 } as const
 
+/** How a run closed as resolved or not needed reads: calm, never as an error. */
+export const PROCESS_RUN_CLOSED_AS_VIEW = {
+  resolved: { label: 'Resolved', tone: 'done' },
+  'not-needed': { label: 'Closed', tone: 'empty' },
+} as const
+
 /** The action on a run that ended on a request for changes, and what it does. */
 export const PROCESS_SEND_BACK_COPY = {
   label: 'Send back for changes',

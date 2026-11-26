@@ -1,7 +1,7 @@
 import type { ProcessRun } from 'thefactory-tools/types'
 import type { ProcessDefinition } from '../../headless/api/generated/types.gen'
 import { UI_REQUEST } from './featureRequests'
-import { FAKE_PROJECT_ID } from './projects'
+import { FAKE_GROUP_ID, FAKE_PROJECT_ID } from './projects'
 import { STORY } from './stories'
 
 export const STORY_RUN = {
@@ -84,6 +84,37 @@ const memberRun = (
   storyId: string,
 ): ProcessRun => ({ ...STORY_RUN, id, projectId, title, status, storyId })
 
+/**
+ * A review of one ticket whose change spans two repos: filed under the backend,
+ * it also belongs to the UI project and to the group both are in.
+ */
+export const FAKE_REVIEW_RUN: ProcessRun = {
+  ...STORY_RUN,
+  id: 'run-review-ticket',
+  projectId: 'thefactory-backend',
+  groupId: FAKE_GROUP_ID,
+  alsoProjectIds: ['thefactory-ui'],
+  ticketReview: { groupId: FAKE_GROUP_ID, ticketKey: 'OVR-212', round: 1 },
+  title: 'Review of OVR-212, round 1',
+  ledger: [],
+  plan: {
+    ...STORY_RUN.plan,
+    definitionId: 'colleague-review',
+    name: 'Colleague review',
+    steps: [
+      { id: 'review', name: 'Review', kind: 'agent', agentType: 'reviewer' },
+      { id: 'reply', name: 'Reply', kind: 'gate' },
+    ],
+  },
+}
+
+/** The same review stopped for the person. */
+export const FAKE_REVIEW_RUN_STOPPED: ProcessRun = {
+  ...FAKE_REVIEW_RUN,
+  status: 'parked',
+  park: { reason: 'step-failed', stepId: 'review', message: 'Review failed.', parkedAt: 0 },
+}
+
 export const FAKE_PROCESS_RUNS: ProcessRun[] = [
   { ...STORY_RUN, projectId: FAKE_PROJECT_ID, storyId: STORY.id },
   { ...FEATURE_RUN, projectId: FAKE_PROJECT_ID, storyId: STORY.id, featureId: 'f2' },
@@ -122,6 +153,7 @@ export const FAKE_PROCESS_RUNS: ProcessRun[] = [
     's-mobile',
   ),
   memberRun('run-web-abandoned', 'thefactory-overseer-web', 'Old sidebar', 'cancelled', 's-web'),
+  FAKE_REVIEW_RUN,
 ]
 
 /** How a run was left, as the list route works it out from the record. */
@@ -130,15 +162,28 @@ export const FAKE_RUN_ENDINGS: Readonly<Record<string, 'unmerged' | 'abandoned'>
   'run-web-abandoned': 'abandoned',
 }
 
-/** The runs a list read asks for, as the route filters them. */
-export function fakeProcessRunsMatching(query: URLSearchParams): ProcessRun[] {
+/**
+ * The runs a list read asks for, as the route filters them. A run belongs to
+ * its home project and to its further projects; `groupId` narrows to a group's
+ * runs, and `orGroupId` adds them to what the project filters match.
+ */
+export function fakeProcessRunsMatching(
+  query: URLSearchParams,
+  runs: readonly ProcessRun[] = FAKE_PROCESS_RUNS,
+): ProcessRun[] {
   const projectIds = [...query.getAll('projectIds'), ...query.getAll('projectId')]
+  const groupId = query.get('groupId')
+  const orGroupId = query.get('orGroupId')
   const storyId = query.get('storyId')
   const status = query.get('status')
   const ending = query.get('ending')
-  return FAKE_PROCESS_RUNS.filter(
+  const inProjects = (run: ProcessRun) =>
+    projectIds.length === 0 ||
+    projectIds.some((id) => run.projectId === id || (run.alsoProjectIds ?? []).includes(id))
+  return runs.filter(
     (run) =>
-      (projectIds.length === 0 || projectIds.includes(run.projectId)) &&
+      ((inProjects(run) && (!groupId || run.groupId === groupId)) ||
+        (orGroupId !== null && run.groupId === orGroupId)) &&
       (!storyId || run.storyId === storyId) &&
       (!status || run.status === status) &&
       (!ending || FAKE_RUN_ENDINGS[run.id] === ending) &&

@@ -783,6 +783,14 @@ describe('a run whose own chat has news for the person', () => {
     )
   })
 
+  it('counts a run stopped on an ask once, though the same ask also waits in its chat', () => {
+    const stopped = parked({ stepId: 'verify', reason: 'step-waiting' }, { id: 'w' })
+    const news = chats({ unread: 1, asks: 1 })
+    expect(processRunWaitingCount([stopped], NOW, news)).toBe(1)
+    const sections = processRunAttentionSections([stopped], NOW, news)
+    expect(sections.map((s) => [s.id, s.runs.length])).toEqual([['needs-you', 1]])
+  })
+
   it('needs the person when its chat asks something even while the manager has the stop', () => {
     const turn = { runId: 'w', parkedAt: 0, signature: 's', startedAt: 500, chatContextId: 'c' }
     const managed = parked({ stepId: 'verify' }, { id: 'w', manager: { turn } })

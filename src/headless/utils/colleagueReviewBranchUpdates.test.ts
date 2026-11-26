@@ -6,10 +6,13 @@ import {
   diffLineKinds,
   isReviewPushApproval,
   reviewBranchRow,
+  reviewBranchStopRows,
   reviewBranchUpdatesOf,
+  reviewPushApprovalIntro,
   reviewPushApprovalRows,
   reviewRunRound,
 } from './colleagueReviewBranchUpdates'
+import { REVIEW_PUSH_COPY } from './colleagueReviewBranchUpdatesConstants'
 import type { ColleagueReviewBranchUpdate } from './colleagueReviewBranchUpdatesTypes'
 
 const BE = 'https://github.com/acme/osc-be/pull/418'
@@ -56,6 +59,7 @@ describe('reviewBranchRow', () => {
       name: 'osc-ui #77',
       stateLabel: 'Resolved',
       tone: 'review',
+      awaitsPush: true,
       branches: 'dev into feature/ZNR-767',
       files: ['src/app.ts'],
       diffStat: ' src/app.ts | 2 +-',
@@ -191,6 +195,120 @@ describe('reviewBranchRow', () => {
       files: [],
       checks: [],
     })
+  })
+})
+
+const fixed: ColleagueReviewBranchUpdate = {
+  pullRequestUrl: BE,
+  state: 'resolved',
+  baseBranch: 'dev',
+  headBranch: 'feature/ZNR-767',
+  conflictedFiles: [],
+  detail: 'Fixed the merged result; waits for your approval to push.',
+  diffStat: ' src/user.ts | 2 +-',
+  diff: '@@ -1 +1 @@\n-id: number\n+id: string',
+  checks: [{ label: 'Types', status: 'passed', summary: 'No errors' }],
+  checksPassed: true,
+}
+
+const failedChecks: ColleagueReviewBranchUpdate = {
+  pullRequestUrl: BE,
+  state: 'failed',
+  baseBranch: 'dev',
+  headBranch: 'feature/ZNR-767',
+  detail: 'Not brought in: Types failed.',
+  worktree: '/tmp/overseer-review-merge/r1/acme-osc-be-418',
+  checks: [
+    {
+      label: 'Types',
+      status: 'failed',
+      summary: '2 errors',
+      outputTail: 'src/user.ts(4,3): TS2322',
+    },
+    { label: 'Build', status: 'passed', summary: 'Built' },
+  ],
+  checksPassed: false,
+}
+
+describe('reviewBranchRow: a merged result that failed its checks', () => {
+  it('says a fix of the merged result apart from a conflict resolved: no files conflicted', () => {
+    expect(reviewBranchRow(fixed)).toMatchObject({
+      stateLabel: 'Fixed',
+      tone: 'review',
+      awaitsPush: true,
+      files: [],
+      checksBadge: { label: 'Checks passed', tone: 'done' },
+    })
+  })
+
+  it('shows what failed, with what it printed, on one that was not brought in', () => {
+    const row = reviewBranchRow(failedChecks)
+    expect(row).toMatchObject({
+      stateLabel: 'Failed',
+      tone: 'stuck',
+      detail: 'Not brought in: Types failed.',
+      checksPassed: false,
+      checksBadge: { label: 'Checks failed', tone: 'stuck' },
+    })
+    expect(row).not.toHaveProperty('awaitsPush')
+    expect(row.checks).toEqual([
+      {
+        label: 'Types',
+        summary: '2 errors',
+        passed: false,
+        tone: 'stuck',
+        outputTail: 'src/user.ts(4,3): TS2322',
+      },
+      { label: 'Build', summary: 'Built', passed: true, tone: 'done' },
+    ])
+  })
+})
+
+describe('reviewPushApprovalIntro', () => {
+  it('says what is being pushed: conflicts resolved, a fix of the merged result, or both', () => {
+    expect(reviewPushApprovalIntro(input([resolved]))).toBe(REVIEW_PUSH_COPY.intro)
+    expect(reviewPushApprovalIntro(input([fixed]))).toBe(REVIEW_PUSH_COPY.introFixed)
+    expect(reviewPushApprovalIntro(input([fixed, resolved]))).toBe(REVIEW_PUSH_COPY.introBoth)
+    expect(reviewPushApprovalIntro(input([{ pullRequestUrl: UI, state: 'updated' }, fixed]))).toBe(
+      REVIEW_PUSH_COPY.introFixed,
+    )
+    expect(reviewPushApprovalIntro(input([]))).toBe(REVIEW_PUSH_COPY.intro)
+  })
+})
+
+describe('reviewBranchStopRows', () => {
+  const stopped = (over: object = {}) =>
+    ({
+      ticketReview: { groupId: 'g', ticketKey: 'A-1', round: 1 },
+      park: { reason: 'step-failed', stepId: 'update-branches', message: '', parkedAt: 1 },
+      input: {
+        reviewBranchUpdates: [{ pullRequestUrl: UI, state: 'updated' }, failedChecks],
+      },
+      ...over,
+    }) as never
+
+  it('is the pull requests the base could not be brought into, where the run stopped on them', () => {
+    expect(reviewBranchStopRows(stopped()).map((r) => [r.name, r.stateLabel])).toEqual([
+      ['osc-be #418', 'Failed'],
+    ])
+    const conflicted = { pullRequestUrl: UI, state: 'conflicted', conflictedFiles: ['a.ts'] }
+    expect(
+      reviewBranchStopRows(stopped({ input: { reviewBranchUpdates: [conflicted] } })).map(
+        (r) => r.stateLabel,
+      ),
+    ).toEqual(['Conflict'])
+  })
+
+  it('is nothing at any other stop, or for a run that is no review', () => {
+    const park = { reason: 'step-failed', stepId: 'merge', message: '', parkedAt: 1 }
+    expect(reviewBranchStopRows(stopped({ park }))).toEqual([])
+    expect(
+      reviewBranchStopRows(
+        stopped({ park: { ...park, reason: 'gate', stepId: 'update-branches' } }),
+      ),
+    ).toEqual([])
+    expect(reviewBranchStopRows(stopped({ park: undefined }))).toEqual([])
+    expect(reviewBranchStopRows(stopped({ ticketReview: undefined }))).toEqual([])
   })
 })
 

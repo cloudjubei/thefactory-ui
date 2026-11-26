@@ -32,8 +32,10 @@ import {
   answerDecisionCardWithNote,
   composerAnswerNote,
   composerMessageRoute,
+  composerRunIdOfChat,
   reviewGateNoteAnswer,
 } from '../../../headless/utils/composerAnswer'
+import { useProcessRun } from '../../../headless/hooks/useProcessRun'
 import { useReviewChatSlot } from '../../../headless/hooks/useReviewChatSlot'
 import ReviewChatSlot from './ReviewChatSlot'
 import { COMPOSER_ANSWER_TEXT } from '../../../headless/utils/composerAnswerConstants'
@@ -400,10 +402,11 @@ function ChatBodyInner({
   )
   const busy = isBusy ?? isSending
   const reviewSlot = useReviewChatSlot(chatId)
+  const ownRun = useProcessRun(composerRunIdOfChat(chatId))
   const composerBlockers = useMemo(
     () => ({
       askShown: !!shownAsk,
-      approvalShown: showApprovalPanel || reviewSlot.kind !== undefined,
+      approvalShown: showApprovalPanel || reviewSlot.kind === 'reply',
       historyLocked: !!historyLocked,
       inputOverridden: !!inputOverride,
     }),
@@ -659,17 +662,8 @@ function ChatBodyInner({
               {...(renderApprovalModelChip ? { renderModelChip: renderApprovalModelChip } : {})}
               {...(renderProcessRun ? { renderProcessRun } : {})}
             />
-          ) : reviewSlot.kind && !historyLocked && !inputOverride ? (
-            <ReviewChatSlot
-              slot={reviewSlot}
-              renderModelChip={renderApprovalModelChip}
-              {...(onResourceLink
-                ? {
-                    onOpenRun: (projectId: string, runId: string) =>
-                      onResourceLink({ kind: 'run', projectId, runId }),
-                  }
-                : {})}
-            />
+          ) : reviewSlot.kind === 'reply' && !historyLocked && !inputOverride ? (
+            <ReviewChatSlot slot={reviewSlot} renderModelChip={renderApprovalModelChip} />
           ) : historyLocked ? (
             // A closed chat keeps its history and takes no new work. Archiving is
             // one-way by design — reopening would contradict the very locking that
@@ -684,12 +678,24 @@ function ChatBodyInner({
             inputOverride
           ) : (
             <>
+              {reviewSlot.kind === 'run-link' ? (
+                <ReviewChatSlot
+                  slot={reviewSlot}
+                  renderModelChip={renderApprovalModelChip}
+                  {...(onResourceLink
+                    ? {
+                        onOpenRun: (projectId: string, runId: string) =>
+                          onResourceLink({ kind: 'run', projectId, runId }),
+                      }
+                    : {})}
+                />
+              ) : null}
               {pendingQueue ? <PendingMessagesStack queue={pendingQueue} busy={busy} /> : null}
               <ChatInput
                 value={inputValue}
                 onChange={onInputChange}
                 onSend={(content, attachments, meta) => {
-                  const route = composerMessageRoute(grants, reviewSlot.liveRun)
+                  const route = composerMessageRoute(grants, ownRun.run)
                   if (route.kind === 'decision-note') {
                     const note = composerAnswerNote(content, attachments ?? [])
                     return void answerDecisionCardWithNote(route.grant, note).then((ok) =>
@@ -700,7 +706,7 @@ function ChatBodyInner({
                   }
                   if (route.kind === 'run-gate-note') {
                     const note = composerAnswerNote(content, attachments ?? [])
-                    return void reviewSlot
+                    return void ownRun
                       .answerGate(reviewGateNoteAnswer(note))
                       .then((ok) => (ok ? undefined : onInputChange(content)))
                   }

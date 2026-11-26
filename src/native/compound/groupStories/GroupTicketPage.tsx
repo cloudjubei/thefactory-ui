@@ -71,6 +71,8 @@ export type GroupTicketPageProps = GroupTicketPageActions & {
   replyExpanded?: boolean
   /** The run's own card under the run on top, while it waits on the person or works. */
   runCard?: ReactNode
+  /** Closing the ticket's review, under its rounds and runs. */
+  reviewClose?: ReactNode
 }
 
 /**
@@ -141,7 +143,7 @@ export default function GroupTicketPage({
       {replyLayout === 'strip' ? banner : null}
       <TicketPart page={page} />
       <UpdatesPart page={page} />
-      <ReviewPart page={page} onOpenRun={props.onOpenRun} />
+      <ReviewPart page={page} onOpenRun={props.onOpenRun} close={props.reviewClose} />
       <WorkPart page={page} {...props} />
     </View>
   )
@@ -220,6 +222,7 @@ function PageButtons({
   onTake,
   onReview,
   onOpenStory,
+  onOpenRun,
   onOpenChat,
 }: Pick<
   GroupTicketPageProps,
@@ -230,6 +233,7 @@ function PageButtons({
   | 'onTake'
   | 'onReview'
   | 'onOpenStory'
+  | 'onOpenRun'
   | 'onOpenChat'
 > & { page: GroupTicketPageView }) {
   const button = (action: GroupTicketTabAction) => {
@@ -290,11 +294,19 @@ function PageButtons({
   const actions: GroupTicketTabAction[] = page.actions.includes('discuss')
     ? page.actions
     : [...page.actions, 'discuss']
-  const { reviewChat } = page
+  const { reviewChat, reviewRun } = page
   return (
     <View style={ROW}>
       {actions.map(button)}
-      {reviewChat ? (
+      {reviewRun ? (
+        <Button
+          size="sm"
+          variant="ghost"
+          onPress={() => onOpenRun(reviewRun.projectId, reviewRun.id)}
+        >
+          {REVIEW_REPLY_TEXT.openRun}
+        </Button>
+      ) : reviewChat ? (
         <Button size="sm" variant="ghost" onPress={() => onOpenChat(reviewChat)}>
           {REVIEW_REPLY_TEXT.openChat}
         </Button>
@@ -430,9 +442,11 @@ function UpdatesPart({ page }: { page: GroupTicketPageView }) {
 function ReviewPart({
   page,
   onOpenRun,
+  close,
 }: {
   page: GroupTicketPageView
   onOpenRun: (projectId: string, runId: string) => void
+  close?: ReactNode
 }) {
   const { theme } = useNativeTheme()
   const { review } = page
@@ -495,6 +509,7 @@ function ReviewPart({
               </View>
             </View>
           ) : null}
+          {close}
         </>
       ) : null}
     </Part>

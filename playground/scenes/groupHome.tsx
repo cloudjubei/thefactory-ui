@@ -28,6 +28,7 @@ import {
   FAKE_GROUP_STATUS_AT,
 } from '../../src/fakeBackend/fixtures/projectsGroups'
 import { OnFixtures, type FixtureRoutes } from './onFixtures'
+import { sharedRunGroupRoutes } from './sharedRunFixtures'
 import type { Scene } from '../showcase/types'
 
 const noop = () => {}
@@ -206,7 +207,7 @@ export const GROUP_HOME_SCENES: Scene[] = [
     wide: true,
     kind: 'screen',
     description:
-      'A group of projects at a glance: what needs the person, what is running, how far each project is, its failing checks, how far its branch has moved and its open requests, then how the projects depend on each other. It reads the real hooks over the fake backend’s fixtures, and re-reads on the backend’s signal. Needs you first ships; Group order and Table are on the board.',
+      'A group of projects at a glance: what needs the person, what is running, how far each project is, its failing checks, how far its branch has moved and its open requests, then how the projects depend on each other. A run that belongs to the group or to several of its projects is listed once, above the projects. It reads the real hooks over the fake backend’s fixtures, and re-reads on the backend’s signal. Needs you first ships; Group order and Table are on the board.',
     states: [
       {
         id: 'choose-layout',
@@ -255,6 +256,20 @@ export const GROUP_HOME_SCENES: Scene[] = [
             )}
           />
         ),
+      },
+      {
+        id: 'review-across-repos',
+        title: 'A review across two repos',
+        description:
+          'A run that belongs to the group and to two of its projects is listed once under Group runs, with a chip per project. Each of the two projects counts it, the group counts it once, and its row opens the run.',
+        render: () => <Home routes={sharedRunGroupRoutes('running')} />,
+      },
+      {
+        id: 'review-across-repos-needs-you',
+        title: 'A review across two repos, stopped for you',
+        description:
+          'The same run stopped for the person: its row says what it needs, both projects move under Needs you, and the group’s pill counts one.',
+        render: () => <Home routes={sharedRunGroupRoutes('stopped')} />,
       },
       {
         id: 'only-a-check',

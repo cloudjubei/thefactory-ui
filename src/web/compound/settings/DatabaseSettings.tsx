@@ -1,5 +1,6 @@
 import DataLocationSettingsPanel from './DataLocationSettingsPanel'
 import DbHealthPanel from './DbHealthPanel'
+import DockerDiskSettingsPanel from './DockerDiskSettingsPanel'
 import IngestionPanel from './IngestionPanel'
 
 /**
@@ -11,6 +12,7 @@ export default function DatabaseSettings({ projectId }: { projectId?: string }) 
   return (
     <div className="flex flex-col gap-8">
       <DbHealthPanel />
+      <DockerDiskSettingsPanel />
       <IngestionPanel projectId={projectId} />
       {projectId && <DataLocationSettingsPanel projectId={projectId} />}
     </div>

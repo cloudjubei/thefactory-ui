@@ -5,6 +5,7 @@ import { AGENT_TYPE_SCENES } from '../scenes/agentTypes'
 import { ANSWER_FILES_SCENES } from '../scenes/answerFiles'
 import { ASK_ROW_SCENES } from '../scenes/askRows'
 import { BACKEND_CONNECTION_SCENES } from '../scenes/backendConnection'
+import { DOCKER_DISK_SCENES } from '../scenes/dockerDisk'
 import { BEFORE_AFTER_VIDEO_SCENES } from '../scenes/beforeAfterVideo'
 import { APP_BRIDGE_ASK_SCENES } from '../scenes/appBridgeAsks'
 import { APP_FEATURE_REQUEST_SCENES } from '../scenes/appFeatureRequest'
@@ -17,6 +18,7 @@ import { CHAT_SCENES } from '../scenes/chat'
 import { CHAT_HIDDEN_TAIL_SCENES } from '../scenes/chatHiddenTail'
 import { CHAT_LAST_ROW_SCENES } from '../scenes/chatLastRow'
 import { CHAT_LIST_CLOSED_SCENES } from '../scenes/chatListClosed'
+import { CHAT_LIST_RUN_CHAT_SCENES } from '../scenes/chatListRunChat'
 import { CHAT_STOP_SCENES } from '../scenes/chatStop'
 import { CHAT_TOOL_STEP_SCENES } from '../scenes/chatToolSteps'
 import { CIRCLING_SCENES } from '../scenes/circling'
@@ -59,6 +61,7 @@ import { GIT_PUSH_AFTER_SCENES } from '../scenes/gitPushAfter'
 import { GIT_STASH_SCENES } from '../scenes/gitStash'
 import { GIT_REAUTHORIZATION_SCENES } from '../scenes/gitReauthorization'
 import { GROUP_HOME_SCENES } from '../scenes/groupHome'
+import { PROJECT_RUNS_SCENES } from '../scenes/projectRuns'
 import { GROUP_SIGN_OFF_SCENES } from '../scenes/groupSignOff'
 import { GROUP_STORY_SCENES } from '../scenes/groupStories'
 import { KNOWLEDGE_SCENES } from '../scenes/knowledge'
@@ -120,7 +123,9 @@ import { GROUP_TICKET_TAB_SCENES } from '../scenes/groupTicketTabs'
 import { COLLEAGUE_REVIEW_SCENES } from '../scenes/colleagueReview'
 import { SLACK_REVIEW_SCENES } from '../scenes/slackReview'
 import { REVIEW_MERGE_CHECKS_SCENES } from '../scenes/reviewMergeChecks'
+import { REVIEW_CLOSE_SCENES } from '../scenes/reviewClose'
 import { REVIEW_RUN_ROUNDS_SCENES } from '../scenes/reviewRunRounds'
+import { REVIEW_RUN_PAGE_SCENES } from '../scenes/reviewRunPage'
 import { REVIEW_CHAT_SLOT_SCENES } from '../scenes/reviewChatSlot'
 import { TICKET_RUN_SCENES } from '../scenes/ticketRuns'
 import { TICKET_SCENES } from '../scenes/ticketFlow'
@@ -160,6 +165,7 @@ export const SCENES: readonly Scene[] = [
   ...CHAT_SCENES,
   ...ASK_ROW_SCENES,
   ...CHAT_LIST_CLOSED_SCENES,
+  ...CHAT_LIST_RUN_CHAT_SCENES,
   ...SEND_CHAT_MESSAGE_SCENES,
   ...FILE_SUGGESTION_SCENES,
   ...FILE_TREE_SCENES,
@@ -264,6 +270,7 @@ export const SCENES: readonly Scene[] = [
   ...WORKFLOW_GUARD_SCENES,
   ...KNOWLEDGE_SCENES,
   ...GROUP_HOME_SCENES,
+  ...PROJECT_RUNS_SCENES,
   ...PROJECT_EDITOR_LIMIT_SCENES,
   ...CREATE_FROM_TEMPLATE_SCENES,
   ...GROUP_STORY_SCENES,
@@ -273,6 +280,8 @@ export const SCENES: readonly Scene[] = [
   ...SLACK_REVIEW_SCENES,
   ...REVIEW_MERGE_CHECKS_SCENES,
   ...REVIEW_RUN_ROUNDS_SCENES,
+  ...REVIEW_CLOSE_SCENES,
+  ...REVIEW_RUN_PAGE_SCENES,
   ...REVIEW_CHAT_SLOT_SCENES,
   ...TICKET_RUN_SCENES,
   ...TICKET_SCENES,
@@ -297,6 +306,7 @@ export const SCENES: readonly Scene[] = [
   ...CAPABILITY_SETTINGS_SCENES,
   ...CLI_CAPABILITY_CARD_SCENES,
   ...BACKEND_CONNECTION_SCENES,
+  ...DOCKER_DISK_SCENES,
   ...PROJECT_OVERVIEW_MODEL_SCENES,
   ...PRIMITIVE_SCENES,
   ...GIT_FILE_STATUS_ICON_SCENES,

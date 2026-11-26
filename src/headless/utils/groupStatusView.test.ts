@@ -435,6 +435,103 @@ describe('groupStatusView', () => {
   })
 })
 
+describe('groupStatusView: runs that belong to the group or to several members', () => {
+  const labels = (badges: readonly { label: string }[]) => badges.map((badge) => badge.label)
+
+  it('lists a run of two members once for the group, naming its projects, home first', () => {
+    const shared = run('review', 'b', { alsoProjectIds: ['a'] })
+    const view = groupStatusView(status(member('a'), member('b')), [shared, run('own', 'a')], NOW)
+
+    expect(view.sharedRuns).toEqual([
+      {
+        id: 'review',
+        projectId: 'b',
+        projectIds: ['b', 'a'],
+        title: 'Run review',
+        line: expect.any(String),
+        tone: 'running',
+        section: 'running',
+        label: 'Running',
+      },
+    ])
+    expect(view.members.map((m) => m.runs.map((row) => row.id))).toEqual([['own'], []])
+  })
+
+  it('counts it for each member it belongs to, and once in the headline', () => {
+    const shared = parked('review', 'a')
+    shared.alsoProjectIds = ['b']
+    const view = groupStatusView(status(member('a'), member('b'), member('c')), [shared], NOW)
+
+    expect(view.members.map((m) => [m.attention, labels(m.badges)])).toEqual([
+      ['needs-you', ['Needs you 1']],
+      ['needs-you', ['Needs you 1']],
+      ['quiet', []],
+    ])
+    expect(labels(view.headline)).toEqual(['Needs you 1'])
+  })
+
+  it('lists a run that names the group for the group, even with one project or none in it', () => {
+    const view = groupStatusView(
+      status(member('a')),
+      [
+        run('one', 'a', { groupId: 'g1' }),
+        run('outside', 'x', { groupId: 'g1', alsoProjectIds: ['y'] }),
+      ],
+      NOW,
+    )
+
+    expect(view.sharedRuns.map((row) => [row.id, row.projectId, row.projectIds])).toEqual([
+      ['one', 'a', ['a']],
+      ['outside', 'x', ['x', 'y']],
+    ])
+    expect(view.members[0]?.runs).toEqual([])
+    expect(labels(view.members[0]?.badges ?? [])).toEqual(['Running 1'])
+    expect(labels(view.headline)).toEqual(['Running 2'])
+  })
+
+  it('keeps a run of one member on that member, opened as its home project’s run', () => {
+    const view = groupStatusView(
+      status(member('a'), member('b')),
+      [
+        run('elsewhere', 'x', { alsoProjectIds: ['b'] }),
+        run('other-group', 'a', { groupId: 'g2' }),
+      ],
+      NOW,
+    )
+
+    expect(view.sharedRuns).toEqual([])
+    expect(view.members.map((m) => m.runs.map((row) => [row.id, row.projectId]))).toEqual([
+      [['other-group', 'a']],
+      [['elsewhere', 'x']],
+    ])
+    expect(labels(view.headline)).toEqual(['Running 2'])
+  })
+
+  it('puts what needs the person first', () => {
+    const waiting = parked('waiting', 'a')
+    waiting.groupId = 'g1'
+    const view = groupStatusView(
+      status(member('a')),
+      [run('going', 'a', { groupId: 'g1' }), waiting],
+      NOW,
+    )
+
+    expect(view.sharedRuns.map((row) => [row.id, row.label])).toEqual([
+      ['waiting', 'Needs you'],
+      ['going', 'Running'],
+    ])
+  })
+
+  it('leaves out a run that is history', () => {
+    const done = run('done', 'a', { groupId: 'g1', status: 'cancelled' })
+    expect(groupStatusView(status(member('a')), [done], NOW).sharedRuns).toEqual([])
+  })
+
+  it('has none before the runs are read', () => {
+    expect(groupStatusView(status(member('a')), undefined, NOW).sharedRuns).toEqual([])
+  })
+})
+
 describe('groupMemberProgress', () => {
   it('reads done over what counts, leaving deferred work out', () => {
     expect(

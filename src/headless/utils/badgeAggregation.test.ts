@@ -386,6 +386,16 @@ describe('processTallyByProject', () => {
       expect(tally.get('p1')).toEqual({ running: 1, waiting: 1, failed: 0, unread: 2 })
     })
 
+    it('counts a run stopped on an ask once, though the same ask also waits in its chat', () => {
+      const waitingPark = { reason: 'step-waiting' as const, message: 'm', parkedAt: 1 }
+      const tally = processTallyByProject(
+        [run('r1', 'p1', 'parked', { park: waitingPark })],
+        NOW,
+        new Map([['r1', { unread: 1, asks: 2 }]]),
+      )
+      expect(tally.get('p1')).toEqual({ running: 0, waiting: 1, failed: 0, unread: 0 })
+    })
+
     it('never counts a nested run’s news on its own', () => {
       const tally = processTallyByProject(
         [run('c1', 'p1', 'running', { parentRunId: 'root' })],

@@ -1,18 +1,14 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
-import type { ProcessRun } from 'thefactory-tools/types'
 import { useApi } from '../api/ApiContext'
 import { useAuth } from '../api/AuthContext'
 import { COLLEAGUE_REVIEWS_EVENT } from '../utils/colleagueReviewStartConstants'
 import { reviewOfChat } from '../utils/colleagueReviewStart'
 import type { ReviewFileUpload } from '../utils/colleagueReviewStartTypes'
-import type { ReviewGateAnswer } from '../utils/colleagueReviewDecisionTypes'
 import type { LaunchAgentPickMetadata } from '../utils/launchAgentPickTypes'
-import {
-  reviewChatLiveRun,
-  reviewChatSlotKind,
-  reviewRunWorkingView,
-} from '../utils/reviewChatSlot'
-import type { ReviewChatSlotKind, ReviewRunWorkingView } from '../utils/reviewChatSlotTypes'
+import { reviewChatSlotKind } from '../utils/reviewChatSlot'
+import type { ReviewChatSlotKind } from '../utils/reviewChatSlotTypes'
+import { ticketReviewRunLine } from '../utils/ticketReviewRun'
+import type { TicketRunState } from '../utils/ticketRunStateTypes'
 import {
   reviewReplyBoxOffer,
   reviewReplySources,
@@ -23,28 +19,18 @@ import { REVIEW_REPLY_TEXT } from '../utils/reviewReplyConstants'
 import type { ReviewReplyView } from '../utils/reviewReplyTypes'
 import { colleagueReviewSourceStoreFor } from './useColleagueReviewSource'
 import { useColleagueReview } from './useColleagueReview'
-import { useColleagueReviewMerge } from './useColleagueReviewMerge'
 import { groupTicketsStoreFor } from './useGroupTickets'
-import { useProcessRun } from './useProcessRun'
-import { useProcessRuns } from './useProcessRuns'
 import { useReviewCommits } from './useReviewCommits'
+import { useTicketReviewRun } from './useTicketReviewRun'
 
 const NO_GROUP = ''
 const NO_KEYS: readonly string[] = []
 
 export type UseReviewChatSlot = {
-  /** What takes the composer's place now; nothing while the chat is no review's or nothing needs the person. */
+  /** What shows by the composer now; nothing while the chat is no review's or nothing concerns the person. */
   kind: ReviewChatSlotKind | undefined
-  /** The review run holding the chat, while it needs the person. */
-  run: ProcessRun | undefined
-  /** The review run holding the chat, its card shown or not: what a typed message answers at its approval. */
-  liveRun: ProcessRun | undefined
-  /** While the run works off the chat: its working card — the step it is on, and its round's merge as it goes. */
-  working: ReviewRunWorkingView | undefined
-  /** Answer the run's approval from its card; `false` when refused. */
-  answerGate: (answer: ReviewGateAnswer) => Promise<boolean>
-  /** Start the round from the reply the run waited for; `false` when refused. */
-  carryOn: () => Promise<boolean>
+  /** The ticket's review run still going, in one line with the run to open: the run is never in this chat. */
+  runLine: TicketRunState | undefined
   /** The reply waiting to start an inline review's next round. */
   reply: ReviewReplyView | undefined
   /** The round is starting: the card says so at once, a repeat press does nothing. */
@@ -58,16 +44,14 @@ export type UseReviewChatSlot = {
 }
 
 /**
- * What a review chat (`review-<KEY>`) shows in its composer's place, live.
- * While a colleague review run holds the chat, the run's own card whenever
- * it needs the person — its approval, a push, a reply it waited for — so the
- * chat is never a dead end, and its working card while it works off the
- * chat, its round's merge followed pull request by pull request, so the
- * chat is never blank while it goes. In an inline review, the reply waiting to start
- * the next round, with what was pushed since the last round; Start begins it
- * inline from that offer at once, one round however often it is pressed, and
- * the card goes once the offer is started or settled elsewhere. Not now hides
- * it for this view.
+ * What an inline review chat (`review-<KEY>`) shows by its composer, live. A
+ * review run never works in this chat — it has its own, on its page — so
+ * while the ticket has one going, found by the ticket, the chat only points
+ * to it in one line, above the composer, which stays. With no run, the reply
+ * waiting to start the next round takes the composer's place, with what was
+ * pushed since the last round; Start begins it inline from that offer at
+ * once, one round however often it is pressed, and the card goes once the
+ * offer is started or settled elsewhere. Not now hides it for this view.
  */
 export function useReviewChatSlot(chatId: string | undefined): UseReviewChatSlot {
   const { token } = useAuth()
@@ -76,10 +60,11 @@ export function useReviewChatSlot(chatId: string | undefined): UseReviewChatSlot
   const groupId = key?.groupId
   const ticketKey = key?.ticketKey
 
-  const { runs } = useProcessRuns()
-  const live = key ? reviewChatLiveRun(runs, chatId) : undefined
-  const runHook = useProcessRun(live?.id)
-  const run = live ? (runHook.run ?? (live as ProcessRun)) : undefined
+  const { run, merge } = useTicketReviewRun(groupId, ticketKey)
+  const runLine = useMemo(
+    () => (run ? ticketReviewRunLine(run, Date.now(), merge ?? undefined) : undefined),
+    [run, merge],
+  )
 
   const store = groupTicketsStoreFor(groupId ?? NO_GROUP)
   const tickets = useSyncExternalStore(store.subscribe, store.getState, store.getState)
@@ -114,18 +99,11 @@ export function useReviewChatSlot(chatId: string | undefined): UseReviewChatSlot
   const [hidden, setHidden] = useState<string | undefined>()
   const [going, setGoing] = useState<string | undefined>()
   const [startError, setStartError] = useState<string | undefined>()
-  const shownId = run ? `${run.id}:${run.park?.parkedAt ?? 0}` : waiting?.id
-  const kind = reviewChatSlotKind(run, waiting !== undefined, live !== undefined)
-  const shown = kind !== undefined && shownId !== hidden && !(kind === 'reply' && !reply)
-  const followsMerge = shown && kind === 'run-working'
-  const merging = useColleagueReviewMerge(
-    followsMerge ? groupId : undefined,
-    followsMerge ? ticketKey : undefined,
-  ).merge.job
-  const working = useMemo(
-    () => (followsMerge && run ? reviewRunWorkingView(run, merging, Date.now()) : undefined),
-    [followsMerge, run, merging],
-  )
+  const kind = reviewChatSlotKind(run !== undefined, waiting !== undefined)
+  const shown =
+    kind === 'run-link'
+      ? runLine !== undefined
+      : kind === 'reply' && waiting?.id !== hidden && reply !== undefined
 
   const upload = useCallback<ReviewFileUpload>(
     (context, file) => uploadChatFile(context, file),
@@ -164,18 +142,11 @@ export function useReviewChatSlot(chatId: string | undefined): UseReviewChatSlot
     [waiting, tickets.offers, groupId, ticketKey, going, store, upload, ws],
   )
 
-  const answerGate = runHook.answerGate
-  const resume = runHook.resume
-  const carryOn = useCallback(() => resume('resolved'), [resume])
-  const notNow = useCallback(() => setHidden(shownId), [shownId])
+  const notNow = useCallback(() => setHidden(waiting?.id), [waiting?.id])
 
   return {
     kind: shown ? kind : undefined,
-    run: shown && kind !== 'reply' ? run : undefined,
-    liveRun: run,
-    working,
-    answerGate,
-    carryOn,
+    runLine: shown && kind === 'run-link' ? runLine : undefined,
     reply: shown && kind === 'reply' ? reply : undefined,
     starting: going !== undefined && going === waiting?.id,
     startError,

@@ -164,6 +164,7 @@ import CostChip from '../chips/CostChip'
 import ToneBadge from '../chips/ToneBadge'
 import HeaderBar from '../HeaderBar'
 import ChatKindTile from '../chat/ChatKindTile'
+import { ReviewRunClose } from '../groupStories/ReviewCloseControl'
 import StepsStrip from './StepsStrip'
 import DurationChip from '../chips/DurationChip'
 import { downloadDataUri } from '../chat/signoff/download'
@@ -232,6 +233,15 @@ import {
   processWaitConfirmView,
 } from '../../../headless/utils/processRunWait'
 import RunMergeProgress from './RunMergeProgress'
+import RunConversationCard from './RunConversationCard'
+import RunReviewMergeProgress from './RunReviewMergeProgress'
+import ReviewBranchRows from './ReviewBranchRows'
+import {
+  isRunChatStep,
+  runConversationOpenKey,
+  runConversationView,
+} from '../../../headless/utils/processRunConversation'
+import { reviewBranchStopRows } from '../../../headless/utils/colleagueReviewBranchUpdates'
 import PublicationChip from './PublicationChip'
 import RunPublishCard from './RunPublishCard'
 import AgentPausePanel, { AgentPauseMarker } from './AgentPauseStep'
@@ -265,7 +275,12 @@ export type ProcessPipelineProps = {
   onOpenGroupRun?: (groupRunId: string) => void
   /**
    * Render the run's own chat in the sidebar docked beside the run. `onClose`
-   * closes it. Without it the chat opens through `onOpenChat`.
+   * closes it. Without it the chat opens through `onOpenChat`. A run that
+   * works in its own chat — a step that is turns of it — shows it here as
+   * that step's conversation: docked by itself while the step works or an
+   * ask waits in it, so the ask is answered on its own card beside the run.
+   * On a small screen, or without this, the run's page says so in a row that
+   * opens the chat.
    */
   renderChat?: (context: ChatContext, onClose: () => void) => ReactNode
   /** Small screens: the run's chat slides up in a sheet instead of docking beside the run. */
@@ -460,6 +475,35 @@ function ProcessPipelineAt({
     if (runChatKey) writeChatsSeen(markSeen(readChatsSeen(), runChatKey, new Date().toISOString()))
     setChat(null)
   }, [runChatKey])
+  const runChatAsks = runChatKey ? (pendingAsksByChat.get(runChatKey) ?? 0) : 0
+  const conversation = run && stack.length === 0 ? runConversationView(run, runChatAsks) : undefined
+  const conversationKey =
+    run && stack.length === 0 ? runConversationOpenKey(run, runChatAsks) : undefined
+  const [conversationOpened, setConversationOpened] = useState<string | undefined>()
+  const docksChat = !!renderChat && !narrow
+  const chatShown = chat !== null
+  useEffect(() => {
+    if (!docksChat || !runChatContext || !conversationKey) return
+    if (conversationKey === conversationOpened) return
+    setConversationOpened(conversationKey)
+    if (!chatShown) showRunChat(runChatContext)
+  }, [docksChat, runChatContext, conversationKey, conversationOpened, chatShown, showRunChat])
+  const openConversation = useCallback(() => {
+    if (runChatContext) showRunChat(runChatContext)
+  }, [runChatContext, showRunChat])
+  const conversationRunId = conversation && canChat ? run?.id : undefined
+  const conversationPlan = run?.plan
+  const openPanel = useCallback(
+    (target: StepPanelTarget) => {
+      const inChat =
+        conversationPlan !== undefined &&
+        target.runId === conversationRunId &&
+        isRunChatStep({ plan: conversationPlan }, target.stepId)
+      if (inChat) openConversation()
+      else setPanel(target)
+    },
+    [conversationRunId, conversationPlan, openConversation],
+  )
 
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [confirmStop, setConfirmStop] = useState(false)
@@ -637,7 +681,7 @@ function ProcessPipelineAt({
             addedTag={amendments.addedSteps[state.step.id]}
             resolveDependency={resolveDependency}
             onDrill={drillTo}
-            onOpenPanel={setPanel}
+            onOpenPanel={openPanel}
             {...(agentPause.step?.stepId === state.step.id
               ? { agentPause: { view: agentPause.step, onDecide: agentPause.decide } }
               : {})}
@@ -750,6 +794,12 @@ function ProcessPipelineAt({
             </div>
           ) : null}
 
+          {conversation?.due && !(renderChat && chat) ? (
+            <RunConversationCard
+              view={conversation}
+              {...(canChat ? { onOpen: openConversation } : {})}
+            />
+          ) : null}
           <WorkBranchChangesNote run={run} />
           <DroppedChangesNote run={run} />
           {waitView ? (
@@ -811,7 +861,7 @@ function ProcessPipelineAt({
                 {...(renderAgentRun && stopState
                   ? {
                       onOpenTranscript: (ref: ProcessNodeRunRef) =>
-                        setPanel({
+                        openPanel({
                           runId: stopRun.id,
                           stepId: stopState.step.id,
                           entryId: entryIdOf(stopState, ref),
@@ -828,7 +878,9 @@ function ProcessPipelineAt({
             />
           ) : null}
 
+          <ReviewRunClose run={run} />
           {signoff ? null : <RunMergeProgress run={run} onResolve={resolveIntegrationConflict} />}
+          {stack.length === 0 ? <RunReviewMergeProgress run={run} /> : null}
           {signoff ? null : (
             <IntegrationResult
               run={run}
@@ -985,7 +1037,7 @@ function ProcessPipelineAt({
                       }
                     : {})}
                   onReportText={setReportText}
-                  onOpenStep={setPanel}
+                  onOpenStep={openPanel}
                   extraChips={groupSignOff.outputs.map((chip) => ({
                     key: chip.key,
                     row: chip.row,
@@ -1747,6 +1799,7 @@ export function ParkBlock({
   const broken = preExistingBreakOfChoices(choices)
   const brokenView = broken ? preExistingBreakView(broken) : undefined
   const watch = liveCheckWatchView(run, choices)
+  const branchStopRows = managerLine ? [] : reviewBranchStopRows(run)
   const tone = managerLine ? PROCESS_LIVE_TONE : park.reason === 'gate' ? 'review' : 'on_hold'
   const offered = choices
     .filter(isResumeParkChoice)
@@ -1815,6 +1868,7 @@ export function ParkBlock({
           <RichText text={managerLine ?? brokenView?.headline ?? park.message} />
         </div>
       )}
+      {branchStopRows.length > 0 ? <ReviewBranchRows rows={branchStopRows} outputOpen /> : null}
       {circling ? <CirclingNotice view={circling} /> : null}
       {brokenView ? <PreExistingBreakNotice view={brokenView} heading={false} /> : null}
       {partialView ? <PartialProofLists view={partialView} /> : null}

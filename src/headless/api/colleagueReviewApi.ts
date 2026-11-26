@@ -3,6 +3,7 @@ import type {
   ColleagueReviewStartBody,
   ColleagueReviewStarted,
 } from '../utils/colleagueReviewStartTypes'
+import type { ReviewCloseAnswer, ReviewCloseBody } from '../utils/colleagueReviewCloseTypes'
 import type { ReviewCommits } from '../utils/reviewCommitsTypes'
 import { errorStatus } from './errorMessage'
 import { client } from './generated/client.gen'
@@ -100,4 +101,24 @@ export function markColleagueReviewWaitingGiven(
     `${reviewUrl(groupId, ticketKey)}/waiting-on/${encodeURIComponent(waitingOnId)}/given`,
     note,
   )
+}
+
+/**
+ * Close a ticket's review, as the person chose in its confirm: `resolved`
+ * keeps it, marked closed; `remove` deletes it with its chat and offers.
+ * Its run ends either way, and nothing is posted. Closing it again answers
+ * the same.
+ */
+export async function closeColleagueReview(
+  groupId: string,
+  ticketKey: string,
+  body: ReviewCloseBody,
+): Promise<ReviewCloseAnswer> {
+  const { data } = await client.post({
+    url: `${reviewUrl(groupId, ticketKey)}/close`,
+    body,
+    headers: JSON_HEADERS,
+    throwOnError: true,
+  })
+  return data as ReviewCloseAnswer
 }

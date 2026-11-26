@@ -54,7 +54,8 @@ import {
   videoPairViews,
 } from '../scenes/beforeAfterVideoFixtures'
 import { ticketsState } from '../scenes/groupTicketsFixtures'
-import { OnFixtures } from '../scenes/onFixtures'
+import { OnFixtures, type FixtureRoutes } from '../scenes/onFixtures'
+import { SHARED_RUN_STANDINGS, sharedRunGroupRoutes } from '../scenes/sharedRunFixtures'
 import {
   KEPT_LOOKS,
   VISIBLE_CHANGE_OFFER,
@@ -90,7 +91,9 @@ import { READY_ANSWER_VIEWS } from './readyAnswerViews'
 import { COLLEAGUE_REVIEW_VIEWS } from './colleagueReviewViews'
 import { SLACK_REVIEW_VIEWS } from './slackReviewViews'
 import { REVIEW_MERGE_CHECKS_VIEWS } from './reviewMergeChecksViews'
+import { REVIEW_CLOSE_VIEWS } from './reviewCloseViews'
 import { REVIEW_RUN_ROUNDS_VIEWS } from './reviewRunRoundsViews'
+import { REVIEW_RUN_PAGE_VIEWS } from './reviewRunPageViews'
 import { RUN_WAITS_FOR_VIEWS } from './runWaitsForViews'
 import { TICKET_TAB_VIEWS } from './ticketTabsViews'
 import { REVIEW_CHAT_SLOT_VIEWS } from './reviewChatSlotViews'
@@ -116,10 +119,19 @@ import { AGENT_PAUSE_VIEWS } from './agentPauseViews'
 import { TRAINER_SUGGESTION_VIEWS } from './trainerSuggestionViews'
 import { GIT_FILE_STATUS_ICON_VIEWS } from './gitFileStatusIconViews'
 import { GIT_RENAMED_ROW_VIEWS } from './gitRenamedRowViews'
+import { DOCKER_DISK_VIEWS } from './dockerDiskViews'
+import { RUN_CHAT_QUIET_VIEWS } from './runChatQuietViews'
+import { SHARED_RUN_VIEWS } from './sharedRunViews'
 
 const noop = () => {}
 const AT = Date.parse(FAKE_GROUP_STATUS_AT)
 const PROJECTS = MEMBERS.map(({ id, title }) => ({ id, title }))
+
+/** `&review=running` or `&review=stopped`: the group with only the review that spans two repos. */
+function sharedRunRoutesAt(address: URLSearchParams): { routes?: FixtureRoutes } {
+  const standing = SHARED_RUN_STANDINGS.find((id) => id === address.get('review'))
+  return standing ? { routes: sharedRunGroupRoutes(standing) } : {}
+}
 
 /** A native panel at its address: `?view=<id>`, on the same fixtures as the showcase. */
 export type NativeView = {
@@ -526,7 +538,7 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
     id: 'group-home',
     title: 'Group home',
     render: (address) => (
-      <OnFixtures>
+      <OnFixtures {...sharedRunRoutesAt(address)}>
         <GroupHomeConnected
           groupId={FAKE_GROUP_ID}
           title="Overseer"
@@ -708,6 +720,8 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   ...SLACK_REVIEW_VIEWS,
   ...REVIEW_MERGE_CHECKS_VIEWS,
   ...REVIEW_RUN_ROUNDS_VIEWS,
+  ...REVIEW_CLOSE_VIEWS,
+  ...REVIEW_RUN_PAGE_VIEWS,
   ...RUN_WAITS_FOR_VIEWS,
   ...TICKET_TAB_VIEWS,
   ...TICKET_RUN_VIEWS,
@@ -729,4 +743,7 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   ...TRAINER_SUGGESTION_VIEWS,
   ...GIT_FILE_STATUS_ICON_VIEWS,
   ...GIT_RENAMED_ROW_VIEWS,
+  ...DOCKER_DISK_VIEWS,
+  ...SHARED_RUN_VIEWS,
+  ...RUN_CHAT_QUIET_VIEWS,
 ]

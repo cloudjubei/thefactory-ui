@@ -53,6 +53,8 @@ export const PARK_ANSWERS_COPY = {
   also: 'Also:',
   send: 'Send',
   editFirst: 'Edit first',
+  addNote: 'Add a note',
+  optional: 'Optional',
   ownAnswer: 'Write my own answer',
   askManager: 'Ask the manager',
   needsYou: 'Needs you',

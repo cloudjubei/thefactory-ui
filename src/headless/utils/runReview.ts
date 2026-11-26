@@ -38,6 +38,7 @@ import {
   LEGACY_CHECK_RECORD_NOTE,
 } from './runReviewConstants'
 import { checkMethodFor, checkRanInSentence } from './checkMethods'
+import type { ApproveActionDescriptor } from './runReviewTypes'
 import type {
   AlreadyOnBaseView,
   ReviewActionInput,
@@ -380,4 +381,20 @@ export function viewedFilesProgress(
     total: changedPaths.length,
     all: changedPaths.length > 0 && viewed.size === changedPaths.length,
   }
+}
+
+/**
+ * The merge an approval that kept the work on its branch still offers: the
+ * person approved, nothing is merged and nothing rejected, so the work waits
+ * on its branch and "Approve & merge" stays one click away. None once merged
+ * or rejected, for any other verdict, or with no review. Pure.
+ */
+export function mergeAfterApprovalOf(
+  verdict: Pick<CliRunVerdict, 'decision'> | undefined,
+  review: { landedAt?: number; mergedAt?: number | null; rejectedAt?: number | null } | undefined,
+  descriptors: readonly ApproveActionDescriptor[],
+): ApproveActionDescriptor | undefined {
+  if (verdict?.decision !== 'approved' || !review) return undefined
+  if (review.mergedAt != null || review.rejectedAt != null) return undefined
+  return descriptors.find((d) => d.action === 'merge')
 }

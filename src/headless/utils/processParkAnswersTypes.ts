@@ -13,6 +13,8 @@ export interface ParkAnswerView {
   note?: string
   /** Whom the words go to — the caption above them. */
   noteLabel?: string
+  /** The answer can go with a note the person adds: the caption of its field. */
+  optionalNote?: string
   /** The manager's pick. */
   pick: boolean
   /** An ending answer asks first: what the question says, and its button. */

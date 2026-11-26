@@ -73,6 +73,8 @@ export type GroupTicketPageProps = GroupTicketPageActions & {
   replyExpanded?: boolean
   /** The run's own card under the run on top, while it waits on the person or works. */
   runCard?: ReactNode
+  /** Closing the ticket's review, under its rounds and runs. */
+  reviewClose?: ReactNode
 }
 
 type PagePart = 'ticket' | 'updates' | 'review' | 'work'
@@ -151,7 +153,7 @@ export default function GroupTicketPage({
   const parts: Record<PagePart, ReactNode> = {
     ticket: <TicketPart page={page} />,
     updates: <UpdatesPart page={page} />,
-    review: <ReviewPart page={page} onOpenRun={props.onOpenRun} />,
+    review: <ReviewPart page={page} onOpenRun={props.onOpenRun} close={props.reviewClose} />,
     work: <WorkPart page={page} {...props} />,
   }
   return (
@@ -243,6 +245,7 @@ function PageButtons({
   onTake,
   onReview,
   onOpenStory,
+  onOpenRun,
   onOpenChat,
 }: Pick<
   GroupTicketPageProps,
@@ -253,6 +256,7 @@ function PageButtons({
   | 'onTake'
   | 'onReview'
   | 'onOpenStory'
+  | 'onOpenRun'
   | 'onOpenChat'
 > & { page: GroupTicketPageView }) {
   const button = (action: GroupTicketTabAction) => {
@@ -317,11 +321,19 @@ function PageButtons({
   const actions: GroupTicketTabAction[] = page.actions.includes('discuss')
     ? page.actions
     : [...page.actions, 'discuss']
-  const { reviewChat } = page
+  const { reviewChat, reviewRun } = page
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       {actions.map(button)}
-      {reviewChat ? (
+      {reviewRun ? (
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => onOpenRun(reviewRun.projectId, reviewRun.id)}
+        >
+          {REVIEW_REPLY_TEXT.openRun}
+        </Button>
+      ) : reviewChat ? (
         <Button size="sm" variant="secondary" onClick={() => onOpenChat(reviewChat)}>
           {REVIEW_REPLY_TEXT.openChat}
         </Button>
@@ -473,9 +485,11 @@ function UpdatesPart({ page }: { page: GroupTicketPageView }) {
 function ReviewPart({
   page,
   onOpenRun,
+  close,
 }: {
   page: GroupTicketPageView
   onOpenRun: (projectId: string, runId: string) => void
+  close?: ReactNode
 }) {
   const { review } = page
   return (
@@ -529,6 +543,7 @@ function ReviewPart({
               </ul>
             </div>
           ) : null}
+          {close}
         </>
       ) : null}
     </Part>

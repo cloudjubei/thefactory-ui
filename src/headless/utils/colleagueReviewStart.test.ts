@@ -265,19 +265,16 @@ describe('reviewStartMode', () => {
 describe('reviewStartedDestination', () => {
   const context = { type: 'GROUP_TOPIC' as const, groupId: 'osc', topicId: 'review-OSC-1' }
 
-  it('is the run a round started as a run is reviewed in', () => {
-    expect(reviewStartedDestination({ context, mode: 'process', runId: 'run-1' })).toEqual({
-      kind: 'run',
-      runId: 'run-1',
-    })
+  it('is the run a round started as a run is reviewed in, in the run’s own project, never a chat', () => {
+    expect(
+      reviewStartedDestination({ mode: 'process', runId: 'run-1', projectId: 'osc-be' }),
+    ).toEqual({ kind: 'run', projectId: 'osc-be', runId: 'run-1' })
   })
 
-  it('is the review chat otherwise, or when the run is not named', () => {
-    expect(reviewStartedDestination({ context, mode: 'inline' })).toEqual({ kind: 'chat', context })
-    expect(reviewStartedDestination({ context, mode: 'process' })).toEqual({
+  it('is the review chat for a round reviewed inline', () => {
+    expect(reviewStartedDestination({ mode: 'inline', context })).toEqual({
       kind: 'chat',
       context,
     })
-    expect(reviewStartedDestination({ context })).toEqual({ kind: 'chat', context })
   })
 })

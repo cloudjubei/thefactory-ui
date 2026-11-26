@@ -19,27 +19,39 @@ export interface ColleagueReviewStartBody extends TicketPlanBody {
   mode?: ColleagueReviewMode
 }
 
-/** A round started, in the ticket's review chat. */
-export interface ColleagueReviewStarted {
-  context: ChatContext
-  chatContextId: string
+interface ColleagueReviewRoundStarted {
   /** The round just started. */
   round: number
+  review: ColleagueReview
+}
+
+/** A round started inline: a turn of the ticket's review chat. */
+export interface ColleagueReviewStartedInline extends ColleagueReviewRoundStarted {
+  mode: 'inline'
+  context: ChatContext
+  chatContextId: string
   /** The review chat was there already: this round carries on in it. */
   alreadyOpen: boolean
   /** Whether its agent is now working. */
   turnStarted: boolean
-  review: ColleagueReview
-  /** How the round is reviewed. */
-  mode?: ColleagueReviewMode
-  /** With `mode: 'process'`: the run the round is reviewed in. */
-  runId?: string
 }
 
-/** Where a started round opens: its review chat, or the run it is reviewed in. */
+/** A round started as a run: everything about it is in the run, and no chat was opened for it. */
+export interface ColleagueReviewStartedInRun extends ColleagueReviewRoundStarted {
+  mode: 'process'
+  /** The run the round is reviewed in. */
+  runId: string
+  /** The run's home project: where the run is opened. */
+  projectId: string
+}
+
+/** A round started, the way it is reviewed. */
+export type ColleagueReviewStarted = ColleagueReviewStartedInline | ColleagueReviewStartedInRun
+
+/** Where a started round opens: the run it is reviewed in, in the run's project, or its review chat. */
 export type ReviewStartedDestination =
   | { kind: 'chat'; context: ChatContext }
-  | { kind: 'run'; runId: string }
+  | { kind: 'run'; projectId: string; runId: string }
 
 /** A file the person attached to an update; `path` once it is uploaded, so a retry sends it once. */
 export interface ReviewDraftFile {

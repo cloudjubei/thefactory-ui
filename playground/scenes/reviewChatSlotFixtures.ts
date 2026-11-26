@@ -1,12 +1,9 @@
 import {
   reviewReplyView,
-  runReviewDecisionActions,
-  type ReviewDecisionAction,
   type ReviewReplyView,
   type UseReviewChatSlot,
 } from 'thefactory-ui/headless'
 import { COMMITS_NEW, COMMITS_NONE, TABS_NOW } from './groupTicketTabsFixtures'
-import { REVIEW_RUN_CHOICES } from './slackReviewFixtures'
 
 const noop = () => undefined
 
@@ -51,17 +48,10 @@ export const CHAT_REPLY_LONG: ReviewReplyView = reviewReplyView(
   COMMITS_NONE,
 )
 
-/** The run's approval actions, as RunReviewDecisionCard offers them. */
-export const CHAT_RUN_ACTIONS: ReviewDecisionAction[] = runReviewDecisionActions(REVIEW_RUN_CHOICES)
-
-/** A review chat's composer slot on fixed data. */
+/** An inline review chat's slot on fixed data. */
 export const chatSlot = (over: Partial<UseReviewChatSlot> = {}): UseReviewChatSlot => ({
   kind: undefined,
-  run: undefined,
-  liveRun: undefined,
-  working: undefined,
-  answerGate: async () => true,
-  carryOn: async () => true,
+  runLine: undefined,
   reply: undefined,
   starting: false,
   startError: undefined,
@@ -86,42 +76,19 @@ const REPLY_SAID: Said[] = [
   },
 ]
 
-export const DECISION_SAID: Said[] = [
+/** OSC-409's inline chat while a later round of its review goes as a run. */
+export const RUN_ELSEWHERE_SAID: Said[] = [
   {
     who: 'Agent',
-    text: 'Round 2 is recorded: changes requested, one finding still open. The reply is drafted for your call.',
+    text: 'Round 2 is recorded: approve with notes. The reply is posted in Aashan’s thread.',
   },
-]
-
-const OUTSIDE_SAID: Said[] = [
-  { who: 'Agent', text: 'Round 1 is recorded and the reply is posted in Saif’s thread.' },
-  {
-    who: 'Overseer',
-    text: 'ZNR-767: Saif replied.\n\nFixed the retry and added the test…\n\nStart round 2 on the run when you are ready.',
-  },
-]
-
-const PUSH_SAID: Said[] = [
+  { who: 'You', text: 'What did round 1 say about the currency fallback?' },
   {
     who: 'Agent',
-    text: 'Approve & merge: dev is brought into each pull request. One conflict was resolved and its checks ran.',
+    text: 'Round 1 asked for the billing country to decide the currency, as checkout does. Round 3 is being reviewed in its run.',
   },
 ]
 
-const WORKING_SAID: Said[] = [
-  {
-    who: 'Agent',
-    text: 'Round 1 is recorded: approve. Both pull requests are ready to merge.',
-  },
-  { who: 'You', text: 'Approve & merge' },
-]
-
-/** What a review chat said last before its slot's card. */
+/** What an inline review chat said last before its slot. */
 export const chatSaid = (kind: UseReviewChatSlot['kind']): Said[] =>
-  kind === 'run-outside'
-    ? OUTSIDE_SAID
-    : kind === 'run-push'
-      ? PUSH_SAID
-      : kind === 'run-working'
-        ? WORKING_SAID
-        : REPLY_SAID
+  kind === 'run-link' ? RUN_ELSEWHERE_SAID : REPLY_SAID

@@ -16,9 +16,7 @@ import { useColleagueReview } from './useColleagueReview'
 import { useColleagueReviewMerge } from './useColleagueReviewMerge'
 import { useReviewCommits } from './useReviewCommits'
 import { useTicketRuns } from './useTicketRuns'
-import { useReviewChatSlot, type UseReviewChatSlot } from './useReviewChatSlot'
-import { getChatContextKey } from 'thefactory-tools/utils'
-import { reviewChatContext } from '../utils/colleagueReviewStart'
+import { useTicketReviewRun, type UseTicketReviewRun } from './useTicketReviewRun'
 import {
   groupTicketsStoreFor,
   useReviewPasteBox,
@@ -79,8 +77,8 @@ export type UseGroupTicketPage = UseReviewPasteBox & {
   /** A merge stopped on a pull request's base: ask the developer, with the ask as the person edited it. */
   askDeveloper: (text: string) => void
   refresh: () => void
-  /** The ticket's review run's own card, as its review chat shows it: while it waits on the person or works. */
-  runSlot: UseReviewChatSlot
+  /** The ticket's review run still going, found by the ticket, with its own card: while it waits on the person or works. */
+  reviewRun: UseTicketReviewRun
 }
 
 /**
@@ -173,7 +171,7 @@ export function useGroupTicketPage(groupId: string, ticketKey: string): UseGroup
   const commitsKeys = useMemo(() => (overview?.review ? [ticketKey] : []), [overview, ticketKey])
   const commits = useReviewCommits(groupId, commitsKeys)[ticketKey]
   const runs = useTicketRuns(groupId)
-  const runSlot = useReviewChatSlot(getChatContextKey(reviewChatContext(groupId, ticketKey)))
+  const reviewRun = useTicketReviewRun(groupId, ticketKey)
   const state = useMemo<GroupTicketPageState>(() => {
     if (snapshot.overview) {
       return {
@@ -204,6 +202,6 @@ export function useGroupTicketPage(groupId: string, ticketKey: string): UseGroup
     resolveHere,
     askDeveloper,
     refresh,
-    runSlot,
+    reviewRun,
   }
 }

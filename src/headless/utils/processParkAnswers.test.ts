@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ProcessParkChoice } from 'thefactory-tools/types'
 
+import { PARK_ANSWER_NOTE_LABEL } from './processParkAnswersConstants'
 import {
   parkAnswerIsMinor,
   parkOwnAnswerChoice,
@@ -47,6 +48,38 @@ describe('processParkAnswersView', () => {
       ['recover:merge-anyway', 'Merge anyway'],
     ])
     expect(view.others[1]?.offer.recovery).toEqual(anyway)
+  })
+
+  it('lets a way on that tries the step again take an optional note for its agent, never one that decides a gate with its own text', () => {
+    const here = { id: 'resolve-here', label: 'Resolve it here', detail: 'The agent tries again.' }
+    const ask = {
+      id: 'ask-developer',
+      label: 'Ask Ana',
+      detail: 'Post the message.',
+      decidesGate: { gate: 'approval', action: 'send-reply', text: 'Ana, dev conflicts.' },
+    }
+    const view = processParkAnswersView([
+      choice('retry', { label: 'Try again', primary: true }),
+      choice('recover', { label: here.label, detail: here.detail, recovery: here }),
+      choice('recover', { label: ask.label, detail: ask.detail, recovery: ask }),
+      choice('abandon'),
+    ])
+    expect(view.lead).not.toHaveProperty('optionalNote')
+    expect(view.others.map((a) => [a.label, a.optionalNote])).toEqual([
+      ['Resolve it here', PARK_ANSWER_NOTE_LABEL],
+      ['Ask Ana', undefined],
+    ])
+    expect(view.minor[0]).not.toHaveProperty('optionalNote')
+  })
+
+  it('offers no optional note on a way on the manager already wrote the words for', () => {
+    const here = { id: 'resolve-here', label: 'Resolve it here', detail: 'The agent tries again.' }
+    const view = processParkAnswersView(
+      [choice('retry', { primary: true }), choice('recover', { ...here, recovery: here })],
+      { answers: [{ choice: 'recover', recovery: 'resolve-here', note: 'Keep both sides.' }] },
+    )
+    expect(view.lead?.note).toBe('Keep both sides.')
+    expect(view.lead).not.toHaveProperty('optionalNote')
   })
 
   it('matches the manager’s answer on a way on to that way on, by its id, and keeps the others', () => {

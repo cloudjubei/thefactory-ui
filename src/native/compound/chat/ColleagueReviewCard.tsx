@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { Linking, Pressable, ScrollView, Text, View } from 'react-native'
 import { useTicketLinks } from '../../../headless/contexts/TicketLinksContext'
 import { useColleagueReviewCall } from '../../../headless/hooks/useColleagueReviewCall'
+import { ReviewCloseAction } from '../groupStories/ReviewCloseControl'
 import { reviewReplyToPost } from '../../../headless/utils/colleagueReviewCard'
 import {
   COLLEAGUE_REVIEW_CARD_DEFAULT_LAYOUT,
@@ -71,6 +72,8 @@ export type ColleagueReviewCardProps = {
   noteOpen?: NoteOpen
   /** Start with the earlier rounds, or the summary's findings, opened. */
   expanded?: boolean
+  /** Closing the review, under the round; without it, not offered. */
+  close?: ReactNode
 }
 
 type Actions = Pick<ColleagueReviewCardProps, 'onDrop' | 'onGiven' | 'onPost' | 'postConfirm'> & {
@@ -121,6 +124,7 @@ export default function ColleagueReviewCard({
   openFinding,
   noteOpen,
   expanded = false,
+  close,
 }: ColleagueReviewCardProps) {
   const { theme, status } = useNativeTheme()
   const [note, setNote] = useState<NoteOpen | undefined>(noteOpen)
@@ -169,6 +173,7 @@ export default function ColleagueReviewCard({
           askOpen={mergeAskOpen}
         />
       ) : null}
+      {close}
     </View>
   )
 }
@@ -1097,6 +1102,7 @@ export function ColleagueReviewConnected({
     approveAndMerge,
     resolveHere,
     askDeveloper,
+    closeFor,
   } = useColleagueReviewCall({
     tool,
     args,
@@ -1114,6 +1120,7 @@ export function ColleagueReviewConnected({
       onApproveAndMerge={approveAndMerge}
       onResolveHere={resolveHere}
       onAskDeveloper={askDeveloper}
+      {...(closeFor ? { close: <ReviewCloseAction {...closeFor} /> } : {})}
     />
   )
 }

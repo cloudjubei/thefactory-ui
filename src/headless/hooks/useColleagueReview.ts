@@ -15,7 +15,8 @@ type WsLike = ReturnType<typeof useApi>['ws']
 
 const stores = new WeakMap<WsLike, ColleagueReviewStore>()
 
-function colleagueReviewStoreFor(ws: WsLike): ColleagueReviewStore {
+/** The one store of the reviews a socket's cards show. */
+export function colleagueReviewStoreFor(ws: WsLike): ColleagueReviewStore {
   const existing = stores.get(ws)
   if (existing) return existing
   const store = new ColleagueReviewStore(ws)

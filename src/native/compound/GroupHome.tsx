@@ -35,7 +35,7 @@ export interface GroupHomeProps {
   layout?: GroupHomeLayout
   /** Why the status is not shown yet, or could not be read. */
   statusNote?: string
-  /** A run listed on a member was selected. */
+  /** A run listed on a member, or for the group, was selected: its id and its home project. */
   onSelectRun?: (runId: string, projectId: string) => void
   /** A group run was selected. */
   onSelectGroupRun?: (groupRunId: string) => void
@@ -180,11 +180,13 @@ export default function GroupHome({
         ) : null}
       </View>
 
-      {view && view.groupRuns.length > 0 ? (
+      {view && (view.groupRuns.length > 0 || view.sharedRuns.length > 0) ? (
         <GroupRunsList
           runs={view.groupRuns}
+          shared={view.sharedRuns}
           nameOf={titleOf}
           {...(onSelectGroupRun ? { onSelect: onSelectGroupRun } : {})}
+          {...(onSelectRun ? { onSelectRun } : {})}
         />
       ) : null}
 

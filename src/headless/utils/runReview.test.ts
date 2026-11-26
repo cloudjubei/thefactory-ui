@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
+import { approveActionDescriptors } from './approveActions'
+
 import type {
   CliRunLandFailure,
   CliRunVerdict,
@@ -25,6 +27,7 @@ import {
   verificationCheckRows,
   formatChangeRequestMessage,
   viewedFilesProgress,
+  mergeAfterApprovalOf,
 } from './runReview'
 import {
   ALREADY_ON_BASE_MESSAGE,
@@ -763,5 +766,32 @@ describe('testLayerLines', () => {
     expect(
       testLayerLines({ ...layer, testCount: undefined, testCountLabel: undefined }, 1),
     ).toEqual({ summary: '13111/13111 passed', meta: 'Ran on the host — siblings.' })
+  })
+})
+
+describe('mergeAfterApprovalOf', () => {
+  const descriptors = approveActionDescriptors({
+    branch: 'agent/x',
+    baseBranch: 'dev',
+    hasRemote: false,
+    fileCount: 6,
+  })
+  const review = { branch: 'agent/x', baseSha: 'b', headSha: 'h', landedAt: 1 }
+  const approved = { decision: 'approved', by: 'user', at: 2 } as const
+
+  it('still offers the merge after an approval that kept the work on its branch', () => {
+    expect(mergeAfterApprovalOf(approved, review, descriptors)?.action).toBe('merge')
+  })
+
+  it('offers nothing once merged or rejected, for another verdict, or with no review', () => {
+    expect(mergeAfterApprovalOf(approved, { ...review, mergedAt: 3 }, descriptors)).toBeUndefined()
+    expect(
+      mergeAfterApprovalOf(approved, { ...review, rejectedAt: 3 }, descriptors),
+    ).toBeUndefined()
+    expect(
+      mergeAfterApprovalOf({ ...approved, decision: 'rejected' }, review, descriptors),
+    ).toBeUndefined()
+    expect(mergeAfterApprovalOf(undefined, review, descriptors)).toBeUndefined()
+    expect(mergeAfterApprovalOf(approved, undefined, descriptors)).toBeUndefined()
   })
 })

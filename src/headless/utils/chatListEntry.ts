@@ -90,18 +90,31 @@ export type ChatTimesShape = ChatMessagesShape & {
   createdAt?: string | null
 }
 
-/** When a chat last had a message — its newest one — else when it was updated, else created. */
-export function chatLastActivityAt(entry: ChatTimesShape): string | undefined {
+function newestTime(times: readonly (string | null)[]): string | undefined {
   let newest: string | undefined
   let newestMs = -Infinity
-  for (const at of chatMessageTimes(entry)) {
+  for (const at of times) {
     const ms = at ? Date.parse(at) : NaN
     if (!Number.isNaN(ms) && ms > newestMs) {
       newest = at as string
       newestMs = ms
     }
   }
-  return newest ?? entry.updatedAt ?? entry.createdAt ?? undefined
+  return newest
+}
+
+/** When a chat last had a message — its newest one — else when it was updated, else created. */
+export function chatLastActivityAt(entry: ChatTimesShape): string | undefined {
+  return newestTime(chatMessageTimes(entry)) ?? entry.updatedAt ?? entry.createdAt ?? undefined
+}
+
+/**
+ * When a chat last called the person: its newest message that needs them,
+ * else when it began. What else was written in it — and every write moves
+ * `updatedAt` — is left out, so routine messages never move it.
+ */
+export function chatLastNeedsYouAt(entry: ChatTimesShape): string | undefined {
+  return newestTime(chatNeedsYouTimesOf(entry)) ?? entry.createdAt ?? undefined
 }
 
 /** Order chats by their last activity, the newest first. */

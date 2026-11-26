@@ -86,3 +86,9 @@ export const CHAT_NEEDS_YOU_NOTIFICATION = {
   title: 'A chat needs you',
   tag: 'chat-needs-you',
 } as const
+
+/** The OS notification for a process run coming to need the person. */
+export const RUN_NEEDS_YOU_NOTIFICATION_TITLE = 'A run needs you'
+
+/** What the tag of a run's notification starts with; its run id follows. */
+export const RUN_NEEDS_YOU_NOTIFICATION_TAG = 'run-needs-you'

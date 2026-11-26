@@ -27,11 +27,23 @@ export interface GroupStatusBadge {
 /** A current run on a member, as its row in the Processes list reads. */
 export interface GroupMemberRunRow {
   id: string
+  /** The run's home project, which it opens under: not always the member it is listed on. */
   projectId: string
   title: string
   line: string
   tone: ProcessStatusTone
   section: ProcessRunAttentionSectionId
+}
+
+/**
+ * A current run that belongs to the group itself or to several of its members,
+ * listed once for the group. `projectId` is its home project, which it opens
+ * under; `projectIds` are the projects it belongs to, home first.
+ */
+export interface GroupSharedRunRow extends GroupMemberRunRow {
+  projectIds: string[]
+  /** What it waits on or is doing, as its section of the Processes list is headed. */
+  label: string
 }
 
 /** A member's stories and features done, over what counts. */
@@ -88,7 +100,9 @@ export interface GroupStatusView {
   /** The group added up. Empty when nothing is going on. */
   headline: GroupStatusBadge[]
   groupRuns: GroupRunRow[]
-  /** In the group's order. */
+  /** The runs of the group itself and of several members, once each, what needs the person first. */
+  sharedRuns: GroupSharedRunRow[]
+  /** In the group's order. A member lists the runs that are its alone and counts every run it belongs to. */
   members: GroupMemberView[]
   /** The same members, what wants the person first. */
   sections: GroupStatusSection[]

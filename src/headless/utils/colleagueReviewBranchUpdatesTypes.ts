@@ -67,6 +67,8 @@ export interface ColleagueReviewBranchRow {
   name: string
   stateLabel: string
   tone: ProcessStatusTone
+  /** It is resolved or fixed in a checkout of its own and waits for the push to be approved. */
+  awaitsPush?: true
   detail?: string
   /** "dev into feature/418". */
   branches?: string

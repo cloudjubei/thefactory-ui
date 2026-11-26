@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from 'react'
+import { latestReviewRound } from 'thefactory-tools/utils'
 import { useChatActions } from '../contexts/ChatActionsContext'
 import {
   colleagueReviewCallKey,
@@ -31,6 +32,8 @@ export type UseColleagueReviewCall = {
   resolveHere: () => void
   /** A merge stopped on a pull request's base: ask the developer, with the ask as the person edited it. */
   askDeveloper: (text: string) => void
+  /** The review this row offers to close: on the row that recorded its latest round. */
+  closeFor: { groupId: string; ticketKey: string } | undefined
 }
 
 /**
@@ -93,8 +96,14 @@ export function useColleagueReviewCall(call: {
     },
     [shownRound, start],
   )
+  const latestRound = live.review ? latestReviewRound(live.review) : undefined
+  const closeFor = useMemo(
+    () => (key && tool === 'record' && shownRound === latestRound ? key : undefined),
+    [key, tool, shownRound, latestRound],
+  )
   return {
     view,
+    closeFor,
     dropFinding: live.dropFinding,
     markGiven: live.markGiven,
     postReply: live.postReply,

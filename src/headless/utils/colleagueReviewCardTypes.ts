@@ -1,5 +1,6 @@
 import type {
   ColleagueReview,
+  ColleagueReviewCloseOutcome,
   ReviewFindingKind,
   ReviewFindingState,
   ReviewVerdict,
@@ -116,6 +117,8 @@ export interface ReviewPendingActions {
   givens: ReadonlySet<string>
   /** The rounds whose reply is being posted in the thread. */
   posts: ReadonlySet<number>
+  /** The review is being closed, this way. */
+  closing?: ColleagueReviewCloseOutcome
 }
 
 /** What a review tool row's card is built from. */

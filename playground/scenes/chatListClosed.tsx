@@ -87,6 +87,7 @@ const hiddenTopic: ChatListChat = {
 const finishedRunChat: ChatListChat = {
   context: RUN_CHAT,
   archivedAt: CLOSED_AT,
+  createdAt: '2026-10-19T09:00:00Z',
   messageTimes: ['2026-10-19T10:00:00Z'],
 }
 

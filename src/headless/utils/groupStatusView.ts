@@ -1,4 +1,5 @@
 import type { ProcessRun } from 'thefactory-tools/types'
+import { processRunBelongsToProject } from 'thefactory-tools/utils'
 import { CHECK_METHOD_LABELS, PROJECT_CHECK_METHOD } from './checkMethodConstants'
 import {
   GROUP_MEMBER_SECTIONS,
@@ -13,6 +14,7 @@ import type {
   GroupMemberRunRow,
   GroupMemberView,
   GroupRunRow,
+  GroupSharedRunRow,
   GroupStatusBadge,
   GroupStatusView,
   ProjectsGroupMemberStatus,
@@ -29,6 +31,9 @@ type OpenRequest = ProjectsGroupMemberStatus['openRequests'][number]
 type SectionCounts = Partial<Record<ProcessRunAttentionSectionId, number>>
 
 const SECTION_ORDER = PROCESS_RUN_ATTENTION_SECTIONS.map((section) => section.id)
+const SECTION_LABELS = Object.fromEntries(
+  PROCESS_RUN_ATTENTION_SECTIONS.map((section) => [section.id, section.label]),
+) as Record<ProcessRunAttentionSectionId, string>
 
 const isUnaccepted = (request: OpenRequest): boolean => request.status === 'pending'
 
@@ -53,6 +58,56 @@ export function groupMemberProgress(
   }
 }
 
+const bySection = (a: GroupMemberRunRow, b: GroupMemberRunRow): number =>
+  SECTION_ORDER.indexOf(a.section) - SECTION_ORDER.indexOf(b.section)
+
+function currentRunRow(run: ProcessRun, now: number): GroupMemberRunRow | undefined {
+  const row = processRunListRow(run, now)
+  if (!row.section) return undefined
+  return {
+    id: run.id,
+    projectId: run.projectId,
+    title: row.title,
+    line: row.line,
+    tone: row.tone,
+    section: row.section,
+  }
+}
+
+/**
+ * Whether a run is listed once for the group rather than on one member: it
+ * names the group, or it belongs to more than one of its members. Pure.
+ */
+export function isGroupSharedRun(
+  run: Pick<ProcessRun, 'projectId' | 'groupId' | 'alsoProjectIds'>,
+  groupId: string,
+  memberIds: readonly string[],
+): boolean {
+  if (run.groupId !== undefined && run.groupId === groupId) return true
+  return memberIds.filter((id) => processRunBelongsToProject(run, id)).length > 1
+}
+
+function sharedRunRows(
+  status: ProjectsGroupStatus,
+  runs: readonly ProcessRun[] | undefined,
+  now: number,
+): GroupSharedRunRow[] {
+  const memberIds = status.members.map((member) => member.projectId)
+  const rows: GroupSharedRunRow[] = []
+  for (const run of runs ?? []) {
+    if (!isGroupSharedRun(run, status.groupId, memberIds)) continue
+    const row = currentRunRow(run, now)
+    if (!row) continue
+    rows.push({
+      ...row,
+      projectIds: [...new Set([run.projectId, ...(run.alsoProjectIds ?? [])])],
+      label: SECTION_LABELS[row.section],
+    })
+  }
+  return rows.sort(bySection)
+}
+
+/** The current runs a member belongs to, as their home or as a further project. */
 function memberRunRows(
   projectId: string,
   runs: readonly ProcessRun[] | undefined,
@@ -60,19 +115,11 @@ function memberRunRows(
 ): GroupMemberRunRow[] {
   const rows: GroupMemberRunRow[] = []
   for (const run of runs ?? []) {
-    if (run.projectId !== projectId) continue
-    const row = processRunListRow(run, now)
-    if (!row.section) continue
-    rows.push({
-      id: run.id,
-      projectId,
-      title: row.title,
-      line: row.line,
-      tone: row.tone,
-      section: row.section,
-    })
+    if (!processRunBelongsToProject(run, projectId)) continue
+    const row = currentRunRow(run, now)
+    if (row) rows.push(row)
   }
-  return rows.sort((a, b) => SECTION_ORDER.indexOf(a.section) - SECTION_ORDER.indexOf(b.section))
+  return rows.sort(bySection)
 }
 
 function runCounts(
@@ -177,15 +224,19 @@ function memberActivity(member: ProjectsGroupMemberStatus, now: number): string 
 function memberView(
   member: ProjectsGroupMemberStatus,
   runs: readonly ProcessRun[] | undefined,
+  shared: ReadonlySet<string>,
   now: number,
-): { view: GroupMemberView; counts: SectionCounts } {
-  const rows = memberRunRows(member.projectId, runs, now)
-  const counts = sectionCounts(member, rows, runs !== undefined)
+): { view: GroupMemberView; counts: SectionCounts; own: SectionCounts } {
+  const belonging = memberRunRows(member.projectId, runs, now)
+  const rows = belonging.filter((row) => !shared.has(row.id))
+  const counts = sectionCounts(member, belonging, runs !== undefined)
+  const own = sectionCounts(member, rows, runs !== undefined)
   const progress = groupMemberProgress(member.storyProgress)
   const git = memberGit(member.git)
   const activity = memberActivity(member, now)
   return {
     counts,
+    own,
     view: {
       projectId: member.projectId,
       attention: memberAttention(member, counts),
@@ -228,22 +279,29 @@ function groupRunRows(status: ProjectsGroupStatus): GroupRunRow[] {
  * The group's home for one render: the roll-up read together with the group's
  * current root runs, which name what the roll-up only counts. The roll-up's ids
  * also hold child step runs, so a member counts the root runs it was given; with
- * `runs` not read yet it falls back on those ids. Pure.
+ * `runs` not read yet it falls back on those ids.
+ *
+ * A run that names the group, or belongs to several of its members, is listed
+ * once for the group (`sharedRuns`) and not on a member; each member it belongs
+ * to still counts it, and the headline counts it once. Pure.
  */
 export function groupStatusView(
   status: ProjectsGroupStatus,
   runs: readonly ProcessRun[] | undefined,
   now: number,
 ): GroupStatusView {
-  const read = status.members.map((member) => memberView(member, runs, now))
+  const sharedRuns = sharedRunRows(status, runs, now)
+  const shared = new Set(sharedRuns.map((row) => row.id))
+  const read = status.members.map((member) => memberView(member, runs, shared, now))
   const members = read.map(({ view }) => view)
   const totals: SectionCounts = {}
-  for (const { counts } of read) {
+  for (const { own } of read) {
     for (const id of SECTION_ORDER) {
-      const count = counts[id] ?? 0
+      const count = own[id] ?? 0
       if (count > 0) totals[id] = (totals[id] ?? 0) + count
     }
   }
+  for (const row of sharedRuns) totals[row.section] = (totals[row.section] ?? 0) + 1
   const failing = status.members.reduce((sum, member) => sum + member.failingChecks.length, 0)
   const requests = status.members.flatMap((member) => member.openRequests)
   return {
@@ -261,6 +319,7 @@ export function groupStatusView(
       ...requestBadges(requests),
     ],
     groupRuns: groupRunRows(status),
+    sharedRuns,
     members,
     sections: GROUP_MEMBER_SECTIONS.flatMap((section) => {
       const held = members.filter((member) => member.attention === section.id)

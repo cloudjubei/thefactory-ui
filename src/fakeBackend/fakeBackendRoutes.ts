@@ -34,6 +34,12 @@ import type {
   GetDailyUsageData,
   GetDailyUsageResponse,
   GetDbHealthData,
+  GetDbDockerDiskData,
+  GetDbDockerDiskResponse,
+  ClearDbDockerSpaceData,
+  ClearDbDockerSpaceResponse,
+  ResizeDbDockerDiskData,
+  ResizeDbDockerDiskResponse,
   GetDbHealthResponse,
   GetDesignPlaygroundData,
   GetDesignPlaygroundResponse,
@@ -208,6 +214,7 @@ import {
   FAKE_CLI_IMAGES,
   FAKE_CLI_STATE,
   FAKE_DB_HEALTH,
+  FAKE_DOCKER_DISK,
   FAKE_GIT_CREDENTIALS,
   FAKE_GROUP_NOTES,
   FAKE_GROUP_STORIES,
@@ -526,6 +533,35 @@ const READS: readonly FakeRoute[] = [
     () => FAKE_STORAGE_USAGE,
   ),
   read<GetDbHealthData, GetDbHealthResponse>('/api/v1/db/health', () => FAKE_DB_HEALTH),
+  read<GetDbDockerDiskData, GetDbDockerDiskResponse>(
+    '/api/v1/db/docker/disk',
+    () => FAKE_DOCKER_DISK,
+  ),
+  write<ClearDbDockerSpaceData, ClearDbDockerSpaceResponse>('/api/v1/db/docker/clear', () => ({
+    freedBytes: FAKE_DOCKER_DISK.reclaimableBytes,
+    disk: {
+      ...FAKE_DOCKER_DISK,
+      usedBytes: FAKE_DOCKER_DISK.usedBytes - FAKE_DOCKER_DISK.reclaimableBytes,
+      reclaimableBytes: 0,
+    },
+  })),
+  write<ResizeDbDockerDiskData, ResizeDbDockerDiskResponse>(
+    '/api/v1/db/docker/resize',
+    (request) => {
+      const { sizeGb } = (request.body ?? {}) as Partial<ResizeDbDockerDiskData['body']>
+      const range = FAKE_DOCKER_DISK.resize
+      if (!range || !sizeGb || sizeGb <= range.currentGb || sizeGb > range.maxGb) {
+        return request.invalid('A resize names a whole size above the current one.')
+      }
+      return {
+        disk: {
+          ...FAKE_DOCKER_DISK,
+          allocatedBytes: sizeGb * 1_000_000_000,
+          resize: { ...range, currentGb: sizeGb },
+        },
+      }
+    },
+  ),
 
   read<ListProjectGroupStoriesData, ListProjectGroupStoriesResponse>(
     '/api/v1/projects/{projectId}/group-stories',

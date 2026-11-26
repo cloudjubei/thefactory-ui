@@ -6,10 +6,11 @@ import {
   type LaunchModelChipSlot,
 } from '../../../headless'
 import type { ChatContext } from '../../../headless/api'
-import { ReviewChatSlotCard } from '../chat/ReviewChatSlot'
 import ColleagueReviewPasteBox from './ColleagueReviewPasteBox'
 import GroupTicketPage from './GroupTicketPage'
+import { ticketReviewClose } from './ReviewCloseControl'
 import { openStartedReview } from './GroupTicketsScreen'
+import TicketReviewRunCard from './TicketReviewRunCard'
 
 export type GroupTicketPageScreenProps = {
   groupId: string
@@ -18,12 +19,10 @@ export type GroupTicketPageScreenProps = {
   onBack?: () => void
   onOpenStory: (groupStoryId: string) => void
   onOpenPartStory: (projectId: string, storyId: string) => void
-  /** Open a run's page: a review run, or the run a round started as. */
+  /** Open a run's page in its project: a review run, or the run a round started as a run is reviewed in. */
   onOpenRun: (projectId: string, runId: string) => void
   /** Open a ticket's chat once it has started, or one of its chats. */
   onOpenChat: (context: ChatContext) => void
-  /** The project a round started as a run is in, to open its page. */
-  runProjectId?: string
   /** The app's model chip — the agent a review round runs on. */
   renderModelChip?: (picked: LaunchModelChipSlot) => ReactNode
 }
@@ -37,7 +36,6 @@ export function GroupTicketPageScreen({
   onOpenPartStory,
   onOpenRun,
   onOpenChat,
-  runProjectId,
   renderModelChip,
 }: GroupTicketPageScreenProps) {
   const { pick, slot } = useLaunchAgentPick()
@@ -67,10 +65,9 @@ export function GroupTicketPageScreen({
         onOpenRun={onOpenRun}
         onOpenChat={onOpenChat}
         onRetry={page.refresh}
-        {...(page.runSlot.kind && page.runSlot.kind !== 'reply'
-          ? {
-              runCard: <ReviewChatSlotCard slot={page.runSlot} renderModelChip={renderModelChip} />,
-            }
+        reviewClose={ticketReviewClose(groupId, ticketKey, page.state)}
+        {...(page.reviewRun.kind
+          ? { runCard: <TicketReviewRunCard reviewRun={page.reviewRun} /> }
           : {})}
         {...(onBack ? { onBack } : {})}
       />
@@ -84,11 +81,7 @@ export function GroupTicketPageScreen({
           onStart={() =>
             void page.startReview(launchAgentPickMetadata(pick)).then((started) => {
               if (!started) return
-              openStartedReview(
-                started,
-                onOpenChat,
-                runProjectId ? (runId) => onOpenRun(runProjectId, runId) : undefined,
-              )
+              openStartedReview(started, onOpenChat, onOpenRun)
               page.refresh()
             })
           }

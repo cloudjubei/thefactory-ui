@@ -19,33 +19,33 @@ export type GroupTicketsScreenProps = {
   onOpenChat: (context: ChatContext) => void
   /** Open Settings → Group, for a group with no Jira. */
   onOpenSettings: () => void
-  /** Open the run a round started as a run is reviewed in; without it the review chat opens. */
-  onOpenRun?: (runId: string) => void
+  /** Open a run's page in its project: the run working a ticket, or the run a round started as a run is reviewed in. */
+  onOpenRun: (projectId: string, runId: string) => void
   /** Open a ticket's page: what a press on its row does. */
   onOpenTicket: (ticketKey: string) => void
   /** The app's model chip — the agent a review round runs on. */
   renderModelChip?: (picked: LaunchModelChipSlot) => ReactNode
 }
 
-/** Where a started round opens: its run when it is reviewed as one and the host can open runs, else its chat. */
+/** Open a started round where it is reviewed: its run, which has no chat of the ticket's, else its review chat. */
 export function openStartedReview(
   started: ColleagueReviewStarted,
   onOpenChat: (context: ChatContext) => void,
-  onOpenRun?: (runId: string) => void,
+  onOpenRun: (projectId: string, runId: string) => void,
 ): void {
   const to = reviewStartedDestination(started)
-  if (to.kind === 'run' && onOpenRun) onOpenRun(to.runId)
-  else onOpenChat(started.context)
+  if (to.kind === 'run') onOpenRun(to.projectId, to.runId)
+  else onOpenChat(to.context)
 }
 
 /** Open the run working a ticket: a project's run on its page, a group run on its group story. */
 export function openTicketRun(
   open: TicketRunOpen,
   onOpenStory: (groupStoryId: string) => void,
-  onOpenRun?: (runId: string) => void,
+  onOpenRun: (projectId: string, runId: string) => void,
 ): void {
   if (open.kind === 'group-run') onOpenStory(open.groupStoryId)
-  else onOpenRun?.(open.runId)
+  else onOpenRun(open.projectId, open.runId)
 }
 
 /**

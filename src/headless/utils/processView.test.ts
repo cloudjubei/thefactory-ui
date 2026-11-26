@@ -1471,6 +1471,76 @@ describe('processRunPersonEnding', () => {
   })
 })
 
+describe('processRunPersonEnding — a run closed as resolved or not needed', () => {
+  const closedAs = { kind: 'resolved' as const, summary: 'Handled outside Overseer.', at: 5 }
+
+  it('reads a run closed as resolved as resolved, in a calm tone, with why', () => {
+    expect(
+      processRunPersonEnding(run({ status: 'cancelled', ledger: [passed('a')], closedAs })),
+    ).toEqual({
+      choice: 'closed-as',
+      label: 'Resolved',
+      tone: 'done',
+      line: 'Resolved — Handled outside Overseer.',
+    })
+  })
+
+  it('adds the note the person closed it with', () => {
+    expect(
+      processRunPersonEnding(
+        run({ status: 'cancelled', closedAs: { ...closedAs, note: 'Ann merges it.' } }),
+      )?.line,
+    ).toBe('Resolved — Handled outside Overseer. “Ann merges it.”')
+  })
+
+  it('reads one the host settled by what it read on GitHub', () => {
+    expect(
+      processRunPersonEnding(
+        run({
+          status: 'cancelled',
+          closedAs: { ...closedAs, summary: 'Merged on GitHub by ann.' },
+        }),
+      )?.line,
+    ).toBe('Resolved — Merged on GitHub by ann.')
+  })
+
+  it('reads a run closed as not needed as closed, never as an error', () => {
+    expect(
+      processRunPersonEnding(
+        run({
+          status: 'cancelled',
+          closedAs: { kind: 'not-needed', summary: 'The review was removed.', at: 5 },
+        }),
+      ),
+    ).toEqual({
+      choice: 'closed-as',
+      label: 'Closed',
+      tone: 'empty',
+      line: 'Closed — The review was removed.',
+    })
+  })
+
+  it('reads a run that had failed before it was closed as resolved, not as abandoned', () => {
+    const failedThenClosed = decided('abandon', 'Not now.', {
+      status: 'cancelled',
+      closedAs: { ...closedAs, endedAs: { status: 'failed', error: 'Abandoned at Sign-off.' } },
+    })
+    expect(processRunPersonEnding(failedThenClosed)?.label).toBe('Resolved')
+  })
+
+  it('shows on the run’s badge and the chat card', () => {
+    const closed = run({ status: 'cancelled', ledger: [passed('a')], closedAs })
+    expect([processRunBadge(closed, 10), processRunCardView(closed, 10).body]).toEqual([
+      { label: 'Resolved', tone: 'done' },
+      { text: 'Resolved — Handled outside Overseer.', tone: 'done' },
+    ])
+  })
+
+  it('is nothing once the run was taken back up: the closing is gone', () => {
+    expect(processRunPersonEnding(run({ status: 'parked', ledger: [passed('a')] }))).toBeUndefined()
+  })
+})
+
 describe('processRunBadge — a stop its agent manager has', () => {
   const turn = { runId: 'r', parkedAt: 0, signature: 's', startedAt: 10, chatContextId: 'c' }
   const stopped = (over: Partial<ProcessRun>, reason: 'step-failed' | 'gate' = 'step-failed') =>

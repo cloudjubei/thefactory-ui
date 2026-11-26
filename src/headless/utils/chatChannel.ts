@@ -1,8 +1,19 @@
 import type { ChatContext } from 'thefactory-tools/types'
-import { isAgentRunChatContext, processRunIdOfChatContext } from 'thefactory-tools/utils'
+import {
+  getChatContextKey,
+  isAgentRunChatContext,
+  processRunIdOfChatContext,
+} from 'thefactory-tools/utils'
 
 import type { BadgeChatInput } from '../hooks/useBadgeCountsCore'
-import type { ChatChannel, ProcessRunChatNews } from './chatChannelTypes'
+import type {
+  ChatChannel,
+  ProcessRunChatNews,
+  ProcessRunChatNewsChat,
+  ProcessRunChatNewsRead,
+} from './chatChannelTypes'
+import { chatNotifyLevel, chatNotifyNews } from './chatNotify'
+import { chatNotifyCountsOf } from './chatRowStatus'
 
 /**
  * Which channel a chat's news counts on: a chat that belongs to a process run
@@ -37,4 +48,31 @@ export function processRunChatNewsByRun(
     out.set(runId, { unread: chat.unreadMessages, asks: chat.pendingAsks ?? 0 })
   }
   return out
+}
+
+/**
+ * What each process run's own chat holds for the person, by run id, from the
+ * chats themselves: each read against when the person last saw it and at its
+ * notification level — its own, else the person's for run chats ("When it
+ * needs me" unless they chose otherwise). So what a run's agent writes is
+ * never unread news on its run; only a message that needs the person and the
+ * asks waiting in the chat are, and every message only once they asked for
+ * `everything`. Pure.
+ */
+export function processRunChatNewsOf(
+  chats: readonly ProcessRunChatNewsChat[],
+  read: ProcessRunChatNewsRead,
+): ReadonlyMap<string, ProcessRunChatNews> {
+  return processRunChatNewsByRun(
+    chats
+      .filter((chat) => processRunIdOfChatContext(chat.context) !== undefined)
+      .map((chat) => {
+        const key = getChatContextKey(chat.context)
+        const counts = chatNotifyCountsOf(chat, read.seen?.[key], read.pendingAsks.get(key) ?? 0)
+        return {
+          context: chat.context,
+          ...chatNotifyNews(counts, chatNotifyLevel(chat, read.levels)),
+        }
+      }),
+  )
 }

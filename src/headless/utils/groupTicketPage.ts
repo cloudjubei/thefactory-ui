@@ -20,12 +20,14 @@ import type {
   GroupTicketRoundView,
   GroupTicketUpdate,
   GroupTicketUpdateView,
+  GroupTicketReviewRun,
 } from './groupTicketPageTypes'
 import type { GroupTicketTab } from './groupTicketTabTypes'
 import type { ReviewCommitsView } from './reviewCommitsTypes'
 import { reviewReplyView, waitingReviewReply } from './reviewReply'
 import { ticketChipView, ticketLink } from './groupTickets'
 import { PROCESS_RUN_STATUS_VIEW } from './processView'
+import { PROCESS_RUN_CLOSED_AS_VIEW } from './processViewConstants'
 import { ticketRunState } from './ticketRunState'
 import { NO_TICKET_RUNS } from './ticketRunStateConstants'
 import type { TicketRunIndex } from './ticketRunStateTypes'
@@ -123,8 +125,27 @@ function liveReviewRuns(
   const held = new Map((runs.index.reviews.get(key.toUpperCase()) ?? []).map((r) => [r.id, r]))
   return (overview.review?.runs ?? []).map((run) => {
     const live = held.get(run.id)
-    return live ? { ...run, status: live.status } : run
+    if (!live) return run
+    const { closedAs: _closedAs, ...read } = run
+    return {
+      ...read,
+      status: live.status,
+      ...(live.closedAs ? { closedAs: live.closedAs.kind } : {}),
+    }
   })
+}
+
+/**
+ * The run a review going as a run links to: the one still going, else the one
+ * its latest round was reviewed in. None for a review whose latest round is
+ * inline — that one has its chat.
+ */
+function reviewRunOf(
+  latestRound: number,
+  reviewRuns: NonNullable<GroupTicketOverview['review']>['runs'],
+  liveRun: GroupTicketReviewRun | undefined,
+): GroupTicketReviewRun | undefined {
+  return liveRun ?? reviewRuns.find((run) => run.round === latestRound)
 }
 
 function replyParts(
@@ -132,16 +153,20 @@ function replyParts(
   now: number,
   commits: ReviewCommitsView | undefined,
   reviewRuns: NonNullable<GroupTicketOverview['review']>['runs'],
-): Pick<GroupTicketPageView, 'reply' | 'commits' | 'reviewChat' | 'liveRun'> {
+): Pick<GroupTicketPageView, 'reply' | 'commits' | 'reviewChat' | 'liveRun' | 'reviewRun'> {
   const waiting = waitingReviewReply(overview.updates)
   const latestRound = Math.max(0, ...(overview.review?.rounds ?? []).map((r) => r.n))
-  const reviewChat = overview.chats.find((chat) => reviewOfChat(chat.context))?.context
   const liveRun = reviewRuns.find((run) => !PROCESS_RUN_TERMINAL_STATUSES.includes(run.status))
+  const reviewRun = reviewRunOf(latestRound, reviewRuns, liveRun)
+  const reviewChat = reviewRun
+    ? undefined
+    : overview.chats.find((chat) => reviewOfChat(chat.context))?.context
   return {
     ...(waiting ? { reply: reviewReplyView(waiting, latestRound, now, commits) } : {}),
     ...(!waiting && commits && commits.tone !== 'quiet' ? { commits } : {}),
     ...(reviewChat ? { reviewChat } : {}),
     ...(liveRun ? { liveRun: { id: liveRun.id, projectId: liveRun.projectId } } : {}),
+    ...(reviewRun ? { reviewRun: { id: reviewRun.id, projectId: reviewRun.projectId } } : {}),
   }
 }
 
@@ -152,7 +177,9 @@ function replyParts(
  * and chats newest first, and the tab's actions on it. A part that could not
  * be read is named in `problems`; the rest still shows. On top, the newest
  * reply waiting to start the review's next round, with what was pushed since
- * its last round (`commits`, once read), else what was pushed alone. The run
+ * its last round (`commits`, once read), else what was pushed alone. A review
+ * going as a run links to its run (`reviewRun`) and offers no review chat;
+ * an inline one offers its chat (`reviewChat`). The run
  * working the ticket, as its row says it, and its review's runs as they stand
  * now, from `runs` kept live. Pure.
  */
@@ -204,7 +231,9 @@ export function groupTicketPageView(
               id: run.id,
               projectId: run.projectId,
               label: TEXT.runOf(run.round),
-              status: PROCESS_RUN_STATUS_VIEW[run.status],
+              status: run.closedAs
+                ? PROCESS_RUN_CLOSED_AS_VIEW[run.closedAs]
+                : PROCESS_RUN_STATUS_VIEW[run.status],
             })),
           },
         }

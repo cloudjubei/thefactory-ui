@@ -145,9 +145,15 @@ import type {
   ClearColleagueReviewSourceData,
   ClearColleagueReviewSourceErrors,
   ClearColleagueReviewSourceResponses,
+  ClearDbDockerSpaceData,
+  ClearDbDockerSpaceErrors,
+  ClearDbDockerSpaceResponses,
   CloneOverseerData,
   CloneOverseerErrors,
   CloneOverseerResponses,
+  CloseColleagueReviewData,
+  CloseColleagueReviewErrors,
+  CloseColleagueReviewResponses,
   CloseProcessRunFeaturesData,
   CloseProcessRunFeaturesErrors,
   CloseProcessRunFeaturesResponses,
@@ -504,6 +510,9 @@ import type {
   GetDataSourceData,
   GetDataSourceErrors,
   GetDataSourceResponses,
+  GetDbDockerDiskData,
+  GetDbDockerDiskErrors,
+  GetDbDockerDiskResponses,
   GetDbHealthData,
   GetDbHealthResponses,
   GetDesignPlaygroundData,
@@ -1298,6 +1307,9 @@ import type {
   RequestCliRunReviewResponses,
   ResetOverseerData,
   ResetOverseerResponses,
+  ResizeDbDockerDiskData,
+  ResizeDbDockerDiskErrors,
+  ResizeDbDockerDiskResponses,
   ResizeRemoteBrowserData,
   ResizeRemoteBrowserErrors,
   ResizeRemoteBrowserResponses,
@@ -1826,6 +1838,48 @@ export const startDb = <ThrowOnError extends boolean = false>(
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/db/start',
     ...options,
+  })
+
+export const getDbDockerDisk = <ThrowOnError extends boolean = false>(
+  options?: Options<GetDbDockerDiskData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<GetDbDockerDiskResponses, GetDbDockerDiskErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/db/docker/disk',
+    ...options,
+  })
+
+export const clearDbDockerSpace = <ThrowOnError extends boolean = false>(
+  options?: Options<ClearDbDockerSpaceData, ThrowOnError>,
+) =>
+  (options?.client ?? client).post<
+    ClearDbDockerSpaceResponses,
+    ClearDbDockerSpaceErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/db/docker/clear',
+    ...options,
+  })
+
+export const resizeDbDockerDisk = <ThrowOnError extends boolean = false>(
+  options: Options<ResizeDbDockerDiskData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    ResizeDbDockerDiskResponses,
+    ResizeDbDockerDiskErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/db/docker/resize',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
   })
 
 export const listProjects = <ThrowOnError extends boolean = false>(
@@ -9750,7 +9804,7 @@ export const getColleagueReview = <ThrowOnError extends boolean = false>(
   })
 
 /**
- * Review a colleague’s update on the ticket: the pasted text and its files, or an update the group’s watched Slack thread offered (`offerId`), start the next round of the ticket’s review, in its review chat (opened on the first round), whose agent reads the ticket whole and the pull requests, checks every claim and requirement, records the round and drafts the reply. Nothing is posted. With `mode: process` (or the group’s default) the round is reviewed in a colleague review run instead (`runId`): its review step is a turn of the same chat, and the person chooses at its approval what is done. 409 while a run still holds the review chat.
+ * Review a colleague’s update on the ticket: the pasted text and its files, or an update the group’s watched Slack thread offered (`offerId`), start the next round of the ticket’s review. Inline, in its review chat (opened on the first round; `context`, `chatContextId`), whose agent reads the ticket whole and the pull requests, checks every claim and requirement, records the round and drafts the reply. Nothing is posted. With `mode: process` (or the group’s default) the round is reviewed in a colleague review run alone (`runId`, in `projectId`): its review is a turn of the run’s own chat, no other chat is opened or told, and the person chooses at its approval what is done. 409 while a run still holds the ticket’s review.
  */
 export const startColleagueReview = <ThrowOnError extends boolean = false>(
   options: Options<StartColleagueReviewData, ThrowOnError>,
@@ -9860,6 +9914,27 @@ export const markColleagueReviewWaitingGiven = <ThrowOnError extends boolean = f
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/groups/{groupId}/tickets/{ticketKey}/review/waiting-on/{waitingOnId}/given',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * The person closes the ticket’s review. `outcome: resolved` — it was handled outside Overseer or needs nothing more: the review is kept and marked closed with who closed it, when and the `note`; its review runs still going, and any that failed, end closed as resolved (stopped, never failed, and able to be taken back up); the updates still waiting on it are dismissed and its approve-and-merge is stopped. The next update for the ticket opens it again. `outcome: remove` — it should not have been started: the review is deleted, every update of the ticket is dismissed (a started one too), its runs end closed as not needed and its review chat is deleted. Nothing is posted to Slack or GitHub either way, and sending either again answers 200 and changes nothing. Announced as `colleagueReviews:updated`, the runs’ own updates and, when its chat goes, `chats:updated`. 404 when the group is not there, or for `resolved` on a ticket with no review; 409 when the review could not be written.
+ */
+export const closeColleagueReview = <ThrowOnError extends boolean = false>(
+  options: Options<CloseColleagueReviewData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CloseColleagueReviewResponses,
+    CloseColleagueReviewErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/tickets/{ticketKey}/review/close',
     ...options,
     headers: {
       'Content-Type': 'application/json',

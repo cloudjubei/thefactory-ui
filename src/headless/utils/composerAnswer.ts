@@ -1,4 +1,5 @@
 import type { ProcessRun, ProcessStep } from 'thefactory-tools/types'
+import { getChatContext, processRunIdOfChatContext } from 'thefactory-tools/utils'
 import { isColleagueReviewDecisionGrant, isProcessActionsGate } from './colleagueReviewDecision'
 import type { ReviewDecisionArgs, ReviewGateAnswer } from './colleagueReviewDecisionTypes'
 import { COMPOSER_ANSWER_FILES_LABEL } from './composerAnswerConstants'
@@ -21,12 +22,23 @@ export function composerAnswerNote(text: string, files: readonly string[]): stri
 }
 
 /**
+ * The run whose own chat a chat is: the one a message typed there can answer.
+ * A ticket's review chat is no run's — a review run works in its own chat —
+ * so nothing typed there answers a run. Pure.
+ */
+export function composerRunIdOfChat(chatId: string | undefined): string | undefined {
+  const context = chatId ? getChatContext(chatId) : undefined
+  return context ? processRunIdOfChatContext(context) : undefined
+}
+
+/**
  * What a message the person sends from a chat's composer becomes. While the
  * chat's review decision card waits — on its row or set aside for later — it
  * is the card's answer, a note on the same call, as a typed answer is an
- * open question's; else, while the chat's colleague review run waits at its
- * approval, it answers that approval; else it is sent as ever. Never a
- * second turn beside the one the card holds. Pure.
+ * open question's; else, in a colleague review run's own chat (`run`, by
+ * {@link composerRunIdOfChat}) while the run waits at its approval, it
+ * answers that approval; else it is sent as ever. Never a second turn beside
+ * the one the card holds. Pure.
  */
 export function composerMessageRoute<G extends GrantLike>(
   grants: readonly G[] | undefined,

@@ -1,29 +1,17 @@
 import type { ReactNode } from 'react'
-import { reviewDecisionVerdict, type UseReviewChatSlot } from 'thefactory-ui/headless'
-import { ColleagueReviewDecisionCard, ModelChip } from 'thefactory-ui/web'
+import type { UseReviewChatSlot } from 'thefactory-ui/headless'
+import { ChatInput, ModelChip } from 'thefactory-ui/web'
 import ReviewChatSlot from '../../src/web/compound/chat/ReviewChatSlot'
 import type { Scene } from '../showcase/types'
-import { REVIEW_TICKET } from './colleagueReviewFixtures'
-import { REVIEW_RUN_PUSH_PASSED, REVIEW_RUN_REPLIED } from './reviewRunRoundsFixtures'
 import {
   CHAT_REPLY,
   CHAT_REPLY_LONG,
-  CHAT_RUN_ACTIONS,
   chatSaid,
   chatSlot,
-  DECISION_SAID,
   REPLY_TICKET,
   type Said,
 } from './reviewChatSlotFixtures'
-import { ROUND_TWO_PRS, ROUND_TWO_REPLY, ROUND_TWO_WITH_PRS } from './slackReviewFixtures'
-import {
-  BRINGING_BASE_SLOT,
-  MERGE_DONE,
-  MERGE_FIRST_CHECKS,
-  MERGE_ONE_MERGED,
-  MERGE_STOPPED,
-  workingSlot,
-} from './ticketRunFixtures'
+import { RUN_LINE_ASKS, RUN_LINE_WORKING } from './ticketRunFixtures'
 
 const noop = () => undefined
 
@@ -67,7 +55,7 @@ function Bubble({ who, children }: { who: string; children: ReactNode }) {
   )
 }
 
-/** The bottom of a review chat: its last messages, then what takes the composer's place. */
+/** The bottom of an inline review chat: its last messages, then its slot — in the composer's place, or above it. */
 function ChatFrame({
   children,
   ticketKey,
@@ -99,43 +87,11 @@ function ChatFrame({
 }
 
 function slotIn(slot: UseReviewChatSlot, width?: Width) {
-  const ticketKey = slot.run?.ticketReview?.ticketKey ?? REPLY_TICKET
   const said = chatSaid(slot.kind)
   return (
-    <ChatFrame ticketKey={ticketKey} said={said} {...(width ? { width } : {})}>
+    <ChatFrame ticketKey={REPLY_TICKET} said={said} {...(width ? { width } : {})}>
       <ReviewChatSlot slot={slot} renderModelChip={() => <AgentChip />} onOpenRun={noop} />
-    </ChatFrame>
-  )
-}
-
-/** The run's decision card in the chat, as ReviewChatSlot draws RunReviewDecisionCard once the round is read. */
-function RunDecisionIn({ width }: { width?: Width }) {
-  const verdict = reviewDecisionVerdict(ROUND_TWO_WITH_PRS)
-  return (
-    <ChatFrame ticketKey={REVIEW_TICKET} said={DECISION_SAID} {...(width ? { width } : {})}>
-      <div className="flex max-h-[65%] min-h-0 shrink flex-col gap-2 overflow-y-auto border-t border-(--border-default) bg-(--surface-raised) px-3 py-3">
-        <ColleagueReviewDecisionCard
-          ticketKey={REVIEW_TICKET}
-          {...(verdict ? { verdict } : {})}
-          loading={false}
-          draft={ROUND_TWO_REPLY}
-          actions={CHAT_RUN_ACTIONS}
-          prs={ROUND_TWO_PRS}
-          embedded
-          onChoose={noop}
-        />
-        <div className="flex items-center gap-3">
-          <button type="button" className="text-[12px] text-(--accent-primary) hover:underline">
-            Open run
-          </button>
-          <button
-            type="button"
-            className="ml-auto text-[12px] text-(--text-secondary) hover:underline"
-          >
-            Not now
-          </button>
-        </div>
-      </div>
+      {slot.kind === 'run-link' ? <ChatInput value="" onChange={noop} onSend={noop} /> : null}
     </ChatFrame>
   )
 }
@@ -146,10 +102,10 @@ export const REVIEW_CHAT_SLOT_SCENES: Scene[] = [
   {
     id: 'review-chat-slot',
     title: 'Review chat: what needs you',
-    component: 'ReviewChatSlot · ReviewReplyComposerCard',
+    component: 'ReviewChatSlot · ReviewReplyComposerCard · TicketRunLine',
     group: 'Chat',
     description:
-      'In a ticket’s review chat (review-<KEY>), in the composer’s place. Reviewed inline: once someone other than you replies in the update’s thread, who replied and when, what was pushed since the last round, what they wrote and its files, and Start round N on the agent picked — nothing starts by itself. Reviewed as a run: the run’s own card whenever it needs you (its approval, a push to approve, the reply it waited for), answered here as on the run’s page, with Open run. Not now brings the composer back for this view; a message typed then answers the run’s approval as a note.',
+      'In a ticket’s inline review chat (review-<KEY>). Reviewed inline: once someone other than you replies in the update’s thread, the composer’s place shows who replied and when, what was pushed since the last round, what they wrote and its files, and Start round N on the agent picked — nothing starts by itself; Not now brings the composer back for this view. Reviewed as a run: the run never works in this chat and shows none of its cards here — while one is going the chat says it in one line above the composer, with Open run, and the composer stays.',
     states: [
       {
         id: 'reply',
@@ -179,66 +135,23 @@ export const REVIEW_CHAT_SLOT_SCENES: Scene[] = [
         render: () => slotIn(REPLY, 'phone'),
       },
       {
-        id: 'run-decision',
-        title: 'The run at its approval',
+        id: 'run-link',
+        title: 'The review goes as a run: one line to it',
         description:
-          'A colleague review run parked at Your approval: the same decision card as on the run’s page, answered through the run, with Open run.',
-        render: () => <RunDecisionIn />,
+          'Round 3 is reviewed in a run, which never works in this chat. The chat says the run in one line above its composer, with Open run; the composer stays, and what is typed here goes to this chat’s agent, never to the run.',
+        render: () => slotIn(chatSlot({ kind: 'run-link', runLine: RUN_LINE_WORKING })),
       },
       {
-        id: 'run-decision-phone',
-        title: 'The run at its approval, on a phone',
-        render: () => <RunDecisionIn width="phone" />,
-      },
-      {
-        id: 'run-outside',
-        title: 'The run’s reply came',
-        description: 'The run waited on the developer; Start round 2 carries it on.',
-        render: () => slotIn(chatSlot({ kind: 'run-outside', run: REVIEW_RUN_REPLIED })),
-      },
-      {
-        id: 'run-push',
-        title: 'The run asks to approve a push',
-        render: () => slotIn(chatSlot({ kind: 'run-push', run: REVIEW_RUN_PUSH_PASSED })),
-      },
-      {
-        id: 'run-working-base',
-        title: 'After Approve & merge: bringing the base in',
+        id: 'run-link-asks',
+        title: 'The run waits for you',
         description:
-          'Right after the person chose, the run works off the chat: its card stays in the composer’s place with the step it is on, so the chat is never blank while it goes.',
-        render: () => slotIn(BRINGING_BASE_SLOT),
+          'The same line, tinted: the run’s own cards are on its page and on the ticket’s, never here.',
+        render: () => slotIn(chatSlot({ kind: 'run-link', runLine: RUN_LINE_ASKS })),
       },
       {
-        id: 'run-working-checks',
-        title: 'Merging: waiting for checks',
-        description:
-          'The run’s merge, pull request by pull request, drawn by the same rows as an inline Approve & merge: the backend’s first waits on its checks, the next waits its turn.',
-        render: () => slotIn(workingSlot(MERGE_FIRST_CHECKS)),
-      },
-      {
-        id: 'run-working-one-merged',
-        title: 'Merging: one merged, one waiting',
-        description: 'compass-be #392 merged; compass-web-user #302 waits on its Playwright check.',
-        render: () => slotIn(workingSlot(MERGE_ONE_MERGED)),
-      },
-      {
-        id: 'run-working-failed',
-        title: 'Merging: stopped on a failed check',
-        description:
-          'The merge stopped; the card says where and why until the run stops for the person.',
-        render: () => slotIn(workingSlot(MERGE_STOPPED)),
-      },
-      {
-        id: 'run-working-done',
-        title: 'Merged: thanks posted, ticket moved',
-        description:
-          'Both merged, the thanks posted in Slack and the ticket moved; the run writes its report.',
-        render: () => slotIn(workingSlot(MERGE_DONE, 'report')),
-      },
-      {
-        id: 'run-working-phone',
-        title: 'Merging, on a phone',
-        render: () => slotIn(workingSlot(MERGE_ONE_MERGED), 'phone'),
+        id: 'run-link-phone',
+        title: 'The run’s line, on a phone',
+        render: () => slotIn(chatSlot({ kind: 'run-link', runLine: RUN_LINE_ASKS }), 'phone'),
       },
     ],
   },

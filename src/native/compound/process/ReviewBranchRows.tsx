@@ -138,7 +138,7 @@ function BranchRow({
             />
           ))}
         </View>
-      ) : row.checksPassed === undefined && row.stateLabel === 'Resolved' ? (
+      ) : row.checksPassed === undefined && row.awaitsPush ? (
         <Text style={{ fontSize: 12.5, color: theme.text.muted }}>{COPY.noChecks}</Text>
       ) : null}
       {row.checksNote ? (

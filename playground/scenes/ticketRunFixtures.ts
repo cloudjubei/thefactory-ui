@@ -3,15 +3,16 @@ import type { ProcessGroupRun, ProcessLedgerEntry, ProcessRun } from 'thefactory
 import {
   groupTicketPageView,
   reviewRunWorkingView,
+  ticketReviewRunLine,
   ticketRunIndex,
   type GroupTicketOverview,
   type GroupTicketPageState,
   type ReviewMergeJob,
   type TicketRunIndex,
-  type UseReviewChatSlot,
+  type TicketRunState,
+  type UseTicketReviewRun,
 } from 'thefactory-ui/headless'
 import { OSC_TABS, OVERVIEW_FULL, TABS_NOW } from './groupTicketTabsFixtures'
-import { chatSlot } from './reviewChatSlotFixtures'
 import { REVIEW_RUN_PUSH_PASSED } from './reviewRunRoundsFixtures'
 
 const GROUP = 'osc'
@@ -62,7 +63,6 @@ const reviewRun = (ticketKey: string, over: Partial<ProcessRun>): ProcessRun =>
     ledger: [],
     startedAt: MINUTES_AGO(60),
     updatedAt: MINUTES_AGO(1),
-    chatContextId: `/groups/${GROUP}/topics/review-${ticketKey}`,
     ticketReview: { groupId: GROUP, ticketKey, round: 1 },
     input: {},
     ...over,
@@ -77,12 +77,19 @@ export const RUN_AT_PUSH = reviewRun('OSC-409', {
   input: REVIEW_RUN_PUSH_PASSED.input,
 } as Partial<ProcessRun>)
 
-/** OSC-409's slot: the run's own push approval, as its review chat shows it. */
-export const PUSH_SLOT: UseReviewChatSlot = chatSlot({
-  kind: 'run-push',
-  run: RUN_AT_PUSH,
-  liveRun: RUN_AT_PUSH,
+/** A ticket's review run with its own card, on fixed data. */
+const runCard = (over: Partial<UseTicketReviewRun>): UseTicketReviewRun => ({
+  run: undefined,
+  kind: undefined,
+  working: undefined,
+  merge: undefined,
+  answerGate: async () => true,
+  carryOn: async () => true,
+  ...over,
 })
+
+/** OSC-409's run with its own card: its push approval, answered on the ticket's page as on the run's. */
+export const PUSH_RUN_CARD: UseTicketReviewRun = runCard({ kind: 'push', run: RUN_AT_PUSH })
 
 /** OSC-398: merging, the backend's pull request merged, the web one waiting on its checks. */
 export const RUN_MERGING = reviewRun('OSC-398', {
@@ -226,30 +233,31 @@ const runAt = (stepId: string): ProcessRun =>
         ledger: [...DONE_TO_MERGE, entry('merge', 12, 'passed'), entry(stepId, 1)],
       } as Partial<ProcessRun>)
 
-/** The review chat's slot while the run works off the chat, following its merge. */
-export const workingSlot = (
+/** OSC-398's run with its working card, following its merge. */
+export const workingRunCard = (
   job: ReviewMergeJob | undefined,
   stepId = 'merge',
-): UseReviewChatSlot => {
+): UseTicketReviewRun => {
   const run = runAt(stepId)
-  return chatSlot({
-    kind: 'run-working',
+  return runCard({
+    kind: 'working',
     run,
-    liveRun: run,
     working: reviewRunWorkingView(run, job, TABS_NOW),
+    merge: job,
   })
 }
 
-/** The review chat's slot while the run brings the base in, before its merge. */
-export const BRINGING_BASE_SLOT: UseReviewChatSlot = (() => {
-  const run = RUN_BRINGING_BASE
-  return chatSlot({
-    kind: 'run-working',
-    run,
-    liveRun: run,
-    working: reviewRunWorkingView(run, undefined, TABS_NOW),
-  })
-})()
+/** OSC-409's round 3 going as a run, its agent reviewing: what its inline chat links to in one line. */
+export const RUN_REVIEWING_409 = reviewRun('OSC-409', {
+  title: 'Review of OSC-409, round 3',
+  ticketReview: { groupId: GROUP, ticketKey: 'OSC-409', round: 3 },
+  cursor: { stepId: 'review', iteration: 1 },
+  ledger: [entry('review', 4)],
+} as Partial<ProcessRun>)
+
+/** The run in one line, working and waiting on the person, as an inline review chat links to it. */
+export const RUN_LINE_WORKING: TicketRunState = ticketReviewRunLine(RUN_REVIEWING_409, TABS_NOW)!
+export const RUN_LINE_ASKS: TicketRunState = ticketReviewRunLine(RUN_AT_PUSH, TABS_NOW)!
 
 /** OSC-409's page as it reads with its run, the merge of a working one followed. */
 export const pageWithRun = (
@@ -284,3 +292,21 @@ export const OVERVIEW_398: GroupTicketOverview = {
 
 /** OSC-398's page while its run merges. */
 export const PAGE_MERGING = pageWithRun(OVERVIEW_398, [RUN_MERGING], TICKET_MERGES)
+
+/** OSC-409 reviewed inline: no run reviewed a round, so its page offers the review chat. */
+export const PAGE_REVIEW_INLINE = pageWithRun(
+  { ...OVERVIEW_FULL, review: { ...OVERVIEW_FULL.review!, runs: [] } },
+  [],
+)
+
+/** OSC-409 reviewed in runs, its latest round's run ended: its page links to that run, never a chat. */
+export const PAGE_REVIEW_IN_RUN = pageWithRun(
+  {
+    ...OVERVIEW_FULL,
+    review: {
+      ...OVERVIEW_FULL.review!,
+      runs: OVERVIEW_FULL.review!.runs.map((run) => ({ ...run, status: 'succeeded' as const })),
+    },
+  },
+  [],
+)

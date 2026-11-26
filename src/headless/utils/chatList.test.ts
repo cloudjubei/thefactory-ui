@@ -377,6 +377,81 @@ describe('chatListRow — what a row shows of its state', () => {
   })
 })
 
+describe('chatListRow — a process run’s chat and what its agent writes', () => {
+  const started = '2026-10-12T09:00:00Z'
+  const routine = Array.from(
+    { length: 30 },
+    (_, i) => `2026-10-12T10:${String(i).padStart(2, '0')}:00Z`,
+  )
+  const card = '2026-10-12T11:00:00Z'
+  const runChat = (over: Partial<ChatListChat> = {}): ChatListChat => ({
+    context: RUN_CHAT,
+    messageTimes: routine,
+    needsYouTimes: [],
+    createdAt: started,
+    updatedAt: routine[29]!,
+    ...over,
+  })
+  const statusAt = (chat: ChatListChat, level?: 'everything' | 'needs-me') =>
+    computeChatRowStatus({
+      context: chat.context,
+      contextKey: getChatContextKey(chat.context),
+      chat,
+      isSending: false,
+      seen: {},
+      level: level ?? 'needs-me',
+    })
+  const topicAt = (at: string): ChatListChat => ({ context: TOPIC, messageTimes: [at] })
+
+  it('is not moved by routine messages: its place is when the run’s chat began', () => {
+    expect(row({ chat: runChat(), run: run() }).lastActivityAt).toBe(started)
+    expect(row({ chat: runChat(), run: run(), level: 'needs-me' }).lastActivityAt).toBe(started)
+  })
+
+  it('is moved by a message that needs the person', () => {
+    const chat = runChat({ messageTimes: [...routine, card], needsYouTimes: [card] })
+    expect(row({ chat, run: run() }).lastActivityAt).toBe(card)
+  })
+
+  it('has no place in time without a start or a message that needs the person', () => {
+    const chat = runChat({ createdAt: undefined })
+    expect(row({ chat, run: run() }).lastActivityAt).toBeUndefined()
+  })
+
+  it('is moved by every message once the person asked for everything of it', () => {
+    expect(row({ chat: runChat(), run: run(), level: 'everything' }).lastActivityAt).toBe(
+      routine[29],
+    )
+  })
+
+  it('leaves every other chat moved by each message, whatever its level', () => {
+    const chat = { ...runChat(), context: REQUEST }
+    expect(row({ chat, level: 'needs-me' }).lastActivityAt).toBe(routine[29])
+    expect(row({ chat }).lastActivityAt).toBe(routine[29])
+  })
+
+  it('stays quiet and below a chat with older news while its agent writes', () => {
+    const chat = runChat()
+    const quiet = row({ chat, run: run(), status: statusAt(chat) })
+    expect(quiet).toMatchObject({ fresh: false, needsYou: 0, running: false })
+    const topic = row({ chat: topicAt('2026-10-12T09:30:00Z') })
+    expect([quiet, topic].sort(byChatListAttention).map((r) => r.kind)).toEqual(['topic', 'run'])
+  })
+
+  it('shows its dot and moves up once the person asked for everything of it', () => {
+    const chat = runChat()
+    const loud = row({
+      chat,
+      run: run(),
+      status: statusAt(chat, 'everything'),
+      level: 'everything',
+    })
+    expect(loud.fresh).toBe(true)
+    const topic = row({ chat: topicAt('2026-10-12T09:30:00Z') })
+    expect([topic, loud].sort(byChatListAttention).map((r) => r.kind)).toEqual(['run', 'topic'])
+  })
+})
+
 function listRow(over: Partial<ChatListRow>): ChatListRow {
   return {
     key: over.key ?? 'k',
@@ -881,6 +956,7 @@ describe('the chat list — closed chats, from the chats as stored', () => {
   const finishedRun: ChatListChat = {
     context: RUN_CHAT,
     archivedAt: CLOSED_AT,
+    createdAt: '2026-10-19T09:00:00Z',
     messageTimes: ['2026-10-19T10:00:00Z'],
   }
   const ASKS = new Map([[getChatContextKey(REQUEST_2), 1]])

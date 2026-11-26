@@ -28,6 +28,7 @@ import type {
 import type { ReviewMergePullRequest } from '../../../headless/utils/colleagueReviewMergeTypes'
 import { reviewOfChat } from '../../../headless/utils/colleagueReviewStart'
 import {
+  reviewPushApprovalIntro,
   reviewPushApprovalRows,
   reviewRunRound,
 } from '../../../headless/utils/colleagueReviewBranchUpdates'
@@ -405,7 +406,7 @@ export function RunPushApprovalCard({ run, embedded, onAnswer }: RunReviewDecisi
       body={
         <View style={{ gap: 8 }}>
           <Text style={{ fontSize: 13, color: theme.text.secondary }}>
-            {REVIEW_PUSH_COPY.intro}
+            {reviewPushApprovalIntro(run)}
           </Text>
           <ReviewBranchRows rows={reviewPushApprovalRows(run)} />
         </View>

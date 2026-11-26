@@ -48,6 +48,7 @@ export const FAKE_GROUP_STATUS: GetProjectsGroupStatusResponse = {
       lastActivity: { at: '2026-10-25T11:56:00.000Z', kind: 'run', id: 'run-story' },
     }),
     member('thefactory-backend', {
+      runs: { running: ['run-review-ticket'], parked: [] },
       storyProgress: {
         stories: { ...NONE, done: 4, blocked: 1 },
         features: { ...NONE, done: 14, blocked: 3, deferred: 2 },
@@ -78,7 +79,7 @@ export const FAKE_GROUP_STATUS: GetProjectsGroupStatusResponse = {
       lastActivity: { at: '2026-10-25T10:42:00.000Z', kind: 'check', id: 'lint' },
     }),
     member('thefactory-ui', {
-      runs: { running: ['run-ui-request'], parked: [] },
+      runs: { running: ['run-ui-request', 'run-review-ticket'], parked: [] },
       groupRuns: [GROUP_RUN],
       storyProgress: {
         stories: { ...NONE, done: 9, in_progress: 2, pending: 4 },

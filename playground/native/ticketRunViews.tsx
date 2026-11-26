@@ -7,11 +7,11 @@ import {
   type GroupTicketPageState,
   type GroupTicketsState,
   type TicketRunLayout,
-  type UseReviewChatSlot,
+  type UseTicketReviewRun,
 } from 'thefactory-ui/headless'
-import { ReviewChatSlotCard } from '../../src/native/compound/chat/ReviewChatSlot'
 import GroupTicketPage from '../../src/native/compound/groupStories/GroupTicketPage'
 import GroupTicketsList from '../../src/native/compound/groupStories/GroupTicketsList'
+import TicketReviewRunCard from '../../src/native/compound/groupStories/TicketReviewRunCard'
 import { useNativeTheme } from '../../src/native/hooks/useNativeTheme'
 import SegmentedControl from '../../src/native/primitives/SegmentedControl'
 import {
@@ -25,10 +25,12 @@ import {
   MERGE_ONE_MERGED,
   PAGE_AT_PUSH,
   PAGE_MERGING,
-  PUSH_SLOT,
+  PAGE_REVIEW_IN_RUN,
+  PAGE_REVIEW_INLINE,
+  PUSH_RUN_CARD,
   TICKET_MERGES,
   TICKET_RUNS,
-  workingSlot,
+  workingRunCard,
 } from '../scenes/ticketRunFixtures'
 import type { NativeView } from './views'
 
@@ -119,9 +121,11 @@ function Tabs({ address }: { address: URLSearchParams }) {
   )
 }
 
-const PAGES: Record<string, { state: GroupTicketPageState; slot: UseReviewChatSlot }> = {
-  'at-push': { state: PAGE_AT_PUSH, slot: PUSH_SLOT },
-  merging: { state: PAGE_MERGING, slot: workingSlot(MERGE_ONE_MERGED) },
+const PAGES: Record<string, { state: GroupTicketPageState; reviewRun?: UseTicketReviewRun }> = {
+  'at-push': { state: PAGE_AT_PUSH, reviewRun: PUSH_RUN_CARD },
+  merging: { state: PAGE_MERGING, reviewRun: workingRunCard(MERGE_ONE_MERGED) },
+  'review-in-run': { state: PAGE_REVIEW_IN_RUN },
+  'review-inline': { state: PAGE_REVIEW_INLINE },
 }
 
 function Page({ address }: { address: URLSearchParams }) {
@@ -138,7 +142,9 @@ function Page({ address }: { address: URLSearchParams }) {
         onOpenRun={noop}
         onOpenChat={noop}
         onRetry={noop}
-        runCard={<ReviewChatSlotCard slot={shown.slot} />}
+        {...(shown.reviewRun
+          ? { runCard: <TicketReviewRunCard reviewRun={shown.reviewRun} /> }
+          : {})}
       />
     </Phone>
   )

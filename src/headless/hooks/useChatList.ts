@@ -71,6 +71,7 @@ export function useChatList(scope: ChatListScope, seen: ChatsSeenMap): ChatListR
     return listed.map((chat) => {
       const { context } = chat
       const key = getChatContextKey(context)
+      const level = chatNotifyLevel(chat, notifyLevels)
       const status = computeChatRowStatus({
         context,
         contextKey: key,
@@ -78,7 +79,7 @@ export function useChatList(scope: ChatListScope, seen: ChatsSeenMap): ChatListR
         isSending: getChatLiveState(context).isSending,
         seen,
         pendingAsks: pendingAsks.get(key) ?? 0,
-        level: chatNotifyLevel(chat, notifyLevels),
+        level,
       })
       const runId = processRunIdOfChatContext(context)
       const run = runId ? runById.get(runId) : undefined
@@ -91,6 +92,7 @@ export function useChatList(scope: ChatListScope, seen: ChatsSeenMap): ChatListR
         chat,
         status,
         now,
+        level,
         ...(run ? { run } : {}),
         ...(work ? { work } : {}),
         ...(project ? { projectName: project.title } : {}),

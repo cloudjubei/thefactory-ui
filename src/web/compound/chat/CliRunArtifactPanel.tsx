@@ -44,6 +44,7 @@ import {
   useRunChatDraft,
   useStories,
   verdictSummary,
+  mergeAfterApprovalOf,
   ranReviewChecks,
   reviewCheckGroups,
   type ApproveActionDescriptor,
@@ -560,6 +561,10 @@ export default function CliRunArtifactPanel({
     partOfStoryRun: storyId !== undefined,
     ...(landFailure ? { landFailureReason: landFailure.reason } : {}),
   })
+  const mergeAfterApproval =
+    actionMode === 'actions' && !reportOnly
+      ? mergeAfterApprovalOf(verdict, review, approveOptions)
+      : undefined
   const busy = merging || approving || rejecting || requestingChanges
   const onBaseView =
     actionMode === 'actions' && !isMerged && !decided ? reviewOnBaseOfferView(onBase) : undefined
@@ -1013,6 +1018,20 @@ export default function CliRunArtifactPanel({
               {decided.notes ? (
                 <div className="wrap-break-word text-[12px] text-(--text-secondary)">
                   <RichText text={decided.notes} typedReferences />
+                </div>
+              ) : null}
+              {mergeAfterApproval ? (
+                <div className="mt-1 flex items-center justify-between gap-3">
+                  <span className="text-[12px] text-(--text-secondary)">
+                    {mergeAfterApproval.hint}
+                  </span>
+                  <Button
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => setPendingApprove(mergeAfterApproval)}
+                  >
+                    {mergeAfterApproval.label}
+                  </Button>
                 </div>
               ) : null}
             </div>

@@ -946,6 +946,7 @@ export {
 } from './compound/settings/DataLocationPanel'
 export { default as DataLocationSettingsPanel } from './compound/settings/DataLocationSettingsPanel'
 export { default as DatabaseSettings } from './compound/settings/DatabaseSettings'
+export { default as DockerDiskPanel } from './compound/settings/DockerDiskPanel'
 export { default as GitCredentialsForm } from './compound/settings/GitCredentialsForm'
 export type {
   GitCredentialsFormProps,

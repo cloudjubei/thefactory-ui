@@ -590,7 +590,12 @@ describe('GroupTicketsStore', () => {
   describe('review', () => {
     const file = (name: string) => ({ name, size: 3, uri: `file:///${name}` })
     const REVIEW_CHAT = { type: 'GROUP_TOPIC', groupId: 'osc', topicId: 'review-A-1' }
-    const roundStarted = { context: REVIEW_CHAT, chatContextId: 'c', round: 1 } as never
+    const roundStarted = {
+      mode: 'inline',
+      context: REVIEW_CHAT,
+      chatContextId: 'c',
+      round: 1,
+    } as never
 
     it('uploads each file to the review chat, then starts the round with their paths', async () => {
       answers({ mine: list() })
@@ -611,6 +616,24 @@ describe('GroupTicketsStore', () => {
       })
       expect(store.getState().reviewing).toEqual({})
       expect(store.getState().mine.list?.tickets[0]?.reviewOpen).toBe(true)
+    })
+
+    it('marks no review chat open for a round started as a run: it has none', async () => {
+      answers({ mine: list() })
+      const store = new GroupTicketsStore('osc')
+      await store.refreshMine()
+      const inRun = { mode: 'process', runId: 'run-1', projectId: 'osc-be', round: 1 } as never
+      reviewApi.startColleagueReview.mockResolvedValue(inRun)
+      const outcome = await store.review(
+        'A-1',
+        { text: 'Done', files: [] },
+        vi.fn(),
+        undefined,
+        'process',
+      )
+      expect(outcome).toEqual({ ok: true, started: inRun })
+      expect(store.getState().reviewing).toEqual({})
+      expect(store.getState().mine.list?.tickets[0]?.reviewOpen).toBe(false)
     })
 
     it('sends no attachments when there are no files', async () => {
@@ -749,6 +772,59 @@ describe('GroupTicketsStore', () => {
       const before = store.getState().mine
       store.markReviewOpen('Z-9')
       expect(store.getState().mine).toBe(before)
+    })
+  })
+
+  describe('a review the person closed', () => {
+    const reviewed = () => list({ tickets: [ticket('A-1', { reviewOpen: true })] })
+
+    it('stops showing the ticket as under review at once, in every list', async () => {
+      answers({ mine: reviewed(), search: reviewed() })
+      const store = new GroupTicketsStore('osc')
+      await store.refreshMine()
+      await store.search('a')
+      store.markReviewClosed('A-1')
+      const state = store.getState()
+      expect([
+        state.mine.list?.tickets[0]?.reviewOpen,
+        state.search.list?.tickets[0]?.reviewOpen,
+        store.isReviewClosed('A-1'),
+      ]).toEqual([false, false, true])
+    })
+
+    it('puts it back under review when the closing is undone', async () => {
+      answers({ mine: reviewed() })
+      const store = new GroupTicketsStore('osc')
+      await store.refreshMine()
+      const undo = store.markReviewClosed('A-1')
+      undo()
+      expect([
+        store.getState().mine.list?.tickets[0]?.reviewOpen,
+        store.isReviewClosed('A-1'),
+      ]).toEqual([true, false])
+    })
+
+    it('undoing leaves a ticket that was not under review as it was', async () => {
+      answers({ mine: list() })
+      const store = new GroupTicketsStore('osc')
+      await store.refreshMine()
+      const before = store.getState().mine
+      const undo = store.markReviewClosed('A-1')
+      expect(store.getState().mine).toBe(before)
+      undo()
+      expect(store.getState().mine.list?.tickets[0]?.reviewOpen).toBe(false)
+    })
+
+    it('is under review again once a round starts on it', async () => {
+      answers({ mine: reviewed() })
+      const store = new GroupTicketsStore('osc')
+      await store.refreshMine()
+      store.markReviewClosed('A-1')
+      store.markReviewOpen('A-1')
+      expect([
+        store.getState().mine.list?.tickets[0]?.reviewOpen,
+        store.isReviewClosed('A-1'),
+      ]).toEqual([true, false])
     })
   })
 

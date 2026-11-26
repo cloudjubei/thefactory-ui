@@ -80,7 +80,7 @@ const stateOf = (
 ) => ticketRunState(ticket, ticketRunIndex(GROUP, runs, groupRuns), NOW)
 
 describe('ticketRunIndex', () => {
-  it('finds a review run by the ticket it reviews, else by its review chat, only in the group', () => {
+  it('finds a review run by the ticket it reviews, never by a chat it holds, only in the group', () => {
     const index = ticketRunIndex(
       GROUP,
       [
@@ -100,8 +100,8 @@ describe('ticketRunIndex', () => {
       [],
     )
     expect(index.reviews.get('ZNR-756')?.map((r) => r.id)).toEqual(['by-subject'])
-    expect(index.reviews.get('ZNR-757')?.map((r) => r.id)).toEqual(['by-chat'])
-    expect([...index.reviews.keys()]).toEqual(['ZNR-756', 'ZNR-757'])
+    expect(index.reviews.get('ZNR-757')).toBeUndefined()
+    expect([...index.reviews.keys()]).toEqual(['ZNR-756'])
     expect(index.stories.size).toBe(0)
   })
 

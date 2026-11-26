@@ -25,7 +25,8 @@ export type ParkAnswersProps = {
  * [web's `ParkAnswers`](../../../web/compound/process/ParkAnswers.tsx).
  * A stop's answers, the one in front shown whole: its name (and "Manager's
  * pick"), what it does, why, and the words it sends — sent as they are, or
- * edited first. The other answers are one tap away under "Or:"; carrying on
+ * edited first; a way on that tries the step again can go with a note the
+ * person adds. The other answers are one tap away under "Or:"; carrying on
  * unchecked and the endings are quiet links under "Also:", and an ending asks
  * before it goes.
  */
@@ -40,17 +41,19 @@ export default function ParkAnswers({
   const { theme, status } = useNativeTheme()
   const lead = view.lead
   const [editing, setEditing] = useState(false)
+  const [adding, setAdding] = useState(false)
   const [draft, setDraft] = useState(lead?.note ?? '')
   const [confirming, setConfirming] = useState<ParkAnswerView | undefined>()
   useEffect(() => {
     setEditing(false)
+    setAdding(false)
     setDraft(lead?.note ?? '')
   }, [lead?.key, lead?.note])
   if (!lead) return null
 
   const send = (answer: ParkAnswerView, note: string | undefined) =>
     answer.confirm ? setConfirming(answer) : onSend(answer, note)
-  const leadNote = editing ? draft.trim() || undefined : lead.note
+  const leadNote = editing || adding ? draft.trim() || undefined : lead.note
   const caption = {
     fontSize: 10.5,
     fontWeight: '600',
@@ -118,6 +121,18 @@ export default function ParkAnswers({
             )}
           </View>
         ) : null}
+        {adding && lead.optionalNote ? (
+          <View style={{ gap: 4 }}>
+            <Text style={caption}>{lead.optionalNote}</Text>
+            <Textarea
+              accessibilityLabel={lead.optionalNote}
+              rows={3}
+              placeholder={PARK_ANSWERS_COPY.optional}
+              value={draft}
+              onChangeText={setDraft}
+            />
+          </View>
+        ) : null}
         {leadExtra}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
           <Button
@@ -131,6 +146,10 @@ export default function ParkAnswers({
           {lead.note ? (
             <Button size="sm" variant="ghost" disabled={busy} onPress={() => setEditing((v) => !v)}>
               {editing ? PARK_ANSWERS_COPY.cancel : PARK_ANSWERS_COPY.editFirst}
+            </Button>
+          ) : lead.optionalNote ? (
+            <Button size="sm" variant="ghost" disabled={busy} onPress={() => setAdding((v) => !v)}>
+              {adding ? PARK_ANSWERS_COPY.cancel : PARK_ANSWERS_COPY.addNote}
             </Button>
           ) : null}
         </View>

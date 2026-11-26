@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import {
@@ -8,6 +8,7 @@ import {
   PROCESS_RUN_WAITING_TITLE,
   isProcessRunHistoryOnly,
   processRunAttentionSections,
+  processRunHomeLabel,
   processRunListRow,
   processRunSpend,
   processRunWaitingCount,
@@ -18,6 +19,7 @@ import {
   useProcessRunChatNews,
   useProcessRuns,
   useProcessStopClock,
+  useProjectsOptional,
   PROCESS_LAUNCH_COPY,
   processStartsFromForm,
   useProcesses,
@@ -34,6 +36,7 @@ import SegmentedControl from '../primitives/SegmentedControl'
 import Spinner from '../primitives/Spinner'
 import { DurCostChips } from '../compound/chat/signoff'
 import CostChip from '../compound/chips/CostChip'
+import ProjectChip from '../compound/chips/ProjectChip'
 import NotificationBadge from '../compound/NotificationBadge'
 import { IconPlay, IconSettings } from '../icons'
 import { useNativeTheme } from '../hooks/useNativeTheme'
@@ -83,6 +86,11 @@ export default function ProcessRunsView({
 }: ProcessRunsViewProps) {
   const { theme } = useNativeTheme()
   const { isLoaded, runs, current, history } = useProcessRuns(projectId)
+  const projects = useProjectsOptional()?.projects
+  const homeOf = useCallback(
+    (run: ProcessRun) => processRunHomeLabel(run, projectId, projects),
+    [projectId, projects],
+  )
   const { settings } = useAppSettings()
   const badgeColor = settings.notifications.badgeColors.processes
   const stopNow = useProcessStopClock()
@@ -218,6 +226,7 @@ export default function ProcessRunsView({
                   chatNews={chatNews}
                   selectedRunId={selectedRunId}
                   onSelectRun={onSelectRun}
+                  homeOf={homeOf}
                 />
               ))
             : rows.map((run) => (
@@ -228,6 +237,7 @@ export default function ProcessRunsView({
                   stopNow={stopNow}
                   chatNews={chatNews.get(run.id)}
                   selected={run.id === selectedRunId}
+                  home={homeOf(run)}
                   onPress={() => onSelectRun(run.id, run.projectId)}
                 />
               ))}
@@ -245,6 +255,7 @@ function RunSection({
   chatNews,
   selectedRunId,
   onSelectRun,
+  homeOf,
 }: {
   section: ProcessRunAttentionSection
   badgeColor: BadgeColor
@@ -255,6 +266,8 @@ function RunSection({
   chatNews: ReadonlyMap<string, ProcessRunChatNews>
   selectedRunId: string | undefined
   onSelectRun: (runId: string, projectId: string) => void
+  /** The home project a run names on its row: one listed here from another project. */
+  homeOf: (run: ProcessRun) => string | undefined
 }) {
   const { status } = useNativeTheme()
   const fg = status[section.tone].softFg
@@ -292,6 +305,7 @@ function RunSection({
           stopNow={stopNow}
           chatNews={chatNews.get(run.id)}
           selected={run.id === selectedRunId}
+          home={homeOf(run)}
           onPress={() => onSelectRun(run.id, run.projectId)}
         />
       ))}
@@ -305,6 +319,7 @@ function RunRow({
   stopNow,
   chatNews,
   selected,
+  home,
   onPress,
 }: {
   run: ProcessRun
@@ -313,6 +328,8 @@ function RunRow({
   stopNow: number
   chatNews: ProcessRunChatNews | undefined
   selected: boolean
+  /** Its home project, when it is listed here from another project. */
+  home: string | undefined
   onPress: () => void
 }) {
   const { theme, status } = useNativeTheme()
@@ -371,6 +388,7 @@ function RunRow({
         >
           {row.line}
         </Text>
+        {home ? <ProjectChip label={home} nonActionable /> : null}
         {spend ? <CostChip label={spend.label} cost={run.totals} title={spend.title} /> : null}
       </View>
     </Pressable>

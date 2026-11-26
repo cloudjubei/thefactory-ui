@@ -270,8 +270,26 @@ describe('fakeBackendRoutes', () => {
   })
 
   it('answers the run list with the project asked for only', () => {
-    const { body } = get('/api/v1/process-runs', 'projectId=thefactory-backend')
+    const { body } = get('/api/v1/process-runs', 'projectId=overseer-local')
     expect(body).toEqual([])
+  })
+
+  it('lists a run for its home project, for a further project and for its group', () => {
+    const ids = (search: string) =>
+      (get('/api/v1/process-runs', search).body as { id: string }[]).map((run) => run.id)
+    expect(ids('projectId=thefactory-backend')).toEqual(['run-review-ticket'])
+    expect(ids('rootOnly=true&projectId=thefactory-ui')).toEqual([
+      'run-ui-request',
+      'run-review-ticket',
+    ])
+    expect(ids('groupId=overseer')).toEqual(['run-review-ticket'])
+    expect(ids('groupId=another-group')).toEqual([])
+    expect(ids('groupId=overseer&projectIds=overseer-local')).toEqual([])
+    expect(ids('rootOnly=true&projectIds=thefactory-tools&orGroupId=overseer')).toEqual([
+      'run-story',
+      'run-review-ticket',
+    ])
+    expect(ids('projectIds=overseer-local&orGroupId=overseer&status=parked')).toEqual([])
   })
 
   it('leaves a child run out of a root-only list', () => {
@@ -363,7 +381,11 @@ describe('fakeBackendRoutes', () => {
 
   it('narrows the run list by status', () => {
     const { body } = get('/api/v1/process-runs', 'rootOnly=true&status=running')
-    expect((body as { id: string }[]).map((run) => run.id)).toEqual(['run-story', 'run-ui-request'])
+    expect((body as { id: string }[]).map((run) => run.id)).toEqual([
+      'run-story',
+      'run-ui-request',
+      'run-review-ticket',
+    ])
   })
 
   it('narrows the run list by how a run was left', () => {

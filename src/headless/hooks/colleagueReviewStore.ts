@@ -1,6 +1,11 @@
-import type { ColleagueReview } from 'thefactory-tools/types'
-import { dropReviewFinding, markReviewWaitingGiven } from 'thefactory-tools/utils'
+import type {
+  ColleagueReview,
+  ColleagueReviewCloseOutcome,
+  ProcessDecisionClient,
+} from 'thefactory-tools/types'
+import { closeReview, dropReviewFinding, markReviewWaitingGiven } from 'thefactory-tools/utils'
 import {
+  closeColleagueReview,
   dropColleagueReviewFinding,
   markColleagueReviewWaitingGiven,
   readColleagueReview,
@@ -9,6 +14,8 @@ import { postColleagueReviewReply } from '../api/colleagueReviewSourceApi'
 import { extractErrorMessage } from '../api/errorMessage'
 import type { WsClient } from '../api/WsClient'
 import { COLLEAGUE_REVIEW_CARD_TEXT } from '../utils/colleagueReviewCardConstants'
+import { reviewCloseBody } from '../utils/colleagueReviewClose'
+import { REVIEW_CLOSE_TEXT } from '../utils/colleagueReviewCloseConstants'
 import { REVIEW_POST_TEXT } from '../utils/colleagueReviewSourceConstants'
 import type { ReviewPendingActions } from '../utils/colleagueReviewCardTypes'
 import { COLLEAGUE_REVIEWS_EVENT } from '../utils/colleagueReviewStartConstants'
@@ -21,6 +28,18 @@ const REVIEW_LINGER_MS = 30_000
 type PendingAction =
   | { kind: 'drop' | 'given'; id: string; note?: string }
   | { kind: 'post'; round: number; again: boolean; text?: string }
+  | {
+      kind: 'close'
+      outcome: ColleagueReviewCloseOutcome
+      note?: string
+      via: ProcessDecisionClient
+      at: string
+    }
+
+/** What the store is built with beyond its socket: its clock. */
+export interface ColleagueReviewStoreOptions {
+  now?: () => string
+}
 
 /** A review as its cards draw it: the person's own changes on their way already in it. */
 export type ColleagueReviewSnapshot = {
@@ -61,8 +80,14 @@ function applyPending(
 ): ColleagueReview | null | undefined {
   if (!review || pending.length === 0) return review
   const now = review.updatedAt
-  return pending.reduce((current, action) => {
-    if (action.kind === 'post') return current
+  return pending.reduce<ColleagueReview | null>((current, action) => {
+    if (!current || action.kind === 'post') return current
+    if (action.kind === 'close') {
+      if (action.outcome === 'remove') return null
+      const { note, via, at } = action
+      const closed = closeReview(current, { by: 'person', via, ...(note ? { note } : {}) }, at)
+      return closed.ok ? closed.review : current
+    }
     const changed =
       action.kind === 'drop'
         ? dropReviewFinding(current, action.id, action.note, now)
@@ -75,18 +100,37 @@ const FAILED: Record<PendingAction['kind'], string> = {
   drop: COLLEAGUE_REVIEW_CARD_TEXT.dropFailed,
   given: COLLEAGUE_REVIEW_CARD_TEXT.givenFailed,
   post: REVIEW_POST_TEXT.failed,
+  close: REVIEW_CLOSE_TEXT.failed,
+}
+
+function closingOf(pending: readonly PendingAction[]): {
+  closing?: ColleagueReviewCloseOutcome
+} {
+  const close = pending.find((a) => a.kind === 'close')
+  return close?.kind === 'close' ? { closing: close.outcome } : {}
 }
 
 /** The same change pressed again: a drop or given of one item, or a post of one round. */
 function sameAction(a: PendingAction, b: PendingAction): boolean {
+  if (a.kind === 'close' || b.kind === 'close') return a.kind === b.kind
   if (a.kind === 'post' || b.kind === 'post') {
     return a.kind === 'post' && b.kind === 'post' && a.round === b.round
   }
   return a.kind === b.kind && a.id === b.id
 }
 
-function send(groupId: string, ticketKey: string, action: PendingAction): Promise<ColleagueReview> {
+function send(
+  groupId: string,
+  ticketKey: string,
+  action: PendingAction,
+): Promise<ColleagueReview | undefined> {
   switch (action.kind) {
+    case 'close':
+      return closeColleagueReview(
+        groupId,
+        ticketKey,
+        reviewCloseBody(action.outcome, action.note, action.via),
+      ).then((answer) => answer.review)
     case 'drop':
       return dropColleagueReviewFinding(groupId, ticketKey, action.id, action.note)
     case 'given':
@@ -118,7 +162,10 @@ export class ColleagueReviewStore {
     }
   >()
 
-  constructor(ws: Pick<WsClient, 'on' | 'onReconnect'>) {
+  private readonly _now: () => string
+
+  constructor(ws: Pick<WsClient, 'on' | 'onReconnect'>, options: ColleagueReviewStoreOptions = {}) {
+    this._now = options.now ?? (() => new Date().toISOString())
     this._live = new LiveResourceStore<ColleagueReview | null>({
       load: (key) => readColleagueReview(...keyParts(key)),
       connect: (key, live) => {
@@ -165,6 +212,7 @@ export class ColleagueReviewStore {
         drops: new Set(overlay.pending.flatMap((a) => (a.kind === 'drop' ? [a.id] : []))),
         givens: new Set(overlay.pending.flatMap((a) => (a.kind === 'given' ? [a.id] : []))),
         posts: new Set(overlay.pending.flatMap((a) => (a.kind === 'post' ? [a.round] : []))),
+        ...closingOf(overlay.pending),
       },
       actionError: overlay.actionError,
     }
@@ -175,12 +223,14 @@ export class ColleagueReviewStore {
   refresh = (key: string): Promise<void> => this._live.refresh(key)
 
   /** The person drops a finding. Shown dropped at once; pressing it again while it goes changes nothing. */
-  drop = (key: string, findingId: string, note?: string): Promise<void> =>
-    this._act(key, { kind: 'drop', id: findingId, ...(note ? { note } : {}) })
+  drop = async (key: string, findingId: string, note?: string): Promise<void> => {
+    await this._act(key, { kind: 'drop', id: findingId, ...(note ? { note } : {}) })
+  }
 
   /** The person marks a waited-on item given. Shown given at once; pressing it again changes nothing. */
-  markGiven = (key: string, waitingOnId: string, note?: string): Promise<void> =>
-    this._act(key, { kind: 'given', id: waitingOnId, ...(note ? { note } : {}) })
+  markGiven = async (key: string, waitingOnId: string, note?: string): Promise<void> => {
+    await this._act(key, { kind: 'given', id: waitingOnId, ...(note ? { note } : {}) })
+  }
 
   /**
    * Post a round's reply in the group's watched thread as the person. Shown
@@ -188,8 +238,23 @@ export class ColleagueReviewStore {
    * posts a reply that was posted already; `text` is the person's edit, posted
    * in place of the drafted reply.
    */
-  postReply = (key: string, round: number, again: boolean, text?: string): Promise<void> =>
-    this._act(key, { kind: 'post', round, again, ...(text !== undefined ? { text } : {}) })
+  postReply = async (key: string, round: number, again: boolean, text?: string): Promise<void> => {
+    await this._act(key, { kind: 'post', round, again, ...(text !== undefined ? { text } : {}) })
+  }
+
+  /**
+   * Close the review as the person chose in its confirm. Shown at once —
+   * resolved with their note, or gone — and put back with why when the backend
+   * refuses. Answers whether it closed; `undefined` for a press while one
+   * closing is already on its way, which changes nothing.
+   */
+  close = (
+    key: string,
+    outcome: ColleagueReviewCloseOutcome,
+    note: string | undefined,
+    via: ProcessDecisionClient,
+  ): Promise<boolean | undefined> =>
+    this._act(key, { kind: 'close', outcome, via, at: this._now(), ...(note ? { note } : {}) })
 
   private _setOverlay(key: string, overlay: Overlay): void {
     if (
@@ -204,9 +269,9 @@ export class ColleagueReviewStore {
     for (const listener of [...(this._listeners.get(key) ?? [])]) listener()
   }
 
-  private async _act(key: string, action: PendingAction): Promise<void> {
+  private async _act(key: string, action: PendingAction): Promise<boolean | undefined> {
     const overlay = this._overlays.get(key) ?? NO_OVERLAY
-    if (overlay.pending.some((a) => sameAction(a, action))) return
+    if (overlay.pending.some((a) => sameAction(a, action))) return undefined
     const { actionError: _cleared, ...kept } = overlay
     this._setOverlay(key, {
       ...kept,
@@ -214,9 +279,9 @@ export class ColleagueReviewStore {
       actionError: undefined,
     })
     const [groupId, ticketKey] = keyParts(key)
-    const settle = (change: { confirmed: ColleagueReview } | { actionError: string }) => {
+    const settle = (change: { confirmed?: ColleagueReview } | { actionError: string }) => {
       const now = this._overlays.get(key) ?? NO_OVERLAY
-      const confirmed = 'confirmed' in change ? change.confirmed : now.confirmed
+      const confirmed = ('confirmed' in change ? change.confirmed : undefined) ?? now.confirmed
       this._setOverlay(key, {
         pending: now.pending.filter((a) => a !== action),
         actionError: 'actionError' in change ? change.actionError : now.actionError,
@@ -224,9 +289,13 @@ export class ColleagueReviewStore {
       })
     }
     try {
-      settle({ confirmed: await send(groupId, ticketKey, action) })
+      const confirmed = await send(groupId, ticketKey, action)
+      if (!confirmed) await this._live.refresh(key).catch(() => undefined)
+      settle(confirmed ? { confirmed } : {})
+      return true
     } catch (err) {
       settle({ actionError: extractErrorMessage(err, FAILED[action.kind]) })
+      return false
     }
   }
 }

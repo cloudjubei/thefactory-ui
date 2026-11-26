@@ -21,6 +21,16 @@ export {
   useWebSearchBrowserSetting,
   type WebSearchBrowserSetting,
 } from './hooks/useWebSearchBrowserSetting'
+export { useDockerDisk, type DockerDiskControls } from './hooks/useDockerDisk'
+export {
+  dockerDiskAfterClear,
+  dockerDiskFacts,
+  dockerDiskResizing,
+  formatDiskGb,
+  resizeLabel,
+} from './utils/dockerDisk'
+export { DOCKER_DISK_TEXT } from './utils/dockerDiskConstants'
+export type { DockerDisk, DockerDiskFacts } from './utils/dockerDiskTypes'
 export {
   useDependencySelector,
   type FeatureLike,
@@ -129,7 +139,8 @@ export {
   useProjectsGroupConstellation,
   type UseProjectsGroupConstellation,
 } from './hooks/useProjectsGroupConstellation'
-export { groupMemberProgress, groupStatusView } from './utils/groupStatusView'
+export { groupMemberProgress, groupStatusView, isGroupSharedRun } from './utils/groupStatusView'
+export { processRunHomeLabel } from './utils/processRunHome'
 export {
   GROUP_HOME_CLOCK_MS,
   GROUP_HOME_DEFAULT_LAYOUT,
@@ -148,6 +159,7 @@ export type {
   GroupMemberRunRow,
   GroupMemberView,
   GroupRunRow,
+  GroupSharedRunRow,
   GroupStatusBadge,
   GroupStatusSection,
   GroupStatusView,
@@ -335,6 +347,7 @@ export {
   chatMessageTimes,
   chatNeedsYouTimesOf,
   chatLastActivityAt,
+  chatLastNeedsYouAt,
   byLastActivity,
   isChatLoaded,
   type ChatListEntry,
@@ -363,8 +376,30 @@ export type {
 } from './utils/chatNotifyTypes'
 export { useChatNotifyLevel, type UseChatNotifyLevel } from './hooks/useChatNotifyLevel'
 export { useChatNewsNotifier, type ChatNewsNotification } from './hooks/useChatNewsNotifier'
-export { chatBadgeInputOf, chatChannelOf, processRunChatNewsByRun } from './utils/chatChannel'
-export type { ChatChannel, ProcessRunChatNews } from './utils/chatChannelTypes'
+export {
+  chatBadgeInputOf,
+  chatChannelOf,
+  processRunChatNewsByRun,
+  processRunChatNewsOf,
+} from './utils/chatChannel'
+export type {
+  ChatChannel,
+  ProcessRunChatNews,
+  ProcessRunChatNewsChat,
+  ProcessRunChatNewsRead,
+} from './utils/chatChannelTypes'
+export {
+  processRunStopKey,
+  processRunStopNotification,
+  processRunStopsSince,
+} from './utils/processRunStopNews'
+export type {
+  ProcessRunStopCheck,
+  ProcessRunStopMarks,
+  ProcessRunStopNews,
+  ProcessRunStopNotification,
+  ProcessRunStopRead,
+} from './utils/processRunStopNewsTypes'
 export { useProcessRunChatNews } from './hooks/useProcessRunChatNews'
 export { useProcessRunChat, type UseProcessRunChat } from './hooks/useProcessRunChat'
 export { resolveProcessRunChatRoot } from './utils/processRunChatRoot'
@@ -948,6 +983,7 @@ export {
   reviewChangeCounts,
   runReviewFacts,
   verdictSummary,
+  mergeAfterApprovalOf,
   verificationCheckRows,
   ranReviewChecks,
   reviewCheckGroups,
@@ -3861,6 +3897,7 @@ export type {
 } from './utils/processParkNoteTypes'
 export {
   parkAnswerIsMinor,
+  parkAnswerTakesOptionalNote,
   parkOwnAnswerChoice,
   processParkAnswersView,
 } from './utils/processParkAnswers'
@@ -4156,6 +4193,7 @@ export type {
   TicketPlanStarted,
 } from './utils/groupTicketTypes'
 export {
+  closeColleagueReview,
   dropColleagueReviewFinding,
   listColleagueReviews,
   markColleagueReviewWaitingGiven,
@@ -4163,6 +4201,31 @@ export {
   startColleagueReview,
 } from './api/colleagueReviewApi'
 export { useColleagueReview, type UseColleagueReview } from './hooks/useColleagueReview'
+export {
+  useColleagueReviewClose,
+  type UseColleagueReviewClose,
+} from './hooks/useColleagueReviewClose'
+export {
+  reviewCloseBody,
+  reviewCloseConfirmView,
+  reviewCloseView,
+  reviewClosedLine,
+} from './utils/colleagueReviewClose'
+export {
+  REVIEW_CLOSE_DEFAULT_OUTCOME,
+  REVIEW_CLOSE_NOTE_MAX_CHARS,
+  REVIEW_CLOSE_OUTCOMES,
+  REVIEW_CLOSE_TEXT,
+} from './utils/colleagueReviewCloseConstants'
+export type {
+  ReviewCloseAnswer,
+  ReviewCloseBody,
+  ReviewCloseConfirmView,
+  ReviewCloseContext,
+  ReviewCloseInput,
+  ReviewCloseOutcomeView,
+  ReviewCloseView,
+} from './utils/colleagueReviewCloseTypes'
 export { useColleagueReviewCall, type UseColleagueReviewCall } from './hooks/useColleagueReviewCall'
 export {
   ColleagueReviewStore,
@@ -4226,6 +4289,8 @@ export type {
   ColleagueReviewMode,
   ColleagueReviewStartBody,
   ColleagueReviewStarted,
+  ColleagueReviewStartedInline,
+  ColleagueReviewStartedInRun,
   ReviewStartedDestination,
   ReviewBoxOffer,
   ReviewDraft,
@@ -4297,6 +4362,7 @@ export {
   answerDecisionCardWithNote,
   composerAnswerNote,
   composerMessageRoute,
+  composerRunIdOfChat,
   reviewDecisionNoteMetadata,
   reviewGateNoteAnswer,
   type ComposerReviewRun,
@@ -4325,6 +4391,8 @@ export {
   isReviewPushApproval,
   reviewBranchRow,
   reviewBranchUpdatesOf,
+  reviewBranchStopRows,
+  reviewPushApprovalIntro,
   reviewPushApprovalRows,
   reviewRunRound,
 } from './utils/colleagueReviewBranchUpdates'
@@ -4332,6 +4400,7 @@ export {
   REVIEW_BRANCH_STATE_VIEW,
   REVIEW_BRANCH_UPDATES_INPUT_KEY,
   REVIEW_PUSH_APPROVAL_STEP_ID,
+  REVIEW_UPDATE_BRANCHES_STEP_ID,
   REVIEW_PUSH_COPY,
 } from './utils/colleagueReviewBranchUpdatesConstants'
 export type {
@@ -5846,8 +5915,28 @@ export type {
   ReviewReplySource,
   ReviewReplyView,
 } from './utils/reviewReplyTypes'
-export { reviewChatLiveRun, reviewChatSlotKind, reviewRunWorkingView } from './utils/reviewChatSlot'
-export type { ReviewChatSlotKind, ReviewRunWorkingView } from './utils/reviewChatSlotTypes'
+export { reviewChatSlotKind } from './utils/reviewChatSlot'
+export type { ReviewChatSlotKind } from './utils/reviewChatSlotTypes'
+export {
+  reviewRunFollowsMerge,
+  reviewRunWorkingView,
+  ticketReviewLiveRun,
+  ticketReviewRunCardKind,
+  ticketReviewRunLine,
+} from './utils/ticketReviewRun'
+export type {
+  ReviewedTicket,
+  ReviewRunWorkingView,
+  TicketReviewRunCardKind,
+} from './utils/ticketReviewRunTypes'
+export { useTicketReviewRun, type UseTicketReviewRun } from './hooks/useTicketReviewRun'
+export {
+  isRunChatStep,
+  runConversationOpenKey,
+  runConversationView,
+} from './utils/processRunConversation'
+export { RUN_CONVERSATION_COPY } from './utils/processRunConversationConstants'
+export type { RunConversationState, RunConversationView } from './utils/processRunConversationTypes'
 export { ticketRunIndex, ticketRunMergeKeys, ticketRunState } from './utils/ticketRunState'
 export { useReviewMergeJobs, useTicketRuns, type UseTicketRuns } from './hooks/useTicketRuns'
 export {

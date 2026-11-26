@@ -210,6 +210,7 @@ import { RunModelChip, VerdictBadge, type SaveFileHandler } from '../chat/signof
 import CostChip from '../chips/CostChip'
 import ToneBadge from '../chips/ToneBadge'
 import ChatKindTile from '../chat/ChatKindTile'
+import { ReviewRunClose } from '../groupStories/ReviewCloseControl'
 import StepsStrip from './StepsStrip'
 import DurationChip from '../chips/DurationChip'
 import DependencyRef from '../stories/DependencyRef'
@@ -230,7 +231,14 @@ import {
   processRunWaitView,
   processWaitConfirmView,
 } from '../../../headless/utils/processRunWait'
-import { isReviewPushApproval } from '../../../headless/utils/colleagueReviewBranchUpdates'
+import {
+  isReviewPushApproval,
+  reviewBranchStopRows,
+} from '../../../headless/utils/colleagueReviewBranchUpdates'
+import { isRunChatStep, runConversationView } from '../../../headless/utils/processRunConversation'
+import RunConversationCard from './RunConversationCard'
+import RunReviewMergeProgress from './RunReviewMergeProgress'
+import ReviewBranchRows from './ReviewBranchRows'
 import {
   isOutsideWaitPending,
   processOutsideWaitView,
@@ -271,7 +279,11 @@ export type ProcessPipelineProps = {
   onCopy?: (text: string) => unknown
   /**
    * Push the run's own chat — native's form of web's docked run chat. Its draft is
-   * already set when a "Needs you" item is being discussed.
+   * already set when a "Needs you" item is being discussed. A run that works
+   * in its own chat — a step that is turns of it — opens it as that step's
+   * conversation: its row pushes it, and while the step works or an ask
+   * waits in it the run's screen says so in a row that pushes it, where the
+   * ask is answered on its own card. Without this the row only says so.
    */
   onOpenRunChat?: (context: ChatContext) => void
   /** The host's map of when each chat was last seen — the run chat's unread dot. */
@@ -470,6 +482,24 @@ function ProcessPipelineAt({
     const opened = await askAgent()
     if (opened) onOpenRunChat?.(opened.context)
   }, [askAgent, onOpenRunChat])
+  const runChatAsks = runChatKey ? (pendingAsksByChat.get(runChatKey) ?? 0) : 0
+  const conversation = run && stack.length === 0 ? runConversationView(run, runChatAsks) : undefined
+  const openConversation = useCallback(() => {
+    if (runChatContext) onOpenRunChat?.(runChatContext)
+  }, [runChatContext, onOpenRunChat])
+  const conversationRunId = conversation && canChat ? run?.id : undefined
+  const conversationPlan = run?.plan
+  const openPanel = useCallback(
+    (target: StepPanelTarget) => {
+      const inChat =
+        conversationPlan !== undefined &&
+        target.runId === conversationRunId &&
+        isRunChatStep({ plan: conversationPlan }, target.stepId)
+      if (inChat) openConversation()
+      else setPanel(target)
+    },
+    [conversationRunId, conversationPlan, openConversation],
+  )
 
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [confirmStop, setConfirmStop] = useState(false)
@@ -690,7 +720,7 @@ function ProcessPipelineAt({
           managerLine={managerLine}
           addedTag={amendments.addedSteps[state.step.id]}
           onDrill={drillTo}
-          onOpenPanel={setPanel}
+          onOpenPanel={openPanel}
           onChooseAtTop={chooseAtTop}
           {...(agentPause.step?.stepId === state.step.id
             ? { agentPause: { view: agentPause.step, onDecide: agentPause.decide } }
@@ -795,6 +825,12 @@ function ProcessPipelineAt({
             <Text style={{ fontSize: 12, color: status.stuck.softFg }}>{actionError}</Text>
           </View>
         ) : null}
+        {conversation?.due ? (
+          <RunConversationCard
+            view={conversation}
+            {...(canChat ? { onOpen: openConversation } : {})}
+          />
+        ) : null}
         <WorkBranchChangesNote run={run} />
         <DroppedChangesNote run={run} />
         {waitView ? (
@@ -870,7 +906,7 @@ function ProcessPipelineAt({
                         const entryId = stopState.entries.find(
                           (e) => e.runRef?.runId === ref.runId,
                         )?.id
-                        setPanel({
+                        openPanel({
                           runId: stopRun.id,
                           stepId: stopState.step.id,
                           ...(entryId ? { entryId } : {}),
@@ -888,7 +924,9 @@ function ProcessPipelineAt({
             />
           ) : null}
         </View>
+        <ReviewRunClose run={run} />
         {signoff ? null : <RunMergeProgress run={run} onResolve={resolveIntegrationConflict} />}
+        {stack.length === 0 ? <RunReviewMergeProgress run={run} /> : null}
         {signoff ? null : (
           <IntegrationResult
             run={run}
@@ -1054,7 +1092,7 @@ function ProcessPipelineAt({
                     }
                   : {})}
                 onReportText={setReportText}
-                onOpenStep={setPanel}
+                onOpenStep={openPanel}
                 {...(onSaveFile ? { onSaveFile } : {})}
                 {...(pickAnswerFiles ? { pickLoomVideo: pickAnswerFiles } : {})}
                 extraChips={groupSignOff.outputs.map((chip) => ({
@@ -1952,6 +1990,7 @@ function ParkBlock({
   const broken = preExistingBreakOfChoices(choices)
   const brokenView = broken ? preExistingBreakView(broken) : undefined
   const watch = liveCheckWatchView(run, choices)
+  const branchStopRows = managerLine ? [] : reviewBranchStopRows(run)
   const variant = managerLine
     ? status[PROCESS_LIVE_TONE]
     : park.reason === 'gate'
@@ -2024,6 +2063,7 @@ function ParkBlock({
           fontWeight="600"
         />
       )}
+      {branchStopRows.length > 0 ? <ReviewBranchRows rows={branchStopRows} outputOpen /> : null}
       {circling ? <CirclingNotice view={circling} /> : null}
       {brokenView ? <PreExistingBreakNotice view={brokenView} heading={false} /> : null}
       {partialView ? <PartialProofLists view={partialView} /> : null}

@@ -136,6 +136,7 @@ const SCREENS: Record<string, Call[]> = {
     ],
     ['storage', () => sdk.getStorageUsage(on)],
     ['database', () => sdk.getDbHealth(on)],
+    ['docker disk', () => sdk.getDbDockerDisk(on)],
     ['agent types', () => sdk.listProjectAgentTypes(inProject)],
     ['group agent types', () => sdk.listGroupAgentTypes(inGroup)],
     ['evaluation', () => sdk.getKnowledgeEvaluationSettings(inProject)],

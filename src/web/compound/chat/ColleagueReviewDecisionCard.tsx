@@ -13,6 +13,7 @@ import {
   runReviewDecisionActions,
 } from '../../../headless/utils/colleagueReviewDecision'
 import {
+  reviewPushApprovalIntro,
   reviewPushApprovalRows,
   reviewRunRound,
 } from '../../../headless/utils/colleagueReviewBranchUpdates'
@@ -398,7 +399,7 @@ export function RunPushApprovalCard({ run, embedded, onAnswer }: RunReviewDecisi
       heading={REVIEW_PUSH_COPY.heading}
       body={
         <div className="flex min-w-0 flex-col gap-2">
-          <p className="m-0 text-(--text-secondary)">{REVIEW_PUSH_COPY.intro}</p>
+          <p className="m-0 text-(--text-secondary)">{reviewPushApprovalIntro(run)}</p>
           <ReviewBranchRows rows={reviewPushApprovalRows(run)} />
         </div>
       }

@@ -110,6 +110,37 @@ describe('applyProcessRunUpdate', () => {
     expect(applyProcessRunUpdate(prev, { runId: 'gone', deleted: true }, undefined)).toBe(prev)
   })
 
+  it('puts a run in the list of a further project, and takes it out once it leaves', () => {
+    const shared = run('shared', 3, { projectId: 'p2', alsoProjectIds: ['p1'] })
+    const held = applyProcessRunUpdate(
+      [run('a', 10)],
+      { runId: 'shared', projectId: 'p2', alsoProjectIds: ['p1'], run: shared },
+      'p1',
+    )
+    expect(held?.map((r) => r.id)).toEqual(['a', 'shared'])
+    const left = run('shared', 3, { projectId: 'p2' })
+    expect(
+      applyProcessRunUpdate(held, { runId: 'shared', projectId: 'p2', run: left }, 'p1')?.map(
+        (r) => r.id,
+      ),
+    ).toEqual(['a'])
+  })
+
+  it('puts a run of the group in the group’s list whatever project it is filed under', () => {
+    const request: ProcessRunListRequest = {
+      scope: { kind: 'group', groupId: 'g1', projectIds: ['p1'] },
+      filter: {},
+    }
+    const outside = run('outside', 3, { projectId: 'p9', groupId: 'g1' })
+    expect(
+      applyProcessRunUpdate(
+        [],
+        { runId: 'outside', projectId: 'p9', groupId: 'g1', run: outside },
+        request,
+      )?.map((r) => r.id),
+    ).toEqual(['outside'])
+  })
+
   it('drops a run that left a status filter and inserts one that entered it', () => {
     const request: ProcessRunListRequest = {
       scope: { kind: 'project', projectId: 'p1' },

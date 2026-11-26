@@ -3,6 +3,7 @@ import {
   byLastActivity,
   chatHoldsSentMessage,
   chatLastActivityAt,
+  chatLastNeedsYouAt,
   chatMessageCount,
   chatMessageTimes,
   chatNeedsYouTimesOf,
@@ -221,5 +222,46 @@ describe('openChatRead — what an open chat reads', () => {
 
   it('reads nothing for a chat the whole list does not have — it does not exist yet', () => {
     expect(openChatRead(null, true)).toBeNull()
+  })
+})
+
+describe('chatLastNeedsYouAt', () => {
+  const routine = ['2026-10-12T10:00:00Z', '2026-10-12T10:05:00Z']
+
+  it('is the newest message that needs the person, whatever else was written after', () => {
+    expect(
+      chatLastNeedsYouAt({
+        messageTimes: [...routine, '2026-10-12T12:00:00Z'],
+        needsYouTimes: ['2026-10-12T09:00:00Z', '2026-10-12T11:00:00Z', null],
+        createdAt: '2026-10-12T08:00:00Z',
+        updatedAt: '2026-10-12T12:00:00Z',
+      }),
+    ).toBe('2026-10-12T11:00:00Z')
+  })
+
+  it('is when the chat began while nothing in it needed the person — never its last write', () => {
+    expect(
+      chatLastNeedsYouAt({
+        messageTimes: routine,
+        needsYouTimes: [],
+        createdAt: '2026-10-12T08:00:00Z',
+        updatedAt: '2026-10-12T10:05:00Z',
+      }),
+    ).toBe('2026-10-12T08:00:00Z')
+  })
+
+  it('is nothing for a chat with neither', () => {
+    expect(chatLastNeedsYouAt({ messageTimes: routine, updatedAt: 'u' })).toBeUndefined()
+  })
+
+  it('reads a loaded chat’s own messages', () => {
+    expect(
+      chatLastNeedsYouAt({
+        createdAt: '2026-10-12T08:00:00Z',
+        messages: [
+          { role: 'assistant', content: 'Working on it.', completedAt: '2026-10-12T10:00:00Z' },
+        ] as never,
+      }),
+    ).toBe('2026-10-12T08:00:00Z')
   })
 })

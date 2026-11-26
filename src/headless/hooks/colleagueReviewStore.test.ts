@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ColleagueReview } from 'thefactory-tools/types'
 import {
   applyReviewRoundRecord,
+  closeReview,
   dropReviewFinding,
   markReviewWaitingGiven,
   parseReviewSubmission,
@@ -12,6 +13,7 @@ const api = vi.hoisted(() => ({
   readColleagueReview: vi.fn(),
   dropColleagueReviewFinding: vi.fn(),
   markColleagueReviewWaitingGiven: vi.fn(),
+  closeColleagueReview: vi.fn(),
 }))
 
 vi.mock('../api/colleagueReviewApi', () => api)
@@ -101,6 +103,7 @@ beforeEach(() => {
   api.readColleagueReview.mockReset()
   api.dropColleagueReviewFinding.mockReset()
   api.markColleagueReviewWaitingGiven.mockReset()
+  api.closeColleagueReview.mockReset()
   sourceApi.postColleagueReviewReply.mockReset()
 })
 
@@ -301,6 +304,115 @@ describe('ColleagueReviewStore', () => {
       sourceApi.postColleagueReviewReply.mockRejectedValueOnce({})
       await store.postReply(KEY, 1, false)
       expect(store.snapshot(KEY).actionError).toBe('The reply was not posted.')
+    })
+  })
+
+  describe('closing a review', () => {
+    const AT = '2026-11-26T09:00:00.000Z'
+    const CLOSED = ok(closeReview(REVIEW, { by: 'person', via: 'web', note: 'Ann merges it.' }, AT))
+    const answer = (review?: ColleagueReview) => ({
+      outcome: review ? 'resolved' : 'remove',
+      ...(review ? { review } : {}),
+      runIds: ['run-1'],
+      offers: 0,
+      chatDeleted: !review,
+    })
+    const held = async () => {
+      api.readColleagueReview.mockResolvedValue(REVIEW)
+      const store = new ColleagueReviewStore(fakeWs(), { now: () => AT })
+      store.retain(KEY)
+      await vi.waitFor(() => expect(store.snapshot(KEY).review).toBe(REVIEW))
+      return store
+    }
+
+    it('shows it resolved at once, with the note, before the backend answers', async () => {
+      const store = await held()
+      const going = deferred<ReturnType<typeof answer>>()
+      api.closeColleagueReview.mockReturnValueOnce(going.promise)
+      const closing = store.close(KEY, 'resolved', 'Ann merges it.', 'web')
+      expect([store.snapshot(KEY).review?.closed, store.snapshot(KEY).pending.closing]).toEqual([
+        { outcome: 'resolved', at: AT, round: 1, by: 'person', via: 'web', note: 'Ann merges it.' },
+        'resolved',
+      ])
+      going.resolve(answer(CLOSED))
+      expect(await closing).toBe(true)
+      expect([store.snapshot(KEY).review, store.snapshot(KEY).pending.closing]).toEqual([
+        CLOSED,
+        undefined,
+      ])
+    })
+
+    it('sends the outcome, the note and where it was decided', async () => {
+      const store = await held()
+      api.closeColleagueReview.mockResolvedValueOnce(answer(CLOSED))
+      await store.close(KEY, 'resolved', '  Ann merges it. ', 'mobile')
+      expect(api.closeColleagueReview).toHaveBeenCalledWith('osc', 'ZNR-809', {
+        outcome: 'resolved',
+        note: 'Ann merges it.',
+        decidedVia: 'mobile',
+      })
+    })
+
+    it('shows a removed review gone at once, and keeps it gone once the backend removed it', async () => {
+      const store = await held()
+      const going = deferred<ReturnType<typeof answer>>()
+      api.closeColleagueReview.mockReturnValueOnce(going.promise)
+      const closing = store.close(KEY, 'remove', undefined, 'web')
+      expect([store.snapshot(KEY).review, store.snapshot(KEY).pending.closing]).toEqual([
+        null,
+        'remove',
+      ])
+      api.readColleagueReview.mockResolvedValue(null)
+      going.resolve(answer())
+      expect(await closing).toBe(true)
+      expect([store.snapshot(KEY).review, store.snapshot(KEY).pending.closing]).toEqual([
+        null,
+        undefined,
+      ])
+    })
+
+    it('closes once however often it is pressed', async () => {
+      const store = await held()
+      const going = deferred<ReturnType<typeof answer>>()
+      api.closeColleagueReview.mockReturnValueOnce(going.promise)
+      const first = store.close(KEY, 'resolved', undefined, 'web')
+      expect(await store.close(KEY, 'resolved', undefined, 'web')).toBeUndefined()
+      expect(await store.close(KEY, 'remove', undefined, 'web')).toBeUndefined()
+      going.resolve(answer(CLOSED))
+      await first
+      expect(api.closeColleagueReview).toHaveBeenCalledTimes(1)
+    })
+
+    it('puts the review back as it was, with why, when the backend refuses', async () => {
+      const store = await held()
+      api.closeColleagueReview.mockRejectedValueOnce({
+        isAxiosError: true,
+        response: { status: 500, data: { error: 'The run could not be ended.' } },
+      })
+      expect(await store.close(KEY, 'resolved', undefined, 'web')).toBe(false)
+      expect(store.snapshot(KEY)).toMatchObject({
+        review: REVIEW,
+        actionError: 'The run could not be ended.',
+      })
+      expect(store.snapshot(KEY).pending.closing).toBeUndefined()
+    })
+
+    it('puts a removed review back when the backend refuses, in its own words when it has none', async () => {
+      const store = await held()
+      api.closeColleagueReview.mockRejectedValueOnce({})
+      expect(await store.close(KEY, 'remove', undefined, 'web')).toBe(false)
+      expect([store.snapshot(KEY).review, store.snapshot(KEY).actionError]).toEqual([
+        REVIEW,
+        'The review was not closed.',
+      ])
+    })
+
+    it('can be pressed again after a failure', async () => {
+      const store = await held()
+      api.closeColleagueReview.mockRejectedValueOnce({}).mockResolvedValueOnce(answer(CLOSED))
+      await store.close(KEY, 'resolved', undefined, 'web')
+      expect(await store.close(KEY, 'resolved', undefined, 'web')).toBe(true)
+      expect(store.snapshot(KEY).actionError).toBeUndefined()
     })
   })
 })

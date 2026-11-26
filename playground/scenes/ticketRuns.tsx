@@ -6,10 +6,10 @@ import {
   type GroupTicketPageState,
   type GroupTicketsState,
   type TicketRunLayout,
-  type UseReviewChatSlot,
+  type UseTicketReviewRun,
 } from 'thefactory-ui/headless'
 import { GroupTicketPage, GroupTicketsList, SegmentedControl } from 'thefactory-ui/web'
-import { ReviewChatSlotCard } from '../../src/web/compound/chat/ReviewChatSlot'
+import TicketReviewRunCard from '../../src/web/compound/groupStories/TicketReviewRunCard'
 import type { Scene } from '../showcase/types'
 import {
   IN_PROGRESS_TICKETS,
@@ -22,10 +22,12 @@ import {
   MERGE_ONE_MERGED,
   PAGE_AT_PUSH,
   PAGE_MERGING,
-  PUSH_SLOT,
+  PAGE_REVIEW_IN_RUN,
+  PAGE_REVIEW_INLINE,
+  PUSH_RUN_CARD,
   TICKET_MERGES,
   TICKET_RUNS,
-  workingSlot,
+  workingRunCard,
 } from './ticketRunFixtures'
 
 const noop = () => {}
@@ -100,11 +102,11 @@ function ChooseRunLayout() {
 /** A ticket's page with its run on top and the run's own card under it. */
 function Page({
   state,
-  slot,
+  reviewRun,
   width = 'page',
 }: {
   state: GroupTicketPageState
-  slot: UseReviewChatSlot
+  reviewRun?: UseTicketReviewRun
   width?: Width
 }) {
   return framed(
@@ -120,7 +122,7 @@ function Page({
       onOpenRun={noop}
       onOpenChat={noop}
       onRetry={noop}
-      runCard={<ReviewChatSlotCard slot={slot} />}
+      {...(reviewRun ? { runCard: <TicketReviewRunCard reviewRun={reviewRun} /> } : {})}
     />,
   )
 }
@@ -171,28 +173,46 @@ export const TICKET_RUN_SCENES: Scene[] = [
   {
     id: 'ticket-page-run',
     title: 'Ticket page — the run working it',
-    component: 'GroupTicketPage (runCard) · TicketRunStrip · ReviewChatSlotCard',
+    component: 'GroupTicketPage (runCard) · TicketRunStrip · TicketReviewRunCard',
     group: 'Project',
     kind: 'screen',
     wide: true,
     description:
-      'On top of a ticket’s page, the run working it, as its row says it, with Open run; under it the run’s own card whenever it waits on you or works off its chat — its push approval answered here as in the review chat, its merge followed pull request by pull request.',
+      'On top of a ticket’s page, the run working it, as its row says it, with Open run; under it the run’s own card whenever it waits on you or works — its push approval answered here as on the run’s page, its merge followed pull request by pull request. The run is found by the ticket it reviews: a review going as a run has no chat of the ticket’s. So a review whose latest round was reviewed in a run links to that run (Open run among the actions) and offers no review chat; one reviewed inline offers Open review chat.',
     states: [
       {
         id: 'at-push',
         title: 'The run waits for you to approve the push',
-        render: () => <Page state={PAGE_AT_PUSH} slot={PUSH_SLOT} />,
+        render: () => <Page state={PAGE_AT_PUSH} reviewRun={PUSH_RUN_CARD} />,
       },
       {
         id: 'merging',
         title: 'The run merges: one merged, one waiting for checks',
-        render: () => <Page state={PAGE_MERGING} slot={workingSlot(MERGE_ONE_MERGED)} />,
+        render: () => <Page state={PAGE_MERGING} reviewRun={workingRunCard(MERGE_ONE_MERGED)} />,
+      },
+      {
+        id: 'review-in-run',
+        title: 'Reviewed in a run: Open run, no review chat',
+        description:
+          'The latest round was reviewed in a run that ended: the actions link to that run, the review’s part lists its runs, and no review chat is offered — there is none.',
+        render: () => <Page state={PAGE_REVIEW_IN_RUN} />,
+      },
+      {
+        id: 'review-inline',
+        title: 'Reviewed inline: Open review chat',
+        description: 'No round was reviewed in a run: the actions offer the review chat.',
+        render: () => <Page state={PAGE_REVIEW_INLINE} />,
+      },
+      {
+        id: 'review-in-run-phone',
+        title: 'Reviewed in a run, on a phone',
+        render: () => <Page state={PAGE_REVIEW_IN_RUN} width="phone" />,
       },
       {
         id: 'merging-phone',
         title: 'The run merges, on a phone',
         render: () => (
-          <Page state={PAGE_MERGING} slot={workingSlot(MERGE_ONE_MERGED)} width="phone" />
+          <Page state={PAGE_MERGING} reviewRun={workingRunCard(MERGE_ONE_MERGED)} width="phone" />
         ),
       },
     ],

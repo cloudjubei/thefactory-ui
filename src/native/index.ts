@@ -1064,6 +1064,10 @@ export {
   type BackendResetCardProps,
 } from './compound/settings/BackendResetCard'
 export {
+  default as DockerDiskPanel,
+  type DockerDiskPanelProps,
+} from './compound/settings/DockerDiskPanel'
+export {
   default as UsageSettingsView,
   type UsageSettingsViewProps,
 } from './compound/settings/UsageSettingsView'

@@ -6,6 +6,7 @@ import {
   PROCESS_RUN_WAITING_TITLE,
   isProcessRunHistoryOnly,
   processRunAttentionSections,
+  processRunHomeLabel,
   processRunListRow,
   processRunSpend,
   processRunWaitingCount,
@@ -20,6 +21,7 @@ import {
   useProcessRunStart,
   useProcesses,
   useProcessStopClock,
+  useProjectsOptional,
   type BadgeColor,
   type LaunchModelChipSlot,
   type ProcessNodeRunRef,
@@ -36,6 +38,7 @@ import Spinner from '../primitives/Spinner'
 import Tooltip from '../primitives/Tooltip'
 import { IconPlay, IconSettings, IconWorkflow } from '../icons'
 import CostChip from '../compound/chips/CostChip'
+import ProjectChip from '../compound/chips/ProjectChip'
 import NotificationBadge from '../compound/NotificationBadge'
 import { DURATION_CHIP_CLASS } from '../compound/chat/ToolCall/StatusIcon'
 import ProcessPipeline from '../compound/process/ProcessPipeline'
@@ -88,7 +91,8 @@ type Mode = 'current' | 'history'
  * runs with a Current / History toggle, mirroring the chat sidebar. Current is
  * grouped by what each run needs — Needs you, Sign off, Running, Merging — and
  * its tab counts the runs waiting on the person; each row says in one line
- * what its run needs. Selecting one shows its pipeline in the detail pane — the
+ * what its run needs, and a run that belongs here from another project names
+ * that project. Selecting one shows its pipeline in the detail pane — the
  * same pipeline the chat card opens, so there is one place a run is watched,
  * and the only place it is decided.
  */
@@ -107,6 +111,11 @@ export default function ProcessRunsView({
   launch,
 }: ProcessRunsViewProps) {
   const { isLoaded, runs, current, history } = useProcessRuns(projectId)
+  const projects = useProjectsOptional()?.projects
+  const homeOf = useCallback(
+    (run: ProcessRun) => processRunHomeLabel(run, projectId, projects),
+    [projectId, projects],
+  )
   const { processes } = useProcesses(launch ? projectId : undefined)
   const launchable = useMemo(() => processes.filter(processStartsFromForm), [processes])
   const [launching, setLaunching] = useState<string | undefined>()
@@ -237,6 +246,7 @@ export default function ProcessRunsView({
                 chatNews={chatNews}
                 selectedRunId={selectedRunId}
                 onSelectRun={onSelectRun}
+                homeOf={homeOf}
               />
             ))}
           </div>
@@ -248,6 +258,7 @@ export default function ProcessRunsView({
             chatNews={chatNews}
             selectedRunId={selectedRunId}
             onSelectRun={onSelectRun}
+            homeOf={homeOf}
           />
         )}
       </div>
@@ -315,6 +326,7 @@ export function RunSection({
   chatNews,
   selectedRunId,
   onSelectRun,
+  homeOf,
 }: {
   section: ProcessRunAttentionSection
   badgeColor: BadgeColor
@@ -323,6 +335,8 @@ export function RunSection({
   chatNews: ReadonlyMap<string, ProcessRunChatNews>
   selectedRunId: string | undefined
   onSelectRun: (runId: string, projectId: string) => void
+  /** The home project a run names on its row: one listed here from another project. */
+  homeOf?: (run: ProcessRun) => string | undefined
 }) {
   const count = section.runs.length
   return (
@@ -357,6 +371,7 @@ export function RunSection({
         chatNews={chatNews}
         selectedRunId={selectedRunId}
         onSelectRun={onSelectRun}
+        {...(homeOf ? { homeOf } : {})}
       />
     </section>
   )
@@ -369,6 +384,7 @@ function RunList({
   chatNews,
   selectedRunId,
   onSelectRun,
+  homeOf,
 }: {
   runs: readonly ProcessRun[]
   now: number
@@ -378,6 +394,7 @@ function RunList({
   chatNews: ReadonlyMap<string, ProcessRunChatNews>
   selectedRunId: string | undefined
   onSelectRun: (runId: string, projectId: string) => void
+  homeOf?: (run: ProcessRun) => string | undefined
 }) {
   return (
     <ul className="flex flex-col gap-1">
@@ -389,6 +406,7 @@ function RunList({
             stopNow={stopNow}
             chatNews={chatNews.get(run.id)}
             selected={run.id === selectedRunId}
+            home={homeOf?.(run)}
             onClick={() => onSelectRun(run.id, run.projectId)}
           />
         </li>
@@ -403,6 +421,7 @@ function RunRow({
   stopNow,
   chatNews,
   selected,
+  home,
   onClick,
 }: {
   run: ProcessRun
@@ -411,6 +430,8 @@ function RunRow({
   stopNow: number
   chatNews: ProcessRunChatNews | undefined
   selected: boolean
+  /** Its home project, when it is listed here from another project. */
+  home: string | undefined
   onClick: () => void
 }) {
   const row = processRunListRow(run, stopNow, chatNews)
@@ -462,6 +483,7 @@ function RunRow({
         >
           {row.line}
         </span>
+        {home ? <ProjectChip label={home} nonActionable className="shrink-0" /> : null}
         {spend ? (
           <span className="pointer-events-auto relative inline-flex shrink-0">
             <CostChip label={spend.label} cost={run.totals} title={spend.title} />

@@ -8,6 +8,9 @@ export const REVIEW_BRANCH_UPDATES_INPUT_KEY = 'reviewBranchUpdates'
 /** The step a review run asks for the push at. */
 export const REVIEW_PUSH_APPROVAL_STEP_ID = 'push-approval'
 
+/** The step a review run brings the base into each pull request in. */
+export const REVIEW_UPDATE_BRANCHES_STEP_ID = 'update-branches'
+
 /** How each state reads, and its tone. */
 export const REVIEW_BRANCH_STATE_VIEW: Readonly<
   Record<ColleagueReviewBranchState, { label: string; tone: ProcessStatusTone }>
@@ -25,6 +28,12 @@ export const REVIEW_PUSH_COPY = {
   heading: 'Approve the push',
   intro:
     'Bringing the base in conflicted. Check each resolution before it is pushed to the developer’s branch, as you.',
+  introFixed:
+    'The base came in with no conflict, but the result failed its checks. Check each fix before it is pushed to the developer’s branch, as you.',
+  introBoth:
+    'Bringing the base in needed a resolution here and a fix there. Check each before it is pushed to the developer’s branch, as you.',
+  fixed: 'Fixed',
+  stopped: 'Not brought in',
   files: 'Conflicted files',
   changes: 'Changes',
   showDiff: 'Show diff',

@@ -20,7 +20,7 @@ import {
   CHAT_LIST_SUBS,
   chatListShownNotice,
 } from './chatListConstants'
-import { chatLastActivityAt } from './chatListEntry'
+import { chatLastActivityAt, chatLastNeedsYouAt } from './chatListEntry'
 import type {
   ChatListFilter,
   ChatListNotice,
@@ -128,7 +128,10 @@ function rowPill(input: ChatListRowInput, kind: ChatKind): ChatListRow['pill'] {
  * closed with nothing calling them back to it — a process run's chat once the
  * run is done. A chat that counts on Processes
  * (`chatChannelOf`) — a process run's — shows none of that: what waits, runs or
- * is unread in it is told on its run. Pure.
+ * is unread in it is told on its run. Nor do the messages its agent writes
+ * move it in the list: its place is the last message that needed the person,
+ * else when it began — every message only once the person asked for
+ * `everything` of it (`level`). Pure.
  */
 export function chatListRow(input: ChatListRowInput): ChatListRow {
   const { chat, run } = input
@@ -138,7 +141,8 @@ export function chatListRow(input: ChatListRowInput): ChatListRow {
   const showsNews = onChat || processRunIdOfChatContext(chat.context) !== undefined
   const runWorking = onChat && isRunWorking(run)
   const pill = rowPill(input, kind)
-  const lastActivityAt = chatLastActivityAt(chat)
+  const lastActivityAt =
+    onChat || input.level === 'everything' ? chatLastActivityAt(chat) : chatLastNeedsYouAt(chat)
   return {
     key: getChatContextKey(chat.context),
     context: chat.context,

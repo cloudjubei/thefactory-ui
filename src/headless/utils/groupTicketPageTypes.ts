@@ -39,6 +39,8 @@ export interface GroupTicketReviewRun {
   status: ProcessRun['status']
   round: number
   projectId: string
+  /** What the run was closed as, when its review was closed. */
+  closedAs?: NonNullable<ProcessRun['closedAs']>['kind']
 }
 
 /** One update the watched Slack thread brought for a ticket, whatever became of it. */
@@ -187,8 +189,10 @@ export interface GroupTicketPageView {
   reply?: ReviewReplyView
   /** What was pushed since the review's last round, when no reply waits and something was. */
   commits?: ReviewCommitsView
-  /** The ticket's review chat, once a round opened it. */
+  /** An inline review's chat, once a round opened it; never beside `reviewRun`. */
   reviewChat?: ChatContext
+  /** The run a review going as a run is in: the one still going, else its latest round's. */
+  reviewRun?: { id: string; projectId: string }
   /** The review run still going, which starts its next round itself. */
   liveRun?: { id: string; projectId: string }
   /** The run working the ticket now, as its row says it. */

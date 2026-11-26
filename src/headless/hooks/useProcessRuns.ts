@@ -20,7 +20,12 @@ import { processRunListCache } from './processViewCache'
 /** A `process:run-update` event as it arrives on the socket. */
 export type ProcessRunUpdate = {
   runId?: string
+  /** The run's home project. */
   projectId?: string
+  /** The projects group the run belongs to, when it names one. */
+  groupId?: string
+  /** The further projects the run belongs to beside its home project. */
+  alsoProjectIds?: string[]
   run?: ProcessRun
   /** Set when the run (and its tree) was deleted — the list drops it. */
   deleted?: boolean
@@ -33,7 +38,9 @@ export type ProcessRunUpdate = {
  * must apply the SAME rule or it drifts from the fetch: a CHILD run (a feature
  * step's own pipeline, `parentRunId` set) leaking in counted one process as two
  * in the nav badge and stacked a drilled-into child beside its parent. A scoped
- * instance also ignores other projects' updates, and a story or status filter
+ * instance also ignores a run that does not belong to its project or group — a
+ * run belongs to its home project, its further projects and its group — and a
+ * story or status filter
  * ignores a run that does not match it. An ending filter is not decided here —
  * that list re-reads. Pure, so the rule is tested once rather than re-derived
  * per socket event.
@@ -127,8 +134,10 @@ function processRunListStoreFor(ws: WsLike): LiveResourceStore<ProcessRunSummary
  *
  * Pass a project id for that project's runs. Pass nothing for every project
  * the person can see (the nav badge, the chat list). Pass a
- * {@link ProcessRunListRequest} to read a group's projects together, and to
- * narrow by story, status or ending — the list route applies them.
+ * {@link ProcessRunListRequest} to read a group — its own runs and its
+ * projects' runs together — and to narrow by story, status or ending — the
+ * list route applies them. A project's list holds every run that belongs to
+ * it, also one whose home is another project.
  *
  * Current and History are still split here (`splitProcessRunsByCurrent`): a
  * status is not that split. The list route sends summaries (`ProcessRunSummary`).

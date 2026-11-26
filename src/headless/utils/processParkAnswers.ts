@@ -106,6 +106,20 @@ function answerView(
           noteLabel: PARK_ANSWER_NOTE_LABELS[offer.choice] ?? PARK_ANSWER_NOTE_LABEL,
         }
       : {}),
+    ...(!written?.note && parkAnswerTakesOptionalNote(offer)
+      ? { optionalNote: PARK_ANSWER_NOTE_LABEL }
+      : {}),
     ...(confirm ? { confirm } : {}),
   }
+}
+
+/**
+ * Whether an answer can go with a note the person may add: a way on that
+ * tries the step again another way, whose agent the note reaches — never one
+ * that decides an earlier gate, whose text is the message itself. Pure.
+ */
+export function parkAnswerTakesOptionalNote(
+  offer: Pick<ProcessParkChoice, 'choice' | 'recovery'>,
+): boolean {
+  return offer.choice === 'recover' && !!offer.recovery && !offer.recovery.decidesGate
 }

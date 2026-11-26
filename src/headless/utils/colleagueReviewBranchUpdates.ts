@@ -10,6 +10,7 @@ import {
   REVIEW_PUSH_CHECK_TONES,
   REVIEW_PUSH_COPY,
   REVIEW_PUSH_UNNAMED_BASE,
+  REVIEW_UPDATE_BRANCHES_STEP_ID,
 } from './colleagueReviewBranchUpdatesConstants'
 import type {
   ColleagueReviewBranchCheck,
@@ -102,6 +103,10 @@ function checksVerdict(
   }
 }
 
+/** A merged result fixed after it failed its checks: resolved, with no file that conflicted. */
+const isFix = (update: ColleagueReviewBranchUpdate) =>
+  update.state === 'resolved' && (update.conflictedFiles ?? []).length === 0
+
 /** One pull request's row on the push approval: its name, state, files, changes and checks, each failure compared with the base. Pure. */
 export function reviewBranchRow(update: ColleagueReviewBranchUpdate): ColleagueReviewBranchRow {
   const parsed = GITHUB_PR.exec(update.pullRequestUrl)
@@ -111,8 +116,9 @@ export function reviewBranchRow(update: ColleagueReviewBranchUpdate): ColleagueR
   return {
     url: update.pullRequestUrl,
     name: parsed ? `${parsed[1]} #${parsed[2]}` : update.pullRequestUrl,
-    stateLabel: view.label,
+    stateLabel: isFix(update) ? REVIEW_PUSH_COPY.fixed : view.label,
     tone: view.tone,
+    ...(update.state === 'resolved' ? { awaitsPush: true as const } : {}),
     ...(update.detail ? { detail: update.detail } : {}),
     ...(update.baseBranch && update.headBranch
       ? { branches: `${update.baseBranch} into ${update.headBranch}` }
@@ -133,6 +139,32 @@ export function reviewPushApprovalRows(run: Pick<ProcessRun, 'input'>): Colleagu
     ...updates.filter((u) => u.state === 'resolved'),
     ...updates.filter((u) => u.state !== 'resolved'),
   ].map(reviewBranchRow)
+}
+
+/** What the push approval says it asks for: conflicts resolved, a merged result fixed, or both. Pure. */
+export function reviewPushApprovalIntro(run: Pick<ProcessRun, 'input'>): string {
+  const resolved = reviewBranchUpdatesOf(run).filter((u) => u.state === 'resolved')
+  const fixes = resolved.filter(isFix).length
+  if (fixes === 0) return REVIEW_PUSH_COPY.intro
+  return fixes === resolved.length ? REVIEW_PUSH_COPY.introFixed : REVIEW_PUSH_COPY.introBoth
+}
+
+/**
+ * The pull requests a review run could not bring the base into, where it
+ * stopped on them: each with why, and its checks with what they printed. None
+ * at any other stop. Pure.
+ */
+export function reviewBranchStopRows(
+  run: Pick<ProcessRun, 'input' | 'park' | 'ticketReview'>,
+): ColleagueReviewBranchRow[] {
+  const stopped =
+    !!run.ticketReview &&
+    run.park?.reason === 'step-failed' &&
+    run.park.stepId === REVIEW_UPDATE_BRANCHES_STEP_ID
+  if (!stopped) return []
+  return reviewBranchUpdatesOf(run)
+    .filter((u) => u.state === 'failed' || u.state === 'conflicted')
+    .map(reviewBranchRow)
 }
 
 /** A diff's lines with how each reads: added, removed, a hunk head, or context. Pure. */

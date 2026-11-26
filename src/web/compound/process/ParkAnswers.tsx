@@ -20,7 +20,8 @@ export type ParkAnswersProps = {
 /**
  * A stop's answers, the one in front shown whole: its name (and "Manager's
  * pick"), what it does, why, and the words it sends — sent as they are, or
- * edited first. The other answers are one click away under "Or:"; carrying on
+ * edited first; a way on that tries the step again can go with a note the
+ * person adds. The other answers are one click away under "Or:"; carrying on
  * unchecked and the endings are quiet links under "Also:", and an ending asks
  * before it goes.
  */
@@ -34,17 +35,19 @@ export default function ParkAnswers({
 }: ParkAnswersProps) {
   const lead = view.lead
   const [editing, setEditing] = useState(false)
+  const [adding, setAdding] = useState(false)
   const [draft, setDraft] = useState(lead?.note ?? '')
   const [confirming, setConfirming] = useState<ParkAnswerView | undefined>()
   useEffect(() => {
     setEditing(false)
+    setAdding(false)
     setDraft(lead?.note ?? '')
   }, [lead?.key, lead?.note])
   if (!lead) return null
 
   const send = (answer: ParkAnswerView, note: string | undefined) =>
     answer.confirm ? setConfirming(answer) : onSend(answer, note)
-  const leadNote = editing ? draft.trim() || undefined : lead.note
+  const leadNote = editing || adding ? draft.trim() || undefined : lead.note
 
   return (
     <div className="flex flex-col gap-2.5">
@@ -79,6 +82,20 @@ export default function ParkAnswers({
             )}
           </div>
         ) : null}
+        {adding && lead.optionalNote ? (
+          <div className="flex flex-col gap-1">
+            <span className="text-[10.5px] font-semibold uppercase tracking-wider text-(--text-muted)">
+              {lead.optionalNote}
+            </span>
+            <Textarea
+              aria-label={lead.optionalNote}
+              rows={3}
+              placeholder={PARK_ANSWERS_COPY.optional}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+            />
+          </div>
+        ) : null}
         {leadExtra}
         <div className="flex flex-wrap items-center gap-2">
           <Button
@@ -92,6 +109,10 @@ export default function ParkAnswers({
           {lead.note ? (
             <Button size="sm" variant="ghost" disabled={busy} onClick={() => setEditing((v) => !v)}>
               {editing ? PARK_ANSWERS_COPY.cancel : PARK_ANSWERS_COPY.editFirst}
+            </Button>
+          ) : lead.optionalNote ? (
+            <Button size="sm" variant="ghost" disabled={busy} onClick={() => setAdding((v) => !v)}>
+              {adding ? PARK_ANSWERS_COPY.cancel : PARK_ANSWERS_COPY.addNote}
             </Button>
           ) : null}
         </div>

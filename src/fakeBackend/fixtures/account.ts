@@ -1,5 +1,6 @@
 import type {
   CliConfigsActiveState,
+  GetDbDockerDiskResponse,
   GetDbHealthResponse,
   GetKnowledgeEvaluationSettingsResponse,
   GetProjectStorageUsageResponse,
@@ -157,6 +158,14 @@ export const FAKE_DB_HEALTH: GetDbHealthResponse = {
   initialized: false,
   phase: 'unconfigured',
   docker: { installed: true, running: true },
+}
+
+export const FAKE_DOCKER_DISK: GetDbDockerDiskResponse = {
+  usedBytes: 36_000_000_000,
+  allocatedBytes: 64_000_000_000,
+  reclaimableBytes: 12_500_000_000,
+  resize: { currentGb: 64, maxGb: 164 },
+  resizing: false,
 }
 
 export const FAKE_KNOWLEDGE_EVALUATION: GetKnowledgeEvaluationSettingsResponse = {

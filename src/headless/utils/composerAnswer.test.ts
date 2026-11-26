@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
+import { getChatContextKey, processRunChatContext } from 'thefactory-tools/utils'
 import {
   type ComposerReviewRun,
   answerDecisionCardWithNote,
   composerAnswerNote,
   composerMessageRoute,
+  composerRunIdOfChat,
   reviewDecisionNoteMetadata,
   reviewGateNoteAnswer,
 } from './composerAnswer'
@@ -56,6 +58,29 @@ describe('composerMessageRoute', () => {
       composerMessageRoute([], gateRun({ park: { reason: 'step-waiting', stepId: 'approval' } })),
     ).toEqual({ kind: 'send' })
     expect(composerMessageRoute([], gateRun({ ticketReview: undefined }))).toEqual({ kind: 'send' })
+  })
+})
+
+describe('composerRunIdOfChat', () => {
+  it('is the run whose own chat the person types in', () => {
+    const own = getChatContextKey(processRunChatContext({ id: 'run-1', projectId: 'osc-be' }))
+    expect(composerRunIdOfChat(own)).toBe('run-1')
+  })
+
+  it('is no run in a ticket’s review chat, which no review run works in, or any other chat', () => {
+    const review = getChatContextKey({
+      type: 'GROUP_TOPIC',
+      groupId: 'g',
+      topicId: 'review-ZNR-756',
+    })
+    const topic = getChatContextKey({
+      type: 'PROJECT_TOPIC',
+      projectId: 'osc-be',
+      topicId: 'notes',
+    })
+    expect(composerRunIdOfChat(review)).toBeUndefined()
+    expect(composerRunIdOfChat(topic)).toBeUndefined()
+    expect(composerRunIdOfChat(undefined)).toBeUndefined()
   })
 })
 

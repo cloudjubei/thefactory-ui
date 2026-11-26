@@ -25,6 +25,7 @@ import { processIntegrationBadge } from './processIntegration'
 import { processRunManagerLine } from './processRunStop'
 import { isProcessParkWaitingElsewhere, processRunWaitingLine } from './processRunWait'
 import {
+  PROCESS_RUN_CLOSED_AS_VIEW,
   PROCESS_RUN_PERSON_ENDING_VIEW,
   PROCESS_RUN_WORDS,
   PROCESS_SCOPE_BADGES,
@@ -120,8 +121,10 @@ export const PROCESS_RUN_STATUS_VIEW: Record<
  * broke or was stopped shows. `undefined` for every other run.
  */
 export function processRunPersonEnding(
-  run: Pick<ProcessRun, 'status' | 'plan' | 'ledger'> & Partial<Pick<ProcessRun, 'revivals'>>,
+  run: Pick<ProcessRun, 'status' | 'plan' | 'ledger'> &
+    Partial<Pick<ProcessRun, 'revivals' | 'closedAs'>>,
 ): ProcessRunPersonEnding | undefined {
+  if (run.closedAs) return closedAsEnding(run.closedAs)
   const decision = processRunDecision(run)
   if (run.status === 'cancelled' && decision.kind === 'closed') {
     return personEnding(run, 'close-unmerged', undefined)
@@ -132,9 +135,15 @@ export function processRunPersonEnding(
   return personEnding(run, choice, decision.note)
 }
 
+function closedAsEnding(closedAs: NonNullable<ProcessRun['closedAs']>): ProcessRunPersonEnding {
+  const { label, tone } = PROCESS_RUN_CLOSED_AS_VIEW[closedAs.kind]
+  const note = closedAs.note ? ` “${closedAs.note}”` : ''
+  return { choice: 'closed-as', label, tone, line: `${label} — ${closedAs.summary}${note}` }
+}
+
 function personEnding(
   run: Pick<ProcessRun, 'plan' | 'ledger'>,
-  choice: ProcessRunPersonEnding['choice'],
+  choice: keyof typeof PROCESS_RUN_PERSON_ENDING_VIEW,
   note: string | undefined,
 ): ProcessRunPersonEnding {
   const decidedAt = [...run.ledger].reverse().find((e) => e.override?.choice === choice)

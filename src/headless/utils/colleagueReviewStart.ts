@@ -15,7 +15,8 @@ import type { ReviewOffer, TicketReviewOffer } from './colleagueReviewSourceType
 import type {
   ColleagueReviewMode,
   ColleagueReviewStartBody,
-  ColleagueReviewStarted,
+  ColleagueReviewStartedInline,
+  ColleagueReviewStartedInRun,
   ReviewBoxOffer,
   ReviewDraft,
   ReviewDraftFile,
@@ -157,11 +158,13 @@ export function reviewStartMode(
   return picked ?? groupDefault ?? 'inline'
 }
 
-/** Where a started round opens: the run it is reviewed in, else its review chat. Pure. */
+/** Where a started round opens: the run it is reviewed in, which has no chat of the ticket's, else its review chat. Pure. */
 export function reviewStartedDestination(
-  started: Pick<ColleagueReviewStarted, 'context' | 'mode' | 'runId'>,
+  started:
+    | Pick<ColleagueReviewStartedInRun, 'mode' | 'runId' | 'projectId'>
+    | Pick<ColleagueReviewStartedInline, 'mode' | 'context'>,
 ): ReviewStartedDestination {
-  return started.mode === 'process' && started.runId
-    ? { kind: 'run', runId: started.runId }
+  return started.mode === 'process'
+    ? { kind: 'run', projectId: started.projectId, runId: started.runId }
     : { kind: 'chat', context: started.context }
 }

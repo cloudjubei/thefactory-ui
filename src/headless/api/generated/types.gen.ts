@@ -1279,6 +1279,7 @@ export type ProcessManagerBriefAnswer = {
   label: string
   detail: string
   recovery?: string
+  personOnly?: true
 }
 
 export type ProcessResumeChoice =
@@ -3104,6 +3105,7 @@ export type CompletionSettings = {
   finishTurnOnErrors: boolean
   allowNoCallResponses: boolean
   allowErrorResponses: boolean
+  drivenByRunId?: string
   outputStrategy?: 'native_tools_only' | 'three_phase_structured_native_tools_structured'
   historySummarization?: {
     enabled: boolean
@@ -5460,6 +5462,7 @@ export type VerificationCheckResult = {
   hostReason?: string
   environmentReason?: string
   dependencyRevisions?: Array<VerificationDependencyRevision>
+  dependencyInstallMs?: number
   baseline?: {
     sha: string
     status?: 'passed' | 'failed' | 'skipped' | 'error'
@@ -7002,6 +7005,30 @@ export type ReviewBranchMergeGate =
       reason: string
     }
 
+export type GitBranchMoveFailureKind =
+  | 'dirty-overlap'
+  | 'untracked-collision'
+  | 'moved-meanwhile'
+  | 'left-branch'
+  | 'branch-moved'
+  | 'not-ahead'
+  | 'missing-branch'
+  | 'partly-advanced'
+  | 'other'
+
+export type GitBranchMoveBlockingPath = {
+  path: string
+  kind: 'dirty-overlap' | 'untracked-collision'
+}
+
+export type GitBranchMoveFailure = {
+  kind: GitBranchMoveFailureKind
+  branch: string
+  worktreePath?: string
+  paths: Array<string>
+  blocking?: Array<GitBranchMoveBlockingPath>
+}
+
 export type GitConflictType =
   | 'both_modified'
   | 'both_added'
@@ -7025,12 +7052,27 @@ export type GitMergeResult = {
   restoredStash?: boolean
   aborted?: boolean
   message?: string
+  keptWork?: Array<string>
+  checkoutMove?: {
+    kind: GitBranchMoveFailureKind
+    branch: string
+    worktreePath?: string
+    paths: Array<string>
+    blocking?: Array<GitBranchMoveBlockingPath>
+  }
 }
 
 export type CliRunApproveResult = {
   action: CliRunApproveAction
   approved: boolean
   blockedReason?: string
+  checkoutMove?: {
+    kind: GitBranchMoveFailureKind
+    branch: string
+    worktreePath?: string
+    paths: Array<string>
+    blocking?: Array<GitBranchMoveBlockingPath>
+  }
   merge?: {
     ok: boolean
     mergeCommit?: string
@@ -7040,6 +7082,14 @@ export type CliRunApproveResult = {
     restoredStash?: boolean
     aborted?: boolean
     message?: string
+    keptWork?: Array<string>
+    checkoutMove?: {
+      kind: GitBranchMoveFailureKind
+      branch: string
+      worktreePath?: string
+      paths: Array<string>
+      blocking?: Array<GitBranchMoveBlockingPath>
+    }
   }
   prUrl?: string
   pushed?: boolean
@@ -8077,6 +8127,18 @@ export type ReviewWaitingOn = {
   note?: string
 }
 
+export type ColleagueReviewClosedBy = 'person' | 'agent' | 'manager' | 'host'
+
+export type ColleagueReviewClosure = {
+  outcome: 'resolved'
+  at: string
+  round: number
+  by: ColleagueReviewClosedBy
+  via?: string
+  note?: string
+  reason?: string
+}
+
 export type ColleagueReview = {
   id: string
   groupId: string
@@ -8087,7 +8149,18 @@ export type ColleagueReview = {
   rounds: Array<ReviewRound>
   findings: Array<ReviewFinding>
   waitingOn: Array<ReviewWaitingOn>
+  closed?: {
+    outcome: 'resolved'
+    at: string
+    round: number
+    by: ColleagueReviewClosedBy
+    via?: string
+    note?: string
+    reason?: string
+  }
 }
+
+export type ColleagueReviewCloseOutcome = 'resolved' | 'remove'
 
 export type ColleagueReviewKey = {
   groupId: string
@@ -8175,6 +8248,74 @@ export type MarkColleagueReviewMergedMessagePostedInput = {
   ts: string
 }
 
+export type CloseColleagueReviewInput = {
+  groupId: string
+  ticketKey: string
+  by: 'person' | 'agent' | 'manager' | 'host'
+  via?: string
+  note?: string
+  reason?: string
+}
+
+export type SettleColleagueReviewOffersInput = {
+  groupId: string
+  ticketKey: string
+  outcome: 'resolved' | 'remove'
+}
+
+export type ColleagueReviewRemoved = {
+  ok: true
+  removed: boolean
+}
+
+export type ColleagueReviewSourceProvider = 'slack'
+
+export type ColleagueReviewOfferAttachment = {
+  fileId: string
+  name: string
+  mimetype?: string
+  size?: number
+}
+
+export type ColleagueReviewOfferKind = 'first-round' | 'next-round'
+
+export type ColleagueReviewOfferState = 'new' | 'started' | 'dismissed'
+
+export type ColleagueReviewOfferReaction = {
+  name: string
+  at: string
+}
+
+export type ColleagueReviewOffer = {
+  id: string
+  groupId: string
+  ticketKey: string
+  provider: ColleagueReviewSourceProvider
+  messageTs: string
+  permalink: string
+  author: string
+  authorId?: string
+  postedAt: string
+  text: string
+  attachments: Array<ColleagueReviewOfferAttachment>
+  kind: ColleagueReviewOfferKind
+  state: ColleagueReviewOfferState
+  startedRound?: number
+  createdAt: string
+  settledAt?: string
+  supersededMessageTs?: Array<string>
+  reaction?: {
+    name: string
+    at: string
+  }
+  followUpOf?: string
+}
+
+export type ColleagueReviewOffersSettled = {
+  ok: true
+  offers: Array<ColleagueReviewOffer>
+}
+
 export type ListColleagueReviewsInput = {
   groupId: string
 }
@@ -8219,6 +8360,15 @@ export type ColleagueReviewRoundRecorded = {
     rounds: Array<ReviewRound>
     findings: Array<ReviewFinding>
     waitingOn: Array<ReviewWaitingOn>
+    closed?: {
+      outcome: 'resolved'
+      at: string
+      round: number
+      by: ColleagueReviewClosedBy
+      via?: string
+      note?: string
+      reason?: string
+    }
   }
   changes: {
     fixed: Array<ReviewFinding>
@@ -8274,8 +8424,6 @@ export type ParseReviewSubmissionOptions = {
   now: string
 }
 
-export type ColleagueReviewSourceProvider = 'slack'
-
 export type ColleagueReviewSource = {
   provider: ColleagueReviewSourceProvider
   connectionId: string
@@ -8284,47 +8432,6 @@ export type ColleagueReviewSource = {
   threadTs?: string
   cursor?: string
   setAt: string
-}
-
-export type ColleagueReviewOfferAttachment = {
-  fileId: string
-  name: string
-  mimetype?: string
-  size?: number
-}
-
-export type ColleagueReviewOfferKind = 'first-round' | 'next-round'
-
-export type ColleagueReviewOfferState = 'new' | 'started' | 'dismissed'
-
-export type ColleagueReviewOfferReaction = {
-  name: string
-  at: string
-}
-
-export type ColleagueReviewOffer = {
-  id: string
-  groupId: string
-  ticketKey: string
-  provider: ColleagueReviewSourceProvider
-  messageTs: string
-  permalink: string
-  author: string
-  authorId?: string
-  postedAt: string
-  text: string
-  attachments: Array<ColleagueReviewOfferAttachment>
-  kind: ColleagueReviewOfferKind
-  state: ColleagueReviewOfferState
-  startedRound?: number
-  createdAt: string
-  settledAt?: string
-  supersededMessageTs?: Array<string>
-  reaction?: {
-    name: string
-    at: string
-  }
-  followUpOf?: string
 }
 
 export type ColleagueReviewSourceState = {
@@ -11955,6 +12062,16 @@ export type FilesResult = {
   [key: string]: string | Array<string>
 }
 
+export type ModelImageMediaType = 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp'
+
+export type ImageMediaTypeSignature = {
+  mediaType: ModelImageMediaType
+  parts: Array<{
+    at: number
+    bytes: Array<number>
+  }>
+}
+
 export type ViewedImage = {
   viewedImage: {
     path: string
@@ -11986,12 +12103,20 @@ export type FileUpdateType =
   | 'deleteFile'
   | 'addDirectory'
   | 'deleteDirectory'
+  | 'renameFile'
+  | 'renameDirectory'
 
 export type FileUpdate = {
   type: FileUpdateType
   absolutePath: string
   relativePath: string
+  fromAbsolutePath?: string
+  fromRelativePath?: string
   operationId?: string
+}
+
+export type FileChangeHandlerOptions = {
+  renames?: boolean
 }
 
 export type FileMeta = {
@@ -12281,6 +12406,15 @@ export type WatchedFileIdentity = {
   mtimeMs: number
   size: number
   ino: number
+}
+
+export type WatchedEntryIdentity = {
+  dev: number
+  ino: number
+  size: number
+  mtimeMs: number
+  birthtimeMs: number
+  isDirectory: boolean
 }
 
 export type AgentCopyScope = {
@@ -12747,19 +12881,21 @@ export type GitOneSidedMergePath = {
 export type GitHeldBranchChange =
   | {
       ok: true
+      keptWork?: Array<string>
     }
   | {
       ok: false
       error: string
       heldAt?: string
+      advanced?: true
+      failure?: {
+        kind: GitBranchMoveFailureKind
+        branch: string
+        worktreePath?: string
+        paths: Array<string>
+        blocking?: Array<GitBranchMoveBlockingPath>
+      }
     }
-
-export type GitFastForwardBranchOptions = {
-  repoPath: string
-  branch: string
-  from: string
-  to: string
-}
 
 export type GitPushRefWithCredentialOptions = {
   repoPath: string
@@ -13477,6 +13613,7 @@ export type GitHeldAdvancePlan = {
   changed: Array<GitAdvanceChangedPath>
   withWork: Array<string>
   inTheWay: Array<string>
+  untracked: Array<string>
   taken: Array<{
     path: string
     workingSha256: string
@@ -16042,492 +16179,11 @@ export type ProcessManagerHold = {
   until: number
 }
 
-export type ProcessManagerWorkspaceFacts = {
-  usedBytes: number
-  capBytes: number
-  startBytes: number
-  headroomBytes: number
-  ignoredGrowthBytes: number
-}
+export type ProcessManagerHoldStuck = 'with-person' | 'waits-on-holder'
 
-export type ProcessManagerWorkspaceHandOn = 'unmeasured' | 'not-the-work' | 'raised-before'
-
-export type ProcessManagerWorkspaceRaise =
-  | {
-      grant: true
-      capBytes: number
-      facts: ProcessManagerWorkspaceFacts
-    }
-  | {
-      grant: false
-      why: ProcessManagerWorkspaceHandOn
-      facts: {
-        usedBytes?: number
-        capBytes?: number
-        startBytes?: number
-        headroomBytes?: number
-        ignoredGrowthBytes?: number
-      }
-      askedBytes?: number
-    }
-
-export type ProcessManagerLastEscalation = {
-  signature: string
-  at: number
-}
-
-export type ProcessEntryCost = {
-  costUsd?: number
-  unpricedTokens?: number
-  includedTokens?: number
-  listCostUsd?: number
-  byModel?: Array<ModelSpend>
-}
-
-export type ProcessToolTime = {
-  name: string
-  calls: number
-  ms: number
-}
-
-export type ProcessEntryTime = {
-  agentMs: number
-  thinkingMs: number
-  toolMs: number
-  systemMs: number
-  otherMs: number
-  tools: Array<ProcessToolTime>
-}
-
-export type ProcessManagerTurnCost = {
-  runId: string
-  parkedAt: number
-  turnStartedAt: number
-  from: number
-  to: number
-  cost?: {
-    costUsd?: number
-    unpricedTokens?: number
-    includedTokens?: number
-    listCostUsd?: number
-    byModel?: Array<ModelSpend>
-  }
-  time?: {
-    agentMs: number
-    thinkingMs: number
-    toolMs: number
-    systemMs: number
-    otherMs: number
-    tools: Array<ProcessToolTime>
-  }
-}
-
-export type ProcessTimeBreakdown = {
-  thinkingMs: number
-  toolMs: number
-  systemMs: number
-  otherMs: number
-  runningMs: number
-  waitingMs: number
-  queuedMs?: number
-  tools: Array<ProcessToolTime>
-}
-
-export type ProcessManagerTotals = {
-  costUsd?: number
-  unpricedTokens?: number
-  includedTokens?: number
-  listCostUsd?: number
-  byModel?: Array<ModelSpend>
-  turns: number
-  workMs: number
-  time: {
-    thinkingMs: number
-    toolMs: number
-    systemMs: number
-    otherMs: number
-    runningMs: number
-    waitingMs: number
-    queuedMs?: number
-    tools: Array<ProcessToolTime>
-  }
-}
-
-export type ProcessManagerWaitingAsk = {
-  actionId: string
-  toolName: string
-  kind: string
-  at: number
-}
-
-export type ProcessManagerTurnAsks = {
-  pending: Array<ProcessManagerWaitingAsk>
-  decided: Array<{
-    actionId: string
-    at: number
-  }>
-}
-
-export type ProcessManagerTurnEnding =
-  | {
-      started: false
-      error: string
-    }
-  | {
-      started: true
-    }
-
-export type ProcessManagerTurn = {
-  runId: string
-  parkedAt: number
-  signature: string
-  startedAt: number
-  chatContextId: string
-  waitingOn?: Array<ProcessManagerWaitingAsk>
-  resumedAt?: number
-}
-
-export type ProcessManagerStaleTurnRecord = {
-  runId: string
-  parkedAt: number
-  signature: string
-  stepId?: string
-  startedAt: number
-  at: number
-}
-
-export type ProcessManagerClaim = {
-  runId: string
-  parkedAt: number
-  at: number
-}
-
-export type ProcessManagerStandDown = {
-  runId: string
-  parkedAt: number
-  at: number
-  by: 'person-message' | 'person-answer'
-}
-
-export type ProcessManagerOffReason = 'person' | 'reversed'
-
-export type ProcessRunManager = {
-  interventions?: Array<ProcessManagerIntervention>
-  staleTurns?: Array<ProcessManagerStaleTurnRecord>
-  turn?: {
-    runId: string
-    parkedAt: number
-    signature: string
-    startedAt: number
-    chatContextId: string
-    waitingOn?: Array<ProcessManagerWaitingAsk>
-    resumedAt?: number
-  }
-  claim?: {
-    runId: string
-    parkedAt: number
-    at: number
-  }
-  standDown?: {
-    runId: string
-    parkedAt: number
-    at: number
-    by: 'person-message' | 'person-answer'
-  }
-  hold?: {
-    runId: string
-    parkedAt: number
-    dependsOn:
-      | {
-          kind: 'run'
-          runId: string
-        }
-      | {
-          kind: 'feature-request'
-          requestId: string
-        }
-      | {
-          kind: 'base-fix'
-          sha: string
-        }
-    resume: 'retry' | 'update-base'
-    why: string
-    at: number
-    until: number
-  }
-  escalation?: {
-    runId: string
-    parkedAt: number
-    at: number
-    signature: string
-    why:
-      | 'credentials'
-      | 'permission'
-      | 'spend'
-      | 'scope'
-      | 'destructive'
-      | 'repeated-failure'
-      | 'guard-limit'
-      | 'judgement'
-      | 'hold-timeout'
-      | 'no-decision'
-      | 'not-started'
-      | 'circling'
-    what: string
-    found: string
-    tried: Array<string>
-    recommendation: string
-    recommendedChoice?: ProcessResumeChoice | 'delegate' | 'recover'
-    answers?: Array<ProcessManagerAnswer>
-    moreTries?: {
-      verdict: 'helps' | 'pointless'
-      why: string
-    }
-    startError?: string
-  }
-  lastEscalated?: {
-    signature: string
-    at: number
-  }
-  relooked?: {
-    runId: string
-    parkedAt: number
-  }
-  turnCosts?: Array<ProcessManagerTurnCost>
-  preRead?: {
-    runId: string
-    parkedAt: number
-    at: number
-    summary: string
-    items: Array<ProcessManagerNeedsYouFinding>
-  }
-  off?: {
-    at: number
-    reason: ProcessManagerOffReason
-  }
-  reversedKeys?: Array<string>
-}
-
-export type ProcessManagerParkStatus = 'looking' | 'waiting' | 'holding' | 'escalated'
-
-export type ProcessRunStopHolder = 'manager' | 'person'
-
-export type ProcessManagerTrigger =
-  | {
-      start: true
-      kind: ProcessManagerTriggerKind
-    }
-  | {
-      start: false
-      why: string
-    }
-
-export type ProcessManagerVerdict =
-  | {
-      verdict: 'free'
-    }
-  | {
-      verdict: 'act'
-      actionKey: string
-    }
-  | {
-      verdict: 'card'
-    }
-  | {
-      verdict: 'refuse'
-      reason: string
-    }
-
-export type ProcessManagerRun = {
-  id: string
-  storyId?: string
-  featureId?: string
-  park?: {
-    reason: ProcessParkReason
-    stepId?: string
-    parkedAt: number
-    circling?: {
-      summary: string
-      signals: Array<ProcessCirclingSignal>
-      ranOut: boolean
-      turnsUsed?: number
-      maxTurns?: number
-      changed?: boolean
-      repeatedActions?: Array<ProcessCirclingRepeat>
-      flipFlopFiles?: Array<string>
-      sameFailures?: Array<string>
-      streak: number
-      afterRaise?: true
-      afterRetry?: true
-      afterManager?: true
-      tip?: string
-      at: number
-    }
-  }
-  workBranch?: {
-    name: string
-    baseRef?: string
-  }
-  baseMoved?: {
-    baseRef: string
-  }
-  manager?: {
-    interventions?: Array<ProcessManagerIntervention>
-    staleTurns?: Array<ProcessManagerStaleTurnRecord>
-    turn?: {
-      runId: string
-      parkedAt: number
-      signature: string
-      startedAt: number
-      chatContextId: string
-      waitingOn?: Array<ProcessManagerWaitingAsk>
-      resumedAt?: number
-    }
-    claim?: {
-      runId: string
-      parkedAt: number
-      at: number
-    }
-    standDown?: {
-      runId: string
-      parkedAt: number
-      at: number
-      by: 'person-message' | 'person-answer'
-    }
-    hold?: {
-      runId: string
-      parkedAt: number
-      dependsOn:
-        | {
-            kind: 'run'
-            runId: string
-          }
-        | {
-            kind: 'feature-request'
-            requestId: string
-          }
-        | {
-            kind: 'base-fix'
-            sha: string
-          }
-      resume: 'retry' | 'update-base'
-      why: string
-      at: number
-      until: number
-    }
-    escalation?: {
-      runId: string
-      parkedAt: number
-      at: number
-      signature: string
-      why:
-        | 'credentials'
-        | 'permission'
-        | 'spend'
-        | 'scope'
-        | 'destructive'
-        | 'repeated-failure'
-        | 'guard-limit'
-        | 'judgement'
-        | 'hold-timeout'
-        | 'no-decision'
-        | 'not-started'
-        | 'circling'
-      what: string
-      found: string
-      tried: Array<string>
-      recommendation: string
-      recommendedChoice?: ProcessResumeChoice | 'delegate' | 'recover'
-      answers?: Array<ProcessManagerAnswer>
-      moreTries?: {
-        verdict: 'helps' | 'pointless'
-        why: string
-      }
-      startError?: string
-    }
-    lastEscalated?: {
-      signature: string
-      at: number
-    }
-    relooked?: {
-      runId: string
-      parkedAt: number
-    }
-    turnCosts?: Array<ProcessManagerTurnCost>
-    preRead?: {
-      runId: string
-      parkedAt: number
-      at: number
-      summary: string
-      items: Array<ProcessManagerNeedsYouFinding>
-    }
-    off?: {
-      at: number
-      reason: ProcessManagerOffReason
-    }
-    reversedKeys?: Array<string>
-  }
-}
-
-export type ProcessManagerPolicyInput = {
-  root: ProcessManagerRun
-  holder: ProcessManagerRun
-  autonomy: ProcessManagerAutonomy
-  signature: string
-  permissionPreApproved?: boolean
-  attemptAgentNotStarted?: boolean
-  attemptFeatureDone?: boolean
-  attemptCircling?: {
-    summary: string
-    signals: Array<ProcessCirclingSignal>
-    ranOut: boolean
-    turnsUsed?: number
-    maxTurns?: number
-    changed?: boolean
-    repeatedActions?: Array<ProcessCirclingRepeat>
-    flipFlopFiles?: Array<string>
-    sameFailures?: Array<string>
-    streak: number
-    afterRaise?: true
-    afterRetry?: true
-    afterManager?: true
-    tip?: string
-    at: number
-  }
-  commitResetsToHead?: Array<string>
-  baseFailure?: boolean
-  diagnosis?: Array<string>
-  choices?: Array<string>
-  openBaseFix?:
-    | {
-        kind: 'run'
-        runId: string
-      }
-    | {
-        kind: 'base-fix'
-        sha: string
-      }
-}
-
-export type ProcessManagerHandledLine = {
-  at: number
-  what: string
-  why: string
-  result: string
-  outcome: ProcessManagerInterventionOutcome
-}
-
-export type ProcessManagerHandledSummary = {
-  count: number
-  lines: Array<ProcessManagerHandledLine>
-}
-
-export type ProcessManagerAnsweredBefore = {
-  stops: number
-  answers: Array<{
-    choice: string
-    times: number
-  }>
+export type ProcessRunMembership = {
+  groupId?: string
+  alsoProjectIds?: Array<string>
 }
 
 export type ProcessTicketReviewSubject = {
@@ -16786,6 +16442,14 @@ export type ProcessRunIntegration = {
   }
   regenerated?: Array<string>
   broughtInRunIds?: Array<string>
+  keptWork?: Array<string>
+  checkoutMove?: {
+    kind: GitBranchMoveFailureKind
+    branch: string
+    worktreePath?: string
+    paths: Array<string>
+    blocking?: Array<GitBranchMoveBlockingPath>
+  }
   at: number
 }
 
@@ -16817,6 +16481,43 @@ export type ProcessRunAlreadyMet = {
   summary: string
   at: number
 }
+
+export type ProcessRunClosedKind = 'resolved' | 'not-needed'
+
+export type ProcessRunEndedAs = {
+  status: 'failed' | 'cancelled'
+  endedAt?: number
+  error?: string
+}
+
+export type ProcessRunClosedAs = {
+  kind: ProcessRunClosedKind
+  summary: string
+  note?: string
+  at: number
+  endedAs?: {
+    status: 'failed' | 'cancelled'
+    endedAt?: number
+    error?: string
+  }
+} & (
+  | {
+      decidedBy?: 'person'
+      decidedVia?: ProcessDecisionClient | 'chat' | 'feature-question' | 'design'
+    }
+  | {
+      decidedBy?: 'agent'
+      decidedVia?: 'tool'
+      toolName?: string
+      chatContextId?: string
+    }
+  | {
+      decidedBy?: 'manager'
+      decidedVia?: 'manager'
+      toolName?: string
+      chatContextId?: string
+    }
+)
 
 export type ProcessScope = 'global' | 'group' | 'project'
 
@@ -17118,6 +16819,14 @@ export type ProcessRunReopening = {
     }
     regenerated?: Array<string>
     broughtInRunIds?: Array<string>
+    keptWork?: Array<string>
+    checkoutMove?: {
+      kind: GitBranchMoveFailureKind
+      branch: string
+      worktreePath?: string
+      paths: Array<string>
+      blocking?: Array<GitBranchMoveBlockingPath>
+    }
     at: number
   }
 }
@@ -17242,6 +16951,14 @@ export type ProcessPlanAmendment = {
       }
       regenerated?: Array<string>
       broughtInRunIds?: Array<string>
+      keptWork?: Array<string>
+      checkoutMove?: {
+        kind: GitBranchMoveFailureKind
+        branch: string
+        worktreePath?: string
+        paths: Array<string>
+        blocking?: Array<GitBranchMoveBlockingPath>
+      }
       at: number
     }
   }
@@ -17338,6 +17055,8 @@ export type ProcessRunCursor = {
   iteration: number
 }
 
+export type ProcessChecksScopeAsk = 'full'
+
 export type ProcessPendingEntry = {
   cursor: ProcessRunCursor
   viaLoopId?: string
@@ -17345,6 +17064,7 @@ export type ProcessPendingEntry = {
   retryMode?: 'continue' | 'fresh'
   resumesEntryId?: string
   rechecksEntryId?: string
+  checksScope?: 'full'
 }
 
 export type ProcessTransition =
@@ -17356,6 +17076,7 @@ export type ProcessTransition =
       retryMode?: 'continue' | 'fresh'
       resumesEntryId?: string
       rechecksEntryId?: string
+      checksScope?: 'full'
     }
   | {
       kind: 'finished'
@@ -17372,6 +17093,7 @@ export type ProcessTransition =
         retryMode?: 'continue' | 'fresh'
         resumesEntryId?: string
         rechecksEntryId?: string
+        checksScope?: 'full'
       }
       message?: string
       waitingOn?: Array<string>
@@ -17459,7 +17181,7 @@ export type ProcessWaitingDelegation = {
   at: number
 }
 
-export type ProcessPreExistingBreakSource = 'checks' | 'developer'
+export type ProcessPreExistingBreakSource = 'checks' | 'developer' | 'known-flake'
 
 export type ProcessPreExistingBreak = {
   source: ProcessPreExistingBreakSource
@@ -17468,6 +17190,8 @@ export type ProcessPreExistingBreak = {
   baseRef: string
   baseSha?: string
   headline: string
+  tests?: Array<string>
+  failedAgainAlone?: Array<string>
 }
 
 export type ProcessOutsideArrival = {
@@ -17525,6 +17249,8 @@ export type ProcessWaitingAsk = {
     baseRef: string
     baseSha?: string
     headline: string
+    tests?: Array<string>
+    failedAgainAlone?: Array<string>
   }
   outside?: {
     awaits: string
@@ -17679,6 +17405,7 @@ export type ProcessPark = {
     retryMode?: 'continue' | 'fresh'
     resumesEntryId?: string
     rechecksEntryId?: string
+    checksScope?: 'full'
   }
   ask?: {
     kind: ProcessWaitingKind
@@ -17718,6 +17445,8 @@ export type ProcessPark = {
       baseRef: string
       baseSha?: string
       headline: string
+      tests?: Array<string>
+      failedAgainAlone?: Array<string>
     }
     outside?: {
       awaits: string
@@ -18054,6 +17783,8 @@ export type UiImpactStance = {
 
 export type ReviewEvidenceVerdictCause = 'defect' | 'proof-impossible'
 
+export type ReviewEvidenceMissingProof = 'whole-suite'
+
 export type ProcessReviewVerdict = {
   verdict: ReviewEvidenceVerdict
   reason?: string
@@ -18066,6 +17797,7 @@ export type ProcessReviewVerdict = {
   followUpsToFix?: Array<string>
   cause?: 'defect' | 'proof-impossible'
   notShown?: Array<string>
+  missingProof?: 'whole-suite'
 }
 
 export type ProcessAlreadyMet = {
@@ -18132,6 +17864,29 @@ export type ProcessBaseUpdate = {
   sha: string
   at: number
   exportsUnchecked?: Array<string>
+}
+
+export type ProcessEntryCost = {
+  costUsd?: number
+  unpricedTokens?: number
+  includedTokens?: number
+  listCostUsd?: number
+  byModel?: Array<ModelSpend>
+}
+
+export type ProcessToolTime = {
+  name: string
+  calls: number
+  ms: number
+}
+
+export type ProcessEntryTime = {
+  agentMs: number
+  thinkingMs: number
+  toolMs: number
+  systemMs: number
+  otherMs: number
+  tools: Array<ProcessToolTime>
 }
 
 export type ProcessAgentStop = 'turn-limit' | 'spend-limit' | 'interrupted' | 'stuck'
@@ -18248,6 +18003,8 @@ export type ProcessLedgerEntry = {
       baseRef: string
       baseSha?: string
       headline: string
+      tests?: Array<string>
+      failedAgainAlone?: Array<string>
     }
     outside?: {
       awaits: string
@@ -18264,6 +18021,7 @@ export type ProcessLedgerEntry = {
   questionGrantId?: string
   continues?: string
   rechecks?: string
+  checksScope?: 'full'
   override?: {
     definitionChoice?: 'frozen' | 'current'
     definitions?: {
@@ -18398,6 +18156,7 @@ export type ProcessLedgerEntry = {
     followUpsToFix?: Array<string>
     cause?: 'defect' | 'proof-impossible'
     notShown?: Array<string>
+    missingProof?: 'whole-suite'
   }
   outsideScope?: Array<string>
   alreadyMet?: {
@@ -18448,6 +18207,8 @@ export type ProcessLedgerEntry = {
     baseRef: string
     baseSha?: string
     headline: string
+    tests?: Array<string>
+    failedAgainAlone?: Array<string>
   }
   baseUpdate?: {
     baseRef: string
@@ -18562,6 +18323,17 @@ export type ProcessLedgerEntry = {
   }
 }
 
+export type ProcessTimeBreakdown = {
+  thinkingMs: number
+  toolMs: number
+  systemMs: number
+  otherMs: number
+  runningMs: number
+  waitingMs: number
+  queuedMs?: number
+  tools: Array<ProcessToolTime>
+}
+
 export type ProcessAttemptTotals = {
   costUsd?: number
   unpricedTokens?: number
@@ -18600,6 +18372,26 @@ export type ProcessStepTotals = {
     tools: Array<ProcessToolTime>
   }
   attempts: Array<ProcessAttemptTotals>
+}
+
+export type ProcessManagerTotals = {
+  costUsd?: number
+  unpricedTokens?: number
+  includedTokens?: number
+  listCostUsd?: number
+  byModel?: Array<ModelSpend>
+  turns: number
+  workMs: number
+  time: {
+    thinkingMs: number
+    toolMs: number
+    systemMs: number
+    otherMs: number
+    runningMs: number
+    waitingMs: number
+    queuedMs?: number
+    tools: Array<ProcessToolTime>
+  }
 }
 
 export type ProcessRunTotals = {
@@ -18847,9 +18639,177 @@ export type ProcessRunCarriedOutChange = {
   entryId: string
 }
 
+export type ProcessManagerStaleTurnRecord = {
+  runId: string
+  parkedAt: number
+  signature: string
+  stepId?: string
+  startedAt: number
+  at: number
+}
+
+export type ProcessManagerWaitingAsk = {
+  actionId: string
+  toolName: string
+  kind: string
+  at: number
+}
+
+export type ProcessManagerTurn = {
+  runId: string
+  parkedAt: number
+  signature: string
+  startedAt: number
+  chatContextId: string
+  waitingOn?: Array<ProcessManagerWaitingAsk>
+  resumedAt?: number
+}
+
+export type ProcessManagerClaim = {
+  runId: string
+  parkedAt: number
+  at: number
+}
+
+export type ProcessManagerStandDown = {
+  runId: string
+  parkedAt: number
+  at: number
+  by: 'person-message' | 'person-answer'
+}
+
+export type ProcessManagerLastEscalation = {
+  signature: string
+  at: number
+}
+
+export type ProcessManagerTurnCost = {
+  runId: string
+  parkedAt: number
+  turnStartedAt: number
+  from: number
+  to: number
+  cost?: {
+    costUsd?: number
+    unpricedTokens?: number
+    includedTokens?: number
+    listCostUsd?: number
+    byModel?: Array<ModelSpend>
+  }
+  time?: {
+    agentMs: number
+    thinkingMs: number
+    toolMs: number
+    systemMs: number
+    otherMs: number
+    tools: Array<ProcessToolTime>
+  }
+}
+
+export type ProcessManagerOffReason = 'person' | 'reversed'
+
+export type ProcessRunManager = {
+  interventions?: Array<ProcessManagerIntervention>
+  staleTurns?: Array<ProcessManagerStaleTurnRecord>
+  turn?: {
+    runId: string
+    parkedAt: number
+    signature: string
+    startedAt: number
+    chatContextId: string
+    waitingOn?: Array<ProcessManagerWaitingAsk>
+    resumedAt?: number
+  }
+  claim?: {
+    runId: string
+    parkedAt: number
+    at: number
+  }
+  standDown?: {
+    runId: string
+    parkedAt: number
+    at: number
+    by: 'person-message' | 'person-answer'
+  }
+  hold?: {
+    runId: string
+    parkedAt: number
+    dependsOn:
+      | {
+          kind: 'run'
+          runId: string
+        }
+      | {
+          kind: 'feature-request'
+          requestId: string
+        }
+      | {
+          kind: 'base-fix'
+          sha: string
+        }
+    resume: 'retry' | 'update-base'
+    why: string
+    at: number
+    until: number
+  }
+  escalation?: {
+    runId: string
+    parkedAt: number
+    at: number
+    signature: string
+    why:
+      | 'credentials'
+      | 'permission'
+      | 'spend'
+      | 'scope'
+      | 'destructive'
+      | 'repeated-failure'
+      | 'guard-limit'
+      | 'judgement'
+      | 'hold-timeout'
+      | 'no-decision'
+      | 'not-started'
+      | 'circling'
+    what: string
+    found: string
+    tried: Array<string>
+    recommendation: string
+    recommendedChoice?: ProcessResumeChoice | 'delegate' | 'recover'
+    answers?: Array<ProcessManagerAnswer>
+    moreTries?: {
+      verdict: 'helps' | 'pointless'
+      why: string
+    }
+    startError?: string
+  }
+  lastEscalated?: {
+    signature: string
+    at: number
+  }
+  relooked?: {
+    runId: string
+    parkedAt: number
+  }
+  turnCosts?: Array<ProcessManagerTurnCost>
+  preRead?: {
+    runId: string
+    parkedAt: number
+    at: number
+    summary: string
+    items: Array<ProcessManagerNeedsYouFinding>
+  }
+  off?: {
+    at: number
+    reason: ProcessManagerOffReason
+  }
+  reversedKeys?: Array<string>
+}
+
 export type FakeDataInProduct = 'ship' | 'keep-out'
 
 export type ProcessRun = {
+  groupId?: string
+  alsoProjectIds?: Array<string>
   id: string
   projectId: string
   storyId?: string
@@ -18969,6 +18929,14 @@ export type ProcessRun = {
     }
     regenerated?: Array<string>
     broughtInRunIds?: Array<string>
+    keptWork?: Array<string>
+    checkoutMove?: {
+      kind: GitBranchMoveFailureKind
+      branch: string
+      worktreePath?: string
+      paths: Array<string>
+      blocking?: Array<GitBranchMoveBlockingPath>
+    }
     at: number
   }
   publication?: {
@@ -18990,8 +18958,49 @@ export type ProcessRun = {
     summary: string
     at: number
   }
-  plan: ProcessPlan
-  status: ProcessRunStatus
+  closedAs?: {
+    kind: ProcessRunClosedKind
+    summary: string
+    note?: string
+    at: number
+    endedAs?: {
+      status: 'failed' | 'cancelled'
+      endedAt?: number
+      error?: string
+    }
+  } & (
+    | {
+        decidedBy?: 'person'
+        decidedVia?: ProcessDecisionClient | 'chat' | 'feature-question' | 'design'
+      }
+    | {
+        decidedBy?: 'agent'
+        decidedVia?: 'tool'
+        toolName?: string
+        chatContextId?: string
+      }
+    | {
+        decidedBy?: 'manager'
+        decidedVia?: 'manager'
+        toolName?: string
+        chatContextId?: string
+      }
+  )
+  plan: {
+    definitionId: string
+    definitionScope: ProcessScope
+    definitionVersion: number
+    name: string
+    steps: Array<ProcessPlanStep>
+    loops: Array<ProcessLoop>
+    frozenAt: number
+    amendments?: Array<ProcessPlanAmendment>
+    signOff?: 'automatic'
+    unreadWhenDone?: true
+    features?: Array<ProcessSubject>
+    inputs?: Array<ProcessInput>
+  }
+  status: 'pending' | 'running' | 'parked' | 'succeeded' | 'failed' | 'cancelled'
   cursor?: {
     stepId: string
     iteration: number
@@ -19084,6 +19093,7 @@ export type ProcessRun = {
       retryMode?: 'continue' | 'fresh'
       resumesEntryId?: string
       rechecksEntryId?: string
+      checksScope?: 'full'
     }
     ask?: {
       kind: ProcessWaitingKind
@@ -19123,6 +19133,8 @@ export type ProcessRun = {
         baseRef: string
         baseSha?: string
         headline: string
+        tests?: Array<string>
+        failedAgainAlone?: Array<string>
       }
       outside?: {
         awaits: string
@@ -19387,8 +19399,108 @@ export type ProcessRun = {
   fakeDataInProduct?: 'ship' | 'keep-out'
 }
 
-export type ProcessManagerCardStandingRun = {
-  status: ProcessRunStatus
+export type ProcessManagerHoldRun = {
+  id: string
+  status: 'pending' | 'running' | 'parked' | 'succeeded' | 'failed' | 'cancelled'
+  input?: {
+    [key: string]: unknown
+  }
+  manager?: {
+    interventions?: Array<ProcessManagerIntervention>
+    staleTurns?: Array<ProcessManagerStaleTurnRecord>
+    turn?: {
+      runId: string
+      parkedAt: number
+      signature: string
+      startedAt: number
+      chatContextId: string
+      waitingOn?: Array<ProcessManagerWaitingAsk>
+      resumedAt?: number
+    }
+    claim?: {
+      runId: string
+      parkedAt: number
+      at: number
+    }
+    standDown?: {
+      runId: string
+      parkedAt: number
+      at: number
+      by: 'person-message' | 'person-answer'
+    }
+    hold?: {
+      runId: string
+      parkedAt: number
+      dependsOn:
+        | {
+            kind: 'run'
+            runId: string
+          }
+        | {
+            kind: 'feature-request'
+            requestId: string
+          }
+        | {
+            kind: 'base-fix'
+            sha: string
+          }
+      resume: 'retry' | 'update-base'
+      why: string
+      at: number
+      until: number
+    }
+    escalation?: {
+      runId: string
+      parkedAt: number
+      at: number
+      signature: string
+      why:
+        | 'credentials'
+        | 'permission'
+        | 'spend'
+        | 'scope'
+        | 'destructive'
+        | 'repeated-failure'
+        | 'guard-limit'
+        | 'judgement'
+        | 'hold-timeout'
+        | 'no-decision'
+        | 'not-started'
+        | 'circling'
+      what: string
+      found: string
+      tried: Array<string>
+      recommendation: string
+      recommendedChoice?: ProcessResumeChoice | 'delegate' | 'recover'
+      answers?: Array<ProcessManagerAnswer>
+      moreTries?: {
+        verdict: 'helps' | 'pointless'
+        why: string
+      }
+      startError?: string
+    }
+    lastEscalated?: {
+      signature: string
+      at: number
+    }
+    relooked?: {
+      runId: string
+      parkedAt: number
+    }
+    turnCosts?: Array<ProcessManagerTurnCost>
+    preRead?: {
+      runId: string
+      parkedAt: number
+      at: number
+      summary: string
+      items: Array<ProcessManagerNeedsYouFinding>
+    }
+    off?: {
+      at: number
+      reason: ProcessManagerOffReason
+    }
+    reversedKeys?: Array<string>
+  }
 } & {
   park?: {
     reason: ProcessParkReason
@@ -19403,6 +19515,7 @@ export type ProcessManagerCardStandingRun = {
       retryMode?: 'continue' | 'fresh'
       resumesEntryId?: string
       rechecksEntryId?: string
+      checksScope?: 'full'
     }
     ask?: {
       kind: ProcessWaitingKind
@@ -19442,6 +19555,389 @@ export type ProcessManagerCardStandingRun = {
         baseRef: string
         baseSha?: string
         headline: string
+        tests?: Array<string>
+        failedAgainAlone?: Array<string>
+      }
+      outside?: {
+        awaits: string
+        arrived?: {
+          title: string
+          detail: string
+          carryOnLabel: string
+          at: number
+        }
+      }
+    }
+    questionGrantId?: string
+    stepInFlight?: boolean
+    childRunId?: string
+    baseConflict?: {
+      baseRef: string
+      baseSha: string
+      commits: number
+      paths: Array<string>
+      workSha?: string
+      keptOneSide?: Array<ProcessKeptOneSide>
+      lostExports?: Array<CodeIntelExportedSymbol>
+      notRebuilt?: {
+        paths: Array<string>
+        reason: string
+      }
+    }
+    waitingOn?: Array<string>
+    circling?: {
+      summary: string
+      signals: Array<ProcessCirclingSignal>
+      ranOut: boolean
+      turnsUsed?: number
+      maxTurns?: number
+      changed?: boolean
+      repeatedActions?: Array<ProcessCirclingRepeat>
+      flipFlopFiles?: Array<string>
+      sameFailures?: Array<string>
+      streak: number
+      afterRaise?: true
+      afterRetry?: true
+      afterManager?: true
+      tip?: string
+      at: number
+    }
+  }
+  parentRunId?: string
+}
+
+export type ProcessManagerWorkspaceFacts = {
+  usedBytes: number
+  capBytes: number
+  startBytes: number
+  headroomBytes: number
+  ignoredGrowthBytes: number
+}
+
+export type ProcessManagerWorkspaceHandOn = 'unmeasured' | 'not-the-work' | 'raised-before'
+
+export type ProcessManagerWorkspaceRaise =
+  | {
+      grant: true
+      capBytes: number
+      facts: ProcessManagerWorkspaceFacts
+    }
+  | {
+      grant: false
+      why: ProcessManagerWorkspaceHandOn
+      facts: {
+        usedBytes?: number
+        capBytes?: number
+        startBytes?: number
+        headroomBytes?: number
+        ignoredGrowthBytes?: number
+      }
+      askedBytes?: number
+    }
+
+export type ProcessManagerTurnAsks = {
+  pending: Array<ProcessManagerWaitingAsk>
+  decided: Array<{
+    actionId: string
+    at: number
+  }>
+}
+
+export type ProcessManagerTurnEnding =
+  | {
+      started: false
+      error: string
+    }
+  | {
+      started: true
+    }
+
+export type ProcessManagerParkStatus = 'looking' | 'waiting' | 'holding' | 'escalated'
+
+export type ProcessRunStopHolder = 'manager' | 'person'
+
+export type ProcessManagerTrigger =
+  | {
+      start: true
+      kind: ProcessManagerTriggerKind
+    }
+  | {
+      start: false
+      why: string
+    }
+
+export type ProcessManagerVerdict =
+  | {
+      verdict: 'free'
+    }
+  | {
+      verdict: 'act'
+      actionKey: string
+    }
+  | {
+      verdict: 'card'
+    }
+  | {
+      verdict: 'refuse'
+      reason: string
+    }
+  | {
+      verdict: 'ordinary'
+    }
+
+export type ProcessManagerRun = {
+  id: string
+  storyId?: string
+  featureId?: string
+  park?: {
+    reason: ProcessParkReason
+    stepId?: string
+    parkedAt: number
+    circling?: {
+      summary: string
+      signals: Array<ProcessCirclingSignal>
+      ranOut: boolean
+      turnsUsed?: number
+      maxTurns?: number
+      changed?: boolean
+      repeatedActions?: Array<ProcessCirclingRepeat>
+      flipFlopFiles?: Array<string>
+      sameFailures?: Array<string>
+      streak: number
+      afterRaise?: true
+      afterRetry?: true
+      afterManager?: true
+      tip?: string
+      at: number
+    }
+  }
+  workBranch?: {
+    name: string
+    baseRef?: string
+  }
+  baseMoved?: {
+    baseRef: string
+  }
+  manager?: {
+    interventions?: Array<ProcessManagerIntervention>
+    staleTurns?: Array<ProcessManagerStaleTurnRecord>
+    turn?: {
+      runId: string
+      parkedAt: number
+      signature: string
+      startedAt: number
+      chatContextId: string
+      waitingOn?: Array<ProcessManagerWaitingAsk>
+      resumedAt?: number
+    }
+    claim?: {
+      runId: string
+      parkedAt: number
+      at: number
+    }
+    standDown?: {
+      runId: string
+      parkedAt: number
+      at: number
+      by: 'person-message' | 'person-answer'
+    }
+    hold?: {
+      runId: string
+      parkedAt: number
+      dependsOn:
+        | {
+            kind: 'run'
+            runId: string
+          }
+        | {
+            kind: 'feature-request'
+            requestId: string
+          }
+        | {
+            kind: 'base-fix'
+            sha: string
+          }
+      resume: 'retry' | 'update-base'
+      why: string
+      at: number
+      until: number
+    }
+    escalation?: {
+      runId: string
+      parkedAt: number
+      at: number
+      signature: string
+      why:
+        | 'credentials'
+        | 'permission'
+        | 'spend'
+        | 'scope'
+        | 'destructive'
+        | 'repeated-failure'
+        | 'guard-limit'
+        | 'judgement'
+        | 'hold-timeout'
+        | 'no-decision'
+        | 'not-started'
+        | 'circling'
+      what: string
+      found: string
+      tried: Array<string>
+      recommendation: string
+      recommendedChoice?: ProcessResumeChoice | 'delegate' | 'recover'
+      answers?: Array<ProcessManagerAnswer>
+      moreTries?: {
+        verdict: 'helps' | 'pointless'
+        why: string
+      }
+      startError?: string
+    }
+    lastEscalated?: {
+      signature: string
+      at: number
+    }
+    relooked?: {
+      runId: string
+      parkedAt: number
+    }
+    turnCosts?: Array<ProcessManagerTurnCost>
+    preRead?: {
+      runId: string
+      parkedAt: number
+      at: number
+      summary: string
+      items: Array<ProcessManagerNeedsYouFinding>
+    }
+    off?: {
+      at: number
+      reason: ProcessManagerOffReason
+    }
+    reversedKeys?: Array<string>
+  }
+}
+
+export type ProcessManagerPolicyInput = {
+  root: ProcessManagerRun
+  holder: ProcessManagerRun
+  autonomy: ProcessManagerAutonomy
+  signature: string
+  permissionPreApproved?: boolean
+  attemptAgentNotStarted?: boolean
+  attemptFeatureDone?: boolean
+  attemptCircling?: {
+    summary: string
+    signals: Array<ProcessCirclingSignal>
+    ranOut: boolean
+    turnsUsed?: number
+    maxTurns?: number
+    changed?: boolean
+    repeatedActions?: Array<ProcessCirclingRepeat>
+    flipFlopFiles?: Array<string>
+    sameFailures?: Array<string>
+    streak: number
+    afterRaise?: true
+    afterRetry?: true
+    afterManager?: true
+    tip?: string
+    at: number
+  }
+  commitResetsToHead?: Array<string>
+  baseFailure?: boolean
+  diagnosis?: Array<string>
+  choices?: Array<string>
+  personOnlyChoices?: Array<string>
+  openBaseFix?:
+    | {
+        kind: 'run'
+        runId: string
+      }
+    | {
+        kind: 'base-fix'
+        sha: string
+      }
+  holdDependencyStuck?: 'with-person' | 'waits-on-holder'
+  personSpokeSinceTurn?: boolean
+}
+
+export type ProcessManagerHandledLine = {
+  at: number
+  what: string
+  why: string
+  result: string
+  outcome: ProcessManagerInterventionOutcome
+}
+
+export type ProcessManagerHandledSummary = {
+  count: number
+  lines: Array<ProcessManagerHandledLine>
+}
+
+export type ProcessManagerAnsweredBefore = {
+  stops: number
+  answers: Array<{
+    choice: string
+    times: number
+  }>
+}
+
+export type ProcessManagerCardStandingRun = {
+  status: 'pending' | 'running' | 'parked' | 'succeeded' | 'failed' | 'cancelled'
+} & {
+  park?: {
+    reason: ProcessParkReason
+    stepId?: string
+    loopId?: string
+    message: string
+    parkedAt: number
+    pending?: {
+      cursor: ProcessRunCursor
+      viaLoopId?: string
+      continuesEntryId?: string
+      retryMode?: 'continue' | 'fresh'
+      resumesEntryId?: string
+      rechecksEntryId?: string
+      checksScope?: 'full'
+    }
+    ask?: {
+      kind: ProcessWaitingKind
+      agent: string
+      title: string
+      detail: string
+      request?: {
+        actionId: string
+        actionKind: string
+        toolName?: string
+        host?: string
+        packageName?: string
+        ecosystem?: string
+        url?: string
+        args?: {
+          [key: string]: unknown
+        }
+      }
+      items?: Array<ProcessWaitingItem>
+      featureQuestionId?: string
+      runRef?: {
+        runId: string
+        agentRunId?: string
+        chatContextId?: string
+        runner?: 'api' | 'cli'
+      }
+      delegatedTo?: {
+        chatContextId: string
+        topicId: string
+        at: number
+      }
+      agentFailed?: true
+      preExistingBreak?: {
+        source: ProcessPreExistingBreakSource
+        checks: Array<string>
+        files: Array<string>
+        baseRef: string
+        baseSha?: string
+        headline: string
+        tests?: Array<string>
+        failedAgainAlone?: Array<string>
       }
       outside?: {
         awaits: string
@@ -20239,6 +20735,8 @@ export type ProjectCheckHostTreeOptions = {
   isolate?: boolean
   envFiles?: Array<string>
   siblingSnapshots?: Array<ProjectCheckSiblingSnapshot>
+  installFromLockfile?: boolean
+  signal?: unknown
 }
 
 export type ProjectCheckBaselineCache = unknown
@@ -20339,6 +20837,19 @@ export type SandboxDependencyOutcome =
     }
   | {
       kind: 'refused'
+      reason: string
+    }
+
+export type HostNodeInstallDecision =
+  | {
+      action: 'reuse'
+    }
+  | {
+      action: 'install'
+      command: string
+    }
+  | {
+      action: 'refused'
       reason: string
     }
 
@@ -20721,6 +21232,18 @@ export type ProjectCheckFlakeFeature = {
   filedAt: number
 }
 
+export type ProjectCheckFlakeFixedBy = {
+  runId?: string
+  commit?: string
+}
+
+export type ProjectCheckFlakeSettled = {
+  fileKey: string
+  storyId: string
+  featureId: string
+  title: string
+}
+
 export type ProjectCheckKnownFlake = {
   key: string
   suite: string
@@ -20830,6 +21353,7 @@ export type ProjectCheckRunResult = {
     all: boolean
     note: string
   }
+  joinedEarlierRun?: string
 }
 
 export type ProjectCheckDetailSection = {
@@ -25017,6 +25541,7 @@ export type ReviewEvidenceRef = {
   verdict?: 'approved' | 'changes-requested' | 'rejected'
   verdictReason?: string
   verdictCause?: 'defect' | 'proof-impossible'
+  verdictMissingProof?: 'whole-suite'
   verdictScreens?: Array<string>
   verdictNotShown?: Array<string>
   verdictNewScreens?: Array<string>
@@ -25232,12 +25757,20 @@ export type CodeReviewFindingsJudgement = {
   reversals: Array<CodeReviewFinding>
 }
 
-export type FlagRunThroughIssueInput = {
-  runId: string
-  projectId: string
+export type ReviewEvidenceFilingScope = {
   storyId?: string
   featureId?: string
   chatContextId?: string
+  runId?: string
+  projectId?: string
+}
+
+export type FlagRunThroughIssueFiling = {
+  storyId?: string
+  featureId?: string
+  chatContextId?: string
+  runId?: string
+  projectId?: string
   issue: {
     severity: CodeReviewFindingSeverity
     title: string
@@ -25249,6 +25782,8 @@ export type FlagRunThroughIssueInput = {
     at?: number
   }
 }
+
+export type FlagRunThroughIssueInput = FlagRunThroughIssueFiling & ReviewEvidenceScope
 
 export type ReportSectionName = 'outcome' | 'howProven' | 'decisions' | 'needsYou'
 
@@ -25294,6 +25829,7 @@ export type CitedReviewEvidence = {
   verdict?: 'approved' | 'changes-requested' | 'rejected'
   verdictReason?: string
   verdictCause?: 'defect' | 'proof-impossible'
+  verdictMissingProof?: 'whole-suite'
   verdictScreens?: Array<string>
   verdictNotShown?: Array<string>
   verdictNewScreens?: Array<string>
@@ -28357,12 +28893,12 @@ export type ReviewEvidenceQuery = {
   kind?: 'screenshot' | 'recording' | 'report' | 'log' | 'file' | 'trace'
 }
 
-export type RecordReviewEvidenceInput = {
-  runId: string
-  projectId: string
+export type RecordReviewEvidenceFiling = {
   storyId?: string
   featureId?: string
   chatContextId?: string
+  runId?: string
+  projectId?: string
   sourcePath?: string
   text?: string
   kind: 'screenshot' | 'recording' | 'report' | 'log' | 'file' | 'trace'
@@ -28383,6 +28919,7 @@ export type RecordReviewEvidenceInput = {
   verdict?: 'approved' | 'changes-requested' | 'rejected'
   verdictReason?: string
   verdictCause?: 'defect' | 'proof-impossible'
+  verdictMissingProof?: 'whole-suite'
   verdictScreens?: Array<string>
   verdictNotShown?: Array<string>
   verdictNewScreens?: Array<string>
@@ -28423,6 +28960,8 @@ export type RecordReviewEvidenceInput = {
     mustShow: Array<string>
   }
 }
+
+export type RecordReviewEvidenceInput = RecordReviewEvidenceFiling & ReviewEvidenceScope
 
 export type ReviewEvidenceTextCut = {
   totalChars: number
@@ -28939,6 +29478,7 @@ export type ScriptEvidence = {
   verdict?: 'approved' | 'changes-requested' | 'rejected'
   verdictReason?: string
   verdictCause?: 'defect' | 'proof-impossible'
+  verdictMissingProof?: 'whole-suite'
   verdictScreens?: Array<string>
   verdictNotShown?: Array<string>
   verdictNewScreens?: Array<string>
@@ -28978,6 +29518,8 @@ export type ScriptEvidence = {
     steps: Array<string>
     mustShow: Array<string>
   }
+} & {
+  [key: string]: unknown
 } & {
   label: string
 }
@@ -29220,7 +29762,20 @@ export type StorageUsageStanding = {
 export type LiveRunFeatureProgress = 'not-in-run' | 'not-started' | 'started'
 
 export type LiveRunFeatureRun = {
-  plan: ProcessPlan
+  plan: {
+    definitionId: string
+    definitionScope: ProcessScope
+    definitionVersion: number
+    name: string
+    steps: Array<ProcessPlanStep>
+    loops: Array<ProcessLoop>
+    frozenAt: number
+    amendments?: Array<ProcessPlanAmendment>
+    signOff?: 'automatic'
+    unreadWhenDone?: true
+    features?: Array<ProcessSubject>
+    inputs?: Array<ProcessInput>
+  }
   ledger: Array<ProcessLedgerEntry>
 } & {
   cursor?: {
@@ -32433,8 +32988,21 @@ export type ProcessRunRequestEvidence = {
 }
 
 export type NamedLandingRun = {
-  status: ProcessRunStatus
-  plan: ProcessPlan
+  status: 'pending' | 'running' | 'parked' | 'succeeded' | 'failed' | 'cancelled'
+  plan: {
+    definitionId: string
+    definitionScope: ProcessScope
+    definitionVersion: number
+    name: string
+    steps: Array<ProcessPlanStep>
+    loops: Array<ProcessLoop>
+    frozenAt: number
+    amendments?: Array<ProcessPlanAmendment>
+    signOff?: 'automatic'
+    unreadWhenDone?: true
+    features?: Array<ProcessSubject>
+    inputs?: Array<ProcessInput>
+  }
   ledger: Array<ProcessLedgerEntry>
   workBranch?: {
     name: string
@@ -32515,6 +33083,14 @@ export type NamedLandingRun = {
     }
     regenerated?: Array<string>
     broughtInRunIds?: Array<string>
+    keptWork?: Array<string>
+    checkoutMove?: {
+      kind: GitBranchMoveFailureKind
+      branch: string
+      worktreePath?: string
+      paths: Array<string>
+      blocking?: Array<GitBranchMoveBlockingPath>
+    }
     at: number
   }
   park?: {
@@ -32530,6 +33106,7 @@ export type NamedLandingRun = {
       retryMode?: 'continue' | 'fresh'
       resumesEntryId?: string
       rechecksEntryId?: string
+      checksScope?: 'full'
     }
     ask?: {
       kind: ProcessWaitingKind
@@ -32569,6 +33146,8 @@ export type NamedLandingRun = {
         baseRef: string
         baseSha?: string
         headline: string
+        tests?: Array<string>
+        failedAgainAlone?: Array<string>
       }
       outside?: {
         awaits: string
@@ -32661,6 +33240,7 @@ export type CloseRun = {
       retryMode?: 'continue' | 'fresh'
       resumesEntryId?: string
       rechecksEntryId?: string
+      checksScope?: 'full'
     }
     ask?: {
       kind: ProcessWaitingKind
@@ -32700,6 +33280,8 @@ export type CloseRun = {
         baseRef: string
         baseSha?: string
         headline: string
+        tests?: Array<string>
+        failedAgainAlone?: Array<string>
       }
       outside?: {
         awaits: string
@@ -32779,6 +33361,7 @@ export type FeatureSplitRun = {
       retryMode?: 'continue' | 'fresh'
       resumesEntryId?: string
       rechecksEntryId?: string
+      checksScope?: 'full'
     }
     ask?: {
       kind: ProcessWaitingKind
@@ -32818,6 +33401,8 @@ export type FeatureSplitRun = {
         baseRef: string
         baseSha?: string
         headline: string
+        tests?: Array<string>
+        failedAgainAlone?: Array<string>
       }
       outside?: {
         awaits: string
@@ -32864,7 +33449,20 @@ export type FeatureSplitRun = {
       at: number
     }
   }
-  plan: ProcessPlan
+  plan: {
+    definitionId: string
+    definitionScope: ProcessScope
+    definitionVersion: number
+    name: string
+    steps: Array<ProcessPlanStep>
+    loops: Array<ProcessLoop>
+    frozenAt: number
+    amendments?: Array<ProcessPlanAmendment>
+    signOff?: 'automatic'
+    unreadWhenDone?: true
+    features?: Array<ProcessSubject>
+    inputs?: Array<ProcessInput>
+  }
   ledger: Array<ProcessLedgerEntry>
 } & {
   featureId?: string
@@ -32986,6 +33584,7 @@ export type ProcessGroupLeg = {
     heldAt: number
   }
   builtOn?: Array<ProcessGroupLegBranch>
+  stackAfter?: string
   signOffError?: string
   leftOut?: {
     reason: string
@@ -33288,7 +33887,10 @@ export type ProcessParkChoice = {
     baseRef: string
     baseSha?: string
     headline: string
+    tests?: Array<string>
+    failedAgainAlone?: Array<string>
   }
+  personOnly?: true
   noteRequired?: true
   action?: {
     id: string
@@ -33335,7 +33937,20 @@ export type ProcessPointsToTry = {
 
 export type CarryingRun = {
   id: string
-  plan: ProcessPlan
+  plan: {
+    definitionId: string
+    definitionScope: ProcessScope
+    definitionVersion: number
+    name: string
+    steps: Array<ProcessPlanStep>
+    loops: Array<ProcessLoop>
+    frozenAt: number
+    amendments?: Array<ProcessPlanAmendment>
+    signOff?: 'automatic'
+    unreadWhenDone?: true
+    features?: Array<ProcessSubject>
+    inputs?: Array<ProcessInput>
+  }
   ledger: Array<ProcessLedgerEntry>
 } & {
   input?: {
@@ -33355,12 +33970,42 @@ export type ProvingRun = {
   }
 }
 
+export type Titled = {
+  files: Array<string>
+  checks: Array<string>
+} & {
+  source?: 'checks' | 'developer' | 'known-flake'
+  tests?: Array<string>
+}
+
 export type ProcessLeftOutTarget = {
   runId: string
   stepId: string
   entryId: string
   at: number
   break: ProcessPreExistingBreak
+}
+
+export type ProcessDeveloperBreakConfirmation =
+  | {
+      break: ProcessPreExistingBreak
+    }
+  | {
+      error: string
+    }
+
+export type ProcessDeveloperBreakOutcome =
+  | ProcessDeveloperBreakConfirmation
+  | {
+      passesAlone: string
+    }
+
+export type CoveredBreak = {
+  checks: Array<string>
+  files: Array<string>
+} & {
+  source?: 'checks' | 'developer' | 'known-flake'
+  tests?: Array<string>
 }
 
 export type ProofChangeRun = {
@@ -33377,6 +34022,7 @@ export type ProofChangeRun = {
       retryMode?: 'continue' | 'fresh'
       resumesEntryId?: string
       rechecksEntryId?: string
+      checksScope?: 'full'
     }
     ask?: {
       kind: ProcessWaitingKind
@@ -33416,6 +34062,8 @@ export type ProofChangeRun = {
         baseRef: string
         baseSha?: string
         headline: string
+        tests?: Array<string>
+        failedAgainAlone?: Array<string>
       }
       outside?: {
         awaits: string
@@ -33462,7 +34110,20 @@ export type ProofChangeRun = {
       at: number
     }
   }
-  plan: ProcessPlan
+  plan: {
+    definitionId: string
+    definitionScope: ProcessScope
+    definitionVersion: number
+    name: string
+    steps: Array<ProcessPlanStep>
+    loops: Array<ProcessLoop>
+    frozenAt: number
+    amendments?: Array<ProcessPlanAmendment>
+    signOff?: 'automatic'
+    unreadWhenDone?: true
+    features?: Array<ProcessSubject>
+    inputs?: Array<ProcessInput>
+  }
   ledger: Array<ProcessLedgerEntry>
 } & {
   featureId?: string
@@ -33495,7 +34156,20 @@ export type ProcessPullRequestNeed = {
 }
 
 export type RecheckRun = {
-  plan: ProcessPlan
+  plan: {
+    definitionId: string
+    definitionScope: ProcessScope
+    definitionVersion: number
+    name: string
+    steps: Array<ProcessPlanStep>
+    loops: Array<ProcessLoop>
+    frozenAt: number
+    amendments?: Array<ProcessPlanAmendment>
+    signOff?: 'automatic'
+    unreadWhenDone?: true
+    features?: Array<ProcessSubject>
+    inputs?: Array<ProcessInput>
+  }
   ledger: Array<ProcessLedgerEntry>
   park?: {
     reason: ProcessParkReason
@@ -33510,6 +34184,7 @@ export type RecheckRun = {
       retryMode?: 'continue' | 'fresh'
       resumesEntryId?: string
       rechecksEntryId?: string
+      checksScope?: 'full'
     }
     ask?: {
       kind: ProcessWaitingKind
@@ -33549,6 +34224,8 @@ export type RecheckRun = {
         baseRef: string
         baseSha?: string
         headline: string
+        tests?: Array<string>
+        failedAgainAlone?: Array<string>
       }
       outside?: {
         awaits: string
@@ -33600,7 +34277,20 @@ export type RecheckRun = {
 }
 
 export type RetryRun = {
-  plan: ProcessPlan
+  plan: {
+    definitionId: string
+    definitionScope: ProcessScope
+    definitionVersion: number
+    name: string
+    steps: Array<ProcessPlanStep>
+    loops: Array<ProcessLoop>
+    frozenAt: number
+    amendments?: Array<ProcessPlanAmendment>
+    signOff?: 'automatic'
+    unreadWhenDone?: true
+    features?: Array<ProcessSubject>
+    inputs?: Array<ProcessInput>
+  }
   ledger: Array<ProcessLedgerEntry>
   input?: {
     [key: string]: unknown
@@ -33632,6 +34322,7 @@ export type FollowUpsRun = {
       retryMode?: 'continue' | 'fresh'
       resumesEntryId?: string
       rechecksEntryId?: string
+      checksScope?: 'full'
     }
     ask?: {
       kind: ProcessWaitingKind
@@ -33671,6 +34362,8 @@ export type FollowUpsRun = {
         baseRef: string
         baseSha?: string
         headline: string
+        tests?: Array<string>
+        failedAgainAlone?: Array<string>
       }
       outside?: {
         awaits: string
@@ -33717,7 +34410,20 @@ export type FollowUpsRun = {
       at: number
     }
   }
-  plan: ProcessPlan
+  plan: {
+    definitionId: string
+    definitionScope: ProcessScope
+    definitionVersion: number
+    name: string
+    steps: Array<ProcessPlanStep>
+    loops: Array<ProcessLoop>
+    frozenAt: number
+    amendments?: Array<ProcessPlanAmendment>
+    signOff?: 'automatic'
+    unreadWhenDone?: true
+    features?: Array<ProcessSubject>
+    inputs?: Array<ProcessInput>
+  }
   ledger: Array<ProcessLedgerEntry>
 } & {
   storyId?: string
@@ -33746,6 +34452,7 @@ export type ReviewGapRun = {
       retryMode?: 'continue' | 'fresh'
       resumesEntryId?: string
       rechecksEntryId?: string
+      checksScope?: 'full'
     }
     ask?: {
       kind: ProcessWaitingKind
@@ -33785,6 +34492,8 @@ export type ReviewGapRun = {
         baseRef: string
         baseSha?: string
         headline: string
+        tests?: Array<string>
+        failedAgainAlone?: Array<string>
       }
       outside?: {
         awaits: string
@@ -33831,7 +34540,20 @@ export type ReviewGapRun = {
       at: number
     }
   }
-  plan: ProcessPlan
+  plan: {
+    definitionId: string
+    definitionScope: ProcessScope
+    definitionVersion: number
+    name: string
+    steps: Array<ProcessPlanStep>
+    loops: Array<ProcessLoop>
+    frozenAt: number
+    amendments?: Array<ProcessPlanAmendment>
+    signOff?: 'automatic'
+    unreadWhenDone?: true
+    features?: Array<ProcessSubject>
+    inputs?: Array<ProcessInput>
+  }
   ledger: Array<ProcessLedgerEntry>
 } & {
   proofUnavailable?: Array<ProofKindUnavailable>
@@ -33839,7 +34561,7 @@ export type ReviewGapRun = {
 
 export type ClosureRun = {
   id: string
-  status: ProcessRunStatus
+  status: 'pending' | 'running' | 'parked' | 'succeeded' | 'failed' | 'cancelled'
   parentRunId?: string
   storyId?: string
   closure?: {
@@ -33868,7 +34590,20 @@ export type ClosureRun = {
       }
   )
   featureId?: string
-  plan: ProcessPlan
+  plan: {
+    definitionId: string
+    definitionScope: ProcessScope
+    definitionVersion: number
+    name: string
+    steps: Array<ProcessPlanStep>
+    loops: Array<ProcessLoop>
+    frozenAt: number
+    amendments?: Array<ProcessPlanAmendment>
+    signOff?: 'automatic'
+    unreadWhenDone?: true
+    features?: Array<ProcessSubject>
+    inputs?: Array<ProcessInput>
+  }
   ledger: Array<ProcessLedgerEntry>
   integration?: {
     mode: ProcessIntegrationMode
@@ -33938,12 +34673,33 @@ export type ClosureRun = {
     }
     regenerated?: Array<string>
     broughtInRunIds?: Array<string>
+    keptWork?: Array<string>
+    checkoutMove?: {
+      kind: GitBranchMoveFailureKind
+      branch: string
+      worktreePath?: string
+      paths: Array<string>
+      blocking?: Array<GitBranchMoveBlockingPath>
+    }
     at: number
   }
 }
 
 export type SendToDeveloperRun = {
-  plan: ProcessPlan
+  plan: {
+    definitionId: string
+    definitionScope: ProcessScope
+    definitionVersion: number
+    name: string
+    steps: Array<ProcessPlanStep>
+    loops: Array<ProcessLoop>
+    frozenAt: number
+    amendments?: Array<ProcessPlanAmendment>
+    signOff?: 'automatic'
+    unreadWhenDone?: true
+    features?: Array<ProcessSubject>
+    inputs?: Array<ProcessInput>
+  }
   park?: {
     reason: ProcessParkReason
     stepId?: string
@@ -33957,6 +34713,7 @@ export type SendToDeveloperRun = {
       retryMode?: 'continue' | 'fresh'
       resumesEntryId?: string
       rechecksEntryId?: string
+      checksScope?: 'full'
     }
     ask?: {
       kind: ProcessWaitingKind
@@ -33996,6 +34753,8 @@ export type SendToDeveloperRun = {
         baseRef: string
         baseSha?: string
         headline: string
+        tests?: Array<string>
+        failedAgainAlone?: Array<string>
       }
       outside?: {
         awaits: string
@@ -34050,6 +34809,7 @@ export type SendToDeveloperRun = {
   iterationGrants?: {
     [key: string]: number
   }
+  ledger?: Array<ProcessLedgerEntry>
 }
 
 export type WhenStep = {
@@ -34645,6 +35405,8 @@ export type ProcessRunChatState = {
     generators?: Array<ProjectGeneratorSetting>
   }
   parkHolder?: {
+    groupId?: string
+    alsoProjectIds?: Array<string>
     id: string
     projectId: string
     storyId?: string
@@ -34764,6 +35526,14 @@ export type ProcessRunChatState = {
       }
       regenerated?: Array<string>
       broughtInRunIds?: Array<string>
+      keptWork?: Array<string>
+      checkoutMove?: {
+        kind: GitBranchMoveFailureKind
+        branch: string
+        worktreePath?: string
+        paths: Array<string>
+        blocking?: Array<GitBranchMoveBlockingPath>
+      }
       at: number
     }
     publication?: {
@@ -34785,8 +35555,49 @@ export type ProcessRunChatState = {
       summary: string
       at: number
     }
-    plan: ProcessPlan
-    status: ProcessRunStatus
+    closedAs?: {
+      kind: ProcessRunClosedKind
+      summary: string
+      note?: string
+      at: number
+      endedAs?: {
+        status: 'failed' | 'cancelled'
+        endedAt?: number
+        error?: string
+      }
+    } & (
+      | {
+          decidedBy?: 'person'
+          decidedVia?: ProcessDecisionClient | 'chat' | 'feature-question' | 'design'
+        }
+      | {
+          decidedBy?: 'agent'
+          decidedVia?: 'tool'
+          toolName?: string
+          chatContextId?: string
+        }
+      | {
+          decidedBy?: 'manager'
+          decidedVia?: 'manager'
+          toolName?: string
+          chatContextId?: string
+        }
+    )
+    plan: {
+      definitionId: string
+      definitionScope: ProcessScope
+      definitionVersion: number
+      name: string
+      steps: Array<ProcessPlanStep>
+      loops: Array<ProcessLoop>
+      frozenAt: number
+      amendments?: Array<ProcessPlanAmendment>
+      signOff?: 'automatic'
+      unreadWhenDone?: true
+      features?: Array<ProcessSubject>
+      inputs?: Array<ProcessInput>
+    }
+    status: 'pending' | 'running' | 'parked' | 'succeeded' | 'failed' | 'cancelled'
     cursor?: {
       stepId: string
       iteration: number
@@ -34879,6 +35690,7 @@ export type ProcessRunChatState = {
         retryMode?: 'continue' | 'fresh'
         resumesEntryId?: string
         rechecksEntryId?: string
+        checksScope?: 'full'
       }
       ask?: {
         kind: ProcessWaitingKind
@@ -34918,6 +35730,8 @@ export type ProcessRunChatState = {
           baseRef: string
           baseSha?: string
           headline: string
+          tests?: Array<string>
+          failedAgainAlone?: Array<string>
         }
         outside?: {
           awaits: string
@@ -35621,6 +36435,14 @@ export type ProcessIntegrationOutcome = {
   }
   regenerated?: Array<string>
   broughtInRunIds?: Array<string>
+  keptWork?: Array<string>
+  checkoutMove?: {
+    kind: GitBranchMoveFailureKind
+    branch: string
+    worktreePath?: string
+    paths: Array<string>
+    blocking?: Array<GitBranchMoveBlockingPath>
+  }
 }
 
 export type ProcessChangesRange = {
@@ -35683,6 +36505,50 @@ export type ProcessWorkBranchRewindDiff = {
   after?: string
 }
 
+export type ProcessWorkBranchLanding =
+  | {
+      sha: string
+      onto?: string
+      commits: Array<GitReplayedCommit>
+      checks?: {
+        status: MergeChecksStatus
+        summary: string
+        sha?: string
+        checks: Array<VerificationCheckResult>
+      }
+      regenerated?: Array<string>
+      keptWork?: Array<string>
+    }
+  | {
+      error: string
+      conflict?: {
+        baseRef: string
+        baseSha: string
+        commits: number
+        paths: Array<string>
+        workSha?: string
+        keptOneSide?: Array<ProcessKeptOneSide>
+        lostExports?: Array<CodeIntelExportedSymbol>
+        notRebuilt?: {
+          paths: Array<string>
+          reason: string
+        }
+      }
+      checks?: {
+        status: MergeChecksStatus
+        summary: string
+        sha?: string
+        checks: Array<VerificationCheckResult>
+      }
+      checkoutMove?: {
+        kind: GitBranchMoveFailureKind
+        branch: string
+        worktreePath?: string
+        paths: Array<string>
+        blocking?: Array<GitBranchMoveBlockingPath>
+      }
+    }
+
 export type PushProcessWorkBranchInput = {
   workBranch: ProcessWorkBranch
   identity?: {
@@ -35709,7 +36575,16 @@ export type ProcessWorkBranchPublished = {
   unchanged?: true
 }
 
+export type ProcessRunLink = {
+  groupId?: string
+  alsoProjectIds?: Array<string>
+  runId: string
+  projectId: string
+}
+
 export type ProcessRunSummary = {
+  groupId?: string
+  alsoProjectIds?: Array<string>
   id: string
   projectId: string
   storyId?: string
@@ -35829,6 +36704,14 @@ export type ProcessRunSummary = {
     }
     regenerated?: Array<string>
     broughtInRunIds?: Array<string>
+    keptWork?: Array<string>
+    checkoutMove?: {
+      kind: GitBranchMoveFailureKind
+      branch: string
+      worktreePath?: string
+      paths: Array<string>
+      blocking?: Array<GitBranchMoveBlockingPath>
+    }
     at: number
   }
   publication?: {
@@ -35850,8 +36733,49 @@ export type ProcessRunSummary = {
     summary: string
     at: number
   }
-  plan: ProcessPlan
-  status: ProcessRunStatus
+  closedAs?: {
+    kind: ProcessRunClosedKind
+    summary: string
+    note?: string
+    at: number
+    endedAs?: {
+      status: 'failed' | 'cancelled'
+      endedAt?: number
+      error?: string
+    }
+  } & (
+    | {
+        decidedBy?: 'person'
+        decidedVia?: ProcessDecisionClient | 'chat' | 'feature-question' | 'design'
+      }
+    | {
+        decidedBy?: 'agent'
+        decidedVia?: 'tool'
+        toolName?: string
+        chatContextId?: string
+      }
+    | {
+        decidedBy?: 'manager'
+        decidedVia?: 'manager'
+        toolName?: string
+        chatContextId?: string
+      }
+  )
+  plan: {
+    definitionId: string
+    definitionScope: ProcessScope
+    definitionVersion: number
+    name: string
+    steps: Array<ProcessPlanStep>
+    loops: Array<ProcessLoop>
+    frozenAt: number
+    amendments?: Array<ProcessPlanAmendment>
+    signOff?: 'automatic'
+    unreadWhenDone?: true
+    features?: Array<ProcessSubject>
+    inputs?: Array<ProcessInput>
+  }
+  status: 'pending' | 'running' | 'parked' | 'succeeded' | 'failed' | 'cancelled'
   cursor?: {
     stepId: string
     iteration: number
@@ -35942,6 +36866,7 @@ export type ProcessRunSummary = {
       retryMode?: 'continue' | 'fresh'
       resumesEntryId?: string
       rechecksEntryId?: string
+      checksScope?: 'full'
     }
     ask?: {
       kind: ProcessWaitingKind
@@ -35981,6 +36906,8 @@ export type ProcessRunSummary = {
         baseRef: string
         baseSha?: string
         headline: string
+        tests?: Array<string>
+        failedAgainAlone?: Array<string>
       }
       outside?: {
         awaits: string
@@ -36431,6 +37358,7 @@ export type ProcessStepResult = {
     followUpsToFix?: Array<string>
     cause?: 'defect' | 'proof-impossible'
     notShown?: Array<string>
+    missingProof?: 'whole-suite'
   }
   outsideScope?: Array<string>
   alreadyMet?: {
@@ -36472,6 +37400,8 @@ export type ProcessStepResult = {
     baseRef: string
     baseSha?: string
     headline: string
+    tests?: Array<string>
+    failedAgainAlone?: Array<string>
   }
   baseUpdate?: {
     baseRef: string
@@ -36547,6 +37477,8 @@ export type ProcessStepResult = {
       baseRef: string
       baseSha?: string
       headline: string
+      tests?: Array<string>
+      failedAgainAlone?: Array<string>
     }
     outside?: {
       awaits: string
@@ -36618,6 +37550,8 @@ export type AgentRunTimeline = {
 }
 
 export type StartProcessRunInput = {
+  groupId?: string
+  alsoProjectIds?: Array<string>
   id?: string
   projectId: string
   processId: string
@@ -36709,6 +37643,7 @@ export type ProcessRunQuery = {
   storyId?: string
   chatContextId?: string
   groupRunId?: string
+  groupId?: string
   status?: 'pending' | 'running' | 'parked' | 'succeeded' | 'failed' | 'cancelled'
   ending?: 'abandoned' | 'unmerged'
   rootOnly?: boolean
@@ -36807,6 +37742,8 @@ export type ProcessStepState = {
         baseRef: string
         baseSha?: string
         headline: string
+        tests?: Array<string>
+        failedAgainAlone?: Array<string>
       }
       outside?: {
         awaits: string
@@ -36823,6 +37760,7 @@ export type ProcessStepState = {
     questionGrantId?: string
     continues?: string
     rechecks?: string
+    checksScope?: 'full'
     override?: {
       definitionChoice?: 'frozen' | 'current'
       definitions?: {
@@ -36957,6 +37895,7 @@ export type ProcessStepState = {
       followUpsToFix?: Array<string>
       cause?: 'defect' | 'proof-impossible'
       notShown?: Array<string>
+      missingProof?: 'whole-suite'
     }
     outsideScope?: Array<string>
     alreadyMet?: {
@@ -37007,6 +37946,8 @@ export type ProcessStepState = {
       baseRef: string
       baseSha?: string
       headline: string
+      tests?: Array<string>
+      failedAgainAlone?: Array<string>
     }
     baseUpdate?: {
       baseRef: string
@@ -37487,9 +38428,17 @@ export type ProcessGroupAction =
       choice: 'approve' | 'reject'
     }
   | {
+      kind: 'settle-stacked-leg'
+      legId: string
+      landedBy: ProcessIntegrationLandedBy & {
+        byRunId: string
+      }
+    }
+  | {
       kind: 'park'
       reason: ProcessGroupParkReason
       legId?: string
+      message?: string
     }
   | {
       kind: 'finish'
@@ -37518,6 +38467,7 @@ export type ParkChoicesRun = {
       retryMode?: 'continue' | 'fresh'
       resumesEntryId?: string
       rechecksEntryId?: string
+      checksScope?: 'full'
     }
     ask?: {
       kind: ProcessWaitingKind
@@ -37557,6 +38507,8 @@ export type ParkChoicesRun = {
         baseRef: string
         baseSha?: string
         headline: string
+        tests?: Array<string>
+        failedAgainAlone?: Array<string>
       }
       outside?: {
         awaits: string
@@ -37603,7 +38555,20 @@ export type ParkChoicesRun = {
       at: number
     }
   }
-  plan: ProcessPlan
+  plan: {
+    definitionId: string
+    definitionScope: ProcessScope
+    definitionVersion: number
+    name: string
+    steps: Array<ProcessPlanStep>
+    loops: Array<ProcessLoop>
+    frozenAt: number
+    amendments?: Array<ProcessPlanAmendment>
+    signOff?: 'automatic'
+    unreadWhenDone?: true
+    features?: Array<ProcessSubject>
+    inputs?: Array<ProcessInput>
+  }
   ledger: Array<ProcessLedgerEntry>
   workBranch?: {
     name: string
@@ -38167,6 +39132,7 @@ export type UpdateCompletionSettingsInput = {
       finishTurnOnErrors: boolean
       allowNoCallResponses: boolean
       allowErrorResponses: boolean
+      drivenByRunId?: string
       outputStrategy?: 'native_tools_only' | 'three_phase_structured_native_tools_structured'
       historySummarization?: {
         enabled: boolean
@@ -38600,6 +39566,7 @@ export type FiledReviewEvidence = {
   verdict?: 'approved' | 'changes-requested' | 'rejected'
   verdictReason?: string
   verdictCause?: 'defect' | 'proof-impossible'
+  verdictMissingProof?: 'whole-suite'
   verdictScreens?: Array<string>
   verdictNotShown?: Array<string>
   verdictNewScreens?: Array<string>
@@ -39099,6 +40066,126 @@ export type StartDbResponses = {
 }
 
 export type StartDbResponse = StartDbResponses[keyof StartDbResponses]
+
+export type GetDbDockerDiskData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/db/docker/disk'
+}
+
+export type GetDbDockerDiskErrors = {
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+  }
+}
+
+export type GetDbDockerDiskError = GetDbDockerDiskErrors[keyof GetDbDockerDiskErrors]
+
+export type GetDbDockerDiskResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    usedBytes: number
+    allocatedBytes: number
+    reclaimableBytes: number
+    resize?: {
+      currentGb: number
+      maxGb: number
+    }
+    resizing: boolean
+    resizeError?: string
+  }
+}
+
+export type GetDbDockerDiskResponse = GetDbDockerDiskResponses[keyof GetDbDockerDiskResponses]
+
+export type ClearDbDockerSpaceData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/db/docker/clear'
+}
+
+export type ClearDbDockerSpaceErrors = {
+  /**
+   * Default Response
+   */
+  502: {
+    error: string
+  }
+}
+
+export type ClearDbDockerSpaceError = ClearDbDockerSpaceErrors[keyof ClearDbDockerSpaceErrors]
+
+export type ClearDbDockerSpaceResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    freedBytes: number
+    disk?: {
+      usedBytes: number
+      allocatedBytes: number
+      reclaimableBytes: number
+      resize?: {
+        currentGb: number
+        maxGb: number
+      }
+      resizing: boolean
+      resizeError?: string
+    }
+  }
+}
+
+export type ClearDbDockerSpaceResponse =
+  ClearDbDockerSpaceResponses[keyof ClearDbDockerSpaceResponses]
+
+export type ResizeDbDockerDiskData = {
+  body: {
+    sizeGb: number
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/db/docker/resize'
+}
+
+export type ResizeDbDockerDiskErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+  }
+}
+
+export type ResizeDbDockerDiskError = ResizeDbDockerDiskErrors[keyof ResizeDbDockerDiskErrors]
+
+export type ResizeDbDockerDiskResponses = {
+  /**
+   * Default Response
+   */
+  202: {
+    disk?: {
+      usedBytes: number
+      allocatedBytes: number
+      reclaimableBytes: number
+      resize?: {
+        currentGb: number
+        maxGb: number
+      }
+      resizing: boolean
+      resizeError?: string
+    }
+  }
+}
+
+export type ResizeDbDockerDiskResponse =
+  ResizeDbDockerDiskResponses[keyof ResizeDbDockerDiskResponses]
 
 export type ListProjectsData = {
   body?: never
@@ -42490,6 +43577,14 @@ export type ListProcessRunsData = {
      * Only the legs of this group run.
      */
     groupRunId?: string
+    /**
+     * Only runs that belong to this projects group. With projectId or projectIds, both apply.
+     */
+    groupId?: string
+    /**
+     * Also the runs that belong to this projects group, beside the ones projectId and projectIds match: a group’s page reads its own runs and its member projects’ runs in one list. Every other filter applies to both, and a run is listed once.
+     */
+    orGroupId?: string
     status?: 'pending' | 'running' | 'parked' | 'succeeded' | 'failed' | 'cancelled'
     /**
      * Only runs left this way. A run still going, one that failed on its own, one whose work was brought in, and one closed without merging that was not taken back up match neither value. One taken back up after that close and then stopped is abandoned.
@@ -61518,6 +62613,7 @@ export type SendChatWithCliData = {
       finishTurnOnErrors: boolean
       allowNoCallResponses: boolean
       allowErrorResponses: boolean
+      drivenByRunId?: string
       outputStrategy?: 'native_tools_only' | 'three_phase_structured_native_tools_structured'
       historySummarization?: {
         enabled: boolean
@@ -68987,6 +70083,10 @@ export type GetGroupTicketOverviewResponses = {
         status: string
         round: number
         projectId: string
+        /**
+         * What the run was closed as when its review was closed: it reads as that, never as stopped or failed.
+         */
+        closedAs?: 'resolved' | 'not-needed'
       }>
     }
     /**
@@ -69083,7 +70183,7 @@ export type StartColleagueReviewData = {
      */
     text?: string
     /**
-     * Start the round from an update the group’s watched Slack thread offered (`GET /groups/:groupId/review-offers`): its text unless `text` is given, its files fetched into the review chat, and its Slack link kept on the round’s text (`Posted in Slack: <link>`, among the round’s links). 404 for an offer the group does not have, 409 for another ticket’s or one already started.
+     * Start the round from an update the group’s watched Slack thread offered (`GET /groups/:groupId/review-offers`): its text unless `text` is given, its files fetched for the round, and its Slack link kept on the round’s text (`Posted in Slack: <link>`, among the round’s links). 404 for an offer the group does not have, 409 for another ticket’s or one already started.
      */
     offerId?: string
     /**
@@ -69158,32 +70258,57 @@ export type StartColleagueReviewResponses = {
    * Default Response
    */
   200: {
-    context: ChatContext
-    /**
-     * The ticket’s review chat.
-     */
-    chatContextId: string
-    /**
-     * The round just started.
-     */
-    round: number
-    /**
-     * The review chat was there already: this round carries on in it.
-     */
-    alreadyOpen: boolean
-    /**
-     * Whether its agent is now working; in a run, whether the run started, its review step starting the chat’s turn.
-     */
-    turnStarted: boolean
-    review: ColleagueReview
     /**
      * How the round is reviewed: `inline` in the review chat, which ends the round on a decision card for the person; `process` as a run of the colleague review process, whose approval the person decides at, nothing posted or merged before they choose. The group’s default when absent, else inline. Both are refused (409) while a run still holds the review chat.
      */
     mode: 'inline' | 'process'
     /**
-     * With `mode: process`: the run the round is reviewed in.
+     * The round just started.
+     */
+    round: number
+    review: ColleagueReview
+    context?: {
+      type:
+        | 'GENERAL'
+        | 'GROUP'
+        | 'GROUP_TOPIC'
+        | 'PROJECT'
+        | 'STORY'
+        | 'FEATURE'
+        | 'AGENT_RUN_STORY'
+        | 'AGENT_RUN_FEATURE'
+        | 'AGENT_RUN_TASK'
+        | 'PROJECT_TOPIC'
+        | 'FEATURE_REQUEST'
+      groupId?: string
+      projectId?: string
+      storyId?: string
+      featureId?: string
+      agentRunId?: string
+      topicId?: string
+      featureRequestId?: string
+      timestamp?: string
+    }
+    /**
+     * With `mode: inline`: the ticket’s review chat, where the round is reviewed.
+     */
+    chatContextId?: string
+    /**
+     * With `mode: inline`: the review chat was there already, and this round carries on in it.
+     */
+    alreadyOpen?: boolean
+    /**
+     * With `mode: inline`: whether the chat’s agent is now working.
+     */
+    turnStarted?: boolean
+    /**
+     * With `mode: process`: the run the round is reviewed in. Everything about the round is in the run; no chat was opened for it.
      */
     runId?: string
+    /**
+     * With `mode: process`: the run’s home project, where the run is opened.
+     */
+    projectId?: string
   }
 }
 
@@ -69469,6 +70594,111 @@ export type MarkColleagueReviewWaitingGivenResponses = {
 
 export type MarkColleagueReviewWaitingGivenResponse =
   MarkColleagueReviewWaitingGivenResponses[keyof MarkColleagueReviewWaitingGivenResponses]
+
+export type CloseColleagueReviewData = {
+  body: {
+    /**
+     * `resolved`: it was handled outside Overseer or needs nothing more — the review is kept, marked closed. `remove`: it should not have been started — the review is deleted.
+     */
+    outcome: 'resolved' | 'remove'
+    /**
+     * Why, in the person’s words: kept on the review and on the runs it ends.
+     */
+    note?: string
+    /**
+     * The app the person chose it in.
+     */
+    decidedVia: 'web' | 'desktop' | 'mobile'
+  }
+  path: {
+    groupId: string
+    ticketKey: string
+  }
+  query?: never
+  url: '/api/v1/groups/{groupId}/tickets/{ticketKey}/review/close'
+}
+
+export type CloseColleagueReviewErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type CloseColleagueReviewError = CloseColleagueReviewErrors[keyof CloseColleagueReviewErrors]
+
+export type CloseColleagueReviewResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    /**
+     * `resolved`: it was handled outside Overseer or needs nothing more — the review is kept, marked closed. `remove`: it should not have been started — the review is deleted.
+     */
+    outcome: 'resolved' | 'remove'
+    review?: {
+      id: string
+      groupId: string
+      ticketKey: string
+      ticketUrl?: string
+      createdAt: string
+      updatedAt: string
+      rounds: Array<ReviewRound>
+      findings: Array<ReviewFinding>
+      waitingOn: Array<ReviewWaitingOn>
+      closed?: {
+        outcome: 'resolved'
+        at: string
+        round: number
+        by: ColleagueReviewClosedBy
+        via?: string
+        note?: string
+        reason?: string
+      }
+    }
+    /**
+     * The review runs it ended.
+     */
+    runIds: Array<string>
+    /**
+     * How many of the ticket’s updates it dismissed.
+     */
+    offers: number
+    /**
+     * With `remove`: whether the ticket’s review chat was deleted.
+     */
+    chatDeleted: boolean
+  }
+}
+
+export type CloseColleagueReviewResponse =
+  CloseColleagueReviewResponses[keyof CloseColleagueReviewResponses]
 
 export type GetColleagueReviewMergeData = {
   body?: never

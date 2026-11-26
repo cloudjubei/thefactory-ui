@@ -436,6 +436,7 @@ describe('groupTicketPageView: a reply waiting on the review', () => {
     })
     expect(page.reply?.line).toBe(`Aashan replied · ${page.reply?.when} · 3 new commits`)
     expect(page.reviewChat).toEqual(REVIEW_CHAT)
+    expect(page).not.toHaveProperty('reviewRun')
     expect(page).not.toHaveProperty('commits')
   })
 
@@ -460,6 +461,70 @@ describe('groupTicketPageView: a reply waiting on the review', () => {
     expect(page).not.toHaveProperty('reply')
     expect(page.commits).toEqual({ label: 'Rewritten since review', tone: 'warn' })
     expect(page.liveRun).toEqual({ id: 'live', projectId: 'p1' })
+  })
+
+  it('links a review going as a run to its run, and offers no review chat for it even when one is there', () => {
+    const page = groupTicketPageView(
+      'ZNR-1',
+      reviewed({
+        review: {
+          rounds: [{ n: 1, startedAt: HOURS_AGO(3) }],
+          openFindings: 0,
+          runs: [
+            { id: 'done', status: 'succeeded', round: 1, projectId: 'p1' },
+            { id: 'live', status: 'parked', round: 1, projectId: 'p2' },
+          ],
+        },
+      }),
+      TABS,
+      NOW,
+    )
+    expect(page.reviewRun).toEqual({ id: 'live', projectId: 'p2' })
+    expect(page).not.toHaveProperty('reviewChat')
+  })
+
+  it('links a review whose latest round was reviewed in a run to that run once it ended', () => {
+    const page = groupTicketPageView(
+      'ZNR-1',
+      reviewed({
+        review: {
+          rounds: [
+            { n: 1, startedAt: HOURS_AGO(30) },
+            { n: 2, startedAt: HOURS_AGO(20) },
+          ],
+          openFindings: 0,
+          runs: [
+            { id: 'first', status: 'succeeded', round: 1, projectId: 'p1' },
+            { id: 'second', status: 'succeeded', round: 2, projectId: 'p1' },
+          ],
+        },
+      }),
+      TABS,
+      NOW,
+    )
+    expect(page.reviewRun).toEqual({ id: 'second', projectId: 'p1' })
+    expect(page).not.toHaveProperty('reviewChat')
+    expect(page).not.toHaveProperty('liveRun')
+  })
+
+  it('keeps the review chat for a review whose latest round is inline, an earlier one in a run or not', () => {
+    const page = groupTicketPageView(
+      'ZNR-1',
+      reviewed({
+        review: {
+          rounds: [
+            { n: 1, startedAt: HOURS_AGO(30) },
+            { n: 2, startedAt: HOURS_AGO(20) },
+          ],
+          openFindings: 0,
+          runs: [{ id: 'first', status: 'succeeded', round: 1, projectId: 'p1' }],
+        },
+      }),
+      TABS,
+      NOW,
+    )
+    expect(page.reviewChat).toEqual(REVIEW_CHAT)
+    expect(page).not.toHaveProperty('reviewRun')
   })
 
   it('says nothing when nothing was pushed and no reply waits, and has no review chat without one', () => {
@@ -545,6 +610,61 @@ describe('groupTicketPageView: the run working the ticket', () => {
       withRuns([own]),
     )
     expect(page.run?.kind).toBe('story')
+  })
+
+  it('reads a run closed with its review as resolved, live, never as cancelled', () => {
+    const closed = live('cancelled', {
+      closedAs: { kind: 'resolved', summary: 'Handled outside Overseer.', at: 3 },
+    })
+    const page = groupTicketPageView(
+      'ZNR-1',
+      reviewedOnce,
+      TABS,
+      NOW,
+      undefined,
+      withRuns([closed]),
+    )
+    expect(page).not.toHaveProperty('run')
+    expect(page).not.toHaveProperty('liveRun')
+    expect(page.review?.runs[0]?.status).toEqual({ label: 'Resolved', tone: 'done' })
+  })
+
+  it('reads a closed run taken back up as it stands now, no longer as closed', () => {
+    const page = groupTicketPageView(
+      'ZNR-1',
+      overview({
+        review: {
+          rounds: [{ n: 1, startedAt: HOURS_AGO(3) }],
+          openFindings: 0,
+          runs: [
+            { id: 'live', status: 'cancelled', round: 1, projectId: 'p1', closedAs: 'resolved' },
+          ],
+        },
+      }),
+      TABS,
+      NOW,
+      undefined,
+      withRuns([live('running')]),
+    )
+    expect(page.review?.runs[0]?.status).toEqual({ label: 'Running', tone: 'running' })
+  })
+
+  it('reads a closed run as the page read it, before its live copy comes', () => {
+    const page = groupTicketPageView(
+      'ZNR-1',
+      overview({
+        review: {
+          rounds: [{ n: 1, startedAt: HOURS_AGO(3) }],
+          openFindings: 0,
+          runs: [
+            { id: 'gone', status: 'cancelled', round: 1, projectId: 'p1', closedAs: 'not-needed' },
+          ],
+        },
+      }),
+      TABS,
+      NOW,
+    )
+    expect(page.review?.runs[0]?.status).toEqual({ label: 'Closed', tone: 'empty' })
   })
 
   it('says no run once it ended well, its status in the review part as it is now', () => {

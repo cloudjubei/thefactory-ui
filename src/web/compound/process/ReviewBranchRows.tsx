@@ -97,7 +97,7 @@ function BranchRow({
             </ToneBadge>
           ))}
         </div>
-      ) : row.checksPassed === undefined && row.stateLabel === 'Resolved' ? (
+      ) : row.checksPassed === undefined && row.awaitsPush ? (
         <span className="text-(--text-muted)">{COPY.noChecks}</span>
       ) : null}
       {row.checksNote ? <p className="m-0 text-(--text-secondary)">{row.checksNote}</p> : null}
