@@ -35,6 +35,8 @@ export type RunDetailsProps = {
   accessOpen?: boolean
   /** Takes the base section's choice — bringing the base in and re-checking. */
   onChooseBase?: (choice: ProcessResumeChoice) => void
+  /** The answer to the run's stop that is on its way: the base section's choice shows it, or waits for it. */
+  answering?: ProcessResumeChoice
   /** Laid over the card's own style — the sign-off places it flush in its column. */
   style?: StyleProp<ViewStyle>
 }
@@ -55,6 +57,7 @@ export default function RunDetails({
   access,
   accessOpen = false,
   onChooseBase,
+  answering,
   style,
 }: RunDetailsProps) {
   const { theme } = useNativeTheme()
@@ -100,6 +103,8 @@ export default function RunDetails({
               <Button
                 size="sm"
                 variant={baseChoice.primary ? 'primary' : 'secondary'}
+                disabled={answering !== undefined}
+                loading={answering === baseChoice.choice}
                 onPress={() => onChooseBase(baseChoice.choice)}
               >
                 {baseChoice.label}

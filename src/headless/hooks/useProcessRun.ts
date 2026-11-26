@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import type {
   ProcessIntegrationDecision,
   ProcessResumeChoice,
@@ -36,6 +36,7 @@ import {
 } from '../api'
 import { extractErrorMessage, useApi, useAuth, type ChatAttachmentFile } from '../api'
 import type { ChatContext } from '../api'
+import type { ResumeProcessRunData } from '../api/generated'
 import { processRunChatContext } from 'thefactory-tools/utils'
 import { loadProjectFilePaths } from '../contexts/FilesContext'
 import { cachedProcessRun, processRunCache } from './processViewCache'
@@ -52,6 +53,13 @@ import type { ProcessWaitPending } from '../utils/processRunWaitTypes'
 import type { ReviewGateAnswer } from '../utils/colleagueReviewDecisionTypes'
 import { AGENT_PAUSE_COPY } from '../utils/processAgentPauseConstants'
 import type { AgentPauseAction, ProcessRunWithPause } from '../utils/processAgentPauseTypes'
+import { ProcessRunAnswersInFlight } from '../utils/ProcessRunAnswersInFlight'
+import {
+  processRunAnswering,
+  processRunRecordIsStale,
+  processRunShownWhileAnswering,
+} from '../utils/processRunAnswer'
+import type { ProcessAnswerInFlight, ProcessRunAnswering } from '../utils/processRunAnswerTypes'
 
 /** A review branch a run tree owns — shown in the delete confirm's list. */
 export type ProcessRunBranch = { projectId: string; branch: string }
@@ -75,14 +83,26 @@ export type UseProcessRun = {
   loadError: Error | null
   /** Why the last answer or stop was refused — shown on the run, cleared by the next one. */
   actionError: string | null
-  /** The run as its run view gives it, with its paused agent when one is. */
+  /**
+   * The run as its run view gives it, with its paused agent when one is. While
+   * an answer to its stop is on its way it reads as going on already, where
+   * the answer lets that be assumed; the host's reply replaces it.
+   */
   run: ProcessRunWithPause | undefined
+  /**
+   * The answer to the run's stop that is sent and not answered yet, with the
+   * run as it stands at that stop — for the stop's card to show it being
+   * carried out. Shared by every view of the run.
+   */
+  answering: ProcessRunAnswering<ProcessRunWithPause> | undefined
   refresh: () => Promise<void>
   /**
    * Answer the park this run is sitting on — an approval of a work branch says
    * how it lands (the way, who it is made as, its words), and a request for
-   * changes the proof its fix must show. Resolves `false` when it was refused;
-   * the server's reason is in `actionError`.
+   * changes the proof its fix must show. Shown carried out at once and taken
+   * back when refused: resolves `false` then, the server's reason in
+   * `actionError`. While one answer for the run is on its way another sends
+   * nothing and resolves `false`.
    */
   resume: (
     choice: ProcessResumeChoice,
@@ -228,6 +248,9 @@ function integrationBody({ mode, ...landing }: ProcessIntegrationDecision) {
   return { integration: mode, ...(Object.keys(landing).length > 0 ? { landing } : {}) }
 }
 
+/** The answers to stops on their way, by run: one at a time, read by every view of the run. */
+export const processRunAnswersInFlight = new ProcessRunAnswersInFlight()
+
 /** The run this instance holds, for the id it was read for. */
 type HeldRun = { runId: string | undefined; run: ProcessRunWithPause | undefined; settled: boolean }
 
@@ -268,12 +291,53 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
   const [actionError, setActionError] = useState<string | null>(null)
   const [waitPending, setWaitPending] = useState<ProcessWaitPending | undefined>()
   const current = held.runId === runId ? held : cachedHeldRun(runId)
-  const run = current.run
+  const heldRun = current.run
   const isLoaded = current.settled
+  const inFlight = useSyncExternalStore(
+    processRunAnswersInFlight.subscribe,
+    () => (runId ? processRunAnswersInFlight.get(runId) : undefined),
+    () => undefined,
+  )
+  const answering = useMemo(() => processRunAnswering(heldRun, inFlight), [heldRun, inFlight])
+  const run = useMemo(() => processRunShownWhileAnswering(heldRun, answering), [heldRun, answering])
+  const parkedAt = heldRun?.park?.parkedAt
 
   const setRun = useCallback(
-    (next: ProcessRunWithPause) => setHeld({ runId, run: next, settled: true }),
+    (next: ProcessRunWithPause) =>
+      setHeld((prev) => {
+        const now = prev.runId === runId ? prev : cachedHeldRun(runId)
+        if (!processRunRecordIsStale(now.run, next)) return { runId, run: next, settled: true }
+        return now === prev && prev.settled ? prev : { ...now, settled: true }
+      }),
     [runId],
+  )
+
+  const sendAnswer = useCallback(
+    async (
+      answer: Pick<ProcessAnswerInFlight, 'choice' | 'recovery'>,
+      fields: Omit<ResumeProcessRunData['body'], 'choice' | 'decidedVia'>,
+      refused: string,
+    ) => {
+      if (!runId) return false
+      const stop = parkedAt !== undefined ? { parkedAt } : {}
+      if (!processRunAnswersInFlight.begin(runId, { ...answer, ...stop })) return false
+      setActionError(null)
+      try {
+        const { data } = await resumeProcessRun({
+          path: { runId },
+          body: { choice: answer.choice, ...fields, decidedVia: client, ...stop },
+          throwOnError: true,
+        })
+        setRun(data as ProcessRun)
+        return true
+      } catch (err) {
+        setActionError(extractErrorMessage(err, refused))
+        return false
+      } finally {
+        processRunAnswersInFlight.end(runId)
+      }
+    },
+    [runId, client, parkedAt, setRun],
   )
 
   useEffect(() => {
@@ -327,7 +391,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
   }, [ws, runId, setRun, refresh])
 
   const resume = useCallback(
-    async (
+    (
       choice: ProcessResumeChoice,
       note?: string,
       integration?: ProcessIntegrationDecision,
@@ -335,57 +399,33 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       retry?: ProcessRetryPick,
       files?: readonly string[],
       recovery?: string,
-    ) => {
-      if (!runId) return false
-      setActionError(null)
-      try {
-        const { data } = await resumeProcessRun({
-          path: { runId },
-          body: {
-            choice,
-            ...(recovery ? { recovery } : {}),
-            decidedVia: client,
-            ...(note ? { note } : {}),
-            ...(integration ? integrationBody(integration) : {}),
-            ...(requestedProof && requestedProof.length > 0
-              ? { requestedProof: [...requestedProof] }
-              : {}),
-            ...(retry?.retryMode ? { retryMode: retry.retryMode } : {}),
-            ...(retry?.turnLimit ? { turnLimit: retry.turnLimit } : {}),
-            ...(retry?.spendUsd !== undefined ? { attemptSpendUsd: retry.spendUsd } : {}),
-            ...(processRetryUseCurrentDefinitions(retry) ? { useCurrentDefinitions: true } : {}),
-            ...(files && files.length > 0 ? { files: [...files] } : {}),
-          },
-          throwOnError: true,
-        })
-        setRun(data as ProcessRun)
-        return true
-      } catch (err) {
-        setActionError(extractErrorMessage(err, 'The run could not be answered.'))
-        return false
-      }
-    },
-    [runId, client, setRun],
+    ) =>
+      sendAnswer(
+        { choice, ...(recovery ? { recovery } : {}) },
+        {
+          ...(recovery ? { recovery } : {}),
+          ...(note ? { note } : {}),
+          ...(integration ? integrationBody(integration) : {}),
+          ...(requestedProof && requestedProof.length > 0
+            ? { requestedProof: [...requestedProof] }
+            : {}),
+          ...(retry?.retryMode ? { retryMode: retry.retryMode } : {}),
+          ...(retry?.turnLimit ? { turnLimit: retry.turnLimit } : {}),
+          ...(retry?.spendUsd !== undefined ? { attemptSpendUsd: retry.spendUsd } : {}),
+          ...(processRetryUseCurrentDefinitions(retry) ? { useCurrentDefinitions: true } : {}),
+          ...(files && files.length > 0 ? { files: [...files] } : {}),
+        },
+        'The run could not be answered.',
+      ),
+    [sendAnswer],
   )
 
   const answerGate = useCallback(
-    async (answer: ReviewGateAnswer) => {
-      if (!runId) return false
-      setActionError(null)
-      try {
-        const { data } = await resumeProcessRun({
-          path: { runId },
-          body: { ...reviewGateResumeBody(answer), decidedVia: client },
-          throwOnError: true,
-        })
-        setRun(data as ProcessRun)
-        return true
-      } catch (err) {
-        setActionError(extractErrorMessage(err, 'The run could not be answered.'))
-        return false
-      }
+    (answer: ReviewGateAnswer) => {
+      const { choice, ...fields } = reviewGateResumeBody(answer)
+      return sendAnswer({ choice }, fields, 'The run could not be answered.')
     },
-    [runId, client, setRun],
+    [sendAnswer],
   )
 
   const projectId = run?.projectId
@@ -403,54 +443,29 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
   )
 
   const changeProof = useCallback(
-    async (draft: ProofChangeDraft) => {
-      if (!runId) return false
-      setActionError(null)
+    (draft: ProofChangeDraft) => {
       const note = draft.note.trim()
-      try {
-        const { data } = await resumeProcessRun({
-          path: { runId },
-          body: {
-            choice: 'change-proof',
-            decidedVia: client,
-            ...(note ? { note } : {}),
-            proofPlan: { kinds: [...draft.kinds] },
-            ...(draft.save ? { saveProofPlan: true } : {}),
-          },
-          throwOnError: true,
-        })
-        setRun(data as ProcessRun)
-        return true
-      } catch (err) {
-        setActionError(extractErrorMessage(err, 'The proof could not be changed.'))
-        return false
-      }
+      return sendAnswer(
+        { choice: 'change-proof' },
+        {
+          ...(note ? { note } : {}),
+          proofPlan: { kinds: [...draft.kinds] },
+          ...(draft.save ? { saveProofPlan: true } : {}),
+        },
+        'The proof could not be changed.',
+      )
     },
-    [runId, client, setRun],
+    [sendAnswer],
   )
 
   const splitFollowUp = useCallback(
-    async (draft: FeatureSplitDraft) => {
-      if (!runId) return false
-      setActionError(null)
-      try {
-        const { data } = await resumeProcessRun({
-          path: { runId },
-          body: {
-            choice: 'split-follow-up',
-            decidedVia: client,
-            ...featureSplitResumeFields(draft),
-          },
-          throwOnError: true,
-        })
-        setRun(data as ProcessRun)
-        return true
-      } catch (err) {
-        setActionError(extractErrorMessage(err, 'The points could not be moved.'))
-        return false
-      }
-    },
-    [runId, client, setRun],
+    (draft: FeatureSplitDraft) =>
+      sendAnswer(
+        { choice: 'split-follow-up' },
+        featureSplitResumeFields(draft),
+        'The points could not be moved.',
+      ),
+    [sendAnswer],
   )
 
   const answerWaitingRequest = useCallback(
@@ -763,6 +778,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       loadError,
       actionError,
       run,
+      answering,
       refresh,
       resume,
       answerGate,
@@ -795,6 +811,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       loadError,
       actionError,
       run,
+      answering,
       refresh,
       resume,
       answerGate,

@@ -32,6 +32,7 @@ import {
   REVIEW_REFUSAL,
   REVIEW_TICKET,
   ROUND_ONE,
+  ROUND_ONE_WATCHED,
   ROUND_THREE,
   ROUND_THREE_STARTED,
   ROUND_TWO,
@@ -205,7 +206,7 @@ export const COLLEAGUE_REVIEW_SCENES: Scene[] = [
     component: 'ColleagueReviewCard',
     group: 'Chat',
     description:
-      'A ticket’s colleague review on its review chat’s tool rows (recordColleagueReviewRound, readColleagueReview), read live from the review rather than the call’s arguments: the round with its verdict, what became of each finding since the round before with its kind and state, evidence a press away, what the work waits on, and the drafted reply with Copy, for the person to post in Slack. On the latest round the person may drop an open finding or mark a wait given, each with an optional note, shown at once; what they did reads as theirs. Earlier rounds stay folded. Three layouts on the board; One stack ships.',
+      'A ticket’s colleague review on its review chat’s tool rows (recordColleagueReviewRound, readColleagueReview), read live from the review rather than the call’s arguments: the round with its verdict, what became of each finding since the round before with its kind and state, evidence a press away, what the work waits on, and the drafted reply with Copy, for the person to post in Slack. On the latest round the person may drop an open finding or mark a wait given, each with an optional note, shown at once; what they did reads as theirs. Earlier rounds stay folded. A round that watched recordings lists them with the moments it cites, each row opening its recording. Three layouts on the board; One stack ships.',
     states: [
       {
         id: 'choose-layout',
@@ -219,6 +220,26 @@ export const COLLEAGUE_REVIEW_SCENES: Scene[] = [
         title: 'Round 1: changes requested',
         description: 'Everything found is new; two waits on named people; the reply to copy.',
         render: () => card({ review: ROUND_ONE }),
+      },
+      {
+        id: 'recordings',
+        title: 'Round 1: the recordings it watched',
+        description:
+          'Recordings checked, under what the round waits on: one row per recording the review watched, named by its site and numbered from the second on one site, with each moment it cites as a chip, its link, and the file it was watched from when the review fetched one. A press anywhere on a row opens the recording. A site the app does not know reads as its host; a recording nothing is cited from says so.',
+        render: () => card({ review: ROUND_ONE_WATCHED }),
+      },
+      {
+        id: 'recordings-summary',
+        title: 'The recordings, on a read row',
+        description:
+          'The line that opens keeps them behind Show findings, with the findings and waits.',
+        render: () => card({ review: ROUND_ONE_WATCHED, layout: 'summary', expanded: true }),
+      },
+      {
+        id: 'recordings-phone',
+        title: 'The recordings, on a phone',
+        description: 'Chips wrap under the name; the link is cut short, never the moments.',
+        render: () => card({ review: ROUND_ONE_WATCHED, width: 'phone' }),
       },
       {
         id: 'round-2',

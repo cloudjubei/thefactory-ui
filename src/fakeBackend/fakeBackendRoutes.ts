@@ -189,6 +189,8 @@ import type {
   SendChatWithCliResponse,
   SendCompletionWithToolsData,
   SendCompletionWithToolsResponse,
+  StartRecordingSiteSignInData,
+  StartRecordingSiteSignInResponse,
   ListSourceRecordsData,
   ListSourceRecordsResponse,
   ListStoriesData,
@@ -203,6 +205,8 @@ import type {
   ListTestsResponse,
   ListToolsData,
   ListToolsResponse,
+  ListRecordingSitesData,
+  ListRecordingSitesResponse,
   ListWebSearchKeysData,
   ListWebSearchKeysResponse,
 } from '../headless/api/generated/types.gen'
@@ -221,6 +225,7 @@ import {
   FAKE_KNOWLEDGE_EVALUATION,
   FAKE_OVERSEER,
   FAKE_PROJECT_NOTES,
+  FAKE_RECORDING_SITES,
   FAKE_STORAGE_USAGE,
   FAKE_TEST_PATHS,
   FAKE_TESTS_RESULT,
@@ -402,6 +407,18 @@ const READS: readonly FakeRoute[] = [
   read<ListWebSearchKeysData, ListWebSearchKeysResponse>(
     '/api/v1/web-search-keys',
     () => FAKE_WEB_SEARCH_KEYS,
+  ),
+  read<ListRecordingSitesData, ListRecordingSitesResponse>('/api/v1/recording-sites', () => ({
+    sites: FAKE_RECORDING_SITES,
+  })),
+  write<StartRecordingSiteSignInData, StartRecordingSiteSignInResponse>(
+    '/api/v1/recording-sites/{siteId}/sign-in',
+    ({ params, missing }) => {
+      const site = FAKE_RECORDING_SITES.find((held) => held.id === params.siteId)
+      return site
+        ? { ...site, signingIn: true }
+        : missing(`No fake recording site '${params.siteId}'.`)
+    },
   ),
   {
     method: 'GET',

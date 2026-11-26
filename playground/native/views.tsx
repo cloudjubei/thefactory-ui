@@ -91,6 +91,7 @@ import { READY_ANSWER_VIEWS } from './readyAnswerViews'
 import { COLLEAGUE_REVIEW_VIEWS } from './colleagueReviewViews'
 import { SLACK_REVIEW_VIEWS } from './slackReviewViews'
 import { REVIEW_MERGE_CHECKS_VIEWS } from './reviewMergeChecksViews'
+import { RECORDING_SITES_VIEWS } from './recordingSitesViews'
 import { REVIEW_CLOSE_VIEWS } from './reviewCloseViews'
 import { REVIEW_RUN_ROUNDS_VIEWS } from './reviewRunRoundsViews'
 import { REVIEW_RUN_PAGE_VIEWS } from './reviewRunPageViews'
@@ -719,6 +720,7 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   ...COLLEAGUE_REVIEW_VIEWS,
   ...SLACK_REVIEW_VIEWS,
   ...REVIEW_MERGE_CHECKS_VIEWS,
+  ...RECORDING_SITES_VIEWS,
   ...REVIEW_RUN_ROUNDS_VIEWS,
   ...REVIEW_CLOSE_VIEWS,
   ...REVIEW_RUN_PAGE_VIEWS,

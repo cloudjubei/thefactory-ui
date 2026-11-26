@@ -10,6 +10,7 @@ import {
   processTryBuildDisplay,
   signoffCarriedView,
   verifyProofView,
+  type ProcessAnswerInFlight,
   type SyncKVStorage,
 } from 'thefactory-ui/headless'
 import { ProcessTryBuildPanel } from 'thefactory-ui/web'
@@ -54,11 +55,12 @@ function frame(children: ReactNode): ReactNode {
   )
 }
 
-function park(run: ProcessRun): ReactNode {
+function park(run: ProcessRun, answering?: ProcessAnswerInFlight): ReactNode {
   return frame(
     <ParkBlock
       run={run}
       managerLine={undefined}
+      {...(answering ? { answering } : {})}
       onChoose={noop}
       onChangeProof={noop}
       onAnswerRequest={noop}
@@ -130,6 +132,13 @@ export const READY_ANSWER_SCENES: Scene[] = [
         description:
           'The developer ran the tests itself and the base confirmed it: the same card, answered to the waiting developer, no words needed.',
         render: () => park(DEVELOPER_BREAK_RUN),
+      },
+      {
+        id: 'checks-answer-sent',
+        title: 'Repair it, sent and not answered yet',
+        description:
+          'The ready answer is shown carried out the moment it is pressed: the headline says “Sending it to the developer…”, its button shows the spinner, and the other answers wait until the host replies.',
+        render: () => park(CHECKS_BREAK_RUN, { choice: 'send-to-developer' }),
       },
     ],
   },

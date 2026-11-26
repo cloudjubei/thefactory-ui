@@ -1,8 +1,14 @@
 import type { ReactNode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import type { ProcessLedgerEntry, ProcessPlan, ProcessRun } from 'thefactory-tools/types'
-import { processBaseMovedView, runNeedsYouView } from 'thefactory-ui/headless'
+import {
+  FilesProvider,
+  PARK_ANSWERS_COPY,
+  processBaseMovedView,
+  runNeedsYouView,
+} from 'thefactory-ui/headless'
 import type {
+  ProcessAnswerInFlight,
   ProcessBaseMovedView,
   ProcessManagerEscalationView,
   ProcessRunManagerView,
@@ -15,12 +21,21 @@ import { PROCESS_MANAGER_STATUS_LOOKING } from 'thefactory-tools/constants'
 // from source.
 import ToneBadge from '../../src/web/compound/chips/ToneBadge'
 import NeedsYouCards from '../../src/web/compound/process/signoff/NeedsYouCards'
-import { ParkBlock } from '../../src/web/compound/process/ProcessPipeline'
+import ProcessPipeline, { ParkBlock } from '../../src/web/compound/process/ProcessPipeline'
 import RunDetails from '../../src/web/compound/process/RunDetails'
 import RunManagerBar from '../../src/web/compound/process/RunManagerBar'
 import RunNeedsYouCard from '../../src/web/compound/process/RunNeedsYouCard'
 import RunStepsCard from '../../src/web/compound/process/RunStepsCard'
 import type { Scene } from '../showcase/types'
+import { ClickEach } from './clickOnce'
+import { OnFixtures } from './onFixtures'
+import {
+  ANSWER_BRING_IN,
+  ANSWER_PARENT_RUN_ID,
+  ANSWER_RUN_ID,
+  runAnswerRoutes,
+  type RunAnswerCase,
+} from './runAnswerFixtures'
 
 const noop = () => {}
 const resolved = async () => {}
@@ -301,10 +316,12 @@ const card = (
   run: ProcessRun,
   where: { feature?: string; step: string },
   manager?: ProcessManagerEscalationView,
+  answering?: ProcessAnswerInFlight,
 ) =>
   frame(
     <RunNeedsYouCard
       tone={run.park?.reason === 'gate' ? 'review' : 'on_hold'}
+      {...(answering ? { label: PARK_ANSWERS_COPY.answerSent } : {})}
       where={
         <>
           {where.feature ? <ToneBadge tone="on_hold">{where.feature}</ToneBadge> : null}
@@ -318,6 +335,7 @@ const card = (
         managerLine={undefined}
         {...(manager ? { manager } : {})}
         embedded
+        {...(answering ? { answering } : {})}
         onChoose={noop}
         onChangeProof={noop}
         onAnswerRequest={noop}
@@ -327,6 +345,27 @@ const card = (
       />
     </RunNeedsYouCard>,
   )
+
+/**
+ * A run's whole page on fixtures, with “Bring in main” pressed as a person
+ * would: once to put it in front, once to send it. The host leaves the answer
+ * unanswered, or refuses it.
+ */
+function AnswerFlow({ runId, which }: { runId: string; which: RunAnswerCase }) {
+  return (
+    <OnFixtures routes={runAnswerRoutes(which)}>
+      <FilesProvider>
+        <MemoryRouter>
+          <div className="h-[760px] w-full max-w-[1180px] overflow-auto">
+            <ClickEach labels={[ANSWER_BRING_IN, ANSWER_BRING_IN]}>
+              <ProcessPipeline runId={runId} />
+            </ClickEach>
+          </div>
+        </MemoryRouter>
+      </FilesProvider>
+    </OnFixtures>
+  )
+}
 
 const LOOKING: NonNullable<ProcessRunManagerView['status']> = {
   state: 'looking',
@@ -519,6 +558,26 @@ export const RUN_NEEDS_YOU_SCENES: Scene[] = [
         render: () => card(OUT_OF_TURNS, { feature: '#37.1', step: 'Implement' }),
       },
       {
+        id: 'answer-sent',
+        title: 'An answer is on its way',
+        description:
+          'The moment an answer is sent, before the host replies: the card is headed “Answer sent”, its headline says what the answer is doing (“Bringing main in…”), the answer’s own button shows the spinner, and every other answer waits. Pressing again sends nothing.',
+        render: () =>
+          card(CHECKS_FAILED, { feature: '#37.1', step: 'Checks' }, CHECKS_FAILED_MANAGER, {
+            choice: 'update-base',
+          }),
+      },
+      {
+        id: 'ending-sent',
+        title: 'An ending is on its way',
+        description:
+          'Stopping the run is not shown done until the host says so: the card says “Stopping the run…”, the quiet link reads “Stop here…”, and the answers wait.',
+        render: () =>
+          card(OUT_OF_TURNS, { feature: '#37.1', step: 'Implement' }, undefined, {
+            choice: 'abandon',
+          }),
+      },
+      {
         id: 'manager-looking',
         title: 'The manager is still looking',
         description:
@@ -530,6 +589,44 @@ export const RUN_NEEDS_YOU_SCENES: Scene[] = [
               headline="Implement ran out of turns (100) before it finished."
             />,
           ),
+      },
+    ],
+  },
+  {
+    id: 'run-answer-sent',
+    title: 'Answering a stop: shown at once, taken back when refused',
+    component: 'ProcessPipeline · RunNeedsYouCard · ParkBlock · ParkAnswers',
+    group: 'Process',
+    wide: true,
+    description:
+      'A run’s page reacts the moment a stop is answered, however long the host takes. An answer that carries the run on shows it going on at once: the run reads running at the step it stopped at, the card is headed “Answer sent” with what the answer is doing as its headline, the answer’s button shows the spinner and the others wait — a second press sends nothing. An ending, or a decision at a gate, assumes nothing of the run: only the card shows the answer on its way. When the host refuses, the stop is back as it was, its answers offered again, with the host’s reason above it. A story run’s page, whose stop only mirrors its feature’s, shows the same.',
+    states: [
+      {
+        id: 'sending',
+        title: 'Bring in main pressed, the host not answered yet',
+        description:
+          'The host never answers here. The run reads running on Checks, and the card says “Bringing main in…” with the spinner on the answer.',
+        render: () => <AnswerFlow runId={ANSWER_RUN_ID} which="sending" />,
+      },
+      {
+        id: 'refused',
+        title: 'The host refused the answer',
+        description:
+          'The run is stopped on its checks again, every answer offered as before, and the host’s reason is shown above the card.',
+        render: () => <AnswerFlow runId={ANSWER_RUN_ID} which="refused" />,
+      },
+      {
+        id: 'parent-sending',
+        title: 'Answered from the story run’s page',
+        description:
+          'The story run is stopped only because its feature is. Its page answers the feature’s stop, and while that answer is on its way the story run reads running too, in place of waiting on you.',
+        render: () => <AnswerFlow runId={ANSWER_PARENT_RUN_ID} which="sending" />,
+      },
+      {
+        id: 'parent-refused',
+        title: 'Refused, on the story run’s page',
+        description: 'The story run is back to its mirrored stop, with the reason shown.',
+        render: () => <AnswerFlow runId={ANSWER_PARENT_RUN_ID} which="refused" />,
       },
     ],
   },

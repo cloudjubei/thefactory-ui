@@ -996,6 +996,8 @@ import type {
   ListProviderConnectionsData,
   ListProviderConnectionsErrors,
   ListProviderConnectionsResponses,
+  ListRecordingSitesData,
+  ListRecordingSitesResponses,
   ListRemoteBrowserSessionsData,
   ListRemoteBrowserSessionsErrors,
   ListRemoteBrowserSessionsResponses,
@@ -1604,6 +1606,9 @@ import type {
   StartProviderOAuthData,
   StartProviderOAuthErrors,
   StartProviderOAuthResponses,
+  StartRecordingSiteSignInData,
+  StartRecordingSiteSignInErrors,
+  StartRecordingSiteSignInResponses,
   StartStoryWorkData,
   StartStoryWorkErrors,
   StartStoryWorkResponses,
@@ -10167,6 +10172,36 @@ export const dismissColleagueReviewOffer = <ThrowOnError extends boolean = false
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/groups/{groupId}/review-offers/{offerId}/dismiss',
+    ...options,
+  })
+
+/**
+ * The sites recordings are fetched from, each with the person’s sign-in as last seen and whether its sign-in window is open. Reads what is remembered: no site is opened. Changes come as `recordingSites:changed` on the socket.
+ */
+export const listRecordingSites = <ThrowOnError extends boolean = false>(
+  options?: Options<ListRecordingSitesData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<ListRecordingSitesResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/recording-sites',
+    ...options,
+  })
+
+/**
+ * Open the site’s sign-in page in the person’s browser profile, in a window on the machine this backend runs on, and answer at once with the site, `signingIn`. The window closes once the site shows them signed in; the outcome comes as `recordingSites:changed`. Asking again while the window is open opens nothing more. 404 for a site that is not one of them, 409 while another site’s window is open, 502 when the browser could not be opened.
+ */
+export const startRecordingSiteSignIn = <ThrowOnError extends boolean = false>(
+  options: Options<StartRecordingSiteSignInData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    StartRecordingSiteSignInResponses,
+    StartRecordingSiteSignInErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/recording-sites/{siteId}/sign-in',
     ...options,
   })
 

@@ -1037,6 +1037,11 @@ export {
   type SlackReviewSettingsPanelProps,
 } from './compound/settings/GroupSlackSettings'
 export {
+  default as GroupRecordingsSettings,
+  RecordingSitesPanel,
+  type RecordingSitesPanelProps,
+} from './compound/settings/GroupRecordingsSettings'
+export {
   ReviewMergeChecksPanel,
   type ReviewMergeChecksPanelProps,
 } from './compound/settings/ReviewMergeChecks'

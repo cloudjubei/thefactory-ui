@@ -13,6 +13,7 @@ import {
   colleagueReviewCallRound,
   colleagueReviewCardView,
   colleagueReviewToolOf,
+  reviewRecordingViews,
   reviewReplyToPost,
   reviewRoundView,
 } from './colleagueReviewCard'
@@ -463,5 +464,102 @@ describe('reviewReplyToPost', () => {
   it('holds Post while the box is empty', () => {
     expect(reviewReplyToPost(DRAFT, '')).toEqual({ canPost: false })
     expect(reviewReplyToPost(DRAFT, '  \n ')).toEqual({ canPost: false })
+  })
+})
+
+describe('the recordings a round checked', () => {
+  const LOOM = 'https://www.loom.com/share/0a1b2c3d4e5f'
+  const WATCHED = recorded(
+    started(undefined, '2026-11-10T09:00:00.000Z', `Done, see ${LOOM}`),
+    {
+      recordings: [
+        { url: LOOM, timestamps: ['0:42', '1:05:10'], file: 'recordings/loom-0a1b2c3d4e5f.mp4' },
+        { url: 'https://www.loom.com/share/ffff0000', timestamps: [] },
+        { url: 'https://fathom.video/share/abc', timestamps: ['2:10'] },
+        { url: 'not a link', timestamps: ['0:05'] },
+      ],
+    },
+    '2026-11-10T10:00:00.000Z',
+  )
+
+  it('lists each with its link, the moments cited and the file it was watched from', () => {
+    const round = reviewRoundView(WATCHED, 1)
+    expect(round.recordings).toEqual([
+      {
+        url: LOOM,
+        href: LOOM,
+        label: 'Loom',
+        timestamps: ['0:42', '1:05:10'],
+        file: 'recordings/loom-0a1b2c3d4e5f.mp4',
+      },
+      {
+        url: 'https://www.loom.com/share/ffff0000',
+        href: 'https://www.loom.com/share/ffff0000',
+        label: 'Loom 2',
+        timestamps: [],
+      },
+      {
+        url: 'https://fathom.video/share/abc',
+        href: 'https://fathom.video/share/abc',
+        label: 'fathom.video',
+        timestamps: ['2:10'],
+      },
+      { url: 'not a link', label: 'Recording', timestamps: ['0:05'] },
+    ])
+    expect(round.recordings[1]).not.toHaveProperty('file')
+    expect(round.recordings[3]).not.toHaveProperty('href')
+  })
+
+  it('opens only a web link, and names any other by what it is', () => {
+    expect(reviewRecordingViews(undefined)).toEqual([])
+    expect(
+      reviewRecordingViews([
+        { url: 'javascript:alert(1)', timestamps: [] },
+        { url: 'http://www.recordings.acme.test/42', timestamps: [] },
+        { url: 'https://share.loom.com/share/aa', timestamps: [] },
+      ]),
+    ).toEqual([
+      { url: 'javascript:alert(1)', label: 'Recording', timestamps: [] },
+      {
+        url: 'http://www.recordings.acme.test/42',
+        href: 'http://www.recordings.acme.test/42',
+        label: 'recordings.acme.test',
+        timestamps: [],
+      },
+      {
+        url: 'https://share.loom.com/share/aa',
+        href: 'https://share.loom.com/share/aa',
+        label: 'Loom',
+        timestamps: [],
+      },
+    ])
+  })
+
+  it('hands back its own list of moments, not the review’s', () => {
+    const timestamps = ['0:10']
+    const [view] = reviewRecordingViews([{ url: LOOM, timestamps }])
+    expect(view?.timestamps).toEqual(timestamps)
+    expect(view?.timestamps).not.toBe(timestamps)
+  })
+
+  it('lists none on a round that watched none, or is still being reviewed', () => {
+    expect(reviewRoundView(ROUND_ONE, 1).recordings).toEqual([])
+    expect(reviewRoundView(ROUND_TWO_STARTED, 2).recordings).toEqual([])
+  })
+
+  it('keeps each round’s own on the card', () => {
+    const next = recorded(
+      started(WATCHED, '2026-11-12T09:00:00.000Z', 'Fixed.'),
+      {},
+      '2026-11-12T10:00:00.000Z',
+    )
+    const view = review(colleagueReviewCardView({ tool: 'record', review: next }))
+    expect(view.round.recordings).toEqual([])
+    expect(view.rounds[0]?.recordings.map((r) => r.label)).toEqual([
+      'Loom',
+      'Loom 2',
+      'fathom.video',
+      'Recording',
+    ])
   })
 })

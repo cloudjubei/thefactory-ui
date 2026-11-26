@@ -13,6 +13,7 @@ import type {
   ColleagueReviewCardView,
   ColleagueReviewTool,
   ReviewFindingView,
+  ReviewRecordingView,
   ReviewRoundView,
   ReviewWaitingOnView,
 } from '../../../headless/utils/colleagueReviewCardTypes'
@@ -560,7 +561,69 @@ function RoundBody({ round, actions }: { round: ReviewRoundView; actions: Action
           </Listed>
         </View>
       ) : null}
+      {round.recordings.length > 0 ? (
+        <View style={{ gap: 4 }}>
+          <Label>{TEXT.recordings}</Label>
+          <Listed>
+            {round.recordings.map((recording, at) => (
+              <RecordingRow key={recording.label} recording={recording} divided={at > 0} />
+            ))}
+          </Listed>
+        </View>
+      ) : null}
       {round.reply ? <Reply round={round} reply={round.reply} actions={actions} /> : null}
+    </View>
+  )
+}
+
+function RecordingRow({
+  recording,
+  divided,
+}: {
+  recording: ReviewRecordingView
+  divided: boolean
+}) {
+  const { theme } = useNativeTheme()
+  const { href } = recording
+  const body = (
+    <>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <Text
+            numberOfLines={1}
+            style={{ fontSize: 13, fontWeight: '500', color: theme.text.primary }}
+          >
+            {recording.label}
+          </Text>
+          {href ? <IconExternalLink size={12} color={theme.text.muted} /> : null}
+        </View>
+        {recording.timestamps.map((moment, at) => (
+          <GroupStoryChip key={`${at}:${moment}`} label={moment} />
+        ))}
+        {recording.timestamps.length === 0 ? (
+          <Text style={{ fontSize: 12, color: theme.text.muted }}>{TEXT.noTimestamps}</Text>
+        ) : null}
+      </View>
+      <Text numberOfLines={1} style={{ fontSize: 12, color: theme.text.muted }}>
+        {recording.url}
+      </Text>
+      {recording.file ? (
+        <Text style={{ fontSize: 12, fontFamily: 'monospace', color: theme.text.muted }}>
+          {recording.file}
+        </Text>
+      ) : null}
+    </>
+  )
+  const row = { gap: 2, padding: nativeSpace[2] }
+  return (
+    <View style={divided ? { borderTopWidth: 1, borderTopColor: theme.border.subtle } : undefined}>
+      {href ? (
+        <Pressable accessibilityRole="link" onPress={() => void Linking.openURL(href)} style={row}>
+          {body}
+        </Pressable>
+      ) : (
+        <View style={row}>{body}</View>
+      )}
     </View>
   )
 }
@@ -1052,7 +1115,8 @@ function Summary({
   const { theme } = useNativeTheme()
   const [open, setOpen] = useState(expanded)
   const { round } = view
-  const hasMore = round.groups.length > 0 || round.waitingOn.length > 0
+  const hasMore =
+    round.groups.length > 0 || round.waitingOn.length > 0 || round.recordings.length > 0
   return (
     <>
       <Header view={view} round={round} />

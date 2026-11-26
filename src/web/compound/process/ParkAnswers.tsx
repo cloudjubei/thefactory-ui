@@ -15,6 +15,8 @@ export type ParkAnswersProps = {
   /** What the answer in front needs beside its button — how a retry starts. */
   leadExtra?: ReactNode
   busy?: boolean
+  /** The answer being carried out, by its key: its control shows it, as `parkPendingAnswerKey` finds it. */
+  pendingKey?: string
 }
 
 /**
@@ -32,6 +34,7 @@ export default function ParkAnswers({
   onOwnAnswer,
   leadExtra,
   busy = false,
+  pendingKey,
 }: ParkAnswersProps) {
   const lead = view.lead
   const [editing, setEditing] = useState(false)
@@ -102,6 +105,7 @@ export default function ParkAnswers({
             size="sm"
             variant={lead.confirm ? 'danger' : 'primary'}
             disabled={busy}
+            loading={pendingKey === lead.key}
             onClick={() => send(lead, leadNote)}
           >
             {lead.note ? PARK_ANSWERS_COPY.send : lead.label}
@@ -127,6 +131,7 @@ export default function ParkAnswers({
               size="sm"
               variant="secondary"
               disabled={busy}
+              loading={pendingKey === answer.key}
               title={answer.does}
               onClick={() => onSelect(answer.key)}
             >
@@ -165,11 +170,12 @@ export default function ParkAnswers({
               key={answer.key}
               type="button"
               disabled={busy}
+              aria-busy={pendingKey === answer.key || undefined}
               title={answer.does}
               onClick={() => send(answer, answer.note)}
-              className={`font-medium hover:underline ${answer.confirm ? 'text-(--status-stuck-soft-fg)' : 'text-(--accent-primary)'}`}
+              className={`font-medium hover:underline disabled:opacity-60 disabled:hover:no-underline ${answer.confirm ? 'text-(--status-stuck-soft-fg)' : 'text-(--accent-primary)'}`}
             >
-              {answer.label}
+              {pendingKey === answer.key ? `${answer.label}…` : answer.label}
             </button>
           ))}
           {view.minor.length > 0 && onOwnAnswer ? <span aria-hidden>·</span> : null}
@@ -178,7 +184,7 @@ export default function ParkAnswers({
               type="button"
               disabled={busy}
               onClick={onOwnAnswer}
-              className="font-medium text-(--accent-primary) hover:underline"
+              className="font-medium text-(--accent-primary) hover:underline disabled:opacity-60 disabled:hover:no-underline"
             >
               {PARK_ANSWERS_COPY.ownAnswer}
             </button>

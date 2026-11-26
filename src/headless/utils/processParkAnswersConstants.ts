@@ -58,6 +58,7 @@ export const PARK_ANSWERS_COPY = {
   ownAnswer: 'Write my own answer',
   askManager: 'Ask the manager',
   needsYou: 'Needs you',
+  answerSent: 'Answer sent',
   why: 'Why',
   hideWhy: 'Hide why',
   manager: 'Manager',

@@ -1,11 +1,13 @@
 import {
   READ_COLLEAGUE_REVIEW_TOOL_NAME,
   RECORD_COLLEAGUE_REVIEW_ROUND_TOOL_NAME,
+  RECORDING_SITES,
 } from 'thefactory-tools/constants'
 import type {
   ColleagueReview,
   ReviewFinding,
   ReviewFindingState,
+  ReviewRecordingChecked,
   ReviewWaitingOn,
 } from 'thefactory-tools/types'
 import {
@@ -13,6 +15,7 @@ import {
   isFindingDropped,
   latestReviewRound,
   openFindingsAt,
+  recordingSiteOf,
   reviewRoundChanges,
 } from 'thefactory-tools/utils'
 import { cleanCliToolName } from './cliRunner'
@@ -33,6 +36,7 @@ import type {
   ReviewFindingGroupView,
   ReviewFindingView,
   ReviewPendingActions,
+  ReviewRecordingView,
   ReviewRoundView,
   ReviewWaitingOnView,
 } from './colleagueReviewCardTypes'
@@ -189,6 +193,42 @@ function roundSummary(
   return parts.length > 0 ? parts.join(' · ') : t.nothingFound
 }
 
+function webLink(url: string): URL | undefined {
+  try {
+    const link = new URL(url)
+    return link.protocol === 'https:' || link.protocol === 'http:' ? link : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * The recordings a round watched as its card lists them: each under its site's
+ * name, else its host, numbered from the second on one site; the moments
+ * cited as given. Only a web link opens. Pure.
+ */
+export function reviewRecordingViews(
+  recordings: readonly ReviewRecordingChecked[] | undefined,
+): ReviewRecordingView[] {
+  const seen = new Map<string, number>()
+  return (recordings ?? []).map((recording) => {
+    const link = webLink(recording.url)
+    const name = link
+      ? (recordingSiteOf(recording.url, RECORDING_SITES)?.name ??
+        link.hostname.replace(/^www\./, ''))
+      : COLLEAGUE_REVIEW_CARD_TEXT.recording
+    const n = (seen.get(name) ?? 0) + 1
+    seen.set(name, n)
+    return {
+      url: recording.url,
+      ...(link ? { href: recording.url } : {}),
+      label: n > 1 ? COLLEAGUE_REVIEW_CARD_TEXT.recordingNumbered(name, n) : name,
+      timestamps: [...recording.timestamps],
+      ...(recording.file ? { file: recording.file } : {}),
+    }
+  })
+}
+
 function replyPostView(
   round: ColleagueReview['rounds'][number] | undefined,
   thread: boolean,
@@ -293,6 +333,7 @@ export function reviewRoundView(
       : COLLEAGUE_REVIEW_CARD_TEXT.reviewing,
     groups,
     waitingOn,
+    recordings: recorded ? reviewRecordingViews(round?.recordings) : [],
     ...(recorded && round?.reply ? { reply: round.reply } : {}),
     ...(post ? { post } : {}),
     files: round?.submission.attachments.length ?? 0,

@@ -12,6 +12,7 @@ import type {
   ColleagueReviewCardView,
   ColleagueReviewTool,
   ReviewFindingView,
+  ReviewRecordingView,
   ReviewRoundView,
   ReviewWaitingOnView,
 } from '../../../headless/utils/colleagueReviewCardTypes'
@@ -492,8 +493,72 @@ function RoundBody({ round, actions }: { round: ReviewRoundView; actions: Action
           </ul>
         </section>
       ) : null}
+      {round.recordings.length > 0 ? (
+        <section aria-label={TEXT.recordings} className="flex min-w-0 flex-col gap-1">
+          <span className={LABEL}>{TEXT.recordings}</span>
+          <ul className="m-0 flex list-none flex-col overflow-hidden rounded-md border border-(--border-subtle) p-0">
+            {round.recordings.map((recording, at) => (
+              <RecordingRow key={recording.label} recording={recording} divided={at > 0} />
+            ))}
+          </ul>
+        </section>
+      ) : null}
       {round.reply ? <Reply round={round} reply={round.reply} actions={actions} /> : null}
     </div>
+  )
+}
+
+function RecordingRow({
+  recording,
+  divided,
+}: {
+  recording: ReviewRecordingView
+  divided: boolean
+}) {
+  const body = (
+    <>
+      <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+        <span className="inline-flex min-w-0 items-center gap-1 font-medium text-(--text-primary)">
+          <span className="truncate">{recording.label}</span>
+          {recording.href ? (
+            <IconExternalLink className="size-3 shrink-0 text-(--text-muted)" />
+          ) : null}
+        </span>
+        {recording.timestamps.map((moment, at) => (
+          <span key={`${at}:${moment}`} className="chip font-mono">
+            {moment}
+          </span>
+        ))}
+        {recording.timestamps.length === 0 ? (
+          <span className="text-[11.5px] text-(--text-muted)">{TEXT.noTimestamps}</span>
+        ) : null}
+      </span>
+      <span className="min-w-0 truncate text-[11.5px] text-(--text-muted)">{recording.url}</span>
+      {recording.file ? (
+        <span className="min-w-0 break-words font-mono text-[11.5px] text-(--text-muted)">
+          {recording.file}
+        </span>
+      ) : null}
+    </>
+  )
+  const row = 'flex min-w-0 flex-col gap-0.5 px-2.5 py-1.5'
+  return (
+    <li className={divided ? 'border-t border-(--border-subtle)' : undefined}>
+      {recording.href ? (
+        <a
+          href={recording.href}
+          target="_blank"
+          rel="noreferrer noopener"
+          title={recording.url}
+          onClick={(e) => e.stopPropagation()}
+          className={`${row} text-inherit no-underline hover:bg-(--surface-muted) focus:outline-none focus-visible:ring-2`}
+        >
+          {body}
+        </a>
+      ) : (
+        <div className={row}>{body}</div>
+      )}
+    </li>
   )
 }
 
@@ -945,7 +1010,8 @@ function Summary({
 }) {
   const [open, setOpen] = useState(expanded)
   const { round } = view
-  const hasMore = round.groups.length > 0 || round.waitingOn.length > 0
+  const hasMore =
+    round.groups.length > 0 || round.waitingOn.length > 0 || round.recordings.length > 0
   return (
     <>
       <Header view={view} round={round} />

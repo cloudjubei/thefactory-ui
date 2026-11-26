@@ -10,6 +10,7 @@ import type {
   ListGroupStoriesResponse,
   OverseerState,
   ProjectNoteSummary,
+  RecordingSiteState,
   RedactedCliAuthCacheEntry,
   RedactedGitCredentialEntry,
   RedactedWebSearchKeyEntry,
@@ -42,6 +43,11 @@ export const FAKE_GIT_CREDENTIALS: RedactedGitCredentialEntry[] = [
 
 export const FAKE_WEB_SEARCH_KEYS: RedactedWebSearchKeyEntry[] = [
   { provider: 'exa', ...FAKE_STAMP, hasApiKey: true },
+]
+
+/** The person's recording sites: none signed in to, as on a fresh backend. */
+export const FAKE_RECORDING_SITES: RecordingSiteState[] = [
+  { id: 'loom', name: 'Loom', state: 'unknown', signingIn: false },
 ]
 
 export const FAKE_CLI_AUTH_CACHES: RedactedCliAuthCacheEntry[] = [

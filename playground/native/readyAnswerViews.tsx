@@ -4,14 +4,17 @@ import type { ProcessRun } from 'thefactory-tools/types'
 import { processRunParkChoices } from 'thefactory-tools/utils'
 import {
   isResumeParkChoice,
+  parkPendingAnswerKey,
   partialProofOfChoices,
   partialProofView,
   preExistingBreakOfChoices,
   preExistingBreakView,
+  processAnswerPendingLine,
   processParkAnswersView,
   processTryBuildDisplay,
   signoffCarriedView,
   verifyProofView,
+  type ProcessAnswerInFlight,
 } from 'thefactory-ui/headless'
 import ParkAnswers from '../../src/native/compound/process/ParkAnswers'
 import PartialProofLists from '../../src/native/compound/process/PartialProofLists'
@@ -42,8 +45,11 @@ function Phone({ children }: { children: ReactNode }) {
   )
 }
 
-/** A stop on mobile as the park card draws it: its title, what it is about, then its answers. */
-function Stop({ run }: { run: ProcessRun }) {
+/**
+ * A stop on mobile as the park card draws it: its title, what it is about,
+ * then its answers — with `answering`, the answer sent and not answered yet.
+ */
+function Stop({ run, answering }: { run: ProcessRun; answering?: ProcessAnswerInFlight }) {
   const { theme } = useNativeTheme()
   const [selected, setSelected] = useState<string>()
   const choices = processRunParkChoices(run).filter(isResumeParkChoice)
@@ -51,15 +57,21 @@ function Stop({ run }: { run: ProcessRun }) {
   const partialList = partial ? partialProofView(partial) : undefined
   const broken = preExistingBreakOfChoices(choices)
   const brokenView = broken ? preExistingBreakView(broken) : undefined
+  const answers = processParkAnswersView(choices, undefined, selected)
+  const pendingKey = parkPendingAnswerKey(answers, answering)
   return (
     <Phone>
       <Text style={{ fontSize: 16, fontWeight: '600', color: theme.text.primary }}>
-        {brokenView?.headline ?? run.park?.message}
+        {answering
+          ? processAnswerPendingLine(answering, run)
+          : (brokenView?.headline ?? run.park?.message)}
       </Text>
       {brokenView ? <PreExistingBreakNotice view={brokenView} heading={false} /> : null}
       {partialList ? <PartialProofLists view={partialList} /> : null}
       <ParkAnswers
-        view={processParkAnswersView(choices, undefined, selected)}
+        view={answers}
+        busy={answering !== undefined}
+        {...(pendingKey ? { pendingKey } : {})}
         onSelect={setSelected}
         onSend={noop}
       />
@@ -98,9 +110,13 @@ export const READY_ANSWER_VIEWS: readonly NativeView[] = [
   {
     id: 'pre-existing-break-stop',
     title: 'Already broken before this change',
-    render: (address) => (
-      <Stop run={address.get('state') === 'developer' ? DEVELOPER_BREAK_RUN : CHECKS_BREAK_RUN} />
-    ),
+    render: (address) => {
+      const state = address.get('state')
+      if (state === 'checks-answer-sent') {
+        return <Stop run={CHECKS_BREAK_RUN} answering={{ choice: 'send-to-developer' }} />
+      }
+      return <Stop run={state === 'developer' ? DEVELOPER_BREAK_RUN : CHECKS_BREAK_RUN} />
+    },
   },
   {
     id: 'signoff-carried',

@@ -7,6 +7,7 @@ import {
   AuthProvider,
   FilesProvider,
   ProjectsProvider,
+  type ProcessAnswerInFlight,
   type SyncKVStorage,
 } from 'thefactory-ui/headless'
 import type { ReviewCardMerge } from '../../src/headless/utils/colleagueReviewMergeTypes'
@@ -61,11 +62,12 @@ const section = (merge: ReviewCardMerge, askOpen = false) =>
     </div>,
   )
 
-const park = (run: ProcessRun) =>
+const park = (run: ProcessRun, answering?: ProcessAnswerInFlight) =>
   frame(
     <ParkBlock
       run={run}
       managerLine={undefined}
+      {...(answering ? { answering } : {})}
       onChoose={noop}
       onChangeProof={noop}
       onAnswerRequest={noop}
@@ -128,6 +130,14 @@ export const MERGE_BASE_STOP_SCENES: Scene[] = [
         description:
           'The run’s stop offers Resolve it here and Ask Ana beside Try again. Ask Ana opens the drafted message to edit (pick Ask Ana, then press it), then sends it as the round’s reply.',
         render: () => park(RUN_MERGE_STOPPED_ON_BASE),
+      },
+      {
+        id: 'run-stop-answer-sent',
+        title: 'Resolve it here, sent and not answered yet',
+        description:
+          'Pressed, the way on shows it is being carried out before the host replies: the stop says “Carrying on…”, Resolve it here shows the spinner, and the other answers wait. Pressing again sends nothing.',
+        render: () =>
+          park(RUN_MERGE_STOPPED_ON_BASE, { choice: 'retry', recovery: 'resolve-here' }),
       },
       {
         id: 'run-checks-failed',

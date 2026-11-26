@@ -32,6 +32,8 @@ export type RunDetailsProps = {
   accessOpen?: boolean
   /** Takes the base section's choice — bringing the base in and re-checking. */
   onChooseBase?: (choice: ProcessResumeChoice) => void
+  /** The answer to the run's stop that is on its way: the base section's choice shows it, or waits for it. */
+  answering?: ProcessResumeChoice
   className?: string
 }
 
@@ -49,6 +51,7 @@ export default function RunDetails({
   access,
   accessOpen = false,
   onChooseBase,
+  answering,
   className = 'mx-3 mt-3',
 }: RunDetailsProps) {
   const list = cleanup?.list
@@ -80,6 +83,8 @@ export default function RunDetails({
               <Button
                 size="sm"
                 variant={baseChoice.primary ? 'primary' : 'secondary'}
+                disabled={answering !== undefined}
+                loading={answering === baseChoice.choice}
                 onClick={() => onChooseBase(baseChoice.choice)}
               >
                 {baseChoice.label}

@@ -18,6 +18,7 @@ import {
   REVIEW_REFUSAL,
   REVIEW_TICKET,
   ROUND_ONE,
+  ROUND_ONE_WATCHED,
   ROUND_THREE,
   ROUND_THREE_STARTED,
   ROUND_TWO,
@@ -38,6 +39,7 @@ function Phone({ children }: { children: ReactNode }) {
 
 const REVIEWS: Record<string, { review: ColleagueReview | null | undefined; round?: number }> = {
   'round-1': { review: ROUND_ONE },
+  recordings: { review: ROUND_ONE_WATCHED },
   'round-2': { review: ROUND_TWO },
   'being-reviewed': { review: ROUND_THREE_STARTED, round: 3 },
   approve: { review: ROUND_THREE },

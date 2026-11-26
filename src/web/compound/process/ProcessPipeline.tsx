@@ -118,7 +118,11 @@ import {
   type ParkAnswerView,
   PARK_ANSWERS_COPY,
   parkOwnAnswerChoice,
+  optimisticMirrorRun,
+  parkPendingAnswerKey,
+  processAnswerPendingLine,
   processParkAnswersView,
+  type ProcessAnswerInFlight,
   type ProcessRunStopHolder,
   type ProcessTurnLimit,
   type ProcessWaitingDetail,
@@ -374,13 +378,15 @@ function ProcessPipelineAt({
     decideAgentPause,
   } = own
   const agentPause = useAgentPauseDecision(heldRun, decideAgentPause)
-  const run = agentPause.shownRun
+  const ownRun = agentPause.shownRun
   const answerFiles = useMemo<AnswerFilesSource>(
     () => ({ upload: uploadAnswerFile, loadProjectFiles: loadAnswerProjectFiles }),
     [uploadAnswerFile, loadAnswerProjectFiles],
   )
-  const nestedStopId = run?.park && isReflectedPark(run.park) ? run.park.childRunId : undefined
+  const nestedStopId =
+    ownRun?.park && isReflectedPark(ownRun.park) ? ownRun.park.childRunId : undefined
   const nested = useProcessRun(nestedStopId)
+  const run = ownRun && optimisticMirrorRun(ownRun, nested.answering ? nested.run : undefined)
   const { run: variantParent } = useProcessRun(run?.variant ? run.parentRunId : undefined)
   const variantRoot = run?.variant
     ? variantParent
@@ -607,8 +613,9 @@ function ProcessPipelineAt({
       }
     : undefined
 
-  const stopRun = nested.run ?? run
   const stopActions = nested.run ? nested : own
+  const answering = stopActions.answering
+  const stopRun = answering?.stopped ?? nested.run ?? run
   const escalation = managerView?.escalation
   const stopManager =
     escalation && (escalation.runId === stopRun.id || escalation.runId === run.id)
@@ -620,7 +627,7 @@ function ProcessPipelineAt({
     : undefined
   const stopStepName = stopState?.step.name
   const featureStep = nested.run
-    ? states.find((st) => st.step.id === run.park?.stepId)?.step
+    ? states.find((st) => st.step.id === ownRun?.park?.stepId)?.step
     : undefined
   const stopFeatureRef =
     featureStep?.subject?.kind === 'feature' && run.storyId
@@ -638,7 +645,7 @@ function ProcessPipelineAt({
       ? processRunWaitView(run, waitPending ? { pending: waitPending } : {})
       : undefined
   const showStopCard =
-    run.status === 'parked' &&
+    (run.status === 'parked' || answering !== undefined) &&
     !signoff &&
     !isProcessRunWaitingOnWork(stopRun) &&
     stopHolder !== 'manager' &&
@@ -696,7 +703,7 @@ function ProcessPipelineAt({
       </ol>
     </RunStepsCard>
   )
-  const baseView = signoff ? undefined : processBaseMovedView(run)
+  const baseView = signoff ? undefined : processBaseMovedView(own.answering?.stopped ?? run)
   const access = accessRecordSection(run.accessRecords, accessRecordProjectNames(projects))
   const runDetails = (className?: string) => (
     <RunDetails
@@ -706,6 +713,7 @@ function ProcessPipelineAt({
       {...(baseView ? { base: baseView } : {})}
       {...(access ? { access } : {})}
       onChooseBase={(choice) => choose(choice)}
+      {...(own.answering ? { answering: own.answering.choice } : {})}
       {...(className !== undefined ? { className } : {})}
     />
   )
@@ -822,9 +830,11 @@ function ProcessPipelineAt({
                 </>
               }
               tone={stopTone}
-              {...(isOutsideWaitPending(stopRun.park)
-                ? { label: PROCESS_OUTSIDE_WAIT_COPY.onHold }
-                : {})}
+              {...(answering
+                ? { label: PARK_ANSWERS_COPY.answerSent }
+                : isOutsideWaitPending(stopRun.park)
+                  ? { label: PROCESS_OUTSIDE_WAIT_COPY.onHold }
+                  : {})}
               {...(canChat ? { onAskManager: () => void openRunChat() } : {})}
             >
               <ParkBlock
@@ -833,6 +843,7 @@ function ProcessPipelineAt({
                 managerLine={undefined}
                 {...(stopManager ? { manager: stopManager } : {})}
                 embedded
+                {...(answering ? { answering } : {})}
                 answerFiles={nested.run ? nestedAnswerFiles : answerFiles}
                 {...(alreadyMerged && !nested.run ? { alreadyMerged } : {})}
                 onChoose={(choice, note, integration, requestedProof, retry, files, recovery) =>
@@ -1645,6 +1656,7 @@ export function ParkBlock({
   managerLine,
   manager,
   embedded = false,
+  answering,
   alreadyMerged,
   answerFiles,
   onChoose,
@@ -1665,6 +1677,11 @@ export function ParkBlock({
   manager?: ProcessManagerEscalationView
   /** Inside the "Needs you" card, which draws the frame. */
   embedded?: boolean
+  /**
+   * The answer to this stop that is sent and not answered yet: the headline
+   * says what it is doing, its control shows it, and nothing else can be sent.
+   */
+  answering?: Pick<ProcessAnswerInFlight, 'choice' | 'recovery'>
   /** Where files handed to a waiting agent with an answer come from; without it an answer carries words only. */
   answerFiles?: AnswerFilesSource
   /** The top-level run that keeps the agent manager's record — `run` itself when omitted. */
@@ -1766,6 +1783,9 @@ export function ParkBlock({
           managerLine={managerLine}
           {...(manager ? { manager } : {})}
           embedded={embedded}
+          {...(answering
+            ? { pendingLine: processAnswerPendingLine(answering, run), answering }
+            : {})}
           {...(answerFiles ? { answerFiles } : {})}
           {...(retryChoice && (retryChoice.retry || definitions)
             ? {
@@ -1809,6 +1829,8 @@ export function ParkBlock({
         : c,
     )
   const answers = processParkAnswersView(offered, manager, selected)
+  const pendingLine = answering ? processAnswerPendingLine(answering, run) : undefined
+  const pendingKey = parkPendingAnswerKey(answers, answering)
   const ownChoice = parkOwnAnswerChoice(offered)
   const noteOffer = offered.find((c) => c.choice === noteFor)
   const definitions = retryChoice ? processRetryDefinitionsOf(retryChoice) : undefined
@@ -1854,7 +1876,7 @@ export function ParkBlock({
             }
       }
     >
-      {watch && !managerLine ? (
+      {watch && !managerLine && !pendingLine ? (
         <LiveCheckWatchHeader view={watch} embedded={embedded} />
       ) : (
         <div
@@ -1865,7 +1887,7 @@ export function ParkBlock({
           }
           style={embedded ? undefined : { color: `var(--status-${tone}-soft-fg)` }}
         >
-          <RichText text={managerLine ?? brokenView?.headline ?? park.message} />
+          <RichText text={pendingLine ?? managerLine ?? brokenView?.headline ?? park.message} />
         </div>
       )}
       {branchStopRows.length > 0 ? <ReviewBranchRows rows={branchStopRows} outputOpen /> : null}
@@ -1895,6 +1917,7 @@ export function ParkBlock({
               : onChoose(noteFor, note, undefined, requestedProof)
           }
           onCancel={() => setNoteFor(undefined)}
+          busy={answering !== undefined}
         />
       ) : drafting ? (
         <ParkNoteComposer
@@ -1905,6 +1928,7 @@ export function ParkBlock({
             onChoose('retry', note, undefined, undefined, undefined, undefined, drafting.id)
           }
           onCancel={() => setDrafting(undefined)}
+          busy={answering !== undefined}
         />
       ) : changingProof && proofChange ? (
         <ProofChangeComposer
@@ -1929,6 +1953,8 @@ export function ParkBlock({
           {reflected ? null : (
             <ParkAnswers
               view={answers}
+              busy={answering !== undefined}
+              {...(pendingKey ? { pendingKey } : {})}
               onSelect={setSelected}
               onSend={send}
               {...(ownChoice
@@ -1975,7 +2001,7 @@ export function ParkBlock({
                 <Button
                   size="sm"
                   variant="secondary"
-                  disabled={asking}
+                  disabled={asking || answering !== undefined}
                   onClick={() => {
                     setAsking(true)
                     void onAskAgent().finally(() => setAsking(false))
@@ -2122,6 +2148,8 @@ export function WaitingCard({
   managerLine,
   manager,
   embedded = false,
+  answering,
+  pendingLine,
   answerFiles,
   retry,
   onChoose,
@@ -2140,6 +2168,10 @@ export function WaitingCard({
   manager?: ProcessManagerEscalationView
   /** Inside the "Needs you" card, which draws the frame. */
   embedded?: boolean
+  /** The answer to the ask that is sent and not answered yet: its control shows it, and nothing else can be sent. */
+  answering?: Pick<ProcessAnswerInFlight, 'choice' | 'recovery'>
+  /** What that answer is doing, said in place of the ask's heading. */
+  pendingLine?: string
   /** Where files handed over with an answer come from. */
   answerFiles?: AnswerFilesSource
   /** How "Try again" starts, and which definitions it runs, where the stop offers either. */
@@ -2187,6 +2219,7 @@ export function WaitingCard({
   const tone = managerLine ? PROCESS_LIVE_TONE : 'on_hold'
   const titleLine = processWaitingTitleLine(view.title, managerLine ?? view.heading)
   const answers = processParkAnswersView(choices, manager, selected)
+  const pendingKey = parkPendingAnswerKey(answers, answering)
   const ownChoice = parkOwnAnswerChoice(choices)
   // The pick a retry note sends. It stays above the composer: that note goes
   // with the versions that are selected, and the card shows them together.
@@ -2250,7 +2283,7 @@ export function WaitingCard({
           }
           style={embedded ? undefined : { color: `var(--status-${tone}-soft-fg)` }}
         >
-          {managerLine ?? view.heading}
+          {pendingLine ?? managerLine ?? view.heading}
         </div>
         {titleLine ? <div className="text-[12px] text-(--text-secondary)">{titleLine}</div> : null}
       </div>
@@ -2310,6 +2343,7 @@ export function WaitingCard({
                 : onChoose(noteFor, note, undefined, undefined, undefined, files)
             }
             onCancel={() => setNoteFor(undefined)}
+            busy={answering !== undefined}
           />
         </div>
       ) : changingProof && proofChange ? (
@@ -2333,6 +2367,8 @@ export function WaitingCard({
       ) : (
         <ParkAnswers
           view={answers}
+          busy={answering !== undefined}
+          {...(pendingKey ? { pendingKey } : {})}
           onSelect={setSelected}
           onSend={send}
           {...(ownChoice

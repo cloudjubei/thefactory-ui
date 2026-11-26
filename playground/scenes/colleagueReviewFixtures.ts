@@ -154,6 +154,27 @@ export const ROUND_ONE: ColleagueReview = recorded(
   },
 )
 
+/** Round one with the recordings its review watched: the update's Loom with the moments cited, and a call nothing is cited from. */
+export const ROUND_ONE_WATCHED: ColleagueReview = recorded(
+  started(undefined, at(10, 9), ROUND_ONE_UPDATE, ROUND_ONE_FILES),
+  at(10, 10),
+  {
+    findings: ROUND_ONE_FINDINGS,
+    waitingOn: ROUND_ONE_WAITING,
+    recordings: [
+      {
+        url: 'https://www.loom.com/share/4f1c2a9e0b7d',
+        timestamps: ['2:10', '3:02', '4:45'],
+        file: 'recordings/loom-4f1c2a9e0b7d.mp4',
+      },
+      { url: 'https://www.loom.com/share/9c3e77a1d2f0', timestamps: ['0:38'] },
+      { url: 'https://fathom.video/share/kq2ZtWm8', timestamps: [] },
+    ],
+    verdict: 'changes-requested',
+    reply: ROUND_ONE_REPLY,
+  },
+)
+
 export const ROUND_TWO_UPDATE = `Updated both PRs:
 - dry run added (https://github.com/acme/coach-api/pull/390/commits/b4e5f6a)
 - test for the empty plan

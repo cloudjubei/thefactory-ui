@@ -18,6 +18,8 @@ export type ParkAnswersProps = {
   /** What the answer in front needs beside its button — how a retry starts. */
   leadExtra?: ReactNode
   busy?: boolean
+  /** The answer being carried out, by its key: its control shows it, as `parkPendingAnswerKey` finds it. */
+  pendingKey?: string
 }
 
 /**
@@ -37,6 +39,7 @@ export default function ParkAnswers({
   onOwnAnswer,
   leadExtra,
   busy = false,
+  pendingKey,
 }: ParkAnswersProps) {
   const { theme, status } = useNativeTheme()
   const lead = view.lead
@@ -139,6 +142,7 @@ export default function ParkAnswers({
             size="sm"
             variant={lead.confirm ? 'danger' : 'primary'}
             disabled={busy}
+            loading={pendingKey === lead.key}
             onPress={() => send(lead, leadNote)}
           >
             {lead.note ? PARK_ANSWERS_COPY.send : lead.label}
@@ -164,6 +168,7 @@ export default function ParkAnswers({
               size="sm"
               variant="secondary"
               disabled={busy}
+              loading={pendingKey === answer.key}
               accessibilityHint={answer.does}
               onPress={() => onSelect(answer.key)}
             >
@@ -225,7 +230,7 @@ export default function ParkAnswers({
           {view.minor.map((answer) => (
             <QuietLink
               key={answer.key}
-              label={answer.label}
+              label={pendingKey === answer.key ? `${answer.label}…` : answer.label}
               hint={answer.does}
               color={answer.confirm ? status.stuck.softFg : theme.accent.primary}
               disabled={busy}

@@ -549,4 +549,19 @@ describe('fakeBackendRoutes', () => {
   it('404s template-updates for an unknown project', () => {
     expect(get('/api/v1/projects/missing/template-updates').status).toBe(404)
   })
+
+  it('lists the person’s recording sites, none signed in to yet', () => {
+    expect(get('/api/v1/recording-sites')).toEqual({
+      status: 200,
+      body: { sites: [{ id: 'loom', name: 'Loom', state: 'unknown', signingIn: false }] },
+    })
+  })
+
+  it('answers a recording site’s sign-in with its window open, and 404s a site it does not hold', () => {
+    expect(post('/api/v1/recording-sites/loom/sign-in', undefined)).toEqual({
+      status: 200,
+      body: { id: 'loom', name: 'Loom', state: 'unknown', signingIn: true },
+    })
+    expect(post('/api/v1/recording-sites/vimeo/sign-in', undefined).status).toBe(404)
+  })
 })

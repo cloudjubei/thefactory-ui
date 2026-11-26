@@ -36,6 +36,8 @@ export type ParkNoteComposerProps = {
   initialDraft?: string
   onSend: (note: string | undefined, requestedProof?: ProofKind[], files?: string[]) => void
   onCancel: () => void
+  /** The note was sent and is not answered yet: Send shows it, and nothing more is sent. */
+  busy?: boolean
 }
 
 /**
@@ -86,6 +88,7 @@ export default function ParkNoteComposer({
   initialDraft,
   onSend,
   onCancel,
+  busy = false,
 }: ParkNoteComposerProps) {
   const [draft, setDraft] = useState(initialDraft ?? '')
   const [files, setFiles] = useState<string[]>(() => [...(initialFiles ?? [])])
@@ -120,6 +123,7 @@ export default function ParkNoteComposer({
           size="sm"
           variant="primary"
           disabled={required && note === undefined}
+          loading={busy}
           onClick={() =>
             onSend(
               note === undefined ? undefined : canonicalize(note),
@@ -130,7 +134,7 @@ export default function ParkNoteComposer({
         >
           {copy.submitLabel}
         </Button>
-        <Button size="sm" variant="ghost" onClick={onCancel}>
+        <Button size="sm" variant="ghost" disabled={busy} onClick={onCancel}>
           {PARK_NOTE_CANCEL}
         </Button>
         {counter ? (

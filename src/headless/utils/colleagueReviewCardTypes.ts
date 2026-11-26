@@ -68,6 +68,20 @@ export interface ReviewWaitingOnView {
   saving: boolean
 }
 
+/** A recording a round watched, as its card lists it. */
+export interface ReviewRecordingView {
+  /** The recording's link, as the round gave it. */
+  url: string
+  /** The link the row opens: the recording's, when it is a web link. */
+  href?: string
+  /** The site it is on, numbered when the round watched several there. */
+  label: string
+  /** The moments the round cites, as `m:ss` or `h:mm:ss`. */
+  timestamps: string[]
+  /** The video file it was watched from. */
+  file?: string
+}
+
 /** One round of a review. */
 export interface ReviewRoundView {
   n: number
@@ -83,6 +97,8 @@ export interface ReviewRoundView {
   summary: string
   groups: ReviewFindingGroupView[]
   waitingOn: ReviewWaitingOnView[]
+  /** The recordings the round watched, with the moments it cites. */
+  recordings: ReviewRecordingView[]
   /** The drafted reply, for the person to post. */
   reply?: string
   /** Post in thread, or where the reply was posted; absent when neither is to be shown. */
