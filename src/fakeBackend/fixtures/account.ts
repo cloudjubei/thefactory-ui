@@ -11,6 +11,7 @@ import type {
   OverseerState,
   ProjectNoteSummary,
   RecordingSiteState,
+  SignInSessionState,
   RedactedCliAuthCacheEntry,
   RedactedGitCredentialEntry,
   RedactedWebSearchKeyEntry,
@@ -49,6 +50,20 @@ export const FAKE_WEB_SEARCH_KEYS: RedactedWebSearchKeyEntry[] = [
 export const FAKE_RECORDING_SITES: RecordingSiteState[] = [
   { id: 'loom', name: 'Loom', state: 'unknown', signingIn: false },
 ]
+
+/** The session a fake recording site's sign-in answers with. No browser runs behind it, so its page never shows. */
+export function fakeRecordingSignIn(site: RecordingSiteState): SignInSessionState {
+  return {
+    id: `fake-sign-in-${site.id}`,
+    kind: 'recording-site',
+    subject: site.id,
+    title: `Sign in to ${site.name}`,
+    status: 'open',
+    surface: { kind: 'browser' },
+    startedAt: '2026-01-05T09:00:00.000Z',
+    expiresAt: '2026-01-05T09:15:00.000Z',
+  }
+}
 
 export const FAKE_CLI_AUTH_CACHES: RedactedCliAuthCacheEntry[] = [
   {

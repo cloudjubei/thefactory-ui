@@ -23,6 +23,35 @@ const turnLimit: ProcessParkChoice[] = [
 ]
 
 describe('processParkAnswersView', () => {
+  it('tells a turn-limit raise apart from trying again on the same limit', () => {
+    const raise = {
+      current: { limitTurns: true, maxTurns: 50 },
+      suggested: 100,
+    }
+    const view = processParkAnswersView([
+      choice('retry', { label: 'Try again from where it stopped', primary: true }),
+      choice('retry', { label: 'Raise the limit and try again', turnLimit: raise }),
+      choice('abandon'),
+    ])
+    expect(view.lead).toMatchObject({ key: 'retry', label: 'Try again from where it stopped' })
+    expect(view.others.map((a) => [a.key, a.label])).toEqual([
+      ['retry:raise', 'Raise the limit and try again'],
+    ])
+  })
+
+  it('puts a manager’s retry on trying again, not on the raise', () => {
+    const raise = { current: { limitTurns: true, maxTurns: 50 }, suggested: 100 }
+    const view = processParkAnswersView(
+      [
+        choice('retry', { label: 'Try again from where it stopped', primary: true }),
+        choice('retry', { label: 'Raise the limit and try again', turnLimit: raise }),
+      ],
+      { answers: [{ choice: 'retry', label: 'Go again', why: 'w' }], recommendedChoice: 'retry' },
+    )
+    expect(view.lead?.offer.turnLimit).toBeUndefined()
+    expect(view.others.map((a) => a.key)).toEqual(['retry:raise'])
+  })
+
   it('offers the plain choices when the manager wrote none, the stop’s primary in front', () => {
     const view = processParkAnswersView(turnLimit)
     expect(view.fromManager).toBe(false)

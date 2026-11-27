@@ -45,6 +45,7 @@ import {
   processNodeLook,
   processNodeState,
   type ProcessNodeLook,
+  processRetryAnswerPick,
   processRetryChoiceOf,
   processRetryPickStart,
   processRetrySpendPick,
@@ -1844,8 +1845,9 @@ export function ParkBlock({
       return setNoteFor(answer.choice as ProcessResumeChoice)
     }
     if (answer.choice === 'retry' && pick) {
-      if (retryChoice && !processRetrySpendReady(retryChoice, pick)) return
-      return onChoose('retry', note, undefined, undefined, pick)
+      const sent = processRetryAnswerPick(answer.offer, pick, manager?.moreTries)
+      if (!processRetrySpendReady(answer.offer, sent)) return
+      return onChoose('retry', note, undefined, undefined, sent)
     }
     if (answer.offer.recovery && parkRecoveryDraft(answer.offer) !== undefined && !note) {
       return setDrafting(answer.offer.recovery)
@@ -1913,7 +1915,13 @@ export function ParkBlock({
             : {})}
           onSend={(note, requestedProof) =>
             noteFor === 'retry' && pick
-              ? onChoose('retry', note, undefined, undefined, pick)
+              ? onChoose(
+                  'retry',
+                  note,
+                  undefined,
+                  undefined,
+                  noteOffer ? processRetryAnswerPick(noteOffer, pick, manager?.moreTries) : pick,
+                )
               : onChoose(noteFor, note, undefined, requestedProof)
           }
           onCancel={() => setNoteFor(undefined)}
@@ -1966,11 +1974,14 @@ export function ParkBlock({
                       <RetryChoiceOptions
                         {...(definitions ? { definitions } : {})}
                         {...(retryChoice.retry ? { retry: retryChoice.retry } : {})}
-                        {...(retryChoice.turnLimit
+                        {...(answers.lead.offer.turnLimit
                           ? {
                               turnLimitView: processRetryTurnLimitView(
                                 run,
-                                pick.turnLimit ?? retryChoice.turnLimit.current,
+                                pick.turnLimit ??
+                                  processRetryPickStart(answers.lead.offer, manager?.moreTries)
+                                    .turnLimit ??
+                                  answers.lead.offer.turnLimit.current,
                               ),
                             }
                           : {})}
@@ -2246,7 +2257,13 @@ export function WaitingCard({
       return setNoteFor(answer.choice as ProcessResumeChoice)
     }
     if (answer.choice === 'retry' && retry) {
-      return onChoose('retry', note, undefined, undefined, retry.pick)
+      return onChoose(
+        'retry',
+        note,
+        undefined,
+        undefined,
+        processRetryAnswerPick(answer.offer, retry.pick),
+      )
     }
     if (answer.choice === 'recover' && answer.offer.recovery) {
       return onChoose(

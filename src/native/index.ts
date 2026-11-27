@@ -1271,6 +1271,7 @@ export {
   type StartWorkDialogProps,
 } from './compound/chat/StartWorkDialog'
 export * from './compound/remoteBrowser'
+export * from './compound/signIn'
 export {
   default as NoteForAgentSheet,
   type NoteForAgentSheetProps,

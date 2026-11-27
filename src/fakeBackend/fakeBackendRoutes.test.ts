@@ -557,11 +557,27 @@ describe('fakeBackendRoutes', () => {
     })
   })
 
-  it('answers a recording site’s sign-in with its window open, and 404s a site it does not hold', () => {
+  it('answers a recording site’s sign-in with the site signing in and its session, and 404s a site it does not hold', () => {
     expect(post('/api/v1/recording-sites/loom/sign-in', undefined)).toEqual({
       status: 200,
-      body: { id: 'loom', name: 'Loom', state: 'unknown', signingIn: true },
+      body: {
+        site: { id: 'loom', name: 'Loom', state: 'unknown', signingIn: true },
+        session: {
+          id: 'fake-sign-in-loom',
+          kind: 'recording-site',
+          subject: 'loom',
+          title: 'Sign in to Loom',
+          status: 'open',
+          surface: { kind: 'browser' },
+          startedAt: '2026-01-05T09:00:00.000Z',
+          expiresAt: '2026-01-05T09:15:00.000Z',
+        },
+      },
     })
     expect(post('/api/v1/recording-sites/vimeo/sign-in', undefined).status).toBe(404)
+  })
+
+  it('lists no open sign-in session: it runs no browser to show one in', () => {
+    expect(get('/api/v1/sign-in-sessions')).toEqual({ status: 200, body: { sessions: [] } })
   })
 })

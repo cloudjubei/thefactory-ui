@@ -7,6 +7,7 @@ import {
   PARK_ANSWER_NOTE_LABELS,
   PARK_MINOR_CHOICES,
   PARK_OWN_ANSWER_CHOICES,
+  PARK_RAISE_KEY,
 } from './processParkAnswersConstants'
 import type { ParkAnswerView, ParkAnswersView } from './processParkAnswersTypes'
 
@@ -31,21 +32,13 @@ export function processParkAnswersView(
   const written = processManagerOfferedAnswers(manager?.answers, choices)
   const pickIndex = written.findIndex((a) => a.choice === manager?.recommendedChoice)
   const fromManager: ParkAnswerView[] = written.flatMap((answer, i) => {
-    const offer = choices.find(
-      (c) => offerKey(c.choice, c.recovery?.id) === offerKey(answer.choice, answer.recovery),
-    )
+    const offer = choices.find((c) => choiceKey(c) === offerKey(answer.choice, answer.recovery))
     return offer ? [answerView(offer, `${answer.choice}:${i}`, i === pickIndex, answer)] : []
   })
   const answered = new Set(written.map((a) => offerKey(a.choice, a.recovery)))
   const plain = choices
-    .filter((c) => !answered.has(offerKey(c.choice, c.recovery?.id)))
-    .map((c) =>
-      answerView(
-        c,
-        offerKey(c.choice, c.recovery?.id),
-        fromManager.length === 0 && c.primary === true,
-      ),
-    )
+    .filter((c) => !answered.has(choiceKey(c)))
+    .map((c) => answerView(c, choiceKey(c), fromManager.length === 0 && c.primary === true))
   const all = [...fromManager, ...plain]
   const lead =
     all.find((a) => a.key === selectedKey) ??
@@ -80,9 +73,18 @@ export function parkOwnAnswerChoice(
   return PARK_OWN_ANSWER_CHOICES.find((c) => choices.some((offer) => offer.choice === c))
 }
 
-/** The offered choice an answer is on: its choice, and for a way on, which one by its id. */
-function offerKey(choice: string, recovery: string | undefined): string {
-  return recovery ? `${choice}:${recovery}` : choice
+/**
+ * The offered choice an answer is on: its choice, for a way on which one by its
+ * id, and a retry that raises the turn limit told apart from trying again on
+ * the same limit — a manager's answer is never a raise.
+ */
+function offerKey(choice: string, recovery: string | undefined, raises = false): string {
+  if (recovery) return `${choice}:${recovery}`
+  return raises ? `${choice}:${PARK_RAISE_KEY}` : choice
+}
+
+function choiceKey(offer: ProcessParkChoice): string {
+  return offerKey(offer.choice, offer.recovery?.id, offer.choice === 'retry' && !!offer.turnLimit)
 }
 
 function answerView(

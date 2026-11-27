@@ -3474,6 +3474,7 @@ export {
 export {
   processGrantTurnLimitView,
   processLaunchTurnLimitView,
+  processRetryAnswerPick,
   processRetryChoiceOf,
   processRetryPickStart,
   processRetryTurnLimitView,
@@ -4501,17 +4502,51 @@ export type {
   ReviewMergeChecksSnapshot,
   ReviewMergeChecksView,
 } from './utils/reviewMergeChecksTypes'
-export { listRecordingSites, startRecordingSiteSignIn } from './api/recordingSitesApi'
+export {
+  listRecordingSites,
+  startRecordingSiteSignIn,
+  type RecordingSiteSignIn,
+} from './api/recordingSitesApi'
 export { RecordingSitesStore } from './hooks/recordingSitesStore'
+export { SIGN_IN_SESSION_ROUTES } from './api/signInSessionsApi'
+export { SignInSessionsStore } from './hooks/signInSessionsStore'
+export {
+  signInSessionsStoreFor,
+  useSignInBrowser,
+  useSignInSession,
+  type UseSignInBrowser,
+  type UseSignInBrowserOptions,
+  type UseSignInSession,
+} from './hooks/useSignInSession'
+export {
+  signInBrowserApi,
+  signInBrowserSessionOf,
+  signInEndedNotice,
+  signInSessionChangeOf,
+  signInSessionView,
+} from './utils/signInSession'
+export {
+  SIGN_IN_BROWSER_CONTEXT,
+  SIGN_IN_SESSIONS_EVENT,
+  SIGN_IN_SESSION_TEXT,
+  SIGN_IN_STREAM_SCOPE,
+} from './utils/signInSessionConstants'
+export type {
+  SignInSessionInputView,
+  SignInSessionView,
+  SignInSessionsApi,
+  SignInSessionsSnapshot,
+} from './utils/signInSessionTypes'
 export { useRecordingSites, type UseRecordingSites } from './hooks/useRecordingSites'
 export {
-  recordingSignInNeeded,
+  recordingSignInAskable,
   recordingSiteChangeOf,
   recordingSitesShown,
   recordingSitesView,
   recordingSitesWith,
 } from './utils/recordingSites'
 export {
+  RECORDING_SIGN_IN_KIND,
   RECORDING_SITE_STATE_VIEW,
   RECORDING_SITES_EVENT,
   RECORDING_SITES_TEXT,

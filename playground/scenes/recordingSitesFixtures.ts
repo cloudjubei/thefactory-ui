@@ -25,12 +25,25 @@ export function recordingSites(
 export const RECORDING_SITES_STATES: Record<string, RecordingSitesSnapshot> = {
   'not-checked': recordingSites(),
   'signed-out': recordingSites({ state: 'signed-out', checkedAt: CHECKED }),
+  starting: recordingSites({}, { starting: ['loom'] }),
   'signing-in': recordingSites({ signingIn: true }),
   'signed-in': recordingSites({ state: 'signed-in', checkedAt: CHECKED }),
   'signing-in-again': recordingSites({ state: 'signed-in', checkedAt: CHECKED, signingIn: true }),
   'sign-in-failed': recordingSites(
     {},
-    { failed: { loom: 'No browser could be opened on this machine: Chromium is not installed.' } },
+    {
+      failed: {
+        loom: 'The sign-in could not be opened: no browser is installed where the backend runs.',
+      },
+    },
+  ),
+  'timed-out': recordingSites(
+    { state: 'signed-out', checkedAt: CHECKED },
+    {
+      failed: {
+        loom: 'The sign-in was open too long and closed. Start it again when you’re ready.',
+      },
+    },
   ),
   loading: recordingSites({}, { sites: undefined }),
   'read-failed': recordingSites(

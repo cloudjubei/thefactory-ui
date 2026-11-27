@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { RecordingSiteState } from 'thefactory-tools/types'
 import {
-  recordingSignInNeeded,
+  recordingSignInAskable,
   recordingSiteChangeOf,
   recordingSitesShown,
   recordingSitesView,
@@ -58,16 +58,20 @@ describe('recordingSitesWith', () => {
   })
 })
 
-describe('recordingSignInNeeded', () => {
+describe('recordingSignInAskable', () => {
   it('is, for a site that is listed and has no sign-in going', () => {
-    expect(recordingSignInNeeded([LOOM, FATHOM], 'loom')).toBe(true)
-    expect(recordingSignInNeeded([LOOM, FATHOM], 'fathom')).toBe(true)
+    expect(recordingSignInAskable([LOOM, FATHOM], [], 'loom')).toBe(true)
+    expect(recordingSignInAskable([LOOM, FATHOM], ['loom'], 'fathom')).toBe(true)
   })
 
   it('is not, while its window is open, for a site not listed, or before the first read', () => {
-    expect(recordingSignInNeeded([{ ...LOOM, signingIn: true }], 'loom')).toBe(false)
-    expect(recordingSignInNeeded([LOOM], 'fathom')).toBe(false)
-    expect(recordingSignInNeeded(undefined, 'loom')).toBe(false)
+    expect(recordingSignInAskable([LOOM], ['loom'], 'loom')).toBe(false)
+    expect(recordingSignInAskable([LOOM], [], 'fathom')).toBe(false)
+    expect(recordingSignInAskable(undefined, [], 'loom')).toBe(false)
+  })
+
+  it('is askable again for a site whose sign-in is open, to show it once more', () => {
+    expect(recordingSignInAskable([{ ...LOOM, signingIn: true }], [], 'loom')).toBe(true)
   })
 })
 
@@ -118,6 +122,7 @@ describe('recordingSitesView', () => {
       stateLabel: 'Not checked',
       tone: 'empty',
       signingIn: false,
+      busy: false,
       action: 'Sign in to Loom',
       primary: true,
     })
@@ -139,13 +144,14 @@ describe('recordingSitesView', () => {
       stateLabel: 'Signed in',
       tone: 'done',
       signingIn: false,
+      busy: false,
       action: 'Sign in again',
       primary: false,
       checked: 'Checked 3 minutes ago',
     })
   })
 
-  it('shows a sign-in going on, whether asked for here or open already, with where the window is', () => {
+  it('shows a sign-in just asked for as signing in, its button busy until the backend answers', () => {
     const asked = recordingSitesView(snapshot({ starting: ['loom'] }), NOW).sites[0]
     expect(asked).toEqual({
       id: 'loom',
@@ -154,14 +160,35 @@ describe('recordingSitesView', () => {
       stateLabel: 'Signing in…',
       tone: 'working',
       signingIn: true,
+      busy: true,
       action: 'Sign in to Loom',
       primary: true,
-      hint: RECORDING_SITES_TEXT.windowOpen,
     })
+  })
+
+  it('offers to show a sign-in that is open again, saying it closes by itself', () => {
     const open = recordingSitesView(snapshot({ sites: [{ ...FATHOM, signingIn: true }] }), NOW)
       .sites[0]
-    expect(open).toMatchObject({ state: 'signing-in', signingIn: true, action: 'Sign in again' })
-    expect(open).not.toHaveProperty('checked')
+    expect(open).toEqual({
+      id: 'fathom',
+      name: 'Fathom',
+      state: 'signing-in',
+      stateLabel: 'Signing in…',
+      tone: 'working',
+      signingIn: true,
+      busy: false,
+      action: RECORDING_SITES_TEXT.showSignIn,
+      primary: true,
+      hint: RECORDING_SITES_TEXT.signInOpen,
+    })
+  })
+
+  it('keeps the button busy on an open sign-in asked to be shown again', () => {
+    const again = recordingSitesView(
+      snapshot({ sites: [{ ...FATHOM, signingIn: true }], starting: ['fathom'] }),
+      NOW,
+    ).sites[0]
+    expect(again).toMatchObject({ busy: true, action: RECORDING_SITES_TEXT.showSignIn })
   })
 
   it('says why a site’s sign-in did not start, on its row only', () => {

@@ -10,7 +10,7 @@ import ToneBadge from '../chips/ToneBadge'
 
 export type RecordingSitesPanelProps = {
   view: RecordingSitesView
-  /** Open a site's sign-in window on the backend's machine. */
+  /** Open a site's sign-in inside the app, or show the one already open. */
   onSignIn: (siteId: string) => void
 }
 
@@ -19,8 +19,9 @@ const MUTED = 'm-0 text-[12.5px] text-(--text-secondary)'
 /**
  * The person's sign-ins to the sites colleagues share recordings on, in the
  * group's Settings: a row per site with how its sign-in stands and the button
- * that opens its sign-in window on the backend's machine. The row reads as
- * signing in the moment the button is pressed and until the window closes.
+ * that opens its sign-in inside the app. The row reads as signing in the
+ * moment the button is pressed and until the sign-in ends; while it is open
+ * the button shows it again.
  */
 export function RecordingSitesPanel({ view, onSignIn }: RecordingSitesPanelProps) {
   return (
@@ -65,7 +66,7 @@ function SiteRow({
           variant={site.primary ? 'primary' : 'ghost'}
           className="ml-auto"
           aria-label={site.action}
-          loading={site.signingIn}
+          loading={site.busy}
           onClick={() => onSignIn(site.id)}
         >
           {site.action}

@@ -41,6 +41,8 @@ import ToneBadge from '../chips/ToneBadge'
 export type RemoteBrowserViewProps = {
   state: RemoteBrowserState
   store: RemoteBrowserStore
+  /** False for a page with no bar of its own: no address, no modes. */
+  toolbar?: boolean
 }
 
 type Touch = { from: RemoteBrowserPoint; to: RemoteBrowserPoint; scrolled: RemoteBrowserPoint }
@@ -63,7 +65,11 @@ function boxStyle(box: RemoteBrowserBox) {
  * area, each opening a note for the agent in a sheet. While the agent drives, the page only
  * takes picks and marks until the person takes over.
  */
-export default function RemoteBrowserView({ state, store }: RemoteBrowserViewProps) {
+export default function RemoteBrowserView({
+  state,
+  store,
+  toolbar = true,
+}: RemoteBrowserViewProps) {
   const { theme } = useNativeTheme()
   const [size, setSize] = useState<RemoteBrowserSize>(EMPTY_SIZE)
   const [typed, setTyped] = useState(state.address)
@@ -238,6 +244,7 @@ export default function RemoteBrowserView({ state, store }: RemoteBrowserViewPro
     <View style={{ flex: 1, minHeight: 0, backgroundColor: theme.surface.base }}>
       <View
         style={{
+          display: toolbar ? 'flex' : 'none',
           gap: nativeSpace[2],
           paddingHorizontal: nativeSpace[2],
           paddingVertical: nativeSpace[2],

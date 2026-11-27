@@ -67,7 +67,7 @@ export const RECORDING_SITES_SCENES: Scene[] = [
     component: 'RecordingSitesPanel (GroupRecordingsSettings)',
     group: 'Settings',
     description:
-      'Settings → Group, under Slack: the person’s own sign-in to each site colleagues share recordings on, today Loom. A review fetches a recording through that sign-in, so it is asked for once, here. One row per site: its name, how the sign-in stands (Not checked until the backend has looked, Signed out, Signed in, with when it was last seen), and one button. The button opens a browser window on the machine running the backend, since that is where the sign-in is kept; a line under the row says so while it is open. The row reads Signing in… the moment the button is pressed, before the backend answers; the button is held busy until the window closes, so a second press asks for nothing. The backend then says how it ended: Signed in, or back to Signed out when the window was closed. A sign-in that did not start puts the row back as it was with why under it. The sign-in is the person’s, not the group’s: it reads the same in every group. Once signed in the button turns quiet and reads Sign in again, as Slack’s does, for a sign-in the site has since ended.',
+      'Settings → Group, under Slack: the person’s own sign-in to each site colleagues share recordings on, today Loom. A review fetches a recording through that sign-in, so it is asked for once, here. One row per site: its name, how the sign-in stands (Not checked until the backend has looked, Signed out, Signed in, with when it was last seen), and one button. The button opens the site’s own sign-in page inside the app (see "Sign in inside the app"); no window opens on the machine running the backend. The row reads Signing in… the moment the button is pressed, before the backend answers, and the button is busy only until it does, so a second press in that moment asks for nothing. While the sign-in is open the button reads Show sign-in and brings the same one back, and a line under the row says it closes by itself. When the site shows the person signed in, the sign-in view goes and the row reads Signed in; closed by hand it goes back to what was last seen. A sign-in that did not start, or that was open too long, puts the row back as it was with why under it. The sign-in is the person’s, not the group’s: it reads the same in every group. Once signed in the button turns quiet and reads Sign in again, as Slack’s does, for a sign-in the site has since ended.',
     states: [
       {
         id: 'not-checked',
@@ -83,10 +83,16 @@ export const RECORDING_SITES_SCENES: Scene[] = [
         render: () => recordings('signed-out'),
       },
       {
+        id: 'starting',
+        title: 'Just pressed',
+        description: 'Signing in… at once, the button busy until the backend answers.',
+        render: () => recordings('starting'),
+      },
+      {
         id: 'signing-in',
-        title: 'Signing in: the window is open',
+        title: 'Signing in: the sign-in is open',
         description:
-          'The button is busy, and the line under the row says where the window is: on the backend’s machine, not this one.',
+          'The button brings the open sign-in back, and the line under the row says it closes by itself.',
         render: () => recordings('signing-in'),
       },
       {
@@ -98,7 +104,7 @@ export const RECORDING_SITES_SCENES: Scene[] = [
       {
         id: 'signing-in-again',
         title: 'Signing in again',
-        description: 'The same busy row, from a signed-in one.',
+        description: 'The same open row, from a signed-in one.',
         render: () => recordings('signing-in-again'),
       },
       {
@@ -106,6 +112,12 @@ export const RECORDING_SITES_SCENES: Scene[] = [
         title: 'The sign-in did not start',
         description: 'The row is back as it was, with why; the button is offered again.',
         render: () => recordings('sign-in-failed'),
+      },
+      {
+        id: 'timed-out',
+        title: 'The sign-in was open too long',
+        description: 'It closed by itself after 15 minutes; the row is back as it was, with why.',
+        render: () => recordings('timed-out'),
       },
       {
         id: 'loading',
@@ -126,7 +138,7 @@ export const RECORDING_SITES_SCENES: Scene[] = [
       {
         id: 'phone',
         title: 'On a phone',
-        description: 'The line saying where the window is wraps under the row.',
+        description: 'The line saying it closes by itself wraps under the row.',
         render: () => recordings('signing-in', 'phone'),
       },
       {

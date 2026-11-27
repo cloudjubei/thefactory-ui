@@ -41,6 +41,8 @@ export type RemoteBrowserViewProps = {
   store: RemoteBrowserStore
   /** A phone's width: a two-row bar. */
   compact?: boolean
+  /** False for a page with no bar of its own: no address, no modes. */
+  toolbar?: boolean
   className?: string
 }
 
@@ -162,6 +164,7 @@ export default function RemoteBrowserView({
   state,
   store,
   compact = false,
+  toolbar = true,
   className,
 }: RemoteBrowserViewProps) {
   const castRef = useRef<HTMLDivElement>(null)
@@ -284,12 +287,14 @@ export default function RemoteBrowserView({
 
   return (
     <div className={`flex min-h-0 min-w-0 flex-1 flex-col bg-(--surface-base) ${className ?? ''}`}>
-      <RemoteBrowserToolbar
-        state={state}
-        store={store}
-        compact={compact}
-        viewport={size.width && size.height ? size : undefined}
-      />
+      {toolbar ? (
+        <RemoteBrowserToolbar
+          state={state}
+          store={store}
+          compact={compact}
+          viewport={size.width && size.height ? size : undefined}
+        />
+      ) : null}
       <div
         ref={castRef}
         role="application"

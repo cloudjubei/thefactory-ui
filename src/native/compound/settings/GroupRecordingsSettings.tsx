@@ -13,14 +13,14 @@ import ToneBadge from '../chips/ToneBadge'
 
 export type RecordingSitesPanelProps = {
   view: RecordingSitesView
-  /** Open a site's sign-in window on the backend's machine. */
+  /** Open a site's sign-in inside the app, or show the one already open. */
   onSignIn: (siteId: string) => void
 }
 
 /**
  * Native peer of [web's `RecordingSitesPanel`](../../../web/compound/settings/GroupRecordingsSettings.tsx):
  * a row per recording site with how the person's sign-in stands and the button
- * that opens its sign-in window on the backend's machine.
+ * that opens its sign-in inside the app, or shows the one already open.
  */
 export function RecordingSitesPanel({ view, onSignIn }: RecordingSitesPanelProps) {
   const { theme } = useNativeTheme()
@@ -90,7 +90,7 @@ function SiteRow({
             size="sm"
             variant={site.primary ? 'primary' : 'ghost'}
             accessibilityLabel={site.action}
-            loading={site.signingIn}
+            loading={site.busy}
             onPress={() => onSignIn(site.id)}
           >
             {site.action}

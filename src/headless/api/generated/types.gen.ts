@@ -18400,6 +18400,7 @@ export type ProcessLedgerEntry = {
   }
   unchangedAt?: string
   reusedChecksOf?: string
+  reusedChecksOfRunId?: string
   notCaused?: Array<ProjectCheckNotCausedReport>
   preExistingBreak?: {
     source: ProcessPreExistingBreakSource
@@ -25727,9 +25728,43 @@ export type RecordingFetchRequest = {
   saveDir: string
 }
 
+export type SignInSessionStatus = 'open' | 'finished' | 'closed' | 'timed-out' | 'failed'
+
+export type SignInPromptInput = {
+  label: string
+  secret?: boolean
+}
+
+export type SignInSurface =
+  | {
+      kind: 'browser'
+    }
+  | {
+      kind: 'prompt'
+      message?: string
+      url?: string
+      input?: {
+        label: string
+        secret?: boolean
+      }
+    }
+
+export type SignInSessionState = {
+  id: string
+  kind: string
+  subject: string
+  title: string
+  status: SignInSessionStatus
+  surface: SignInSurface
+  startedAt: string
+  expiresAt: string
+  error?: string
+}
+
 export type RecordingSignInStarted = {
   ok: true
   site: RecordingSiteState
+  session: SignInSessionState
 }
 
 export type RecordingFetchTimings = {
@@ -30273,6 +30308,33 @@ export type SearchNoteOwner =
       kind: 'group'
       groupId: string
     }
+
+export type SignInSessionOutcome = 'finished' | 'closed' | 'timed-out' | 'failed'
+
+export type SignInPrompt = {
+  message?: string
+  url?: string
+  input?: {
+    label: string
+    secret?: boolean
+  }
+}
+
+export type SignInSessionStarted = {
+  ok: true
+  session: SignInSessionState
+  started: boolean
+}
+
+export type SignInSessionFailure = {
+  ok: false
+  error: string
+}
+
+export type SignInTimings = {
+  pollMs: number
+  maxMs: number
+}
 
 export type LoomWalkthroughFileKind = 'video' | 'image' | 'file'
 
@@ -36050,6 +36112,32 @@ export type ProcessFeatureClosureCandidate = {
   work: Array<string>
 }
 
+export type ProcessNestedChecksRun = {
+  id: string
+  title: string
+  plan: {
+    definitionId: string
+    definitionScope: ProcessScope
+    definitionVersion: number
+    name: string
+    steps: Array<ProcessPlanStep>
+    loops: Array<ProcessLoop>
+    frozenAt: number
+    amendments?: Array<ProcessPlanAmendment>
+    signOff?: 'automatic'
+    unreadWhenDone?: true
+    features?: Array<ProcessSubject>
+    inputs?: Array<ProcessInput>
+  }
+  ledger: Array<ProcessLedgerEntry>
+}
+
+export type ProcessNestedChecksReuse = {
+  runId: string
+  title: string
+  entry: ProcessLedgerEntry
+}
+
 export type ProcessWaitingItemChoice = 'allow' | 'allow-site' | 'decline'
 
 export type ProcessChangeRequest = {
@@ -38244,6 +38332,7 @@ export type ProcessStepResult = {
     reason: string
   }
   reusedChecksOf?: string
+  reusedChecksOfRunId?: string
   notCaused?: Array<ProjectCheckNotCausedReport>
   preExistingBreak?: {
     source: ProcessPreExistingBreakSource
@@ -38790,6 +38879,7 @@ export type ProcessStepState = {
     }
     unchangedAt?: string
     reusedChecksOf?: string
+    reusedChecksOfRunId?: string
     notCaused?: Array<ProjectCheckNotCausedReport>
     preExistingBreak?: {
       source: ProcessPreExistingBreakSource
@@ -73121,11 +73211,239 @@ export type StartRecordingSiteSignInResponses = {
   /**
    * Default Response
    */
-  200: RecordingSiteState
+  200: {
+    site: RecordingSiteState
+    session: SignInSessionState
+  }
 }
 
 export type StartRecordingSiteSignInResponse =
   StartRecordingSiteSignInResponses[keyof StartRecordingSiteSignInResponses]
+
+export type ListSignInSessionsData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/sign-in-sessions'
+}
+
+export type ListSignInSessionsResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    sessions: Array<SignInSessionState>
+  }
+}
+
+export type ListSignInSessionsResponse =
+  ListSignInSessionsResponses[keyof ListSignInSessionsResponses]
+
+export type CloseSignInSessionData = {
+  body?: never
+  path: {
+    sessionId: string
+  }
+  query?: never
+  url: '/api/v1/sign-in-sessions/{sessionId}'
+}
+
+export type CloseSignInSessionErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type CloseSignInSessionError = CloseSignInSessionErrors[keyof CloseSignInSessionErrors]
+
+export type CloseSignInSessionResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    closed: true
+  }
+}
+
+export type CloseSignInSessionResponse =
+  CloseSignInSessionResponses[keyof CloseSignInSessionResponses]
+
+export type SendSignInSessionInputData = {
+  body:
+    | {
+        kind: 'click'
+        x: number
+        y: number
+        button?: 'left' | 'right' | 'middle'
+        clickCount?: number
+      }
+    | {
+        kind: 'move'
+        x: number
+        y: number
+      }
+    | {
+        kind: 'wheel'
+        x: number
+        y: number
+        dx: number
+        dy: number
+      }
+    | {
+        kind: 'key'
+        /**
+         * A key or chord: `Enter`, `Control+A`.
+         */
+        key: string
+      }
+    | {
+        kind: 'text'
+        text: string
+      }
+  path: {
+    sessionId: string
+  }
+  query?: never
+  url: '/api/v1/sign-in-sessions/{sessionId}/input'
+}
+
+export type SendSignInSessionInputErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type SendSignInSessionInputError =
+  SendSignInSessionInputErrors[keyof SendSignInSessionInputErrors]
+
+export type SendSignInSessionInputResponses = {
+  /**
+   * Default Response
+   */
+  200: RemoteBrowserActionResult
+}
+
+export type SendSignInSessionInputResponse =
+  SendSignInSessionInputResponses[keyof SendSignInSessionInputResponses]
+
+export type ResizeSignInSessionData = {
+  body: {
+    width: number
+    height: number
+  }
+  path: {
+    sessionId: string
+  }
+  query?: never
+  url: '/api/v1/sign-in-sessions/{sessionId}/resize'
+}
+
+export type ResizeSignInSessionErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type ResizeSignInSessionError = ResizeSignInSessionErrors[keyof ResizeSignInSessionErrors]
+
+export type ResizeSignInSessionResponses = {
+  /**
+   * Default Response
+   */
+  200: RemoteBrowserActionResult
+}
+
+export type ResizeSignInSessionResponse =
+  ResizeSignInSessionResponses[keyof ResizeSignInSessionResponses]
+
+export type AnswerSignInSessionData = {
+  body: {
+    text: string
+  }
+  path: {
+    sessionId: string
+  }
+  query?: never
+  url: '/api/v1/sign-in-sessions/{sessionId}/answer'
+}
+
+export type AnswerSignInSessionErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+}
+
+export type AnswerSignInSessionError = AnswerSignInSessionErrors[keyof AnswerSignInSessionErrors]
+
+export type AnswerSignInSessionResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    accepted: true
+  }
+}
+
+export type AnswerSignInSessionResponse =
+  AnswerSignInSessionResponses[keyof AnswerSignInSessionResponses]
 
 export type ReadGroupTicketPreviewData = {
   body?: never

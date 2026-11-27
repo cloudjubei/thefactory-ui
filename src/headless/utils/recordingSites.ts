@@ -36,13 +36,18 @@ export function recordingSitesWith(
     : [...held, changed]
 }
 
-/** Whether asking for a site's sign-in would do anything: it is listed, and no sign-in of it is going. Pure. */
-export function recordingSignInNeeded(
-  shown: readonly RecordingSiteState[] | undefined,
+/**
+ * Whether a press on a site's sign-in is sent: the site is listed, and no
+ * press on it is still on its way. A site whose sign-in is open is asked
+ * again: the backend opens nothing more and answers the open one, to show.
+ * Pure.
+ */
+export function recordingSignInAskable(
+  sites: readonly RecordingSiteState[] | undefined,
+  starting: readonly string[],
   siteId: string,
 ): boolean {
-  const site = shown?.find((s) => s.id === siteId)
-  return site !== undefined && !site.signingIn
+  return !!sites?.some((site) => site.id === siteId) && !starting.includes(siteId)
 }
 
 /** The site a `recordingSites:changed` event tells, or `undefined` when it tells none. Pure. */
@@ -65,6 +70,8 @@ export function recordingSiteChangeOf(data: unknown): RecordingSiteState | undef
 
 function siteRow(
   site: RecordingSiteState,
+  open: boolean,
+  busy: boolean,
   error: string | undefined,
   now: number,
 ): RecordingSiteRowView {
@@ -79,12 +86,17 @@ function siteRow(
     stateLabel: shown.label,
     tone: shown.tone,
     signingIn: site.signingIn,
-    action: signedIn ? RECORDING_SITES_TEXT.signInAgain : RECORDING_SITES_TEXT.signIn(site.name),
-    primary: !signedIn,
+    busy,
+    action: open
+      ? RECORDING_SITES_TEXT.showSignIn
+      : signedIn
+        ? RECORDING_SITES_TEXT.signInAgain
+        : RECORDING_SITES_TEXT.signIn(site.name),
+    primary: open || !signedIn,
     ...(!site.signingIn && !Number.isNaN(checkedAt)
       ? { checked: RECORDING_SITES_TEXT.checked(timeAgo(now, checkedAt)) }
       : {}),
-    ...(site.signingIn ? { hint: RECORDING_SITES_TEXT.windowOpen } : {}),
+    ...(open ? { hint: RECORDING_SITES_TEXT.signInOpen } : {}),
     ...(error ? { error } : {}),
   }
 }
@@ -97,7 +109,15 @@ export function recordingSitesView(
   const shown = recordingSitesShown(snapshot.sites, snapshot.starting)
   return {
     loading: shown === undefined && !snapshot.readError,
-    sites: (shown ?? []).map((site) => siteRow(site, snapshot.failed[site.id], now)),
+    sites: (shown ?? []).map((site) =>
+      siteRow(
+        site,
+        !!snapshot.sites?.some((held) => held.id === site.id && held.signingIn),
+        snapshot.starting.includes(site.id),
+        snapshot.failed[site.id],
+        now,
+      ),
+    ),
     ...(snapshot.readError ? { readError: snapshot.readError } : {}),
   }
 }

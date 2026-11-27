@@ -207,6 +207,8 @@ import type {
   ListToolsResponse,
   ListRecordingSitesData,
   ListRecordingSitesResponse,
+  ListSignInSessionsData,
+  ListSignInSessionsResponse,
   ListWebSearchKeysData,
   ListWebSearchKeysResponse,
 } from '../headless/api/generated/types.gen'
@@ -226,6 +228,7 @@ import {
   FAKE_OVERSEER,
   FAKE_PROJECT_NOTES,
   FAKE_RECORDING_SITES,
+  fakeRecordingSignIn,
   FAKE_STORAGE_USAGE,
   FAKE_TEST_PATHS,
   FAKE_TESTS_RESULT,
@@ -416,10 +419,13 @@ const READS: readonly FakeRoute[] = [
     ({ params, missing }) => {
       const site = FAKE_RECORDING_SITES.find((held) => held.id === params.siteId)
       return site
-        ? { ...site, signingIn: true }
+        ? { site: { ...site, signingIn: true }, session: fakeRecordingSignIn(site) }
         : missing(`No fake recording site '${params.siteId}'.`)
     },
   ),
+  read<ListSignInSessionsData, ListSignInSessionsResponse>('/api/v1/sign-in-sessions', () => ({
+    sessions: [],
+  })),
   {
     method: 'GET',
     path: '/api/v1/provider-connections/jira-cloud-id',

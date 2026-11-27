@@ -1,15 +1,20 @@
-import type { RecordingSiteState } from 'thefactory-tools/types'
+import type { RecordingSiteState, SignInSessionState } from 'thefactory-tools/types'
 import { extractErrorMessage } from '../api/errorMessage'
 import { listRecordingSites, startRecordingSiteSignIn } from '../api/recordingSitesApi'
 import type { WsClient } from '../api/WsClient'
 import {
-  recordingSignInNeeded,
+  recordingSignInAskable,
   recordingSiteChangeOf,
-  recordingSitesShown,
   recordingSitesWith,
 } from '../utils/recordingSites'
-import { RECORDING_SITES_EVENT, RECORDING_SITES_TEXT } from '../utils/recordingSitesConstants'
+import {
+  RECORDING_SIGN_IN_KIND,
+  RECORDING_SITES_EVENT,
+  RECORDING_SITES_TEXT,
+} from '../utils/recordingSitesConstants'
 import type { RecordingSitesSnapshot } from '../utils/recordingSitesTypes'
+import { signInEndedNotice } from '../utils/signInSession'
+import type { SignInSessionsStore } from './signInSessionsStore'
 
 const without = (failed: Readonly<Record<string, string>>, siteId: string) =>
   Object.fromEntries(Object.entries(failed).filter(([id]) => id !== siteId))
@@ -19,11 +24,13 @@ const without = (failed: Readonly<Record<string, string>>, siteId: string) =>
  * every view that shows them: read once however many hold them, again when
  * the socket comes back, and kept to the backend's word of each site as it
  * tells it. A sign-in shows at once, is asked for once however often it is
- * pressed — never while one is on its way or its window is open — and rolls
- * back with why.
+ * pressed while the press is on its way, and rolls back with why. The session
+ * the backend opens for it is handed to the app's sign-in sessions to show; a
+ * press on a site whose sign-in is open shows that one again.
  */
 export class RecordingSitesStore {
   private readonly _ws: Pick<WsClient, 'on' | 'onReconnect'>
+  private readonly _signIn: Pick<SignInSessionsStore, 'show' | 'onEnded'> | undefined
   private _sites: readonly RecordingSiteState[] | undefined = undefined
   private _readError: string | undefined = undefined
   private _starting: readonly string[] = []
@@ -39,8 +46,12 @@ export class RecordingSitesStore {
   private readonly _listeners = new Set<() => void>()
   private _shown: RecordingSitesSnapshot | undefined = undefined
 
-  constructor(ws: Pick<WsClient, 'on' | 'onReconnect'>) {
+  constructor(
+    ws: Pick<WsClient, 'on' | 'onReconnect'>,
+    signIn?: Pick<SignInSessionsStore, 'show' | 'onEnded'>,
+  ) {
     this._ws = ws
+    this._signIn = signIn
   }
 
   private _tell(): void {
@@ -54,9 +65,11 @@ export class RecordingSitesStore {
     if (this._holders === 1) {
       const offChange = this._ws.on(RECORDING_SITES_EVENT, (data: unknown) => this._changed(data))
       const offReconnect = this._ws.onReconnect(() => void this.refresh())
+      const offEnded = this._signIn?.onEnded((session) => this._signInEnded(session))
       this._disconnect = () => {
         offChange()
         offReconnect()
+        offEnded?.()
       }
       void this.refresh()
     }
@@ -118,19 +131,28 @@ export class RecordingSitesStore {
     this._tell()
   }
 
+  private _signInEnded(session: SignInSessionState): void {
+    if (session.kind !== RECORDING_SIGN_IN_KIND) return
+    const why = signInEndedNotice(session)
+    if (!why) return
+    this._failed = { ...this._failed, [session.subject]: why }
+    this._tell()
+  }
+
   /**
-   * Open a site's sign-in window: shown at once, asked for only while no
-   * sign-in of the site is going, and rolled back with why. What the backend
-   * told of the site meanwhile stays over the answer.
+   * Open a site's sign-in, or show the one already open: shown at once, sent
+   * only while no press on the site is on its way, and rolled back with why.
+   * What the backend told of the site meanwhile stays over the answer.
    */
   signIn = async (siteId: string): Promise<void> => {
-    if (!recordingSignInNeeded(recordingSitesShown(this._sites, this._starting), siteId)) return
+    if (!recordingSignInAskable(this._sites, this._starting, siteId)) return
     this._starting = [...this._starting, siteId]
     this._failed = without(this._failed, siteId)
     this._tell()
     const told = this._told.get(siteId)
     try {
-      const site = await startRecordingSiteSignIn(siteId)
+      const { site, session } = await startRecordingSiteSignIn(siteId)
+      this._signIn?.show(session)
       if (this._told.get(siteId) === told) {
         this._sites = recordingSitesWith(this._sites, site)
         this._changedAt = this._reads

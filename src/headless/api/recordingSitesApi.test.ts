@@ -25,9 +25,10 @@ describe('the recording site calls', () => {
     )
   })
 
-  it('start a site’s sign-in, answering the site as it now stands', async () => {
-    client.post.mockResolvedValue({ data: { ...LOOM, signingIn: true } })
-    expect(await startRecordingSiteSignIn('loom')).toEqual({ ...LOOM, signingIn: true })
+  it('start a site’s sign-in, answering the site as it now stands and the session the app shows', async () => {
+    const started = { site: { ...LOOM, signingIn: true }, session: { id: 's1', status: 'open' } }
+    client.post.mockResolvedValue({ data: started })
+    expect(await startRecordingSiteSignIn('loom')).toEqual(started)
     expect(client.post).toHaveBeenCalledWith(
       expect.objectContaining({
         url: '/api/v1/recording-sites/{siteId}/sign-in',

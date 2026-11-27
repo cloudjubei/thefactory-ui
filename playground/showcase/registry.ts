@@ -124,6 +124,7 @@ import { COLLEAGUE_REVIEW_SCENES } from '../scenes/colleagueReview'
 import { SLACK_REVIEW_SCENES } from '../scenes/slackReview'
 import { REVIEW_MERGE_CHECKS_SCENES } from '../scenes/reviewMergeChecks'
 import { RECORDING_SITES_SCENES } from '../scenes/recordingSites'
+import { SIGN_IN_SESSION_SCENES } from '../scenes/signInSession'
 import { REVIEW_CLOSE_SCENES } from '../scenes/reviewClose'
 import { REVIEW_RUN_ROUNDS_SCENES } from '../scenes/reviewRunRounds'
 import { REVIEW_RUN_PAGE_SCENES } from '../scenes/reviewRunPage'
@@ -281,6 +282,7 @@ export const SCENES: readonly Scene[] = [
   ...SLACK_REVIEW_SCENES,
   ...REVIEW_MERGE_CHECKS_SCENES,
   ...RECORDING_SITES_SCENES,
+  ...SIGN_IN_SESSION_SCENES,
   ...REVIEW_RUN_ROUNDS_SCENES,
   ...REVIEW_CLOSE_SCENES,
   ...REVIEW_RUN_PAGE_SCENES,

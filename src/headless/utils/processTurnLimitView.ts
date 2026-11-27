@@ -109,6 +109,22 @@ export function processRetryPickStart(
   }
 }
 
+/**
+ * What answering with `offer` sends of a retry pick: a turn limit only for the
+ * retry that raises it — the one picked, else the offered one — and never for
+ * trying again on the same limit, whatever was picked before.
+ */
+export function processRetryAnswerPick(
+  offer: ProcessParkChoice,
+  pick: ProcessRetryPick,
+  moreTries?: ProcessManagerMoreTries,
+): ProcessRetryPick {
+  const { turnLimit, ...rest } = pick
+  if (!offer.turnLimit) return rest
+  const raised = turnLimit ?? processRetryPickStart(offer, moreTries).turnLimit
+  return raised ? { ...rest, turnLimit: raised } : rest
+}
+
 /** The turn-limit control a park's raise starts from: the offered limit, on the run's transport. */
 export function processRetryTurnLimitView(
   run: Pick<ProcessRun, 'turnLimit' | 'input' | 'modelOverride'>,

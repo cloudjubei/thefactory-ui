@@ -22,15 +22,17 @@ export interface RecordingSiteRowView {
   state: RecordingSiteRowState
   stateLabel: string
   tone: ProcessStatusTone
-  /** The sign-in window is open, or on its way. */
+  /** A sign-in of the site is open, or on its way. */
   signingIn: boolean
-  /** "Sign in to Loom", or "Sign in again" once signed in. */
+  /** The press is on its way to the backend: the button waits. */
+  busy: boolean
+  /** "Sign in to Loom", "Sign in again" once signed in, or "Show sign-in" while one is open. */
   action: string
-  /** The action is the row's main one: the person is not signed in. */
+  /** The action is the row's main one: the person is not signed in, or a sign-in is open. */
   primary: boolean
   /** When the sign-in was last seen on the site, in a line. */
   checked?: string
-  /** Where the sign-in window is, while it is open. */
+  /** What an open sign-in does next. */
   hint?: string
   /** Why the last sign-in did not start. */
   error?: string

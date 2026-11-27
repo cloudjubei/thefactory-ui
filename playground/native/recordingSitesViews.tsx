@@ -66,8 +66,8 @@ function Recordings({ address }: { address: URLSearchParams }) {
 
 /**
  * The person's recording sign-ins on mobile, at `?view=recording-sites&state=…`: not-checked,
- * signed-out, signing-in, signed-in, signing-in-again, sign-in-failed, loading, read-failed,
- * in-settings — as the web scene.
+ * signed-out, starting, signing-in, signed-in, signing-in-again, sign-in-failed, timed-out, loading,
+ * read-failed, in-settings — as the web scene.
  */
 export const RECORDING_SITES_VIEWS: readonly NativeView[] = [
   { id: 'recording-sites', title: 'Recordings', render: (a) => <Recordings address={a} /> },

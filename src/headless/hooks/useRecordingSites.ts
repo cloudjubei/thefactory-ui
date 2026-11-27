@@ -4,6 +4,7 @@ import { useAuth } from '../api/AuthContext'
 import { recordingSitesView } from '../utils/recordingSites'
 import type { RecordingSitesView } from '../utils/recordingSitesTypes'
 import { RecordingSitesStore } from './recordingSitesStore'
+import { signInSessionsStoreFor } from './useSignInSession'
 
 type WsLike = ReturnType<typeof useApi>['ws']
 
@@ -12,14 +13,14 @@ const stores = new WeakMap<WsLike, RecordingSitesStore>()
 function storeFor(ws: WsLike): RecordingSitesStore {
   const existing = stores.get(ws)
   if (existing) return existing
-  const store = new RecordingSitesStore(ws)
+  const store = new RecordingSitesStore(ws, signInSessionsStoreFor(ws))
   stores.set(ws, store)
   return store
 }
 
 export type UseRecordingSites = {
   view: RecordingSitesView
-  /** Open a site's sign-in window on the backend's machine: shown at once, rolled back with why. */
+  /** Open a site's sign-in inside the app, or show the one already open: shown at once, rolled back with why. */
   signIn: (siteId: string) => void
 }
 

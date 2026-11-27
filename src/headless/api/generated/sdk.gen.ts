@@ -69,6 +69,9 @@ import type {
   AnswerRunThroughIssueData,
   AnswerRunThroughIssueErrors,
   AnswerRunThroughIssueResponses,
+  AnswerSignInSessionData,
+  AnswerSignInSessionErrors,
+  AnswerSignInSessionResponses,
   ApplyCliAgentArtifactData,
   ApplyCliAgentArtifactErrors,
   ApplyCliAgentArtifactResponses,
@@ -160,6 +163,9 @@ import type {
   CloseRemoteBrowserSessionData,
   CloseRemoteBrowserSessionErrors,
   CloseRemoteBrowserSessionResponses,
+  CloseSignInSessionData,
+  CloseSignInSessionErrors,
+  CloseSignInSessionResponses,
   CompactChatNowData,
   CompactChatNowErrors,
   CompactChatNowResponses,
@@ -1012,6 +1018,8 @@ import type {
   ListRunWalkthroughItemsData,
   ListRunWalkthroughItemsErrors,
   ListRunWalkthroughItemsResponses,
+  ListSignInSessionsData,
+  ListSignInSessionsResponses,
   ListSourceRecordsData,
   ListSourceRecordsErrors,
   ListSourceRecordsResponses,
@@ -1315,6 +1323,9 @@ import type {
   ResizeRemoteBrowserData,
   ResizeRemoteBrowserErrors,
   ResizeRemoteBrowserResponses,
+  ResizeSignInSessionData,
+  ResizeSignInSessionErrors,
+  ResizeSignInSessionResponses,
   ResolveCliRunReviewToBaseData,
   ResolveCliRunReviewToBaseErrors,
   ResolveCliRunReviewToBaseResponses,
@@ -1458,6 +1469,9 @@ import type {
   SendRemoteBrowserInputData,
   SendRemoteBrowserInputErrors,
   SendRemoteBrowserInputResponses,
+  SendSignInSessionInputData,
+  SendSignInSessionInputErrors,
+  SendSignInSessionInputResponses,
   ServeDesignPlaygroundData,
   ServeDesignPlaygroundResponses,
   SetActiveCliData,
@@ -10176,7 +10190,7 @@ export const dismissColleagueReviewOffer = <ThrowOnError extends boolean = false
   })
 
 /**
- * The sites recordings are fetched from, each with the person’s sign-in as last seen and whether its sign-in window is open. Reads what is remembered: no site is opened. Changes come as `recordingSites:changed` on the socket.
+ * The sites recordings are fetched from, each with the person’s sign-in as last seen and whether a sign-in of it is going. Reads what is remembered: no site is opened. Changes come as `recordingSites:changed` on the socket.
  */
 export const listRecordingSites = <ThrowOnError extends boolean = false>(
   options?: Options<ListRecordingSitesData, ThrowOnError>,
@@ -10189,7 +10203,7 @@ export const listRecordingSites = <ThrowOnError extends boolean = false>(
   })
 
 /**
- * Open the site’s sign-in page in the person’s browser profile, in a window on the machine this backend runs on, and answer at once with the site, `signingIn`. The window closes once the site shows them signed in; the outcome comes as `recordingSites:changed`. Asking again while the window is open opens nothing more. 404 for a site that is not one of them, 409 while another site’s window is open, 502 when the browser could not be opened.
+ * Open the site’s sign-in page in the person’s browser profile, out of sight on the machine this backend runs on, as a sign-in session: the answer is the site, `signingIn`, and the session, whose page the app shows (`remoteBrowser:watch` under the sign-in scope) and drives through the `sign-in-sessions` routes. The session ends once the site shows them signed in; the outcome comes as `recordingSites:changed` and `signInSessions:changed`. Asking again while it is open opens nothing more and answers the open session. 404 for a site that is not one of them, 409 while another site’s sign-in is open, 502 when it could not be opened.
  */
 export const startRecordingSiteSignIn = <ThrowOnError extends boolean = false>(
   options: Options<StartRecordingSiteSignInData, ThrowOnError>,
@@ -10203,6 +10217,99 @@ export const startRecordingSiteSignIn = <ThrowOnError extends boolean = false>(
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/recording-sites/{siteId}/sign-in',
     ...options,
+  })
+
+/**
+ * The person’s open sign-in sessions. One that ended is no longer listed: how it ended came as `signInSessions:changed` on the socket.
+ */
+export const listSignInSessions = <ThrowOnError extends boolean = false>(
+  options?: Options<ListSignInSessionsData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<ListSignInSessionsResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/sign-in-sessions',
+    ...options,
+  })
+
+/**
+ * Close a sign-in session by hand. Whatever it was opened for keeps what it last saw of the sign-in. 404 for a session that is not open.
+ */
+export const closeSignInSession = <ThrowOnError extends boolean = false>(
+  options: Options<CloseSignInSessionData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<
+    CloseSignInSessionResponses,
+    CloseSignInSessionErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/sign-in-sessions/{sessionId}',
+    ...options,
+  })
+
+/**
+ * Click, move, turn the wheel at a viewport point, press a key, or insert text, on a sign-in session’s page. What is typed goes to the page and is kept nowhere. 409 for a session that shows no page.
+ */
+export const sendSignInSessionInput = <ThrowOnError extends boolean = false>(
+  options: Options<SendSignInSessionInputData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    SendSignInSessionInputResponses,
+    SendSignInSessionInputErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/sign-in-sessions/{sessionId}/input',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Resize a sign-in session’s page, as the person’s view of it changes size.
+ */
+export const resizeSignInSession = <ThrowOnError extends boolean = false>(
+  options: Options<ResizeSignInSessionData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    ResizeSignInSessionResponses,
+    ResizeSignInSessionErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/sign-in-sessions/{sessionId}/resize',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Give a sign-in session the value its prompt asks for, such as a code the outside service showed. It goes to whatever opened the session and is kept nowhere. 404 for a session that is not open, 409 when it asks for nothing or does not take the value.
+ */
+export const answerSignInSession = <ThrowOnError extends boolean = false>(
+  options: Options<AnswerSignInSessionData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    AnswerSignInSessionResponses,
+    AnswerSignInSessionErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/sign-in-sessions/{sessionId}/answer',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
   })
 
 /**

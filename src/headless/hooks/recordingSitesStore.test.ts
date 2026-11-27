@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { RecordingSiteState } from 'thefactory-tools/types'
+import type { RecordingSiteState, SignInSessionState } from 'thefactory-tools/types'
 
 const api = vi.hoisted(() => ({
   listRecordingSites: vi.fn(),
@@ -9,6 +9,7 @@ const api = vi.hoisted(() => ({
 vi.mock('../api/recordingSitesApi', () => api)
 
 import { RECORDING_SITES_EVENT, RECORDING_SITES_TEXT } from '../utils/recordingSitesConstants'
+import { SIGN_IN_SESSION_TEXT } from '../utils/signInSessionConstants'
 import { RecordingSitesStore } from './recordingSitesStore'
 
 const LOOM: RecordingSiteState = { id: 'loom', name: 'Loom', state: 'unknown', signingIn: false }
@@ -23,6 +24,34 @@ const SIGNED_IN: RecordingSiteState = {
   ...LOOM,
   state: 'signed-in',
   checkedAt: '2026-11-26T12:00:00.000Z',
+}
+
+const SESSION: SignInSessionState = {
+  id: 's1',
+  kind: 'recording-site',
+  subject: 'loom',
+  title: 'Sign in to Loom',
+  status: 'open',
+  surface: { kind: 'browser' },
+  startedAt: '2026-11-26T12:00:00.000Z',
+  expiresAt: '2026-11-26T12:15:00.000Z',
+}
+const STARTED = { site: OPEN, session: SESSION }
+type Started = typeof STARTED
+
+function fakeSignIn() {
+  const endings = new Set<(session: SignInSessionState) => void>()
+  return {
+    show: vi.fn(),
+    onEnded: (listener: (session: SignInSessionState) => void) => {
+      endings.add(listener)
+      return () => {
+        endings.delete(listener)
+      }
+    },
+    end: (session: SignInSessionState) => endings.forEach((ending) => ending(session)),
+    held: () => endings.size,
+  }
 }
 
 const deferred = <T>() => {
@@ -153,7 +182,7 @@ describe('RecordingSitesStore', () => {
   })
 
   it('shows a sign-in at once, asks once however often it is pressed, and keeps the backend’s answer', async () => {
-    const answer = deferred<RecordingSiteState>()
+    const answer = deferred<Started>()
     api.startRecordingSiteSignIn.mockReturnValue(answer.promise)
     const store = new RecordingSitesStore(fakeWs())
     await ready(store)
@@ -168,12 +197,77 @@ describe('RecordingSitesStore', () => {
     expect(api.startRecordingSiteSignIn).toHaveBeenCalledTimes(1)
     expect(api.startRecordingSiteSignIn).toHaveBeenCalledWith('loom')
 
-    answer.resolve(OPEN)
+    answer.resolve(STARTED)
     await going
     expect(store.snapshot()).toMatchObject({ sites: [OPEN, FATHOM], starting: [], failed: {} })
+  })
 
+  it('hands the session a sign-in opened to the app to show', async () => {
+    api.startRecordingSiteSignIn.mockResolvedValue(STARTED)
+    const signIn = fakeSignIn()
+    const store = new RecordingSitesStore(fakeWs(), signIn)
+    await ready(store)
     await store.signIn('loom')
-    expect(api.startRecordingSiteSignIn).toHaveBeenCalledTimes(1)
+    expect(signIn.show).toHaveBeenCalledTimes(1)
+    expect(signIn.show).toHaveBeenCalledWith(SESSION)
+  })
+
+  it('a press on a site whose sign-in is open asks again, and shows the open one once more', async () => {
+    api.startRecordingSiteSignIn.mockResolvedValue(STARTED)
+    const signIn = fakeSignIn()
+    const store = new RecordingSitesStore(fakeWs(), signIn)
+    await ready(store)
+    await store.signIn('loom')
+    expect(loom(store)?.signingIn).toBe(true)
+    await store.signIn('loom')
+    expect(api.startRecordingSiteSignIn).toHaveBeenCalledTimes(2)
+    expect(signIn.show).toHaveBeenCalledTimes(2)
+    expect(signIn.show).toHaveBeenLastCalledWith(SESSION)
+  })
+
+  it('shows nothing when the sign-in did not open', async () => {
+    api.startRecordingSiteSignIn.mockRejectedValueOnce(refusal(502, 'No browser on this machine'))
+    const signIn = fakeSignIn()
+    const store = new RecordingSitesStore(fakeWs(), signIn)
+    await ready(store)
+    await store.signIn('loom')
+    expect(signIn.show).not.toHaveBeenCalled()
+  })
+
+  it('says on the site’s row why its sign-in ended without one, and nothing when it finished or was closed', async () => {
+    const signIn = fakeSignIn()
+    const store = new RecordingSitesStore(fakeWs(), signIn)
+    await ready(store)
+    signIn.end({ ...SESSION, status: 'finished' })
+    signIn.end({ ...SESSION, status: 'closed' })
+    expect(store.snapshot().failed).toStrictEqual({})
+    signIn.end({ ...SESSION, status: 'timed-out' })
+    expect(store.snapshot().failed).toEqual({ loom: SIGN_IN_SESSION_TEXT.timedOut })
+    signIn.end({ ...SESSION, subject: 'fathom', status: 'failed', error: 'The browser closed.' })
+    expect(store.snapshot().failed).toEqual({
+      loom: SIGN_IN_SESSION_TEXT.timedOut,
+      fathom: 'The browser closed.',
+    })
+  })
+
+  it('hears nothing of a sign-in that is not a recording site’s', async () => {
+    const signIn = fakeSignIn()
+    const store = new RecordingSitesStore(fakeWs(), signIn)
+    await ready(store)
+    const drawn = vi.fn()
+    store.listen(drawn)
+    signIn.end({ ...SESSION, kind: 'cli', status: 'timed-out' })
+    expect(store.snapshot().failed).toEqual({})
+    expect(drawn).not.toHaveBeenCalled()
+  })
+
+  it('stops hearing of sign-ins ending once the last holder lets go', async () => {
+    const signIn = fakeSignIn()
+    const store = new RecordingSitesStore(fakeWs(), signIn)
+    const release = store.retain()
+    expect(signIn.held()).toBe(1)
+    release()
+    expect(signIn.held()).toBe(0)
   })
 
   it('asks for nothing before the sites are read, or for a site it does not list', async () => {
@@ -186,8 +280,8 @@ describe('RecordingSitesStore', () => {
   })
 
   it('signs in to two sites side by side', async () => {
-    const first = deferred<RecordingSiteState>()
-    const second = deferred<RecordingSiteState>()
+    const first = deferred<Started>()
+    const second = deferred<Started>()
     api.startRecordingSiteSignIn
       .mockReturnValueOnce(first.promise)
       .mockReturnValueOnce(second.promise)
@@ -196,7 +290,7 @@ describe('RecordingSitesStore', () => {
     const a = store.signIn('loom')
     const b = store.signIn('fathom')
     expect(store.snapshot().starting).toEqual(['loom', 'fathom'])
-    first.resolve(OPEN)
+    first.resolve(STARTED)
     await a
     expect(store.snapshot().starting).toEqual(['fathom'])
     second.reject(refusal(502, 'No browser on this machine'))
@@ -217,12 +311,12 @@ describe('RecordingSitesStore', () => {
     expect(shownLoom(store)).toEqual({ signingIn: false, state: 'unknown' })
     expect(store.snapshot().failed).toEqual({ loom: 'No browser on this machine' })
 
-    const answer = deferred<RecordingSiteState>()
+    const answer = deferred<Started>()
     api.startRecordingSiteSignIn.mockReturnValueOnce(answer.promise)
     const again = store.signIn('loom')
     expect(store.snapshot().failed).toEqual({})
     expect(shownLoom(store).signingIn).toBe(true)
-    answer.resolve(OPEN)
+    answer.resolve(STARTED)
     await again
     expect(api.startRecordingSiteSignIn).toHaveBeenCalledTimes(2)
   })
@@ -254,7 +348,7 @@ describe('RecordingSitesStore', () => {
 
   it('offers the sign-in again once the window closed without one', async () => {
     const ws = fakeWs()
-    api.startRecordingSiteSignIn.mockResolvedValue(OPEN)
+    api.startRecordingSiteSignIn.mockResolvedValue(STARTED)
     const store = new RecordingSitesStore(ws)
     await ready(store)
     await store.signIn('loom')
@@ -276,7 +370,7 @@ describe('RecordingSitesStore', () => {
 
   it('keeps what an event told over the answer to a sign-in asked before it', async () => {
     const ws = fakeWs()
-    const answer = deferred<RecordingSiteState>()
+    const answer = deferred<Started>()
     api.startRecordingSiteSignIn.mockReturnValue(answer.promise)
     const store = new RecordingSitesStore(ws)
     await ready(store)
@@ -284,21 +378,21 @@ describe('RecordingSitesStore', () => {
     const going = store.signIn('loom')
     ws.emit(RECORDING_SITES_EVENT, { site: SIGNED_IN })
     expect(store.snapshot().starting).toEqual(['loom'])
-    answer.resolve(OPEN)
+    answer.resolve(STARTED)
     await going
     expect(store.snapshot()).toMatchObject({ sites: [SIGNED_IN, FATHOM], starting: [] })
   })
 
   it('takes the sign-in’s answer when the event in between was about another site', async () => {
     const ws = fakeWs()
-    const answer = deferred<RecordingSiteState>()
+    const answer = deferred<Started>()
     api.startRecordingSiteSignIn.mockReturnValue(answer.promise)
     const store = new RecordingSitesStore(ws)
     await ready(store)
 
     const going = store.signIn('loom')
     ws.emit(RECORDING_SITES_EVENT, { site: { ...FATHOM, state: 'signed-in' } })
-    answer.resolve(OPEN)
+    answer.resolve(STARTED)
     await going
     expect(store.snapshot().sites).toEqual([OPEN, { ...FATHOM, state: 'signed-in' }])
   })
@@ -338,7 +432,10 @@ describe('RecordingSitesStore', () => {
     await failed
     expect(store.snapshot().readError).toBeUndefined()
 
-    api.startRecordingSiteSignIn.mockResolvedValue({ ...FATHOM, signingIn: true })
+    api.startRecordingSiteSignIn.mockResolvedValue({
+      site: { ...FATHOM, signingIn: true },
+      session: { ...SESSION, subject: 'fathom' },
+    })
     const late = deferred<RecordingSiteState[]>()
     api.listRecordingSites.mockReturnValueOnce(late.promise)
     const third = store.refresh()

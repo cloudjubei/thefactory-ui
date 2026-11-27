@@ -8,6 +8,7 @@ import type { ProcessParkChoice } from 'thefactory-tools/types'
 import {
   processGrantTurnLimitView,
   processLaunchTurnLimitView,
+  processRetryAnswerPick,
   processRetryChoiceOf,
   processRetryPickStart,
   processRetryTurnLimitView,
@@ -179,6 +180,31 @@ describe('processGrantTurnLimitView', () => {
     expect(processGrantTurnLimitView({ limitTurns: true, maxTurns: 0 }, 'api')).toMatchObject({
       limited: true,
       maxTurns: 50,
+    })
+  })
+})
+
+describe('processRetryAnswerPick', () => {
+  const again: ProcessParkChoice = {
+    choice: 'retry',
+    label: 'Try again from where it stopped',
+    detail: 'd',
+    retry: { canContinue: true, defaultMode: 'fresh', reason: 'r' },
+  }
+  const picked = { retryMode: 'fresh' as const, turnLimit: { limitTurns: true, maxTurns: 140 } }
+
+  it('sends no turn limit for a retry that does not raise one, whatever was picked', () => {
+    expect(processRetryAnswerPick(again, picked)).toEqual({ retryMode: 'fresh' })
+  })
+
+  it('sends the picked turn limit for the raise', () => {
+    expect(processRetryAnswerPick(retry, picked)).toEqual(picked)
+  })
+
+  it('sends the offered limit for the raise when none was picked', () => {
+    expect(processRetryAnswerPick(retry, { retryMode: 'fresh' })).toEqual({
+      retryMode: 'fresh',
+      turnLimit: { limitTurns: true, maxTurns: 100 },
     })
   })
 })

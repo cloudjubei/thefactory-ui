@@ -69,3 +69,6 @@ export const PARK_ANSWERS_COPY = {
   answersComing: 'You’ll get its answers to choose from here — nothing to write.',
   cancel: 'Cancel',
 } as const
+
+/** What a retry that raises the turn limit adds to its answer's key, so it is never taken for trying again on the same limit. */
+export const PARK_RAISE_KEY = 'raise'
