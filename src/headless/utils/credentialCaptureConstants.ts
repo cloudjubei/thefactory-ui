@@ -301,9 +301,9 @@ export const CAPTURE_FIELD_REQUIRED = 'Required.'
 export const CAPTURE_CARD_PRIVACY_NOTE =
   'These go straight to your encrypted credential store. Nothing you type here enters the chat — the agent is only told which credential was created.'
 
-/** The same promise on a sign-in card, where what is entered is the provider's sign-in code. */
+/** The same promise on a sign-in card, where the person signs in on the provider's page inside the app. */
 export const CLI_SIGN_IN_PRIVACY_NOTE =
-  'You sign in on the provider’s own page. The code you paste here goes straight to the sign-in and never enters the chat — the agent is only told which login is ready.'
+  'You sign in on the provider’s own page, shown here in the app. What you enter there goes straight to the sign-in and never enters the chat — the agent is only told which login is ready.'
 
 /** The promise on a server card, where the one thing that must stay out of the chat is a token. */
 export const MCP_CAPTURE_PRIVACY_NOTE =
@@ -316,23 +316,6 @@ export const MCP_CAPTURE_SIGN_IN_NOTE =
 export const MCP_CAPTURE_SUBMIT_LABEL = 'Add server'
 
 export const CLI_SIGN_IN_START_LABEL = 'Sign in'
-
-export const CLI_SIGN_IN_OPEN_LINK = 'Open the sign-in page ↗'
-
-export const CLI_SIGN_IN_COPY_LINK = 'Copy link'
-
-export const CLI_SIGN_IN_STARTING = 'Starting the sign-in…'
-
-export const CLI_SIGN_IN_AUTHORIZE_HINT =
-  'Authorize in your browser, then come back — this card updates by itself.'
-
-export const CLI_SIGN_IN_CODE_LABEL = 'Paste the code shown after you authorize'
-
-export const CLI_SIGN_IN_CODE_PLACEHOLDER = 'Paste code'
-
-export const CLI_SIGN_IN_CODE_SUBMIT = 'Submit'
-
-export const CLI_SIGN_IN_START_ERROR = 'Could not start the sign-in.'
 
 export const CAPTURE_PURPOSE_LABEL = 'What for'
 

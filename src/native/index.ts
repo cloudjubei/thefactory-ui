@@ -1011,10 +1011,6 @@ export {
   default as AgentTypeSlotChooser,
   type AgentTypeSlotChooserProps,
 } from './compound/chat/AgentTypeSlotChooser'
-export {
-  default as GithubConnectModal,
-  type GithubConnectModalProps,
-} from './compound/projects/GithubConnectModal'
 
 // Settings compounds
 export {

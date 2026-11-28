@@ -11,7 +11,6 @@ import {
   readProviderSignIn,
   startProviderOAuth,
   updateProviderConnection,
-  withdrawProviderSignIn,
   type GetProviderConnectionResponse,
   type ImportConnectionItemResponse,
   type ListConnectionAssignedItemsResponse,
@@ -37,6 +36,7 @@ import type {
   ProviderOAuthActions,
   ProviderSignInReport,
 } from '../utils/providerConnectionFormTypes'
+import { signInSessionsStoreFor } from '../hooks/useSignInSession'
 
 /** PATCH body for a provider connection (every create field, all optional). */
 export type ProviderConnectionEditInput = UpdateProviderConnectionData['body']
@@ -51,7 +51,7 @@ export type ProviderConnectionsContextValue = {
     patch: ProviderConnectionEditInput,
   ) => Promise<GetProviderConnectionResponse>
   deleteConnection: (id: string) => Promise<void>
-  /** Sign in with a provider: which ones can, the page to open, and how it ended. */
+  /** Sign in with a provider inside the app: which ones can, the session to show, and how it ended. */
   oauth: ProviderOAuthActions
   refresh: () => Promise<void>
   /** The statuses a sign-off can move a ticket to through this connection, within these project keys. */
@@ -171,7 +171,7 @@ export function ProviderConnectionsProvider({ children }: { children: ReactNode 
       setup: oauthSetup,
       start: async (provider, body) => {
         const { data } = await startProviderOAuth({ path: { provider }, body, throwOnError: true })
-        return { page: data.authorizationUrl, signInId: data.signInId }
+        return { signInId: data.signInId, session: data.session }
       },
       read: async (signInId) => {
         try {
@@ -183,10 +183,9 @@ export function ProviderConnectionsProvider({ children }: { children: ReactNode 
           throw err
         }
       },
-      withdraw: async (signInId) => {
-        await withdrawProviderSignIn({ path: { signInId }, throwOnError: true })
-      },
+      show: signInSessionsStoreFor(ws).show,
       onReport: (listener) => ws.on<ProviderSignInReport>(PROVIDER_SIGN_IN_EVENT, listener),
+      onEnded: signInSessionsStoreFor(ws).onEnded,
       onReconnect: (listener) => ws.onReconnect(listener),
     }),
     [oauthSetup, refresh, ws],

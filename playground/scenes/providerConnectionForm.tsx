@@ -10,6 +10,7 @@ import {
   type ProviderConnectionMethod,
   type ProviderOAuthActions,
   type ProviderOAuthState,
+  SIGN_IN_SESSION_TEXT,
 } from 'thefactory-ui/headless'
 import { ProviderConnectionsForm, SegmentedControl } from 'thefactory-ui/web'
 // Not on the package's public surface: the chat renders it itself.
@@ -23,6 +24,8 @@ import type { CredentialCapture } from '../../src/headless/utils/credentialCaptu
 import type { Scene, SceneState } from '../showcase/types'
 import { Dock } from './askRows'
 import { OnFixtures } from './onFixtures'
+import { useFakeProviderOAuth, WithSignInView } from './inAppSignInFixtures'
+import { fakeSignInSession } from './inAppSignInSessions'
 
 const page = (node: ReactNode) => <div className="w-[560px] max-w-full p-4">{node}</div>
 const phone = (node: ReactNode) => <div className="w-[390px] max-w-full p-4">{node}</div>
@@ -30,23 +33,23 @@ const phone = (node: ReactNode) => <div className="w-[390px] max-w-full p-4">{no
 const noop = () => {}
 const kept = async () => undefined
 const never = () => new Promise<void>(noop)
-const SIGN_IN_PAGE = 'https://auth.atlassian.com/authorize?state=s1'
-const SIGN_IN_ID = 'sign-in-1'
+const JIRA_SESSION = fakeSignInSession(
+  'sign-in-jira',
+  'provider-connection',
+  'jira',
+  'Sign in to Jira',
+)
 const OAUTH: ProviderOAuthActions = {
   setup: { github: true, jira: true },
-  start: async () => ({ page: SIGN_IN_PAGE, signInId: SIGN_IN_ID }),
-  read: async () => ({ signInId: SIGN_IN_ID, status: 'waiting' }),
-  withdraw: kept,
+  start: async () => ({ signInId: 'sign-in-1', session: JIRA_SESSION }),
+  read: async () => ({ signInId: 'sign-in-1', status: 'waiting' }),
+  show: noop,
   onReport: () => noop,
+  onEnded: () => noop,
   onReconnect: () => noop,
 }
 const OAUTH_NOT_SET_UP: ProviderOAuthActions = { ...OAUTH, setup: { github: false, jira: false } }
-const WAITING: ProviderOAuthState = {
-  step: 'waiting',
-  page: SIGN_IN_PAGE,
-  signInId: SIGN_IN_ID,
-  error: null,
-}
+const STARTING: ProviderOAuthState = { step: 'starting', error: null }
 
 type FormOptions = {
   draft?: Partial<ProviderConnectionDraft>
@@ -200,6 +203,30 @@ function Card({
   )
 }
 
+function SignInFlowForm() {
+  const [connected, setConnected] = useState(false)
+  const oauth = useFakeProviderOAuth(OAUTH.setup, JIRA_SESSION)
+  if (connected)
+    return <p className="text-sm">Connected: the form closed and the list shows the connection.</p>
+  return (
+    <ProviderConnectionsForm
+      mode={{ kind: 'create', onSubmit: kept }}
+      onCancel={() => setConnected(true)}
+      oauth={oauth}
+      initialDraft={{ ...JIRA, cloudId: CLOUD_ID }}
+      initialMethod="oauth"
+    />
+  )
+}
+
+function SignInFlow() {
+  return page(
+    <WithSignInView routes={{}}>
+      <SignInFlowForm />
+    </WithSignInView>,
+  )
+}
+
 export const PROVIDER_CONNECTION_FORM_SCENES: Scene[] = [
   {
     id: 'provider-connection-form',
@@ -207,7 +234,7 @@ export const PROVIDER_CONNECTION_FORM_SCENES: Scene[] = [
     component: 'ProviderConnectionsForm',
     group: 'Settings',
     description:
-      'Adding a ticket connection in Settings → Tickets on all three apps: GitHub Issues, Jira or Azure DevOps with a token, and Connect with GitHub or Jira where the backend has sign-in set up. The browser returns to the backend and the form moves on by itself. A token is never shown back: blank on edit keeps it. Three ways of offering sign-in; two choices ship.',
+      'Adding a ticket connection in Settings → Tickets on all three apps: GitHub Issues, Jira or Azure DevOps with a token, and Connect with GitHub or Jira where the backend has sign-in set up. The provider’s own page shows inside the app and the form moves on by itself once it ends. A token is never shown back: blank on edit keeps it. Three ways of offering sign-in; two choices ship.',
     states: [
       {
         id: 'choose-layout',
@@ -363,22 +390,43 @@ export const PROVIDER_CONNECTION_FORM_SCENES: Scene[] = [
           ),
       },
       {
-        id: 'sign-in-waiting',
-        title: 'Finishing in the browser',
+        id: 'sign-in-starting',
+        title: 'Opening the sign-in',
         description:
-          'The browser returns to the backend, so nothing is pasted: this moves on by itself. It waits as long as the person does, with no timer. Closed the browser? Open the page again, or Cancel sign-in, which withdraws it so a late return changes nothing.',
-        render: () => page(create({ draft: JIRA, signIn: WAITING })),
+          'Shown at once on the press, while the backend opens Jira’s page. Pressing again sends nothing more.',
+        render: () => page(create({ method: 'oauth', draft: JIRA, signIn: STARTING })),
       },
       {
-        id: 'sign-in-waiting-phone',
-        title: 'Finishing in the browser, on a phone',
+        id: 'sign-in-starting-phone',
+        title: 'Opening the sign-in, on a phone',
         description: 'The small-screen width: the mobile app’s native view follows this.',
-        render: () => phone(create({ draft: JIRA, signIn: WAITING })),
+        render: () => phone(create({ method: 'oauth', draft: JIRA, signIn: STARTING })),
+      },
+      {
+        id: 'sign-in-flow',
+        title: 'Press, sign in inside the app, back on the form',
+        description:
+          'Press Connect with Jira: Jira’s own page shows inside the app, over the form (a made-up session here, so the page stays on opening). The showcase bar ends it as the backend would: signed in closes the form, ran out or failed says why on the form. Closing the sign-in goes back to the form silently.',
+        render: () => <SignInFlow />,
+      },
+      {
+        id: 'sign-in-timed-out',
+        title: 'The sign-in ran out',
+        description:
+          'Nobody finished it for 15 minutes: it closed by itself, and the form says so.',
+        render: () =>
+          page(
+            create({
+              method: 'oauth',
+              draft: JIRA,
+              signIn: { step: 'ready', error: SIGN_IN_SESSION_TEXT.timedOut },
+            }),
+          ),
       },
       {
         id: 'sign-in-declined',
         title: 'Cancelled at the provider',
-        description: 'The provider sent the browser back with an error. Nothing changed.',
+        description: 'The person said no on the provider’s page. Nothing changed.',
         render: () =>
           page(
             create({
@@ -392,7 +440,7 @@ export const PROVIDER_CONNECTION_FORM_SCENES: Scene[] = [
         id: 'sign-in-failed',
         title: 'The sign-in did not finish',
         description:
-          'The provider’s code could not be exchanged, the Jira site was not reachable with this account, or the browser came back very late. The form is told, and says so.',
+          'The provider’s code could not be exchanged, or the Jira site was not reachable with this account. The form is told, and says so.',
         render: () =>
           page(
             create({
@@ -435,10 +483,10 @@ export const PROVIDER_CONNECTION_FORM_SCENES: Scene[] = [
         render: () => phone(edit('oauth')),
       },
       {
-        id: 'reconnect-waiting',
-        title: 'Reconnecting in the browser',
-        description: 'The same wait as a first sign-in, and the same way out.',
-        render: () => page(edit('oauth', { signIn: WAITING })),
+        id: 'reconnect-starting',
+        title: 'Reconnecting',
+        description: 'The same press as a first sign-in: Jira’s page shows inside the app.',
+        render: () => page(edit('oauth', { signIn: STARTING })),
       },
       {
         id: 'reconnect-failed',

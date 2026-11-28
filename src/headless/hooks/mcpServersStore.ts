@@ -1,3 +1,4 @@
+import type { SignInSessionState } from 'thefactory-tools/types'
 import { extractErrorMessage } from '../api/errorMessage'
 import {
   addMcpServer,
@@ -9,12 +10,9 @@ import {
   startMcpServerSignIn,
   testMcpServer,
 } from '../api/mcpServersApi'
-import { isMcpSignInPage, mcpSignInRedirectUrl } from '../utils/mcpServers'
 import {
   MCP_SERVER_ADD_FAILED,
-  MCP_SERVER_BAD_SIGN_IN_PAGE,
   MCP_SERVER_EDIT_FAILED,
-  MCP_SERVER_NO_BACKEND,
   MCP_SERVER_READ_FAILED,
   MCP_SERVER_REMOVE_FAILED,
   MCP_SERVER_SIGN_IN_FAILED,
@@ -29,6 +27,8 @@ import type {
   McpServersState,
   McpServerStanding,
 } from '../utils/mcpServersTypes'
+import { signInEndedNotice } from '../utils/signInSession'
+import type { SignInSessionsStore } from './signInSessionsStore'
 
 const EMPTY: McpServersState = {
   rows: undefined,
@@ -49,18 +49,44 @@ const without = <T>(map: Readonly<Record<string, T>>, key: string): Record<strin
 /**
  * One owner's MCP servers as its Settings show them: the list first, the status
  * when it comes in (it can take seconds), and every read again after a change.
- * A token passes through to the backend and is never kept here.
+ * A token passes through to the backend and is never kept here. A sign-in shows
+ * at once, is asked for once however often it is pressed, and its session is
+ * shown inside the app; a press while it is open shows it again. Once the
+ * session ends the servers are read again when it finished, and why is said
+ * when it ran out or failed.
  */
 export class McpServersStore {
   private _state: McpServersState = EMPTY
   private _reads = 0
   private readonly _listeners = new Set<() => void>()
   private readonly _owner: McpServerOwner
-  private readonly _backendUrl: () => string | null | undefined
+  private readonly _signIn: Pick<SignInSessionsStore, 'show' | 'onEnded'> | undefined
+  /** Endings heard while a start is on its way: its session may be among them. */
+  private _heard: SignInSessionState[] = []
+  private _holders = 0
+  private _disconnect: (() => void) | undefined = undefined
 
-  constructor(owner: McpServerOwner, backendUrl: () => string | null | undefined) {
+  constructor(owner: McpServerOwner, signIn?: Pick<SignInSessionsStore, 'show' | 'onEnded'>) {
     this._owner = owner
-    this._backendUrl = backendUrl
+    this._signIn = signIn
+  }
+
+  /** Hear the endings of the sign-ins started here; returns the release. */
+  retain = (): (() => void) => {
+    this._holders += 1
+    if (this._holders === 1) {
+      this._disconnect = this._signIn?.onEnded((session) => this._ended(session))
+    }
+    let released = false
+    return () => {
+      if (released) return
+      released = true
+      this._holders -= 1
+      if (this._holders === 0) {
+        this._disconnect?.()
+        this._disconnect = undefined
+      }
+    }
   }
 
   subscribe = (listener: () => void): (() => void) => {
@@ -117,7 +143,7 @@ export class McpServersStore {
     )
   }
 
-  /** A sign-in ended if its server came up. One already up, signing in again, waits for the event. */
+  /** A sign-in ended if its server came up. One already up, signing in again, waits for its session to end. */
   private _signInsAfter(standings: readonly McpServerStanding[]): McpServersState['signIns'] {
     const isUp = (list: readonly McpServerStanding[] | undefined, id: string) =>
       list?.some((s) => s.serverId === id && s.status === 'connected') ?? false
@@ -129,9 +155,8 @@ export class McpServersStore {
     )
   }
 
-  /** `mcpServers:updated`. `signed-in` names no server, so it ends every sign-in waiting here. */
-  onEvent = async (event: McpServersEvent): Promise<void> => {
-    if (event.action === 'signed-in') this._set({ signIns: {} })
+  /** `mcpServers:updated`: read again. */
+  onEvent = async (_event: McpServersEvent): Promise<void> => {
     await this.refresh()
   }
 
@@ -191,28 +216,54 @@ export class McpServersStore {
     }
   }
 
-  /** Start a sign-in; answers the page to open, or nothing when it cannot start. */
-  signIn = async (serverId: string): Promise<string | undefined> => {
-    const redirectUrl = mcpSignInRedirectUrl(this._backendUrl())
-    if (!redirectUrl) {
-      this._set({ error: MCP_SERVER_NO_BACKEND })
-      return undefined
+  /** Open a server's sign-in inside the app, or show the one open again. */
+  signIn = async (serverId: string): Promise<void> => {
+    const now = this._state.signIns[serverId]
+    if (now?.step === 'starting') return
+    if (now?.step === 'open') {
+      this._signIn?.show(now.session)
+      return
     }
-    this._set({ busy: true, error: null })
+    if (!this._starting()) this._heard = []
+    this._set({
+      signIns: { ...this._state.signIns, [serverId]: { step: 'starting' } },
+      error: null,
+    })
+    let session: SignInSessionState
     try {
-      const page = await startMcpServerSignIn(this._owner, serverId, redirectUrl)
-      if (!isMcpSignInPage(page)) {
-        this._set({ error: MCP_SERVER_BAD_SIGN_IN_PAGE })
-        return undefined
-      }
-      this._set({ signIns: { ...this._state.signIns, [serverId]: page } })
-      return page
+      session = await startMcpServerSignIn(this._owner, serverId)
     } catch (err) {
-      this._set({ error: extractErrorMessage(err, MCP_SERVER_SIGN_IN_FAILED) })
-      return undefined
-    } finally {
-      this._set({ busy: false })
+      this._set({
+        signIns: without(this._state.signIns, serverId),
+        error: extractErrorMessage(err, MCP_SERVER_SIGN_IN_FAILED),
+      })
+      return
     }
+    const endedFirst = this._heard.find((heard) => heard.id === session.id)
+    this._set({ signIns: { ...this._state.signIns, [serverId]: { step: 'open', session } } })
+    if (!this._starting()) this._heard = []
+    if (endedFirst) this._ended(endedFirst)
+    else this._signIn?.show(session)
+  }
+
+  private _starting(): boolean {
+    return Object.values(this._state.signIns).some((signIn) => signIn.step === 'starting')
+  }
+
+  private _ended(session: SignInSessionState): void {
+    const serverId = Object.entries(this._state.signIns).find(
+      ([, signIn]) => signIn.step === 'open' && signIn.session.id === session.id,
+    )?.[0]
+    if (!serverId) {
+      if (this._starting()) this._heard.push(session)
+      return
+    }
+    const why = signInEndedNotice(session)
+    this._set({
+      signIns: without(this._state.signIns, serverId),
+      ...(why ? { error: why } : {}),
+    })
+    if (session.status === 'finished') void this.refresh()
   }
 
   /** Ask the server now. */

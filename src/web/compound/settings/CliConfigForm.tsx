@@ -24,7 +24,8 @@ import {
   cliImagesNeedCheck,
   newlyBuildingImageIds,
 } from '../../../headless/utils/cliImageView'
-import { loginAwaitsCode, parseLoginUrl } from '../../../headless/utils/cliRunner'
+import { useCliSignIn } from '../../../headless/hooks/useCliSignIn'
+import { CLI_SIGN_IN_TEXT } from '../../../headless/utils/cliSignInConstants'
 import { cliModelEffortRows, effortLevelLabel } from '../../../headless/utils/modelEffort'
 import {
   CLI_MODEL_DEFAULT_EFFORT_HINT,
@@ -105,11 +106,6 @@ export function CliConfigForm({ planWindowNow }: { planWindowNow?: number } = {}
     checkCliImages,
     startCliImageBuild,
     checkAuth,
-    startAuthLogin,
-    cancelAuthLogin,
-    submitLoginInput,
-    loginOutput,
-    loginResults,
   } = useCliConfigs()
 
   const [modelsProbe, setModelsProbe] = useState<Record<string, ModelsProbeState>>({})
@@ -123,18 +119,9 @@ export function CliConfigForm({ planWindowNow }: { planWindowNow?: number } = {}
   const [deleting, setDeleting] = useState(false)
   // Per-credential "Check now" auth probe in flight.
   const [checking, setChecking] = useState<Record<string, boolean>>({})
-  // The credential currently being re-authenticated in place + its login stream id.
-  const [reauth, setReauth] = useState<{ credentialId: string; loginId: string } | null>(null)
-  const [pasteCode, setPasteCode] = useState('')
-
-  // A completed re-auth clears the inline pane (the context already refreshed the
-  // cache list, so the row's status badge flips to authenticated on its own).
-  useEffect(() => {
-    if (reauth && loginResults[reauth.loginId]?.status === 'completed') {
-      setReauth(null)
-      setPasteCode('')
-    }
-  }, [reauth, loginResults])
+  // Signing a stored login in again, in place: the credential last pressed for, for its row's notice.
+  const reauth = useCliSignIn()
+  const [reauthPressed, setReauthPressed] = useState<string | null>(null)
 
   const runCheckAuth = async (credentialId: string) => {
     setChecking((prev) => ({ ...prev, [credentialId]: true }))
@@ -147,25 +134,9 @@ export function CliConfigForm({ planWindowNow }: { planWindowNow?: number } = {}
     }
   }
 
-  const startReauth = async (cli: CliTool, cache: RedactedCliAuthCacheEntry) => {
-    try {
-      const loginId = await startAuthLogin(cli, cache.name, { credentialId: cache.id })
-      setReauth({ credentialId: cache.id, loginId })
-      setPasteCode('')
-    } catch {
-      // startAuthLogin rejects synchronously only on a transport error; ignore.
-    }
-  }
-
-  const cancelReauth = async () => {
-    if (!reauth) return
-    try {
-      await cancelAuthLogin(reauth.loginId)
-    } catch {
-      // best-effort cancel
-    }
-    setReauth(null)
-    setPasteCode('')
+  const startReauth = (cli: CliTool, cache: RedactedCliAuthCacheEntry) => {
+    setReauthPressed(cache.id)
+    reauth.start({ cli, label: cache.name, credentialId: cache.id })
   }
 
   const cliGroups = useMemo(
@@ -532,11 +503,8 @@ export function CliConfigForm({ planWindowNow }: { planWindowNow?: number } = {}
                 const capView =
                   capState.kind === 'result' ? cliCapabilityCardView(capState.card) : undefined
                 const status = cache.authStatus
-                const isReauthing = reauth?.credentialId === cache.id
-                const reauthOut = isReauthing ? (loginOutput[reauth.loginId] ?? '') : ''
-                const reauthSignInUrl = isReauthing ? parseLoginUrl(reauthOut) : null
-                const reauthAwaitsCode = isReauthing ? loginAwaitsCode(reauthOut) : false
-                const reauthResult = isReauthing ? loginResults[reauth.loginId] : undefined
+                const isReauthing = reauth.pending?.credentialId === cache.id
+                const reauthError = reauthPressed === cache.id ? reauth.error : undefined
                 return (
                   <div key={cache.id} className="flex flex-col gap-2">
                     <div className="flex flex-wrap items-center gap-2">
@@ -622,8 +590,8 @@ export function CliConfigForm({ planWindowNow }: { planWindowNow?: number } = {}
                           type="button"
                           size="sm"
                           variant={status && !status.authenticated ? 'success' : 'outline'}
-                          disabled={isReauthing}
-                          onClick={() => void startReauth(cli, cache)}
+                          loading={isReauthing && reauth.starting}
+                          onClick={() => startReauth(cli, cache)}
                           title="Re-authenticate this credential in place (keeps the same id)"
                         >
                           Re-authenticate
@@ -690,68 +658,12 @@ export function CliConfigForm({ planWindowNow }: { planWindowNow?: number } = {}
 
                     {capView && <CliCapabilityCardPanel view={capView} />}
 
-                    {isReauthing && (
-                      <div className="rounded border border-(--border-default) bg-(--surface-muted) px-2 py-2 text-xs flex flex-col gap-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-(--text-primary) font-medium">
-                            Re-authenticating {cliLabel(cache.cli)}…
-                          </span>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => void cancelReauth()}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                        {reauthSignInUrl ? (
-                          <a
-                            href={reauthSignInUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-(--text-primary) underline break-all"
-                          >
-                            Open the sign-in page to finish ↗
-                          </a>
-                        ) : (
-                          <div className="flex items-center gap-2 text-(--text-secondary)">
-                            <Spinner size={12} /> Starting login…
-                          </div>
-                        )}
-                        {reauthAwaitsCode && (
-                          <form
-                            className="flex items-center gap-2"
-                            onSubmit={(e) => {
-                              e.preventDefault()
-                              const code = pasteCode.trim()
-                              if (code) {
-                                void submitLoginInput(reauth.loginId, code)
-                                setPasteCode('')
-                              }
-                            }}
-                          >
-                            <input
-                              className="flex-1 rounded border border-(--border-default) bg-(--surface-default) px-2 py-1 text-xs text-(--text-primary)"
-                              placeholder="Paste the code from the browser"
-                              value={pasteCode}
-                              onChange={(e) => setPasteCode(e.target.value)}
-                            />
-                            <Button type="submit" size="sm" variant="outline">
-                              Submit
-                            </Button>
-                          </form>
-                        )}
-                        {reauthResult?.status === 'error' && (
-                          <span className="text-red-500">{reauthResult.error}</span>
-                        )}
-                        {reauthOut && (
-                          <pre className="m-0 max-h-32 overflow-auto whitespace-pre-wrap font-mono text-[11px] text-(--text-secondary)">
-                            {reauthOut}
-                          </pre>
-                        )}
-                      </div>
+                    {isReauthing && !reauth.starting && (
+                      <p className="text-xs text-(--text-secondary)">
+                        {CLI_SIGN_IN_TEXT.signingIn}
+                      </p>
                     )}
+                    {reauthError && <p className="text-xs text-red-500">{reauthError}</p>}
                   </div>
                 )
               })}

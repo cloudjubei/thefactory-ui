@@ -1,6 +1,5 @@
 import type { SignInSessionState } from 'thefactory-tools/types'
 import { useSignInBrowser, useSignInSession } from '../../../headless'
-import { openInBrowser } from '../settings/openInBrowser'
 import SignInSessionDialog from './SignInSessionDialog'
 import SignInSessionPage from './SignInSessionPage'
 
@@ -21,10 +20,13 @@ export default function SignInSessionHost() {
   return (
     <SignInSessionDialog
       view={view}
-      page={view.surface === 'browser' ? <LivePage key={session.id} session={session} /> : null}
+      page={
+        view.surface === 'browser' || view.page ? (
+          <LivePage key={session.id} session={session} />
+        ) : null
+      }
       onClose={close}
       onAnswer={answer}
-      onOpenLink={openInBrowser}
     />
   )
 }

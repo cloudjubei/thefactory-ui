@@ -189,6 +189,12 @@ import type {
   SendChatWithCliResponse,
   SendCompletionWithToolsData,
   SendCompletionWithToolsResponse,
+  StartCliAuthLoginData,
+  StartCliAuthLoginResponse,
+  StartGitCredentialGithubSignInData,
+  StartGitCredentialGithubSignInResponse,
+  StartOverseerGithubSignInData,
+  StartOverseerGithubSignInResponse,
   StartRecordingSiteSignInData,
   StartRecordingSiteSignInResponse,
   ListSourceRecordsData,
@@ -228,6 +234,8 @@ import {
   FAKE_OVERSEER,
   FAKE_PROJECT_NOTES,
   FAKE_RECORDING_SITES,
+  fakeCliSignIn,
+  fakeGithubSignIn,
   fakeRecordingSignIn,
   FAKE_STORAGE_USAGE,
   FAKE_TEST_PATHS,
@@ -422,6 +430,17 @@ const READS: readonly FakeRoute[] = [
         ? { site: { ...site, signingIn: true }, session: fakeRecordingSignIn(site) }
         : missing(`No fake recording site '${params.siteId}'.`)
     },
+  ),
+  write<StartCliAuthLoginData, StartCliAuthLoginResponse>('/api/v1/cli-auth/login', ({ body }) => ({
+    session: fakeCliSignIn(body as StartCliAuthLoginData['body']),
+  })),
+  write<StartGitCredentialGithubSignInData, StartGitCredentialGithubSignInResponse>(
+    '/api/v1/git-credentials/github/sign-in',
+    () => ({ session: fakeGithubSignIn('git-credential') }),
+  ),
+  write<StartOverseerGithubSignInData, StartOverseerGithubSignInResponse>(
+    '/api/v1/overseer/github/sign-in',
+    () => ({ session: fakeGithubSignIn('bootstrap') }),
   ),
   read<ListSignInSessionsData, ListSignInSessionsResponse>('/api/v1/sign-in-sessions', () => ({
     sessions: [],

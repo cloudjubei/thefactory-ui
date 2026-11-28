@@ -1,3 +1,5 @@
+import type { SignInSessionState } from 'thefactory-tools/types'
+
 /** The two kinds of Jira API token a person can make at id.atlassian.com. */
 export type JiraTokenType = 'scoped' | 'classic'
 
@@ -62,8 +64,8 @@ export type ProviderOAuthStartBody = {
   clientId?: string
 }
 
-/** A sign-in the backend opened: the page for the browser, and what its end is told under. */
-export type ProviderOAuthStarted = { page: string; signInId: string }
+/** A sign-in the backend opened: what its end is told under, and the session the app shows. */
+export type ProviderOAuthStarted = { signInId: string; session: SignInSessionState }
 
 /** How a sign-in stands, as the backend tells it. */
 export type ProviderSignInReport = {
@@ -72,22 +74,25 @@ export type ProviderSignInReport = {
   connectionId?: string
 }
 
-/** Where a sign-in stands here. The code goes from the provider to the backend, past every client. */
+/** Where a sign-in stands here. The provider's page shows inside the app; the code goes from it to the backend. */
 export type ProviderOAuthState =
-  | { step: 'ready' | 'opening' | 'done'; error: string | null }
-  | { step: 'waiting'; page: string; signInId: string; error: string | null }
+  | { step: 'ready' | 'starting' | 'done'; error: string | null }
+  | { step: 'open'; signInId: string; session: SignInSessionState; error: null }
 
-/** What a form needs of the backend's sign-in. */
+/** What a form needs of the backend's sign-in, and of the app's sign-in view. */
 export type ProviderOAuthActions = {
   /** Which providers can be signed in with. One not named here cannot. */
   setup: Readonly<Record<string, boolean>>
+  /** Open a sign-in, or answer the one open to the same provider. */
   start: (provider: string, body: ProviderOAuthStartBody) => Promise<ProviderOAuthStarted>
   /** Where a sign-in stands; `undefined` when the backend no longer holds it. */
   read: (signInId: string) => Promise<ProviderSignInReport | undefined>
-  /** The person backed out: a browser that still comes back changes nothing. */
-  withdraw: (signInId: string) => Promise<void>
-  /** Told when a sign-in ends in the browser. Answers how to stop listening. */
+  /** Show a sign-in's session inside the app. */
+  show: (session: SignInSessionState) => void
+  /** Told when a sign-in ends. Answers how to stop listening. */
   onReport: (listener: (report: ProviderSignInReport) => void) => () => void
+  /** Told when any sign-in session ends, with how. Answers how to stop listening. */
+  onEnded: (listener: (session: SignInSessionState) => void) => () => void
   /** Told when the socket is back: what went out meanwhile was lost. */
   onReconnect: (listener: () => void) => () => void
 }

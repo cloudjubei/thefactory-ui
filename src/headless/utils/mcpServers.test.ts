@@ -1,12 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
-  isMcpSignInPage,
   mcpServerDraftProblem,
   mcpServerHost,
   mcpServerInputOf,
   mcpServersIntro,
   mcpServerViews,
-  mcpSignInRedirectUrl,
   mcpToolsSummary,
 } from './mcpServers'
 import type {
@@ -48,51 +46,6 @@ const standing = (over: Partial<McpServerStanding> = {}): McpServerStanding => (
 
 const views = (input: Partial<Parameters<typeof mcpServerViews>[0]> & { rows: McpServerRow[] }) =>
   mcpServerViews({ owner: PROJECT, standings: [], ...input })
-
-describe('mcpSignInRedirectUrl', () => {
-  it('puts the callback under the URL the client uses for the backend', () => {
-    expect(mcpSignInRedirectUrl('http://127.0.0.1:7001')).toBe(
-      'http://127.0.0.1:7001/api/v1/mcp-servers/oauth/callback',
-    )
-  })
-
-  it('does not double a trailing slash', () => {
-    expect(mcpSignInRedirectUrl('https://overseer.example.com///')).toBe(
-      'https://overseer.example.com/api/v1/mcp-servers/oauth/callback',
-    )
-  })
-
-  it('keeps a backend served under a path', () => {
-    expect(mcpSignInRedirectUrl('https://example.com/overseer/')).toBe(
-      'https://example.com/overseer/api/v1/mcp-servers/oauth/callback',
-    )
-  })
-
-  it('has nothing to send before a backend is set', () => {
-    expect(mcpSignInRedirectUrl(null)).toBeUndefined()
-    expect(mcpSignInRedirectUrl('  ')).toBeUndefined()
-  })
-})
-
-describe('isMcpSignInPage', () => {
-  it('takes a web page', () => {
-    expect(isMcpSignInPage('https://auth.example.com/authorize?a=1')).toBe(true)
-    expect(isMcpSignInPage('HTTP://localhost:9000/a')).toBe(true)
-  })
-
-  it('refuses anything else an OS could act on', () => {
-    for (const url of [
-      'file:///etc/passwd',
-      'javascript:alert(1)',
-      'zoommtg://join',
-      'https://',
-      ' https://a.example.com',
-      '',
-    ]) {
-      expect(isMcpSignInPage(url), url).toBe(false)
-    }
-  })
-})
 
 describe('mcpServersIntro', () => {
   it('says who gets the tools', () => {
@@ -266,17 +219,29 @@ describe('mcpServerViews', () => {
       expect(access({ authType: 'none' }, 'connected')).toBeUndefined()
     })
 
-    it('carries the page of a sign-in that was started', () => {
-      const [view] = views({
+    it('marks a sign-in on its way, and not one already open', () => {
+      const SESSION = {
+        id: 'a',
+        kind: 'mcp-server',
+        subject: 'group:osc:s1',
+        title: 'Sign in to s1',
+        status: 'open' as const,
+        surface: { kind: 'browser' as const },
+        startedAt: '',
+        expiresAt: '',
+      }
+      const starting = views({
         rows: [row()],
         standings: [standing({ status: 'needs-sign-in' })],
-        signIns: { s1: 'https://auth.example.com/authorize' },
+        signIns: { s1: { step: 'starting' } },
       })
-      expect(view?.access).toEqual({
-        kind: 'sign-in',
-        label: 'Sign in',
-        pendingUrl: 'https://auth.example.com/authorize',
+      expect(starting[0]?.access).toEqual({ kind: 'sign-in', label: 'Sign in', starting: true })
+      const open = views({
+        rows: [row()],
+        standings: [standing({ status: 'needs-sign-in' })],
+        signIns: { s1: { step: 'open', session: SESSION } },
       })
+      expect(open[0]?.access).toEqual({ kind: 'sign-in', label: 'Sign in' })
     })
 
     it('tells the person what to do when a server with no sign-in turns out to want one', () => {

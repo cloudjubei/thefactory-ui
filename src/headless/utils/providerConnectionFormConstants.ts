@@ -143,10 +143,6 @@ export const PROVIDER_OAUTH_COPY = {
   orDivider: 'or',
   useToken: 'Use a token instead',
   useSignIn: (action: string) => `${action} instead`,
-  waitingTitle: 'Finish in your browser',
-  waitingBody: 'Sign in there. This moves on by itself once you have.',
-  openAgain: 'Open the page again',
-  backOut: 'Cancel sign-in',
   connected: (provider: string) =>
     `Connected with ${provider}. To use another account, add a new connection.`,
   signedIn: 'Signed in',
@@ -155,7 +151,6 @@ export const PROVIDER_OAUTH_COPY = {
   notSetUp: 'Sign-in isn’t set up on this backend yet. Use a token instead.',
   declined: 'The sign-in was cancelled. Nothing changed.',
   lost: 'That sign-in is no longer open. Start it again.',
-  badPage: 'The backend gave a sign-in page that can’t be opened.',
   startFailed: 'Could not start the sign-in. Try again.',
   finishFailed: 'The sign-in did not finish. Start it again.',
 } as const

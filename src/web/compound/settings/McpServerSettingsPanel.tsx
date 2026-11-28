@@ -48,8 +48,8 @@ export interface McpServerSettingsPanelProps {
   /** Remove a server; resolves `true` when it is gone. */
   onRemove: (serverId: string) => Promise<boolean>
   onSetToken: (serverId: string, token: string) => Promise<boolean>
+  /** Open a server's sign-in inside the app, or show the one open again. */
   onSignIn: (serverId: string) => void | Promise<void>
-  onOpenPage: (url: string) => void
   onTest: (serverId: string) => void | Promise<void>
   /** Turn "This server only reads" on or off. */
   onSetOnlyReads: (serverId: string, onlyReads: boolean) => void | Promise<unknown>
@@ -143,7 +143,6 @@ export default function McpServerSettingsPanel({
   onRemove,
   onSetToken,
   onSignIn,
-  onOpenPage,
   onTest,
   onSetOnlyReads,
   layout = MCP_SERVERS_DEFAULT_LAYOUT,
@@ -161,7 +160,6 @@ export default function McpServerSettingsPanel({
   const actions: McpServerActions = {
     busy,
     onSignIn,
-    onOpenPage,
     onSetToken,
     onTest,
     onSetOnlyReads,

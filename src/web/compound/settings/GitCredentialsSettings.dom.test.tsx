@@ -14,7 +14,7 @@ const api = vi.hoisted(() => ({
   listGitCredentials: vi.fn(),
   updateGitCredential: vi.fn(),
   deleteGitCredential: vi.fn(),
-  ws: { on: vi.fn(() => () => {}) },
+  ws: { on: vi.fn(() => () => {}), onReconnect: vi.fn(() => () => {}) },
 }))
 vi.mock('../../../headless/api', async (original) => ({
   ...(await original<typeof import('../../../headless/api')>()),
@@ -40,7 +40,7 @@ const refused = (id: string) => ({
 let context: ReturnType<typeof useGitCredentials>
 function Controls() {
   context = useGitCredentials()
-  return <GitCredentialsSettings hostCapabilities={{ canRedirect: false, canOpenBrowser: true }} />
+  return <GitCredentialsSettings />
 }
 
 beforeEach(() => {

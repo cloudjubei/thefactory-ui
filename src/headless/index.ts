@@ -2442,7 +2442,7 @@ export {
 } from './contexts/LLMConfigsContext'
 
 // CLI agent configs (auth-cache CRUD + active CLI/credential + per-CLI enabled
-// set + login lifecycle + model/live probes), the CLI analogue of LLMConfigs.
+// set + model/live probes), the CLI analogue of LLMConfigs.
 export {
   CliConfigsProvider,
   useCliConfigs,
@@ -2451,7 +2451,6 @@ export {
   type CliLiveProbeResult,
   type CliLiveModelsResult,
   type CliProbeResult,
-  type CliAuthLoginResult,
 } from './contexts/CliConfigsContext'
 
 // Per-chat CLI-runner binding (attach / detach) + the tool-grant queue — every
@@ -4538,6 +4537,16 @@ export type {
   SignInSessionsSnapshot,
 } from './utils/signInSessionTypes'
 export { useRecordingSites, type UseRecordingSites } from './hooks/useRecordingSites'
+export { githubSignInActions } from './api/githubSignInApi'
+export { GithubSignInStore } from './hooks/githubSignInStore'
+export { useGithubSignIn, type UseGithubSignIn } from './hooks/useGithubSignIn'
+export { GITHUB_SIGN_IN_TEXT } from './utils/githubSignInConstants'
+export type {
+  GithubSignInActions,
+  GithubSignInPurpose,
+  GithubSignInState,
+} from './utils/githubSignInTypes'
+export { useMcpServerSignIn, type UseMcpServerSignIn } from './hooks/useMcpServerSignIn'
 export {
   recordingSignInAskable,
   recordingSiteChangeOf,
@@ -4706,7 +4715,6 @@ export {
   MCP_SERVER_ONLY_READS_HINT,
   MCP_SERVER_ONLY_READS_LABEL,
   MCP_SERVER_REMOVE_CONFIRM,
-  MCP_SERVER_SIGN_IN_PENDING,
   MCP_SERVER_TOKEN_HINT,
   MCP_SERVER_TOKEN_SAVED_HINT,
   MCP_SERVER_TOOLS_HEADING,
@@ -4724,6 +4732,8 @@ export type {
   McpServerAuthType,
   McpServerDraft,
   McpServerEdit,
+  McpServerSignIn,
+  McpServerSignIns,
   McpServerInput,
   McpServerOwner,
   McpServerRow,

@@ -47,6 +47,18 @@ describe('signInSessionChangeOf', () => {
     )
   })
 
+  it('reads a prompt’s code to copy', () => {
+    const told = {
+      ...PROMPT,
+      surface: { kind: 'prompt' as const, url: 'https://a.example', code: 'AB-12' },
+    }
+    expect(signInSessionChangeOf({ session: told })).toEqual(told)
+    expect(
+      signInSessionChangeOf({ session: { ...PROMPT, surface: { kind: 'prompt', code: 7 } } })
+        ?.surface,
+    ).toEqual({ kind: 'prompt' })
+  })
+
   it('reads a prompt with nothing shown yet', () => {
     expect(signInSessionChangeOf({ session: { ...PROMPT, surface: { kind: 'prompt' } } })).toEqual({
       ...PROMPT,
@@ -246,14 +258,15 @@ describe('signInSessionView', () => {
     })
   })
 
-  it('shows a prompt’s message, link and field, busy while an answer is on its way', () => {
+  it('shows a prompt’s message, its page beside it and its field, busy while an answer is on its way', () => {
     expect(signInSessionView({ shown: PROMPT, answering: true, error: 'Wrong code.' })).toEqual({
       id: 's2',
       title: 'Sign in to Some Tool',
       hint: TEXT.closesItself,
       surface: 'prompt',
       message: 'Open the link, then paste the code.',
-      link: 'https://auth.example/device',
+      page: true,
+      address: 'https://auth.example/device',
       input: { label: 'Code', secret: true },
       answering: true,
       error: 'Wrong code.',
@@ -277,11 +290,36 @@ describe('signInSessionView', () => {
     })
   })
 
-  it('offers only a web link to open', () => {
+  it('shows a page only for a web address', () => {
     const shown: SignInSessionState = {
       ...PROMPT,
       surface: { kind: 'prompt', url: 'javascript:alert(1)' },
     }
-    expect(signInSessionView({ shown, answering: false, error: undefined })?.link).toBeUndefined()
+    const view = signInSessionView({ shown, answering: false, error: undefined })
+    expect(view?.page).toBeUndefined()
+    expect(view?.address).toBeUndefined()
+  })
+
+  it('shows a code to copy onto the page', () => {
+    const shown: SignInSessionState = {
+      ...PROMPT,
+      surface: {
+        kind: 'prompt',
+        message: 'Enter this code there.',
+        url: 'https://auth.example/device',
+        code: 'WDJB-MJHT',
+      },
+    }
+    expect(signInSessionView({ shown, answering: false, error: undefined })).toEqual({
+      id: 's2',
+      title: 'Sign in to Some Tool',
+      hint: TEXT.closesItself,
+      surface: 'prompt',
+      message: 'Enter this code there.',
+      page: true,
+      address: 'https://auth.example/device',
+      code: 'WDJB-MJHT',
+      answering: false,
+    })
   })
 })

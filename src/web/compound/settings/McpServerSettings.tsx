@@ -1,7 +1,6 @@
 import { useEffect } from 'react'
 import { useMcpServers, type McpServerOwner } from '../../../headless'
 import McpServerSettingsPanel from './McpServerSettingsPanel'
-import { openInBrowser } from './openInBrowser'
 import { subscribeWindowFocus } from './subscribeWindowFocus'
 
 export interface McpServerSettingsProps {
@@ -11,9 +10,9 @@ export interface McpServerSettingsProps {
 
 /**
  * A project's or a group's MCP servers in its Settings, read and changed through
- * the backend: what `McpServerSettingsPanel` shows. A sign-in finishes in the
- * browser, and the backend says so over the socket; there is no word of one that
- * failed, so coming back to the app reads the servers again. Native peer:
+ * the backend: what `McpServerSettingsPanel` shows. A sign-in shows inside the
+ * app and the servers are read again once it finished; coming back to the app
+ * reads them again too. Native peer:
  * `native/compound/settings/McpServerSettings`.
  */
 export default function McpServerSettings({ owner }: McpServerSettingsProps) {
@@ -32,11 +31,7 @@ export default function McpServerSettings({ owner }: McpServerSettingsProps) {
       onAdd={servers.add}
       onRemove={servers.remove}
       onSetToken={servers.setToken}
-      onSignIn={async (serverId) => {
-        const page = await signIn(serverId)
-        if (page) openInBrowser(page)
-      }}
-      onOpenPage={openInBrowser}
+      onSignIn={signIn}
       onTest={servers.test}
       onSetOnlyReads={servers.setOnlyReads}
     />

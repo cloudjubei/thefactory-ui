@@ -577,6 +577,66 @@ describe('fakeBackendRoutes', () => {
     expect(post('/api/v1/recording-sites/vimeo/sign-in', undefined).status).toBe(404)
   })
 
+  it('answers a CLI agent’s sign-in with its prompt session, one per stored login or per CLI', () => {
+    expect(post('/api/v1/cli-auth/login', { cli: 'codex', label: 'Codex' })).toEqual({
+      status: 200,
+      body: {
+        session: {
+          id: 'fake-sign-in-cli-codex',
+          kind: 'cli-login',
+          subject: 'codex',
+          title: 'Sign in to Codex',
+          status: 'open',
+          surface: {
+            kind: 'prompt',
+            message: 'Sign in on the page, then enter this code there.',
+            url: 'https://auth.cli.example/device',
+            code: 'FAKE-1234',
+          },
+          startedAt: '2026-01-05T09:00:00.000Z',
+          expiresAt: '2026-01-05T09:15:00.000Z',
+        },
+      },
+    })
+    const again = post('/api/v1/cli-auth/login', {
+      cli: 'claude-code',
+      label: 'Fake Claude Code',
+      credentialId: 'cli-1',
+    }).body as { session: Record<string, unknown> }
+    expect(again.session).toMatchObject({
+      id: 'fake-sign-in-cli-cli-1',
+      subject: 'cli-1',
+      title: 'Sign in to Claude Code',
+      surface: {
+        kind: 'prompt',
+        message: 'Sign in on the page. If it shows a code, paste it here.',
+        url: 'https://auth.cli.example/sign-in',
+        input: { label: 'Code' },
+      },
+    })
+  })
+
+  it('answers a GitHub sign-in, for a git credential or the overseer, with a session it never ends', () => {
+    const session = (subject: string) => ({
+      id: `fake-sign-in-github-${subject}`,
+      kind: 'github',
+      subject,
+      title: 'Sign in to GitHub',
+      status: 'open',
+      surface: { kind: 'browser' },
+      startedAt: '2026-01-05T09:00:00.000Z',
+      expiresAt: '2026-01-05T09:15:00.000Z',
+    })
+    expect(post('/api/v1/git-credentials/github/sign-in', {})).toEqual({
+      status: 200,
+      body: { session: session('git-credential') },
+    })
+    expect(post('/api/v1/overseer/github/sign-in', undefined)).toEqual({
+      status: 200,
+      body: { session: session('bootstrap') },
+    })
+  })
+
   it('lists no open sign-in session: it runs no browser to show one in', () => {
     expect(get('/api/v1/sign-in-sessions')).toEqual({ status: 200, body: { sessions: [] } })
   })

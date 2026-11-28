@@ -5,7 +5,6 @@ import {
   MCP_SERVER_FIELD_LABELS,
   MCP_SERVER_ONLY_READS_HINT,
   MCP_SERVER_ONLY_READS_LABEL,
-  MCP_SERVER_SIGN_IN_PENDING,
   MCP_SERVER_TOKEN_HINT,
   MCP_SERVER_TOKEN_SAVED_HINT,
   MCP_SERVER_TOOLS_HEADING,
@@ -36,8 +35,8 @@ export function McpServerStatusChip({ view }: { view: McpServerView }) {
 
 export type McpServerActions = {
   busy: boolean
+  /** Open the server's sign-in inside the app, or show the one open again. */
   onSignIn: (serverId: string) => void | Promise<void>
-  onOpenPage: (url: string) => void
   onSetToken: (serverId: string, token: string) => Promise<boolean>
   onTest: (serverId: string) => void | Promise<void>
   onSetOnlyReads: (serverId: string, onlyReads: boolean) => void | Promise<unknown>
@@ -113,14 +112,12 @@ export default function McpServerDetails({
   showUrl = false,
   busy,
   onSignIn,
-  onOpenPage,
   onSetToken,
   onTest,
   onSetOnlyReads,
   onRemove,
 }: { view: McpServerView; showUrl?: boolean } & McpServerActions) {
   const access = view.access
-  const pendingUrl = access?.kind === 'sign-in' ? access.pendingUrl : undefined
   return (
     <div className="flex flex-col gap-3">
       {showUrl ? (
@@ -132,28 +129,16 @@ export default function McpServerDetails({
       {view.note ? <span className="text-sm text-(--text-secondary)">{view.note}</span> : null}
 
       {access?.kind === 'sign-in' ? (
-        <div className="flex flex-col items-start gap-1">
-          <Button
-            variant={access.label === MCP_SERVER_ACTIONS.signIn ? 'primary' : 'secondary'}
-            size="sm"
-            onClick={() => void onSignIn(view.id)}
-            disabled={busy}
-          >
-            {access.label}
-          </Button>
-          {pendingUrl ? (
-            <span className="text-[12px] text-(--text-secondary)">
-              {MCP_SERVER_SIGN_IN_PENDING}{' '}
-              <button
-                type="button"
-                className="text-(--accent-primary) underline-offset-2 hover:underline"
-                onClick={() => onOpenPage(pendingUrl)}
-              >
-                {MCP_SERVER_ACTIONS.openPage}
-              </button>
-            </span>
-          ) : null}
-        </div>
+        <Button
+          className="self-start"
+          variant={access.label === MCP_SERVER_ACTIONS.signIn ? 'primary' : 'secondary'}
+          size="sm"
+          onClick={() => void onSignIn(view.id)}
+          loading={access.starting === true}
+          disabled={busy}
+        >
+          {access.label}
+        </Button>
       ) : null}
       {access?.kind === 'token' ? (
         <TokenField view={view} saved={access.saved} busy={busy} onSetToken={onSetToken} />

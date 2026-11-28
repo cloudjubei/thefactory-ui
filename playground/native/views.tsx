@@ -3,6 +3,7 @@ import { ScrollView, Text, View } from 'react-native'
 import {
   CliConfigsProvider,
   FilesProvider,
+  SIGN_IN_SESSION_TEXT,
   SIGN_OFF_OUTPUT_COPY,
   TICKET_TRANSITION_STANDING,
   groupTicketsView,
@@ -70,6 +71,7 @@ import { TICKET_UPDATE_VIEWS } from './ticketUpdateViews'
 import { NAMED_LANDING_VIEWS } from './namedLandingViews'
 import { FILE_PREVIEW_VIEWS } from './filePreviewViews'
 import { GIT_CREDENTIAL_VIEWS } from './gitCredentialViews'
+import { IN_APP_SIGN_IN_VIEWS } from './inAppSignInViews'
 import { FILE_TREE_VIEWS } from './fileTreeViews'
 import { SCRIPT_STEP_VIEWS } from './scriptStepViews'
 import { PROJECT_SERVE_SETTINGS_VIEWS } from './projectServeSettingsViews'
@@ -93,6 +95,7 @@ import { SLACK_REVIEW_VIEWS } from './slackReviewViews'
 import { REVIEW_MERGE_CHECKS_VIEWS } from './reviewMergeChecksViews'
 import { RECORDING_SITES_VIEWS } from './recordingSitesViews'
 import { SIGN_IN_SESSION_VIEWS } from './signInSessionViews'
+import { CLI_SIGN_IN_VIEWS } from './cliSignInViews'
 import { REVIEW_CLOSE_VIEWS } from './reviewCloseViews'
 import { REVIEW_RUN_ROUNDS_VIEWS } from './reviewRunRoundsViews'
 import { REVIEW_RUN_PAGE_VIEWS } from './reviewRunPageViews'
@@ -337,12 +340,22 @@ function SwitchTokenForm() {
 const OAUTH: ProviderOAuthActions = {
   setup: { github: true, jira: true },
   start: async () => ({
-    page: 'https://auth.atlassian.com/authorize?state=s1',
     signInId: 'sign-in-1',
+    session: {
+      id: 'sign-in-jira',
+      kind: 'provider-connection',
+      subject: 'jira',
+      title: 'Sign in to Jira',
+      status: 'open',
+      surface: { kind: 'browser' },
+      startedAt: '2026-11-27T12:00:00.000Z',
+      expiresAt: '2026-11-27T12:15:00.000Z',
+    },
   }),
   read: async () => ({ signInId: 'sign-in-1', status: 'waiting' }),
-  withdraw: async () => undefined,
+  show: noop,
   onReport: () => noop,
+  onEnded: () => noop,
   onReconnect: () => noop,
 }
 
@@ -589,11 +602,10 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
         >
           <McpServerSignInStep
             url={LINEAR.url}
-            pendingUrl={address.get('pending') ?? undefined}
-            busy={false}
-            error={null}
+            starting={address.get('state') === 'starting'}
+            cancelling={false}
+            error={address.get('state') === 'timed-out' ? SIGN_IN_SESSION_TEXT.timedOut : null}
             onSignIn={noop}
-            onOpenPage={noop}
             onCancel={noop}
           />
         </CaptureCardShell>
@@ -723,6 +735,8 @@ export const NATIVE_VIEWS: readonly NativeView[] = [
   ...REVIEW_MERGE_CHECKS_VIEWS,
   ...RECORDING_SITES_VIEWS,
   ...SIGN_IN_SESSION_VIEWS,
+  ...CLI_SIGN_IN_VIEWS,
+  ...IN_APP_SIGN_IN_VIEWS,
   ...REVIEW_RUN_ROUNDS_VIEWS,
   ...REVIEW_CLOSE_VIEWS,
   ...REVIEW_RUN_PAGE_VIEWS,

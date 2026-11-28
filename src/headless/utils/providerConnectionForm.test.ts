@@ -4,7 +4,6 @@ import {
   isJiraCloudId,
   isJiraSiteUrl,
   isOAuthConnection,
-  isProviderOAuthPage,
   jiraCloudIdHint,
   jiraCloudIdProblem,
   jiraCloudIdSiteOf,
@@ -558,16 +557,6 @@ describe('providerOAuthStartBody', () => {
       name: 'Acme',
       cloudId: 'abc-1',
     })
-  })
-})
-
-describe('isProviderOAuthPage', () => {
-  it('opens only an https page', () => {
-    expect(isProviderOAuthPage('https://auth.atlassian.com/authorize?state=s')).toBe(true)
-    expect(isProviderOAuthPage('HTTPS://github.com/login')).toBe(true)
-    expect(isProviderOAuthPage('http://auth.atlassian.com/authorize')).toBe(false)
-    expect(isProviderOAuthPage('javascript:alert(1)')).toBe(false)
-    expect(isProviderOAuthPage('file:///etc/passwd')).toBe(false)
   })
 })
 

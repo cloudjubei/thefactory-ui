@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { AppState, Linking, Pressable, ScrollView, Text, View } from 'react-native'
+import { AppState, Pressable, ScrollView, Text, View } from 'react-native'
 
 import {
   MCP_SERVER_ACTIONS,
@@ -13,7 +13,6 @@ import {
   MCP_SERVER_ONLY_READS_HINT,
   MCP_SERVER_ONLY_READS_LABEL,
   MCP_SERVER_REMOVE_CONFIRM,
-  MCP_SERVER_SIGN_IN_PENDING,
   MCP_SERVER_TOKEN_HINT,
   MCP_SERVER_TOKEN_SAVED_HINT,
   MCP_SERVER_TOOLS_HEADING,
@@ -183,7 +182,6 @@ function ServerDetails({
   const { theme } = useNativeTheme()
   const muted = { fontSize: 12, color: theme.text.secondary }
   const access = view.access
-  const pendingUrl = access?.kind === 'sign-in' ? access.pendingUrl : undefined
   return (
     <View style={{ gap: nativeSpace[3] }}>
       {showUrl ? (
@@ -197,27 +195,16 @@ function ServerDetails({
       ) : null}
 
       {access?.kind === 'sign-in' ? (
-        <View style={{ alignItems: 'flex-start', gap: nativeSpace[1] }}>
+        <View style={{ alignItems: 'flex-start' }}>
           <Button
             variant={access.label === MCP_SERVER_ACTIONS.signIn ? 'primary' : 'secondary'}
             size="sm"
             onPress={() => onSignIn(view.id)}
+            loading={access.starting === true}
             disabled={busy}
           >
             {access.label}
           </Button>
-          {pendingUrl ? (
-            <Text style={muted}>
-              {MCP_SERVER_SIGN_IN_PENDING}{' '}
-              <Text
-                accessibilityRole="link"
-                style={{ color: theme.accent.primary }}
-                onPress={() => void Linking.openURL(pendingUrl)}
-              >
-                {MCP_SERVER_ACTIONS.openPage}
-              </Text>
-            </Text>
-          ) : null}
         </View>
       ) : null}
       {access?.kind === 'token' ? (
@@ -352,10 +339,6 @@ export default function McpServerSettings({
     return () => subscription.remove()
   }, [refresh])
 
-  const signIn = async (serverId: string) => {
-    const page = await servers.signIn(serverId)
-    if (page) await Linking.openURL(page)
-  }
   const saveDraft = async () => {
     if (!draft || problem) return
     const added = await servers.add(mcpServerInputOf(draft))
@@ -366,7 +349,7 @@ export default function McpServerSettings({
 
   const actions: DetailsActions = {
     busy,
-    onSignIn: (serverId) => void signIn(serverId),
+    onSignIn: (serverId) => void servers.signIn(serverId),
     onSetToken: servers.setToken,
     onTest: (serverId) => void servers.test(serverId),
     onSetOnlyReads: (serverId, onlyReads) => void servers.setOnlyReads(serverId, onlyReads),

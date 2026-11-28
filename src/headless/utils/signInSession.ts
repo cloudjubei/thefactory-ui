@@ -26,7 +26,7 @@ const text = (value: unknown): value is string => typeof value === 'string'
 
 function surfaceOf(told: unknown): SignInSurface | undefined {
   if (!told || typeof told !== 'object') return undefined
-  const { kind, message, url, input } = told as Record<string, unknown>
+  const { kind, message, url, code, input } = told as Record<string, unknown>
   if (kind === 'browser') return { kind }
   if (kind !== 'prompt') return undefined
   const field = (input ?? undefined) as { label?: unknown; secret?: unknown } | undefined
@@ -34,6 +34,7 @@ function surfaceOf(told: unknown): SignInSurface | undefined {
     kind,
     ...(text(message) ? { message } : {}),
     ...(text(url) ? { url } : {}),
+    ...(text(code) ? { code } : {}),
     ...(field && text(field.label)
       ? {
           input: {
@@ -160,7 +161,8 @@ export function signInSessionView(snapshot: SignInSessionsSnapshot): SignInSessi
   const base = { id: shown.id, title: shown.title, hint: SIGN_IN_SESSION_TEXT.closesItself }
   const { surface } = shown
   if (surface.kind === 'browser') return { ...base, surface: 'browser' }
-  const nothingYet = !surface.message && !surface.url && !surface.input
+  const nothingYet = !surface.message && !surface.url && !surface.input && !surface.code
+  const address = surface.url && WEB_LINK.test(surface.url) ? surface.url : undefined
   return {
     ...base,
     surface: 'prompt',
@@ -169,7 +171,8 @@ export function signInSessionView(snapshot: SignInSessionsSnapshot): SignInSessi
       : nothingYet
         ? { message: SIGN_IN_SESSION_TEXT.starting }
         : {}),
-    ...(surface.url && WEB_LINK.test(surface.url) ? { link: surface.url } : {}),
+    ...(address ? { page: true, address } : {}),
+    ...(surface.code ? { code: surface.code } : {}),
     ...(surface.input ? { input: surface.input } : {}),
     answering: snapshot.answering,
     ...(snapshot.error ? { error: snapshot.error } : {}),

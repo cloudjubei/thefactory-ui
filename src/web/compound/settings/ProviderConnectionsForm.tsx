@@ -40,7 +40,6 @@ import {
   type ProviderOAuthState,
 } from '../../../headless'
 import { Alert, Button, Field, Input, NativeSelect, SecretInput, SegmentedControl } from '../..'
-import ProviderOAuthWaiting from './ProviderOAuthWaiting'
 
 type ProviderConnectionsFormMode =
   | { kind: 'create'; onSubmit: (input: ProviderConnectionCreateInput) => Promise<unknown> }
@@ -61,15 +60,10 @@ export type ProviderConnectionsFormProps = {
   initialDraft?: Partial<ProviderConnectionDraft>
   /** Start on this way of connecting. */
   initialMethod?: ProviderConnectionMethod
-  /** Start at this step of a sign-in. */
+  /** Start at this step of a sign-in, for a fixed showcase state. */
   initialSignIn?: ProviderOAuthState
   /** Hold finding the cloud id at this stage, for a fixed showcase state. */
   fixedCloudIdStatus?: JiraCloudIdStatus
-}
-
-/** A desktop window's `window.open` goes to the system browser through its main process. */
-function openInBrowser(url: string): void {
-  window.open(url, '_blank', 'noopener,noreferrer')
 }
 
 export default function ProviderConnectionsForm({
@@ -114,16 +108,14 @@ export default function ProviderConnectionsForm({
     : providerConnectionDraftProblem(draft, saving) === undefined
   const canConnect = offersSignIn && providerOAuthDraftProblem(draft) === undefined
 
-  const connect = async () => {
+  const connect = () => {
     if (!canConnect) return
-    const page = await signIn.start(draft.provider, providerOAuthStartBody(draft))
-    if (page) openInBrowser(page)
+    void signIn.start(draft.provider, providerOAuthStartBody(draft))
   }
 
-  const reconnect = async () => {
+  const reconnect = () => {
     if (!initial) return
-    const page = await signIn.start(draft.provider, providerOAuthReconnectBody(initial))
-    if (page) openInBrowser(page)
+    void signIn.start(draft.provider, providerOAuthReconnectBody(initial))
   }
 
   useEffect(() => {
@@ -152,18 +144,8 @@ export default function ProviderConnectionsForm({
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault()
-    void (method === 'oauth' ? connect() : save())
-  }
-
-  if (signIn.step === 'waiting') {
-    const { page } = signIn
-    return (
-      <ProviderOAuthWaiting
-        error={signIn.error}
-        onOpenAgain={() => openInBrowser(page)}
-        onBackOut={signIn.reset}
-      />
-    )
+    if (method === 'oauth') connect()
+    else void save()
   }
 
   const connectAction = spec.oauth?.action ?? ''
@@ -264,8 +246,8 @@ export default function ProviderConnectionsForm({
               <Button
                 type="button"
                 variant="secondary"
-                loading={signIn.step === 'opening'}
-                onClick={() => void reconnect()}
+                loading={signIn.step === 'starting'}
+                onClick={reconnect}
               >
                 {PROVIDER_OAUTH_COPY.reconnect}
               </Button>
@@ -308,9 +290,9 @@ export default function ProviderConnectionsForm({
           <Button
             type="button"
             variant="secondary"
-            loading={signIn.step === 'opening'}
+            loading={signIn.step === 'starting'}
             disabled={!canConnect}
-            onClick={() => void connect()}
+            onClick={connect}
           >
             {connectAction}
           </Button>
@@ -345,7 +327,7 @@ export default function ProviderConnectionsForm({
           Cancel
         </Button>
         {method === 'oauth' && layout !== 'button-first' ? (
-          <Button type="submit" loading={signIn.step === 'opening'} disabled={!canConnect}>
+          <Button type="submit" loading={signIn.step === 'starting'} disabled={!canConnect}>
             {connectAction}
           </Button>
         ) : (

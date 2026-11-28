@@ -4,9 +4,11 @@ import {
   MCP_SERVERS_LAYOUTS,
   mcpServersIntro,
   mcpServerViews,
+  SIGN_IN_SESSION_TEXT,
   type McpServerDraft,
   type McpServerOwner,
   type McpServerRow,
+  type McpServerSignIns,
   type McpServersLayout,
   type McpServerStanding,
   type McpServerTestResult,
@@ -132,7 +134,7 @@ type PanelOptions = {
   statusFailed?: boolean
   tests?: Record<string, McpServerTestResult>
   testing?: string[]
-  signIns?: Record<string, string>
+  signIns?: McpServerSignIns
   error?: string
   busy?: boolean
   loading?: boolean
@@ -182,7 +184,6 @@ function panel({
       onRemove={kept}
       onSetToken={kept}
       onSignIn={noop}
-      onOpenPage={noop}
       onTest={noop}
       onSetOnlyReads={onSetOnlyReads ?? noop}
       {...(layout ? { layout } : {})}
@@ -328,10 +329,16 @@ export const MCP_SERVER_SCENES: Scene[] = [
         openId: 'linear',
       }),
       opened(
-        'open-sign-in-waiting',
-        'Sign-in waiting on the browser',
-        'The page opened in the browser. If it did not, the link opens it from a real click; the section updates by itself.',
-        { openId: 'linear', signIns: { linear: 'https://mcp.linear.app/authorize' } },
+        'open-sign-in-starting',
+        'Opening the sign-in',
+        'Shown at once on the press, while the backend opens the server’s page; it then shows inside the app, and the section reads again once it finished.',
+        { openId: 'linear', signIns: { linear: { step: 'starting' } } },
+      ),
+      opened(
+        'open-sign-in-timed-out',
+        'A sign-in that ran out',
+        'Nobody finished it for 15 minutes: it closed by itself, and the section says so.',
+        { openId: 'linear', error: SIGN_IN_SESSION_TEXT.timedOut },
       ),
       opened(
         'open-sign-in-refused',

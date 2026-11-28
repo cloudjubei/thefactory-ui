@@ -32,51 +32,47 @@ const TOOL = {
   title: 'Sign in to Builder',
 }
 
-const DEVICE_LINK = 'https://auth.builder.example/device?user_code=WDJB-MJHT'
+const SIGN_IN_PAGE = 'https://auth.builder.example/oauth/authorize?client_id=builder&state=x'
+const DEVICE_PAGE = 'https://auth.builder.example/device'
+const PASTE = 'Sign in on the page. If it shows a code, paste it here.'
 
 /** Every state of a sign-in that shows a prompt, by the id its scene state and its mobile view share. */
 export const SIGN_IN_PROMPTS: Record<string, SignInSessionView> = {
-  starting: view({ ...TOOL, surface: { kind: 'prompt' } }),
-  'link-and-code': view({
+  starting: view({ ...TOOL, surface: { kind: 'prompt', message: 'Starting the sign-in…' } }),
+  'page-and-code': view({
     ...TOOL,
-    surface: {
-      kind: 'prompt',
-      message: 'Open the link and sign in there. Then paste the code it shows you.',
-      url: DEVICE_LINK,
-      input: { label: 'Code', secret: true },
-    },
+    surface: { kind: 'prompt', message: PASTE, url: SIGN_IN_PAGE, input: { label: 'Code' } },
   }),
   answering: view(
     {
       ...TOOL,
-      surface: {
-        kind: 'prompt',
-        message: 'Open the link and sign in there. Then paste the code it shows you.',
-        url: DEVICE_LINK,
-        input: { label: 'Code', secret: true },
-      },
+      surface: { kind: 'prompt', message: PASTE, url: SIGN_IN_PAGE, input: { label: 'Code' } },
     },
     { answering: true },
   ),
   refused: view(
     {
       ...TOOL,
-      surface: {
-        kind: 'prompt',
-        message: 'Open the link and sign in there. Then paste the code it shows you.',
-        url: DEVICE_LINK,
-        input: { label: 'Code', secret: true },
-      },
+      surface: { kind: 'prompt', message: PASTE, url: SIGN_IN_PAGE, input: { label: 'Code' } },
     },
-    { error: 'That code is not right, or it has run out. Open the link again for a new one.' },
+    { error: 'That code is not right, or it has run out. Start the sign-in again for a new one.' },
   ),
-  'link-only': view({
+  'device-code': view({
     ...TOOL,
     surface: {
       kind: 'prompt',
-      message: 'Open the link and approve the sign-in there. This closes once you have.',
-      url: DEVICE_LINK,
+      message: 'Sign in on the page, then enter this code there.',
+      url: DEVICE_PAGE,
+      code: 'WDJB-MJHT',
     },
+  }),
+  'page-only': view({
+    ...TOOL,
+    surface: { kind: 'prompt', message: 'Sign in on the page.', url: SIGN_IN_PAGE },
+  }),
+  'code-only': view({
+    ...TOOL,
+    surface: { kind: 'prompt', message: 'Finishing…' },
   }),
 }
 

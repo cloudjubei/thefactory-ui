@@ -3,7 +3,6 @@ import { useMcpServerSignIn } from '../../../headless/hooks/useMcpServerSignIn'
 import { CAPTURE_CANCEL_ERROR } from '../../../headless/utils/credentialCaptureConstants'
 import type { CredentialCapture } from '../../../headless/utils/credentialCaptureTypes'
 import type { McpServerOwner } from '../../../headless/utils/mcpServersTypes'
-import { openInBrowser } from '../settings/openInBrowser'
 import McpServerSignInStep from './McpServerSignInStep'
 
 export type McpServerCaptureSignInProps = {
@@ -13,8 +12,8 @@ export type McpServerCaptureSignInProps = {
 }
 
 /**
- * A server card's sign-in, started as Settings starts it. Nothing here answers the
- * card: the backend does, when the browser comes back from the server.
+ * A server card's sign-in, started as Settings starts it and shown inside the
+ * app. Nothing here answers the card: the backend does, once the sign-in finished.
  */
 export default function McpServerCaptureSignIn({
   capture,
@@ -37,15 +36,10 @@ export default function McpServerCaptureSignIn({
   return (
     <McpServerSignInStep
       url={capture.mcpServer?.url}
-      pendingUrl={signIn.pendingUrl}
-      busy={signIn.busy || cancelling}
+      starting={signIn.starting}
+      cancelling={cancelling}
       error={signIn.error ?? cancelError}
-      onSignIn={() => {
-        void signIn.signIn().then((page) => {
-          if (page) openInBrowser(page)
-        })
-      }}
-      onOpenPage={openInBrowser}
+      onSignIn={signIn.signIn}
       onCancel={cancel}
     />
   )

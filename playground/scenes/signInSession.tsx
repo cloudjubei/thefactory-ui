@@ -46,7 +46,6 @@ function PageScene({ device, step = 'live' }: { device: Device; step?: SignInPag
       page={<LivePage device={device} step={step} />}
       onClose={noop}
       onAnswer={noop}
-      onOpenLink={noop}
     />,
   )
 }
@@ -54,7 +53,12 @@ function PageScene({ device, step = 'live' }: { device: Device; step?: SignInPag
 function PromptScene({ view, device = 'desktop' }: { view: SignInSessionView; device?: Device }) {
   return frame(
     device,
-    <SignInSessionPanel view={view} onClose={noop} onAnswer={noop} onOpenLink={noop} />,
+    <SignInSessionPanel
+      view={view}
+      page={view.page ? <LivePage device={device} step="live" /> : undefined}
+      onClose={noop}
+      onAnswer={noop}
+    />,
   )
 }
 
@@ -101,7 +105,6 @@ function Flow({ start }: { start: Stage }) {
           }
           onClose={() => setStage('hidden')}
           onAnswer={noop}
-          onOpenLink={noop}
         />
       ) : null}
     </div>
@@ -116,7 +119,7 @@ export const SIGN_IN_SESSION_SCENES: Scene[] = [
     group: 'Settings',
     wide: true,
     description:
-      'One way to sign in to an outside service, used wherever the app needs one; a recording site is its first user. Pressing a sign-in button opens the service’s own sign-in inside the app, over whatever the person was on, and the app never opens a browser window on the machine running the backend. It shows one of two things. A live page: the site’s own sign-in page, opened out of sight in the person’s browser profile on the backend and shown here as it paints; clicks, scrolling and typing go to that page, so a password is typed into the site’s own field and is kept nowhere by the app. It has no address bar and no pick or mark tools: a sign-in shows only its own page. Or a prompt, for a sign-in that has no page of its own, such as a command-line tool that names a link and waits: a line saying what to do, the link with Open link, and a field for the code the service shows, with Send. Above either: what is being signed in to, the line "This closes by itself once you’re signed in", and Close. When the service shows the person signed in, the view goes by itself and they are back on the row they pressed, which now reads Signed in. Close ends the sign-in by hand and the row keeps what was last seen. A press beside the dialog or Escape does not close it: both are easy to make while typing a password. Nobody signing in for 15 minutes closes it too, and the row then says so. Pressing the row’s button while its sign-in is open shows the same one again. On a phone it is a screen of its own, pushed over Settings, and a line under the page types into the field the person tapped.',
+      'One way to sign in to an outside service, used wherever the app needs one; a recording site is its first user. Pressing a sign-in button opens the service’s own sign-in inside the app, over whatever the person was on, and the app never opens a browser window on the machine running the backend. It shows one of two things. A live page: the site’s own sign-in page, opened out of sight in the person’s browser profile on the backend and shown here as it paints; clicks, scrolling and typing go to that page, so a password is typed into the site’s own field and is kept nowhere by the app. It has no address bar and no pick or mark tools: a sign-in shows only its own page. Or a prompt, for a sign-in run by something else, such as a command-line tool that names an address and waits: a line saying what to do, the live page of that address beside it (above it on a phone), its address over the page, a code to enter there shown large with Copy for a device sign-in, and a field for the code the service shows, with Send. Nothing ever opens in the person’s own browser. Above either: what is being signed in to, the line "This closes by itself once you’re signed in", and Close. When the service shows the person signed in, the view goes by itself and they are back on the row they pressed, which now reads Signed in. Close ends the sign-in by hand and the row keeps what was last seen. A press beside the dialog or Escape does not close it: both are easy to make while typing a password. Nobody signing in for 15 minutes closes it too, and the row then says so. Pressing the row’s button while its sign-in is open shows the same one again. On a phone it is a screen of its own, pushed over Settings, and a line under the page types into the field the person tapped.',
     states: [
       {
         id: 'page',
@@ -144,10 +147,11 @@ export const SIGN_IN_SESSION_SCENES: Scene[] = [
         render: () => <PromptScene view={SIGN_IN_PROMPTS.starting!} />,
       },
       {
-        id: 'prompt-link-and-code',
-        title: 'A prompt: open a link, paste a code',
-        description: 'The code is hidden as it is typed and cleared once sent.',
-        render: () => <PromptScene view={SIGN_IN_PROMPTS['link-and-code']!} />,
+        id: 'prompt-page-and-code',
+        title: 'A prompt: its page beside it, a code to paste',
+        description:
+          'The address opens inside the app, in the person’s sign-in profile, with its address above it; the field takes the code the page shows. Nothing opens in their own browser.',
+        render: () => <PromptScene view={SIGN_IN_PROMPTS['page-and-code']!} />,
       },
       {
         id: 'prompt-answering',
@@ -161,10 +165,23 @@ export const SIGN_IN_SESSION_SCENES: Scene[] = [
         render: () => <PromptScene view={SIGN_IN_PROMPTS.refused!} />,
       },
       {
-        id: 'prompt-link-only',
-        title: 'A prompt: only a link',
+        id: 'prompt-device-code',
+        title: 'A prompt: a code to enter on the page',
+        description:
+          'For a device sign-in: the code shows large with Copy, to paste into the page beside it.',
+        render: () => <PromptScene view={SIGN_IN_PROMPTS['device-code']!} />,
+      },
+      {
+        id: 'prompt-page-only',
+        title: 'A prompt: only its page',
         description: 'For a service that needs nothing given back.',
-        render: () => <PromptScene view={SIGN_IN_PROMPTS['link-only']!} />,
+        render: () => <PromptScene view={SIGN_IN_PROMPTS['page-only']!} />,
+      },
+      {
+        id: 'prompt-finishing',
+        title: 'A prompt: finishing',
+        description: 'No page, nothing to give: it waits for the service.',
+        render: () => <PromptScene view={SIGN_IN_PROMPTS['code-only']!} />,
       },
       {
         id: 'phone-page',
@@ -174,7 +191,7 @@ export const SIGN_IN_SESSION_SCENES: Scene[] = [
       {
         id: 'phone-prompt',
         title: 'A prompt, at a phone’s width',
-        render: () => <PromptScene view={SIGN_IN_PROMPTS['link-and-code']!} device="phone" />,
+        render: () => <PromptScene view={SIGN_IN_PROMPTS['device-code']!} device="phone" />,
       },
       {
         id: 'flow',

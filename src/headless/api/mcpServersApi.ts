@@ -6,6 +6,7 @@ import type {
   McpServerStanding,
   McpServerTestResult,
 } from '../utils/mcpServersTypes'
+import type { SignInSessionState } from 'thefactory-tools/types'
 import { client } from './generated/client.gen'
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' }
@@ -73,19 +74,16 @@ export async function setMcpServerToken(
   })
 }
 
-/** Start a sign-in; answers the page to open in the person's browser. */
+/** Open a server's sign-in inside the app, or the one already open; answers the session the app shows. */
 export async function startMcpServerSignIn(
   owner: McpServerOwner,
   serverId: string,
-  redirectUrl: string,
-): Promise<string> {
+): Promise<SignInSessionState> {
   const { data } = await client.post({
     url: `${serverBase(owner, serverId)}/sign-in`,
-    body: { redirectUrl },
-    headers: JSON_HEADERS,
     throwOnError: true,
   })
-  return (data as { authorizationUrl: string }).authorizationUrl
+  return (data as { session: SignInSessionState }).session
 }
 
 export async function testMcpServer(

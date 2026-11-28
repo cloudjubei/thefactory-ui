@@ -9,7 +9,7 @@ import {
 } from '../../../headless/utils/gitCredentialConstants'
 import { Alert, Button, ConfirmDialog, Modal } from '../..'
 import { IconDelete, IconEdit, IconPlus } from '../../icons'
-import GitCredentialsForm, { type GitCredentialsFormHostCapabilities } from './GitCredentialsForm'
+import GitCredentialsForm from './GitCredentialsForm'
 
 type ModalRoute =
   | { kind: 'create' }
@@ -17,26 +17,8 @@ type ModalRoute =
   | { kind: 'edit'; credentials: GetGitCredentialResponse }
   | { kind: 'delete'; credentials: GetGitCredentialResponse }
 
-export interface GitCredentialsSettingsProps {
-  /**
-   * Host capabilities forwarded to the create-mode `GitCredentialsForm`
-   * so the right OAuth method renders on each surface. Defaults to web
-   * (`{ canRedirect: true, canOpenBrowser: true }`). Desktop / mobile
-   * pass `{ canRedirect: false, canOpenBrowser: true }`.
-   */
-  hostCapabilities?: GitCredentialsFormHostCapabilities
-  /**
-   * Host-supplied opener for the device flow's verification URI. Web
-   * defaults to `window.open` in a new tab; desktop wires
-   * `shell.openExternal`; mobile wires `expo-web-browser`.
-   */
-  openExternalUrl?: (url: string) => void | Promise<void>
-}
-
-export default function GitCredentialsSettings({
-  hostCapabilities,
-  openExternalUrl,
-}: GitCredentialsSettingsProps = {}) {
+/** Settings → Git credentials: the person's credentials, added by a GitHub sign-in inside the app or a pasted token. */
+export default function GitCredentialsSettings() {
   const {
     isLoaded,
     loadError,
@@ -45,7 +27,6 @@ export default function GitCredentialsSettings({
     createCredentials,
     updateCredentials,
     deleteCredentials,
-    refresh,
   } = useGitCredentials()
   const [modal, setModal] = useState<ModalRoute | null>(null)
 
@@ -127,8 +108,6 @@ export default function GitCredentialsSettings({
           <GitCredentialsForm
             mode={{ kind: 'create', onSubmit: createCredentials }}
             onCancel={() => setModal(null)}
-            hostCapabilities={hostCapabilities}
-            openExternalUrl={openExternalUrl}
           />
         </Modal>
       )}
@@ -146,9 +125,6 @@ export default function GitCredentialsSettings({
           <GitCredentialsForm
             mode={{ kind: 'create', onSubmit: createCredentials }}
             onCancel={() => setModal(null)}
-            onOauthSuccess={() => void refresh()}
-            hostCapabilities={hostCapabilities}
-            openExternalUrl={openExternalUrl}
           />
         </Modal>
       )}

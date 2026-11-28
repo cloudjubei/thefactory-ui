@@ -283,11 +283,6 @@ export function providerOAuthStartBody(draft: ProviderConnectionDraft): Provider
   }
 }
 
-/** Desktop and mobile hand this page to the OS, so nothing but https goes there. */
-export function isProviderOAuthPage(url: string): boolean {
-  return /^https:\/\/[^/\s]/i.test(url)
-}
-
 /** A failed sign-in in words a person can act on. */
 export function providerOAuthFailure(message: string): string {
   if (/not configured/i.test(message)) return PROVIDER_OAUTH_COPY.notSetUp

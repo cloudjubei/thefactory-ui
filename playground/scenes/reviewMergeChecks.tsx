@@ -46,8 +46,6 @@ function InSettings({ width }: { width: Width }) {
       onClientIdChange={noop}
       onSignIn={noop}
       onSignInAgain={noop}
-      onOpenAgain={noop}
-      onBackOut={noop}
       onWatch={noop}
       onClear={noop}
       onSkipStatuses={noop}

@@ -1,11 +1,10 @@
-import { useState } from 'react'
 import { Text, View } from 'react-native'
+import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
 import Field from '../../primitives/Field'
 import { Input } from '../../primitives/Input'
 import { Switch } from '../../primitives/Switch'
 import type { UseProjectGithubRepoResult } from '../../../headless'
-import GithubConnectModal from './GithubConnectModal'
 
 export interface ProjectGithubRepoFieldProps {
   github: UseProjectGithubRepoResult
@@ -36,12 +35,11 @@ function StatusHint({ status }: { status: UseProjectGithubRepoResult['status'] }
  * repository" option for the project-create wizard: toggle always shown; when
  * on it shows a name input + an auto-derived read-only URL preview (the host
  * hides the editable Repository URL), or — when no account is connected — a
- * Connect button that runs the device-auth flow in a popup. Driven by
+ * Connect button that signs in with GitHub inside the app. Driven by
  * `useProjectGithubRepo` (owned by the host).
  */
 export default function ProjectGithubRepoField({ github }: ProjectGithubRepoFieldProps) {
-  const { connected, login, enabled, setEnabled, repoName, setRepoName, status, connect } = github
-  const [connectOpen, setConnectOpen] = useState(false)
+  const { connected, login, enabled, setEnabled, repoName, setRepoName, status } = github
 
   return (
     <View style={{ gap: 8 }}>
@@ -56,21 +54,10 @@ export default function ProjectGithubRepoField({ github }: ProjectGithubRepoFiel
           <Text className="text-[11px] text-[var(--text-secondary)]">
             Connect a GitHub account to create this project’s repository. You only do this once.
           </Text>
-          <Button
-            variant="outline"
-            size="sm"
-            onPress={() => {
-              setConnectOpen(true)
-              void connect()
-            }}
-          >
+          {github.connectError ? <Alert variant="error">{github.connectError}</Alert> : null}
+          <Button variant="outline" size="sm" loading={github.connecting} onPress={github.connect}>
             Connect GitHub
           </Button>
-          <GithubConnectModal
-            isOpen={connectOpen}
-            onClose={() => setConnectOpen(false)}
-            github={github}
-          />
         </View>
       ) : null}
 

@@ -1,3 +1,4 @@
+import type { SignInSessionState } from 'thefactory-tools/types'
 import type { AgentTypeOwner } from './agentTypeSettingsTypes'
 
 /** The project or the group whose MCP servers these are. */
@@ -62,8 +63,11 @@ export type McpServersEvent =
 
 export type McpServerDraft = { name: string; url: string; authType: McpServerAuthType }
 
-/** Where a server's sign-in stands in this client: a page opened in the browser, not finished yet. */
-export type McpServerSignIns = Readonly<Record<string, string>>
+/** Where one server's sign-in stands in this client: asked for, or open in the app's sign-in view. */
+export type McpServerSignIn = { step: 'starting' } | { step: 'open'; session: SignInSessionState }
+
+/** The sign-ins started here and not ended, by server. */
+export type McpServerSignIns = Readonly<Record<string, McpServerSignIn>>
 
 export type McpServersState = {
   /** The servers; undefined until they are read. */
@@ -76,7 +80,7 @@ export type McpServersState = {
   tests: Readonly<Record<string, McpServerTestResult>>
   /** The servers a Test is waiting on. */
   testing: readonly string[]
-  /** Sign-ins started here and not finished, by server: the page to open. */
+  /** Sign-ins started here and not ended, by server. */
   signIns: McpServerSignIns
   busy: boolean
   /** Why the last read or change failed, in the backend's words. */
@@ -96,7 +100,7 @@ export type McpToolView = {
 
 /** The one way to get a server working, if there is one here. */
 export type McpServerAccess =
-  | { kind: 'sign-in'; label: string; pendingUrl?: string }
+  | { kind: 'sign-in'; label: string; starting?: boolean }
   | { kind: 'token'; saved: boolean }
 
 export type McpServerView = {

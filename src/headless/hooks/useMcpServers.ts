@@ -13,6 +13,7 @@ import type {
   McpServerView,
 } from '../utils/mcpServersTypes'
 import { McpServersStore } from './mcpServersStore'
+import { signInSessionsStoreFor } from './useSignInSession'
 
 export type UseMcpServers = {
   /** What to show of each server; undefined until they are read. */
@@ -26,7 +27,8 @@ export type UseMcpServers = {
   remove: (serverId: string) => Promise<boolean>
   setToken: (serverId: string, token: string) => Promise<boolean>
   setOnlyReads: (serverId: string, onlyReads: boolean) => Promise<boolean>
-  signIn: (serverId: string) => Promise<string | undefined>
+  /** Open a server's sign-in inside the app, or show the one open again. */
+  signIn: (serverId: string) => Promise<void>
   test: (serverId: string) => Promise<void>
   refresh: () => Promise<void>
 }
@@ -35,19 +37,24 @@ const ownerKey = (owner: McpServerOwner): string =>
   owner.kind === 'project' ? `project:${owner.projectId}` : `group:${owner.groupId}`
 
 /**
- * A project's or a group's MCP servers, kept current as they change. There is no
- * event for a sign-in that failed, so a client also calls `refresh` when it
- * regains focus.
+ * A project's or a group's MCP servers, kept current as they change; a sign-in
+ * shows inside the app and its ending is heard. A client also calls `refresh`
+ * when it regains focus.
  */
 export function useMcpServers(owner: McpServerOwner): UseMcpServers {
   const { token } = useAuth()
-  const { ws, apiBaseUrl } = useApi()
+  const { ws } = useApi()
   const { groups } = useProjectsGroups()
   const { projects } = useProjects()
   const key = ownerKey(owner)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const store = useMemo(() => new McpServersStore(owner, () => apiBaseUrl), [key, apiBaseUrl])
+  const store = useMemo(
+    () => new McpServersStore(owner, signInSessionsStoreFor(ws)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [key, ws],
+  )
   const state = useSyncExternalStore(store.subscribe, store.getState, store.getState)
+
+  useEffect(() => store.retain(), [store])
 
   useEffect(() => {
     if (token) void store.refresh()

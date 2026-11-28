@@ -25743,6 +25743,7 @@ export type SignInSurface =
       kind: 'prompt'
       message?: string
       url?: string
+      code?: string
       input?: {
         label: string
         secret?: boolean
@@ -30314,6 +30315,7 @@ export type SignInSessionOutcome = 'finished' | 'closed' | 'timed-out' | 'failed
 export type SignInPrompt = {
   message?: string
   url?: string
+  code?: string
   input?: {
     label: string
     secret?: boolean
@@ -40435,17 +40437,7 @@ export type OverseerAuthProviders = {
   githubFlows: Array<'redirect' | 'device'>
 }
 
-export type OverseerGithubAuthUrl = {
-  authUrl: string
-  state: string
-}
-
-export type OverseerGithubCallbackInput = {
-  code: string
-  state: string
-}
-
-export type OverseerGithubCallbackResult = {
+export type OverseerGithubSignInToken = {
   tokenId: string
 }
 
@@ -42934,12 +42926,7 @@ export type SetGroupMcpServerTokenResponse =
   SetGroupMcpServerTokenResponses[keyof SetGroupMcpServerTokenResponses]
 
 export type StartGroupMcpServerSignInData = {
-  body: {
-    /**
-     * This backend’s callback, as the browser doing the sign-in reaches it: `<backend URL>/api/v1/mcp-servers/oauth/callback`.
-     */
-    redirectUrl: string
-  }
+  body?: never
   path: {
     id: string
     serverId: string
@@ -42979,6 +42966,16 @@ export type StartGroupMcpServerSignInErrors = {
     reason?: 're-authorize'
     credentialId?: string
   }
+  /**
+   * Default Response
+   */
+  502: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
 }
 
 export type StartGroupMcpServerSignInError =
@@ -42989,10 +42986,7 @@ export type StartGroupMcpServerSignInResponses = {
    * Default Response
    */
   200: {
-    /**
-     * Open this in the person’s browser.
-     */
-    authorizationUrl: string
+    session: SignInSessionState
   }
 }
 
@@ -43364,12 +43358,7 @@ export type SetProjectMcpServerTokenResponse =
   SetProjectMcpServerTokenResponses[keyof SetProjectMcpServerTokenResponses]
 
 export type StartProjectMcpServerSignInData = {
-  body: {
-    /**
-     * This backend’s callback, as the browser doing the sign-in reaches it: `<backend URL>/api/v1/mcp-servers/oauth/callback`.
-     */
-    redirectUrl: string
-  }
+  body?: never
   path: {
     id: string
     serverId: string
@@ -43409,6 +43398,16 @@ export type StartProjectMcpServerSignInErrors = {
     reason?: 're-authorize'
     credentialId?: string
   }
+  /**
+   * Default Response
+   */
+  502: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
 }
 
 export type StartProjectMcpServerSignInError =
@@ -43419,10 +43418,7 @@ export type StartProjectMcpServerSignInResponses = {
    * Default Response
    */
   200: {
-    /**
-     * Open this in the person’s browser.
-     */
-    authorizationUrl: string
+    session: SignInSessionState
   }
 }
 
@@ -54968,7 +54964,7 @@ export type ReadProviderOAuthSetupResponses = {
     github: boolean
     jira: boolean
     /**
-     * Needs only the redirect URL: each person signs in on their own Slack app, with its client id.
+     * Always: each person signs in on their own Slack app, with its client id.
      */
     slack: boolean
   }
@@ -55011,6 +55007,16 @@ export type StartProviderOAuthErrors = {
   /**
    * Default Response
    */
+  502: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
   503: {
     error: string
     code?: string
@@ -55028,13 +55034,10 @@ export type StartProviderOAuthResponses = {
    */
   200: {
     /**
-     * Open this in the person’s browser.
-     */
-    authorizationUrl: string
-    /**
      * What `providerConnections:signIn` and the sign-in routes know this sign-in by.
      */
     signInId: string
+    session: SignInSessionState
   }
 }
 
@@ -55081,41 +55084,6 @@ export type FinishProviderOAuthResponses = {
 
 export type FinishProviderOAuthResponse =
   FinishProviderOAuthResponses[keyof FinishProviderOAuthResponses]
-
-export type WithdrawProviderSignInData = {
-  body?: never
-  path: {
-    signInId: string
-  }
-  query?: never
-  url: '/api/v1/provider-connections/oauth/sign-ins/{signInId}'
-}
-
-export type WithdrawProviderSignInErrors = {
-  /**
-   * Default Response
-   */
-  503: {
-    error: string
-    code?: string
-    requestId?: string
-    reason?: 're-authorize'
-    credentialId?: string
-  }
-}
-
-export type WithdrawProviderSignInError =
-  WithdrawProviderSignInErrors[keyof WithdrawProviderSignInErrors]
-
-export type WithdrawProviderSignInResponses = {
-  /**
-   * Default Response
-   */
-  204: void
-}
-
-export type WithdrawProviderSignInResponse =
-  WithdrawProviderSignInResponses[keyof WithdrawProviderSignInResponses]
 
 export type ReadProviderSignInData = {
   body?: never
@@ -56006,66 +55974,16 @@ export type SetAgentRunLlmConfigResponses = {
 export type SetAgentRunLlmConfigResponse =
   SetAgentRunLlmConfigResponses[keyof SetAgentRunLlmConfigResponses]
 
-export type StartGitCredentialGithubRedirectData = {
+export type StartGitCredentialGithubSignInData = {
   body: {
     scopeLabel?: string
   }
   path?: never
   query?: never
-  url: '/api/v1/git-credentials/github/redirect/start'
+  url: '/api/v1/git-credentials/github/sign-in'
 }
 
-export type StartGitCredentialGithubRedirectErrors = {
-  /**
-   * Default Response
-   */
-  503: {
-    error: string
-    code?: string
-    requestId?: string
-    reason?: 're-authorize'
-    credentialId?: string
-  }
-}
-
-export type StartGitCredentialGithubRedirectError =
-  StartGitCredentialGithubRedirectErrors[keyof StartGitCredentialGithubRedirectErrors]
-
-export type StartGitCredentialGithubRedirectResponses = {
-  /**
-   * Default Response
-   */
-  200: {
-    authUrl: string
-    state: string
-  }
-}
-
-export type StartGitCredentialGithubRedirectResponse =
-  StartGitCredentialGithubRedirectResponses[keyof StartGitCredentialGithubRedirectResponses]
-
-export type CompleteGitCredentialGithubRedirectData = {
-  body: {
-    code: string
-    state: string
-    scopeLabel?: string
-  }
-  path?: never
-  query?: never
-  url: '/api/v1/git-credentials/github/redirect/callback'
-}
-
-export type CompleteGitCredentialGithubRedirectErrors = {
-  /**
-   * Default Response
-   */
-  400: {
-    error: string
-    code?: string
-    requestId?: string
-    reason?: 're-authorize'
-    credentialId?: string
-  }
+export type StartGitCredentialGithubSignInErrors = {
   /**
    * Default Response
    */
@@ -56088,29 +56006,29 @@ export type CompleteGitCredentialGithubRedirectErrors = {
   }
 }
 
-export type CompleteGitCredentialGithubRedirectError =
-  CompleteGitCredentialGithubRedirectErrors[keyof CompleteGitCredentialGithubRedirectErrors]
+export type StartGitCredentialGithubSignInError =
+  StartGitCredentialGithubSignInErrors[keyof StartGitCredentialGithubSignInErrors]
 
-export type CompleteGitCredentialGithubRedirectResponses = {
+export type StartGitCredentialGithubSignInResponses = {
   /**
    * Default Response
    */
   200: {
-    credential: RedactedGitCredentialEntry
+    session: SignInSessionState
   }
 }
 
-export type CompleteGitCredentialGithubRedirectResponse =
-  CompleteGitCredentialGithubRedirectResponses[keyof CompleteGitCredentialGithubRedirectResponses]
+export type StartGitCredentialGithubSignInResponse =
+  StartGitCredentialGithubSignInResponses[keyof StartGitCredentialGithubSignInResponses]
 
-export type StartGitCredentialGithubDeviceData = {
+export type StartOverseerGithubSignInData = {
   body?: never
   path?: never
   query?: never
-  url: '/api/v1/git-credentials/github/device/start'
+  url: '/api/v1/overseer/github/sign-in'
 }
 
-export type StartGitCredentialGithubDeviceErrors = {
+export type StartOverseerGithubSignInErrors = {
   /**
    * Default Response
    */
@@ -56133,61 +56051,35 @@ export type StartGitCredentialGithubDeviceErrors = {
   }
 }
 
-export type StartGitCredentialGithubDeviceError =
-  StartGitCredentialGithubDeviceErrors[keyof StartGitCredentialGithubDeviceErrors]
+export type StartOverseerGithubSignInError =
+  StartOverseerGithubSignInErrors[keyof StartOverseerGithubSignInErrors]
 
-export type StartGitCredentialGithubDeviceResponses = {
+export type StartOverseerGithubSignInResponses = {
   /**
    * Default Response
    */
   200: {
-    flowId: string
-    userCode: string
-    verificationUri: string
-    verificationUriComplete?: string
-    expiresAt: number
-    intervalMs: number
+    session: SignInSessionState
   }
 }
 
-export type StartGitCredentialGithubDeviceResponse =
-  StartGitCredentialGithubDeviceResponses[keyof StartGitCredentialGithubDeviceResponses]
+export type StartOverseerGithubSignInResponse =
+  StartOverseerGithubSignInResponses[keyof StartOverseerGithubSignInResponses]
 
-export type PollGitCredentialGithubDeviceData = {
-  body: {
-    flowId: string
-    scopeLabel?: string
+export type ReadOverseerGithubSignInData = {
+  body?: never
+  path: {
+    sessionId: string
   }
-  path?: never
   query?: never
-  url: '/api/v1/git-credentials/github/device/poll'
+  url: '/api/v1/overseer/github/sign-ins/{sessionId}'
 }
 
-export type PollGitCredentialGithubDeviceErrors = {
+export type ReadOverseerGithubSignInErrors = {
   /**
    * Default Response
    */
-  400: {
-    error: string
-    code?: string
-    requestId?: string
-    reason?: 're-authorize'
-    credentialId?: string
-  }
-  /**
-   * Default Response
-   */
-  502: {
-    error: string
-    code?: string
-    requestId?: string
-    reason?: 're-authorize'
-    credentialId?: string
-  }
-  /**
-   * Default Response
-   */
-  503: {
+  404: {
     error: string
     code?: string
     requestId?: string
@@ -56196,28 +56088,49 @@ export type PollGitCredentialGithubDeviceErrors = {
   }
 }
 
-export type PollGitCredentialGithubDeviceError =
-  PollGitCredentialGithubDeviceErrors[keyof PollGitCredentialGithubDeviceErrors]
+export type ReadOverseerGithubSignInError =
+  ReadOverseerGithubSignInErrors[keyof ReadOverseerGithubSignInErrors]
 
-export type PollGitCredentialGithubDeviceResponses = {
+export type ReadOverseerGithubSignInResponses = {
   /**
    * Default Response
    */
-  200:
-    | {
-        status: 'pending'
-      }
-    | {
-        status: 'slow_down'
-      }
-    | {
-        status: 'authorized'
-        credential: RedactedGitCredentialEntry
-      }
+  200: OverseerGithubSignInToken
 }
 
-export type PollGitCredentialGithubDeviceResponse =
-  PollGitCredentialGithubDeviceResponses[keyof PollGitCredentialGithubDeviceResponses]
+export type ReadOverseerGithubSignInResponse =
+  ReadOverseerGithubSignInResponses[keyof ReadOverseerGithubSignInResponses]
+
+export type FinishGithubSignInData = {
+  body?: never
+  path?: never
+  query: {
+    state: string
+    code?: string
+    error?: string
+    error_description?: string
+  }
+  url: '/api/v1/github/oauth/callback'
+}
+
+export type FinishGithubSignInErrors = {
+  /**
+   * Default Response
+   */
+  400: string
+}
+
+export type FinishGithubSignInError = FinishGithubSignInErrors[keyof FinishGithubSignInErrors]
+
+export type FinishGithubSignInResponses = {
+  /**
+   * Default Response
+   */
+  200: string
+}
+
+export type FinishGithubSignInResponse =
+  FinishGithubSignInResponses[keyof FinishGithubSignInResponses]
 
 export type ListActionRulesData = {
   body?: never
@@ -68566,7 +68479,17 @@ export type StartCliAuthLoginErrors = {
   /**
    * Default Response
    */
-  500: {
+  502: {
+    error: string
+    code?: string
+    requestId?: string
+    reason?: 're-authorize'
+    credentialId?: string
+  }
+  /**
+   * Default Response
+   */
+  503: {
     error: string
     code?: string
     requestId?: string
@@ -68581,87 +68504,12 @@ export type StartCliAuthLoginResponses = {
   /**
    * Default Response
    */
-  202: {
-    loginId: string
+  200: {
+    session: SignInSessionState
   }
 }
 
 export type StartCliAuthLoginResponse = StartCliAuthLoginResponses[keyof StartCliAuthLoginResponses]
-
-export type CancelCliAuthLoginData = {
-  body?: never
-  path: {
-    loginId: string
-  }
-  query?: never
-  url: '/api/v1/cli-auth/login/{loginId}/cancel'
-}
-
-export type CancelCliAuthLoginErrors = {
-  /**
-   * Default Response
-   */
-  404: {
-    error: string
-    code?: string
-    requestId?: string
-    reason?: 're-authorize'
-    credentialId?: string
-  }
-}
-
-export type CancelCliAuthLoginError = CancelCliAuthLoginErrors[keyof CancelCliAuthLoginErrors]
-
-export type CancelCliAuthLoginResponses = {
-  /**
-   * Default Response
-   */
-  200: {
-    ok: boolean
-  }
-}
-
-export type CancelCliAuthLoginResponse =
-  CancelCliAuthLoginResponses[keyof CancelCliAuthLoginResponses]
-
-export type SubmitCliAuthLoginInputData = {
-  body: {
-    text: string
-  }
-  path: {
-    loginId: string
-  }
-  query?: never
-  url: '/api/v1/cli-auth/login/{loginId}/input'
-}
-
-export type SubmitCliAuthLoginInputErrors = {
-  /**
-   * Default Response
-   */
-  404: {
-    error: string
-    code?: string
-    requestId?: string
-    reason?: 're-authorize'
-    credentialId?: string
-  }
-}
-
-export type SubmitCliAuthLoginInputError =
-  SubmitCliAuthLoginInputErrors[keyof SubmitCliAuthLoginInputErrors]
-
-export type SubmitCliAuthLoginInputResponses = {
-  /**
-   * Default Response
-   */
-  200: {
-    ok: boolean
-  }
-}
-
-export type SubmitCliAuthLoginInputResponse =
-  SubmitCliAuthLoginInputResponses[keyof SubmitCliAuthLoginInputResponses]
 
 export type GetChatOpenChangesData = {
   body?: never
@@ -75941,227 +75789,6 @@ export type ListOverseerAuthProvidersResponses = {
 
 export type ListOverseerAuthProvidersResponse =
   ListOverseerAuthProvidersResponses[keyof ListOverseerAuthProvidersResponses]
-
-export type GetOverseerGithubAuthUrlData = {
-  body?: never
-  path?: never
-  query?: never
-  url: '/api/v1/overseer/github/auth-url'
-}
-
-export type GetOverseerGithubAuthUrlErrors = {
-  /**
-   * Default Response
-   */
-  503: {
-    error: string
-    code?: string
-    requestId?: string
-    reason?: 're-authorize'
-    credentialId?: string
-  }
-}
-
-export type GetOverseerGithubAuthUrlError =
-  GetOverseerGithubAuthUrlErrors[keyof GetOverseerGithubAuthUrlErrors]
-
-export type GetOverseerGithubAuthUrlResponses = {
-  /**
-   * Default Response
-   */
-  200: OverseerGithubAuthUrl
-}
-
-export type GetOverseerGithubAuthUrlResponse =
-  GetOverseerGithubAuthUrlResponses[keyof GetOverseerGithubAuthUrlResponses]
-
-export type CompleteOverseerGithubAuthData = {
-  body: OverseerGithubCallbackInput
-  path?: never
-  query?: never
-  url: '/api/v1/overseer/github/callback'
-}
-
-export type CompleteOverseerGithubAuthErrors = {
-  /**
-   * Default Response
-   */
-  400: {
-    error: string
-    code?: string
-    requestId?: string
-    reason?: 're-authorize'
-    credentialId?: string
-  }
-  /**
-   * Default Response
-   */
-  502: {
-    error: string
-    code?: string
-    requestId?: string
-    reason?: 're-authorize'
-    credentialId?: string
-  }
-  /**
-   * Default Response
-   */
-  503: {
-    error: string
-    code?: string
-    requestId?: string
-    reason?: 're-authorize'
-    credentialId?: string
-  }
-}
-
-export type CompleteOverseerGithubAuthError =
-  CompleteOverseerGithubAuthErrors[keyof CompleteOverseerGithubAuthErrors]
-
-export type CompleteOverseerGithubAuthResponses = {
-  /**
-   * Default Response
-   */
-  200: OverseerGithubCallbackResult
-}
-
-export type CompleteOverseerGithubAuthResponse =
-  CompleteOverseerGithubAuthResponses[keyof CompleteOverseerGithubAuthResponses]
-
-export type StartOverseerGithubDeviceFlowData = {
-  body?: never
-  path?: never
-  query?: never
-  url: '/api/v1/overseer/github/device/start'
-}
-
-export type StartOverseerGithubDeviceFlowErrors = {
-  /**
-   * Default Response
-   */
-  502: {
-    error: string
-    code?: string
-    requestId?: string
-    reason?: 're-authorize'
-    credentialId?: string
-  }
-  /**
-   * Default Response
-   */
-  503: {
-    error: string
-    code?: string
-    requestId?: string
-    reason?: 're-authorize'
-    credentialId?: string
-  }
-}
-
-export type StartOverseerGithubDeviceFlowError =
-  StartOverseerGithubDeviceFlowErrors[keyof StartOverseerGithubDeviceFlowErrors]
-
-export type StartOverseerGithubDeviceFlowResponses = {
-  /**
-   * Default Response
-   */
-  200: {
-    flowId: string
-    userCode: string
-    verificationUri: string
-    verificationUriComplete?: string
-    expiresAt: number
-    intervalMs: number
-  }
-}
-
-export type StartOverseerGithubDeviceFlowResponse =
-  StartOverseerGithubDeviceFlowResponses[keyof StartOverseerGithubDeviceFlowResponses]
-
-export type PollOverseerGithubDeviceFlowData = {
-  body: {
-    flowId: string
-  }
-  path?: never
-  query?: never
-  url: '/api/v1/overseer/github/device/poll'
-}
-
-export type PollOverseerGithubDeviceFlowErrors = {
-  /**
-   * Default Response
-   */
-  400: {
-    error: string
-    code?: string
-    requestId?: string
-    reason?: 're-authorize'
-    credentialId?: string
-  }
-  /**
-   * Default Response
-   */
-  403: {
-    error: string
-    code?: string
-    requestId?: string
-    reason?: 're-authorize'
-    credentialId?: string
-  }
-  /**
-   * Default Response
-   */
-  410: {
-    error: string
-    code?: string
-    requestId?: string
-    reason?: 're-authorize'
-    credentialId?: string
-  }
-  /**
-   * Default Response
-   */
-  502: {
-    error: string
-    code?: string
-    requestId?: string
-    reason?: 're-authorize'
-    credentialId?: string
-  }
-  /**
-   * Default Response
-   */
-  503: {
-    error: string
-    code?: string
-    requestId?: string
-    reason?: 're-authorize'
-    credentialId?: string
-  }
-}
-
-export type PollOverseerGithubDeviceFlowError =
-  PollOverseerGithubDeviceFlowErrors[keyof PollOverseerGithubDeviceFlowErrors]
-
-export type PollOverseerGithubDeviceFlowResponses = {
-  /**
-   * Default Response
-   */
-  200:
-    | {
-        status: 'pending'
-      }
-    | {
-        status: 'slow_down'
-      }
-    | {
-        status: 'authorized'
-        tokenId: string
-      }
-}
-
-export type PollOverseerGithubDeviceFlowResponse =
-  PollOverseerGithubDeviceFlowResponses[keyof PollOverseerGithubDeviceFlowResponses]
 
 export type CreateOverseerGithubRepoData = {
   body: CreateOverseerGithubRepoInput

@@ -1,100 +1,56 @@
-import { useCallback, useEffect, useState } from 'react'
-import { extractErrorMessage } from '../api'
-import type { CliTool } from '../api'
+import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react'
+import { useApi } from '../api/ApiContext'
+import { startCliSignIn } from '../api/cliSignInApi'
+import { SIGN_IN_SESSION_ROUTES } from '../api/signInSessionsApi'
 import { useCliConfigs } from '../contexts/CliConfigsContext'
-import { loginAwaitsCode, parseLoginUrl } from '../utils/cliRunner'
+import type { CliSignInSnapshot, CliSignInStart } from '../utils/cliSignInTypes'
+import { CliSignInStore } from './cliSignInStore'
+import { signInSessionsStoreFor } from './useSignInSession'
 
-export type CliSignInStart = {
-  cli: CliTool
-  label: string
-  /** The stored login signed in again. */
-  credentialId?: string
-  /** The agent's sign-in card this sign-in answers. */
-  captureId?: string
-}
+export type { CliSignInStart } from '../utils/cliSignInTypes'
 
-export type UseCliSignIn = {
-  /** The sign-in under way, or null before one starts and after it ends. */
-  loginId: string | null
-  starting: boolean
-  /** The provider's sign-in page, once the CLI printed it. */
-  url: string | null
-  /** The CLI is waiting for the code the sign-in page shows. */
-  needsCode: boolean
-  /** Why the last sign-in did not start or did not finish. */
-  error: string | null
-  start: (request: CliSignInStart) => Promise<string | null>
-  /** Hand the pasted code to the sign-in. */
-  submitCode: (code: string) => Promise<void>
-  cancel: () => Promise<void>
+export type UseCliSignIn = CliSignInSnapshot & {
+  /** Sign in inside the app, or show the open sign-in again. */
+  start: (request: CliSignInStart) => void
+  /** Close the open sign-in, as leaving the view that started it does. */
+  stop: () => Promise<void>
 }
 
 /**
- * One interactive CLI sign-in: start it, follow its streamed output for the
- * sign-in link and whether it waits for a code, hand it the code, and learn how
- * it ended. `onSignedIn` runs once with the login it produced.
+ * One CLI agent's sign-in, made inside the app: the press shows busy at once
+ * and the backend's session is shown by the app's sign-in view. Once signed
+ * in the CLI logins are read again and `onSignedIn` runs; a sign-in that did
+ * not finish leaves why in `error`.
  */
-export function useCliSignIn(onSignedIn?: (credentialId: string) => void): UseCliSignIn {
-  const { startAuthLogin, cancelAuthLogin, submitLoginInput, loginOutput, loginResults } =
-    useCliConfigs()
-  const [loginId, setLoginId] = useState<string | null>(null)
-  const [starting, setStarting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const result = loginId ? loginResults[loginId] : undefined
-  useEffect(() => {
-    if (!loginId || !result) return
-    setLoginId(null)
-    if (result.status === 'completed') onSignedIn?.(result.credentialId)
-    else setError(result.error)
-  }, [loginId, result, onSignedIn])
-
-  const output = loginId ? (loginOutput[loginId] ?? '') : ''
-
+export function useCliSignIn(onSignedIn?: () => void): UseCliSignIn {
+  const { ws } = useApi()
+  const { refresh } = useCliConfigs()
+  const signedIn = useRef(onSignedIn)
+  signedIn.current = onSignedIn
+  const sessions = signInSessionsStoreFor(ws)
+  const store = useMemo(
+    () =>
+      new CliSignInStore(
+        {
+          start: startCliSignIn,
+          close: SIGN_IN_SESSION_ROUTES.close,
+          onFinished: () => {
+            void refresh()
+            signedIn.current?.()
+          },
+        },
+        sessions,
+      ),
+    [sessions, refresh],
+  )
+  useEffect(() => sessions.retain(), [sessions])
+  useEffect(() => store.retain(), [store])
+  const snapshot = useSyncExternalStore(store.listen, store.snapshot, store.snapshot)
   const start = useCallback(
-    async ({ cli, label, credentialId, captureId }: CliSignInStart) => {
-      setStarting(true)
-      setError(null)
-      try {
-        const id = await startAuthLogin(cli, label, {
-          ...(credentialId ? { credentialId } : {}),
-          ...(captureId ? { captureId } : {}),
-        })
-        setLoginId(id)
-        return id
-      } catch (err) {
-        setError(extractErrorMessage(err, 'Failed to start the CLI login.'))
-        return null
-      } finally {
-        setStarting(false)
-      }
+    (request: CliSignInStart) => {
+      void store.start(request)
     },
-    [startAuthLogin],
+    [store],
   )
-
-  const submitCode = useCallback(
-    async (code: string) => {
-      const text = code.trim()
-      if (!loginId || !text) return
-      await submitLoginInput(loginId, text)
-    },
-    [loginId, submitLoginInput],
-  )
-
-  const cancel = useCallback(async () => {
-    if (!loginId) return
-    setLoginId(null)
-    await cancelAuthLogin(loginId).catch(() => undefined)
-  }, [loginId, cancelAuthLogin])
-
-  return {
-    loginId,
-    starting,
-    url: parseLoginUrl(output),
-    needsCode: loginAwaitsCode(output),
-    error,
-    start,
-    submitCode,
-    cancel,
-  }
+  return useMemo(() => ({ ...snapshot, start, stop: store.stop }), [snapshot, start, store])
 }

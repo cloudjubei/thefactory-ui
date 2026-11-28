@@ -779,10 +779,6 @@ export {
   type ProjectGithubRepoFieldProps,
 } from './compound/projects/ProjectGithubRepoField'
 export {
-  default as GithubConnectModal,
-  type GithubConnectModalProps,
-} from './compound/projects/GithubConnectModal'
-export {
   default as ProjectCodeInfoModal,
   type CodeInfoValue,
 } from './compound/projects/ProjectCodeInfoModal'
@@ -948,12 +944,8 @@ export { default as DataLocationSettingsPanel } from './compound/settings/DataLo
 export { default as DatabaseSettings } from './compound/settings/DatabaseSettings'
 export { default as DockerDiskPanel } from './compound/settings/DockerDiskPanel'
 export { default as GitCredentialsForm } from './compound/settings/GitCredentialsForm'
-export type {
-  GitCredentialsFormProps,
-  GitCredentialsFormHostCapabilities,
-} from './compound/settings/GitCredentialsForm'
+export type { GitCredentialsFormProps } from './compound/settings/GitCredentialsForm'
 export { default as GitCredentialsSettings } from './compound/settings/GitCredentialsSettings'
-export type { GitCredentialsSettingsProps } from './compound/settings/GitCredentialsSettings'
 export { default as ProjectNotesSettings } from './compound/settings/ProjectNotesSettings'
 export type { ProjectNotesSettingsProps } from './compound/settings/ProjectNotesSettings'
 export {
@@ -1210,15 +1202,6 @@ export {
   default as ProcessGroupParkReview,
   type ProcessGroupParkReviewProps,
 } from './compound/process/ProcessGroupParkReview'
-export {
-  default as GithubCallback,
-  GITHUB_OAUTH_MESSAGE_TYPE,
-  GITHUB_TOKEN_STORAGE_KEY,
-  GITHUB_CREDENTIAL_STORAGE_KEY,
-  GITHUB_GITCRED_SCOPE_LABEL_STORAGE_KEY,
-  type GithubOAuthMessage,
-  type GithubOAuthResult,
-} from './screens/GithubCallback'
 
 // Overseer Git surface — read-only view + settings-panel entry point.
 // Both shipped from `thefactory-ui/web` so web and desktop render the

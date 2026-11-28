@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { Linking } from 'react-native'
 
 import { useMcpServerSignIn } from '../../../headless/hooks/useMcpServerSignIn'
 import { CAPTURE_CANCEL_ERROR } from '../../../headless/utils/credentialCaptureConstants'
@@ -13,7 +12,7 @@ export interface McpServerCaptureSignInProps {
   onCancel: () => Promise<void>
 }
 
-/** Native peer of web's `McpServerCaptureSignIn`. The backend answers the card, not this. */
+/** Native peer of web's `McpServerCaptureSignIn`: shown inside the app. The backend answers the card, not this. */
 export default function McpServerCaptureSignIn({
   capture,
   owner,
@@ -35,15 +34,10 @@ export default function McpServerCaptureSignIn({
   return (
     <McpServerSignInStep
       url={capture.mcpServer?.url}
-      pendingUrl={signIn.pendingUrl}
-      busy={signIn.busy || cancelling}
+      starting={signIn.starting}
+      cancelling={cancelling}
       error={signIn.error ?? cancelError}
-      onSignIn={() => {
-        void signIn.signIn().then((page) => {
-          if (page) void Linking.openURL(page)
-        })
-      }}
-      onOpenPage={(url) => void Linking.openURL(url)}
+      onSignIn={signIn.signIn}
       onCancel={cancel}
     />
   )

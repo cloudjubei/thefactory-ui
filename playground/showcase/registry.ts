@@ -60,6 +60,7 @@ import { GIT_GRAPH_UNCOMMITTED_SCENES } from '../scenes/gitGraphUncommitted'
 import { GIT_PUSH_AFTER_SCENES } from '../scenes/gitPushAfter'
 import { GIT_STASH_SCENES } from '../scenes/gitStash'
 import { GIT_REAUTHORIZATION_SCENES } from '../scenes/gitReauthorization'
+import { GITHUB_SIGN_IN_SCENES } from '../scenes/githubSignIn'
 import { GROUP_HOME_SCENES } from '../scenes/groupHome'
 import { PROJECT_RUNS_SCENES } from '../scenes/projectRuns'
 import { GROUP_SIGN_OFF_SCENES } from '../scenes/groupSignOff'
@@ -125,6 +126,7 @@ import { SLACK_REVIEW_SCENES } from '../scenes/slackReview'
 import { REVIEW_MERGE_CHECKS_SCENES } from '../scenes/reviewMergeChecks'
 import { RECORDING_SITES_SCENES } from '../scenes/recordingSites'
 import { SIGN_IN_SESSION_SCENES } from '../scenes/signInSession'
+import { CLI_SIGN_IN_SCENES } from '../scenes/cliSignIn'
 import { REVIEW_CLOSE_SCENES } from '../scenes/reviewClose'
 import { REVIEW_RUN_ROUNDS_SCENES } from '../scenes/reviewRunRounds'
 import { REVIEW_RUN_PAGE_SCENES } from '../scenes/reviewRunPage'
@@ -283,6 +285,8 @@ export const SCENES: readonly Scene[] = [
   ...REVIEW_MERGE_CHECKS_SCENES,
   ...RECORDING_SITES_SCENES,
   ...SIGN_IN_SESSION_SCENES,
+  ...CLI_SIGN_IN_SCENES,
+  ...GITHUB_SIGN_IN_SCENES,
   ...REVIEW_RUN_ROUNDS_SCENES,
   ...REVIEW_CLOSE_SCENES,
   ...REVIEW_RUN_PAGE_SCENES,

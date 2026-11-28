@@ -1,12 +1,9 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import {
   createOverseerGithubRepo,
   createProject,
   createProjectGithubRepo,
-  getOverseerGithubAuthUrl,
   listOverseerAuthProviders,
-  pollOverseerGithubDeviceFlow,
-  startOverseerGithubDeviceFlow,
   getResponseDataMessage,
 } from '../../headless/api'
 import type {
@@ -23,11 +20,8 @@ import { Input } from '../primitives/Input'
 import { ConfirmDialog } from '../primitives/Modal'
 import Surface from '../primitives/Surface'
 import { IconArrowLeftMini } from '../icons'
-import {
-  GITHUB_OAUTH_MESSAGE_TYPE,
-  GITHUB_TOKEN_STORAGE_KEY,
-  type GithubOAuthMessage,
-} from './GithubCallback'
+import { useGithubSignIn } from '../../headless/hooks/useGithubSignIn'
+import { GITHUB_SIGN_IN_TEXT } from '../../headless/utils/githubSignInConstants'
 
 type Step =
   | 'chooser'
@@ -47,10 +41,9 @@ type Step =
  * 1. **Connect to a git repository** — clone any URL; if the remote already
  *    has thefactory-overseer files, projects load automatically. If empty,
  *    the backend seeds it.
- * 2. **Create a fresh GitHub repository** — runs GitHub OAuth (Device Flow
- *    when the backend advertises it; falls back to "coming soon" when no
- *    flow is configured). Hidden card until the operator wires up
- *    `GITHUB_CLIENT_ID`.
+ * 2. **Create a fresh GitHub repository** — signs in with GitHub inside the
+ *    app (falls back to "coming soon" when the backend has no GitHub sign-in
+ *    set up), then creates the repository.
  * 3. **Use it locally only** — flagged risky; no remote, no off-machine
  *    backups. Gated on an "I understand" confirmation.
  *
@@ -86,12 +79,6 @@ export default function WelcomeView() {
       </div>
     )
   }
-  // If we just came back from a GitHub OAuth redirect, the callback page has
-  // stashed a tokenId in sessionStorage. The full-page fallback is only used
-  // by the *overseer* setup path (the project path is popup-only — see
-  // ProjectFreshGithubAuthFlow), so resuming straight at the overseer
-  // create-repo step is unambiguous.
-  const pendingGithubAuth = sessionStorage.getItem(GITHUB_TOKEN_STORAGE_KEY) !== null
   // `setupCompleted` is the backend's persistent marker — flipped by every
   // setup path (set/clone remote, fresh-github, confirm-local-only) and
   // wiped by `resetOverseer`. We OR with `hasRemote` for two reasons: (1)
@@ -100,17 +87,13 @@ export default function WelcomeView() {
   // marker, the remote alone proves the user set this up. `hasRemote=false`
   // overseers (local-only) rely on `setupCompleted` exclusively.
   const overseerSetUp = overseer.state.setupCompleted || overseer.state.hasRemote
-  const initialStep: Step = pendingGithubAuth
-    ? 'github-fresh-create'
-    : overseerSetUp
-      ? 'project-chooser'
-      : 'chooser'
+  const initialStep: Step = overseerSetUp ? 'project-chooser' : 'chooser'
   return <WelcomeFlow initialStep={initialStep} authProviders={authProviders.value} />
 }
 
 /**
  * One-shot fetch of `auth-providers` so the chooser can decide which GitHub
- * card variant to show (device-flow CTA vs. "coming soon"). Only called
+ * card variant to show (sign-in CTA vs. "coming soon"). Only called
  * once on mount — the answer doesn't change at runtime, it's an env-time
  * config on the backend.
  */
@@ -160,22 +143,13 @@ function WelcomeFlow({
   // tokenId acquired by the OAuth flow — kept here so the create-repo
   // step (which is a separate render) has access to it. Cleared on
   // back/success.
-  const [overseerToken, setOverseerToken] = useState<string | null>(() =>
-    sessionStorage.getItem(GITHUB_TOKEN_STORAGE_KEY),
-  )
+  const [overseerToken, setOverseerToken] = useState<string | null>(null)
   const [projectToken, setProjectToken] = useState<string | null>(null)
 
   const backToOverseerChooser = () => setStep('chooser')
   const backToProjectChooser = () => setStep('project-chooser')
 
-  // Both flows are popup-based and seamless. Prefer redirect when available
-  // — its callback `postMessage`s the result, so the moment the user hits
-  // Authorize on GitHub the popup closes and the app advances. Device flow
-  // is the fallback (still seamless: pre-filled code, auto-close popup, but
-  // adds one polling round-trip between Authorize and "done").
-  const hasDevice = authProviders.githubFlows.includes('device')
-  const hasRedirect = authProviders.githubFlows.includes('redirect')
-  const githubAvailable = hasDevice || hasRedirect
+  const githubAvailable = authProviders.githubFlows.length > 0
 
   // Once the overseer is committed, the user is "inside" it — no Back to the
   // overseer chooser. The banner's Change… affordance is the way out.
@@ -215,25 +189,10 @@ function WelcomeFlow({
             onConnected={() => setStep('project-chooser')}
           />
         )}
-        {step === 'github-fresh-auth' && hasRedirect && (
-          <GithubFreshRedirectFlow
+        {step === 'github-fresh-auth' && githubAvailable && (
+          <WelcomeGithubSignIn
             onBack={backToOverseerChooser}
             onAuthorized={(tokenId) => {
-              // Persist so a force refresh during the auth→create-repo
-              // gap doesn't lose the tokenId — the redirect flow's
-              // full-page fallback already writes via GithubCallback;
-              // this unifies the popup path with it.
-              sessionStorage.setItem(GITHUB_TOKEN_STORAGE_KEY, tokenId)
-              setOverseerToken(tokenId)
-              setStep('github-fresh-create')
-            }}
-          />
-        )}
-        {step === 'github-fresh-auth' && !hasRedirect && hasDevice && (
-          <GithubFreshDeviceFlow
-            onBack={backToOverseerChooser}
-            onAuthorized={(tokenId) => {
-              sessionStorage.setItem(GITHUB_TOKEN_STORAGE_KEY, tokenId)
               setOverseerToken(tokenId)
               setStep('github-fresh-create')
             }}
@@ -246,12 +205,10 @@ function WelcomeFlow({
           <CreateOverseerRepoForm
             tokenId={overseerToken}
             onBack={() => {
-              sessionStorage.removeItem(GITHUB_TOKEN_STORAGE_KEY)
               setOverseerToken(null)
               setStep('github-fresh-auth')
             }}
             onCreated={() => {
-              sessionStorage.removeItem(GITHUB_TOKEN_STORAGE_KEY)
               setOverseerToken(null)
               setStep('project-chooser')
             }}
@@ -267,18 +224,8 @@ function WelcomeFlow({
           <ProjectChooser onPick={setStep} githubAvailable={githubAvailable} />
         )}
         {step === 'project-import' && <ImportProjectForm onBack={backToProjectChooser} />}
-        {step === 'project-new-github-auth' && hasRedirect && (
-          <GithubFreshRedirectFlow
-            onBack={backToProjectChooser}
-            onAuthorized={(tokenId) => {
-              setProjectToken(tokenId)
-              setStep('project-new-github-create')
-            }}
-            popupOnly
-          />
-        )}
-        {step === 'project-new-github-auth' && !hasRedirect && hasDevice && (
-          <GithubFreshDeviceFlow
+        {step === 'project-new-github-auth' && (
+          <WelcomeGithubSignIn
             onBack={backToProjectChooser}
             onAuthorized={(tokenId) => {
               setProjectToken(tokenId)
@@ -506,478 +453,55 @@ function GithubFreshComingSoon({ onBack }: { onBack: () => void }) {
       <Alert variant="info">
         GitHub authentication is not configured on this deployment. Set{' '}
         <code>GITHUB_CLIENT_ID</code>
-        and <code>GITHUB_CLIENT_SECRET</code> on the backend (and either enable Device Flow on the
-        OAuth App or configure a redirect URL) to enable this path. For now, create a repository on
-        GitHub yourself and use the <em>Connect to a git repository</em> path with its URL.
+        and <code>GITHUB_CLIENT_SECRET</code> on the backend to enable this path. For now, create a
+        repository on GitHub yourself and use the <em>Connect to a git repository</em> path with its
+        URL.
       </Alert>
     </Surface>
   )
 }
 
-type DeviceFlowStage =
-  | { kind: 'starting' }
-  | {
-      kind: 'awaiting'
-      flowId: string
-      userCode: string
-      verificationUri: string
-      verificationUriComplete?: string
-      intervalMs: number
-      expiresAt: number
-    }
-  | { kind: 'error'; message: string; canRetry: boolean }
-
 /**
- * GitHub Device Flow path, made seamless. Acquires a tokenId and hands it
- * back via `onAuthorized` — the parent step is responsible for whatever
- * comes next (creating an overseer repo, a project repo, etc).
- *
- *   1. Hit `/device/start` to get a user code; poll `/device/poll` at the
- *      backend-reported interval until GitHub flips to `authorized`. Polling
- *      uses `setTimeout` (not `setInterval`) so a slow response or
- *      `slow_down` can't stack up overlapping requests.
- *   2. Open GitHub's device-code page in a centered popup, **with the user
- *      code pre-filled** (`?user_code=…`) — the user only sees the
- *      "Authorize" button, no copy-paste. We keep a reference to the popup
- *      so we can close it ourselves the moment polling reports success.
- *   3. Once authorized, call `onAuthorized(tokenId)` and unmount.
- *
- * Mobile fallback: if `window.open` returns null (popup blocked or browser
- * forces a new tab), we still show the user code + a "Copy code" button so
- * the user can copy-paste manually as a worst-case path.
- *
- * Cancellation uses a `cancelled` ref captured per-mount; we deliberately
- * do not abort in-flight axios calls — late responses are no-ops once the
- * cancel flag is set.
+ * GitHub's own page shown inside the app, through the sign-in view: a press
+ * opens it, the person is back here once it ends, and a finished sign-in hands
+ * the token it left to `onAuthorized`. A sign-in that ran out or failed says
+ * why; one the person closed goes back to the button.
  */
-function GithubFreshDeviceFlow({
+export function WelcomeGithubSignIn({
   onBack,
   onAuthorized,
 }: {
   onBack: () => void
   onAuthorized: (tokenId: string) => void
 }) {
-  const [stage, setStage] = useState<DeviceFlowStage>({ kind: 'starting' })
-  const cancelledRef = useRef(false)
-  // Reference to the GitHub popup so we can `popup.close()` the moment
-  // polling reports authorization. We don't use `noopener` because that
-  // would make `window.open` return null and lose the handle.
-  const popupRef = useRef<Window | null>(null)
-
-  const closePopup = () => {
-    popupRef.current?.close()
-    popupRef.current = null
-  }
-
-  // Kick off the device flow exactly once on mount. StrictMode double-invokes
-  // effects in dev, which would otherwise issue two device codes — track
-  // start with a ref so the second pass is a no-op.
-  const startedRef = useRef(false)
+  const github = useGithubSignIn('bootstrap')
+  const { state } = github
+  const tokenId = state.step === 'done' ? state.tokenId : undefined
   useEffect(() => {
-    cancelledRef.current = false
-    if (startedRef.current) return
-    startedRef.current = true
-    void startFlow()
-    return () => {
-      cancelledRef.current = true
-      closePopup()
-    }
+    if (tokenId) onAuthorized(tokenId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  async function startFlow() {
-    setStage({ kind: 'starting' })
-    try {
-      const { data } = await startOverseerGithubDeviceFlow({ throwOnError: true })
-      if (cancelledRef.current) return
-      setStage({
-        kind: 'awaiting',
-        flowId: data.flowId,
-        userCode: data.userCode,
-        verificationUri: data.verificationUri,
-        verificationUriComplete: data.verificationUriComplete,
-        intervalMs: data.intervalMs,
-        expiresAt: data.expiresAt,
-      })
-    } catch (err) {
-      if (cancelledRef.current) return
-      setStage({
-        kind: 'error',
-        message: extractGithubErrorMessage(
-          err,
-          'Could not start GitHub device flow. Make sure the OAuth app has "Enable Device Flow" toggled on.',
-        ),
-        canRetry: true,
-      })
-    }
-  }
-
-  // Poll while in the `awaiting` stage. Cleanup cancels the next scheduled poll.
-  useEffect(() => {
-    if (stage.kind !== 'awaiting') return
-    let timer: ReturnType<typeof setTimeout> | null = null
-    let stopped = false
-
-    const poll = async () => {
-      try {
-        const { data } = await pollOverseerGithubDeviceFlow({
-          body: { flowId: stage.flowId },
-          throwOnError: true,
-        })
-        if (stopped) return
-        if (data.status === 'authorized') {
-          // Auto-close the GitHub popup so the user doesn't have to dismiss
-          // it themselves. Safe even if they already closed it.
-          closePopup()
-          onAuthorized(data.tokenId)
-          return
-        }
-        // 'pending' or 'slow_down' — schedule the next poll. For slow_down
-        // we add 5s on top of the current interval; for pending we honour
-        // whatever interval the backend reported.
-        const wait = data.status === 'slow_down' ? stage.intervalMs + 5_000 : stage.intervalMs
-        timer = setTimeout(() => void poll(), wait)
-      } catch (err) {
-        if (stopped) return
-        const status = (err as { response?: { status?: number } }).response?.status
-        if (status === 410) {
-          closePopup()
-          setStage({
-            kind: 'error',
-            message: 'The device code expired before authorization completed.',
-            canRetry: true,
-          })
-          return
-        }
-        if (status === 403) {
-          closePopup()
-          setStage({
-            kind: 'error',
-            message: 'GitHub authorization was denied.',
-            canRetry: true,
-          })
-          return
-        }
-        setStage({
-          kind: 'error',
-          message: extractGithubErrorMessage(err, 'Polling for GitHub authorization failed.'),
-          canRetry: true,
-        })
-      }
-    }
-
-    timer = setTimeout(() => void poll(), stage.intervalMs)
-    return () => {
-      stopped = true
-      if (timer) clearTimeout(timer)
-    }
-  }, [stage])
-
-  if (stage.kind === 'starting') {
-    return (
-      <Surface className="flex flex-col gap-4 p-5">
-        <BackLink onBack={onBack} />
-        <header>
-          <h2 className="text-lg font-semibold">Create a fresh GitHub repository</h2>
-        </header>
-        <p className="text-sm opacity-70">Asking GitHub for a device code…</p>
-      </Surface>
-    )
-  }
-
-  if (stage.kind === 'awaiting') {
-    // Prefer the backend-supplied pre-filled URL; fall back to client-side
-    // synthesis for older backends / non-canonical OAuth providers that
-    // omit `verification_uri_complete`.
-    const completeUri =
-      stage.verificationUriComplete ??
-      buildVerificationUriComplete(stage.verificationUri, stage.userCode)
-    const openOnGithub = () => {
-      // Re-open if the user closed it earlier; replace if still open.
-      const existing = popupRef.current
-      if (existing && !existing.closed) {
-        existing.location.href = completeUri
-        existing.focus()
-        return
-      }
-      const popup = openCenteredPopup(completeUri, 'overseer-github-device-auth')
-      popupRef.current = popup
-      // If the popup was blocked, fall back to a same-tab navigation —
-      // the user authorises on GitHub and uses the browser back button to
-      // return. Polling on this side keeps running.
-      if (!popup) window.open(completeUri, '_blank', 'noopener,noreferrer')
-    }
-
-    return (
-      <Surface className="flex flex-col gap-4 p-5">
-        <BackLink onBack={onBack} />
-        <header>
-          <h2 className="text-lg font-semibold">Create a fresh GitHub repository</h2>
-          <p className="text-sm opacity-70">
-            We’ll open a small window to GitHub with the verification code already filled in. Just
-            click <strong>Authorize</strong>; we’ll detect when you’re done and close the window for
-            you.
-          </p>
-        </header>
-        <div className="flex flex-col gap-2 items-center">
-          <code
-            className="text-2xl font-mono tracking-widest px-4 py-2 rounded"
-            style={{ background: 'var(--surface-muted)' }}
-            title="Verify this matches the code GitHub shows you before authorising."
-          >
-            {stage.userCode}
-          </code>
-          <span className="text-xs opacity-60">
-            Expires {new Date(stage.expiresAt).toLocaleTimeString()}
-          </span>
-        </div>
-        <div className="flex gap-2 self-stretch">
-          <Button variant="primary" onClick={openOnGithub}>
-            Authorize on GitHub
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              void navigator.clipboard?.writeText(stage.userCode)
-            }}
-            title="Copy the code in case the popup was blocked and you need to paste it manually."
-          >
-            Copy code
-          </Button>
-        </div>
-        <p className="text-xs opacity-60">
-          Waiting for you to authorize on GitHub… (polling every{' '}
-          {Math.round(stage.intervalMs / 1000)}s)
-        </p>
-      </Surface>
-    )
-  }
-
-  // stage.kind === 'error'
-  return (
-    <Surface className="flex flex-col gap-4 p-5">
-      <BackLink onBack={onBack} />
-      <header>
-        <h2 className="text-lg font-semibold">Create a fresh GitHub repository</h2>
-      </header>
-      <Alert variant="error">{stage.message}</Alert>
-      {stage.canRetry && (
-        <Button
-          variant="primary"
-          onClick={() => {
-            startedRef.current = false
-            void startFlow()
-          }}
-        >
-          Try again
-        </Button>
-      )}
-    </Surface>
-  )
-}
-
-/**
- * Fallback: synthesise the pre-filled device-code URL client-side when the
- * backend's `verificationUriComplete` is absent (older GitHub Enterprise
- * builds and some non-canonical OAuth providers skip the field). On
- * canonical github.com responses the backend value is used directly and
- * this function isn't called.
- */
-function buildVerificationUriComplete(verificationUri: string, userCode: string): string {
-  try {
-    const url = new URL(verificationUri)
-    url.searchParams.set('user_code', userCode)
-    return url.toString()
-  } catch {
-    // Malformed URI from the backend — fall back to naive concat. Better
-    // a busted URL than a crashed flow.
-    const sep = verificationUri.includes('?') ? '&' : '?'
-    return `${verificationUri}${sep}user_code=${encodeURIComponent(userCode)}`
-  }
-}
-
-/**
- * GitHub redirect-flow path. Acquires a tokenId and hands it back via
- * `onAuthorized`. Popup-first; for the overseer setup we additionally
- * fall back to a full-page redirect when the popup is blocked (the
- * callback page stashes the tokenId in sessionStorage and `WelcomeView`
- * resumes the flow on remount). For project-side use, pass `popupOnly`
- * — the project step has no sessionStorage handoff and an unwanted
- * full-page redirect would lose form state and context.
- *
- * Pre-auth states:
- *   - **Idle:** "Authorize via GitHub" button. Click → open a popup
- *     synchronously (about:blank, so mobile Safari's gesture-required
- *     popup-blocker treats it as user-triggered), fetch the auth URL,
- *     navigate the popup. If `window.open` returned null (popup blocked):
- *     `popupOnly` shows an inline error; otherwise fall back to
- *     `window.location.assign` (callback handles the rest).
- *   - **Awaiting popup:** we're listening for either a `postMessage` from
- *     the callback (success/error) or the popup closing without one
- *     (user cancelled). Either resolves the await.
- */
-function GithubFreshRedirectFlow({
-  onBack,
-  onAuthorized,
-  popupOnly,
-}: {
-  onBack: () => void
-  onAuthorized: (tokenId: string) => void
-  /**
-   * When true, popup-blocked browsers see an inline error instead of a
-   * full-page redirect. Set for project-scope auth — the redirect-back
-   * sessionStorage handoff is owned by the overseer setup path.
-   */
-  popupOnly?: boolean
-}) {
-  const [error, setError] = useState<string | null>(null)
-  const [authStatus, setAuthStatus] = useState<'idle' | 'starting' | 'awaiting'>('idle')
-
-  // Popup window we're tracking — kept in a ref so the message-listener
-  // and the popup-closed-poll can find it without re-running the effect
-  // on every state change.
-  const popupRef = useRef<Window | null>(null)
-
-  // Listener for the callback page's postMessage. Mounted once; origin
-  // is checked to reject stray cross-origin messages. Successful messages
-  // are forwarded to the parent — we deliberately don't store the token
-  // ourselves so the parent owns its lifetime.
-  useEffect(() => {
-    const onMessage = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return
-      const data = event.data as Partial<GithubOAuthMessage> | null
-      if (!data || data.type !== GITHUB_OAUTH_MESSAGE_TYPE) return
-      if (data.ok === true && typeof data.tokenId === 'string') {
-        popupRef.current?.close()
-        popupRef.current = null
-        setAuthStatus('idle')
-        onAuthorized(data.tokenId)
-      } else if (data.ok === false) {
-        setError(data.error ?? 'GitHub authorization failed.')
-        setAuthStatus('idle')
-        popupRef.current?.close()
-        popupRef.current = null
-      }
-    }
-    window.addEventListener('message', onMessage)
-    return () => window.removeEventListener('message', onMessage)
-  }, [onAuthorized])
-
-  // Detect the user closing the popup without authorising. Polls every
-  // 500 ms while we're awaiting; cleared as soon as we leave that state.
-  useEffect(() => {
-    if (authStatus !== 'awaiting') return
-    const interval = window.setInterval(() => {
-      const popup = popupRef.current
-      if (popup && popup.closed) {
-        popupRef.current = null
-        setAuthStatus('idle')
-        setError('GitHub authorization window was closed before completing.')
-      }
-    }, 500)
-    return () => window.clearInterval(interval)
-  }, [authStatus])
-
-  const startAuth = async () => {
-    setError(null)
-    setAuthStatus('starting')
-
-    // Open the popup *synchronously* with the click — mobile browsers (and
-    // some desktop ones) only allow `window.open` from a direct user
-    // gesture. Navigating it to the auth URL once we've fetched it keeps
-    // the click context.
-    const popup = openCenteredPopup('about:blank', 'overseer-github-auth')
-
-    let authUrl: string
-    try {
-      const { data } = await getOverseerGithubAuthUrl({ throwOnError: true })
-      authUrl = data.authUrl
-    } catch (err) {
-      popup?.close()
-      setAuthStatus('idle')
-      setError(
-        extractGithubErrorMessage(
-          err,
-          'Could not start GitHub authorization. Make sure GITHUB_CLIENT_ID is configured on the backend.',
-        ),
-      )
-      return
-    }
-
-    if (!popup || popup.closed) {
-      if (popupOnly) {
-        setAuthStatus('idle')
-        setError(
-          'Couldn’t open the GitHub authorization popup. Allow popups for this site and try again.',
-        )
-        return
-      }
-      // Popup blocked — fall back to a full-page redirect. The callback
-      // page handles the non-popup branch (sessionStorage + navigate).
-      window.location.assign(authUrl)
-      return
-    }
-
-    popupRef.current = popup
-    popup.location.href = authUrl
-    setAuthStatus('awaiting')
-  }
+  }, [tokenId])
 
   return (
     <Surface className="flex flex-col gap-4 p-5">
       <BackLink onBack={onBack} />
       <header>
-        <h2 className="text-lg font-semibold">Authorize via GitHub</h2>
+        <h2 className="text-lg font-semibold">Sign in with GitHub</h2>
         <p className="text-sm opacity-70">
-          {popupOnly
-            ? 'We’ll open a small window to GitHub for you to authorize this machine. If your browser blocks popups, allow them for this site and try again.'
-            : 'We’ll open a small window to GitHub for you to authorize this machine. If your browser blocks the popup, we’ll redirect this page instead.'}
+          GitHub’s page opens here. Once you authorize this machine, you’ll name the repository.
         </p>
       </header>
-      {error && <Alert variant="error">{error}</Alert>}
-      <Button
-        variant="primary"
-        onClick={startAuth}
-        loading={authStatus !== 'idle'}
-        disabled={authStatus !== 'idle'}
-      >
-        {authStatus === 'awaiting'
-          ? 'Waiting for GitHub…'
-          : authStatus === 'starting'
-            ? 'Opening GitHub…'
-            : 'Authorize via GitHub'}
+      {state.error && <Alert variant="error">{state.error}</Alert>}
+      <Button variant="primary" onClick={github.start} loading={github.busy}>
+        {GITHUB_SIGN_IN_TEXT.signIn}
       </Button>
-      {authStatus === 'awaiting' && (
-        <p className="text-xs opacity-60">
-          Complete authorization in the popup window. We’ll detect when you’re done.
-        </p>
-      )}
     </Surface>
   )
-}
-
-/**
- * Open a roughly-centered popup. Returns null when the browser blocks it
- * (e.g. user has popups disabled, or the click context was lost). Width
- * and height are chosen to fit GitHub's auth screen comfortably without
- * dominating the desktop.
- */
-function openCenteredPopup(url: string, name: string): Window | null {
-  const width = 600
-  const height = 720
-  // `screen.availWidth/Height` excludes OS chrome (taskbar etc.); falls
-  // back gracefully when unavailable.
-  const screenWidth = window.screen.availWidth ?? window.innerWidth
-  const screenHeight = window.screen.availHeight ?? window.innerHeight
-  const left = Math.max(0, Math.round((screenWidth - width) / 2))
-  const top = Math.max(0, Math.round((screenHeight - height) / 2))
-  const features = `popup=yes,width=${width},height=${height},left=${left},top=${top}`
-  return window.open(url, name, features)
 }
 
 /**
  * Post-auth form for the overseer setup. Calls `createOverseerGithubRepo`
- * with the tokenId acquired by either GitHub flow (redirect or device).
+ * with the tokenId the GitHub sign-in left.
  */
 function CreateOverseerRepoForm({
   tokenId,
@@ -1160,8 +684,8 @@ function CreateProjectRepoForm({
 }
 
 function extractGithubErrorMessage(err: unknown, fallback: string): string {
-  // Backend uses `{ error: string }` for all GitHub OAuth errors (device
-  // flow, redirect flow, repo creation). Fall through to `message` (older
+  // Backend uses `{ error: string }` for GitHub repo creation errors. Fall
+  // through to `message` (older
   // overseer envelopes) and finally the transport error message.
   const responseError = (() => {
     if (!err || typeof err !== 'object') return undefined
@@ -1301,10 +825,9 @@ function OverseerStatusBanner({ onReset }: { onReset: () => void }) {
  *
  *   - **Import existing** — paste a git URL; backend clones it (and seeds
  *     it with the project's overseer files if missing).
- *   - **Set up new on a fresh GitHub repo** — runs GitHub OAuth (popup-only;
- *     the welcome flow's full-page-redirect handoff is reserved for the
- *     overseer setup), then creates the repo and the project in one
- *     backend round-trip. Hidden when GitHub OAuth isn't configured.
+ *   - **Set up new on a fresh GitHub repo** — signs in with GitHub inside the
+ *     app, then creates the repo and the project in one backend round-trip.
+ *     Hidden when GitHub sign-in isn't set up.
  *   - **Set up new locally** — register the project metadata only. A repo
  *     can be linked later from Settings → Repository.
  */

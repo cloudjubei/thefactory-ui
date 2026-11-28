@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Linking, Text, View } from 'react-native'
+import { Text, View } from 'react-native'
 import type {
   GetProviderConnectionResponse,
   ProviderConnectionCreateInput,
@@ -50,7 +50,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../primitives/Select'
-import ProviderOAuthWaiting from './ProviderOAuthWaiting'
 
 type ProviderConnectionsFormMode =
   | { kind: 'create'; onSubmit: (input: ProviderConnectionCreateInput) => Promise<unknown> }
@@ -72,7 +71,7 @@ export interface ProviderConnectionsFormProps {
 /**
  * Native peer of web's `ProviderConnectionsForm`, in the layout that ships: name,
  * provider, and either the provider's fields and token (on edit, blank keeps the
- * stored one) or a sign-in in the system browser.
+ * stored one) or a sign-in shown inside the app.
  */
 export default function ProviderConnectionsForm({
   mode,
@@ -110,16 +109,14 @@ export default function ProviderConnectionsForm({
     : providerConnectionDraftProblem(draft, saving) === undefined
   const canConnect = offersSignIn && providerOAuthDraftProblem(draft) === undefined
 
-  const connect = async () => {
+  const connect = () => {
     if (!canConnect) return
-    const page = await signIn.start(draft.provider, providerOAuthStartBody(draft))
-    if (page) await Linking.openURL(page)
+    void signIn.start(draft.provider, providerOAuthStartBody(draft))
   }
 
-  const reconnect = async () => {
+  const reconnect = () => {
     if (!initial) return
-    const page = await signIn.start(draft.provider, providerOAuthReconnectBody(initial))
-    if (page) await Linking.openURL(page)
+    void signIn.start(draft.provider, providerOAuthReconnectBody(initial))
   }
 
   useEffect(() => {
@@ -143,17 +140,6 @@ export default function ProviderConnectionsForm({
     }
   }
 
-  if (signIn.step === 'waiting') {
-    const { page } = signIn
-    return (
-      <ProviderOAuthWaiting
-        error={signIn.error}
-        onOpenAgain={() => void Linking.openURL(page)}
-        onBackOut={signIn.reset}
-      />
-    )
-  }
-
   return (
     <View className="gap-4">
       {error ? <Alert>{error}</Alert> : null}
@@ -174,11 +160,7 @@ export default function ProviderConnectionsForm({
           </Text>
           {offersReconnect ? (
             <View className="items-start gap-1">
-              <Button
-                variant="secondary"
-                loading={signIn.step === 'opening'}
-                onPress={() => void reconnect()}
-              >
+              <Button variant="secondary" loading={signIn.step === 'starting'} onPress={reconnect}>
                 {PROVIDER_OAUTH_COPY.reconnect}
               </Button>
               <Text style={{ fontSize: 12, color: theme.text.secondary }}>
@@ -300,11 +282,7 @@ export default function ProviderConnectionsForm({
           Cancel
         </Button>
         {method === 'oauth' ? (
-          <Button
-            onPress={() => void connect()}
-            loading={signIn.step === 'opening'}
-            disabled={!canConnect}
-          >
+          <Button onPress={connect} loading={signIn.step === 'starting'} disabled={!canConnect}>
             {spec.oauth?.action ?? ''}
           </Button>
         ) : (

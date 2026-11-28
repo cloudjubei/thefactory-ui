@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Linking, ScrollView, Text, View } from 'react-native'
+import { ScrollView, Text, View } from 'react-native'
 import { visibleCliModelsForAuth } from 'thefactory-tools/utils'
 
 import { extractErrorMessage } from '../../../headless/api'
@@ -20,7 +20,8 @@ import {
   cliImagesNeedCheck,
   newlyBuildingImageIds,
 } from '../../../headless/utils/cliImageView'
-import { loginAwaitsCode, parseLoginUrl } from '../../../headless/utils/cliRunner'
+import { useCliSignIn } from '../../../headless/hooks/useCliSignIn'
+import { CLI_SIGN_IN_TEXT } from '../../../headless/utils/cliSignInConstants'
 import { cliModelEffortRows, effortLevelLabel } from '../../../headless/utils/modelEffort'
 import {
   CLI_MODEL_DEFAULT_EFFORT_HINT,
@@ -29,7 +30,6 @@ import {
 } from '../../../headless/utils/modelEffortConstants'
 import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
-import { Input } from '../../primitives/Input'
 import { ConfirmDialog } from '../../primitives/Modal'
 import {
   Select,
@@ -123,11 +123,6 @@ export function CliConfigForm({ planWindowNow }: { planWindowNow?: number } = {}
     checkCliImages,
     startCliImageBuild,
     checkAuth,
-    startAuthLogin,
-    cancelAuthLogin,
-    submitLoginInput,
-    loginOutput,
-    loginResults,
   } = useCliConfigs()
 
   const [modelsProbe, setModelsProbe] = useState<Record<string, ModelsProbeState>>({})
@@ -141,18 +136,9 @@ export function CliConfigForm({ planWindowNow }: { planWindowNow?: number } = {}
   const [deleting, setDeleting] = useState(false)
   // Per-credential "Check now" auth probe in flight.
   const [checking, setChecking] = useState<Record<string, boolean>>({})
-  // The credential currently being re-authenticated in place + its login stream id.
-  const [reauth, setReauth] = useState<{ credentialId: string; loginId: string } | null>(null)
-  const [pasteCode, setPasteCode] = useState('')
-
-  // A completed re-auth clears the inline pane (the context already refreshed the
-  // cache list, so the row's status badge flips to authenticated on its own).
-  useEffect(() => {
-    if (reauth && loginResults[reauth.loginId]?.status === 'completed') {
-      setReauth(null)
-      setPasteCode('')
-    }
-  }, [reauth, loginResults])
+  // Signing a stored login in again, in place: the credential last pressed for, for its row's notice.
+  const reauth = useCliSignIn()
+  const [reauthPressed, setReauthPressed] = useState<string | null>(null)
 
   const runCheckAuth = async (credentialId: string) => {
     setChecking((prev) => ({ ...prev, [credentialId]: true }))
@@ -165,32 +151,9 @@ export function CliConfigForm({ planWindowNow }: { planWindowNow?: number } = {}
     }
   }
 
-  const startReauth = async (cli: CliTool, cache: RedactedCliAuthCacheEntry) => {
-    try {
-      const loginId = await startAuthLogin(cli, cache.name, { credentialId: cache.id })
-      setReauth({ credentialId: cache.id, loginId })
-      setPasteCode('')
-    } catch {
-      // startAuthLogin rejects synchronously only on a transport error; ignore.
-    }
-  }
-
-  const cancelReauth = async () => {
-    if (!reauth) return
-    try {
-      await cancelAuthLogin(reauth.loginId)
-    } catch {
-      // best-effort cancel
-    }
-    setReauth(null)
-    setPasteCode('')
-  }
-
-  const submitReauthCode = () => {
-    const code = pasteCode.trim()
-    if (!reauth || !code) return
-    void submitLoginInput(reauth.loginId, code)
-    setPasteCode('')
+  const startReauth = (cli: CliTool, cache: RedactedCliAuthCacheEntry) => {
+    setReauthPressed(cache.id)
+    reauth.start({ cli, label: cache.name, credentialId: cache.id })
   }
 
   const cliGroups = useMemo(
@@ -630,11 +593,8 @@ export function CliConfigForm({ planWindowNow }: { planWindowNow?: number } = {}
               const capView =
                 capState.kind === 'result' ? cliCapabilityCardView(capState.card) : undefined
               const status = cache.authStatus
-              const isReauthing = reauth?.credentialId === cache.id
-              const reauthOut = isReauthing ? (loginOutput[reauth.loginId] ?? '') : ''
-              const reauthSignInUrl = isReauthing ? parseLoginUrl(reauthOut) : null
-              const reauthAwaitsCode = isReauthing ? loginAwaitsCode(reauthOut) : false
-              const reauthResult = isReauthing ? loginResults[reauth.loginId] : undefined
+              const isReauthing = reauth.pending?.credentialId === cache.id
+              const reauthError = reauthPressed === cache.id ? reauth.error : undefined
               return (
                 <View
                   key={cache.id}
@@ -779,8 +739,8 @@ export function CliConfigForm({ planWindowNow }: { planWindowNow?: number } = {}
                     <Button
                       size="sm"
                       variant={status && !status.authenticated ? 'success' : 'outline'}
-                      disabled={isReauthing}
-                      onPress={() => void startReauth(cli, cache)}
+                      loading={isReauthing && reauth.starting}
+                      onPress={() => startReauth(cli, cache)}
                       accessibilityLabel="Re-authenticate this credential in place"
                     >
                       Re-authenticate
@@ -877,104 +837,15 @@ export function CliConfigForm({ planWindowNow }: { planWindowNow?: number } = {}
 
                   {capView ? <CliCapabilityCardPanel view={capView} /> : null}
 
-                  {isReauthing ? (
-                    <View
-                      style={{
-                        gap: nativeSpace[3],
-                        borderRadius: nativeRadii[1],
-                        borderWidth: 1,
-                        borderColor: theme.border.default,
-                        backgroundColor: theme.surface.muted,
-                        paddingHorizontal: nativeSpace[5],
-                        paddingVertical: nativeSpace[4],
-                      }}
-                    >
-                      <View
-                        style={{
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: nativeSpace[3],
-                        }}
-                      >
-                        <Text
-                          style={{
-                            flex: 1,
-                            fontSize: 13,
-                            fontWeight: '500',
-                            color: theme.text.primary,
-                          }}
-                        >
-                          Re-authenticating {cliLabel(cache.cli)}…
-                        </Text>
-                        <Button size="sm" variant="outline" onPress={() => void cancelReauth()}>
-                          Cancel
-                        </Button>
-                      </View>
-                      {reauthSignInUrl ? (
-                        <Button size="sm" onPress={() => void Linking.openURL(reauthSignInUrl)}>
-                          Open the sign-in page to finish
-                        </Button>
-                      ) : (
-                        <View
-                          style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            gap: nativeSpace[3],
-                          }}
-                        >
-                          <Spinner size={12} />
-                          <Text style={{ fontSize: 12, color: theme.text.secondary }}>
-                            Starting login…
-                          </Text>
-                        </View>
-                      )}
-                      {reauthAwaitsCode ? (
-                        <View
-                          style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            gap: nativeSpace[3],
-                          }}
-                        >
-                          <View style={{ flex: 1 }}>
-                            <Input
-                              value={pasteCode}
-                              onChangeText={setPasteCode}
-                              placeholder="Paste the code from the browser"
-                              autoCapitalize="none"
-                              autoCorrect={false}
-                              onSubmitEditing={submitReauthCode}
-                            />
-                          </View>
-                          <Button size="sm" variant="outline" onPress={submitReauthCode}>
-                            Submit
-                          </Button>
-                        </View>
-                      ) : null}
-                      {reauthResult?.status === 'error' ? (
-                        <Text style={{ fontSize: 12, color: nativeLightStatus.stuck.bg }}>
-                          {reauthResult.error}
-                        </Text>
-                      ) : null}
-                      {reauthOut ? (
-                        <ScrollView
-                          style={{ maxHeight: 128 }}
-                          nestedScrollEnabled
-                          keyboardShouldPersistTaps="handled"
-                        >
-                          <Text
-                            style={{
-                              fontFamily: 'Courier',
-                              fontSize: 11,
-                              color: theme.text.secondary,
-                            }}
-                          >
-                            {reauthOut}
-                          </Text>
-                        </ScrollView>
-                      ) : null}
-                    </View>
+                  {isReauthing && !reauth.starting ? (
+                    <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+                      {CLI_SIGN_IN_TEXT.signingIn}
+                    </Text>
+                  ) : null}
+                  {reauthError ? (
+                    <Text style={{ fontSize: 12, color: nativeLightStatus.stuck.bg }}>
+                      {reauthError}
+                    </Text>
                   ) : null}
                 </View>
               )

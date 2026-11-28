@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { SignInSessionState } from 'thefactory-tools/types'
 import type { McpServerRow, McpServerStanding } from '../utils/mcpServersTypes'
 
 const api = vi.hoisted(() => ({
@@ -14,10 +15,11 @@ const api = vi.hoisted(() => ({
 
 vi.mock('../api/mcpServersApi', () => api)
 
+import { MCP_SERVER_SIGN_IN_FAILED } from '../utils/mcpServersConstants'
+import { SIGN_IN_SESSION_TEXT } from '../utils/signInSessionConstants'
 import { McpServersStore } from './mcpServersStore'
 
 const OWNER = { kind: 'group' as const, groupId: 'osc' }
-const BACKEND = 'http://localhost:7001'
 
 const row = (id: string, over: Partial<McpServerRow> = {}): McpServerRow => ({
   id,
@@ -51,7 +53,34 @@ const backendError = (error: string) => ({
   response: { status: 422, data: { error } },
 })
 
-const store = () => new McpServersStore(OWNER, () => BACKEND)
+const session = (id: string, over: Partial<SignInSessionState> = {}): SignInSessionState => ({
+  id,
+  kind: 'mcp-server',
+  subject: `group:osc:${id}`,
+  title: 'Sign in to s1',
+  status: 'open',
+  surface: { kind: 'browser' },
+  startedAt: '2026-11-27T12:00:00.000Z',
+  expiresAt: '2026-11-27T12:15:00.000Z',
+  ...over,
+})
+
+function fakeSignIn() {
+  const endings = new Set<(ended: SignInSessionState) => void>()
+  return {
+    show: vi.fn(),
+    onEnded: (listener: (ended: SignInSessionState) => void) => {
+      endings.add(listener)
+      return () => {
+        endings.delete(listener)
+      }
+    },
+    end: (ended: SignInSessionState) => endings.forEach((ending) => ending(ended)),
+    held: () => endings.size,
+  }
+}
+
+const store = (signIn = fakeSignIn()) => new McpServersStore(OWNER, signIn)
 
 beforeEach(() => {
   for (const fn of Object.values(api)) fn.mockReset()
@@ -190,7 +219,7 @@ describe('McpServersStore changes', () => {
 
   it('removes a server, forgetting what it knew of it', async () => {
     api.testMcpServer.mockResolvedValue({ status: 'connected', tools: [] })
-    api.startMcpServerSignIn.mockResolvedValue('https://auth.example.com')
+    api.startMcpServerSignIn.mockResolvedValue(session('a'))
     const s = store()
     await s.test('s1')
     await s.signIn('s1')
@@ -252,90 +281,188 @@ describe('McpServersStore changes', () => {
 })
 
 describe('McpServersStore sign-in', () => {
-  it('sends the callback under the backend URL and answers the page to open', async () => {
-    api.startMcpServerSignIn.mockResolvedValue('https://auth.example.com/a')
-    const s = store()
-    expect(await s.signIn('s1')).toBe('https://auth.example.com/a')
-    expect(api.startMcpServerSignIn).toHaveBeenCalledWith(
-      OWNER,
-      's1',
-      'http://localhost:7001/api/v1/mcp-servers/oauth/callback',
-    )
-    expect(s.getState().signIns).toEqual({ s1: 'https://auth.example.com/a' })
+  const signedIn = () => {
+    const signIn = fakeSignIn()
+    const s = store(signIn)
+    const release = s.retain()
+    return { signIn, s, release }
+  }
+
+  it('shows starting at once, then shows the session the backend opened', async () => {
+    api.startMcpServerSignIn.mockResolvedValue(session('a'))
+    const { s, signIn } = signedIn()
+    const going = s.signIn('s1')
+    expect(s.getState()).toMatchObject({ signIns: { s1: { step: 'starting' } }, error: null })
+    await going
+    expect(api.startMcpServerSignIn).toHaveBeenCalledWith(OWNER, 's1')
+    expect(signIn.show).toHaveBeenCalledWith(session('a'))
+    expect(s.getState().signIns).toEqual({ s1: { step: 'open', session: session('a') } })
+    expect(s.getState().busy).toBe(false)
   })
 
-  it('asks for the backend URL when it signs in, so a changed URL is the one sent', async () => {
-    api.startMcpServerSignIn.mockResolvedValue('https://auth.example.com/a')
-    let url = 'http://one:7001'
-    const s = new McpServersStore(OWNER, () => url)
-    url = 'http://two:7001'
+  it('asks once however often it is pressed while starting', async () => {
+    const answer = deferred<SignInSessionState>()
+    api.startMcpServerSignIn.mockReturnValue(answer.promise)
+    const { s } = signedIn()
+    const first = s.signIn('s1')
     await s.signIn('s1')
-    expect(api.startMcpServerSignIn.mock.calls[0]?.[2]).toMatch(/^http:\/\/two:7001/)
+    answer.resolve(session('a'))
+    await first
+    expect(api.startMcpServerSignIn).toHaveBeenCalledTimes(1)
   })
 
-  it('shows the reason when it cannot start, and opens nothing', async () => {
-    api.startMcpServerSignIn.mockRejectedValue(backendError('The server has no sign-in'))
-    const s = store()
-    expect(await s.signIn('s1')).toBeUndefined()
-    expect(s.getState()).toMatchObject({ error: 'The server has no sign-in', signIns: {} })
+  it('shows the open sign-in again on a press while it is open, asking nothing', async () => {
+    api.startMcpServerSignIn.mockResolvedValue(session('a'))
+    const { s, signIn } = signedIn()
+    await s.signIn('s1')
+    await s.signIn('s1')
+    expect(api.startMcpServerSignIn).toHaveBeenCalledTimes(1)
+    expect(signIn.show).toHaveBeenCalledTimes(2)
   })
 
-  it('opens nothing but a web page: the address comes from an outside server', async () => {
-    api.startMcpServerSignIn.mockResolvedValue('file:///etc/passwd')
-    const s = store()
-    expect(await s.signIn('s1')).toBeUndefined()
-    expect(s.getState()).toMatchObject({
-      error: 'The server gave a sign-in page that can’t be opened.',
-      signIns: {},
-    })
-  })
-
-  it('refuses with no backend URL rather than send a broken one', async () => {
-    const s = new McpServersStore(OWNER, () => null)
-    expect(await s.signIn('s1')).toBeUndefined()
-    expect(api.startMcpServerSignIn).not.toHaveBeenCalled()
-    expect(s.getState().error).toBe('Not connected to a backend yet.')
-  })
-
-  it('finishes every sign-in on the signed-in event and reads again', async () => {
-    api.startMcpServerSignIn.mockResolvedValue('https://auth.example.com/a')
-    const s = store()
+  it('keeps each server’s sign-in to itself', async () => {
+    api.startMcpServerSignIn.mockResolvedValueOnce(session('a')).mockResolvedValueOnce(session('b'))
+    const { s, signIn } = signedIn()
     await s.signIn('s1')
     await s.signIn('s2')
-    api.listMcpServers.mockResolvedValue([row('s1', { hasCredential: true })])
-    await s.onEvent({ action: 'signed-in' })
-    expect(s.getState().signIns).toEqual({})
-    expect(s.getState().rows?.[0]?.hasCredential).toBe(true)
+    signIn.end(session('a', { status: 'closed' }))
+    expect(s.getState().signIns).toEqual({ s2: { step: 'open', session: session('b') } })
   })
 
-  it('keeps a sign-in waiting through other events: only its own end clears it', async () => {
-    api.startMcpServerSignIn.mockResolvedValue('https://auth.example.com/a')
-    const s = store()
+  it('rolls back with the backend’s words when it cannot start, showing nothing', async () => {
+    api.startMcpServerSignIn.mockRejectedValue(backendError('The server has no sign-in'))
+    const { s, signIn } = signedIn()
+    await s.signIn('s1')
+    expect(s.getState()).toMatchObject({ error: 'The server has no sign-in', signIns: {} })
+    expect(signIn.show).not.toHaveBeenCalled()
+  })
+
+  it('falls back to its own words for a refusal it cannot read', async () => {
+    api.startMcpServerSignIn.mockRejectedValue({})
+    const { s } = signedIn()
+    await s.signIn('s1')
+    expect(s.getState().error).toBe(MCP_SERVER_SIGN_IN_FAILED)
+  })
+
+  it('reads again once its session finished', async () => {
+    api.startMcpServerSignIn.mockResolvedValue(session('a'))
+    const { s, signIn } = signedIn()
+    await s.signIn('s1')
+    api.listMcpServers.mockResolvedValue([row('s1', { hasCredential: true })])
+    signIn.end(session('a', { status: 'finished' }))
+    expect(s.getState().signIns).toEqual({})
+    await vi.waitFor(() => expect(s.getState().rows?.[0]?.hasCredential).toBe(true))
+    expect(s.getState().error).toBeNull()
+  })
+
+  it('says why a session that ran out or failed ended', async () => {
+    api.startMcpServerSignIn.mockResolvedValue(session('a'))
+    const { s, signIn } = signedIn()
+    await s.signIn('s1')
+    signIn.end(session('a', { status: 'timed-out' }))
+    expect(s.getState()).toMatchObject({ signIns: {}, error: SIGN_IN_SESSION_TEXT.timedOut })
+    await s.signIn('s1')
+    signIn.end(session('a', { status: 'failed', error: 'The server said no.' }))
+    expect(s.getState()).toMatchObject({ signIns: {}, error: 'The server said no.' })
+  })
+
+  it('goes back without a word when the person closed it', async () => {
+    api.startMcpServerSignIn.mockResolvedValue(session('a'))
+    const { s, signIn } = signedIn()
+    await s.signIn('s1')
+    signIn.end(session('a', { status: 'closed' }))
+    expect(s.getState()).toMatchObject({ signIns: {}, error: null })
+    expect(api.listMcpServers).not.toHaveBeenCalled()
+  })
+
+  it('ignores a session it did not start', async () => {
+    api.startMcpServerSignIn.mockResolvedValue(session('a'))
+    const { s, signIn } = signedIn()
+    await s.signIn('s1')
+    signIn.end(session('other', { status: 'timed-out' }))
+    expect(s.getState()).toMatchObject({ signIns: { s1: { step: 'open' } }, error: null })
+  })
+
+  it('keeps an ending heard before the start answered, showing nothing', async () => {
+    const answer = deferred<SignInSessionState>()
+    api.startMcpServerSignIn.mockReturnValue(answer.promise)
+    const { s, signIn } = signedIn()
+    const going = s.signIn('s1')
+    signIn.end(session('other', { status: 'closed' }))
+    signIn.end(session('a', { status: 'timed-out' }))
+    answer.resolve(session('a'))
+    await going
+    expect(signIn.show).not.toHaveBeenCalled()
+    expect(s.getState()).toMatchObject({ signIns: {}, error: SIGN_IN_SESSION_TEXT.timedOut })
+  })
+
+  it('forgets endings once nothing is starting', async () => {
+    const answer = deferred<SignInSessionState>()
+    api.startMcpServerSignIn.mockReturnValueOnce(answer.promise)
+    const { s, signIn } = signedIn()
+    const going = s.signIn('s1')
+    signIn.end(session('b', { status: 'closed' }))
+    answer.resolve(session('a'))
+    await going
+    api.startMcpServerSignIn.mockResolvedValueOnce(session('b'))
+    await s.signIn('s2')
+    expect(s.getState().signIns.s2).toEqual({ step: 'open', session: session('b') })
+  })
+
+  it('stops hearing endings once released, however often released', () => {
+    const { signIn, release } = signedIn()
+    expect(signIn.held()).toBe(1)
+    release()
+    release()
+    expect(signIn.held()).toBe(0)
+  })
+
+  it('hears once however many hold it', () => {
+    const { signIn, s, release } = signedIn()
+    const second = s.retain()
+    expect(signIn.held()).toBe(1)
+    second()
+    expect(signIn.held()).toBe(1)
+    release()
+    expect(signIn.held()).toBe(0)
+  })
+
+  it('keeps a sign-in open through other events', async () => {
+    api.startMcpServerSignIn.mockResolvedValue(session('a'))
+    const { s } = signedIn()
     await s.refresh()
     await s.signIn('s1')
     await s.onEvent({ action: 'updated', serverId: 's9', groupId: 'osc' })
-    expect(s.getState().signIns).toEqual({ s1: 'https://auth.example.com/a' })
-    expect(api.listMcpServers).toHaveBeenCalled()
+    await s.onEvent({ action: 'signed-in' })
+    expect(s.getState().signIns).toEqual({ s1: { step: 'open', session: session('a') } })
   })
 
-  it('keeps a sign-in waiting when the person comes back without finishing', async () => {
-    api.startMcpServerSignIn.mockResolvedValue('https://auth.example.com/a')
+  it('keeps a sign-in open when a read shows its server still wants one', async () => {
+    api.startMcpServerSignIn.mockResolvedValue(session('a'))
     api.listMcpServerStatus.mockResolvedValue([standing('s1', 'needs-sign-in')])
-    const s = store()
+    const { s } = signedIn()
     await s.signIn('s1')
     await s.refresh()
-    expect(s.getState().signIns).toEqual({ s1: 'https://auth.example.com/a' })
+    expect(s.getState().signIns).toEqual({ s1: { step: 'open', session: session('a') } })
   })
 
-  it('finishes a sign-in whose event was missed: a read shows it came up', async () => {
-    api.startMcpServerSignIn.mockResolvedValue('https://auth.example.com/a')
-    api.listMcpServers.mockResolvedValue([row('s1', { hasCredential: true })])
+  it('ends a sign-in whose ending was missed: a read shows its server came up', async () => {
+    api.startMcpServerSignIn.mockResolvedValue(session('a'))
     api.listMcpServerStatus.mockResolvedValue([standing('s1', 'needs-sign-in')])
-    const s = store()
+    const { s } = signedIn()
     await s.refresh()
     await s.signIn('s1')
     api.listMcpServerStatus.mockResolvedValue([standing('s1', 'connected')])
     await s.refresh()
+    expect(s.getState().signIns).toEqual({})
+  })
+
+  it('drops a removed server’s sign-in', async () => {
+    api.startMcpServerSignIn.mockResolvedValue(session('a'))
+    api.removeMcpServer.mockResolvedValue(undefined)
+    const { s } = signedIn()
+    await s.signIn('s1')
+    expect(await s.remove('s1')).toBe(true)
     expect(s.getState().signIns).toEqual({})
   })
 })

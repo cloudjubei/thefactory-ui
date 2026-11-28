@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import type { FormEvent } from 'react'
 import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
@@ -15,7 +15,7 @@ import CredentialHelpPanel from './CredentialHelpPanel'
 import McpServerCaptureSignIn from './McpServerCaptureSignIn'
 import { useCliConfigs } from '../../../headless/contexts/CliConfigsContext'
 import { useCliSignIn } from '../../../headless/hooks/useCliSignIn'
-import { CLI_CLIENT_OPENS_LOGIN_URL } from '../../../headless/utils/cliRunner'
+import { CLI_SIGN_IN_TEXT } from '../../../headless/utils/cliSignInConstants'
 import {
   captureFailureText,
   captureCloudIdSite,
@@ -38,13 +38,6 @@ import {
   CAPTURE_CANCEL_ERROR,
   CAPTURE_CANCEL_LABEL,
   CAPTURE_SUBMIT_ERROR,
-  CLI_SIGN_IN_AUTHORIZE_HINT,
-  CLI_SIGN_IN_CODE_LABEL,
-  CLI_SIGN_IN_CODE_PLACEHOLDER,
-  CLI_SIGN_IN_CODE_SUBMIT,
-  CLI_SIGN_IN_COPY_LINK,
-  CLI_SIGN_IN_OPEN_LINK,
-  CLI_SIGN_IN_STARTING,
 } from '../../../headless/utils/credentialCaptureConstants'
 import type {
   CredentialCapture,
@@ -79,8 +72,8 @@ export type CredentialCaptureCardProps = {
  * chat state, an error message, or the agent's transcript, which only ever
  * learns that the capture resolved and which credential it produced.
  *
- * A CLI sign-in card stores nothing typed: it runs the Settings sign-in for the
- * card, with its link and code box here, and the backend answers the card once
+ * A CLI sign-in card stores nothing typed: it opens the Settings sign-in for
+ * the card in the app's sign-in view, and the backend answers the card once
  * the sign-in succeeds. A server card adds its server here, then moves to signing
  * in if the server wants that; the backend answers that one as well.
  */
@@ -115,18 +108,9 @@ export default function CredentialCaptureCard({
   const signInCard = isCliSignInCapture(capture)
   const { caches } = useCliConfigs()
   const signIn = useCliSignIn()
-  const [code, setCode] = useState('')
+  const signingIn = signIn.pending !== undefined
   const storedName = caches.find((c) => c.id === capture.replacesId)?.name
   const signInRequest = cliSignInRequest(capture, values, storedName)
-  // A container sign-in cannot open the browser: a tab opened during the click
-  // (so it is not popup-blocked) is pointed at the link once it streams in.
-  const pendingTabRef = useRef<Window | null>(null)
-  useEffect(() => {
-    const tab = pendingTabRef.current
-    if (!signIn.url || !tab) return
-    pendingTabRef.current = null
-    if (!tab.closed) tab.location.href = signIn.url
-  }, [signIn.url])
 
   const errorFor = (name: CredentialCaptureFieldName) =>
     touched.includes(name) ? errors[name] : undefined
@@ -158,13 +142,7 @@ export default function CredentialCaptureCard({
     e.preventDefault()
     if (locked || !canSubmit) return
     if (signInCard) {
-      if (signIn.loginId || signIn.starting) return
-      if (CLI_CLIENT_OPENS_LOGIN_URL.has(signInRequest.cli)) {
-        pendingTabRef.current = window.open('about:blank', '_blank')
-      }
-      void signIn.start(signInRequest).then((id) => {
-        if (id === null) pendingTabRef.current?.close()
-      })
+      signIn.start(signInRequest)
       return
     }
     void run(async () => {
@@ -197,7 +175,7 @@ export default function CredentialCaptureCard({
                     <NativeSelect
                       value={values[field.name]}
                       onChange={(e) => set(field.name, e.target.value)}
-                      disabled={locked || signIn.loginId !== null}
+                      disabled={locked || signingIn}
                     >
                       {(field.options ?? []).map((option) => (
                         <option key={option.value} value={option.value}>
@@ -226,7 +204,7 @@ export default function CredentialCaptureCard({
                       onBlur={() => markTouched(field.name)}
                       placeholder={field.placeholder}
                       autoComplete="off"
-                      disabled={locked || signIn.loginId !== null}
+                      disabled={locked || signingIn}
                       invalid={Boolean(errorFor(field.name))}
                     />
                   )}
@@ -237,62 +215,10 @@ export default function CredentialCaptureCard({
 
           {help ? <CredentialHelpPanel help={help} /> : null}
 
-          {signIn.loginId ? (
-            <div className="flex flex-col gap-1.5 rounded-md border border-(--border-default) bg-(--surface-base) p-2">
-              {signIn.url ? (
-                <>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <a
-                      href={signIn.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-sm text-(--accent-primary) underline"
-                    >
-                      {CLI_SIGN_IN_OPEN_LINK}
-                    </a>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => void navigator.clipboard?.writeText(signIn.url ?? '')}
-                    >
-                      {CLI_SIGN_IN_COPY_LINK}
-                    </Button>
-                  </div>
-                  <span className="text-[11px] text-(--text-secondary)">
-                    {CLI_SIGN_IN_AUTHORIZE_HINT}
-                  </span>
-                </>
-              ) : (
-                <span className="text-[11px] text-(--text-secondary)">{CLI_SIGN_IN_STARTING}</span>
-              )}
-              {signIn.needsCode ? (
-                <Field label={CLI_SIGN_IN_CODE_LABEL}>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      size="sm"
-                      value={code}
-                      onChange={(e) => setCode(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key !== 'Enter') return
-                        e.preventDefault()
-                        void signIn.submitCode(code).then(() => setCode(''))
-                      }}
-                      placeholder={CLI_SIGN_IN_CODE_PLACEHOLDER}
-                      autoComplete="off"
-                      spellCheck={false}
-                    />
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() => void signIn.submitCode(code).then(() => setCode(''))}
-                    >
-                      {CLI_SIGN_IN_CODE_SUBMIT}
-                    </Button>
-                  </div>
-                </Field>
-              ) : null}
-            </div>
+          {signingIn && !signIn.starting ? (
+            <span className="text-[11px] text-(--text-secondary)">
+              {CLI_SIGN_IN_TEXT.signingIn}
+            </span>
           ) : null}
 
           {signIn.error ? <Alert>{signIn.error}</Alert> : null}
@@ -306,23 +232,21 @@ export default function CredentialCaptureCard({
               disabled={locked}
               onClick={() =>
                 void run(async () => {
-                  await signIn.cancel()
+                  await signIn.stop()
                   await onCancel()
                 }, CAPTURE_CANCEL_ERROR)
               }
             >
               {CAPTURE_CANCEL_LABEL}
             </Button>
-            {signIn.loginId === null ? (
-              <Button
-                type="submit"
-                size="sm"
-                loading={busy || signIn.starting}
-                disabled={locked || !canSubmit}
-              >
-                {captureSubmitLabel(capture)}
-              </Button>
-            ) : null}
+            <Button
+              type="submit"
+              size="sm"
+              loading={busy || signIn.starting}
+              disabled={locked || !canSubmit}
+            >
+              {captureSubmitLabel(capture)}
+            </Button>
           </div>
         </form>
       ) : null}

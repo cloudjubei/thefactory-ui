@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import {
-  checkProjectGithubName,
-  startGitCredentialGithubDevice,
-  pollGitCredentialGithubDevice,
-} from '../api/generated'
+import { checkProjectGithubName } from '../api/generated'
+import { useGithubSignIn } from './useGithubSignIn'
 
 /** Availability of the chosen repository name on the connected account. */
 export type GithubRepoNameStatus = 'unknown' | 'checking' | 'available' | 'taken' | 'error'
@@ -72,12 +69,11 @@ export interface UseProjectGithubRepoResult {
   repoName: string
   setRepoName(value: string): void
   status: GithubRepoNameStatus
-  /** Start the GitHub device-authorization flow (drives a connect popup). */
-  connect(): Promise<void>
-  /** Abandon an in-flight connect (e.g. the popup was dismissed). */
-  cancelConnect(): void
+  /** Sign in with GitHub inside the app, or show the sign-in open again. */
+  connect(): void
+  /** The press is on its way. */
   connecting: boolean
-  device?: { userCode: string; verificationUri: string }
+  /** Why the sign-in did not start or finish. */
   connectError?: string
   /** True when submit should take the create-repo path (connected + valid name). */
   ready: boolean
@@ -88,7 +84,7 @@ export interface UseProjectGithubRepoResult {
 /**
  * Drives the "create a GitHub repository" option in the project-create wizard:
  * resolves whether GitHub is connected, checks repo-name availability (debounced),
- * and runs the device-authorization flow when the user needs to connect. Shared
+ * and signs in with GitHub inside the app when the user needs to connect. Shared
  * across clients; the per-client field component renders this state.
  */
 export function useProjectGithubRepo(
@@ -99,18 +95,20 @@ export function useProjectGithubRepo(
   const [enabled, setEnabled] = useState(false)
   const [repoName, setRepoNameState] = useState(() => sanitizeRepoName(opts.defaultName))
   const [status, setStatus] = useState<GithubRepoNameStatus>('unknown')
-  const [connecting, setConnecting] = useState(false)
-  const [device, setDevice] = useState<{ userCode: string; verificationUri: string } | undefined>(
-    undefined,
-  )
-  const [connectError, setConnectError] = useState<string | undefined>(undefined)
   const [checkNonce, setCheckNonce] = useState(0)
 
   const nameEditedRef = useRef(false)
   const didAutoEnableRef = useRef(false)
-  // A per-invocation token for connect(); a stale loop bails once it no longer
-  // matches, so a cancel-then-reconnect can't resurrect the old poll.
-  const connectRunRef = useRef<object | null>(null)
+  const github = useGithubSignIn('git-credential')
+  const signedIn = github.state.step === 'done'
+
+  useEffect(() => {
+    if (!signedIn) return
+    setConnected(true)
+    didAutoEnableRef.current = true
+    setEnabled(true)
+    setCheckNonce((n) => n + 1)
+  }, [signedIn])
 
   const setRepoName = useCallback((value: string) => {
     nameEditedRef.current = true
@@ -158,56 +156,6 @@ export function useProjectGithubRepo(
     }
   }, [repoName, checkNonce])
 
-  const connect = useCallback(async () => {
-    const myRun = {}
-    connectRunRef.current = myRun
-    const stale = () => connectRunRef.current !== myRun
-    setConnecting(true)
-    setConnectError(undefined)
-    try {
-      const { data: start } = await startGitCredentialGithubDevice({ throwOnError: true })
-      if (stale()) return
-      if (!start) throw new Error('Could not start GitHub authorization.')
-      setDevice({ userCode: start.userCode, verificationUri: start.verificationUri })
-      let intervalMs = Math.max(start.intervalMs || 5000, 1000)
-      const deadline = start.expiresAt || Date.now() + 15 * 60 * 1000
-      for (;;) {
-        if (stale()) return
-        if (Date.now() > deadline) throw new Error('GitHub authorization timed out.')
-        await new Promise((resolve) => setTimeout(resolve, intervalMs))
-        if (stale()) return
-        const { data: poll } = await pollGitCredentialGithubDevice({
-          body: { flowId: start.flowId },
-          throwOnError: true,
-        })
-        if (poll?.status === 'authorized') {
-          setLogin(poll.credential?.username)
-          break
-        }
-        if (poll?.status === 'slow_down') intervalMs += 2000
-      }
-      if (stale()) return
-      setDevice(undefined)
-      setConnected(true)
-      didAutoEnableRef.current = true
-      setEnabled(true)
-      setCheckNonce((n) => n + 1)
-    } catch (err) {
-      if (stale()) return
-      setDevice(undefined)
-      setConnectError(err instanceof Error ? err.message : 'GitHub authorization failed.')
-    } finally {
-      if (connectRunRef.current === myRun) setConnecting(false)
-    }
-  }, [])
-
-  const cancelConnect = useCallback(() => {
-    connectRunRef.current = null
-    setConnecting(false)
-    setDevice(undefined)
-    setConnectError(undefined)
-  }, [])
-
   const { ready, validationError } = githubRepoReadiness({ enabled, connected, repoName, status })
 
   return {
@@ -218,11 +166,9 @@ export function useProjectGithubRepo(
     repoName,
     setRepoName,
     status,
-    connect,
-    cancelConnect,
-    connecting,
-    device,
-    connectError,
+    connect: github.start,
+    connecting: github.busy,
+    ...(github.state.error ? { connectError: github.state.error } : {}),
     ready,
     validationError,
   }

@@ -53,8 +53,6 @@ function Checks({ address }: { address: URLSearchParams }) {
           onClientIdChange={noop}
           onSignIn={noop}
           onSignInAgain={noop}
-          onOpenAgain={noop}
-          onBackOut={noop}
           onWatch={noop}
           onClear={noop}
           onSkipStatuses={noop}

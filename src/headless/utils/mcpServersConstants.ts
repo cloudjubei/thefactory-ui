@@ -9,9 +9,6 @@ import type {
 /** The event the backend sends when a server changes or a sign-in finishes. */
 export const MCP_SERVERS_EVENT = 'mcpServers:updated'
 
-/** Where a server's sign-in returns to, under the backend's own URL. */
-export const MCP_SIGN_IN_CALLBACK_PATH = '/api/v1/mcp-servers/oauth/callback'
-
 /** Longest name the backend keeps. */
 export const MCP_SERVER_NAME_MAX = 64
 
@@ -49,7 +46,6 @@ export const MCP_SERVER_ACTIONS = {
   saveToken: 'Save token',
   test: 'Test',
   remove: 'Remove',
-  openPage: 'Open it',
 } as const
 
 export const MCP_SERVER_FIELD_LABELS = {
@@ -121,8 +117,6 @@ export const MCP_SERVER_ONLY_READS_LABEL = 'This server only reads'
 
 export const MCP_SERVER_ONLY_READS_HINT = 'Its tools run without asking you, and runs can use them.'
 
-export const MCP_SERVER_SIGN_IN_PENDING = 'Finish in your browser. Nothing opened?'
-
 export const MCP_SERVER_TOKEN_SAVED_HINT = 'A token is saved. Leave blank to keep it.'
 
 export const MCP_SERVER_TOKEN_HINT = 'Stored safely. It is never shown again.'
@@ -153,7 +147,3 @@ export const MCP_SERVER_SIGN_IN_FAILED = 'Could not start the sign-in.'
 export const MCP_SERVER_TEST_FAILED = 'Could not test the server.'
 
 export const MCP_SERVER_EDIT_FAILED = 'Could not change the setting.'
-
-export const MCP_SERVER_NO_BACKEND = 'Not connected to a backend yet.'
-
-export const MCP_SERVER_BAD_SIGN_IN_PAGE = 'The server gave a sign-in page that can’t be opened.'

@@ -4,6 +4,7 @@ import {
   MCP_SERVER_AUTH_HINTS,
   MCP_SERVER_AUTH_LABELS,
   MCP_SERVER_AUTH_ORDER,
+  SIGN_IN_SESSION_TEXT,
 } from 'thefactory-ui/headless'
 import { Button, Field, Input, SegmentedControl } from 'thefactory-ui/web'
 // Not on the package's public surface: the chat renders them itself.
@@ -39,8 +40,6 @@ const CARD: CredentialCapture = {
 
 const SIGNING_IN: CredentialCapture = { ...CARD, mcpServer: { ...LINEAR, serverId: 'linear' } }
 
-const SIGN_IN_PAGE = 'https://linear.app/oauth/authorize?client_id=overseer'
-
 function Card({
   capture = CARD,
   values,
@@ -64,17 +63,16 @@ function Card({
   )
 }
 
-function SignIn({ pendingUrl, error }: { pendingUrl?: string; error?: string }) {
+function SignIn({ starting = false, error }: { starting?: boolean; error?: string }) {
   return (
     <Dock>
       <CaptureCardShell capture={SIGNING_IN}>
         <McpServerSignInStep
           url={LINEAR.url}
-          pendingUrl={pendingUrl}
-          busy={false}
+          starting={starting}
+          cancelling={false}
           error={error ?? null}
           onSignIn={noop}
-          onOpenPage={noop}
           onCancel={noop}
         />
       </CaptureCardShell>
@@ -239,10 +237,17 @@ export const MCP_SERVER_CARD_SCENES: Scene[] = [
         render: () => <SignIn />,
       },
       {
-        id: 'sign-in-waiting',
-        title: 'Finishing in the browser',
-        description: 'The backend answers the card when the browser comes back.',
-        render: () => <SignIn pendingUrl={SIGN_IN_PAGE} />,
+        id: 'sign-in-starting',
+        title: 'Opening the sign-in',
+        description:
+          'Shown at once on the press; the server’s page then shows inside the app, and the backend answers the card once it finished.',
+        render: () => <SignIn starting />,
+      },
+      {
+        id: 'sign-in-timed-out',
+        title: 'The sign-in ran out',
+        description: 'It closed by itself after 15 minutes; Sign in opens a new one.',
+        render: () => <SignIn error={SIGN_IN_SESSION_TEXT.timedOut} />,
       },
       {
         id: 'sign-in-failed',

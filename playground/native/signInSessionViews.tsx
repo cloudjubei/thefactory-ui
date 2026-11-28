@@ -45,7 +45,6 @@ function Flow() {
         page={<LivePage step="live" />}
         onClose={() => setStage('closed')}
         onAnswer={noop}
-        onOpenLink={noop}
       />
     )
   return (
@@ -72,14 +71,18 @@ function SignIn({ address }: { address: URLSearchParams }) {
       {state === 'flow' ? (
         <Flow />
       ) : prompt ? (
-        <SignInSessionPanel view={prompt} onClose={noop} onAnswer={noop} onOpenLink={noop} />
+        <SignInSessionPanel
+          view={prompt}
+          page={prompt.page ? <LivePage step="live" /> : undefined}
+          onClose={noop}
+          onAnswer={noop}
+        />
       ) : (
         <SignInSessionPanel
           view={CLIPS_VIEW}
           page={<LivePage step={PAGE_STEPS[state] ?? 'live'} />}
           onClose={noop}
           onAnswer={noop}
-          onOpenLink={noop}
         />
       )}
     </View>
@@ -88,8 +91,8 @@ function SignIn({ address }: { address: URLSearchParams }) {
 
 /**
  * A sign-in inside the app on mobile, at `?view=sign-in-session&state=…`: page, page-opening,
- * page-reconnecting, prompt-starting, prompt-link-and-code, prompt-answering, prompt-refused,
- * prompt-link-only, flow — as the web scene. It is a screen of its own, and the line under the
+ * page-reconnecting, prompt-starting, prompt-page-and-code, prompt-answering, prompt-refused,
+ * prompt-device-code, prompt-page-only, prompt-finishing, flow — as the web scene. It is a screen of its own, and the line under the
  * page types into the field the person tapped.
  */
 export const SIGN_IN_SESSION_VIEWS: readonly NativeView[] = [

@@ -71,12 +71,7 @@ const SETTINGS: Record<string, SlackReviewSettingsState> = {
     connections: [],
     status: SOURCE_NONE,
     clientId: '1234567890.9876543210',
-    signIn: {
-      step: 'waiting',
-      page: 'https://slack.com/oauth/v2/authorize',
-      signInId: 's1',
-      error: null,
-    },
+    signIn: { step: 'starting', error: null },
   }),
   connected: slackSettings({ status: SOURCE_NONE }),
   'thread-ready': slackSettings(),
@@ -114,8 +109,6 @@ function Settings({ address }: { address: URLSearchParams }) {
         onClientIdChange={(clientId) => setState({ ...state, clientId })}
         onSignIn={noop}
         onSignInAgain={noop}
-        onOpenAgain={noop}
-        onBackOut={noop}
         onWatch={noop}
         onClear={noop}
         onSkipStatuses={(text) =>

@@ -1,7 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
-  cancelCliAuthLogin,
   checkCliAuthStatus,
   createCliAuthCache,
   deleteCliAuthCache,
@@ -20,8 +19,6 @@ import {
   setCliEffort as apiSetCliEffort,
   setCliModelEffort as apiSetCliModelEffort,
   setCliEnabled as apiSetCliEnabled,
-  startCliAuthLogin,
-  submitCliAuthLoginInput,
   updateCliAuthCache,
   type CheckCliAuthStatusResponse,
   type CliAuthCacheCreateInput,
@@ -60,20 +57,11 @@ export type CliImageUpdateEvent =
   | { updateId: string; cli: string; type: 'error'; event: { updateId: string; error: string } }
 
 const CLI_IMAGE_UPSTREAM_TTL_MS = 6 * 60 * 60 * 1000
-import {
-  enabledClis as deriveEnabledClis,
-  groupCachesByCli,
-  parseCliAuthLoginEvent,
-} from '../utils/cliRunner'
+import { enabledClis as deriveEnabledClis, groupCachesByCli } from '../utils/cliRunner'
 
 export type CliLiveProbeResult =
   | { ok: true; durationMs: number; transcriptHead: string }
   | { ok: false; error: string; durationMs: number }
-
-/** Terminal outcome of an auth-login, keyed by loginId — lets a form leave the streaming pane. */
-export type CliAuthLoginResult =
-  | { status: 'completed'; credentialId: string }
-  | { status: 'error'; error: string }
 
 /** The model catalogue plus the reasoning-effort ladder a CLI accepts, from one probe. */
 export type CliProbeResult = { models: ModelInfo[]; efforts: CliReasoningEffort[] }
@@ -154,24 +142,6 @@ export type CliConfigsContextValue = {
    * refreshes the cache list so the chip + settings reflect it. Returns the status.
    */
   checkAuth: (credentialId: string) => Promise<CheckCliAuthStatusResponse>
-  /**
-   * Start a CLI login. Pass `credentialId` to RE-AUTHENTICATE that credential in
-   * place (same id, so every binding to it keeps working); omit it to create a new
-   * credential. Pass `captureId` for the agent's sign-in card it answers. Returns
-   * the `loginId` to correlate streamed output + the result.
-   */
-  startAuthLogin: (
-    cli: CliTool,
-    label: string,
-    options?: { credentialId?: string; captureId?: string },
-  ) => Promise<string>
-  cancelAuthLogin: (loginId: string) => Promise<void>
-  /** Feed a line (e.g. a pasted OAuth code) to a login subprocess's stdin. */
-  submitLoginInput: (loginId: string, text: string) => Promise<void>
-  /** Accumulated login-subprocess output keyed by loginId (fed by the `cli:auth-login` WS). */
-  loginOutput: Record<string, string>
-  /** Terminal login outcomes keyed by loginId — present once a login completes or errors. */
-  loginResults: Record<string, CliAuthLoginResult>
   refresh: () => Promise<void>
 }
 
@@ -192,8 +162,6 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
   const [subscriptionWindowsError, setSubscriptionWindowsError] = useState<string>()
   const [isLoaded, setIsLoaded] = useState(false)
   const [loadError, setLoadError] = useState<Error | null>(null)
-  const [loginOutput, setLoginOutput] = useState<Record<string, string>>({})
-  const [loginResults, setLoginResults] = useState<Record<string, CliAuthLoginResult>>({})
   // Live model lists keyed by `${cli}:${credentialId}`, populated on a manual
   // refresh and cleared whenever a credential changes (the list is account-aware).
   const [liveModelsCache, setLiveModelsCache] = useState<Record<string, ModelInfo[]>>({})
@@ -205,7 +173,7 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
     setLiveModelsCache({})
   }, [])
 
-  // Refreshes overlap (a login completing and its status broadcast arrive
+  // Refreshes overlap (a sign-in finishing and its status broadcast arrive
   // together); only the newest may land, or an older read puts a cleared
   // "Needs re-auth" back.
   const refreshSeqRef = useRef(0)
@@ -245,39 +213,6 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
     if (!token) return
     void refresh()
   }, [token, refresh])
-
-  useEffect(
-    () =>
-      ws.on('cli:auth-login', (data) => {
-        const parsed = parseCliAuthLoginEvent(data)
-        if (!parsed) return
-        if (parsed.kind === 'chunk') {
-          // The chunk already carries the subprocess's own newlines — append verbatim.
-          setLoginOutput((prev) => ({
-            ...prev,
-            [parsed.loginId]: (prev[parsed.loginId] ?? '') + parsed.text,
-          }))
-          return
-        }
-        if (parsed.kind === 'completed') {
-          setLoginResults((prev) => ({
-            ...prev,
-            [parsed.loginId]: { status: 'completed', credentialId: parsed.credentialId },
-          }))
-          void refresh()
-          return
-        }
-        setLoginOutput((prev) => ({
-          ...prev,
-          [parsed.loginId]: (prev[parsed.loginId] ?? '') + parsed.error + '\n',
-        }))
-        setLoginResults((prev) => ({
-          ...prev,
-          [parsed.loginId]: { status: 'error', error: parsed.error },
-        }))
-      }),
-    [ws, refresh],
-  )
 
   // A CLI credential's auth health changed server-side (a run/inference just failed auth → stale, or a
   // re-login cleared it). Refresh the caches so the model chip's re-auth badge appears/clears at once —
@@ -435,29 +370,6 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
     },
     [refresh],
   )
-
-  const startAuthLogin = useCallback(
-    async (
-      cli: CliTool,
-      label: string,
-      options: { credentialId?: string; captureId?: string } = {},
-    ) => {
-      const { data } = await startCliAuthLogin({
-        body: { cli, label, ...options },
-        throwOnError: true,
-      })
-      return data.loginId
-    },
-    [],
-  )
-
-  const cancelAuthLogin = useCallback(async (loginId: string) => {
-    await cancelCliAuthLogin({ path: { loginId }, throwOnError: true })
-  }, [])
-
-  const submitLoginInput = useCallback(async (loginId: string, text: string) => {
-    await submitCliAuthLoginInput({ path: { loginId }, body: { text }, throwOnError: true })
-  }, [])
 
   const cachesByCli = useMemo(() => groupCachesByCli(caches), [caches])
   const enabledClis = useMemo(() => deriveEnabledClis(activeState), [activeState])
@@ -625,11 +537,6 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
       cliImagesLoading,
       capabilityScorecards,
       checkAuth,
-      startAuthLogin,
-      cancelAuthLogin,
-      submitLoginInput,
-      loginOutput,
-      loginResults,
       refresh,
     }),
     [
@@ -656,11 +563,6 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
       probeCapability,
       capabilityScorecards,
       checkAuth,
-      startAuthLogin,
-      cancelAuthLogin,
-      submitLoginInput,
-      loginOutput,
-      loginResults,
       refresh,
     ],
   )

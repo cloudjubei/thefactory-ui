@@ -13,7 +13,6 @@ import {
   MCP_SERVERS_MAIN_GROUP_INTRO,
   MCP_SERVERS_PROJECT_INTRO,
   MCP_SERVERS_SCOPE_GROUP_INTRO,
-  MCP_SIGN_IN_CALLBACK_PATH,
 } from './mcpServersConstants'
 import type {
   McpServerAccess,
@@ -21,6 +20,7 @@ import type {
   McpServerInput,
   McpServerOwner,
   McpServerRow,
+  McpServerSignIn,
   McpServerSignIns,
   McpServerStanding,
   McpServerStatus,
@@ -39,17 +39,6 @@ const sameText = (a: string, b: string): boolean =>
 
 const sameAddress = (a: string, b: string): boolean =>
   sameText(a.replace(/\/+\s*$/, ''), b.replace(/\/+\s*$/, ''))
-
-/** The URL a sign-in returns to, as the browser doing it reaches this backend. */
-export function mcpSignInRedirectUrl(backendUrl: string | null | undefined): string | undefined {
-  const base = backendUrl?.trim().replace(/\/+$/, '')
-  return base ? `${base}${MCP_SIGN_IN_CALLBACK_PATH}` : undefined
-}
-
-/** A page a browser may be sent to. Its address comes from an outside server, and desktop and mobile hand it to the OS. */
-export function isMcpSignInPage(url: string): boolean {
-  return /^https?:\/\/[^/?#]/i.test(url)
-}
 
 /** What the section says it is for, on a project or a group. */
 export function mcpServersIntro(
@@ -139,7 +128,7 @@ function statusOf(
   return statusRead || statusFailed ? 'unknown' : 'checking'
 }
 
-function accessOf(row: McpServerRow, status: McpServerStatusView, pendingUrl?: string) {
+function accessOf(row: McpServerRow, status: McpServerStatusView, signIn?: McpServerSignIn) {
   if (row.authType === 'bearer') {
     return { kind: 'token', saved: row.hasCredential } satisfies McpServerAccess
   }
@@ -148,7 +137,7 @@ function accessOf(row: McpServerRow, status: McpServerStatusView, pendingUrl?: s
   return {
     kind: 'sign-in',
     label: signedIn ? MCP_SERVER_ACTIONS.signInAgain : MCP_SERVER_ACTIONS.signIn,
-    ...(pendingUrl ? { pendingUrl } : {}),
+    ...(signIn?.step === 'starting' ? { starting: true } : {}),
   } satisfies McpServerAccess
 }
 

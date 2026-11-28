@@ -108,9 +108,6 @@ import type {
   CancelCliAgentActionData,
   CancelCliAgentActionErrors,
   CancelCliAgentActionResponses,
-  CancelCliAuthLoginData,
-  CancelCliAuthLoginErrors,
-  CancelCliAuthLoginResponses,
   CancelCredentialCaptureData,
   CancelCredentialCaptureErrors,
   CancelCredentialCaptureResponses,
@@ -169,12 +166,6 @@ import type {
   CompactChatNowData,
   CompactChatNowErrors,
   CompactChatNowResponses,
-  CompleteGitCredentialGithubRedirectData,
-  CompleteGitCredentialGithubRedirectErrors,
-  CompleteGitCredentialGithubRedirectResponses,
-  CompleteOverseerGithubAuthData,
-  CompleteOverseerGithubAuthErrors,
-  CompleteOverseerGithubAuthResponses,
   ConfirmOverseerLocalOnlyData,
   ConfirmOverseerLocalOnlyResponses,
   ConsolidateChatData,
@@ -420,6 +411,9 @@ import type {
   FindJiraCloudIdData,
   FindJiraCloudIdErrors,
   FindJiraCloudIdResponses,
+  FinishGithubSignInData,
+  FinishGithubSignInErrors,
+  FinishGithubSignInResponses,
   FinishMcpServerSignInData,
   FinishMcpServerSignInErrors,
   FinishMcpServerSignInResponses,
@@ -603,9 +597,6 @@ import type {
   GetOverseerGitDiffSummaryData,
   GetOverseerGitDiffSummaryErrors,
   GetOverseerGitDiffSummaryResponses,
-  GetOverseerGithubAuthUrlData,
-  GetOverseerGithubAuthUrlErrors,
-  GetOverseerGithubAuthUrlResponses,
   GetOverseerGitLogData,
   GetOverseerGitLogErrors,
   GetOverseerGitLogResponses,
@@ -1126,12 +1117,6 @@ import type {
   PlanProcessGroupLegRebuildData,
   PlanProcessGroupLegRebuildErrors,
   PlanProcessGroupLegRebuildResponses,
-  PollGitCredentialGithubDeviceData,
-  PollGitCredentialGithubDeviceErrors,
-  PollGitCredentialGithubDeviceResponses,
-  PollOverseerGithubDeviceFlowData,
-  PollOverseerGithubDeviceFlowErrors,
-  PollOverseerGithubDeviceFlowResponses,
   PollRunnerJobData,
   PollRunnerJobErrors,
   PollRunnerJobResponses,
@@ -1222,6 +1207,9 @@ import type {
   ReadGroupTicketPreviewData,
   ReadGroupTicketPreviewErrors,
   ReadGroupTicketPreviewResponses,
+  ReadOverseerGithubSignInData,
+  ReadOverseerGithubSignInErrors,
+  ReadOverseerGithubSignInResponses,
   ReadProjectLiveDataData,
   ReadProjectLiveDataErrors,
   ReadProjectLiveDataResponses,
@@ -1593,18 +1581,15 @@ import type {
   StartFeatureRequestWorkData,
   StartFeatureRequestWorkErrors,
   StartFeatureRequestWorkResponses,
-  StartGitCredentialGithubDeviceData,
-  StartGitCredentialGithubDeviceErrors,
-  StartGitCredentialGithubDeviceResponses,
-  StartGitCredentialGithubRedirectData,
-  StartGitCredentialGithubRedirectErrors,
-  StartGitCredentialGithubRedirectResponses,
+  StartGitCredentialGithubSignInData,
+  StartGitCredentialGithubSignInErrors,
+  StartGitCredentialGithubSignInResponses,
   StartGroupMcpServerSignInData,
   StartGroupMcpServerSignInErrors,
   StartGroupMcpServerSignInResponses,
-  StartOverseerGithubDeviceFlowData,
-  StartOverseerGithubDeviceFlowErrors,
-  StartOverseerGithubDeviceFlowResponses,
+  StartOverseerGithubSignInData,
+  StartOverseerGithubSignInErrors,
+  StartOverseerGithubSignInResponses,
   StartProcessRunChangesData,
   StartProcessRunChangesErrors,
   StartProcessRunChangesResponses,
@@ -1646,9 +1631,6 @@ import type {
   StopProcessRunWaitingResponses,
   StopVideoSetupJobData,
   StopVideoSetupJobResponses,
-  SubmitCliAuthLoginInputData,
-  SubmitCliAuthLoginInputErrors,
-  SubmitCliAuthLoginInputResponses,
   SubmitCredentialCaptureData,
   SubmitCredentialCaptureErrors,
   SubmitCredentialCaptureResponses,
@@ -1778,9 +1760,6 @@ import type {
   WithdrawProcessRunChangeData,
   WithdrawProcessRunChangeErrors,
   WithdrawProcessRunChangeResponses,
-  WithdrawProviderSignInData,
-  WithdrawProviderSignInErrors,
-  WithdrawProviderSignInResponses,
   WriteFileData,
   WriteFileErrors,
   WriteFileExactReplacesData,
@@ -2359,7 +2338,7 @@ export const setGroupMcpServerToken = <ThrowOnError extends boolean = false>(
   })
 
 /**
- * Open the `authorizationUrl` in a browser. When the sign-in finishes, `mcpServers:updated` arrives with `action: "signed-in"`.
+ * Open the server’s sign-in page inside the app, in the person’s sign-in profile on the machine this backend runs on, as a sign-in session: the answer is the session to show. The page comes back to this backend’s own callback, `http://localhost:<PORT>/api/v1/mcp-servers/oauth/callback`. The session finishes once the credential is kept there, and `mcpServers:updated` arrives with `action: "signed-in"`; it closes when the person declined or it failed. Asking again while the server’s sign-in is open answers the open one. 422 when the server cannot start a sign-in, 502 when the page could not be opened.
  */
 export const startGroupMcpServerSignIn = <ThrowOnError extends boolean = false>(
   options: Options<StartGroupMcpServerSignInData, ThrowOnError>,
@@ -2373,10 +2352,6 @@ export const startGroupMcpServerSignIn = <ThrowOnError extends boolean = false>(
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/projects-groups/{id}/mcp-servers/{serverId}/sign-in',
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
   })
 
 /**
@@ -2501,7 +2476,7 @@ export const setProjectMcpServerToken = <ThrowOnError extends boolean = false>(
   })
 
 /**
- * Open the `authorizationUrl` in a browser. When the sign-in finishes, `mcpServers:updated` arrives with `action: "signed-in"`.
+ * Open the server’s sign-in page inside the app, in the person’s sign-in profile on the machine this backend runs on, as a sign-in session: the answer is the session to show. The page comes back to this backend’s own callback, `http://localhost:<PORT>/api/v1/mcp-servers/oauth/callback`. The session finishes once the credential is kept there, and `mcpServers:updated` arrives with `action: "signed-in"`; it closes when the person declined or it failed. Asking again while the server’s sign-in is open answers the open one. 422 when the server cannot start a sign-in, 502 when the page could not be opened.
  */
 export const startProjectMcpServerSignIn = <ThrowOnError extends boolean = false>(
   options: Options<StartProjectMcpServerSignInData, ThrowOnError>,
@@ -2515,10 +2490,6 @@ export const startProjectMcpServerSignIn = <ThrowOnError extends boolean = false
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/projects/{id}/mcp-servers/{serverId}/sign-in',
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
   })
 
 /**
@@ -2539,7 +2510,7 @@ export const testProjectMcpServer = <ThrowOnError extends boolean = false>(
   })
 
 /**
- * Where an authorization server sends the browser back to. Needs no bearer token, and answers a page telling the person to go back to the app.
+ * Where an authorization server sends the sign-in page back to, on the machine this backend runs on. Needs no bearer token, keeps the credential, and answers a fixed page the sign-in closes over.
  */
 export const finishMcpServerSignIn = <ThrowOnError extends boolean = false>(
   options: Options<FinishMcpServerSignInData, ThrowOnError>,
@@ -5463,7 +5434,7 @@ export const revealGitCredentialToken = <ThrowOnError extends boolean = false>(
   })
 
 /**
- * Whether each provider can be signed in with: its client id, secret and redirect URL are all there (Slack: the redirect URL alone). Says no more than that.
+ * Whether each provider can be signed in with: its client id and secret are both there (Slack always can). Says no more than that.
  */
 export const readProviderOAuthSetup = <ThrowOnError extends boolean = false>(
   options?: Options<ReadProviderOAuthSetupData, ThrowOnError>,
@@ -5480,7 +5451,7 @@ export const readProviderOAuthSetup = <ThrowOnError extends boolean = false>(
   })
 
 /**
- * Open the `authorizationUrl` in a browser. The sign-in ends in the browser: `providerConnections:signIn` says how, and `GET /provider-connections/oauth/sign-ins/:signInId` answers a client that missed it. `github`, `jira` and `slack`; Slack takes the person’s own app’s `clientId` and signs in with PKCE, no secret.
+ * Open the provider’s sign-in page inside the app, in the person’s sign-in profile on the machine this backend runs on, as a sign-in session: the answer is the `signInId` and the session to show. The page comes back to this backend’s own callback, `http://localhost:<PORT>/api/v1/provider-connections/oauth/callback`; the session finishes once the connection is kept there and closes when the person declined or it failed, and `providerConnections:signIn` says how it ended. Asking again while a sign-in to the same provider is open opens nothing more and answers the open one. `github`, `jira` and `slack`; Slack takes the person’s own app’s `clientId` and signs in with PKCE, no secret. 400 when it cannot start, 502 when the page could not be opened.
  */
 export const startProviderOAuth = <ThrowOnError extends boolean = false>(
   options: Options<StartProviderOAuthData, ThrowOnError>,
@@ -5501,7 +5472,7 @@ export const startProviderOAuth = <ThrowOnError extends boolean = false>(
   })
 
 /**
- * Where a provider sends the browser back to. Needs no bearer token, and answers a page telling the person to go back to the app.
+ * Where a provider sends the sign-in page back to, on the machine this backend runs on. Needs no bearer token, keeps the connection, and answers a fixed page the sign-in closes over.
  */
 export const finishProviderOAuth = <ThrowOnError extends boolean = false>(
   options: Options<FinishProviderOAuthData, ThrowOnError>,
@@ -5514,22 +5485,6 @@ export const finishProviderOAuth = <ThrowOnError extends boolean = false>(
     responseType: 'text',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/provider-connections/oauth/callback',
-    ...options,
-  })
-
-/**
- * The person backed out: a browser that still comes back changes nothing.
- */
-export const withdrawProviderSignIn = <ThrowOnError extends boolean = false>(
-  options: Options<WithdrawProviderSignInData, ThrowOnError>,
-) =>
-  (options.client ?? client).delete<
-    WithdrawProviderSignInResponses,
-    WithdrawProviderSignInErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/v1/provider-connections/oauth/sign-ins/{signInId}',
     ...options,
   })
 
@@ -5845,17 +5800,20 @@ export const setAgentRunLlmConfig = <ThrowOnError extends boolean = false>(
     },
   })
 
-export const startGitCredentialGithubRedirect = <ThrowOnError extends boolean = false>(
-  options: Options<StartGitCredentialGithubRedirectData, ThrowOnError>,
+/**
+ * Sign in to GitHub inside the app for a new git credential: the answer is the session to show. The credential is kept once the sign-in finishes (`gitCredentials:updated`), and the session ends. With the OAuth app’s secret it is GitHub’s own page, coming back to `http://localhost:<PORT>/api/v1/github/oauth/callback`; with the client id alone the device flow, GitHub’s device page beside the code to copy. Asking again while one is open answers the open one. 502 when GitHub or the page could not be reached, 503 when GitHub sign-in is not set up.
+ */
+export const startGitCredentialGithubSignIn = <ThrowOnError extends boolean = false>(
+  options: Options<StartGitCredentialGithubSignInData, ThrowOnError>,
 ) =>
   (options.client ?? client).post<
-    StartGitCredentialGithubRedirectResponses,
-    StartGitCredentialGithubRedirectErrors,
+    StartGitCredentialGithubSignInResponses,
+    StartGitCredentialGithubSignInErrors,
     ThrowOnError
   >({
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/v1/git-credentials/github/redirect/start',
+    url: '/api/v1/git-credentials/github/sign-in',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -5863,54 +5821,55 @@ export const startGitCredentialGithubRedirect = <ThrowOnError extends boolean = 
     },
   })
 
-export const completeGitCredentialGithubRedirect = <ThrowOnError extends boolean = false>(
-  options: Options<CompleteGitCredentialGithubRedirectData, ThrowOnError>,
-) =>
-  (options.client ?? client).post<
-    CompleteGitCredentialGithubRedirectResponses,
-    CompleteGitCredentialGithubRedirectErrors,
-    ThrowOnError
-  >({
-    responseType: 'json',
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/v1/git-credentials/github/redirect/callback',
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  })
-
-export const startGitCredentialGithubDevice = <ThrowOnError extends boolean = false>(
-  options?: Options<StartGitCredentialGithubDeviceData, ThrowOnError>,
+/**
+ * Sign in to GitHub inside the app for the overseer’s own repo: the answer is the session to show. Once it finished, `GET /overseer/github/sign-ins/:sessionId` answers the `tokenId` for `createOverseerGithubRepo`, and a `default` git credential is kept. The same flows as a git credential’s sign-in. 502 when GitHub or the page could not be reached, 503 when GitHub sign-in is not set up.
+ */
+export const startOverseerGithubSignIn = <ThrowOnError extends boolean = false>(
+  options?: Options<StartOverseerGithubSignInData, ThrowOnError>,
 ) =>
   (options?.client ?? client).post<
-    StartGitCredentialGithubDeviceResponses,
-    StartGitCredentialGithubDeviceErrors,
+    StartOverseerGithubSignInResponses,
+    StartOverseerGithubSignInErrors,
     ThrowOnError
   >({
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/v1/git-credentials/github/device/start',
+    url: '/api/v1/overseer/github/sign-in',
     ...options,
   })
 
-export const pollGitCredentialGithubDevice = <ThrowOnError extends boolean = false>(
-  options: Options<PollGitCredentialGithubDeviceData, ThrowOnError>,
+/**
+ * The `tokenId` an overseer GitHub sign-in brought, once its session finished. 404 for a session that has not finished signed in, or one this backend no longer holds.
+ */
+export const readOverseerGithubSignIn = <ThrowOnError extends boolean = false>(
+  options: Options<ReadOverseerGithubSignInData, ThrowOnError>,
 ) =>
-  (options.client ?? client).post<
-    PollGitCredentialGithubDeviceResponses,
-    PollGitCredentialGithubDeviceErrors,
+  (options.client ?? client).get<
+    ReadOverseerGithubSignInResponses,
+    ReadOverseerGithubSignInErrors,
     ThrowOnError
   >({
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/v1/git-credentials/github/device/poll',
+    url: '/api/v1/overseer/github/sign-ins/{sessionId}',
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+  })
+
+/**
+ * Where GitHub sends the sign-in page back to, on the machine this backend runs on. Needs no bearer token, keeps what the sign-in brought, and answers a fixed page the sign-in closes over.
+ */
+export const finishGithubSignIn = <ThrowOnError extends boolean = false>(
+  options: Options<FinishGithubSignInData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    FinishGithubSignInResponses,
+    FinishGithubSignInErrors,
+    ThrowOnError
+  >({
+    responseType: 'text',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/github/oauth/callback',
+    ...options,
   })
 
 export const listActionRules = <ThrowOnError extends boolean = false>(
@@ -9365,38 +9324,6 @@ export const startCliAuthLogin = <ThrowOnError extends boolean = false>(
     },
   })
 
-export const cancelCliAuthLogin = <ThrowOnError extends boolean = false>(
-  options: Options<CancelCliAuthLoginData, ThrowOnError>,
-) =>
-  (options.client ?? client).post<
-    CancelCliAuthLoginResponses,
-    CancelCliAuthLoginErrors,
-    ThrowOnError
-  >({
-    responseType: 'json',
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/v1/cli-auth/login/{loginId}/cancel',
-    ...options,
-  })
-
-export const submitCliAuthLoginInput = <ThrowOnError extends boolean = false>(
-  options: Options<SubmitCliAuthLoginInputData, ThrowOnError>,
-) =>
-  (options.client ?? client).post<
-    SubmitCliAuthLoginInputResponses,
-    SubmitCliAuthLoginInputErrors,
-    ThrowOnError
-  >({
-    responseType: 'json',
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/v1/cli-auth/login/{loginId}/input',
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  })
-
 export const getChatOpenChanges = <ThrowOnError extends boolean = false>(
   options: Options<GetChatOpenChangesData, ThrowOnError>,
 ) =>
@@ -10940,70 +10867,6 @@ export const listOverseerAuthProviders = <ThrowOnError extends boolean = false>(
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/overseer/auth-providers',
     ...options,
-  })
-
-export const getOverseerGithubAuthUrl = <ThrowOnError extends boolean = false>(
-  options?: Options<GetOverseerGithubAuthUrlData, ThrowOnError>,
-) =>
-  (options?.client ?? client).get<
-    GetOverseerGithubAuthUrlResponses,
-    GetOverseerGithubAuthUrlErrors,
-    ThrowOnError
-  >({
-    responseType: 'json',
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/v1/overseer/github/auth-url',
-    ...options,
-  })
-
-export const completeOverseerGithubAuth = <ThrowOnError extends boolean = false>(
-  options: Options<CompleteOverseerGithubAuthData, ThrowOnError>,
-) =>
-  (options.client ?? client).post<
-    CompleteOverseerGithubAuthResponses,
-    CompleteOverseerGithubAuthErrors,
-    ThrowOnError
-  >({
-    responseType: 'json',
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/v1/overseer/github/callback',
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  })
-
-export const startOverseerGithubDeviceFlow = <ThrowOnError extends boolean = false>(
-  options?: Options<StartOverseerGithubDeviceFlowData, ThrowOnError>,
-) =>
-  (options?.client ?? client).post<
-    StartOverseerGithubDeviceFlowResponses,
-    StartOverseerGithubDeviceFlowErrors,
-    ThrowOnError
-  >({
-    responseType: 'json',
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/v1/overseer/github/device/start',
-    ...options,
-  })
-
-export const pollOverseerGithubDeviceFlow = <ThrowOnError extends boolean = false>(
-  options: Options<PollOverseerGithubDeviceFlowData, ThrowOnError>,
-) =>
-  (options.client ?? client).post<
-    PollOverseerGithubDeviceFlowResponses,
-    PollOverseerGithubDeviceFlowErrors,
-    ThrowOnError
-  >({
-    responseType: 'json',
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/v1/overseer/github/device/poll',
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
   })
 
 export const createOverseerGithubRepo = <ThrowOnError extends boolean = false>(

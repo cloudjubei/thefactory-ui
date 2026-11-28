@@ -12,6 +12,7 @@ import type {
   ProjectNoteSummary,
   RecordingSiteState,
   SignInSessionState,
+  StartCliAuthLoginData,
   RedactedCliAuthCacheEntry,
   RedactedGitCredentialEntry,
   RedactedWebSearchKeyEntry,
@@ -58,6 +59,61 @@ export function fakeRecordingSignIn(site: RecordingSiteState): SignInSessionStat
     kind: 'recording-site',
     subject: site.id,
     title: `Sign in to ${site.name}`,
+    status: 'open',
+    surface: { kind: 'browser' },
+    startedAt: '2026-01-05T09:00:00.000Z',
+    expiresAt: '2026-01-05T09:15:00.000Z',
+  }
+}
+
+const FAKE_CLI_SIGN_IN_TITLE: Record<string, string> = {
+  'claude-code': 'Sign in to Claude Code',
+  'cursor-agent': 'Sign in to Cursor Agent',
+  codex: 'Sign in to Codex',
+}
+
+/**
+ * The session a fake CLI agent's sign-in answers with, as the backend's own
+ * prompt for that CLI reads: Claude Code asks for a code back, the others show
+ * one to enter on the page. No command runs behind it, so it never finishes.
+ */
+export function fakeCliSignIn({
+  cli,
+  credentialId,
+}: StartCliAuthLoginData['body']): SignInSessionState {
+  const subject = credentialId ?? cli
+  return {
+    id: `fake-sign-in-cli-${subject}`,
+    kind: 'cli-login',
+    subject,
+    title: FAKE_CLI_SIGN_IN_TITLE[cli] ?? `Sign in to ${cli}`,
+    status: 'open',
+    surface:
+      cli === 'claude-code'
+        ? {
+            kind: 'prompt',
+            message: 'Sign in on the page. If it shows a code, paste it here.',
+            url: 'https://auth.cli.example/sign-in',
+            input: { label: 'Code' },
+          }
+        : {
+            kind: 'prompt',
+            message: 'Sign in on the page, then enter this code there.',
+            url: 'https://auth.cli.example/device',
+            code: 'FAKE-1234',
+          },
+    startedAt: '2026-01-05T09:00:00.000Z',
+    expiresAt: '2026-01-05T09:15:00.000Z',
+  }
+}
+
+/** The session a fake GitHub sign-in answers with, for a git credential or the overseer. No browser runs behind it, so it never ends. */
+export function fakeGithubSignIn(subject: 'git-credential' | 'bootstrap'): SignInSessionState {
+  return {
+    id: `fake-sign-in-github-${subject}`,
+    kind: 'github',
+    subject,
+    title: 'Sign in to GitHub',
     status: 'open',
     surface: { kind: 'browser' },
     startedAt: '2026-01-05T09:00:00.000Z',

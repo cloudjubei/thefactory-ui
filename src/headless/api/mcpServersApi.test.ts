@@ -76,15 +76,11 @@ describe('the MCP server calls', () => {
     })
   })
 
-  it('start a sign-in with the URL to return to, and answer the page to open', async () => {
-    client.post.mockResolvedValue({ data: { authorizationUrl: 'https://auth.example.com' } })
-    expect(await startMcpServerSignIn(GROUP, 's1', 'http://b/callback')).toBe(
-      'https://auth.example.com',
-    )
+  it('start a sign-in with no body, and answer the session the app shows', async () => {
+    client.post.mockResolvedValue({ data: { session: { id: 'sess-1' } } })
+    expect(await startMcpServerSignIn(GROUP, 's1')).toEqual({ id: 'sess-1' })
     expect(client.post).toHaveBeenCalledWith({
       url: '/api/v1/projects-groups/osc/mcp-servers/s1/sign-in',
-      body: { redirectUrl: 'http://b/callback' },
-      headers: { 'Content-Type': 'application/json' },
       throwOnError: true,
     })
   })

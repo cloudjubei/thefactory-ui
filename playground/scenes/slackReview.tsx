@@ -3,6 +3,8 @@ import type { ColleagueReview } from 'thefactory-tools/types'
 import {
   ChatActionsProvider,
   DEFAULT_APP_SETTINGS,
+  PROVIDER_OAUTH_COPY,
+  SIGN_IN_SESSION_TEXT,
   REVIEW_OFFER_DEFAULT_LAYOUT,
   REVIEW_OFFER_LAYOUT_LABELS,
   REVIEW_OFFER_LAYOUTS,
@@ -122,8 +124,6 @@ function Settings({
       onClientIdChange={(clientId) => setShown({ ...shown, clientId })}
       onSignIn={noop}
       onSignInAgain={noop}
-      onOpenAgain={noop}
-      onBackOut={noop}
       onWatch={noop}
       onClear={noop}
       onSkipStatuses={(text) =>
@@ -501,19 +501,29 @@ export const SLACK_REVIEW_SCENES: Scene[] = [
       },
       {
         id: 'signing-in',
-        title: 'Signing in, in the browser',
-        description: 'It moves on by itself once Slack sends the person back.',
+        title: 'Opening the sign-in',
+        description:
+          'Shown at once on the press, while the backend opens Slack’s page; it then shows inside the app, and the person is back here once it ends.',
         render: () =>
           settings({
             state: slackSettings({
               ...NOT_CONNECTED_INPUT,
               clientId: '1234567890.9876543210',
-              signIn: {
-                step: 'waiting',
-                page: 'https://slack.com/oauth/v2/authorize',
-                signInId: 's1',
-                error: null,
-              },
+              signIn: { step: 'starting', error: null },
+            }),
+          }),
+      },
+      {
+        id: 'sign-in-timed-out',
+        title: 'A sign-in that ran out',
+        description:
+          'Nobody finished it for 15 minutes: it closed by itself, and the block says so.',
+        render: () =>
+          settings({
+            state: slackSettings({
+              ...NOT_CONNECTED_INPUT,
+              clientId: '1234567890.9876543210',
+              signIn: { step: 'ready', error: SIGN_IN_SESSION_TEXT.timedOut },
             }),
           }),
       },
@@ -525,7 +535,7 @@ export const SLACK_REVIEW_SCENES: Scene[] = [
             state: slackSettings({
               ...NOT_CONNECTED_INPUT,
               clientId: '1234567890.9876543210',
-              signIn: { step: 'ready', error: 'The sign-in was declined in the browser.' },
+              signIn: { step: 'ready', error: PROVIDER_OAUTH_COPY.declined },
             }),
           }),
       },

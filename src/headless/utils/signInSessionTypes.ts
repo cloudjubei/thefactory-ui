@@ -41,8 +41,12 @@ export interface SignInSessionView {
   surface: 'browser' | 'prompt'
   /** A prompt's line. */
   message?: string
-  /** A link a prompt has the person open in their own browser. */
-  link?: string
+  /** A prompt's address shows as a live page beside it, inside the app. */
+  page?: true
+  /** The address that page opened on, shown above it. */
+  address?: string
+  /** A code the person copies onto that page. */
+  code?: string
   /** The value a prompt asks for. */
   input?: SignInSessionInputView
   /** A prompt's answer is on its way. */

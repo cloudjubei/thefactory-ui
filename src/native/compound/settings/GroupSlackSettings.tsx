@@ -24,15 +24,12 @@ import SegmentedControl from '../../primitives/SegmentedControl'
 import { Switch } from '../../primitives/Switch'
 import ToneBadge from '../chips/ToneBadge'
 import { useClipboardHost } from '../ClipboardHostContext'
-import ProviderOAuthWaiting from './ProviderOAuthWaiting'
 import { ReviewMergeChecksPanel } from './ReviewMergeChecks'
 
 export type SlackReviewSettingsActions = {
   onClientIdChange: (clientId: string) => void
   onSignIn: () => void
   onSignInAgain: () => void
-  onOpenAgain: () => void
-  onBackOut: () => void
   onWatch: (permalink: string, offerExistingReplies: boolean) => void
   onClear: () => void
   onSkipStatuses: (text: string) => void
@@ -153,15 +150,6 @@ function ConnectionPart({ state, actions }: PartProps) {
   const { view, clientId, signIn } = state
   const { connection } = view
   const muted = { fontSize: 13, color: theme.text.secondary }
-  if (signIn.step === 'waiting') {
-    return (
-      <ProviderOAuthWaiting
-        error={signIn.error}
-        onOpenAgain={actions.onOpenAgain}
-        onBackOut={actions.onBackOut}
-      />
-    )
-  }
   if (connection.kind === 'connected') {
     return (
       <View style={{ gap: nativeSpace[2] }}>
@@ -175,7 +163,7 @@ function ConnectionPart({ state, actions }: PartProps) {
             size="sm"
             variant="ghost"
             accessibilityHint={TEXT.signInAgainHint}
-            loading={signIn.step === 'opening'}
+            loading={signIn.step === 'starting'}
             onPress={actions.onSignInAgain}
           >
             {TEXT.signInAgain}
@@ -197,7 +185,7 @@ function ConnectionPart({ state, actions }: PartProps) {
         <Text style={muted}>{TEXT.signInAgainWhy}</Text>
         <Button
           variant="primary"
-          loading={signIn.step === 'opening'}
+          loading={signIn.step === 'starting'}
           onPress={actions.onSignInAgain}
         >
           {TEXT.signInAgain}
@@ -266,7 +254,7 @@ function ConnectionPart({ state, actions }: PartProps) {
       <Button
         variant="primary"
         disabled={!connection.canSignIn || clientIdProblem !== undefined}
-        loading={signIn.step === 'opening'}
+        loading={signIn.step === 'starting'}
         onPress={actions.onSignIn}
       >
         {TEXT.signIn}
@@ -551,22 +539,12 @@ export type GroupSlackSettingsProps = {
 export default function GroupSlackSettings({ groupId }: GroupSlackSettingsProps) {
   const slack = useGroupSlackSettings(groupId)
   const checks = useReviewMergeChecks(groupId)
-  const open = (going: Promise<string | undefined>) => {
-    void going.then((page) => {
-      if (page) void Linking.openURL(page)
-    })
-  }
-  const { signIn } = slack
   return (
     <SlackReviewSettingsPanel
       state={slack}
       onClientIdChange={slack.setClientId}
-      onSignIn={() => open(slack.startSignIn())}
-      onSignInAgain={() => open(slack.signInAgain())}
-      onOpenAgain={() => {
-        if (signIn.step === 'waiting') void Linking.openURL(signIn.page)
-      }}
-      onBackOut={slack.backOut}
+      onSignIn={slack.startSignIn}
+      onSignInAgain={slack.signInAgain}
       onWatch={slack.watch}
       onClear={slack.clear}
       onSkipStatuses={slack.setSkipStatuses}
